@@ -73,6 +73,11 @@ class FunctionEmissionMixin:
         if symtype in self._variant_types:
             # sum-types: a `#@ datatype`-typed param is its Why3 variant type.
             return f"({safe}: {self._variant_types[symtype]['whyml_name']})"
+        # self-tcb-reduction T1.a: an IR-node-typed param (`node: "ExprIR"`) is `emit_ir` (the
+        # signature counterpart of `_symtype_to_whyml`), so the `_handle_*_expr` handlers reflect
+        # on it. Byte-safe: no corpus method annotates a param with the IR-node base names.
+        if symtype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "exprir"):
+            return f"({safe}: emit_ir)"
         return f"({safe}: {int_type})"
 
     def _callable_whyml_arrow(self, symtype: str) -> str:
@@ -617,6 +622,21 @@ class FunctionEmissionMixin:
         if not isinstance(elt, dict):
             return "int"
         t = elt.get("type")
+        # tuple-return-of-emit_ir feature: a slot that lowers to the `emit_ir` sum (an IR-node
+        # sub-projection `expr["receiver"]`, an inline `{"type":K}` construction, an emit_ir local)
+        # → `emit_ir`; a string-valued slot (a str attr projection / str local) → `string`. Checked
+        # ahead of the DictLit→map / Var→int defaults. @mutable_state-gated → the corpus's
+        # homogeneous-int tuples are unaffected.
+        if getattr(self, "_mutable_state_classes", None):
+            # string FIRST: a str-attr projection (`node.kind`/`.var`/`.op` → kind_of/name_of) is
+            # `string`, but `_is_emit_ir_expr` over-claims any attr on an emit_ir node as a sub-node
+            # — so the string check must precede it.
+            if self._is_string_expr(elt) or (t == "Var" and elt.get("name") in getattr(
+                    self, "_tuple_string_slot_locals", set())):
+                return "string"
+            if self._is_emit_ir_expr(elt) or (t == "Var" and elt.get("name") in getattr(
+                    self, "_tuple_emit_ir_slot_locals", set())):
+                return "emit_ir"
         if t == "Var":
             nm = elt.get("name")
             if nm in array_vars:
@@ -632,6 +652,10 @@ class FunctionEmissionMixin:
                 return "string"
             if st == "float":
                 return "real"
+            # cf6.md M1.6: an emit_ir-typed slot (`_match_subject_union_info` returns
+            # `(str, ExprIR)`) → `emit_ir`, so the union-info unpack types `uinfo` as a node.
+            if st in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                return "emit_ir"
             return "int"
         if t in ("ListLit", "ArrayLit", "ListComp", "SliceAccess"):
             return "array int"
@@ -666,10 +690,58 @@ class FunctionEmissionMixin:
         array_vars, dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
         array_vars |= self._collect_array_var_assigns(body_stmts)
         symtab = func.get("symbol_table", {}) or {}
-        slots = [self._infer_tuple_slot_type(e, array_vars, dict_vars, symtab) for e in elts]
+        # tuple-return-of-emit_ir: the emit_ir/string slot checks (`_is_emit_ir_expr` /
+        # `_is_string_expr`) read `_current_symbol_table`/`_current_self_type`, which are NOT set
+        # when this runs during return-type-MAP building (before per-function state). Set the
+        # func's context (annotations merged, self_type from the `<class>__<method>` IR name) so a
+        # tuple-of-(emit_ir,string) method's MAP entry matches its own emitted signature — else the
+        # caller's unpack types the string slot as int (mirror of the P1 let-vs-val agreement).
+        _saved_st = getattr(self, "_current_symbol_table", None)
+        _saved_cs = getattr(self, "_current_self_type", None)
+        _st = dict(symtab)
+        for _k, _ty in (func.get("param_annotations") or {}).items():
+            if _st.get(_k) in (None, "Any"):
+                _st[_k] = _ty
+        self._current_symbol_table = _st
+        _nm = func.get("name", "")
+        if "__" in _nm:
+            self._current_self_type = _nm.split("__", 1)[0]
+        try:
+            slots = [self._infer_tuple_slot_type(e, array_vars, dict_vars, _st) for e in elts]
+        finally:
+            self._current_symbol_table = _saved_st
+            self._current_self_type = _saved_cs
         if len(slots) == return_type.count(",") + 1 and any(s != "int" for s in slots):
             return "(" + ", ".join(slots) + ")"
         return return_type
+
+    def _returns_emit_ir(self, body_stmts: List[Dict[str, Any]]) -> bool:
+        """True if the function returns a constructed `emit_ir` node — a `return <local>` whose
+        local's first assignment is an inline `{"type": K}` IR construction (or another emit_ir
+        value), or a `return <emit_ir expr>` directly. Drives the `emit_ir` return-type override
+        for the dict-literal IR-construction feature. @mutable_state-gated → False (inert) for the
+        corpus, so the return type is unchanged there."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return False
+        eir = self._collect_emit_ir_result_locals(body_stmts)
+        found = [False]
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Return":
+                    v = n.get("value", {})
+                    if isinstance(v, dict) and (
+                            (v.get("type") == "Var" and v.get("name") in eir)
+                            or self._is_emit_ir_expr(v)):
+                        found[0] = True
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        rec(body_stmts)
+        return found[0]
 
     def _compute_return_type(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]]) -> str:
         """Compute the WhyML return type for one function, applying the
@@ -679,6 +751,13 @@ class FunctionEmissionMixin:
         return_type = IRScanner.find_return_type(body_stmts)
         return_type = self._refine_tuple_return_type(func, body_stmts, return_type)
         ann = func.get("return_annotation")
+        # dict-literal emit_ir construction: a method that RETURNS a constructed IR node
+        # (`node = {"type":"Var",…}; … return node`) is `emit_ir`, not the `map int (option int)`
+        # its `-> Dict[str, Any]` annotation would otherwise imply (the Python type of an IR-node
+        # dict is a dict; the MODEL type is the `emit_ir` sum). Overrides the `ann in
+        # ("set","dict",…)` branch below. @mutable_state-gated → byte-identical for the corpus.
+        if self._returns_emit_ir(body_stmts):
+            return "emit_ir"
         # typing-engagement ty2 / 32-1700-typing-spec-8: a Protocol member is an
         # `abstract: True` bodyless `val` (the refinement target). Its body is
         # `...`/empty, so `find_return_type` returns "unit" — but the `-> T`
@@ -696,6 +775,10 @@ class FunctionEmissionMixin:
             # is `array string` (its elements stay string end-to-end, so a consumer's
             # `names[i]` is a `string` feeding a string-typed callee like sys_stat).
             if self._returns_string_seq(body_stmts):
+                return_type = "array string"
+            # item34.md CF5: a `-> List[str]` annotation is authoritative for the element type
+            # even when the body returns an empty list (`return []`).
+            if func.get("return_value_type") == "string":
                 return_type = "array string"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
@@ -777,6 +860,16 @@ class FunctionEmissionMixin:
         # so the dependency graph and the emission agree on "is this a logic symbol";
         # the emitter alone adds the emission-time `not local_refs` term.
         can_emit_as_logic = emits_as_logic_symbol(func) and not local_refs
+        # cleared-array item 1: record that `name` is now a spec-callable logic
+        # symbol (a pure `let function`), so a call comprehension `[name(x) for x
+        # in a]` emitted LATER (in a caller's body, callee-before-caller SCC order)
+        # can lift `result[i] = name(src[i])`. Recorded BEFORE the caller is
+        # emitted; a non-logic function never enters the set → never liftable.
+        if can_emit_as_logic:
+            self._emitted_logic_funcs.add(name)
+        # The function currently being emitted — the "using function" a deferred
+        # call-comprehension `val` must be spliced in front of (item 1).
+        self._current_emitting_func = name
 
         _scc_idx, _pos_in_scc, _scc_size = scc_info.get(func["name"], (0, 0, 1))
         # A non-first member of a multi-function SCC is a mutual-recursion
@@ -981,6 +1074,10 @@ class FunctionEmissionMixin:
             ann = func.get("return_annotation")
             if ann == "list" and ret == "int":
                 ret = "array int"
+                # item34.md CF5: `-> List[str]` (element in `return_value_type`) → `array
+                # string`, so a `self.<m>(...)` call site abstracts as `array string`.
+                if func.get("return_value_type") == "string":
+                    ret = "array string"
             elif ann in ("set", "dict", "frozenset") and ret == "int":
                 # Functions annotated `-> Set[T]` / `-> Dict[K, V]` are
                 # auto-trusted via `_should_auto_trust_map_return`; their
@@ -1805,7 +1902,10 @@ class FunctionEmissionMixin:
                     "symbol_table": symtable,
                     "body": [],
                     "formal_params": [nm for nm, _ in params],
-                    "return_annotation": ret if ret in ("list", "set", "dict", "frozenset") else None,
+                    # 07-03-refactor (cross-file wiring): also propagate a `str` return so the
+                    # `_module_method_return_annotations` map recognizes the dep as string-returning
+                    # (a `self.<dep>(…)` call then routes through `str_concat`/no `int_to_string`).
+                    "return_annotation": ret if ret in ("list", "set", "dict", "frozenset", "str") else None,
                     # WhyML return type from the declared sig — the empty body would
                     # otherwise derive `unit`; the transpiler overrides the return-type
                     # map with this (Module6_WhyMLTranspiler.transpile).

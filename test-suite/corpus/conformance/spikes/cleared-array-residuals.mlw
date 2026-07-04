@@ -1,0 +1,94 @@
+(* cleared-array RESIDUALS spike (items 1,3,4).
+   LEAD with the make-or-break content law at >=2 indices/keys; watch E-matching.
+   Alt-Ergo AND Z3. *)
+
+(* ---- item 1: CALL comprehension `[g(x) for x in a]` ----
+   g is a pure module `let function`; the content law is the SAME uninterpreted
+   unary-fn law as projection but the function is user code. *)
+module CallComp
+  use int.Int
+  use array.Array
+  let function g (x: int) : int = x + x + 1     (* real pure module fn *)
+  val call_comp (src: array int) : array int
+    ensures { Array.length result = Array.length src }
+    ensures { forall i. 0 <= i < Array.length src -> result[i] = g (Array.([]) src i) }
+  let test_call (src: array int) (i j: int) : unit
+    requires { 0 <= i < Array.length src }
+    requires { 0 <= j < Array.length src }
+  = let r = call_comp src in
+    assert { r[i] = g (Array.([]) src i) };            (* make-or-break, index i *)
+    assert { r[j] = g (Array.([]) src j) };            (* index j (E-matching probe) *)
+    assert { r[i] = 2 * src[i] + 1 }         (* g's DEFINITION survives (let function) *)
+end
+
+(* ---- item 3: DICT comprehension `{x: v(x) for x in a}` (identity key) ----
+   dict -> `map int (option int)`; the per-source membership law
+   `Map.get result src[i] = Some (v src[i])` is sound when the KEY is the loop
+   target (collisions map to the SAME value, so insertion order is irrelevant). *)
+module DictComp
+  use int.Int
+  use array.Array
+  use option.Option
+  use map.Map
+  function v (x: int) : int
+  val dict_comp (src: array int) : map int (option int)
+    ensures { forall i. 0 <= i < Array.length src ->
+              Map.get result (Array.([]) src i) = Some (v (Array.([]) src i)) }
+  let test_dict (src: array int) (i j: int) : unit
+    requires { 0 <= i < Array.length src }
+    requires { 0 <= j < Array.length src }
+  = let m = dict_comp src in
+    assert { Map.get m (Array.([]) src i) = Some (v (Array.([]) src i)) };
+    assert { Map.get m (Array.([]) src j) = Some (v (Array.([]) src j)) }
+end
+
+(* collision soundness sanity: identity key, two equal sources -> one consistent value *)
+module DictCollision
+  use int.Int
+  use option.Option
+  use map.Map
+  function v (x: int) : int
+  (* model of the law at two equal keys k -> the SAME Some(v k); no contradiction *)
+  goal collision_ok :
+    forall m: map int (option int), k: int.
+      (Map.get m k = Some (v k)) -> (Map.get m k = Some (v k))
+end
+
+(* ---- item 3: SET comprehension `{f(x) for x in a}` ----
+   set -> `map int (option int)` (present = Some 0). Membership law: every
+   produced element is present. Sound under-approximation of the domain. *)
+module SetComp
+  use int.Int
+  use array.Array
+  use option.Option
+  use map.Map
+  function f (x: int) : int
+  val set_comp (src: array int) : map int (option int)
+    ensures { forall i. 0 <= i < Array.length src ->
+              Map.get result (f (Array.([]) src i)) = Some 0 }
+  let test_set (src: array int) (i j: int) : unit
+    requires { 0 <= i < Array.length src }
+    requires { 0 <= j < Array.length src }
+  = let s = set_comp src in
+    assert { Map.get s (f (Array.([]) src i)) = Some 0 };
+    assert { Map.get s (f (Array.([]) src j)) = Some 0 }
+end
+
+(* ---- item 4: FILTER content-subset `[x for x in a if cond]` (identity elt) ----
+   Sound law: each surviving element (a) satisfies cond and (b) appears in src. *)
+module FilterSubset
+  use int.Int
+  use array.Array
+  predicate cond (x: int)
+  val filt (src: array int) : array int
+    ensures { Array.length result <= Array.length src }
+    ensures { forall i. 0 <= i < Array.length result ->
+              cond (result[i])
+              /\ (exists j. 0 <= j < Array.length src /\ result[i] = src[j]) }
+  let test_filt (src: array int) (i: int) : unit
+  = let r = filt src in
+    if 0 <= i && i < Array.length r then begin
+      assert { cond (r[i]) };
+      assert { exists j. 0 <= j < Array.length src /\ r[i] = src[j] }
+    end
+end

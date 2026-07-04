@@ -353,9 +353,22 @@ class TypeInferenceMixin:
                 val = s.get("value", {})
                 tgt = s.get("target", "")
                 if isinstance(val, dict) and val.get("type") == "Call" and tgt:
-                    rt = rets.get(val.get("func", ""))
+                    _fn = val.get("func", "")
+                    rt = rets.get(_fn)
+                    # cf6.md M1.6: a `self.<m>(…)` call — IR method names are stored
+                    # `<class_lower>__<method>`, so resolve the key to catch `union_info =
+                    # self._match_subject_union_info(…)` as a tuple local.
+                    if rt is None and isinstance(_fn, str) and _fn.startswith("self."):
+                        _cls = getattr(self, "_current_self_type", None)
+                        rt = rets.get(f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn)
                     if isinstance(rt, str) and rt.startswith("(") and "," in rt:
                         found[tgt] = rt.count(",") + 1
+                        # cf6.md M1.6: record per-slot types so `a, b = <tuple local>` can type
+                        # its targets (`uinfo` → emit_ir).
+                        if not hasattr(self, "_tuple_var_slot_types"):
+                            self._tuple_var_slot_types = {}
+                        self._tuple_var_slot_types[tgt] = [
+                            s.strip() for s in rt[1:-1].split(",")]
             for k in ("body", "orelse"):
                 if k in s:
                     found.update(self._collect_tuple_var_assigns(s[k]))
@@ -418,12 +431,38 @@ class TypeInferenceMixin:
                     elif (tgt and isinstance(fn, str) and fn.endswith(".findall")
                           and getattr(self, "_mutable_state_classes", None)):
                         found.add(tgt)
+                    # cf6.md M1.6: a DIRECT `<emit_ir>.get("captures"/"args"/"body")` →
+                    # array local (`body_stmts = c.get("body", [])`). The `… or []` variant is
+                    # a BinOp, handled in the elif below. @mutable_state.
+                    elif (tgt and isinstance(fn, str) and fn.endswith(".get")
+                          and getattr(self, "_mutable_state_classes", None)):
+                        _ga = val.get("args") or []
+                        if (_ga and isinstance(_ga[0], dict)
+                                and _ga[0].get("type") == "String"
+                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts")):
+                            found.add(tgt)
                 # list-comprehension-lowering.md L1: a local first-assigned a list
                 # comprehension is an array local (its element-typed array from
                 # `list_comp_<τ>`). @mutable_state-gated → byte-identical for the corpus.
                 elif (isinstance(val, dict) and val.get("type") == "ListComp"
                       and tgt and getattr(self, "_mutable_state_classes", None)):
                     found.add(tgt)
+                # cf6.md M1.6: a local first-assigned `<emit_ir>.get("captures"/"args"/"body")
+                # or []` is an array local (`existing_caps`). NARROW condition (only `or`-BinOp,
+                # since a direct Call is caught above) so it does NOT swallow the I-E Attribute
+                # case below. @mutable_state-gated → byte-identical for the corpus.
+                elif (tgt and getattr(self, "_mutable_state_classes", None)
+                      and isinstance(val, dict)
+                      and val.get("type") == "BinOp" and val.get("op") == "or"):
+                    _vv = val.get("left", {})
+                    if (isinstance(_vv, dict) and _vv.get("type") == "Call"
+                            and isinstance(_vv.get("func"), str)
+                            and _vv["func"].endswith(".get")):
+                        _ga = _vv.get("args") or []
+                        if (_ga and isinstance(_ga[0], dict)
+                                and _ga[0].get("type") == "String"
+                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts")):
+                            found.add(tgt)
                 elif isinstance(val, dict) and val.get("type") == "Var" and tgt:
                     var_assigns[tgt] = val.get("name", "")
                 # i-feel-good.md I-E: a local first-assigned a `List`/`tuple` record-field
@@ -442,6 +481,12 @@ class TypeInferenceMixin:
                     _rt = getattr(self, "_record_types", {})
                     _rec = (_rt.get(_cls) or (_rt.get(_cls.lower()) if _cls else None)) if _cls else None
                     if _rec and _rec.get("field_types", {}).get(_fld) in ("list", "tuple"):
+                        found.add(tgt)
+                    # self-tcb-reduction T1.a: `elts = node.elts` — a node-LIST attr on an emit_ir
+                    # node is an `array emit_ir` local (`args_of`). @mutable_state.
+                    elif _fld in ("elts", "parts", "args", "captures") and isinstance(
+                            val.get("object") or val.get("value"), dict) and self._is_emit_ir_expr(
+                            val.get("object") or val.get("value")):
                         found.add(tgt)
             for k in ("body", "orelse"):
                 if k in s:

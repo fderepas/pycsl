@@ -38,17 +38,37 @@ MIRROR_ROOT = REPO / "src" / "self-annotate" / "src"
 SOURCE_ROOT = REPO / "src" / "pycsl"
 
 
-def signatures(path):
-    """Return a set of (kind, qualname, n_params) per def/class.
-    Bodies ignored."""
+def signatures(path, skip_trusted=False):
+    """Return a set of (kind, qualname, n_params) per def/class. Bodies ignored.
+
+    The self-annotation mirror is heterogeneous: `\\trusted` methods are intentionally-divergent
+    STUBS, often RELOCATED into a different mixin class than the live method they stub (so a CF
+    handler can call them cross-class). Those must NOT be compared structurally — with
+    skip_trusted, a mirror method whose contiguous `#@`/decorator block carries a `\\trusted`
+    marker is dropped. (The live source has no `#@`, so skip_trusted is a no-op there.)"""
+    src = path.read_text().split("\n")
     try:
-        tree = ast.parse(path.read_text())
+        tree = ast.parse("\n".join(src))
     except SyntaxError as exc:
         return {("ERROR", str(exc), 0)}
     out = set()
+    def is_trusted(node):
+        i = node.lineno - 2
+        while i >= 0 and (src[i].strip().startswith("#@")
+                          or src[i].strip().startswith("@")
+                          or src[i].strip() == ""):
+            if "\\trusted" in src[i]:
+                return True
+            i -= 1
+        return False
+    # Mirror-only infra shims (the `@mutable_state` decorator placeholder the mirror defines so
+    # `@mutable_state`-marked classes parse) have no live counterpart by design.
+    MIRROR_ONLY = {"mutable_state"}
     def walk(node, prefix=""):
         for child in getattr(node, "body", []):
             if isinstance(child, ast.FunctionDef):
+                if skip_trusted and (is_trusted(child) or child.name in MIRROR_ONLY):
+                    continue
                 args = child.args
                 n = (len(args.args) + len(args.kwonlyargs)
                      + (1 if args.vararg else 0)
@@ -72,20 +92,19 @@ for m in mirrors:
         print(f"[!] MISSING SOURCE: {rel} has no counterpart under src/pycsl/")
         fail += 1
         continue
-    m_sigs = signatures(m)
+    # Skip \trusted stubs (intentionally divergent / relocated). The mirror is a chosen SUBSET
+    # of the source's defs, so source-only entries are expected and NOT drift. Drift = an
+    # un-\trusted mirror def whose signature is ABSENT from the source (renamed, param-count
+    # changed, or a stray def) — that means the verbatim copy no longer matches.
+    m_sigs = signatures(m, skip_trusted=True)
     s_sigs = signatures(src)
-    only_in_source = s_sigs - m_sigs
     only_in_mirror = m_sigs - s_sigs
-    if only_in_source or only_in_mirror:
+    if only_in_mirror:
         print(f"[!] DRIFT in {rel}:")
-        for kind, name, n in sorted(only_in_source)[:5]:
-            print(f"    -- source has but mirror missing: {kind} {name} ({n} params)")
-        if len(only_in_source) > 5:
-            print(f"    -- ... and {len(only_in_source) - 5} more source-only")
-        for kind, name, n in sorted(only_in_mirror)[:5]:
-            print(f"    ++ mirror has but source missing: {kind} {name} ({n} params)")
-        if len(only_in_mirror) > 5:
-            print(f"    ++ ... and {len(only_in_mirror) - 5} more mirror-only")
+        for kind, name, n in sorted(only_in_mirror)[:8]:
+            print(f"    ++ un-trusted mirror def not in source: {kind} {name} ({n} params)")
+        if len(only_in_mirror) > 8:
+            print(f"    ++ ... and {len(only_in_mirror) - 8} more")
         fail += 1
 
 if fail == 0:

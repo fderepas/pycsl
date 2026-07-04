@@ -275,7 +275,7 @@ def test_precondition(x: int) -> int:
 | `list` | `array int` | Hoare/Concurrent model (default — fixed-length, mutable, region-bearing) |
 | `list` (grown) | `ref (seq int)` | **07-1705-rev4: a list that is *grown* (`+=` / `+` concat) is modelled as a growable immutable `seq.Seq` value in a region-free ref** — `array.Array` is fixed-length and cannot be rebound (Why3 region rule, `07-1732-findings.md`). Init `[…]`→`Seq.cons` chain; `+=`→`a := !a ++ snapshot(b)` (length-additive + element-preserving, **provable**); `len`→`Seq.length`, `a[i]`→`Seq.get`. A grown PARAM is shadowed at entry `let a = ref (snapshot a)`; `return a` materialises back to `array int` (`materialize`, a fresh array). The seq-promotion analysis (Module5 `seq_promoted_vars`) selects these; `Seq.*` is emitted only in body context (a contract uses the array entry value). Supersedes the old effect-opaque `array_extend` |
 | `list` | `loc` + `_len` | Typed/Store model |
-| `dict` / `set` / `frozenset` | `map κ (option ν)` | Parametric map (no-more-int A1): κ ∈ {`int`, `string`}, and the value type **ν ∈ {`int`, `string`, `seq int`, nested `map …`}**, where — `int` (the default), `string` (str-valued dict), `seq int` (list-valued dict, **immutable seq snapshot** — no mutate-through-alias; A1-residual, driver 0543), and a nested `map …` (dict-of-dict, double subscript). Default `map int (option int)`. `set`/`frozenset` use the same model (value ignored). Implementation: the ν ladder is consolidated into three helpers `_dv_empty_default`/`_dv_missing_default`/`_dv_store_value` in `module6_whyml/expressions.py` (refactor F1) |
+| `dict` / `set` / `frozenset` | `map κ (option ν)` | Parametric map (no-more-int A1): κ ∈ {`int`, `string`}, and the value type **ν ∈ {`int`, `string`, `seq int`, nested `map …`}**, where — `int` (the default), `string` (str-valued dict), `seq int` (list-valued dict, **immutable seq snapshot** — no mutate-through-alias; A1-residual, driver 0543), and a nested `map …` (dict-of-dict, double subscript). Default `map int (option int)`. `set`/`frozenset` use the same model (value ignored). **κ = string ⇒ `map string (option ν)` with the NATIVE, injective Why3 string key** (`String.(=)`, no `str_hash_op`), so distinct keys are provably non-aliasing (cleared-hash.md, drivers 0755–0758 locals, 0772–0776 record fields). κ = string is inferred for a `Dict[str, _]` param/AnnAssign local, a string-key literal (`{"a": …}`), string-key USAGE (`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key), a string CONCATENATION key `d[a + b]` (both operands `str`; `str_concat_op` pinned to left-cancellative Why3 `concat`, so `a != c ⇒ d[a+b]` non-aliasing proves — cleared-hash.md residual-close 1a, driver 0795) — Module5 `_build_function_symbol_table` — AND a record FIELD declared `Dict[str, ν]`/`Set[str]`/`FrozenSet[str]` (cleared-hash.md S4: `field_key_types` on the record type flips the field map to `map string`; every field op site — store `self.d[k]=v`, subscript `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard` — reads/writes the raw native string key in lockstep). **Residual κ-unknown (CLOSED honest boundary):** a dict/set whose key the model cannot pin to a decidable/injective string (an un-annotated field from `{}`, a non-`str` key, or a derived-string key like `s.upper()`) keeps the legacy `map int` + opaque `str_hash_op` fallback — NOT collision-sound: a distinct-key non-aliasing claim on it stays UNPROVABLE (driver 0796, `# pycsl-expected: FAIL`), NO false injectivity axiom on `str_hash_op` (`proof_axiom_allowlist` unchanged). Non-dict-key hashing (`hash(s)` 0485, decode-equality 0425) is a SEPARATE out-of-scope opacity. Implementation: the ν ladder is consolidated into three helpers `_dv_empty_default`/`_dv_missing_default`/`_dv_store_value` in `module6_whyml/expressions.py` (refactor F1) |
 | `tuple` | `int` (hash) | **Intentional benign collapse (A7).** A bare tuple value hashes to an `int`; element types are NOT modeled. Rare and benign — a future tuple track would lift this, but no driver demands it. (Ghost tuples `\mk_tuple`/`\fst`/`\snd` in *contracts* are modeled faithfully — §T.6.) |
 | `None` / `-> None` | `unit` | Return type for void functions |
 | Class `C` | Record type `c` | Lowercase name. Covers `self`, `C()` locals, **and** a registered `C`-typed parameter (read-only field access; Track 3 — mutation of a record param out of scope) |
@@ -1928,17 +1928,65 @@ string — so `s[a:b] == t` routes to the string path).
 | `s.startswith(p)` | — | `str_startswith_op s p : int`, `result∈{0,1}` and `result=1 <-> substring s 0 (len p) = p` | `_content_string_method` |
 | `s.endswith(q)` | — | `str_endswith_op s q : int`, `result=1 <-> substring s (len s-len q) (len q) = q` | `_content_string_method` |
 | `s.find(sub)` | — | `str_find_op s sub : int`, `result≥-1` and `result≥0 -> substring s result (len sub) = sub` | `_content_string_method` |
+| `s.lower()` / `s.upper()` | — | `str_lower_op`/`str_upper_op` : **deterministic** `val function`, `len s≥1→len result≥1` + IDEMPOTENCE (fold-marker predicate) ; **literal receiver constant-folded** (Python's own `str.lower`/`upper`) | `_handle_string_value_method` |
+| `s.replace(p,r)` | — | `str_replace_op` : **deterministic** `val function`, `len p=len r → len result=len s` + not-contains identity (`p` nowhere in `s` ⇒ `result=s`) ; **all-literal call constant-folded** | `_handle_string_value_method` |
+
+**Content-faithful, not merely length (cleared-string.md).** Because each bridge pins its result
+to a *native* `string.String` symbol (`concat` / `String.substring`) and Why3 1.8.2's
+`string.String` is a **rich** theory — `length_concat`, `prefixof_concat`, `substring_length`,
+`concat_substring`, `substring_substring`, `s_at`/`concat_at` — the exact CONTENT of concatenation
+and slicing is provable with **zero new axiom**: `(a + b)[:len(a)] == a` (driver 0765),
+`s[0:2] + s[2:4] == s[0:4]` (driver 0766), `s[0:i] + s[i:] == s`. This is a strict gain over the
+old length-only reading, which is why the plan's `chars : seq int` codepoint model was **not**
+needed — the native decomposition reasons better (spike
+`test-suite/corpus/conformance/spikes/cleared-string-content.mlw`; choices.md cleared-string S0).
 
 The `str_sub_op` length lemma and the `str_contains_op`/find witnesses are baked into the
 bridge `ensures` because the general `String.length (substring …)` / existential-occurrence
 algebra otherwise exhausts the SMT solver (the bridge `ensures` are *assumed*, being on an
-abstract `val`). `startswith`/`endswith`/`find` apply only to a **simple `str`-typed receiver**;
-a chained or non-`str` receiver (`node.name.startswith(…)`) keeps the opaque
-predicate-as-`0/1`-op model. **Mixed string/int** comparison (a `str` vs an opaque int, e.g. a
-`.decode()` result) reverts to the legacy opaque int-equality by hashing the string side
-(`str_hash_op`). **Opaque / deferred:** `upper`/`lower`/`strip`/`replace` (string→string),
-`split` (list-of-strings), `.decode`/`.encode` (codec, the bytes↔str boundary), f-strings, and
-all code-point / lexicographic reasoning.
+abstract `val`). `startswith`/`endswith`/`find` apply to **any string-valued receiver** — a simple
+`str`-typed name OR a *derived* string expression `(a + b).startswith(a)`, `s[i:].startswith(p)`
+(lowered through `_str_method_recv_and_tail`; driver 0767); only a **multi-dot** receiver
+(`self.name.startswith(…)`) or a non-string receiver keeps the opaque predicate-as-`0/1`-op model.
+**Mixed string/int** comparison (a `str` vs an opaque int, e.g. a `.decode()` result) reverts to the
+legacy opaque int-equality by hashing the string side (`str_hash_op`).
+
+**`lower`/`upper` — deterministic + idempotent + literal-folded (cleared-string RESIDUALS item 1).**
+`str_lower_op`/`str_upper_op` are now **deterministic** `val function`s (not fresh-per-call `val`s),
+carrying, besides the sound non-emptiness law (`len s ≥ 1 → len result ≥ 1`), the UNIVERSAL sound
+content law **idempotence** — Python `str.lower()`/`.upper()` are idempotent for *all* strings
+(Unicode included) — encoded via a fresh "already-folded" marker predicate (`str_is_lowerf`/
+`str_is_upperf`: the output is folded, and a folded input is a fixed point ⇒ `f(f s)=f(s)`), so **no
+new `axiom`** and no self-reference. Determinism + idempotence prove `s.lower().lower() == s.lower()`
+(driver 0791); distinct symbols keep `s.lower() == s.upper()` **Unknown** (no false collapse; driver
+0793). A **string-literal receiver is constant-folded** by Python's own method, giving exact,
+*full-Unicode-faithful* content (`"Hello World".upper() == "HELLO WORLD"`; `"ß".upper()` would fold to
+`"SS"`). Residual (honest boundary): the per-char ASCII case-MAP on a **symbolic** string is not
+modelled — it would require a code-point bridge (`chars : seq int`), an `is_ascii` contract predicate,
+and `ord`-on-derived-subscript (a large new contract surface, zero corpus demand, and a codepoint
+theory that risks slowing the heavy os/self-annotate sweep); full Unicode folding (`ß→SS`) is
+inherently not per-char/length-preserving and stays out of scope on symbolic strings. The
+SMT-feasibility of the sound core is recorded in
+`test-suite/corpus/conformance/spikes/cleared-string-residuals.mlw` (AE + Z3, all content goals
+Valid; the `lower s = s` sentinel correctly Unknown).
+
+**`replace` — deterministic + not-contains identity + literal-folded (cleared-string RESIDUALS item 2).**
+`str_replace_op` is a **deterministic** `val function` carrying two sound laws for CPython's
+all-occurrences replace: (a) char-for-char `len pat = len rep → len result = len s`; (b) **not-contains
+identity** — if `pat` occurs *nowhere* in `s` (stated as the negation of the substring-existential the
+`in`/`not in` operator emits, so a driver `requires pat not in s` connects), then `result = s` (driver
+0792). Empty `pat` is auto-excluded (it "occurs" at every index), matching CPython, whose empty-pat
+`replace` **differs** from Why3 `replaceall` — so we deliberately do **not** pin the result to
+`String.replaceall`. An **all-literal** call (`"a.b.c".replace(".","_")`) is constant-folded by Python.
+Residual (honest boundary): the general grow/shrink CONTENT (single/multi-occurrence decomposition) is
+**not soundly reachable** — Why3's `replaceall` has *no* content axiom beyond empty-pat/not-contains,
+and CPython's all-occurrences semantics ≠ Why3's first-occurrence `replace` (whose
+`replace_substring_indexof` decomposition we cannot borrow without proving single-occurrence). No
+length law is claimed for grow/shrink (driver 0794 confirms the false length claim is rejected).
+
+**Still opaque:** `strip` (`len result ≤ len s` only), `split` (list-of-strings), `.decode`/`.encode`
+(codec, the bytes↔str boundary), `%`/f-string CONTENT, and all lexicographic code-point reasoning on
+symbolic strings.
 
 **Implementation:** `expressions.py` (`_is_string_expr`, `_content_string_method`,
 `_emit_membership`, `_handle_binop`, `_handle_subscript`, `_handle_slice_access_expr`),
@@ -2565,11 +2613,11 @@ by the Why3 project itself.
 | ID | Gap | Impact | Recommendation |
 |----|-----|--------|----------------|
 | G1 | Python floored division vs WhyML Euclidean division | For negative operands, `(-7) // 2` is `-4` in Python but `div (-7) 2 = -3` in WhyML | Add a `pycsl_floordiv` helper that matches Python semantics |
-| G2 | ~~String hashing is lossy~~ **RESOLVED** | Runtime `str` is now Why3 `string.String` with real content (τ(str)=string; §T.6.15) — content `==`/`+`/`len`/slice/index/`in`/`startswith`/`endswith`/`find` are sound. Residual gaps: no code-point/char type; `upper`/`lower`/`strip`/`replace`/`split` and `.decode`/`.encode` stay opaque; f-strings hash; `str`-keyed dicts still hash the key | Code-point model & string→string transforms deferred |
+| G2 | ~~String hashing is lossy~~ **RESOLVED + content-faithful (cleared-string.md)** | Runtime `str` is Why3 `string.String` with real content (τ(str)=string; §T.6.15). Concatenation and slicing prove their exact CONTENT (not just length) via Why3 1.8.2's rich native theory — `(a+b)[:len a]==a` (0765), `s[0:2]+s[2:4]==s[0:4]` (0766) — with NO new axiom; `startswith`/`endswith`/`find` accept derived string receivers (0767). The `chars:seq int` codepoint model in the plan was NOT needed (native decomposition reasons better; spike + choices.md cleared-string S0). `lower`/`upper` are now deterministic + idempotent + literal-constant-folded (cleared-string RESIDUALS item 1; drivers 0791/0793) and `replace` gains a not-contains identity + literal fold (item 2; drivers 0792/0794). Residual (honest, documented): no code-point/char type; the per-char ASCII case-MAP on a SYMBOLIC string (needs a codepoint bridge + `is_ascii` contract surface, zero demand), full-Unicode folding (`ß→SS`, not length-preserving), general grow/shrink `replace` CONTENT (CPython all-occurrences ≠ Why3 first-occurrence `replace`; no faithful `replaceall` content axiom), `strip`, `split`, `.decode`/`.encode`, `%`/f-string content stay opaque (`str`-keyed record-field dicts/sets use the native string key — cleared-hash.md S4, drivers 0772–0776) | Symbolic per-char case-MAP & general-replace content are the residual |
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
-| G6 | Dict/Set/ListComp are abstract | `{}`, `[x for x in ...]`, `{k:v for ...}` use uninterpreted functions | Implement concrete dict/set theories |
+| G6 | **List/Dict/Set comprehensions content-faithful for lifting shapes** (cleared-array.md S1–S5 + items 1,3,4) | LIST `[x for x in a]` / `[x+1 for x in a]` / `[p.x for p in a]` / `[g(x) for x in a]` (identity / pure-int `+ - *` / FIELD PROJECTIONS / CALLS to a pure `let function`, over the loop target, `array int` source) carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`. FILTER `[x for x in a if cond]` keeps `length <=` and — identity element + lifting pure-bool `cond` — the content-SUBSET law (each survivor satisfies `cond` and ∈ src). DICT `{x: v for x in a}` (identity key + pure-int value) → `Map.get result (a[i]) = Some v`; SET `{f(x) for x in a}` (pure-int elt) → `Map.get result (f(a[i])) = Some 0` (membership). Residuals stay opaque: subscript projection `[x[k] …]` (`List[List[int]]`→`array int`, no faithful collection element), non-identity dict key / non-pure-int value/elt, string/seq/emit_ir elements, multi-generator | Nested-collection element-type threading (`array (array int)`) would unlock subscript projection |
 | G7 | `isinstance` / `hasattr` are **uninterpreted** `bool` ops (`isinstance_check` / `hasattr_check`), not concrete | Single type system limitation | Support union types or tagged variants |
 | G8 | For-each over non-array iterables | Uses abstract `iter_length` / `iter_get` | Provide concrete implementations per type |
 | G9 | `\map_eq` generates a `forall` quantifier | Wide `\map_eq` in deep loop invariants may exceed solver budget | Restrict `\map_eq` to shallow comparisons; prefer explicit key tracking in loop invariants |
@@ -2601,7 +2649,7 @@ The following constructs appear in Python but have no translation:
 | `yield` / generators | Not supported | Use explicit loops |
 | `async` / `await` | Not supported | Use concurrent model |
 | `global` / `nonlocal` | Not supported | Use explicit parameter passing |
-| List/dict comprehensions (concrete) | Abstract only | Use explicit loops |
+| List comprehensions (content) | Content-faithful for identity / pure-int `+ - *` / field projections `p.x` / CALLS `g(x)` to a pure `let function` over the loop target (cleared-array.md S1–S5 + items 1,3,4); filter keeps a length bound + (identity elt, lifting `cond`) a content-subset law; dict `{x: v …}` (identity key) + set `{f(x) …}` carry membership laws; subscript projection `[x[k] …]` + non-identity/non-pure-int shapes opaque | Use explicit loops for unliftable elements |
 
 ---
 
@@ -2709,16 +2757,177 @@ arms only.
 
 | Form | Why3 emission |
 |------|---------------|
-| `sorted(arr)` | abstract `val sorted_1 (a: array int) : array int` |
+| `sorted(arr)` | abstract `val sorted_1 (a: array int) : array int` **+ length/sortedness/permutation `ensures`** |
 | `any(arr)` | abstract `val any_1 (a: array int) : bool` |
 | `all(arr)` | abstract `val all_1 (a: array int) : bool` |
 
-The abstract vals have no axioms about their results. Contracts cannot
-meaningfully assert order or element identity through `sorted_1` etc.
+**`sorted` (cleared-array.md S5, spike-proven S0-bis).** `sorted_1` now carries
+three **definitional `ensures`** — discharged where `sorted` is *used*, NOT a
+global axiom:
+
+$$\texttt{sorted\_1}(a):\quad
+  \texttt{Array.length result = Array.length } a
+  \;\wedge\;
+  (\forall i.\ 0 \le i < \texttt{len} - 1 \Rightarrow \texttt{result}[i] \le \texttt{result}[i{+}1])
+  \;\wedge\;
+  \texttt{permut result } a.$$
+
+The sortedness clause is the exact formula `\is_sorted(result, 0, \length(result))`
+lowers to, and the permutation clause reuses the SAME uninterpreted `permut`
+predicate that `\permutation(result, a)` lowers to (argument order `result, a`),
+so a driver's `\is_sorted` / `\permutation` postconditions match the emission
+directly (corpus `0760`). The conjunction is satisfiable (a sorted permutation
+always exists) ⇒ no vacuity; adding `ensures` to an abstract val is monotone ⇒
+cannot regress a previously-opaque proof. `any_1` / `all_1` remain opaque.
 
 The target of `s = sorted(arr)` is tracked as array-typed (via
 `is_array_val` recognising the `(sorted_1 ` prefix), so the pre-decl
 path emits `let s = (sorted_1 arr) in` instead of `let s = ref 0 in`.
+
+### §T.14.5a  Content-faithful list comprehensions (cleared-array.md S1–S4 + S2)
+
+A list comprehension `[elt for t in src (if cond)]` is lowered by
+`_content_comp` (`module6_whyml/expressions.py`) to a **per-instance abstract
+val** `list_content_comp_<n>` carrying a per-index content law — *when* the
+element shape is liftable — and otherwise falls through to the opaque
+length-only `list_comp` path (§T.11.1 G6).
+
+**Liftable shape (S1 identity, S3 arithmetic, S2 projection, item 1 call):**
+exactly one generator whose target `t` is a plain name, an `array int` source
+`src` (NOT a `seq` local — the seq comprehension path owns those), no filter, and
+an element `elt` that lowers to a **pure, total `int`** logic term over the loop
+target `t` ONLY, built from: the identity `t`, integer literals, the total
+operators `+ - *`, — **cleared-array.md S2** — FIELD PROJECTIONS `e.attr` over a
+liftable base (`[p.x for p in a]`, `[p.x + p.y for p in a]`), and —
+**cleared-array item 1** — CALLS `g(e, …)` to a module function already emitted
+as a pure `let function` (`[g(x) for x in a]`; see the call-comprehension note
+below). Division/modulo, subscripts (`x[k]`), comparisons and booleans are
+excluded — they are not guaranteed pure-int logic terms, and division would leak
+partiality into a logic `ensures`. The emitted val:
+
+$$\texttt{list\_content\_comp}_n(\textit{src}):\quad
+  \texttt{Array.length result = Array.length } \textit{src}
+  \;\wedge\;
+  \bigl(\forall i.\ 0 \le i < \texttt{len}\ \textit{src} \Rightarrow
+     \texttt{result}[i] = \textit{elt}[\,t := \textit{src}[i]\,]\bigr).$$
+
+The element is lowered once with the target `t` rebound (via a fresh scalar
+binder `_celt = src[i]`) to the per-index source read, in logic context. The
+free variables of `elt` must be `⊆ {t}` (a captured enclosing local is not a
+parameter of the val ⇒ opaque fallback). Corpus: `0761` (identity), `0762`
+(arithmetic), `0769` (projection), `0770` (arithmetic-over-projection),
+`0764`/`0771` (NEGATIVE — a false content claim, respectively `result[i]=a[i]+1`
+on an identity comprehension and `result[k]=a[k].y` on an `[p.x …]` projection,
+is correctly rejected).
+
+**Projection lowering (S2) — the getter must be logic-usable.** In the
+int-collapsed list model a source element `src[i]` is an `int`, so a projection
+`p.x` lowers to the abstract getter `get_x : int → int`
+(`_handle_attribute_expr`). The per-index law is therefore
+`result[i] = get_x(src[i])`, a faithful re-expression of `a[i].x`. Two enabling
+choices make this consumable and sound:
+
+- **Getter as a pure `val function` in spec context.** `_handle_attribute_expr`
+  emits `get_attr` as a `val function` (not a program `val`) whenever the access
+  occurs in a logic/spec context (`self._in_spec`). A program `val` is
+  non-deterministic and unusable in an `ensures`; the `val function` form is a
+  deterministic pure symbol — usable in logic and denoting ONE value across every
+  mention, so a driver's `\result[k] == a[k].x` (same `get_x`) matches the
+  content law. This is a faithful refinement (a field read *is* deterministic);
+  it removes spurious non-determinism, never adds a value claim. It is inert on
+  every existing corpus program (0 of them emit a spec-context `get_` fallback)
+  and byte-identical for body-only getters (still a plain `val`).
+- **Subscript-then-projection contract syntax `a[k].field`.** The consumer form
+  `\result[k] == a[k].x` requires the contract grammar to parse a projection off
+  a subscripted element; see the concrete-syntax reference (`SubscriptFieldAccess`
+  → `Attribute(Subscript(…), field)`, the SAME IR the body path produces).
+
+**Call comprehension (item 1) — the callee must be a logic symbol.** A call
+`g(e, …)` lifts only when `g` is a **module function already emitted as a pure
+`let [rec] function`** — i.e. `emits_as_logic_symbol(g)` (pure = `assigns
+\nothing`, non-diverging, non-method, non-lemma, no local refs). Such a `g` IS
+usable in a logic term, so the per-index law `result[i] = g(src[i])` type-checks
+and a driver's own `\result[k] == g(a[k])` denotes the SAME `let function g`.
+The gate reads the set of functions emitted as logic symbols SO FAR
+(`_emitted_logic_funcs`, populated in callee-before-caller SCC order), so `g` is
+already declared when the caller's comprehension is processed. Because the
+content-law val references a USER function, it cannot go in the early abstract-op
+block (which precedes ALL functions — `g` would be unbound there); it is
+**deferred** (`_late_content_ops`) and spliced in just before the using
+function's `let` line by `_insert_late_content_ops`, landing after `g`. Sound: a
+pure `let function` is a total deterministic logic symbol, so `result[i] =
+g(src[i])` is a faithful re-expression of `[g(x) for x in a]`. Corpus `0783`
+(positive `\result[k] == g(a[k])`), `0784` (NEGATIVE — false `= g(a[k]) + 1`
+rejected). A NON-pure callee never enters `_emitted_logic_funcs`, so it never
+lifts (opaque fallback), and a mis-anchored deferral fails the L3 typecheck
+loudly (never a false proof).
+
+**Filter (S4 + item 4):** a comprehension with an `if` always keeps the sound
+bound `Array.length result <= Array.length src`. When the element is the
+IDENTITY (`[x for x in a if cond]`) AND every filter predicate `cond` lifts to a
+pure-bool logic term over the target (a comparison `< <= > >= == !=` of pure-int
+terms, or an `and`/`or`/`not` of such), it ALSO carries the **content-subset
+law** (`_filter_subset_law`): each survivor satisfies `cond` and appears in `src`
+—
+
+$$\forall i.\ 0 \le i < \texttt{len result} \Rightarrow
+  \textit{cond}[\,t := \texttt{result}[i]\,]
+  \;\wedge\;
+  \bigl(\exists j.\ 0 \le j < \texttt{len src} \wedge
+    \texttt{result}[i] = \texttt{src}[j]\bigr).$$
+
+The source index of a survivor is LOST (the survivors are compacted), so no
+per-index content law holds — only the honest subset facts. A non-identity
+element or a non-lifting predicate keeps the length-only bound. Corpus `0763`
+(length bound), `0789` (positive `\result[k] > 0`), `0790` (NEGATIVE — false
+over-strong `\result[k] >= 5` rejected).
+
+**Dict / set comprehensions (item 3).** `{k: v for x in a}` and `{f(x) for x in
+a}` (`_dict_content_comp` / `_set_content_comp`) now carry content laws when the
+key/value/element shapes lift, over an `array int` source with one generator and
+no filter:
+
+- **Dict `{x: v(x) for x in a}` — IDENTITY key + pure-int value.** Lowers to a
+  `map int (option int)` with the per-source membership law
+  `∀ i. Map.get result (src[i]) = Some (v[t:=src[i]])`. The identity-key guard is
+  the soundness pin: a non-injective key would make the per-source law unsound
+  (Python keeps the LAST colliding write), but with an identity key every
+  collision maps to the SAME key and — the value being a deterministic function
+  of the key — the SAME value, so insertion order is irrelevant. It is an
+  under-approximation of the domain (nothing about keys not in `src`). A
+  non-identity key stays opaque (`dict_comp`). Corpus `0785` (positive
+  `\has_key` + `\map_get`), `0786` (NEGATIVE — false value rejected).
+- **Set `{f(x) for x in a}` — pure-int element.** Lowers to a `map int (option
+  int)` (set model, present = `Some 0`) with the membership law
+  `∀ i. Map.get result (f[t:=src[i]]) = Some 0` — every produced element is
+  present. Sound under-approximation (nothing about ABSENT elements). Corpus
+  `0787` (positive `\has_key`), `0788` (NEGATIVE — a non-produced element's
+  membership rejected).
+
+A function returning a set/dict/frozenset triggers the `map.Map`/`option.Option`
+import in the preamble even with no body-level map op (the signature type is
+`map int (option int)`).
+
+**Residuals (opaque, never a false content claim):** the following element
+shapes fall through to `list_comp` / `list_comp_stmts` / `list_comp_seq_*`
+(length-only or fully opaque):
+
+- **Subscript projection `[x[k] …]`** — the source `List[List[int]]` /
+  `List[Dict[…]]` collapses to `array int` (empirically verified: both
+  `List[List[int]]` and `List[Dict[str, int]]` give an `array int` parameter and
+  a symbol-table entry of `'list'` — the inner collection type is not threaded),
+  so `x` is an `int` and `x[k]` has no faithful collection element to index; the
+  `map string` dict model does not reach a *list element*. Threading nested
+  element types (`array (array int)` / `array (map …)`) is a pervasive type-model
+  change (part of the broader no-more-int program) with zero corpus consumer.
+  Documented opaque (no faithfully-typed collection element in the int model).
+- **Non-identity dict key / non-lifting dict value / non-pure-int set element** —
+  the collision-unsoundness / purity guards above are not met; opaque `dict_comp`
+  / `set_comp`.
+- string / seq / emit_ir elements, multi-generator, captured locals.
+
+No new `proof_axiom_allowlist` entry — every content law is a definitional
+`ensures` on the abstract val, discharged where the comprehension is used.
 
 ### §T.14.6  `Literal[v1, ..., vn]` annotations (typing-engagement ty1)
 

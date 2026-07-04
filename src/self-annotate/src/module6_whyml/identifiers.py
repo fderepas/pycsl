@@ -17,21 +17,18 @@ WHYML_RESERVED: int = {'at', 'any', 'diverges', 'val', 'let', 'in', 'if', 'then'
 #@ assigns \nothing
 def whyml_ident(name: str) -> str:
     return ""
-
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def safe_mutex_name(mutex: str) -> str:
-    return ""
-
+    """Convert a mutex expression (possibly 'locks[0]') to a valid WhyML identifier."""
+    return whyml_ident(mutex.replace("[", "_").replace("]", "").replace(".", "_"))
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def safe_exc_name(name: str) -> str:
     return ""
-
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True

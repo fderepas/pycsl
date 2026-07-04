@@ -106,6 +106,74 @@ class PreambleEmissionMixin:
             "= (x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, "
             "x10, x11, x12, x13, x14, x15, x16, x17)",
 
+        # ==========================================================================
+        # Pycsl.Struct.Std (cleared-pack) — the FAITHFUL, GUARDED round-trip family
+        # for a SINGLE standard-size unsigned-int struct slot ('>H' = u16, '>I'/'>L'
+        # = u32). Unlike the legacy `UnixFs.Struct.iN.round_trip` (unguarded
+        # shape-model witnesses proven by reflexivity over uninterpreted symbols),
+        # these are anchored by CONCRETE big-endian base-256 BYTE-CODEC definitions
+        # of pack/unpack, cross-validated in BOTH provers:
+        #   test-suite/corpus/pycsl-reference/0753.proofs/{rocq/Struct.v,lean/Struct.lean}
+        #   (Pycsl.Struct.Std.{round_trip_u16,round_trip_u32}; also size_u* and the
+        #    guard_necessity_u* counterexamples showing the guard is load-bearing —
+        #    unpack(pack 65536) = 0 ≠ 65536). Rocq: coqc exit 0, no Admitted/Axiom;
+        #   Lean 4.31: lean exit 0, #print axioms ⊆ {propext, Classical.choice,
+        #   Quot.sound}, no sorry.
+        # The in-range guard is the SOUNDNESS PRECONDITION (real struct.pack RAISES
+        # struct.error out-of-range for standard sizes): it is BOTH the pack `val`'s
+        # `requires` (a call-site VC — see _AXIOM_FUNCTIONS below) AND the axiom
+        # antecedent. Dropping it makes the law FALSE (byte truncation) — hence the
+        # `# pycsl-expected: FAIL` negative driver 0755.
+        # ==========================================================================
+        "Pycsl.Struct.Std.round_trip_u16":
+            "forall fmt x0 : int. 0 <= x0 < 65536 -> "
+            "struct_unpack_fu16 fmt (struct_pack_fu16 fmt x0) = x0",
+
+        "Pycsl.Struct.Std.round_trip_u32":
+            "forall fmt x0 : int. 0 <= x0 < 4294967296 -> "
+            "struct_unpack_fu32 fmt (struct_pack_fu32 fmt x0) = x0",
+
+        # cleared-pack RESIDUALS (items 1-2): the faithful family widened to a
+        # per-field width/signedness tag. Same anchor discipline as u16/u32:
+        # pack/unpack are DEFINED as concrete big-endian base-256 byte codecs (signed
+        # via two's complement) in the driver .proofs, so each round-trip is a genuine
+        # theorem, guarded by the per-field in-range `requires` (faithful to CPython's
+        # out-of-range struct.error). Cross-validated Rocq + Lean, no Admitted/sorry.
+        #
+        # item 1 — MULTI-SLOT unsigned '>HI' = (u16, u32), tags u16u32. The per-field
+        # tag makes the symbol distinct from any legacy `iN` shape (closes the S0
+        # collision: '>HH'=u16u16 and '<ii'=i32i32 no longer share `struct_pack_i2`).
+        "Pycsl.Struct.Std.round_trip_u16u32":
+            "forall fmt x0 x1 : int. 0 <= x0 < 65536 -> 0 <= x1 < 4294967296 -> "
+            "struct_unpack_fu16u32 fmt (struct_pack_fu16u32 fmt x0 x1) = (x0, x1)",
+
+        # item 2 — SIGNED singles (two's complement, range [-2^(8N-1), 2^(8N-1))).
+        # '>h'=i16, '>i'/'>l'=i32, '>q'=i64.
+        "Pycsl.Struct.Std.round_trip_i16":
+            "forall fmt x0 : int. -32768 <= x0 < 32768 -> "
+            "struct_unpack_fi16 fmt (struct_pack_fi16 fmt x0) = x0",
+        "Pycsl.Struct.Std.round_trip_i32":
+            "forall fmt x0 : int. -2147483648 <= x0 < 2147483648 -> "
+            "struct_unpack_fi32 fmt (struct_pack_fi32 fmt x0) = x0",
+        "Pycsl.Struct.Std.round_trip_i64":
+            "forall fmt x0 : int. -9223372036854775808 <= x0 < 9223372036854775808 -> "
+            "struct_unpack_fi64 fmt (struct_pack_fi64 fmt x0) = x0",
+
+        # items 1+2 — MULTI-SLOT SIGNED '<ii' = (i32, i32), tags i32i32. Demonstrates
+        # the tag resolving the collision: a two-int32 format is `struct_pack_fi32i32`,
+        # NEVER the same symbol as a two-uint16 `>HH`.
+        "Pycsl.Struct.Std.round_trip_i32i32":
+            "forall fmt x0 x1 : int. -2147483648 <= x0 < 2147483648 -> "
+            "-2147483648 <= x1 < 2147483648 -> "
+            "struct_unpack_fi32i32 fmt (struct_pack_fi32i32 fmt x0 x1) = (x0, x1)",
+
+        # item 3 — FIXED-BYTES 's' round-trip = array identity under the length guard.
+        # '>4s' packs a 4-byte buffer verbatim and unpacks it back. Byte-codec anchor
+        # is the trivial list identity `take N (pad N d) = d` when `length d = N`.
+        "Pycsl.Struct.Std.round_trip_s4":
+            "forall fmt : int, d : array int. Array.length d = 4 -> "
+            "struct_unpack_fs4 fmt (struct_pack_fs4 fmt d) = d",
+
         # UnixFs.Dir — directory-scan reflection. The bounded scan over the 16
         # root-directory slots returns a non-negative inode IFF some live slot
         # decodes to `name`. INDUCTIVE over the slot loop (SMT times out:
@@ -1251,6 +1319,23 @@ class PreambleEmissionMixin:
             "forall s : string. String.length (capwords_def s) <= String.length s",
         "Pycsl.Strmod.Capwords.capwords_empty":
             "capwords_def \"\" = \"\"",
+
+        # Pycsl.Csys.Colorsys — nonlinear integer-division bounds for the HSV
+        # conversion (de-trusting csys `rgb_to_hsv`; non-lin-int-div-fixed.md S5).
+        # SMT (Alt-Ergo/Z3 over int.EuclideanDivision) times out on these bounds
+        # through the deep sector branches; each is an honest arithmetic fact,
+        # cross-validated by src/pycsl_lib/csys/__init__.proofs/rocq/Colorsys.v
+        # + .../lean/Colorsys.lean (0 Axiom/Admitted/sorry). `sat_bound`: the HSV
+        # saturation `(diff*1000)//mx` is <= 1000 since diff <= mx (div monotone,
+        # div (mx*1000) mx = 1000). `hue_bound`: the hue offset `(n*1000)//(6*diff)`
+        # lies in [-167, 167] since |n| <= diff (upper div 1000 6 = 166; lower
+        # div (-1000) 6 = -167).
+        "Pycsl.Csys.Colorsys.sat_bound":
+            "forall d m : int [div (d * 1000) m]. "
+            "0 <= d -> d <= m -> m > 0 -> div (d * 1000) m <= 1000",
+        "Pycsl.Csys.Colorsys.hue_bound":
+            "forall n d : int [div (n * 1000) (6 * d)]. d > 0 -> (0 - d) <= n -> n <= d -> "
+            "(0 - 167) <= div (n * 1000) (6 * d) /\\ div (n * 1000) (6 * d) <= 167",
     }
 
     # gap-13: axioms that CONSTRAIN the axiom-func symbols a `#@ class invariant`
@@ -1384,6 +1469,71 @@ class PreambleEmissionMixin:
             "val function struct_unpack_i18 (fmt: int) (data: array int) : "
             "(int, int, int, int, int, int, int, int, int, "
             "int, int, int, int, int, int, int, int, int)",
+        ],
+        # Pycsl.Struct.Std (cleared-pack): the faithful single-slot uint families.
+        # The pack `val`s carry BOTH the S1 size law (`length = calcsize`) and the
+        # S2 in-range `requires` — the latter is a CALL-SITE VC (real struct.pack
+        # raises out-of-range), making the guard load-bearing. Cited via
+        # `#@ proof rocq|lean Pycsl.Struct.Std.round_trip_u{16,32}`.
+        # NOTE keys are the EXACT cited qualnames (matched by `qn.startswith`);
+        # each pulls only its own width's decls.
+        "Pycsl.Struct.Std.round_trip_u16": [
+            "val function struct_pack_fu16 (fmt: int) (x0: int) : array int\n"
+            "    requires { 0 <= x0 < 65536 }\n"
+            "    ensures  { Array.length result = 2 }",
+            "val function struct_unpack_fu16 (fmt: int) (data: array int) : int",
+        ],
+        "Pycsl.Struct.Std.round_trip_u32": [
+            "val function struct_pack_fu32 (fmt: int) (x0: int) : array int\n"
+            "    requires { 0 <= x0 < 4294967296 }\n"
+            "    ensures  { Array.length result = 4 }",
+            "val function struct_unpack_fu32 (fmt: int) (data: array int) : int",
+        ],
+        # cleared-pack RESIDUALS: per-field width/sign-tagged faithful families.
+        # Each pack `val` carries the S1 size law (`length = calcsize`) AND the S2
+        # per-field in-range `requires` (a CALL-SITE VC; real struct.pack raises
+        # out-of-range). Multi-slot unpack returns a tuple in field order.
+        # item 1 — multi-slot unsigned u16u32 (6 bytes).
+        "Pycsl.Struct.Std.round_trip_u16u32": [
+            "val function struct_pack_fu16u32 (fmt: int) (x0: int) (x1: int) : array int\n"
+            "    requires { 0 <= x0 < 65536 }\n"
+            "    requires { 0 <= x1 < 4294967296 }\n"
+            "    ensures  { Array.length result = 6 }",
+            "val function struct_unpack_fu16u32 (fmt: int) (data: array int) : (int, int)",
+        ],
+        # item 2 — signed singles (two's complement).
+        "Pycsl.Struct.Std.round_trip_i16": [
+            "val function struct_pack_fi16 (fmt: int) (x0: int) : array int\n"
+            "    requires { -32768 <= x0 < 32768 }\n"
+            "    ensures  { Array.length result = 2 }",
+            "val function struct_unpack_fi16 (fmt: int) (data: array int) : int",
+        ],
+        "Pycsl.Struct.Std.round_trip_i32": [
+            "val function struct_pack_fi32 (fmt: int) (x0: int) : array int\n"
+            "    requires { -2147483648 <= x0 < 2147483648 }\n"
+            "    ensures  { Array.length result = 4 }",
+            "val function struct_unpack_fi32 (fmt: int) (data: array int) : int",
+        ],
+        "Pycsl.Struct.Std.round_trip_i64": [
+            "val function struct_pack_fi64 (fmt: int) (x0: int) : array int\n"
+            "    requires { -9223372036854775808 <= x0 < 9223372036854775808 }\n"
+            "    ensures  { Array.length result = 8 }",
+            "val function struct_unpack_fi64 (fmt: int) (data: array int) : int",
+        ],
+        # items 1+2 — multi-slot signed i32i32 (8 bytes).
+        "Pycsl.Struct.Std.round_trip_i32i32": [
+            "val function struct_pack_fi32i32 (fmt: int) (x0: int) (x1: int) : array int\n"
+            "    requires { -2147483648 <= x0 < 2147483648 }\n"
+            "    requires { -2147483648 <= x1 < 2147483648 }\n"
+            "    ensures  { Array.length result = 8 }",
+            "val function struct_unpack_fi32i32 (fmt: int) (data: array int) : (int, int)",
+        ],
+        # item 3 — fixed-bytes s4 (array identity under the length guard).
+        "Pycsl.Struct.Std.round_trip_s4": [
+            "val function struct_pack_fs4 (fmt: int) (d: array int) : array int\n"
+            "    requires { Array.length d = 4 }\n"
+            "    ensures  { Array.length result = 4 }",
+            "val function struct_unpack_fs4 (fmt: int) (data: array int) : array int",
         ],
         # UnixFs.Content (gap-17): the inode SIZE view. `inode_size disk ino`
         # is the big-endian uint32 decode of the four on-disk bytes at
@@ -1570,6 +1720,19 @@ class PreambleEmissionMixin:
                 if "array int" in body or "array " in body:
                     axiom_needs_array = True
                     break
+                # cleared-pack: the round-trip axiom body may be array-free
+                # (`struct_unpack_fu16 fmt (struct_pack_fu16 fmt x0) = x0`) while
+                # the BACKING `_AXIOM_FUNCTIONS` `val function` decls it pulls
+                # return/consume `array int`. Scan those decls too, else the
+                # emitted `val function struct_pack_fu16 … : array int` has no
+                # `use array.Array` in scope.
+                for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
+                    if qn.startswith(prefix) and any(
+                            "array int" in d or "array " in d for d in fn_decls):
+                        axiom_needs_array = True
+                        break
+                if axiom_needs_array:
+                    break
             if axiom_needs_array:
                 break
         # gap-9: an axiom-backing logic function with an `array int` parameter
@@ -1622,6 +1785,10 @@ class PreambleEmissionMixin:
                 or any(IRScanner.uses_ghost_type(body, {"array"}) for body in all_bodies)
                 or axiom_needs_array
                 or _binder_needs_array
+                # the emit_ir ADT (emitted for any @mutable_state module) declares
+                # `args_of : array emit_ir`, so `use array.Array` is required even when the
+                # bodies use no other array. @mutable_state-gated → byte-identical for the corpus.
+                or bool(getattr(self, "_mutable_state_classes", None))
             )
         else:
             needs_array = False
@@ -1734,6 +1901,16 @@ class PreambleEmissionMixin:
             for func in functions:
                 if any(v in ("set", "dict", "frozenset")
                        for v in func.get("symbol_table", {}).values()):
+                    needs_body_dict = True
+                    break
+        # cleared-array item 3: a function that RETURNS a set/dict/frozenset
+        # (`-> Dict[int, int]` / `-> set`) has WhyML type `map int (option int)`
+        # in its signature, so the map vocabulary must be imported even with no
+        # body-level dict op — e.g. `def d(a) -> Dict: return {x: v for x in a}`
+        # (a content-faithful dict comprehension). Mirrors the param-type check.
+        if not needs_body_dict:
+            for func in functions:
+                if func.get("return_annotation") in ("set", "dict", "frozenset"):
                     needs_body_dict = True
                     break
         # 07-1311 Q4: a `\forall m: dict;` binder needs `map.Map`/`option.Option` too.
@@ -2069,6 +2246,22 @@ class PreambleEmissionMixin:
                 _walk(inv)
         return hit
 
+    @staticmethod
+    def _axiom_fn_prefix_match(qn: str, prefix: str) -> bool:
+        """Whether cited qualname `qn` pulls the `_AXIOM_FUNCTIONS[prefix]` decls.
+
+        A KEY ending in '.' is a NAMESPACE prefix (`UnixFs.Struct.i18.`,
+        `UnixFs.Content.`) and matches any descendant qualname; any other key is a
+        FULL lemma qualname and must match EXACTLY. This exactness is essential now
+        that sibling faithful lemmas are textual prefixes of one another
+        (`…round_trip_u16` ⊂ `…round_trip_u16u32`, `…round_trip_i32` ⊂
+        `…round_trip_i32i32`): citing the multi-slot lemma must NOT drag in the
+        single-slot val decls. Correct for every pre-existing entry (namespace keys
+        already carry the trailing dot; exact-lemma keys are cited verbatim)."""
+        if prefix.endswith("."):
+            return qn.startswith(prefix)
+        return qn == prefix
+
     def _precompute_axiom_logic_funcs(self, ir: Dict[str, Any]) -> None:
         """Populate `self._axiom_logic_funcs` — the NAMES of `val function FOO`
         / `function FOO` symbols declared by the `_AXIOM_FUNCTIONS` decls for
@@ -2109,7 +2302,7 @@ class PreambleEmissionMixin:
         cited_fn_names: Set[str] = set()
         for qn in sorted(seen):
             for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
-                if qn.startswith(prefix):
+                if self._axiom_fn_prefix_match(qn, prefix):
                     cited_fn_names |= _names_of(fn_decls)
 
         # (b) axiom-function names APPLIED by an `#@ inductive` rule, even when
@@ -2270,7 +2463,7 @@ class PreambleEmissionMixin:
         declared_fns: Set[str] = set(already)
         for qn in sorted(seen_qualnames):
             for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
-                if qn.startswith(prefix):
+                if self._axiom_fn_prefix_match(qn, prefix):
                     for fn_decl in fn_decls:
                         if fn_decl not in declared_fns:
                             out.append(f"  {fn_decl}")
@@ -2767,6 +2960,15 @@ class PreambleEmissionMixin:
             "  let function arg0_of (e: emit_ir) : emit_ir =",
             "    match e with IrCall _ a _ -> a | _ -> IrOther \"\" end",
             "",
+            "  (* resync-campaign.md R1: the args LIST of a reflected Call node — opaque"
+            " `array emit_ir` (sound; the ADT carries only arg0/nargs, so content is"
+            " unmodelled). Used by the emitter's `val_ir.get(\"args\")`. *)",
+            "  val args_of (e: emit_ir) : array emit_ir",
+            "  (* cf6.md M1.1: the OPAQUE statement-list of a match case (`c.get(\"body\")`) —"
+            " an `array int` (stmt-lists stay int-opaque, feeding `_stmts_to_whyml`), distinct"
+            " from `args_of`'s reflected `array emit_ir`. *)",
+            "  val stmts_of (e: emit_ir) : array int",
+            "",
             "  let function svalue_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub v _ -> v | _ -> IrOther \"\" end",
             "",
@@ -2928,6 +3130,11 @@ class PreambleEmissionMixin:
                     # so `self.<dict-field>.get(k)` reads back the right type.
                     "field_value_types": {f["name"]: f["value_type"]
                                           for f in td["fields"] if f.get("value_type")},
+                    # cleared-hash S4: per-field dict/set KEY type κ, so a
+                    # `dict[str,ν]`/`set[str]` field lowers to `map string (option ν)`
+                    # with the native, injective Why3 string key (retiring str_hash_op).
+                    "field_key_types": {f["name"]: f["key_type"]
+                                        for f in td["fields"] if f.get("key_type")},
                     "defaults": td.get("field_defaults", {}),
                     # base_op.md Tier A — parametrized construction C(a, b)
                     "init_params": td.get("init_params", []),
@@ -2968,9 +3175,22 @@ class PreambleEmissionMixin:
                         # self-field-dict-reflection (typed-ir §12): a `dict[str, str]`
                         # field carries `option string` values so `self.f.get(k)` reads a
                         # string. Absent value_type → the legacy `option int`, byte-identical.
+                        # cleared-hash S4: a string-KEYED field (κ=string, `key_type`) is
+                        # `map string (option ν)` with the native Why3 string key; every
+                        # field-dict op site reads the RAW string key (no str_hash_op).
+                        # Absent key_type → the legacy `map int` (byte-identical).
                         _vt = f.get("value_type")
-                        ftype = ("map int (option string)" if _vt == "string"
-                                 else "map int (option int)")
+                        _kt = "string" if f.get("key_type") == "string" else "int"
+                        if _vt == "string":
+                            ftype = f"map {_kt} (option string)"
+                        elif isinstance(_vt, str) and _vt.startswith(("map ", "seq ", "array ")):
+                            # nested-map.md: a NESTED collection value (`Dict[str, Dict[str,int]]`
+                            # → value_type `map int (option int)`; `Dict[str, List[int]]` → `seq int`)
+                            # is preserved as `map int (option (<inner>))`, NOT flattened to
+                            # `option int`. `_m5_get_dict_value_type` already emits the inner type.
+                            ftype = f"map {_kt} (option ({_vt}))"
+                        else:
+                            ftype = f"map {_kt} (option int)"
                     elif ftype in ("list", "tuple"):
                         # i-feel-good.md I-E: a `List[str]` field is `array string` (string
                         # elements) in a @mutable_state module (the emitter model + its

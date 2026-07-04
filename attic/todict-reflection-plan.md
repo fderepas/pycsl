@@ -344,3 +344,16 @@ and reflect on them mid-body. Un-`\trusting` those needs the real Ceiling-B lift
 typed constructor for IR nodes (so `{"type": "Var", …}` builds a typed `ExprIR`, not a
 `map`), which is the Phase-A/B story extended to node *construction*, not just
 consumption. That is a feature, not a per-handler stub — scoped, not attempted here.
+
+
+---
+
+## LANDED (2026-07-03) — final status
+
+**CLOSED.** The handler goal is met: `_handle_array_slice_set_stmt` (and the R3-proper flagship
+`_handle_ghost_array_set_stmt`, §12) are **un-`\trusted` and PROVEN** (checked body, `assigns`
+frame) — verified in the self-annotation suite. The "residual per-handler no-more-int tail" that
+this plan tracked was fully walked during the resync-campaign re-sync (all 12 reflecting handlers
+now verbatim-mirror the live emitter and prove). The only thing NOT delivered is the value-faithful
+`ensures \result == <exact WhyML string>` — that is **item 3 / Ceiling B (irreducible)**, not a
+todict-reflection deliverable. Nothing buildable remains here.

@@ -1,0 +1,22 @@
+module HashSpikeString
+  use int.Int
+  use option.Option
+  use string.String
+  use map.Map
+  use map.Const
+
+  (* the make-or-break: distinct string keys are independent *)
+  goal distinct_no_alias :
+    forall d: map string (option int), k1 k2: string, v: int.
+      k1 <> k2 -> (get (set d k1 (Some v)) k2) = get d k2
+
+  goal present : forall d: map string (option int), v: int.
+      get (set d "a" (Some v)) "a" = Some v
+
+  goal absent  :
+      get (set (set (const None: map string (option int)) "a" (Some 1)) "b" (Some 2)) "c" = None
+
+  goal literal_var_consistency :
+    forall d: map string (option int), key: string, v: int.
+      key = "k" -> get (set d "k" (Some v)) key = Some v
+end

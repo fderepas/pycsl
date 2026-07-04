@@ -89,13 +89,16 @@ class FunctionEmissionMixin:
     #@ assigns \nothing
     def _emit_union_arm_vc(self, name: str, symbol_table: int) -> List[str]:
         return []
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _union_arm_whyml_type(self, tag: str) -> str:
-        return ""
+        """Map a Union arm IR type tag to its WhyML type string."""
+        m = {"int": "int", "bool": "int", "str": "string", "float": "real",
+             "list": "array int", "bytes": "array int", "bytearray": "array int",
+             "dict": "map int (option int)", "set": "map int (option int)",
+             "frozenset": "map int (option int)", "tuple": "array int"}
+        return m.get(tag, "int")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

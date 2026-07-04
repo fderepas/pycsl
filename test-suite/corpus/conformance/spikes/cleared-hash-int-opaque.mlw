@@ -1,0 +1,19 @@
+module HashSpikeInt
+  use int.Int
+  use option.Option
+  use string.String
+  use map.Map
+  use map.Const
+
+  (* opaque hash: distinct keys hash to ints; NO injectivity known *)
+  function str_hash_op (s: string) : int
+
+  (* the make-or-break in the int+opaque-hash encoding: EXPECTED TO FAIL *)
+  goal distinct_no_alias :
+    forall d: map int (option int), k1 k2: string, v: int.
+      k1 <> k2 ->
+      (get (set d (str_hash_op k1) (Some v)) (str_hash_op k2)) = get d (str_hash_op k2)
+
+  goal present : forall d: map int (option int), v: int.
+      get (set d (str_hash_op "a") (Some v)) (str_hash_op "a") = Some v
+end

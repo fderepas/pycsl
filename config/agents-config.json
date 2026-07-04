@@ -16,6 +16,8 @@
   "skill-rocq-prover": "config/skills/rocq-prover/SKILL.md",
   "skill-stdlib-annotate": "docs/stdlib-global-plan.md",
   "skill-feature-supervisor": "config/agents/agent-feature-supervisor.md",
+  "skill-self-tcb-reduction": "config/skills/self-tcb-reduction/SKILL.md",
+  "skill-self-tcb-reduction-config": "config/skills/self-tcb-reduction/self-tcb-reduction.json",
   "nomic-embed-text-ollama-url": "http://127.0.0.1:11434",
   "llm-ollama-url": "http://192.168.1.111:11434",
   "writer-timeout": 3000

@@ -1,0 +1,56 @@
+module CompSpike
+  use int.Int
+  use array.Array
+  use array.IntArraySorted
+  use array.ArrayPermut
+
+  (* ---- per-index defining law (identity / projection / call) ---- *)
+  function f (x: int) : int
+
+  val comp (src: array int) : array int
+    ensures { Array.length result = Array.length src }
+    ensures { forall i. 0 <= i < Array.length src -> result[i] = f (src[i]) }
+
+  (* make-or-break: at the USE site, the ensures gives per-index content;
+     instantiate at two independent points (E-matching blowup check). *)
+  let test_elt (src: array int) (i j: int)
+    requires { 0 <= i < Array.length src }
+    requires { 0 <= j < Array.length src }
+  = let r = comp src in
+    assert { Array.length r = Array.length src };
+    assert { r[i] = f (src[i]) };
+    assert { r[j] = f (src[j]) };
+    ()
+
+  (* identity specialization: result[i] = src[i] *)
+  val idcomp (src: array int) : array int
+    ensures { Array.length result = Array.length src }
+    ensures { forall i. 0 <= i < Array.length src -> result[i] = src[i] }
+
+  let test_id (src: array int) (i: int)
+    requires { 0 <= i < Array.length src }
+  = let r = idcomp src in
+    assert { r[i] = src[i] };
+    assert { Array.length r = Array.length src }
+
+  (* ---- filter length bound ---- *)
+  val filt (src: array int) : array int
+    ensures { Array.length result <= Array.length src }
+
+  let test_filt (src: array int) =
+    let r = filt src in
+    assert { Array.length r <= Array.length src }
+
+  (* ---- sorted spike (S0-bis): permutation + sortedness ---- *)
+  val sortcomp (src: array int) : array int
+    ensures { permut_all src result }
+    ensures { Array.length result = Array.length src }
+    ensures { forall k1 k2. 0 <= k1 <= k2 < Array.length result -> result[k1] <= result[k2] }
+
+  let test_sorted (src: array int) (i: int)
+    requires { 0 <= i < Array.length src - 1 }
+  = let r = sortcomp src in
+    assert { r[i] <= r[i+1] };
+    assert { Array.length r = Array.length src };
+    assert { permut_all src r }
+end

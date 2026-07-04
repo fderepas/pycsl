@@ -258,3 +258,16 @@ milestone stands — **one real emitter handler verified with a checked body** �
 the remaining scaling is honestly gated on A3 + IR-reflection modeling, not on the
 string chain. Recommend treating those as their own plans rather than continuing to
 un-`\trust` handlers that cannot close without them.
+
+
+---
+
+## LANDED (2026-07-03) — final status
+
+**CLOSED.** L4c + L5 delivered (§6): the leaf `_handle_ghost_array_set_stmt` was the FIRST
+`_handle_*` emitter method removed from the trusted base, and the no-more-int layers B1.4 +
+L1–L4c are all landed byte-clean. Since then the ENTIRE statement-handler family (18 handlers)
+has been un-`\trusted` on the same toolbox. The "L5 gated on L4c" text in §5 is superseded by §6
+(L4c+L5 DONE). The remaining step — the value-faithful `ensures` needing the string VALUES of the
+trusted leaves modelled — is **item 3 / Ceiling B (irreducible)**, not a no-more-int deliverable.
+Nothing buildable remains here.

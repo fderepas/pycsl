@@ -91,9 +91,25 @@ _TYPED_EXPR_HANDLERS = {
 _EMIT_IR_PROJ = {
     "type": "kind_of", "name": "name_of", "attr": "name_of", "field": "name_of",
     "func": "func_of", "value": "svalue_of", "object": "object_of", "index": "sindex_of",
+    "args": "args_of",   # resync-campaign.md R1: the args LIST → `array emit_ir`
+    # cf6.md M1.1: match pattern/case keys — `pattern` (KIND) / `ctor` (NAME) are strings;
+    # `captures` is a reflected node list (`args_of`); `body` is an OPAQUE stmt-list
+    # (`stmts_of : → array int`); `guard` is a single node (`svalue_of`).
+    "pattern": "kind_of", "ctor": "name_of", "captures": "args_of",
+    "body": "stmts_of", "guard": "svalue_of", "parts": "args_of", "elts": "args_of",
+    "lower": "svalue_of", "upper": "svalue_of",   # 07-03-refactor R4: SliceExpr bound sub-nodes
 }
-_EMIT_IR_STR_KEYS = ("type", "name", "attr", "field", "func")   # → string projections
-_EMIT_IR_NODE_KEYS = ("value", "object", "index")               # → emit_ir sub-nodes
+# `pattern` is CONTEXT-DEPENDENT: SUBSCRIPT `c["pattern"]` → a sub-NODE (below); `.get("pattern")`
+# → the KIND string (here). Different code paths read each tuple, so it appears in both.
+_EMIT_IR_STR_KEYS = ("type", "name", "attr", "field", "func", "ctor", "pattern")   # via `.get`
+_EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard")   # via subscript → node
+# self-tcb-reduction T1.a: STRING-valued attribute reads on a base-`ExprIR` emit_ir node
+# (`node.kind`/`node.var`/`node.op`/…, where the handler annotates `node: "ExprIR"` but accesses a
+# concrete subclass's str field) → the discriminant/name projection. Non-listed attrs fall to the
+# `svalue_of` sub-node default. @mutable_state-gated in `_handle_attribute_expr`/`_is_string_expr`.
+_EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "name_of",
+                      "label": "name_of", "name": "name_of", "func": "func_of",
+                      "base": "name_of", "base1": "name_of", "base2": "name_of"}
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -121,6 +137,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """Shorthand for _expr_to_whyml within ghost handlers."""
         return self._expr_to_whyml(ir, lr)
 
+    def _whyml_string_literal(self, s: str) -> str:
+        """A Python string → its WhyML double-quoted string literal, backslash and
+        double-quote escaped. Pure (`assigns \\nothing`). Extracted (07-03-refactor R5)
+        from the duplicated inline escaper in `_handle_var_expr` / `_call_named_builtins`."""
+        return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
     def _to_bool(self, whyml_str: str, ir_expr: Dict[str, Any]) -> str:
         """Coerce a WhyML expression to bool if it might be int.
         Comparison operators and bool literals are already bool.
@@ -128,6 +150,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Other expressions (int) need `<> 0` coercion."""
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
+        # self-tcb-reduction T1.a: `if subst:` on a dict/set param (an `Optional[Dict]` modeled as
+        # `map` — None ≡ empty) is the present-guard before `name in subst`; a sound over-approx
+        # for the type-safety+frame contract is `true` (the `in` does the real check). @mutable_state.
+        if (t == "Var"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and getattr(self, "_current_symbol_table", {}).get(ir_expr.get("name"))
+                in ("dict", "set", "frozenset")):
+            return "true"
+        # resync-campaign.md R1: `val_ir.get("args")` lowers to `(args_of …)` : `array emit_ir`
+        # — a truthiness (`if not val_ir.get("args")` = "no args") is array-emptiness, never the
+        # int `<> 0` coercion. @mutable_state emit_ir reflection only.
+        if whyml_str.startswith("(args_of "):
+            return f"(Array.length {whyml_str} <> 0)"
+        # 07-03-refactor R4: `if <emit_ir sub-node>:` (an Optional[ExprIR] field, e.g.
+        # `if sl.get("lower")`) is a present-guard; the sub-node is always-present in the model, so
+        # `true` is a sound over-approx for the type-safety+frame contract. @mutable_state.
+        if (getattr(self, "_current_self_type", None) in getattr(self, "_mutable_state_classes", set())
+                and any(whyml_str.startswith(p) for p in
+                        ("(svalue_of ", "(object_of ", "(sindex_of ", "(arg0_of "))):
+            return "true"
+        # cf6.md M1.6: `if existing_caps:` on an emit_ir-element ARRAY LOCAL is array-emptiness.
+        if (t == "Var"
+                and getattr(self, "_array_elem_types", {}).get(ir_expr.get("name")) == "emit_ir"):
+            return f"(Array.length ({whyml_str}) <> 0)"
+        # cf6.md M1.6: `if wb.strip():` — a STRING truthiness is non-emptiness. @mutable_state.
+        if (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_string_expr(ir_expr)):
+            self._add_abstract_op(
+                "val str_eq_op (a b: string) : bool\n"
+                "    ensures { result <-> (a = b) }")
+            return f'(not (str_eq_op {whyml_str} ""))'
         # Already boolean: comparisons, not, bool literals, isinstance
         if t == "BinOp" and op in ("==", "!=", "<", ">", "<=", ">=", "in", "not in"):
             return whyml_str
@@ -222,7 +277,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return str(stable_hash(whyml_str))
         return whyml_str
 
-    def _materialize_if_seq(self, whyml_str: str, arg_ir: Dict[str, Any]) -> str:
+    def _materialize_if_seq(self, whyml_str: str, arg_ir: "ExprIR") -> str:
         """L2 (os-bodyvc-spec): if `arg_ir` is a seq-promoted local Var, bridge it seq→array with
         `materialize` so it can flow into an `array int` slot (e.g. `bytes(parts)`,
         `_write_entry(p, slot, n, parts)`). The return-arr `materialize` val is `seq int -> array int`
@@ -328,7 +383,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # duplicated at each of the three sites; these helpers centralise that ladder.
     # Output is byte-identical to the former inline branches.
 
-    def _dv_empty_default(self, nu: Optional[str]) -> Optional[str]:
+    def _dv_empty_default(self, nu: str) -> str:
         """Empty-map literal for a dict local's first assignment; `None` for an
         int dict (the caller keeps the `(const (None: option int))` it has)."""
         if nu == "string":
@@ -337,15 +392,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return "(const (None: option (seq int)))"
         if nu and nu.startswith("map "):
             return f"(const (None: option ({nu})))"
-        return None
+        return ""
 
-    def _dv_missing_default(self, nu: Optional[str]) -> str:
+    def _dv_missing_default(self, nu: str) -> str:
         """`None ->` placeholder for a dict subscript read (typed per ν; proven
         dead under `#@ no_exception KeyError`, the ambient default otherwise)."""
         if nu == "string":
             return '""'
-        if nu == "seq int":
-            return "(Seq.empty: seq int)"
+        if nu and nu.startswith("seq "):
+            # #15: `Dict[str, List[T]]` value (`seq string`/`seq int`) -> the empty seq default.
+            return f"(Seq.empty: {nu})"
         if nu and nu.startswith("map "):
             inner_v = (nu.split("(option ", 1)[1].rsplit(")", 1)[0]
                        if "(option " in nu else "int")
@@ -429,7 +485,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # §26: `k in X` where X aliases a self dict-field → membership on
                 # `self.<field>` (the getattr-bound-local form of `k in self.<field>`).
                 _alias = self._alias_self_field(rname)
-                if _alias is not None:
+                if _alias:
                     rhs_is_map = True
                     right = f"self.{self._field_label(getattr(self, '_current_self_type', None), _alias.split('.', 1)[1])}"
         if not rhs_is_map and rhs.get("type") in ("Attribute", "FieldGet"):
@@ -442,12 +498,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `str_hash_op` membership below fires (was falling to opaque `contains_check`).
         if not rhs_is_map and rhs.get("type") == "Call":
             _gf = self._getattr_self_field(rhs)
-            if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") is not None:
+            # self-tcb-reduction T1.a: also fire for a SET self-field (`getattr(self, "_seq_locals",
+            # set())`), not only dict fields — mirrors the direct `x in self._set_field` path so the
+            # string key gets `str_hash_op`-hashed instead of the opaque `contains_check`.
+            _gf_coll = _gf and (
+                self._self_field_dict_nu(f"self.{_gf}") is not None
+                or self._field_type_of({"type": "Attribute",
+                                        "object": {"type": "Var", "name": "self"},
+                                        "attr": _gf}) in ("set", "dict", "frozenset"))
+            if _gf_coll:
                 rhs_is_map = True
                 # the direct `self.<label>` field access (matching the non-getattr
                 # `x in self._seq_locals` form), NOT a synthetic Attribute IR — which
                 # lowers to the opaque `get_<field>` accessor.
                 right = f"self.{self._field_label(getattr(self, '_current_self_type', None), _gf)}"
+        # self-tcb-reduction T1.a: `x in self._method()` where the method returns a
+        # `Set[str]`/`dict` (`name in self._module_binding_names()`) → map membership (the RHS
+        # `right` is already the abstract-val call returning the map). @mutable_state.
+        if not rhs_is_map and rhs.get("type") == "Call" and not self._getattr_self_field(rhs):
+            _fn = rhs.get("func", "")
+            if isinstance(_fn, str) and _fn.startswith("self."):
+                _cls = getattr(self, "_current_self_type", None)
+                _key = f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn
+                if getattr(self, "_module_method_return_types", {}).get(_key) in (
+                        "map int (option int)", "set", "dict", "frozenset"):
+                    rhs_is_map = True
+        # nested-map.md: `k in self._nested_dict.get(k1, {})` — `.get` on a NESTED-dict field
+        # returns the INNER map (its value_type is `map …`), so membership hashes the key into
+        # it. The lowered `right` is already the inner-map match-expr. @mutable_state.
+        if not rhs_is_map and rhs.get("type") == "Call":
+            _fn = rhs.get("func", "")
+            if isinstance(_fn, str) and _fn.endswith(".get"):
+                _recv = _fn[:-len(".get")]
+                _nu = self._self_field_dict_nu(_recv) if _recv.startswith("self.") else None
+                if isinstance(_nu, str) and _nu.startswith(("map ", "seq ", "array ")):
+                    rhs_is_map = True
         if rhs_is_map:
             # todict-reflection-plan.md R3: a STRING key into a `Set[str]`/`dict[str,_]`
             # (an int-keyed map) is hashed with `str_hash_op` — the read-side analogue of
@@ -462,7 +547,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _left_ir = expr.get("left", {})
             _str_keyed_lit = getattr(self, "_dict_key_types", {}).get(
                 rhs.get("name", "") if rhs.get("type") == "Var" else "") == "string"
-            if not self._in_spec and self._is_string_expr(_left_ir) and not _str_keyed_lit:
+            # cleared-hash S4: a κ=string record dict/set FIELD map (`k in self.<field>`,
+            # incl. the `x in getattr(self, "<field>", set())` defensive form) is
+            # `map string (option ν)` — read the RAW native string key, matching the
+            # field store/`.get`/subscript. Covers the direct Attribute/FieldGet receiver
+            # and the getattr-rewritten `_gf` field.
+            if not _str_keyed_lit:
+                _mf = None
+                if rhs.get("type") in ("Attribute", "FieldGet"):
+                    _mo = rhs.get("object"); _ma = rhs.get("attr") or rhs.get("field")
+                    if isinstance(_mo, dict) and _mo.get("type") == "Var" and _ma:
+                        _mf = f"{_mo.get('name')}.{_ma}"
+                    elif isinstance(_mo, str) and _ma:
+                        _mf = f"{_mo}.{_ma}"
+                elif rhs.get("type") == "Call":
+                    _mgf = self._getattr_self_field(rhs)
+                    if _mgf:
+                        _mf = f"self.{_mgf}"
+                if _mf is not None and self._self_field_dict_kappa(_mf) == "string":
+                    _str_keyed_lit = True
+            if _str_keyed_lit:
+                # cleared-hash.md S3: the receiver map is `map string (option ν)`
+                # (κ = string), so membership reads the RAW string key — native
+                # `String.(=)`, no hash. `_coerce_to_int` would hash a string
+                # LITERAL to an int (`stable_hash`), an int operand against a
+                # `map string` map (a type error) and the very collision-opacity
+                # this migration removes. A `str`-typed variable key passes
+                # through `left` unchanged.
+                left_c = left
+            elif not self._in_spec and self._is_string_expr(_left_ir):
                 self._add_abstract_op("val str_hash_op (s: string) : int")
                 left_c = f"(str_hash_op {left})"
             else:
@@ -551,11 +664,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 rec = getattr(self, "_current_symbol_table", {}).get(obj.get("name", ""))
                 rt = getattr(self, "_record_types", {}).get(rec)
                 if rt:
+                    # cf6.md M1.5: a field carrying a `value_type` (element type) is a COLLECTION
+                    # (`List[ExprIR]` → `array emit_ir`), NOT a scalar node — `_irnode_ann_name`
+                    # mis-tags `List[ExprIR]` as scalar `"ExprIR"`, so guard on the collection
+                    # marker. A scalar `value: ExprIR` field has no value_type → still matched.
+                    if ir.get("attr", "") in rt.get("field_value_types", {}):
+                        return False
                     ft = rt.get("field_types", {}).get(ir.get("attr", ""))
                     return ft in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "emit_ir")
             # self-ir-schema.md IR2: `<emit_ir>.value` / `.target` (a StmtIR field access on
             # an emit_ir node, e.g. `body_stmts[-1].value`) is itself an emit_ir sub-node.
-            if (isinstance(obj, dict) and self._is_emit_ir_expr(obj)
+            # self-tcb-reduction T1.a: EXCLUDE node-LIST attrs (`.elts`/`.parts`/…) — those are
+            # `array emit_ir` (`args_of`), NOT a scalar node, so they are collected as array locals.
+            if ((ir.get("attr") or ir.get("field")) not in ("elts", "parts", "args", "captures")
+                    and isinstance(obj, dict) and self._is_emit_ir_expr(obj)
                     and getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set())):
                 return True
@@ -581,11 +703,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return True
             # §26: a projection-key subscript `<emit_ir>["value"/"object"/"index"]`
             # is an emit_ir sub-node (chaining, e.g. `arr["value"]["name"]`).
+            # self-tcb-reduction T1.a: EXCLUDE subscript "object" — `expr['object']` is the object
+            # NAME string (`name_of ∘ object_of`), not a sub-node (see `_handle_subscript`).
             _kir = ir.get("index", {})
             if (isinstance(_kir, dict) and _kir.get("type") == "String"
-                    and _kir.get("value") in _EMIT_IR_NODE_KEYS
+                    and _kir.get("value") in _EMIT_IR_NODE_KEYS and _kir.get("value") != "object"
                     and self._is_emit_ir_expr(ir.get("value", {}))):
                 return True
+        # item34.md CF1: `<x>.to_dict()` (no args) is an emit_ir node (to_dict is identity on
+        # the typed IR) in a @mutable_state module.
+        if (t == "Call" and isinstance(ir.get("func"), str)
+                and ir["func"].endswith(".to_dict") and not ir.get("args")
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            return True
         # §26: a `.get("value"/"object"/"index")` on an emit_ir receiver is an emit_ir
         # sub-node (nested `.get` chaining, e.g. `arr.get("value").get("type")`).
         if t == "Call":
@@ -608,25 +739,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return node
 
     @staticmethod
-    def _getattr_self_field(recv: Any):
+    def _getattr_self_field(recv: "ExprIR") -> str:
         """typed-ir-for-b-ceiling.md §14: if `recv` is `getattr(self, "<field>", …)`
         (a defensive self-field access) return the string `<field>`, else None."""
         if not (isinstance(recv, dict) and recv.get("type") == "Call"
                 and recv.get("func") == "getattr"):
-            return None
+            return ""
         a = recv.get("args", [])
         if (len(a) >= 2 and isinstance(a[0], dict) and a[0].get("name") == "self"
                 and isinstance(a[1], dict) and a[1].get("type") == "String"):
             return a[1].get("value")
-        return None
+        return ""
 
-    def _alias_self_field(self, name):
+    def _alias_self_field(self, name: str) -> str:
         """§26: if `name` is a local bound from `getattr(self, "<field>", …)` on a
         dict/set self-field, return the dotted `self.<field>`; else None."""
         fld = getattr(self, "_getattr_self_dict_aliases", {}).get(name)
-        return f"self.{fld}" if fld is not None else None
+        return f"self.{fld}" if fld else ""
 
-    def _iter_elem_class(self, iter_ir):
+    def _iter_elem_class(self, iter_ir: "ExprIR") -> str:
         """self-ir-schema.md IR2: the record class of a comprehension iterable's ELEMENTS,
         for typing the loop var during element-type inference. `self.ir.get("shared_vars")`
         → "sharedvar"; None otherwise (the loop var stays untyped)."""
@@ -636,7 +767,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (_a and isinstance(_a[0], dict) and _a[0].get("type") == "String"
                     and _a[0].get("value") == "shared_vars"):
                 return "sharedvar"
-        return None
+        # item34.md CF5: iterating a `string`-element name-collection (`for e in body_raised`,
+        # `for tag in candidates`) binds the loop var to a `string` — so `handler_catches(base,
+        # e)`/`whyml_ident(var)` type-check. Covers both the array-elem and seq-value maps.
+        if (isinstance(iter_ir, dict) and iter_ir.get("type") == "Var"
+                and (getattr(self, "_array_elem_types", {}).get(iter_ir.get("name")) == "string"
+                     or getattr(self, "_seq_value_types", {}).get(iter_ir.get("name")) == "string")):
+            return "str"
+        return ""
 
     def _todict_emit_ir_projection(self, recv_dotted, key, local_refs, invariant_ctx, subst):
         node = self._todict_recv_node_ir(recv_dotted)
@@ -757,24 +895,68 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not self._is_str_value_method(expr):
             return None
         recv_ir, tail = self._str_method_recv_and_tail(expr)
+        # cleared-string RESIDUALS (items 1-2): CONSTANT-FOLD when the receiver (and,
+        # for `.replace`, both arguments) are STRING LITERALS. Python's OWN str method
+        # computes the exact result — content-faithful for the FULL Unicode semantics
+        # (`"ß".upper()=="SS"`, `"HELLO".lower()=="hello"`), no abstract op, no soundness
+        # risk. This is the honest way to give lower/upper/replace real content on the
+        # literal case (the general symbolic case keeps the sound laws below).
+        arg_irs = expr.get("args") or []
+        def _lit(ir):
+            return (ir.get("value") if isinstance(ir, dict) and ir.get("type") == "String"
+                    else None)
+        recv_lit = _lit(recv_ir) if isinstance(recv_ir, dict) else None
+        if recv_lit is not None:
+            if tail == "lower" and len(args) == 0:
+                return self._whyml_string_literal(recv_lit.lower())
+            if tail == "upper" and len(args) == 0:
+                return self._whyml_string_literal(recv_lit.upper())
+            if tail == "replace" and len(args) == 2:
+                p_lit, r_lit = _lit(arg_irs[0]) if len(arg_irs) > 0 else None, \
+                               _lit(arg_irs[1]) if len(arg_irs) > 1 else None
+                if p_lit is not None and r_lit is not None:
+                    return self._whyml_string_literal(recv_lit.replace(p_lit, r_lit))
         recv = self._expr_to_whyml(recv_ir, local_refs or set(), invariant_ctx, subst)
         if tail == "replace" and len(args) == 2:
-            # §3.1: char-for-char (len old = len new) preserves length; general replace
-            # may grow/shrink, so no unconditional length law is sound.
+            # §3.1 + cleared-string RESIDUALS item 2: `val function` (DETERMINISTIC) with
+            # the SOUND laws for CPython all-occurrences replace:
+            #  (a) char-for-char (len pat = len rep) preserves length; general grow/shrink
+            #      is length-free (never claim length preservation there);
+            #  (b) NOT-CONTAINS identity: if `pat` occurs NOWHERE in `s`, result = s. Stated
+            #      as the negation of the substring-existential the `in`/`not in` operator
+            #      emits, so a driver `requires pat not in s` connects. Empty pat is
+            #      auto-excluded (it "occurs" at every index) — matching CPython, whose
+            #      empty-pat replace DIFFERS from Why3 `replaceall` (so we do NOT pin to it).
             # NB `old`/`new` are Why3 reserved keywords → params named `pat`/`rep`.
             self._add_abstract_op(
-                "val str_replace_op (s pat rep: string) : string\n"
+                "val function str_replace_op (s pat rep: string) : string\n"
                 "    ensures { String.length pat = String.length rep"
-                " -> String.length result = String.length s }")
+                " -> String.length result = String.length s }\n"
+                "    ensures { (forall _ri:int. 0 <= _ri ->"
+                " _ri + String.length pat <= String.length s ->\n"
+                "                 String.substring s _ri (String.length pat) <> pat)\n"
+                "              -> result = s }")
             return f"(str_replace_op {recv} {args[0]} {args[1]})"
         if tail in ("lower", "upper") and len(args) == 0:
-            # §3.2: case folding is NOT length-preserving in Unicode ("ß".upper()=="SS"),
-            # so ONLY the non-emptiness lower bound is sound — a length-equality law
-            # would be unsound.
+            # §3.2 + cleared-string RESIDUALS item 1: `val function` (DETERMINISTIC) so equal
+            # receivers give equal results and `s.lower().lower() == s.lower()` proves.
+            # Case folding is NOT length-preserving in Unicode ("ß".upper()=="SS"), so only
+            # the non-emptiness lower bound is sound as a length law. IDEMPOTENCE (universal,
+            # true of Python for ALL strings incl. Unicode) is encoded via a fresh
+            # "already-folded" marker predicate (NO `axiom` keyword, NO self-reference): the
+            # output is folded, and a folded input is a fixed point ⇒ f(f s)=f(s). Distinct
+            # symbols for lower/upper ⇒ `s.lower()==s.upper()` stays UNKNOWN (no false
+            # collapse). Full Unicode/ASCII per-char case-MAP on a SYMBOLIC string stays the
+            # honest residual (only the literal case is content-mapped, by folding above).
+            op = "str_lower_op" if tail == "lower" else "str_upper_op"
+            marker = "str_is_lowerf" if tail == "lower" else "str_is_upperf"
             self._add_abstract_op(
-                "val str_case_op (s: string) : string\n"
-                "    ensures { String.length s >= 1 -> String.length result >= 1 }")
-            return f"(str_case_op {recv})"
+                f"predicate {marker} string\n"
+                f"  val function {op} (s: string) : string\n"
+                "    ensures { String.length s >= 1 -> String.length result >= 1 }\n"
+                f"    ensures {{ {marker} result }}\n"
+                f"    ensures {{ {marker} s -> result = s }}")
+            return f"({op} {recv})"
         if tail in ("strip", "lstrip", "rstrip") and len(args) <= 1:
             # §3.3: stripping only removes chars → result no longer than the input.
             self._add_abstract_op(
@@ -804,6 +986,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if ft not in ("dict", "set", "frozenset"):
             return None
         return rt.get("field_value_types", {}).get(field, "int")
+
+    def _self_field_dict_kappa(self, recv: str):
+        """cleared-hash S4: the KEY type κ of a record dict/set FIELD named by `recv`
+        (a `self.<field>`/`<recordvar>.<field>`): "string" for a `dict[str, ν]` /
+        `set[str]` / `frozenset[str]` field (`map string (option ν)`, native injective
+        key), else "int" (`map int`, the legacy str_hash_op fallback); None when `recv`
+        is not a dict/set/frozenset record field. The κ counterpart of the ν-returning
+        `_self_field_dict_nu` — read and written raw everywhere so the field map's key
+        stays type-consistent (a mismatch is a WhyML type error)."""
+        if "." not in recv:
+            return None
+        obj, field = recv.rsplit(".", 1)
+        rt_name = (self._current_self_type if obj == "self"
+                   else getattr(self, "_current_record_var_classes", {}).get(obj))
+        if not rt_name:
+            return None
+        rts = getattr(self, "_record_types", {})
+        rt = (rts.get(rt_name) or rts.get(str(rt_name).lower())
+              or next((v for k, v in rts.items() if k.lower() == str(rt_name).lower()), None))
+        if not rt:
+            return None
+        ft = rt.get("field_types", {}).get(field)
+        if ft not in ("dict", "set", "frozenset"):
+            return None
+        return rt.get("field_key_types", {}).get(field, "int")
 
     def _lower_irnode_construction(self, expr: Dict[str, Any], local_refs: Set[str],
                                    invariant_ctx: bool,
@@ -858,8 +1065,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
         t = ir.get("type")
+        # resync-campaign.md R2: a ternary whose BOTH arms are string-typed is string (the
+        # emitter's `(if _poly then "<decl A>" else "<decl B>") + "…ensures…"` concat). Both
+        # arms must be string; @mutable_state (the emitter's string decls).
+        if (t == "IfExpr"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_string_expr(ir.get("body", {}))
+                and self._is_string_expr(ir.get("orelse", {}))):
+            return True
+        # resync-campaign.md R2: `<str> or <str>` (`<get> or ""`) is string — so a `.lower()`
+        # on it type-checks. @mutable_state.
+        if (t == "BinOp" and ir.get("op") == "or"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_string_expr(ir.get("left", {}))
+                and (self._is_string_expr(ir.get("right", {}))
+                     or (isinstance(ir.get("right"), dict)
+                         and ir["right"].get("type") == "None"))):
+            return True
         if t == "Call":
             _fn = ir.get("func", "")
+            # `str(x)` is string-typed (identity on a str, `int_to_string` on an int) — so a
+            # `.lower()`/`.strip()` on it (`str(binder_type).lower()`) recognizes as a faithful
+            # string-value method rather than falling to the opaque scalar op.
+            if _fn == "str":
+                return True
             # faithful-string-op.md §3.1–3.3: `.replace`/`.lower`/`.upper`/`.strip` on a
             # string receiver is itself string-typed, so a receiving local (`arr_name =
             # func.rsplit(".",1)[0].replace(".","_")`) types as a string local.
@@ -879,10 +1110,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # form of the §12 self-field-dict get (func is bare `"get"` with a `getattr`
             # receiver, before the §14 rewrite).
             if _fn == "get":
+                # subscript-receiver .get with a STRING key (`a[i].get("name")`/`.get("type")`) on an
+                # emit_ir element → a string projection (name_of/kind_of/func_of/value_of), so a
+                # `== "self"` comparison routes through str_eq_op. @mutable_state / emit_ir-gated.
+                _grcv = ir.get("receiver")
+                if isinstance(_grcv, dict) and self._is_emit_ir_expr(_grcv):
+                    _gk = (ir.get("args") or [{}])[0]
+                    if (isinstance(_gk, dict) and _gk.get("type") == "String"
+                            and _gk.get("value") in _EMIT_IR_STR_KEYS + ("value",)):
+                        return True
                 _gf = self._getattr_self_field(ir.get("receiver"))
-                if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") == "string":
+                if _gf and self._self_field_dict_nu(f"self.{_gf}") == "string":
                     return True
             if _fn.endswith(".get"):
+                # item34.md CF5: `<handler>.get("exc_type")` — a 1-arg string-key `.get` on a
+                # NON-emit_ir receiver reads a string scalar field (matches `_grecv_str`).
+                _gargs = ir.get("args") or []
+                if (len(_gargs) == 1 and isinstance(_gargs[0], dict)
+                        and _gargs[0].get("type") == "String"
+                        and getattr(self, "_current_self_type", None)
+                        in getattr(self, "_mutable_state_classes", set())
+                        and not self._is_emit_ir_expr(
+                            {"type": "Var", "name": _fn[:-len(".get")]})):
+                    return True
                 # self-field-dict-reflection (typed-ir §12): `self.<dict[str,str]-field>
                 # .get(k)` reads back a `string` (`option string` values), so `… == "s"`
                 # routes through `str_eq_op`, not an int hash.
@@ -890,7 +1140,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return True
                 # §26: `X.get(k)` where X aliases a `dict[str,str]` self-field reads a string.
                 _alias0 = self._alias_self_field(_fn[:-len(".get")])
-                if _alias0 is not None and self._self_field_dict_nu(_alias0) == "string":
+                if _alias0 and self._self_field_dict_nu(_alias0) == "string":
                     return True
                 _al = getattr(self, "_todict_aliases", {}).get(_fn[:-len(".get")])
                 if _al is not None:
@@ -913,7 +1163,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "String" or t in ("StrConcat", "StrSub"):
             return True
         if t == "Var":
-            return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) == "str"
+            _vn = ir.get("name", "")
+            # self-tcb-reduction T1.a: a collected string LOCAL (`var = node.var` → name_of) counts
+            # as string even before its symbol-table type is set, so `var in self._seq_locals`
+            # hashes the key. Byte-safe: `_string_local_vars` is empty outside @mutable_state.
+            return (getattr(self, "_current_symbol_table", {}).get(_vn) == "str"
+                    or _vn in getattr(self, "_string_local_vars", set()))
         # Indexing/slicing a string yields a string (s[i] is a 1-char string, s[a:b] a
         # substring) — both reuse str_sub_op in their handlers, so the *result* of such a
         # node is string-typed exactly when its base is. Required so `s[a:b] == t` routes to
@@ -925,9 +1180,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return True
             # §26: subscript-form emit_ir string-projection `<emit_ir>["type"/"name"/
             # "attr"/"func"]` (the string keys) → string, for `arr["value"]["name"]`.
+            # cf6.md M1.3: EXCLUDE node keys — as a SUBSCRIPT `c["pattern"]` reads a sub-NODE,
+            # not the kind string (only `.get("pattern")` is the kind).
             _kir = ir.get("index", {})
             if (isinstance(_kir, dict) and _kir.get("type") == "String"
-                    and _kir.get("value") in _EMIT_IR_STR_KEYS
+                    and (_kir.get("value") in _EMIT_IR_STR_KEYS or _kir.get("value") == "object")
+                    and (_kir.get("value") not in _EMIT_IR_NODE_KEYS or _kir.get("value") == "object")
                     and self._is_emit_ir_expr(ir.get("value", {}))):
                 return True
             # list-comprehension-lowering.md L5/L6: a `self.<dict[str,str]-field>[k]` read
@@ -1002,6 +1260,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (unchanged opaque path) → byte-identical outside genuine str-field reads.
         if t in ("Attribute", "FieldGet"):
             ft = self._field_type_of(ir)
+            # self-tcb-reduction T1.a: a STRING-valued emit_ir attr (`.kind`/`.var`/`.op`/…) reads a
+            # discriminant/name string, so `inner.kind == "Subscript"` routes through `str_eq_op`.
+            if ft is None and (ir.get("attr") or ir.get("field")) in _EMIT_IR_STR_ATTRS:
+                _ko = ir.get("value") or ir.get("object")
+                if isinstance(_ko, dict) and self._is_emit_ir_expr(_ko):
+                    return True
             if ft is None:
                 if t == "FieldGet":
                     _rn, _fl = ir.get("object"), ir.get("field")
@@ -1055,6 +1319,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             default_val = self._expr_to_whyml(elts[0], local_refs, invariant_ctx, subst) if elts else "0"
             size = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
             return f"(Array.make {size} {default_val})"
+        # item34.md CF5: `[a] + [comp]` name-list concat (`[base] + [tag for … in body_raised
+        # …]`) → `seq string`. Each arm is seq-ified via `_seq_operand` (an ArrayLit singleton
+        # `snapshot`s; a comprehension over a seq is `list_comp_seq`), so the whole flow is
+        # uniformly seq. @mutable_state; LEFT is a list literal / comprehension.
+        if (raw_op == "+" and isinstance(expr.get("left"), dict)
+                and expr["left"].get("type") in ("ArrayLit", "ListLit", "ListComp")
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _l = self._seq_operand(expr["left"], local_refs or set())
+            _r = self._seq_operand(expr["right"], local_refs or set())
+            self._add_abstract_op(
+                "val array_concat (a b: seq string) : seq string\n"
+                "    ensures { Seq.length result = Seq.length a + Seq.length b }")
+            return f"(array_concat {_l} {_r})"
         left = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
         right = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
         # bool-as-int convention: PyCSL int-encodes bool (a `-> bool` function returns 0/1,
@@ -1093,6 +1371,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # when a value-faithful `ensures` over an optional sub-node is needed. §9.
             _nn = expr["right"] if expr["left"].get("type") == "None" else expr["left"]
             if self._is_emit_ir_expr(_nn):
+                return "false" if raw_op == "==" else "true"
+            # cf6.md M1.6: `<tuple-local> is None` — a tuple value (`union_info =
+            # self._match_subject_union_info(…)`) is always present in this model, so `is None`
+            # → false / `is not None` → true (sound always-present; both `if` arms type-check).
+            if (isinstance(_nn, dict) and _nn.get("type") == "Var"
+                    and _nn.get("name") in getattr(self, "_ghost_tuple_vars", {})):
                 return "false" if raw_op == "==" else "true"
             # i-feel-good.md I-B: `x is None`/`is not None` on a string-typed operand — an
             # `Optional[str]` local (the emitter's `self_field_name = None; … = <str>`).
@@ -1229,6 +1513,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             inner = f"(pycsl_mod {left} {right})"
             return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right], inner)
         if op in ("&&", "||"):
+            # cf6.md M1.6: `<array> or []` (`pat.get("captures", []) or []`) is the redundant
+            # empty-list default — the value IS the left array (`args_of pat`). @mutable_state.
+            _rr = expr.get("right", {})
+            if (op == "||" and not self._in_spec
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())
+                    and isinstance(_rr, dict)
+                    and _rr.get("type") in ("ListLit", "ListLiteral", "ArrayLit", "List")
+                    and not (_rr.get("elements") or _rr.get("elts") or _rr.get("values"))
+                    and left.startswith("(args_of ")):
+                return left
+            # item34.md CF5: Python `<str> or <str>` (`h.get("exc_type") or "PyCSL_Exception"`)
+            # returns the FIRST truthy STRING — `if not (str_eq_op a "") then a else b`. Both
+            # operands string-typed, not in spec. @mutable_state.
+            # resync-campaign.md R2: the right arm may be `None` (`(…).lower() or None`) → "".
+            _r_none = isinstance(expr.get("right"), dict) and expr["right"].get("type") == "None"
+            if (op == "||" and not self._in_spec
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())
+                    and self._is_string_expr(expr["left"])
+                    and (self._is_string_expr(expr["right"]) or _r_none)):
+                self._add_abstract_op(
+                    "val str_eq_op (a b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _rv = '""' if _r_none else right
+                return f'(if (not (str_eq_op {left} "")) then {left} else {_rv})'
             left_b = self._to_bool(left, expr["left"])
             right_b = self._to_bool(right, expr["right"])
             if self._in_spec:
@@ -1240,6 +1550,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if raw_op in ("in", "not in"):
             return self._emit_membership(raw_op, expr, left, right, local_refs,
                                           invariant_ctx, subst)
+        # item34.md CF4: `<set> | {x}` (set union with a set literal, e.g. the for-loop's
+        # `local_refs | {target}`) is a set UNION — add each element to the map — not the int
+        # `bit_or`. @mutable_state; the string key is `str_hash_op`-hashed (matching M.7).
+        if (raw_op == "|"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _rset = expr.get("right", {})
+            if isinstance(_rset, dict) and _rset.get("type") in ("SetLit", "Set"):
+                self._add_abstract_op(
+                    "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+                    ": map 'k (option 'v)\n"
+                    "    ensures { result = Map.set m k (Some v) }")
+                _acc = left
+                for _e in _rset.get("elts", []):
+                    _ew = self._expr_to_whyml(_e, local_refs, invariant_ctx, subst)
+                    _key = (f"(str_hash_op {_ew})" if self._is_string_expr(_e)
+                            else self._coerce_to_int(_ew))
+                    if self._is_string_expr(_e):
+                        self._add_abstract_op("val str_hash_op (s: string) : int")
+                    _acc = f"(map_update_some {_acc} {_key} 0)"
+                return _acc
         if raw_op in self._BITWISE_FN_NAMES:
             return self._emit_bitwise_or_power(raw_op, expr, left, right)
         if raw_op == "?":
@@ -1741,6 +2072,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{writes_clause}{ensures_suffix}")
         return f"({arity_name} {' '.join(coerced)})"
 
+    def _is_seq_arg(self, arg: str) -> bool:
+        """True if a lowered arg is a `seq`-typed value (a seq local or a seq-producing op), so
+        `_coerce_dotted_args` can bridge it to a `List[_]` (array) param via `materialize`.
+        @mutable_state-gated (seq locals only exist there) -> corpus byte-identical.
+        (seq<->array-coercion feature: enables converting emitter handlers that pass list-
+        comprehension results to `List[_]` helper params, e.g. `_handle_call_expr`'s `args`.)"""
+        if not getattr(self, "_mutable_state_classes", None):
+            return False
+        base = arg.strip().lstrip("!")
+        if (base in getattr(self, "_seq_locals", set())
+                or base in getattr(self, "_seq_value_types", {})):
+            return True
+        return arg.strip().startswith(("(list_comp_seq", "(seq_sub ", "(Seq."))
+
     def _coerce_dotted_args(self, args: List[str], param_types: List[str]) -> List[str]:
         """Coerce each dotted-call arg to its declared param type. The caller's arg may be
         int while the param expects array or map (e.g. an int from an abstract `get_*`
@@ -1749,6 +2094,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         for arg, ptype in zip(args, param_types):
             if ptype == "int":
                 coerced.append(self._coerce_to_int(arg))
+            elif ptype in ("array int", "array string") and self._is_seq_arg(arg):
+                # seq<->array coercion: a `seq`-typed arg (a list comprehension lowers to `seq`)
+                # flowing into a `List[_]` (= `array _`) param is bridged seq->array via
+                # `materialize`/`materialize_str`. @mutable_state-only detection (seq locals) ->
+                # byte-identical for the corpus (`_is_seq_arg` is False without _mutable_state).
+                if ptype == "array string":
+                    self._materialize_str_bridge()
+                    coerced.append(f"(materialize_str {arg})")
+                else:
+                    self._materialize_bridge()
+                    coerced.append(f"(materialize {arg})")
             elif ptype == "array int":
                 coerced.append(self._array_coerce_arg(arg))
             elif ptype == "map int (option int)":
@@ -1889,11 +2245,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if fmt_ir.get("type") != "String":
             return None   # Dynamic format string
         fmt = fmt_ir.get("value", "")
+        # cleared-pack item 4 (UB-7.4b): NATIVE size/alignment ('@' prefix) is
+        # platform-dependent — a standard-size size law or round-trip would be
+        # UNSOUND (native alignment inserts padding). REJECT it with a clear
+        # diagnostic rather than silently emit an opaque (but wrongly-sized) model.
+        if isinstance(fmt, str) and fmt[:1] == "@":
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"struct format '{fmt}': native size/alignment ('@' prefix) is "
+                f"unsupported (UB-7.4b). Native layout is platform-dependent, so "
+                f"PyCSL cannot soundly model its size or round-trip. Use an explicit "
+                f"standard-size byte-order prefix ('<', '>', '=', or '!').")
         parsed = parse_format(fmt)
         if parsed is None:
             return None   # Unsupported char in format
 
         slot_id = parsed.slot_id()
+        # cleared-pack: a WHITELISTED scalar-int shape (single OR multi-slot,
+        # signed OR unsigned) lowers to the FAITHFUL, guarded `Pycsl.Struct.Std`
+        # family (`struct_{pack,unpack}_f<tag-join>`) — byte-codec-anchored
+        # round-trip + size law + per-field in-range guard. A single fixed-bytes
+        # `s` slot lowers to the array-identity family `struct_{pack,unpack}_fs<N>`.
+        # All other shapes keep the opaque abstract `iN`/`i1a1` symbols
+        # (documented boundary — incl. the legacy os shapes and float/native).
+        faithful = parsed.faithful_slots()          # scalar shape or None
+        faithful_tag = parsed.faithful_tag()        # tag-join or None
+        bytes_n = parsed.faithful_bytes_slot()      # fixed-bytes N or None
         if func_name == "struct.unpack":
             # struct.unpack(fmt, data) → (t1, ..., tN)
             # Abstract: val struct_unpack_<slot_id> (fmt: int) (data: array int) : (t1, ..., tN)
@@ -1903,7 +2280,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 ret_type = parsed.slots[0]
             else:
                 ret_type = "(" + ", ".join(parsed.slots) + ")"
-            sym = f"struct_unpack_{slot_id}"
+            if faithful is not None:
+                sym = f"struct_unpack_f{faithful_tag}"
+            elif bytes_n is not None:
+                sym = f"struct_unpack_fs{bytes_n}"
+            else:
+                sym = f"struct_unpack_{slot_id}"
             # `val function` — both program-callable and a logical
             # symbol the round-trip axiom can name.
             self._add_abstract_op(
@@ -1924,7 +2306,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             value_args = args[1:]
             if len(value_args) != parsed.arity:
                 return None
-            sym = f"struct_pack_{slot_id}"
+            if faithful is not None:
+                sym = f"struct_pack_f{faithful_tag}"
+            elif bytes_n is not None:
+                sym = f"struct_pack_fs{bytes_n}"
+            else:
+                sym = f"struct_pack_{slot_id}"
             params = ["(fmt: int)"] + [
                 f"(x{i}: {t})" for i, t in enumerate(parsed.slots)]
             self._add_abstract_op(
@@ -2179,7 +2566,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _rir = {"type": "Var", "name": _parts[0]}
             for _p in _parts[1:]:
                 _rir = {"type": "Attribute", "object": _rir, "attr": _p}
-            return self._expr_to_whyml(_rir, local_refs, invariant_ctx, subst)
+            _rw = self._expr_to_whyml(_rir, local_refs, invariant_ctx, subst)
+            # An emit_ir receiver (an ExprIR field / alias) → IDENTITY (it already IS its
+            # emit_ir value). item34.md CF2: a record-typed receiver (`stmt.to_dict()` on an
+            # `IfStmt`/`WhileStmt` record) is a CONVERSION to the reflectable emit_ir node —
+            # an opaque abstract (content unmodeled; only the emit_ir TYPE matters).
+            if self._is_emit_ir_expr(_rir):
+                return _rw
+            self._add_abstract_op("val to_emit_ir (x: 'a) : emit_ir")
+            return f"(to_emit_ir {_rw})"
+        # item34.md CF4: `<set/dict>.copy()` (`declared_refs.copy()`) is IDENTITY in the
+        # immutable-map model (a Why3 `map` is a value) — return the receiver map. @mutable_state.
+        if (isinstance(func_name, str) and func_name.endswith(".copy")
+                and not expr.get("args")
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _cr = func_name[:-len(".copy")]
+            _cp = _cr.split(".")
+            _cir = {"type": "Var", "name": _cp[0]}
+            for _p in _cp[1:]:
+                _cir = {"type": "Attribute", "object": _cir, "attr": _p}
+            return self._expr_to_whyml(_cir, local_refs, invariant_ctx, subst)
         # list-comprehension-lowering.md L7: `re.findall(pat, s)` → an abstract `array
         # string` (a list of matched substrings) with STRING args — modeled BEFORE the
         # generic arg-coercion (which would hash the pattern literal to int). Content
@@ -2193,6 +2600,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _s = self._expr_to_whyml(_a[1], local_refs or set(), invariant_ctx, subst)
             self._add_abstract_op("val findall_str (pat s: string) : array string")
             return f"(findall_str {_p} {_s})"
+        # item34.md CF5: `<string>.split(sep)` (whole-list form, `exc.split("|")`) → a name
+        # list, seq-ified at the source (`snapshot`) → `seq string`. @mutable_state + string
+        # receiver. Distinct from the `<split>[i]` element form (`str_split_elem_op`).
+        if (isinstance(func_name, str) and func_name.endswith(".split")
+                and len(expr.get("args", [])) == 1
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_string_expr({"type": "Var", "name": func_name[:-len(".split")]})):
+            _sep = self._expr_to_whyml(expr["args"][0], local_refs or set(), invariant_ctx, subst)
+            _recvw = self._expr_to_whyml(
+                {"type": "Var", "name": func_name[:-len(".split")]}, local_refs or set(),
+                invariant_ctx, subst)
+            self._add_abstract_op("val str_split_op (s sep: string) : array string")
+            self._seq_snapshot_op()
+            return f"(snapshot (str_split_op {_recvw} {_sep}))"
         # no-more-int: `x.__str__()` / `super().__str__()` returns a `string` (the Python
         # str dunder), not the opaque int the generic dotted-call assigns — so a `-> str`
         # method returning `super().__str__()` (errors.py `message`) type-checks. Faithful and
@@ -2202,6 +2624,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and not expr.get("args")):
             self._add_abstract_op("val str_dunder_op () : string")
             return "(str_dunder_op ())"
+        # item34.md CF2: `IRScanner.<pred>(<stmt-list>)` (e.g. `ends_with_return`,
+        # `has_early_return`) is a bool predicate over a `array int` stmt list — its abstract
+        # takes `array int` (matching the `list_comp_stmts` arg), not the default int.
+        # @mutable_state-gated (the corpus's IRScanner calls, if any, keep the int param).
+        if (isinstance(func_name, str) and func_name.startswith("IRScanner.")
+                and len(expr.get("args", [])) == 1
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _tail = func_name[len("IRScanner."):]
+            _mname = whyml_ident("IRScanner_" + _tail)
+            _aw = self._expr_to_whyml(expr["args"][0], local_refs or set(), invariant_ctx, subst)
+            # item34.md CF5 (uniform seq): `find_*`/`collect_*` return a NAME-collection —
+            # modelled as an immutable, reassignable `seq string` (a `ref (array _)` can't be
+            # rebound). The abstract yields a fresh `array string`; `snapshot` at the SOURCE
+            # makes it `seq string` so every downstream use is uniformly seq (no array/seq
+            # mix). The `has_*`/`ends_with_*`/`uses_*` predicates stay int (bool).
+            if _tail.startswith("find_") or _tail.startswith("collect_"):
+                self._add_abstract_op(f"val {_mname} (l: array int) : array string")
+                self._seq_snapshot_op()
+                return f"(snapshot ({_mname} {_aw}))"
+            self._add_abstract_op(f"val {_mname} (l: array int) : int")
+            return f"({_mname} {_aw})"
         # self-ir-schema.md IR1: `self.ir.get("shared_vars", [])` → the typed slice
         # `(ir_shared_vars self.ir)` : `array sharedvar` (an opaque array of shared-var
         # records with string `name`/`mutex` fields). Content unmodeled; only the element
@@ -2401,23 +2845,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
         `s.startswith(p)` / `s.endswith(p)` / `s.find(sub)` are lowered to abstract ops whose
         `ensures` relate the (int) result to `String.substring` over the *receiver as an
-        operand*. Applies ONLY to a simple, `str`-typed receiver with a single string
-        argument; a chained receiver (`node.name.startswith(…)`) or a non-`str` receiver
-        falls through to the opaque baked-into-the-name predicate path. startswith/endswith
-        keep the 0/1 int result (so control-flow / `\result ∈ {0,1}` uses are unaffected) and
-        gain a `(result = 1) <-> <substring condition>` clause; find returns an index ≥ -1
-        with a found-index witness."""
-        if "." not in func_name:
-            return None
-        recv, method = func_name.rsplit(".", 1)
+        operand*. Applies to ANY string-valued receiver — a simple `str`-typed name OR a
+        derived string expression (`(a + b).startswith(a)`, `s[i:].startswith(p)`), lowered
+        through `_str_method_recv_and_tail` (cleared-string.md S6). Only a MULTI-dot receiver
+        (`self.name.startswith(…)`) or a non-string receiver falls through to the opaque
+        baked-into-the-name predicate path. startswith/endswith keep the 0/1 int result (so
+        control-flow / `\result ∈ {0,1}` uses are unaffected) and gain a
+        `(result = 1) <-> <substring condition>` clause; find returns an index ≥ -1 with a
+        found-index witness."""
+        recv_ir, method = self._str_method_recv_and_tail(expr)
         if method not in ("startswith", "endswith", "find"):
             return None
-        if "." in recv or self._current_symbol_table.get(recv) != "str":
+        if recv_ir is None or not self._is_string_expr(recv_ir):
             return None
         if len(args) != 1 or not self._is_string_expr(expr["args"][0]):
             return None
-        r = self._expr_to_whyml({"type": "Var", "name": recv}, local_refs,
-                                invariant_ctx, subst)
+        r = self._expr_to_whyml(recv_ir, local_refs, invariant_ctx, subst)
         p = args[0]
         if method == "startswith":
             self._add_abstract_op(
@@ -2469,7 +2912,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
             _ga = self._getattr_self_field(expr.get("receiver"))
-            if _ga is not None and self._self_field_dict_nu(f"self.{_ga}") is not None:
+            if _ga and self._self_field_dict_nu(f"self.{_ga}") is not None:
                 expr = dict(expr)
                 expr["func"] = f"self.{_ga}.{func_name}"
                 func_name = expr["func"]
@@ -2520,8 +2963,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "isidentifier", "startswith", "endswith")
                 and expr.get("receiver") is not None):
             recv = self._expr_to_whyml(expr["receiver"], local_refs, invariant_ctx, subst)
-            all_args = [recv] + [self._expr_to_whyml(a, local_refs, invariant_ctx, subst)
-                                 for a in args]
+            # `args` are ALREADY lowered WhyML strings (set by `_handle_call_expr`); re-lowering
+            # them via `_expr_to_whyml` crashes on the string (`'str' has no attribute
+            # to_dict`). Exposed by self-annotating `<computed>.endswith(...)` (e.g.
+            # `val_ir["func"].endswith(".to_dict")`); the corpus has no computed-receiver
+            # isX/startswith/endswith, so this is byte-identical there.
+            all_args = [recv] + list(args)
             pname = whyml_ident(func_name) + f"_{len(all_args)}"
             ens = "ensures { ((result = 0) || (result = 1)) }"
             # Each operand keeps its real type (the receiver of `s[i].isdigit()` is a
@@ -2552,12 +2999,66 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Body set: same `map int (option int)` model as body dicts.
             # Sets store `Some 0` for "present" keys, `None` for absent.
             return "(const (None: option int))"
+        _cf5_ms = (getattr(self, "_current_self_type", None)
+                   in getattr(self, "_mutable_state_classes", set()))
+        if (func_name in ("set", "frozenset") and len(args) == 1 and _cf5_ms
+                and expr.get("args") and isinstance(expr["args"][0], dict)
+                and expr["args"][0].get("type") == "Call"
+                and self._call_returns_seq_string(expr["args"][0].get("func", ""))):
+            # item34.md CF5: `set(<seq string collection>)` is the same list (dedup unmodelled).
+            return args[0]
+        if (isinstance(func_name, str) and func_name.endswith(".get") and len(args) == 2
+                and _cf5_ms and expr.get("args") and len(expr["args"]) == 2
+                and isinstance(expr["args"][1], dict)
+                and expr["args"][1].get("type") in ("ArrayLit", "ListLit", "List")
+                and not self._is_emit_ir_expr(
+                    {"type": "Var", "name": func_name[:-len(".get")]})):
+            # item34.md CF5: `<handler>.get("body", [])` — list-default on a NON-emit_ir handler
+            # dict → `array int` STMT-LIST (the `list_comp_stmts` node model consumed by
+            # `find_assigned_vars`/`_stmts_to_whyml`). GATED off emit_ir receivers so
+            # `val_ir.get("elts",[])` keeps its int-model `.get` path.
+            _grecv = whyml_ident(func_name.replace(".", "_"))
+            self._add_abstract_op(f"val {_grecv}_arr (k: string) : array int")
+            return f"({_grecv}_arr {args[0]})"
+        if (isinstance(func_name, str) and func_name.endswith(".get") and len(args) == 1
+                and _cf5_ms and expr.get("args") and isinstance(expr["args"][0], dict)
+                and expr["args"][0].get("type") == "String"
+                and not self._is_emit_ir_expr(
+                    {"type": "Var", "name": func_name[:-len(".get")]})):
+            # item34.md CF5: `<handler>.get("exc_type")` — 1-arg string-key `.get` on a
+            # non-emit_ir handler dict reads a string scalar field.
+            _grecv = whyml_ident(func_name.replace(".", "_"))
+            self._add_abstract_op(f"val {_grecv}_str (k: string) : string")
+            return f"({_grecv}_str {args[0]})"
         if func_name == "sorted" and len(args) == 1:
-            # Abstract `sorted` over an array — returns a permuted array.
-            # We don't model the sortedness invariant here; callers that
-            # need it should use `\is_sorted` in contracts.
+            # item34.md CF5: `sorted(<seq string>)` → `seq string` (`sorted_seq`); the name
+            # collections are seq. Dispatch on the arg being a seq-string local.
+            _sa = expr.get("args", [{}])[0]
+            if (_cf5_ms and isinstance(_sa, dict) and _sa.get("type") == "Var"
+                    and _sa.get("name") in getattr(self, "_seq_locals", set())
+                    and getattr(self, "_seq_value_types", {}).get(_sa.get("name")) == "string"):
+                self._add_abstract_op("val sorted_seq (a: seq string) : seq string")
+                return f"(sorted_seq !{whyml_ident(_sa['name'])})"
+            # cleared-array.md S5 (spike-proven, S0-bis): `sorted(a)` over an
+            # `array int` returns a permuted, sorted array with the SAME length.
+            # The three facts are DEFINITIONAL `ensures` on the abstract `val`
+            # (discharged where `sorted` is USED, NOT a global axiom):
+            #   * `Array.length result = Array.length a`
+            #   * adjacent sortedness — the exact formula `\is_sorted(result)`
+            #     lowers to, so a driver's `\is_sorted(result)` matches directly;
+            #   * `permut result a` — the SAME uninterpreted predicate
+            #     `\permutation(result, a)` lowers to (arg order result,a), so a
+            #     driver's `\permutation(result, a)` matches directly.
+            # sortedness + permut + equal-length is satisfiable (a sorted
+            # permutation always exists) → no vacuity; adding ensures is
+            # monotone → cannot regress a prior opaque proof.
+            self._add_abstract_op("predicate permut (a: array int) (b: array int)")
             self._add_abstract_op(
-                "val sorted_1 (a: array int) : array int")
+                "val sorted_1 (a: array int) : array int\n"
+                "    ensures { Array.length result = Array.length a }\n"
+                "    ensures { forall _si : int. 0 <= _si < Array.length result - 1 ->\n"
+                "                result[_si] <= result[_si + 1] }\n"
+                "    ensures { permut result a }")
             return f"(sorted_1 {self._array_coerce_arg(args[0])})"
         if func_name in ("any", "all") and len(args) == 1:
             # `any(iterable)` / `all(iterable)` over an array — abstract.
@@ -2796,7 +3297,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if isinstance(v, int):
                         return f"(- {abs(v)})" if v < 0 else str(v)
                     if isinstance(v, str):
-                        return '"' + v.replace('\\', '\\\\').replace('"', '\\"') + '"'
+                        return self._whyml_string_literal(v)
                 except (ValueError, SyntaxError):
                     pass  # not a valid literal → opaque
             self._add_abstract_op("val literal_eval_op (s: 'a) : int")
@@ -2831,26 +3332,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # The `tag_*` functions are used only in goals (after all decls), so they are fine.
         self._add_abstract_op("predicate subtag (a b: int) = a = b \\/ b = 99")
 
-    def _tag_of_type(self, t_name: Optional[str]) -> Optional[str]:
+    def _tag_of_type(self, t_name: str) -> str:
         """Tag for a *type name* (the 2nd arg of isinstance / a class / datatype).
         None ⇒ unknown target type (fully uninterpreted)."""
         if not t_name:
-            return None
+            return ""
         if t_name in self._METATYPE_TAGS:
             return self._METATYPE_TAGS[t_name]
         if t_name.lower() in getattr(self, "_record_types", {}):
             return "tag_record"
         if t_name in getattr(self, "_variant_types", {}):
             return "tag_variant"
-        return None
+        return ""
 
     def _tag_of_value(self, x_ir: Dict[str, Any]) -> str:
         """Tag of a *value* from Γ's τ (decision B: only a stable, concrete τ decides;
         `Any`/unstable/non-var → a free symbolic tag via `typeof_op`, so introspection on
         it stays unknown — never a wrong-decided)."""
         name = x_ir.get("name") if isinstance(x_ir, dict) and x_ir.get("type") == "Var" else None
-        tag = self._tag_of_type(getattr(self, "_current_symbol_table", {}).get(name)) if name else None
-        if tag is not None:
+        tag = self._tag_of_type(getattr(self, "_current_symbol_table", {}).get(name)) if name else ""
+        if tag:
             return tag
         self._add_abstract_op("val function typeof_op (n: int) : int")
         return f"(typeof_op {sum(ord(c) for c in name) if name else 0})"
@@ -2882,7 +3383,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         args_ir = expr.get("args", [])
         t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
         t_tag = self._tag_of_type(t_name)
-        if t_tag is None:
+        if not t_tag:
             self._add_abstract_op("val isinstance_op (x: int) (t: int) : bool")
             return "(isinstance_op 0 0)"
         self._emit_metatype_tags()
@@ -2921,6 +3422,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         an `ensures \result == <literal>` claim about an arbitrary dict's
         value remains honestly unprovable — the faithful model, not a
         trusted lie)."""
+        # subscript-receiver .get projection: `a[i].get("name")` — the receiver is an emit_ir
+        # EXPRESSION (an array element `a[i]`, not a dotted Var), carried in the Call's `receiver`
+        # field with `func == "get"`. Project over the lowered receiver (kind_of/name_of/…). Must run
+        # BEFORE the `"." not in func_name` bail (func_name is bare "get" here). @mutable_state /
+        # emit_ir-gated (`_is_emit_ir_expr` is False otherwise) → byte-identical for the corpus.
+        if func_name == "get":
+            _rcv = expr.get("receiver")
+            if isinstance(_rcv, dict) and self._is_emit_ir_expr(_rcv):
+                _kir = (expr.get("args") or [{}])[0]
+                if isinstance(_kir, dict) and _kir.get("type") == "String":
+                    _k = _kir.get("value")
+                    # an element's `.get("value")` reads its SCALAR string (a leaf String/Number
+                    # node's value, e.g. `args[1]["value"]` = the getattr field name) → value_of,
+                    # not the sub-node svalue_of that `_EMIT_IR_PROJ["value"]` picks for chaining.
+                    _proj = "value_of" if _k == "value" else _EMIT_IR_PROJ.get(_k)
+                    if _proj:
+                        _rv = self._expr_to_whyml(_rcv, local_refs or set(),
+                                                  invariant_ctx, subst)
+                        return f"({_proj} {_rv})"
         if "." not in func_name:
             return None
         recv, method = func_name.rsplit(".", 1)
@@ -2930,7 +3450,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         # §26: `X.get(k)` where X aliases a self dict-field → `self.<field>.get(k)`.
         _alias = self._alias_self_field(recv)
-        if _alias is not None:
+        if _alias:
             recv = _alias
             func_name = f"{_alias}.get"
         # todict-reflection-plan.md R1: `d` aliases `node.to_dict()` — route
@@ -2974,12 +3494,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 local_refs or set(), invariant_ctx, subst)
             _kir = (expr.get("args") or [{}])[0]
             _kstr = isinstance(_kir, dict) and _kir.get("type") == "String"
-            if not self._in_spec and self._is_string_expr(_kir if isinstance(_kir, dict) else {}):
+            # cleared-hash S4: a κ=string field is `map string (option ν)` — read the
+            # RAW native string key (no str_hash_op), matching the store/membership.
+            if self._self_field_dict_kappa(recv) == "string":
+                k = args[0]
+            elif not self._in_spec and self._is_string_expr(_kir if isinstance(_kir, dict) else {}):
                 self._add_abstract_op("val str_hash_op (s: string) : int")
                 k = f"(str_hash_op {args[0]})"
             else:
                 k = self._coerce_to_int(args[0])
-            default = args[1] if len(args) >= 2 else self._dv_missing_default(_field_nu)
+            # #15: for a NESTED-collection value (`seq _`/`map _`), the explicit `[]`/`{}` default
+            # is a type-generic empty that lowers to the WRONG shape (`array int` for `[]`); use the
+            # ν-typed empty instead so the `None ->` arm matches the `Some v_` (inner seq/map).
+            if (isinstance(_field_nu, str)
+                    and _field_nu.startswith(("seq ", "map ", "array "))):
+                default = self._dv_missing_default(_field_nu)
+            else:
+                default = args[1] if len(args) >= 2 else self._dv_missing_default(_field_nu)
             return (f"(match Map.get {recv_whyml} {k} "
                     f"with | Some v_ -> v_ | None -> {default} end)")
         if not is_dict:
@@ -3330,19 +3861,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _kidx = expr.get("index", {})
         if (isinstance(_kidx, dict) and _kidx.get("type") == "String"
                 and self._is_emit_ir_expr(value)):
-            _proj = _EMIT_IR_PROJ.get(_kidx.get("value"))
+            # cf6.md M1.3: SUBSCRIPT `c["pattern"]` reads the pattern SUB-NODE (`svalue_of`),
+            # whereas `.get("pattern")` reads its KIND string — same key, different meaning at
+            # different nesting. So subscript "pattern" projects to a NODE, not `kind_of`.
+            _kv = _kidx.get("value")
+            # self-tcb-reduction T1.a: SUBSCRIPT `expr['object']` is the object NAME string
+            # (`FieldGet.object: str`) — the name of the object sub-node (`name_of ∘ object_of`),
+            # distinct from `.get("object")` (a node). The only un-trusted subscript-"object" user is
+            # `_handle_field_get_expr` (`obj == "self"`, `f"{obj}.{field}"`).
+            if _kv == "object":
+                _rv = self._expr_to_whyml(value, local_refs or set(), invariant_ctx, subst)
+                return f"(name_of (object_of {_rv}))"
+            _proj = "svalue_of" if _kv == "pattern" else _EMIT_IR_PROJ.get(_kv)
             if _proj:
                 return f"({_proj} {self._expr_to_whyml(value, local_refs or set(), invariant_ctx, subst)})"
         # §26: `X[k]` where X aliases a self dict-field → `Map.get self.<field> <k>` (the
         # getattr-bound-local read; `known_sizes[var_name]`). Mirrors the field-dict get.
         if isinstance(value, dict) and value.get("type") == "Var":
             _al = self._alias_self_field(value.get("name", ""))
-            if _al is not None:
+            if _al:
                 _fld = _al.split(".", 1)[1]
                 _nu = self._self_field_dict_nu(_al)
                 _recv = f"self.{self._field_label(getattr(self, '_current_self_type', None), _fld)}"
                 _kir = expr.get("index", {})
-                if not self._in_spec and self._is_string_expr(_kir):
+                # cleared-hash S4: κ=string aliased field → RAW native string key.
+                if self._self_field_dict_kappa(_al) == "string":
+                    _key = index
+                elif not self._in_spec and self._is_string_expr(_kir):
                     self._add_abstract_op("val str_hash_op (s: string) : int")
                     _key = f"(str_hash_op {index})"
                 else:
@@ -3484,12 +4029,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _ib = value.get("value", {})
                 _nu = (getattr(self, "_dict_value_types", {}).get(_ib.get("name", ""))
                        if isinstance(_ib, dict) and _ib.get("type") == "Var" else None)
+                # nested-map.md: `self._nested_field[ko][ki]` — the inner base is a self dict-field
+                # whose value_type is itself a `map …` (nested dict), so the outer `[ki]` reads that
+                # inner map. Parallel to the body-dict `d[ko][ki]` case above.
+                if _nu is None and isinstance(_ib, dict) and _ib.get("type") in ("Attribute", "FieldGet"):
+                    _o = _ib.get("object"); _f = _ib.get("field") or _ib.get("attr")
+                    if isinstance(_o, str):
+                        _nu = self._self_field_dict_nu(f"{_o}.{_f}")
                 if _nu and _nu.startswith("map "):
                     _inner_v = (_nu.split("(option ", 1)[1].rsplit(")", 1)[0]
                                 if "(option " in _nu else "int")
                     _idef = '""' if _inner_v == "string" else "0"
-                    # inner key κi: int keys are hashed, string keys pass through.
-                    _k = index if "map string" in _nu else self._coerce_to_int(index)
+                    # inner key κi: a `map string` inner passes the key through; an int-keyed inner
+                    # (`map int …`, incl. nested-map.md's str-keys-hashed convention) hashes a STRING
+                    # key with `str_hash_op`, else int-coerces.
+                    _idx_ir = expr.get("index", {})
+                    if "map string" in _nu:
+                        _k = index
+                    elif not self._in_spec and self._is_string_expr(_idx_ir):
+                        self._add_abstract_op("val str_hash_op (s: string) : int")
+                        _k = f"(str_hash_op {index})"
+                    else:
+                        _k = self._coerce_to_int(index)
                     # `value_str` (the inner `d[ko]` read) lowers to a program
                     # `begin assert..; match.. end` block carrying its OWN
                     # KeyError assert — it cannot sit inside the outer read's
@@ -3549,7 +4110,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # `string`, so the `None` arm is a typed placeholder (`""`) —
                 # proven dead under `#@ no_exception KeyError` (faithful read),
                 # the ambient default otherwise.
-                if getattr(self, "_dict_key_types", {}).get(dvar) == "string":
+                # cleared-hash S4: a κ=string record dict/set FIELD (`self.<field>[k]`,
+                # no `dvar`) is `map string (option ν)` — read the RAW native string key
+                # (matching the field store/`.get`/membership); a mismatch is a type error.
+                _fld_kappa = None
+                if not dvar and value.get("type") in ("Attribute", "FieldGet"):
+                    _ko = value.get("object"); _kf = value.get("field") or value.get("attr")
+                    if isinstance(_ko, str):
+                        _fld_kappa = self._self_field_dict_kappa(f"{_ko}.{_kf}")
+                if (getattr(self, "_dict_key_types", {}).get(dvar) == "string"
+                        or _fld_kappa == "string"):
                     k = index
                 elif (not self._in_spec
                       and self._is_string_expr((expr.get("slice") or expr.get("index") or {}))):
@@ -3570,8 +4140,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if not dvar and value.get("type") in ("Attribute", "FieldGet"):
                     _o = value.get("object")
                     _f = value.get("field") or value.get("attr")
-                    if isinstance(_o, str) and self._self_field_dict_nu(f"{_o}.{_f}") == "string":
+                    _fnu = (self._self_field_dict_nu(f"{_o}.{_f}")
+                            if isinstance(_o, str) else None)
+                    if _fnu == "string":
                         default = '""'
+                    elif (isinstance(_fnu, str) and _fnu.startswith("map int (")
+                          and _fnu.endswith(")")):
+                        # nested-map.md: a NESTED-dict field read (`self._class_constants[k]`)
+                        # yields the INNER map; the missing-key default is the empty inner map
+                        # (`const None`), not the int `0`.
+                        default = f"(const (None: {_fnu[len('map int ('):-1]}))"
                 inner = f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> {default} end)"
                 # no_exception KeyError → assert has_key before the read.
                 return self._wrap_with_no_exception_assert(
@@ -3637,10 +4215,48 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
             _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+            # self-tcb-reduction T1.a: `<emit_ir>.kind` is the DISCRIMINANT (`kind_of`, a string),
+            # not a sub-node — so `inner.kind == "Subscript"` routes through `str_eq_op`.
+            if attr in _EMIT_IR_STR_ATTRS:
+                return f"({_EMIT_IR_STR_ATTRS[attr]} {_os})"
+            # self-tcb-reduction T1.a: a node-LIST attr (`node.elts`/`node.parts`/…) → the args
+            # list (`args_of`, an `array emit_ir`), so `for elt in node.elts` iterates it.
+            if attr in ("elts", "parts", "args", "captures"):
+                return f"(args_of {_os})"
             return f"(svalue_of {_os})"
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
-        self._add_abstract_op(f"val get_{attr} (x: int) : int")
+        # cleared-array.md S2: in a SPEC/logic context (a contract or a
+        # projection-comprehension content law), the abstract getter must be a
+        # pure `val function` so it is usable in the `ensures` AND denotes ONE
+        # deterministic value across every mention (the driver's `a[k].attr` and
+        # the comprehension law reduce to the same `get_attr`). A body-only getter
+        # stays the historical program `val` (byte-identical). Keep-longer dedup in
+        # `_add_abstract_op` upgrades a same-file plain `val` in place → confined to
+        # files that project a collapsed-int element in a contract (a NEW grammar
+        # form) or via a projection comprehension. Sound: a field read is a
+        # deterministic function of the (collapsed) element — a faithful refinement
+        # that only removes spurious non-determinism, never adds a value claim.
+        if getattr(self, "_in_spec", False):
+            self._add_abstract_op(f"val function get_{attr} (x: int) : int")
+        else:
+            self._add_abstract_op(f"val get_{attr} (x: int) : int")
         return f"(get_{attr} {obj_str})"
+
+    def _var_todict_alias(self, name: str, local_refs: Set[str],
+                          subst: Optional[Dict[str, str]]) -> str:
+        """If `name` is a `to_dict()` ALIAS (`_todict_aliases[name] == "self.types"`), rebuild the
+        dotted attribute IR and re-emit it; else return `""` (no alias — a dotted alias emission is
+        never empty). Extracted (07-03-refactor R1) as the ONE hard branch of `_handle_var_expr` —
+        it carries the `_parts = alias.split(".")` seq-slice for-loop whose `variant {}` references a
+        program `val` in a logic context (the R7 target), isolating it so the rest of var proves."""
+        _al = getattr(self, "_todict_aliases", {}).get(name)
+        if _al is None:
+            return ""
+        _parts = _al.split(".")
+        _n: Dict[str, Any] = {"type": "Var", "name": _parts[0]}
+        for _p in _parts[1:]:
+            _n = {"type": "Attribute", "object": _n, "attr": _p}
+        return self._expr_to_whyml(_n, local_refs, False, subst)
 
     def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
                          subst: Optional[Dict[str, str]] = None) -> str:
@@ -3653,13 +4269,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `d` to `self._expr_to_whyml(d)`, the emitter's recursive sub-expression
         # emission) lowers to the node itself. Complements the `d.get(key)` routing:
         # both the reflective reads AND the recursive re-emission see the typed node.
-        _al = getattr(self, "_todict_aliases", {}).get(name)
-        if _al is not None:
-            _parts = _al.split(".")
-            _n: Dict[str, Any] = {"type": "Var", "name": _parts[0]}
-            for _p in _parts[1:]:
-                _n = {"type": "Attribute", "object": _n, "attr": _p}
-            return self._expr_to_whyml(_n, local_refs, False, subst)
+        _alias = self._var_todict_alias(name, local_refs, subst)
+        if _alias:
+            return _alias
         # body-gate gap-5: a scalar quantifier binder reads BARE (a bound logic var),
         # shadowing a same-named loop/local ref for the quantifier body's duration.
         if name in getattr(self, "_quant_scalar_binders", ()):
@@ -3685,7 +4297,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # 0442.md C5 (no-more-int): a string-literal constant folds to a real Why3
             # string literal, not an int hash; an int constant folds to its value.
             if isinstance(_cv, str):
-                return '"' + _cv.replace("\\", "\\\\").replace('"', '\\"') + '"'
+                return self._whyml_string_literal(_cv)
             return f"({_cv})"
         # inline.md Phase 1: a bare reference to a module-level global object resolves to
         # its binding name (e.g. passing `acc` as an argument). After the local/param
@@ -3707,13 +4319,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val constant {safe} : int")
         return safe
 
-    def _quant_binder_whyml(self, binder_type: Optional[str]) -> str:
+    def _quant_binder_whyml(self, binder_type: str) -> str:
         """quantification.md: map a quantifier binder type to its WhyML sort.
         `None` ⇒ legacy `int` (emitted verbatim → byte-identical for every existing
         quantifier). Scalars map int→int / bool→bool / str→string / float→real; a
         declared `#@ datatype` or class name lowers to its Why3 type (lowercased,
         e.g. `Color`→`color`). Module 4 has already rejected an unresolved name."""
-        if binder_type is None:
+        if not binder_type:
             return "int"
         scalars = {"int": "int", "bool": "bool", "str": "string", "float": "real"}
         # 07-1311 Q4: collection-typed binders lower to their faithful WhyML sort.
@@ -3769,7 +4381,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         else:
             self._quant_record_binders.pop(var, None)
 
-    def _field_label(self, record_lower: Optional[str], field: str) -> str:
+    def _field_label(self, record_lower: str, field: str) -> str:
         """WhyML label for a record field. Ambiguous names (shared by >1
         record, e.g. an inherited field) are qualified `<record>_<field>` to
         avoid Why3's global field-label collision; unique names stay bare."""
@@ -3803,6 +4415,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             obj = self._coerce_to_int(obj)
         return f"({name} {obj} {hash_field})"
 
+    def _fstring_str_part(self, pp: "ExprIR", local_refs: Set[str],
+                          invariant_ctx: bool, subst: Dict[str, str]) -> str:
+        """One segment of a MIXED (str/int) f-string in a @mutable_state class: a string
+        segment passes through; an int/opaque segment is `int_to_string`-wrapped. Hoisted
+        (07-03-refactor R2) from the `_sp` nested closure in `_handle_fstring_expr` so the
+        segment logic types identically under proof mode and `--no-proof`."""
+        w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
+        return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
+
     def _handle_fstring_expr(self, node: "ExprIR", local_refs: Set[str],
                               invariant_ctx: bool, subst: Dict[str, str]) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
@@ -3817,10 +4438,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # corpus that interpolates non-string values stays byte-identical.
         if all(self._is_string_expr(p) for p in parts):
             acc = self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst)
-            n_parts = len(parts)
-            i_part = 1
-            while i_part < n_parts:
-                p = self._expr_to_whyml(parts[i_part], local_refs, invariant_ctx, subst)
+            # 07-03-refactor R2 (finish): a `for` over `parts[1:]` (array-emit_ir slice, R7) gets the
+            # auto index-bound invariant so `parts[i]` discharges -- unlike the manual
+            # `while i_part < n_parts` (bound in a local, no `Array.length` relation).
+            for part in parts[1:]:
+                p = self._expr_to_whyml(part, local_refs, invariant_ctx, subst)
                 if self._in_spec:
                     acc = f"(concat {acc} {p})"
                 else:
@@ -3829,7 +4451,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         "    ensures { result = (concat a b) }\n"
                         "    ensures { String.length result = String.length a + String.length b }")
                     acc = f"(str_concat_op {acc} {p})"
-                i_part += 1
             return acc
         # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
         # a MIXED str/int f-string (e.g. a gensym `f"__x_{n}"`) is still a STRING — the
@@ -3843,22 +4464,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { result = (concat a b) }\n"
                 "    ensures { String.length result = String.length a + String.length b }")
 
-            def _sp(pp: Dict[str, Any]) -> str:
-                w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
-                return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
-            acc = _sp(parts[0])
+            acc = self._fstring_str_part(parts[0], local_refs, invariant_ctx, subst)
             for pp in parts[1:]:
-                acc = f"(str_concat_op {acc} {_sp(pp)})"
+                acc = f"(str_concat_op {acc} {self._fstring_str_part(pp, local_refs, invariant_ctx, subst)})"
             return acc
         acc = self._coerce_str_arg(self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst))
-        n_parts = len(parts)
-        i_part = 1
-        while i_part < n_parts:
-            part = parts[i_part]
+        for part in parts[1:]:
             p = self._coerce_str_arg(self._expr_to_whyml(part, local_refs, invariant_ctx, subst))
             self._add_abstract_op("val str_concat (x: int) (y: int) : int")
             acc = f"(str_concat {acc} {p})"
-            i_part += 1
         return acc
 
     def _handle_unaryop_expr(
@@ -3919,6 +4533,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
         return f"({e} at {label})"
 
+    def _cf5_arr(self, d: "ExprIR") -> bool:
+        """True if an IfExp arm `d` is a STRING-seq value (`.split(...)`, a list/comp literal,
+        or a str-seq/str-array Var) — so a `<seq> if c else <seq>` IfExp emits each arm seq-ified
+        rather than int-coerced. Hoisted (07-03-refactor R2) from the nested closure in
+        `_handle_ifexpr_expr` so the arm predicate types consistently under proof mode."""
+        if not isinstance(d, dict):
+            return False
+        _tt = d.get("type")
+        if (_tt == "Call" and isinstance(d.get("func"), str)
+                and d["func"].endswith(".split")):
+            return True
+        if _tt in ("ArrayLit", "ListLit", "ListComp"):
+            return True
+        if _tt == "Var":
+            return (getattr(self, "_seq_value_types", {}).get(d.get("name")) == "string"
+                    or getattr(self, "_array_elem_types", {}).get(d.get("name")) == "string")
+        return False
+
+    #@ requires_method _seq_operand: (self, val_ir: ExprIR, local_refs: set) -> str
+    def _ifexpr_seq_arm(self, test: str, _bd: "ExprIR", _od: "ExprIR",
+                        local_refs: Set[str]) -> str:
+        """CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|") if … else
+        [exc]`) — emit each arm seq-ified (`_seq_operand`). Extracted (07-03-refactor R2/R1-pattern)
+        as the ONE branch of `_handle_ifexpr_expr` that stays trusted (its `_seq_operand` result +
+        `local_refs or set()` map-or don't yet lower cleanly), isolating it so the rest converts."""
+        # 07-03-refactor: `_ifexpr_seq_arm` is only reached from the @mutable_state seq-arm where
+        # `local_refs` is always a present Set, so `or set()` is a no-op (avoids the map-or lowering).
+        return (f"(if {test} then {self._seq_operand(_bd, local_refs)} "
+                f"else {self._seq_operand(_od, local_refs)})")
+
     def _handle_ifexpr_expr(
         self,
         node: "IfExprExpr",
@@ -3929,7 +4573,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # Phase-B-expr: typed. IfExprExpr (test, body, orelse: ExprIR).
         test = self._expr_to_whyml(node.test, local_refs, invariant_ctx, subst)
         test = self._to_bool(test, node.test.to_dict())
-        _bd, _od = node.body.to_dict(), node.orelse.to_dict()
+        # 07-03-refactor R2: split the tuple-unpack into two assignments so each arm types as
+        # emit_ir (via the `.to_dict()` recognizer) instead of the int tuple-unpack target.
+        _bd = node.body.to_dict()
+        _od = node.orelse.to_dict()
         body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
         orelse = self._expr_to_whyml(node.orelse, local_refs, invariant_ctx, subst)
         # i-feel-good.md I-A/I-B: a ternary is a STRING expression when at least one arm is
@@ -3939,12 +4586,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # string. @mutable_state-gated → the corpus int model is byte-identical.
         _ms = (getattr(self, "_current_self_type", None)
                in getattr(self, "_mutable_state_classes", set()))
-        _b_str, _o_str = self._is_string_expr(_bd), self._is_string_expr(_od)
-        _b_none, _o_none = _bd.get("type") == "None", _od.get("type") == "None"
+        _b_str = self._is_string_expr(_bd)
+        _o_str = self._is_string_expr(_od)
+        _b_none = _bd.get("type") == "None"
+        _o_none = _od.get("type") == "None"
         if _ms and (_b_str or _o_str) and (_b_str or _b_none) and (_o_str or _o_none):
             if _b_none: body = '""'
             if _o_none: orelse = '""'
             return f"(if {test} then {body} else {orelse})"
+        # item34.md CF1: the emit_ir analogue — `stmt.value.to_dict() if stmt.value is not
+        # None else None` (an `Optional[ExprIR]` ternary) is an emit_ir expression; a `None`
+        # arm → `(IrOther "")` (the emit_ir absent sentinel). @mutable_state.
+        _b_ir = self._is_emit_ir_expr(_bd)
+        _o_ir = self._is_emit_ir_expr(_od)
+        if _ms and (_b_ir or _o_ir) and (_b_ir or _b_none) and (_o_ir or _o_none):
+            if _b_none: body = '(IrOther "")'
+            if _o_none: orelse = '(IrOther "")'
+            return f"(if {test} then {body} else {orelse})"
+        # item34.md CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|")
+        # if "|" in exc else [exc]`) — emit each arm seq-ified (`_seq_operand`), no int
+        # coercion. @mutable_state.
+        if _ms and self._cf5_arr(_bd) and self._cf5_arr(_od):
+            return self._ifexpr_seq_arm(test, _bd, _od, local_refs)
         body = self._coerce_to_int(body)
         orelse = self._coerce_to_int(orelse)
         return f"(if {test} then {body} else {orelse})"
@@ -3963,6 +4626,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(begin {target} := {v}; !{target} end)"
         local_refs.add(target)
         return f"(let {target} = ref {v} in !{target})"
+
+    #@ requires_method _field_type_of: (self, attr_ir: ExprIR) -> str
+    def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR",
+                               local_refs: Set[str], invariant_ctx: bool,
+                               subst: Optional[Dict[str, str]]) -> str:
+        """The array-source / opaque tail of `_handle_slice_access_expr`: `Array.sub` for a known
+        array source (`_field_type_of(val) in list/tuple/…`), else the opaque `array_slice`.
+        Extracted (07-03-refactor R4) as the trusted leaf — it calls `_field_type_of` (types.py),
+        whose cross-file stub defaults to int, so the whole tail stays trusted while the seq/string
+        slice cases in `_handle_slice_access_expr` convert."""
+        lo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
+        hi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst) if sl.get("upper") else f"(Array.length {arr})"
+        val = node.value.to_dict()
+        is_array_src = False
+        if val.get("type") in ("Attribute", "FieldGet"):
+            if self._field_type_of(val) in ("list", "tuple", "bytes", "bytearray"):
+                is_array_src = True
+        elif val.get("type") == "Var":
+            vn = val.get("name", "")
+            if (vn in getattr(self, "_array_locals", set()) or
+                    vn in getattr(self, "_current_array1d_params", set()) or
+                    self._current_symbol_table.get(vn) == "list"
+                    or vn in getattr(self, "_array_elem_types", {})):
+                is_array_src = True
+        if is_array_src:
+            return f"(Array.sub {arr} ({lo}) (({hi}) - ({lo})))"
+        self._add_abstract_op("val array_slice (a: array int) (lo: int) (hi: int) : array int")
+        # 07-03-refactor: store the coerced arg in a fresh local (not a reassigned param) so `arr`
+        # stays an immutable string param — else the `{arr}` interpolations lower to `!arr` (ref).
+        _carr = self._array_coerce_arg(arr)
+        return f"(array_slice {_carr} {lo} {hi})"
 
     def _handle_slice_access_expr(
         self,
@@ -4012,36 +4706,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                 " -> String.length result = len }")
             return f"(str_sub_op {arr} {slo} {slen})"
-        lo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
-        hi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst) if sl.get("upper") else f"(Array.length {arr})"
-        # A known-array source (record array-field like `self.disk`, or an
-        # array local/param) gets real `Array.sub` semantics: the result has
-        # known length `hi-lo` and content `result[i] = arr[lo+i]`, so the
-        # prover can reason about read-back content (needed for round-trip
-        # proofs). Why3's `Array.sub` carries the bounds preconditions
-        # (`0<=lo`, `0<=len`, `lo+len <= length arr`), discharged from the
-        # caller's `requires`/invariants. Only genuinely-int sources (e.g.
-        # `str_conv s` for a sliced string param) fall back to the opaque
-        # `array_slice` placeholder.
-        val = node.value.to_dict()
-        is_array_src = False
-        if val.get("type") in ("Attribute", "FieldGet"):
-            if self._field_type_of(val) in ("list", "tuple", "bytes", "bytearray"):
-                is_array_src = True
-        elif val.get("type") == "Var":
-            vn = val.get("name", "")
-            if (vn in getattr(self, "_array_locals", set()) or
-                    vn in getattr(self, "_current_array1d_params", set()) or
-                    self._current_symbol_table.get(vn) == "list"
-                    # self-ir-schema.md IR2: a comprehension/field array local
-                    # (`body_stmts[:-1]`) slices with the polymorphic `Array.sub`.
-                    or vn in getattr(self, "_array_elem_types", {})):
-                is_array_src = True
-        if is_array_src:
-            return f"(Array.sub {arr} ({lo}) (({hi}) - ({lo})))"
-        self._add_abstract_op("val array_slice (a: array int) (lo: int) (hi: int) : array int")
-        arr = self._array_coerce_arg(arr)
-        return f"(array_slice {arr} {lo} {hi})"
+        return self._slice_array_or_opaque(node, arr, sl, local_refs, invariant_ctx, subst)
 
     def _handle_arraylen_expr(
         self,
@@ -4179,6 +4844,391 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if self._value_semantic:
             return f"(valid_index {base} {row} {col})"
         return "true"
+
+    # ---- cleared-array.md S1–S4: content-faithful comprehensions ----------
+    def _comp_elt_pure_int(self, elt: Any, free: Set[str],
+                           getters: Optional[Set[str]] = None,
+                           user_funcs: Optional[Set[str]] = None) -> bool:
+        """True iff `elt` is a PURE, total `int`-valued expression the emitter
+        lowers to a logic term built only from:
+          * variables (collected into `free`),
+          * integer literals,
+          * the total arithmetic operators `+ - *` (identity / arithmetic),
+          * cleared-array.md S2 — FIELD PROJECTIONS `e.attr` on a liftable `e`
+            (the attr NAMES are collected into `getters`), and
+          * cleared-array item 1 — CALLS `g(e, …)` to a module function already
+            emitted as a pure `let function` (a logic symbol), with liftable int
+            args (the callee names are collected into `user_funcs`, gating the
+            deferred late-emission of the content-law `val`).
+
+        Division / modulo are excluded (partiality — ZeroDivisionError semantics
+        must not leak into a logic `ensures`); calls / subscripts / comparisons /
+        booleans are excluded (not guaranteed pure-int logic terms).
+
+        Projection soundness: in the int-collapsed list model a source element is
+        an `int`, so `e.attr` lowers to the abstract getter `get_attr : int → int`
+        (`_handle_attribute_expr`). That getter is a DETERMINISTIC read of the
+        (collapsed) element, so `result[i] = get_attr(src[i])` is a faithful
+        re-expression of `a[i].attr` — the SAME `get_attr` a driver's own
+        `\result[i] == a[i].attr` lowers to. The lift only holds once every such
+        getter is emitted as a pure `val function` (done by `_content_comp` via
+        the collected `getters` set), so the two mentions denote one value.
+        Conservative: any unrecognised node ⇒ not liftable."""
+        if not isinstance(elt, dict):
+            return False
+        t = elt.get("type")
+        if t == "Var":
+            free.add(elt.get("name", ""))
+            return True
+        if t == "Number":
+            return isinstance(elt.get("value"), int)
+        if t == "BinOp":
+            if elt.get("op") not in ("+", "-", "*"):
+                return False
+            return (self._comp_elt_pure_int(elt.get("left", {}), free, getters, user_funcs)
+                    and self._comp_elt_pure_int(elt.get("right", {}), free, getters, user_funcs))
+        if t == "UnaryOp":
+            if elt.get("op") not in ("-", "+"):
+                return False
+            return self._comp_elt_pure_int(
+                elt.get("operand", elt.get("value", {})), free, getters, user_funcs)
+        if t == "Call":
+            # cleared-array item 1: `g(args)` where `g` is a module function ALREADY
+            # emitted as a pure `let function` (a logic symbol usable in `ensures`),
+            # and every arg is itself a liftable pure-int term over the target. The
+            # callee is a total function (`assigns \nothing`, non-diverging → `pure`)
+            # so `result[i] = g(src[i])` is sound. Requires the `user_funcs`
+            # accumulator (only `_content_comp` opts in) — else a bare call is not
+            # liftable, keeping the whitelist byte-identical for other callers.
+            if user_funcs is None:
+                return False
+            fn = elt.get("func")
+            if not isinstance(fn, str) or "." in fn:
+                return False
+            if whyml_ident(fn) not in getattr(self, "_emitted_logic_funcs", set()):
+                return False
+            args = elt.get("args", []) or []
+            # keyword/starred args are not plain positional terms → not liftable.
+            if elt.get("keywords") or elt.get("kwargs") or elt.get("starargs"):
+                return False
+            for a in args:
+                if not self._comp_elt_pure_int(a, free, getters, user_funcs):
+                    return False
+            user_funcs.add(whyml_ident(fn))
+            return True
+        if t in ("Attribute", "FieldGet"):
+            # cleared-array.md S2 projection. The base must itself be a liftable
+            # collapsed-int term (the loop target, or a projection/arithmetic over
+            # it); the attr is an int-collapsed getter. Requires the `getters`
+            # accumulator (only `_content_comp` passes it) — otherwise a bare
+            # projection is NOT liftable (keeps the arithmetic-only whitelist
+            # byte-identical for callers that don't opt in).
+            if getters is None:
+                return False
+            attr = elt.get("attr") or elt.get("field")
+            base = elt.get("object")
+            if base is None or not isinstance(attr, str) or not attr:
+                return False
+            if not self._comp_elt_pure_int(base, free, getters, user_funcs):
+                return False
+            getters.add(attr)
+            return True
+        return False
+
+    def _content_comp(self, node: "ExprIR", local_refs: Set[str],
+                      invariant_ctx: bool,
+                      subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """cleared-array.md S1–S4 + S2. Emit a CONTENT-faithful comprehension for
+        a supported element shape, or return None to fall through to the opaque
+        length-only path. Supported: ONE generator whose target is a plain name,
+        an `array int` source (NOT a seq local — the seq comprehension path owns
+        those), and an element that lowers to a pure-int logic term over the
+        target ONLY — identity, `+ - *` arithmetic, or FIELD PROJECTIONS `x.attr`
+        (and arithmetic over them). A filter (`if`) keeps ONLY the sound length
+        bound."""
+        _d = node.to_dict()
+        gens = _d.get("generators", []) or []
+        if len(gens) != 1:
+            return None
+        g = gens[0]
+        target = g.get("target")
+        if not isinstance(target, str):
+            return None
+        src_ir = g.get("iter", {})
+        # The seq comprehension path (mutable-state, `_seq_locals`) is left
+        # untouched — its result must stay a reassignable `seq` value.
+        if (isinstance(src_ir, dict) and src_ir.get("type") == "Var"
+                and src_ir.get("name") in getattr(self, "_seq_locals", set())):
+            return None
+        elt = _d.get("elt", {})
+        free: Set[str] = set()
+        getters: Set[str] = set()
+        user_funcs: Set[str] = set()
+        if not self._comp_elt_pure_int(elt, free, getters, user_funcs):
+            return None
+        # The element may reference the loop target ONLY (no captured locals —
+        # they are not parameters of the abstract `val`).
+        if free - {target}:
+            return None
+        srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+        srca = self._array_coerce_arg(srcw)
+        n = getattr(self, "_comp_content_counter", 0)
+        self._comp_content_counter = n + 1
+        op = f"list_content_comp_{n}"
+        has_if = bool(g.get("ifs"))
+        if has_if:
+            # cleared-array.md S4 + item 4: a filtered comprehension keeps the
+            # SOUND length bound; when the element is the IDENTITY (`x`) and the
+            # filter predicate `cond` lifts to a pure-bool logic term over the
+            # target, ADD the content-SUBSET law — each surviving element satisfies
+            # `cond` AND appears in `src` (its source index is lost, so this is the
+            # honest fact, not a per-index content law).
+            subset = self._filter_subset_law(op, g, target, elt, free,
+                                             local_refs, subst)
+            if subset is not None:
+                self._add_abstract_op(subset)
+            else:
+                self._add_abstract_op(
+                    f"val {op} (src: array int) : array int\n"
+                    f"    ensures {{ Array.length result <= Array.length src }}")
+            return f"({op} {srca})"
+        # Lower the element with the loop target rebound to the per-index source
+        # read `src[i]` (via a fresh scalar binder `_celt = src[i]`), in logic
+        # context. The result is a pure int term over `_celt`.
+        binder = "_ci"
+        celt = "_celt"
+        new_subst = dict(subst or {})
+        new_subst[target] = celt
+        sb = self._quant_scalar_binders
+        had_celt = celt in sb
+        sb.add(celt)
+        saved_in_spec = self._in_spec
+        self._in_spec = True
+        try:
+            eltw = self._expr_to_whyml(elt, local_refs or set(), True, new_subst)
+        finally:
+            self._in_spec = saved_in_spec
+            if not had_celt:
+                sb.discard(celt)
+        # cleared-array.md S2: the element was lowered with `_in_spec = True`
+        # (above), so each projected `x.attr` already registered its getter as a
+        # pure `val function get_attr` (see `_handle_attribute_expr`) — usable in
+        # this content-law `ensures` and denoting one value with a driver's own
+        # `a[k].attr`. The collected `getters` set gated the lift in
+        # `_comp_elt_pure_int`; no extra registration is needed here.
+        decl = (
+            f"val {op} (src: array int) : array int\n"
+            f"    ensures {{ Array.length result = Array.length src }}\n"
+            f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length src ->\n"
+            f"                result[{binder}] = (let {celt} = src[{binder}] in {eltw}) }}")
+        if user_funcs:
+            # cleared-array item 1: the content law references a USER `let function`
+            # (`result[i] = g(src[i])`). That `val` must be declared AFTER `g`, so it
+            # cannot go in the early abstract-op block (which precedes all functions).
+            # Defer it, anchored to the function whose body holds the comprehension;
+            # `_insert_late_content_ops` splices it in just before that function.
+            using = getattr(self, "_current_emitting_func", None)
+            self._late_content_ops.append((op, decl, using))
+        else:
+            self._add_abstract_op(decl)
+        return f"({op} {srca})"
+
+    def _comp_cond_pure_bool(self, cond: Any, free: Set[str]) -> bool:
+        """cleared-array item 4. True iff a filter predicate `cond` lowers to a
+        PURE, total BOOLEAN logic term: a comparison (`< <= > >= == !=`) of
+        pure-int subterms, or an `and`/`or`/`not` combination of such. Free
+        variables are collected into `free` (checked ⊆ {target} by the caller).
+        Conservative — any other shape ⇒ not liftable (keep length-only)."""
+        if not isinstance(cond, dict):
+            return False
+        t = cond.get("type")
+        if t == "BinOp":
+            op = cond.get("op")
+            if op in ("and", "or"):
+                return (self._comp_cond_pure_bool(cond.get("left", {}), free)
+                        and self._comp_cond_pure_bool(cond.get("right", {}), free))
+            if op in ("<", "<=", ">", ">=", "==", "!="):
+                return (self._comp_elt_pure_int(cond.get("left", {}), free)
+                        and self._comp_elt_pure_int(cond.get("right", {}), free))
+            return False
+        if t == "UnaryOp":
+            if cond.get("op") in ("not",):
+                return self._comp_cond_pure_bool(
+                    cond.get("operand", cond.get("value", {})), free)
+            return False
+        return False
+
+    def _filter_subset_law(self, op: str, gen: Dict[str, Any], target: str,
+                           elt: Any, free: Set[str], local_refs: Set[str],
+                           subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """cleared-array item 4. When a filtered comprehension's ELEMENT is the
+        identity (`x`) and every filter predicate `cond` lifts to a pure-bool
+        logic term over the target ONLY, emit the SOUND content-subset law: each
+        surviving element satisfies `cond` AND appears in `src` (source index
+        lost). Returns the full `val` decl, or None to keep the length-only bound.
+
+        Soundness: with an identity element, every `result[i]` IS some `src[j]`
+        that passed the filter, so both conjuncts hold; no per-index content claim
+        is made (the surviving elements are compacted, not at their source
+        indices)."""
+        # Element must be the loop target itself (so result elements ∈ src).
+        if not (isinstance(elt, dict) and elt.get("type") == "Var"
+                and elt.get("name") == target):
+            return None
+        ifs = gen.get("ifs") or []
+        if not ifs:
+            return None
+        cfree: Set[str] = set()
+        for c in ifs:
+            if not self._comp_cond_pure_bool(c, cfree):
+                return None
+        # The predicate may reference the loop target ONLY.
+        if cfree - {target}:
+            return None
+        binder = "_ci"
+        celt = "_celt"
+        new_subst = dict(subst or {})
+        new_subst[target] = celt
+        sb = self._quant_scalar_binders
+        had_celt = celt in sb
+        sb.add(celt)
+        saved_in_spec = self._in_spec
+        self._in_spec = True
+        try:
+            conds = [self._expr_to_whyml(c, local_refs or set(), True, new_subst)
+                     for c in ifs]
+        finally:
+            self._in_spec = saved_in_spec
+            if not had_celt:
+                sb.discard(celt)
+        condw = " /\\ ".join(f"({c})" for c in conds)
+        return (
+            f"val {op} (src: array int) : array int\n"
+            f"    ensures {{ Array.length result <= Array.length src }}\n"
+            f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length result ->\n"
+            f"                (let {celt} = result[{binder}] in {condw})\n"
+            f"                /\\ (exists _cj : int. 0 <= _cj < Array.length src /\\\n"
+            f"                     result[{binder}] = src[_cj]) }}")
+
+    def _lift_comp_elt(self, elt: Any, target: str, celt: str,
+                       local_refs: Set[str],
+                       subst: Optional[Dict[str, str]]) -> str:
+        """Lower a comprehension element/key/value with the loop `target` rebound
+        to the per-source scalar binder `celt` (`= src[i]`), in logic context.
+        Shared by the list / dict / set content-comp laws."""
+        new_subst = dict(subst or {})
+        new_subst[target] = celt
+        sb = self._quant_scalar_binders
+        had = celt in sb
+        sb.add(celt)
+        saved = self._in_spec
+        self._in_spec = True
+        try:
+            return self._expr_to_whyml(elt, local_refs or set(), True, new_subst)
+        finally:
+            self._in_spec = saved
+            if not had:
+                sb.discard(celt)
+
+    def _dict_content_comp(self, node: "ExprIR", local_refs: Set[str],
+                           invariant_ctx: bool,
+                           subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """cleared-array item 3. Content-faithful DICT comprehension
+        `{x: v(x) for x in a}` → a `map int (option int)` with the per-source
+        membership law `Map.get result (src[i]) = Some (<v[x:=src[i]]>)`.
+
+        Guards (return None to keep the opaque `dict_comp` otherwise):
+          * ONE generator, plain-name target, NO filter, `array int` source;
+          * KEY is the IDENTITY (the loop target). This is the soundness pin: a
+            non-injective key would make the per-source law unsound (Python keeps
+            the LAST colliding write), but an identity key means every collision
+            maps to the SAME key AND — since the value is a deterministic function
+            of that key — the SAME value, so insertion order is irrelevant;
+          * VALUE lifts to a pure-int logic term over the target only.
+        The law is an under-approximation of the domain (says nothing about keys
+        NOT in src), hence sound."""
+        _d = node.to_dict()
+        gens = _d.get("generators", []) or []
+        if len(gens) != 1:
+            return None
+        g = gens[0]
+        target = g.get("target")
+        if not isinstance(target, str) or g.get("ifs"):
+            return None
+        src_ir = g.get("iter", {})
+        if (isinstance(src_ir, dict) and src_ir.get("type") == "Var"
+                and src_ir.get("name") in getattr(self, "_seq_locals", set())):
+            return None
+        key = _d.get("key", {})
+        val = _d.get("value", {})
+        # KEY must be the identity (loop target) — the soundness pin above.
+        if not (isinstance(key, dict) and key.get("type") == "Var"
+                and key.get("name") == target):
+            return None
+        free: Set[str] = set()
+        getters: Set[str] = set()
+        if not self._comp_elt_pure_int(val, free, getters):
+            return None
+        if free - {target}:
+            return None
+        srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+        srca = self._array_coerce_arg(srcw)
+        n = getattr(self, "_comp_content_counter", 0)
+        self._comp_content_counter = n + 1
+        op = f"dict_content_comp_{n}"
+        binder = "_ci"
+        celt = "_celt"
+        valw = self._lift_comp_elt(val, target, celt, local_refs, subst)
+        self._add_abstract_op(
+            f"val {op} (src: array int) : map int (option int)\n"
+            f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length src ->\n"
+            f"                Map.get result (src[{binder}]) "
+            f"= Some (let {celt} = src[{binder}] in {valw}) }}")
+        return f"({op} {srca})"
+
+    def _set_content_comp(self, node: "ExprIR", local_refs: Set[str],
+                          invariant_ctx: bool,
+                          subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """cleared-array item 3. Content-faithful SET comprehension
+        `{f(x) for x in a}` → a `map int (option int)` (present = `Some 0`, the set
+        model) with the membership law `Map.get result (<f[x:=src[i]]>) = Some 0`
+        — every produced element is present. Sound under-approximation of the set
+        (says nothing about ABSENT elements). Guards: ONE generator, plain-name
+        target, NO filter, `array int` source, element lifts to a pure-int term
+        over the target only."""
+        _d = node.to_dict()
+        gens = _d.get("generators", []) or []
+        if len(gens) != 1:
+            return None
+        g = gens[0]
+        target = g.get("target")
+        if not isinstance(target, str) or g.get("ifs"):
+            return None
+        src_ir = g.get("iter", {})
+        if (isinstance(src_ir, dict) and src_ir.get("type") == "Var"
+                and src_ir.get("name") in getattr(self, "_seq_locals", set())):
+            return None
+        elt = _d.get("elt", {})
+        free: Set[str] = set()
+        getters: Set[str] = set()
+        if not self._comp_elt_pure_int(elt, free, getters):
+            return None
+        if free - {target}:
+            return None
+        srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+        srca = self._array_coerce_arg(srcw)
+        n = getattr(self, "_comp_content_counter", 0)
+        self._comp_content_counter = n + 1
+        op = f"set_content_comp_{n}"
+        binder = "_ci"
+        celt = "_celt"
+        eltw = self._lift_comp_elt(elt, target, celt, local_refs, subst)
+        self._add_abstract_op(
+            f"val {op} (src: array int) : map int (option int)\n"
+            f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length src ->\n"
+            f"                Map.get result (let {celt} = src[{binder}] in {eltw}) "
+            f"= Some 0 }}")
+        return f"({op} {srca})"
 
     def _handle_issorted_expr(
         self,
@@ -4479,6 +5529,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # TODO: handle `{k1: v1, k2: v2}` by chaining Map.set.
             return "(const (None: option int))"
         if isinstance(node, ListCompExpr):
+            # cleared-array.md S1–S4: FIRST try the CONTENT-faithful path for a
+            # simple, sound element shape (identity / pure-int arithmetic over the
+            # loop target, over an `array int` source). Emits a per-instance
+            # `list_content_comp_<n>` val carrying `Array.length result = len src`
+            # /\ `forall i. result[i] = <elt[target:=src[i]]>` (or a length bound
+            # for a filter). Falls through to the opaque length-only path below for
+            # every unliftable element shape (seq/stmt-list/emit_ir/string/call/
+            # projection with captures) — DOCUMENTED, never a false content claim.
+            _content = self._content_comp(node, local_refs, invariant_ctx, subst)
+            if _content is not None:
+                return _content
             # list-comprehension-lowering.md L1: a comprehension `[elt for t in src (if …)]`
             # → an abstract array of the ELEMENT type with a length law (`= len src` with no
             # filter, `<= len src` with an `if`). Content is unmodeled (sound under-approx —
@@ -4539,9 +5600,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op("val list_comp (x: int) : int")
             return "(list_comp 0)"
         if isinstance(node, SetCompExpr):
+            # cleared-array item 3: content-faithful set comprehension (membership
+            # law) for a pure-int element over an `array int` source; opaque
+            # otherwise (DOCUMENTED — never a false content claim).
+            _sc = self._set_content_comp(node, local_refs, invariant_ctx, subst)
+            if _sc is not None:
+                return _sc
             self._add_abstract_op("val set_comp (x: int) : int")
             return "(set_comp 0)"
         if isinstance(node, DictCompExpr):
+            # cleared-array item 3: content-faithful dict comprehension (per-source
+            # membership law) for an IDENTITY key + pure-int value over an `array
+            # int` source; opaque otherwise (DOCUMENTED).
+            _dc = self._dict_content_comp(node, local_refs, invariant_ctx, subst)
+            if _dc is not None:
+                return _dc
             self._add_abstract_op("val dict_comp (x: int) : int")
             return "(dict_comp 0)"
 

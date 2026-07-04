@@ -177,7 +177,7 @@ specification logic's type universe:
 τ(bytes)          = int †     (* byte buffer *)
 τ(bytearray)      = int †     (* mutable byte buffer *)
 τ(dict)           = dict
-τ(Dict[K, V])     = dict      (* parametric dict — key/value types opaque *)
+τ(Dict[K, V])     = dict      (* κ=string ⇒ map string (option ν), native String.(=); else map int *)
 τ(set)            = dict      (* sets share the dict model; see translational §T.14.2 *)
 τ(Set[T])         = dict
 τ(frozenset)      = dict      (* frozensets share the set/dict model *)
@@ -395,8 +395,26 @@ program/value context directly). **Limitations:** no character/code-point type (
 length-1 substring `String.substring s i 1`), so `ord`, character ordering, and codepoint-level
 parsing stay out of reach; string→string transforms (`upper`/`lower`/`strip`/`replace`) and
 `split` remain opaque abstract ops; `bytes`↔`str` codecs (`.decode`/`.encode`) stay opaque
-(decode is an opaque `int`, the bytes↔str boundary). `str`-keyed dicts still key on the int
-hash (the dict model is `map int (option int)`).
+(decode is an opaque `int`, the bytes↔str boundary). A `str`-keyed dict/set now keys on the
+**native, injective Why3 string** (`dict[str, ν] ~ map string (option ν)`, `String.(=)`), so distinct
+keys are provably non-aliasing (cleared-hash.md) — the key type κ = string is inferred for a
+parameter/AnnAssign local (`Dict[str, _]`), a string-key literal (`{"a": …}`), string-key USAGE
+(`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key), a string **concatenation** key
+(`d[a + b]`, both operands `str` — `str_concat_op` is pinned to left-cancellative Why3 `concat`, so
+`a != c ⇒ d[a+b]` non-aliasing is provable; cleared-hash.md residual-close 1a, driver `0795`), AND a
+**record FIELD** whose declared type is `Dict[str, ν]` / `Set[str]` / `FrozenSet[str]` (cleared-hash.md
+S4). For such a field the WhyML record field is `map string (option ν)` and EVERY field-dict/set op site
+(store `self.d[k]=v`, subscript-read `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard`)
+reads and writes the RAW native string key in lockstep — a mismatch would be a WhyML type error.
+**Residual κ-unknown / opacity boundary (CLOSED, honest):** a dict whose key the model cannot pin to a
+decidable/injective string (an un-annotated field from `{}`, a non-`str` key, or a derived-string key
+like `s.upper()` — an opaque `str_upper_op`, genuinely non-injective) keeps the legacy `map int (option ν)`
++ the opaque `str_hash_op` fallback. This is NOT collision-sound and is never claimed so: a distinct-key
+non-aliasing claim on such a dict stays UNPROVABLE (cleared-hash.md 1b, driver `0796`,
+`# pycsl-expected: FAIL`), and NO false injectivity axiom is placed on `str_hash_op`
+(`proof_axiom_allowlist` unchanged). A bare `str→int` coercion (`hash(s)` `0485`, a `.decode()`-result
+string equality `0425`) is a SEPARATE opacity — not a dict key (no `map` in its `.mlw`) — and `hash()`'s
+opaque `int` result IS the faithful Python semantics.
 
 The type universe is intentionally coarse: PyCSL does not perform
 full type inference. The type mapping is used only for:
@@ -481,6 +499,15 @@ the location written; value-semantic arrays bar local-alias escape) and no calle
 The field-subscript atom `self.f[i]` is well-formed where `self.f` is an instance array field
 in scope (Γ_f), with `i : int`; it is the term used in `\preserves` postconditions.
 
+The subscript-projection atom `a[i].field` / `\result[i].field` (cleared-array.md S2,
+`SubscriptFieldAccess`) is well-formed where `a` is a subscriptable collection in scope and
+`i : int`; it lowers to `Attribute(Subscript(a, i), field)`. In the int-collapsed list model
+the element `a[i]` is an `int`, so `.field` denotes the abstract getter `get_field : int → int`
+(emitted as a deterministic pure `val function` in spec context — logic-usable and
+single-valued). No field-existence check is imposed: the getter is uninterpreted, so the atom is
+a sound opaque read; it is the CONSUMER term of a projection-comprehension content law
+`\result[k] == a[k].field`.
+
 #### §2.5a `Final[T]` write-policy (typing-engagement ty1 / PEP 591)
 
 ```
@@ -554,6 +581,23 @@ vacuity probe: their `false` postcondition is the SPEC (NR1), not a vacuity
 signal. The exemption is keyed on the IR `is_noreturn` flag (from the
 `-> NoReturn` annotation), NOT on the inferred postcondition — the latter
 would exempt every genuinely-vacuous function, defeating the gate.
+
+**The non-vacuity gate is ON BY DEFAULT (fail-closed).** After a file verifies,
+every body-bearing function is re-probed with an injected `ensures false`
+(`split_vc`, one goal per NORMAL-EXIT path); a function VACUOUS on ALL its exits
+(its assumed context is logically inconsistent, so every postcondition —
+including a false one — discharges for free) FAILS the run, naming the
+function. This closes the SMT nonlinear-integer-division vacuity soundness hole
+(`non-lin-int-div-fixed.md`; `csys-vacuity-investigation/ROOT-CAUSE.md`): a VC
+whose hypotheses the solver turns inconsistent can no longer certify a false
+`ensures` as green. Opt out with `--no-check-vacuity` (fast dev / byte-diff
+sweeps; `--no-proof` also skips it, so the gate never runs on the byte-diff
+path). **Two exemptions** — a function whose SOUND green is expected-vacuous on
+its unreachable normal exit: declared `-> NoReturn` (`is_noreturn`, NR1/NR4)
+AND `#@ \diverges` (the IR `diverges` flag — a diverging function satisfies any
+postcondition). The exempt-set is computed where the IR is in scope
+(`_run_pipeline`) and passed on `args._vacuity_exempt` to the gate in
+`_run_proofs`.
 
 #### §2.5c `TypedDict` literal-key access (typing-engagement ty2 / PEP 589)
 

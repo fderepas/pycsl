@@ -1,3 +1,15 @@
+you wrote for instance
+```
+● Great progress (the seq↔array feature works). New leak: formal_params (from _module_method_formal_params.get) is array int but expected otherwise.
+```
+Incorrect lowering using int happened at lot during the past 2 days.
+List them all in `we-are-getting-better.md`.
+---
+
+Take all examples in `we-are-getting-better.md` and for each add a new test in `test-suite/corpus/pycsl-reference/` here is what each test should do:
+- fail is the type is lowered to int
+- success if the good type is returned.
+
 
 ---
 

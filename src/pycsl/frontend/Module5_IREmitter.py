@@ -16,6 +16,7 @@ from frontend.Module2_Parser import (
     FieldAccess as CSLFieldAccess, FieldSubscript as CSLFieldSubscript,
     GlobalFieldSubscript as CSLGlobalFieldSubscript,
     Forall, Exists, ArrayLength, InGlobals, InScope, SubscriptAccess,
+    SubscriptFieldAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
     CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice, DictView, ForallItems,
@@ -326,6 +327,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         InGlobals:        "_csl_in_globals",
         InScope:          "_csl_in_scope",
         SubscriptAccess:  "_csl_subscript",
+        SubscriptFieldAccess: "_csl_subscript_field",
         AssignsRegion:    "_csl_assigns_region",
         Valid:            "_csl_valid",
         Separated:        "_csl_separated",
@@ -498,6 +500,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "Subscript",
                 "value": {"type": "Var", "name": node.array},
                 "index": self._csl_to_ir(node.index)}
+
+    def _csl_subscript_field(self, node: SubscriptFieldAccess) -> Dict[str, Any]:
+        # cleared-array.md S2: `<array>[<idx>].<field>` → Attribute over a
+        # Subscript — the SAME IR the body path produces for `a[i].x`, so the
+        # abstract getter `get_<field>` denotes one value across the driver's
+        # `\result[k] == a[k].x` and the projection-comprehension content law.
+        base = ({"type": "Result"} if node.array == "\\result"
+                else {"type": "Var", "name": node.array})
+        return {"type": "Attribute",
+                "object": {"type": "Subscript",
+                           "value": base,
+                           "index": self._csl_to_ir(node.index)},
+                "attr": node.field}
 
     def _csl_chained_subscript(self, node: ChainedSubscript) -> Dict[str, Any]:
         inner = {"type": "Subscript",
@@ -1833,8 +1848,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # @mutable_state module; inert for the dict path).
             else:
                 _le = self._m5_get_list_elem_type(child.annotation)
+                # cf6.md M1.2: a `cases: List[Dict[...]]` field (local class-def path) → emit_ir.
+                if _le is None and self._cf6_is_cases_list_of_dict(fname, child.annotation):
+                    _le = "emit_ir"
                 if _le is not None:
                     _fld["value_type"] = _le
+            # cleared-hash S4: the field's KEY type κ, so a string-keyed record
+            # dict/set field lowers to `map string (option ν)` with the native key.
+            _kt = self._m5_get_field_key_type(child.annotation)
+            if _kt:
+                _fld["key_type"] = _kt
             fields.append(_fld)
             # N1b: only fields with an explicit default value (x: int = 0)
             # populate `field_defaults`. A field WITHOUT a default is a
@@ -2136,8 +2159,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         _fld2["value_type"] = _vt2
                     else:
                         _le2 = self._m5_get_list_elem_type(stmt.annotation)
+                        # cf6.md M1.2: MatchStmt.cases (imported @dataclass) → array emit_ir.
+                        if _le2 is None and self._cf6_is_cases_list_of_dict(
+                                stmt.target.id, stmt.annotation):
+                            _le2 = "emit_ir"
                         if _le2 is not None:
                             _fld2["value_type"] = _le2
+                    # cleared-hash S4: the field's KEY type κ (`Dict[str,ν]`/`Set[str]`
+                    # → `map string`), so the record dict/set field uses the native key.
+                    _kt2 = self._m5_get_field_key_type(stmt.annotation)
+                    if _kt2:
+                        _fld2["key_type"] = _kt2
                     fields.append(_fld2)
                     field_names_seen.add(stmt.target.id)
                     if (stmt.value is not None and isinstance(stmt.value, ast.Constant)
@@ -2968,6 +3000,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return self._m5_get_type_name_legacy(annotation)
 
     @staticmethod
+    def _cf6_is_cases_list_of_dict(field_name, annotation) -> bool:
+        """cf6.md M1.2: True iff `field_name == "cases"` and `annotation` is `List[Dict[...]]`
+        — the MatchStmt case list, reflectable as `array emit_ir`. GATED to the `cases` field
+        name so OTHER `List[Dict]` fields (e.g. TryStmt.handlers) stay int-opaque (the CF5-safe
+        choice). Byte-safe: the corpus has no `cases: List[Dict[...]]` record field."""
+        if field_name != "cases" or annotation is None:
+            return False
+        if type(annotation).__name__ != "Subscript" \
+                or type(getattr(annotation, "value", None)).__name__ != "Name" \
+                or getattr(annotation.value, "id", None) not in ("List", "list"):
+            return False
+        sl = getattr(annotation, "slice", None)
+        if type(sl).__name__ == "Index":
+            sl = getattr(sl, "value", sl)
+        return (type(sl).__name__ == "Subscript"
+                and type(getattr(sl, "value", None)).__name__ == "Name"
+                and getattr(sl.value, "id", None) in ("Dict", "dict"))
+
+    @staticmethod
     def _m5_get_list_elem_type(annotation: ast.expr) -> Optional[str]:
         """i-feel-good.md I-B: the element type of a `List[str]`/`list[str]` annotation,
         as a WhyML tag ("string"); None for any other annotation. Used to type a
@@ -3011,16 +3062,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     and v.value.id in ("Dict", "dict")
                     and isinstance(v.slice, ast.Tuple)
                     and len(v.slice.elts) == 2):
-                ki, vi = v.slice.elts
-                kw = "string" if (isinstance(ki, ast.Name) and ki.id == "str") else "int"
+                _ki, vi = v.slice.elts
                 vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
-                return f"map {kw} (option {vw})"
+                # nested-map.md: the INNER map is int-keyed (str keys hashed via `str_hash_op`),
+                # matching the model's uniform `dict[str,_] ~ map int (option _)` convention, so
+                # membership/subscript on the inner map hash the key the same way as the outer.
+                return f"map int (option {vw})"
             if (isinstance(v, ast.Subscript)
                     and isinstance(v.value, ast.Name)
                     and v.value.id in ("List", "list")
-                    and isinstance(v.slice, ast.Name)
-                    and v.slice.id == "int"):
-                return "seq int"
+                    and isinstance(v.slice, ast.Name)):
+                # nested-map.md / #15: `Dict[str, List[T]]` — the value is a `seq T` (a list
+                # lowers to `seq`), so the field is `map int (option (seq T))`. `List[str]`→`seq
+                # string` (was unhandled → flattened to int); `List[int]`→`seq int` (unchanged).
+                return "seq string" if v.slice.id == "str" else "seq int"
         return None
 
     @staticmethod
@@ -3033,6 +3088,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 and len(annotation.slice.elts) == 2):
             k = annotation.slice.elts[0]
             if isinstance(k, ast.Name) and k.id == "str":
+                return "string"
+        return None
+
+    @staticmethod
+    def _m5_get_field_key_type(annotation: ast.expr) -> Optional[str]:
+        """cleared-hash S4: the KEY type κ of a dict/set FIELD annotation, so a
+        string-keyed record dict/set field lowers to `map string (option ν)` with
+        the native, injective Why3 string key (retiring `str_hash_op` for it).
+        `Dict[str, ν]` → the key `str`; `Set[str]`/`FrozenSet[str]` → the element
+        `str` (a set's element IS its key). Returns "string" or None (→ the legacy
+        `map int` + hash fallback for a genuinely-unknowable/non-string κ)."""
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)):
+            return None
+        head = annotation.value.id
+        if head in ("Dict", "dict"):
+            return PyCSLToJSONEmitter._m5_get_dict_key_type(annotation)
+        if head in ("Set", "set", "FrozenSet", "frozenset"):
+            elt = annotation.slice
+            if isinstance(elt, ast.Name) and elt.id == "str":
                 return "string"
         return None
 
@@ -3057,8 +3132,35 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
-            arg_type = (self._m5_get_type_name(arg.annotation, _scope_name, arg.arg)
-                        if arg.annotation else "Any")
+            # self-tcb-reduction T1.a: an `Optional[Dict[K,V]]` param is modeled as the `Dict[K,V]`
+            # (None ≡ empty map), so `if subst and name in subst: subst[name]` types as string-map
+            # ops instead of a Union variant. Byte-safe: 0 corpus methods have an Optional[Dict] param.
+            _eff_ann = arg.annotation
+            # self-tcb-reduction T1.a (E-2): a QUOTED IR-subclass forward-ref param
+            # (`node: "UnaryOpExpr"`) resolves to that class's record (fields `op`/`expr`), like the
+            # statement mirror's bare `stmt: AssignStmt`. Byte-safe: the corpus has no quoted
+            # `*Expr`/`*Stmt` param annotation.
+            if (isinstance(arg.annotation, ast.Constant)
+                    and isinstance(arg.annotation.value, str)
+                    and (arg.annotation.value.endswith("Expr")
+                         or arg.annotation.value.endswith("Stmt"))):
+                _eff_ann = ast.Name(id=arg.annotation.value)
+            if (isinstance(arg.annotation, ast.Subscript)
+                    and isinstance(arg.annotation.value, ast.Name)
+                    and arg.annotation.value.id == "Optional"):
+                _inner = arg.annotation.slice
+                if type(_inner).__name__ == "Index":
+                    _inner = _inner.value
+                if (isinstance(_inner, ast.Subscript) and isinstance(_inner.value, ast.Name)
+                        and _inner.value.id in ("Dict", "dict")):
+                    _eff_ann = _inner
+            arg_type = (self._m5_get_type_name(_eff_ann, _scope_name, arg.arg)
+                        if _eff_ann else "Any")
+            # self-tcb-reduction T1.a: an IR-node-typed PARAM (`node: "ExprIR"`, `stmt: "StmtIR"`)
+            # is `emit_ir` — so the `_handle_*_expr` handlers reflect on it (`name_of node`).
+            # Byte-safe: no corpus method annotates a param with the IR-node base names.
+            if arg.annotation is not None and self._irnode_ann_name(arg.annotation) is not None:
+                arg_type = self._irnode_ann_name(arg.annotation)
             scope[arg.arg] = arg_type
             # i-feel-good.md I-B: capture a `List[str]`/`list[str]` param's ELEMENT type
             # (string) so the abstract self-call val can type it `array string` instead of
@@ -3075,11 +3177,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # these back for `Any` params (functions._reset_function_state).
             if arg_type not in (None, "Any"):
                 param_annotations[arg.arg] = arg_type
-            if arg.annotation is not None:
-                nu = self._m5_get_dict_value_type(arg.annotation)
+            if _eff_ann is not None:
+                nu = self._m5_get_dict_value_type(_eff_ann)
                 if nu is not None:
                     dict_value_types[arg.arg] = nu
-                kappa = self._m5_get_dict_key_type(arg.annotation)
+                kappa = self._m5_get_dict_key_type(_eff_ann)
                 if kappa is not None:
                     dict_key_types[arg.arg] = kappa
 
@@ -3089,6 +3191,27 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 for target in child.targets:
                     if isinstance(target, ast.Name) and target.id not in shared:
                         scope[target.id] = "Any"
+                        # local-dict-value-type: a `d = {"a": "x", ...}` literal with all-STRING
+                        # values is a `dict[_, str]`, so `d[k]` reads a `string` (default "") not the
+                        # int default. Infer the value type from a homogeneous string-valued DictLit
+                        # (a class-constant lookup table used LOCALLY, e.g. `_quant_binder_whyml`'s
+                        # `scalars`). No annotation needed. Byte-identical for int-valued dict locals.
+                        if (isinstance(child.value, ast.Dict) and child.value.values
+                                and all(isinstance(v, ast.Constant) and isinstance(v.value, str)
+                                        for v in child.value.values)):
+                            dict_value_types[target.id] = "string"
+                        # cleared-hash.md S1(a): a dict LITERAL with all-STRING keys
+                        # (`d = {"a": 1, "b": 2}`) is string-keyed (κ = string) → it
+                        # lowers to `map string (option ν)` with native `String.(=)`,
+                        # NOT `map int` + the opaque `str_hash_op`. `None` keys (a
+                        # sparse literal) do not count; a homogeneous string-key
+                        # literal is the safe, unambiguous signal. Does not override
+                        # an explicit annotation (setdefault below runs only if
+                        # unset). Int-keyed literals are unchanged.
+                        if (isinstance(child.value, ast.Dict) and child.value.keys
+                                and all(isinstance(k, ast.Constant) and isinstance(k.value, str)
+                                        for k in child.value.keys)):
+                            dict_key_types.setdefault(target.id, "string")
             elif isinstance(child, ast.AnnAssign):
                 if isinstance(child.target, ast.Name) and child.target.id not in shared:
                     scope[child.target.id] = (
@@ -3109,6 +3232,70 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     for elt in child.target.elts:
                         if isinstance(elt, ast.Name) and elt.id not in shared:
                             scope[elt.id] = "Any"
+
+        # cleared-hash.md S1(b): USAGE-based κ inference. A dict local written or
+        # read with a STRING key (`d[k] = v`, `d[k]`, `k in d`, `d.get(k)` where `k`
+        # is a string literal or a `str`-typed name) is string-keyed → `map string
+        # (option ν)`, native equality, no `str_hash_op`. Python dicts are
+        # homogeneously keyed, so any string-key evidence pins κ = string soundly;
+        # a dict used only with int keys is never tagged (stays `map int`). This
+        # subsumes the un-annotated `d = {}` local that today emits the opaque
+        # `str_hash_op` (a bodyless `val` illegal in the resulting VC formula).
+        # Does not override an explicit `Dict[str, _]` annotation or the literal
+        # signal above (setdefault). Only fires for names bound in `scope` (a
+        # dict local/param of THIS function), never shared module vars.
+        _str_typed = {n for n, t in scope.items() if t == "str"}
+
+        def _is_str_key(_k: ast.expr) -> bool:
+            if isinstance(_k, ast.Constant) and isinstance(_k.value, str):
+                return True
+            if isinstance(_k, ast.Name) and _k.id in _str_typed:
+                return True
+            if isinstance(_k, ast.JoinedStr):  # f-string key
+                return True
+            # cleared-hash residual-close 1(a): a string CONCATENATION `a + b`
+            # (BOTH operands provably strings) is a string key. Its native Why3
+            # key `str_concat_op a b` is pinned to `concat` (with the length
+            # axiom → left/right cancellative), so tagging κ = string reads the
+            # RAW native key and RECOVERS distinct-key non-aliasing that the
+            # opaque `str_hash_op` (a collision-admitting bodyless `val`) cannot
+            # prove. Sound: `str + str` is a string; an int `a + b` has non-`str`
+            # operands (`_is_str_key` false) so is NEVER tagged. Recurses for
+            # nested concatenation (`a + b + c`).
+            if (isinstance(_k, ast.BinOp) and isinstance(_k.op, ast.Add)
+                    and _is_str_key(_k.left) and _is_str_key(_k.right)):
+                return True
+            return False
+
+        def _tag_str_keyed(_name: str) -> None:
+            if _name in scope and _name not in shared:
+                dict_key_types.setdefault(_name, "string")
+
+        for child in ast.walk(node):
+            # d[k]  (subscript read OR the target of `d[k] = v`)
+            if (isinstance(child, ast.Subscript)
+                    and isinstance(child.value, ast.Name)):
+                _idx = child.slice
+                if type(_idx).__name__ == "Index":  # py<3.9 compat
+                    _idx = _idx.value
+                if _is_str_key(_idx):
+                    _tag_str_keyed(child.value.id)
+            # k in d  /  k not in d
+            elif isinstance(child, ast.Compare) and len(child.ops) == 1 \
+                    and isinstance(child.ops[0], (ast.In, ast.NotIn)):
+                _rhs = child.comparators[0]
+                if isinstance(_rhs, ast.Name) and _is_str_key(child.left):
+                    _tag_str_keyed(_rhs.id)
+            # d.get(k[, default])  /  s.add(k) / s.discard(k) / s.remove(k)
+            elif (isinstance(child, ast.Call)
+                    and isinstance(child.func, ast.Attribute)
+                    and child.func.attr in ("get", "add", "discard", "remove")
+                    and isinstance(child.func.value, ast.Name)
+                    and child.args and _is_str_key(child.args[0])):
+                # `.add`/`.discard`/`.remove` with a string element pins a SET local's
+                # κ = string (a set shares the dict `map` model; its element is the key),
+                # so the set-add write and membership read agree on native string keys.
+                _tag_str_keyed(child.func.value.id)
 
         # Ghost variables — register all declarations. Only op == "=" declarations
         # carry a meaningful declared_type; augmented assignments must not overwrite
@@ -3146,6 +3333,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # STEP 1 (B-final): surface name for the \proj-index guard in `_csl_proj`.
         self._cur_func_name = f"function '{node.name}'"
         return_annotation = None
+        return_value_type = None
         is_noreturn = False
         if node.returns:
             if isinstance(node.returns, ast.Name):
@@ -3189,6 +3377,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             node.returns, node.name)
                     else:
                         return_annotation = head.lower()
+                        # item34.md CF5: capture a `List[str]`/`List[int]` return's ELEMENT
+                        # type (mirrors the param path `_m5_get_list_elem_type`) so Module6
+                        # lowers `-> List[str]` to `array string` (the `_callee_raised_*`
+                        # name-list stubs), not the default `array int`.
+                        if head in ("List", "list"):
+                            return_value_type = self._m5_get_list_elem_type(node.returns)
             elif isinstance(node.returns, ast.Attribute):
                 # `typing.NoReturn` (Attribute value=Name "typing", attr
                 # "NoReturn") — the qualified spelling of the PEP 484 marker.
@@ -3264,6 +3458,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "dict_key_types": dict(_dkt),
             "formal_params": formal_params,
             "return_annotation": return_annotation,
+            "return_value_type": return_value_type,
             # typing-engagement ty1 / 28-0000-typing-spec-4: `-> NoReturn` (PEP
             # 484) sets the IR flag consumed by Module 6 (`ensures { false }`,
             # NR1) and the non-vacuity gate (NR4 exemption). Emitted ONLY when

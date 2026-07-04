@@ -177,6 +177,83 @@ error.
 **Corpus cross-reference:** `0396` (deny-list rejection), `0397`
 (`\trusted` opt-in), `0398` (`cffi`), `0400` (CLI override).
 
+### §7.4a `struct.pack` / `struct.unpack` — faithful slots vs. residual boundary
+
+`struct` is a C extension, but PyCSL models a subset of it faithfully rather
+than treating every call as opaque (`module6_whyml/struct_format.py`,
+`expressions.py:_handle_struct_call`). A **compile-time-constant** format string
+is parsed into a slot sequence; two tiers result:
+
+- **Faithful, guarded (in scope).** A WHITELISTED scalar-integer shape with an
+  explicit standard byte-order prefix (`'<'`/`'>'`/`'='`/`'!'`) lowers to the
+  `Pycsl.Struct.Std` family with a **per-field width/signedness tag**
+  (`struct_{pack,unpack}_f<tag-join>`) carrying a **size law**
+  (`len(pack(fmt,…)) == calcsize(fmt)`), a **per-field in-range guard**, and a
+  **round-trip** `unpack(fmt, pack(fmt, …)) == (…)`. Shapes in scope:
+  - single **unsigned** — `u16` (`'>H'`), `u32` (`'>I'`/`'>L'`);
+  - single **signed** (two's complement) — `i16` (`'>h'`), `i32` (`'>i'`/`'>l'`),
+    `i64` (`'>q'`); guard is the signed range `[-2^(8N-1), 2^(8N-1))`;
+  - **multi-slot** — `u16u32` (`'>HI'`), `i32i32` (`'<ii'`). The per-field tag
+    makes `'>HH'` (`u16u16`) and `'<ii'` (`i32i32`) DISTINCT symbols — resolving
+    the earlier `slot_id` collision (both were `struct_pack_i2`);
+  - **fixed-bytes** — `s4` (`'>4s'`): array identity `unpack(pack d) == d` under
+    the length guard `len(d) == N`.
+  See `axiom-registry.md`; anchors in `0777`–`0779.proofs/{rocq,lean}/StructResiduals.*`.
+
+- **Residual boundary (out of scope → rejected or documented-opaque).** The
+  following are *documented, honest residuals*, NOT faithfully modelled:
+  - **Out-of-range value** for a standard-size slot. Real `struct.pack` RAISES
+    `struct.error` (`'H' format requires 0 <= number <= 65535`). PyCSL models
+    this as the pack `val`'s per-field `requires` — a **call-site VC**: an
+    out-of-range pack is a proof FAILURE, not a silent truncation. The guard is
+    *load-bearing* — dropping it makes the round-trip FALSE (the
+    `guard_necessity_*` counterexamples: `unpack(pack 65536) = 0 ≠ 65536`;
+    `unpack(pack 32768) = -32768 ≠ 32768`). Negative drivers: `0754`, `0780`
+    (multi-slot field), `0781` (signed) — all `# pycsl-expected: FAIL`.
+  - **Native size / alignment** (`'@'` prefix): see **§7.4b** — REJECTED.
+  - **Float** slots (`f`/`d`) — the IEEE-754 mantissa/exponent bit-encoding does
+    not lower to PyCSL's int/real model (no float-to-bits codec); these keep the
+    size law only, and the byte layout is opaque. See §7.4c.
+  - **`p`** (Pascal string), **`c`**, and **un-whitelisted multi-slot / wide**
+    shapes (e.g. the os `'>IHHHHHII10Ixx'` = `i18`, `'>H30s'` = `i1a1`) keep the
+    *legacy, unguarded* `UnixFs.Struct.*` shape-model axioms (which postulate the
+    inverse over uninterpreted symbols; cautionary note in `axiom-registry.md`).
+    The zero-trust way to model any of these is the body-faithful pure-Python byte
+    codec of `0665` (`pack16`/`pack32`/`pack_inode`), which proves the guarded
+    round-trip by SMT composition with NO axiom (and which already superseded the
+    os re-key — see `cleared-pack.md` items S4/S5).
+
+**Corpus cross-reference:** `0753` (faithful u16/u32), `0777` (multi-slot
+`u16u32`), `0778` (signed `i16`/`i32`/`i64` + multi-slot signed `i32i32`), `0779`
+(fixed-bytes `s4`); negatives `0754`/`0780`/`0781` (out-of-range guard-necessity),
+`0782` (native `@` rejection); `0665` (zero-axiom body-faithful codec);
+`0420`–`0425` (legacy abstract family, unchanged).
+
+### §7.4b native `struct` size/alignment (`'@'` prefix) — REJECTED
+
+A `struct` format with the native size/alignment prefix `'@'` is **rejected at
+transpilation** with a clear diagnostic (`module6_whyml/expressions.py:
+_handle_struct_call`). Native field sizes AND inter-field padding are
+platform/ABI-dependent, so `calcsize` and the byte layout are undefined; a
+standard-size size law or round-trip would be **unsound**. Rejection (rather than
+silent opacity) is the sound choice — an opaque model could otherwise carry a
+wrongly-sized `len(...)` claim. `calcsize()` also returns `None` for `'@'`
+defensively (`struct_format.py`). Use an explicit standard-size prefix
+(`'<'`/`'>'`/`'='`/`'!'`). Negative driver: `0782` (`# pycsl-expected: FAIL`).
+
+### §7.4c `struct` float slots (`'f'`/`'d'`) — size law only, encoding opaque (YAGNI)
+
+The round-trip for IEEE-754 `'f'`/`'d'` is a **documented YAGNI residual**. The
+byte codec would have to extract the sign/exponent/mantissa bit-fields of a
+float and reassemble them — a step that does **not lower** to PyCSL's value model
+(floats are `real`, and `real → bits` is not an expressible total function in the
+int/real theory; there is no `frexp`/bit-cast in scope). PyCSL therefore keeps the
+**size law** (`calcsize('f') == 4`, `'d' == 8`) reachable via the opaque path but
+makes **no round-trip claim** and treats the packed bytes as opaque. This is not a
+provability-timeout — it is a modelling gap (no float-to-bits codec), so it is an
+honest opacity note, not a faked axiom. Model a real float round-trip only if/when
+a float-bit codec is added to the value model.
+
 ---
 
 ## §7.5 `__del__` / finalizer rejection

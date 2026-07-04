@@ -1,0 +1,77 @@
+(* cleared-string RESIDUALS Gate-B spike: close item 1 (.lower/.upper content)
+   and item 2 (general .replace content) SOUNDLY, no new global axiom.
+   LEADS with the make-or-break CONTENT goals. Records Valid/timeout for AE + Z3. *)
+
+(* ===== item 1: case-fold — determinism + idempotence via `val function` ===== *)
+(* Make lower/upper DETERMINISTIC logic functions (val function) so equal
+   receivers give equal results, and pin the UNIVERSAL sound content property:
+   Python str.lower()/upper() are IDEMPOTENT for ALL strings (Unicode too).
+   Idempotence is stated as a self-referential ensures on the val function
+   (no separate `axiom` keyword). The make-or-break: idempotence PROVES,
+   determinism PROVES, and lower==upper stays UNKNOWN (no false collapse). *)
+module CaseSpike
+  use int.Int
+  use string.String
+
+  (* fresh uninterpreted "already in folded form" markers — encode idempotence
+     WITHOUT self-reference or an `axiom` keyword: the output is folded, and a
+     folded input is a fixed point. Both true of Python str.lower/upper. *)
+  predicate is_lowerf string
+  predicate is_upperf string
+
+  val function str_lower_op (s: string) : string
+    ensures { String.length s >= 1 -> String.length result >= 1 }
+    ensures { is_lowerf result }
+    ensures { is_lowerf s -> result = s }
+  val function str_upper_op (s: string) : string
+    ensures { String.length s >= 1 -> String.length result >= 1 }
+    ensures { is_upperf result }
+    ensures { is_upperf s -> result = s }
+
+  (* soundness sentinel: lowering an ARBITRARY string is NOT identity *)
+  goal g_lower_not_id : forall s. str_lower_op s = s
+  (* ^ expected UNPROVABLE (must stay Unknown); kept to eyeball the model isn't over-strong *)
+
+  (* G1 make-or-break: s.lower().lower() == s.lower() (content idempotence) *)
+  goal g_lower_idem : forall s. str_lower_op (str_lower_op s) = str_lower_op s
+  goal g_upper_idem : forall s. str_upper_op (str_upper_op s) = str_upper_op s
+
+  (* G2: determinism — equal receivers give equal results (needed for any
+     content driver over a shared receiver). *)
+  goal g_lower_det : forall s. str_lower_op s = str_lower_op s
+end
+
+(* Soundness sentinel: lower==upper must NOT be provable (kept as a driver
+   `# pycsl-expected: FAIL`). Here as a comment — Why3 cannot "prove non-provability";
+   the negative reference driver 0770 is the executable gate. *)
+
+(* ===== item 2: general replace — not-contains identity (native, sound for CPython) ===== *)
+(* CPython str.replace replaces ALL occurrences. The ONLY native content fact
+   that is SOUND for CPython (Why3 replaceall diverges on empty-pat) is:
+   pat occurs NOWHERE  ->  result = s. Phrased to MATCH the substring-existential
+   the `in`/`not in` operator emits, so a driver `requires pat not in s` connects.
+   The empty-pat case is auto-excluded (empty pat "occurs" at every index). *)
+module ReplaceSpike
+  use int.Int
+  use string.String
+
+  val function str_replace_op (s pat rep: string) : string
+    (* char-for-char length law (kept, sound) *)
+    ensures { String.length pat = String.length rep
+              -> String.length result = String.length s }
+    (* not-contains identity (new, sound for CPython all-occurrences) *)
+    ensures { (forall i:int. 0 <= i -> i + String.length pat <= String.length s ->
+                 String.substring s i (String.length pat) <> pat)
+              -> result = s }
+
+  (* G3 make-or-break: pat absent (as the `not in` existential-negation) => identity *)
+  goal g_replace_absent : forall s pat rep.
+    (not (exists i:int. 0 <= i /\ i + String.length pat <= String.length s /\
+            String.substring s i (String.length pat) = pat))
+    -> str_replace_op s pat rep = s
+
+  (* G4: char-for-char length law still holds *)
+  goal g_replace_len : forall s pat rep.
+    String.length pat = String.length rep ->
+    String.length (str_replace_op s pat rep) = String.length s
+end

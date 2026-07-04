@@ -50,7 +50,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # seq-int snapshot / nested-map / int-default). Consolidated in
             # `_dv_empty_default`; None ⇒ keep the caller's int-default `val`.
             _empty = self._dv_empty_default(self._dict_value_types.get(target))
-            if _empty is not None:
+            if _empty:
                 val = _empty
             return f"{indent}let {safe_target} = ref {val} in\n"
         if kind == "bounded_int":
@@ -184,6 +184,79 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return expr
         return self._seq_operand(val_ir, local_refs)
 
+    def _call_returns_string_collection(self, func_name: str) -> bool:
+        """item34.md CF5: does the callee return a `string` NAME-collection? `IRScanner.find_*`/
+        `collect_*` (seq-ified at source) or a `self.<m>`/record method whose declared return
+        resolves to `array string`/`seq string` (the `_callee_raised_*` `List[str]` stubs)."""
+        if not isinstance(func_name, str):
+            return False
+        if (func_name.startswith("IRScanner.find_")
+                or func_name.startswith("IRScanner.collect_")):
+            return True
+        try:
+            ret, _, _, _ = self._resolve_dotted_signature(func_name)
+        except Exception:
+            return False
+        return ret in ("array string", "seq string")
+
+    def _call_returns_seq_string(self, func_name: str) -> bool:
+        return self._call_returns_string_collection(func_name)
+
+    def _seq_snapshot_op(self) -> None:
+        """item34.md CF5: register the polymorphic `snapshot : array 'a -> seq 'a` bridge
+        (fresh seq, length- and element-preserving). Used to seq-ify a name-collection at its
+        SOURCE (`find_*`/`.split`) so the whole `try` collection flow is uniformly `seq`."""
+        if getattr(self, "_mutable_state_classes", None):
+            self._add_abstract_op(
+                "val snapshot (a: array 'a) : seq 'a\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+        else:
+            self._add_abstract_op(
+                "val snapshot (a: array int) : seq int\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+
+    def _seq_value_producing(self, v: Any) -> bool:
+        """item34.md CF5: does `v` ALREADY lower to a `seq string` (so `_seq_operand` must NOT
+        re-`snapshot` it)? The seq-ified-at-source name-collection ops: `find_*`/`collect_*`,
+        `<str>.split(…)`, `sorted(<seq>)`, a `[a]+[comp]` concat, and the ternary of such."""
+        if not isinstance(v, dict):
+            return False
+        t, f = v.get("type"), v.get("func")
+        # #15: `self._nested_seq_field.get(k)` already lowers to `seq _` (`Dict[str,List[T]]`) —
+        # pass through, no `snapshot` (which expects an array).
+        if (t == "Call" and isinstance(f, str) and f.endswith(".get")
+                and f[:-len(".get")].startswith("self.")):
+            _nu = self._self_field_dict_nu(f[:-len(".get")])
+            if isinstance(_nu, str) and _nu.startswith("seq "):
+                return True
+        if t == "Call" and isinstance(f, str):
+            if (f.startswith("IRScanner.find_") or f.startswith("IRScanner.collect_")
+                    or f.endswith(".split")):
+                return True
+            if f == "sorted" and v.get("args"):
+                _a0 = v["args"][0]
+                return (isinstance(_a0, dict) and _a0.get("type") == "Var"
+                        and _a0.get("name") in self._seq_locals)
+            if f in ("set", "frozenset", "list") and v.get("args"):
+                return self._seq_value_producing(v["args"][0])
+        if (t == "BinOp" and v.get("op") == "+"
+                and isinstance(v.get("left"), dict)
+                and v["left"].get("type") in ("ArrayLit", "ListLit", "ListComp")):
+            return True
+        if t == "IfExpr":
+            return (self._seq_value_producing(v.get("body"))
+                    or self._seq_value_producing(v.get("orelse")))
+        if t == "ListComp":
+            # `[e for e in <seq>]` lowers to `list_comp_seq_*` (a `seq`) — pass through.
+            for _g in (v.get("generators") or []):
+                _it = _g.get("iter", {})
+                if (isinstance(_it, dict) and _it.get("type") == "Var"
+                        and _it.get("name") in self._seq_locals):
+                    return True
+        return False
+
     def _seq_operand(self, val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
         """07-1705-rev4 P3: an operand that must be a `seq int` — `!b` if `b` is itself a
         seq local, else `snapshot(b)` to bridge an array-modelled value into seq."""
@@ -195,6 +268,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 and isinstance(val_ir.get("value"), dict)
                 and val_ir["value"].get("type") == "Var"
                 and val_ir["value"].get("name") in self._seq_locals):
+            return self._expr_to_whyml(val_ir, local_refs)
+        # item34.md CF5: a value that ALREADY lowers to `seq string` — `find_*`/`collect_*`/
+        # `<str>.split(…)` (snapshot-at-source), `sorted(<seq>)`, a `[a]+[comp]` concat, or the
+        # `<split> if … else [x]` ternary of such — is passed through WITHOUT re-`snapshot`.
+        if getattr(self, "_mutable_state_classes", None) and self._seq_value_producing(val_ir):
             return self._expr_to_whyml(val_ir, local_refs)
         # seq-model-pivot.md SQ2: POLYMORPHIC `snapshot` in a @mutable_state module (bridges a
         # `List[StmtIR]`/`List[str]` field → `seq emit_ir`/`seq string`); the corpus's
@@ -381,8 +459,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             arity_fn = f"{safe_fn}_{nargs}"
             if arity_fn in self._abstract_ops:
                 tuple_ret = "(" + ", ".join(["int"] * len(targets)) + ")"
+                # item34.md CF4: use the callee's DECLARED signature (e.g.
+                # `_classify_iterable`'s `Tuple[str,str,bool]` → `(string,string,int)` and its
+                # `(ExprIR, Set, str)` params) instead of the homogeneous-int default, so a
+                # string/bool tuple slot and a non-int arg type-check. @mutable_state-gated →
+                # the corpus's int-tuple unpacks are byte-identical.
+                _cpt: List[str] = []
+                if (getattr(self, "_current_self_type", None)
+                        in getattr(self, "_mutable_state_classes", set())):
+                    # resync-campaign.md R2: UNIQUE throwaway names (not `_, _`, which both
+                    # lower to `_tu_py_underscore` → a Why3 duplicate-variable in the unpack).
+                    _crt, _cpt, _re3, _re4 = self._resolve_dotted_signature(func_name)
+                    if (_crt and _crt.startswith("(")
+                            and _crt.count(",") + 1 == len(targets)):
+                        tuple_ret = _crt
                 if nargs == 0:
                     self._abstract_ops[arity_fn] = f"val {arity_fn} () : {tuple_ret}"
+                elif len(_cpt) == nargs:
+                    params = " ".join(f"(x{i}: {_cpt[i]})" for i in range(nargs))
+                    self._abstract_ops[arity_fn] = f"val {arity_fn} {params} : {tuple_ret}"
                 else:
                     # Per missing-bytes-struct-feature.md Phase 1:
                     # preserve the param types from the existing
@@ -495,6 +590,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 local_refs: Set[str], declared_refs: Set[str],
                                 indent: str, in_loop: bool) -> str:
         arr = stmt.array.to_dict()
+        # cf6.md M1.4: `<emit_ir>[k] = v` (`c["pattern"] = new_pat`) writes to an IMMUTABLE
+        # emit_ir value — the rewrite is UNMODELLED, a sound no-op for the type-safety+frame
+        # contract (the reflected IR is never claimed updated; `cases` is a local copy so the
+        # frame holds). @mutable_state / emit_ir-gated -> byte-identical elsewhere.
+        if (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_emit_ir_expr(arr)):
+            return f"{indent}()"
         if arr.get("type") == "Var":
             var_name = arr.get("name", "")
             if var_name in getattr(self, "_dict_locals", set()):
@@ -588,6 +691,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     op = "map_update_some"
                     nu = self._dict_value_types.get(var_name) if var_name else None
                     kappa = self._dict_key_types.get(var_name) if var_name else None
+                    # cleared-hash S4: a record dict FIELD store (`self.<field>[k]=v`)
+                    # reads the field's declared κ/ν (`map string (option ν)` for a
+                    # `dict[str,ν]` field), so the write passes the RAW native string key
+                    # and the ν-typed value — type-consistent with the field read/membership.
+                    if self_field_name is not None:
+                        _fo = (arr.get("object")
+                               if arr.get("type") in ("Attribute", "FieldGet") else None)
+                        if isinstance(_fo, dict) and _fo.get("type") == "Var":
+                            _frecv = f"{_fo.get('name')}.{self_field_name}"
+                        elif isinstance(_fo, str):
+                            _frecv = f"{_fo}.{self_field_name}"
+                        else:
+                            _frecv = f"self.{self_field_name}"
+                        _fk = self._self_field_dict_kappa(_frecv)
+                        if _fk is not None:
+                            kappa = _fk
+                        _fn = self._self_field_dict_nu(_frecv)
+                        if _fn is not None:
+                            nu = _fn
                     if kappa == "string":
                         k = index_expr
                     elif (not self._in_spec
@@ -758,6 +880,29 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     "    ensures { result = (concat a b) }\n"
                     "    ensures { String.length result = String.length a + String.length b }")
                 code = f"{indent}{safe_target} := (str_concat_op !{safe_target} {val})"
+        elif (raw_op == "|"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and isinstance(_val_d, dict) and _val_d.get("type") == "Call"
+                and self._call_returns_string_collection(_val_d.get("func", ""))):
+            # item34.md CF5: `<seq> |= find_*(...)` / `|= self._callee_raised_in(...)`
+            # (`try_assigned`/`body_raised`) is a UNION over the `seq string` name-lists. The
+            # RHS is seq-ified via `_seq_operand` (seq passes through; a `List[str]` array
+            # source is `snapshot`-bridged) so `arr_union (a b: seq string)` type-checks.
+            self._add_abstract_op("val arr_union (a b: seq string) : seq string")
+            _rhs_seq = self._seq_operand(_val_d, local_refs)
+            code = f"{indent}{safe_target} := (arr_union !{safe_target} {_rhs_seq})"
+        elif (raw_op == "|"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and (target in getattr(self, "_dict_locals", set())
+                     or (isinstance(_val_d, dict) and _val_d.get("type") == "Var"
+                         and _val_d.get("name") in getattr(self, "_dict_locals", set())))):
+            # item34.md CF5: `<set> |= <set>` on the map-based sets (`already_matched |=
+            # seen_local`) is a MAP union — `map int (option int)`, not int `bit_or`.
+            self._add_abstract_op(
+                "val map_union (a b: map int (option int)) : map int (option int)")
+            code = f"{indent}{safe_target} := (map_union !{safe_target} {val})"
         elif raw_op in bitwise_ops:
             op_fn = bitwise_ops[raw_op]
             self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
@@ -913,7 +1058,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         and obj_name[len("self."):] in self._all_record_fields)
                 if obj_name in getattr(self, "_dict_locals", set()) or _msf:
                     arg_ir = (val.get("args") or [{}])[0]
-                    if _msf and self._is_string_expr(arg_ir):
+                    _ms_add = (getattr(self, "_current_self_type", None)
+                               in getattr(self, "_mutable_state_classes", set()))
+                    # cleared-hash.md S5: a κ = string set LOCAL (`_dict_key_types[obj]
+                    # == "string"`, inferred from string-key membership/`.add`) is
+                    # `map string (option int)` with the NATIVE string element — the
+                    # write passes the RAW string, matching the membership read
+                    # (`x in s`, which now reads the raw key too). No `str_hash_op`.
+                    _set_kappa = getattr(self, "_dict_key_types", {}).get(obj_name)
+                    # cleared-hash S4: a κ=string record SET FIELD (`self.<field>.add(x)`
+                    # on a `set[str]` field → `map string (option int)`) writes the RAW
+                    # native string element, matching the membership read `x in self.<field>`.
+                    if _set_kappa is None and self._self_field_dict_kappa(obj_name) == "string":
+                        _set_kappa = "string"
+                    if _set_kappa == "string":
+                        arg = self._expr_to_whyml(arg_ir, local_refs)
+                    elif (_msf or _ms_add) and self._is_string_expr(arg_ir):
                         # M.7: a `Set[str]` key is hashed into the int-keyed map
                         # (`str_hash_op` for a non-literal) so `map_update_some`'s
                         # `k: int` typechecks — the frame's `writes` is what matters
@@ -936,7 +1096,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         # string-VALUED dict field (`_abstract_ops: Dict[str,str]`) — the
                         # name-dedup means one decl serves every map write in the module.
                         # Corpus modules keep the fixed `map int (option int)` → byte-identical.
-                        _poly = getattr(self, "_mutable_state_classes", None)
+                        # cleared-hash.md S5: a κ = string set local also needs the
+                        # POLYMORPHIC decl so `map_update_some !s "a" 0` unifies at
+                        # `map string (option int)` (the raw string element).
+                        _poly = (getattr(self, "_mutable_state_classes", None)
+                                 or _set_kappa == "string")
                         self._add_abstract_op(
                             ("val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
                              ": map 'k (option 'v)\n" if _poly else
@@ -946,10 +1110,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         code = f"{indent}{_lhs} map_update_some {_cur} {arg} 0"
                     else:
                         # set.discard(x) / set.remove(x) / del d[k] — clear the key.
+                        # cleared-hash.md S5: POLYMORPHIC decl for a κ = string set so the
+                        # native string element typechecks (`map string (option int)`).
+                        _poly_none = (getattr(self, "_mutable_state_classes", None)
+                                      or _set_kappa == "string")
                         self._add_abstract_op(
-                            "val map_update_none (m: map int (option int)) (k: int) "
-                            ": map int (option int)\n"
-                            "    ensures { result = Map.set m k None }")
+                            ("val map_update_none (m: map 'k (option 'v)) (k: 'k) "
+                             ": map 'k (option 'v)\n" if _poly_none else
+                             "val map_update_none (m: map int (option int)) (k: int) "
+                             ": map int (option int)\n")
+                            + "    ensures { result = Map.set m k None }")
                         code = f"{indent}{_lhs} map_update_none {_cur} {arg}"
                 elif (getattr(self, "_current_symbol_table", {}).get(obj_name)
                       in ("set", "dict", "frozenset")
@@ -1306,6 +1476,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 key = fn
             return rt.get(key)
 
+        out: Set[str] = set()   # accumulating string locals — consulted by `_is_str_val` (slice base)
+
         def _is_str_val(v: Any) -> bool:
             if not isinstance(v, dict):
                 return False
@@ -1316,8 +1488,38 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # new ops (not the whole `_is_string_expr`) to stay byte-clean.
             if self._is_str_value_method(v):
                 return True
+            # an emit_ir str-attribute read (`var = node.var` -> name_of) is a string local, so a
+            # dependent slice (`field = var[len("self."):]`) types as string. @mutable_state.
+            if (t in ("Attribute", "FieldGet") and _ms_str and self._is_string_expr(v)):
+                return True
+            # a SLICE of a STRING (`var[len("self."):]` prefix strip) is a substring -> string.
+            # The base may be a string local recognized EARLIER in this same fixpoint (`var =
+            # node.var`), so consult the accumulating `out` set too, not just `_is_string_expr`.
+            if (t in ("Subscript", "SliceAccess") and _ms_str
+                    and (self._is_string_expr(v.get("value", {}))
+                         or (isinstance(v.get("value"), dict)
+                             and v["value"].get("type") == "Var"
+                             and v["value"].get("name") in out))):
+                return True
             if (t in ("Subscript", "SliceAccess")
                     and self._split_call_recv_sep(v.get("value", {})) is not None):
+                return True
+            # item34.md CF5: `<seq/array string>[i]` element read (`var = sorted_assigned[i]`)
+            # is a string local. @mutable_state.
+            if (t in ("Subscript", "SliceAccess") and _ms_str
+                    and isinstance(v.get("value"), dict)
+                    and v["value"].get("type") == "Var"
+                    and (getattr(self, "_seq_value_types", {}).get(v["value"].get("name")) == "string"
+                         or getattr(self, "_array_elem_types", {}).get(v["value"].get("name")) == "string")):
+                return True
+            # item34.md CF5: `<str> or <str>` (`h.get("exc_type") or "PyCSL_Exception"`,
+            # `"with" if … else "|"`) is a string local; a 1-arg `.get("k")` on a non-emit_ir
+            # handler dict is string. @mutable_state.
+            if (t == "BinOp" and v.get("op") == "or" and _ms_str
+                    and self._is_string_expr(v.get("left", {}))
+                    and self._is_string_expr(v.get("right", {}))):
+                return True
+            if _ms_str and self._is_string_expr(v):
                 return True
             if t == "Call":
                 if _ret_of(v.get("func", "")) == "string":
@@ -1364,6 +1566,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _ms_str = (getattr(self, "_current_self_type", None)
                    in getattr(self, "_mutable_state_classes", set()))
 
+        tuple_str: Set[str] = set()
+
         def rec(node: Any) -> None:
             if isinstance(node, dict):
                 if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
@@ -1376,6 +1580,61 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             _ms_str and isinstance(_v, dict) and _v.get("type") == "None"):
                         seen.add(tgt)
                         firsts.append((tgt, _v))
+                # item34.md CF4: a tuple-unpack target whose callee-return SLOT is `string`
+                # (e.g. `len_expr, elem_expr, is_range = self._classify_iterable(...)` with
+                # return `(string, string, int)`) is a string local — pre-decl `ref ""`.
+                # @mutable_state-gated → corpus int-tuple unpacks unchanged.
+                if (_ms_str and node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Call"):
+                    _crt, _, _, _ = self._resolve_dotted_signature(
+                        node["value"].get("func", ""))
+                    if _crt and _crt.startswith("(") and _crt.endswith(")"):
+                        _slots = [s.strip() for s in _crt[1:-1].split(",")]
+                        for _i, _tg in enumerate(node.get("targets", [])):
+                            if (_i < len(_slots) and _slots[_i] == "string"
+                                    and _tg not in seen):
+                                seen.add(_tg)
+                                tuple_str.add(_tg)
+                # cf6.md M1.6: a tuple-unpack from a TUPLE LOCAL (`_uvar, uinfo = union_info`) —
+                # each target whose slot type is `string` is a string local. @mutable_state.
+                if (_ms_str and node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Var"):
+                    _slt = getattr(self, "_tuple_var_slot_types", {}).get(
+                        node["value"].get("name"))
+                    if _slt:
+                        for _i, _tg in enumerate(node.get("targets", [])):
+                            if (_i < len(_slt) and _slt[_i] == "string"
+                                    and _tg not in seen):
+                                seen.add(_tg)
+                                tuple_str.add(_tg)
+                # resync-campaign.md R2: a tuple-unpack from a TUPLE LITERAL (`_lhs, _cur =
+                # f"{_fld} <-", _fld`) — each target whose element is string-typed is a string
+                # local. @mutable_state.
+                if (_ms_str and node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Tuple"):
+                    _elts = node["value"].get("elts", [])
+                    for _i, _tg in enumerate(node.get("targets", [])):
+                        if (_i < len(_elts) and _tg not in seen
+                                and self._is_string_expr(_elts[_i])):
+                            seen.add(_tg)
+                            tuple_str.add(_tg)
+                # item34.md CF5: a for-loop target over a `string` name-collection (`for part
+                # in raw_parts`, `for tag in candidates`, `for var in sorted_assigned`) is a
+                # string local — so `part.strip()`/`whyml_ident(var)` type-check.
+                if (_ms_str and node.get("stmt") == "For"
+                        and isinstance(node.get("iter"), dict)
+                        and node["iter"].get("type") == "Var"
+                        and (getattr(self, "_array_elem_types", {}).get(
+                                node["iter"].get("name")) == "string"
+                             or getattr(self, "_seq_value_types", {}).get(
+                                node["iter"].get("name")) == "string")
+                        and isinstance(node.get("target"), str)
+                        and node["target"] not in seen):
+                    seen.add(node["target"])
+                    tuple_str.add(node["target"])
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
@@ -1384,7 +1643,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
         rec(body_stmts)
 
-        out: Set[str] = set()
+        # item34.md CF5: seed the for-target / tuple-slot string locals into the symbol table
+        # BEFORE the fixpoint, so a dependent classification (`base = part.strip()`, `part` a
+        # string for-target) sees `part : str` and marks `base` string too.
+        if st is not None:
+            for _tg in tuple_str:
+                if st.get(_tg) in (None, "Any"):
+                    st[_tg] = "str"
+
         changed = True
         while changed:
             changed = False
@@ -1397,6 +1663,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if st is not None and st.get(tgt) in (None, "Any"):
                         st[tgt] = "str"
                     changed = True
+        for _tg in tuple_str:
+            out.add(_tg)
+            if st is not None and st.get(_tg) in (None, "Any"):
+                st[_tg] = "str"
         return out
 
     def _collect_emit_ir_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
@@ -1424,11 +1694,36 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             isinstance(_v, dict) and _v.get("type") == "None"):
                         seen.add(tgt)
                         firsts.append((tgt, _v))
+                # cf6.md M1.6: a tuple-unpack from a TUPLE LOCAL (`_uvar, uinfo = union_info`) —
+                # each target whose slot type is `emit_ir` is an emit_ir local.
+                if (node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Var"):
+                    _slt = getattr(self, "_tuple_var_slot_types", {}).get(
+                        node["value"].get("name"))
+                    if _slt:
+                        for _i, _tg in enumerate(node.get("targets", [])):
+                            if _i < len(_slt) and _slt[_i] == "emit_ir":
+                                tuple_emit.add(_tg)
+                # tuple-return-of-emit_ir: `a, b = self.m(…)` (a DIRECT call unpack, no intermediate
+                # tuple local) where `m`'s return type has an `emit_ir` slot — each such target is an
+                # emit_ir local (mirrors the `string`-slot handling in _collect_string_result_locals).
+                if (node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Call"):
+                    _crt, _, _, _ = self._resolve_dotted_signature(
+                        node["value"].get("func", ""))
+                    if isinstance(_crt, str) and _crt.startswith("(") and _crt.endswith(")"):
+                        _slots = [c.strip() for c in _crt[1:-1].split(",")]
+                        for _i, _tg in enumerate(node.get("targets", [])):
+                            if _i < len(_slots) and _slots[_i] == "emit_ir":
+                                tuple_emit.add(_tg)
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
                 for x in node:
                     rec(x)
+        tuple_emit: Set[str] = set()
         rec(body_stmts)
 
         def _is_emit_ir_val(v: Any, known: Set[str]) -> bool:
@@ -1442,6 +1737,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if (v.get("type") == "Call" and isinstance(_fn, str)
                     and _fn.endswith(".to_dict") and not v.get("args")):
                 return True
+            # item34.md CF1: an `Optional[emit_ir]` ternary (`stmt.value.to_dict() if … else
+            # None`) is an emit_ir local — one arm emit_ir, the other emit_ir/None.
+            if v.get("type") == "IfExpr":
+                _b, _o = v.get("body", {}), v.get("orelse", {})
+                _bir = _is_emit_ir_val(_b, known) or self._is_emit_ir_expr(_b)
+                _oir = _is_emit_ir_val(_o, known) or self._is_emit_ir_expr(_o)
+                _bn = isinstance(_b, dict) and _b.get("type") == "None"
+                _on = isinstance(_o, dict) and _o.get("type") == "None"
+                if (_bir or _oir) and (_bir or _bn) and (_oir or _on):
+                    return True
             return False
 
         out: Set[str] = set()
@@ -1456,6 +1761,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if st is not None and st.get(tgt) in (None, "Any"):
                         st[tgt] = "ExprIR"   # so reflection on the local sees emit_ir
                     changed = True
+        # cf6.md M1.6: emit_ir targets of a tuple-local unpack (`uinfo`).
+        for _tg in tuple_emit:
+            out.add(_tg)
+            if st is not None and st.get(_tg) in (None, "Any"):
+                st[_tg] = "ExprIR"
         return out
 
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
@@ -1497,6 +1807,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # list-comprehension-lowering.md L2/L6: element type of an array local (string /
         # emit_ir / int) — computed BEFORE the string-local collectors so `pattern = ",
         # ".join(xs)` and `xs[i]` are seen as string when their array carries strings.
+        # cf6.md M2: a 2-pass fixpoint for the mutual dependency between array-element types and
+        # emit_ir locals — (1) classify array elements (`cases` → emit_ir from its field
+        # value_type), (2) classify emit_ir locals (now `c = cases[i]` / `pat = c["pattern"]`
+        # are structurally emit_ir, so `pat` is tagged), (3) re-classify array elements (now
+        # `existing_caps = pat.get("captures")` sees `pat` as emit_ir). Regression-safe: the
+        # emit_ir surface is `cases`-field- and @mutable_state-gated, so no corpus/non-match
+        # local reclassifies (pass 2 is a no-op there and pass 3 == pass 1).
+        self._array_elem_types = self._collect_array_elem_types(body_stmts)
+        self._emit_ir_local_vars = self._collect_emit_ir_result_locals(body_stmts)
         self._array_elem_types = self._collect_array_elem_types(body_stmts)
         # seq-model-pivot.md SQ1: a REASSIGNED list-elem local (assigned >1×) is modeled as
         # an immutable `seq` (freely reassignable), not a mutable `array` — a `ref (array _)`
@@ -1505,18 +1824,60 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if getattr(self, "_mutable_state_classes", None) and self._array_elem_types:
             _acounts: Dict[str, int] = {}
 
+            _firstv: Dict[str, Any] = {}
+
             def _acnt(n: Any) -> None:
                 if isinstance(n, dict):
-                    if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    # item34.md CF5: an AugAssign (`try_assigned |= …`) IS a reassignment (it
+                    # lowers to `x := <fresh>`, illegal for a `ref (array _)`), so count it.
+                    if (n.get("stmt") in ("Assign", "AugAssign")
+                            and isinstance(n.get("target"), str)):
                         _acounts[n["target"]] = _acounts.get(n["target"], 0) + 1
+                        if n.get("stmt") == "Assign" and n["target"] not in _firstv:
+                            _firstv[n["target"]] = n.get("value", {})
                     for _x in n.values():
                         _acnt(_x)
                 elif isinstance(n, list):
                     for _x in n:
                         _acnt(_x)
             _acnt(body_stmts)
+
+            def _is_seq_src(v: Any) -> bool:
+                # item34.md CF5: the value is a `seq string` name-collection SOURCE — so its
+                # var is seq (`sorted`/`split`/`find_`/`collect_`/`[a]+[comp]`/`set(coll)` or a
+                # ternary of such). Even a single-assign such var (`raw_parts`/`candidates`/
+                # `sorted_assigned`) is seq-valued → iterates/reassigns via Seq.
+                if not isinstance(v, dict):
+                    return False
+                _t, _f = v.get("type"), v.get("func")
+                # #15: `self._nested_seq_field.get(k)` yields the inner `seq _` (`Dict[str,List[T]]`),
+                # and a bare list comprehension lowers to `seq` — both make the local seq-valued.
+                if _t == "ListComp":
+                    return True
+                if (_t == "Call" and isinstance(_f, str) and _f.endswith(".get")
+                        and _f[:-len(".get")].startswith("self.")):
+                    _nu = self._self_field_dict_nu(_f[:-len(".get")])
+                    if isinstance(_nu, str) and _nu.startswith("seq "):
+                        return True
+                if _t == "Call" and isinstance(_f, str):
+                    if (_f.startswith("IRScanner.find_") or _f.startswith("IRScanner.collect_")
+                            or _f.endswith(".split") or _f == "sorted"):
+                        return True
+                    if _f in ("set", "frozenset", "list") and v.get("args"):
+                        return _is_seq_src(v["args"][0])
+                if (_t == "BinOp" and v.get("op") == "+"
+                        and isinstance(v.get("left"), dict)
+                        and v["left"].get("type") in ("ArrayLit", "ListLit", "ListComp")):
+                    return True
+                if _t == "IfExpr":
+                    return _is_seq_src(v.get("body")) or _is_seq_src(v.get("orelse"))
+                if _t == "Var":
+                    return v.get("name") in self._seq_locals
+                return False
+
             for _nm, _et in list(self._array_elem_types.items()):
-                if _acounts.get(_nm, 0) >= 2:
+                if (_acounts.get(_nm, 0) >= 2
+                        or (_et == "string" and _is_seq_src(_firstv.get(_nm)))):
                     self._seq_locals.add(_nm)
                     self._seq_value_types[_nm] = _et
                     self._array_elem_types.pop(_nm, None)
@@ -1604,6 +1965,49 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return _r
             if t == "Call" and isinstance(v.get("func"), str) and v["func"].endswith(".findall"):
                 return "string"      # L7: re.findall → array string
+            # item34.md CF5: the seq string name-collection sources → `string` element.
+            if t == "Call" and isinstance(v.get("func"), str):
+                _fn = v["func"]
+                # #15: `self._nested_seq_field.get(k)` (`Dict[str,List[T]]`) → the inner `seq T`
+                # element type, so the local is a `seq T` (promoted via `_is_seq_src`).
+                if _fn.endswith(".get") and _fn[:-len(".get")].startswith("self."):
+                    _nu = self._self_field_dict_nu(_fn[:-len(".get")])
+                    if isinstance(_nu, str) and _nu.startswith("seq "):
+                        return _nu[len("seq "):]
+                if (self._call_returns_string_collection(_fn) or _fn.endswith(".split")):
+                    return "string"
+                if _fn in ("sorted", "set", "frozenset", "list") and v.get("args"):
+                    return _val_elem_ty(v["args"][0])
+                # cf6.md M1.6: `<emit_ir>.get("captures"/"args")` reads the args LIST
+                # (`args_of`) - an emit_ir-element array (`existing_caps`).
+                if _fn.endswith(".get"):
+                    _ga = v.get("args") or []
+                    if (_ga and isinstance(_ga[0], dict) and _ga[0].get("type") == "String"
+                            and _ga[0].get("value") in ("captures", "args", "parts", "elts")
+                            and self._is_emit_ir_expr(
+                                {"type": "Var", "name": _fn[:-len(".get")]})):
+                        return "emit_ir"
+            # self-tcb-reduction T1.a: `node.elts`/`node.parts` (a node-list attr) → emit_ir elem.
+            if t in ("Attribute", "FieldGet") and (v.get("attr") or v.get("field")) in (
+                    "elts", "parts", "args", "captures"):
+                _o = v.get("object") or v.get("value")
+                if isinstance(_o, dict) and self._is_emit_ir_expr(_o):
+                    return "emit_ir"
+            # cf6.md M1.6: `<array> or []` - the element class is the left array's.
+            if t == "BinOp" and v.get("op") == "or":
+                return _val_elem_ty(v.get("left", {}))
+            if (t == "BinOp" and v.get("op") == "+"
+                    and isinstance(v.get("left"), dict)
+                    and v["left"].get("type") in ("ArrayLit", "ListLit", "ListComp")):
+                return "string"
+            if t == "IfExpr":
+                for _arm in (v.get("body"), v.get("orelse")):
+                    if (isinstance(_arm, dict) and _arm.get("type") == "Call"
+                            and isinstance(_arm.get("func"), str)
+                            and _arm["func"].endswith(".split")):
+                        return "string"
+                    if _val_elem_ty(_arm) == "string":
+                        return "string"
             if t == "BinOp" and v.get("op") == "*":
                 for side in ("left", "right"):
                     s = v.get(side, {})
@@ -1673,7 +2077,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # record field → alias X to `self.<field>` (@mutable_state only).
                 if _ms and isinstance(tgt, str) and isinstance(v, dict):
                     _gf = self._getattr_self_field(v)
-                    if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") is not None:
+                    if _gf and self._self_field_dict_nu(f"self.{_gf}") is not None:
                         self._getattr_self_dict_aliases[tgt] = _gf
             for key in ("body", "orelse", "finalbody", "then", "else_body"):
                 sub = st.get(key)

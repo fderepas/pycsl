@@ -1,0 +1,34 @@
+module ProjCallSpike
+  use int.Int
+  use array.Array
+
+  (* PROJECTION: get_f models `x.f` on a collapsed-int element — pure fn. *)
+  val function get_f (x: int) : int
+
+  val proj_comp (src: array int) : array int
+    ensures { Array.length result = Array.length src }
+    ensures { forall i. 0 <= i < Array.length src -> result[i] = get_f (src[i]) }
+
+  (* driver USE site: bind r = proj_comp src, prove content at two indices *)
+  let test_proj (src: array int) (i j: int) : unit
+    requires { 0 <= i < Array.length src }
+    requires { 0 <= j < Array.length src }
+  = let r = proj_comp src in
+    assert { r[i] = get_f (src[i]) };
+    assert { r[j] = get_f (src[j]) };
+    assert { Array.length r = Array.length src }
+
+  (* CALL: g pure module fn with propagated ensures g(x) >= x *)
+  val function g (x: int) : int
+  axiom g_post : forall x. g x >= x
+
+  val call_comp (src: array int) : array int
+    ensures { Array.length result = Array.length src }
+    ensures { forall i. 0 <= i < Array.length src -> result[i] = g (src[i]) }
+
+  let test_call (src: array int) (i: int) : unit
+    requires { 0 <= i < Array.length src }
+  = let r = call_comp src in
+    assert { r[i] = g (src[i]) };
+    assert { r[i] >= src[i] }        (* propagated postcondition survives *)
+end

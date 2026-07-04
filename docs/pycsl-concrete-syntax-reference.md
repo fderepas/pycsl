@@ -447,6 +447,8 @@ atom ::= NUMBER                                          (* §3.1.1  Integer lit
        | CNAME "(" ")"                                   (* §3.1.17 Function call (no args) *)
        | CNAME "[" expr ":" expr "]"                     (* §3.1.20 Slice notation        *)
        | CNAME "[" expr "]" "[" expr "]"                 (* §3.1.4b Chained subscript     *)
+       | CNAME "[" expr "]" "." CNAME                    (* §3.1.4c Subscript projection  *)
+       | "\result" "[" expr "]" "." CNAME               (* §3.1.5c Result subscript proj *)
        | CNAME "[" expr "]"                              (* §3.1.4  Subscript access      *)
        | CNAME                                           (* §3.1.2  Variable reference    *)
        | "\result"                                       (* §3.1.5  Return value          *)
@@ -466,7 +468,7 @@ atom ::= NUMBER                                          (* §3.1.1  Integer lit
 top-to-bottom. Longer prefixes must appear before shorter ones:
 
 1. `CNAME "[" expr ":" expr "]"` (slice) before `CNAME "[" expr "]" "[" expr "]"` (chained)
-2. `CNAME "[" expr "]" "[" expr "]"` (chained) before `CNAME "[" expr "]"` (single)
+2. `CNAME "[" expr "]" "[" expr "]"` (chained) before `CNAME "[" expr "]"` (single); likewise `CNAME "[" expr "]" "." CNAME` (subscript projection, §3.1.4c) before the bare single subscript — the trailing `.` lookahead drives the shift into the longer rule
 3. `CNAME "(" expr_list ")"` (call) before `CNAME` (bare variable)
 4. `"\result" "[" expr "]"` (result subscript) before `"\result"` (bare result)
 5. `CNAME "." CNAME "[" expr "]"` (global field subscript, §3.1.3c) before `CNAME "." CNAME` (`param_field_access`, whole field); the `[` lookahead drives the shift into the longer rule (LALR, zero conflict) — exactly as `self.<field>[i]` (§3.1.3b) coexists with `self.<field>` (§3.1.3)
@@ -480,8 +482,10 @@ top-to-bottom. Longer prefixes must appear before shorter ones:
 | 3.1.3 | `self.field` | `FieldAccess` | Class field access. The object is always the literal string `"self"`. |
 | 3.1.4 | `arr[i]` | `SubscriptAccess` | Array element access. The array name is a `CNAME`; the index is an arbitrary `expr`. |
 | 3.1.4b | `arr[i][j]` | `ChainedSubscript` | 2D array element access. The array name is a `CNAME`; both indices are arbitrary `expr`. Only two levels of chaining are supported (not 3D+). |
+| 3.1.4c | `arr[i].field` | `SubscriptFieldAccess` | Field PROJECTION off a subscripted collection element (cleared-array.md S2). The array name is a `CNAME`, the index an arbitrary `expr`, the field a `CNAME`. Lowers to `Attribute(Subscript(Var(arr), index), field)` — the SAME IR the body path produces for `a[i].x`, so the abstract getter `get_<field>` matches a projection-comprehension content law. The consumer of `\result[k] == a[k].x`. |
 | 3.1.5 | `\result` | `Result` | Return value of the current function. Valid only in `ensures` clauses (checked by static semantics, not syntax). |
 | 3.1.5b | `\result[i]` | `ResultSubscript` | Subscript into the return value. Parsed as a distinct atom with the `expr` index. |
+| 3.1.5c | `\result[i].field` | `SubscriptFieldAccess` | Field projection off a subscripted `\result` element (cleared-array.md S2); the `\result` sibling of §3.1.4c. Lowers to `Attribute(Subscript(Result, index), field)`. |
 | 3.1.6 | `\old(e)` | `Old` | Value of expression `e` at function entry. |
 | 3.1.7 | `\at(e, L)` | `At` | Value of expression `e` at the program point labeled `L`. |
 | 3.1.8 | `\length(arr)` | `ArrayLength` | Length of array `arr`. The argument is a `CNAME` (not an arbitrary expression). |

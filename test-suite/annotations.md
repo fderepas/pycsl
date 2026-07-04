@@ -755,6 +755,7 @@ def _pack_uint16_be(v: int) -> list: ...
 | 3 | `self.field` | `FieldAccess` | Class field access |
 | 3b | `self.field[i]` | `FieldSubscript` | Element of an instance ARRAY field (e.g. for region-preservation: `self.disk[i] == \old(self.disk[i])`). Lowers to a subscript of the record field in the hoare model. |
 | 4 | `arr[i]` | `SubscriptAccess` | Array element access |
+| 4c | `arr[i].field` / `\result[i].field` | `SubscriptFieldAccess` | Field PROJECTION off a subscripted element (cleared-array.md S2). Lowers to `Attribute(Subscript(…), field)` — the consumer of a projection-comprehension content law `\result[k] == a[k].x`. |
 | 5 | `\result` | `Result` | Return value (only in `ensures`) |
 | 6 | `\old(<expr>)` | `Old` | Value of expression at function entry |
 | 7 | `\at(<expr>, L)` | `At` | Value of expression at label `L` |
@@ -1523,8 +1524,49 @@ Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
 > `s.startswith`/`.endswith`/`.find` lower through abstract `val …_op` bridges to the same
 > `String.length`/`concat`/`String.substring`/`=` symbols, and the `\str_*` spec operators above
 > relate the result to content. Drivers: corpus `0471` (substring search) and `0472`–`0494`.
-> **Out of scope:** code points (`ord`, char ordering), `upper`/`lower`/`strip`/`replace`/`split`
-> (opaque), `.decode`/`.encode` (opaque bytes↔str boundary), f-strings, `str`-keyed dicts (hash).
+> **CONTENT-faithful, not just length (cleared-string.md):** concatenation and slicing prove their
+> exact content via Why3's rich native `string.String` theory with NO new axiom — `(a+b)[:len(a)]
+> == a` (`0765`), `s[0:2]+s[2:4] == s[0:4]` (`0766`); `startswith`/`endswith`/`find` accept a
+> DERIVED string receiver too (`(a+b).startswith(a)`, `0767`), not only a simple name. A false
+> content claim is correctly rejected (`0768`, `# pycsl-expected: FAIL`).
+> **`upper`/`lower` and `replace` (cleared-string RESIDUALS):** `.lower()`/`.upper()` lower to
+> DETERMINISTIC `str_lower_op`/`str_upper_op` (`val function`) with a non-emptiness length law +
+> IDEMPOTENCE (fold-marker predicate, no new axiom), so `s.lower().lower()==s.lower()` PROVES
+> (`0791`) while `s.lower()==s.upper()` stays UNKNOWN (`0793`, `# pycsl-expected: FAIL`); a
+> STRING-LITERAL receiver is constant-folded by Python's own method (`"Hello World".upper()=="HELLO
+> WORLD"`). `.replace` (`val function str_replace_op`) keeps the char-for-char `len pat=len rep →
+> len result=len s` law and gains a NOT-CONTAINS identity (`pat not in s ⇒ result=s`, `0792`);
+> all-literal calls constant-fold (`"a.b.c".replace(".","_")=="a_b_c"`).
+> **Out of scope / residual (documented, honest boundary):** code points (`ord`, char ordering),
+> the per-char ASCII case-MAP on a SYMBOLIC string (needs a codepoint bridge + `is_ascii` contract
+> surface, zero demand) and full-Unicode folding (`"ß".upper()=="SS"`, not length-preserving), the
+> general grow/shrink `replace` CONTENT (CPython all-occurrences ≠ Why3 first-occurrence `replace`;
+> no faithful `replaceall` content axiom — `0794` rejects the false grow length claim), `strip`
+> (`len result ≤ len s`), `split` (list-of-strings), `.decode`/`.encode` (bytes↔str boundary),
+> `%`/f-string content. **A `str`-keyed dict/set is
+> now faithful** — `dict[str, ν] ~ map string (option ν)` with the native, injective Why3 string key
+> (`String.(=)`, no `str_hash_op`), so distinct keys are provably non-aliasing (cleared-hash.md,
+> drivers `0755`–`0758`; κ inferred for `Dict[str,_]` params/locals, string-key literals, and
+> string-key usage). A string **set** local is likewise native (`set() ~ map string (option int)`,
+> present ≡ `Some 0`): `s.add(x)` and `x in s` agree on the raw string element (`0759`). A **record
+> FIELD** declared `Dict[str, ν]`/`Set[str]`/`FrozenSet[str]` is now native too (cleared-hash.md S4):
+> the WhyML record field is `map string (option ν)` and every field op site — store `self.d[k]=v`,
+> subscript `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard` — reads/writes the raw
+> string key in lockstep (`0772` distinct-key non-aliasing, `0773` absent-key, `0774` literal↔variable,
+> `0775` set field, `0776` NEGATIVE false-claim; existing field tests `0746`/`0750` now native).
+> κ inference also covers a string **concatenation** key `a + b` (both operands `str`): its native key
+> `str_concat_op a b` is pinned to Why3 `concat` (left-cancellative), so `a != c ⇒ d[a+b]` non-aliasing
+> is provable (`0795`) — a distinct-key property the opaque hash cannot give.
+> **Residual (κ-unknown, CLOSED honest boundary):** a dict/set whose key the model cannot pin to a
+> decidable/injective string — a non-`str` key, an un-annotated field from `{}`, or a derived-string
+> key with no injectivity content (`s.upper()`, whose native form is an opaque `str_upper_op` and which
+> is genuinely non-injective) — keeps the `map int` + opaque `str_hash_op` fallback. This is honest, NOT
+> collision-sound: a distinct-key non-aliasing claim on such a dict stays UNPROVABLE (`0796`,
+> `# pycsl-expected: FAIL`) — NO false injectivity axiom is placed on `str_hash_op`
+> (`proof_axiom_allowlist` unchanged). **Out of scope — a SEPARATE opacity (non-dict-key hashing):**
+> a bare `hash(s)` (`0485`) and a decode-result string equality (`0425`) route through `str_hash_op`
+> but are NOT dict/set key operations (no `Map.get`/`map` in either); `hash()`'s `int` result is the
+> real Python semantics, so it is correctly left opaque (tracked in `we-are-getting-better.md`).
 
 **Ghost arrays** (hoare model only):
 | # | Syntax | Meaning |
@@ -1829,14 +1871,71 @@ returns an `int` auto-injects into the matching arm constructor (`Arm_0_0 (expr)
 
 ### §12.5 `sorted` builtin
 
-`sorted(arr)` emits an abstract `val sorted_1 (a: array int) : array int`.
-The abstract val has no axioms about the result's contents — Why3
-knows only that it returns an array. Contracts cannot meaningfully
-assert order or element identity through `sorted_1`.
+`sorted(arr)` emits an abstract `val sorted_1 (a: array int) : array int`
+carrying three **definitional `ensures`** (cleared-array.md S5) — discharged
+where `sorted` is used, NOT a global axiom:
 
-`any(arr)` and `all(arr)` emit similar abstract vals returning `bool`.
+* `Array.length result = Array.length a`;
+* adjacent sortedness `forall i. 0 <= i < len-1 -> result[i] <= result[i+1]`
+  (the exact formula `\is_sorted(result, 0, \length(result))` lowers to);
+* `permut result a` (the SAME uninterpreted `permut` predicate that
+  `\permutation(result, a)` lowers to).
 
-**Tests**: 0351.
+So a driver CAN prove that `sorted`'s result is sorted and a permutation of the
+input (test 0760). The conjunction is satisfiable ⇒ no vacuity; adding `ensures`
+to an abstract val is monotone ⇒ cannot regress a prior opaque proof.
+
+`any(arr)` and `all(arr)` emit similar abstract vals returning `bool` (no
+result axioms).
+
+**Tests**: 0351, 0760.
+
+### §12.5a Content-faithful list / dict / set comprehensions
+
+A list comprehension `[elt for t in src (if cond)]` is content-faithful when
+the element lowers to a pure `int` logic term over the loop target only —
+identity `[x for x in a]` gives `result[i] == a[i]`, `+ - *` arithmetic
+`[x + 1 for x in a]` gives `result[i] == a[i] + 1`, **field projections**
+(cleared-array.md S2) `[p.x for p in a]` give `result[i] == a[i].x`
+(`[p.x + p.y for p in a]` → `result[i] == a[i].x + a[i].y`), and — **calls**
+(cleared-array item 1) `[g(x) for x in a]`, where `g` is a PURE module function
+(`assigns \nothing`, non-diverging → emitted as a Why3 `let function`, a logic
+symbol) — give `result[i] == g(a[i])`; all with `\length(result) == \length(a)`.
+
+A **filter** `[x for x in a if cond]` always keeps `\length(result) <=
+\length(a)`; when the element is the IDENTITY and every predicate `cond` lifts to
+a pure-bool logic term over the target (a comparison, or `and`/`or`/`not` of
+such), it ALSO carries the content-SUBSET law (cleared-array item 4): each
+survivor satisfies `cond` AND appears in `a`.
+
+A **dict** comprehension `{x: v for x in a}` with an IDENTITY key + pure-int
+value is content-faithful (cleared-array item 3): every source element is a KEY
+mapping to the transformed value — `\has_key(\result, a[i])` and
+`\map_get(\result, a[i]) == v[t:=a[i]]` (identity key pins soundness — colliding
+sources map to the same key AND value). A **set** comprehension `{f(x) for x in
+a}` (pure-int element) gives the membership law `\has_key(\result, f(a[i]))`
+(every produced element is present; sound under-approximation).
+
+Projection requires two enabling pieces: the contract grammar parses
+`a[k].field` (§3.1.4c `SubscriptFieldAccess`) so a driver can STATE the claim,
+and the abstract getter `get_<field>` is emitted as a pure `val function` in
+spec context so it is logic-usable and denotes one deterministic value across
+both mentions (a field read *is* deterministic — a faithful refinement). Calls
+reuse the pre-existing `emits_as_logic_symbol` path (a pure module function is
+already a `let function`); the content-law val is deferred and spliced in after
+the callee so it is in scope.
+
+Residual opaque shapes (never a false content claim): **subscript projection**
+`[x[k] …]` (`List[List[int]]` / `List[Dict[…]]` collapse to `array int`, no
+faithful collection element — the inner collection type is not threaded),
+non-identity dict key / non-pure-int dict value or set element, string/seq/
+emit_ir elements, multi-generator (cleared-array.md S1–S5 + items 1,3,4).
+
+**Tests**: 0761 (identity), 0762 (arithmetic), 0769 (projection),
+0770 (arithmetic-over-projection), 0783 (call), 0763 (filter bound),
+0789 (filter subset), 0785 (dict), 0787 (set); NEGATIVE — false content claim
+rejected: 0764 / 0771 (list/projection), 0784 (call), 0786 (dict value),
+0788 (set membership), 0790 (filter over-strong).
 
 ### §12.6 `bytes` and `bytearray` type unification
 
@@ -2067,9 +2166,20 @@ proof obligation (the function must be shown to diverge or raise), not an
 unsoundness. The NR4 vacuity-gate exemption is a gate-precision concern, not a
 soundness gap.
 
+**Non-vacuity gate ON BY DEFAULT (fail-closed; non-lin-int-div-fixed.md).** After
+a file verifies, each body-bearing function is re-probed with an injected
+`ensures false` (`split_vc`, per normal-exit path); a function VACUOUS on ALL
+exits FAILs the run — closing the silent false-green from an inconsistent
+context (e.g. the SMT nonlinear-integer-division vacuity). `-> NoReturn` and
+`#@ \diverges` are EXEMPT (their sound green is expected-vacuous on the
+unreachable normal exit). Opt out with `--no-check-vacuity`; `--no-proof` also
+skips it. See `docs/pycsl-static-semantics-reference.md` §NR4.
+
 **Tests**: 0738 (NR1/NR2a witness — `-> NoReturn` raises), 0739 (NR2a negative
 — `-> NoReturn` with `return` rejected), 0740 (NR3 negative — dead successor
-rejected), 0741 (NR4 — NoReturn passes `--check-vacuity`).
+rejected), 0741 (NR4 — NoReturn passes `--check-vacuity`), 0752 (non-vacuity
+gate self-test — an inconsistent-context function FAILs under the default gate,
+PASSes with `--no-check-vacuity`).
 
 ### §12.12 `TypedDict` annotations (typing-engagement ty2)
 

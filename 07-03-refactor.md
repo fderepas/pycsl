@@ -1,0 +1,422 @@
+# 07-03-refactor.md — Refactoring `src/pycsl` for provability
+
+**Author:** Claude (after ~20 iterations of the self-tcb-reduction Squeeze Loop)
+**Question:** now that the process is understood, is it worth refactoring `src/pycsl` functions to be
+smaller and easier to prove? **Answer: yes, and the data says exactly which ones and how.**
+
+This is scoped to reducing the self-annotation trusted core (`src/self-annotate/src` mirrors
+`src/pycsl` verbatim; every `\trusted` stub we convert must transcribe a live emitter method and
+discharge a `requires True / ensures True / assigns <frame>` contract under Why3). Refactoring the
+**live** emitter automatically reshapes the mirror (the verbatim-sync gate enforces it), so
+"make the live function provable" and "make the mirror function provable" are the same act.
+
+---
+
+## 1. The empirical thesis (why this is worth doing)
+
+Convertibility is not mysterious. Across the 17 handlers converted this campaign vs. the 7 still
+blocked, one measurement separates them almost perfectly:
+
+| Group | Count | Median size | Max size | Returns | Nested fns | Slice-loops |
+|-------|-------|-------------|----------|---------|-----------|-------------|
+| **Converted** (unaryop … field_get) | 17 | **13 L** | 29 L | ≤ 4 | **0** | **0** |
+| **Blocked** (var, attribute, slice_access, fstring, ifexpr, call, subscript) | 7 | **63 L** | **304 L** | 5–26 | fstring, ifexpr have 1 | var has 1 |
+
+The converted set has **zero nested functions and (essentially) zero loops**. The blocked set is
+big multi-branch dispatchers, or small handlers carrying **one** poison construct.
+
+**The load-bearing insight: one hard branch poisons the whole function's proof.**
+`_handle_var_expr` is 63 lines with **14 return branches**. Thirteen of them are trivial pure
+string returns (`return whyml_ident(name)`) that would convert instantly. The fourteenth — the
+`_todict_aliases` branch with a `for _p in _parts[1:]` seq-slice loop whose `variant {}` references a
+program `val` in a logic context — is un-provable. Because they share one function body and one
+contract, that single branch makes **all 63 lines trusted**. Decomposed, var becomes *13 converted
+leaves + 1 small trusted leaf*.
+
+This is the whole strategy: **decomposition localizes the irreducible.** The item-3 ceiling
+(Gödel/Löb: the recursion leaves `_expr_to_whyml`/`_stmts_to_whyml` and the D2 axioms must stay
+trusted) is real, but today it is *smeared* across large handlers. Refactoring pushes the trusted
+boundary **down** to exactly the irreducible constructs, converting everything above them.
+
+**Why this is low-risk here (unusually so).** These are behaviour-preserving extractions in an
+**output-deterministic** emitter guarded by two mechanical gates:
+- **byte-diff 0** across the 627-file corpus (`bin/byte-diff-sweep.sh` + `diff -rq`), and
+- **verbatim mirror-sync** (`bin/check-self-annotate-mirror-sync.py`).
+
+An extraction that returns the same string is *provably* inert. Refactoring-for-provability is the
+**safest** kind of change in this codebase — the gates catch any drift the instant it happens.
+
+---
+
+## 2. The five provability anti-patterns (each grounded in a real handler)
+
+| # | Anti-pattern | Where it hurts today | Why it blocks the proof |
+|---|--------------|----------------------|-------------------------|
+| **A** | **Multi-return dispatcher** | `_handle_var_expr` (14 ret), `_handle_call_expr` (26 ret), `_handle_subscript` (23 ret / 47 if), `_handle_attribute_expr` (10 ret) | N independent concerns share 1 contract + 1 frame; the union of their VCs is huge and any one hard branch fails the whole. |
+| **B** | **Nested closure** | `_handle_fstring_expr` (`_sp` inner fn), `_handle_ifexpr_expr` (1 nested fn) | A nested `def` types differently under proof mode than under `--no-proof` (the iter-14 false-positive); its captured refs cross the value/logic boundary. |
+| **C** | **Loop whose bound/variant uses a program `val`** | `_handle_var_expr` `_todict_aliases` (`_parts[1:]` → `variant { seq_sub … }`) | A `variant {}` / `invariant {}` is a **logic** term; a program `val` (`seq_sub`) is unbound there. Fixing via `function`+axiom would *smuggle an axiom* (forbidden). |
+| **D** | **Deep reflection chain** | `_handle_call_expr` (285 L), `_handle_subscript` (304 L), `_call_named_builtins` (399 L) | Long `.get(...)`/subscript projection chains over `emit_ir` make wide, brittle VCs; a single mis-typed projection deep in the chain fails typecheck. |
+| **E** | **Union / nested data in one value** | `_handle_field_get_expr` (`_class_constants: Dict[str,Dict]`), `_handle_var_expr` (`_module_constants: Union[str,int]`) | The int-collapse can't carry two shapes in one slot. **Both are now solved** (nested-map feature; union→string modeling) — they show the pattern and that it's tractable. |
+
+---
+
+## 3. Concrete proposals, prioritized by ROI
+
+Each is a **refactor** (byte-diff 0). Sketches are illustrative, not literal.
+
+### R1 — Split `_handle_var_expr` into a dispatcher + per-branch resolvers  ⭐ highest ROI/effort
+`expressions.py:3993`, 63 L, 14 returns, 1 loop, 2 `_add_abstract_op`.
+The 14 branches are already disjoint (`if name in X: return …`). Extract each:
+
+```python
+def _handle_var_expr(self, node, local_refs, subst=None):
+    name = self._var_name(node, subst)
+    for resolve in (self._var_todict_alias, self._var_quant_binder, self._var_local_kind,
+                    self._var_param, self._var_shared, self._var_module_const,
+                    self._var_global_class, self._var_constructor, self._var_class_name):
+        r = resolve(name, local_refs, subst)
+        if r is not None:
+            return r
+    return self._var_opaque_constant(name)
+```
+
+**Payoff:** ~12 of the 13 non-loop resolvers are pure `assigns \nothing` string returns → convert
+immediately. Only `_var_todict_alias` (the seq-slice loop, anti-pattern C) stays trusted, and it
+shrinks to ~8 lines. `_var_module_const` converts once its value is modelled as string (the
+union-narrowing work, already validated). **var: 63 trusted lines → ~8.**
+
+### R2 — Hoist nested closures to methods (fstring, ifexpr)  ⭐ unblocks an entire class
+`_handle_fstring_expr` (`expressions.py:4154`, `_sp`), `_handle_ifexpr_expr` (`:4270`).
+Replace the inner `def _sp(p): …` with a real method `_fstring_str_part(self, p, …)`. A top-level
+method has a stable signature that proof-mode and `--no-proof` type **identically** (killing the
+iter-14 false-positive class), and its frame is explicit.
+
+**Payoff:** fstring's parts-loop and ifexpr become provable modulo their own (now-small) bodies.
+Also makes the auto-try harness trustworthy again (no nested-fn false positives).
+
+### R3 — Decompose the two giants: `_handle_call_expr` (285 L) + `_call_named_builtins` (399 L)  ⭐ biggest line payoff
+`expressions.py:2371` and `_call_named_builtins` (399 L, the single largest function in the package).
+Split by **call shape** into named helpers: `_call_method`, `_call_builtin`, `_call_constructor`,
+`_call_abstract_op`, `_call_contract_predicate`, … each dispatched from a thin `_handle_call_expr`.
+
+**Payoff:** ~680 lines of the trusted core fragment into bounded helpers. The pure-formatting shapes
+(constructor application, arity-fixed builtins) convert; the deep-reflection shapes (varargs,
+`emit_ir` args splat) isolate as small trusted leaves. Highest absolute trusted-line reduction, but
+most effort — do it **after** the pattern is proven on R1/R2.
+
+### R4 — `_handle_slice_access_expr` → one helper per slice kind
+`expressions.py:4342`, 77 L, 5 returns (seq-slice, string-slice, array-slice, opaque, …).
+Each return is a distinct slice model already. Extract `_slice_seq`, `_slice_string`, `_slice_array`.
+
+**Payoff:** the string/array cases convert; the subscript-on-`emit_ir` reflection case isolates.
+
+### R5 — Extract pure string-assembly / escaping helpers  ⭐ free wins, do first
+Recurring inline fragments that are trivially `assigns \nothing`:
+- the WhyML string-literal escaper `'"' + s.replace("\\","\\\\").replace('"','\\"') + '"'`
+  (in `_handle_var_expr` and elsewhere) → `_whyml_string_literal(s)`.
+- projection formatters like `f"({proj} {rv})"` → tiny named formatters.
+
+**Payoff:** each extracted pure function converts on sight (no state, no branching), DRYs duplicated
+logic, and shrinks every caller. Low effort, builds confidence, and immediately drops the trusted
+count. **Start here.**
+
+### R6 — `_handle_subscript` (304 L, 47 ifs) → per-receiver-kind helpers
+`expressions.py:3619`. The largest branch-count in the package. Split by receiver: body-dict,
+self-field-dict, nested-map (the new path), array, string-split, tuple-destructure, opaque.
+
+**Payoff:** large fragmentation; several receiver kinds convert. High effort — pair with R3 as the
+"giants" phase.
+
+### R7 — Emit a logic-safe loop variant for slice/seq loops (structural, unblocks anti-pattern C)
+Not an extraction but a targeted emitter change: for a for-loop over a seq/array **slice**, emit the
+`variant {}` using the base collection's `Seq.length`/`Array.length` (pure **logic** functions) minus
+the index, instead of re-lowering the slice with the program `val seq_sub`. The measure still
+decreases (the base length is loop-invariant; the index rises), and it lives entirely in logic.
+
+**Payoff:** unblocks var's `_todict_alias` leaf **and** every future seq-slice loop, with **no added
+axiom**. Note: this one *may* change emission (it's arguably a fix, not a pure refactor) — gate it as
+a feature (byte-diff enumerates the changed set; it should be exactly the seq-slice-loop sites).
+
+---
+
+## 4. Gating discipline for provability refactors
+
+Every extraction, per function, in order:
+1. **Extract**, keeping the returned string byte-identical.
+2. `--no-proof` typecheck of the mirror locally (fast).
+3. **byte-diff 0** over the 627-corpus (`PYTHONHASHSEED=0 bin/byte-diff-sweep.sh` + `diff -rq`) —
+   the authoritative "behaviour-preserving" check.
+4. **verbatim mirror-sync** green.
+5. Convert the new leaves that are now provable; **full proof** before commit (the `--no-proof` check
+   is *not* sufficient for nested-fn/logic constructs — the iter-14 lesson).
+
+**Two traps to respect:**
+- **`_add_abstract_op` ordering is shared mutable state.** Several handlers register abstract ops as
+  a side effect; extraction must preserve registration **order** or the preamble reorders → byte-diff
+  ≠ 0. The gate catches it, but design extractions to keep the call order.
+- **Don't disguise a feature as a refactor.** If an extraction changes emission, it is a feature;
+  gate it as one (R7 is the honest example).
+
+---
+
+## 5. Recommended sequencing
+
+1. **R5** (pure helpers) — free conversions, zero risk, warms up the workflow.
+2. **R2** (hoist nested closures) — kills the nested-fn class + the auto-try false-positive.
+3. **R1** (var dispatcher split) — high value, fully understood; lands var minus one small leaf.
+4. **R7** (logic-safe variant) — structural, unblocks the seq-slice leaf R1 leaves behind.
+5. **R4** (slice_access) — medium.
+6. **R3 + R6** (the call/subscript/builtins giants) — biggest payoff, most effort; do last, once the
+   pattern is proven and the harness is trustworthy.
+
+---
+
+## 6. Non-goals and risks
+
+- **Do not decompose the Gödel-ceiling leaves.** `_expr_to_whyml` (264 L) and `_stmts_to_whyml` are
+  the recursion cores that *must* stay trusted (item-3). Splitting them buys nothing — they are
+  irreducible by construction. Leave them; decompose everything that *calls* them.
+- **Over-fragmentation has a cost.** Each extraction carries a byte-diff verification and a readability
+  budget. Stop when a function is one concern; don't shatter it into one-liners.
+- **65 functions are ≥ 60 lines** package-wide, but most are *not* on the trusted-conversion path
+  (e.g. `_emit_type_decls`, `_scan_preamble_needs` are preamble builders). Target the `_handle_*`
+  dispatchers and their helpers first — they're what the mirror must prove.
+- Some big functions earn their size (dense, single-concern table lowerings). Size is a *signal*, not
+  a mandate; the real predictors are **branch count** and **presence of a poison construct**.
+
+---
+
+## 7. Expected outcome
+
+Decomposition doesn't delete lines — it **re-partitions the trusted surface** so most of it converts:
+
+- **var** (63 L) → ~55 L convert, ~8 L trusted leaf.
+- **fstring / ifexpr** (~110 L) → mostly convert once closures are hoisted.
+- **call / subscript / builtins** (~990 L) → est. 60–70 % convert, the reflection cores isolate.
+
+Rough estimate: the ~600 lines of blocked `_handle_*` handlers become **~150 lines of small,
+clearly-irreducible trusted leaves** — a genuine, honest shrink of the TCB, with each remaining
+trusted leaf now *auditable at a glance* (which is itself a win: a 63-line trusted handler hides its
+irreducible core; an 8-line one exposes it).
+
+**Bottom line:** yes — refactor. Start with R5 + R2 (safe, fast), prove the pattern on R1, then take
+the giants. The gates make it low-risk, and the empirical size/branch correlation makes the payoff
+predictable.
+
+---
+
+## Execution log — 2026-07-03
+
+| Step | Outcome | Commit | Count |
+|------|---------|--------|-------|
+| **R5** | `_whyml_string_literal` extracted; proven leaf. byte-diff 0. | df517398 | 1277 |
+| **R2** | fstring `_sp` → `_fstring_str_part`, ifexpr `_cf5_arr` hoisted; both proven leaves. byte-diff 0. | ae1dbab1 | 1277 |
+| **R1** | var's hard branch isolated to `_var_todict_alias`; `_handle_var_expr` (13 branches) CONVERTS. byte-diff 0. | 650ca7e3 | 1277 |
+| **R7** | logic-safe seq-slice loop variant → `_var_todict_alias` CONVERTS → **var fully verified**. byte-diff 0. | ca26b2e5 | **1276** |
+| **R4** | slice_access ESCALATED — deep-reflection cascade (slice-bound reflection + helper-arg emit_ir threading), beyond decomposition. | — | 1276 |
+| R3/R6 | not attempted (the 285–399 L giants). | — | — |
+
+**Headline: var fully converted (1277→1276, 18 handlers) via the R1+R7 isolate-then-fix pattern —
+the refactor thesis validated in practice.**
+
+### Key learning (refines the thesis)
+Decomposition/hoisting **isolates** the hard construct but does **not by itself convert** the parent —
+the isolated construct still needs its own targeted fix:
+- **var**: R1 isolated the seq-slice branch; **R7** (logic-safe variant) was the actual fix. ✅ converted.
+- **fstring**: R2 hoisted `_sp`, but the parent stays trusted on its **manual `while i_part < n_parts`
+  loops** (bound in a local `n_parts=len(parts)`, no invariant relating it to `Array.length`) — needs
+  a for-loop rewrite or an emitted bound invariant.
+- **ifexpr**: R2 hoisted `_cf5_arr` + split its 4 tuple-unpacks, but the **seq-arm branch**
+  (`_seq_operand` return-type + `local_refs or set()` map-or) blocks the parent.
+- **slice_access**: the blocker is **shared** `node.slice` bound-reflection + helpers called with
+  emit_ir args — not per-kind, so decomposition doesn't reach it; needs the reflection recognizers +
+  emit_ir-threading through `_field_type_of`/`_self_field_dict_nu`.
+
+So the refined recipe: **decompose to isolate → then apply the construct-specific fix** (a recognizer,
+a logic-safe variant, a for-loop rewrite). R5/R2 landed as proven infrastructure (helper leaves) that
+shrinks the trusted surface even where the parent stays trusted; R1+R7 is the full worked example.
+
+## Execution log — continuation (2026-07-03)
+
+| Step | Outcome | Commit | Count |
+|------|---------|--------|-------|
+| **R2 finish (fstring)** | while→for rewrite → fstring **FULLY converts** (for-loop auto-invariant discharges `parts[i]` bounds) | b2ff213b | **1275** |
+| **R2 finish (ifexpr)** | isolate seq-arm → `_ifexpr_seq_arm`; ifexpr body **converts** (55L→~5L trusted) | deb649c2 | 1275 |
+| **R4 (slice_access)** | isolate `_field_type_of` tail → `_slice_array_or_opaque`; body **converts** (77L→~25L trusted) + slice-bound reflection recognizers (lower/upper svalue_of, emit_ir-truthiness) | d7d00351 | 1275 |
+| R3/R6 | not done (285–399 L giants) | — | — |
+
+**This round: fstring fully converted + ifexpr & slice_access bodies converted (3 handlers), all
+byte-diff 0 + full proof.**
+
+### The common remaining blocker: cross-file signature propagation
+The three isolated trusted leaves (`_var_todict_alias` needed R7; `_ifexpr_seq_arm` calls
+`_seq_operand`; `_slice_array_or_opaque` calls `_field_type_of`) share ONE gap: a call from
+expressions.py to a method in **statements.py/types.py** generates an abstract-val stub
+`val self__seq_operand_2 (x0: int) (x1: int) : int` — the callee's real signature
+(`(ExprIR, Set) -> str`) is lost. `funcs_for_maps` *does* include imported stubs
+(Module6_WhyMLTranspiler.py:547), and `_build_method_return_type_map` *does* have a `-> str`→string
+branch (functions.py:1008), so this looks like a **keying / wiring issue** in the dotted-call
+abstract-val emission, not a fundamental gap — a bounded transpiler fix that would let the three
+leaves convert AND unblock R3/R6 (the giants call many cross-file helpers). **This is the
+highest-leverage next target** — worth more than grinding the giants by hand.
+
+### Running totals (whole campaign)
+Count 1294 → **1275**; 21 `_handle_*` handlers now fully converted (+ nested-map & union-narrowing
+features + the refactoring playbook). Remaining trusted `_handle_*`: attribute, call, subscript
+(the giants), plus the 3 isolated cross-file leaves.
+
+## Cross-file signature wiring (2026-07-03) — the multiplier
+
+**Root cause found:** `_module_method_return_types`/`_param_types` only carry a cross-file method's
+signature when it's a DECLARED dep (`_mixin_dep_pseudo_functions` synthesizes from `#@ requires_method
+<m>: <sig>`). Undeclared cross-file calls → `val self__m (x0:int)(x1:int):int`. TWO fixes:
+1. **str-return propagation (general):** the pseudo-function dropped a `str` return annotation (only
+   list/set/dict/frozenset were kept), so a str-returning cross-file callee was `int_to_string`-
+   wrapped at call sites. Now `str` propagates → `_module_method_return_annotations` recognizes it.
+2. **declare the deps:** `#@ requires_method _seq_operand: (self, val_ir: ExprIR, local_refs: set)
+   -> str` on ifexpr's `_ifexpr_seq_arm`; `#@ requires_method _field_type_of: (self, attr_ir:
+   ExprIR) -> str` on slice_access's `_slice_array_or_opaque`. Both abstract vals now carry the real
+   `(emit_ir, map) -> string` signature.
+
+**Result:** `_ifexpr_seq_arm` + `_slice_array_or_opaque` CONVERT → **ifexpr & slice_access FULLY
+verified.** Byte-diff 0 (corpus deps return int → str-propagation inert) + full proof. Commit
+19acb5e1. **Count 1275 → 1273.**
+
+This is the general enabler: any expressions.py→statements.py/types.py str-returning call now types
+correctly given a `requires_method` declaration. R3/R6 (the call/subscript giants, which call many
+cross-file helpers) are now unblocked — split them (isolate + `requires_method`-declare the cross-file
+branches) exactly like ifexpr/slice_access.
+
+### Campaign total: 1294 → 1273, 23 `_handle_*` handlers fully converted
+Remaining trusted `_handle_*`: attribute, call, subscript (the giants) — now tractable via the
+proven isolate-split + cross-file-wiring pattern.
+
+## R3 (call giant) attempt — findings (2026-07-03)
+
+Made a genuine multi-strategy attempt at `_handle_call_expr` (285L, 26 returns). Isolate approach:
+extract the emit_ir-reflection prefix (`.to_dict`/`.copy`/`.findall`/`.split`/`IRScanner`/`ir.get`/
+`len`-of-args-node — **116 lines**) into a trusted leaf `_call_special_shapes`, with the boundary
+placed right before `args = [_expr_to_whyml(a) …]` (the side-effecting arg-lowering must stay in the
+general path so its abstract-op registrations keep their order → byte-diff 0). That cleanly splits
+the reflection out.
+
+**But the general dispatch does NOT convert quickly.** It calls ~7–13 interconnected same-file
+helpers (`_handle_string_value_method`, `_call_named_builtins`, `_handle_struct_call`,
+`_recognize_field_decode_idiom`, `_call_record_constructor`, `_call_bytes_methods`,
+`_emit_contract_logic_symbol`, `_handle_dotted_call`), and each surfaces a fresh typing obligation:
+- **IR-node params typed `int`** (the trusted stubs default `expr: int`; callers pass emit_ir) →
+  each needs `expr: "ExprIR"` (mechanical, several done).
+- **`Optional[str]` return + `if x is not None: return x`** repeated ~7× → each needs the
+  `""`-sentinel + truthiness rewrite (as `_var_todict_alias`/`_call_reflection_prefix` did), across
+  both the live caller and the stub.
+- **seq/emit_ir return-type inference** on some helpers (`_svm` came back `seq string`).
+
+**Verdict:** the giants (call 285L, subscript 304L, `_call_named_builtins` 399L) are a **dedicated
+effort**, not the medium-handler pattern. The isolate-split works (116L peeled cleanly), but the
+general dispatch is a web of Optional-return + IR-node-param helpers that must be fixed together.
+Reverted to the clean 1273 state rather than land a half-converted 285-line giant.
+
+**Scoping for a future pass:** (1) extract `_call_special_shapes` (done, replayable); (2) batch the
+general-path helper stubs to `expr: ExprIR` + `-> str`/`""` and rewrite the callers to truthiness;
+(3) then the general dispatch should converge. Same recipe for subscript (R6) and
+`_call_named_builtins`. All the mechanisms exist (cross-file wiring, isolate pattern, sentinel-return);
+the giants just need the volume of coordinated edits.
+
+### Campaign final: 1294 → 1273, 23 handlers converted
+Remaining trusted `_handle_*`: attribute, call, subscript (the giants) + `_call_named_builtins`.
+
+## R3 full-grind attempt — the definitive blocker (2026-07-03)
+
+Pushed the full giant conversion. Completed the mechanical layers cleanly:
+- isolated the 116-line reflection prefix (`_call_special_shapes`);
+- fixed all general-path helper stub IR-node params (`expr: int` → `"ExprIR"`, `local_refs` → `set`);
+- rewrote all **7** `Optional[str]` returns to the `""`-sentinel + truthiness form (byte-diff 0).
+
+**Then hit a FUNDAMENTAL typing gap, not a fixable leak:** the general path builds
+`args = [self._expr_to_whyml(a) for a in expr["args"]]` — a **list comprehension, which lowers to
+`seq string` by design** (`statements.py:245`, `list_comp_seq_*`). Every general-path helper is
+annotated `args: List[str]`, which maps to **`array string`**. There is **no Python annotation that
+maps a param to `seq string`**, so `args` (seq) cannot be passed to any typed helper — the val comes
+out `(… (x1: array string) …)` and the `!args` (seq string) argument mismatches.
+
+Resolving this needs a **new feature** — either a `seq`-typed parameter surface, or an automatic
+`snapshot` (seq→array) coercion at call sites when a seq flows into a `List[_]` param — neither of
+which the isolate/cross-file-wiring patterns provide. And splitting the general path into a second
+trusted leaf is **counterproductive**: `_handle_call_expr` (1 marker) → thin dispatcher + 2 trusted
+leaves = **2 markers** (worse).
+
+**Verdict (definitive):** the three giants (`call`, `subscript`, `_call_named_builtins`) are gated on
+this list-comp-`seq` vs `List`-`array` param gap (they all lower `args = […]` and pass it around).
+Converting them requires the seq↔array-param feature FIRST; then the isolate + Optional-sentinel
+recipe converges. Reverted to the clean **1273** — this is the honest floor for the current toolset.
+
+### Campaign final: 1294 → 1273, 23 handlers; giants blocked on a named feature-gap
+
+## seq↔array coercion feature — BUILT (2026-07-03)
+
+Built the feature the giants are gated on. Core mechanism in `_coerce_dotted_args`: when a
+`seq`-typed arg (`_is_seq_arg`: a seq local / `_seq_value_types` local / `list_comp_seq`/`seq_sub`/
+`Seq.` expr) flows into an `array _` (`List[_]`) param, bridge it seq→array with the existing
+`materialize` / `materialize_str` ops. `@mutable_state`-gated (`_is_seq_arg` is False without it) →
+**byte-diff 0** + full proof. Commit below.
+
+**Verified it works** on the call giant: with the feature, the `args = [comprehension]` (seq) →
+`List[str]` helper-param mismatch that blocked the whole general dispatch now type-checks. Pushed the
+call conversion much further with it — through the args-coercion, the `str_join_seq` join, a
+`bare-ListComp → seq` classification fix (`_is_seq_src`), the 7 Optional-returns, the general-path
+helper param typing, the wrap-helper `requires_method` deps, and ~6 field declarations.
+
+**Remaining for the full call conversion** (all mapped, none blocking the feature): the `args` local
+is `seq` (list comp) but reassigned/consumed as `List[str]` (array) in ~5 more spots — notably
+`args = args + [filled]` (default-arg fill) and `formal_params = self._module_method_formal_params.get(...)`
+where `_module_method_formal_params` is a `Dict[str, List[str]]` (a dict-of-lists, another nested
+container). Each needs a coercion or an isolate-split. The seq↔array feature is the load-bearing
+piece; the rest is the long grind of the most-interconnected handler in the emitter.
+
+**Status:** feature landed (byte-diff 0, proven). Giants still at the trusted floor pending the
+per-site coercions above. Campaign: 1294 → **1273**, 23 handlers + the seq↔array enabler.
+
+## Giant conversion — the definitive structural finding (2026-07-03)
+
+Pushed the call giant conversion hard with both blockers (seq↔array, nested `Dict[str,List]`) now
+built. Got through the entire args/coercion/formal_params/defaults chain by adding general
+nested-container recognizers (nested-map `.get` → dict-local, loop-var-string over a seq slice,
+`ExprIR`-inner-value `Dict[str,Dict[str,ExprIR]]`, `_dv_missing_default` for `emit_ir`/`seq _`). Then
+hit the real wall — **not a leak, a structural one:**
+
+**Converting `_handle_call_expr` is net-MARKER-NEGATIVE.** The isolate-split needed **two** trusted
+leaves — `_call_special_shapes` (the emit_ir reflection: `to_dict`/`findall`/`split`/`IRScanner`/
+`ir.get`) *and* `_handle_string_value_method` — to convert the one parent. So `_handle_call_expr`
+(1 marker) → 2 leaves + converted parent = **+1 marker** (count 1273 → 1274). And each leaf
+recursively decomposes into *more* reflection sub-parts. The giant is a **recursive decomposition
+that bottoms out at multiple irreducible reflection leaves** — "completing" it *increases* the
+`\trusted` count while shrinking the trusted *surface*.
+
+**This is exactly why the campaign converted the small handlers (clean −1 each) and left the three
+giants.** They are the only handlers whose decomposition has ≥2 irreducible leaves; every other
+handler had exactly 0 or 1 (var/ifexpr/slice_access each left ≤1, so ≤0 net).
+
+**Verdict.** By the campaign's metric (`\trusted` marker count), the giants should NOT be converted —
+it's counterproductive. By the *doctrine* metric (lines of trusted code), converting them is a win
+(285 L → ~100 L of small leaves). The two goals diverge only here. Reverted to the clean **1273**.
+The real deliverables from the push: **the nested-map, nested-`Dict[str,List]` (#15), and seq↔array
+features** — all committed, byte-diff 0, proven, and generally useful.
+
+### Campaign final (definitive): 1294 → 1273, 23 handlers; giants intentionally left (net-negative).
+
+---
+
+## Current status (2026-07-03) — R3/R6 subsumed by the giant-DAG campaign
+
+R1/R2/R4/R5/R7 are **done** (converted their targets). The two remaining proposals — **R3** (the
+`call`/`_call_named_builtins` giant) and **R6** (the `subscript` giant) — turned out NOT to be single
+refactors: each giant is a *dispatcher over a large helper DAG*, and converting it dispatcher-first is
+net-marker-POSITIVE (proven empirically). They are now tracked in repo-root **`giant-recursion.md`**,
+which runs the correct **bottom-up over the helper DAG** strategy.
+
+**Progress since:** the giant DAG campaign has converted **11 leaves** (count 1273 → **1266**) and built
+8 reusable emitter capabilities (dict-literal construction, tuple-returns, Optional caller/param sweeps,
+subscript-`.get` projection, constant-dict, local-dict-value-type, `str()`-as-string), all byte-diff 0.
+The 3 dispatchers (R3's `_handle_call_expr`/`_call_named_builtins`, R6's `_handle_subscript`) stay
+trusted until their callees are all in-mirror — see `giant-recursion.md` §14 for the live scorecard +
+the 5 remaining feature-gaps. **This file is now historical; R3/R6 = giant-recursion's remaining work.**

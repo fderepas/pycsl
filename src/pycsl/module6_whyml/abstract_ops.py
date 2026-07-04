@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import List, Optional, Set
 
 
@@ -197,3 +198,47 @@ class AbstractOpsMixin:
         abs_lines.append("")
         for line in reversed(abs_lines):
             out.insert(insert_idx, line)
+
+    def _insert_late_content_ops(self, out: List[str]) -> None:
+        """cleared-array item 1 (call comprehensions). A content-comp `val` whose
+        `ensures` references a USER `let function` (e.g. `[g(x) for x in a]` →
+        `… result[i] = g(src[i])`) must be declared AFTER that function — the early
+        abstract-op block precedes ALL functions, so `g` would be unbound there.
+
+        Each deferred op is (op_name, decl, using_func): the function whose BODY
+        contains the comprehension. Splice the decl immediately BEFORE that
+        function's opening `let … using_func` line. By SCC order the referenced
+        `g` is a callee of using_func, so it is emitted before using_func — hence
+        this position lands the `val` after `g` and before its sole consumer.
+
+        No-op unless a call comprehension fired (`_late_content_ops` non-empty), so
+        every existing file is byte-identical. Insert in reverse so earlier splices
+        do not shift the anchor indices of later ones."""
+        late = getattr(self, "_late_content_ops", None)
+        if not late:
+            return
+        for op_name, decl, using_func in reversed(late):
+            if not using_func:
+                self._add_abstract_op(decl)  # fallback: no anchor → early block
+                continue
+            # Match the function's opening line: `  let … <using_func> ( |:` — the
+            # ident as a whole word after a `let`/`let rec`/`let [rec] function`.
+            anchor = re.compile(
+                r"^\s*let(\s+rec)?(\s+function|\s+lemma|\s+rec\s+function|\s+rec\s+lemma)?\s+"
+                + re.escape(using_func) + r"(\s|\(|$)")
+            idx = None
+            for i, line in enumerate(out):
+                if anchor.match(line):
+                    idx = i
+                    break
+            if idx is None:
+                # Anchor not found (defensive) → fall back to the early block.
+                self._add_abstract_op(decl)
+                continue
+            # Mirror `_insert_abstract_val_block`: 2-space indent on the first
+            # line, continuation `ensures` lines keep their own 4-space indent.
+            decl_lines = decl.split("\n")
+            block = ["  (* content-comp (call) abstract op *)",
+                     f"  {decl_lines[0]}"] + decl_lines[1:] + [""]
+            for line in reversed(block):
+                out.insert(idx, line)

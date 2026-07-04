@@ -167,6 +167,39 @@ class ControlFlowStmtMixin:
             if ret_type == "array int":
                 iter_expr = self._expr_to_whyml(iter_ir, local_refs)
                 return f"Array.length {iter_expr}", f"{iter_expr}[!{idx}]", False
+        # self-tcb-reduction T1.a: a slice/subscript of a `seq` local (`for _p in _parts[1:]`,
+        # `_parts = s.split(".")`) iterates via `Seq.length`/`Seq.get` (the slice is a seq).
+        # @mutable_state-gated → byte-identical for the corpus.
+        if (self._value_semantic
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and iter_ir.get("type") in ("SliceAccess", "Subscript")):
+            _base = iter_ir.get("value")
+            _bn = _base.get("name") if isinstance(_base, dict) and _base.get("type") == "Var" else None
+            if _bn and (_bn in getattr(self, "_seq_locals", set())
+                        or getattr(self, "_seq_value_types", {}).get(_bn)):
+                # 07-03-refactor R7: iterate the BASE seq from `lo` (`Seq.get parts idx`, idx from
+                # lo) rather than materialising the slice as `seq_sub parts lo hi`. This keeps the
+                # loop bound + variant as `Seq.length parts` — a pure LOGIC function usable in the
+                # `variant {}` clause — instead of the program `val seq_sub`, which is unbound in a
+                # logic term. Element bounds fall straight out of `idx < Seq.length parts`.
+                _base_expr = self._expr_to_whyml(_base, local_refs)
+                _sl = iter_ir.get("slice") or {}
+                self._for_idx_init = (self._expr_to_whyml(_sl.get("lower"), local_refs)
+                                      if isinstance(_sl, dict) and _sl.get("lower") else "0")
+                return (f"(Seq.length {_base_expr})", f"(Seq.get {_base_expr} !{idx})", False)
+            # 07-03-refactor R2: a `[lo:]` slice of an array-`emit_ir` local (`for pp in parts[1:]`,
+            # `parts` from `expr.get("parts")`) iterates WITHOUT materialising the slice: run the
+            # counter from `lo` up to `Array.length parts`, reading `parts[idx]` (emit_ir). The
+            # element bounds fall straight out of the loop condition `idx < Array.length parts`
+            # (unlike a `parts[lo+idx]` offset, whose bounds VC the invariant doesn't expose).
+            if (iter_ir.get("type") == "SliceAccess" and _bn
+                    and getattr(self, "_array_elem_types", {}).get(_bn) == "emit_ir"):
+                _base_expr = self._expr_to_whyml(_base, local_refs)
+                _sl = iter_ir.get("slice") or {}
+                self._for_idx_init = (self._expr_to_whyml(_sl.get("lower"), local_refs)
+                                      if isinstance(_sl, dict) and _sl.get("lower") else "0")
+                return (f"Array.length {_base_expr}", f"{_base_expr}[!{idx}]", False)
         if not self._value_semantic:
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
             return f"{iter_expr}_len", f"Map.get !{self._heap_var} ({iter_expr} + !{idx})", False

@@ -36,6 +36,8 @@ only supported syntax.
 | `arm-coverage.md` | LINK 3: per-WP-arm emitter-coherence lemma coverage + handler decisions |
 | `evaluator-axiom-audit.md` | LINK 3: the audited "D2" evaluator-axiom trust boundary (Gödel/Löb floor) |
 | `pycsl-wp-spec.mlw` | LINK 3: the Why3 emitter-coherence proof (17 Valid / 0 non-Valid) |
+| `bin/check-self-annotate-mirror-sync.py` | Sync gate: every un-`\trusted` mirror method (whole tree) == the live emitter (see "Mirror Sync Mechanism") |
+| `../../item34.md` §8 / `../../resync-campaign.md` | The `statements.py` mirror-drift finding + the re-sync campaign plan |
 
 ---
 
@@ -331,6 +333,61 @@ When adding annotations for a new method:
 1. Read the relevant formal-semantics file (see the table in `coverage-report.md`).
 2. Add the `#@` block directly to `src/self-annotate/src/<file>.py`.
 3. Run `make verify-annotated` to confirm.
+
+---
+
+## Mirror Sync Mechanism
+
+The self-annotation is a **mirror**: `src/self-annotate/src/` reflects the live emitter
+`src/pycsl/` (same layout, incl. `frontend/` and `module6_whyml/`), and PyCSL verifies the
+mirror. That verification is only meaningful if the mirror's code is IDENTICAL to the live
+emitter it claims to reflect — otherwise it proves a stale copy.
+
+### The mirror is heterogeneous — so the check is method-level, not whole-file
+
+- **un-`\trusted` methods** — the body-faithful `_handle_*` handlers — are ported VERBATIM from
+  the live emitter (only `#@` contract/loop-invariant annotations added); while
+- **`\trusted` methods** are intentionally-divergent bodyless STUBS (the recursion-leaf / sibling
+  boundary — `_expr_to_whyml`, `_stmts_to_whyml`, …); the live emitter implements them in full.
+
+A whole-file diff would spuriously flag every `\trusted` stub, so the load-bearing invariant is
+method-level:
+
+> **Every un-`\trusted` mirror method has a body byte-identical (modulo `#@` lines / blank lines)
+> to the same-named live emitter method.** `\trusted` stubs, mirror-only files, and mirror-only
+> infra are skipped.
+
+`bin/check-self-annotate-mirror-sync.py` enforces this over the WHOLE mirror tree (walks
+`src/self-annotate/src/**/*.py`, maps each to its `src/pycsl/` counterpart, compares each
+un-`\trusted` method). `bin/check-self-annotate-sync.sh` is a thin wrapper that runs it as the
+gate:
+
+```bash
+bash bin/check-self-annotate-sync.sh
+# OK: all 23 un-trusted self-annotate mirror methods are verbatim copies of the live emitter
+```
+
+Two complementary gates enforce this, both `\trusted`/subset-aware for the heterogeneous mirror:
+
+| gate | checks |
+|---|---|
+| `bin/check-self-annotate-sync.sh` → `check-self-annotate-mirror-sync.py` | un-`\trusted` method **bodies** are verbatim copies (the strong fidelity check) |
+| `bin/self-annotate-mirror-check.sh` | un-`\trusted` def **signatures** match the source + every mirror file has a live counterpart (structural) |
+
+- **Rule:** change a live emitter handler → back-port the body to the mirror (preserving its
+  `#@` block + inline invariants) → run both gates → re-verify
+  (`pycsl --no-proof <mirror>.py --import-path src/pycsl`).
+- The Makefile `sync-annotate-src` / `verify-annotated` targets are convenience helpers for the
+  whole-file top-level modules; they do **not** gate — the method-level checker above is the gate.
+
+### History: the retired whole-file `rocq/`/`lean/` tier
+
+`check-self-annotate-sync.sh` previously diffed non-`#@` lines of a fixed module list against
+`src/self-annotate/rocq/` and `.../lean/` mirrors. That tier was **vestigial**: those directories
+were empty and never git-tracked, and the module paths predated the `frontend/` refactor (so most
+were silently skipped). It has been replaced by the method-level checker above, which — verified
+across the whole mirror — shows **all 23 un-`\trusted` methods are in sync** (the `statements.py`
+drift was closed by `resync-campaign.md`; the CF family was always verbatim).
 
 ---
 
