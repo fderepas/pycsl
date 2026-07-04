@@ -1554,9 +1554,19 @@ Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
 > subscript `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard` — reads/writes the raw
 > string key in lockstep (`0772` distinct-key non-aliasing, `0773` absent-key, `0774` literal↔variable,
 > `0775` set field, `0776` NEGATIVE false-claim; existing field tests `0746`/`0750` now native).
-> **Residual:** a dict/set whose key type is not inferable (an un-annotated field from `{}`, a non-`str`
-> key) keeps the `map int` + opaque `str_hash_op` fallback (documented, not collision-sound); `hash(s)`
-> as a bare `str→int` stays opaque (`0485`).
+> κ inference also covers a string **concatenation** key `a + b` (both operands `str`): its native key
+> `str_concat_op a b` is pinned to Why3 `concat` (left-cancellative), so `a != c ⇒ d[a+b]` non-aliasing
+> is provable (`0795`) — a distinct-key property the opaque hash cannot give.
+> **Residual (κ-unknown, CLOSED honest boundary):** a dict/set whose key the model cannot pin to a
+> decidable/injective string — a non-`str` key, an un-annotated field from `{}`, or a derived-string
+> key with no injectivity content (`s.upper()`, whose native form is an opaque `str_upper_op` and which
+> is genuinely non-injective) — keeps the `map int` + opaque `str_hash_op` fallback. This is honest, NOT
+> collision-sound: a distinct-key non-aliasing claim on such a dict stays UNPROVABLE (`0796`,
+> `# pycsl-expected: FAIL`) — NO false injectivity axiom is placed on `str_hash_op`
+> (`proof_axiom_allowlist` unchanged). **Out of scope — a SEPARATE opacity (non-dict-key hashing):**
+> a bare `hash(s)` (`0485`) and a decode-result string equality (`0425`) route through `str_hash_op`
+> but are NOT dict/set key operations (no `Map.get`/`map` in either); `hash()`'s `int` result is the
+> real Python semantics, so it is correctly left opaque (tracked in `we-are-getting-better.md`).
 
 **Ghost arrays** (hoare model only):
 | # | Syntax | Meaning |

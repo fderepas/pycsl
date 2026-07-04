@@ -399,15 +399,22 @@ parsing stay out of reach; string→string transforms (`upper`/`lower`/`strip`/`
 **native, injective Why3 string** (`dict[str, ν] ~ map string (option ν)`, `String.(=)`), so distinct
 keys are provably non-aliasing (cleared-hash.md) — the key type κ = string is inferred for a
 parameter/AnnAssign local (`Dict[str, _]`), a string-key literal (`{"a": …}`), string-key USAGE
-(`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key), AND a **record FIELD** whose
-declared type is `Dict[str, ν]` / `Set[str]` / `FrozenSet[str]` (cleared-hash.md S4). For such a field
-the WhyML record field is `map string (option ν)` and EVERY field-dict/set op site (store `self.d[k]=v`,
-subscript-read `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard`) reads and writes the
-RAW native string key in lockstep — a mismatch would be a WhyML type error. **Residual κ-unknown / opacity
-boundary:** a dict whose key type is not inferable (e.g. an un-annotated field initialized from `{}`,
-or a non-`str` key) keeps the legacy `map int (option ν)` + the opaque `str_hash_op` fallback
-(documented, never claimed collision-sound); so does a bare `str→int` coercion (`hash(s)`, a
-`.decode()`-result string equality) — that is a distinct opacity, not a dict key.
+(`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key), a string **concatenation** key
+(`d[a + b]`, both operands `str` — `str_concat_op` is pinned to left-cancellative Why3 `concat`, so
+`a != c ⇒ d[a+b]` non-aliasing is provable; cleared-hash.md residual-close 1a, driver `0795`), AND a
+**record FIELD** whose declared type is `Dict[str, ν]` / `Set[str]` / `FrozenSet[str]` (cleared-hash.md
+S4). For such a field the WhyML record field is `map string (option ν)` and EVERY field-dict/set op site
+(store `self.d[k]=v`, subscript-read `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard`)
+reads and writes the RAW native string key in lockstep — a mismatch would be a WhyML type error.
+**Residual κ-unknown / opacity boundary (CLOSED, honest):** a dict whose key the model cannot pin to a
+decidable/injective string (an un-annotated field from `{}`, a non-`str` key, or a derived-string key
+like `s.upper()` — an opaque `str_upper_op`, genuinely non-injective) keeps the legacy `map int (option ν)`
++ the opaque `str_hash_op` fallback. This is NOT collision-sound and is never claimed so: a distinct-key
+non-aliasing claim on such a dict stays UNPROVABLE (cleared-hash.md 1b, driver `0796`,
+`# pycsl-expected: FAIL`), and NO false injectivity axiom is placed on `str_hash_op`
+(`proof_axiom_allowlist` unchanged). A bare `str→int` coercion (`hash(s)` `0485`, a `.decode()`-result
+string equality `0425`) is a SEPARATE opacity — not a dict key (no `map` in its `.mlw`) — and `hash()`'s
+opaque `int` result IS the faithful Python semantics.
 
 The type universe is intentionally coarse: PyCSL does not perform
 full type inference. The type mapping is used only for:

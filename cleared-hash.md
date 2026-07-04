@@ -253,3 +253,69 @@ key, `0757` literal↔variable key consistency, `0758` NEGATIVE (`# pycsl-expect
 on `self.d`, `0773` absent-key, `0774` literal↔variable consistency, `0775` `set[str]` field, `0776`
 NEGATIVE (false `self.d["a"]==self.d["b"]`). All newly provable (or, for the NEGATIVE drivers,
 correctly unprovable) under `map string`, and impossible under the retired opaque hash.
+
+---
+
+## 10. Residual closure (branch `ghost-assign-bc6`) — items 1 & 2 CLOSED
+
+The last residuals of §5 are now definitively CLOSED (not "pending"), with rigor and evidence.
+
+**Inventory (evidence).** Emitting the FULL `pycsl-reference` corpus, exactly TWO `.mlw` files declare
+`val str_hash_op`: `0485` and `0425`. NEITHER contains any `Map.get` / `map string` / `map int` — i.e.
+NEITHER is a dict/set key operation. So corpus-wide there are ZERO string-keyed dict/set fallbacks on
+the opaque hash: every inferable string-keyed dict/set is native. The only `str_hash_op` users are the
+two non-dict-key cases of item 2.
+
+### Item 1 — genuinely-unknowable-κ dicts/sets: shrunk (1a) then LOCKED (1b)
+
+**1(a) — inference SHRUNK where soundly inferable (κ = string extended to concatenation keys).** An
+audit of every un-inferred string-key form found one SOUND, BENEFICIAL missed signal: a string
+**concatenation** key `d[a + b]` (both operands `str`). Before, it routed through
+`str_hash_op (str_concat_op a b)` — collision-admitting. The emitted `str_concat_op` is pinned to Why3's
+`concat` (with the length axiom → `concat` is left/right-cancellative — a real theorem, not a false
+axiom), so tagging κ = string reads the RAW native key and RECOVERS distinct-key non-aliasing
+(`a != c ⇒ d[a+b]` unaffected by writing `d[c+b]`), a property the opaque hash provably cannot give.
+Module5 `_build_function_symbol_table._is_str_key` now recognizes a `str + str` BinOp (recursing for
+`a+b+c`); SOUND because an int `a+b` has non-`str` operands and is never tagged. Positive driver `0795`
+proves it; **byte-diff-0 on the entire pre-existing corpus** (no program used an untagged concat key —
+the extension is inert, so the emission differential over the corpus is EXACTLY {`0795`, `0796`}, the
+two new drivers).
+
+*Inference is now MAXIMAL over the modeled, injectivity-bearing key surface.* The remaining un-inferred
+string-key forms are NOT soundly improvable by a κ tag:
+- a **derived-string key with no injectivity content** (`d[s.upper()]`): its native form `str_upper_op s`
+  is an opaque `val` and `str.upper` is genuinely non-injective (`"a".upper()=="A".upper()`), so a native
+  key would recover ZERO non-aliasing — no gain over the hash. Left on `str_hash_op` (honest).
+- a **non-`str`/non-`int` or un-annotated `{}` key** with no string-key evidence — genuinely un-inferable
+  (an unannotated/`Any` key is in fact passed RAW and polymorphic, so it is already native-equal; the
+  only cases that stay on `str_hash_op` are the derived-string keys above).
+- a **dict comprehension** `{s: 1 for s in …}` — a SEPARATE opacity (the comprehension helper is
+  `map int` over an `array int` source, cleared-array territory), not a κ-tag gap.
+
+**1(b) — the honest κ-unknown boundary is LOCKED (no false injectivity).** Driver `0796`
+(`# pycsl-expected: FAIL`) exercises a derived-string key `d[s.upper()]` that stays on the opaque
+`str_hash_op`, and asserts distinct-key non-aliasing (`s != t ⇒ d[s.upper()] == 1`). It is UNPROVABLE
+and MUST be — `str_hash_op` is a bodyless `val` that admits a collision. This is the executable evidence
+that we do NOT smuggle a false injectivity claim onto `str_hash_op`: `proof_axiom_allowlist` is
+UNCHANGED, and the model declines to prove the property rather than asserting collision-freedom it does
+not have. **Item 1 CLOSED.**
+
+### Item 2 — non-dict-key hashing (`0485`, `0425`): out-of-scope, CLOSED
+
+`str_hash_op` survives in exactly two `.mlw` files, both classified with evidence as NON-dict-key
+(neither has any `Map.get`/`map`):
+- `0485` — a bare `hash(s)` call. `str_hash_op` is its faithful lowering: `hash()` genuinely returns an
+  implementation-defined `int`, so the opaque `int` result IS the real Python semantics. Forcing a
+  "faithful map" onto it would be WRONG. Out of scope for cleared-hash (which is about dict/set KEYS).
+- `0425` — a decode-result string EQUALITY (`name == pathname`), a string-content comparison (the
+  province of `cleared-string.md`), not a dict key.
+
+Both are documented as a SEPARATE opacity in `we-are-getting-better.md` §I (items 39, 40). No faithful
+model is forced onto a genuine `hash()`. **Item 2 CLOSED.**
+
+**Gates.** Corpus proof sweep green (byte-diff-0 ⇒ identical VCs on all pre-existing programs; only the
+two new drivers added — `0795` PASS, `0796` correctly XFAIL). Emission differential over the corpus =
+EXACTLY the two new drivers. `proof_axiom_allowlist` UNCHANGED (no new axiom, no hash-injectivity axiom).
+Self-annotate mirror-sync EXIT 0 (the change is a Module5/front-end signal, not a mirrored emitter
+method; `\trusted` unchanged). 5-surface docs + `annotations.md` + traceability row 12.5.7 updated;
+`doc-coherency.py --check` green.

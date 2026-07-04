@@ -170,6 +170,39 @@ consistency, 0775 `set[str]` field, 0776 NEGATIVE (`# pycsl-expected: FAIL`, fal
 `self.d["a"]==self.d["b"]` stays unprovable). All newly provable (or correctly unprovable) on a
 `self.<field>` — impossible under the retired opaque hash.
 
+## cleared-hash residual-close (items 1 & 2) — shrink κ inference to concat keys; LOCK the honest κ-unknown boundary; non-dict-key hashing out-of-scope
+
+**Context.** The last residuals of `cleared-hash.md` §5: (1) genuinely-unknowable-κ dicts/sets on the
+`map int`+`str_hash_op` fallback, and (2) non-dict-key hashing (`0485` `hash(s)`, `0425` decode-equality).
+Full-corpus emission shows exactly TWO `.mlw` declare `val str_hash_op` — `0485`, `0425` — and NEITHER
+has any `Map.get`/`map` (i.e. neither is a dict/set key op). So corpus-wide there are ZERO string-keyed
+dict/set hash fallbacks left.
+**Options (item 1a — shrink).** (1) Extend κ inference to every SOUND missed string-key signal.
+(2) Declare inference already maximal.
+**Choice.** (1) for the one signal that is both SOUND and BENEFICIAL: a string CONCATENATION key
+`d[a + b]` (both operands `str`). Module5 `_is_str_key` now recognizes a `str + str` BinOp (recurses).
+`str_concat_op` is pinned to Why3's left-cancellative `concat`, so tagging κ=string reads the raw native
+key and RECOVERS distinct-key non-aliasing (`a != c ⇒ d[a+b]` unaffected by `d[c+b]`) — a real theorem,
+NOT a false axiom. Positive driver `0795`. All OTHER un-inferred string-key forms are declared maximal
+with evidence: a derived-string key (`s.upper()` → opaque `str_upper_op`, genuinely non-injective) gains
+ZERO injectivity from a native key so stays on the hash; an unannotated/`Any` key is already passed RAW
++ polymorphic (native-equal); a dict comprehension is a SEPARATE `map int` comprehension-machinery
+opacity (cleared-array).
+**Options (item 1b — lock).** XFAIL driver proving the fallback is HONEST.
+**Choice.** `0796` (`# pycsl-expected: FAIL`): a `d[s.upper()]` dict stays on `str_hash_op`; its
+distinct-key non-aliasing claim is UNPROVABLE and must be — evidence that no false injectivity axiom is
+smuggled onto `str_hash_op` (`proof_axiom_allowlist` unchanged).
+**Choice (item 2).** CLOSE as a SEPARATE out-of-scope opacity: `0485` `hash(s)` (opaque `int` IS the real
+Python semantics) and `0425` decode-equality (string-content comparison, cleared-string territory) are
+non-dict-key — documented in `we-are-getting-better.md` §I (39, 40). No faithful model is forced onto a
+genuine `hash()`.
+**Rationale / gates.** Byte-diff-0 over the entire pre-existing corpus (no program used an untagged
+concat key → the extension is inert; emission differential = EXACTLY {0795, 0796}). Full corpus proof
+sweep green (identical VCs ⇒ identical results; 0795 PASS, 0796 correct XFAIL). `proof_axiom_allowlist`
+UNCHANGED. Mirror-sync EXIT 0 (a Module5 front-end signal, not a mirrored emitter method; `\trusted`
+unchanged). 5-surface docs + annotations.md + traceability 12.5.7 updated; doc-coherency green. Item 1
+and item 2 CLOSED (`cleared-hash.md` §10).
+
 ## cleared-pack S5 (os corpus re-key) — keep os on legacy family; documented boundary
 
 **Context.** S5 asks to re-verify the os inode blit/read-back corpus against the faithful round-trip.

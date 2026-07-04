@@ -184,3 +184,22 @@ type was available), in new spots. 3 fixed, 3 still open.
 **Round-2 status:** every int-leak class here has a *diagnosis*; #29–32 + #35 have a faithful lowering; #33/#34/#36
 are the next features (mirrored in `giant-recursion.md` §14's OPEN list). The doctrine holds — the
 int-collapse default keeps surfacing, and each fix moves one more value-flow off `int`.
+
+## I. Non-dict-key string hashing — a SEPARATE opacity from the dict/set key model (cleared-hash CLOSED)
+
+`cleared-hash.md` made string-keyed dict/set keys faithful (`map string`, native injective `String.(=)`,
+no `str_hash_op`) for every INFERABLE case — including the string-**concatenation** key `a + b` (residual
+item 1a: `str_concat_op` is pinned to Why3 `concat`, left-cancellative, so `d[a+b]` non-aliasing proves;
+driver `0795`). The κ-unknown fallback (a key the model cannot pin to a decidable/injective string) is a
+CLOSED, honest boundary — a distinct-key non-aliasing claim stays UNPROVABLE and NO false injectivity
+axiom is placed on `str_hash_op` (driver `0796`, `# pycsl-expected: FAIL`).
+
+39. **[OUT OF SCOPE — genuine `hash()` semantics]** `hash(s)` (`0485`) lowers to the abstract
+    `val str_hash_op (s: string) : int` — but this is NOT a dict/set key operation (no `Map.get`/`map` in
+    the emitted `.mlw`); it is a bare `str → int` whose opaque `int` result IS the faithful Python
+    semantics (`hash()` really returns an implementation-defined int). Correctly left opaque; forcing a
+    "faithful" model onto it would be wrong.
+40. **[OUT OF SCOPE — decode-result string equality]** `0425`'s `str_hash_op` site is a string EQUALITY
+    (`name == pathname` on decoded bytes), not a dict key (no `map` in the `.mlw`). It is a string-content
+    comparison — the province of the faithful-string work (`cleared-string.md`), not the hash-table key
+    model. Left as the honest string-comparison boundary.
