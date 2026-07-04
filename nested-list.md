@@ -198,8 +198,8 @@ boundary lifted), 0800 (`List[Dict[str,int]]` element read), 0801 (NEGATIVE fals
 is now SUPPORTED for RECTANGULAR int-leaf `List[List[int]]` via the mutable `matrix int` model (§9);
 a NON-int-leaf inner mutation, `a[i].append(..)` (shape-change), and ragged in-place mutation remain
 boundaries (§9); (2) `a[i][j][k]` deeper than 2 levels, and a target-dependent comprehension index
-`x[f(x)]` — opaque; (3) an un-annotated / bare-`list` nested param, or a leaf deeper than the depth
-bound — stays `array int`; (4) a `\length2d`-contract rectangular param stays `matrix int`.
+`x[f(x)]` — **NOW DONE (§10)**; (3) an un-annotated / bare-`list` nested param, or a leaf deeper than the
+depth bound — stays `array int`; (4) a `\length2d`-contract rectangular param stays `matrix int`.
 
 ---
 
@@ -238,3 +238,42 @@ the `\length2d` matrix path). No unsound update is ever emitted (Matrix get/set/
 and flat `List[int]`/`Dict[..]` byte-IDENTICAL (the routing fires only on a nested param the body
 inner-mutates via `a[i][j]=v` — no passing corpus file did this before). No `proof_axiom_allowlist`
 change. doc-coherency + mirror-sync green.
+
+---
+
+## 10. OUTCOME 3 — deeper nesting `a[i][j][k]` + target-dependent comp index (branch ghost-assign-bc6)
+
+Both residuals flagged in §8-(2) are now DONE — no cap below the existing type-recursion bound
+(`_M5_MAX_NEST_DEPTH = 4`). Gate-B spike `test-suite/corpus/conformance/spikes/nested-list-deep.mlw`
+(decision in `choices.md`): depth-3 AND depth-4 reads, and a target-dependent comp law at two indices,
+ALL Valid in BOTH Alt-Ergo 2.6.2 (≤0.04s, ≤29 steps) AND Z3 4.13.3 (≤0.02s) — NO E-matching blowup as
+nesting deepens (the real risk).
+
+**Item 1 — deeper nesting `a[i][j][k]` (depth 3–4).** A `List[List[List[τ]]]` param lowers to
+`array (seq (seq τ))` and the subscript READ composes RECURSIVELY: `a[i][j][k]` →
+`Seq.get (Seq.get (a[i]) j) k`, `len(a[i][j])` → `Seq.length (Seq.get (a[i]) j)`, up to depth 4. The
+former FIXED 2-level unfold in `_handle_subscript` is generalized via `_nested_access_type` /
+`_peel_container` (peel one container level per index level); `_handle_len_call` routes deeper `len`
+through the same. The contract grammar gained a `NestedSubscript` node (Module2 parse loop; Module5
+lowering) so a THIRD+ index parses in an annotation (`\result == a[i][j][k]`); depth ≤2 stays
+`ChainedSubscript` (byte-identical). Deeper than 4: the type recursion returns None → the param is not
+nested-elem → the deep read falls to the opaque `subscript_get` and does NOT type-check as a faithful
+read (rejected, never silently accepted). Drivers **0805** (depth-3 positive), **0806** (NEGATIVE false
+deeper content), **0807** (BOUNDARY: depth-5 beyond the cap, expected FAIL).
+
+**Item 2 — target-dependent comprehension index `x[f(x)]`.** The subscript-projection comprehension
+`[x[f(x)] for x in a]` over a `List[List[τ]]` source is now content-faithful when the index `f(x)` lifts
+to a pure int logic term over the loop target `x` (a `seq τ`) — specifically `len(x)` + integer literals
++ captured int params under `+ - *` (e.g. `x[len(x)-1]`). `_lift_target_seq_index` lifts it; the content
+law becomes `result[i] = Seq.get (src[i]) (Seq.length (src[i]) - 1)` — the SAME term the driver's own
+`\result[i] == a[i][len(a[i])-1]` lowers to. An index that does NOT lift to this grammar (a `g(x)` call
+over the seq, a non-`len` seq op) stays OPAQUE (length-only comprehension); a target-dependent index over
+a MAP source stays opaque. Drivers **0808** (positive `[x[len(x)-1] for x in a]`), **0809** (NEGATIVE
+false first-vs-last index claim).
+
+**Gates.** Emission of every flat / depth-≤2 / constant-index corpus program is BYTE-IDENTICAL (685-file
+diff empty; only the 5 new drivers 0805–0809 differ). Full corpus green (the 3 failures 0540/0700/0701
+are pre-existing, not regressions; nested-list drivers 0797–0804 stay green). No `proof_axiom_allowlist`
+change (definitional `ensures`; Seq read/length laws are Why3 stdlib `seq.Seq`). doc-coherency +
+mirror-sync green, `\trusted` non-increasing. Docs: τ-table + concrete/static/translational + annotations
+updated; decisions appended to `choices.md`.

@@ -1929,10 +1929,15 @@ the callee so it is in scope.
 (nested-list.md S4): a `List[List[τ]]` param lowers to `array (seq τ)` (a
 `List[Dict[..]]` param to `array (map κ (option ν))`), so `x` is a real `seq`/`map`,
 `x[k]` a faithful `Seq.get`/`Map.get`, and `[x[k] for x in a]` carries
-`result[i] = Seq.get (a[i]) k` (driver 0799). Residual opaque shapes (never a false
-content claim): non-identity dict key / non-pure-int dict value or set element,
-string/emit_ir elements, multi-generator, a target-dependent or >2-level subscript
-index, an un-annotated/too-deep leaf (cleared-array.md S1–S5 + items 1,3,4;
+`result[i] = Seq.get (a[i]) k` (driver 0799). **DEEPER reads + TARGET-DEPENDENT index
+(nested-list.md §8/§9 EXTENSION):** `a[i][j][k]` reads content-faithfully to the depth-4
+bound (`_nested_access_type`; drivers 0805/0806, beyond-cap rejected 0807), and a
+target-dependent index `[x[len(x)-1] for x in a]` that lifts to a pure int term over
+`len(x)` (`_lift_target_seq_index`) carries `result[i] = Seq.get (a[i]) (Seq.length (a[i]) - 1)`
+(driver 0808, NEGATIVE 0809). Residual opaque shapes (never a false content claim):
+non-identity dict key / non-pure-int dict value or set element, string/emit_ir elements,
+multi-generator, a subscript index that does NOT lift (a `g(x)` call over the seq), a read
+deeper than depth 4, an un-annotated/too-deep leaf (cleared-array.md S1–S5 + items 1,3,4;
 nested-list.md).
 
 **In-place inner mutation** `a[i][j] = v` (nested-list-mutable.md): a `List[List[int]]`

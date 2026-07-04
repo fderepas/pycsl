@@ -5066,6 +5066,68 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return True
         return False
 
+    def _lift_target_seq_index(self, idx_ir: Any, target: str, row_expr: str,
+                               capfree: Set[str]) -> Optional[str]:
+        """nested-list §8/§9 EXTENSION (target-dependent comprehension index).
+        Lift a comprehension index `f(x)` that DEPENDS on the loop target `x`
+        (a `seq τ`) to a pure int logic term over `row_expr` (the per-index source
+        read `src[i]`), or None if it does not soundly lift. The sound grammar:
+          * integer literals,
+          * `len(x)` (the target's length) → `Seq.length row_expr`,
+          * captured int free-vars `c` (≠ target; collected into `capfree` → extra
+            val params),
+          * the total operators `+ - *` and unary `- +` over the above.
+        Every leaf is total and pure; `Seq.length` is a Why3 stdlib logic symbol —
+        so `result[i] = Seq.get (src[i]) (f(src[i]))` is a faithful re-expression
+        of `x[f(x)]` (the SAME term the driver's `\\result[i] == a[i][f(a[i])]`
+        lowers to). A `g(x)` call over the seq, a non-`len` seq operation, or a
+        bare `x` used as an int index do NOT lift → None (kept opaque)."""
+        if not isinstance(idx_ir, dict):
+            return None
+        t = idx_ir.get("type")
+        if t == "Number":
+            v = idx_ir.get("value")
+            if not isinstance(v, int):
+                return None
+            return f"({v})" if v < 0 else str(v)
+        if t == "Var":
+            nm = idx_ir.get("name", "")
+            if nm == target:
+                return None            # a bare seq target is not an int index
+            capfree.add(nm)
+            return whyml_ident(nm)
+        if t == "BinOp":
+            if idx_ir.get("op") not in ("+", "-", "*"):
+                return None
+            _l = self._lift_target_seq_index(idx_ir.get("left", {}), target,
+                                             row_expr, capfree)
+            _r = self._lift_target_seq_index(idx_ir.get("right", {}), target,
+                                             row_expr, capfree)
+            if _l is None or _r is None:
+                return None
+            return f"({_l} {idx_ir.get('op')} {_r})"
+        if t == "UnaryOp":
+            if idx_ir.get("op") not in ("-", "+"):
+                return None
+            _o = self._lift_target_seq_index(
+                idx_ir.get("operand", idx_ir.get("value", {})), target,
+                row_expr, capfree)
+            if _o is None:
+                return None
+            return f"(- {_o})" if idx_ir.get("op") == "-" else _o
+        if t == "Call":
+            # only `len(x)` where x IS the loop target lifts (→ Seq.length of the
+            # per-index row). Any other call over the seq stays opaque.
+            fn = idx_ir.get("func")
+            _args = idx_ir.get("args", []) or []
+            if (fn == "len" and len(_args) == 1
+                    and isinstance(_args[0], dict)
+                    and _args[0].get("type") == "Var"
+                    and _args[0].get("name") == target):
+                return f"(Seq.length {row_expr})"
+            return None
+        return None
+
     def _nested_subscript_comp(self, op_name, gen: Dict[str, Any], target: str,
                                elt: Any, src_ir: Any, local_refs: Set[str],
                                subst: Optional[Dict[str, str]],
@@ -5107,18 +5169,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # passes the same vars. Restricted to vars whose lowering is a bare ident
         # (no `!`-deref) so the decl param name == the term in `idxw`.
         _extra: List[Tuple[str, str]] = []   # (name, whyml_type)
+        binder = "_ci"
+        # nested-list §8/§9 EXTENSION: a TARGET-DEPENDENT seq index `x[f(x)]` where
+        # `f(x)` lifts to a pure int term over `len(x)` (`_lift_target_seq_index`);
+        # None keeps the constant-index path below. The per-index row is `src[_ci]`.
+        _tgt_seq_idx: Optional[str] = None
         if _ne.startswith("seq "):
             _idxfree = set()
-            if not self._comp_elt_pure_int(idx_ir, _idxfree):
-                return None
-            if target in _idxfree:
-                return None
-            for _fv in sorted(_idxfree):
-                _fvw = self._expr_to_whyml({"type": "Var", "name": _fv},
-                                           local_refs or set(), invariant_ctx, subst)
-                if _fvw != whyml_ident(_fv):
-                    return None            # ref-deref / renamed → out of scope
-                _extra.append((_fvw, "int"))
+            _const_ok = (self._comp_elt_pure_int(idx_ir, _idxfree)
+                         and target not in _idxfree)
+            if _const_ok:
+                for _fv in sorted(_idxfree):
+                    _fvw = self._expr_to_whyml({"type": "Var", "name": _fv},
+                                               local_refs or set(), invariant_ctx, subst)
+                    if _fvw != whyml_ident(_fv):
+                        return None        # ref-deref / renamed → out of scope
+                    _extra.append((_fvw, "int"))
+            else:
+                # target-dependent: lift `f(x)` over `len(x)` + captured int params.
+                _capfree: Set[str] = set()
+                _tgt_seq_idx = self._lift_target_seq_index(
+                    idx_ir, target, f"(src[{binder}])", _capfree)
+                if _tgt_seq_idx is None:
+                    return None            # unliftable index → opaque
+                for _fv in sorted(_capfree):
+                    _fvw = self._expr_to_whyml({"type": "Var", "name": _fv},
+                                               local_refs or set(), invariant_ctx, subst)
+                    if _fvw != whyml_ident(_fv):
+                        return None
+                    _extra.append((_fvw, "int"))
         elif _ne.startswith("map "):
             if not (isinstance(idx_ir, dict) and idx_ir.get("type") in ("String", "Var")):
                 return None
@@ -5136,16 +5215,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         n = getattr(self, "_comp_content_counter", 0)
         self._comp_content_counter = n + 1
         op = f"list_content_comp_{n}"
-        binder = "_ci"
-        saved_in_spec = self._in_spec
-        self._in_spec = True
-        try:
-            idxw = self._expr_to_whyml(idx_ir, local_refs or set(), True, subst)
-        finally:
-            self._in_spec = saved_in_spec
+        idxw = None
+        if _tgt_seq_idx is None:
+            # constant / captured index: lower it in spec context (a
+            # target-dependent index is already lifted as `_tgt_seq_idx`).
+            saved_in_spec = self._in_spec
+            self._in_spec = True
+            try:
+                idxw = self._expr_to_whyml(idx_ir, local_refs or set(), True, subst)
+            finally:
+                self._in_spec = saved_in_spec
         if _ne.startswith("seq "):
             res_elem = _ne[len("seq "):]
-            read = f"(Seq.get (src[{binder}]) {idxw})"
+            _sidx = _tgt_seq_idx if _tgt_seq_idx is not None else idxw
+            read = f"(Seq.get (src[{binder}]) {_sidx})"
         elif _ne.startswith("map "):
             # ν = the option's inner type; the missing-key default is typed per ν.
             res_elem = (_ne.split("(option ", 1)[1].rsplit(")", 1)[0]
