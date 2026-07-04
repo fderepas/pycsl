@@ -2153,6 +2153,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None   # Unsupported char in format
 
         slot_id = parsed.slot_id()
+        # cleared-pack: a single standard-size unsigned-int slot lowers to the
+        # FAITHFUL, guarded `Pycsl.Struct.Std` family (`struct_{pack,unpack}_f<sig>`)
+        # — byte-codec-anchored round-trip + size law + in-range guard. All other
+        # shapes keep the opaque abstract `iN` symbols (documented boundary).
+        faithful = parsed.faithful_uint_slot()
         if func_name == "struct.unpack":
             # struct.unpack(fmt, data) → (t1, ..., tN)
             # Abstract: val struct_unpack_<slot_id> (fmt: int) (data: array int) : (t1, ..., tN)
@@ -2162,7 +2167,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 ret_type = parsed.slots[0]
             else:
                 ret_type = "(" + ", ".join(parsed.slots) + ")"
-            sym = f"struct_unpack_{slot_id}"
+            if faithful is not None:
+                sig, _w, _hi = faithful
+                sym = f"struct_unpack_f{sig}"
+            else:
+                sym = f"struct_unpack_{slot_id}"
             # `val function` — both program-callable and a logical
             # symbol the round-trip axiom can name.
             self._add_abstract_op(
@@ -2183,7 +2192,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             value_args = args[1:]
             if len(value_args) != parsed.arity:
                 return None
-            sym = f"struct_pack_{slot_id}"
+            if faithful is not None:
+                sig, _w, _hi = faithful
+                sym = f"struct_pack_f{sig}"
+            else:
+                sym = f"struct_pack_{slot_id}"
             params = ["(fmt: int)"] + [
                 f"(x{i}: {t})" for i, t in enumerate(parsed.slots)]
             self._add_abstract_op(

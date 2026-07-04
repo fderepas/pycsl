@@ -52,6 +52,23 @@ _CHAR_TO_TYPE = {
 
 _VALID_PREFIXES = {"@", "=", "<", ">", "!"}
 
+# Standard-size UNSIGNED integer format chars modelled FAITHFULLY (cleared-pack):
+# the byte codec is proven in the `Pycsl.Struct.Std` Rocq+Lean anchor, so a
+# single such slot lowers to the guarded, byte-faithful round-trip family
+# (size law + in-range guard + `unpack(pack x) = x`) instead of the opaque
+# abstract `struct_{pack,unpack}_iN` symbols. char → (sig, byte_width, hi_excl).
+# Signed (two's complement), float, and native-size formats are excluded — see
+# choices.md / UB catalog.
+_FAITHFUL_UINT = {
+    "H": ("u16", 2, 65536),
+    "I": ("u32", 4, 4294967296),
+    "L": ("u32", 4, 4294967296),   # standard size: L is 4 bytes == uint32
+}
+# Explicit STANDARD-size byte-order prefixes only. '' and '@' mean native
+# size/alignment, whose calcsize is platform-dependent → excluded from the
+# faithful (standard-size) family.
+_STD_PREFIXES = {"<", ">", "=", "!"}
+
 
 @dataclass(frozen=True)
 class StructFormat:
@@ -73,10 +90,27 @@ class StructFormat:
     raw: str
     prefix: str
     slots: Tuple[str, ...]
+    chars: Tuple[str, ...] = ()   # per-slot format char (excludes pad); parallel to slots
 
     @property
     def arity(self) -> int:
         return len(self.slots)
+
+    def faithful_uint_slot(self) -> Optional[Tuple[str, int, int]]:
+        """cleared-pack: if this format is a SINGLE standard-size unsigned-int
+        slot with an EXPLICIT standard byte-order prefix, return
+        `(sig, byte_width, hi_exclusive)` for the faithful `Pycsl.Struct.Std`
+        family; else None.
+
+        Faithful ⟺ exactly one slot, its format char ∈ `_FAITHFUL_UINT`
+        (`H`/`I`/`L`), and `prefix ∈ _STD_PREFIXES` (`<>=!`). Signed, float,
+        multi-slot, array (`s`/`c`/`p`), and native (`@`/'') formats stay on the
+        opaque abstract path (documented boundary)."""
+        if self.prefix not in _STD_PREFIXES:
+            return None
+        if len(self.chars) != 1:
+            return None
+        return _FAITHFUL_UINT.get(self.chars[0])
 
     def slot_id(self) -> str:
         """Compact identifier for use in WhyML symbol names.
@@ -137,6 +171,7 @@ def parse_format(fmt: str) -> Optional[StructFormat]:
         cursor = 1
 
     slots: List[str] = []
+    chars: List[str] = []
     pos = cursor
     while pos < len(fmt):
         m = _TOKEN_RE.match(fmt, pos)
@@ -154,11 +189,14 @@ def parse_format(fmt: str) -> Optional[StructFormat]:
         elif char in ("s", "c", "p"):
             # N-prefix is byte length, not arity; one array-int slot
             slots.append("array int")
+            chars.append(char)
         else:
             slots.extend([slot_type] * count)
+            chars.extend([char] * count)
         pos = m.end()
 
-    return StructFormat(raw=fmt, prefix=prefix, slots=tuple(slots))
+    return StructFormat(raw=fmt, prefix=prefix, slots=tuple(slots),
+                        chars=tuple(chars))
 
 
 def calcsize(fmt: str) -> Optional[int]:

@@ -106,6 +106,33 @@ class PreambleEmissionMixin:
             "= (x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, "
             "x10, x11, x12, x13, x14, x15, x16, x17)",
 
+        # ==========================================================================
+        # Pycsl.Struct.Std (cleared-pack) — the FAITHFUL, GUARDED round-trip family
+        # for a SINGLE standard-size unsigned-int struct slot ('>H' = u16, '>I'/'>L'
+        # = u32). Unlike the legacy `UnixFs.Struct.iN.round_trip` (unguarded
+        # shape-model witnesses proven by reflexivity over uninterpreted symbols),
+        # these are anchored by CONCRETE big-endian base-256 BYTE-CODEC definitions
+        # of pack/unpack, cross-validated in BOTH provers:
+        #   test-suite/corpus/pycsl-reference/0753.proofs/{rocq/Struct.v,lean/Struct.lean}
+        #   (Pycsl.Struct.Std.{round_trip_u16,round_trip_u32}; also size_u* and the
+        #    guard_necessity_u* counterexamples showing the guard is load-bearing —
+        #    unpack(pack 65536) = 0 ≠ 65536). Rocq: coqc exit 0, no Admitted/Axiom;
+        #   Lean 4.31: lean exit 0, #print axioms ⊆ {propext, Classical.choice,
+        #   Quot.sound}, no sorry.
+        # The in-range guard is the SOUNDNESS PRECONDITION (real struct.pack RAISES
+        # struct.error out-of-range for standard sizes): it is BOTH the pack `val`'s
+        # `requires` (a call-site VC — see _AXIOM_FUNCTIONS below) AND the axiom
+        # antecedent. Dropping it makes the law FALSE (byte truncation) — hence the
+        # `# pycsl-expected: FAIL` negative driver 0755.
+        # ==========================================================================
+        "Pycsl.Struct.Std.round_trip_u16":
+            "forall fmt x0 : int. 0 <= x0 < 65536 -> "
+            "struct_unpack_fu16 fmt (struct_pack_fu16 fmt x0) = x0",
+
+        "Pycsl.Struct.Std.round_trip_u32":
+            "forall fmt x0 : int. 0 <= x0 < 4294967296 -> "
+            "struct_unpack_fu32 fmt (struct_pack_fu32 fmt x0) = x0",
+
         # UnixFs.Dir — directory-scan reflection. The bounded scan over the 16
         # root-directory slots returns a non-negative inode IFF some live slot
         # decodes to `name`. INDUCTIVE over the slot loop (SMT times out:
@@ -1402,6 +1429,25 @@ class PreambleEmissionMixin:
             "(int, int, int, int, int, int, int, int, int, "
             "int, int, int, int, int, int, int, int, int)",
         ],
+        # Pycsl.Struct.Std (cleared-pack): the faithful single-slot uint families.
+        # The pack `val`s carry BOTH the S1 size law (`length = calcsize`) and the
+        # S2 in-range `requires` — the latter is a CALL-SITE VC (real struct.pack
+        # raises out-of-range), making the guard load-bearing. Cited via
+        # `#@ proof rocq|lean Pycsl.Struct.Std.round_trip_u{16,32}`.
+        # NOTE keys are the EXACT cited qualnames (matched by `qn.startswith`);
+        # each pulls only its own width's decls.
+        "Pycsl.Struct.Std.round_trip_u16": [
+            "val function struct_pack_fu16 (fmt: int) (x0: int) : array int\n"
+            "    requires { 0 <= x0 < 65536 }\n"
+            "    ensures  { Array.length result = 2 }",
+            "val function struct_unpack_fu16 (fmt: int) (data: array int) : int",
+        ],
+        "Pycsl.Struct.Std.round_trip_u32": [
+            "val function struct_pack_fu32 (fmt: int) (x0: int) : array int\n"
+            "    requires { 0 <= x0 < 4294967296 }\n"
+            "    ensures  { Array.length result = 4 }",
+            "val function struct_unpack_fu32 (fmt: int) (data: array int) : int",
+        ],
         # UnixFs.Content (gap-17): the inode SIZE view. `inode_size disk ino`
         # is the big-endian uint32 decode of the four on-disk bytes at
         # 512 + ino*64 (the inode SIZE field, struct '>I...' field 0). It is a
@@ -1586,6 +1632,19 @@ class PreambleEmissionMixin:
                 body = self._AXIOM_REGISTRY.get(qn, "")
                 if "array int" in body or "array " in body:
                     axiom_needs_array = True
+                    break
+                # cleared-pack: the round-trip axiom body may be array-free
+                # (`struct_unpack_fu16 fmt (struct_pack_fu16 fmt x0) = x0`) while
+                # the BACKING `_AXIOM_FUNCTIONS` `val function` decls it pulls
+                # return/consume `array int`. Scan those decls too, else the
+                # emitted `val function struct_pack_fu16 … : array int` has no
+                # `use array.Array` in scope.
+                for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
+                    if qn.startswith(prefix) and any(
+                            "array int" in d or "array " in d for d in fn_decls):
+                        axiom_needs_array = True
+                        break
+                if axiom_needs_array:
                     break
             if axiom_needs_array:
                 break
