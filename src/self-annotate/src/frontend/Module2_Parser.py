@@ -1311,11 +1311,13 @@ class _ContractParser:
 
 class Module2_Parser:
     'Parses raw PyCSL string contracts into Contract AST objects.\n\n    A pure-Python recursive-descent parser (`_ContractParser`) — no 3rd-party\n    deps. Replaces the former Lark LALR engine; the 1:1 grammar→CSLNode map is\n    preserved (differential-tested against the legacy engine in\n    `bin/diff_parser.py`).\n    '
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, use_rdp=None) -> None:
+        # `use_rdp` is accepted (and ignored) for backward compatibility with
+        # callers that passed it during the migration; the rdp engine is now
+        # the only engine.
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
