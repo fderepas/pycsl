@@ -354,8 +354,8 @@ dataclass-in-a-list fails CLOSED at Why3 type-check (never a silent unsound upda
 comprehension `[p.x for p in a]` over a record source is lowered natively too. Drivers
 `wl04b_list_{record,tuple}_elem_COLLAPSED.py` (PROVEN), false-twin `wl04b_list_record_falsetwin.py`
 (UNPROVEN); locks 0829/0830 (POSITIVE), NEGATIVE 0831. Residuals (int-collapse / opaque kept): a
-FILTERED record-projection comprehension, a `List[<plain-class>]` element, and a record slot of
-`float`/container type. (The `List[<record>]` LITERAL is now covered by §WL-04c below.)
+`List[<plain-class>]` element and a record slot of `float`/container type. (The `List[<record>]`
+LITERAL is now covered by §WL-04c below; a FILTERED record-projection comprehension by §WL-04d.)
 
 **§ Flat RECORD-element list LITERAL (wrong-lowering-to-fix.md §WL-04c).** The CONSTRUCTION analog of
 §WL-04b. A list LITERAL whose elements are ALL full-arity positional constructor CALLS to the SAME
@@ -376,6 +376,29 @@ proof). Drivers `wl04c_list_record_literal_COLLAPSED.py` (PROVEN), false-twin
 `spikes/wl04c_list_record_literal_spike.mlw` (Alt-Ergo AND Z3, no cited lemma); locks 0839 (POSITIVE),
 NEGATIVE 0840. Residuals (kept fail-closed): a `@dataclass`-ctor literal (blocked on the dataclass
 positional-ctor-capture gap), a MIXED-record / keyword-arg literal.
+
+**§ FILTERED RECORD-projection comprehension (wrong-lowering-to-fix.md §WL-04d).** A FILTERED
+projection comprehension `[p.x for p in a if <cond(p)>]` over a flat `List[<record>]` source `a`
+(`array <record>`, §WL-04b) previously fell through `_content_comp`'s record branch to the opaque
+`val list_comp (x:int):int`, so a `-> List[int]` return (`array int`) was returned an int → ill-typed
+WhyML (TYPEERR — fail-closed but unusable). The RESULT LENGTH is data-dependent
+(`0 <= len(result) <= len(a)`), so NO exact length / per-index content law is provable; the sound
+faithful law (`expressions.py::_filter_record_proj_law`, a per-instance `list_content_comp_<n>` val) is
+the length BOUND `Array.length result <= Array.length src` plus a membership+predicate+projection
+existential — for each result index `i` there EXISTS a source index `j` with the record `src[j]`
+passing the predicate AND `result[i]` equal to its projected field. Every output came from some
+retained input (Python semantics), an honest under-approximation (the source index is lost to
+compaction). From it the FILTER CONSEQUENCE transfers to the projected result whenever the predicate
+constrains the projected field (`[p.x for p in a if p.x > 0]` yields only positive elements). The
+element and predicate are lowered NATIVELY over the record binder (`(src[j]).field`, via
+`_push_quant_binder`), the SAME projection a driver's `\result[i]` / `a[j].x` lowers to. A predicate
+that does NOT lift to a pure-bool term over the target keeps the SOUND length-bound-only law (still
+`array int` — never the prior TYPEERR). Driver `wl04d_filtered_record_proj_COLLAPSED.py` (PROVEN),
+false-twin `wl04d_filtered_record_proj_falsetwin.py` (UNPROVEN); Gate-B spike
+`spikes/wl04d_filtered_record_proj_spike.mlw` (Alt-Ergo AND Z3, no cited lemma; the length-equality /
+per-index false twins NOT entailed); locks 0841 (POSITIVE), NEGATIVE 0842. Residuals (kept opaque /
+length-bound-only): a FILTERED TUPLE-SLOT projection (`[t[0] for t in a if …]`, the element is a
+subscript not an attribute), and a projection whose element is not a pure-int field term.
 
 **§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
 is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT

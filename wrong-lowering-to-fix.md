@@ -249,8 +249,8 @@ false-positive against the τ-blessed baseline.
   content law via the native `(a[i]).x` projection instead of the opaque `get_x`, and the false twin
   0771 STAYS UNPROVEN); every OTHER of the 707 corpus files emits BYTE-IDENTICALLY. **STILL OUT OF
   SCOPE (documented residuals):** the `List[<record>]` LITERAL is now covered by **WL-04c** (below); a
-  FILTERED projection comprehension over a record source (`[p.x for p in a if …]` → falls back to the
-  opaque length-only law), a `List[<plain-class-with-__init__>]` element (only `@dataclass`/
+  FILTERED projection comprehension over a record source (`[p.x for p in a if …]`) is now covered by
+  **WL-04d** (below); a `List[<plain-class-with-__init__>]` element (only `@dataclass`/
   `NamedTuple`/recognized `Tuple` elements are recognized), and a record element with a `float`/
   container field slot (the WL-03 slot recognition is int/bool/str only) remain deferred. str/float
   (WL-04) and record (WL-04b) are the covered flat leaves.
@@ -290,6 +290,40 @@ false-positive against the τ-blessed baseline.
   literal (blocked on the dataclass positional-ctor-capture gap — a distinct pre-existing unsoundness
   worth its own fix), and a MIXED-record / keyword-arg literal keep the fail-closed (int-collapse /
   opaque / TYPEERR) model.
+- **FILTERED record-projection comprehension (WL-04d) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). A
+  FILTERED projection comprehension `[p.x for p in a if <cond(p)>]` over a flat `List[<record>]` source
+  `a` (`array <record>`, WL-04b) previously fell through `_content_comp`'s record branch to the opaque
+  `val list_comp (x:int):int` (an opaque INT), so a `-> List[int]` return (`array int`) was returned an
+  int → ill-typed WhyML (TYPEERR — fail-closed but UNUSABLE: neither the length bound nor any content
+  fact was expressible). The RESULT LENGTH of a filter is DATA-DEPENDENT (`0 <= len(result) <= len(a)`),
+  so an exact length / per-index content law is genuinely NOT provable and is NOT claimed (claiming
+  either would be UNSOUND). What IS soundly dischargeable — and now emitted
+  (`module6_whyml/expressions.py::_filter_record_proj_law`, a per-instance `list_content_comp_<n>` val)
+  — is the length BOUND `Array.length result <= Array.length src` PLUS a membership+predicate+projection
+  EXISTENTIAL: `forall i. 0<=i<len result -> exists j. 0<=j<len src /\ (let p = src[j] in <cond(p)> /\
+  result[i] = <p.field>)`. Every output came from some retained input (Python semantics), an honest
+  under-approximation (the source index is lost to compaction, so NO order/index claim is made). From
+  it the FILTER CONSEQUENCE transfers to the projected result whenever the predicate constrains the
+  projected field (`[p.x for p in a if p.x > 0]` PROVES every result element `> 0`). The element and
+  predicate are lowered NATIVELY over the record binder (`(src[j]).field`, via `_push_quant_binder`;
+  `_comp_cond_pure_bool` extended with the `getters`/`user_funcs` accumulators so a record-field
+  predicate `p.x > 0` lifts). A predicate that does NOT lift to a pure-bool term over the target keeps
+  the SOUND length-bound-only law (still `array int` — never the prior TYPEERR). Verdict flips:
+  `getting-better/wrong-lowering/wl04d_filtered_record_proj_COLLAPSED.py` TYPEERR → **PROVEN** (length
+  bound + `\result[i] > 0` filter-consequence + the membership existential); false-twin
+  `wl04d_filtered_record_proj_falsetwin.py` (claims `len(\result) == len(a)`) → **UNPROVEN**. SMT spike
+  `test-suite/corpus/conformance/spikes/wl04d_filtered_record_proj_spike.mlw` (length bound +
+  filter-consequence transfer + membership, Valid on **both** Alt-Ergo AND Z3, no cited lemma; the
+  length-EQUALITY and per-index-content false twins stay Unknown/Timeout — NOT entailed). Reference
+  locks: `0841.py` (POSITIVE — length bound + all-positive filter consequence + existential membership,
+  plus a two-projection predicate), `0842.py` (NEGATIVE `# pycsl-expected: FAIL` — a false per-index
+  content claim `\result[i] == a[i].x`). **Emission-differential:** the ONLY corpus files whose emission
+  changes are the two NEW locks `0841`/`0842`; every OTHER of the 720 pre-existing corpus files emits
+  BYTE-IDENTICALLY (`bin/byte-diff-sweep.sh`, before/after diff = 0). No new axiom; `\trusted`
+  non-increasing; doc-coherency green. **STILL OUT OF SCOPE (documented residuals):** a FILTERED
+  TUPLE-SLOT projection (`[t[0] for t in a if …]`, the element is a subscript not an attribute — the
+  unfiltered tuple-slot projection is itself already out of the `.field` projection scope), and a
+  projection whose element is not a pure-int field term keep the opaque / length-bound-only model.
 - **Dedup:** none (we-are-getting-better.md #6/#7 are IR-node list attrs in the mirror, a different
   surface).
 

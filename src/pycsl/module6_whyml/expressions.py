@@ -5492,11 +5492,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         op = f"list_content_comp_{n}"
         has_if = bool(g.get("ifs"))
         if has_if and _src_elem_cls is not None:
-            # WL-04b: a FILTERED comprehension over a record source is out of the
-            # projection scope (the subset law's element/identity typing is not the
-            # `array int` content law); fall back to the opaque length-only path
-            # rather than emit an ill-typed `array int` helper. Documented residual.
-            return None
+            # WL-04d (wrong-lowering-to-fix.md §WL-04 FILTERED record residual): a
+            # FILTERED projection comprehension `[p.x for p in a if <cond(p)>]` over a
+            # flat `List[<record>]` source `a` (`array <record>`). The result LENGTH is
+            # data-dependent (`0 <= len <= len(a)`), so NO exact length / per-index
+            # content law is claimed; the sound faithful law is the length BOUND plus a
+            # membership+predicate+projection existential (each result element is the
+            # projected field of SOME source record that passed the filter). This
+            # replaces the prior hard TYPEERR (the opaque `list_comp` int returned where
+            # `array int` was expected). Falls back to the length-bound-only law if the
+            # predicate does not lift to a pure-bool term over the target.
+            return self._filter_record_proj_law(
+                op, g, target, elt, _src_elem_cls, srca, local_refs, subst)
         if has_if:
             # cleared-array.md S4 + item 4: a filtered comprehension keeps the
             # SOUND length bound; when the element is the IDENTITY (`x`) and the
@@ -5564,28 +5571,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(decl)
         return f"({op} {srca})"
 
-    def _comp_cond_pure_bool(self, cond: Any, free: Set[str]) -> bool:
+    def _comp_cond_pure_bool(self, cond: Any, free: Set[str],
+                             getters: Optional[Set[str]] = None,
+                             user_funcs: Optional[Set[str]] = None) -> bool:
         """cleared-array item 4. True iff a filter predicate `cond` lowers to a
         PURE, total BOOLEAN logic term: a comparison (`< <= > >= == !=`) of
         pure-int subterms, or an `and`/`or`/`not` combination of such. Free
         variables are collected into `free` (checked ⊆ {target} by the caller).
-        Conservative — any other shape ⇒ not liftable (keep length-only)."""
+        Conservative — any other shape ⇒ not liftable (keep length-only).
+
+        WL-04d: when `getters`/`user_funcs` accumulators are supplied (the
+        record-source filtered-projection path), a comparison operand may be a
+        FIELD PROJECTION `p.attr` (attr names collected into `getters`) — so a
+        predicate `p.x > 0` over a `List[<record>]` source lifts. Default None
+        keeps the arithmetic-only whitelist byte-identical for existing callers."""
         if not isinstance(cond, dict):
             return False
         t = cond.get("type")
         if t == "BinOp":
             op = cond.get("op")
             if op in ("and", "or"):
-                return (self._comp_cond_pure_bool(cond.get("left", {}), free)
-                        and self._comp_cond_pure_bool(cond.get("right", {}), free))
+                return (self._comp_cond_pure_bool(cond.get("left", {}), free,
+                                                  getters, user_funcs)
+                        and self._comp_cond_pure_bool(cond.get("right", {}), free,
+                                                      getters, user_funcs))
             if op in ("<", "<=", ">", ">=", "==", "!="):
-                return (self._comp_elt_pure_int(cond.get("left", {}), free)
-                        and self._comp_elt_pure_int(cond.get("right", {}), free))
+                return (self._comp_elt_pure_int(cond.get("left", {}), free,
+                                                getters, user_funcs)
+                        and self._comp_elt_pure_int(cond.get("right", {}), free,
+                                                    getters, user_funcs))
             return False
         if t == "UnaryOp":
             if cond.get("op") in ("not",):
                 return self._comp_cond_pure_bool(
-                    cond.get("operand", cond.get("value", {})), free)
+                    cond.get("operand", cond.get("value", {})), free,
+                    getters, user_funcs)
             return False
         return False
 
@@ -5640,6 +5660,87 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             f"                (let {celt} = result[{binder}] in {condw})\n"
             f"                /\\ (exists _cj : int. 0 <= _cj < Array.length src /\\\n"
             f"                     result[{binder}] = src[_cj]) }}")
+
+    def _filter_record_proj_law(self, op: str, gen: Dict[str, Any], target: str,
+                                elt: Any, src_elem_cls: str, srca: str,
+                                local_refs: Set[str],
+                                subst: Optional[Dict[str, str]]) -> str:
+        """WL-04d (wrong-lowering-to-fix.md §WL-04 FILTERED record residual). Emit
+        the faithful lowering of a FILTERED projection comprehension
+        `[p.x for p in a if <cond(p)>]` over a flat `List[<record>]` source `a`
+        (`array <record>`, `src_elem_cls` its class). The result is `array int`
+        (the projected field). The RESULT LENGTH is data-dependent, so NO exact
+        length / per-index content law is claimed; the sound faithful law is:
+
+          * the length BOUND `Array.length result <= Array.length src` (the filter
+            only removes elements), and
+          * a membership+predicate+projection EXISTENTIAL: for each result index i,
+            there EXISTS a source index j such that the record `src[j]` passed the
+            predicate AND `result[i]` equals its projected field — every output came
+            from some retained input (Python semantics), an honest under-approximation
+            (the source index is lost to compaction, so no order/index law is made).
+
+        From this the filter CONSEQUENCE transfers to the projected result whenever
+        the predicate constrains the projected field (`[p.x for p in a if p.x > 0]`
+        yields only positive elements). The element and predicate are lowered
+        NATIVELY over the record binder (`(src[j]).field`), the SAME projection a
+        driver's own `\\result[i]` / field read lowers to — sound, no new axiom
+        (definitional `ensures`; Array read law is Why3 stdlib). SMT spike:
+        test-suite/corpus/conformance/spikes/wl04d_filtered_record_proj_spike.mlw
+        (Valid on Alt-Ergo AND Z3; the length-equality / per-index false twins NOT
+        entailed).
+
+        If the predicate does NOT lift to a pure-bool logic term over the record
+        target ONLY, fall back to the length-bound-only law (still sound, still
+        `array int` — never the prior TYPEERR)."""
+        _wn = self._record_types[src_elem_cls]["whyml_name"]
+        binder = "_ci"       # result index (forall)
+        jbinder = "_cj"      # source index (exists)
+        celt = "_celt"       # = src[_cj], the retained record
+        new_subst = dict(subst or {})
+        new_subst[target] = celt
+        ifs = gen.get("ifs") or []
+        # The predicate lifts iff every `if` clause is a pure-bool term (record
+        # field projections allowed via `cgetters`) over the loop target ONLY.
+        cfree: Set[str] = set()
+        cgetters: Set[str] = set()
+        cond_ok = bool(ifs)
+        for c in ifs:
+            if not self._comp_cond_pure_bool(c, cfree, cgetters):
+                cond_ok = False
+                break
+        if cond_ok and (cfree - {target}):
+            cond_ok = False
+        # Lower the element (and, if it lifts, the predicate) NATIVELY over the
+        # record binder: `p` is registered as a record of class `src_elem_cls` and
+        # renamed to `_celt` via `new_subst`, so `p.field` → `_celt.<label>`.
+        _rec_tok = self._push_quant_binder(target, src_elem_cls)
+        saved_in_spec = self._in_spec
+        self._in_spec = True
+        try:
+            eltw = self._expr_to_whyml(elt, local_refs or set(), True, new_subst)
+            condws = ([self._expr_to_whyml(c, local_refs or set(), True, new_subst)
+                       for c in ifs] if cond_ok else [])
+        finally:
+            self._in_spec = saved_in_spec
+            self._pop_quant_binder(target, _rec_tok)
+        if cond_ok:
+            condw = " /\\ ".join(f"({c})" for c in condws)
+            decl = (
+                f"val {op} (src: array {_wn}) : array int\n"
+                f"    ensures {{ Array.length result <= Array.length src }}\n"
+                f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length result ->\n"
+                f"                exists {jbinder} : int. 0 <= {jbinder} < Array.length src /\\\n"
+                f"                  (let {celt} = src[{jbinder}] in ({condw})\n"
+                f"                   /\\ result[{binder}] = ({eltw})) }}")
+        else:
+            # predicate did not lift → keep the SOUND length bound only (never the
+            # prior TYPEERR; still `array int` so a `-> List[int]` return type-checks).
+            decl = (
+                f"val {op} (src: array {_wn}) : array int\n"
+                f"    ensures {{ Array.length result <= Array.length src }}")
+        self._add_abstract_op(decl)
+        return f"({op} {srca})"
 
     def _lift_comp_elt(self, elt: Any, target: str, celt: str,
                        local_refs: Set[str],
