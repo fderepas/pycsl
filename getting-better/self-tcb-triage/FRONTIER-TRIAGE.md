@@ -45,6 +45,21 @@ const-string), `types.py` 2, `Transpiler` 1, `proof2why3` 4 (`crosscheck._module
 | — | regex modeling (`re.match/sub/compile`) | ~20 | cross-cutting but HARDER (regex engine) — defer within tier 2 |
 | — | singletons (`str.startswith` ~7, module-const set membership, `\|=` set-union→`.update`) | scattered | opportunistic |
 
+> **⚠ Tier-2 calibration (2026-07-05 — critical finding).** Tier-2a (set-model) was BUILT, gated
+> (spike + locks 0876/0877 + byte-diff 0), and then **REVERTED** (`768f5392` → `5c4b87e0`). Why: to
+> convert its target cluster (the A8 `-> bool` stubs `is_rocq/is_lean_axiom_allowed`, whose body is a
+> module-const-set membership *tail return*), the feature had to add a bool→int bridge to the VERIFIED
+> emitter method `_handle_return_stmt` — and that block does **IR-node dict reflection**
+> (`_rr.get("name")` on a nested IR node), which hits the **emit_ir/IR-dict ADT gap** and cannot
+> self-verify (fails Why3 type-check; both the `in` and the `.get()...is not None` forms). Re-trusting
+> would be a +1 count regression. **Lesson: the tier-2 marker conversions are themselves largely
+> tier-3-gated** — a feature that unblocks a `\trusted` conversion must usually touch a verified emitter
+> method, and those methods do IR-node reflection = the tier-3 ADT. So tier-2's *fan-out* numbers (from
+> `--no-proof` triage) overstate the *convertible* yield exactly as tier-1's did. **Net tier-2a marker
+> yield: 0.** The set-model recognizer for the *condition* position (`if x in CONST`) is sound and
+> re-landable; only the tail-return-conversion value is ADT-gated. 2b/2c were NOT attempted (same wall
+> expected). **The real lever is tier-3 (the value ADT), jointly with formal-semantics Phase 7.**
+
 ### TIER 3 — value ADT (DEFERRED; decide jointly with formal-semantics Phase 7): ~800–900
 The 90% hard mass, one class of feature (recursive typed variant/record ADT + `isinstance`/`type`
 dispatch + mutual recursion over heterogeneous trees):
