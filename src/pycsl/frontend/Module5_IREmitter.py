@@ -3673,6 +3673,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         # name-list stubs), not the default `array int`.
                         if head in ("List", "list"):
                             return_value_type = self._m5_get_list_elem_type(node.returns)
+                            # WL-04a (wrong-lowering-to-fix.md §WL-04 list-literal residual):
+                            # a `-> List[float]` return is `array real` — the flat float
+                            # leaf that `_m5_get_list_elem_type` (str/emit_ir only) does not
+                            # capture. Fall back to the flat-element analysis so Module6
+                            # emits `array real`, matching a float list-literal body.
+                            if return_value_type is None:
+                                _flat = self._m5_get_list_flat_elem_whyml(node.returns)
+                                if _flat == "real":
+                                    return_value_type = "real"
             elif isinstance(node.returns, ast.Attribute):
                 # `typing.NoReturn` (Attribute value=Name "typing", attr
                 # "NoReturn") — the qualified spelling of the PEP 484 marker.

@@ -4172,8 +4172,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # postcondition over an array result (`\result[0]*256 + \result[1] == v`) can't even be
         # expressed, let alone proven. Spec context only (a logic term — no bounds-assert wrapper,
         # matching the hand-verified .mlw); opaque-typed reads still fall through to subscript_get.
+        # WL-04a: widened from `array int` to ANY `array τ` return (`array string`,
+        # `array real`, …), so `\result[0] == "a"` / `\result[0] == 1.5` on a
+        # `-> List[str]` / `-> List[float]` return lowers to a native `Array.get`
+        # (element-polymorphic), not the opaque `subscript_get`. Byte-identical for an
+        # `array int` return (still matched by the `array ` prefix).
         if (self._in_spec and value.get("type") == "Result"
-                and getattr(self, "_func_return_type", "") == "array int"):
+                and getattr(self, "_func_return_type", "").startswith("array ")):
             return f"({value_str}[{index}])"
         # L0′ (challenging-the-plan §4.1): `self.<array-field>[i]` in a contract/class-invariant is a
         # real `Array.get`, not the opaque (and, in a class invariant, unbound) `subscript_get` — so a
@@ -5807,9 +5812,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     inner += f" {sets};"
                 return f"({inner} _alit)"
             if elts:
+                n = len(elts)
+                # WL-04a (wrong-lowering-to-fix.md §WL-04 list-literal residual): a
+                # LIST-LITERAL whose elements are ALL string literals (resp. ALL float
+                # `Number`s) is realized at the FAITHFUL element type — `array string`
+                # (resp. `array real`) — NOT the hashed-int/truncated collapse. This is
+                # the construction analog of the WL-04 param fix (`array string`/`array
+                # real` param element): a `List[str]`/`List[float]` LOCAL or a direct
+                # `return [...]` now type-checks against a str/float use site. An all-`int`/
+                # all-`bool` literal keeps the `array int` path below (byte-identical);
+                # a mixed / non-scalar literal keeps the int-coercion default (documented).
+                _all_str = all(isinstance(e, dict) and e.get("type") == "String"
+                               for e in elts)
+                _all_float = all(isinstance(e, dict) and e.get("type") == "Number"
+                                 and isinstance(e.get("value"), float) for e in elts)
+                if _all_str or _all_float:
+                    lowered = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst)
+                               for e in elts]
+                    sets = "; ".join(f"_alit[{i}] <- {lowered[i]}" for i in range(1, n))
+                    inner = f"let _alit = Array.make {n} ({lowered[0]}) in"
+                    if sets:
+                        inner += f" {sets};"
+                    return f"({inner} _alit)"
                 # Build a concrete `array int` of the literal's elements:
                 # `(let _alit = Array.make N e0 in _alit[1] <- e1; …; _alit)`.
-                n = len(elts)
                 e0 = self._coerce_to_int(
                     self._expr_to_whyml(elts[0], local_refs, invariant_ctx, subst))
                 sets = "; ".join(

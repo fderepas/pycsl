@@ -41,8 +41,22 @@ class TypeInferenceMixin:
         if vt in ("ArrayLit", "Tuple"):
             elts = val_ir.get("elts", [])
             self._known_collection_sizes[target] = len(elts)
-            elem_map = {i: str(int(e["value"])) for i, e in enumerate(elts)
-                        if e.get("type") == "Number" and isinstance(e.get("value"), (int, float))}
+            # WL-04a: a PURE-float literal folds an indexed read to the FAITHFUL real
+            # value (`a[1]` → `2.5`), matching the `array real` construction — never the
+            # int-truncated `2` (which would be an `int` vs `real` type error against the
+            # faithful element). Int / mixed literals keep the `str(int(...))` fold
+            # (byte-identical); a str literal has no numeric fold (reads via `Array.get`).
+            _all_float = bool(elts) and all(
+                e.get("type") == "Number" and isinstance(e.get("value"), float)
+                for e in elts)
+            if _all_float:
+                elem_map = {
+                    i: (repr(e["value"]) if not float(e["value"]).is_integer()
+                        else f'{int(e["value"])}.0')
+                    for i, e in enumerate(elts)}
+            else:
+                elem_map = {i: str(int(e["value"])) for i, e in enumerate(elts)
+                            if e.get("type") == "Number" and isinstance(e.get("value"), (int, float))}
             if elem_map:
                 self._known_collection_elements[target] = elem_map
         elif vt == "String" and isinstance(val_ir.get("value"), str):

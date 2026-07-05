@@ -806,6 +806,10 @@ class FunctionEmissionMixin:
             # even when the body returns an empty list (`return []`).
             if func.get("return_value_type") == "string":
                 return_type = "array string"
+            # WL-04a: a `-> List[float]` return is the faithful `array real` (the float leaf),
+            # so a float list-literal body type-checks and `\result[i] : real` is faithful.
+            elif func.get("return_value_type") == "real":
+                return_type = "array real"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
         elif ann == "str" and return_type == "int":

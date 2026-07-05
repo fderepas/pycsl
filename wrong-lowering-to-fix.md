@@ -193,13 +193,30 @@ false-positive against the τ-blessed baseline.
   (verified via `bin/byte-diff-sweep.sh`); no corpus program has a flat `List[str]`/`List[float]`
   PARAM (0746 is a `Dict[str, List[str]]` FIELD; 0804 is a nested `List[List[str]]` param → the
   nested path) → additive.
-- **LOCALS / RETURN (noted, out of scope):** a `List[str]` LOCAL and a `-> List[str]` RETURN that go
-  through the LIST-LITERAL construction (`a = ["x", "y"]`) still collapse the string ELEMENTS to
-  hashed ints (`Array.make 2 (747471683)`), a DISTINCT pre-existing surface (the list-literal
-  string-element lowering, not the parameter-element collapse). My param-only change does not touch
-  it; the return-ANNOTATION side already types `-> List[str]` as `array string`, so a local-literal
-  str list currently mismatches its `array string` return (TYPEERR). Filed as a separate follow-on;
-  NOT part of WL-04 (which is the PARAMETER element).
+- **LOCALS / RETURN via a LIST LITERAL (WL-04a) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). A
+  `List[str]`/`List[float]` LOCAL and a `-> List[str]`/`-> List[float]` RETURN built by a LIST
+  LITERAL (`a = ["x", "y"]`, `return ["a", "b"]`) previously collapsed the string ELEMENTS to hashed
+  ints (`Array.make 2 (747471683)`) and truncated float elements (`[1.5,2.5]`, `a[1]` folded to `2`),
+  a DISTINCT construction surface from the WL-04 PARAMETER element. The list-literal lowering
+  (`module6_whyml/expressions.py::_expr_to_whyml`, `ArrayLitExpr` arm) now detects an ALL-string
+  (resp. ALL-float) literal and builds `array string` (resp. `array real`) with the FAITHFUL element
+  values — NOT `_coerce_to_int` hashing/truncation. The indexed-read constant-fold
+  (`module6_whyml/types.py::_track_collection_metadata`) folds a pure-float literal to the faithful
+  real (`a[1]` → `2.5`, not `2`). A `-> List[float]` return annotation now resolves to `array real`
+  (Module5 `_m5_get_list_flat_elem_whyml` fallback for the return element →
+  `functions.py::_compute_return_type` `array real` arm; the `-> List[str]` → `array string` arm
+  already existed), and a contract `\result[i]` on ANY `array τ` return lowers to a native
+  `Array.get` (widened from `array int`-only, `expressions.py::_handle_subscript` L0). Drivers
+  `getting-better/wrong-lowering/wl04a_list_literal_{str_local,str_return,float_local}_*.py` →
+  PROVEN; false-content twin → UNPROVEN. `List[int]` literals stay `array int` BYTE-IDENTICAL
+  (full 704-file corpus emits byte-identically; only the 3 new locks are new). Reference locks:
+  `0826.py` (POSITIVE `List[str]` literal local + `-> List[str]` return element read), `0827.py`
+  (POSITIVE `List[float]` literal local + `-> List[float]` return), `0828.py` (NEGATIVE
+  `# pycsl-expected: FAIL` false element-content twin). SMT spike
+  `test-suite/corpus/conformance/spikes/wl04a_list_literal_elem_spike.mlw` (Valid on Alt-Ergo AND
+  Z3, no cited lemma). STILL OUT OF SCOPE: a `List[<record>]` literal (would need the WL-03 record
+  seam threaded to the literal) and a MIXED-element literal (`[1, "x"]` / `[1, 2.5]` — no single
+  faithful element type) keep the int-coercion default (documented).
 - **Record element (noted):** `List[<record>]` is not yet realized as `array <record>` (would need
   the WL-03 record-synthesis seam threaded to the flat list param); str/float — the two faithful
   scalar leaves and the two repro drivers — are done.

@@ -1,0 +1,74 @@
+(* WL-04a SMT-feasibility spike: prove that a str/float LIST-LITERAL — built by the
+   emitter as `(let _alit = Array.make n e0 in _alit[1] <- e1; …; _alit)` — reads its
+   element at the FAITHFUL non-int type, both for a LOCAL and for a `-> List[str]` /
+   `-> List[float]` RETURN.
+
+   Python `a = ["x", "y", "z"]` (a LOCAL) and `return ["a", "b"]` (a `-> List[str]`
+   RETURN) previously LOWERED their string elements to hashed ints — the literal
+   emitted `Array.make n (747471683)` (a `stable_hash`ed int placeholder), so a
+   str-list local's element read was wrong-typed (`int` vs `string`) and a
+   `-> List[str]` return mismatched its `array string` type (Detector D2: TYPEERR);
+   a float literal read folded to the int-truncated value (`2.5` → `2`). This is a
+   DISTINCT construction surface from the WL-04 PARAMETER element (already fixed).
+   The faithful lowering (wrong-lowering-to-fix.md §WL-04 list-literal residual)
+   builds the literal at the element type — `array string` / `array real` with the
+   real string/real values — matching what the param path already does.
+
+   This fixture is the ground-truth that the CONSTRUCTED literal reasons CLEANLY at
+   the faithful element type on BOTH Alt-Ergo AND Z3 — no cited lemma needed (native
+   `array` construction + read). The str and real element types live in separate
+   modules so the `int` array-index literals and the `real`/`string` element literals
+   never share a notation scope. *)
+
+module WL04aSpikeStrLocal
+  use int.Int
+  use string.String
+  use array.Array
+
+  (* the faithful lowering of `a = ["x", "y", "z"]; return a[1]` — the literal is
+     built as `array string`, so a fixed-index read yields the written `string`. *)
+  let f () : string
+    ensures { result = "y" }
+  = let a = (let _alit = Array.make 3 "x" in _alit[1] <- "y"; _alit[2] <- "z"; _alit) in
+    a[1]
+
+  (* make-or-break: each constructed slot equals its written element and distinct
+     slots are independent (pure `array string` theory). *)
+  let test_str_local () =
+    let a = (let _alit = Array.make 3 "x" in _alit[1] <- "y"; _alit[2] <- "z"; _alit) in
+    assert { a[0] = "x" };
+    assert { a[1] = "y" };
+    assert { a[2] = "z" }
+end
+
+module WL04aSpikeStrReturn
+  use int.Int
+  use string.String
+  use array.Array
+
+  (* the faithful lowering of `def f() -> List[str]: return ["a", "b"]` — the result
+     is an `array string`, and a contract `\result[0] == "a"` reads it natively. *)
+  let f () : array string
+    ensures { result[0] = "a" }
+    ensures { result[1] = "b" }
+  = (let _alit = Array.make 2 "a" in _alit[1] <- "b"; _alit)
+end
+
+module WL04aSpikeRealLocal
+  use real.Real
+  use int.Int
+  use array.Array
+
+  (* the faithful lowering of `a = [1.5, 2.5]; return a[1]` — the literal is built as
+     `array real`, so the fractional element value is preserved (never truncated). *)
+  let g () : real
+    ensures { result = 2.5 }
+  = let a = (let _alit = Array.make 2 1.5 in _alit[1] <- 2.5; _alit) in
+    a[1]
+
+  (* make-or-break: the constructed real slots equal their written elements. *)
+  let test_real_local () =
+    let a = (let _alit = Array.make 2 1.5 in _alit[1] <- 2.5; _alit) in
+    assert { a[0] = 1.5 };
+    assert { a[1] = 2.5 }
+end

@@ -954,3 +954,52 @@ FAIL`: a false byte-content conflation `b[0]` claimed `== b[1]` — stays UNPROV
 over-claim). Repro `getting-better/wrong-lowering/wl06_bytes_index_WRONGREPR.py` → TYPEERR→type-checks
 (bare read UNPROVEN on the honest bounds VC). `wrong-lowering-to-fix.md` §WL-06 (→ FIXED) + summary
 table (ALL 6 WL-* FIXED), and translational §T.15.6 updated.
+
+---
+
+## WL-04a — str/float LIST-LITERAL local & return are element-faithful (`array string`/`array real`)
+
+**Date:** 2026-07-05. **Branch:** `ghost-assign-bc6`. **Status:** IMPLEMENTED.
+
+**Decision.** Realize a `List[str]`/`List[float]` LOCAL or RETURN built by a LIST LITERAL
+(`a = ["x", "y"]`, `return ["a", "b"]`, `return [1.5, 2.5]`) at the FAITHFUL element type
+(`array string` / `array real`) — the CONSTRUCTION analog of the WL-04 PARAMETER fix (`d2e500f0`).
+This closes the "LOCALS / RETURN" residual that WL-04 explicitly filed as a distinct pre-existing
+surface.
+
+**Why.** WL-04 realized a `List[str]`/`List[float]` PARAMETER element as `array string`/`array real`,
+but a list-literal CONSTRUCTION still ran every element through `_coerce_to_int`: `["x","y"]` emitted
+`Array.make 2 (747471683)` (a `stable_hash`ed int placeholder) and a float read folded to the
+int-truncated value (`[1.5,2.5]`, `a[1]`→`2`). So a str-list LOCAL's element read was wrong-typed
+(`int` vs `string`) and a `-> List[str]` RETURN mismatched its `array string` type (TYPEERR) — a
+legitimate faithful-typed program REJECTED. Faithful semantics (no-more-int doctrine) demands the
+literal carry its real string/real element values.
+
+**Implementation (4 guarded edits).**
+1. `module6_whyml/expressions.py::_expr_to_whyml` (`ArrayLitExpr` arm): detect an ALL-string (resp.
+   ALL-float) literal and build `(let _alit = Array.make n e0 in _alit[i] <- ei; …; _alit)` at the
+   faithful element type — NO `_coerce_to_int`. Mixed / non-scalar literals keep the int default.
+2. `module6_whyml/types.py::_track_collection_metadata`: a PURE-float literal folds an indexed read
+   to the faithful real (`2.5`), not the int-truncated `2`. Int / mixed literals unchanged.
+3. `frontend/Module5_IREmitter.py`: a `-> List[float]` return captures `return_value_type = "real"`
+   (via the `_m5_get_list_flat_elem_whyml` fallback), so Module6 emits `array real`.
+4. `module6_whyml/functions.py::_compute_return_type`: `return_value_type == "real"` → `array real`;
+   `expressions.py::_handle_subscript` L0 widened from `array int`-only to ANY `array τ` return, so
+   `\result[i]` on a str/float array return lowers to a native `Array.get`.
+
+**Additive / no regression.** The full 704-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
+(`bin/byte-diff-sweep.sh`, before/after via stash — only the 3 new locks are new); an all-`int`/`bool`
+literal stays `array int`. NO new axiom. `\trusted` non-increasing. Drivers
+`getting-better/wrong-lowering/wl04a_list_literal_{str_local,str_return,float_local}_*.py` → PROVEN.
+
+**Regression locks.** `0826.py` (POSITIVE: `List[str]` literal LOCAL element read + `-> List[str]`
+RETURN element read — PROVES), `0827.py` (POSITIVE: `List[float]` literal LOCAL + `-> List[float]`
+RETURN, fractional value preserved — PROVES), `0828.py` (NEGATIVE `# pycsl-expected: FAIL`: a false
+element-content conflation — stays UNPROVEN). SMT spike
+`test-suite/corpus/conformance/spikes/wl04a_list_literal_elem_spike.mlw` (Valid on Alt-Ergo AND Z3,
+no cited lemma). `wrong-lowering-to-fix.md` §WL-04 residual → IMPLEMENTED; translational τ-table +
+static-semantics §Flat note updated.
+
+**Out of scope (documented, not faked).** A `List[<record>]` literal (would need the WL-03 record
+seam threaded to the literal) and a MIXED-element literal (`[1, "x"]` / `[1, 2.5]` — no single
+faithful element type) keep the int-coercion default.

@@ -325,8 +325,13 @@ parameter as `array string` / `array real` (`_param_type_str`, right after the n
 (drivers `wl04_list_{str,float}_elem_COLLAPSED.py`; locks 0817/0818, NEGATIVE 0819). A flat
 `List[int]`/`List[bool]` has NO entry → byte-identical `array int` (int-leaf is the τ-blessed default).
 This is the one-level-up analog of the nested `array (seq τ)` model below. A `List[str]`/`List[float]`
-LOCAL/RETURN built by a LIST LITERAL is a distinct pre-existing surface (its literal construction
-collapses the elements), not part of §WL-04.
+LOCAL/RETURN built by a LIST LITERAL is the CONSTRUCTION analog, now covered by **§WL-04a (FIXED)**:
+the list-literal lowering (`module6_whyml/expressions.py`, `ArrayLitExpr`) detects an all-string
+(resp. all-float) literal and builds `array string`/`array real` with the faithful element values (not
+`_coerce_to_int` hashing/truncation); a `-> List[float]` return resolves to `array real` and a
+contract `\result[i]` on any `array τ` return lowers to a native `Array.get` (drivers
+`wl04a_list_literal_*.py`; locks 0826/0827, NEGATIVE 0828). A MIXED-element or `List[<record>]`
+literal keeps the int-coercion default (documented).
 
 **§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
 is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT
