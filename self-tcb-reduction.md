@@ -179,6 +179,50 @@ add a `@mutable_state` witness per `pycsl-how-to-develop §8.2` if it can verify
 | T3 | front-end pipeline | ~671 | 0 | ~671 | ◻ demand-gated |
 | T4 | tooling / orchestration | ~192 | 0 | ~192 | ◻ re-site to F3 (mostly) |
 
+### Iteration 2026-07-05 — TIER-1 trivial-leaf batch (streamlined gate §5.1)
+
+Batch-converted the triage-ranked TIER-1 "free win" trivial-leaf stubs. Global `\trusted` grep
+count **1260 → 1252** (net **8** converted, all mirror-only, byte-diff 0 by construction —
+`src/pycsl` emitter + corpus BYTE-IDENTICAL to baseline `961c89f9`). No emitter file touched; no
+axiom / allowlist change.
+
+**Converted (8, each proven — fidelity + full-file Why3 discharge, or `--fun` for the two big
+files):**
+- `proof2why3/crosscheck.py` — `_module_namespace_of` (const-string) — 8→7
+- `frontend/Module2_Parser.py` — `__init__` (rdp-compat `pass`) — 91→90
+- `frontend/Module1_Ingestor.py` — `_clean` (string slice+strip) — 18→17
+- `frontend/ir_inline.py` — `_method_key` (all-string f-string) — 17→16
+- `Module6_WhyMLTranspiler.py` — `_wrap_unannotated_call_with_strict_assert` — 22→21
+- `proof2why3/ir.py` — `Var.pp` (`return self.name`), `Unsupported.pp` (f-string over str field);
+  frozen `@dataclass` fields DO render as `string` record fields — 13→11
+- `module6_whyml/stmt_control_flow.py` — `_union_arm_whyml_type` (string-dict `.get`) — 23→22
+
+**Reclassified non-trivial / proof-not-free (deferred, `\trusted` restored):**
+- `module6_whyml/ir_scanner.py` — **all 18** candidates. `uses_inline_set_or_dict_ops` = typecheck
+  fail (`obj.values()` → int/array mismatch). The 17 recursive IR-tree walkers: **13 discharge in
+  per-function `--fun` isolation** but the **full-file gate FAILS** — Alt-Ergo times out (30 s/goal)
+  on the postcondition / array-creation VCs of the recursive-scanner set in the COMBINED file
+  context; even a 13-only subset full-file proof times out. `--no-proof` (typecheck-only, the triage
+  probe's basis) was too weak an oracle here. Proof-not-free: needs a per-goal-timeout bump or a
+  recursion lemma, out of tier-1 scope.
+- `module6_whyml/expr_ghost_collections.py` — 3 const-string handlers
+  (`_handle_map_empty/set_empty/nil_expr`): live signature `node: "ExprIR"` lowers to `unbound type
+  symbol 'emit_ir'` standalone (sync forbids changing the def line). Gated on the emit_ir ADT.
+- `module6_whyml/types.py` — `_val_is_bool`, `_bool_ir_to_int_wrap`: explicit `Dict[str, Any]`
+  param triggers the faithful `map string (option int)` model; `.get("type")` → `option int`
+  mismatches the string-literal comparisons (`is None` also mismatches on a map). Value-model gap.
+- `module6_whyml/functions.py` — `_symtype_to_whyml`: `Optional[str]` + tuple-membership emits a
+  `_union__…` type that mismatches the string return.
+- `proof2why3/ir.py` — `BoolLit.pp`: `bool` record field ITE → int/string type mismatch.
+- `module6_whyml/stmt_control_flow.py` — `_try_local_decl_kind` (Dict-param map model + self-field);
+  the 4 nominal candidates (`_materialize_bridge`, `_materialize_str_bridge`, `_bool_ir_to_int_wrap`,
+  `_coerce_to_int`) are **mirror-only** (no live counterpart in `stmt_control_flow.py` — the real
+  leaf is the sibling home file), so converting them here would earn NO fidelity guarantee — skipped.
+
+**Batch confirmation:** fidelity (`check-self-annotate-sync.sh`) green; byte-diff 0 by construction
+(emitter+corpus unchanged vs baseline); full `run-self-annotation-suite.sh` — no NEW failure vs the
+known pre-existing set. Commits: `3400ceef e88026c8 f556927b 47464411 19417433 5671455e 281ab3ec`.
+
 **Definition of done.** Every `.py` stub in the mirror is either (a) a verified body or (b)
 enumerated in the F1/F3 audited floor with a reason; the `wc -l` trusted count is reduced to that
 floor; `check-self-annotate-sync.sh`, `self-annotate-mirror-check.sh`, and
