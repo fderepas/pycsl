@@ -335,8 +335,28 @@ the list-literal lowering (`module6_whyml/expressions.py`, `ArrayLitExpr`) detec
 (resp. all-float) literal and builds `array string`/`array real` with the faithful element values (not
 `_coerce_to_int` hashing/truncation); a `-> List[float]` return resolves to `array real` and a
 contract `\result[i]` on any `array τ` return lowers to a native `Array.get` (drivers
-`wl04a_list_literal_*.py`; locks 0826/0827, NEGATIVE 0828). A MIXED-element or `List[<record>]`
-literal keeps the int-coercion default (documented).
+`wl04a_list_literal_*.py`; locks 0826/0827, NEGATIVE 0828). A MIXED-element literal is REJECTED
+fail-closed (**§WL-04g** below); a `List[<record>]` literal is covered by §WL-04c.
+
+**§ MIXED-element list literal — REJECTED (wrong-lowering-to-fix.md §WL-04g, DOCUMENTED SOUND
+BOUNDARY).** A HETEROGENEOUS list literal (`[1, "x"]`, `[1, 2.5]`, `[1, Point(2, 3)]`) has NO faithful
+`array τ` element type: a Python list is heterogeneous, but a WhyML `array` is HOMOGENEOUS. Every
+UNIFORM element shape is already handled by an earlier rule (all-int/bool `array int`; all-str/all-float
+§WL-04a; all-equal-arity-tuple `array (t0,…)`; all-record §WL-04c), so a NON-int-faithful element (a
+`str` literal, a `float` `Number`, a `Tuple`, or a known-record constructor `Call`) surviving to the
+int-coercion FALLBACK proves the literal is MIXED. The int-coercion default is UNSOUND there — a `str`
+element hashes to a WELL-TYPED int, so `[1, "x"]` used to build `array int` with `a[1] = 976090257`
+(under `PYTHONHASHSEED=0`) and a contract `\result == 976090257` on `a[1]` PROVED, a claim FALSE of
+real Python where `a[1]` is the STRING `"x"` (a SEVERITY-1 UNSOUNDNESS, now fixed); a `float`/record
+element ill-typed the `array int` (silent Why3 TYPEERR). The static rule (`module6_whyml/
+expressions.py::_mixed_literal_reject_kind`, called from the `ArrayLitExpr` fallback) FAILS CLOSED with
+a clear `PyCSLSemanticError` naming the offending element kind and directing the user to a homogeneous
+list, a `Tuple` (fixed-arity heterogeneous slots), or a record/`@dataclass` (heterogeneous fields). A
+homogeneous all-int/bool/expression literal is NOT flagged (byte-identical `array int`). Drivers
+`wl04g_mixed_int_{str,float,record}_falsetwin.py` (REJECTED — no false content claim proves),
+`wl04g_mixed_int_str_UNSOUND.py` (PROVEN pre-fix → now REJECTED), `wl04g_homogeneous_int_POSITIVE.py`
+(PROVEN — no over-rejection); boundary spike `wl04g_mixed_literal_boundary_spike.mlw`; locks 0850
+(POSITIVE), NEGATIVE 0851/0852/0853.
 
 **§ Flat RECORD-element list param (wrong-lowering-to-fix.md §WL-04b).** A parameter (and
 pass-through return) annotated with a FLAT `List[R]` whose element `R` is a KNOWN record — a user

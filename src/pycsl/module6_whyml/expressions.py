@@ -3669,6 +3669,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return [self._subst_params(x, arg_nodes) for x in ir]
         return ir
 
+    def _mixed_literal_reject_kind(self, elts: List[Dict[str, Any]]) -> Optional[str]:
+        """WL-04g (wrong-lowering-to-fix.md §WL-04 mixed-element residual): return a
+        human-readable KIND string for the first element of a list literal whose
+        faithful type is NON-int — a `str` literal, a `float` `Number`, a `Tuple`, or
+        a known record constructor `Call` — or None if every element is
+        int-coercible (an int/bool literal, or an expression the model treats as int:
+        a `Var`/`BinOp`/non-record `Call`/…).
+
+        This is a FAIL-CLOSED guard called ONLY from the `ArrayLitExpr` int-coercion
+        FALLBACK, i.e. AFTER the uniform non-int branches (all-str/all-float WL-04a,
+        all-record WL-04c, all-equal-arity-tuple) have already claimed the
+        homogeneous cases. So a non-int element surviving to here PROVES the literal
+        is heterogeneous — a heterogeneous `array` has no faithful WhyML type and
+        must be rejected (never int-coerced: a `str` would hash to a well-typed int
+        and PROVE a false content claim; a `float`/record would ill-type). Returns
+        None (→ the caller keeps the sound `array int` path, byte-identical) when the
+        literal is all-int/bool/expression."""
+        rec_types = getattr(self, "_record_types", {})
+        for e in elts:
+            if not isinstance(e, dict):
+                continue
+            et = e.get("type")
+            if et == "String":
+                return "str"
+            if et == "Number" and isinstance(e.get("value"), float):
+                return "float"
+            if et == "Tuple":
+                return "tuple"
+            if et == "Call" and e.get("func") in rec_types:
+                return f"record ({e.get('func')})"
+        return None
+
     def _record_ctor_list_elem(self, elts: List[Dict[str, Any]]) -> Optional[str]:
         """WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): if EVERY
         element of a list literal is a full-arity constructor Call to the SAME known
@@ -6112,6 +6144,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if sets:
                         inner += f" {sets};"
                     return f"({inner} _alit)"
+                # WL-04g (wrong-lowering-to-fix.md §WL-04 mixed-element residual):
+                # a HETEROGENEOUS list literal has NO faithful `array τ` element
+                # type — Python lists are heterogeneous, a WhyML `array` is
+                # HOMOGENEOUS. Every UNIFORM non-int shape (all-str/all-float via
+                # WL-04a, all-record via WL-04c, all-equal-arity-tuple above) has
+                # already been claimed; so reaching this int-coercion fallback with
+                # ANY element whose faithful type is non-int (a `str` literal, a
+                # `float` Number, a `Tuple`, or a known record constructor) means
+                # the literal is genuinely MIXED. The int-coercion default is UNSAFE
+                # on such a literal: a `str` element HASHES to a WELL-TYPED int
+                # (`[1, "x"]` emits `array int` with `a[1] = 976090257`, so
+                # `a[1] == 976090257` PROVES — a claim FALSE of real Python where
+                # `a[1]` is the string `"x"`: severity-1 UNSOUND), and a `float` /
+                # record element ill-types the `array int` (silent TYPEERR / broken
+                # emission). FAIL CLOSED with a clear diagnostic instead. A uniform
+                # all-int / all-bool / expression literal is NOT flagged (stays
+                # `array int`, byte-identical).
+                _mix = self._mixed_literal_reject_kind(elts)
+                if _mix is not None:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"heterogeneous list literal (contains a {_mix} element "
+                        f"mixed with other element types) has no faithful WhyML "
+                        f"`array` element type: a Python list is heterogeneous but "
+                        f"a WhyML `array` is homogeneous. Coercing the non-int "
+                        f"element to an int would be unsound (a str hashes to a "
+                        f"well-typed int; a float/record ill-types). Use a "
+                        f"homogeneous list, a Tuple (fixed-arity heterogeneous "
+                        f"slots), or a record/@dataclass for heterogeneous fields.")
                 # Build a concrete `array int` of the literal's elements:
                 # `(let _alit = Array.make N e0 in _alit[1] <- e1; …; _alit)`.
                 e0 = self._coerce_to_int(

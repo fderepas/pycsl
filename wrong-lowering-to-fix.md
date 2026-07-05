@@ -214,9 +214,40 @@ false-positive against the τ-blessed baseline.
   (POSITIVE `List[float]` literal local + `-> List[float]` return), `0828.py` (NEGATIVE
   `# pycsl-expected: FAIL` false element-content twin). SMT spike
   `test-suite/corpus/conformance/spikes/wl04a_list_literal_elem_spike.mlw` (Valid on Alt-Ergo AND
-  Z3, no cited lemma). STILL OUT OF SCOPE: a `List[<record>]` literal (would need the WL-03 record
-  seam threaded to the literal) and a MIXED-element literal (`[1, "x"]` / `[1, 2.5]` — no single
-  faithful element type) keep the int-coercion default (documented).
+  Z3, no cited lemma). STILL OUT OF SCOPE: a `List[<record>]` literal (now covered by **WL-04c**);
+  a MIXED-element literal (`[1, "x"]` / `[1, 2.5]` / `[1, Point(2,3)]`) is now a **DOCUMENTED SOUND
+  BOUNDARY — WL-04g** (below): it is REJECTED fail-closed (was int-coercion, which was UNSOUND for
+  the str case).
+- **MIXED-element literal (WL-04g) — ✅ DOCUMENTED SOUND BOUNDARY / soundness FIX** (branch
+  `ghost-assign-bc6`). A HETEROGENEOUS list literal (`[1, "x"]`, `[1, 2.5]`, `[1, Point(2, 3)]`) has
+  NO faithful `array τ` element type — a Python list is heterogeneous, a WhyML `array` is
+  HOMOGENEOUS. The audit found the previous int-coercion default was **SEVERITY-1 UNSOUND for the
+  int+str case**: `[1, "x"]` hash-coerced `"x"` to a WELL-TYPED int (`976090257` under
+  `PYTHONHASHSEED=0`) and built `array int`, so a contract `\result == 976090257` on `a[1]` PROVED —
+  a claim FALSE of real Python (`a[1]` is the string `"x"`). Witness:
+  `getting-better/wrong-lowering/wl04g_mixed_int_str_UNSOUND.py` was **PROVEN** before the fix. (The
+  int+float and int+record cases already failed closed via a Why3 TYPEERR — the float/record cannot
+  type into `array int` — but were ugly broken emissions.) **FIX (fail-closed, additive):** a new
+  guard `module6_whyml/expressions.py::_mixed_literal_reject_kind`, called from the `ArrayLitExpr`
+  int-coercion FALLBACK, detects any element whose faithful type is non-int (a `str` literal, a
+  `float` `Number`, a `Tuple`, or a known-record constructor `Call`) — which, since every UNIFORM
+  non-int shape (all-str/all-float WL-04a, all-record WL-04c, all-equal-arity-tuple) is already
+  claimed above, PROVES the literal is mixed — and raises a clear `PyCSLSemanticError` naming the
+  offending element kind and directing the user to a homogeneous list, a `Tuple` (fixed-arity
+  heterogeneous slots), or a record/`@dataclass` (heterogeneous fields). A homogeneous
+  all-int/bool/expression literal is NOT flagged (byte-identical `array int`). Verdict flips: the
+  three false-twin drivers `wl04g_mixed_int_{str,float,record}_falsetwin.py` and the unsound witness
+  `wl04g_mixed_int_str_UNSOUND.py` are all **REJECTED** (no false content claim proves); the positive
+  regression `wl04g_homogeneous_int_POSITIVE.py` stays **PROVEN** (no over-rejection). Boundary spike
+  `test-suite/corpus/conformance/spikes/wl04g_mixed_literal_boundary_spike.mlw` (the sound
+  homogeneous `array int` Valid on **both** Alt-Ergo AND Z3; the mixed-float array is Why3
+  TYPE-rejected — the boundary witness). Reference locks: `0850.py` (POSITIVE homogeneous — guards
+  over-rejection), `0851.py` (NEGATIVE `# pycsl-expected: FAIL` — int+str, the headline soundness
+  lock), `0852.py` (NEGATIVE int+float), `0853.py` (NEGATIVE int+record). Full-corpus byte-diff = 0
+  (no corpus program is a mixed literal). A future faithful model would require a heterogeneous-sum
+  element type (a Why3 variant over the element categories), well beyond the homogeneous `array`
+  model. Docs: τ-table + §T.6.1 concrete-array row in `pycsl-translational-reference.md`, the
+  `§ MIXED-element list literal` rule in `pycsl-static-semantics-reference.md`.
 - **Record element (WL-04b) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). A flat `List[<record>]`
   PARAMETER (and pass-through RETURN) — where the element `R` is a KNOWN record: a user
   `@dataclass`/`NamedTuple` class OR a recognized `Tuple[T1, …, Tn]` (WL-03's synthesized per-slot

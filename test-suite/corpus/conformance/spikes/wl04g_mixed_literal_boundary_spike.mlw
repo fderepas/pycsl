@@ -1,0 +1,42 @@
+(* WL-04g SMT/type spike — the MIXED-element list-literal BOUNDARY.
+   wrong-lowering-to-fix.md §WL-04 residual: [1, "x"] / [1, 2.5] / [1, Point(2,3)]
+   has NO faithful `array tau` element type (Python lists are heterogeneous; a WhyML
+   `array` is HOMOGENEOUS). This spike is a BOUNDARY spike (brief §1): it DEMONSTRATES
+   the type-rejection that proves the item is a genuine boundary, and locks the SOUND
+   homogeneous witness that PyCSL still emits.
+
+   PART A (the boundary) — a heterogeneous array is Why3 TYPE-REJECTED. Uncomment the
+   `boundary_infeasible` module below and run
+       why3 prove -P z3 wl04g_mixed_literal_boundary_spike.mlw
+   Why3 reports a type error at `_alit[1] <- (2.5: real)` ("this term has type real
+   but is expected to have type int") — there is no single element type, so NO
+   `array tau` literal exists. That is the boundary: it cannot be lowered, only
+   REJECTED (fail closed). The int+str variant is even more dangerous: the string
+   coerces to a WELL-TYPED int hash, so the ill-typing does NOT even fire — the model
+   would silently PROVE `a[1] == <hash>`, a claim FALSE of real Python (severity-1
+   UNSOUND). Hence the fix REJECTS the mixed literal outright. *)
+
+module BoundaryInfeasible
+  use int.Int
+  use real.RealInfix
+  use array.Array
+
+  (* Homogeneous `array int` is fine: *)
+  let sound_homogeneous () : int
+    ensures { result = 2 }
+  = let a = Array.make 2 1 in
+    a[1] <- 2;
+    a[1]
+
+  (* A MIXED literal [1, 2.5] has NO faithful element type. This is what the
+     int-coercion default emits for the float variant. It is TYPE-REJECTED:
+        a[1] <- (2.5 : real)   -- error: expected int, got real
+     (kept commented so the file's SOUND module still checks Valid; uncomment to
+     WITNESS the boundary type error.) *)
+  (*
+  let mixed_infeasible () : int
+  = let a = Array.make 2 1 in
+    a[1] <- 2.5;   (* TYPE ERROR: real into array int -> the boundary *)
+    a[1]
+  *)
+end
