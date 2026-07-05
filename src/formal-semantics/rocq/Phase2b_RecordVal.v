@@ -1,23 +1,38 @@
-(* Phase7_Spike.v — FEASIBILITY SPIKE (T3.0.3, tier-3 plan)
+(* Phase2b_RecordVal.v — record/ADT-VALUED `val` for nested aliasing.
 
-   Record/ADT-VALUED `val` for nested aliasing (`o.b.c`, shared sub-records)
-   — the deferred Phase-7 item (README §2.2).  This file is a *spike*: it does
-   NOT modify the load-bearing soundness chain (Phase2..Phase6).  It imports the
-   REAL `val`/`state`/`lookup`/`update`/`eval_expr` from Phase2_State and shows,
-   against those exact definitions, that:
+   TIER-3 Phase 3 (T3.3.1): the PROMOTION of the Phase-0 feasibility spike
+   (formerly Phase7_Spike.v) into the *certified build*.  This file is listed
+   in `_CoqProject` immediately after `Phase2_State.v`, so `make` compiles and
+   checks it as a first-class part of the formal-semantics soundness chain.
 
-     (1) a record/ADT-valued value `val7` with NESTED projection is expressible;
+   It certifies exactly the construct the Phase-1 emitter `ir_node` ADT reads:
+   a nested record/variant value whose field projection is a `path_get`.  It
+   imports the REAL `val`/`state`/`lookup`/`update` from `Phase2_State` and
+   proves, against those exact definitions, that:
+
+     (1) a record/ADT-valued value `val7` with NESTED projection is expressible
+         (this is the `ir_node` discriminant + field-projection shape — a
+         `BinOp` holding `left`/`right` sub-nodes is a record whose field read
+         is `path_get [field]`);
      (2) READ-BACK holds: set `o.b.c := v`, then get `o.b.c` = v   (nested);
      (3) FRAME holds: set `o.b.c` leaves `o.b.d` unchanged           (nested);
      (4) the extension is CONSERVATIVE: a record-free program embeds into the
-         extended state and its `lookup`/`update` behave IDENTICALLY to the base
-         Phase-2 `lookup`/`update` — i.e. `SAssign`'s WP arm is unchanged.
+         extended state and its `lookup`/`update` behave IDENTICALLY to the
+         base Phase-2 `lookup`/`update` — i.e. `SAssign`'s WP arm is unchanged,
+         hence `pycsl_soundness` (Phase5b) re-proves with NO new axiom.
 
-   Verdict is decided by `Print Assumptions` at the bottom: every spike lemma
-   must be *closed under the global context* (NO axiom) so the 3-axiom trust
-   ledger stays intact.
+   This is a CONSERVATIVE promotion: it does NOT add a `VRec` constructor to
+   the core `val` inductive (which would cascade across the 22-constructor
+   soundness induction), it adds the record-valued value ALONGSIDE `val` with
+   an injection `inj_val : val -> val7` and proves the SAssign arm intact.
+   Per the tier-3 plan §0/Phase-3, this conservative extension "alone satisfies
+   the coupling for what Phase-1 emitted".
 
-   Nothing here is `Admitted`.  Build: coqc -R . PyCSL Phase7_Spike.v  *)
+   The `Print Assumptions` block at the bottom is the make-or-break trust
+   check: every result must be "Closed under the global context" (NO axiom) so
+   the 3-axiom trust ledger stays intact.
+
+   Nothing here is `Admitted`.  Build: part of `make` (see `_CoqProject`). *)
 
 Require Import ZArith String List Bool.
 Require Import Phase1_AST.
@@ -34,7 +49,11 @@ Import ListNotations.
    map names to *further* record values (nested inductive through `list`,
    which Rocq accepts positively).  This is the `VRec : (field -> val) -> val`
    the plan asks for, realized as a finite association list of sub-values so
-   that projection/update are structurally recursive and axiom-free. *)
+   that projection/update are structurally recursive and axiom-free.
+
+   Emitter-side reading: an `ir_node` such as `BinOp op left right` is the
+   record `V7Rec [("op", ...); ("left", <sub>); ("right", <sub>)]`; the emitter
+   read `ir.get("right")` is `path_get node ["right"]`. *)
 Inductive val7 : Type :=
   | V7Int (n : Z)
   | V7Arr (a : list Z)
@@ -136,7 +155,9 @@ Proof.
   - rewrite frec_get_set_eq. apply IH.
 Qed.
 
-(* Concrete instance the plan names explicitly: o.b.c := v  ⟹  o.b.c = v. *)
+(* Concrete instance the plan names explicitly: o.b.c := v  ⟹  o.b.c = v.
+   Emitter reading: after the recognizer rewrites a node's "right" sub-node,
+   reading it back yields exactly that sub-node. *)
 Corollary read_back_bc :
   forall o v, path_get (path_set o ["b"; "c"] v) ["b"; "c"] = Some v.
 Proof. intros; apply path_read_back. Qed.
@@ -174,7 +195,9 @@ Proof.
 Qed.
 
 (* Concrete instance the plan names explicitly:
-   o.b.c := v  leaves  o.b.d  unchanged. *)
+   o.b.c := v  leaves  o.b.d  unchanged.  Emitter reading: rewriting a node's
+   "left" sub-node does not disturb its "right" sub-node — the frame guarantee
+   a structural-recursive handler needs. *)
 Corollary frame_bc_bd :
   forall o v,
     path_get (path_set o ["b"; "c"] v) ["b"; "d"] = path_get o ["b"; "d"].
@@ -254,8 +277,8 @@ Theorem assign_arm_matches_base :
 Proof. intros; apply lookup7_lift. Qed.
 
 (* ===================================================================== *)
-(* 6. VERDICT — assumption audit.  Every spike result must be closed      *)
-(*    under the global context (NO axiom): the 3-axiom ledger is intact.  *)
+(* 6. VERDICT — assumption audit.  Every result must be closed under the  *)
+(*    global context (NO axiom): the 3-axiom trust ledger is intact.      *)
 (* ===================================================================== *)
 
 Print Assumptions path_read_back.

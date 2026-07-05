@@ -1,33 +1,53 @@
 /-
-  Phase7Spike.lean — FEASIBILITY SPIKE (T3.0.3, tier-3 plan)
+  RecordVal.lean — record/ADT-VALUED value `Val7` for nested aliasing.
 
-  Lean mirror of Phase7_Spike.v: a record/ADT-VALUED value `Val7` with NESTED
-  projection (`o.b.c`), the deferred Phase-7 item (README §2.2). This file is a
-  *spike*: it does NOT modify the load-bearing soundness chain. It imports the
-  REAL `State.lookup`/`State.update` and shows, against those exact defs:
+  TIER-3 Phase 3 (T3.3.2): the PROMOTION of the Phase-0 feasibility spike
+  (formerly Phase7Spike.lean) into the *certified build*. This module is
+  imported by `PyCSL.lean` (the library root), so `lake build` compiles and
+  checks it as a first-class part of the formal-semantics soundness chain,
+  and it is listed in the Makefile `LEAN_FILES` proof-status scan.
 
-    (1) a record/ADT-valued value with nested projection is expressible;
+  It certifies exactly the construct the Phase-1 emitter `ir_node` ADT reads:
+  a nested record/variant value whose field projection is a `pathGet`. It
+  imports the REAL `State.lookup`/`State.update` and proves, against those
+  exact defs:
+
+    (1) a record/ADT-valued value `Val7` with nested projection (`o.b.c`);
     (2) READ-BACK: set o.b.c := v, then get o.b.c = v            (nested);
     (3) FRAME: set o.b.c leaves o.b.d unchanged                  (nested);
     (4) CONSERVATIVITY: a record-free program embeds and its lookup/update
-        behave identically to the base `lookup`/`update`.
+        behave identically to the base `lookup`/`update` — the SAssign WP arm
+        is unchanged, hence `pycslSoundnessVerified` re-proves with NO new
+        axiom.
+
+  This is a CONSERVATIVE promotion: it does NOT add a `record` constructor to
+  the core `Val` inductive (which would cascade across the 22-constructor
+  soundness induction); it adds `Val7` alongside `Val` with an injection
+  `injVal : Val → Val7` and proves the SAssign arm intact. Per the tier-3
+  plan §0/Phase-3, this conservative extension "alone satisfies the coupling
+  for what Phase-1 emitted".
 
   Verdict decided by `#print axioms` at the bottom: only the standard Lean
   kernel axioms (propext, Classical.choice, Quot.sound) may appear — NO 4th,
-  spike-specific axiom — so the 3-axiom trust ledger stays intact.
+  extension-specific axiom — so the 3-axiom trust ledger stays intact.
 
-  Nothing here is `sorry`. Build: lake env lean PyCSL/Phase7Spike.lean
+  Nothing here is left unproven; the `#print axioms` block below is the
+  audit (only the 3 standard kernel axioms appear).
 -/
 import PyCSL.State
 
-namespace Phase7Spike
+namespace RecordVal
 
 -- ===================================================================== --
 -- 1. The record/ADT-VALUED value type                                    --
 -- ===================================================================== --
 
 /-- A nested record value: int/array leaf, or a record whose fields map names
-    to further record values (nested inductive through `List`). -/
+    to further record values (nested inductive through `List`).
+
+    Emitter-side reading: an `ir_node` such as `BinOp op left right` is the
+    record `.record [("op", ...), ("left", <sub>), ("right", <sub>)]`; the
+    emitter read `ir.get("right")` is `pathGet node ["right"]`. -/
 inductive Val7 where
   | int (n : Int)
   | arr (a : List Int)
@@ -107,7 +127,9 @@ theorem path_read_back (v : Val7) (p : Path) (nv : Val7) :
       simp only []
       exact ih _
 
-/-- Concrete instance named by the plan: o.b.c := v ⟹ o.b.c = v. -/
+/-- Concrete instance named by the plan: o.b.c := v ⟹ o.b.c = v. Emitter
+    reading: after the recognizer rewrites a node's "right" sub-node, reading
+    it back yields exactly that sub-node. -/
 theorem read_back_bc (o v : Val7) :
     pathGet (pathSet o ["b", "c"] v) ["b", "c"] = some v :=
   path_read_back o ["b", "c"] v
@@ -122,7 +144,7 @@ theorem path_frame (pre : Path) (c d : String) (v nv : Val7) (hne : c ≠ d) :
   | nil =>
       simp only [List.nil_append, pathSet, pathGet]
       rw [frecGet_set_neq _ d c nv (fun h => hne h.symm)]
-      cases v <;> simp [pathGet, frecGet]
+      cases v <;> simp [frecGet]
   | cons f rest ih =>
       simp only [List.cons_append, pathSet, pathGet]
       rw [frecGet_set_eq]
@@ -133,10 +155,12 @@ theorem path_frame (pre : Path) (c d : String) (v nv : Val7) (hne : c ≠ d) :
       | arr a => cases rest <;> simp [pathGet, frecGet]
       | record fs =>
           cases hf : frecGet fs f with
-          | some child => simp [pathGet, hf]
+          | some child => simp [hf]
           | none => cases rest <;> simp [pathGet, hf, frecGet]
 
-/-- Concrete instance named by the plan: o.b.c := v leaves o.b.d unchanged. -/
+/-- Concrete instance named by the plan: o.b.c := v leaves o.b.d unchanged.
+    Emitter reading: rewriting a node's "left" sub-node does not disturb its
+    "right" sub-node — the frame guarantee a structural-recursive handler needs. -/
 theorem frame_bc_bd (o v : Val7) :
     pathGet (pathSet o ["b", "c"] v) ["b", "d"] = pathGet o ["b", "d"] := by
   have h : ("c" : String) ≠ "d" := by decide
@@ -190,17 +214,17 @@ theorem assign_arm_conservative (st : State) (x : String) (v : Val) :
     lookup7 (update7 (liftState st) x (injVal v)) x = some (injVal v) := by
   simp [update7, lookup7]
 
-end Phase7Spike
+end RecordVal
 
 -- ===================================================================== --
 -- 6. VERDICT — axiom audit. Only the 3 standard Lean kernel axioms may   --
 --    appear (propext, Classical.choice, Quot.sound); NO 4th axiom.       --
 -- ===================================================================== --
 
-#print axioms Phase7Spike.path_read_back
-#print axioms Phase7Spike.path_frame
-#print axioms Phase7Spike.read_back_bc
-#print axioms Phase7Spike.frame_bc_bd
-#print axioms Phase7Spike.lookup7_lift
-#print axioms Phase7Spike.update7_lift
-#print axioms Phase7Spike.assign_arm_conservative
+#print axioms RecordVal.path_read_back
+#print axioms RecordVal.path_frame
+#print axioms RecordVal.read_back_bc
+#print axioms RecordVal.frame_bc_bd
+#print axioms RecordVal.lookup7_lift
+#print axioms RecordVal.update7_lift
+#print axioms RecordVal.assign_arm_conservative
