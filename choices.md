@@ -1106,3 +1106,52 @@ false post-mutation claim FAILS: the frame is non-vacuous). Repro drivers
 `wl05_{dict,set}_param_mut_WRONGREPR.py` → PROVEN; baseline `wl05_dict_local_FAITHFUL.py` STAYS PROVEN.
 `wrong-lowering-to-fix.md` §WL-05→§WL-05b, UB catalog §7.9 (narrowed), static-semantics + translational
 τ-table updated. Mirror-sync green; `\trusted` non-increasing; no smuggled axiom.
+
+## WL-06b — faithful `bytes` LITERAL byte CONTENT + `bytes` immutability (the LAST wrong-lowering follow-on)
+
+**Context.** WL-06 (`wrong-lowering-to-fix.md`) delivered COHERENCE only — a `bytes`/`bytearray`
+subscript READ routes to native `Array.get` (a sound `int`), but the byte CONTENT stayed the τ-blessed
+`bytes=int†` opaque residual. WL-06b implements the tractable core of a faithful `bytes` value model so
+byte CONTENT is provable, and closes the `bytes` immutability soundness hole.
+
+**Decision — make a `bytes` LITERAL's content faithful (additive on the coarse `array int` shape), and
+REJECT a `bytes` element write (immutable); do NOT model unknown-`bytes` content or encode/decode.** A
+`bytes` literal already lowers (Module5 `_py_expr_constant`) to an `ArrayLit` of the REAL byte values,
+which Module6 emits as a native `array int` built with those exact values (`Array.make n v0; a[1] <- v1;
+…`). So byte-content reads ALREADY prove (`b"abc"[0] == 97`), the byte-RANGE invariant `0 <= b[i] < 256`
+is DERIVABLE from the concrete construction (no axiom), and a false byte-content claim stays UNPROVEN —
+the content layer is real and additive. The two gaps closed by WL-06b:
+  1. **Immutability (soundness).** A local bound to a `bytes` LITERAL is now classified `"bytes"` in the
+     symbol table (was `"Any"`), and `core_ir_semantic._sa_immutable_walk` REJECTS a subscript-store
+     `b[i] = v` to a `bytes` variable UNCONDITIONALLY (`PYCSL-SEM-SUBSCRIPT`) — Python raises `TypeError:
+     'bytes' object does not support item assignment`, so lowering it to a mutable `Array.set` was
+     silently UNSOUND. A `bytearray` (mutable) is NOT rejected — its element write is a sound array
+     mutation (a mutable byte buffer must be a `bytearray`/`list`).
+  2. **Content routing.** The `"bytes"` classification also routes the literal-local's `b[i]`/`len(b)`
+     through the WL-06 native-array branch (§T.15.6).
+
+**Scope (honest, FINAL residual).** A `bytes(...)`/`bytearray(...)` CONSTRUCTOR call stays `"Any"`
+(unchanged — 0616/0658/0665 untouched). The CONTENT of an *unknown* `bytes` (a PARAMETER) remains the
+τ-blessed opaque residual (only a user-supplied `requires`/element bound can constrain it), as do
+`str↔bytes` encode/decode and full `struct`/byte-methods beyond cleared-pack (translational §T.15.5).
+This is the LAST wrong-lowering follow-on; `wrong-lowering-to-fix.md` now reflects the final state of all
+residuals.
+
+**Implementation.** `Module5_IREmitter._build_function_symbol_table`: a plain-`Assign` local whose RHS is
+an `ast.Constant` bytes value → `scope[target] = "bytes"` (byte-safe: no corpus local binds a bare bytes
+literal). `core_ir_semantic._check_subscript_assignments`: add an unconditional `_sa_immutable_walk` that
+rejects a `bytes`-typed ArraySet target before the existing annotated list/dict check.
+
+**SMT-feasibility spike.** `test-suite/corpus/conformance/spikes/wl06b_bytes_content_spike.mlw` proves a
+byte-literal content read (`b[0]=1 /\ b[1]=2`), the range invariant (`0 <= b[i] < 256`), distinct-cell
+independence, and no over-claim — Valid on Alt-Ergo AND Z3.
+
+**Additive / no regression.** Full `pycsl-reference` corpus emits BYTE-IDENTICALLY (`bin/byte-diff-sweep.sh`
+before/after via a two-file stash — every pre-existing `.mlw` unchanged; only rejected 0838 stops
+emitting, as intended). NO new axiom. `\trusted` non-increasing; mirror-sync + doc-coherency green.
+
+**Regression locks.** `0835.py` (POSITIVE — bytes-literal exact content + hex), `0836.py` (POSITIVE —
+byte-range invariant), `0837.py` (NEGATIVE `# pycsl-expected: FAIL` — false byte value, pinned to Z3 to
+refute fast over the array literal), `0838.py` (NEGATIVE `# pycsl-expected: FAIL` — `bytes` element write
+REJECTED, immutability). Docs: `wrong-lowering-to-fix.md` §WL-06 (→ + WL-06b), translational §T.15.5/§T.15.7,
+`missing-bytes-struct-feature.md` (done-vs-follow-on).

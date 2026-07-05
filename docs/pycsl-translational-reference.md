@@ -3577,12 +3577,15 @@ no commitment beyond typing).
 
 ### §T.15.5  Gap
 
-`bytes` semantics — `.encode`, `.decode`, `.ljust`, `.split`, the
-byte-range constraint 0..255, `struct.pack` / `struct.unpack`
-round-trip — are out of scope of §T.15. Those are
-`missing-bytes-struct-feature.md` Phases 2-5 (format-string-aware
-emission + Rocq round-trip axioms + per-method bytes-method
-modeling).
+`bytes` semantics — `.encode`, `.decode`, `.ljust`, `.split`,
+`struct.pack` / `struct.unpack` round-trip beyond cleared-pack —
+are out of scope of §T.15 (format-string-aware emission + Rocq
+round-trip axioms + per-method bytes-method modeling). **DONE since
+this note:** faithful byte CONTENT of a `bytes` LITERAL and the
+byte-range constraint `0..255` (both §T.15.7, WL-06b), and the
+coherent `b[i]`/`len(b)` read (§T.15.6, WL-06). What remains is the
+CONTENT of an *unknown* `bytes` (a parameter) and the encode/decode
++ deeper-`struct` method semantics above.
 
 ### §T.15.6  Byte read `b[i]` and `len(b)` (WL-06)
 
@@ -3605,13 +3608,56 @@ bytearray subscript READ routed instead to the opaque
 read was BOTH un-verifiable AND internally inconsistent. The fix
 makes the emission COHERENT and type-checking.
 
-**Residual (honest).** The byte CONTENT stays the τ-blessed
-`bytes=int†` opaque residual: what is soundly provable is that the
-read is a well-typed `int` denoting a fixed buffer cell (so a body
-`b[i]` and a contract `b[i]` denote the SAME value, and distinct
-indices are independent cells), NOT the exact byte value. A
-faithful `bytes` value model (byte-range 0..255, encode/decode,
-`struct` round-trip) remains the §T.15.5 follow-on.
+**Residual (superseded for LITERALS by §T.15.7).** For a `bytes`
+value with *unknown* content (a `bytes` PARAMETER), the byte value
+stays the τ-blessed `bytes=int†` opaque residual: what is soundly
+provable is that the read is a well-typed `int` denoting a fixed
+buffer cell (so a body `b[i]` and a contract `b[i]` denote the SAME
+value, and distinct indices are independent cells), NOT the exact
+byte value. §T.15.7 makes the CONTENT of a `bytes` LITERAL faithful.
+
+### §T.15.7  Faithful byte CONTENT of a `bytes` literal + immutability (WL-06b)
+
+A `bytes` LITERAL already lowers to an `ArrayLit` of the REAL byte
+values (§T.15.2), and Module6 emits that `ArrayLit` as a native
+`array int` constructed with those exact values
+(`Array.make n v0; a[1] <- v1; …`). Therefore a byte-content READ
+of a literal denotes the ACTUAL byte and PROVES:
+
+`T_lit(b"abc") = (let a = Array.make 3 97 in a[1] <- 98; a[2] <- 99; a)`
+
+so `b[0] = 97`, `b[1] = 98`, `b[2] = 99` are provable (ordinals of
+`'a','b','c'`), and hex escapes carry their real byte
+(`b"\x01\xff\x80" → [1, 255, 128]`). The **byte-RANGE invariant**
+`0 <= b[i] < 256` is DERIVABLE for every index of a literal — no
+axiom, it follows from the concrete construction (each literal byte
+is a Python `int` in `[0,256)`). A FALSE byte-content claim
+(`b"abc"[0] == 98`) is NOT provable (0837). The coarse
+`bytes = int†` `array int` SHAPE is KEPT — this is content
+faithfulness ON TOP of it, additive.
+
+To realize this content faithfully, Module5's
+`_build_function_symbol_table` classifies a local bound to a `bytes`
+LITERAL (`b = b"…"`) as symbol-table type `"bytes"` (not `"Any"`),
+which routes its `b[i]`/`len(b)` through the §T.15.6 native-array
+branch. A `bytes(...)`/`bytearray(...)` CONSTRUCTOR call is left
+`"Any"` (unchanged — no emission change for existing corpus code).
+
+**Immutability.** A Python `bytes` object is IMMUTABLE: `b[i] = v`
+raises `TypeError: 'bytes' object does not support item assignment`.
+The `"bytes"` classification lets `core_ir_semantic._sa_immutable_walk`
+REJECT a subscript-store `b[i] = v` to a `bytes` variable
+UNCONDITIONALLY (not gated on annotation, `PYCSL-SEM-SUBSCRIPT`) —
+so it never lowers to an unsound mutable `Array.set` (0838). A
+`bytearray` is MUTABLE and is NOT rejected: its element write is a
+genuine, sound `array` mutation (a mutable byte buffer must be a
+`bytearray` or a `list`).
+
+**Remaining follow-on (§T.15.5).** `str↔bytes` encode/decode, the
+`.ljust`/`.split`/`.strip` byte-methods, and full `struct` beyond
+the cleared-pack round-trip stay out of scope — the CONTENT of a
+`bytes` PARAMETER (unknown at compile time) also remains opaque
+(only a user-supplied `requires`/element bound can constrain it).
 
 ---
 

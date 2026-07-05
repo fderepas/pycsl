@@ -3554,6 +3554,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 for target in child.targets:
                     if isinstance(target, ast.Name) and target.id not in shared:
                         scope[target.id] = "Any"
+                        # WL-06b (faithful bytes value content): a local bound to a
+                        # `bytes` LITERAL (`b = b"abc"`) is the τ-blessed `bytes=int†`
+                        # array-int buffer AND is IMMUTABLE. Classify it as "bytes" so
+                        # (a) a byte read `b[i]` / `len(b)` routes to the native array
+                        # backing (Array.get / Array.length — same branch as WL-06's
+                        # param read) and (b) `_check_subscript_assignments` REJECTS a
+                        # `b[i] = v` element write (Python TypeError: 'bytes' object does
+                        # not support item assignment). The literal's ArrayLit already
+                        # carries the REAL byte values (Module5 `_py_expr_constant`), so
+                        # `b[0] == 97` PROVES. Byte-identical: no corpus local binds a
+                        # bare bytes literal; a `bytes(...)`/`bytearray(...)` CONSTRUCTOR
+                        # call stays "Any" (unchanged — 0616/0658/0665 untouched).
+                        if (isinstance(child.value, ast.Constant)
+                                and isinstance(child.value.value, bytes)):
+                            scope[target.id] = "bytes"
                         # local-dict-value-type: a `d = {"a": "x", ...}` literal with all-STRING
                         # values is a `dict[_, str]`, so `d[k]` reads a `string` (default "") not the
                         # int default. Infer the value type from a homogeneous string-valued DictLit

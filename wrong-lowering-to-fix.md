@@ -305,7 +305,7 @@ false-positive against the τ-blessed baseline.
 - **Dedup:** none. WL-05's rejection path (`_reject_param_collection_mutation`) is RETAINED for the
   still-out-of-scope cases (mutated dict/set METHOD params, and the record/list param-mutation class).
 
-### WL-06 — `bytes` subscript `b[i]` emits `subscript_get(int,int)` on an `array int` value — ✅ FIXED
+### WL-06 — `bytes` subscript `b[i]` emits `subscript_get(int,int)` on an `array int` value — ✅ FIXED (WL-06 coherence) + ✅ WL-06b (faithful byte CONTENT of a literal + immutability)
 - **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). A `bytes`/`bytearray` value is the τ-blessed
   `bytes=int†` array-int-backed buffer (`b : array int` — KEPT, the coarsening is unchanged); the
   defect was that a subscript READ `b[i]` routed to the opaque `subscript_get (x:int)(i:int):int`
@@ -321,13 +321,21 @@ false-positive against the τ-blessed baseline.
 - **Now:** `let f (b: array int) … : int = b[i]` (`Array.get`, guarded by an IndexError bounds VC) —
   the read type-checks AND, under a bounds `requires`, the deterministic read property `\result == b[i]`
   is PROVABLE.
-- **Faithful target realized (COHERENCE, not content):** `τ(bytes)=int†` is unchanged; the byte
-  CONTENT stays the τ-blessed **opaque residual** (a faithful `bytes` value model — byte-range 0..255,
-  encode/decode, `struct` round-trip — is a documented follow-on, `missing-bytes-struct-feature.md`
-  Phases 2-5 / translational §T.15.5-6). What is now sound and provable: the read is a well-typed `int`
-  denoting a fixed buffer cell (body `b[i]` and contract `b[i]` denote the SAME value; distinct indices
-  are independent cells). The FIX is that the emission is COHERENT and type-checks — never the broken
-  `subscript_get` mismatch.
+- **Faithful target realized (COHERENCE — WL-06; byte CONTENT of a LITERAL — WL-06b):** `τ(bytes)=int†`
+  (the coarse `array int` SHAPE) is unchanged. WL-06 delivered COHERENCE (the read type-checks as a
+  sound `int`). **WL-06b (this follow-on) delivers faithful byte CONTENT for a `bytes` LITERAL:** a
+  `bytes` literal lowers to an `array int` built from the REAL byte values (Module5 `_py_expr_constant`
+  → `ArrayLit`; Module6 → `Array.make n v0; a[1] <- v1; …`), so a content read PROVES the ACTUAL byte
+  (`b"abc"[0] == 97`, `b"abc"[1] == 98`, `b"\x01\xff\x80"[1] == 255`), the byte-RANGE invariant
+  `0 <= b[i] < 256` is DERIVABLE (no axiom — the literal's bytes are literally in range), and a FALSE
+  byte-content claim (`b"abc"[0] == 98`) stays UNPROVEN. **Immutability is now respected:** a `bytes`
+  element WRITE `b[i] = v` is REJECTED (`PYCSL-SEM-SUBSCRIPT`, unconditional — Python `TypeError:
+  'bytes' object does not support item assignment`), never a silent unsound `Array.set`; a `bytearray`
+  (mutable) element write stays a sound array mutation. What REMAINS the τ-blessed opaque residual: the
+  CONTENT of an *unknown* `bytes` (a PARAMETER — only a user `requires` can bound it), and
+  `str↔bytes` encode/decode + deeper `struct`/byte-methods (translational §T.15.5, follow-on). For a
+  `bytes` PARAMETER read the value is still a coherent-but-opaque `int` (body `b[i]` == contract `b[i]`;
+  distinct indices independent).
 - **Class / severity:** WRONG-REPR / 4 (was; now a coherent, type-checking read).
 - **Verdict flips (now):**
   - `getting-better/wrong-lowering/wl06_bytes_index_WRONGREPR.py` → **type-checks** (no more
@@ -335,17 +343,24 @@ false-positive against the τ-blessed baseline.
     array-bounds safety VC — a sound fail-closed residual, no longer a broken TYPEERR. Was TYPEERR.
   - With a bounds `requires`, a `bytes`/`bytearray` `b[i]` read → **PROVEN** (`\result == b[i]`,
     concrete-index slot reads) — reference lock `0824.py`.
-- **Regression locks (reference corpus):** `test-suite/corpus/pycsl-reference/0824.py` (POSITIVE —
+- **Regression locks (reference corpus):** WL-06 (coherence): `0824.py` (POSITIVE —
   `bytes`/`bytearray` `b[i]` reads under a bounds `requires`, `\result == b[i]`, concrete-index slot
   independence) and `0825.py` (NEGATIVE, `# pycsl-expected: FAIL` — a false byte-content conflation
-  `b[0]` claimed `== b[1]`, must stay UNPROVEN — confirms the coarse model does NOT over-claim byte
-  content).
+  `b[0]` claimed `== b[1]`, must stay UNPROVEN). WL-06b (byte content):
+  `0835.py` (POSITIVE — bytes-literal exact content `b"abc"[0]==97`/`[1]==98`, hex `b"\xff"==255`),
+  `0836.py` (POSITIVE — byte-RANGE invariant `0 <= b[i] < 256` for a literal), `0837.py` (NEGATIVE
+  `# pycsl-expected: FAIL` — false byte-content `b"a"[0]==98`, pinned to Z3 to refute fast over the
+  array literal), `0838.py` (NEGATIVE `# pycsl-expected: FAIL` — a `bytes` element WRITE is REJECTED,
+  immutability). SMT-feasibility spike `test-suite/corpus/conformance/spikes/wl06b_bytes_content_spike.mlw`
+  (byte-literal content read + range invariant + no-over-claim; Valid on Alt-Ergo AND Z3).
 - **Emission differential:** the full 704-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
   (verified via `bin/byte-diff-sweep.sh`, before/after — only the two new locks 0824/0825 differ); no
   corpus program has a `bytes`/`bytearray` subscript read or `len(bytes)` → additive. NO new axiom.
-- **Deliberate-collapse check:** now DOCUMENTED. `τ(bytes)=int†` (the coarse TYPE) stays τ-blessed; the
-  fix repairs only the BROKEN subscript/`len` emission (the read is now a coarse-but-SOUND `int`), not
-  the coarsening. Byte-content opacity is the recorded residual.
+- **Deliberate-collapse check:** now DOCUMENTED and, for LITERALS, CLOSED. `τ(bytes)=int†` (the coarse
+  `array int` SHAPE) stays τ-blessed; WL-06 repaired the BROKEN subscript/`len` emission and WL-06b
+  added faithful byte CONTENT for a `bytes` LITERAL (exact value + range invariant) plus immutability
+  rejection — additive on top of the coarse shape. The recorded residual is now narrowed to the CONTENT
+  of an *unknown* `bytes` (a parameter) and encode/decode + deeper `struct` (translational §T.15.5).
 - **Dedup:** none.
 
 ---
@@ -353,8 +368,10 @@ false-positive against the τ-blessed baseline.
 ## Considered and EXCLUDED (τ-blessed or already-documented — NOT findings)
 
 - **bool = int** — τ-blessed lossless 0/1 injection; false twin UNPROVABLE (`cal_bool_falsetwin`).
-- **bare `tuple` = int†**, **bytes/bytearray = int†** (as the coarse *type*) — τ-blessed collapses
-  (WL-06 flags only the *broken subscript emission*, not the coarsening).
+- **bare `tuple` = int†**, **bytes/bytearray = int†** (as the coarse array-int *shape*) — τ-blessed
+  collapse of the SHAPE (WL-06 fixed the broken subscript emission; WL-06b added faithful byte CONTENT for
+  a LITERAL + immutability — additive on the shape, §T.15.7). The unknown-`bytes`-parameter content stays
+  the residual.
 - **`Dict[str,int]` / `Dict[str,str]` value read** — FAITHFUL (`map string (option ν)`), read-back
   proves (`cal_dict_val_faithful`; probes `p_dict_str_val`/`p_dict_int_val` PROVEN).
 - **`float` = real** — FAITHFUL (`p_float` PROVEN); false twin `2.0*3.0==7.0` UNPROVABLE.
@@ -377,7 +394,7 @@ false-positive against the τ-blessed baseline.
 | UNSOUND (1) | 0 open | ~~WL-01 (floor `//`/`%`, neg divisor)~~ **FIXED**, ~~WL-02 (true `/` → int div)~~ **FIXED** |
 | FALSE-GREEN (2) | 0 new | WL-VAC (documented, cross-ref) |
 | COLLAPSED-with-consumer (3) | 0 open | ~~WL-03 (Tuple param)~~ **FIXED**, ~~WL-04 (List[str/float] elem)~~ **FIXED** |
-| WRONG-REPR (4) | 0 open | ~~WL-05 (dict/set param mut)~~ **FIXED**, ~~WL-06 (bytes index)~~ **FIXED** |
+| WRONG-REPR (4) | 0 open | ~~WL-05 (dict/set param mut)~~ **FIXED**, ~~WL-06 (bytes index)~~ **FIXED** + ~~WL-06b (bytes-literal CONTENT + immutability)~~ **IMPLEMENTED** |
 | OPAQUE (5) | 0 filed | — |
 
 **ALL 6 WL-* findings are FIXED.** WL-01 and WL-02 (both certified FALSE arithmetic — a green proof for
@@ -387,5 +404,11 @@ code that computes a different value in CPython) are **FIXED**. WL-03 (Tuple par
 CLEAN REJECTION (the sound, consistent choice — the aliasing/frame boundary shared with record/list
 param mutation). WL-06 (bytes/bytearray subscript `b[i]` emitting a broken `subscript_get` mismatch) is
 **FIXED** by routing the read to the native `Array.get` (`len(b)` → `Array.length`) — the emission is
-now COHERENT and type-checks, with byte CONTENT the documented τ-blessed opaque residual (a faithful
-`bytes` value model is the remaining follow-on). Harness + drivers are committed and re-runnable.
+now COHERENT and type-checks. Its follow-on **WL-06b** delivers the tractable core of a faithful `bytes`
+value model: a `bytes` LITERAL now carries its REAL byte CONTENT (exact value reads PROVE, the byte-range
+invariant `0 <= b[i] < 256` is derivable), and `bytes` IMMUTABILITY is respected (a `bytes` element write
+is REJECTED, never silently unsound; `bytearray` stays a sound mutable buffer). The coarse `array int`
+shape is KEPT — content faithfulness is additive on top of it. **Remaining follow-on (documented, final
+residual):** the CONTENT of an *unknown* `bytes` (a parameter — user `requires` only), and `str↔bytes`
+encode/decode + deeper `struct`/byte-methods (translational §T.15.5). Harness + drivers + the Alt-Ergo/Z3
+SMT spike are committed and re-runnable.

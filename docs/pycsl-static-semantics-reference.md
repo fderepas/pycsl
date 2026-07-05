@@ -174,8 +174,12 @@ specification logic's type universe:
                                  stay `array int`. The mark propagates across `b = a`; a list that
                                  must be BOTH grown and 2-D is a representation conflict, rejected
                                  (no silent mis-model). Translational §T.2 list rows. *)
-τ(bytes)          = int †     (* byte buffer *)
-τ(bytearray)      = int †     (* mutable byte buffer *)
+τ(bytes)          = int †     (* IMMUTABLE byte buffer; a LITERAL carries its REAL byte content
+                                 (array int built from the exact bytes) so `b"abc"[0]==97` PROVES
+                                 and `0<=b[i]<256` is derivable (WL-06b, translational §T.15.7); an
+                                 element write `b[i]=v` is REJECTED (Python TypeError). A PARAMETER's
+                                 content stays opaque. *)
+τ(bytearray)      = int †     (* MUTABLE byte buffer (element write = sound array mutation) *)
 τ(dict)           = dict
 τ(Dict[K, V])     = dict      (* κ=string ⇒ map string (option ν), native String.(=); else map int *)
 τ(set)            = dict      (* sets share the dict model; see translational §T.14.2 *)

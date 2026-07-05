@@ -550,12 +550,44 @@ def _check_subscript_assignments(func) -> None:
     functions only (any `requires`/`ensures`/`assigns` — loop invariants do NOT count).
     The context is uniformly `function 'F'` (no surface tracking). The data is already
     in the IR (no plumbing): `ArraySet{array, index, value}` + `symbol_table`."""
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    # WL-06b (bytes immutability): a `bytes` element write `b[i] = v` is a Python
+    # TypeError ('bytes' object does not support item assignment) — bytes is
+    # IMMUTABLE. Reject it UNCONDITIONALLY (a genuine language error, not a
+    # contract concern), so it never lowers to an unsound mutable `Array.set`.
+    # `bytearray` (mutable) and `list`/`Any` are unaffected. Byte-safe: no corpus
+    # program writes to a bytes-literal local (a bytes value is otherwise a param
+    # whose write already fails the annotated list/dict check below).
+    _sa_immutable_walk(func.get("body", []) or [], where, symtab)
     c = func.get("contracts") or {}
     if not (c.get("requires") or c.get("ensures") or c.get("assigns")):
         return  # unannotated function — Module 4 skips the check, so do we
-    where = f"function '{func.get('name', '<anonymous>')}'"
-    symtab = func.get("symbol_table") or {}
     _sa_walk(func.get("body", []) or [], where, symtab)
+
+
+def _sa_immutable_walk(node, where, symtab) -> None:
+    """Reject a subscript-store `b[i] = v` to an IMMUTABLE `bytes` variable
+    (Python: TypeError, 'bytes' object does not support item assignment). Runs
+    unconditionally (not gated on annotation). `bytearray` is mutable and NOT
+    rejected here (its element write is a sound array mutation)."""
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if isinstance(arr, dict) and arr.get("type") == "Var":
+                if symtab.get(arr.get("name")) == "bytes":
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to immutable 'bytes' variable "
+                        f"'{arr.get('name')}' in {where} — a Python `bytes` object "
+                        f"does not support item assignment (TypeError). Use a "
+                        f"`bytearray` for a mutable byte buffer.",
+                        code="PYCSL-SEM-SUBSCRIPT",
+                    )
+        for v in node.values():
+            _sa_immutable_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _sa_immutable_walk(x, where, symtab)
 
 
 def _sa_walk(node, where, symtab) -> None:
