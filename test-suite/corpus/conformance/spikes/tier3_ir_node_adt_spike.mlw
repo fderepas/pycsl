@@ -1,0 +1,191 @@
+(* T3.0.2 — WhyML IR-node ADT feasibility spike.
+   PURE, mutually-recursive variant for a representative subset of the
+   Module-6 emitter IR-node surface (getting-better/tier3/ir-node-adt-signature.md §7).
+
+   Goals prove five laws with NO new axiom, on Alt-Ergo AND Z3 (best-of-N).
+   String-literal goals may be Z3-only (Alt-Ergo has no string theory) — sanctioned.
+
+   Stresses every hard case from the §8 risk register:
+     - ir_num = INum int | IReal real          (risk 7 / no-more-int)
+     - list-of-subnode field via `list`, never `array`  (purity)
+     - FieldGet.object LEAF-string vs Attribute.object SUB-node  (risk 6, the trap)
+     - mutual recursion ir_node <-> pattern <-> stmt_node  (risk 3)
+     - structural recursion with a termination `variant`  (the piece tier-1 lacked)
+*)
+
+module IrNodeAdtSpike
+
+  use int.Int
+  use list.List
+  use string.String
+
+  (* ---- numeric leaf: carries its real Python type (no-more-int) ---- *)
+  type ir_num = INum int | IReal real
+
+  (* ---- one mutually-recursive clique: expr, pattern, stmt ----
+     `type ... with ... with ...` is Why3's mutual-datatype form.
+     Every list-of-subnode field is `list _`, NEVER `array _` (purity). *)
+  type ir_node =
+    (* literals & refs *)
+    | Var       string
+    | Num       ir_num
+    | Str       string
+    | BoolLit   bool
+    | Null
+    (* operators *)
+    | BinOp     string ir_node ir_node
+    | UnaryOp   string ir_node
+    (* access *)
+    | Subscript ir_node ir_node
+    | FieldGet  string string          (* object is a LEAF string, NOT a sub-node *)
+    | Attribute ir_node string          (* object IS a sub-node — cf. FieldGet *)
+    | Call      string (list ir_node)   (* func-name + list-of-subnode args *)
+    | Tuple     (list ir_node)
+  with pattern =
+    | PWildcard
+    | PValue       ir_node
+    | PCapture     string
+    | POr          (list pattern)
+    | PConstructor string (list pattern)
+  with stmt_node =
+    | SAssign string ir_node
+    | SIf     ir_node (list stmt_node) (list stmt_node)
+    | SReturn ir_node
+    | SExpr   ir_node
+    | SMatch  ir_node (list pattern) (list stmt_node)
+
+  (* =========================================================
+     LAW 1 — Discriminant / dispatch (a `match` returns the tag).
+     ========================================================= *)
+  let function is_var (n: ir_node) : bool =
+    match n with Var _ -> true | _ -> false end
+
+  let function is_binop (n: ir_node) : bool =
+    match n with BinOp _ _ _ -> true | _ -> false end
+
+  goal g1_var_pos   : is_var (Var "x")
+  goal g1_binop_pos : is_binop (BinOp "+" (Num (INum 1)) (Num (INum 2)))
+  goal g1_disjoint  : forall n: ir_node. not (is_var n /\ is_binop n)
+
+  (* =========================================================
+     LAW 2 — Sub-node projection (field-read law): reads the correct child.
+     ========================================================= *)
+  let function left_of (n: ir_node) : ir_node =
+    match n with BinOp _ l _ -> l | _ -> n end
+
+  let function right_of (n: ir_node) : ir_node =
+    match n with BinOp _ _ r -> r | _ -> n end
+
+  goal g2_left  : forall o: string, a b: ir_node. left_of  (BinOp o a b) = a
+  goal g2_right : forall o: string, a b: ir_node. right_of (BinOp o a b) = b
+  (* false twin: left is NOT the right child *)
+  goal g2_false_twin : forall o: string, a b: ir_node. left_of (BinOp o a b) = b
+
+  (* =========================================================
+     LAW 3 — Structural recursion + termination (explicit `variant`).
+     size over the mutual clique; recursion through `list` is the exact
+     shape tier-1's ir_scanner lacked. Every function carries a `variant`.
+     ========================================================= *)
+  let rec function size (n: ir_node) : int
+    variant { n }
+  = match n with
+    | Var _        -> 1
+    | Num _        -> 1
+    | Str _        -> 1
+    | BoolLit _    -> 1
+    | Null         -> 1
+    | BinOp _ l r  -> 1 + size l + size r
+    | UnaryOp _ e  -> 1 + size e
+    | Subscript a b-> 1 + size a + size b
+    | FieldGet _ _ -> 1
+    | Attribute o _-> 1 + size o
+    | Call _ args  -> 1 + size_list args
+    | Tuple xs     -> 1 + size_list xs
+    end
+  with function size_list (l: list ir_node) : int
+    variant { l }
+  = match l with
+    | Nil      -> 0
+    | Cons h t -> size h + size_list t
+    end
+
+  (* a genuine mutually-recursive stmt measure through pattern + stmt lists *)
+  let rec function pat_size (p: pattern) : int
+    variant { p }
+  = match p with
+    | PWildcard        -> 1
+    | PValue e         -> 1 + size e
+    | PCapture _       -> 1
+    | POr ps           -> 1 + pat_size_list ps
+    | PConstructor _ ps-> 1 + pat_size_list ps
+    end
+  with function pat_size_list (l: list pattern) : int
+    variant { l }
+  = match l with
+    | Nil      -> 0
+    | Cons h t -> pat_size h + pat_size_list t
+    end
+
+  let rec function stmt_size (s: stmt_node) : int
+    variant { s }
+  = match s with
+    | SAssign _ e   -> 1 + size e
+    | SIf c a b     -> 1 + size c + stmt_size_list a + stmt_size_list b
+    | SReturn e     -> 1 + size e
+    | SExpr e       -> 1 + size e
+    | SMatch e ps b -> 1 + size e + pat_size_list ps + stmt_size_list b
+    end
+  with function stmt_size_list (l: list stmt_node) : int
+    variant { l }
+  = match l with
+    | Nil      -> 0
+    | Cons h t -> stmt_size h + stmt_size_list t
+    end
+
+  (* the recursion law: size (BinOp o a b) = 1 + size a + size b *)
+  goal g3_binop_law : forall o: string, a b: ir_node.
+    size (BinOp o a b) = 1 + size a + size b
+  (* recursion through the list field of Call *)
+  goal g3_call_law : forall f: string, a b: ir_node.
+    size (Call f (Cons a (Cons b Nil))) = 1 + size a + size b
+  (* size is strictly positive on any node (a total structural fact) *)
+  goal g3_pos : size (BinOp "+" (Var "a") (Num (IReal 2.5))) = 3
+  (* false twin: wrong arithmetic *)
+  goal g3_false_twin : forall o: string, a b: ir_node.
+    size (BinOp o a b) = size a + size b
+
+  (* =========================================================
+     LAW 4 — FieldGet / Attribute asymmetry (the trap must not collapse).
+     FieldGet.object is a LEAF string; Attribute.object is a SUB-node.
+     ========================================================= *)
+  let function fg_object (n: ir_node) : string =
+    match n with FieldGet o _ -> o | _ -> "" end
+
+  let function attr_object (n: ir_node) : ir_node =
+    match n with Attribute o _ -> o | _ -> n end
+
+  (* FieldGet projects a STRING leaf *)
+  goal g4_fieldget_leaf : forall f: string. fg_object (FieldGet "self" f) = "self"
+  (* Attribute projects a SUB-NODE *)
+  goal g4_attribute_subnode : forall a: string, o: ir_node. attr_object (Attribute o a) = o
+  (* the asymmetry: an Attribute over Var("self") is NOT the same shape as a FieldGet;
+     size sees the sub-node (Attribute recurses; FieldGet is a leaf of size 1) *)
+  goal g4_size_asymmetry :
+    size (Attribute (Var "self") "x") = 2 /\ size (FieldGet "self" "x") = 1
+
+  (* =========================================================
+     LAW 5 — no-more-int: an IReal leaf read stays `real`; false twin fails.
+     ========================================================= *)
+  let function num_is_real (n: ir_num) : bool =
+    match n with IReal _ -> true | INum _ -> false end
+
+  let function real_val (n: ir_num) : real =
+    match n with IReal r -> r | INum _ -> 0.0 end
+
+  goal g5_real_tag  : num_is_real (IReal 2.5)
+  goal g5_int_tag   : not (num_is_real (INum 2))
+  goal g5_real_read : real_val (IReal 2.5) = 2.5
+  (* false twin: 2.5 is NOT 2.0 — must be UNPROVEN on both provers *)
+  goal g5_false_twin : real_val (IReal 2.5) = 2.0
+
+end
