@@ -333,6 +333,26 @@ contract `\result[i]` on any `array τ` return lowers to a native `Array.get` (d
 `wl04a_list_literal_*.py`; locks 0826/0827, NEGATIVE 0828). A MIXED-element or `List[<record>]`
 literal keeps the int-coercion default (documented).
 
+**§ Flat RECORD-element list param (wrong-lowering-to-fix.md §WL-04b).** A parameter (and
+pass-through return) annotated with a FLAT `List[R]` whose element `R` is a KNOWN record — a user
+`@dataclass`/`NamedTuple`, or a recognized `Tuple[T1, …, Tn]` (WL-03's synthesized `pytuple_<tags>`) —
+does NOT collapse its element to `int`. Module5 (`_m5_get_list_record_elem`, using the pre-collected
+`_m5_record_class_names` + `_m5_tuple_slot_tags`) records the element RECORD class name in
+`param_list_flat_elem` and subtracts a record-list param from the 2-D `matrix int` detection; the
+emitter resolves it (`_param_type_str` → `array <record>`, registering `_record_array_params`) so
+`a[i]` reads a REAL record and `a[i].field` / `a[i][k]` projects the faithful field
+(`_handle_attribute_expr` → `(let _rec_ = a[i] in _rec_.<label>)`; `_namedtuple_positional_access` →
+the k-th slot). The record leaf is the record-typed analog of the str/float flat leaf. Because Why3
+FORBIDS a MUTABLE element inside `array`, a record used as a `List[<record>]` element is emitted PURE
+(immutable fields — Module5 `list_element_record_types` drives the preamble `mutable`-drop;
+byte-identical for records NOT so used); tuples are immutable, and a field-mutated
+dataclass-in-a-list fails CLOSED at Why3 type-check (never a silent unsound update). The projection
+comprehension `[p.x for p in a]` over a record source is lowered natively too. Drivers
+`wl04b_list_{record,tuple}_elem_COLLAPSED.py` (PROVEN), false-twin `wl04b_list_record_falsetwin.py`
+(UNPROVEN); locks 0829/0830 (POSITIVE), NEGATIVE 0831. Residuals (int-collapse / opaque kept): a
+`List[<record>]` LITERAL, a FILTERED record-projection comprehension, a `List[<plain-class>]` element,
+and a record slot of `float`/container type.
+
 **§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
 is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT
 collapse its element to `int`. Module5 (`_m5_get_list_nested_elem_whyml` → the shared recursive

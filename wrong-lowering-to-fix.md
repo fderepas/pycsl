@@ -217,9 +217,43 @@ false-positive against the τ-blessed baseline.
   Z3, no cited lemma). STILL OUT OF SCOPE: a `List[<record>]` literal (would need the WL-03 record
   seam threaded to the literal) and a MIXED-element literal (`[1, "x"]` / `[1, 2.5]` — no single
   faithful element type) keep the int-coercion default (documented).
-- **Record element (noted):** `List[<record>]` is not yet realized as `array <record>` (would need
-  the WL-03 record-synthesis seam threaded to the flat list param); str/float — the two faithful
-  scalar leaves and the two repro drivers — are done.
+- **Record element (WL-04b) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). A flat `List[<record>]`
+  PARAMETER (and pass-through RETURN) — where the element `R` is a KNOWN record: a user
+  `@dataclass`/`NamedTuple` class OR a recognized `Tuple[T1, …, Tn]` (WL-03's synthesized per-slot
+  record `pytuple_<tags>`) — is now realized as **`array <record-whyml>`** (was the collapsed
+  `array int` with an opaque `get_field`/`subscript_get` element read), so `a[i]` reads a REAL
+  record and `a[i].field` / `a[i][k]` projects the FAITHFUL field. This is the record-leaf analog of
+  the str/float flat model above and of the WL-03 tuple per-slot record. Threading: Module5
+  `_m5_get_list_record_elem` maps a `List[R]` element to the record CLASS NAME into
+  `param_list_flat_elem` (using the pre-collected `_m5_record_class_names` + the WL-03
+  `_m5_tuple_slot_tags`); a record-list param is subtracted from the 2-D `matrix int` detection
+  (so `a[i][1]` on a `List[Tuple[…]]` is a slot read, not a matrix cell); Module6 `_param_type_str`
+  resolves the record name via `_record_types` → `array <whyml>` and registers `_record_array_params`;
+  `_handle_attribute_expr` lowers `a[i].field` to the native `(let _rec_ = a[i] in _rec_.<label>)`
+  and `_namedtuple_positional_access` lowers `a[i][k]` to the k-th slot; `_compute_return_type`
+  resolves a `-> List[R]` return to `array <whyml>`. **Why3 constraint (SMT-established):** Why3
+  FORBIDS a MUTABLE element inside `array`, so a record used as a `List[<record>]` element is emitted
+  **PURE** (immutable fields) — Module5 records the names in `list_element_record_types`; the preamble
+  drops `mutable` for exactly those records (byte-identical for every record NOT used as a list
+  element; tuples/NamedTuples are immutable, and a `List[<dataclass>]` reads its fields only, so a
+  field-mutated dataclass-in-a-list fails CLOSED at Why3 type-check — never a silent unsound update).
+  Verdict flips: `getting-better/wrong-lowering/wl04b_list_record_elem_COLLAPSED.py` UNPROVEN →
+  **PROVEN**; `wl04b_list_tuple_elem_COLLAPSED.py` TYPEERR → **PROVEN**; false-twin
+  `wl04b_list_record_falsetwin.py` → **UNPROVEN**. SMT spike
+  `test-suite/corpus/conformance/spikes/wl04b_list_record_elem_spike.mlw` (an `array <record>` element
+  field read + read-after-write independence, Valid on **both** Alt-Ergo AND Z3, no cited lemma).
+  Reference locks: `0829.py` (POSITIVE `List[<dataclass>]` `a[i].field`), `0830.py` (POSITIVE
+  `List[Tuple[int,str]]` `a[i][k]` slot), `0831.py` (NEGATIVE `# pycsl-expected: FAIL` false
+  cross-field conflation). **Emission-differential:** the ONLY corpus programs whose emission changes
+  are the three pre-existing `List[Point]` projection programs `0769`/`0770`/`0771` (they NOW prove the
+  content law via the native `(a[i]).x` projection instead of the opaque `get_x`, and the false twin
+  0771 STAYS UNPROVEN); every OTHER of the 707 corpus files emits BYTE-IDENTICALLY. **STILL OUT OF
+  SCOPE (documented residuals):** a `List[<record>]` LITERAL (`[Point(1,2), Point(3,4)]`, would need
+  the record constructor threaded to the WL-04a list-literal seam), a FILTERED projection comprehension
+  over a record source (`[p.x for p in a if …]` → falls back to the opaque length-only law), a
+  `List[<plain-class-with-__init__>]` element (only `@dataclass`/`NamedTuple`/recognized `Tuple`
+  elements are recognized), and a record element with a `float`/container field slot (the WL-03 slot
+  recognition is int/bool/str only). str/float (WL-04) and record (WL-04b) are the covered flat leaves.
 - **Dedup:** none (we-are-getting-better.md #6/#7 are IR-node list attrs in the mirror, a different
   surface).
 

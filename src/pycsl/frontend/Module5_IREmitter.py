@@ -248,6 +248,36 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # module with no recognized Tuple annotation.
         self._synthesize_tuple_records(node)
 
+        # wrong-lowering.md §WL-04 (record residual, WL-04b): pre-collect the names
+        # of classes that lower to a RECORD (a `@dataclass`, a `NamedTuple`
+        # subclass, or a synthesized record already in `type_decls` — the
+        # tuple/namedtuple/typeddict records), so a `List[<record>]` element can be
+        # recognized during FUNCTION build (which, under `generic_visit`, may precede
+        # the element's class in source order). Then compute the set of record names
+        # that appear as a FLAT `List[R]` ELEMENT anywhere (parameter or return), so
+        # Module6 emits those records PURE (immutable fields) — Why3 forbids a
+        # MUTABLE element inside `array` (the same constraint the nested `array (seq τ)`
+        # model met). A record used ONLY as a direct value keeps its mutable emission
+        # (byte-identical); a `List[R]` record is read-only at the element position
+        # (tuples are immutable; a mutated dataclass-in-a-list fails closed at Why3
+        # type-check, never a silent unsound update).
+        self._m5_record_class_names: Set[str] = {
+            td.get("name") for td in self.program_ir["type_decls"]
+            if td.get("kind") == "record"
+        }
+        for _c in node.body:
+            if isinstance(_c, ast.ClassDef) and (
+                    self._is_dataclass_decorated(_c)
+                    or self._is_namedtuple_class(_c)):
+                self._m5_record_class_names.add(_c.name)
+        _list_elem_recs: Set[str] = set()
+        for _child in ast.walk(node):
+            _re = self._m5_get_list_record_elem(_child)
+            if _re is not None:
+                _list_elem_recs.add(_re)
+        if _list_elem_recs:
+            self.program_ir["list_element_record_types"] = sorted(_list_elem_recs)
+
         # sum-types: `#@ datatype Name = C1 | C2(int) | …` → a variant type_decl, and a
         # constructor registry so a `C1` / `C2(x)` value and a `case C1()` pattern resolve.
         for dt in getattr(node, 'csl_datatypes', []):
@@ -3231,6 +3261,41 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return "real"
         return None
 
+    def _m5_get_list_record_elem(self, annotation: ast.expr) -> Optional[str]:
+        """WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): for a FLAT
+        `List[R]` param/return whose element `R` is a KNOWN RECORD, return the
+        record CLASS NAME (the `type_decls` key, e.g. `"Point"` or
+        `"pytuple_int_str"`), so Module6's `_param_type_str` emits
+        `array <record-whyml>` (NOT the collapsed `array int`) and a use-site read
+        `a[i]` reads a real record — `a[i].field` then projects the faithful field.
+
+        A KNOWN RECORD element is EITHER a recognized fixed-length `Tuple[T1, …]`
+        (→ its synthesized per-slot record `pytuple_<tags>`, reusing the WL-03 seam)
+        OR a user record class (a `@dataclass` / `NamedTuple` / an already-declared
+        synthesized record), resolved against the pre-collected
+        `_m5_record_class_names`. Returns None for a scalar/str/float element (owned
+        by `_m5_get_list_flat_elem_whyml`), a nested `List[<container>]` element
+        (owned by `_m5_get_list_nested_elem_whyml`), an unrecognized class, and any
+        non-`List` annotation. This is the record-leaf analog of the str/float flat
+        element analysis (WL-04)."""
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("List", "list")):
+            return None
+        sl = annotation.slice
+        if isinstance(sl, ast.Index):          # py<3.9 compat
+            sl = sl.value
+        # recognized `Tuple[T1, …, Tn]` element → its synthesized per-slot record.
+        _tags = self._m5_tuple_slot_tags(sl)
+        if _tags is not None:
+            return self._m5_tuple_record_name(_tags)
+        # user record class element (dataclass / NamedTuple / declared record).
+        if isinstance(sl, ast.Name):
+            nm = sl.id
+            if nm in getattr(self, "_m5_record_class_names", set()):
+                return nm
+        return None
+
     # nested-list.md S1: ONE recursive annotation -> WhyML *element-position* type.
     # An element-position type is a PURE Why3 type (Why3 forbids a mutable element
     # inside `array`), so a nested `List[U]` becomes `seq (_rec U)` (NOT `array`),
@@ -3457,6 +3522,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _fe = self._m5_get_list_flat_elem_whyml(arg.annotation)
                 if _fe is not None:
                     param_list_flat_elem[arg.arg] = _fe
+                # WL-04b (record residual): a flat `List[<record>]` element — a
+                # recognized `Tuple[…]` or a user record class — carries the
+                # record CLASS NAME, so Module6 emits `array <record-whyml>` and a
+                # use-site `a[i].field` projects the faithful field. Only fires
+                # when the str/float and nested paths did NOT (a record element is
+                # a bare Name that is neither str/float nor a container). Shares the
+                # `param_list_flat_elem` map; Module6 resolves a record name via
+                # `_record_types`, else emits `array {value}` directly.
+                _re = self._m5_get_list_record_elem(arg.annotation)
+                if _re is not None:
+                    param_list_flat_elem[arg.arg] = _re
             # no-more-int emitter L4b: preserve the param's annotated type as a
             # scalar-dict field on the func IR (like `return_annotation`), so it
             # survives import injection — which rebuilds `symbol_table` with `Any`
@@ -3682,6 +3758,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 _flat = self._m5_get_list_flat_elem_whyml(node.returns)
                                 if _flat == "real":
                                     return_value_type = "real"
+                            # WL-04b (record residual): a `-> List[<record>]` return
+                            # is `array <record-whyml>`, so a pass-through record-list
+                            # return (`return a`) types coherently. The record CLASS
+                            # NAME is captured; Module6 `_compute_return_type` resolves
+                            # it via `_record_types`.
+                            if return_value_type is None:
+                                _rre = self._m5_get_list_record_elem(node.returns)
+                                if _rre is not None:
+                                    return_value_type = _rre
             elif isinstance(node.returns, ast.Attribute):
                 # `typing.NoReturn` (Attribute value=Name "typing", attr
                 # "NoReturn") — the qualified spelling of the PEP 484 marker.
@@ -3897,6 +3982,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         _inner_mut = self._collect_inner_mutated_params(func_ir["body"], _nested)
         _matrix_routed = {p for p in _inner_mut if _plne.get(p) == "seq int"}
         array2d -= (_nested - _matrix_routed)
+        # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): a flat
+        # `List[<record>]` param (e.g. `List[Tuple[int, str]]`) whose element is a
+        # RECORD must NOT be hijacked into the rectangular `matrix int` model — a
+        # slot read `a[i][1]` is the tuple-record field, not a matrix cell. Subtract
+        # those record-list params (their `param_list_flat_elem` value names a known
+        # record) so they stay on the `array <record>` element model.
+        _plfe = func_ir.get("param_list_flat_elem", {})
+        _rec_names = getattr(self, "_m5_record_class_names", set())
+        array2d -= {p for p, v in _plfe.items() if v in _rec_names}
         for _p in _matrix_routed:
             # a matrix-routed param is mutable `matrix int`, NOT `array (seq int)`; drop
             # its nested-elem tag so Module6 does not also emit the read-only seq model.

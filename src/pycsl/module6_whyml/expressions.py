@@ -3897,6 +3897,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if ft and ft in getattr(self, "_record_types", {}):
                 if self._record_types[ft].get("is_namedtuple"):
                     rec_name = ft
+        # WL-04b (record residual): `a[i][k]` on a flat `List[Tuple[…]]` param — the
+        # inner read `a[i]` is a namedtuple record (the synthesized `pytuple_<tags>`),
+        # so the outer integer subscript `[k]` is its k-th positional slot. Hoist the
+        # element read into a `let` (it may carry a body-context bounds-assert block).
+        _wrap_let = False
+        if (rec_name is None and value.get("type") == "Subscript"
+                and isinstance(value.get("value"), dict)
+                and value["value"].get("type") == "Var"):
+            _rn = getattr(self, "_record_array_params", {}).get(
+                value["value"].get("name", ""))
+            if _rn is not None:
+                # `_rn` is the whyml_name; find the record class whose whyml_name matches.
+                for _cls, _info in getattr(self, "_record_types", {}).items():
+                    if _info.get("whyml_name") == _rn and _info.get("is_namedtuple"):
+                        rec_name = _cls
+                        _wrap_let = True
+                        break
         if rec_name is None:
             return None
         rec_info = self._record_types[rec_name]
@@ -3906,6 +3923,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         field_name = fields[idx_val]
         rec_lower = rec_info["whyml_name"]
         base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+        if _wrap_let:
+            return f"(let _rec_ = {base} in _rec_.{self._field_label(rec_lower, field_name)})"
         return f"{base}.{self._field_label(rec_lower, field_name)}"
 
     @staticmethod
@@ -4347,6 +4366,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # result. The WhyML result is the record value; emit `result.<field_label>`.
         if isinstance(obj_ir, dict) and obj_ir.get("type") == "Result":
             return f"result.{self._field_label(getattr(self, '_func_return_type', None), attr)}"
+        # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): `a[i].field` on a
+        # flat `List[<record>]` param (`a : array <record>`, registered in
+        # `_record_array_params`) is a NATIVE record projection over the array read —
+        # `(a[i]).<field-label>` — not the opaque `get_field` collapse. The element
+        # read `a[i]` is hoisted into a `let` so a body-context bounds-assert block
+        # (`begin assert…; a[i] end`, present under `#@ no_exception IndexError`) can
+        # bind before the projection; in spec context `a[i]` is a plain `Array.get`.
+        if isinstance(obj_ir, dict) and obj_ir.get("type") == "Subscript":
+            _bv = obj_ir.get("value", {})
+            if isinstance(_bv, dict) and _bv.get("type") == "Var":
+                _wn = getattr(self, "_record_array_params", {}).get(_bv.get("name", ""))
+                if _wn is not None:
+                    _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+                    return f"(let _rec_ = {_os} in _rec_.{self._field_label(_wn, attr)})"
         # scc3.md Phase A: a quantifier-bound record var `o : C` (registered by
         # `_push_quant_binder`) — `o.field` is the record field, qualified via
         # `_field_label`, not an abstract `get_field` stub. (The class invariant is
@@ -4356,7 +4389,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _qcls = self._quant_record_binders.get(_vn)
             if _qcls is not None:
                 _cl = self._record_types[_qcls]["whyml_name"]
-                return f"{whyml_ident(_vn)}.{self._field_label(_cl, attr)}"
+                # WL-04b: the binder may be RENAMED by `subst` (the content-faithful
+                # comprehension rebinds its record target `p` → `_celt`); emit the
+                # substituted WhyML name while looking the binder up under its
+                # original name. `subst` is None/absent for every quantifier record
+                # binder → byte-identical.
+                _emit_vn = subst.get(_vn, _vn) if subst else _vn
+                return f"{whyml_ident(_emit_vn)}.{self._field_label(_cl, attr)}"
             # inline.md Phase 1: a module-level global object `g : C` — `g.field` is the
             # global record's field (qualified via `_field_label`), not a `get_field` stub.
             _gcls = self._module_global_classes.get(_vn)
@@ -5346,10 +5385,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
         srca = self._array_coerce_arg(srcw)
+        # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): a projection
+        # comprehension `[p.x for p in a]` over a flat `List[<record>]` source `a`
+        # (`array <record>`, registered in `_record_array_params`) types its content
+        # helper's `src` param as `array <record>` and lowers the projected element
+        # NATIVELY (`(src[i]).x`, via the record binder) — NOT the opaque `get_x`
+        # over a collapsed int. So a driver's own `\result[k] == a[k].x` (also
+        # native) and the content law denote the SAME value (0769/0770 prove; the
+        # false twin 0771 stays UNPROVEN). A non-record source keeps `array int`
+        # (byte-identical). An IDENTITY element (`[p for p in a]`, whose result would
+        # be `array <record>`) is out of the projection scope → fall back to opaque.
+        _src_elem_cls: Optional[str] = None
+        _src_type = "array int"
+        if (isinstance(src_ir, dict) and src_ir.get("type") == "Var"):
+            _wn = getattr(self, "_record_array_params", {}).get(src_ir.get("name", ""))
+            if _wn is not None:
+                if elt.get("type") in ("Var",):
+                    return None          # identity over records — not a projection
+                for _cls, _info in self._record_types.items():
+                    if _info.get("whyml_name") == _wn:
+                        _src_elem_cls = _cls
+                        _src_type = f"array {_wn}"
+                        break
         n = getattr(self, "_comp_content_counter", 0)
         self._comp_content_counter = n + 1
         op = f"list_content_comp_{n}"
         has_if = bool(g.get("ifs"))
+        if has_if and _src_elem_cls is not None:
+            # WL-04b: a FILTERED comprehension over a record source is out of the
+            # projection scope (the subset law's element/identity typing is not the
+            # `array int` content law); fall back to the opaque length-only path
+            # rather than emit an ill-typed `array int` helper. Documented residual.
+            return None
         if has_if:
             # cleared-array.md S4 + item 4: a filtered comprehension keeps the
             # SOUND length bound; when the element is the IDENTITY (`x`) and the
@@ -5375,14 +5442,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         new_subst[target] = celt
         sb = self._quant_scalar_binders
         had_celt = celt in sb
-        sb.add(celt)
+        # WL-04b: for a record source, register the loop target as a RECORD binder
+        # (renamed to `_celt` via `new_subst`) so `p.x` lowers to `_celt.x` (native
+        # projection), not the opaque `get_x _celt`. For a scalar source, keep the
+        # scalar-binder registration (byte-identical).
+        _rec_tok = None
+        if _src_elem_cls is not None:
+            _rec_tok = self._push_quant_binder(target, _src_elem_cls)
+        else:
+            sb.add(celt)
         saved_in_spec = self._in_spec
         self._in_spec = True
         try:
             eltw = self._expr_to_whyml(elt, local_refs or set(), True, new_subst)
         finally:
             self._in_spec = saved_in_spec
-            if not had_celt:
+            if _rec_tok is not None:
+                self._pop_quant_binder(target, _rec_tok)
+            elif not had_celt:
                 sb.discard(celt)
         # cleared-array.md S2: the element was lowered with `_in_spec = True`
         # (above), so each projected `x.attr` already registered its getter as a
@@ -5391,7 +5468,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `a[k].attr`. The collected `getters` set gated the lift in
         # `_comp_elt_pure_int`; no extra registration is needed here.
         decl = (
-            f"val {op} (src: array int) : array int\n"
+            f"val {op} (src: {_src_type}) : array int\n"
             f"    ensures {{ Array.length result = Array.length src }}\n"
             f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length src ->\n"
             f"                result[{binder}] = (let {celt} = src[{binder}] in {eltw}) }}")

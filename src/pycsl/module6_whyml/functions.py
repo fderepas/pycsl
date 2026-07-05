@@ -67,6 +67,17 @@ class FunctionEmissionMixin:
                 # `List[bool]` has no entry → `array int`, byte-identical.
                 _fe = getattr(self, "_param_list_flat_elem", {}).get(arg)
                 if _fe is not None:
+                    # WL-04b (record residual): a flat `List[<record>]` param — the
+                    # element name resolves to a declared record — is `array <record>`,
+                    # so `a[i]` reads a real record and `a[i].field` projects the
+                    # faithful field. Register the param → element record whyml name so
+                    # `_handle_attribute_expr` lowers `a[i].field` natively. Why3 forbids
+                    # a mutable element inside `array`, so the element record is emitted
+                    # PURE (Module5's `list_element_record_types` drives the preamble).
+                    if _fe in self._record_types:
+                        _wn = self._record_types[_fe]["whyml_name"]
+                        self._record_array_params[arg] = _wn
+                        return f"({safe}: array {_wn})"
                     return f"({safe}: array {_fe})"
                 return f"({safe}: array {int_type})"
             return f"({safe}: loc) ({safe}_len: int)"
@@ -243,6 +254,13 @@ class FunctionEmissionMixin:
         # no-more-int-2 Track 3: a bare class-typed parameter reconstructed as a record
         # (param name → whyml record type), so `p.field` is a direct read, not opaque getattr.
         self._record_param_classes: Dict[str, str] = {}
+        # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): a flat
+        # `List[<record>]` param (or the loop target of a comprehension over one) →
+        # the ELEMENT record's whyml name, so `a[i].field` lowers to a native record
+        # projection `(a[i]).<label>` (not the opaque `get_field` collapse). Set by
+        # `_param_type_str` (`array <record>`); consumed by `_handle_attribute_expr`
+        # and the content-faithful comprehension.
+        self._record_array_params: Dict[str, str] = {}
         self._ghost_string_vars: Set[str] = set()
         self._ghost_array_vars: Set[str] = set()
         self._ghost_dict_vars: Set[str] = set()
@@ -810,6 +828,11 @@ class FunctionEmissionMixin:
             # so a float list-literal body type-checks and `\result[i] : real` is faithful.
             elif func.get("return_value_type") == "real":
                 return_type = "array real"
+            # WL-04b (record residual): a `-> List[<record>]` return is `array <record>`,
+            # so a pass-through record-list return (`return a`) types coherently and
+            # `\result[i].field` projects the faithful field.
+            elif func.get("return_value_type") in self._record_types:
+                return_type = f"array {self._record_types[func['return_value_type']]['whyml_name']}"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
         elif ann == "str" and return_type == "int":

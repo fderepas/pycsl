@@ -3197,10 +3197,23 @@ class PreambleEmissionMixin:
                 field_strs = []
                 fields = td["fields"]
                 nf = len(fields)
+                # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): a record
+                # used as a flat `List[<record>]` ELEMENT is emitted PURE (immutable
+                # fields) — Why3 forbids a MUTABLE element inside `array` (the same
+                # constraint the nested `array (seq τ)` model met). Module5 records
+                # such names in `list_element_record_types`; only they drop `mutable`
+                # (byte-identical for every record NOT used as a list element). A
+                # record so pinned that is ALSO field-mutated in the body fails closed
+                # at Why3 type-check (never a silent unsound update). Read-only at the
+                # element position: tuples/NamedTuples are immutable; a projected
+                # `List[<dataclass>]` reads its fields only.
+                _list_elem_pure = td["name"] in getattr(
+                    self, "_list_element_record_types", set())
                 j = 0
                 while j < nf:
                     f = fields[j]
-                    prefix = "mutable " if f.get("mutable") else ""
+                    prefix = "" if _list_elem_pure else (
+                        "mutable " if f.get("mutable") else "")
                     ftype = f['type']
                     # Map Python-level type tags to WhyML types.
                     # `set`/`dict`/`frozenset` → `map int (option int)`

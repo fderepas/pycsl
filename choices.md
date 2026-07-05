@@ -1003,3 +1003,63 @@ static-semantics §Flat note updated.
 **Out of scope (documented, not faked).** A `List[<record>]` literal (would need the WL-03 record
 seam threaded to the literal) and a MIXED-element literal (`[1, "x"]` / `[1, 2.5]` — no single
 faithful element type) keep the int-coercion default.
+
+## wrong-lowering WL-04b — realize a flat `List[<record>]` param/return element as `array <record>` (native `a[i].field` projection; record-leaf analog of the WL-04 str/float flat model)
+
+**Context.** WL-04 (COLLAPSED-with-consumer): the flat str/float leaf (`List[str]`→`array string`,
+`List[float]`→`array real`) and its list-literal construction analog (WL-04a) were done, but a flat
+`List[<record>]` — a list whose element is a user `@dataclass`/`NamedTuple` or a recognized
+`Tuple[T1,…,Tn]` — still collapsed its element to `int`: `a[i].x` lowered to the opaque
+`get_x(a[i])` over a collapsed int (sound but content-opaque; a concrete field value was UNPROVABLE),
+and `a[i][1]` on a `List[Tuple[int,str]]` was hijacked into `matrix int` or an ill-typed
+`subscript_get a[i] 1` (TYPEERR). The τ-table had no faithful record-leaf row.
+
+**Choice.** Realize a flat `List[R]` PARAMETER (and pass-through RETURN) whose element `R` is a KNOWN
+record as **`array <record-whyml>`**, so `a[i]` reads a REAL record and `a[i].field` / `a[i][k]`
+projects the FAITHFUL field. Module5 `_m5_get_list_record_elem` recognizes the element (a recognized
+`Tuple[…]` via the WL-03 `_m5_tuple_slot_tags` → `pytuple_<tags>`, or a user record class via the
+pre-collected `_m5_record_class_names`) and stores the record CLASS NAME in the SAME
+`param_list_flat_elem` map (Module6 resolves a record name via `_record_types`, else emits `array {τ}`
+for str/float). A record-list param is subtracted from the 2-D `matrix int` detection so `a[i][1]` is
+a slot read, not a matrix cell. Module6 `_param_type_str` emits `array <whyml>` + registers
+`_record_array_params`; `_handle_attribute_expr` lowers `a[i].field` to
+`(let _rec_ = a[i] in _rec_.<label>)`; `_namedtuple_positional_access` lowers `a[i][k]` to the k-th
+slot; `_compute_return_type` resolves a `-> List[R]` return. The projection comprehension
+`[p.x for p in a]` over a record source is threaded natively too (`list_content_comp` `src: array
+<record>`, `result[i] = (src[i]).x`, the loop target registered as a record binder), so a driver's
+own `\result[k] == a[k].x` (also native) and the content law denote the SAME value.
+
+**Rationale — PURE element record (Why3 constraint).** Why3 FORBIDS a MUTABLE element inside `array`
+(an `array` instantiates a PURE type variable; SMT-established, the same constraint the nested
+`array (seq τ)` model met — Gate-B spike `wl04b_list_record_elem_spike.mlw`). So a record used as a
+`List[<record>]` ELEMENT is emitted PURE (immutable fields): Module5 records those names in
+`list_element_record_types`; the preamble drops `mutable` for EXACTLY those records (byte-identical
+for every record NOT used as a list element). This is SOUND and FAITHFUL: a `Tuple`/`NamedTuple` is
+immutable by Python semantics, and a `List[<dataclass>]` reads its fields only — a dataclass that is
+BOTH a list element AND field-mutated fails CLOSED at Why3 type-check (a clean type error, never a
+silent unsound update). Conditional (per-module, usage-driven) purity keeps every non-list-record
+program byte-identical.
+
+**Emission-differential.** The ONLY corpus programs whose emission changes are the three pre-existing
+`List[Point]` projection programs 0769/0770/0771 (all `List[<record>]` — within the allowed change
+set); they now prove the content law via the native `(a[i]).x` projection instead of the opaque
+`get_x`, and the false twin 0771 STAYS UNPROVEN. Every OTHER of the 707 corpus files emits
+BYTE-IDENTICALLY (verified via `bin/byte-diff-sweep.sh`, before/after). No new axiom
+(`proof_axiom_allowlist` unchanged); `\trusted` non-increasing.
+
+**No smuggled axiom.** The `array <record>` element field read is SMT-direct on Alt-Ergo AND Z3 (a
+native `array` read composed with a native record projection). Spike
+`test-suite/corpus/conformance/spikes/wl04b_list_record_elem_spike.mlw` (all goals Valid on both).
+
+**Regression locks.** `0829.py` (POSITIVE `List[<dataclass>]` `a[i].field`), `0830.py` (POSITIVE
+`List[Tuple[int,str]]` `a[i][k]` slot), `0831.py` (NEGATIVE `# pycsl-expected: FAIL` false cross-field
+conflation). Repro drivers `getting-better/wrong-lowering/wl04b_list_{record,tuple}_elem_COLLAPSED.py`
+(→ PROVEN), `wl04b_list_record_falsetwin.py` (→ UNPROVEN). τ-table row
+(`τ(List[<record>]) = array <record>`, record PURE) and `wrong-lowering-to-fix.md` §WL-04 record
+residual (→ IMPLEMENTED) updated.
+
+**Out of scope (documented, not faked).** A `List[<record>]` LITERAL (`[Point(1,2), …]`, would need
+the record constructor threaded to the WL-04a list-literal seam), a FILTERED projection comprehension
+over a record source (falls back to the opaque length-only law), a `List[<plain-class-with-__init__>]`
+element (only `@dataclass`/`NamedTuple`/recognized `Tuple` are recognized), and a record slot of
+`float`/container type (the WL-03 slot recognition is int/bool/str only) keep the prior model.

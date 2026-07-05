@@ -411,6 +411,12 @@ class Module6_WhyMLTranspiler(
             whyml_ident(td["name"].lower()) for td in type_decls
             if isinstance(td, dict) and td.get("kind") == "record" and td.get("mutable_state")
         }
+        # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): record CLASS names
+        # (type_decls keys) used as a flat `List[<record>]` ELEMENT, so `_emit_type_decls`
+        # emits them PURE (Why3 forbids a mutable element inside `array`). Empty for
+        # every module with no `List[<record>]` param/return → byte-identical.
+        self._list_element_record_types: Set[str] = set(
+            self.ir.get("list_element_record_types", []))
 
         # module-emission.md: OPT-IN axiom isolation. If a function carries
         # `#@ verify_module <name>` AND is emitted here as a REAL `let` body (i.e. it is
