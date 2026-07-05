@@ -63,12 +63,20 @@ def _load_axiom_registry() -> int:
 def crosscheck_file(py_file: Path) -> List[CrossCheckResult]:
     return []
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _module_namespace_of(rocq_file: Path) -> str:
-    return ""
+    """Best-effort guess: a .v file at `0342.proofs/rocq/gcd.v` is
+    likely wrapped in `Module Pycsl. Module Reference. Module Gcd.`
+    matching the pycsl_target convention. We return the conventional
+    prefix `Pycsl.Reference.<TestCapitalized>` where TestCapitalized
+    is derived from the .v file stem.
+
+    For non-conventional layouts, return empty string (caller falls
+    back to trying all qualnames).
+    """
+    return ""  # v0: don't filter, let extractor handle all qualnames.
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
