@@ -896,6 +896,31 @@ class FunctionEmissionMixin:
             return_type = f"int{bounded_int}"
         return return_type
 
+    def _bytes_param_range_requires(self) -> List[str]:
+        """wrong-lowering-to-fix.md §WL-06c: emit the implicit byte-RANGE precondition
+        `requires forall i. 0<=i<len(b) -> 0<=b[i]<256` for every `bytes`/`bytearray`
+        PARAMETER of the function currently being emitted.
+
+        Every real Python `bytes`/`bytearray` object has all elements in [0,256) — a
+        TYPE-LEVEL guarantee (an out-of-range byte cannot exist), so the callee may
+        ASSUME it. It is SOUND-and-additive: it only adds the range bound (a false
+        SPECIFIC-value claim `b[k]==c` is NOT derivable from a range), and no verified
+        corpus caller passes a bytes argument, so no call-site obligation arises.
+        STRICTLY gated on symtype `bytes`/`bytearray` — a `List[int]`/`array int`
+        param carries NO [0,256) bound and is NEVER emitted (soundness). Emitted in
+        source-parameter order (deterministic); empty for every non-bytes-param
+        function → byte-identical."""
+        symtab = getattr(self, "_current_symbol_table", {}) or {}
+        out: List[str] = []
+        for p in getattr(self, "_formal_params", []):
+            if symtab.get(p) in ("bytes", "bytearray"):
+                b = whyml_ident(p)
+                out.append(
+                    f"    requires {{ (forall _wl06c_i : int. "
+                    f"(((0 <= _wl06c_i) && (_wl06c_i < (Array.length {b}))) "
+                    f"-> ((0 <= {b}[_wl06c_i]) && ({b}[_wl06c_i] < 256)))) }}")
+        return out
+
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
@@ -1044,6 +1069,23 @@ class FunctionEmissionMixin:
         # assert). A trusted stub has no body, so a contract-only unknown symbol there is
         # necessarily a logic predicate (the gap-7 `present` shape).
         self._emitting_val_contract = emit_as_val
+        # wrong-lowering-to-fix.md §WL-06c: an UNKNOWN `bytes`/`bytearray` PARAMETER
+        # is the τ-blessed coarse `array int` buffer whose CONTENT is arbitrary to the
+        # solver — but EVERY real Python `bytes`/`bytearray` object has all elements in
+        # [0,256). That byte-RANGE fact is a TYPE-LEVEL guarantee (a caller cannot
+        # construct an out-of-range byte), so it is emitted as an IMPLICIT precondition
+        # `requires forall i. 0<=i<len(b) -> 0<=b[i]<256` for each bytes/bytearray param.
+        # This is ADDITIVE and SOUND: it only adds the RANGE bound (a false SPECIFIC-value
+        # claim like `b[0]==97` stays UNPROVEN — the range does not pin a value), the
+        # false-twin coherence guards (0825/0594) still fail, and no verified caller
+        # passes a bytes argument (all bytes-param corpus functions are leaves), so no
+        # call-site obligation is created. A `bytes`/`bytearray` element WRITE never
+        # reaches the body (bytes is rejected immutable, WL-06b; a bytearray param write
+        # is rejected as a caller-visibility/frame boundary, §WL-05), so the entry range
+        # invariant is never violated in-body. STRICTLY gated on symtype bytes/bytearray
+        # (a `List[int]` param has NO [0,256) bound → never emitted). Byte-identical for
+        # every function without a bytes/bytearray param.
+        lines += self._bytes_param_range_requires()
         lines += self._emit_contracts(contract_src, spec_refs,
                                       func_variants, func_diverges,
                                       func_exceptions, func_is_noreturn)

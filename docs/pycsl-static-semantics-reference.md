@@ -177,9 +177,16 @@ specification logic's type universe:
 τ(bytes)          = int †     (* IMMUTABLE byte buffer; a LITERAL carries its REAL byte content
                                  (array int built from the exact bytes) so `b"abc"[0]==97` PROVES
                                  and `0<=b[i]<256` is derivable (WL-06b, translational §T.15.7); an
-                                 element write `b[i]=v` is REJECTED (Python TypeError). A PARAMETER's
-                                 content stays opaque. *)
-τ(bytearray)      = int †     (* MUTABLE byte buffer (element write = sound array mutation) *)
+                                 element write `b[i]=v` is REJECTED (Python TypeError). An unknown
+                                 PARAMETER carries an IMPLICIT byte-RANGE precondition
+                                 `forall i. 0<=b[i]<256` (a type-level guarantee — every real bytes
+                                 element is in [0,256); WL-06c, translational §T.15.8), so a range
+                                 read PROVES without a user requires; its EXACT byte content still
+                                 stays opaque (user `requires` only). *)
+τ(bytearray)      = int †     (* MUTABLE byte buffer (element write = sound array mutation); an
+                                 unknown PARAMETER carries the same implicit byte-RANGE precondition
+                                 (WL-06c). A caller-visible `bytearray` PARAMETER element write is
+                                 rejected (frame boundary, §WL-05). *)
 τ(dict)           = dict
 τ(Dict[K, V])     = dict      (* κ=string ⇒ map string (option ν), native String.(=); else map int *)
 τ(set)            = dict      (* sets share the dict model; see translational §T.14.2 *)

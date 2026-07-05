@@ -1155,3 +1155,44 @@ byte-range invariant), `0837.py` (NEGATIVE `# pycsl-expected: FAIL` — false by
 refute fast over the array literal), `0838.py` (NEGATIVE `# pycsl-expected: FAIL` — `bytes` element write
 REJECTED, immutability). Docs: `wrong-lowering-to-fix.md` §WL-06 (→ + WL-06b), translational §T.15.5/§T.15.7,
 `missing-bytes-struct-feature.md` (done-vs-follow-on).
+
+## WL-06c — byte-RANGE invariant of an UNKNOWN `bytes`/`bytearray` PARAMETER (T9, the last WL-06 follow-on)
+
+**Context.** WL-06b made a `bytes` LITERAL's content faithful, from which `0<=b[i]<256` is DERIVABLE. For
+an UNKNOWN `bytes`/`bytearray` PARAMETER the τ-blessed `array int` content is arbitrary to the solver, so
+the byte-range was NOT provable without the user writing the bound by hand (0658 carried
+`#@ requires 0 <= data[offset] <= 255` manually). Yet the range is TRUE of every real Python
+`bytes`/`bytearray` object.
+
+**Decision — EMIT the byte-range as an IMPLICIT precondition per bytes/bytearray param; do NOT model the
+exact value; keep the write fail-closed.** Every real `bytes`/`bytearray` element is in [0,256) — a
+type-level guarantee (an out-of-range byte cannot be constructed), so the callee may ASSUME it.
+`functions._bytes_param_range_requires` emits `requires { forall i. 0<=i<len(b) -> 0<=b[i]<256 }` for each
+bytes/bytearray param, just before the user contract. Chosen a `requires` (checked end-to-end, no new
+trust, no axiom) over a body `assume`; it is fully additive because no verified corpus caller passes a
+bytes argument, so no call-site obligation arises. It is SOUND-and-additive: it adds ONLY the range bound
+— a false SPECIFIC-value claim (`\result==97`) stays UNPROVEN (the range does not pin a value), the
+coherence/distinct-index twins (0594/0825) still fail. STRICTLY gated on symtype `bytes`/`bytearray` (a
+`List[int]`/`array int` param carries NO [0,256) bound → never emitted).
+
+**Write posture.** The invariant is an ENTRY precondition and is never violated in-body: no bytes/bytearray
+PARAMETER element write is emitted (`bytes` rejected immutable, WL-06b; a `bytearray` PARAMETER element
+write rejected as a caller-visibility/frame boundary, §WL-05). A future caller-visible `bytearray`
+mutation model would carry a Python-`ValueError` write obligation `0<=v<256`.
+
+**SMT-feasibility spike.** `test-suite/corpus/conformance/spikes/wl06c_bytes_param_range_spike.mlw` proves
+the range read, coherence, no-over-claim (a non-discharging false-twin goal), user-requires, and
+write-in-range — Valid on Alt-Ergo AND Z3, NO new axiom.
+
+**Additive / no regression.** Exactly the SIX corpus files with a `bytes`/`bytearray` PARAMETER gain the
+one implicit-requires line (0420, 0593, 0594, 0779, 0824, 0825); each still proves/fails as before. Every
+other file (incl. bytes-LITERAL 0836 and `list`-param codecs 0452/0658) is BYTE-IDENTICAL. `\trusted`
+non-increasing; doc-coherency + mirror-sync green.
+
+**Regression locks.** `0862.py` (POSITIVE — range of an unknown bytes AND bytearray param, no user
+requires), `0863.py` (NEGATIVE `# pycsl-expected: FAIL` — specific-value over-claim stays UNPROVEN),
+`0864.py` (POSITIVE — user `requires` bounds the exact value). Drivers under `getting-better/wrong-lowering/`:
+`wl06c_bytes_param_range_POSITIVE.py` (PROVEN), `wl06c_bytes_param_specific_falsetwin.py` (UNPROVEN),
+`wl06c_bytes_param_user_requires_FAITHFUL.py` (PROVEN), `wl06c_bytearray_param_write_REJECTED.py`
+(REJECTED). Docs: `wrong-lowering-to-fix.md` §WL-06 (→ + WL-06c), translational §T.15.8, static-semantics
+τ(bytes)/τ(bytearray) note, `missing-bytes-struct-feature.md` P2a done / P2b follow-on.

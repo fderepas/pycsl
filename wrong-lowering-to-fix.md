@@ -623,7 +623,7 @@ false-positive against the τ-blessed baseline.
     identical before/after; the mismatches are the pre-existing `ir_version`/`param_annotations`/
     `mutable_state` drift). NO new axiom; `\trusted` non-increasing.
 
-### WL-06 — `bytes` subscript `b[i]` emits `subscript_get(int,int)` on an `array int` value — ✅ FIXED (WL-06 coherence) + ✅ WL-06b (faithful byte CONTENT of a literal + immutability)
+### WL-06 — `bytes` subscript `b[i]` emits `subscript_get(int,int)` on an `array int` value — ✅ FIXED (WL-06 coherence) + ✅ WL-06b (faithful byte CONTENT of a literal + immutability) + ✅ WL-06c (byte-RANGE invariant of an unknown PARAMETER)
 - **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). A `bytes`/`bytearray` value is the τ-blessed
   `bytes=int†` array-int-backed buffer (`b : array int` — KEPT, the coarsening is unchanged); the
   defect was that a subscript READ `b[i]` routed to the opaque `subscript_get (x:int)(i:int):int`
@@ -649,11 +649,14 @@ false-positive against the τ-blessed baseline.
   byte-content claim (`b"abc"[0] == 98`) stays UNPROVEN. **Immutability is now respected:** a `bytes`
   element WRITE `b[i] = v` is REJECTED (`PYCSL-SEM-SUBSCRIPT`, unconditional — Python `TypeError:
   'bytes' object does not support item assignment`), never a silent unsound `Array.set`; a `bytearray`
-  (mutable) element write stays a sound array mutation. What REMAINS the τ-blessed opaque residual: the
-  CONTENT of an *unknown* `bytes` (a PARAMETER — only a user `requires` can bound it), and
-  `str↔bytes` encode/decode + deeper `struct`/byte-methods (translational §T.15.5, follow-on). For a
-  `bytes` PARAMETER read the value is still a coherent-but-opaque `int` (body `b[i]` == contract `b[i]`;
-  distinct indices independent).
+  (mutable) element write stays a sound array mutation. **WL-06c (this follow-on) delivers the byte-RANGE
+  invariant `0<=b[i]<256` for an UNKNOWN `bytes`/`bytearray` PARAMETER** (see the WL-06c sub-entry below):
+  every real Python `bytes` element is in [0,256), so PyCSL emits that as an IMPLICIT precondition per
+  bytes/bytearray param — a range read now PROVES with NO user `requires`. What REMAINS the τ-blessed
+  opaque residual: the EXACT byte VALUE of an *unknown* `bytes` PARAMETER (only a user `requires` can pin
+  it — the range is now implicit), and `str↔bytes` encode/decode + deeper `struct`/byte-methods
+  (translational §T.15.5, follow-on). For a `bytes` PARAMETER read the value is a coherent, RANGE-bounded
+  but value-opaque `int` (body `b[i]` == contract `b[i]`; distinct indices independent).
 - **Class / severity:** WRONG-REPR / 4 (was; now a coherent, type-checking read).
 - **Verdict flips (now):**
   - `getting-better/wrong-lowering/wl06_bytes_index_WRONGREPR.py` → **type-checks** (no more
@@ -677,8 +680,54 @@ false-positive against the τ-blessed baseline.
 - **Deliberate-collapse check:** now DOCUMENTED and, for LITERALS, CLOSED. `τ(bytes)=int†` (the coarse
   `array int` SHAPE) stays τ-blessed; WL-06 repaired the BROKEN subscript/`len` emission and WL-06b
   added faithful byte CONTENT for a `bytes` LITERAL (exact value + range invariant) plus immutability
-  rejection — additive on top of the coarse shape. The recorded residual is now narrowed to the CONTENT
-  of an *unknown* `bytes` (a parameter) and encode/decode + deeper `struct` (translational §T.15.5).
+  rejection — additive on top of the coarse shape. WL-06c (below) then delivers the byte-RANGE invariant
+  of an unknown PARAMETER, narrowing the residual to the EXACT byte VALUE of an unknown parameter and
+  encode/decode + deeper `struct` (translational §T.15.5).
+- **Dedup:** none.
+
+#### WL-06c (T9) — byte-RANGE invariant `0<=b[i]<256` of an UNKNOWN `bytes`/`bytearray` PARAMETER — ✅ IMPLEMENTED
+- **Status:** ✅ **IMPLEMENTED** (branch `ghost-assign-bc6`). WL-06b made a `bytes` LITERAL's content
+  faithful, from which `0<=b[i]<256` is DERIVABLE (concrete construction). For an UNKNOWN `bytes`/
+  `bytearray` PARAMETER the coarse `array int` content is arbitrary to the solver — but EVERY real Python
+  `bytes`/`bytearray` object has all elements in [0,256) (a byte cannot hold an out-of-range value). That
+  is a TYPE-LEVEL guarantee, so PyCSL now EMITS it as an IMPLICIT precondition per bytes/bytearray param
+  `requires { forall i. 0<=i<len(b) -> 0<=b[i]<256 }` (`functions._bytes_param_range_requires`, inserted
+  just before the user contract). A range read of an unknown param now PROVES with NO user `requires`.
+- **Construct / position:** any `b[i]` read of a `bytes`/`bytearray` PARAMETER; the postcondition
+  `0<=\result<256` (or any range fact) is now provable from the type alone.
+- **Was:** for a `bytes` param `b : array int`, the byte value was a coherent-but-opaque `int` with NO
+  range known — `ensures 0<=\result<256` was UNPROVEN unless the user wrote the bound by hand (e.g. 0658
+  manually carried `#@ requires 0 <= data[offset] <= 255`).
+- **Now:** the implicit range precondition makes `0<=b[i]<256` provable for every bytes/bytearray param,
+  no user annotation needed.
+- **Class / severity:** faithfulness improvement on a τ-blessed shape (not an unsoundness) — additive.
+- **Soundness (the guard):** ADDITIVE — adds ONLY the range bound. A false SPECIFIC-VALUE claim
+  (`\result==97` for an arbitrary param) stays UNPROVEN (the range does not pin a value — false-twin
+  0863 / `wl06c_bytes_param_specific_falsetwin.py`); the coherence/distinct-index guards (0594/0825) still
+  fail. STRICTLY gated on symtype `bytes`/`bytearray` — a `List[int]`/`array int` param has NO [0,256)
+  bound and is NEVER given the invariant. No verified corpus caller passes a bytes argument (all
+  bytes-param corpus functions are leaves), so no call-site discharge obligation is created.
+- **Write posture:** the invariant is an ENTRY precondition and is never violated in-body — no bytes/
+  bytearray PARAMETER element write is emitted (`bytes` is rejected immutable, WL-06b; a `bytearray`
+  PARAMETER element write is rejected as a caller-visibility/frame boundary, §WL-05 — driver
+  `wl06c_bytearray_param_write_REJECTED.py`, verdict REJECTED). A future caller-visible `bytearray`
+  mutation model would add a Python-`ValueError` write obligation `0<=v<256`.
+- **User-`requires` escape hatch:** unchanged and locked — a `#@ requires b[0]==65` still makes
+  `\result==65` prove (the range does not reveal content); lock 0864 / `wl06c_bytes_param_user_requires_FAITHFUL.py`.
+- **Regression locks (reference corpus):** `0862.py` (POSITIVE — range invariant of an unknown bytes AND
+  bytearray param proves with no user requires), `0863.py` (NEGATIVE `# pycsl-expected: FAIL` — specific
+  byte-value over-claim stays UNPROVEN), `0864.py` (POSITIVE — user `requires` bounds the exact value).
+  Repro drivers under `getting-better/wrong-lowering/`: `wl06c_bytes_param_range_POSITIVE.py` (PROVEN),
+  `wl06c_bytes_param_specific_falsetwin.py` (UNPROVEN), `wl06c_bytes_param_user_requires_FAITHFUL.py`
+  (PROVEN), `wl06c_bytearray_param_write_REJECTED.py` (REJECTED). SMT-feasibility spike
+  `test-suite/corpus/conformance/spikes/wl06c_bytes_param_range_spike.mlw` (range provable, coherence,
+  no-over-claim false-twin as a non-discharging goal, user-requires, write-in-range — Valid on Alt-Ergo
+  AND Z3; the false-twin goal is Timeout/Unknown = NOT Valid).
+- **Emission differential:** exactly the SIX corpus files with a `bytes`/`bytearray` PARAMETER gain the
+  one implicit-requires line (0420, 0593, 0594, 0779, 0824, 0825); each still proves/fails as before
+  (0594/0825 are `# pycsl-expected: FAIL` twins and STAY unproven). Every other file (incl. bytes-LITERAL
+  0836 and the `list`-param struct codecs 0452/0658) is BYTE-IDENTICAL. NO new axiom; `\trusted`
+  non-increasing.
 - **Dedup:** none.
 
 ---
@@ -688,8 +737,9 @@ false-positive against the τ-blessed baseline.
 - **bool = int** — τ-blessed lossless 0/1 injection; false twin UNPROVABLE (`cal_bool_falsetwin`).
 - **bare `tuple` = int†**, **bytes/bytearray = int†** (as the coarse array-int *shape*) — τ-blessed
   collapse of the SHAPE (WL-06 fixed the broken subscript emission; WL-06b added faithful byte CONTENT for
-  a LITERAL + immutability — additive on the shape, §T.15.7). The unknown-`bytes`-parameter content stays
-  the residual.
+  a LITERAL + immutability, §T.15.7; WL-06c added the byte-RANGE invariant of an unknown PARAMETER,
+  §T.15.8 — all additive on the shape). Only the EXACT byte VALUE of an unknown `bytes` parameter (user
+  `requires` only) + encode/decode stay the residual.
 - **`Dict[str,int]` / `Dict[str,str]` value read** — FAITHFUL (`map string (option ν)`), read-back
   proves (`cal_dict_val_faithful`; probes `p_dict_str_val`/`p_dict_int_val` PROVEN).
 - **`float` = real** — FAITHFUL (`p_float` PROVEN); false twin `2.0*3.0==7.0` UNPROVABLE.
@@ -712,7 +762,7 @@ false-positive against the τ-blessed baseline.
 | UNSOUND (1) | 0 open | ~~WL-01 (floor `//`/`%`, neg divisor)~~ **FIXED**, ~~WL-02 (true `/` → int div)~~ **FIXED** |
 | FALSE-GREEN (2) | 0 new | WL-VAC (documented, cross-ref) |
 | COLLAPSED-with-consumer (3) | 0 open | ~~WL-03 (Tuple param)~~ **FIXED**, ~~WL-04 (List[str/float] elem)~~ **FIXED** |
-| WRONG-REPR (4) | 0 open | ~~WL-05 (dict/set param mut)~~ **FIXED** + ~~WL-05d (record/list param field-mut: LIST+mutable-record SUPPORTED, pure-record FAIL-CLOSED, severity-1 fail-OPEN FIXED)~~ **IMPLEMENTED**, ~~WL-06 (bytes index)~~ **FIXED** + ~~WL-06b (bytes-literal CONTENT + immutability)~~ **IMPLEMENTED** |
+| WRONG-REPR (4) | 0 open | ~~WL-05 (dict/set param mut)~~ **FIXED** + ~~WL-05d (record/list param field-mut: LIST+mutable-record SUPPORTED, pure-record FAIL-CLOSED, severity-1 fail-OPEN FIXED)~~ **IMPLEMENTED**, ~~WL-06 (bytes index)~~ **FIXED** + ~~WL-06b (bytes-literal CONTENT + immutability)~~ **IMPLEMENTED** + ~~WL-06c (unknown-bytes-param byte-RANGE invariant)~~ **IMPLEMENTED** |
 | OPAQUE (5) | 0 filed | — |
 
 **ALL 6 WL-* findings are FIXED.** WL-01 and WL-02 (both certified FALSE arithmetic — a green proof for
@@ -726,7 +776,10 @@ now COHERENT and type-checks. Its follow-on **WL-06b** delivers the tractable co
 value model: a `bytes` LITERAL now carries its REAL byte CONTENT (exact value reads PROVE, the byte-range
 invariant `0 <= b[i] < 256` is derivable), and `bytes` IMMUTABILITY is respected (a `bytes` element write
 is REJECTED, never silently unsound; `bytearray` stays a sound mutable buffer). The coarse `array int`
-shape is KEPT — content faithfulness is additive on top of it. **Remaining follow-on (documented, final
-residual):** the CONTENT of an *unknown* `bytes` (a parameter — user `requires` only), and `str↔bytes`
-encode/decode + deeper `struct`/byte-methods (translational §T.15.5). Harness + drivers + the Alt-Ergo/Z3
-SMT spike are committed and re-runnable.
+shape is KEPT — content faithfulness is additive on top of it. **WL-06c** then adds the byte-RANGE
+invariant `0 <= b[i] < 256` for an UNKNOWN `bytes`/`bytearray` PARAMETER as an IMPLICIT precondition (a
+type-level guarantee — every real Python byte is in [0,256)), so a range read of an unknown param PROVES
+with no user annotation, while a false SPECIFIC-value claim stays UNPROVEN. **Remaining follow-on
+(documented, final residual):** the EXACT byte VALUE of an *unknown* `bytes` parameter (user `requires`
+only — the RANGE is now implicit), and `str↔bytes` encode/decode + deeper `struct`/byte-methods
+(translational §T.15.5). Harness + drivers + the Alt-Ergo/Z3 SMT spikes are committed and re-runnable.

@@ -18,7 +18,8 @@ A `bytes`/`bytearray` value lowers to the coarse `array int` buffer (`τ(bytes)=
 | — | coherent `b[i]` READ (`Array.get`) + `len(b)` (`Array.length`) — no more broken `subscript_get` | ✅ DONE — **WL-06** (translational §T.15.6; locks 0824/0825) |
 | — | faithful byte CONTENT of a `bytes` **LITERAL** (exact value reads PROVE) + byte-RANGE invariant `0 <= b[i] < 256` (derivable, no axiom) | ✅ DONE — **WL-06b** (translational §T.15.7; locks 0835/0836; spike `wl06b_bytes_content_spike.mlw`) |
 | — | `bytes` **immutability** — a `bytes` element write `b[i]=v` is REJECTED (Python `TypeError`); `bytearray` element write stays a sound mutable array mutation | ✅ DONE — **WL-06b** (`core_ir_semantic._sa_immutable_walk`; locks 0837/0838) |
-| P2 | CONTENT of an *unknown* `bytes` (a **PARAMETER**) — currently opaque `int` cells (coherent, distinct-index independent); only a user `requires`/element bound can constrain it | ⛔ FOLLOW-ON |
+| P2a | byte-RANGE invariant `0 <= b[i] < 256` of an *unknown* `bytes`/`bytearray` **PARAMETER** — emitted as an IMPLICIT precondition (a type-level guarantee); range read PROVES with no user `requires`, specific-value claim stays UNPROVEN | ✅ DONE — **WL-06c** (`functions._bytes_param_range_requires`; translational §T.15.8; locks 0862/0863/0864; spike `wl06c_bytes_param_range_spike.mlw`) |
+| P2b | EXACT CONTENT of an *unknown* `bytes` **PARAMETER** — the individual byte VALUES stay opaque `int` cells (coherent, distinct-index independent, now range-bounded); only a user `requires`/element bound can pin a value | ⛔ FOLLOW-ON |
 | P3 | `str ↔ bytes` `.encode` / `.decode` (UTF-8 / ASCII round-trip) | ⛔ FOLLOW-ON |
 | P4 | byte-string methods `.ljust` / `.split` / `.strip` / `.hex` | ⛔ FOLLOW-ON |
 | P5 | full `struct.pack` / `struct.unpack` round-trip **beyond** what cleared-pack (`Pycsl.Struct.*`) already gives | ⛔ FOLLOW-ON (cleared-pack round-trip DONE separately) |
@@ -34,8 +35,9 @@ A `bytes`/`bytearray` value lowers to the coarse `array int` buffer (`τ(bytes)=
 
 ## What "FOLLOW-ON" means
 
-- The CONTENT of a `bytes` **parameter** is unknown at compile time — its `b[i]` denotes a coherent but
-  opaque `int` cell (body `b[i]` == contract `b[i]`, distinct indices independent). Constrain it with an
+- The EXACT byte VALUE of a `bytes` **parameter** is unknown at compile time — its `b[i]` denotes a
+  coherent but opaque `int` cell (body `b[i]` == contract `b[i]`, distinct indices independent). It is now
+  RANGE-bounded (`0 <= b[i] < 256`, implicit, WL-06c / P2a) but the specific value is pinned only by an
   explicit `#@ requires` element bound.
 - `encode`/`decode` and deeper `struct`/byte-method semantics would need format-string-aware emission plus
   cited round-trip lemmas (Rocq/Lean), NOT `\trusted` — out of scope of the wrong-lowering campaign.

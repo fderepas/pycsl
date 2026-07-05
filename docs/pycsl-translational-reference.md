@@ -3647,10 +3647,12 @@ no commitment beyond typing).
 are out of scope of §T.15 (format-string-aware emission + Rocq
 round-trip axioms + per-method bytes-method modeling). **DONE since
 this note:** faithful byte CONTENT of a `bytes` LITERAL and the
-byte-range constraint `0..255` (both §T.15.7, WL-06b), and the
-coherent `b[i]`/`len(b)` read (§T.15.6, WL-06). What remains is the
-CONTENT of an *unknown* `bytes` (a parameter) and the encode/decode
-+ deeper-`struct` method semantics above.
+byte-range constraint `0..255` (both §T.15.7, WL-06b); the
+coherent `b[i]`/`len(b)` read (§T.15.6, WL-06); and the implicit
+byte-RANGE invariant `0<=b[i]<256` for an *unknown* `bytes`/
+`bytearray` PARAMETER (§T.15.8, WL-06c). What remains is the exact
+CONTENT of an unknown `bytes` parameter (user `requires` only) and
+the encode/decode + deeper-`struct` method semantics above.
 
 ### §T.15.6  Byte read `b[i]` and `len(b)` (WL-06)
 
@@ -3718,11 +3720,68 @@ so it never lowers to an unsound mutable `Array.set` (0838). A
 genuine, sound `array` mutation (a mutable byte buffer must be a
 `bytearray` or a `list`).
 
+**Range invariant for an unknown PARAMETER — §T.15.8.** The byte-
+RANGE part of this faithfulness (`0<=b[i]<256`) is now available for
+an *unknown* `bytes`/`bytearray` PARAMETER too (not just a literal),
+via an implicit precondition — see §T.15.8. Only the EXACT byte
+value of an unknown parameter remains opaque (user `requires` only).
+
+### §T.15.8  Byte-RANGE invariant for an unknown `bytes`/`bytearray` PARAMETER (WL-06c)
+
+For a `bytes` LITERAL the range `0<=b[i]<256` is DERIVABLE from the
+concrete construction (§T.15.7). For an UNKNOWN `bytes`/`bytearray`
+PARAMETER the coarse model is an arbitrary `array int`, so the range
+is NOT known to the solver — yet it is TRUE of every real Python
+`bytes`/`bytearray` object (a byte cannot hold a value outside
+[0,256); an out-of-range byte cannot be constructed). This is a
+TYPE-LEVEL guarantee, so PyCSL EMITS it as an IMPLICIT precondition
+on each `bytes`/`bytearray` parameter `b`:
+
+`requires { forall i. 0 <= i < Array.length b -> 0 <= b[i] < 256 }`
+
+emitted by `functions._bytes_param_range_requires` immediately before
+the user contract. Consequently a byte read of an UNKNOWN parameter is
+provably in range WITHOUT the user writing the bound (`ensures
+0<=\result<256` PROVES; corpus lock 0862). The emission is:
+
+- **STRICTLY gated** on the symbol-table type being `bytes`/`bytearray`
+  — a `List[int]`/`array int` parameter carries NO [0,256) bound and
+  is NEVER given the invariant (soundness: an arbitrary int list is
+  not byte-ranged).
+- **ADDITIVE and SOUND.** It adds ONLY the range bound: a false
+  SPECIFIC-value claim (`\result == 97` for an arbitrary parameter)
+  stays UNPROVEN — the range does not pin a value (corpus lock 0863;
+  false-twin driver `wl06c_bytes_param_specific_falsetwin.py`). The
+  distinct-index/coherence guards (0594/0825) still fail. No verified
+  corpus caller passes a `bytes` argument (all bytes-parameter
+  functions are leaves), so no call-site discharge obligation is
+  created — every non-bytes-parameter function is byte-identical.
+- **NO new axiom, NO `\trusted`.** The invariant is a native
+  first-order `requires` discharged by the SMT backend (spike
+  `wl06c_bytes_param_range_spike.mlw`, Valid on Alt-Ergo AND Z3).
+
+**User `requires` still bounds the exact value.** The invariant does
+NOT reveal the byte content, so a user `#@ requires b[0] == 65` is
+still what makes `\result == 65` prove (corpus lock 0864) — the
+escape hatch for the opaque content is unchanged.
+
+**Write posture.** The invariant is an ENTRY precondition, and it is
+never violated in-body because no `bytes`/`bytearray` PARAMETER
+element write is emitted: a `bytes` write is rejected as immutable
+(§T.15.7), and a `bytearray` PARAMETER element write is rejected as a
+caller-visibility/frame boundary (the SAME boundary for which
+dict/set/record parameter mutation is rejected, §T.2 / WL-05 —
+driver `wl06c_bytearray_param_write_REJECTED.py`, verdict REJECTED).
+A future faithful caller-visible `bytearray` mutation model would
+additionally carry a Python-`ValueError` write obligation `0<=v<256`
+(writing 300 into a byte buffer raises `ValueError`).
+
 **Remaining follow-on (§T.15.5).** `str↔bytes` encode/decode, the
 `.ljust`/`.split`/`.strip` byte-methods, and full `struct` beyond
-the cleared-pack round-trip stay out of scope — the CONTENT of a
-`bytes` PARAMETER (unknown at compile time) also remains opaque
-(only a user-supplied `requires`/element bound can constrain it).
+the cleared-pack round-trip stay out of scope — and the EXACT
+CONTENT of an unknown `bytes` PARAMETER (its individual byte values)
+remains opaque (only a user-supplied `requires`/element bound can
+constrain it; the RANGE is now implicit).
 
 ---
 
