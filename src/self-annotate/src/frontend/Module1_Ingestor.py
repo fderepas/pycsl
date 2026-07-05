@@ -33,12 +33,11 @@ class _Target:
         pass
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _clean(comment_text: str) -> str:
-    return ""
+    return comment_text[2:].strip()
 
 _ACT_HDR = re.compile('^\\s*act\\s+(\\w+)\\s*:\\s*$')
 _HAPPY_HDR = re.compile('^\\s*happy\\s+(\\w+)\\s*(?:\\(\\s*(\\w+)\\s*\\))?\\s*:\\s*$')
