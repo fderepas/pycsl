@@ -1148,6 +1148,56 @@ def _stmt_from_dict_inner(d: Dict[str, Any]) -> StmtIR:
     return OpaqueStmt(kind=k or "Opaque", raw=dict(d))
 
 
+# ---------------------------------------------------------------------------
+# TIER3-P1 — the out-of-registry tag reconciliation (`triage-ranked-tcb-tier3.md`
+# Phase-1 prereq (a)+(b); design note: `getting-better/tier3/ir-node-adt-signature.md`
+# §5c).
+#
+# The Module-6 emitter branches (`ir.get("type") == "K"`) on eleven tag names that
+# the IR registry (`_expr_from_dict_inner`) has **no constructor for** — so they would
+# parse to `OpaqueExpr`. Investigation (Module5_IREmitter.py + frontend/pure_ast.py +
+# frontend/Module2_Parser.py) established that all eleven are **upstream** node names —
+# CPython-`ast`/`pure_ast` node types and `Module2_Parser` CSL-parse nodes — that
+# Module 5 **already structurally normalizes to a canonical registry tag at emission**
+# (e.g. `_py_expr_boolop`/`_py_expr_compare` both emit `BinOp`; `_csl_chained_subscript`
+# emits nested `Subscript`; `_csl_old` emits `Old`/`OldField`). None is a genuinely
+# distinct IR kind, and none is a trivial tag-rename alias — each carries different
+# FIELDS from its canonical form (`BoolOp.values` list vs `BinOp.left`/`right`;
+# `Name.id` vs `Var.name`; `Num.n` vs `Number.value`), so a registry-level rename would
+# fabricate a malformed node. Several (`ListLit`, `ListLiteral`, `ChainedSubscript`,
+# `OldVar`) are *phantom* — they have no wire-dict form at all, only defensive
+# string-matches in Module 6.
+#
+# Reconciliation (additive, emission-inert): record the canonical mapping here as the
+# single source of truth, and treat these tags as a **fail-closed boundary** — if one
+# ever reaches the registry / the emitter un-normalized, that is a front-end
+# normalization-contract violation (docs/ir.md §9.5), never a faithful lowering. The
+# emitter (`module6_whyml/expressions.py::_expr_to_whyml`) asserts an `OpaqueExpr` whose
+# `kind` is one of these is NEVER lowered inside `raw`.
+IR_TAG_ALIASES: Dict[str, str] = {
+    # tag the emitter dispatches on  ->  the canonical registry tag Module 5 emits
+    "BoolOp":           "BinOp",     # `_py_expr_boolop`  (and/or fold)
+    "Compare":          "BinOp",     # `_py_expr_compare` (chained comparison)
+    "Num":              "Number",    # legacy CPython<3.8 numeric literal
+    "Constant":         "Number",    # CPython>=3.8 literal (numeric/Bool/String/None)
+    "Name":             "Var",       # `_csl_var` / `_py_expr_name`
+    "List":             "ArrayLit",  # list-literal Python-AST node
+    "ListLit":          "ArrayLit",  # phantom synonym (no wire-dict form)
+    "ListLiteral":      "ArrayLit",  # phantom synonym (no wire-dict form)
+    "Set":              "SetLit",    # set-literal Python-AST node
+    "ChainedSubscript": "Subscript", # `_csl_chained_subscript` (a[i][j] -> nested)
+    "OldVar":           "Old",       # `_csl_old` (\old(x) -> Old(Var))
+}
+
+
+def is_upstream_alias_tag(tag: Any) -> bool:
+    """True iff `tag` is one of the eleven upstream/out-of-registry node names that
+    Module 5 normalizes to a canonical registry tag at emission (see `IR_TAG_ALIASES`).
+    Such a tag must never reach the emitter as a raw `OpaqueExpr` to be lowered — it is
+    a fail-closed boundary."""
+    return isinstance(tag, str) and tag in IR_TAG_ALIASES
+
+
 def expr_from_dict(d: Dict[str, Any]) -> ExprIR:
     """Convert a wire-format expr dict into its typed `ExprIR` constructor.
 

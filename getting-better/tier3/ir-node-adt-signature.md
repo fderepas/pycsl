@@ -273,6 +273,52 @@ These must be **normalized to their canonical registry tag before the ADT bounda
 explicit constructors. Until then the emitter's dispatch alphabet ≠ the ADT's constructor set — a
 soundness gap for any self-verification that dispatches on `.get("type")`.
 
+#### 5c-RESOLVED (Phase-1 prereq, `commit feat(tier3-p1)`)
+The eleven tags were classified by reading their producers/consumers end-to-end. The finding: **all
+eleven are `normalize-to-X`, NONE is `add-ctor`** — and the emission-side normalization is **already
+in place**. Each is an *upstream* node name (a CPython-`ast`/`pure_ast` node type, or a
+`Module2_Parser` CSL-parse node), NOT an IR wire tag:
+
+| upstream tag | canonical (Module-5 emits) | Module-5 site |
+|---|---|---|
+| `BoolOp` | `BinOp` | `_py_expr_boolop` (fold) |
+| `Compare` | `BinOp` | `_py_expr_compare` |
+| `Num` | `Number` | numeric literal |
+| `Constant` | `Number`/`Bool`/`String`/`None` | literal |
+| `Name` | `Var` | `_csl_var`/`_py_expr_name` |
+| `List` | `ArrayLit` | list-literal node |
+| `ListLit` | `ArrayLit` | *phantom* (no wire-dict form) |
+| `ListLiteral` | `ArrayLit` | *phantom* |
+| `Set` | `SetLit` | set-literal node |
+| `ChainedSubscript` | `Subscript` | `_csl_chained_subscript` |
+| `OldVar` | `Old` | `_csl_old` |
+
+Key facts established: (1) `_py_expr_boolop`/`_py_expr_compare` both emit `BinOp`; `_csl_old` emits
+`Old`/`OldField`; `_csl_chained_subscript` emits nested `Subscript`; literals/`Name`/`List`/`Set`
+translate to `Number`/`Var`/`ArrayLit`/`SetLit`. (2) **None of the eleven is constructed anywhere in
+`src/pycsl/`** as `{"type": <tag>}` (grep-verified) — they exist only as pre-Module-5 AST/CSL nodes
+and as *defensive* string-matches in Module 6. (3) Module 6 consumes **only** Module-5 IR, so those
+matches are **dead** against real IR. (4) `add-ctor` is wrong (not distinct kinds); a registry
+tag-rename is also wrong (field shapes differ: `BoolOp.values` list vs `BinOp.left/right`, `Name.id`
+vs `Var.name`, `Num.n` vs `Number.value`).
+
+**Reconciliation implemented (additive, emission-inert, byte-diff 0):**
+- `ir_schema.py::IR_TAG_ALIASES` — the canonical mapping above, the single source of truth;
+  `is_upstream_alias_tag()` tests membership.
+- `module6_whyml/expressions.py::_expr_to_whyml` — asserts an `OpaqueExpr` whose `kind` ∈
+  `IR_TAG_ALIASES` is **never** lowered inside `raw` (the §5b Opaque fail-closed boundary, sharpened
+  for the eleven). Live (fires when fed such a node) yet inert on the corpus (Module 5 never emits
+  them → byte-diff 0).
+- `docs/ir.md §7a` — the front-end normalization contract (registry alphabet is closed).
+
+**Consequence for Phase 1:** the future `ir_node` ADT is built over the *canonical* registry tags
+only. Because the eleven can never inhabit a valid IR node (Module 5 normalizes; the emitter
+fails-closed), every emitter arm dispatching on an upstream tag is **provably dead** in the ADT model
+— so the "Opaque-in-the-ADT but live-in-the-emitter" soundness gap is closed. The residual dead
+defensive arms in Module 6 (~43 sites) were **left in place** (removing 43 working guards is a
+risky, subtractive change out of scope for this additive prereq); they are harmless and
+provably-dead under the ADT.
+
 ### 5d. OPEN kind #3 — `Any`-typed & heterogeneous fields (§4)
 `generators: List[Any]`, `handlers: List[Dict[str,Any]]`, `cases: List[Dict[str,Any]]`,
 `keywords: Any`, plus leaf-`Any` fields `Number.value`, `Slice.step`, `FieldGet.object`. Not a hard

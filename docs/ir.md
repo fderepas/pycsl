@@ -474,6 +474,39 @@ signals an out-of-subset expression.
 > `BinOp` (lowered by Module 6's membership emitter); an array becomes an
 > `Exists` over indices. `x not in coll` becomes `UnaryOp(not, <in>)`.
 
+### §7a. Upstream-tag normalization (the registry alphabet is closed)
+
+The wire-tag registry (`ir_schema.py::_expr_from_dict_inner`) is the **closed** set of
+canonical expression tags; the table above enumerates it. A front-end **must not** emit
+any of the following eleven *upstream* node names — CPython-`ast` / `pure_ast` node types
+and `Module2_Parser` CSL-parse nodes — as an IR wire tag. Module 5 already **normalizes
+each to its canonical registry tag at emission** (structural translation, not a
+tag-rename — the field shapes differ), and Module 6 relies on this: it consumes only
+Module-5 IR, so it never encounters these tags.
+
+| upstream tag | canonical | Module-5 site |
+|---|---|---|
+| `BoolOp` | `BinOp` | `_py_expr_boolop` (and/or fold) |
+| `Compare` | `BinOp` | `_py_expr_compare` (chained comparison) |
+| `Num` | `Number` | numeric literal (legacy CPython<3.8) |
+| `Constant` | `Number`/`Bool`/`String`/`None` | literal (CPython≥3.8) |
+| `Name` | `Var` | `_csl_var` / `_py_expr_name` |
+| `List` | `ArrayLit` | list-literal node |
+| `ListLit` | `ArrayLit` | phantom synonym (no wire-dict form) |
+| `ListLiteral` | `ArrayLit` | phantom synonym (no wire-dict form) |
+| `Set` | `SetLit` | set-literal node |
+| `ChainedSubscript` | `Subscript` | `_csl_chained_subscript` (`a[i][j]` → nested) |
+| `OldVar` | `Old` | `_csl_old` (`\old(x)` → `Old(Var)`) |
+
+The canonical mapping is recorded as the single source of truth in
+`ir_schema.py::IR_TAG_ALIASES` (`is_upstream_alias_tag(tag)` tests membership). These
+eleven tags are a **fail-closed boundary**: an `OpaqueExpr` whose `kind` is one of them
+must **never** be lowered inside its `raw` dict —
+`module6_whyml/expressions.py::_expr_to_whyml` asserts this. (Reaching it means the
+front-end violated §9.5's resolved-IR contract.) Any *other* unknown tag falls to the
+inert `OpaqueExpr` catch-all (§7 above), which the emitter lowers to the empty string —
+also never a faithful law.
+
 ---
 
 ## 8. Statement node types

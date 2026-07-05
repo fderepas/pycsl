@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
 from ir_schema import (
-    expr_from_dict, _expr_from_dict_inner, OpaqueExpr,
+    expr_from_dict, _expr_from_dict_inner, OpaqueExpr, IR_TAG_ALIASES,
     NumberExpr, StringExpr, ResultExpr, NoneExpr, RawWhymlExpr, BoolExpr,
     UnknownPyExprExpr, SliceExpr, OldFieldExpr, StarredExpr, TupleExpr,
     ArrayLitExpr, ForallExpr, ExistsExpr, MapValueIsExpr, VarExpr, FieldGetExpr,
@@ -6193,6 +6193,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # body (`node.to_dict()`). Byte-identical at every kind conversion.
         if not expr: return ""
         node = expr_from_dict(expr) if isinstance(expr, dict) else expr
+        # TIER3-P1 fail-closed boundary (`triage-ranked-tcb-tier3.md` Phase-1 prereq):
+        # the eleven upstream/out-of-registry tags (`ir_schema.IR_TAG_ALIASES`) are
+        # normalized to a canonical registry tag by Module 5 at emission; none may reach
+        # the emitter as a raw `OpaqueExpr` to be lowered inside `raw`. If one does, the
+        # front-end violated its normalization contract (docs/ir.md §9.5) — this is a
+        # bug, never a faithful lowering. Assert the boundary rather than silently
+        # emitting the "" fall-through. (Unreachable on well-formed IR: Module 6 only
+        # ever consumes Module-5 IR, which never carries these tags — so this is
+        # emission-inert / byte-diff 0.)
+        if isinstance(node, OpaqueExpr) and node.kind in IR_TAG_ALIASES:
+            raise AssertionError(
+                f"tier3-p1 fail-closed: upstream alias tag '{node.kind}' reached the "
+                f"emitter un-normalized (Module 5 must emit its canonical form "
+                f"'{IR_TAG_ALIASES[node.kind]}'); an Opaque node must never lower "
+                f"inside `raw`")
         # --- typed fast-paths (E2: leaf kinds) ---
         if isinstance(node, NumberExpr):
             v = node.value
