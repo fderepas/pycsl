@@ -383,19 +383,21 @@ type/verification failure, never silently accepted); `a[i].append(..)` (shape-ch
 ragged in-place mutation is out of the rectangular `matrix` model. `\length2d`-contract rectangular
 params likewise use `matrix int`.
 
-**§ In-place mutation of a dict/set PARAMETER (wrong-lowering-to-fix.md §WL-05; UB catalog §7.9).**
+**§ In-place mutation of a dict/set PARAMETER (wrong-lowering-to-fix.md §WL-05b; UB catalog §7.9).**
 An item-mutation `d[k] = v` of a `Dict[...]` parameter — and the set twin `s.add(x)`/`s.discard(x)`/
-`s.remove(x)` of a `Set[...]`/`frozenset` parameter — is **out of scope** and **REJECTED** with a clear
-diagnostic (`module6_whyml/statements.py::_reject_param_collection_mutation`, code
-`PYCSL-WHYML-PARAM-COLLECTION-MUT`). Python passes dicts/sets BY REFERENCE, so the write must be VISIBLE
-to the caller — a faithful model needs a caller-visible mutation frame (`writes {d}`) on a mutable-map
-parameter, the SAME aliasing/frame problem as record-param mutation (‡ below) and nested-list inner
-mutation (above). Modelling the by-value `map` param as a local `ref` would be UNFAITHFUL (the caller
-would not see the change). The rejection is gated to a formal-param dict/set that is NOT a `ref`-bound
-LOCAL (`_dict_locals`), NOT a self-field (which HAS a frame), and NOT the deliberate `@mutable_state`
-param no-op — so LOCAL dict/set mutation and self-field writes are unaffected. The faithful rework is to
-RETURN the updated collection or mutate a LOCAL copy (a local write-read-back proves; drivers 0820/0821
-negative, 0822/0823 positive).
+`s.remove(x)` of a `Set[...]`/`frozenset` parameter — of a **STANDALONE function** is **FAITHFULLY
+SUPPORTED**: Python passes dicts/sets BY REFERENCE, so an inner-mutated dict/set param is modelled as a
+caller-visible **mutable `ref (map κ (option ν))`** with a sound **`writes {d}`** frame. `d[k]=v` lowers
+to `d := map_update_some !d k v`, reads to `!d` / `Map.get !d k` UNIFORMLY, and the mutation ESCAPES to
+the caller (the call site passes the bare ref). USAGE-DRIVEN: only an inner-mutated param is promoted; a
+READ-ONLY dict/set param keeps the by-value `map …` type (byte-identical). Promotion is decided by a
+module-level FIXPOINT (direct item-mutation + transitive param forwarding). A mutating callee should
+carry a postcondition on the param post-state (`#@ ensures d["a"] == 5`) for a caller to rely on the
+escape. **Still out of scope (REJECTED, code `PYCSL-WHYML-PARAM-COLLECTION-MUT`):** a mutated dict/set
+**METHOD** param (its types feed the cross-method call-contract map, which the ref promotion would
+desync), the `@mutable_state` param no-op, record-param mutation (‡ below) and nested-list inner mutation
+(above). Drivers: 0820/0821/0832/0833 positive (write-read-back + caller-visibility), 0822/0823 positive
+(LOCAL), 0834 negative (false post-mutation claim FAILS).
 
 **‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self`, the
 result of a constructor call `C()`, **and** a bare `C`-typed *parameter* whose class is registered

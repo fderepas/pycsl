@@ -573,6 +573,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return whyml_ident(name)
         if name in local_refs:
             return f"!{whyml_ident(name)}"
+        # wrong-lowering-to-fix.md §WL-05b: an inner-mutated dict/set PARAM is a
+        # `ref (map …)` (caller-visible mutation frame), so a bare read derefs it
+        # (`!d`) — UNIFORMLY with the write site `d := map_update_some !d k v` and the
+        # subscript read `Map.get !d k`. This is exactly the ref discipline the old
+        # WL-05 lowering violated (the `d :=`/bare-`d` mix). Read-only params (not in
+        # the set) keep the by-value bare read → byte-identical.
+        if name in getattr(self, "_mutated_collection_params", set()):
+            return f"!{whyml_ident(name)}"
         if name in self._current_params or name == "self":
             return whyml_ident(name) if name != "self" else name
         if name in self._shared_var_names:

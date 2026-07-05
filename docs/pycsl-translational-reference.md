@@ -2757,18 +2757,27 @@ map to `Some 0`, absent keys to `None`.
 `map_update_none` is parallel to `map_update_some` with `ensures
 { result = Map.set m k None }`.
 
-**§ PARAMETER mutation is out of scope (wrong-lowering-to-fix.md §WL-05; UB catalog §7.9).**
-The `d := map_update_some !d k v` / `s := map_update_some !s x 0` emissions above assume the
-collection is a `ref`-bound LOCAL (`let d = ref … in`) — the `:=`/`!d` deref is well-typed only for a
-`ref`. A `Dict[...]`/`Set[...]` **parameter** is a by-value `map …` (NOT a `ref`), so the same emission
-would be ill-typed; and modelling the param as a local `ref` would be UNFAITHFUL (Python mutates the
-argument by reference, so the write must be VISIBLE to the caller — a caller-visible `writes {d}` frame
-PyCSL does not model, the SAME boundary as record-param mutation and nested-list inner mutation). PyCSL
-therefore **REJECTS** an item-mutation `d[k]=v` / `s.add(x)`/`s.discard(x)`/`s.remove(x)` of a dict/set
-PARAMETER with a clear diagnostic (`module6_whyml/statements.py::_reject_param_collection_mutation`, code
-`PYCSL-WHYML-PARAM-COLLECTION-MUT`), instead of emitting the inconsistent `ref`/non-`ref` mix. LOCAL
-dict/set mutation and self-field writes (which have a frame) are unaffected. Faithful rework: RETURN the
-updated collection or mutate a LOCAL copy. Drivers 0820/0821 (negative), 0822/0823 (positive).
+**§ Caller-visible dict/set PARAMETER mutation (wrong-lowering-to-fix.md §WL-05b; UB catalog §7.9).**
+The `d := map_update_some !d k v` / `s := map_update_some !s x 0` emissions above assume the collection
+is a `ref` — the `:=`/`!d` deref is well-typed only for a `ref`. For a **STANDALONE function**, a
+`Dict[...]`/`Set[...]` **parameter** that the body INNER-mutates is therefore promoted to a mutable
+`ref (map κ (option ν))` with a sound `writes {d}` frame:
+
+```
+T[[def f(d: Dict[κ,ν]) with d item-mutated]]
+  =  let f (d: ref (map κ (option ν))) : … writes { d } = …   (* reads: !d / Map.get !d k *)
+```
+
+Python passes dicts/sets BY REFERENCE, so the write is VISIBLE to the caller: at the call site
+`f(x)` the argument at a mutated position is passed as the **bare ref** `x` (not `!x`), so `f`'s
+`writes {d}` mutation escapes and `x`'s post-state reflects it (`_handle_call_expr`). Promotion is
+USAGE-DRIVEN via a module-level FIXPOINT (`_build_func_mutated_collection_params`: direct item-mutation +
+transitive param forwarding) — a READ-ONLY dict/set param keeps the by-value `map …` type
+(BYTE-IDENTICAL). A mutating callee should state the post-value (`#@ ensures d["a"]==5`) for a caller to
+rely on it, else the frame havocs the param. **Still REJECTED** (code `PYCSL-WHYML-PARAM-COLLECTION-MUT`,
+`_reject_param_collection_mutation`): a mutated dict/set **METHOD** param (its types feed the cross-method
+call-contract map), the `@mutable_state` param no-op, record-param and nested-list inner mutation.
+Drivers 0820/0821/0832/0833 (positive), 0822/0823 (LOCAL positive), 0834 (negative false-claim).
 
 ### §T.14.3  Multi-argument `range(start, stop)`
 

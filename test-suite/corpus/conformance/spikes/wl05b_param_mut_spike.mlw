@@ -1,0 +1,46 @@
+(* WL-05b SMT-feasibility spike: caller-visible dict/set PARAMETER mutation.
+   Model an inner-mutated dict param as a `ref (map κ (option ν))` with a
+   `writes {d}` frame. `d[k]=v` -> `d := map_update_some !d k v`, reads -> `!d`.
+   Prove BOTH the mutate-then-read-back postcondition AND caller-visibility
+   (a caller passes a ref, calls f, observes the post-state). Alt-Ergo + Z3. *)
+module Spike
+  use int.Int
+  use map.Map
+  use map.Const
+  use option.Option
+  use ref.Ref
+
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+
+  (* dict param, inner-mutated, caller-visible via ref + writes frame *)
+  let dict_param_write (d: ref (map int (option int))) : int
+    writes { d }
+    ensures { Map.get !d 7 = Some 5 }
+  =
+    d := map_update_some !d 7 5;
+    (match Map.get !d 7 with | Some v -> v | None -> 0 end)
+
+  (* caller observes the mutation escapes *)
+  let caller () : unit =
+    let d = ref (const (None: option int)) in
+    let _r = dict_param_write d in
+    assert { Map.get !d 7 = Some 5 }
+
+  (* set param: model set as `map elem bool`; `.add` sets true, membership reads *)
+  val set_add (m: map 'e bool) (e: 'e) : map 'e bool
+    ensures { result = Map.set m e true }
+
+  let set_param_add (s: ref (map int bool)) : int
+    writes { s }
+    ensures { Map.get !s 5 = true }
+  =
+    s := set_add !s 5;
+    0
+
+  let caller_set () : unit =
+    let s = ref (const false) in
+    let _r = set_param_add s in
+    assert { Map.get !s 5 = true }
+
+end

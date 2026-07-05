@@ -121,6 +121,9 @@ class Module6_WhyMLTranspiler(
         self._module_func_names: Set[str] = set()
         self._module_method_return_types: Dict[str, str] = {}
         self._module_method_param_types: Dict[str, List[str]] = {}
+        # wrong-lowering-to-fix.md §WL-05b: func-name -> caller-visible mutable
+        # `ref (map …)` dict/set param names (fixpoint). Empty default → byte-identical.
+        self._func_mutated_collection_params: Dict[str, Set[str]] = {}
         # 10-1732-gap (Gaps 2/3): callee return-annotation + by-name param WhyML types.
         self._module_method_return_annotations: Dict[str, str] = {}
         self._module_method_param_whyml_types: Dict[str, Dict[str, str]] = {}
@@ -553,6 +556,13 @@ class Module6_WhyMLTranspiler(
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
         self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
+        # wrong-lowering-to-fix.md §WL-05b: func-name -> {dict/set params modelled as a
+        # caller-visible mutable `ref (map ...)` (fixpoint over direct item-mutation +
+        # transitive param forwarding). Consulted at call sites (pass the bare ref) and
+        # in `_reset_function_state` (ref param type + `writes` frame). Empty for every
+        # read-only-collection program -> byte-identical.
+        self._func_mutated_collection_params = \
+            self._build_func_mutated_collection_params(funcs_for_maps)
         # 1111-spec R7: formal-param order + positional defaults, for call-site
         # default fill of cross-module / module-function calls.
         self._module_method_formal_params = {
@@ -666,6 +676,13 @@ class Module6_WhyMLTranspiler(
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
         self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
+        # wrong-lowering-to-fix.md §WL-05b: func-name -> {dict/set params modelled as a
+        # caller-visible mutable `ref (map ...)` (fixpoint over direct item-mutation +
+        # transitive param forwarding). Consulted at call sites (pass the bare ref) and
+        # in `_reset_function_state` (ref param type + `writes` frame). Empty for every
+        # read-only-collection program -> byte-identical.
+        self._func_mutated_collection_params = \
+            self._build_func_mutated_collection_params(funcs_for_maps)
         self._module_method_formal_params = {
             f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
         self._module_method_param_defaults = {

@@ -44,11 +44,20 @@ class FunctionEmissionMixin:
         # reads. Byte-identical to the legacy `map int (option int)`
         # for every int-keyed/int-valued dict (no `dict_key_types` /
         # `dict_value_types` entry → the legacy default fires).
+        # wrong-lowering-to-fix.md §WL-05b: an inner-mutated dict/set param is a
+        # MUTABLE `ref (map …)` with a `writes {arg}` frame (caller-visible), so item
+        # writes escape. A read-only param keeps the by-value `map …` (byte-identical).
+        _mut_coll = arg in getattr(self, "_mutated_collection_params", set())
         if symtype == "dict":
             kt = getattr(self, "_dict_key_types", {}) or {}
             vt = getattr(self, "_dict_value_types", {}) or {}
-            return f"({safe}: {self._dict_param_whyml_type(arg, kt, vt)})"
+            _mt = self._dict_param_whyml_type(arg, kt, vt)
+            if _mut_coll:
+                return f"({safe}: ref ({_mt}))"
+            return f"({safe}: {_mt})"
         if symtype in ("set", "frozenset"):
+            if _mut_coll:
+                return f"({safe}: ref (map int (option int)))"
             return f"({safe}: map int (option int))"
         if arg in array1d_params or symtype in ("list", "bytes", "bytearray"):
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
@@ -286,6 +295,32 @@ class FunctionEmissionMixin:
         # the binding set → withhold the `\in_scope` decided-false direction downstream.
         self._scope_dyn_exec: bool = (bool(func.get("has_dynamic_exec", False))
                                       or self._has_dynamic_exec(func))
+        # wrong-lowering-to-fix.md §WL-05b (FAITHFUL caller-visible dict/set param
+        # mutation): a STANDALONE function's dict/set PARAMETER that is ITEM-mutated in
+        # the body (`d[k]=v`, `s.add/discard/remove(x)`) is modelled as a MUTABLE
+        # `ref (map κ (option ν))` param with a `writes {d}` frame — so the mutation
+        # escapes to the caller (Python passes dicts/sets BY REFERENCE), exactly as the
+        # SMT-feasibility spike proves on Alt-Ergo + Z3
+        # (test-suite/corpus/conformance/spikes/wl05b_param_mut_spike.mlw). USAGE-DRIVEN:
+        # a READ-ONLY dict/set param keeps the by-value `map …` type (byte-identical);
+        # only an inner-mutated one is promoted. The promoted params are ALSO added to
+        # `_dict_locals` so every read/write site treats them like a local dict/set
+        # (`!d` deref, `d := map_update_some !d k v`) — the uniform ref discipline that
+        # the old inconsistent `d :=`/bare-`d` mix (the WL-05 bug) lacked. Methods are
+        # out of scope here (their param types are ALSO mirrored into the abstract-op
+        # call-contract map, which would drift) — a mutated dict/set method param keeps
+        # the existing rejection / @mutable_state no-op.
+        # §WL-05b: the module-level fixpoint map (built in Module6 setup) is the single
+        # source of truth — it already excludes methods and folds in transitive param
+        # forwarding. A `getattr` fallback keeps standalone/self-annotate reset paths
+        # (where the map may not be built yet) at the empty default → byte-identical.
+        self._mutated_collection_params: Set[str] = set(
+            getattr(self, "_func_mutated_collection_params", {}).get(func.get("name"), set()))
+        if self._mutated_collection_params:
+            # Promote to the local-collection discipline (uniform `!d` reads / `d :=`
+            # writes; also bypasses `_reject_param_collection_mutation`, which is gated
+            # on `var not in _dict_locals`).
+            self._dict_locals |= self._mutated_collection_params
         return local_refs, ghost_vars
 
     def _has_dynamic_exec(self, func: Dict[str, Any]) -> bool:
@@ -1014,6 +1049,18 @@ class FunctionEmissionMixin:
             _wc = ", ".join(f"self.{self._field_label(self._current_self_type, f)}"
                             for f in _wf)
             lines.append(f"    writes {{ {_wc} }}")
+
+        # wrong-lowering-to-fix.md §WL-05b: a STANDALONE function whose dict/set params
+        # are item-mutated in the body carries a `writes { d, s, … }` frame so Why3
+        # accepts (and CHECKS) the caller-visible in-place mutation of the `ref (map …)`
+        # params. Emitted in source-parameter order (deterministic). Empty set →
+        # no clause → byte-identical for every read-only-param program.
+        if not emit_as_val:
+            _mcp = getattr(self, "_mutated_collection_params", set())
+            if _mcp:
+                _ordered = [whyml_ident(p) for p in self._formal_params if p in _mcp]
+                if _ordered:
+                    lines.append(f"    writes {{ {', '.join(_ordered)} }}")
 
         if emit_as_val:
             lines.append("")
@@ -1971,6 +2018,112 @@ class FunctionEmissionMixin:
                     },
                 })
         return pseudo
+
+    def _collect_calls(self, body: List[Dict[str, Any]], acc: List[tuple]) -> None:
+        """wrong-lowering-to-fix.md §WL-05b (fixpoint helper): gather every `(func_name,
+        args_list)` call anywhere in a statement subtree (for the transitive
+        param-forwarding analysis). Walks expression trees too, so a call nested in a
+        subexpression is found."""
+        def walk_expr(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and isinstance(node.get("func"), str):
+                    acc.append((node["func"], node.get("args", []) or []))
+                for v in node.values():
+                    walk_expr(v)
+            elif isinstance(node, list):
+                for v in node:
+                    walk_expr(v)
+        walk_expr(body)
+
+    def _seed_mutated_collection_params(self, func: Dict[str, Any]) -> Set[str]:
+        """§WL-05b: the DIRECT seed — dict/set formal params item-mutated in this
+        function's own body (`d[k]=v`, `s.add/discard/remove(x)`). Method functions are
+        excluded (their param types feed the abstract-op call map, which the ref
+        promotion would desync). Mirrors `_reject_param_collection_mutation`'s gating."""
+        if func.get("kind") == "method":
+            return set()
+        params = set(func.get("formal_params", []) or [])
+        symtab = func.get("symbol_table", {}) or {}
+
+        def is_coll(name: str) -> bool:
+            return name in params and symtab.get(name) in ("dict", "set", "frozenset")
+
+        mutated: Set[str] = set()
+
+        def walk(stmts: List[Dict[str, Any]]) -> None:
+            for st in stmts:
+                if not isinstance(st, dict):
+                    continue
+                kind = st.get("stmt")
+                if kind == "ArraySet":
+                    arr = st.get("array", {})
+                    if (isinstance(arr, dict) and arr.get("type") == "Var"
+                            and is_coll(arr.get("name", ""))):
+                        mutated.add(arr["name"])
+                elif kind in ("Expr", "ExprStmt"):
+                    val = st.get("value", {})
+                    if isinstance(val, dict) and val.get("type") == "Call":
+                        fn = val.get("func", "")
+                        if isinstance(fn, str) and fn.endswith((".add", ".discard", ".remove")):
+                            recv = fn.rsplit(".", 1)[0]
+                            if is_coll(recv):
+                                mutated.add(recv)
+                for key in ("body", "orelse", "finalbody"):
+                    sub = st.get(key)
+                    if isinstance(sub, list):
+                        walk(sub)
+                for hk in ("handlers", "cases"):
+                    for h in (st.get(hk) or []):
+                        if isinstance(h, dict):
+                            walk(h.get("body", []) or [])
+        walk(func.get("body", []) or [])
+        return mutated
+
+    def _build_func_mutated_collection_params(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, Set[str]]:
+        """§WL-05b: module-level map func-name → set of dict/set params modelled as a
+        caller-visible mutable `ref (map …)` (a `writes {p}` frame). Computed as a
+        FIXPOINT: seed with directly item-mutated params, then propagate — if function A
+        forwards its param `p` (a bare `Var`) as the argument at a position that callee B
+        mutates, then `p` is mutated in A too (Python's by-reference escape is
+        transitive). This keeps call sites SOUND: an argument landing in a callee's
+        mutated (ref) position is itself a ref (a local dict, or a now-promoted param)."""
+        by_name: Dict[str, Set[str]] = {}
+        formals: Dict[str, List[str]] = {}
+        for func in functions:
+            nm = func.get("name")
+            if nm is None:
+                continue
+            by_name[nm] = self._seed_mutated_collection_params(func)
+            formals[nm] = list(func.get("formal_params", []) or [])
+        # Only standalone functions carry ref-collection params (methods excluded in the
+        # seed), so the fixpoint stays within the standalone call graph.
+        changed = True
+        while changed:
+            changed = False
+            for func in functions:
+                nm = func.get("name")
+                if nm is None or func.get("kind") == "method":
+                    continue
+                params = set(func.get("formal_params", []) or [])
+                calls: List[tuple] = []
+                self._collect_calls(func.get("body", []) or [], calls)
+                for callee, args in calls:
+                    callee_mut = by_name.get(callee)
+                    if not callee_mut:
+                        continue
+                    cf = formals.get(callee, [])
+                    for i, a in enumerate(args):
+                        if i >= len(cf):
+                            break
+                        if cf[i] not in callee_mut:
+                            continue
+                        if (isinstance(a, dict) and a.get("type") == "Var"
+                                and a.get("name") in params
+                                and a["name"] not in by_name[nm]):
+                            by_name[nm].add(a["name"])
+                            changed = True
+        return by_name
 
     def _build_method_param_types_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
         """Map function name → list of WhyML parameter types (excluding

@@ -1063,3 +1063,46 @@ the record constructor threaded to the WL-04a list-literal seam), a FILTERED pro
 over a record source (falls back to the opaque length-only law), a `List[<plain-class-with-__init__>]`
 element (only `@dataclass`/`NamedTuple`/recognized `Tuple` are recognized), and a record slot of
 `float`/container type (the WL-03 slot recognition is int/bool/str only) keep the prior model.
+
+---
+
+## WL-05b — FAITHFUL, caller-visible dict/set PARAMETER mutation (a `ref (map …)` + `writes` frame)
+
+**Decision.** IMPLEMENT the faithful model WL-05 deferred: an inner-mutated `Dict[...]`/`Set[...]`
+PARAMETER of a STANDALONE function is now a caller-visible **mutable `ref (map κ (option ν))`** with a
+sound **`writes {d}`** frame — replacing the WL-05 CLEAN REJECTION for this case. Python passes
+dicts/sets BY REFERENCE, so `d[k]=v` / `s.add(x)` must be VISIBLE to the caller. `d[k]=v` lowers to
+`d := map_update_some !d k v`; every read derefs UNIFORMLY (`!d` / `Map.get !d k`) — fixing the exact
+`d :=`/bare-`d` inconsistency that was the WL-05 bug. The mutation ESCAPES: at a call site the argument
+at a callee's mutated position is passed as the BARE ref (not `!d`).
+
+**Chosen Why3 representation: `ref (map κ (option ν))` + `writes {d}`** (over a mutable-record wrapper).
+It reasons and frames CLEANLY: the SMT-feasibility spike
+(`test-suite/corpus/conformance/spikes/wl05b_param_mut_spike.mlw`) proves BOTH `(mutate; read-back) =
+Some v` AND caller-visibility (a caller passing a ref observes the post-state) on Alt-Ergo AND Z3 (all
+4 goals Valid) — decisive, done FIRST. No new axiom; `map_update_some`/`map_update_none` are the
+existing local-collection ops.
+
+**USAGE-DRIVEN coexistence (blast radius = the mutating programs only).** Only a param the body
+INNER-mutates is promoted; a READ-ONLY dict/set param keeps the by-value `map …` type. Promotion is a
+module-level FIXPOINT (`_build_func_mutated_collection_params`): seed = direct item-mutation
+(`ArraySet` on a param Var / `.add`/`.discard`/`.remove` on a param), propagate = transitive param
+forwarding (if A forwards its param to a callee's mutated position, A's param is mutated too — the
+by-reference escape is transitive, which keeps call sites SOUND: every Var landing in a ref position is
+itself a ref). Wired through `_param_type_str` (ref type), `_reset_function_state` (route into
+`_dict_locals`), `_emit_function` (`writes {…}`), `_handle_call_expr` (bare-ref arg), and
+`_handle_var_expr` (deref promoted param). Emission-differential: the whole `pycsl-reference` corpus is
+BYTE-IDENTICAL except 0820/0821 (which previously REJECTED and emitted no `.mlw`, now emit and prove) —
+0 content diffs on all common files.
+
+**Residual boundary (KEPT as rejection).** A mutated dict/set METHOD param (its types also feed the
+abstract-op cross-method call-contract map, which the ref promotion would desync), the `@mutable_state`
+param no-op, and record/list param mutation stay REJECTED via `_reject_param_collection_mutation`.
+
+**Regression locks.** 0820 (POSITIVE dict param write-read-back; was NEGATIVE), 0821 (POSITIVE set param
+add+membership; was NEGATIVE), 0822/0823 (POSITIVE LOCAL, unchanged), 0832 (POSITIVE dict caller-
+visibility escape), 0833 (POSITIVE set caller-visibility), 0834 (NEGATIVE `# pycsl-expected: FAIL` —
+false post-mutation claim FAILS: the frame is non-vacuous). Repro drivers
+`wl05_{dict,set}_param_mut_WRONGREPR.py` → PROVEN; baseline `wl05_dict_local_FAITHFUL.py` STAYS PROVEN.
+`wrong-lowering-to-fix.md` §WL-05→§WL-05b, UB catalog §7.9 (narrowed), static-semantics + translational
+τ-table updated. Mirror-sync green; `\trusted` non-increasing; no smuggled axiom.

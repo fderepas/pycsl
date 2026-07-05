@@ -257,45 +257,53 @@ false-positive against the τ-blessed baseline.
 - **Dedup:** none (we-are-getting-better.md #6/#7 are IR-node list attrs in the mirror, a different
   surface).
 
-### WL-05 — dict / set PARAMETER item-mutation emits inconsistent `ref` code — ✅ FIXED
-- **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). **Chosen option: CLEAN REJECTION** (option 1,
-  the consistent, sound choice). Python passes dicts/sets BY REFERENCE, so an item-mutation of a
-  PARAMETER must be VISIBLE to the caller — faithful modelling needs a caller-visible mutation frame
-  (`writes {d}`) on a mutable-map param, the SAME hard problem for which RECORD-param mutation
-  (static-ref ‡) and LIST inner mutation (nested-list-mutable) are already documented OUT OF SCOPE.
-  A local-copy model would be UNFAITHFUL (the caller wouldn't see the change), so option 2 is not
-  shippable here. The emitter now **rejects** dict/set param item-mutation with a clear diagnostic
-  (`PYCSL-WHYML-PARAM-COLLECTION-MUT`, `module6_whyml/statements.py::_reject_param_collection_mutation`)
-  instead of emitting the inconsistent `d := map_update_some !d k v; … Map.get d k` ref/non-ref mix.
+### WL-05 — dict / set PARAMETER item-mutation — ✅ FIXED → ✅✅ WL-05b: now FAITHFULLY SUPPORTED (caller-visible)
+- **Status:** ✅✅ **FAITHFULLY SUPPORTED** (WL-05b, branch `ghost-assign-bc6`). The earlier WL-05 fix
+  was a CLEAN REJECTION (sound but conservative). WL-05b IMPLEMENTS the faithful model the rejection
+  deferred: Python passes dicts/sets BY REFERENCE, so an inner-mutated dict/set PARAMETER is now
+  modelled as a caller-visible **MUTABLE `ref (map κ (option ν))`** with a sound **`writes {d}`**
+  frame — the mutation escapes to the caller. USAGE-DRIVEN: only a param the body INNER-mutates is
+  promoted; a READ-ONLY dict/set param keeps the by-value `map …` type (BYTE-IDENTICAL).
+- **Why3 representation (SMT-feasibility spike, PROVEN on Alt-Ergo + Z3):** a param
+  `d: ref (map κ (option ν))` with `writes {d}`; `d[k]=v` → `d := map_update_some !d k v`; reads →
+  `!d` / `Map.get !d k` UNIFORMLY (the WL-05 bug was the inconsistent `d :=`/bare-`d` mix — fixed by
+  the uniform ref discipline). Set param `.add`/`.discard`/`.remove` likewise on `ref (map int
+  (option int))`. Both `(mutate; read-back) = Some v` AND caller-visibility (a caller passing a ref
+  observes the post-state) prove on BOTH provers. Spike fixture:
+  `test-suite/corpus/conformance/spikes/wl05b_param_mut_spike.mlw`.
 - **Construct / position:** `d[k] = v` (`ArraySet`) — and the set twin `s.add(x)`/`s.discard(x)`/
-  `s.remove(x)` — on a `Dict[...]`/`Set[...]` *parameter*.
-- **Was:** `d := map_update_some !d k v; … Map.get d k` — treated the by-value param
-  `(d: map string (option int))` as a mutable `ref` (`d :=`, `!d`) AND then read bare `d` → ill-typed
-  (`string -> option int but is expected to have type ref 'mu`). The set twin silently DROPPED the
-  mutation to a no-op (`let _ = s_add_1 x in ()`) — sound but UNFAITHFUL.
-- **Now:** a clean tool rejection (`[!] PIPELINE ERROR: … in-place mutation of dict/set parameter
-  'd' … is out of scope …`) — the honest diagnostic points the user to RETURN the updated collection
-  or mutate a LOCAL copy. Gated to a formal-param dict/set that is NOT a `ref`-bound local
-  (`_dict_locals`), NOT a self-field (which HAS a frame), and NOT the deliberate @mutable_state param
-  no-op (typed-ir §13) → additive, byte-identical elsewhere.
-- **Class / severity:** WRONG-REPR / 4 (was; now a clean rejection — a sound refusal, no false green).
+  `s.remove(x)` — on a `Dict[...]`/`Set[...]` *parameter* of a STANDALONE function.
+- **Was (WL-05):** `d := map_update_some !d k v; … Map.get d k` — treated the by-value param as a
+  mutable `ref` (`d :=`, `!d`) AND then read bare `d` → ill-typed. WL-05 rejected it cleanly.
+- **Now (WL-05b):** the emitter (1) DETECTS inner-mutated dict/set params via a module-level FIXPOINT
+  (direct item-mutation + transitive param forwarding: if A forwards its param to a callee's mutated
+  position, A's param is mutated too — the by-reference escape is transitive); (2) emits the promoted
+  params as `ref (map …)` in the signature (`functions.py::_param_type_str`) with a `writes {…}` frame
+  (`_emit_function`); (3) routes them through the local-collection discipline (`_dict_locals`) so all
+  reads/writes deref uniformly (`!d`); (4) at each call site passes the BARE ref (not `!d`) for a
+  callee's mutated position (`expressions.py::_handle_call_expr`) so the mutation escapes. Methods are
+  OUT OF SCOPE (their param types also feed the abstract-op call-contract map, which the ref promotion
+  would desync) → a mutated dict/set METHOD param keeps the WL-05 rejection / @mutable_state no-op.
+- **Class / severity:** WRONG-REPR / 4 (was) → now FAITHFULLY SUPPORTED (caller-visible, sound frame,
+  non-vacuous: a false post-mutation claim FAILS).
 - **Verdict flips (now):**
-  - `wl05_dict_param_mut_WRONGREPR.py` → **REJECTED** (clean diagnostic; was TYPEERR / broken WhyML).
-  - `wl05_set_param_mut_WRONGREPR.py` (set twin) → **REJECTED** (was a silent unfaithful no-op).
+  - `wl05_dict_param_mut_WRONGREPR.py` → **PROVEN** (was REJECTED; faithful `d[k]=v` write-read-back).
+  - `wl05_set_param_mut_WRONGREPR.py` (set twin) → **PROVEN** (was REJECTED).
   - Baseline `wl05_dict_local_FAITHFUL.py` (LOCAL dict write-read-back) → **STAYS PROVEN**.
-- **Deliberate-collapse check:** now DOCUMENTED. The dict/set param-mutation boundary joins RECORD
-  param mutation (static-ref ‡) and LIST inner mutation (nested-list-mutable) as an aliasing/frame
-  out-of-scope class (UB catalog `param-collection-mutation`; static-semantics §In-place inner
-  mutation note; translational τ-table param-mutation note).
-- **Regression locks (reference corpus):** `0820.py` (NEGATIVE, `# pycsl-expected: FAIL` — dict param
-  `d[k]=v` rejected), `0821.py` (NEGATIVE, `# pycsl-expected: FAIL` — set param `s.add` rejected),
-  `0822.py` (POSITIVE — LOCAL dict write-read-back still proves), `0823.py` (POSITIVE — LOCAL set
-  add-membership still proves). Harness verdict `REJECTED` added to `bin/find-wrong-lowering.py`
-  (a clean `[!] PIPELINE ERROR:` is a distinct, sound outcome from a broken TYPEERR).
-- **Emission differential:** the full 700-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
-  (verified via `bin/byte-diff-sweep.sh`); no corpus program mutates a dict/set PARAMETER (all corpus
-  dict/set writes are LOCAL or self-field) → additive. NO new axiom.
-- **Dedup:** none.
+- **Regression locks (reference corpus):** `0820.py` (POSITIVE — dict param `d[k]=v` write-read-back
+  proves; was NEGATIVE `# pycsl-expected: FAIL` under WL-05), `0821.py` (POSITIVE — set param `s.add`
+  + membership consequence proves; was NEGATIVE), `0822.py`/`0823.py` (POSITIVE — LOCAL dict/set still
+  prove, unchanged), `0832.py` (POSITIVE — dict param mutation ESCAPES to the caller: two functions,
+  caller observes the write via the callee's `ensures d["a"]==5`), `0833.py` (POSITIVE — set twin
+  caller-visibility), `0834.py` (NEGATIVE, `# pycsl-expected: FAIL` — a FALSE post-mutation claim
+  `ensures d["a"]==6` for a body writing `5` must FAIL: the frame is genuinely checked, non-vacuous).
+- **Emission differential:** the full `pycsl-reference` corpus emits BYTE-IDENTICALLY EXCEPT the two
+  drivers that item-mutate a dict/set param (0820, 0821 — which previously REJECTED and emitted no
+  `.mlw`, now emit and prove). Every read-only-collection and non-param-mutation program is unchanged
+  (verified via `bin/byte-diff-sweep.sh`: 0 content diffs on all common files). NO new axiom;
+  `map_update_some`/`map_update_none` are the existing local-collection ops. `\trusted` non-increasing.
+- **Dedup:** none. WL-05's rejection path (`_reject_param_collection_mutation`) is RETAINED for the
+  still-out-of-scope cases (mutated dict/set METHOD params, and the record/list param-mutation class).
 
 ### WL-06 — `bytes` subscript `b[i]` emits `subscript_get(int,int)` on an `array int` value — ✅ FIXED
 - **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). A `bytes`/`bytearray` value is the τ-blessed
