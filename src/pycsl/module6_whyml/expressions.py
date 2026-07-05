@@ -2795,7 +2795,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return named
         if "." in func_name:
             return self._handle_dotted_call(func_name, args)
-        rec = self._call_record_constructor(args, func_name)
+        # WL-07: lower any EXPLICIT keyword args (`Point(x=1, y=2)`) so a record
+        # constructor binds its fields by name. Empty for a keyword-free call
+        # (byte-identical). A `**kwargs` splat was never captured in the IR.
+        kwargs_map: Dict[str, str] = {
+            kw["arg"]: self._expr_to_whyml(kw["value"], local_refs, invariant_ctx, subst)
+            for kw in (expr.get("keywords") or [])
+            if isinstance(kw, dict) and isinstance(kw.get("arg"), str)
+        }
+        rec = self._call_record_constructor(args, func_name, kwargs_map)
         if rec is not None:
             return rec
         enc_lit = self._encode_string_literal(expr, local_refs, invariant_ctx, subst)
@@ -3680,6 +3688,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return [self._subst_params(x, arg_nodes) for x in ir]
         return ir
 
+    def _init_value_free_names(self, ir: Any) -> Set[str]:
+        """The set of `Var` names referenced in a constructor init_body value IR —
+        the parameters an initialiser depends on. Used by `_call_record_constructor`
+        to skip (keep the typed default for) a field whose initialiser references a
+        param OUTSIDE a partial positional-prefix binding (WL-07 — a trailing
+        omitted-with-default field), never emitting a bare unsubstituted param var."""
+        out: Set[str] = set()
+        if isinstance(ir, dict):
+            if ir.get("type") == "Var" and isinstance(ir.get("name"), str):
+                out.add(ir["name"])
+            for v in ir.values():
+                out |= self._init_value_free_names(v)
+        elif isinstance(ir, list):
+            for x in ir:
+                out |= self._init_value_free_names(x)
+        return out
+
     def _mixed_literal_reject_kind(self, elts: List[Dict[str, Any]]) -> Optional[str]:
         """WL-04g (wrong-lowering-to-fix.md §WL-04 mixed-element residual): return a
         human-readable KIND string for the first element of a list literal whose
@@ -3751,7 +3776,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return None
         return rec_name
 
-    def _call_record_constructor(self, args: List[str], func_name: str) -> Optional[str]:
+    def _call_record_constructor(self, args: List[str], func_name: str,
+                                 kwargs_map: Optional[Dict[str, str]] = None) -> Optional[str]:
         """`C(...)` for a known record type → a WhyML record literal with per-field,
         type-correct values. Returns None only if `func_name` is not a known record
         type. (Extracted from `_handle_call_expr`.)
@@ -3761,7 +3787,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         set it from those params (`init_body`, captured by Module5) is initialised by
         substituting the actual args for the params; all other fields keep their
         type-correct default. A 0-arg `C()`, an arity mismatch, or a non-scalar /
-        non-param-dependent field all fall back to the default witness (sound)."""
+        non-param-dependent field all fall back to the default witness (sound).
+
+        WL-07: `kwargs_map` (field-name -> lowered WhyML) carries EXPLICIT keyword
+        arguments (`Point(x=1, y=2)`), bound BY NAME on top of the positional prefix
+        — so both a positional, a keyword, and a mixed construction bind their fields
+        faithfully (a keyword-omitted-with-default field keeps its default)."""
         if func_name not in self._record_types:
             return None
         rec_info = self._record_types[func_name]
@@ -3789,15 +3820,40 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         init_map: Dict[str, str] = {}
         init_params = rec_info.get("init_params", [])
         init_body = rec_info.get("init_body", [])
-        if args and init_params and len(args) == len(init_params):
+        # Positional-prefix binding: bind the first `len(args)` params from the
+        # actual args and leave any trailing params UNBOUND (their fields keep the
+        # typed default). Python's positional call semantics — a `@dataclass` /
+        # positional `__init__` binds `f_i` from arg i, and a field WITH a default
+        # whose arg is OMITTED keeps that default (WL-07). Requires
+        # `len(args) <= len(init_params)`: a full call binds every param (the prior
+        # exact-match behaviour, byte-identical); a PARTIAL call binds the provided
+        # prefix (sound — a trailing defaulted field keeps its default instead of
+        # the old all-defaults collapse, which would have proved a FALSE `.f0 == 0`
+        # for a bound leading field); an OVER-arity call (a Python error) binds
+        # nothing (all defaults — fail-closed, never a false full binding).
+        kwargs_map = kwargs_map or {}
+        if init_params and ((args and len(args) <= len(init_params)) or kwargs_map):
+            # positional prefix binds init_params[0 .. len(args)-1] by position;
+            # keyword args bind the same-named param on top (a Python call never
+            # binds a param both positionally and by keyword — a TypeError — so no
+            # conflict). A keyword naming a non-param is ignored (kept as default).
             arg_nodes = {init_params[i]: {"type": "RawWhyml", "whyml": args[i]}
-                         for i in range(len(init_params))}
+                         for i in range(min(len(args), len(init_params)))}
+            for _kwn, _kww in kwargs_map.items():
+                if _kwn in init_params:
+                    arg_nodes[_kwn] = {"type": "RawWhyml", "whyml": _kww}
             for ent in init_body:
                 fn = ent["field"]
                 # Only scalar (int-modelled) fields take a substituted value; a
                 # list/dict/set field keeps its typed default (array/map construction
                 # over a param is out of Tier-A scope).
                 if field_types.get(fn, "int") in ("list", "array", "dict", "set", "frozenset"):
+                    continue
+                # A field whose initialiser references a param OUTSIDE the bound
+                # prefix (a trailing omitted-with-default field) keeps its typed
+                # default — never a bare unsubstituted param var (ill-typed WhyML).
+                free = self._init_value_free_names(ent["value"])
+                if free and not (free <= set(arg_nodes.keys())):
                     continue
                 init_map[fn] = self._expr_to_whyml(
                     self._subst_params(ent["value"], arg_nodes), set())

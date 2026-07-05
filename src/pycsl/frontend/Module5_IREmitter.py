@@ -1037,8 +1037,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     "isinstance: a typing.Literal alias is not a valid second "
                     "argument (LR4 / PEP 586 — use a concrete value equality test)",
                     stage="ir-emit")
-            return {"type": "Call", "func": expr.func.id,
-                    "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
+            call_ir: Dict[str, Any] = {
+                "type": "Call", "func": expr.func.id,
+                "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
+            # WL-07 (wrong-lowering-to-fix.md §WL-07): capture EXPLICIT keyword
+            # arguments (`Point(x=1, y=2)`) so a record constructor can bind its
+            # fields by name — faithfully, exactly like positional args. Before this
+            # the keywords were DROPPED, so a keyword-constructed record fell every
+            # field to its zero default and a driver could PROVE `Point(x=1).x == 0`
+            # (fail-OPEN, severity-1 UNSOUND — the same class as the positional
+            # arg-drop). A `**kwargs` splat (`kw.arg is None`) is NOT captured (it
+            # stays a documented fail-open residual — the field default). Gated on
+            # non-empty keywords so a keyword-free call emits NO `keywords` key
+            # (byte-identical IR / emission for every existing driver).
+            kw_ir = [{"arg": kw.arg, "value": self._py_expr_to_ir(kw.value)}
+                     for kw in expr.keywords if kw.arg is not None]
+            if kw_ir:
+                call_ir["keywords"] = kw_ir
+            return call_ir
         elif isinstance(expr.func, ast.Attribute):
             parts: List[str] = []
             node = expr.func

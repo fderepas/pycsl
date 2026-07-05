@@ -590,6 +590,11 @@ class CallExpr(ExprIR):
     func: str
     args: List["ExprIR"]
     receiver: "ExprIR" = _ABSENT  # type: ignore[assignment]
+    # WL-07: EXPLICIT keyword args (`Point(x=1, y=2)`) as a list of
+    # {"arg": str, "value": ExprIR} — carried through so a record constructor
+    # binds its fields by name. _ABSENT (omitted) for a keyword-free call, so the
+    # wire dict is byte-identical for every existing call.
+    keywords: Any = _ABSENT  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -1202,8 +1207,13 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
                             attr=d.get("attr", ""))
     if k == "Call":
         rec = d.get("receiver", _ABSENT)
+        _kws = d.get("keywords", _ABSENT)
+        _kws_parsed = ([{"arg": kw.get("arg"), "value": _e(kw.get("value"))}
+                        for kw in _kws]
+                       if isinstance(_kws, list) else _ABSENT)
         return CallExpr(kind=k, func=d.get("func", ""), args=_es(d.get("args", [])),
-                        receiver=_e(rec) if rec is not _ABSENT else _ABSENT)
+                        receiver=_e(rec) if rec is not _ABSENT else _ABSENT,
+                        keywords=_kws_parsed)
     if k == "Tuple":
         return TupleExpr(kind=k, elts=_es(d.get("elts", [])))
     if k == "ArrayLit":
@@ -1557,6 +1567,9 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["args"] = [a.to_dict() for a in e.args]
         if e.receiver is not _ABSENT:
             out["receiver"] = e.receiver.to_dict()
+        if e.keywords is not _ABSENT:
+            out["keywords"] = [{"arg": kw["arg"], "value": kw["value"].to_dict()}
+                               for kw in e.keywords]
     elif isinstance(e, TupleExpr):
         out["elts"] = [x.to_dict() for x in e.elts]
     elif isinstance(e, ArrayLitExpr):

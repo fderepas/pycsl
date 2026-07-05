@@ -399,14 +399,27 @@ local as a record-array local (`_track_collection_metadata` → `_record_array_l
 `(let _rec_ = … in _rec_.<label>)` path as §WL-04b. The element record is emitted PURE (Module5
 `_m5_list_literal_record_elem` adds it to `list_element_record_types` after `generic_visit`). FAITHFUL
 CONSTRUCTION IS REQUIRED: only a record whose constructor sets EVERY field from a positional param (a
-`NamedTuple`, a recognized `Tuple`, an explicit-`__init__` positional class) is threaded; a `@dataclass`
-with no explicit `__init__` DROPS its ctor args (a separate pre-existing gap), so its literal element is
-NOT content-faithful and stays fail-closed (opaque / TYPEERR — never a silent unsound `a[0].x == 0`
-proof). Drivers `wl04c_list_record_literal_COLLAPSED.py` (PROVEN), false-twin
+`NamedTuple`, a recognized `Tuple`, an explicit-`__init__` positional class, and — **since §WL-07** — a
+`@dataclass`) is threaded. **UPDATE (§WL-07 — a fixed severity-1 unsoundness):** the `@dataclass`-ctor
+arg-drop is FIXED — a `@dataclass` now synthesizes its `init_params`/`init_body`, so its literal element
+is content-faithful (`[Point(1, 2)][0].x == 1` PROVES; driver `wl07_dataclass_literal_TRUE.py`). Drivers
+`wl04c_list_record_literal_COLLAPSED.py` (PROVEN), false-twin
 `wl04c_list_record_literal_falsetwin.py` (UNPROVEN); Gate-B spike
 `spikes/wl04c_list_record_literal_spike.mlw` (Alt-Ergo AND Z3, no cited lemma); locks 0839 (POSITIVE),
-NEGATIVE 0840. Residuals (kept fail-closed): a `@dataclass`-ctor literal (blocked on the dataclass
-positional-ctor-capture gap), a MIXED-record / keyword-arg literal.
+NEGATIVE 0840. Residual (kept fail-closed): a MIXED-record literal.
+
+**§ `@dataclass` / record constructor argument binding (wrong-lowering-to-fix.md §WL-07 — a fixed
+severity-1 unsoundness).** A `@dataclass` with no explicit `__init__` has its constructor synthesized by
+Python (`__init__(self, f1, …, fn)` binds each field positionally, in declaration order). PyCSL formerly
+DROPPED these args (`_collect_init_construction` only walked an explicit `__init__`), so `Point(1, 2)`
+built `{ x = 0; y = 0 }` and `Point(1, 2).x == 0` PROVED — FALSE of real Python (fail-OPEN). PyCSL now
+synthesizes the dataclass ctor's `init_params`/`init_body` and binds args by POSITIONAL PREFIX (a partial
+call keeps trailing defaults). EXPLICIT KEYWORD args (`Point(x=1, y=2)`) — formerly dropped from the Call
+IR for EVERY record constructor (plain classes too) — are captured in `CallExpr.keywords` and bound by
+name. A `**kwargs` splat stays a documented fail-open residual (unknown runtime values → field default).
+SMT spike `spikes/wl07_dataclass_ctor_spike.mlw` (Alt-Ergo AND Z3, no cited lemma); drivers
+`wl07_dataclass_{ctor_UNSOUND,ctor_TRUE,kw_UNSOUND,literal_TRUE}.py`; locks 0869 (POSITIVE), 0870 /
+0871 (NEGATIVE — the positional / keyword false-`== 0` twins).
 
 **§ FILTERED RECORD-projection comprehension (wrong-lowering-to-fix.md §WL-04d).** A FILTERED
 projection comprehension `[p.x for p in a if <cond(p)>]` over a flat `List[<record>]` source `a`

@@ -106,7 +106,32 @@ class ConstructionSynthMixin:
                 if names and (names & pset) and names <= pset:
                     init_body.append({"field": tgt.attr,
                                       "value": self._py_expr_to_ir(rhs)})
-            break
+            return init_params, init_body
+        # WL-07 (wrong-lowering-to-fix.md §WL-07 @dataclass ctor arg-drop, a
+        # severity-1 UNSOUNDNESS): a `@dataclass` with NO explicit `__init__` has
+        # its constructor SYNTHESIZED by Python — `__init__(self, f1, …, fn)` binds
+        # each declared field from the same-position positional arg, in
+        # field-DECLARATION order. Before this fix the loop above found no
+        # `__init__`, returned empty init_params/init_body, and
+        # `_call_record_constructor` fell EVERY field back to its zero/default —
+        # so `Point(1, 2).x` emitted `{ x = 0; y = 0 }` and a driver could PROVE
+        # `Point(1, 2).x == 0`, a claim FALSE of real Python (`.x` is `1`). Here we
+        # synthesize the same `init_params` (the class-body AnnAssign fields in
+        # declaration order) and `init_body` (`self.<field> = <field-param>`) that
+        # an explicit positional `__init__` would carry, so `_call_record_constructor`
+        # threads the args into the fields EXACTLY like a NamedTuple / recognized
+        # `Tuple` / explicit-`__init__` positional class. A field WITHOUT a default
+        # bound past the provided arity, or a non-scalar (list/dict/set) field, is
+        # handled by `_call_record_constructor` (positional-prefix binding + typed
+        # default) — sound. Additive: a non-dataclass class with no `__init__` is
+        # untouched (empty init, prior behaviour).
+        if self._is_dataclass_decorated(node):
+            fnames = [stmt.target.id for stmt in node.body
+                      if isinstance(stmt, ast.AnnAssign)
+                      and isinstance(stmt.target, ast.Name)]
+            init_params = list(fnames)
+            init_body = [{"field": fn, "value": {"type": "Var", "name": fn}}
+                         for fn in fnames]
         return init_params, init_body
 
     def _collect_init_ensures(self, node: ast.ClassDef) -> List[Dict[str, Any]]:

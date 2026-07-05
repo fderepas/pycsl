@@ -103,6 +103,82 @@ false-positive against the τ-blessed baseline.
   division). Files: 0004,0203,0209,0353,0359,0361,0362,0365,0376,0381,0382,0383,0391.
 - **Dedup:** none. Related mechanism to WL-01 (`pycsl_div`) but a distinct Python operator + fix.
 
+### WL-07 — `@dataclass` (and keyword) constructor DROPPED its arguments — **FIXED**
+- **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). Discovered during the WL-04c work (a
+  fail-close the delegate had to leave in place): a `@dataclass` with **no explicit `__init__`** had its
+  SYNTHESIZED positional constructor arguments **DROPPED**. Python's `@dataclass` auto-generates
+  `__init__(self, f1, …, fn)` binding each declared field from the same-position positional arg (in
+  field-DECLARATION order), but Module5's `_collect_init_construction` only walked an EXPLICIT `__init__`,
+  so a `@dataclass` got **empty** `init_params`/`init_body` and `_call_record_constructor` fell EVERY
+  field to its zero default. So `Point(1, 2)` emitted `{ x = 0; y = 0 }` and a driver could **PROVE**
+  `Point(1, 2).x == 0` — a green proof of a claim **FALSE** of real Python (`Point(1, 2).x` is `1`,
+  never `0`). Contrast a PLAIN class with an explicit positional `__init__` (WL-04e), which WAS faithful.
+- **Construct / position:** a `@dataclass`-with-no-`__init__` constructor call `Point(1, 2)` (positional),
+  `Point(x=1, y=2)` (keyword), `Point(1, y=2)` (mixed), `Box(7)` (partial, trailing default), and the
+  field read `Point(1, 2).x` on the result — in a function body or a `List[<dataclass>]` LITERAL element.
+- **Second (broader) unsoundness fixed in the same pass — KEYWORD arg-drop:** EXPLICIT keyword arguments
+  were DROPPED from the Call IR entirely (`_py_expr_call` recorded only `expr.args`), so `Point(x=1,
+  y=2)` became `Call(args=[])` for EVERY record constructor (plain classes too, NOT just dataclasses) →
+  all-defaults → `Point(x=1, y=2).x == 0` PROVED (fail-OPEN). A pre-existing hole independent of the
+  dataclass gap; both are the same severity-1 class and both are fixed here.
+- **Fix (3 seams, additive):**
+  1. **Module5 `module5/construction_synth.py::_collect_init_construction`** — when a class is a
+     `@dataclass` with no explicit `__init__`, synthesize `init_params` (the class-body AnnAssign fields
+     in declaration order) and `init_body` (`self.f = f`), mirroring the NamedTuple record path, so the
+     args thread through the EXISTING Tier-A `_call_record_constructor`.
+  2. **Module6 `module6_whyml/expressions.py::_call_record_constructor`** — bind by POSITIONAL PREFIX
+     (`len(args) <= len(init_params)`): a full call binds every field; a PARTIAL call binds the provided
+     prefix and each trailing field keeps its declared default (`Box(7)` with `h: int = 5` →
+     `{ w = 7; h = 5 }`, sound — a field whose initialiser references an UNBOUND param, checked via the
+     new `_init_value_free_names`, is skipped to its default, never a bare unsubstituted var); an
+     over-arity call binds nothing (fail-closed). Plus a new `kwargs_map` param binding keyword args BY
+     NAME on top of the positional prefix.
+  3. **Call IR keyword capture** — `Module5_IREmitter.py::_py_expr_call` records EXPLICIT keyword args
+     (`kw.arg is not None`) as `CallExpr.keywords` (`ir_schema.py`: new `keywords` field, `_ABSENT`
+     default, wired through `from_dict`/`to_dict`), gated on non-empty → **byte-identical wire dict** for
+     any keyword-free call. `_handle_call_expr` lowers them into `kwargs_map`. A `**kwargs` SPLAT
+     (`kw.arg is None`) is NOT captured → the field keeps its default (a documented fail-open residual:
+     a splat's runtime values are unknown, so no faithful per-field claim is made — the guidance is to
+     use explicit positional/keyword construction).
+- **Faithful target realized:** the synthesized `@dataclass` ctor binds each field from its positional /
+  keyword arg exactly like a NamedTuple / recognized `Tuple` / explicit-`__init__` class. Derivation is a
+  native Why3 record literal + field projection — SMT discharges it directly, **no cited lemma needed**.
+- **Class / severity:** UNSOUND / 1 (was).
+- **Verdict flips (now):**
+  - `getting-better/wrong-lowering/wl07_dataclass_ctor_UNSOUND.py` (`Point(1, 2).x == 0`) → **UNPROVEN**
+    (was PROVEN).
+  - `getting-better/wrong-lowering/wl07_dataclass_kw_UNSOUND.py` (`Point(x=1, y=2).x == 0`) →
+    **UNPROVEN** (was PROVEN).
+  - `getting-better/wrong-lowering/wl07_dataclass_ctor_TRUE.py` (positional `.x==1`/`.y==2`, keyword,
+    mixed, partial-default `Box(7).h==5`) → **PROVEN**.
+  - `getting-better/wrong-lowering/wl07_dataclass_literal_TRUE.py` (`[Point(1, 2)][0].x == 1`,
+    `-> List[Point]` `\result[i].field`) → **PROVEN** — the **WL-04c dataclass-literal fail-close is
+    LIFTED** (a `@dataclass` is now content-faithful, so the WL-04c faithful-record gate ADMITS it).
+- **SMT-feasibility spike:** `test-suite/corpus/conformance/spikes/wl07_dataclass_ctor_spike.mlw` — the
+  faithful record-literal-from-ctor-args law (concrete `Point(1, 2).x == 1`/`.y == 2`, the symbolic
+  general law, the partial-default form, and the old-false `== 0` refuted so the context is non-vacuous),
+  5 goals Valid on **both** Alt-Ergo AND Z3 (no cited lemma).
+- **Regression locks (reference corpus):** `test-suite/corpus/pycsl-reference/0869.py` (POSITIVE —
+  positional + keyword + mixed + partial-default) and `0870.py` / `0871.py` (NEGATIVE,
+  `# pycsl-expected: FAIL` — the OLD false `Point(1, 2).x == 0` / `Point(x=1, y=2).x == 0` claims, now
+  unprovable).
+- **Emission differential:** the full-corpus byte-diff (`bin/byte-diff-sweep.sh`, before/after) is
+  **EXACTLY 0** — every one of the 743 pre-existing corpus files emits BYTE-IDENTICALLY. No corpus
+  program constructs a `@dataclass`/record with POSITIONAL-or-keyword LITERAL args inside a VERIFIED
+  body/contract (the 28 `@dataclass` corpus files use the record only as a param/type, or construct in
+  an unverified `if __name__` block, or via keywords whose emission was all-defaults before AND is now
+  faithful only when read in a verified body — none present). ADDITIVE. No new axiom; `\trusted`
+  non-increasing; doc-coherency green.
+- **Documented residual (fail-closed / fail-open, both benign):** (a) a `**kwargs` SPLAT keeps the field
+  default (fail-open, but only for an inherently-unknown splat — no explicit false claim is emitted for a
+  concrete field); (b) an UNRELATED pre-existing gap surfaced while testing: when TWO record types share
+  a field name, Why3 labels are QUALIFIED (`point_x`) but the field-READ path emits the UNQUALIFIED
+  `p.x` → a Why3 "unbound symbol" **TYPEERR** (fail-CLOSED, not unsound — no false proof). This is
+  orthogonal to WL-07 (present on the pristine tree, byte-diff = 0), and the WL-07 drivers/locks use
+  DISJOINT field names to avoid it.
+- **Dedup:** none. Shares the `_call_record_constructor` seam with WL-03/WL-04b/WL-04c/WL-04e (record
+  construction) but is a distinct pre-existing arg-DROP unsoundness.
+
 ---
 
 ## FALSE-GREEN / VACUOUS (severity 2)
@@ -318,10 +394,11 @@ false-positive against the τ-blessed baseline.
   FAIL` — a false cross-field conflation). **Emission-differential:** the ONLY corpus files whose
   emission changes are the two NEW locks `0839`/`0840`; every OTHER of the 718 pre-existing corpus files
   emits BYTE-IDENTICALLY (`bin/byte-diff-sweep.sh`, before/after). No new axiom; `\trusted`
-  non-increasing; doc-coherency green. **STILL OUT OF SCOPE (documented residuals):** a `@dataclass`-ctor
-  literal (blocked on the dataclass positional-ctor-capture gap — a distinct pre-existing unsoundness
-  worth its own fix), and a MIXED-record / keyword-arg literal keep the fail-closed (int-collapse /
-  opaque / TYPEERR) model.
+  non-increasing; doc-coherency green. **UPDATE (§WL-07):** the `@dataclass`-ctor literal fail-close is now
+  **LIFTED** — the dataclass positional-ctor-capture gap it was blocked on is FIXED (WL-07, above), so a
+  `@dataclass` is content-faithful and its literal `[Point(1, 2)][0].x == 1` PROVES. **STILL OUT OF SCOPE
+  (documented residual):** a MIXED-record literal keeps the fail-closed (int-collapse / opaque / TYPEERR)
+  model.
 - **FILTERED record-projection comprehension (WL-04d) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). A
   FILTERED projection comprehension `[p.x for p in a if <cond(p)>]` over a flat `List[<record>]` source
   `a` (`array <record>`, WL-04b) previously fell through `_content_comp`'s record branch to the opaque
