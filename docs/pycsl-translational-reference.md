@@ -3648,11 +3648,15 @@ are out of scope of §T.15 (format-string-aware emission + Rocq
 round-trip axioms + per-method bytes-method modeling). **DONE since
 this note:** faithful byte CONTENT of a `bytes` LITERAL and the
 byte-range constraint `0..255` (both §T.15.7, WL-06b); the
-coherent `b[i]`/`len(b)` read (§T.15.6, WL-06); and the implicit
+coherent `b[i]`/`len(b)` read (§T.15.6, WL-06); the implicit
 byte-RANGE invariant `0<=b[i]<256` for an *unknown* `bytes`/
-`bytearray` PARAMETER (§T.15.8, WL-06c). What remains is the exact
-CONTENT of an unknown `bytes` parameter (user `requires` only) and
-the encode/decode + deeper-`struct` method semantics above.
+`bytearray` PARAMETER (§T.15.8, WL-06c); and faithful byte CONTENT of
+an ASCII str-LITERAL `.encode()` plus the constructor
+`ValueError`-as-precondition (both §T.15.9, WL-06d). What remains is
+the exact CONTENT of an unknown `bytes` parameter (user `requires`
+only), non-literal / non-ASCII `.encode`, `.decode`, and the
+deeper-`struct` / byte-method semantics above — see §T.15.9's boundary
+table.
 
 ### §T.15.6  Byte read `b[i]` and `len(b)` (WL-06)
 
@@ -3776,12 +3780,77 @@ A future faithful caller-visible `bytearray` mutation model would
 additionally carry a Python-`ValueError` write obligation `0<=v<256`
 (writing 300 into a byte buffer raises `ValueError`).
 
-**Remaining follow-on (§T.15.5).** `str↔bytes` encode/decode, the
-`.ljust`/`.split`/`.strip` byte-methods, and full `struct` beyond
-the cleared-pack round-trip stay out of scope — and the EXACT
-CONTENT of an unknown `bytes` PARAMETER (its individual byte values)
-remains opaque (only a user-supplied `requires`/element bound can
-constrain it; the RANGE is now implicit).
+**Remaining follow-on (§T.15.5, §T.15.9).** `str↔bytes` encode/decode
+(beyond the ASCII-literal `.encode()` of §T.15.9), the
+`.ljust`/`.split`/`.strip` byte-methods, `.hex`/`int.from_bytes`/
+`int.to_bytes`/bytes `+`, and full `struct` beyond the cleared-pack
+round-trip stay out of scope — and the EXACT CONTENT of an unknown
+`bytes` PARAMETER (its individual byte values) remains opaque (only a
+user-supplied `requires`/element bound can constrain it; the RANGE is
+now implicit).
+
+### §T.15.9  str-LITERAL `.encode()` content + constructor `ValueError` precondition (WL-06d)
+
+Two additive, independently-gated refinements (`wrong-lowering-to-fix.md`
+§WL-06d, spike `wl06d_str_encode_literal_spike.mlw`, Valid on Alt-Ergo
+AND Z3):
+
+**(P1-literal) ASCII str-LITERAL `.encode()` byte content.** A pure-ASCII
+string LITERAL `"abc".encode()` constant-folds to the `array int` byte
+literal of its code points — EXACTLY like a `bytes` literal (§T.15.7):
+
+`T_e("abc".encode()) = (let _a = Array.make 3 97 in _a[1] <- 98; _a[2] <- 99; _a)`
+
+so `"abc".encode()[0] == 97` PROVES, the byte-RANGE invariant
+`0 <= b[i] < 256` is derivable (no axiom), and a FALSE content claim
+(`"abc".encode()[0] == 98`) stays UNPROVEN (locks 0865/0866). This is
+`expressions._encode_string_literal`, fired ONLY when: the method tail is
+`encode`; the receiver is a STRING LITERAL; at most one positional arg,
+and if present a string literal naming an ASCII-agreeing encoding
+(`ascii`/`utf-8`/`latin-1`/…); and EVERY code point is ASCII (`ord < 128`)
+— under which ascii, utf-8 and latin-1 all emit `byte == ord`. A
+non-literal receiver, a non-ASCII code point (utf-8 is multi-byte / ascii
+raises), an unmodelled encoding, or an empty string DECLINES to the sound
+opaque `encode_N : array int` val (no over-claim). `.decode` (beyond the
+cited null-terminated-field NAME-decode idiom) stays opaque.
+
+**(P3) `bytes([...])`/`bytearray([...])` `ValueError`-as-precondition.**
+Python `bytes([v])`/`bytearray([v])` raises `ValueError: bytes must be in
+range(0, 256)` if ANY source element is outside `[0,256)`. The constructor
+`bytes_new`/`bytearray_new` (whose ensures preserve length + per-element
+content `result[i] == x[i]`) now carries the PRECONDITION:
+
+`requires { forall i:int. 0 <= i < Array.length x -> 0 <= x[i] < 256 }`
+
+modelled the SAME way an IndexError bounds VC guards `b[i]` (§T.15.6): an
+out-of-range element makes the range VC undischargeable, so
+`bytes([300])[0] == 300` FAILS CLOSED (locks 0867/0868) instead of proving
+a false normal-return — a severity-1 unsoundness BEFORE WL-06d. The content
+law for an in-range source (`bytes([65,66,67])[0] == 65`) is unchanged and
+still PROVES; the range precondition is discharged by every real
+byte-packing caller (`bytes([v // 256, v % 256])` under a `0 <= v <= 65535`
+requires, etc.), so the fix is fully additive (the corpus files that
+construct bytes gain only the one `requires` line, all still prove).
+
+**Boundary map (audited: none of these is unsound — each is fail-closed
+or opaque).**
+
+| surface | current stance | reason |
+|---|---|---|
+| `"lit".encode()` ASCII | FAITHFUL content (P1-literal) | §T.15.9 fold |
+| `s.encode()` (var / non-ASCII) | opaque `encode_N` | code-point content unknown; utf-8 multi-byte |
+| `b.decode()` | opaque (cited field-decode idiom aside) | inverse of an opaque model |
+| `bytes([...])` content + range | FAITHFUL + `ValueError` precondition (P3) | §T.15.9 |
+| EXACT value of unknown `bytes` param | opaque (RANGE implicit, WL-06c) | user `requires` only |
+| `struct.pack`/`unpack` whitelisted scalar / `4s` | FAITHFUL, cited Rocq+Lean round-trip | `Pycsl.Struct.Std` (struct_format.py) |
+| `struct` non-whitelisted shape | opaque `struct_{pack,unpack}_N` | no cited round-trip proof (extend = new proof) |
+| `b.hex()`, `int.from_bytes`, `int.to_bytes`, `b + b2` | fail-closed TYPEERR / opaque | no faithful byte model emitted |
+| `b[i:j]` slice | opaque `array_slice` (content-blind) | no length/content law on the slice |
+
+Extending any opaque row to FAITHFUL requires either format-string-aware
+emission with a cited Rocq+Lean round-trip lemma (never `\trusted`) or a
+faithful `string`↔`array int` codec model — out of scope of the
+wrong-lowering campaign.
 
 ---
 

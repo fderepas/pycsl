@@ -2798,6 +2798,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         rec = self._call_record_constructor(args, func_name)
         if rec is not None:
             return rec
+        enc_lit = self._encode_string_literal(expr, local_refs, invariant_ctx, subst)
+        if enc_lit is not None:
+            return enc_lit
         bytes_call = self._call_bytes_methods(args, func_name)
         if bytes_call is not None:
             return bytes_call
@@ -3192,8 +3195,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # would clobber a `(let _alit = Array.make …)` literal to a placeholder).
             ctor = func_name
             if args:
+                # WL-06d soundness: Python `bytes([...])`/`bytearray([...])` raises
+                # `ValueError: bytes must be in range(0, 256)` if ANY source element is
+                # outside [0,256). Model that ValueError as a PRECONDITION on the
+                # constructor (the SAME way an IndexError bounds VC guards `b[i]`), so an
+                # out-of-range element is FAIL-CLOSED (the range VC does not discharge)
+                # instead of proving a false normal-return `\result[i] == <oor value>`.
                 self._add_abstract_op(
                     f"val {ctor}_new (x: array int) : array int\n"
+                    f"    requires {{ forall i:int. 0 <= i < Array.length x -> "
+                    f"0 <= x[i] < 256 }}\n"
                     f"    ensures {{ Array.length result = Array.length x }}\n"
                     f"    ensures {{ forall i:int. 0 <= i < Array.length x -> "
                     f"result[i] = x[i] }}")
@@ -3796,6 +3807,55 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             for fn in rec_info["fields"]
         )
         return f"{{ {field_inits} }}"
+
+    # WL-06d P1-literal: encodings under which an ASCII code point IS the single
+    # emitted byte. For a PURE-ASCII literal (every ord < 128) ascii / utf-8 /
+    # latin-1 all agree byte[i] == ord(s[i]); a non-ASCII char is NOT modelled
+    # (utf-8 is multi-byte, ascii raises) → the recognizer declines (opaque).
+    _ENCODE_ASCII_NAMES = frozenset({
+        "ascii", "us-ascii", "utf-8", "utf8", "u8", "latin-1", "latin1",
+        "latin_1", "iso-8859-1", "iso8859-1", "l1", "8859",
+    })
+
+    def _encode_string_literal(self, expr, local_refs, invariant_ctx, subst):
+        """WL-06d (P1-literal): constant-fold `"<ascii-literal>".encode([enc])` to the
+        `array int` byte literal of its code points — EXACTLY like a `bytes` literal
+        (WL-06b). So `"abc".encode()[0] == 97` PROVES, the byte-RANGE invariant
+        `0 <= b[i] < 256` is derivable, and a FALSE content claim stays UNPROVEN.
+
+        FAIL-CLOSED / opaque (returns None) unless ALL hold — so the general
+        `.encode()` (a non-literal receiver, a non-ASCII byte, an unmodelled
+        encoding) keeps the sound opaque `encode_N` val:
+          - the method tail is `encode` and the receiver is a STRING LITERAL;
+          - at most one positional arg, and if present it is a string literal
+            naming an ASCII-agreeing encoding (`_ENCODE_ASCII_NAMES`);
+          - every code point is ASCII (`ord < 128`) — so ascii/utf-8/latin-1 all
+            emit byte == ord (a non-ASCII char is multi-byte in utf-8 / raises in
+            ascii, so it is declined, not mis-lowered);
+          - the literal is non-empty (an empty encode stays opaque)."""
+        recv_ir, tail = self._str_method_recv_and_tail(expr)
+        if tail != "encode" or not isinstance(recv_ir, dict):
+            return None
+        if recv_ir.get("type") != "String":
+            return None
+        s = recv_ir.get("value")
+        if not isinstance(s, str) or s == "":
+            return None
+        arg_irs = expr.get("args") or []
+        if len(arg_irs) > 1:
+            return None
+        if len(arg_irs) == 1:
+            a0 = arg_irs[0]
+            if not (isinstance(a0, dict) and a0.get("type") == "String"):
+                return None
+            enc = str(a0.get("value", "")).strip().lower().replace(" ", "")
+            if enc not in self._ENCODE_ASCII_NAMES:
+                return None
+        if any(ord(c) >= 128 for c in s):
+            return None
+        alit_ir = {"type": "ArrayLit",
+                   "elts": [{"type": "Number", "value": ord(c)} for c in s]}
+        return self._expr_to_whyml(alit_ir, local_refs, invariant_ctx, subst)
 
     def _call_bytes_methods(self, args: List[str], func_name: str) -> Optional[str]:
         """Bytes-producing methods (`b.encode()`, `b.ljust()`, …) reach the generic path

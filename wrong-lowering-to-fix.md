@@ -730,6 +730,51 @@ false-positive against the τ-blessed baseline.
   non-increasing.
 - **Dedup:** none.
 
+#### WL-06d (T10) — `str↔bytes` encode/decode + deeper struct/byte-methods — ✅ P1-literal + P3 IMPLEMENTED; P1-var/P2/P4/P5 DOCUMENTED BOUNDARY (all audited SOUND); 1 SEVERITY-1 unsoundness FIXED
+- **Status:** ✅ **PARTITIONED & LANDED** (branch `ghost-assign-bc6`). The final WL-06 residual
+  (`str↔bytes` codec + deeper struct/byte-methods, translational §T.15.5) is a MIX. Each sub-part was
+  audited for unsoundness FIRST, then either given a faithful lowering (full gate) or a rigorously-argued
+  fail-closed boundary. **Headline: one SEVERITY-1 unsoundness found and FIXED (P3).**
+- **The P1–P5 partition (verdict per sub-part):**
+  - **P1-literal — ✅ IMPLEMENTED.** An ASCII str-LITERAL `"abc".encode()` constant-folds to the
+    `array int` byte literal of its code points ([97,98,99]) — like a `bytes` literal (WL-06b) — via
+    `expressions._encode_string_literal` (fires only for a String-literal receiver, an ASCII-agreeing
+    encoding, and every code point `< 128`; else DECLINES to the opaque `encode_N`). So
+    `"abc".encode()[0]==97` PROVES, `0<=b[i]<256` is derivable, a false claim stays UNPROVEN. Locks
+    0865/0866; drivers `wl06d_str_encode_literal_{POSITIVE,falsetwin}.py`.
+  - **P1-var / P2 (decode) — ⛔ BOUNDARY (audited SOUND).** A non-literal / non-ASCII `.encode()` stays the
+    opaque nullary `encode_N : array int` val (utf-8 is multi-byte; ascii raises on `>127`), and
+    `.decode()` (beyond the already-cited null-terminated-field NAME-decode idiom) is opaque. No false
+    content proves (verified). A faithful `string`↔`array int` codec + a cited round-trip lemma would be
+    required — out of scope.
+  - **P3 (constructor range) — ✅ IMPLEMENTED + SEVERITY-1 FIX.** `bytes([...])`/`bytearray([...])` lowers
+    to `bytes_new`/`bytearray_new` (length + `result[i]==x[i]` ensures). **BUG (was):** no range
+    precondition, so `bytes([300])[0]==300` proved a FALSE normal-return (CPython raises `ValueError:
+    bytes must be in range(0, 256)`). **FIX:** added `requires forall i. 0<=x[i]<256` (the SAME
+    fail-closed shape as the IndexError bounds VC on `b[i]`); an out-of-range element now fails closed,
+    the in-range content law is unchanged. Locks 0867/0868; drivers
+    `wl06d_bytes_ctor_{range_POSITIVE,oor_UNSOUND_fixed,falsetwin}.py`.
+  - **P4 (struct beyond cleared-pack) — ⛔ BOUNDARY (audited SOUND).** `struct_format.py` already routes a
+    WHITELISTED scalar shape / `4s` to a faithful, cited Rocq+Lean byte-codec round-trip
+    (`Pycsl.Struct.Std`); every non-whitelisted shape falls to the opaque `struct_{pack,unpack}_N` symbols
+    (sound). No unsound path found. Extending the whitelist needs a NEW cited round-trip proof per shape
+    (never `\trusted`).
+  - **P5 (`.hex`/`from_bytes`/`to_bytes`/`+`/slice) — ⛔ BOUNDARY (audited SOUND).** `b.hex()`, bytes `+`,
+    `int.from_bytes` emit a fail-closed TYPEERR or an opaque val; `b[i:j]` is the content-blind opaque
+    `array_slice`. None proves false content (verified true+false twins for slice: neither `c[0]==b[1]`
+    nor `c[0]==b[2]` proves — opaque, sound).
+- **Class / severity:** P3 was UNSOUND / 1 (a false normal-return proved), now FIXED fail-closed; the rest
+  are opaque/fail-closed boundaries (not unsoundness).
+- **SMT-feasibility spike:** `test-suite/corpus/conformance/spikes/wl06d_str_encode_literal_spike.mlw`
+  (P1-literal content+range read AND P3 in-range constructor discharge — Valid on Alt-Ergo AND Z3; the
+  two false-twin goals `g_encode_false`/`g_ctor_oor_false` are Unknown/Timeout = NOT Valid).
+- **Emission differential:** exactly the SEVEN corpus files that CONSTRUCT bytes/bytearray
+  (0616, 0655, 0656, 0657, 0658, 0660, 0665) gain the one `requires` line on `bytes_new`/`bytearray_new`;
+  all seven STILL PROVE (their sources are in range — literals, or `v//256`/`v%256` under a bounding
+  `requires`). P1-literal adds ZERO corpus changes (no corpus program uses a direct `"lit".encode()`).
+  Every other file is BYTE-IDENTICAL. NO new axiom; `\trusted` non-increasing.
+- **Dedup:** none. (Closes the encode/decode + struct residual of §WL-06b/§WL-06c.)
+
 ---
 
 ## Considered and EXCLUDED (τ-blessed or already-documented — NOT findings)
@@ -738,8 +783,10 @@ false-positive against the τ-blessed baseline.
 - **bare `tuple` = int†**, **bytes/bytearray = int†** (as the coarse array-int *shape*) — τ-blessed
   collapse of the SHAPE (WL-06 fixed the broken subscript emission; WL-06b added faithful byte CONTENT for
   a LITERAL + immutability, §T.15.7; WL-06c added the byte-RANGE invariant of an unknown PARAMETER,
-  §T.15.8 — all additive on the shape). Only the EXACT byte VALUE of an unknown `bytes` parameter (user
-  `requires` only) + encode/decode stay the residual.
+  §T.15.8; WL-06d added the ASCII str-LITERAL `.encode()` content law + the constructor
+  `ValueError`-as-precondition, §T.15.9 — all additive on the shape). Only the EXACT byte VALUE of an
+  unknown `bytes` parameter (user `requires` only) + NON-literal/NON-ASCII encode/decode + deeper struct
+  stay the residual (WL-06d documented boundaries, all audited SOUND).
 - **`Dict[str,int]` / `Dict[str,str]` value read** — FAITHFUL (`map string (option ν)`), read-back
   proves (`cal_dict_val_faithful`; probes `p_dict_str_val`/`p_dict_int_val` PROVEN).
 - **`float` = real** — FAITHFUL (`p_float` PROVEN); false twin `2.0*3.0==7.0` UNPROVABLE.
@@ -762,7 +809,7 @@ false-positive against the τ-blessed baseline.
 | UNSOUND (1) | 0 open | ~~WL-01 (floor `//`/`%`, neg divisor)~~ **FIXED**, ~~WL-02 (true `/` → int div)~~ **FIXED** |
 | FALSE-GREEN (2) | 0 new | WL-VAC (documented, cross-ref) |
 | COLLAPSED-with-consumer (3) | 0 open | ~~WL-03 (Tuple param)~~ **FIXED**, ~~WL-04 (List[str/float] elem)~~ **FIXED** |
-| WRONG-REPR (4) | 0 open | ~~WL-05 (dict/set param mut)~~ **FIXED** + ~~WL-05d (record/list param field-mut: LIST+mutable-record SUPPORTED, pure-record FAIL-CLOSED, severity-1 fail-OPEN FIXED)~~ **IMPLEMENTED**, ~~WL-06 (bytes index)~~ **FIXED** + ~~WL-06b (bytes-literal CONTENT + immutability)~~ **IMPLEMENTED** + ~~WL-06c (unknown-bytes-param byte-RANGE invariant)~~ **IMPLEMENTED** |
+| WRONG-REPR (4) | 0 open | ~~WL-05 (dict/set param mut)~~ **FIXED** + ~~WL-05d (record/list param field-mut: LIST+mutable-record SUPPORTED, pure-record FAIL-CLOSED, severity-1 fail-OPEN FIXED)~~ **IMPLEMENTED**, ~~WL-06 (bytes index)~~ **FIXED** + ~~WL-06b (bytes-literal CONTENT + immutability)~~ **IMPLEMENTED** + ~~WL-06c (unknown-bytes-param byte-RANGE invariant)~~ **IMPLEMENTED** + ~~WL-06d (str-LITERAL `.encode()` content + constructor `ValueError` precondition; P1-var/P2/P4/P5 BOUNDARY; 1 severity-1 fail-OPEN FIXED)~~ **IMPLEMENTED** |
 | OPAQUE (5) | 0 filed | — |
 
 **ALL 6 WL-* findings are FIXED.** WL-01 and WL-02 (both certified FALSE arithmetic — a green proof for
@@ -779,7 +826,14 @@ is REJECTED, never silently unsound; `bytearray` stays a sound mutable buffer). 
 shape is KEPT — content faithfulness is additive on top of it. **WL-06c** then adds the byte-RANGE
 invariant `0 <= b[i] < 256` for an UNKNOWN `bytes`/`bytearray` PARAMETER as an IMPLICIT precondition (a
 type-level guarantee — every real Python byte is in [0,256)), so a range read of an unknown param PROVES
-with no user annotation, while a false SPECIFIC-value claim stays UNPROVEN. **Remaining follow-on
-(documented, final residual):** the EXACT byte VALUE of an *unknown* `bytes` parameter (user `requires`
-only — the RANGE is now implicit), and `str↔bytes` encode/decode + deeper `struct`/byte-methods
-(translational §T.15.5). Harness + drivers + the Alt-Ergo/Z3 SMT spikes are committed and re-runnable.
+with no user annotation, while a false SPECIFIC-value claim stays UNPROVEN. **WL-06d** partitions the
+final `str↔bytes` + struct residual: it IMPLEMENTS the ASCII str-LITERAL `.encode()` byte-content law
+(`"abc".encode()[0]==97` PROVES) and — the headline — FIXES a SEVERITY-1 unsoundness in the
+`bytes([...])`/`bytearray([...])` constructor (an out-of-range element `bytes([300])[0]==300` PROVED a
+false normal-return where CPython raises `ValueError`; now fail-closed via a `requires 0<=x[i]<256`
+precondition); the remaining sub-parts (NON-literal/NON-ASCII `.encode`, `.decode`, deeper `struct`,
+`.hex`/`from_bytes`/`to_bytes`/`+`/slice) are documented fail-closed BOUNDARIES, each AUDITED sound
+(opaque or TYPEERR — no false content proves). **Remaining follow-on (documented, final residual):** the
+EXACT byte VALUE of an *unknown* `bytes` parameter (user `requires` only — the RANGE is now implicit), and
+the WL-06d boundary surface above (translational §T.15.5/§T.15.9). Harness + drivers + the Alt-Ergo/Z3 SMT
+spikes are committed and re-runnable.

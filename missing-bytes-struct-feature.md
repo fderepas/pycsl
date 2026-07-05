@@ -15,14 +15,15 @@ A `bytes`/`bytearray` value lowers to the coarse `array int` buffer (`τ(bytes)=
 |---|---|---|
 | P1 | `bytes` literal → `ArrayLit` of the REAL byte values (Module5 `_py_expr_constant`); `b'\x00'*N` composes with the `[default]*size → Array.make` handler | ✅ DONE (translational §T.15.2) |
 | P1a | `bytes(...)`/`bytearray(...)` constructor → `array int` (length/element contract) | ✅ DONE (test 0616) |
+| P1a+ | constructor `ValueError`-as-precondition — `bytes([v])`/`bytearray([v])` raises `ValueError` for `v ∉ [0,256)`; modelled as `requires 0<=x[i]<256` on `bytes_new`/`bytearray_new` so an out-of-range element FAILS CLOSED (was: severity-1 unsound `bytes([300])[0]==300` proved a false normal-return) | ✅ DONE — **WL-06d** (translational §T.15.9; locks 0867/0868; spike `wl06d_str_encode_literal_spike.mlw`) |
 | — | coherent `b[i]` READ (`Array.get`) + `len(b)` (`Array.length`) — no more broken `subscript_get` | ✅ DONE — **WL-06** (translational §T.15.6; locks 0824/0825) |
 | — | faithful byte CONTENT of a `bytes` **LITERAL** (exact value reads PROVE) + byte-RANGE invariant `0 <= b[i] < 256` (derivable, no axiom) | ✅ DONE — **WL-06b** (translational §T.15.7; locks 0835/0836; spike `wl06b_bytes_content_spike.mlw`) |
 | — | `bytes` **immutability** — a `bytes` element write `b[i]=v` is REJECTED (Python `TypeError`); `bytearray` element write stays a sound mutable array mutation | ✅ DONE — **WL-06b** (`core_ir_semantic._sa_immutable_walk`; locks 0837/0838) |
 | P2a | byte-RANGE invariant `0 <= b[i] < 256` of an *unknown* `bytes`/`bytearray` **PARAMETER** — emitted as an IMPLICIT precondition (a type-level guarantee); range read PROVES with no user `requires`, specific-value claim stays UNPROVEN | ✅ DONE — **WL-06c** (`functions._bytes_param_range_requires`; translational §T.15.8; locks 0862/0863/0864; spike `wl06c_bytes_param_range_spike.mlw`) |
 | P2b | EXACT CONTENT of an *unknown* `bytes` **PARAMETER** — the individual byte VALUES stay opaque `int` cells (coherent, distinct-index independent, now range-bounded); only a user `requires`/element bound can pin a value | ⛔ FOLLOW-ON |
-| P3 | `str ↔ bytes` `.encode` / `.decode` (UTF-8 / ASCII round-trip) | ⛔ FOLLOW-ON |
-| P4 | byte-string methods `.ljust` / `.split` / `.strip` / `.hex` | ⛔ FOLLOW-ON |
-| P5 | full `struct.pack` / `struct.unpack` round-trip **beyond** what cleared-pack (`Pycsl.Struct.*`) already gives | ⛔ FOLLOW-ON (cleared-pack round-trip DONE separately) |
+| P3 | `str ↔ bytes` `.encode` / `.decode` (UTF-8 / ASCII round-trip) | 🟡 PARTIAL — ASCII str-LITERAL `.encode()` byte CONTENT is faithful (**WL-06d**, translational §T.15.9; locks 0865/0866; `_encode_string_literal`); a NON-literal / NON-ASCII `.encode()` and `.decode()` (beyond the cited field-decode idiom) stay opaque (documented boundary) |
+| P4 | byte-string methods `.ljust` / `.split` / `.strip` / `.hex` | ⛔ FOLLOW-ON — audited SOUND (opaque / fail-closed TYPEERR: `.hex` and bytes `+` are TYPEERR; `.ljust`/`.rjust` carry a length law only; `b[i:j]` is opaque `array_slice`) |
+| P5 | full `struct.pack` / `struct.unpack` round-trip **beyond** what cleared-pack (`Pycsl.Struct.*`) already gives | ⛔ FOLLOW-ON — audited SOUND (whitelisted scalar/`4s` shapes are faithful+cited; every non-whitelisted shape is opaque; extending needs a new Rocq+Lean round-trip proof, never `\trusted`) |
 
 ## What "DONE" means precisely (WL-06 + WL-06b)
 
