@@ -1740,7 +1740,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 var_name in getattr(self, "_inline_array_temps", set()) or
                 var_name in getattr(self, "_current_array1d_params", set()))
             if not is_array and not is_dict and var_name:
-                if getattr(self, "_current_symbol_table", {}).get(var_name) in ("list", "dict"):
+                # WL-06: bytes/bytearray are the τ-blessed `array int`-backed byte
+                # buffer, so `len(b)` is `Array.length b` (the buffer length),
+                # consistent with routing `b[i]` to `Array.get`. Otherwise a bounds
+                # `requires i < len(b)` emitted the unbound `iter_length` stub.
+                if (getattr(self, "_current_symbol_table", {}).get(var_name)
+                        in ("list", "dict", "bytes", "bytearray")):
                     is_array = True
             if is_array:
                 arg0 = f"({args[0]})" if args[0].startswith("!") else args[0]
@@ -4236,7 +4241,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 var_name in getattr(self, "_current_array1d_params", set()))
             if not is_array and not is_dict and var_name:
                 st = getattr(self, "_current_symbol_table", {})
-                if st.get(var_name) == "list":
+                if st.get(var_name) in ("list", "bytes", "bytearray"):
+                    # WL-06 FIX: a bytes/bytearray value is the τ-blessed
+                    # `bytes=int†` array-int-backed buffer (`b : array int`), so a
+                    # byte read `b[i]` must lower to a native `Array.get b i` (a
+                    # coherent `int` byte read), NOT the opaque `subscript_get
+                    # (x:int)(i:int):int` — which, applied to `array int`, is an
+                    # `array int` vs `int` type error. Byte CONTENT stays opaque
+                    # (a faithful `bytes` model is a documented follow-on); the read
+                    # is now a sound, type-checking `int`.
                     is_array = True
                 elif st.get(var_name) in ("dict", "set", "frozenset"):
                     is_dict = True

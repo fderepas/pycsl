@@ -3573,6 +3573,35 @@ round-trip — are out of scope of §T.15. Those are
 emission + Rocq round-trip axioms + per-method bytes-method
 modeling).
 
+### §T.15.6  Byte read `b[i]` and `len(b)` (WL-06)
+
+Because a `bytes`/`bytearray` value is the `array int`-backed
+buffer (§T.15.1), a subscript READ `b[i]` lowers to a native
+array read `Array.get b i` — a coherent `int` byte read — and
+`len(b)` lowers to `Array.length b`, exactly as for a `list`/array
+parameter. In `expressions.py`, `_handle_subscript` and the `len`
+handler recognize a `bytes`/`bytearray` symbol-table type on the
+same array branch as `list`.
+
+`T_e(b[i]) = (b[i])` (`Array.get`, an `int`), guarded by an
+IndexError bounds VC (`0 <= i < Array.length b`).
+`T_e(len(b)) = (Array.length b)`.
+
+Before the fix (WL-06, `wrong-lowering-to-fix.md`), a bytes/
+bytearray subscript READ routed instead to the opaque
+`val subscript_get (x:int)(i:int):int` applied to `b : array int`
+— an `array int` vs `int` type error (fail-closed TYPEERR): the
+read was BOTH un-verifiable AND internally inconsistent. The fix
+makes the emission COHERENT and type-checking.
+
+**Residual (honest).** The byte CONTENT stays the τ-blessed
+`bytes=int†` opaque residual: what is soundly provable is that the
+read is a well-typed `int` denoting a fixed buffer cell (so a body
+`b[i]` and a contract `b[i]` denote the SAME value, and distinct
+indices are independent cells), NOT the exact byte value. A
+faithful `bytes` value model (byte-range 0..255, encode/decode,
+`struct` round-trip) remains the §T.15.5 follow-on.
+
 ---
 
 ## §T.12  Complete Method Index

@@ -915,3 +915,42 @@ drivers `getting-better/wrong-lowering/wl05_{dict,set}_param_mut_WRONGREPR.py` (
 TYPEERR; set was a silent no-op). Baseline `wl05_dict_local_FAITHFUL.py` STAYS PROVEN. UB catalog §7.9,
 static-semantics §In-place mutation of a dict/set PARAMETER, translational §T.14.2 param note, and
 `wrong-lowering-to-fix.md` §WL-05 (→ FIXED) updated.
+
+## WL-06 — bytes/bytearray subscript `b[i]` routes to native `Array.get` (COHERENCE fix, not content faithfulness)
+
+**Context.** WL-06 (`wrong-lowering-to-fix.md`, the LAST wrong-lowering finding, WRONG-REPR/4). A
+`bytes`/`bytearray` PARAMETER is the τ-blessed `bytes=int†` array-int-backed buffer (`b : array int` —
+correct), but a subscript READ `b[i]` routed to the opaque `val subscript_get (x:int)(i:int):int`
+applied to `b : array int` — an `array int` vs `int` type error. The read was BOTH un-verifiable AND
+internally inconsistent (fail-closed TYPEERR).
+
+**Decision — route the read to the native array backing (`Array.get` / `Array.length`), NOT a new
+faithful `bytes` value model.** A bytes value is ALREADY `array int`; the `list`/array subscript path
+already emits a coherent `Array.get b i` (an `int`), so the fix REUSES it — `_handle_subscript` and the
+`len` handler recognize a `bytes`/`bytearray` symbol-table type on the same array branch as `list`. This
+is the minimal, coherent repair: the read now type-checks and, under a bounds `requires`, the
+deterministic property `\result == b[i]` proves. `len(b)` likewise lowers to `Array.length b` (was the
+unbound `iter_length` stub) so a bounds `requires i < len(b)` type-checks.
+
+**Scope (honest).** The τ-blessed `bytes=int†` type is UNCHANGED — byte CONTENT stays the OPAQUE
+residual: what is sound is that the read is a well-typed `int` denoting a fixed buffer cell (body `b[i]`
+== contract `b[i]`; distinct indices independent), NOT the exact byte value. A faithful `bytes` value
+model (byte-range 0..255, encode/decode, `struct` round-trip) is the separate, larger follow-on
+(`missing-bytes-struct-feature.md` Phases 2-5). The FIX is COHERENCE (type-checks, sound `int` read),
+not content faithfulness. A local-copy or opaque-content option was NOT needed — the array backing is
+the natural, sound model.
+
+**Implementation.** `module6_whyml/expressions.py`: `_handle_subscript` array-detection and the `len`
+handler each add `bytes`/`bytearray` to the `("list", …)` symbol-table array branch (2 small edits).
+
+**Additive / no regression.** The full 704-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
+(`bin/byte-diff-sweep.sh`, before/after via stash — only the two new locks 0824/0825 differ); no corpus
+program has a `bytes`/`bytearray` subscript read or `len(bytes)` → additive. NO new axiom. `\trusted`
+non-increasing.
+
+**Regression locks.** `0824.py` (POSITIVE: `bytes`/`bytearray` `b[i]` reads under a bounds `requires`,
+`\result == b[i]`, concrete-index slot independence — PROVES), `0825.py` (NEGATIVE `# pycsl-expected:
+FAIL`: a false byte-content conflation `b[0]` claimed `== b[1]` — stays UNPROVEN, confirms no
+over-claim). Repro `getting-better/wrong-lowering/wl06_bytes_index_WRONGREPR.py` → TYPEERR→type-checks
+(bare read UNPROVEN on the honest bounds VC). `wrong-lowering-to-fix.md` §WL-06 (→ FIXED) + summary
+table (ALL 6 WL-* FIXED), and translational §T.15.6 updated.
