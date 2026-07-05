@@ -617,3 +617,50 @@ variant in a LOGIC context**:
   targets is gone); var's conversion waits on the seq-slice-variant fix.
 - **Count stays 1277 (17 converted).** The val-vs-logic seq-slice-variant issue is the same class as
   fstring's nested-`_sp` — a logic-context constraint the loop's recognizers can't cross.
+
+### Iteration 21 (2026-07-05) — fidelity plane REPAIRED (drift resync); T1.b helper leaf frontier = feature-gated
+
+**E-0 baseline** pinned from committed HEAD (746-file byte-diff sweep, /tmp/sltcb_baseline). Start
+count **1262**.
+
+**Fidelity plane was RED at HEAD.** `check-self-annotate-sync.sh` exited 1: one DIVERGED method,
+`statements.py::_handle_array_set_stmt` — the live emitter grew the WL-04f nested-inner-mutation
+branch (`a[i][j]=v -> a[i] <- Seq.set a[i] j v`, non-int-leaf nested lists) in the recent WL-04/WL-06
+commits, but the mirror's un-trusted copy was never resynced. This blocked the fidelity plane
+tree-wide (Gate B unreachable for ANY conversion). **RESYNCED** (verbatim live-body port, commit
+`4ef18975`): sync exit 1->0, byte-diff 0 (mirror-only, no src/pycsl change), count unchanged, no NEW
+suite failure (statements.py had a pre-existing int/string type leak in the method's top guard,
+orthogonal to the resync — it did not type-check at HEAD either).
+
+**Triage probe** (parallel actor) classified the T1.b Module-6 helper leaves
+(identifiers/scc/abstract_ops/struct_format/auto_trust/expr_ghost_spec_ops): 3 nominal TRIVIAL-LEAF,
+the rest BLOCKED-SET / BLOCKED-RECURSION / BLOCKED-OTHER. **All 3 "trivial" leaves proved
+feature-gated when actually run through pycsl** (the probe does not run pycsl):
+
+- `identifiers::op_translate` (`return OP_MAP.get(op, op)`) -> FLAG-HARD. Missing feature:
+  **module-level constant-dict `.get` recognizer**. The existing constant-dict recognizer is
+  class-constant-only; a module constant lowers `.get` to an opaque `val oP_MAP_get_2 (int)(int):int`,
+  so the string arg leaks (int expected). Reverted.
+- `identifiers::safe_exc_name` (`return name.lstrip("_") or name`) -> FLAG-HARD. Missing feature:
+  **string-valued `or`** (`str or str` returns a string in Python, not a bool; lowering treats it as
+  boolean-or -> int leak) **+ faithful `.lstrip(arg)`** (arg dropped). Reverted.
+- `struct_format::arity` (`return len(self.slots)`, `slots: List[str]`) -> FLAG-HARD. Missing feature:
+  **`use array.Array` in the preamble for a NON-`@mutable_state` module with an array-typed record
+  field** (`use array.Array` is currently forced only for `@mutable_state` modules; StructFormat is a
+  frozen value dataclass, so its `array string` field leaks `unbound type symbol 'array'`). Reverted.
+
+Everything else in T1.b helpers is a hard blocker: BLOCKED-SET (`find_calls_in_ir`,
+`find_self_method_calls`, `sort_functions_by_scc`, `_advance_past_referenced_axiom_decls`,
+`_insert_abstract_val_block`, `_collect_map_typed_locals` — set-local modeling still absent),
+BLOCKED-RECURSION (`compute_sccs`, `_is_linear_expr`, `_test_contains_map`, `_has_set_op_on_map`,
+`_should_auto_trust_tuple_return`), or external-callback-gated (all `expr_ghost_spec_ops` handlers
+call still-`\trusted` `ExpressionEmissionMixin` methods `self._e`/`_deref`/`_expr_to_whyml_string_ctx`).
+
+**End count 1262 (0 conversions).** byte-diff 0 held throughout; `proof_axiom_allowlist` unchanged; no
+coherent-and-wrong caught (no conversion passed). **Verdict:** the in-stack-recognizer / byte-diff-0
+STUB-port frontier is EXHAUSTED across T1.a (iters 16-20) AND now T1.b helper leaves — every remaining
+leaf needs a demand-driven emitter FEATURE (spike->implement->gate), which is focused feature work, not
+loop iteration. Per "escalate-not-thrash", flagged with exact missing features above; NOT ground on.
+Next tractable pickup is smallest-feature-first: `module-level constant-dict .get` (unblocks
+`op_translate`) or `use array.Array` preamble for value-record array fields (unblocks
+`struct_format::arity`).
