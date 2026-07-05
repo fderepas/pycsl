@@ -63,6 +63,56 @@ def collect_module_constants(node: ast.Module) -> Dict[str, int]:
             and n not in written_via_global}
 
 
+def collect_module_const_dicts(node: ast.Module) -> Dict[str, Dict[str, str]]:
+    """Module-level constant str->str dict literals: a top-level
+    `NAME = {"k1": "v1", "k2": "v2", ...}` (or annotated) whose keys AND values are
+    ALL plain string literals, bound EXACTLY ONCE at module scope, not a `#@ shared`
+    global and never written via `global`. Returns `{name: {k: v, ...}}` preserving
+    source order (Python dict insertion order == AST `keys`/`values` order).
+
+    These lower FAITHFULLY at a `NAME.get(k, default)` reflection site to a chained
+    string-valued if-then-else (`if k = "k1" then "v1" else ... else default`) —
+    exactly like a class-body scalar constant folds to its literal, but for the
+    str->str mapping shape (e.g. `identifiers.OP_MAP`). A dict with any non-string
+    key or value, an empty dict, or a reassigned name is excluded (fail-closed: it
+    keeps the opaque behavior). Consumed by Module 5 (IR emission) and recognized in
+    Module 6 (`_lower_dict_get_call`)."""
+    counts: Dict[str, int] = {}
+    candidates: Dict[str, Dict[str, str]] = {}
+    for child in getattr(node, "body", []):
+        target = None
+        value = None
+        if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                and isinstance(child.targets[0], ast.Name)):
+            target, value = child.targets[0].id, child.value
+        elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+            target, value = child.target.id, child.value
+        if target is None:
+            continue
+        counts[target] = counts.get(target, 0) + 1
+        if not isinstance(value, ast.Dict) or not value.keys:
+            continue
+        entries: Dict[str, str] = {}
+        ok = True
+        for k, v in zip(value.keys, value.values):
+            if not (isinstance(k, ast.Constant) and isinstance(k.value, str)
+                    and isinstance(v, ast.Constant) and isinstance(v.value, str)):
+                ok = False
+                break
+            entries[k.value] = v.value
+        # A key repeated in the literal would collapse in `entries` but the source
+        # order of the FIRST occurrence is what Python keeps; require no collapse so
+        # the chained-ITE arm order faithfully mirrors the literal.
+        if ok and entries and len(entries) == len(value.keys):
+            candidates[target] = entries
+    shared = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+    written_via_global = {n for g in ast.walk(node) if isinstance(g, ast.Global)
+                          for n in g.names}
+    return {n: v for n, v in candidates.items()
+            if counts.get(n, 0) == 1 and n not in shared
+            and n not in written_via_global}
+
+
 def collect_module_globals(node: ast.Module, class_names: set) -> Dict[str, ast.Call]:
     """inline.md Phase 1 — module-level global OBJECT instances: a top-level
     `g = C(<args>)` where `C` is a class defined in the module, bound EXACTLY ONCE at

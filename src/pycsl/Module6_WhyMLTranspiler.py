@@ -71,6 +71,11 @@ class Module6_WhyMLTranspiler(
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in `_handle_var_expr` (body and contract).
         self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})
+        # module-const-dict-get: module-level constant str->str dict literals
+        # (`OP_MAP = {"==":"=", ...}`) → recognized at `NAME.get(k, default)` in
+        # `_lower_dict_get_call` as a chained string if-then-else. Empty for every
+        # existing corpus program (byte-identical emission).
+        self._module_const_dicts: Dict[str, Dict[str, str]] = self.ir.get("module_const_dicts", {})
         # gap-9: signatures of imported `#@ inductive` predicates whose RULE was
         # NOT crossed (kept opaque to avoid an E-matching blow-up). Lets the
         # `_emit_contract_logic_symbol` fallback declare the opaque predicate

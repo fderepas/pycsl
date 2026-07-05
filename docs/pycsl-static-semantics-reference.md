@@ -117,12 +117,22 @@ collected:
 | `_mutex_invariants` | `#@ mutex_invariant` declarations | `Dict[str, CSLNode]` — mutex_name → invariant expression |
 | `_lock_order` | `#@ lock_order` declaration | `Optional[List[str]]` — ordered list of mutex names |
 | `_module_constants` | top-level `NAME = <int literal>` | `Dict[str, int]` — single-assignment module int constants |
+| `_module_const_dicts` | top-level `NAME = {"k":"v", …}` (str→str) | `Dict[str, Dict[str, str]]` — single-assignment module constant str→str dict literals; recognized at a `NAME.get(k, default)` site as a chained `string` if-then-else |
 
 **Module-level constants in contracts.** A module-level name bound **exactly once** to an
 integer literal (`K_IHDR = 0`, `LIMIT = 8`; `collect_module_constants`) is a *constant*: it is
 admitted in `requires`/`ensures`/loop invariants and **resolved to its literal** in both body and
 spec emission (`expressions.py::_handle_var_expr`), exactly like a class-body constant
 (`self.CAP` → `(64)`, §1.2). So `#@ ensures kinds[0] == K_IHDR` discharges with `K_IHDR ↦ 0`.
+
+A module-level name bound **exactly once** to a **str→str dict literal** (`OP_MAP = {"==":"=", …}`,
+all keys AND values plain string literals; `collect_module_const_dicts`) is likewise a *constant
+mapping*: a `NAME.get(k, default)` read folds to a faithful chained `string` if-then-else
+(`if k = "==" then "=" else … else default`; `expressions.py::_lower_dict_get_call`), the module-level
+analog of a class-body scalar constant fold. It requires an EXPLICIT default (2 args); a non-str→str
+dict, `.get(k)` without a default, an empty/reassigned dict, or a same-named local (which shadows the
+constant) all keep the opaque behavior (fail-closed — never a false value). Drivers: reference locks
+`0872` (POSITIVE hit + default), `0873` (NEGATIVE wrong-value twin).
 
 A module-level name that is **reassigned** (more than one module-level binding, or written via a
 `global` statement) is **mutable global state** and is *excluded* — it is neither inlined nor

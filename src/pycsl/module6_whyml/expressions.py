@@ -3553,6 +3553,40 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if _alias:
             recv = _alias
             func_name = f"{_alias}.get"
+        # module-const-dict-get: a module-level constant str->str dict
+        # `OP_MAP = {"==":"=", ...}` read as `OP_MAP.get(k, default)` lowers to a
+        # FAITHFUL chained string-valued if-then-else
+        #   (if k = "==" then "=" else if k = "!=" then "<>" else ... else default)
+        # — the exact `OP_MAP.get(op, op)` shape in `identifiers.op_translate`. The
+        # result is `string`-typed: used where an int is expected it fails closed at
+        # Why3 type-check (WL-02: never a silent value->int coercion). Requires an
+        # EXPLICIT default (2 args); `.get(k)` without a default (None-returning) is
+        # out of scope and falls through (fail-closed). A same-named local/param
+        # shadows the module constant (checked first), so the recognizer fires only
+        # on the genuine module-level name. In a body, string equality bridges through
+        # the abstract `str_eq_op` (native `=` on strings is program-illegal, per the
+        # `==` lowering); in a spec, polymorphic `=` is used directly.
+        _mcd = getattr(self, "_module_const_dicts", {}).get(recv)
+        _symtab0 = getattr(self, "_current_symbol_table", {}) or {}
+        if (_mcd is not None and len(args) == 2
+                and recv not in _symtab0
+                and recv not in (local_refs or set())
+                and recv not in self._current_params):
+            k = args[0]
+            chain = args[1]  # the caller's default is the rightmost `else`
+            if self._in_spec:
+                def _cmp(kk: str) -> str:
+                    return f"({k} = {whyml_string_literal(kk)})"
+            else:
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                def _cmp(kk: str) -> str:
+                    return f"(str_eq_op {k} {whyml_string_literal(kk)})"
+            for kk, vv in reversed(list(_mcd.items())):
+                chain = (f"(if {_cmp(kk)} then {whyml_string_literal(vv)} "
+                         f"else {chain})")
+            return chain
         # todict-reflection-plan.md R1: `d` aliases `node.to_dict()` — route
         # `d.get(key)` to the node's TYPED field (no dict materialized).
         _recv_dotted = getattr(self, "_todict_aliases", {}).get(recv)

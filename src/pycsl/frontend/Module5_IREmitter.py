@@ -7,7 +7,9 @@ from errors import PyCSLIRError
 from ir_schema import IR_VERSION
 from frontend.module5.memoization_rt import MemoizationRTMixin
 from frontend.module5.construction_synth import ConstructionSynthMixin
-from frontend.module_collect import collect_module_constants, collect_module_globals
+from frontend.module_collect import (collect_module_constants,
+                                      collect_module_const_dicts,
+                                      collect_module_globals)
 from frontend.Module2_Parser import (
     CSLNode, ContractWrapper,
     Requires, Ensures, LoopInvariant, LoopVariant,
@@ -170,6 +172,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         module_consts = collect_module_constants(node)
         if module_consts:
             self.program_ir["module_constants"] = module_consts
+
+        # module-const-dict-get: module-level constant str->str dict literals
+        # (`OP_MAP = {"==":"=", ...}`) → recognized at a `NAME.get(k, default)`
+        # site in Module 6 as a chained string if-then-else. Additive: no corpus
+        # program uses a module-const-dict `.get`, so this field is absent for all
+        # existing files (byte-identical emission).
+        module_const_dicts = collect_module_const_dicts(node)
+        if module_const_dicts:
+            self.program_ir["module_const_dicts"] = module_const_dicts
 
         # inline.md Phase 1: module-level global object instances `g = C(...)`. Modeled
         # in Module 6 as a Why3 mutable-record global `let g : c = <ctor>`; the ctor
