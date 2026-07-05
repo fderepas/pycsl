@@ -664,3 +664,41 @@ loop iteration. Per "escalate-not-thrash", flagged with exact missing features a
 Next tractable pickup is smallest-feature-first: `module-level constant-dict .get` (unblocks
 `op_translate`) or `use array.Array` preamble for value-record array fields (unblocks
 `struct_format::arity`).
+
+### Iteration 22 (2026-07-05) — 🎯 op_translate CONVERTS via module-const-dict-get feature (1262→1261)
+
+The demand-driven feature flagged in iteration 21 (module-level constant str→str dict
+`.get(k, default)`) LANDED (commit `69ea852e`): the pattern now lowers to a faithful chained string
+if-then-else (11-arm ITE over the key), so the string arg no longer leaks to int. This iteration
+converts the sole consumer, `identifiers::op_translate`, through the full SL loop.
+
+- **converter:** ported the live body verbatim — `return OP_MAP.get(op, op)` (+ the live docstring);
+  retyped the module constant `OP_MAP: Dict[str, str]` (was the stub placeholder `int`) so the
+  recognizer fires. Contract shape `#@ requires True / ensures True / assigns \nothing` (type-safety +
+  frame, non-value-faithful, non-vacuous). Local `--no-proof`: L3-tc ✓.
+- **Gate A:** T1.b tier, not on floor denylist, contract shape correct → APPROVED; `\trusted` removed.
+- **VERIFIER (fresh, surface-only) — three L planes, ALL PASS:**
+  - **Fidelity:** `check-self-annotate-sync.sh` exit 0 (68 un-trusted mirror fns verbatim) ∧
+    `self-annotate-mirror-check.sh` exit 0 (51 mirrors in sync).
+  - **Type-safety:** `Verification SUCCESS` — op_translate postcondition Valid 0.01s via best-of-N
+    **Z3** (the sanctioned string-theory path; Alt-Ergo has no string theory). `proof_axiom_allowlist`
+    diff **EMPTY** (no smuggled axiom).
+  - **Corpus inertness:** byte-diff **0** vs the re-pinned E-0 baseline (748 corpus files identical);
+    suite **no NEW failure** (identifiers.py PASSES; the failed set — pycsl.py `_Directive`,
+    expressions.py/statements.py int/string leaks, 7 unmirrored "file missing" — is a subset of the
+    known pre-existing failures); `\trusted` count **1262 → 1261** (canonical `\\trusted` marker
+    count; strict −1).
+- **Gate B + Gate C:** all three planes pass, unblended; non-vacuity holds (tight `\nothing` frame,
+  real verbatim body, genuine string-ITE postcondition discharge — not a stub). No coherent-and-wrong
+  caught. Committed `c397dffe`.
+- **Adjacent-leaf sweep:** the freed feature's exact pattern (`ALLCAPS_CONST.get(k, str_default)`) has
+  **no other consumer** in the still-trusted frontier (grep of `src/pycsl` finds only op_translate's
+  line 100 + emitter comments describing the feature). So no cheap same-recognizer follow-on — stopped.
+
+**End count 1261 (18 handlers/leaves converted cumulatively).** byte-diff 0 held; allowlist unchanged.
+The in-stack-recognizer frontier remains otherwise feature-gated (iter-21 flags stand):
+`safe_exc_name` (string-valued `or` + `.lstrip(arg)`), `struct_format::arity` (`use array.Array`
+preamble for a value-record array field — and note iter-21's addendum: struct_format's mirror is a
+STALE stub skeleton, so arity needs the whole grown `StructFormat` shape resynced first), plus the
+set-local / IR-recursion / external-callback blocked helpers. Next tractable pickup is again
+smallest-feature-first (string-valued `or`, or the value-record array-preamble).
