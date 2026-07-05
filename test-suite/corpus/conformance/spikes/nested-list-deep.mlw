@@ -1,0 +1,87 @@
+(* nested-list.md §8/§9 EXTENSION Gate-B spike — DECISION FIXTURE.
+   Two residuals being lifted:
+     (1) DEEPER nesting a[i][j][k] (depth 3, up to the type-recursion bound 4).
+         List[List[List[int]]] ~ array (seq (seq int)); the read composes
+         Seq.get on the pure inner seqs (outer stays array). The E-matching
+         RISK is the nested Seq.get triggers as depth grows — watch AE and Z3.
+     (2) TARGET-DEPENDENT comprehension index [x[f(x)] for x in a] where the
+         index lifts to a logic term over the loop target x (a `seq τ`), e.g.
+         x[len(x)-1]. Law: result[i] = Seq.get (src[i]) (Seq.length (src[i]) - 1),
+         consumed at >=2 concrete indices — the E-matching worry is the Seq.length
+         under Seq.get inside a quantified content law.
+
+   Record Valid vs timeout + timing (Alt-Ergo AND Z3). If depth-3+ reads or the
+   target-dependent index blow up E-matching, CAP at the tractable depth / keep
+   the untractable index form opaque (a YAGNI cap with timing evidence is valid). *)
+
+module DeepRead                 (* (1) depth-3/4 nested read a[i][j][k] *)
+  use int.Int
+  use seq.Seq
+  use array.Array
+
+  (* depth-3: array (seq (seq int)); the emitted read is
+       let _row = a[i] in Seq.get (let _row = ... ) — modelled flat here as the
+       fully-composed term Seq.get (Seq.get (a[i]) j) k. *)
+  let test_read3 (a: array (seq (seq int))) (i j k: int) : int
+    requires { 0 <= i < length a }
+    requires { 0 <= j < Seq.length (a[i]) }
+    requires { 0 <= k < Seq.length (Seq.get (a[i]) j) }
+    ensures  { result = Seq.get (Seq.get (a[i]) j) k }
+  = Seq.get (Seq.get (a[i]) j) k
+
+  (* depth-3 read consumed at a USE-SITE (assert), the real make-or-break *)
+  let test_use3 (a: array (seq (seq int))) (i j k: int) : unit
+    requires { 0 <= i < length a }
+    requires { 0 <= j < Seq.length (a[i]) }
+    requires { 0 <= k < Seq.length (Seq.get (a[i]) j) }
+  = let v = Seq.get (Seq.get (a[i]) j) k in
+    assert { v = Seq.get (Seq.get (a[i]) j) k }
+
+  (* depth-3 inner length len(a[i][j]) = Seq.length (Seq.get (a[i]) j) *)
+  let test_innerlen3 (a: array (seq (seq int))) (i j: int) : int
+    requires { 0 <= i < length a }
+    requires { 0 <= j < Seq.length (a[i]) }
+    ensures  { result = Seq.length (Seq.get (a[i]) j) }
+  = Seq.length (Seq.get (a[i]) j)
+
+  (* depth-4: array (seq (seq (seq int))) — the recursion bound (MAX_NEST_DEPTH=4) *)
+  let test_read4 (a: array (seq (seq (seq int)))) (i j k l: int) : int
+    requires { 0 <= i < length a }
+    requires { 0 <= j < Seq.length (a[i]) }
+    requires { 0 <= k < Seq.length (Seq.get (a[i]) j) }
+    requires { 0 <= l < Seq.length (Seq.get (Seq.get (a[i]) j) k) }
+    ensures  { result = Seq.get (Seq.get (Seq.get (a[i]) j) k) l }
+  = Seq.get (Seq.get (Seq.get (a[i]) j) k) l
+end
+
+module TargetDependentComp      (* (2) [x[len(x)-1] for x in a] *)
+  use int.Int
+  use seq.Seq
+  use array.Array
+
+  (* the content law with a target-dependent index len(x)-1 *)
+  val last_of (src: array (seq int)) : array int
+    ensures { length result = length src }
+    ensures { forall i. 0 <= i < length src ->
+                result[i] = Seq.get (src[i]) (Seq.length (src[i]) - 1) }
+
+  (* consume the law at TWO concrete indices — the driver's own
+     \result[i] == a[i][len(a[i])-1] reduces to the SAME Seq.get term. *)
+  let test_target_idx (a: array (seq int)) (p q: int) : unit
+    requires { 0 <= p < length a }
+    requires { 0 <= q < length a }
+  = let r = last_of a in
+    assert { r[p] = Seq.get (a[p]) (Seq.length (a[p]) - 1) };
+    assert { r[q] = Seq.get (a[q]) (Seq.length (a[q]) - 1) }
+
+  (* a captured-offset variant len(x)-c: still lifts (arithmetic over Seq.length) *)
+  val drop_c (src: array (seq int)) (c: int) : array int
+    ensures { length result = length src }
+    ensures { forall i. 0 <= i < length src ->
+                result[i] = Seq.get (src[i]) (Seq.length (src[i]) - c) }
+
+  let test_target_offset (a: array (seq int)) (p c: int) : unit
+    requires { 0 <= p < length a }
+  = let r = drop_c a c in
+    assert { r[p] = Seq.get (a[p]) (Seq.length (a[p]) - c) }
+end

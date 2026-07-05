@@ -1,0 +1,120 @@
+(* nested-list-mutable.md Gate-B spike — MUTABLE inner-element representation.
+
+   Question: the faithful WhyML representation for IN-PLACE inner element
+   mutation  a[i][j] = v  on a nested List[List[int]], such that:
+     (1) the update reads back:  (Matrix.set m i j v; Matrix.get m i j) = v
+     (2) non-aliasing holds: an update at (i,j) leaves (i',j') != (i,j) unchanged
+     (3) read a[i][j] and len work alongside the update.
+
+   The landed read model is  array (seq int)  (nested-list.md §8), whose inner
+   `seq` is PURE/immutable — so  a[i][j]=v  has no sound rendering there. This
+   spike compares the two MUTABLE candidates:
+
+     Candidate M: Why3 `matrix.Matrix` (matrix int) — genuine mutable 2-D,
+         built-in, RECTANGULAR (rows x columns), int leaf.
+     Candidate F: flattened `array int` + row-offset `array int` — RAGGED-capable,
+         custom offset machinery (a[i][j] = flat[off[i]+j]).
+
+   VERDICT (see bottom): Matrix wins on tractability + built-in status. *)
+
+(* ============================================================ *)
+(* Candidate M: matrix.Matrix — the natural rectangular mutable 2-D *)
+(* ============================================================ *)
+module MutMatrix
+  use int.Int
+  use matrix.Matrix
+
+  (* READ a[i][j] *)
+  let m_read (a: matrix int) (i j: int) : int
+    requires { 0 <= i < a.rows }
+    requires { 0 <= j < a.columns }
+    ensures  { result = get a i j }
+  = get a i j
+
+  (* len(a[i]) = columns (rectangular: every row same length) *)
+  let m_innerlen (a: matrix int) (i: int) : int
+    requires { 0 <= i < a.rows }
+    ensures  { result = a.columns }
+  = a.columns
+
+  (* MAKE-OR-BREAK 1: in-place inner update reads back *)
+  let m_update_readback (a: matrix int) (i j v: int) : int
+    requires { 0 <= i < a.rows }
+    requires { 0 <= j < a.columns }
+    ensures  { result = v }
+  = set a i j v;
+    get a i j
+
+  (* MAKE-OR-BREAK 2: non-aliasing — a distinct cell is unchanged by the update *)
+  let m_update_noalias (a: matrix int) (i j i2 j2: int) (v: int) : int
+    requires { 0 <= i  < a.rows /\ 0 <= j  < a.columns }
+    requires { 0 <= i2 < a.rows /\ 0 <= j2 < a.columns }
+    requires { i2 <> i \/ j2 <> j }
+    ensures  { result = old (get a i2 j2) }
+  = let before = get a i2 j2 in
+    set a i j v;
+    let _ = before in
+    get a i2 j2
+
+  (* dimensions preserved by set (frame) *)
+  let m_dims_preserved (a: matrix int) (i j v: int) : unit
+    requires { 0 <= i < a.rows /\ 0 <= j < a.columns }
+    ensures  { a.rows = old a.rows /\ a.columns = old a.columns }
+  = set a i j v
+
+  (* pure-goal forms via the ghost `update` (solver-direct, no state) *)
+  goal update_readback_G : forall a: matrix int, i j v: int.
+      0 <= i < a.rows -> 0 <= j < a.columns ->
+      get (update a i j v) i j = v
+
+  goal update_noalias_G : forall a: matrix int, i j i2 j2 v: int.
+      0 <= i  < a.rows -> 0 <= j  < a.columns ->
+      0 <= i2 < a.rows -> 0 <= j2 < a.columns ->
+      (i2 <> i \/ j2 <> j) ->
+      get (update a i j v) i2 j2 = get a i2 j2
+end
+
+(* ============================================================ *)
+(* Candidate F: flattened array int + row-offset array — RAGGED-capable *)
+(* ============================================================ *)
+module MutFlat
+  use int.Int
+  use array.Array
+
+  (* off has (rows+1) entries; row i occupies flat[off[i] .. off[i+1]).
+     a[i][j] = flat[off[i]+j];  len(a[i]) = off[i+1]-off[i]. *)
+
+  let f_read (flat: array int) (off: array int) (i j: int) : int
+    requires { 0 <= i /\ i + 1 < length off }
+    requires { 0 <= off[i] /\ off[i] <= off[i+1] /\ off[i+1] <= length flat }
+    requires { 0 <= j < off[i+1] - off[i] }
+    ensures  { result = flat[off[i] + j] }
+  = flat[off[i] + j]
+
+  let f_innerlen (off: array int) (i: int) : int
+    requires { 0 <= i /\ i + 1 < length off }
+    ensures  { result = off[i+1] - off[i] }
+  = off[i+1] - off[i]
+
+  (* MAKE-OR-BREAK 1: update reads back *)
+  let f_update_readback (flat: array int) (off: array int) (i j v: int) : int
+    requires { 0 <= i /\ i + 1 < length off }
+    requires { 0 <= off[i] /\ off[i] <= off[i+1] /\ off[i+1] <= length flat }
+    requires { 0 <= j < off[i+1] - off[i] }
+    ensures  { result = v }
+  = flat[off[i] + j] <- v;
+    flat[off[i] + j]
+
+  (* MAKE-OR-BREAK 2: non-aliasing within the flat array — a distinct flat index
+     is unchanged. (The nested distinctness (i,j)!=(i',j') reduces to distinct
+     flat indices only under an injective offset layout, which is extra machinery.) *)
+  let f_update_noalias (flat: array int) (off: array int) (i j i2 j2 v: int) : int
+    requires { 0 <= i  /\ i  + 1 < length off /\ 0 <= off[i]  /\ off[i]  <= off[i+1]  /\ off[i+1]  <= length flat }
+    requires { 0 <= i2 /\ i2 + 1 < length off /\ 0 <= off[i2] /\ off[i2] <= off[i2+1] /\ off[i2+1] <= length flat }
+    requires { 0 <= j  < off[i+1]  - off[i]  }
+    requires { 0 <= j2 < off[i2+1] - off[i2] }
+    requires { off[i] + j <> off[i2] + j2 }              (* distinct FLAT cells *)
+    ensures  { result = old flat[off[i2] + j2] }
+  = flat[off[i] + j] <- v;
+    flat[off[i2] + j2]
+end

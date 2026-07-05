@@ -1,0 +1,40 @@
+(* WL-01 SMT-feasibility spike: prove Python-faithful FLOORED division/modulo
+   derived from Why3 int.EuclideanDivision by a sign-of-divisor adjustment.
+
+   Python `//` is floored (rounds toward -inf); `%` has the sign of the DIVISOR.
+   Euclidean div/mod (non-negative remainder) AGREE with floored when y > 0 and
+   DIVERGE when y < 0. The adjustment: for y < 0 with a non-zero remainder,
+   floordiv = div - 1 and floormod = mod + y.
+
+   Discharge on Alt-Ergo AND Z3. *)
+module WL01Spike
+  use int.Int
+  use int.Abs
+  use int.EuclideanDivision
+
+  function pycsl_floordiv (x y: int) : int =
+    if mod x y <> 0 && y < 0 then div x y - 1 else div x y
+
+  function pycsl_floormod (x y: int) : int =
+    if mod x y <> 0 && y < 0 then mod x y + y else mod x y
+
+  (* make-or-break points from the finding *)
+  goal g_neg_neg_div : pycsl_floordiv (-7) (-2) = 3      (* CPython (-7)//(-2) = 3 *)
+  goal g_pos_neg_mod : pycsl_floormod 7 (-2) = -1        (* CPython 7 % (-2)   = -1 *)
+  goal g_neg_pos_div : pycsl_floordiv (-7) 2 = -4        (* positive divisor still faithful *)
+  goal g_pos_pos_div : pycsl_floordiv 7 2 = 3
+  goal g_pos_pos_mod : pycsl_floormod 7 2 = 1
+
+  (* the false Euclidean values must NOT be the floored ones *)
+  goal g_not_euclid_div : pycsl_floordiv (-7) (-2) <> 4
+  goal g_not_euclid_mod : pycsl_floormod 7 (-2) <> 1
+
+  (* the fundamental division identity: x = (x//y)*y + (x%y) *)
+  goal g_identity : forall x y: int. y <> 0 ->
+    x = (pycsl_floordiv x y) * y + (pycsl_floormod x y)
+
+  (* remainder has the sign of the divisor and is bounded (Python contract) *)
+  goal g_mod_sign : forall x y: int. y <> 0 ->
+    (let r = pycsl_floormod x y in
+     (r = 0 \/ (r > 0 <-> y > 0)) /\ (- (abs y) < r < abs y))
+end

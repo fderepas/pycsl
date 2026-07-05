@@ -184,18 +184,27 @@ Same as Hoare for local state, plus shared-state declarations
 #### Division and Modulo Wrappers
 
 When floor division (`//`) or modulo (`%`) appear in function bodies,
-helper functions are emitted to enforce the division-by-zero precondition:
+helper functions are emitted to enforce the division-by-zero precondition
+and to realize Python's **floored** semantics.
+
+Python `//` rounds toward −∞ and `%` takes the sign of the **divisor**;
+Why3's `int.EuclideanDivision` `div`/`mod` use a non-negative remainder.
+The two AGREE when the divisor is positive and DIVERGE when it is negative
+(e.g. `(-7)//(-2)` is `3` in Python but `div (-7) (-2) = 4` in Euclidean).
+The helpers correct Euclidean `div`/`mod` by a sign-of-divisor adjustment:
+for a negative divisor with a non-zero remainder, `floordiv = div − 1` and
+`floormod = mod + y`.
 
 ```whyml
   let pycsl_div (x: int) (y: int) : int
     requires { [@expl:division by zero] y <> 0 }
-    ensures { result = div x y }
-  = div x y
+    ensures { result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }
+  = if mod x y <> 0 && y < 0 then div x y - 1 else div x y
 
   let pycsl_mod (x: int) (y: int) : int
     requires { [@expl:modulo by zero] y <> 0 }
-    ensures { result = mod x y }
-  = mod x y
+    ensures { result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }
+  = if mod x y <> 0 && y < 0 then mod x y + y else mod x y
 ```
 
 When `ZeroDivisionError` is declared as a raised exception, the helpers
@@ -203,15 +212,56 @@ use `raises` instead of `requires`:
 
 ```whyml
   let pycsl_div (x: int) (y: int) : int
-    ensures { result = div x y }
+    ensures { result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }
     raises { ZeroDivisionError -> y = 0 }
-  = if y = 0 then raise ZeroDivisionError else div x y
+  = if y = 0 then raise ZeroDivisionError
+    else (if mod x y <> 0 && y < 0 then div x y - 1 else div x y)
 ```
 
 **Note:** In specification contexts (requires/ensures), `//` and `%`
-translate directly to `div` and `mod` without the wrapper.
+translate to the same floored correction inline over `div`/`mod`
+(operands bound once with `let`), so a body `a // b` and a contract
+`\result == a // b` denote the identical floored value. `//` and `%` stay
+**integer** (`int.Int`) in both operands and result.
 
 **Implementation:** `_emit_preamble_helpers`.
+
+#### True Division (`/`) — real, not integer (WL-02)
+
+Python `/` is **true division** and ALWAYS returns a `float` — even on integer
+operands (`5 / 2 == 2.5`). It is a DIFFERENT operator from floor division `//`
+(above) and must NOT be conflated. In a body **and** in a contract, `a / b`
+lowers to a **real** division: both int operands are lifted to `real` via
+`real.FromInt` (`from_int`) and divided over the reals with `real.RealInfix`
+(`/.`). The imports `use real.RealInfix` / `use real.FromInt` are triggered by
+`IRScanner.uses_true_division` (a BinOp with IR op `"/"`; `//` is IR op `"div"`).
+
+- **Contract (`_in_spec`):** `from_int a /. from_int b` (a `real` term;
+  `from_int` is a pure logic symbol, admissible in the logical context).
+- **Body:** `from_int` is a logic symbol and is not usable in a program
+  (non-ghost) term, so the int→real lift and the division are bundled into one
+  abstract `val` whose `ensures` pins the exact real value:
+
+```whyml
+  val float_truediv_op (a b: int) : real
+    ensures { result = (from_int a /. from_int b) }
+```
+
+Because a `/` result is a `real`, using it at `int` type (e.g. `-> int` with
+`#@ ensures \result == 2`) is a **real-vs-int type error** — fail-closed, never
+a silent integer truncation (consistent with the int/float-mixing boundary). To
+assert an integer quotient, use `//`. Both-`float` operands were already handled
+by the `real` arithmetic path (`float_div_op`); this rule additionally covers
+`/` on integer operands.
+
+SMT feasibility (Alt-Ergo + Z3, no cited lemma):
+`test-suite/corpus/conformance/spikes/wl02_truediv_real_spike.mlw`
+(`from_int 5 /. from_int 2 = 2.5`, and the old `5/2 = 2.0` is refuted).
+Regression locks: `0813.py` (POSITIVE, `5/2==2.5` at `float`; `5//2==2` guard),
+`0814.py` (NEGATIVE, `# pycsl-expected: FAIL`, old int-truncation `5/2==2`).
+
+**Implementation:** `_handle_binop` (`module6_whyml/expressions.py`),
+`float_truediv_op`; import scan `IRScanner.uses_true_division`.
 
 #### Exception Declarations
 
@@ -273,7 +323,9 @@ def test_precondition(x: int) -> int:
 | `str` | `string` | Why3 `string.String` value type — real content (see §T.6 string ops); memory-model-independent |
 | `float` | `real` | Why3 `real.RealInfix` (`+.`/`-.`/…); float literals are real constants. Was the unsound `int` (no-more-int Stage D) |
 | `list` | `array int` | Hoare/Concurrent model (default — fixed-length, mutable, region-bearing) |
-| `List[List[τ]]` (NESTED) | `array (seq τ)` | **nested-list.md — a list whose element is itself a container carries its FAITHFUL nested type, recursively (`_m5_annotation_to_whyml_type`).** The OUTER list stays `array` (byte-identical to a flat `List[τ] = array τ`; `len(a)`/`a[i]`/outer whole-row reassignment `a[i]=row` unchanged); the INNER collection is a **PURE** Why3 type — `seq τ` for `List`, `map κ (option ν)` for `Dict[K,V]`, `map (…) (option int)` for `Set`. Pure is MANDATORY: Why3 forbids a mutable element inside `array` (`array (array τ)` is type-rejected; Gate-B spike `test-suite/corpus/conformance/spikes/nested-list.mlw`). So `a[i]` is a real `seq`/`map`, `a[i][j]`→`Seq.get (a[i]) j`, `a[i][key]`→`Map.get (a[i]) key`, `len(a[i])`→`Seq.length (a[i])`, and the subscript-projection comprehension `[x[k] for x in a]` is content-faithful (`result[i] = Seq.get (a[i]) k`). Drivers 0797–0800; NEGATIVE 0801 (false content). Depth-bounded (≤4); an unknown/too-deep leaf keeps the scalar `int` default (documented residual). **Boundary:** in-place INNER mutation `a[i][j]=v` / `a[i].append(..)` has no sound rendering on the immutable `seq` — it is REJECTED (a hard type/verification failure, never a silent unsound update; driver 0802), NOT silently accepted. Un-annotated/bare-`list` nested params stay `array int` (never a false nested claim); a `\length2d`-contract param stays `matrix int` (rectangular 2-D) |
+| `List[str]` / `List[float]` (FLAT, faithful non-int leaf) PARAM | `array string` / `array real` | **wrong-lowering-to-fix.md §WL-04 (FIXED) — a FLAT `List[τ]` PARAMETER whose element `τ` is a faithful NON-INT LEAF carries the faithful element type**, the one-level-up analog of the nested `array (seq τ)` model. Module5 `_m5_get_list_flat_elem_whyml` maps `List[str]`→`string` / `List[float]`→`real` into the IR field `param_list_flat_elem`; Module6 `_param_type_str` emits `array {τ}` (right after the nested `_list_nested_elem` branch). The subscript READ is UNCHANGED (`Array.get` is element-polymorphic), so `a[i] : string`/`: real` matches a str/float return and `\result == a[i]` is provable. A flat `List[int]`/`List[bool]` has NO entry (→ byte-identical `array int`; int-leaf is the τ-blessed default), and a nested `List[<container>]` is owned by `_m5_get_list_nested_elem_whyml` (→ `array (seq τ)`). Drivers `getting-better/wrong-lowering/wl04_list_{str,float}_elem_COLLAPSED.py` (PROVEN); Gate-B spike `test-suite/corpus/conformance/spikes/wl04_list_flat_elem_spike.mlw` (Alt-Ergo AND Z3); reference locks 0817/0818 (POSITIVE), NEGATIVE 0819. **Boundary:** a `List[str]`/`List[float]` LOCAL or `-> List[str]` RETURN built by a LIST LITERAL still collapses its string/float ELEMENTS through the list-literal construction (a distinct pre-existing surface, not WL-04); `List[<record>]` flat element is a follow-on. |
+| `List[List[τ]]` (NESTED, read-only) | `array (seq τ)` | **nested-list.md — a list whose element is itself a container carries its FAITHFUL nested type, recursively (`_m5_annotation_to_whyml_type`).** The OUTER list stays `array` (byte-identical to a flat `List[τ] = array τ`; `len(a)`/`a[i]`/outer whole-row reassignment `a[i]=row` unchanged); the INNER collection is a **PURE** Why3 type — `seq τ` for `List`, `map κ (option ν)` for `Dict[K,V]`, `map (…) (option int)` for `Set`. Pure is MANDATORY: Why3 forbids a mutable element inside `array` (`array (array τ)` is type-rejected; Gate-B spike `test-suite/corpus/conformance/spikes/nested-list.mlw`). So `a[i]` is a real `seq`/`map`, `a[i][j]`→`Seq.get (a[i]) j`, `a[i][key]`→`Map.get (a[i]) key`, `len(a[i])`→`Seq.length (a[i])`, and the subscript-projection comprehension `[x[k] for x in a]` is content-faithful (`result[i] = Seq.get (a[i]) k`). Drivers 0797–0800; NEGATIVE 0801 (false content). **DEEPER nesting (nested-list.md §8/§9 EXTENSION):** the subscript READ composes RECURSIVELY to the depth bound — `a[i][j][k]`→`Seq.get (Seq.get (a[i]) j) k`, `len(a[i][j])`→`Seq.length` — via `_nested_access_type` (peel one container level per index level), for `List[List[List[τ]]]` ~ `array (seq (seq τ))` up to depth 4 (driver 0805 depth-3, depth-4 in Gate-B spike `nested-list-deep.mlw`; NEGATIVE 0806; a depth-5 read is beyond the cap → opaque/rejected, driver 0807). A **TARGET-DEPENDENT** comprehension index `[x[f(x)] for x in a]` where `f(x)` lifts to a pure int term over `len(x)` (e.g. `x[len(x)-1]`) is ALSO content-faithful — `result[i] = Seq.get (a[i]) (Seq.length (a[i]) - 1)` (`_lift_target_seq_index`; driver 0808, NEGATIVE 0809). An index that does NOT so lift (a `g(x)` call over the seq) stays opaque. Depth-bounded (≤4); an unknown/too-deep leaf keeps the scalar `int` default (documented residual). Un-annotated/bare-`list` nested params stay `array int` (never a false nested claim). |
+| `List[List[int]]` (NESTED, in-place inner-mutated) | `matrix int` | **nested-list-mutable.md — in-place inner ELEMENT mutation.** A `List[List[int]]` param that the body IN-PLACE INNER-MUTATES (`a[i][j] = v`, an `ArraySet` with a `Subscript` array — Module5 `_collect_inner_mutated_params`) CANNOT use the read-only `array (seq int)` model (its inner `seq` is a PURE/immutable Why3 value). A **usage/mutation analysis** routes it instead to the MUTABLE built-in Why3 **`matrix int`** (the two representations COEXIST — selected per-param by whether the body inner-mutates it; read-only nested lists stay ragged-capable on `array (seq τ)`). Lowering: `a[i][j]=v`→`Matrix.set a i j v`, `a[i][j]`→`Matrix.get a i j`, `len(a)`→`a.rows`, `len(a[i])`→`a.columns`. The update reads back (`(set a i j v; get a i j)=v`) and is NON-ALIASING (a distinct cell is unchanged) — Gate-B spike `test-suite/corpus/conformance/spikes/nested-list-mutable.mlw`, Valid in Alt-Ergo AND Z3. Drivers 0802 (read-back), 0803 (non-aliasing). No new axiom (Matrix get/set/frame laws are Why3 stdlib `matrix.Matrix`). **RECTANGULAR** (uniform `columns`) + **int-leaf** only. **Boundary:** a NON-int-leaf inner mutation (`List[List[str]]` = `array (seq string)`, immutable `seq`) is REJECTED (hard type/verification failure, never a silent unsound update; NEGATIVE driver 0804); `a[i].append(..)` (shape-change) stays OPAQUE (`append_1` no-op — no false post-state claim); ragged in-place mutation is out of the rectangular `matrix` model (UB catalog). Un-annotated/bare-`list` `\length2d`-contract params also use `matrix int` (rectangular 2-D, 0018/0019). |
 | `list` (grown) | `ref (seq int)` | **07-1705-rev4: a list that is *grown* (`+=` / `+` concat) is modelled as a growable immutable `seq.Seq` value in a region-free ref** — `array.Array` is fixed-length and cannot be rebound (Why3 region rule, `07-1732-findings.md`). Init `[…]`→`Seq.cons` chain; `+=`→`a := !a ++ snapshot(b)` (length-additive + element-preserving, **provable**); `len`→`Seq.length`, `a[i]`→`Seq.get`. A grown PARAM is shadowed at entry `let a = ref (snapshot a)`; `return a` materialises back to `array int` (`materialize`, a fresh array). The seq-promotion analysis (Module5 `seq_promoted_vars`) selects these; `Seq.*` is emitted only in body context (a contract uses the array entry value). Supersedes the old effect-opaque `array_extend` |
 | `list` | `loc` + `_len` | Typed/Store model |
 | `dict` / `set` / `frozenset` | `map κ (option ν)` | Parametric map (no-more-int A1): κ ∈ {`int`, `string`}, and the value type **ν ∈ {`int`, `string`, `seq int`, nested `map …`}**, where — `int` (the default), `string` (str-valued dict), `seq int` (list-valued dict, **immutable seq snapshot** — no mutate-through-alias; A1-residual, driver 0543), and a nested `map …` (dict-of-dict, double subscript). Default `map int (option int)`. `set`/`frozenset` use the same model (value ignored). **κ = string ⇒ `map string (option ν)` with the NATIVE, injective Why3 string key** (`String.(=)`, no `str_hash_op`), so distinct keys are provably non-aliasing (cleared-hash.md, drivers 0755–0758 locals, 0772–0776 record fields). κ = string is inferred for a `Dict[str, _]` param/AnnAssign local, a string-key literal (`{"a": …}`), string-key USAGE (`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key), a string CONCATENATION key `d[a + b]` (both operands `str`; `str_concat_op` pinned to left-cancellative Why3 `concat`, so `a != c ⇒ d[a+b]` non-aliasing proves — cleared-hash.md residual-close 1a, driver 0795) — Module5 `_build_function_symbol_table` — AND a record FIELD declared `Dict[str, ν]`/`Set[str]`/`FrozenSet[str]` (cleared-hash.md S4: `field_key_types` on the record type flips the field map to `map string`; every field op site — store `self.d[k]=v`, subscript `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard` — reads/writes the raw native string key in lockstep). **Residual κ-unknown (CLOSED honest boundary):** a dict/set whose key the model cannot pin to a decidable/injective string (an un-annotated field from `{}`, a non-`str` key, or a derived-string key like `s.upper()`) keeps the legacy `map int` + opaque `str_hash_op` fallback — NOT collision-sound: a distinct-key non-aliasing claim on it stays UNPROVABLE (driver 0796, `# pycsl-expected: FAIL`), NO false injectivity axiom on `str_hash_op` (`proof_axiom_allowlist` unchanged). Non-dict-key hashing (`hash(s)` 0485, decode-equality 0425) is a SEPARATE out-of-scope opacity. Implementation: the ν ladder is consolidated into three helpers `_dv_empty_default`/`_dv_missing_default`/`_dv_store_value` in `module6_whyml/expressions.py` (refactor F1) |
@@ -2517,7 +2569,7 @@ of the translation:
 | Library stubs (`src/pycsl_lib/`) | Hand-written contracts | **Medium** — not verified |
 | Abstract operations (`val iter_length`, etc.) | Transpiler-generated | **Medium** — uninterpreted |
 | Integer arithmetic is unbounded | Python semantics | Low (CPython uses bigints) |
-| Python's `//` matches Euclidean `div` | Language semantics | **Note**: Python uses floored division, which differs from Euclidean for negative operands |
+| Python's `//`/`%` are floored (rounds toward −∞; remainder sign = divisor) | Language semantics | Low — realized faithfully: `pycsl_div`/`pycsl_mod` correct Euclidean `div`/`mod` by a sign-of-divisor adjustment (WL-01 FIXED); positive-divisor case is byte-identical to Euclidean |
 
 ### §T.10.2  Preservation Lemmas
 
@@ -2530,8 +2582,11 @@ is faithful:
 
 - **Integer arithmetic:** `+`, `-`, `*` map directly.  WhyML integers
   are arbitrary-precision, matching Python's `int`.
-- **Division:** `//` maps to Euclidean `div` (with caveat: Python uses
-  floored division for negative operands — see §T.10.1).
+- **Division:** `//` (floor) and `%` map to floored `pycsl_div`/`pycsl_mod`,
+  which correct Euclidean `div`/`mod` by a sign-of-divisor adjustment so the
+  result matches Python for every divisor sign (WL-01 FIXED — the positive
+  divisor case coincides with Euclidean). `/` (true division) is a separate
+  concern (WL-02).
 - **Comparisons:** `==`, `!=`, `<`, `<=`, `>`, `>=` map to `=`, `<>`,
   `<`, `<=`, `>`, `>=` respectively.
 - **Boolean operators:** `and`/`or` map to `&&`/`||` (`identifiers.py`) in
@@ -2613,12 +2668,12 @@ by the Why3 project itself.
 
 | ID | Gap | Impact | Recommendation |
 |----|-----|--------|----------------|
-| G1 | Python floored division vs WhyML Euclidean division | For negative operands, `(-7) // 2` is `-4` in Python but `div (-7) 2 = -3` in WhyML | Add a `pycsl_floordiv` helper that matches Python semantics |
+| G1 | ~~Python floored division vs WhyML Euclidean division~~ **RESOLVED (WL-01 FIXED)** | The divergence is on a **negative divisor**, not a negative dividend: `(-7)//2` is `-4` in BOTH Python and Euclidean `div` (the earlier "`div (-7) 2 = -3`" note was wrong — Euclidean agrees here). The real bug was `(-7)//(-2)` (Python `3`, Euclidean `4`) and `7%(-2)` (Python `-1`, Euclidean `1`), which PyCSL proved as the false Euclidean values. `pycsl_div`/`pycsl_mod` now emit floored `div`/`mod` corrected by a sign-of-divisor adjustment (`if mod x y <> 0 && y < 0 then div x y − 1`, `+ y` for mod); positive-divisor emission is byte-identical to Euclidean. SMT (Alt-Ergo + Z3) discharge the concrete cases; no new axiom. Drivers: reference 0811 (POSITIVE), 0812 (NEGATIVE FAIL twin); repro `getting-better/wrong-lowering/wl01_*`. | Done — floored `pycsl_div`/`pycsl_mod` |
 | G2 | ~~String hashing is lossy~~ **RESOLVED + content-faithful (cleared-string.md)** | Runtime `str` is Why3 `string.String` with real content (τ(str)=string; §T.6.15). Concatenation and slicing prove their exact CONTENT (not just length) via Why3 1.8.2's rich native theory — `(a+b)[:len a]==a` (0765), `s[0:2]+s[2:4]==s[0:4]` (0766) — with NO new axiom; `startswith`/`endswith`/`find` accept derived string receivers (0767). The `chars:seq int` codepoint model in the plan was NOT needed (native decomposition reasons better; spike + choices.md cleared-string S0). `lower`/`upper` are now deterministic + idempotent + literal-constant-folded (cleared-string RESIDUALS item 1; drivers 0791/0793) and `replace` gains a not-contains identity + literal fold (item 2; drivers 0792/0794). Residual (honest, documented): no code-point/char type; the per-char ASCII case-MAP on a SYMBOLIC string (needs a codepoint bridge + `is_ascii` contract surface, zero demand), full-Unicode folding (`ß→SS`, not length-preserving), general grow/shrink `replace` CONTENT (CPython all-occurrences ≠ Why3 first-occurrence `replace`; no faithful `replaceall` content axiom), `strip`, `split`, `.decode`/`.encode`, `%`/f-string content stay opaque (`str`-keyed record-field dicts/sets use the native string key — cleared-hash.md S4, drivers 0772–0776) | Symbolic per-char case-MAP & general-replace content are the residual |
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
-| G6 | **List/Dict/Set comprehensions content-faithful for lifting shapes** (cleared-array.md S1–S5 + items 1,3,4) | LIST `[x for x in a]` / `[x+1 for x in a]` / `[p.x for p in a]` / `[g(x) for x in a]` (identity / pure-int `+ - *` / FIELD PROJECTIONS / CALLS to a pure `let function`, over the loop target, `array int` source) carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`. FILTER `[x for x in a if cond]` keeps `length <=` and — identity element + lifting pure-bool `cond` — the content-SUBSET law (each survivor satisfies `cond` and ∈ src). DICT `{x: v for x in a}` (identity key + pure-int value) → `Map.get result (a[i]) = Some v`; SET `{f(x) for x in a}` (pure-int elt) → `Map.get result (f(a[i])) = Some 0` (membership). Subscript projection `[x[k] …]` is now content-faithful over a NESTED source (nested-list.md S4: `List[List[τ]]`→`array (seq τ)`, `result[i] = Seq.get (a[i]) k`). Residuals stay opaque: non-identity dict key / non-pure-int value/elt, string/emit_ir elements, multi-generator, target-dependent or >2-level subscript index | — |
+| G6 | **List/Dict/Set comprehensions content-faithful for lifting shapes** (cleared-array.md S1–S5 + items 1,3,4) | LIST `[x for x in a]` / `[x+1 for x in a]` / `[p.x for p in a]` / `[g(x) for x in a]` (identity / pure-int `+ - *` / FIELD PROJECTIONS / CALLS to a pure `let function`, over the loop target, `array int` source) carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`. FILTER `[x for x in a if cond]` keeps `length <=` and — identity element + lifting pure-bool `cond` — the content-SUBSET law (each survivor satisfies `cond` and ∈ src). DICT `{x: v for x in a}` (identity key + pure-int value) → `Map.get result (a[i]) = Some v`; SET `{f(x) for x in a}` (pure-int elt) → `Map.get result (f(a[i])) = Some 0` (membership). Subscript projection `[x[k] …]` is now content-faithful over a NESTED source (nested-list.md S4: `List[List[τ]]`→`array (seq τ)`, `result[i] = Seq.get (a[i]) k`), INCLUDING a **TARGET-DEPENDENT** index `[x[len(x)-1] …]` that lifts to a pure int term over `len(x)` (nested-list.md §8/§9 EXTENSION, `_lift_target_seq_index`: `result[i] = Seq.get (a[i]) (Seq.length (a[i]) - 1)`; driver 0808, NEGATIVE 0809). Residuals stay opaque: non-identity dict key / non-pure-int value/elt, string/emit_ir elements, multi-generator, and a subscript index that does NOT lift (a `g(x)` call over the seq) | — |
 | G7 | `isinstance` / `hasattr` are **uninterpreted** `bool` ops (`isinstance_check` / `hasattr_check`), not concrete | Single type system limitation | Support union types or tagged variants |
 | G8 | For-each over non-array iterables | Uses abstract `iter_length` / `iter_get` | Provide concrete implementations per type |
 | G9 | `\map_eq` generates a `forall` quantifier | Wide `\map_eq` in deep loop invariants may exceed solver budget | Restrict `\map_eq` to shallow comparisons; prefer explicit key tracking in loop invariants |
@@ -2699,6 +2754,19 @@ map to `Some 0`, absent keys to `None`.
 
 `map_update_none` is parallel to `map_update_some` with `ensures
 { result = Map.set m k None }`.
+
+**§ PARAMETER mutation is out of scope (wrong-lowering-to-fix.md §WL-05; UB catalog §7.9).**
+The `d := map_update_some !d k v` / `s := map_update_some !s x 0` emissions above assume the
+collection is a `ref`-bound LOCAL (`let d = ref … in`) — the `:=`/`!d` deref is well-typed only for a
+`ref`. A `Dict[...]`/`Set[...]` **parameter** is a by-value `map …` (NOT a `ref`), so the same emission
+would be ill-typed; and modelling the param as a local `ref` would be UNFAITHFUL (Python mutates the
+argument by reference, so the write must be VISIBLE to the caller — a caller-visible `writes {d}` frame
+PyCSL does not model, the SAME boundary as record-param mutation and nested-list inner mutation). PyCSL
+therefore **REJECTS** an item-mutation `d[k]=v` / `s.add(x)`/`s.discard(x)`/`s.remove(x)` of a dict/set
+PARAMETER with a clear diagnostic (`module6_whyml/statements.py::_reject_param_collection_mutation`, code
+`PYCSL-WHYML-PARAM-COLLECTION-MUT`), instead of emitting the inconsistent `ref`/non-`ref` mix. LOCAL
+dict/set mutation and self-field writes (which have a frame) are unaffected. Faithful rework: RETURN the
+updated collection or mutate a LOCAL copy. Drivers 0820/0821 (negative), 0822/0823 (positive).
 
 ### §T.14.3  Multi-argument `range(start, stop)`
 
@@ -2808,8 +2876,11 @@ guaranteed pure-int logic terms, and division would leak partiality into a logic
 when `src` is a NESTED-list param (`array (seq τ)` / `array (map κ (option ν))`,
 `_list_nested_elem`): `_nested_subscript_comp` emits the content law
 `result[i] = Seq.get (src[i]) k` (seq) / `Map.get (src[i]) key` (map), with the
-captured index var `k` threaded as an extra val parameter; driver 0799. The
-generic (non-nested) emitted val:
+captured index var `k` threaded as an extra val parameter; driver 0799. The index
+may also be TARGET-DEPENDENT (nested-list.md §8/§9 EXTENSION) when it lifts to a pure
+int term over `len(x)` (`_lift_target_seq_index`): `[x[len(x)-1] for x in a]` →
+`result[i] = Seq.get (src[i]) (Seq.length (src[i]) - 1)` (driver 0808, NEGATIVE 0809).
+The generic (non-nested) emitted val:
 
 $$\texttt{list\_content\_comp}_n(\textit{src}):\quad
   \texttt{Array.length result = Array.length } \textit{src}
@@ -2924,8 +2995,14 @@ shapes fall through to `list_comp` / `list_comp_stmts` / `list_comp_seq_*`
   `x[k]` is a faithful `Seq.get`/`Map.get`. `[x[k] for x in a]` carries the
   per-index content law `result[i] = Seq.get (a[i]) k` (`_nested_subscript_comp`),
   proving `\result[i] == a[i][k]` (driver 0799). The captured index var `k` becomes
-  an extra parameter of the abstract val. Residual: a target-dependent index
-  `x[f(x)]`, a deeper `a[i][j][k]` (>2 levels), or an un-annotated leaf stays
+  an extra parameter of the abstract val. **DEEPER nesting + TARGET-DEPENDENT index
+  (nested-list.md §8/§9 EXTENSION):** a deeper `a[i][j][k]` NOW reads content-faithfully
+  to the depth-4 bound (`_nested_access_type`; drivers 0805/0806, beyond-cap 0807), and
+  a target-dependent index `[x[f(x)] for x in a]` whose `f(x)` lifts to a pure int term
+  over `len(x)` (e.g. `x[len(x)-1]`) carries the law
+  `result[i] = Seq.get (a[i]) (Seq.length (a[i]) - 1)` (`_lift_target_seq_index`; driver
+  0808, NEGATIVE 0809). Residual: an index that does NOT lift (a `g(x)` call over the
+  seq, a non-`len` seq op), a read deeper than depth 4, or an un-annotated leaf stays
   opaque; those keep the scalar `int` / opaque path.
 - **Non-identity dict key / non-lifting dict value / non-pure-int set element** —
   the collision-unsoundness / purity guards above are not met; opaque `dict_comp`
@@ -3495,6 +3572,35 @@ round-trip — are out of scope of §T.15. Those are
 `missing-bytes-struct-feature.md` Phases 2-5 (format-string-aware
 emission + Rocq round-trip axioms + per-method bytes-method
 modeling).
+
+### §T.15.6  Byte read `b[i]` and `len(b)` (WL-06)
+
+Because a `bytes`/`bytearray` value is the `array int`-backed
+buffer (§T.15.1), a subscript READ `b[i]` lowers to a native
+array read `Array.get b i` — a coherent `int` byte read — and
+`len(b)` lowers to `Array.length b`, exactly as for a `list`/array
+parameter. In `expressions.py`, `_handle_subscript` and the `len`
+handler recognize a `bytes`/`bytearray` symbol-table type on the
+same array branch as `list`.
+
+`T_e(b[i]) = (b[i])` (`Array.get`, an `int`), guarded by an
+IndexError bounds VC (`0 <= i < Array.length b`).
+`T_e(len(b)) = (Array.length b)`.
+
+Before the fix (WL-06, `wrong-lowering-to-fix.md`), a bytes/
+bytearray subscript READ routed instead to the opaque
+`val subscript_get (x:int)(i:int):int` applied to `b : array int`
+— an `array int` vs `int` type error (fail-closed TYPEERR): the
+read was BOTH un-verifiable AND internally inconsistent. The fix
+makes the emission COHERENT and type-checking.
+
+**Residual (honest).** The byte CONTENT stays the τ-blessed
+`bytes=int†` opaque residual: what is soundly provable is that the
+read is a well-typed `int` denoting a fixed buffer cell (so a body
+`b[i]` and a contract `b[i]` denote the SAME value, and distinct
+indices are independent cells), NOT the exact byte value. A
+faithful `bytes` value model (byte-range 0..255, encode/decode,
+`struct` round-trip) remains the §T.15.5 follow-on.
 
 ---
 

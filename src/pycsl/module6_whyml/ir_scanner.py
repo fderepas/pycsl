@@ -97,6 +97,25 @@ class IRScanner:
         return False
 
     @staticmethod
+    def uses_true_division(obj: Any) -> bool:
+        """WL-02: return True if a Python TRUE-division `/` (IR BinOp op "/") appears
+        anywhere in `obj` (a body or contract IR tree). Python `/` is true division
+        and ALWAYS returns a float (`5 / 2 == 2.5`), so it lowers to a REAL division
+        (`from_int a /. from_int b`). Distinct from FLOOR division `//` (IR op "div").
+        Triggers the `use real.RealInfix` / `use real.FromInt` imports."""
+        if isinstance(obj, dict):
+            if obj.get("type") == "BinOp" and obj.get("op") == "/":
+                return True
+            for v in obj.values():
+                if IRScanner.uses_true_division(v):
+                    return True
+        elif isinstance(obj, list):
+            for x in obj:
+                if IRScanner.uses_true_division(x):
+                    return True
+        return False
+
+    @staticmethod
     def collection_binder_kinds(obj: Any) -> Set[str]:
         """07-1311 Q4: collect the set of COLLECTION quantifier binder types
         (`list`/`bytes`/`bytearray`/`dict`) appearing anywhere in `obj` (a contract

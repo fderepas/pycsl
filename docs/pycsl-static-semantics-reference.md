@@ -182,8 +182,17 @@ specification logic's type universe:
 τ(Set[T])         = dict
 τ(frozenset)      = dict      (* frozensets share the set/dict model *)
 τ(FrozenSet[T])   = dict
-τ(Tuple[T1, ...]) = tuple
-τ(tuple)          = int †     (* bare tuple — unlike the recognized Tuple[T1, ...] above *)
+τ(Tuple[T1, ..., Tn]) = record   (* WL-03: a RECOGNIZED fixed-length Tuple with known
+                                 scalar slots (int/bool→int, str→string) is a synthesized
+                                 per-slot record `type pytuple_<tags> = { field0: τ(T1);
+                                 …; field{n-1}: τ(Tn) }`, for a PARAMETER and a record FIELD
+                                 (not just a locally-constructed/returned tuple). `t[i]`
+                                 lowers to the i-th record field (`t[1] : string` for
+                                 Tuple[int, str]) via the NamedTuple positional-access model —
+                                 faithfully typed, not the opaque `int` collapse. A float/
+                                 container/class slot, or a variable-length `Tuple[T, ...]`
+                                 (Ellipsis), is NOT recognized → the bare-tuple `int †` row. *)
+τ(tuple)          = int †     (* bare tuple — unlike the recognized Tuple[T1, ..., Tn] above *)
 τ(C)              = record    (* user-defined class C → a WhyML record of its fields, for
                                  `self`, locally-constructed instances, AND a bare C-typed
                                  parameter whose class is registered — read-only field access
@@ -306,6 +315,19 @@ these (and `list`/`Tuple[...]`) to `list` → `array int` in the WhyML record, b
 buffer / tuple field is array-backed (e.g. the `self.disk: bytearray` virtual disk). So the
 same annotation can be `int` as a parameter but `array int` as a field.
 
+**§ Flat faithful-element list param (wrong-lowering-to-fix.md §WL-04).** A parameter annotated with
+a FLAT `List[str]` / `List[float]` — a list whose element is a faithful NON-INT LEAF — does NOT
+collapse its element to `int`. Module5 (`_m5_get_list_flat_elem_whyml`) records the WhyML element type
+(`str`→`string`, `float`→`real`) in the IR field `param_list_flat_elem`, and the emitter realizes the
+parameter as `array string` / `array real` (`_param_type_str`, right after the nested
+`_list_nested_elem` branch). The subscript READ is UNCHANGED (`Array.get` is element-polymorphic), so
+`a[i] : string`/`: real` matches a str/float use site (return) and `\result == a[i]` is provable
+(drivers `wl04_list_{str,float}_elem_COLLAPSED.py`; locks 0817/0818, NEGATIVE 0819). A flat
+`List[int]`/`List[bool]` has NO entry → byte-identical `array int` (int-leaf is the τ-blessed default).
+This is the one-level-up analog of the nested `array (seq τ)` model below. A `List[str]`/`List[float]`
+LOCAL/RETURN built by a LIST LITERAL is a distinct pre-existing surface (its literal construction
+collapses the elements), not part of §WL-04.
+
 **§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
 is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT
 collapse its element to `int`. Module5 (`_m5_get_list_nested_elem_whyml` → the shared recursive
@@ -313,11 +335,42 @@ collapse its element to `int`. Module5 (`_m5_get_list_nested_elem_whyml` → the
 `param_list_nested_elem`, and the emitter realizes the parameter as `array (seq τ)` /
 `array (map κ (option ν))` (`_param_type_str`). The OUTER list stays `array` (a flat `List[τ]` is
 byte-identically `array τ`); the INNER collection is a PURE Why3 type (`seq`/`map`) — Why3 forbids a
-mutable element inside `array`. A nested-annotated parameter is EXCLUDED from the `matrix int` 2-D
-detection (`_detect_array_dimensions`), which stays reserved for `\length2d`-contract rectangular
-params. Depth is bounded (≤4); an unknown/too-deep leaf keeps the scalar `int` default. In-place
-inner mutation (`a[i][j]=v`) has no sound rendering on the immutable inner `seq` and is rejected
-(hard failure), never silently accepted.
+mutable element inside `array`. A READ-ONLY nested-annotated parameter is EXCLUDED from the
+`matrix int` 2-D detection (`_detect_array_dimensions`). Depth is bounded (≤4); an unknown/too-deep
+leaf keeps the scalar `int` default. The subscript READ composes RECURSIVELY to the depth bound
+(nested-list.md §8/§9 EXTENSION): `_handle_subscript`/`_nested_access_type` peel one container level
+per index level, so `a[i][j][k]` → `Seq.get (Seq.get (a[i]) j) k` (and `len(a[i][j])` → `Seq.length`)
+up to depth 4 (drivers 0805 depth-3, 0806 NEGATIVE; depth-4 in the Gate-B spike). A FIFTH level is
+beyond the type-recursion cap → the param is not nested-elem → the deep read falls to the opaque
+`subscript_get` and does NOT type-check as a faithful read (rejected, never silently accepted;
+driver 0807).
+
+**§ In-place inner mutation (nested-list-mutable.md).** A `List[List[int]]` parameter that the body
+IN-PLACE INNER-MUTATES — `a[i][j] = v` (an `ArraySet` whose array is itself a `Subscript` rooted at
+the param; Module5 `_collect_inner_mutated_params`) — CANNOT use the read-only `array (seq int)` model
+(its inner `seq` is immutable). A usage/mutation analysis instead routes such a parameter to the MUTABLE
+built-in `matrix int` model: it is dropped from `param_list_nested_elem` and kept in `array2d_params`.
+Lowering: `a[i][j]=v`→`Matrix.set`, `a[i][j]`→`Matrix.get`, `len(a)`→`a.rows`, `len(a[i])`→`a.columns`.
+The two representations COEXIST — read-only nested lists stay on `array (seq τ)` (ragged-capable); only
+an inner-mutated INT-leaf param uses `matrix int` (RECTANGULAR, uniform `columns`). A NON-int-leaf
+inner mutation (`List[List[str]]` → `array (seq string)`, immutable `seq`) is REJECTED (a hard
+type/verification failure, never silently accepted); `a[i].append(..)` (shape-change) stays opaque;
+ragged in-place mutation is out of the rectangular `matrix` model. `\length2d`-contract rectangular
+params likewise use `matrix int`.
+
+**§ In-place mutation of a dict/set PARAMETER (wrong-lowering-to-fix.md §WL-05; UB catalog §7.9).**
+An item-mutation `d[k] = v` of a `Dict[...]` parameter — and the set twin `s.add(x)`/`s.discard(x)`/
+`s.remove(x)` of a `Set[...]`/`frozenset` parameter — is **out of scope** and **REJECTED** with a clear
+diagnostic (`module6_whyml/statements.py::_reject_param_collection_mutation`, code
+`PYCSL-WHYML-PARAM-COLLECTION-MUT`). Python passes dicts/sets BY REFERENCE, so the write must be VISIBLE
+to the caller — a faithful model needs a caller-visible mutation frame (`writes {d}`) on a mutable-map
+parameter, the SAME aliasing/frame problem as record-param mutation (‡ below) and nested-list inner
+mutation (above). Modelling the by-value `map` param as a local `ref` would be UNFAITHFUL (the caller
+would not see the change). The rejection is gated to a formal-param dict/set that is NOT a `ref`-bound
+LOCAL (`_dict_locals`), NOT a self-field (which HAS a frame), and NOT the deliberate `@mutable_state`
+param no-op — so LOCAL dict/set mutation and self-field writes are unaffected. The faithful rework is to
+RETURN the updated collection or mutate a LOCAL copy (a local write-read-back proves; drivers 0820/0821
+negative, 0822/0823 positive).
 
 **‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self`, the
 result of a constructor call `C()`, **and** a bare `C`-typed *parameter* whose class is registered

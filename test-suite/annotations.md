@@ -790,11 +790,18 @@ def _pack_uint16_be(v: int) -> list: ...
 | 6 | 6 | `<`, `>`, `<=`, `>=` | `BinOp` | same |
 | 6b | 6.5 | `in`, `not in` | `CSLIn`, `CSLNotIn` | membership test (desugared to `∃` quantifier) |
 | 7 | 7 | `+`, `-` | `BinOp` | same |
-| 8 | 8 | `*`, `//`, `/`, `%` | `BinOp` | `//` and `/` → WhyML `div`; `%` → WhyML `mod` |
+| 8 | 8 | `*`, `//`, `/`, `%` | `BinOp` | `//` → floored WhyML `div` (int); `%` → floored `mod` (int); `/` → **real** division (float) |
 | 9 | 9 (highest) | `not`, unary `-`, unary `+` | `UnaryOp` | same |
 
-**Note:** `/` in contracts maps to WhyML `div` (Euclidean integer division),
-not Python's float division.
+**Note (`/` is TRUE division — WL-02, FIXED):** `/` in a body **and** in a
+contract is Python's TRUE division and ALWAYS yields a `float` (`real`), even on
+integer operands (`5 / 2 == 2.5`). It lowers to a real division — int operands
+lifted via `real.FromInt` (`from_int`) and divided with `real.RealInfix` (`/.`);
+a body `/` bridges through `val float_truediv_op (a b: int) : real ensures
+{ result = from_int a /. from_int b }`. A `/` result used at `int` type is a
+real-vs-int **type error** (fail-closed) — never a silent integer truncation. To
+assert an integer quotient, use `//` (floored integer division). Previously `/`
+mapped to the floored integer `div`, which unsoundly proved `5 / 2 == 2`.
 
 **Division-by-zero guards:** When `//` or `%` appear in **program code**
 (not in contracts), PyCSL wraps them in helper functions `pycsl_div` /
@@ -1929,11 +1936,25 @@ the callee so it is in scope.
 (nested-list.md S4): a `List[List[τ]]` param lowers to `array (seq τ)` (a
 `List[Dict[..]]` param to `array (map κ (option ν))`), so `x` is a real `seq`/`map`,
 `x[k]` a faithful `Seq.get`/`Map.get`, and `[x[k] for x in a]` carries
-`result[i] = Seq.get (a[i]) k` (driver 0799). Residual opaque shapes (never a false
-content claim): non-identity dict key / non-pure-int dict value or set element,
-string/emit_ir elements, multi-generator, a target-dependent or >2-level subscript
-index, an un-annotated/too-deep leaf (cleared-array.md S1–S5 + items 1,3,4;
+`result[i] = Seq.get (a[i]) k` (driver 0799). **DEEPER reads + TARGET-DEPENDENT index
+(nested-list.md §8/§9 EXTENSION):** `a[i][j][k]` reads content-faithfully to the depth-4
+bound (`_nested_access_type`; drivers 0805/0806, beyond-cap rejected 0807), and a
+target-dependent index `[x[len(x)-1] for x in a]` that lifts to a pure int term over
+`len(x)` (`_lift_target_seq_index`) carries `result[i] = Seq.get (a[i]) (Seq.length (a[i]) - 1)`
+(driver 0808, NEGATIVE 0809). Residual opaque shapes (never a false content claim):
+non-identity dict key / non-pure-int dict value or set element, string/emit_ir elements,
+multi-generator, a subscript index that does NOT lift (a `g(x)` call over the seq), a read
+deeper than depth 4, an un-annotated/too-deep leaf (cleared-array.md S1–S5 + items 1,3,4;
 nested-list.md).
+
+**In-place inner mutation** `a[i][j] = v` (nested-list-mutable.md): a `List[List[int]]`
+param that the body inner-mutates routes to the MUTABLE built-in `matrix int` model
+(not the read-only `array (seq int)`), a per-param usage/mutation analysis so the two
+representations coexist. `a[i][j]=v`→`Matrix.set`, `a[i][j]`→`Matrix.get`, `len(a)`→
+`a.rows`, `len(a[i])`→`a.columns`. The update reads back and is non-aliasing (drivers
+0802/0803). RECTANGULAR + int-leaf only; a non-int-leaf inner mutation is REJECTED
+(driver 0804), `a[i].append(..)` stays opaque, ragged in-place mutation is out of the
+rectangular `matrix` model. No new axiom (Matrix laws are Why3 stdlib).
 
 **Tests**: 0761 (identity), 0762 (arithmetic), 0769 (projection),
 0770 (arithmetic-over-projection), 0783 (call), 0763 (filter bound),

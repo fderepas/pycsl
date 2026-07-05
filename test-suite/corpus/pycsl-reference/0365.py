@@ -6,7 +6,7 @@ discharges.
 """
 _ = 0  # anchor
 #@ requires n > 0 or n < 0
-#@ ensures \result == 100 / n
+#@ ensures \result == 100 // n
 #@ assigns \nothing
 #@ no_exception ZeroDivisionError
 def branching_div(n: int) -> int:

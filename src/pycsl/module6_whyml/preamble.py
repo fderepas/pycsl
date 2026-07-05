@@ -1857,11 +1857,22 @@ class PreambleEmissionMixin:
             or any(IRScanner.uses_ord_chr(f.get("contracts", {})) for f in functions) \
             or any("Char." in self._AXIOM_REGISTRY.get(e.get("qualname", ""), "")
                    for f in functions for e in f.get("proof", []))
+        # WL-02: a Python TRUE-division `/` (IR BinOp op "/") in a body or contract lowers
+        # to a REAL division (`from_int a /. from_int b`) — Python `/` always returns a
+        # float. This needs `real.RealInfix` (`/.`) AND `real.FromInt` (`from_int`), even
+        # when the file has no explicit `float` var/return (the int-return misuse must
+        # fail-close as a real-vs-int type error, not silently truncate). Distinct from
+        # FLOOR division `//` (IR op "div"), which stays integer (WL-01).
+        needs_truediv = (
+            any(IRScanner.uses_true_division(body) for body in all_bodies)
+            or any(IRScanner.uses_true_division(f.get("contracts", {})) for f in functions)
+        )
         # no-more-int Stage D: a `float` param/local/return is Why3 `real`; RealInfix
         # provides the disambiguated `+.`/`-.`/`*.`/`/.`/`<.` operators alongside int.Int.
         needs_real = (
             any("float" in f.get("symbol_table", {}).values() for f in functions)
             or any(f.get("return_annotation") == "float" for f in functions)
+            or needs_truediv  # WL-02: `/.` real division
         )
         # no-more-int-7 §B′: a `seq int`-valued dict (`Dict[_, List[int]]`) needs
         # `seq.Seq` for the immutable list-snapshot model.
@@ -1972,6 +1983,7 @@ class PreambleEmissionMixin:
             "needs_string": needs_string,
             "needs_char": needs_char,
             "needs_real": needs_real,
+            "needs_fromint": needs_truediv,
             "needs_seq": needs_seq,
             "needs_map_ghost": needs_map_ghost,
             "needs_ghost_dict": needs_ghost_dict,
@@ -2013,6 +2025,11 @@ class PreambleEmissionMixin:
             out.append("  use string.Char")
         if needs.get("needs_real"):
             out.append("  use real.RealInfix")  # no-more-int Stage D — `+.`/`-.`/… on real
+        if needs.get("needs_fromint"):
+            # WL-02: `from_int : int -> real` lifts int operands of a Python TRUE-division
+            # `/` into the reals before `/.`. Only emitted when a `/` is present, so
+            # float-only programs (no `/` on ints) stay byte-identical.
+            out.append("  use real.FromInt")
         if needs.get("needs_seq"):
             out.append("  use seq.Seq")  # no-more-int-7 §B′ — immutable list-snapshot value model
         if self._value_semantic:
@@ -2159,26 +2176,33 @@ class PreambleEmissionMixin:
             out.append("  = if lo < hi then set_card_add_hi s (lo + 1) hi")
         if needs["needs_divmod"]:
             out.append("")
+            # WL-01 FIX: Python `//` is FLOORED division (rounds toward -inf) and `%`
+            # has the sign of the DIVISOR. Why3's int.EuclideanDivision `div`/`mod` use a
+            # NON-NEGATIVE remainder, which AGREES with Python when y > 0 but DIVERGES
+            # when y < 0 (e.g. (-7)//(-2): Euclidean 4, Python 3). We recover Python's
+            # floored semantics by a sign-of-divisor correction: for a negative divisor
+            # with a non-zero remainder, floordiv = div - 1 and floormod = mod + y. This
+            # keeps the positive-divisor case byte-for-byte equal to Euclidean.
             if "ZeroDivisionError" in needs["user_exceptions"]:
                 out.append("  let pycsl_div (x: int) (y: int) : int")
                 out.append("    raises { ZeroDivisionError -> y = 0 }")
-                out.append("    ensures { y <> 0 /\\ result = div x y }")
-                out.append("  = if y = 0 then raise ZeroDivisionError else div x y")
+                out.append("    ensures { y <> 0 /\\ result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else (if mod x y <> 0 && y < 0 then div x y - 1 else div x y)")
                 out.append("")
                 out.append("  let pycsl_mod (x: int) (y: int) : int")
                 out.append("    raises { ZeroDivisionError -> y = 0 }")
-                out.append("    ensures { y <> 0 /\\ result = mod x y }")
-                out.append("  = if y = 0 then raise ZeroDivisionError else mod x y")
+                out.append("    ensures { y <> 0 /\\ result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else (if mod x y <> 0 && y < 0 then mod x y + y else mod x y)")
             else:
                 out.append("  let pycsl_div (x: int) (y: int) : int")
                 out.append("    requires { [@expl:division by zero] y <> 0 }")
-                out.append("    ensures { result = div x y }")
-                out.append("  = div x y")
+                out.append("    ensures { result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }")
+                out.append("  = if mod x y <> 0 && y < 0 then div x y - 1 else div x y")
                 out.append("")
                 out.append("  let pycsl_mod (x: int) (y: int) : int")
                 out.append("    requires { [@expl:modulo by zero] y <> 0 }")
-                out.append("    ensures { result = mod x y }")
-                out.append("  = mod x y")
+                out.append("    ensures { result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }")
+                out.append("  = if mod x y <> 0 && y < 0 then mod x y + y else mod x y")
         return out
 
     def _inductive_refs_global_or_axiom_func(self, ir: Dict[str, Any]) -> bool:
@@ -3221,6 +3245,14 @@ class PreambleEmissionMixin:
                         # typed-ir-for-b-ceiling.md B-C2: an ExprIR-valued field is the
                         # typed IR-node sum `emit_ir`. Only in a @mutable_state mirror.
                         ftype = "emit_ir"
+                    elif ftype in self._record_types:
+                        # wrong-lowering.md §WL-03: a field whose type is another
+                        # (already-declared) record — a synthesized `Tuple[T1, ...]`
+                        # per-slot record used as a FIELD — is the nested record's
+                        # Why3 type, so `self.f[i]` reads the faithful slot. The
+                        # tuple records are appended to `type_decls` BEFORE the class
+                        # records, so they are declared (and in `_record_types`) here.
+                        ftype = self._record_types[ftype]["whyml_name"]
                     elif ftype != "int" and not ftype.startswith(("array ", "map ", "ref ", "string", "emit_ir")):
                         # Unrecognised tag (user-defined class etc.) —
                         # fall back to int rather than emitting an

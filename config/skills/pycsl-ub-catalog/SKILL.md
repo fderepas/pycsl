@@ -341,6 +341,87 @@ Note: contracts must be placed **above** the decorator to attach.
 
 ---
 
+## §7.8 ragged / non-int-leaf in-place inner mutation of a nested list
+
+**Source pattern that triggers it.** An in-place inner ELEMENT mutation
+`a[i][j] = v` on a nested list `a: List[List[τ]]` (nested-list-mutable.md).
+
+**Detection mechanism.** Module5 `_collect_inner_mutated_params` flags a nested
+`List[List[…]]` param that the body inner-mutates (`a[i][j]=v`). An INT-leaf
+(`List[List[int]]`) routes to the mutable built-in `matrix int` model
+(`Matrix.set`/`Matrix.get`). Any other inner-mutated nested param stays on the
+read-only, PURE-`seq`/`map` `array (seq τ)` model.
+
+**Verification stance.** The mutable model is `matrix int`, which is **RECTANGULAR**
+(a single uniform `columns`) and **int-leaf**. This is the perimeter:
+- A NON-int-leaf inner mutation (`List[List[str]]` = `array (seq string)`) has no
+  mutable 2-D built-in — the inner `seq` is immutable, so `a[i][j]=v` is a *hard
+  type/verification failure* (REJECTED, never a silent unsound update). NEGATIVE
+  driver `0804`.
+- `a[i].append(...)` (SHAPE-CHANGE — a growable nested row) stays *opaque* (the
+  `append_1` no-op makes no false post-state claim).
+- The `matrix int` model **assumes rectangularity** (every row has `columns`
+  elements). A genuinely RAGGED nested list mutated in place is outside the model's
+  faithful domain — the rectangular assumption is a structural precondition (the
+  same stance as the `\length2d` matrix path, 0018/0019). Passing a ragged list to
+  a function verified under the matrix model is UB. Worst case is a type-error
+  rejection (safe), never a false proof — `Matrix.set`/`Matrix.get` are faithful
+  Why3 stdlib ops, so no unsound update is ever emitted.
+
+**Corpus cross-reference:** `0802` (rectangular int read-back — supported),
+`0803` (non-aliasing — supported), `0804` (non-int-leaf inner mutation — rejected),
+`0797`/`0798` (read-only ragged nested lists — stay on `array (seq τ)`).
+
+---
+
+## §7.9 in-place mutation of a dict/set PARAMETER
+
+**Source pattern that triggers it.** An in-place mutation of a `Dict[...]` or
+`Set[...]` (or `frozenset`) **parameter** — i.e. a write that Python makes visible
+to the caller through the by-reference argument:
+
+```python
+def f(d: Dict[str, int]) -> int:
+    d["a"] = 5        # triggers (ArraySet on a dict param)
+    return d["a"]
+
+def g(s: Set[int]) -> int:
+    s.add(5)          # triggers (also .discard / .remove on a set/dict param)
+    return 0
+```
+
+**Detection mechanism.** Module 6's statement emitter
+(`module6_whyml/statements.py`). At the dict item-write site
+(`_handle_array_set_stmt`, the `is_dict` branch) and the set/dict method-call site
+(`.add`/`.discard`/`.remove`), a mutation whose target is a formal parameter
+(`_formal_params`) that is NOT a `ref`-bound LOCAL (`_dict_locals`), NOT a self-field
+(which HAS a mutation frame), and NOT the deliberate `@mutable_state` param no-op
+(typed-ir §13) is routed to `_reject_param_collection_mutation`, which raises
+`PyCSLSemanticError` (code `PYCSL-WHYML-PARAM-COLLECTION-MUT`).
+
+**Verification stance.** *Hard error*, no escape annotation. Python passes dicts/sets
+BY REFERENCE, so an item-mutation of a parameter must be VISIBLE to the caller — a
+faithful model needs a caller-visible mutation frame (`writes {d}`) on a mutable-map
+parameter. That is the SAME aliasing/frame problem for which RECORD-param mutation
+(static-ref ‡; static-semantics §Track 3) and nested-LIST inner mutation (§7.8) are
+out of scope. Modelling the by-value `map` param as a local `ref` would be UNFAITHFUL
+(the caller would not see the change) — a sound but silently-wrong lowering. Before
+the WL-05 fix the dict case emitted internally-inconsistent WhyML (`d := map_update_some
+!d k v; … Map.get d k` — a `ref`/non-`ref` mix that fails Why3's type-check) and the set
+case silently dropped the mutation to a no-op; both are now a clean rejection.
+**The faithful rework** is to RETURN the updated collection (`d = f(d)`) or mutate a
+LOCAL dict/set (a `ref`, with a genuine frame) — a local write-read-back is faithfully
+modelled and proves.
+
+**Escape annotation.** None. (The boundary is the missing aliasing/frame model, not a
+trust gap — an annotation cannot make the caller see the by-value mutation.)
+
+**Corpus cross-reference:** `0820` (dict param `d[k]=v` rejected), `0821` (set param
+`s.add` rejected); positive guards `0822` (LOCAL dict write-read-back proves), `0823`
+(LOCAL set add-membership proves). Finding: wrong-lowering-to-fix.md §WL-05.
+
+---
+
 ## Verification-perimeter philosophy
 
 PyCSL's verification target is a subset of Python — value-only,

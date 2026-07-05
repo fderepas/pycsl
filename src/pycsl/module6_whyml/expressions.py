@@ -1503,13 +1503,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             left = self._coerce_str_arg(left)
             right = self._coerce_str_arg(right)
         if op == "div":
+            if raw_op == "/":
+                # WL-02: Python `/` is TRUE division — it ALWAYS returns a float
+                # (`5 / 2 == 2.5`, even for int operands). Lower to a REAL division:
+                # lift both int operands via `from_int` and divide over the reals
+                # (`/.`). The result is a `real`. A `/` result consumed at `int` type
+                # fail-closes as a real-vs-int type error (never a silent integer
+                # truncation) — consistent with the int/float-mixing boundary. Only
+                # FLOOR division `//` (raw_op "div") stays integer below (WL-01).
+                # (Both-float `/` was already handled by the float block above.)
+                if self._in_spec:
+                    return f"(from_int {left} /. from_int {right})"
+                # Body: `from_int` is a logic symbol (unusable in a program/non-ghost
+                # term), so the int→real lift AND the division are bundled into one
+                # abstract `val` whose `ensures` pins the exact real value. The int
+                # operands stay int program terms; `from_int`/`/.` live only in the
+                # logical `ensures`.
+                self._add_abstract_op(
+                    "val float_truediv_op (a b: int) : real\n"
+                    "    ensures { result = (from_int a /. from_int b) }")
+                return f"(float_truediv_op {left} {right})"
             if self._in_spec:
-                return f"(div {left} {right})"
+                # WL-01: Python `//` is FLOORED division. Emit the sign-of-divisor
+                # correction inline over the always-in-scope Euclidean `div`/`mod`
+                # (bind operands once to avoid duplicating side-effect-free terms).
+                return (f"(let __fd = {left} in let __fr = {right} in "
+                        f"if mod __fd __fr <> 0 && __fr < 0 then div __fd __fr - 1 "
+                        f"else div __fd __fr)")
             inner = f"(pycsl_div {left} {right})"
             return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right], inner)
         if op == "mod":
             if self._in_spec:
-                return f"(mod {left} {right})"
+                # WL-01: Python `%` has the sign of the DIVISOR (floored modulo).
+                return (f"(let __fd = {left} in let __fr = {right} in "
+                        f"if mod __fd __fr <> 0 && __fr < 0 then mod __fd __fr + __fr "
+                        f"else mod __fd __fr)")
             inner = f"(pycsl_mod {left} {right})"
             return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right], inner)
         if op in ("&&", "||"):
@@ -1620,6 +1648,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         `_handle_call_expr` via `_iter_len_expr`, before the inner args are lowered.)"""
         arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
         atype = arg_ir.get("type", "")
+        # nested-list-mutable.md: a matrix-routed (in-place inner-mutated int-leaf)
+        # nested list `a` is a built-in `matrix int`. `len(a)` = `a.rows` (outer row
+        # count); `len(a[i])` = `a.columns` (the rectangular per-row length). Emit the
+        # Matrix record projections directly from the base name — the lowered `args[0]`
+        # for `a[i]` is a matrix (rows aren't first-class), so it is NOT used here.
+        _a2d = getattr(self, "_array2d_params", set())
+        if atype == "Var" and arg_ir.get("name") in _a2d:
+            return f"({arg_ir['name']}.rows)"
+        if atype == "Subscript":
+            _mb = arg_ir.get("value", {})
+            if (isinstance(_mb, dict) and _mb.get("type") == "Var"
+                    and _mb.get("name") in _a2d):
+                return f"({_mb['name']}.columns)"
         # §B′: len(d[k]) where d is a seq-valued dict (`Dict[_, List[int]]`) — the
         # read is a `seq int`, so its length is `Seq.length`.
         if atype == "Subscript":
@@ -1637,6 +1678,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (isinstance(_b, dict) and _b.get("type") == "Var"
                     and getattr(self, "_list_nested_elem", {}).get(
                         _b.get("name", ""), "").startswith("seq ")):
+                return f"(Seq.length {args[0]})"
+            # nested-list §8 EXTENSION: `len(a[i][j])` (deeper than 2) — the inner
+            # read `a[i][j]` is a `seq τ` (one level above the leaf), so its length
+            # is `Seq.length`. Uses the recursive access-type (peel one container
+            # per index level); byte-identical to the depth-2 branch above for the
+            # `len(a[i])` case (both return `(Seq.length args[0])`), so only the
+            # deeper chains are newly handled.
+            _at = self._nested_access_type(arg_ir)
+            if _at is not None and _at.startswith("seq "):
                 return f"(Seq.length {args[0]})"
         # 07-1705-rev4 P3: len() of a seq-modelled (growable) list local is `Seq.length`.
         # A seq-promoted PARAM in a CONTRACT refers to its array entry value (so fall through
@@ -1690,7 +1740,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 var_name in getattr(self, "_inline_array_temps", set()) or
                 var_name in getattr(self, "_current_array1d_params", set()))
             if not is_array and not is_dict and var_name:
-                if getattr(self, "_current_symbol_table", {}).get(var_name) in ("list", "dict"):
+                # WL-06: bytes/bytearray are the τ-blessed `array int`-backed byte
+                # buffer, so `len(b)` is `Array.length b` (the buffer length),
+                # consistent with routing `b[i]` to `Array.get`. Otherwise a bounds
+                # `requires i < len(b)` emitted the unbound `iter_length` stub.
+                if (getattr(self, "_current_symbol_table", {}).get(var_name)
+                        in ("list", "dict", "bytes", "bytearray")):
                     is_array = True
             if is_array:
                 arg0 = f"({args[0]})" if args[0].startswith("!") else args[0]
@@ -3853,6 +3908,60 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
         return f"{base}.{self._field_label(rec_lower, field_name)}"
 
+    @staticmethod
+    def _peel_container(t: str) -> Optional[str]:
+        """nested-list §8 EXTENSION: given the WhyML type `t` of a collection value,
+        return the element type produced by indexing it ONCE. `array X`/`seq X` →
+        X (one layer of outer parens stripped); `map κ (option ν)` → ν; a scalar
+        (`int`/`string`/`real`) → None (no more indexing → opaque)."""
+        t = t.strip()
+        for pref in ("array ", "seq "):
+            if t.startswith(pref):
+                inner = t[len(pref):].strip()
+                # strip ONE matching outer-paren layer, if the whole inner is wrapped.
+                if inner.startswith("(") and inner.endswith(")"):
+                    depth = 0
+                    ok = True
+                    for _ci, _ch in enumerate(inner):
+                        if _ch == "(":
+                            depth += 1
+                        elif _ch == ")":
+                            depth -= 1
+                            if depth == 0 and _ci != len(inner) - 1:
+                                ok = False
+                                break
+                    if ok:
+                        inner = inner[1:-1].strip()
+                return inner
+        if t.startswith("map "):
+            if "(option " in t:
+                return t.split("(option ", 1)[1].rsplit(")", 1)[0].strip()
+            return None
+        return None
+
+    def _nested_access_type(self, node: Any) -> Optional[str]:
+        """nested-list §8 EXTENSION: the WhyML type of a nested-list access `node`
+        (the value it evaluates to), for a chain rooted at a `_list_nested_elem`
+        param. `Var(a)` (a nested-elem) → `array (<elem>)`; `Subscript(base, _)` →
+        one container level peeled from `_nested_access_type(base)` (= the type of
+        `base[idx]`). None if the chain is not a nested-list access, or once the
+        peel bottoms out at a scalar (a read one level TOO deep). This drives the
+        depth-generalized `a[i][j][k]` subscript lowering; the depth cap is
+        inherited from the type recursion (`_list_nested_elem` is None past bound)."""
+        if not isinstance(node, dict):
+            return None
+        if node.get("type") == "Var":
+            _ne = getattr(self, "_list_nested_elem", {}).get(node.get("name", ""))
+            if _ne is not None:
+                return f"array ({_ne})"
+            return None
+        if node.get("type") == "Subscript":
+            _bt = self._nested_access_type(node.get("value", {}))
+            if _bt is None:
+                return None
+            return self._peel_container(_bt)
+        return None
+
     def _handle_subscript(self, node: "ExprIR", local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
@@ -4004,20 +4113,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                       for k in range(_tarity))
                     _base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
                     return f"(let ({_bind}) = {_base} in _r{_idx}_)"
-        # nested-list.md S3: `a[i][j]` where `a` is a `List[<container>]` param
+        # nested-list.md S3 (+ §8/§9 EXTENSION: arbitrary depth): `a[i][j]` /
+        # `a[i][j][k]` … where `a` is a `List[<container>]` param
         # (`array (seq τ)` / `array (map κ (option ν))`, see `_list_nested_elem`).
         # The inner read `a[i]` yields the PURE element collection, so the outer
         # `[j]`/`[key]` is a `Seq.get`/`Map.get` on it — NOT a second `Array.get`
         # nor the opaque `subscript_get`. The inner read is hoisted into a `let`
         # (it may carry its OWN body-context KeyError/IndexError assert block, which
-        # cannot sit inside the outer read's application/assert). Only the
-        # Var-based 2-level case is faithful; deeper `a[i][j][k]` falls through to
-        # the opaque path (documented depth residual — the type recursion is
-        # depth-bounded too).
-        if (value.get("type") == "Subscript"
-                and value.get("value", {}).get("type") == "Var"
-                and value["value"]["name"] in getattr(self, "_list_nested_elem", {})):
-            _ne = self._list_nested_elem[value["value"]["name"]]
+        # cannot sit inside the outer read's application/assert). The element type
+        # of `value` is computed RECURSIVELY (`_nested_access_type`) by peeling one
+        # container level per index level, so `a[i][j][k]` composes `Seq.get` to the
+        # type-recursion depth bound (MAX_NEST_DEPTH=4). `_inner` is lowered by a
+        # recursive `_expr_to_whyml`, which re-enters this same block for the deeper
+        # levels. Deeper than the type bound → `_nested_access_type` is None → the
+        # opaque `subscript_get` fallback (documented depth residual). Byte-identical
+        # to the former 2-level unfold for depth ≤2 (verified via corpus emission diff).
+        _ne = self._nested_access_type(value) if value.get("type") == "Subscript" else None
+        if _ne is not None and (_ne.startswith("seq ") or _ne.startswith("map ")):
             _inner = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)  # a[i]
             if _ne.startswith("seq "):
                 _read = f"(Seq.get _row {index})"
@@ -4129,7 +4241,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 var_name in getattr(self, "_current_array1d_params", set()))
             if not is_array and not is_dict and var_name:
                 st = getattr(self, "_current_symbol_table", {})
-                if st.get(var_name) == "list":
+                if st.get(var_name) in ("list", "bytes", "bytearray"):
+                    # WL-06 FIX: a bytes/bytearray value is the τ-blessed
+                    # `bytes=int†` array-int-backed buffer (`b : array int`), so a
+                    # byte read `b[i]` must lower to a native `Array.get b i` (a
+                    # coherent `int` byte read), NOT the opaque `subscript_get
+                    # (x:int)(i:int):int` — which, applied to `array int`, is an
+                    # `array int` vs `int` type error. Byte CONTENT stays opaque
+                    # (a faithful `bytes` model is a documented follow-on); the read
+                    # is now a sound, type-checking `int`.
                     is_array = True
                 elif st.get(var_name) in ("dict", "set", "frozenset"):
                     is_dict = True
@@ -4987,6 +5107,68 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return True
         return False
 
+    def _lift_target_seq_index(self, idx_ir: Any, target: str, row_expr: str,
+                               capfree: Set[str]) -> Optional[str]:
+        """nested-list §8/§9 EXTENSION (target-dependent comprehension index).
+        Lift a comprehension index `f(x)` that DEPENDS on the loop target `x`
+        (a `seq τ`) to a pure int logic term over `row_expr` (the per-index source
+        read `src[i]`), or None if it does not soundly lift. The sound grammar:
+          * integer literals,
+          * `len(x)` (the target's length) → `Seq.length row_expr`,
+          * captured int free-vars `c` (≠ target; collected into `capfree` → extra
+            val params),
+          * the total operators `+ - *` and unary `- +` over the above.
+        Every leaf is total and pure; `Seq.length` is a Why3 stdlib logic symbol —
+        so `result[i] = Seq.get (src[i]) (f(src[i]))` is a faithful re-expression
+        of `x[f(x)]` (the SAME term the driver's `\\result[i] == a[i][f(a[i])]`
+        lowers to). A `g(x)` call over the seq, a non-`len` seq operation, or a
+        bare `x` used as an int index do NOT lift → None (kept opaque)."""
+        if not isinstance(idx_ir, dict):
+            return None
+        t = idx_ir.get("type")
+        if t == "Number":
+            v = idx_ir.get("value")
+            if not isinstance(v, int):
+                return None
+            return f"({v})" if v < 0 else str(v)
+        if t == "Var":
+            nm = idx_ir.get("name", "")
+            if nm == target:
+                return None            # a bare seq target is not an int index
+            capfree.add(nm)
+            return whyml_ident(nm)
+        if t == "BinOp":
+            if idx_ir.get("op") not in ("+", "-", "*"):
+                return None
+            _l = self._lift_target_seq_index(idx_ir.get("left", {}), target,
+                                             row_expr, capfree)
+            _r = self._lift_target_seq_index(idx_ir.get("right", {}), target,
+                                             row_expr, capfree)
+            if _l is None or _r is None:
+                return None
+            return f"({_l} {idx_ir.get('op')} {_r})"
+        if t == "UnaryOp":
+            if idx_ir.get("op") not in ("-", "+"):
+                return None
+            _o = self._lift_target_seq_index(
+                idx_ir.get("operand", idx_ir.get("value", {})), target,
+                row_expr, capfree)
+            if _o is None:
+                return None
+            return f"(- {_o})" if idx_ir.get("op") == "-" else _o
+        if t == "Call":
+            # only `len(x)` where x IS the loop target lifts (→ Seq.length of the
+            # per-index row). Any other call over the seq stays opaque.
+            fn = idx_ir.get("func")
+            _args = idx_ir.get("args", []) or []
+            if (fn == "len" and len(_args) == 1
+                    and isinstance(_args[0], dict)
+                    and _args[0].get("type") == "Var"
+                    and _args[0].get("name") == target):
+                return f"(Seq.length {row_expr})"
+            return None
+        return None
+
     def _nested_subscript_comp(self, op_name, gen: Dict[str, Any], target: str,
                                elt: Any, src_ir: Any, local_refs: Set[str],
                                subst: Optional[Dict[str, str]],
@@ -5028,18 +5210,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # passes the same vars. Restricted to vars whose lowering is a bare ident
         # (no `!`-deref) so the decl param name == the term in `idxw`.
         _extra: List[Tuple[str, str]] = []   # (name, whyml_type)
+        binder = "_ci"
+        # nested-list §8/§9 EXTENSION: a TARGET-DEPENDENT seq index `x[f(x)]` where
+        # `f(x)` lifts to a pure int term over `len(x)` (`_lift_target_seq_index`);
+        # None keeps the constant-index path below. The per-index row is `src[_ci]`.
+        _tgt_seq_idx: Optional[str] = None
         if _ne.startswith("seq "):
             _idxfree = set()
-            if not self._comp_elt_pure_int(idx_ir, _idxfree):
-                return None
-            if target in _idxfree:
-                return None
-            for _fv in sorted(_idxfree):
-                _fvw = self._expr_to_whyml({"type": "Var", "name": _fv},
-                                           local_refs or set(), invariant_ctx, subst)
-                if _fvw != whyml_ident(_fv):
-                    return None            # ref-deref / renamed → out of scope
-                _extra.append((_fvw, "int"))
+            _const_ok = (self._comp_elt_pure_int(idx_ir, _idxfree)
+                         and target not in _idxfree)
+            if _const_ok:
+                for _fv in sorted(_idxfree):
+                    _fvw = self._expr_to_whyml({"type": "Var", "name": _fv},
+                                               local_refs or set(), invariant_ctx, subst)
+                    if _fvw != whyml_ident(_fv):
+                        return None        # ref-deref / renamed → out of scope
+                    _extra.append((_fvw, "int"))
+            else:
+                # target-dependent: lift `f(x)` over `len(x)` + captured int params.
+                _capfree: Set[str] = set()
+                _tgt_seq_idx = self._lift_target_seq_index(
+                    idx_ir, target, f"(src[{binder}])", _capfree)
+                if _tgt_seq_idx is None:
+                    return None            # unliftable index → opaque
+                for _fv in sorted(_capfree):
+                    _fvw = self._expr_to_whyml({"type": "Var", "name": _fv},
+                                               local_refs or set(), invariant_ctx, subst)
+                    if _fvw != whyml_ident(_fv):
+                        return None
+                    _extra.append((_fvw, "int"))
         elif _ne.startswith("map "):
             if not (isinstance(idx_ir, dict) and idx_ir.get("type") in ("String", "Var")):
                 return None
@@ -5057,16 +5256,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         n = getattr(self, "_comp_content_counter", 0)
         self._comp_content_counter = n + 1
         op = f"list_content_comp_{n}"
-        binder = "_ci"
-        saved_in_spec = self._in_spec
-        self._in_spec = True
-        try:
-            idxw = self._expr_to_whyml(idx_ir, local_refs or set(), True, subst)
-        finally:
-            self._in_spec = saved_in_spec
+        idxw = None
+        if _tgt_seq_idx is None:
+            # constant / captured index: lower it in spec context (a
+            # target-dependent index is already lifted as `_tgt_seq_idx`).
+            saved_in_spec = self._in_spec
+            self._in_spec = True
+            try:
+                idxw = self._expr_to_whyml(idx_ir, local_refs or set(), True, subst)
+            finally:
+                self._in_spec = saved_in_spec
         if _ne.startswith("seq "):
             res_elem = _ne[len("seq "):]
-            read = f"(Seq.get (src[{binder}]) {idxw})"
+            _sidx = _tgt_seq_idx if _tgt_seq_idx is not None else idxw
+            read = f"(Seq.get (src[{binder}]) {_sidx})"
         elif _ne.startswith("map "):
             # ν = the option's inner type; the missing-key default is typed per ν.
             res_elem = (_ne.split("(option ", 1)[1].rsplit(")", 1)[0]

@@ -21,6 +21,7 @@ from frontend.Module2_Parser import (
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
     CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice, DictView, ForallItems,
     ChainedSubscript,
+    NestedSubscript,
     GhostArraySetDecl,
     MkTupleExpr, FstExpr, SndExpr, ProjExpr, CtorTest, CtorPayload,
     StrConcatExpr, StrLengthExpr, StrSubExpr,
@@ -238,6 +239,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # Best-effort literal-only; a non-literal fields list falls through
         # unchanged (byte-identical fallback).
         self._synthesize_namedtuple_functional(node)
+        # wrong-lowering.md §WL-03: synthesize a per-slot record type_decl for
+        # every recognized fixed-length `Tuple[T1, ..., Tn]` annotation, so a
+        # `Tuple[...]` PARAMETER / FIELD gets the faithful positional-slot model
+        # (`t[1] : string`) instead of the opaque `int` collapse. Runs BEFORE
+        # visiting functions so the param/field type resolvers can resolve a
+        # Tuple annotation to the synthesized record name. Byte-identical for a
+        # module with no recognized Tuple annotation.
+        self._synthesize_tuple_records(node)
 
         # sum-types: `#@ datatype Name = C1 | C2(int) | …` → a variant type_decl, and a
         # constructor registry so a `C1` / `C2(x)` value and a `case C1()` pattern resolve.
@@ -349,6 +358,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         CSLNotIn:         "_csl_not_in",
         CSLSlice:         "_csl_slice",
         ChainedSubscript: "_csl_chained_subscript",
+        NestedSubscript:  "_csl_nested_subscript",
         # Ghost expression nodes
         MkTupleExpr:      "_csl_mktuple",
         FstExpr:          "_csl_fst",
@@ -521,6 +531,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "Subscript",
                 "value": inner,
                 "index": self._csl_to_ir(node.index2)}
+
+    def _csl_nested_subscript(self, node: "NestedSubscript") -> Dict[str, Any]:
+        """nested-list.md §8 EXTENSION: `a[i][j][k]` (depth ≥3) — a Subscript whose
+        base is itself the deeper subscript IR. Recurses through the ChainedSubscript
+        base for depth 2 and NestedSubscript bases for depth ≥3."""
+        return {"type": "Subscript",
+                "value": self._csl_to_ir(node.base),
+                "index": self._csl_to_ir(node.index)}
 
     def _csl_assigns_region(self, node: AssignsRegion) -> Dict[str, Any]:
         return {"type": "AssignsRegion", "base": node.base,
@@ -1417,6 +1435,38 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             self._scan_2d_in_stmt(stmt, param_names, result)
         return sorted(result)
 
+    def _collect_inner_mutated_params(self, body_ir: List[Dict[str, Any]],
+                                      param_names: Set[str]) -> Set[str]:
+        """nested-list-mutable.md: names in `param_names` that are IN-PLACE
+        INNER-MUTATED via `a[i][j] = v` — an `ArraySet` whose `array` is itself a
+        `Subscript` rooted at the param, with non-string indices (a genuine 2-D
+        element write, not a dict-field store). These route to the mutable `matrix
+        int` model. Recurses into nested statement bodies (If/While/For)."""
+        result: Set[str] = set()
+
+        def scan(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "ArraySet":
+                    arr = node.get("array", {})
+                    if isinstance(arr, dict) and arr.get("type") == "Subscript":
+                        root = arr.get("value", {})
+                        if (isinstance(root, dict) and root.get("type") == "Var"
+                                and root.get("name") in param_names):
+                            idx1 = arr.get("index", {})
+                            idx2 = node.get("index", {})
+                            if (idx1.get("type") != "String"
+                                    and idx2.get("type") != "String"):
+                                result.add(root["name"])
+                for v in node.values():
+                    scan(v)
+            elif isinstance(node, list):
+                for x in node:
+                    scan(x)
+
+        for stmt in body_ir:
+            scan(stmt)
+        return result
+
     # --- 3. Main Traversal Hooks ---
 
     @staticmethod
@@ -1502,6 +1552,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if annotation is not None:
             if self._irnode_ann_name(annotation) is not None:
                 return "ExprIR"          # typed-ir-for-b-ceiling.md B-C2 (field)
+            # wrong-lowering.md §WL-03: a recognized fixed-length
+            # `Tuple[T1, ..., Tn]` FIELD resolves to its synthesized per-slot
+            # record (registered by `_synthesize_tuple_records`), so the record
+            # field is the sub-record and `self.f[i]` reads the faithful slot —
+            # NOT the `Tuple`→`list`→`array int` collapse. Bare `tuple` /
+            # `Tuple[T, ...]` → None → the legacy collapse (byte-identical).
+            _tup_tags = self._m5_tuple_slot_tags(annotation)
+            if _tup_tags is not None:
+                return self._m5_tuple_record_name(_tup_tags)
             try:
                 fin_tag = self._normalize_final_annotation(annotation)
                 if fin_tag is not None:
@@ -1949,6 +2008,96 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             self.program_ir.setdefault("constructors", {})
             self.program_ir["constructors"][nt_name] = {"type": nt_name,
                                                            "arity": 0}
+
+    # wrong-lowering.md §WL-03 — a RECOGNIZED fixed-length `Tuple[T1, ..., Tn]`
+    # annotation on a PARAMETER or record FIELD is lowered to a synthesized
+    # per-slot record (reusing the NamedTuple record seam), so `t[i]` reads the
+    # FAITHFUL slot type (`t[1] : string` for `Tuple[int, str]`), not the opaque
+    # `int` collapse. A BARE `tuple` (no subscript) and a variable-length
+    # `Tuple[T, ...]` (Ellipsis) are NOT recognized — they keep the τ-blessed
+    # `int†`/`array int` collapse (byte-identical). Only scalar slot types whose
+    # record-field lowering is faithful are recognized: int/bool → `int`,
+    # `str` → `string`. A `float`/container/class slot returns None → fall back
+    # to the current (collapsed) behaviour rather than emitting an unfaithful
+    # `real`→int record field (record-field `float` is not modeled as `real`).
+    _M5_TUPLE_SLOT_TAGS = {"int": "int", "bool": "int", "str": "str"}
+
+    @staticmethod
+    def _m5_tuple_slot_tags(annotation: ast.expr) -> Optional[List[str]]:
+        """For a recognized fixed-length `Tuple[T1, ..., Tn]` annotation (n >= 1,
+        every Ti a recognized scalar, NO Ellipsis), return the list of IR
+        field-type tags [tag(T1), ..., tag(Tn)]. Returns None for a bare `tuple`,
+        a `Tuple` without a subscript, a variable-length `Tuple[T, ...]`, or a
+        slot whose type is not a recognized faithful scalar."""
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Tuple", "tuple")):
+            return None
+        sl = annotation.slice
+        if isinstance(sl, ast.Index):          # py<3.9 compat
+            sl = sl.value
+        elts = sl.elts if isinstance(sl, ast.Tuple) else [sl]
+        if not elts:
+            return None
+        tags: List[str] = []
+        for e in elts:
+            # Variable-length `Tuple[int, ...]` — the Ellipsis makes this a
+            # homogeneous variadic tuple (list-like), NOT a fixed per-slot
+            # record. Not recognized (falls back to the collapse).
+            if isinstance(e, ast.Constant) and e.value is Ellipsis:
+                return None
+            if isinstance(e, ast.Name) and e.id in PyCSLToJSONEmitter._M5_TUPLE_SLOT_TAGS:
+                tags.append(PyCSLToJSONEmitter._M5_TUPLE_SLOT_TAGS[e.id])
+            else:
+                return None
+        return tags
+
+    @staticmethod
+    def _m5_tuple_record_name(tags: List[str]) -> str:
+        """Deterministic synthesized record name for a recognized Tuple slot
+        signature (`Tuple[int, str]` → `pytuple_int_str`). The `pytuple_` prefix
+        is reserved (a user class of that name would be pathological); dedup is by
+        this name so identical slot signatures share ONE record type_decl."""
+        return "pytuple_" + "_".join(tags)
+
+    def _synthesize_tuple_records(self, node: ast.Module) -> None:
+        """wrong-lowering.md §WL-03: for every recognized fixed-length
+        `Tuple[T1, ..., Tn]` annotation anywhere in the module (parameter, field,
+        return, local), synthesize ONE dedup'd record type_decl with fields
+        `field0, ..., field{n-1}` of the faithful slot types, marked
+        `is_namedtuple: True` so positional access `t[i]` reuses the NamedTuple
+        record-field-by-index lowering. Runs BEFORE functions are visited so the
+        param/field type resolvers (`_m5_get_type_name` / `_field_type_from_
+        annotation`) can resolve a Tuple annotation to the synthesized record
+        name. A module with no recognized Tuple annotation synthesizes nothing
+        (byte-identical)."""
+        seen = {td.get("name") for td in self.program_ir["type_decls"]}
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Subscript):
+                continue
+            tags = self._m5_tuple_slot_tags(child)
+            if tags is None:
+                continue
+            rec_name = self._m5_tuple_record_name(tags)
+            if rec_name in seen:
+                continue
+            seen.add(rec_name)
+            fields = [{"name": f"field{i}", "type": t, "mutable": True}
+                      for i, t in enumerate(tags)]
+            init_params = [f["name"] for f in fields]
+            init_body = [{"field": f["name"],
+                          "value": {"type": "Var", "name": f["name"]}}
+                         for f in fields]
+            self.program_ir["type_decls"].append({
+                "kind": "record", "name": rec_name, "fields": fields,
+                "class_invariants": [], "field_defaults": {},
+                "has_hash": False, "has_eq": False, "is_unhashable": False,
+                "constants": {}, "bases": [],
+                "init_params": init_params, "init_body": init_body,
+                "init_ensures": [],
+                "is_mixin": False, "compose_from": [],
+                "is_namedtuple": True,
+            })
 
     # typing-engagement ty2 / 32-1700-typing-spec-8 — Protocol (PEP 544) helpers.
     # The static plane treats `class P(Protocol)` as a contract interface (a named
@@ -2969,6 +3118,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # legacy path (byte-identical) on any non-PyCSLIRError exception.
         if self._irnode_ann_name(annotation) is not None:
             return "ExprIR"              # typed-ir-for-b-ceiling.md B-C2 (param)
+        # wrong-lowering.md §WL-03: a recognized fixed-length `Tuple[T1, ..., Tn]`
+        # param resolves to its synthesized per-slot record (registered by
+        # `_synthesize_tuple_records`), so `_param_type_str` emits the record
+        # type and `t[i]` reads the faithful slot. Bare `tuple` / `Tuple[T, ...]`
+        # → None → the legacy collapse (byte-identical).
+        _tup_tags = self._m5_tuple_slot_tags(annotation)
+        if _tup_tags is not None:
+            return self._m5_tuple_record_name(_tup_tags)
         try:
             fin_tag = self._normalize_final_annotation(annotation)
             if fin_tag is not None:
@@ -3044,6 +3201,34 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (the emit_ir IR-node sum), so a `body_stmts[-1]` read is an emit_ir node.
             if _en in ("StmtIR", "ExprIR", "IRNode", "ContractExprIR"):
                 return "emit_ir"
+        return None
+
+    @staticmethod
+    def _m5_get_list_flat_elem_whyml(annotation: ast.expr) -> Optional[str]:
+        """WL-04 (wrong-lowering-to-fix.md §WL-04): for a FLAT `List[τ]` param
+        whose element `τ` is a FAITHFUL NON-INT LEAF (`str`→`string`,
+        `float`→`real`), the WhyML element type — so Module6's
+        `_param_type_str` emits `array string` / `array real` (NOT the
+        collapsed `array int`) and a use-site read `a[i]` reads the faithful
+        element type (`a[i] : string` / `: real`, matching a str/float return).
+
+        Returns None for `List[int]`/`List[bool]` (→ byte-identical `array int`;
+        int-leaf is the τ-blessed default), for a NESTED `List[<container>]`
+        (owned one level up by `_m5_get_list_nested_elem_whyml` →
+        `array (seq τ)`), and for any non-`List` annotation. This is the
+        one-level-up flat analog of the nested-list element analysis."""
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("List", "list")):
+            return None
+        sl = annotation.slice
+        if isinstance(sl, ast.Index):          # py<3.9 compat
+            sl = sl.value
+        if isinstance(sl, ast.Name):
+            if sl.id == "str":
+                return "string"
+            if sl.id == "float":
+                return "real"
         return None
 
     # nested-list.md S1: ONE recursive annotation -> WhyML *element-position* type.
@@ -3214,6 +3399,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # nested read `a[i][j]` routes to `Seq.get`/`Map.get`. Empty for every flat
         # `List[int]`/scalar-leaf list (byte-identical `array int`).
         param_list_nested_elem: Dict[str, str] = {}
+        # WL-04: a FLAT `List[str]`/`List[float]` param -> the faithful WhyML
+        # element type ("string"/"real"), so Module6's `_param_type_str` emits
+        # `array string`/`array real` (not the collapsed `array int`) and a
+        # use-site `a[i]` reads the faithful element type. Empty for every flat
+        # `List[int]`/`List[bool]` and nested list (byte-identical `array int`
+        # / `array (seq τ)`).
+        param_list_flat_elem: Dict[str, str] = {}
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
@@ -3259,6 +3451,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _ne = self._m5_get_list_nested_elem_whyml(arg.annotation)
                 if _ne is not None:
                     param_list_nested_elem[arg.arg] = _ne
+                # WL-04: flat non-int list element (str→string, float→real). Only
+                # fires when the nested-container path did NOT (a nested list has a
+                # Subscript element, so `_m5_get_list_flat_elem_whyml` returns None).
+                _fe = self._m5_get_list_flat_elem_whyml(arg.annotation)
+                if _fe is not None:
+                    param_list_flat_elem[arg.arg] = _fe
             # no-more-int emitter L4b: preserve the param's annotated type as a
             # scalar-dict field on the func IR (like `return_annotation`), so it
             # survives import injection — which rebuilds `symbol_table` with `Any`
@@ -3399,7 +3597,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     scope[ga.target] = dtype
 
         return (scope, dict_value_types, dict_key_types, param_annotations,
-                param_list_elem_types, param_list_nested_elem)
+                param_list_elem_types, param_list_nested_elem,
+                param_list_flat_elem)
 
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
@@ -3415,7 +3614,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._cur_literal_ensures = []
         # refactor.md B-final wedge: Module5 computes the scope itself rather than
         # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
-        _sym, _dvt, _dkt, _pann, _plet, _plne = self._build_function_symbol_table(node)
+        (_sym, _dvt, _dkt, _pann, _plet, _plne,
+         _plfe) = self._build_function_symbol_table(node)
         symbol_table = {k: v for k, v in _sym.items() if k != 'self'}
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
@@ -3541,6 +3741,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # nested-list.md S2: outer-list element type for a `List[<container>]`
             # param (`seq ..`/`map ..`). Empty for flat lists → byte-identical.
             "param_list_nested_elem": dict(_plne),
+            # WL-04: flat non-int list element type ("string"/"real") for a
+            # `List[str]`/`List[float]` param. Empty for flat int lists and
+            # nested lists → byte-identical.
+            "param_list_flat_elem": dict(_plfe),
             "param_defaults": param_defaults,
             "has_mutable_default": has_mutable_default,
             "acts": acts_ir,
@@ -3669,7 +3873,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # rectangular `matrix int` model (which drops per-row `len(a[i])`). The matrix
         # path stays for `\length2d`-contract / bare-`list` 2-D params (0018/0019).
         _nested = set(func_ir.get("param_list_nested_elem", {}))
-        array2d -= _nested
+        # nested-list-mutable.md (coexistence): a nested `List[List[int]]` param that is
+        # IN-PLACE INNER-MUTATED (`a[i][j] = v` in the body) CANNOT use the read-only
+        # `array (seq int)` model — the inner `seq` is a PURE/immutable Why3 value. Such
+        # a param routes instead to the MUTABLE built-in `matrix int` model (`Matrix.set`
+        # reads back and is non-aliasing; Gate-B spike nested-list-mutable.mlw). The
+        # matrix model is RECTANGULAR (uniform `columns`) and int-leaf only, so ONLY an
+        # int-leaf (`seq int`) inner-mutated param qualifies; a non-int-leaf
+        # (`List[List[str]]` = `seq string`) or dict-leaf inner mutation stays on the
+        # immutable `array (map/seq ..)` model → rejected (documented boundary). A
+        # read-only nested param stays on `array (seq/map ..)` (ragged-capable — 0797-0800
+        # byte-identical). So subtract from `array2d` only the read-only nested params.
+        _plne = func_ir.get("param_list_nested_elem", {})
+        _inner_mut = self._collect_inner_mutated_params(func_ir["body"], _nested)
+        _matrix_routed = {p for p in _inner_mut if _plne.get(p) == "seq int"}
+        array2d -= (_nested - _matrix_routed)
+        for _p in _matrix_routed:
+            # a matrix-routed param is mutable `matrix int`, NOT `array (seq int)`; drop
+            # its nested-elem tag so Module6 does not also emit the read-only seq model.
+            _plne.pop(_p, None)
         if array2d:
             func_ir["array2d_params"] = sorted(array2d)
         array1d: Set[str] = set()

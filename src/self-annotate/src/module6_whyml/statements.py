@@ -866,6 +866,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     else:
                         code = f"{indent}{body}"
                 elif is_dict:
+                    # wrong-lowering-to-fix.md §WL-05: an item-mutation `d[k] = v`
+                    # of a dict/set PARAMETER is REJECTED. Python passes dicts/sets
+                    # by reference, so the write must be VISIBLE to the caller — a
+                    # faithful model needs proper aliasing/frame (a `writes {d}`
+                    # effect), the SAME hard problem for which RECORD-param mutation
+                    # (static-ref ‡) and LIST inner mutation (nested-list-mutable) are
+                    # documented OUT OF SCOPE. The by-value map param is not a `ref`,
+                    # so the write path below (`d := map_update_some !d k v`) would emit
+                    # internally-inconsistent WhyML (`d :=`/`!d` on a non-ref). Reject
+                    # cleanly here instead of emitting broken WhyML (UB catalog
+                    # `param-collection-mutation`). Local dicts (`_dict_locals`, a `ref`)
+                    # and self-fields (`self_field_name`) are unaffected.
+                    if (self_field_name is None and var_name
+                            and var_name in getattr(self, "_formal_params", [])
+                            and var_name not in getattr(self, "_dict_locals", set())):
+                        self._reject_param_collection_mutation(var_name, f"{var_name}[...] = ...")
                     # Body dict subscript write: `d[k] = v`. `Map.set` is a
                     # pure logic function and Why3 refuses to assign its
                     # result back to a non-ghost ref ("ghost modification
@@ -1343,6 +1359,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # reads it — the recursion's `declared_refs` is a trusted sibling arg.)
                     # Gated on @mutable_state → byte-identical for the corpus.
                     code = f"{indent}()"
+                elif (obj_name in getattr(self, "_formal_params", [])
+                      and obj_name not in getattr(self, "_dict_locals", set())
+                      and getattr(self, "_current_symbol_table", {}).get(obj_name)
+                      in ("set", "dict", "frozenset")):
+                    # wrong-lowering-to-fix.md §WL-05 (set/dict twin of `d[k]=v`): an
+                    # in-place mutation `s.add(x)` / `s.discard(x)` / `s.remove(x)` /
+                    # `d.pop(k)` of a set/dict PARAMETER is REJECTED for the same reason
+                    # as the dict item-write — Python mutates it by reference, the caller
+                    # must SEE it, and the by-value map param carries no `writes {s}` frame.
+                    # (Silently dropping the mutation to a no-op is sound but UNFAITHFUL —
+                    # a caller-visible write vanishes.) Local sets (`_dict_locals`) and the
+                    # deliberate @mutable_state param no-op above are unaffected.
+                    self._reject_param_collection_mutation(obj_name, f"{obj_name}.{method}(...)")
                 else:
                     expr_str = self._expr_to_whyml(val, local_refs)
                     code = f"{indent}let _ = {expr_str} in ()"

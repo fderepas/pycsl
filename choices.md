@@ -626,3 +626,331 @@ This subsumes the existing `_m5_get_dict_value_type` (which already returns `seq
 expressible on `seq` (immutable) → documented residual: reject or keep opaque, never an unsound update.
 Outer whole-row replacement `a[i]=newrow` IS sound and stays expressible. No new axiom (nested read/index
 laws are Why3 stdlib `seq.Seq` / `map.Map`).
+
+## nested-list-mutable (Gate-B spike) — in-place inner mutation `a[i][j]=v` via `matrix int`
+
+**Decision.** A `List[List[int]]` param that is IN-PLACE INNER-MUTATED (`a[i][j] = v` in the body)
+routes to the MUTABLE built-in Why3 **`matrix int`** model. A read-only nested list stays on the landed
+`array (seq τ)` read model. This is a **usage/mutation analysis** (option (a) — coexistence): the two
+representations coexist, selected per-param by whether the body inner-mutates it.
+
+**Why not unify all rectangular-int nested lists onto `matrix` (option (b)).** The landed read drivers
+0797/0798 use RAGGED inputs (`[[1,2],[3,4,5]]`) and prove per-row `len(a[i])` — a `matrix` has a single
+uniform `columns`, so it cannot express ragged per-row length. Unifying would BREAK 0797/0798. The
+mutation analysis keeps read-only nested lists ragged-capable on `array (seq τ)` (0797-0800 byte-identical)
+and only inner-mutated int-leaf params on `matrix int`.
+
+**Why `matrix int` (over flattened `array int` + offsets).** Both are tractable (spike below), but `matrix`
+is the BUILT-IN Why3 mutable 2-D structure — `Matrix.get`/`Matrix.set`/`rows`/`columns` with a proven
+frame — needing zero custom machinery. Flattening needs an offset array + injective-layout reasoning for
+non-aliasing. `matrix` is rectangular int; the natural target.
+
+**Coexistence lowering.** Inner-mutated int-leaf param → dropped from `param_list_nested_elem`, kept in
+`array2d_params` (Module5 `_collect_inner_mutated_params`). Module6: `a[i][j]=v`→`Matrix.set a i j v`,
+`a[i][j]`→`Matrix.get a i j` (both pre-existing array2d paths), `len(a)`→`a.rows`, `len(a[i])`→`a.columns`
+(new, `_handle_len_call`). The `matrix` model is RECTANGULAR (uniform `columns`) — the rectangular
+assumption is structural (same stance as the existing `\length2d` matrix path 0018/0019).
+
+**Spike evidence** (`test-suite/corpus/conformance/spikes/nested-list-mutable.mlw`, Alt-Ergo 2.6.2 / Z3 4.13.3, -t 10):
+- `matrix int` — the emitted imperative `let` VCs (`m_read`, `m_update_readback`, `m_update_noalias`,
+  `m_dims_preserved`, `m_innerlen`) all Valid in BOTH Alt-Ergo (≤0.05s) AND Z3 (≤0.01s). Read-back
+  `(set a i j v; get a i j)=v` and non-aliasing `(i2,j2)≠(i,j) → get unchanged` both Valid.
+  (The pure ghost-`update` goal forms time out in Z3 on map-update E-matching but Alt-Ergo proves them;
+  they are NOT what is emitted — emission uses imperative `set`/`get`, which BOTH provers discharge fast.
+  Per [[smt_timeout_not_unprovable]], an SMT timeout on a non-emitted goal is not a boundary.)
+- flattened `array int` + offset — also all Valid (AE ≤0.05s / Z3 ≤0.02s) but needs custom offset
+  machinery; NOT chosen.
+- `array (array int)` — already Why3 TYPE-REJECTED (mutable element inside `array`); not re-pursued.
+
+**Boundary (honest residual).** In-place inner mutation is int-leaf + rectangular ONLY. A NON-int leaf
+(`List[List[str]]` = `array (seq string)`) inner mutation is REJECTED (hard type failure — immutable `seq`;
+driver 0804). `a[i].append(...)` (shape-change) stays OPAQUE (`append_1` no-op — makes no false post-state
+claim). Ragged in-place mutation is out of the rectangular `matrix` model (UB-catalog: rectangular
+assumption). No new axiom (Matrix get/set/frame laws are Why3 stdlib `matrix.Matrix`).
+
+## nested-list §8/§9 EXTENSION (Gate-B spike) — deeper nesting a[i][j][k] + target-dependent comp index
+
+**Decision.** Both residuals LIFT — no cap below the existing type-recursion bound (`_M5_MAX_NEST_DEPTH=4`).
+(1) A DEEPER nested read `a[i][j][k]` (List[List[List[τ]]] ~ `array (seq (seq τ))`, up to depth 4)
+composes `Seq.get` on the pure inner seqs; the subscript-lowering (S3) is generalized from the fixed
+2-level unfold to a recursive one driven by the element-type string (peel one container per index level).
+(2) A TARGET-DEPENDENT comprehension index `[x[f(x)] for x in a]` where the index lifts to a pure int
+logic term over the loop target `x` (a `seq τ`) — specifically `len(x)` + integer literals + captured
+int params under `+ - *` (e.g. `x[len(x)-1]`) — proves via the content law
+`result[i] = Seq.get (src[i]) (Seq.length (src[i]) - 1)`. An index that does NOT lift to this grammar
+(a call `g(x)` over the seq, a non-`len` seq operation) stays OPAQUE (documented residual).
+
+**Spike evidence** (`test-suite/corpus/conformance/spikes/nested-list-deep.mlw`, Alt-Ergo 2.6.2 / Z3 4.13.3, -t 10):
+- DeepRead: `test_read3` / `test_use3` (depth-3 read consumed at a use-site) / `test_innerlen3`
+  (`len(a[i][j])` = `Seq.length (Seq.get (a[i]) j)`) / `test_read4` (depth-4) — ALL Valid,
+  AE ≤0.03s (≤5 steps) / Z3 ≤0.01s. NO E-matching blowup as nesting deepens (the real risk — cleared).
+- TargetDependentComp: `test_target_idx` (law `result[i] = Seq.get (src[i]) (Seq.length (src[i]) - 1)`
+  consumed at TWO indices) / `test_target_offset` (captured-offset `len(x)-c`) — Valid, AE ≤0.04s
+  (≤29 steps) / Z3 ≤0.02s. The quantified `Seq.length` under `Seq.get` did NOT blow up.
+
+**Why no cap below 4.** Depth 4 (the type-recursion ceiling) is already fast in both provers; deeper
+than 4 the type recursion returns None → the param is not nested-elem → the read stays the opaque
+`subscript_get` fallback (unchanged). So the cap is inherited from the type bound, not a new SMT limit.
+
+**Boundary (honest residual).** (a) A read deeper than depth 4 stays opaque (`subscript_get`) — the
+type-recursion bound. (b) A target-dependent comprehension index that is NOT a `len(x)`-arithmetic term
+(a `g(x)` call over the seq, or any non-`len` seq op) stays OPAQUE (length-only comprehension) — never a
+false content claim. (c) A target-dependent index over a MAP source (`List[Dict[..]]`) stays opaque
+(only seq sources get the target-dependent int index). No new axiom (Seq read/length laws are Why3 stdlib).
+
+## WL-01 — Python `//`/`%` floored division/modulo (SOUNDNESS FIX)
+
+**Decision.** Lower Python floor-division `//` and modulo `%` to Python-faithful **floored**
+semantics, not Why3's Euclidean `div`/`mod`. Python `//` rounds toward −∞ and `%` takes the sign of
+the **divisor**; Euclidean uses a non-negative remainder. The two AGREE when the divisor is positive
+and DIVERGE when it is negative — and PyCSL was PROVING FALSE arithmetic there: `(-7)//(-2)` proved
+`==4` (CPython `3`), `7%(-2)` proved `==1` (CPython `-1`).
+
+**Mechanism (no new axiom).** `pycsl_div`/`pycsl_mod` (body helpers, `src/pycsl/module6_whyml/preamble.py`)
+and the contract-side lowering (`src/pycsl/module6_whyml/expressions.py`, `op in {div,mod}` spec branch)
+correct Euclidean `div`/`mod` by a sign-of-divisor adjustment over the always-in-scope
+`int.EuclideanDivision`:
+`floordiv x y = if mod x y <> 0 && y < 0 then div x y - 1 else div x y`;
+`floormod x y = if mod x y <> 0 && y < 0 then mod x y + y else mod x y`.
+The `ensures` is definitional (`result = <floored term>`), discharged trivially. The spec side inlines
+the same correction with the operands `let`-bound once (no dependency on the divmod helper block being
+emitted, so contract-only usage stays sound).
+
+**Why not a stdlib primitive.** Why3 ships `int.EuclideanDivision` (non-negative remainder) and
+`int.ComputerDivision` (truncated, remainder sign = dividend). Neither IS Python floored. The
+sign-of-divisor correction over the already-`use`d Euclidean theory is the minimal, name-clash-free
+derivation (adding `ComputerDivision` would clash `div`/`mod` unqualified).
+
+**SMT feasibility (spike).** `test-suite/corpus/conformance/spikes/wl01_floored_divmod_spike.mlw`:
+all concrete goals (`(-7)//(-2)=3`, `7%(-2)=-1`, `(-7)//2=-4`, `7//2=3`, the `<> 4`/`<> 1` guards, and
+the sign/bound law for `%`) are **Valid on both Alt-Ergo 2.6.2 and Z3 4.13.3**. The general nonlinear
+identity `x = (x//y)*y + (x%y)` is Valid on Alt-Ergo (0.04s) and times out only on Z3 (documented
+nonlinear-multiplication instability) — irrelevant, since the drivers are concrete. No cited Rocq/Lean
+lemma needed.
+
+**Positive-divisor byte-identity.** For `y > 0` the correction condition `y < 0` is false, so the
+emitted body reduces to the old `div x y`/`mod x y`. The emission differs only for programs that use
+`//`/`%` (33 reference files: the helper block + contract-side term); positive-divisor arithmetic
+proves exactly as before.
+
+**Regression locks.** `test-suite/corpus/pycsl-reference/0811.py` (POSITIVE: faithful floored values
+incl. symbolic-divisor `\result == a//b`), `0812.py` (NEGATIVE `# pycsl-expected: FAIL`: the old false
+`==4`). Repro drivers `getting-better/wrong-lowering/wl01_*`. Translational-reference §T.11 G1 marked
+RESOLVED (its `(-7)//2` example was itself wrong — Euclidean agrees for a negative *dividend*; the
+divergence is a negative *divisor*).
+
+**Note for WL-02 (true `/`).** Untouched by WL-01: `/` shared the `pycsl_div` mechanism (int operands →
+floored int div). The real fix — `/` returns a `real` — is now landed as a separate concern (see the
+WL-02 decision below); this WL-01 change kept the mechanism clean for it.
+
+---
+
+## WL-02 — Python `/` (TRUE division) lowers to REAL, not integer `div` (SOUNDNESS)
+
+**Date:** 2026-07-05. **Branch:** `ghost-assign-bc6`.
+
+**Decision.** Python `/` is TRUE division and ALWAYS returns a `float` (`5 / 2 == 2.5`, even for int
+operands). PyCSL previously lowered a body/contract `/` to the integer Euclidean `pycsl_div`, dropping
+the fractional part and UNSOUNDLY proving the false `5 / 2 == 2`. `/` now lowers — in a body **and** in
+a contract — to a **real** division: both int operands are lifted to `real` via `real.FromInt`
+(`from_int`) and divided over the reals with `real.RealInfix` (`/.`). Contract: `from_int a /. from_int
+b`. Body: one abstract `val float_truediv_op (a b: int) : real ensures { result = from_int a /. from_int
+b }` (`from_int` is a logic symbol, unusable in a program term). FLOOR division `//` (IR op `"div"`) is
+UNCHANGED — it stays integer floored (WL-01 intact). Only `/` (IR op `"/"`) is affected.
+
+**Fail-close, not truncate.** Because a `/` result is a `real`, using it at `int` type (`-> int`,
+`#@ ensures \result == 2`) is a real-vs-int **type error** (fail-closed) — never a silent integer
+truncation. This is the documented int/float-mixing boundary. To assert an integer quotient, use `//`.
+
+**No smuggled axiom.** Real division is SMT-direct on Alt-Ergo AND Z3 — no cited lemma, `proof_axiom_
+allowlist` unchanged. Spike: `test-suite/corpus/conformance/spikes/wl02_truediv_real_spike.mlw`.
+
+**Import gating (byte-identity).** `use real.RealInfix`/`use real.FromInt` are emitted only when
+`IRScanner.uses_true_division` finds a BinOp op `"/"`. A program with no `/` is byte-identical. Corpus
+byte-diff: only the 13 programs that used a contract `/` to mean integer division changed.
+
+**Corpus reclassification.** 13 reference programs used `/` in a CONTRACT to mean integer division
+while the body used `//` (e.g. `0353` `\result == 256 / n`, body `256 // n`; `0004`/`0203`/`0209`
+Gauss-sum `n*(n±1)/2`). They RELIED on the old unsound `/`→int. Reclassified by spelling the contract
+with `//` (the sound integer division matching the body): all 13 still PROVE; emission byte-identical
+(10) or differs only by dropping a dead unused `pycsl_div` helper (3, contract-only division).
+
+**Regression locks.** `0813.py` (POSITIVE: `5/2==2.5`, `1/2==0.5`, `7/2==3.5`, exact `4/2==2.0` at
+`float`, plus a `5//2==2` integer guard), `0814.py` (NEGATIVE `# pycsl-expected: FAIL`: the old
+int-truncation `5/2==2`). Repro drivers `getting-better/wrong-lowering/wl02_truediv_{UNSOUND,TRUE}.py`.
+Concrete-syntax §3.2.8 and translational-reference "True Division (`/`)" corrected (they previously
+documented `/`→Euclidean `div` for contracts — that was the bug).
+
+---
+
+## wrong-lowering WL-03 — realize a recognized `Tuple[T1,…,Tn]` param/field as a synthesized per-slot NamedTuple record (reuse, not a new tuple type)
+
+**Context.** A `Tuple[...]`-annotated PARAMETER (and record FIELD) collapsed to bare `int` with an
+opaque `subscript_get (x:int)(i:int):int`: a `Tuple[int,str]` param `t[1]` read an int at a `string`
+use site (TYPEERR), and an all-int `Tuple[int,int]` param's `t[0]` was content-opaque. The faithful
+per-slot model existed ONLY for locally-constructed / returned tuples (the LOCAL baseline is actually
+literal-folded — `t[1]`→`20` — not a real record). The τ-table row `τ(Tuple[T1,…]) = tuple` was
+UNQUALIFIED but the param/field realization silently diverged to `int`.
+
+**Options.** (1) A native WhyML anonymous tuple type `(int, string)` for the param — REJECTED: Why3 has
+no field/`.1` projection on anonymous tuples, so a subscript-expression `t[i]` cannot be lowered
+cleanly (needs a `match ... with (a,b) ->` destructure, awkward in a contract term). (2) A brand-new
+bespoke tuple record family with its own subscript lowering — REJECTED: duplicates the NamedTuple
+positional-access machinery that already lowers `p[i]` to a record-field-by-index read. (3) **CHOSEN:**
+synthesize ONE dedup'd per-slot record `type pytuple_<tags> = { field0: τ(T1); … }` marked
+`is_namedtuple: True`, and resolve a recognized `Tuple[…]` param/field annotation to it — reusing
+`_param_type_str` (record param), `_namedtuple_positional_access` (`t[i]`→`t.field{i}`), and the
+record-field emitter verbatim.
+
+**Choice.** Option 3. Module5 `_synthesize_tuple_records(node)` walks the module for recognized
+fixed-length `Tuple[T1,…,Tn]` annotations (int/bool→int, str→string slots; NO Ellipsis) and appends a
+dedup'd namedtuple record type_decl BEFORE functions/classes are visited; `_m5_get_type_name` (param)
+and `_field_type_from_annotation_inst` (field) return the synthesized record name for a recognized
+Tuple. A record-PARAM field read (`b.p[1]`) is enabled by teaching `_field_type_of` to consult
+`_record_param_classes`; the preamble record emitter emits a nested-record field type.
+
+**Rationale.** Maximal reuse of the already-proven NamedTuple seam; **byte-identical** across the whole
+695-file corpus (no corpus program uses a recognized `Tuple[…]` param/field → fully additive); the fix
+is exactly the recognized-`Tuple[T1,…]` param/field surface. Bare `tuple` and variable-length
+`Tuple[T, …]` (Ellipsis) stay the τ-blessed `int †` collapse. **Scope limit:** a float/container/class
+slot is NOT recognized (record-field `float` is not modeled as `real`) → those fall back to the current
+collapse rather than emit an unfaithful `real`→int field; that is a fail-safe (documented in the
+τ-table `record` row and `wrong-lowering-to-fix.md` §WL-03).
+
+**No smuggled axiom.** The per-slot record read is SMT-direct on Alt-Ergo AND Z3 — no cited lemma,
+`proof_axiom_allowlist` unchanged. Spike:
+`test-suite/corpus/conformance/spikes/wl03_tuple_param_slot_spike.mlw` (all goals Valid on both provers).
+
+**Regression locks.** `0815.py` (POSITIVE: mixed `Tuple[int,str]` `t[1]==<str>` / `t[0]==<int>` and
+homogeneous `Tuple[int,int]` `t[0]`/`t[1]` param slot reads), `0816.py` (NEGATIVE `# pycsl-expected:
+FAIL`: a false slot-content conflation `\result==t[1]` while returning `t[0]`). Repro drivers
+`getting-better/wrong-lowering/wl03_tuple_{param_COLLAPSED,local_FAITHFUL}.py` (param → PROVEN, local
+baseline stays PROVEN). τ-table (`τ(Tuple[T1,…,Tn]) = record`) and `wrong-lowering-to-fix.md` §WL-03
+(→ FIXED) updated.
+
+## wrong-lowering WL-04 — realize a FLAT `List[str]`/`List[float]` param element as `array string`/`array real` (one-level-up analog of the nested `array (seq τ)` model)
+
+**Context.** WL-04 (COLLAPSED-with-consumer, severity 3): a FLAT `List[str]`/`List[float]` PARAMETER
+collapsed its element to `int` (`let f (a: array int) … : string = a[i]` — `a[i] : int` vs a `string`
+return), so a legitimate faithful-typed function was REJECTED as ill-typed WhyML (TYPEERR), not
+verified nor cleanly diagnosed. The nested campaign (0797–0810) already proved the faithful element
+model (`List[List[τ]] ~ array (seq τ)`); WL-04 is the flat leaf case it skipped.
+
+**Choice.** Realize a flat `List[τ]` PARAMETER's element as the faithful `τ` when `τ ∈ {str→string,
+float→real}`. Module5 `_m5_get_list_flat_elem_whyml(annotation)` maps `List[str]`→`"string"` /
+`List[float]`→`"real"` (and returns None for `List[int]`/`List[bool]` and any nested
+`List[<container>]`, whose slice is a Subscript), captured at the param site into a NEW IR field
+`param_list_flat_elem`. Module6 `_reset_function_state` loads it as `self._param_list_flat_elem`, and
+`_param_type_str` consumes it (emitting `array {τ}`) in the flat-list arm, RIGHT AFTER the nested
+`_list_nested_elem` branch. The subscript READ path is UNCHANGED — the `is_array` branch's `Array.get`
+is element-polymorphic, so `a[i] : string`/`: real` matches the str/float use site.
+
+**Rationale.** Maximal reuse of the nested-list threading pattern (a dedicated per-param map + one
+`_param_type_str` branch); a NEW dedicated map (not the pre-existing `param_list_elem_types`, whose
+"string"/"emit_ir" tags carry @mutable_state semantics) keeps the @mutable_state builder and the
+field paths BYTE-IDENTICAL. **Byte-identical** across the whole 697-file corpus (verified via
+`bin/byte-diff-sweep.sh`): no corpus program has a flat `List[str]`/`List[float]` PARAM (0746 is a
+`Dict[str, List[str]]` FIELD; 0804 is a nested `List[List[str]]` param → the nested path) → fully
+additive. `List[int]`/bare-`list` stay `array int`; the nested-list work (0797–0810) and WL-03
+tuples (0815/0816) are untouched.
+
+**Scope limit / fail-safe.** A `List[str]`/`List[float]` LOCAL or `-> List[str]` RETURN built by a
+LIST LITERAL (`a = ["x","y"]`) still collapses its string/float ELEMENTS through the pre-existing
+list-literal construction (a DISTINCT surface, not the parameter-element collapse of §WL-04); the
+param-only change does not touch it. `List[<record>]` flat element is a documented follow-on (would
+need the WL-03 record-synthesis seam threaded to the flat list param). Both noted in
+`wrong-lowering-to-fix.md` §WL-04 and the τ-table row.
+
+**No smuggled axiom.** The `array string`/`array real` element read is SMT-direct on Alt-Ergo AND Z3
+— a native `array` read, no cited lemma, `proof_axiom_allowlist` unchanged. Spike:
+`test-suite/corpus/conformance/spikes/wl04_list_flat_elem_spike.mlw` (all goals Valid on both provers).
+
+**Regression locks.** `0817.py` (POSITIVE: `List[str]` element reads, `\result == a[i]` at `string`),
+`0818.py` (POSITIVE: `List[float]` element reads, fractional value preserved at `real`), `0819.py`
+(NEGATIVE `# pycsl-expected: FAIL`: a false element-content conflation `\result == a[1]` while
+returning `a[0]`). Repro drivers `getting-better/wrong-lowering/wl04_list_{str,float}_elem_COLLAPSED.py`
+(both → PROVEN, was TYPEERR). τ-table rows (`τ(List[str]) = array string`, `τ(List[float]) = array
+real`) and `wrong-lowering-to-fix.md` §WL-04 (→ FIXED) updated.
+
+---
+
+## WL-05 — dict/set PARAMETER item-mutation: CLEAN REJECTION (option 1) over faithful frame
+
+**Date:** 2026-07-05. **Branch:** `ghost-assign-bc6`. **Finding:** `wrong-lowering-to-fix.md` §WL-05
+(WRONG-REPR, severity 4).
+
+**Defect.** An item-mutation `d[k] = v` (`ArraySet`) of a `Dict[...]`/`Set[...]` PARAMETER emitted
+internally-inconsistent WhyML: `d := map_update_some !d k v; … Map.get d k` — it treated the by-value
+param `(d: map string (option int))` as a mutable `ref` (`d :=`, `!d`) AND then read bare `d` (not `!d`)
+→ `string -> option int but is expected to have type ref 'mu`. Fail-closed (no false green), but a
+broken/incoherent lowering. The set twin `s.add(x)`/`s.discard(x)`/`s.remove(x)` on a standalone param
+silently DROPPED the mutation to a no-op (`let _ = s_add_1 x in ()`) — sound but UNFAITHFUL.
+
+**Decision — CLEAN REJECTION (option 1), NOT a `ref`-wrapped param (option 2).** Python passes
+dicts/sets BY REFERENCE, so an item-mutation of a PARAMETER must be VISIBLE to the caller — a faithful
+model needs a caller-visible mutation frame (`writes {d}`) on a mutable-map parameter. That is the SAME
+aliasing/frame problem for which RECORD-param mutation (static-ref ‡) and nested-LIST inner mutation
+(nested-list-mutable) are already documented OUT OF SCOPE. A `ref`-wrapped LOCAL-COPY model (option 2)
+would be UNFAITHFUL — the caller would not see the change — so it is not shippable here. The consistent,
+sound fix mirrors the record/list param-mutation boundary: **reject** dict/set param item-mutation with
+a clear diagnostic instead of emitting broken (or silently-wrong) WhyML.
+
+**Implementation.** `module6_whyml/statements.py::_reject_param_collection_mutation` raises
+`PyCSLSemanticError` (code `PYCSL-WHYML-PARAM-COLLECTION-MUT`, a clean `[!] PIPELINE ERROR:`). Wired at
+the dict item-write site (`_handle_array_set_stmt`, `is_dict` branch) and the set/dict `.add`/`.discard`/
+`.remove` call site. Gated to a FORMAL param (`_formal_params`) dict/set that is NOT a `ref`-bound LOCAL
+(`_dict_locals`), NOT a self-field (which HAS a frame), and NOT the deliberate `@mutable_state` param
+no-op (typed-ir §13). Harness verdict `REJECTED` added to `bin/find-wrong-lowering.py` (a clean pipeline
+rejection is a distinct, SOUND outcome from a broken TYPEERR).
+
+**Additive / no regression.** The full 700-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
+(`bin/byte-diff-sweep.sh`, before/after via HEAD worktree — all corpus dict/set writes are LOCAL or
+self-field, none mutate a PARAM). NO new axiom (`proof_axiom_allowlist` unchanged). `\trusted`
+non-increasing.
+
+**Regression locks.** `0820.py` (NEGATIVE `# pycsl-expected: FAIL`: dict param `d[k]=v` rejected),
+`0821.py` (NEGATIVE `# pycsl-expected: FAIL`: set param `s.add` rejected), `0822.py` (POSITIVE: LOCAL
+dict write-read-back still proves), `0823.py` (POSITIVE: LOCAL set add-membership still proves). Repro
+drivers `getting-better/wrong-lowering/wl05_{dict,set}_param_mut_WRONGREPR.py` (both → REJECTED, dict was
+TYPEERR; set was a silent no-op). Baseline `wl05_dict_local_FAITHFUL.py` STAYS PROVEN. UB catalog §7.9,
+static-semantics §In-place mutation of a dict/set PARAMETER, translational §T.14.2 param note, and
+`wrong-lowering-to-fix.md` §WL-05 (→ FIXED) updated.
+
+## WL-06 — bytes/bytearray subscript `b[i]` routes to native `Array.get` (COHERENCE fix, not content faithfulness)
+
+**Context.** WL-06 (`wrong-lowering-to-fix.md`, the LAST wrong-lowering finding, WRONG-REPR/4). A
+`bytes`/`bytearray` PARAMETER is the τ-blessed `bytes=int†` array-int-backed buffer (`b : array int` —
+correct), but a subscript READ `b[i]` routed to the opaque `val subscript_get (x:int)(i:int):int`
+applied to `b : array int` — an `array int` vs `int` type error. The read was BOTH un-verifiable AND
+internally inconsistent (fail-closed TYPEERR).
+
+**Decision — route the read to the native array backing (`Array.get` / `Array.length`), NOT a new
+faithful `bytes` value model.** A bytes value is ALREADY `array int`; the `list`/array subscript path
+already emits a coherent `Array.get b i` (an `int`), so the fix REUSES it — `_handle_subscript` and the
+`len` handler recognize a `bytes`/`bytearray` symbol-table type on the same array branch as `list`. This
+is the minimal, coherent repair: the read now type-checks and, under a bounds `requires`, the
+deterministic property `\result == b[i]` proves. `len(b)` likewise lowers to `Array.length b` (was the
+unbound `iter_length` stub) so a bounds `requires i < len(b)` type-checks.
+
+**Scope (honest).** The τ-blessed `bytes=int†` type is UNCHANGED — byte CONTENT stays the OPAQUE
+residual: what is sound is that the read is a well-typed `int` denoting a fixed buffer cell (body `b[i]`
+== contract `b[i]`; distinct indices independent), NOT the exact byte value. A faithful `bytes` value
+model (byte-range 0..255, encode/decode, `struct` round-trip) is the separate, larger follow-on
+(`missing-bytes-struct-feature.md` Phases 2-5). The FIX is COHERENCE (type-checks, sound `int` read),
+not content faithfulness. A local-copy or opaque-content option was NOT needed — the array backing is
+the natural, sound model.
+
+**Implementation.** `module6_whyml/expressions.py`: `_handle_subscript` array-detection and the `len`
+handler each add `bytes`/`bytearray` to the `("list", …)` symbol-table array branch (2 small edits).
+
+**Additive / no regression.** The full 704-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
+(`bin/byte-diff-sweep.sh`, before/after via stash — only the two new locks 0824/0825 differ); no corpus
+program has a `bytes`/`bytearray` subscript read or `len(bytes)` → additive. NO new axiom. `\trusted`
+non-increasing.
+
+**Regression locks.** `0824.py` (POSITIVE: `bytes`/`bytearray` `b[i]` reads under a bounds `requires`,
+`\result == b[i]`, concrete-index slot independence — PROVES), `0825.py` (NEGATIVE `# pycsl-expected:
+FAIL`: a false byte-content conflation `b[0]` claimed `== b[1]` — stays UNPROVEN, confirms no
+over-claim). Repro `getting-better/wrong-lowering/wl06_bytes_index_WRONGREPR.py` → TYPEERR→type-checks
+(bare read UNPROVEN on the honest bounds VC). `wrong-lowering-to-fix.md` §WL-06 (→ FIXED) + summary
+table (ALL 6 WL-* FIXED), and translational §T.15.6 updated.

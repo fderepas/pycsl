@@ -2,7 +2,7 @@
 _ = 0  # anchor
 #@ requires d != 0
 #@ requires 0 <= i and i < \length(arr)
-#@ ensures \result == arr[i] / d
+#@ ensures \result == arr[i] // d
 #@ assigns \nothing
 #@ no_exception \all
 def all_safe(arr: list, i: int, d: int) -> int:

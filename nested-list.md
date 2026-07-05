@@ -191,10 +191,89 @@ change (definitional `ensures`; Seq/Map read laws are Why3 stdlib). doc-coherenc
 
 **Drivers added:** 0797 (nested read), 0798 (inner len), 0799 (subscript-projection comprehension —
 boundary lifted), 0800 (`List[Dict[str,int]]` element read), 0801 (NEGATIVE false nested content),
-0802 (NEGATIVE inner mutation `a[i][j]=v` rejected).
+0802 (POSITIVE in-place inner mutation read-back — see §9), 0803 (POSITIVE non-aliasing — §9),
+0804 (NEGATIVE non-int-leaf inner mutation rejected — §9).
 
-**Residual boundaries (honest, never a false claim):** (1) in-place INNER mutation `a[i][j]=v` /
-`a[i].append(..)` — rejected (hard type/verification failure; the inner `seq` is immutable), driver 0802;
-(2) `a[i][j][k]` deeper than 2 levels, and a target-dependent comprehension index `x[f(x)]` — opaque;
-(3) an un-annotated / bare-`list` nested param, or a leaf deeper than the depth bound — stays `array int`;
-(4) a `\length2d`-contract rectangular param stays `matrix int`.
+**Residual boundaries (honest, never a false claim):** (1) in-place INNER ELEMENT mutation `a[i][j]=v`
+is now SUPPORTED for RECTANGULAR int-leaf `List[List[int]]` via the mutable `matrix int` model (§9);
+a NON-int-leaf inner mutation, `a[i].append(..)` (shape-change), and ragged in-place mutation remain
+boundaries (§9); (2) `a[i][j][k]` deeper than 2 levels, and a target-dependent comprehension index
+`x[f(x)]` — **NOW DONE (§10)**; (3) an un-annotated / bare-`list` nested param, or a leaf deeper than the
+depth bound — stays `array int`; (4) a `\length2d`-contract rectangular param stays `matrix int`.
+
+---
+
+## 9. OUTCOME 2 — in-place inner element mutation `a[i][j]=v` (nested-list-mutable, branch ghost-assign-bc6)
+
+**Representation chosen: an in-place inner-mutated `List[List[int]]` ~ `matrix int`** (the mutable
+built-in Why3 2-D structure), coexisting per-param with the read-only `array (seq τ)` model.
+
+**Gate-B spike** (`test-suite/corpus/conformance/spikes/nested-list-mutable.mlw`, decision in `choices.md`).
+Compared `matrix int` vs flattened `array int`+offsets (both tractable; `array (array int)` already
+type-rejected). The emitted imperative `let` VCs — read `Matrix.get`, update read-back
+`(set a i j v; get a i j)=v`, non-aliasing `(i2,j2)≠(i,j) → get unchanged`, `dims_preserved`, `innerlen`
+— all **Valid in BOTH Alt-Ergo (≤0.05s) AND Z3 (≤0.01s)**. (Z3 times out only on the pure ghost-`update`
+GOAL forms — map-update E-matching — which are NOT emitted; Alt-Ergo proves them; per
+`smt_timeout_not_unprovable` an SMT timeout on a non-emitted goal is not a boundary.) `matrix` WINS on
+tractability + built-in status (zero custom machinery; the plan's natural target).
+
+**Coexistence strategy (usage/mutation analysis).** A nested-list param has ONE WhyML type. Module5
+`_collect_inner_mutated_params` detects the `a[i][j]=v` write; an INT-leaf inner-mutated param is dropped
+from `param_list_nested_elem` and kept in `array2d_params` → emitted as `matrix int`. A read-only nested
+param stays on `array (seq τ)` (ragged-capable). This is the SOUND minimal-disruption choice: the landed
+read drivers 0797/0798 use RAGGED inputs and prove per-row `len(a[i])`, which a rectangular `matrix`
+(single `columns`) cannot express — so UNIFYING all rectangular-int nested lists onto `matrix` was
+rejected (would break 0797/0798). Lowering: `a[i][j]=v`→`Matrix.set`, `a[i][j]`→`Matrix.get`,
+`len(a)`→`a.rows`, `len(a[i])`→`a.columns` (the last two new in `_handle_len_call`).
+
+**What now works vs stays boundary.** WORKS: rectangular int-leaf `a[i][j]=v` read-back (0802) +
+non-aliasing (0803), fully usable alongside `a[i][j]` read and `len`. BOUNDARY (honest, never a false
+claim): a NON-int-leaf inner mutation (`List[List[str]]` = immutable `array (seq string)`) is REJECTED
+(hard type/verification failure; NEGATIVE 0804); `a[i].append(..)` (shape-change / nested growable) stays
+OPAQUE (`append_1` no-op — no false post-state claim); ragged in-place mutation is out of the rectangular
+`matrix` model (UB catalog §7.8 — the rectangular assumption is a structural precondition, same stance as
+the `\length2d` matrix path). No unsound update is ever emitted (Matrix get/set/frame are Why3 stdlib).
+
+**Emission differential** = EXACTLY the new mutable-nested programs. Read-only nested drivers 0797–0800
+and flat `List[int]`/`Dict[..]` byte-IDENTICAL (the routing fires only on a nested param the body
+inner-mutates via `a[i][j]=v` — no passing corpus file did this before). No `proof_axiom_allowlist`
+change. doc-coherency + mirror-sync green.
+
+---
+
+## 10. OUTCOME 3 — deeper nesting `a[i][j][k]` + target-dependent comp index (branch ghost-assign-bc6)
+
+Both residuals flagged in §8-(2) are now DONE — no cap below the existing type-recursion bound
+(`_M5_MAX_NEST_DEPTH = 4`). Gate-B spike `test-suite/corpus/conformance/spikes/nested-list-deep.mlw`
+(decision in `choices.md`): depth-3 AND depth-4 reads, and a target-dependent comp law at two indices,
+ALL Valid in BOTH Alt-Ergo 2.6.2 (≤0.04s, ≤29 steps) AND Z3 4.13.3 (≤0.02s) — NO E-matching blowup as
+nesting deepens (the real risk).
+
+**Item 1 — deeper nesting `a[i][j][k]` (depth 3–4).** A `List[List[List[τ]]]` param lowers to
+`array (seq (seq τ))` and the subscript READ composes RECURSIVELY: `a[i][j][k]` →
+`Seq.get (Seq.get (a[i]) j) k`, `len(a[i][j])` → `Seq.length (Seq.get (a[i]) j)`, up to depth 4. The
+former FIXED 2-level unfold in `_handle_subscript` is generalized via `_nested_access_type` /
+`_peel_container` (peel one container level per index level); `_handle_len_call` routes deeper `len`
+through the same. The contract grammar gained a `NestedSubscript` node (Module2 parse loop; Module5
+lowering) so a THIRD+ index parses in an annotation (`\result == a[i][j][k]`); depth ≤2 stays
+`ChainedSubscript` (byte-identical). Deeper than 4: the type recursion returns None → the param is not
+nested-elem → the deep read falls to the opaque `subscript_get` and does NOT type-check as a faithful
+read (rejected, never silently accepted). Drivers **0805** (depth-3 positive), **0806** (NEGATIVE false
+deeper content), **0807** (BOUNDARY: depth-5 beyond the cap, expected FAIL).
+
+**Item 2 — target-dependent comprehension index `x[f(x)]`.** The subscript-projection comprehension
+`[x[f(x)] for x in a]` over a `List[List[τ]]` source is now content-faithful when the index `f(x)` lifts
+to a pure int logic term over the loop target `x` (a `seq τ`) — specifically `len(x)` + integer literals
++ captured int params under `+ - *` (e.g. `x[len(x)-1]`). `_lift_target_seq_index` lifts it; the content
+law becomes `result[i] = Seq.get (src[i]) (Seq.length (src[i]) - 1)` — the SAME term the driver's own
+`\result[i] == a[i][len(a[i])-1]` lowers to. An index that does NOT lift to this grammar (a `g(x)` call
+over the seq, a non-`len` seq op) stays OPAQUE (length-only comprehension); a target-dependent index over
+a MAP source stays opaque. Drivers **0808** (positive `[x[len(x)-1] for x in a]`), **0809** (NEGATIVE
+false first-vs-last index claim).
+
+**Gates.** Emission of every flat / depth-≤2 / constant-index corpus program is BYTE-IDENTICAL (685-file
+diff empty; only the 5 new drivers 0805–0809 differ). Full corpus green (the 3 failures 0540/0700/0701
+are pre-existing, not regressions; nested-list drivers 0797–0804 stay green). No `proof_axiom_allowlist`
+change (definitional `ensures`; Seq read/length laws are Why3 stdlib `seq.Seq`). doc-coherency +
+mirror-sync green, `\trusted` non-increasing. Docs: τ-table + concrete/static/translational + annotations
+updated; decisions appended to `choices.md`.

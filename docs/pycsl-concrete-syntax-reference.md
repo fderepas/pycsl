@@ -446,7 +446,7 @@ atom ::= NUMBER                                          (* §3.1.1  Integer lit
        | CNAME "(" expr_list ")"                         (* §3.1.17 Function call (args)  *)
        | CNAME "(" ")"                                   (* §3.1.17 Function call (no args) *)
        | CNAME "[" expr ":" expr "]"                     (* §3.1.20 Slice notation        *)
-       | CNAME "[" expr "]" "[" expr "]"                 (* §3.1.4b Chained subscript     *)
+       | CNAME "[" expr "]" "[" expr "]" { "[" expr "]" }  (* §3.1.4b Chained subscript (depth ≥2; a THIRD+ index is `NestedSubscript`, nested-list.md §8 EXTENSION — `a[i][j][k]` up to the type-recursion depth bound 4) *)
        | CNAME "[" expr "]" "." CNAME                    (* §3.1.4c Subscript projection  *)
        | "\result" "[" expr "]" "." CNAME               (* §3.1.5c Result subscript proj *)
        | CNAME "[" expr "]"                              (* §3.1.4  Subscript access      *)
@@ -481,7 +481,7 @@ top-to-bottom. Longer prefixes must appear before shorter ones:
 | 3.1.2 | `x`, `n`, `total` | `Var` | Variable reference. Must match `CNAME` (letter or underscore, followed by letters, digits, or underscores). |
 | 3.1.3 | `self.field` | `FieldAccess` | Class field access. The object is always the literal string `"self"`. |
 | 3.1.4 | `arr[i]` | `SubscriptAccess` | Array element access. The array name is a `CNAME`; the index is an arbitrary `expr`. |
-| 3.1.4b | `arr[i][j]` | `ChainedSubscript` | 2D array element access. The array name is a `CNAME`; both indices are arbitrary `expr`. Only two levels of chaining are supported (not 3D+). |
+| 3.1.4b | `arr[i][j]` (`arr[i][j][k]`…) | `ChainedSubscript` (`NestedSubscript` for depth ≥3) | Nested array/collection element access. The array name is a `CNAME`; all indices are arbitrary `expr`. Depth 2 is `ChainedSubscript` (byte-identical); a THIRD and further index level wraps in `NestedSubscript` nodes (nested-list.md §8 EXTENSION), lowering to composed `Seq.get` on a `List[List[List[τ]]]` ~ `array (seq (seq τ))` param, up to the type-recursion depth bound 4. Deeper than 4 falls to the opaque `subscript_get` (rejected, not a faithful read). |
 | 3.1.4c | `arr[i].field` | `SubscriptFieldAccess` | Field PROJECTION off a subscripted collection element (cleared-array.md S2). The array name is a `CNAME`, the index an arbitrary `expr`, the field a `CNAME`. Lowers to `Attribute(Subscript(Var(arr), index), field)` — the SAME IR the body path produces for `a[i].x`, so the abstract getter `get_<field>` matches a projection-comprehension content law. The consumer of `\result[k] == a[k].x`. |
 | 3.1.5 | `\result` | `Result` | Return value of the current function. Valid only in `ensures` clauses (checked by static semantics, not syntax). |
 | 3.1.5b | `\result[i]` | `ResultSubscript` | Subscript into the return value. Parsed as a distinct atom with the `expr` index. |
@@ -570,10 +570,21 @@ unary       ::= UNARY_OP unary
 | 3.2.9 | 9 (highest) | `not`, unary `-`, unary `+` | `UNARY_OP` | Right (prefix) | `UnaryOp` |
 
 **Notes:**
-- `/` in contracts maps to WhyML `div` (Euclidean integer division), not
-  Python's float division.
-- `//` also maps to WhyML `div`.
-- `%` maps to WhyML `mod`.
+- `//` (floor division) and `%` (modulo) map to Python's **floored**
+  semantics: a floored `div`/`mod` that corrects Why3's Euclidean `div`/`mod`
+  by a sign-of-divisor adjustment (rounds toward −∞; remainder sign follows
+  the divisor). The positive-divisor case coincides with Euclidean `div`/`mod`.
+  Both operands and the result stay **integer** (`int.Int`).
+- `/` (TRUE division) maps — in a body **and** in a contract — to Python's
+  **true/float** semantics: it ALWAYS yields a `real` (float), even on integer
+  operands (`5 / 2 == 2.5`). The lowering lifts both int operands to `real` via
+  `real.FromInt` (`from_int`) and divides over the reals (`real.RealInfix` `/.`);
+  a body `/` bridges through `val float_truediv_op (a b: int) : real ensures
+  { result = from_int a /. from_int b }`. Because the result is a `real`, a `/`
+  used at `int` type (e.g. `#@ ensures \result == 2` with `-> int`) is a
+  real-vs-int **type error** — fail-closed, never a silent integer truncation.
+  (WL-02, FIXED — previously `/` mapped to the floored integer `div`, which
+  unsoundly proved `5 / 2 == 2`. To assert an integer quotient, use `//`.)
 - `<==>` is a single token (biconditional / "if and only if").
 - `in`/`not in` (§3.2.6b) are parsed as separate keywords, not as a
   single token. `not in` is distinguished from the unary `not` operator
@@ -1494,6 +1505,7 @@ CSLNode (base)
 ├── FieldAccess           (§3.1.3)
 ├── SubscriptAccess       (§3.1.4)
 ├── ChainedSubscript      (§3.1.4b)
+├── NestedSubscript       (§3.1.4b, depth ≥3)
 ├── ArrayLength           (§3.1.8)
 ├── AssignsRegion         (§3.4.5)
 ├── Valid                 (§3.1.9)
@@ -1560,7 +1572,8 @@ Every grammar production must have at least one test in
 | `var` | §3.1.2 | 0009, 0082, 0083 | ✅ PASS |
 | `field_access` | §3.1.3 | 0010 | ⚠️ XFAIL |
 | `subscript_access` | §3.1.4 | 0011, 0084, 0085 | ✅ PASS |
-| `chained_subscript` | §3.1.4b | 0018, 0019 | ✅ PASS |
+| `chained_subscript` | §3.1.4b | 0018, 0019, 0797, 0805 (depth-3), 0806 | ✅ PASS |
+| `nested_subscript` (depth ≥3) | §3.1.4b | 0805, 0806, 0807 (beyond-cap) | ✅ PASS |
 | `result` | §3.1.5 | 0012, 0086, 0087 | ✅ PASS |
 | `old_var` | §3.1.6 | 0013, 0088, 0089 | ✅ PASS |
 | `at_expr` | §3.1.7 | 0014, 0090, 0091 | ✅ PASS |

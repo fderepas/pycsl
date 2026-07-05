@@ -1,0 +1,64 @@
+(* WL-03 SMT-feasibility spike: prove a per-slot RECORD read of a fixed-length
+   `Tuple[T1, ..., Tn]` PARAMETER at a use site, for a MIXED-type tuple.
+
+   Python `Tuple[int, str]` is a fixed-length heterogeneous product. PyCSL
+   previously collapsed a `Tuple[...]`-annotated PARAMETER (and field) to a bare
+   `int` with an opaque `subscript_get (x:int)(i:int):int`, so `t[1]` (a `str`)
+   read back an int — content-opaque, and ill-typed at a `str` use site
+   (TYPEERR). The faithful lowering synthesizes a per-slot record
+   `type pytuple_int_str = { field0: int; field1: string }`, the parameter takes
+   that record type, and `t[i]` lowers to the i-th record field
+   (`t[0] -> t.field0 : int`, `t[1] -> t.field1 : string`) — the same NamedTuple
+   positional-access model, now realized for a PARAMETER/FIELD and not only a
+   local/returned tuple.
+
+   This fixture is the ground-truth that a mixed-type tuple PARAM's slot read is
+   BOTH faithfully typed (int vs string) AND provable at a use site. Discharge on
+   Alt-Ergo AND Z3. *)
+module WL03Spike
+  use int.Int
+  use string.String
+
+  (* the synthesized per-slot record for `Tuple[int, str]` (the emitter shape) *)
+  type pytuple_int_str = { field0: int; field1: string }
+
+  (* the faithful lowering of `def f(t: Tuple[int, str]) -> str: return t[1]`
+     — `t[1]` reads the STRING slot; the result is `t.field1`, a `string`. *)
+  let f (t: pytuple_int_str) : string
+    ensures { result = t.field1 }
+  = t.field1
+
+  (* the faithful lowering of `def g(t: Tuple[int, str]) -> int: return t[0]`
+     — `t[0]` reads the INT slot; the result is `t.field0`, an `int`. *)
+  let g (t: pytuple_int_str) : int
+    ensures { result = t.field0 }
+  = t.field0
+
+  (* make-or-break: a concrete mixed tuple reads each slot at its own type *)
+  goal g_slot0_int : (let p = { field0 = 7; field1 = "hi" } in p.field0) = 7
+  goal g_slot1_str : (let p = { field0 = 7; field1 = "hi" } in p.field1) = "hi"
+
+  (* the two slots are INDEPENDENT — reading field1 says nothing about field0
+     (the collapse conflated them into one opaque int) *)
+  goal g_slots_independent :
+    forall a b : int. forall s : string.
+      (let p = { field0 = a; field1 = s } in p.field0) = a /\
+      (let p = { field0 = b; field1 = s } in p.field1) = s
+
+  (* homogeneous `Tuple[int, int]` slot read is CONTENT-provable (not opaque):
+     the two int slots are distinct fields, so `t[0]` and `t[1]` are unrelated. *)
+  type pytuple_int_int = { i0: int; i1: int }
+  goal g_ii_slot0 : (let q = { i0 = 3; i1 = 4 } in q.i0) = 3
+  goal g_ii_slot1 : (let q = { i0 = 3; i1 = 4 } in q.i1) = 4
+  goal g_ii_indep : forall x y : int.
+    (let q = { i0 = x; i1 = y } in q.i0) = x /\
+    (let q = { i0 = x; i1 = y } in q.i1) = y
+
+  (* NEGATIVE make-or-break: a concrete tuple whose two int slots DIFFER reads
+     back DIFFERENT values (the model is not vacuous — the collapse conflated
+     `t[0]` and `t[1]` into one opaque int, which would force them equal). A
+     concrete-witness inequality (not a hard `not (forall ...)`), so BOTH
+     Alt-Ergo and Z3 discharge it. *)
+  goal g_slots_not_conflated :
+    (let q = { i0 = 0; i1 = 1 } in q.i0) <> (let q = { i0 = 0; i1 = 1 } in q.i1)
+end
