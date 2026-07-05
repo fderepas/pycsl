@@ -23,12 +23,20 @@ def whyml_ident(name: str) -> str:
 def safe_mutex_name(mutex: str) -> str:
     """Convert a mutex expression (possibly 'locks[0]') to a valid WhyML identifier."""
     return whyml_ident(mutex.replace("[", "_").replace("]", "").replace(".", "_"))
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def safe_exc_name(name: str) -> str:
-    return ""
+    """Sanitize a user-exception name for WhyML emission.
+
+    Python local-alias imports (`from X import Y as _Y`) produce
+    exception names starting with `_`, which WhyML rejects in
+    exception-declaration position. Stripping leading underscore(s)
+    yields a valid WhyML identifier; the de-aliased name also
+    collapses with the original (un-prefixed) declaration via set
+    deduplication at the call site, so `Y` and `_Y` emit a single
+    `exception Y` declaration."""
+    return name.lstrip("_") or name
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
