@@ -1,5 +1,5 @@
 {
-  "ir_version": "1.2",
+  "ir_version": "1.4",
   "source_language": "python",
   "type_decls": [
     {
@@ -17,6 +17,7 @@
           "mutable": true
         }
       ],
+      "mutable_state": false,
       "class_invariants": [
         {
           "type": "BinOp",
@@ -70,6 +71,7 @@
           "mutable": true
         }
       ],
+      "mutable_state": false,
       "class_invariants": [
         {
           "type": "BinOp",
@@ -106,6 +108,12 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -115,6 +123,7 @@
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -187,6 +196,12 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -196,6 +211,7 @@
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -262,6 +278,12 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -271,6 +293,7 @@
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -338,6 +361,12 @@
         "n": "int",
         "a": "Any"
       },
+      "param_annotations": {
+        "n": "int"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -347,6 +376,7 @@
         "n"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -426,6 +456,12 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -435,6 +471,7 @@
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -507,6 +544,12 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -516,6 +559,7 @@
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [

@@ -1,5 +1,5 @@
 {
-  "ir_version": "1.2",
+  "ir_version": "1.4",
   "source_language": "python",
   "type_decls": [
     {
@@ -12,6 +12,7 @@
           "mutable": true
         }
       ],
+      "mutable_state": false,
       "class_invariants": [],
       "field_defaults": {
         "count": 0
@@ -37,6 +38,7 @@
           "mutable": true
         }
       ],
+      "mutable_state": false,
       "class_invariants": [
         {
           "type": "BinOp",
@@ -73,6 +75,10 @@
     {
       "name": "counter__bump",
       "symbol_table": {},
+      "param_annotations": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -80,6 +86,7 @@
       "dict_key_types": {},
       "formal_params": [],
       "return_annotation": "None",
+      "return_value_type": null,
       "contracts": {
         "requires": [
           {
@@ -188,6 +195,10 @@
     {
       "name": "service__tick",
       "symbol_table": {},
+      "param_annotations": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -195,6 +206,7 @@
       "dict_key_types": {},
       "formal_params": [],
       "return_annotation": "None",
+      "return_value_type": null,
       "contracts": {
         "requires": [
           {
@@ -286,6 +298,10 @@
     {
       "name": "service__bump",
       "symbol_table": {},
+      "param_annotations": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -293,6 +309,7 @@
       "dict_key_types": {},
       "formal_params": [],
       "return_annotation": "None",
+      "return_value_type": null,
       "contracts": {
         "requires": [
           {

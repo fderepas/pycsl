@@ -1,5 +1,5 @@
 {
-  "ir_version": "1.2",
+  "ir_version": "1.4",
   "source_language": "python",
   "type_decls": [
     {
@@ -12,6 +12,7 @@
           "mutable": true
         }
       ],
+      "mutable_state": false,
       "class_invariants": [
         {
           "type": "BinOp",
@@ -46,6 +47,10 @@
     {
       "name": "counter__get",
       "symbol_table": {},
+      "param_annotations": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -53,6 +58,7 @@
       "dict_key_types": {},
       "formal_params": [],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -121,6 +127,10 @@
       "symbol_table": {
         "d": "Any"
       },
+      "param_annotations": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -128,6 +138,7 @@
       "dict_key_types": {},
       "formal_params": [],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [

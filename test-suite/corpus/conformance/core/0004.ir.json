@@ -1,5 +1,5 @@
 {
-  "ir_version": "1.2",
+  "ir_version": "1.4",
   "source_language": "python",
   "type_decls": [],
   "functions": [
@@ -10,6 +10,12 @@
         "s": "Any",
         "i": "Any"
       },
+      "param_annotations": {
+        "n": "int"
+      },
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
@@ -19,6 +25,7 @@
         "n"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [
           {
@@ -43,7 +50,7 @@
             },
             "right": {
               "type": "BinOp",
-              "op": "/",
+              "op": "//",
               "left": {
                 "type": "BinOp",
                 "op": "*",
@@ -118,7 +125,7 @@
               },
               "right": {
                 "type": "BinOp",
-                "op": "/",
+                "op": "//",
                 "left": {
                   "type": "BinOp",
                   "op": "*",
