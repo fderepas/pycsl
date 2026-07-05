@@ -1360,7 +1360,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ir_stmts.append({"stmt": "Break"})
 
     def _py_stmt_delete(self, stmt: ast.Delete, ir_stmts: List[Dict[str, Any]]) -> None:
-        ir_stmts.append({"stmt": "Pass"})  # model as no-op
+        # wrong-lowering-to-fix.md §WL-05c (T7): a SUBSCRIPT delete `del d[k]` is a
+        # real collection mutation — modelling it as a bare no-op is UNSOUND (it let a
+        # caller/body prove the deleted key is STILL present; a severity-1 fail-OPEN).
+        # Emit a typed `DelSubscript` IR so Module 6 can lower it with full type
+        # context: a LOCAL dict/set → the FAITHFUL `map_update_none` (key cleared), a
+        # dict/set PARAMETER → the WL-05 caller-visible-mutation REJECTION (fail-closed).
+        # A `del name` / `del obj.attr` (rebinding / attribute delete) stays the
+        # unmodelled no-op it always was — out of the collection-mutation scope.
+        for tgt in stmt.targets:
+            slice_node = getattr(tgt, "slice", None)
+            if isinstance(slice_node, ast.Index):  # py<3.9 wrapper
+                slice_node = slice_node.value
+            if isinstance(tgt, ast.Subscript) and not isinstance(slice_node, ast.Slice):
+                ir_stmts.append({
+                    "stmt": "DelSubscript",
+                    "array": self._py_expr_to_ir(tgt.value),
+                    "index": self._py_expr_to_ir(slice_node),
+                })
+            else:
+                # `del name` / `del obj.attr` / `del seq[i:j]` (slice delete) — stays the
+                # unmodelled no-op it always was (outside the dict/set item-delete scope).
+                ir_stmts.append({"stmt": "Pass"})
 
     def _py_stmt_match(self, stmt: Any, ir_stmts: List[Dict[str, Any]]) -> None:
         subject_ir = self._py_expr_to_ir(stmt.subject)

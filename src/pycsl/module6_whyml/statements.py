@@ -8,7 +8,7 @@ from module6_whyml.stmt_control_flow import ControlFlowStmtMixin
 
 from ir_schema import (
     stmt_from_dict, _ABSENT,
-    AssignStmt, AugAssignStmt, ArraySetStmt, ArraySliceSetStmt,
+    AssignStmt, AugAssignStmt, ArraySetStmt, ArraySliceSetStmt, DelSubscriptStmt,
     GhostAssignStmt, GhostArraySetStmt, TupleUnpackStmt,
     FieldAssignStmt, FieldAugAssignStmt, ExprStmt, CriticalSectionStmt,
     ReturnStmt, IfStmt, WhileStmt, ForStmt, TryStmt, MatchStmt,
@@ -825,6 +825,67 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    def _handle_del_subscript_stmt(self, stmt: DelSubscriptStmt, rest: List[Dict[str, Any]],
+                                   local_refs: Set[str], declared_refs: Set[str],
+                                   indent: str, in_loop: bool) -> str:
+        """wrong-lowering-to-fix.md §WL-05c (T7): lower `del d[k]` (a dict/set item
+        deletion). The prior model was a blanket no-op (Module 5 flattened EVERY `del`
+        to `Pass`), which was UNSOUND: after `del d[k]` a read/claim of the deleted key
+        proved its OLD value (a severity-1 fail-OPEN, e.g. `del d["a"]` then
+        `ensures d["a"] == 7`). Now:
+
+          * a dict/set PARAMETER (`d` in `def m(self, d): del d[k]`) is REJECTED — the
+            SAME caller-visible-mutation boundary as `d[k]=v` on a param (WL-05): the
+            by-value `map` param carries no `writes {d}` frame, so the deletion cannot
+            escape to the caller and must not be silently dropped.
+          * a LOCAL dict/set is lowered FAITHFULLY to `map_update_none` (= `Map.set m k
+            None`), so the key is cleared and a read-back is ABSENT (0). A false "old
+            value survives the delete" claim now FAILS.
+          * any other base (list `del a[i]`, a self-field, an unknown receiver) keeps the
+            prior unmodelled no-op — strictly out of the dict/set item-delete scope, so
+            byte-identical for every program that does not `del` a dict/set local/param.
+        """
+        arr = stmt.array.to_dict()
+        code = f"{indent}()"
+        if arr.get("type") == "Var":
+            var_name = arr.get("name", "")
+            is_local = var_name in getattr(self, "_dict_locals", set())
+            is_param = (var_name in getattr(self, "_formal_params", [])
+                        and var_name not in getattr(self, "_dict_locals", set()))
+            st = getattr(self, "_current_symbol_table", {}) or {}
+            is_coll = st.get(var_name) in ("dict", "set", "frozenset")
+            if is_param and is_coll:
+                # dict/set PARAM not promoted to a caller-visible ref (i.e. a METHOD
+                # param): caller-visible deletion with no `writes {d}` frame → reject
+                # (mirrors the `d[k]=v` / `s.discard(x)` param-mutation boundary). A
+                # non-dict/set param (`del a[i]` on a list) is out of scope → no-op below.
+                self._reject_param_collection_mutation(var_name, f"del {var_name}[...]")
+            elif is_local:
+                # LOCAL dict/set: faithful key clear via the existing `map_update_none`.
+                index_expr = self._expr_to_whyml(stmt.index, local_refs)
+                kappa = getattr(self, "_dict_key_types", {}).get(var_name)
+                if kappa == "string":
+                    k = index_expr
+                elif (not self._in_spec
+                      and self._is_string_expr(stmt.index.to_dict())):
+                    self._add_abstract_op("val str_hash_op (s: string) : int")
+                    k = f"(str_hash_op {index_expr})"
+                else:
+                    k = self._coerce_to_int(index_expr)
+                _poly_none = (getattr(self, "_mutable_state_classes", None)
+                              or kappa == "string")
+                self._add_abstract_op(
+                    ("val map_update_none (m: map 'k (option 'v)) (k: 'k) "
+                     ": map 'k (option 'v)\n" if _poly_none else
+                     "val map_update_none (m: map int (option int)) (k: int) "
+                     ": map int (option int)\n")
+                    + "    ensures { result = Map.set m k None }")
+                safe = whyml_ident(var_name)
+                code = f"{indent}{safe} := map_update_none !{safe} {k}"
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
+
     def _handle_critical_section_stmt(self, stmt: CriticalSectionStmt, rest: List[Dict[str, Any]],
                                        local_refs: Set[str], declared_refs: Set[str],
                                        indent: str, in_loop: bool) -> str:
@@ -1276,6 +1337,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return self._handle_fieldaugassign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
         if isinstance(stmt, ArraySetStmt):
             return self._handle_array_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, DelSubscriptStmt):
+            return self._handle_del_subscript_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
         if isinstance(stmt, ArraySliceSetStmt):
             return self._handle_array_slice_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
         if isinstance(stmt, WhileStmt):

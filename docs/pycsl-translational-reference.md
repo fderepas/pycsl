@@ -2730,9 +2730,21 @@ Tests: 0345–0351.
 |------|---------------|
 | `d = {}` / `d = dict()` | `let d = ref (const (None: option int)) in` |
 | `d[k] = v` | `d := map_update_some !d k v` |
+| `del d[k]` (DelSubscript) | `d := map_update_none !d k` |
 | `d[k]` (read) | `(match Map.get !d k with \| Some v_ -> v_ \| None -> 0 end)` |
 | `k in d` | `(match Map.get !d k with \| Some _ -> true \| None -> false end)` |
 | `k not in d` | `(match Map.get !d k with \| Some _ -> false \| None -> true end)` |
+
+**`del d[k]` (wrong-lowering-to-fix.md §WL-05c).** Module 5 emits a typed `DelSubscript`
+IR (`ir_schema.DelSubscriptStmt`) — NOT the old blanket `Pass` no-op, which silently
+dropped the deletion and let a read/claim of the deleted key unsoundly prove its old
+value. Module 6 (`statements.py::_handle_del_subscript_stmt`) clears the key with
+`map_update_none` (= `Map.set m k None`) for a **LOCAL** dict/set, on the caller-visible
+`ref (map …)` for a **STANDALONE** dict/set **parameter** (WL-05b promotion, whose seed
+now also detects `DelSubscript`), and **REJECTS** it on a dict/set **METHOD** parameter
+(the WL-05 caller-visible-mutation boundary — see the §WL-05c note below). A non-dict/set
+`del` (`del a[i]` on a list, `del name`, `del obj.attr`, slice delete) stays the prior
+unmodelled no-op.
 
 `map_update_some` is a program-level `val` whose `ensures` clause is
 `result = Map.set m k (Some v)`. The wrapper is needed because
@@ -2784,6 +2796,19 @@ rely on it, else the frame havocs the param. **Still REJECTED** (code `PYCSL-WHY
 `_reject_param_collection_mutation`): a mutated dict/set **METHOD** param (its types feed the cross-method
 call-contract map), the `@mutable_state` param no-op, record-param and nested-list inner mutation.
 Drivers 0820/0821/0832/0833 (positive), 0822/0823 (LOCAL positive), 0834 (negative false-claim).
+
+**§WL-05c — dict/set METHOD-param mutation is a DOCUMENTED BOUNDARY; `del d[k]` fail-OPEN fixed.**
+The STANDALONE promotion above does NOT extend to a **METHOD** dict/set parameter: a method call
+`obj.m(d)` lowers to a SEPARATE synthesized abstract `val` (over five call-site variants —
+plain-abstract, `self.`-concrete, cross-module `<G>Sig` refinement, `#@ sibling_concrete`,
+composed-provider), all fed by `_module_method_param_types`. Promoting the method param to `ref (map …)`
+would have to thread the ref type + `writes {x_i}` + the propagated ensures through ALL FIVE in sync;
+a miss on any path (ensures propagated without the matching `writes`) fails OPEN, and set `.add` on a
+method param is overloaded with the sound `@mutable_state` no-op. So a mutated dict/set method param
+stays **REJECTED** (or the sound `@mutable_state` no-op). The `del d[k]` row above is the WL-05c fail-OPEN
+fix: `del` used to be a blanket Module-5 `Pass` no-op that unsoundly proved a deleted key survived; it is
+now faithful (local / standalone-param) or rejected (method param). Spike
+`test-suite/corpus/conformance/spikes/wl05c_del_spike.mlw`; drivers `wl05c_*`; locks 0854–0857.
 
 ### §T.14.3  Multi-argument `range(start, stop)`
 

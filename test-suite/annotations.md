@@ -1808,11 +1808,16 @@ body type-checks under Why3 and SMT can discharge non-trivial properties.
 | `d[k]` (Subscript) | `(match Map.get !d k with \| Some v_ -> v_ \| None -> 0 end)` | Absent keys read as `0` (matching the ghost-dict convention) |
 | `k in d` (BinOp) | `(match Map.get !d k with \| Some _ -> true \| None -> false end)` | Why3 program code lacks decidable `=` on `option int`, so match is used |
 | `k not in d` | same with arms swapped | |
+| `del d[k]` (DelSubscript) | `d := map_update_none !d k` | Wrapper `val` whose `ensures` equals `Map.set m k None` (key cleared). **LOCAL** dict/set only; on a **STANDALONE** dict/set PARAMETER the same op runs on the caller-visible `ref (map …)` (WL-05c, seeded like `d[k]=v`). On a dict/set **METHOD** parameter `del d[k]` is REJECTED — the WL-05 caller-visible-mutation boundary (see §7.9 / wrong-lowering §WL-05c) |
 
 **Forbidden** (still): `d.items()`, `d.keys()`, `d.values()`, `d.get(k, default)`,
-`del d[k]` as statement (use `s.discard(k)` on sets), iteration over `for k in d:`.
+iteration over `for k in d:`. (`del d[k]` was previously listed here as a blanket
+no-op; WL-05c made it FAITHFUL for a local/standalone-param dict/set — `map_update_none`
+— and a clean REJECTION on a method param. It used to be a silent no-op that unsoundly
+proved a deleted key survived.)
 
-**Tests**: 0345 (round-trip), 0346 (in / not in).
+**Tests**: 0345 (round-trip), 0346 (in / not in), 0854/0855 (WL-05c `del` faithful
+local + standalone-param), 0856/0857 (WL-05c `del` method-param rejection + false-twin).
 
 ### §12.2 Body `set`
 

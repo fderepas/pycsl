@@ -416,6 +416,16 @@ promoted params into `_dict_locals`), `_emit_function` (`writes {…}` frame) an
 `expressions.py::_handle_call_expr` (bare-ref argument pass). A mutation of a METHOD
 param / self-field is still routed to `_reject_param_collection_mutation`.
 
+**`del d[k]` (wrong-lowering-to-fix.md §WL-05c, T7).** `del d[k]` is now a first-class
+dict/set item deletion (`ir_schema.DelSubscriptStmt`), NOT the old blanket Module-5
+`Pass` no-op that silently dropped the deletion and let a read/claim of the deleted key
+unsoundly PROVE its old value (a severity-1 fail-OPEN, now FIXED). It clears the key via
+`map_update_none` for a LOCAL dict/set, on the caller-visible `ref (map …)` for a
+STANDALONE dict/set parameter (the WL-05b fixpoint seed now also detects `DelSubscript`),
+and is REJECTED on a dict/set METHOD parameter (the same boundary as `d[k]=v`). Locks
+`0854`/`0855` (POSITIVE local + standalone-param), `0856`/`0857` (NEGATIVE method-param
+rejection + caller-visible false-twin).
+
 **Escape annotation.** None needed for a standalone-fn mutation (now supported). A
 mutating callee should carry a postcondition on the param's post-state (e.g.
 `#@ ensures d["a"] == 5`) so a caller can rely on the escape (the `writes {d}` frame

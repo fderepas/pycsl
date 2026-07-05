@@ -2063,7 +2063,11 @@ class FunctionEmissionMixin:
                 if not isinstance(st, dict):
                     continue
                 kind = st.get("stmt")
-                if kind == "ArraySet":
+                if kind in ("ArraySet", "DelSubscript"):
+                    # §WL-05c (T7): `del d[k]` (DelSubscript) is an item mutation just
+                    # like `d[k]=v` (ArraySet) — a standalone param that is del-mutated
+                    # is promoted to a caller-visible `ref (map …)` so the deletion
+                    # escapes (consistent with WL-05b). A METHOD is excluded above.
                     arr = st.get("array", {})
                     if (isinstance(arr, dict) and arr.get("type") == "Var"
                             and is_coll(arr.get("name", ""))):

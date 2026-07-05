@@ -310,6 +310,15 @@ class ArraySetStmt(StmtIR):
 
 
 @dataclass(frozen=True)
+class DelSubscriptStmt(StmtIR):
+    # wrong-lowering-to-fix.md §WL-05c (T7): `del d[k]` — a dict/set item deletion.
+    # Module 6 lowers a LOCAL dict/set to `map_update_none` (faithful key clear) and a
+    # dict/set PARAMETER to the WL-05 caller-visible-mutation rejection (fail-closed).
+    array: "ExprIR"
+    index: "ExprIR"
+
+
+@dataclass(frozen=True)
 class ArraySliceSetStmt(StmtIR):
     array: "ExprIR"
     lower: "ExprIR"
@@ -1046,6 +1055,9 @@ def _stmt_from_dict_inner(d: Dict[str, Any]) -> StmtIR:
     if k == "ArraySet":
         return ArraySetStmt(kind=k, array=_e(d.get("array")),
                             index=_e(d.get("index")), value=_e(d.get("value")))
+    if k == "DelSubscript":
+        return DelSubscriptStmt(kind=k, array=_e(d.get("array")),
+                                index=_e(d.get("index")))
     if k == "ArraySliceSet":
         up = d.get("upper")
         return ArraySliceSetStmt(kind=k, array=_e(d.get("array")),
@@ -1397,6 +1409,9 @@ def _stmt_to_dict(s: StmtIR) -> Dict[str, Any]:
         out["array"] = s.array.to_dict()
         out["index"] = s.index.to_dict()
         out["value"] = s.value.to_dict()
+    elif isinstance(s, DelSubscriptStmt):
+        out["array"] = s.array.to_dict()
+        out["index"] = s.index.to_dict()
     elif isinstance(s, ArraySliceSetStmt):
         out["array"] = s.array.to_dict()
         out["lower"] = s.lower.to_dict()

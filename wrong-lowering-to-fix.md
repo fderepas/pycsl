@@ -504,6 +504,52 @@ false-positive against the τ-blessed baseline.
   callee's mutated position (`expressions.py::_handle_call_expr`) so the mutation escapes. Methods are
   OUT OF SCOPE (their param types also feed the abstract-op call-contract map, which the ref promotion
   would desync) → a mutated dict/set METHOD param keeps the WL-05 rejection / @mutable_state no-op.
+- **WL-05c (T7 — mutated dict/set METHOD params + the `del d[k]` fail-OPEN):** the method-param
+  question was investigated to its mechanism and settled as a **DOCUMENTED SOUND BOUNDARY**, plus a
+  **severity-1 fail-OPEN fix** for `del d[k]` uncovered during the investigation.
+  - **The desync is REAL (not taken on faith).** The "abstract-op call-contract map" is
+    `_module_method_param_types` (`functions.py::_build_method_param_types_map`), consumed by
+    `_handle_dotted_call`, `_coerce_dotted_args`, the cross-module `<G>Sig` interface `val`, and the
+    default-fill. Unlike a STANDALONE call (which lowers DIRECTLY to the concrete `let py_f d` whose
+    real `ref`+`writes` signature makes the frame self-consistent), a method call `obj.m(d)` lowers to
+    a SEPARATE synthesized abstract `val` across FIVE variants (plain-abstract, `self.`-concrete,
+    cross-module `Sig`-refinement, `#@ sibling_concrete`, composed-provider). Promoting the method
+    param to `ref (map …)` requires threading the ref type + a `writes {x_i}` frame + the propagated
+    param-referencing ensures through ALL FIVE consistently; missing the `writes` on ANY path while the
+    ensures still propagates yields a caller that ASSUMES a post-state about a non-written ref — a
+    fail-OPEN. Additionally the set `.add` on a method param is OVERLOADED: it is the sound
+    @mutable_state no-op (emitter handlers, `assigns \nothing`) in one context and a caller-escape in
+    another, with no annotation to disambiguate. This is not an additive single-seam change, so the
+    method-param mutation stays **REJECTED / sound-no-op (fail-closed)**.
+  - **Verified current fail-closed behavior:** method `d[k]=v` → REJECTED (`PYCSL-WHYML-PARAM-COLLECTION-MUT`,
+    plain AND @mutable_state); method `s.add/.discard/.remove` (plain class) → REJECTED; method
+    `s.add` (@mutable_state) → sound no-op whose own `ensures x in s` stays UNPROVEN AND whose caller
+    cannot prove membership escape (false-twin UNPROVEN). No method dict/set param mutation lets a
+    false caller-visible claim prove. The law itself IS Why3-feasible (spike GO), so this is a
+    TOOLING/architecture boundary, not a logic one — a future faithful model must thread ref+writes+
+    ensures through all five call-site variants and resolve the @mutable_state `.add` overload.
+  - **Severity-1 fail-OPEN FIXED (`del d[k]`):** Module 5 flattened EVERY `del` to a bare `Pass`
+    (`_py_stmt_delete`), so `del d[k]` was a silent no-op — a caller/body could prove the DELETED key
+    was STILL present with its old value (`del d["a"]` then `ensures d["a"]==7` proved Valid on BOTH
+    Alt-Ergo+Z3). FIX: Module 5 emits a typed `DelSubscript` IR (`ir_schema.DelSubscriptStmt`); Module 6
+    (`statements.py::_handle_del_subscript_stmt`) lowers a **LOCAL** dict/set to the faithful
+    `map_update_none` (= `Map.set m k None`; key cleared), a **STANDALONE** dict/set PARAMETER to the
+    WL-05b caller-visible `ref (map …)` (the WL-05b seed now also detects `DelSubscript`), and a dict/set
+    **METHOD** parameter to the WL-05 **rejection**. Non-dict/set bases (list `del a[i]`, `del name`,
+    `del obj.attr`, slice delete) keep the prior no-op → byte-identical.
+  - **Spike:** `test-suite/corpus/conformance/spikes/wl05c_del_spike.mlw` (faithful `map_update_none`
+    read-back = absent + `del`-removes-key; Valid on Alt-Ergo AND Z3, no new axiom).
+  - **Drivers** (`getting-better/wrong-lowering/`): `wl05c_del_noop_UNSOUND_fixed.py` → **REJECTED**
+    (was the fail-OPEN Valid), `wl05c_local_del_FAITHFUL.py` → **PROVEN**,
+    `wl05c_standalone_del_param_FAITHFUL.py` → **PROVEN**, `wl05c_del_param_falsetwin.py` → **UNPROVEN**.
+  - **Regression locks:** `0854.py` (POSITIVE — local `del` clears key), `0855.py` (POSITIVE —
+    standalone-param `del` caller-visible), `0856.py` (NEGATIVE `# pycsl-expected: FAIL` — method-param
+    `del` REJECTED), `0857.py` (NEGATIVE `# pycsl-expected: FAIL` — caller-visible `del` false-twin
+    `ensures "a" in d` UNPROVEN).
+  - **Emission differential:** full `pycsl-reference` corpus BYTE-IDENTICAL (`bin/byte-diff-sweep.sh`,
+    730 files, 0 diffs — no compiled corpus program uses `del`). NO new axiom; `\trusted`
+    non-increasing. IR-conformance goldens unchanged (0 new mismatch; the 38 pre-existing are
+    unrelated ir_version drift).
 - **Class / severity:** WRONG-REPR / 4 (was) → now FAITHFULLY SUPPORTED (caller-visible, sound frame,
   non-vacuous: a false post-mutation claim FAILS).
 - **Verdict flips (now):**
