@@ -1089,6 +1089,23 @@ class FunctionEmissionMixin:
         lines += self._emit_contracts(contract_src, spec_refs,
                                       func_variants, func_diverges,
                                       func_exceptions, func_is_noreturn)
+        # tier3-p1 T3.1.4 (spike LAW 3): a recursive function over an IR-node (`emit_ir`)
+        # param — the `_expr_to_whyml`/dispatcher recursion shape — carries NO natural
+        # structural `variant` (its recursive call passes a PROJECTED sub-node
+        # `node.get("left")` = `(left_of node)`, not a pattern-bound sub-term). Inject a
+        # function-level `variant { size <param> }` on the ADT subtree measure; the guarded
+        # size-decrease lemmas (`size_left_dec`/`size_right_dec`, emitted in the theory)
+        # discharge each recursive call, and `size`'s `result >= 1` gives the int well-
+        # foundedness lower bound. Only when recursive, no explicit `#@ variant`, and NOT a
+        # trusted/abstract `val`. This is the piece tier-1's `ir_scanner` lacked.
+        if (is_recursive and not func_variants and not emit_as_val
+                and not func_lemma):
+            _ir_p = next((p for p in getattr(self, "_formal_params", [])
+                          if (self._current_symbol_table or {}).get(p)
+                          in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "exprir", "emit_ir")),
+                         None)
+            if _ir_p is not None:
+                lines.append(f"    variant  {{ size {whyml_ident(_ir_p)} }}")
         self._emitting_val_contract = False
 
         # mutable-self-plan.md M.4: a method of a `@mutable_state` class emits its

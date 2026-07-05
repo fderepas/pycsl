@@ -3884,6 +3884,51 @@ wrong-lowering campaign.
 
 ---
 
+## §T.16  IR-node ADT recognizer (the `emit_ir` variant — tier3-p1 expr family)
+
+An emitter-shaped function whose parameter (or local) is typed as an IR node
+(`node: ExprIR` / `StmtIR` / `IRNode` / `ContractExprIR`) lowers that value to
+the **pure algebraic sum `emit_ir`**, so the reflection the emitter performs on
+its own IR — `ir.get("type")` (discriminant), `ir.get(field)` (projection), and
+structural recursion into sub-nodes — self-verifies. This realizes, in the live
+emitter, the Phase-0 WhyML feasibility spike
+(`test-suite/corpus/conformance/spikes/tier3_ir_node_adt_spike.mlw`) whose five
+laws discharge on Alt-Ergo AND Z3 with no axiom
+(`triage-ranked-tcb-tier3.md` T3.1.1/T3.1.2/T3.1.4).
+
+**Gate (`Module6_WhyMLTranspiler.transpile`).** The `emit_ir` theory is emitted
+iff some function's `symbol_table` carries an IR-node base name
+(`_uses_ir_node_param`) OR the module has a `@mutable_state` class. A program
+with neither — every corpus program — emits **byte-identically** (the 743
+non-ADT reference `.mlw` are unchanged; only the 11 pre-existing emit_ir tests
+gain the additive declarations below).
+
+| Python (emitter-shaped) | WhyML lowering | mechanism |
+|---|---|---|
+| `node: ExprIR` param/local | `(node: emit_ir)` | `functions.py::_param_type_str` — the IR-node ADT is in scope (`preamble.py::_emit_exprir_theory`). |
+| `node.get("type") == "BinOp"` | `(is_binop node)` | **T3.1.2 / spike LAW 1** — a match-based constructor DISCRIMINANT, NOT `str_eq_op (kind_of node) "BinOp"`. The two agree on every real IR node (Module 5 never emits an `IrOther` whose kind is a registry tag — the commit-d2479fe9 fail-closed boundary), but `is_binop` excludes the `IrOther "BinOp"` catch-all, which is what makes the size-decrease law hold. Gated on NOT `@mutable_state` (the self-annotate mirror keeps its already-proven `kind_of` path; Phase 2 adopts `is_K`). `expressions.py::_emit_ir_kind_discriminant`. |
+| `node.get("op")` | `(op_of node)` : `string` | **spike LAW 2** — the operator STRING leaf. |
+| `node.get("left")` / `.get("right")` | `(left_of node)` / `(right_of node)` : `emit_ir` | **spike LAW 2** — the SUB-NODES. Contrast a leaf projection (`op_of` → `string`) with a sub-node projection (`left_of` → `emit_ir`), mirroring the `FieldGet.object` (LEAF string) vs `Attribute.object` (SUB-node) asymmetry the spike pins. |
+| a recursive function over the `emit_ir` param (`def f(node): … f(node.get("left")) …`) | function-level `variant { size node }` injected | **T3.1.4 / spike LAW 3** — the emitter injects the subtree-size measure (`functions.py::_emit_function`). `size` is a structural `let rec function` (`ensures { result >= 1 }`, `variant { e }`); the guarded lemmas `size_left_dec`/`size_right_dec` (`is_binop e → size (left_of e) < size e`, PROVEN no axiom) discharge each recursive call's decrease, and `size e ≥ 1` gives the int well-foundedness lower bound. This is the termination piece tier-1's `ir_scanner` lacked. |
+| unrecognized node kind / `Opaque` | fail-closed | an unknown reflection key keeps the opaque `val` (no faithful lowering fabricated). |
+
+The additive theory declarations (`preamble.py::_emit_exprir_theory`):
+`type ir_num = INum int | IReal real` (the faithful numeric-leaf carrier, risk 7
+/ no-more-int), the `IrBinOp op left right` constructor, `is_binop`, `op_of`,
+`left_of`, `right_of`, the `size` measure, and the two size-decrease lemmas.
+
+**Certificate coupling.** Phase 0's Rocq/Lean certificate (record-valued state)
+established the soundness of this construct; this increment's WhyML emission is
+certificate-backed by the Phase-0 spike and awaits the Phase-3 mechanized-proof
+integration (co-lands per `triage-ranked-tcb-tier3.md`).
+
+Reference locks: 0878 (POSITIVE — `node_size`/`binop_operator` prove the
+discriminant + projections + terminating recursion), 0879 (NEGATIVE twin — a
+false size/discriminant claim stays UNPROVEN). No new axiom, no `\trusted`
+increase.
+
+---
+
 ## §T.12  Complete Method Index
 
 ### Module5 CSL Node Handlers

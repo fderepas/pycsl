@@ -2223,6 +2223,36 @@ _Corresponds to `annotations.md` §3.4._
 
 **Error (E3, E4):** See §2.1.3.
 
+### 3.5 IR-node ADT recognition (the `emit_ir` sum — tier3-p1 expr family)
+
+_Realizes the Phase-0 spike `tier3_ir_node_adt_spike.mlw` in the emitter
+(`triage-ranked-tcb-tier3.md` T3.1). This is a Module-6 WhyML-emission typing
+rule, not an IR-schema change: `IR_VERSION` stays `1.4`, the goldens are
+unchanged._
+
+A parameter or local whose static type is an IR-node base name
+(`τ(x) ∈ {ExprIR, StmtIR, IRNode, ContractExprIR}`) has WhyML type `emit_ir`,
+the pure algebraic sum declared in the preamble ADT theory. Its reflection is
+typed by the fixed projection classes:
+
+| reflection | result type | note |
+|---|---|---|
+| `x.get("type")` | `string` (via `kind_of`) — OR the bool `(is_binop x)` when compared `== "BinOp"` | the equality against a constructor-kind literal is the DISCRIMINANT (§T.16); it is a well-typed `bool`. |
+| `x.get("op")` | `string` (via `op_of`) | a LEAF projection. |
+| `x.get("left")` / `x.get("right")` | `emit_ir` (via `left_of` / `right_of`) | a SUB-NODE projection — distinct result type-class from a leaf. A sub-node result feeds a recursive call (which expects `emit_ir`); a leaf result feeds a `string` context. A type mismatch (e.g. using `left_of x` where an `int` is expected) fail-closes at Why3 L3-type-check — never a silent coercion. |
+
+**Termination (T3.1.4).** A function that is recursive over its `emit_ir`
+parameter, and carries no explicit `#@ \variant`, is well-formed only if it
+terminates; the emitter supplies the obligation by injecting
+`variant { size x }` on the ADT subtree measure. The guarded size-decrease
+lemmas (`is_binop e → size (left_of e) < size e`) and `size e ≥ 1` discharge it
+with no axiom. An unrecognized node kind / an `Opaque` node is fail-closed (no
+faithful projection is fabricated).
+
+**Gate.** The ADT theory is emitted only when the module uses an IR-node type
+(or has a `@mutable_state` class); every other program is unaffected
+(byte-identical emission).
+
 ---
 
 ## 4. Unsupported Constructs

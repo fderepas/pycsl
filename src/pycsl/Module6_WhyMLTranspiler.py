@@ -426,6 +426,19 @@ class Module6_WhyMLTranspiler(
         self._list_element_record_types: Set[str] = set(
             self.ir.get("list_element_record_types", []))
 
+        # tier3-p1 T3.1.1: an IR-node-typed param/local (`node: ExprIR`) makes the
+        # emitter reflect on it as the `emit_ir` ADT (functions.py::_param_type_str →
+        # `emit_ir`), so the ADT theory (variant type + projections + `size` recursion
+        # measure) MUST be in scope — even without a @mutable_state class. Scan every
+        # function's symbol_table for an IR-node base name. Corpus programs annotate no
+        # param/local with these names → flag False → theory NOT emitted → byte-identical.
+        _IRNODE_TAGS = ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "exprir", "emit_ir")
+        self._uses_ir_node_param = any(
+            v in _IRNODE_TAGS
+            for f in functions
+            for v in (f.get("symbol_table", {}) or {}).values()
+        )
+
         # module-emission.md: OPT-IN axiom isolation. If a function carries
         # `#@ verify_module <name>` AND is emitted here as a REAL `let` body (i.e. it is
         # verified in THIS unit — not an imported/`\trusted` stub, and not inlined away),
@@ -484,8 +497,9 @@ class Module6_WhyMLTranspiler(
 
         # typed-ir-for-b-ceiling.md B-C1/B-C2: the `emit_ir` ADT + projections BEFORE
         # the record types — an ExprIR-valued field names `emit_ir`, so the ADT must be
-        # in scope first. Gated on a @mutable_state class; corpus has none → byte-identical.
-        if getattr(self, "_mutable_state_classes", None):
+        # in scope first. Gated on a @mutable_state class OR (tier3-p1) an IR-node-typed
+        # param/local; corpus has neither → byte-identical.
+        if getattr(self, "_mutable_state_classes", None) or getattr(self, "_uses_ir_node_param", False):
             out += self._emit_exprir_theory()
 
         type_lines, declared_types = self._emit_type_decls(type_decls)

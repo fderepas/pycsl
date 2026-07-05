@@ -453,3 +453,42 @@ Sub-ADTs = **4** (pattern[closed-5], generator, handler, keyword). Formal-ctor c
 
 **CLOSEDNESS: qualified GO** — closed core is real and spike-able; whole-surface faithfulness is
 blocked on the `Opaque` fallback + 11 out-of-registry tags. Flag both to the human before Phase-1 src edits.
+
+---
+
+## 9. Phase-1 REALIZED — the EXPR-family recognizer (tier3-p1 increment 2, `feat(tier3-p1)`)
+
+The Phase-0 spike design is now realized in the live emitter for the **EXPR node family**
+(T3.1.1 + T3.1.2 + T3.1.4). Bounded: stmt/contract families are later increments.
+
+**T3.1.1 — the `emit_ir` variant type.** `module6_whyml/preamble.py::_emit_exprir_theory`
+emits `type ir_num = INum int | IReal real` (the faithful numeric leaf, risk 7 / no-more-int)
+and extends the pre-existing `emit_ir` sum with the `IrBinOp op left right` constructor —
+`list`-of-subnode where needed, NO `array` inside the pure sum, no mutable field (Why3 purity
+holds, §7 constraints). Gated on an IR-node-typed param/local (`_uses_ir_node_param`,
+`Module6_WhyMLTranspiler.transpile`) OR a `@mutable_state` class; the corpus has neither, so
+non-ADT emission is byte-identical (743/754 reference `.mlw` unchanged; the 11 pre-existing
+emit_ir tests gain the additive declarations and still prove).
+
+**T3.1.2 — discriminant + projection.** `expressions.py`: `node.get("type") == "BinOp"` lowers
+to the constructor discriminant `(is_binop node)` (spike LAW 1, `_emit_ir_kind_discriminant` —
+gated NOT-`@mutable_state` so the mirror keeps its `kind_of` path); `node.get("op")` →
+`op_of` (STRING leaf), `node.get("left")`/`.get("right")` → `left_of`/`right_of` (SUB-nodes);
+the `FieldGet.object`-leaf vs `Attribute.object`-subnode asymmetry (§5e, risk 6) is honored
+(a leaf projection yields `string`, a sub-node projection yields `emit_ir`). Unrecognized kind /
+`Opaque` → fail-closed.
+
+**T3.1.4 — structural recursion.** `functions.py::_emit_function` injects a function-level
+`variant { size <param> }` for a function recursive over its `emit_ir` param (the piece
+`ir_scanner` lacked). `size` is a structural `let rec function` (`ensures { result >= 1 }`,
+`variant { e }`); the guarded lemmas `size_left_dec`/`size_right_dec` (`is_binop e →
+size (left_of e) < size e`, PROVEN, no axiom) discharge each recursive call's decrease.
+
+**Gates green:** Phase-0 spike still discharges (both provers, no axiom); reference locks 0878
+(POSITIVE) / 0879 (NEGATIVE twin); full-corpus byte-diff = 0 on all non-ADT programs (the 11
+emit_ir tests differ purely additively and still pass, 31/31 in range); IR unchanged
+(`IR_VERSION` 1.4, conformance goldens untouched); feasibility check — the real mirror method
+`_handle_map_get_expr` ported with an `ExprIR` param now lowers via the ADT (the tier-1
+`unbound type symbol 'emit_ir'` is GONE) and fully proves; mirror reverted. No new axiom, no
+`\trusted` increase. **Certificate-backed by the Phase-0 spike; awaits Phase-3 mechanized-proof
+integration** (co-lands per the coupling rule).

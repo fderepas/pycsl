@@ -98,16 +98,19 @@ _EMIT_IR_PROJ = {
     "pattern": "kind_of", "ctor": "name_of", "captures": "args_of",
     "body": "stmts_of", "guard": "svalue_of", "parts": "args_of", "elts": "args_of",
     "lower": "svalue_of", "upper": "svalue_of",   # 07-03-refactor R4: SliceExpr bound sub-nodes
+    # tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections — `op` is the operator
+    # STRING (`op_of`); `left`/`right` are the SUB-NODES (`left_of`/`right_of`, → emit_ir).
+    "op": "op_of", "left": "left_of", "right": "right_of",
 }
 # `pattern` is CONTEXT-DEPENDENT: SUBSCRIPT `c["pattern"]` → a sub-NODE (below); `.get("pattern")`
 # → the KIND string (here). Different code paths read each tuple, so it appears in both.
-_EMIT_IR_STR_KEYS = ("type", "name", "attr", "field", "func", "ctor", "pattern")   # via `.get`
-_EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard")   # via subscript → node
+_EMIT_IR_STR_KEYS = ("type", "name", "attr", "field", "func", "ctor", "pattern", "op")   # via `.get`
+_EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard", "left", "right")   # via subscript → node
 # self-tcb-reduction T1.a: STRING-valued attribute reads on a base-`ExprIR` emit_ir node
 # (`node.kind`/`node.var`/`node.op`/…, where the handler annotates `node: "ExprIR"` but accesses a
 # concrete subclass's str field) → the discriminant/name projection. Non-listed attrs fall to the
 # `svalue_of` sub-node default. @mutable_state-gated in `_handle_attribute_expr`/`_is_string_expr`.
-_EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "name_of",
+_EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
                       "label": "name_of", "name": "name_of", "func": "func_of",
                       "base": "name_of", "base1": "name_of", "base2": "name_of"}
 from module6_whyml.struct_format import parse_format
@@ -644,6 +647,56 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "Number":   ("IrNum", ["value"]),
         "RawWhyml": ("IrRaw", ["whyml"]),
     }
+
+    # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
+    # the ADT theory (`is_<pred>`). A `.get("type") == K` test against one of these lowers
+    # to the discriminant. Kinds NOT listed keep the `str_eq_op (kind_of …) K` path (still
+    # sound). Bounded to the EXPR operator node this increment; extend per node-family.
+    _KIND_DISCRIMINANT = {"BinOp": "is_binop"}
+
+    def _emit_ir_receiver_of_type_get(self, ir: Any) -> Optional[Dict[str, Any]]:
+        """If `ir` is a reflection of a node's discriminant — `<recv>.get("type")` (Call
+        with a bare `.get` func / a `receiver` sub-node) or the `.type`/`.kind` attribute
+        access — over an `emit_ir` receiver, return the RECEIVER's IR dict; else None."""
+        if not isinstance(ir, dict):
+            return None
+        t = ir.get("type")
+        if t == "Call":
+            _args = ir.get("args") or []
+            _k0 = _args[0] if _args else None
+            if not (isinstance(_k0, dict) and _k0.get("type") == "String"
+                    and _k0.get("value") == "type"):
+                return None
+            _rcv = ir.get("receiver")
+            if isinstance(_rcv, dict) and self._is_emit_ir_expr(_rcv):
+                return _rcv
+            _fn = ir.get("func", "")
+            if isinstance(_fn, str) and _fn.endswith(".get"):
+                _recv_ir = {"type": "Var", "name": _fn[:-len(".get")]}
+                if self._is_emit_ir_expr(_recv_ir):
+                    return _recv_ir
+            return None
+        if t in ("Attribute", "FieldGet") and (ir.get("attr") or ir.get("field")) in ("type", "kind"):
+            _obj = ir.get("object")
+            if isinstance(_obj, dict) and self._is_emit_ir_expr(_obj):
+                return _obj
+        return None
+
+    def _emit_ir_kind_discriminant(self, left_ir: Any, right_ir: Any) -> Optional[str]:
+        """tier3-p1 T3.1.2 (spike LAW 1): lower `<emit_ir>.get("type") == "K"` to the
+        constructor discriminant `(is_K <recv>)` when K names an ADT kind that has one.
+        Returns the WhyML bool term, or None (fall through to the `kind_of` string test)."""
+        if not (isinstance(right_ir, dict) and right_ir.get("type") == "String"):
+            return None
+        _pred = self._KIND_DISCRIMINANT.get(right_ir.get("value"))
+        if _pred is None:
+            return None
+        _recv = self._emit_ir_receiver_of_type_get(left_ir)
+        if _recv is None:
+            # allow the reflected form on either side (`"K" == node.get("type")`)
+            return None
+        _rv = self._expr_to_whyml(_recv, set(), False, None)
+        return f"({_pred} {_rv})"
 
     def _is_emit_ir_expr(self, ir: Any) -> bool:
         """typed-ir-for-b-ceiling.md B-C2: True if `ir` lowers to the `emit_ir` sum — an
@@ -1316,6 +1369,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to_dict() is faithful for its purposes.
         expr = node.to_dict()
         raw_op = expr["op"]
+        # tier3-p1 T3.1.2 (spike LAW 1): `<emit_ir node>.get("type") == "K"` (K a known ADT
+        # constructor kind) lowers to the constructor DISCRIMINANT `(is_K node)` — a
+        # match-based bool — instead of `str_eq_op (kind_of node) "K"`. This is the ONLY
+        # guard shape under which the structural-recursion `variant { size node }` discharges
+        # (the `kind_of e = "K"` test admits the IrOther "K" catch-all, which breaks the
+        # size-decrease law). Gated on NOT @mutable_state: the self-annotate mirror keeps its
+        # already-proven `kind_of` path (Phase 2 adopts `is_K`); a driver (no @mutable_state)
+        # takes the discriminant. Corpus has no emit_ir → never fires → byte-identical.
+        if (raw_op in ("==", "!=") and not self._in_spec
+                and not getattr(self, "_mutable_state_classes", None)):
+            _disc = self._emit_ir_kind_discriminant(expr.get("left"), expr.get("right"))
+            if _disc is not None:
+                return _disc if raw_op == "==" else f"(not {_disc})"
         # [default] * size → Array.make size default
         if raw_op == "*" and expr["left"].get("type") == "ArrayLit":
             elts = expr["left"].get("elts", [])

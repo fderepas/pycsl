@@ -1785,10 +1785,12 @@ class PreambleEmissionMixin:
                 or any(IRScanner.uses_ghost_type(body, {"array"}) for body in all_bodies)
                 or axiom_needs_array
                 or _binder_needs_array
-                # the emit_ir ADT (emitted for any @mutable_state module) declares
-                # `args_of : array emit_ir`, so `use array.Array` is required even when the
-                # bodies use no other array. @mutable_state-gated → byte-identical for the corpus.
+                # the emit_ir ADT (emitted for any @mutable_state module OR — tier3-p1 — any
+                # IR-node-typed param) declares `args_of : array emit_ir`, so `use array.Array`
+                # is required even when the bodies use no other array. Both gates are False for
+                # the corpus → byte-identical.
                 or bool(getattr(self, "_mutable_state_classes", None))
+                or bool(getattr(self, "_uses_ir_node_param", False))
             )
         else:
             needs_array = False
@@ -2957,16 +2959,27 @@ class PreambleEmissionMixin:
         Emitted only for a module with a @mutable_state class (the emitter model);
         the 627-file corpus has none → byte-identical there."""
         return [
-            "  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model *)",
+            "  (* tier3-p1 T3.1.1 (getting-better/tier3/ir-node-adt-signature.md §7,"
+            " risk 7 / no-more-int): the faithful numeric-leaf carrier for a Number node —"
+            " keeps int vs float distinct instead of coercing float→int. The Number"
+            " constructor's int payload is refined onto this carrier in a later increment;"
+            " declared here as the certified (Phase-0 spike) numeric leaf type. *)",
+            "  type ir_num = INum int | IReal real",
+            "",
+            "  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model."
+            " tier3-p1 T3.1.1: extended with IrBinOp (op, left, right) — the EXPR-family"
+            " operator node — realizing the Phase-0 spike design in the live emitter. *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrRaw string | IrOther string"
             " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
-            " | IrTuple emit_ir emit_ir",
+            " | IrTuple emit_ir emit_ir"
+            " | IrBinOp string emit_ir emit_ir",
             "",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
             " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
             " B-C6: IrTuple carries the first two elements (elts[0], elts[1]) — the"
-            " emitter reflects on a MkTuple node's `elts` in the ghost-dict `+=` branch. *)",
+            " emitter reflects on a MkTuple node's `elts` in the ghost-dict `+=` branch."
+            " tier3-p1: IrBinOp carries the operator string and the left/right sub-nodes. *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
@@ -2974,8 +2987,55 @@ class PreambleEmissionMixin:
             "    | IrRaw _ -> \"RawWhyml\"",
             "    | IrCall _ _ _ -> \"Call\" | IrSub _ _ -> \"Subscript\"",
             "    | IrTuple _ _ -> \"MkTuple\"",
+            "    | IrBinOp _ _ _ -> \"BinOp\"",
             "    | IrOther k -> k",
             "    end",
+            "",
+            "  (* tier3-p1 T3.1.2 (spike LAW 1): the BinOp constructor DISCRIMINANT — a"
+            " match-based bool, NOT `kind_of e = \"BinOp\"`. The two agree on every REAL IR"
+            " node (Module 5 never emits an IrOther whose kind is a registry tag — the"
+            " commit-d2479fe9 fail-closed boundary), but `is_binop` EXCLUDES the IrOther"
+            " catch-all, which is what makes the size-decrease law (below) hold and thus"
+            " lets structural recursion over a projected sub-node terminate. *)",
+            "  let function is_binop (e: emit_ir) : bool =",
+            "    match e with IrBinOp _ _ _ -> true | _ -> false end",
+            "",
+            "  (* tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections. `op_of` reads the"
+            " operator STRING leaf; `left_of`/`right_of` project the SUB-NODES. Total over"
+            " the sum (a non-BinOp reads the empty string / the IrOther \"\" sentinel). *)",
+            "  let function op_of (e: emit_ir) : string =",
+            "    match e with IrBinOp o _ _ -> o | _ -> \"\" end",
+            "",
+            "  let function left_of (e: emit_ir) : emit_ir =",
+            "    match e with IrBinOp _ l _ -> l | _ -> IrOther \"\" end",
+            "",
+            "  let function right_of (e: emit_ir) : emit_ir =",
+            "    match e with IrBinOp _ _ r -> r | _ -> IrOther \"\" end",
+            "",
+            "  (* tier3-p1 T3.1.4 (spike LAW 3): the structural subtree-size measure. The"
+            " `variant { e }` is STRUCTURAL (recurses on pattern-bound sub-terms), so it"
+            " discharges natively here. The `ensures { result >= 1 }` — proven at this"
+            " definition, each recursive call assuming it — exposes `size e >= 1 > 0` to"
+            " every caller, discharging the int-variant well-foundedness lower bound. *)",
+            "  let rec function size (e: emit_ir) : int",
+            "    ensures { result >= 1 }",
+            "    variant { e }",
+            "  = match e with",
+            "    | IrBinOp _ l r -> 1 + size l + size r",
+            "    | IrSub a b -> 1 + size a + size b",
+            "    | IrTuple a b -> 1 + size a + size b",
+            "    | IrAttr o _ -> 1 + size o",
+            "    | IrCall _ a _ -> 1 + size a",
+            "    | _ -> 1",
+            "    end",
+            "",
+            "  (* tier3-p1 T3.1.4: the guarded size-DECREASE laws — a BinOp's left/right"
+            " sub-node is strictly smaller than the node. PROVEN (no axiom) by case"
+            " analysis on the sum + `size`'s `result >= 1`. These are the facts an"
+            " emitter-shaped recursive function over an IR-node param needs at its"
+            " recursive call sites (`f (node.get(\"left\"))`) to discharge termination. *)",
+            "  lemma size_left_dec  : forall e: emit_ir. is_binop e -> size (left_of e) < size e",
+            "  lemma size_right_dec : forall e: emit_ir. is_binop e -> size (right_of e) < size e",
             "",
             "  let function name_of (e: emit_ir) : string =",
             "    match e with IrVar n -> n | IrAttr _ a -> a | _ -> \"\" end",
