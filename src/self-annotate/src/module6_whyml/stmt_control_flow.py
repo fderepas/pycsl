@@ -647,12 +647,16 @@ class ControlFlowStmtMixin:
     def _infer_return_value_type(self, val_ir: Any) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _union_arm_whyml_type(self, tag: str) -> str:
-        return ""
+        """Map a Union arm IR type tag to its WhyML type string."""
+        m = {"int": "int", "bool": "int", "str": "string", "float": "real",
+             "list": "array int", "bytes": "array int", "bytearray": "array int",
+             "dict": "map int (option int)", "set": "map int (option int)",
+             "frozenset": "map int (option int)", "tuple": "array int"}
+        return m.get(tag, "int")
 
     #@ requires True
     #@ ensures True
