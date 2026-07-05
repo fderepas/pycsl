@@ -23,12 +23,12 @@ def _walk_dicts(obj: Any):
 def _touches_global(obj: Any, globals_set: int) -> bool:
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _method_key(cls: str, method: str) -> str:
-    return ""
+    """The function-IR name for class `cls`'s method `method` (Module 5 mangling)."""
+    return f"{cls.lower()}__{method}"
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
