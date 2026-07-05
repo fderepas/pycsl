@@ -248,12 +248,48 @@ false-positive against the τ-blessed baseline.
   are the three pre-existing `List[Point]` projection programs `0769`/`0770`/`0771` (they NOW prove the
   content law via the native `(a[i]).x` projection instead of the opaque `get_x`, and the false twin
   0771 STAYS UNPROVEN); every OTHER of the 707 corpus files emits BYTE-IDENTICALLY. **STILL OUT OF
-  SCOPE (documented residuals):** a `List[<record>]` LITERAL (`[Point(1,2), Point(3,4)]`, would need
-  the record constructor threaded to the WL-04a list-literal seam), a FILTERED projection comprehension
-  over a record source (`[p.x for p in a if …]` → falls back to the opaque length-only law), a
-  `List[<plain-class-with-__init__>]` element (only `@dataclass`/`NamedTuple`/recognized `Tuple`
-  elements are recognized), and a record element with a `float`/container field slot (the WL-03 slot
-  recognition is int/bool/str only). str/float (WL-04) and record (WL-04b) are the covered flat leaves.
+  SCOPE (documented residuals):** the `List[<record>]` LITERAL is now covered by **WL-04c** (below); a
+  FILTERED projection comprehension over a record source (`[p.x for p in a if …]` → falls back to the
+  opaque length-only law), a `List[<plain-class-with-__init__>]` element (only `@dataclass`/
+  `NamedTuple`/recognized `Tuple` elements are recognized), and a record element with a `float`/
+  container field slot (the WL-03 slot recognition is int/bool/str only) remain deferred. str/float
+  (WL-04) and record (WL-04b) are the covered flat leaves.
+- **Record LITERAL (WL-04c) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). A `List[<record>]` LITERAL
+  whose elements are ALL full-arity positional constructor CALLS to the SAME CONTENT-FAITHFUL record —
+  `a = [Point(1, 2), Point(3, 4)]` (LOCAL) or `return [Point(1, 2), Point(3, 4)]` (with `-> List[Point]`)
+  — previously ran every element through `_coerce_to_int`, so the record-constructor element collapsed
+  to an opaque int and `a[i].field` (local) / `\result[i].field` (return) was content-opaque / ill-typed
+  at a record use site (TYPEERR). This is the CONSTRUCTION analog of WL-04b (the flat `List[<record>]`
+  PARAMETER element) and the record-leaf twin of WL-04a (str/float list-literal). The list-literal seam
+  now threads the record CONSTRUCTOR: `module6_whyml/expressions.py::_expr_to_whyml` (`ArrayLitExpr`
+  arm), gated by the new `_record_ctor_list_elem`, builds `array <record>` with each element the
+  FAITHFUL record literal (`{ x = 1; y = 2 }`, args threaded via `_call_record_constructor`);
+  `types.py::_track_collection_metadata` registers the local in the new `_record_array_locals`, so
+  `a[i].field` / `a[i][k]` project natively (via the extended `_handle_attribute_expr` +
+  `_namedtuple_positional_access`, the local twin of `_record_array_params`); `\result[i].field` on a
+  `-> List[R]` return (whose `array <record>` type WL-04b already resolves via `_compute_return_type`)
+  projects via the widened `_handle_attribute_expr` Result-subscript arm. The element record is emitted
+  **PURE** (Why3 forbids a mutable element inside `array`): Module5 `_m5_list_literal_record_elem`,
+  computed AFTER `generic_visit` (so class-based NamedTuples are populated), adds it to
+  `list_element_record_types`. **FAITHFUL CONSTRUCTION IS REQUIRED:** only a record whose constructor
+  sets EVERY field from a positional param (a `NamedTuple`, a recognized `Tuple`, an explicit-`__init__`
+  positional class) is threaded; a `@dataclass` with no explicit `__init__` DROPS its ctor args (a
+  SEPARATE pre-existing gap — even standalone `Point(1, 2).x` currently proves `== 0` unsoundly), so its
+  literal element is NOT content-faithful and stays **FAIL-CLOSED** (opaque / TYPEERR — never threaded
+  into native projection, so the array path is never a silent unsound `a[0].x == 0`). Verdict flips:
+  `getting-better/wrong-lowering/wl04c_list_record_literal_COLLAPSED.py` TYPEERR → **PROVEN**; false-twin
+  `wl04c_list_record_literal_falsetwin.py` → **UNPROVEN**. SMT spike
+  `test-suite/corpus/conformance/spikes/wl04c_list_record_literal_spike.mlw` (a record-list-LITERAL
+  element/return field read + read-after-write independence + cross-element distinctness, Valid on
+  **both** Alt-Ergo AND Z3, no cited lemma). Reference locks: `0839.py` (POSITIVE — local literal
+  `a[i].field` + `-> List[Point]` return `\result[i].field`), `0840.py` (NEGATIVE `# pycsl-expected:
+  FAIL` — a false cross-field conflation). **Emission-differential:** the ONLY corpus files whose
+  emission changes are the two NEW locks `0839`/`0840`; every OTHER of the 718 pre-existing corpus files
+  emits BYTE-IDENTICALLY (`bin/byte-diff-sweep.sh`, before/after). No new axiom; `\trusted`
+  non-increasing; doc-coherency green. **STILL OUT OF SCOPE (documented residuals):** a `@dataclass`-ctor
+  literal (blocked on the dataclass positional-ctor-capture gap — a distinct pre-existing unsoundness
+  worth its own fix), and a MIXED-record / keyword-arg literal keep the fail-closed (int-collapse /
+  opaque / TYPEERR) model.
 - **Dedup:** none (we-are-getting-better.md #6/#7 are IR-node list attrs in the mirror, a different
   surface).
 

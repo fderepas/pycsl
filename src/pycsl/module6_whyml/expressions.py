@@ -3669,6 +3669,45 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return [self._subst_params(x, arg_nodes) for x in ir]
         return ir
 
+    def _record_ctor_list_elem(self, elts: List[Dict[str, Any]]) -> Optional[str]:
+        """WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): if EVERY
+        element of a list literal is a full-arity constructor Call to the SAME known
+        record whose constructor FAITHFULLY captures every field from a positional
+        param, return the record CLASS NAME — so the literal builds `array <record>`
+        with faithful element field content (each element the record literal
+        `{ x = 1; y = 2 }`) and `a[i].field` projects the real field. Returns None
+        (→ the caller keeps the int-coercion default / opaque path, fail-closed) for:
+        an empty / non-Call element, a mixed-record literal, a keyword/under-arity
+        call (`args` short of `init_params`), or a record whose constructor does NOT
+        set every field from its params (e.g. a `@dataclass` with no explicit
+        `__init__` — its ctor DROPS its args, a separate pre-existing gap, so its
+        literal element is NOT content-faithful and must NOT be projected natively)."""
+        if not elts:
+            return None
+        rec_types = getattr(self, "_record_types", {})
+        rec_name: Optional[str] = None
+        for e in elts:
+            if not (isinstance(e, dict) and e.get("type") == "Call"):
+                return None
+            fn = e.get("func")
+            if fn not in rec_types:
+                return None
+            if rec_name is None:
+                rec_name = fn
+            elif fn != rec_name:
+                return None            # a mixed-record literal is out of scope
+            info = rec_types[fn]
+            fields = info.get("fields", [])
+            init_params = info.get("init_params", [])
+            covered = {en.get("field") for en in info.get("init_body", [])}
+            # faithful iff the ctor sets every field from a positional param AND the
+            # call provides full arity (so `_call_record_constructor` threads args).
+            if not init_params or not set(fields) <= covered:
+                return None
+            if len(e.get("args", [])) != len(init_params):
+                return None
+        return rec_name
+
     def _call_record_constructor(self, args: List[str], func_name: str) -> Optional[str]:
         """`C(...)` for a known record type → a WhyML record literal with per-field,
         type-correct values. Returns None only if `func_name` is not a known record
@@ -3920,8 +3959,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (rec_name is None and value.get("type") == "Subscript"
                 and isinstance(value.get("value"), dict)
                 and value["value"].get("type") == "Var"):
-            _rn = getattr(self, "_record_array_params", {}).get(
-                value["value"].get("name", ""))
+            _nm = value["value"].get("name", "")
+            # WL-04c: a record-array LOCAL (`a = [Pt(1,2), …]`) shares the WL-04b
+            # `a[i][k]` slot path with a record-array PARAM.
+            _rn = (getattr(self, "_record_array_params", {}).get(_nm)
+                   or getattr(self, "_record_array_locals", {}).get(_nm))
             if _rn is not None:
                 # `_rn` is the whyml_name; find the record class whose whyml_name matches.
                 for _cls, _info in getattr(self, "_record_types", {}).items():
@@ -4391,10 +4433,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if isinstance(obj_ir, dict) and obj_ir.get("type") == "Subscript":
             _bv = obj_ir.get("value", {})
             if isinstance(_bv, dict) and _bv.get("type") == "Var":
-                _wn = getattr(self, "_record_array_params", {}).get(_bv.get("name", ""))
+                _nm = _bv.get("name", "")
+                # WL-04c: a record-array LOCAL (`a = [Point(1,2), …]`, registered in
+                # `_record_array_locals`) shares the WL-04b PARAM projection path.
+                _wn = (getattr(self, "_record_array_params", {}).get(_nm)
+                       or getattr(self, "_record_array_locals", {}).get(_nm))
                 if _wn is not None:
                     _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
                     return f"(let _rec_ = {_os} in _rec_.{self._field_label(_wn, attr)})"
+            # WL-04c: `\result[i].field` on a `-> List[<record>]` return (`_func_return_type
+            # == "array <record>"`) — `\result[i]` is a native `Array.get` (widened in
+            # `_handle_subscript` L0) and `.field` a native record projection over it.
+            if isinstance(_bv, dict) and _bv.get("type") == "Result":
+                _rt = getattr(self, "_func_return_type", "") or ""
+                if _rt.startswith("array "):
+                    _wn = _rt[len("array "):].strip()
+                    if _wn in {i.get("whyml_name")
+                               for i in getattr(self, "_record_types", {}).values()}:
+                        _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+                        return f"(let _rec_ = {_os} in _rec_.{self._field_label(_wn, attr)})"
         # scc3.md Phase A: a quantifier-bound record var `o : C` (registered by
         # `_push_quant_binder`) — `o.field` is the record field, qualified via
         # `_field_label`, not an abstract `get_field` stub. (The class invariant is
@@ -5913,6 +5970,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"({inner} _alit)"
             if elts:
                 n = len(elts)
+                # WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): a
+                # LIST-LITERAL whose elements are ALL full-arity constructor Calls to
+                # the SAME content-faithful record (`[Point(1, 2), Point(3, 4)]`) builds
+                # `array <record>` with each element the FAITHFUL record literal
+                # (`{ x = 1; y = 2 }` via `_call_record_constructor`) — NOT the opaque
+                # int-coercion collapse. So `a[i].field` on the local (registered as a
+                # record-array local in `_track_collection_metadata`) / `\result[i].field`
+                # on a `-> List[R]` return projects the real field. A non-faithful
+                # record (e.g. a `@dataclass` whose ctor drops its args) is NOT matched
+                # → keeps the fail-closed opaque path. This is the construction analog of
+                # the WL-04b flat `List[<record>]` PARAMETER element.
+                _rec_elem = self._record_ctor_list_elem(elts)
+                if _rec_elem is not None:
+                    lowered = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst)
+                               for e in elts]
+                    sets = "; ".join(f"_alit[{i}] <- {lowered[i]}" for i in range(1, n))
+                    inner = f"let _alit = Array.make {n} ({lowered[0]}) in"
+                    if sets:
+                        inner += f" {sets};"
+                    return f"({inner} _alit)"
                 # WL-04a (wrong-lowering-to-fix.md §WL-04 list-literal residual): a
                 # LIST-LITERAL whose elements are ALL string literals (resp. ALL float
                 # `Number`s) is realized at the FAITHFUL element type — `array string`

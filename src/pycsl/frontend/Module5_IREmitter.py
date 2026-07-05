@@ -330,6 +330,33 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
         self.generic_visit(node)
 
+        # WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): a record
+        # constructed as an element of a FAITHFUL `List[<record>]` LITERAL
+        # (`[Point(1, 2), Point(3, 4)]`) is realized as an `array <record>` element by
+        # Module6's ArrayLit seam, so it too must be emitted PURE (Why3 forbids a
+        # mutable element inside `array`). Computed AFTER `generic_visit` so every
+        # record `type_decl` (incl. class-based NamedTuples appended during function/
+        # class visitation) is populated. Only records whose constructor sets EVERY
+        # field from a positional param are matched — a `@dataclass` whose ctor drops
+        # its args is NOT content-faithful, its literal stays fail-closed (opaque /
+        # TYPEERR), and it is NOT flagged pure (byte-identical).
+        _faithful_recs: Set[str] = set()
+        for _td in self.program_ir["type_decls"]:
+            if _td.get("kind") != "record":
+                continue
+            _fnames = {f.get("name") for f in _td.get("fields", [])}
+            _covered = {e.get("field") for e in _td.get("init_body", [])}
+            if _td.get("init_params") and _fnames and _fnames <= _covered:
+                _faithful_recs.add(_td.get("name"))
+        _lit_recs: Set[str] = set()
+        for _child in ast.walk(node):
+            _re = self._m5_list_literal_record_elem(_child, _faithful_recs)
+            if _re is not None:
+                _lit_recs.add(_re)
+        if _lit_recs:
+            _existing = set(self.program_ir.get("list_element_record_types", []))
+            self.program_ir["list_element_record_types"] = sorted(_existing | _lit_recs)
+
     def _get_mutex_invariant_ir(self, mutex: str) -> Optional[Dict[str, Any]]:
         """Return the IR form of the mutex invariant, or None if not declared."""
         csl_node = self._mutex_invariants_csl.get(mutex)
@@ -3295,6 +3322,34 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if nm in getattr(self, "_m5_record_class_names", set()):
                 return nm
         return None
+
+    @staticmethod
+    def _m5_list_literal_record_elem(node: ast.AST,
+                                     faithful_recs: Set[str]) -> Optional[str]:
+        """WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): for an
+        `ast.List` LITERAL whose elements are ALL full-arity positional constructor
+        CALLS to the SAME content-faithful record (`[Point(1, 2), Point(3, 4)]`,
+        `Point` in `faithful_recs`), return the record CLASS NAME — so Module6 emits
+        that record PURE (Why3 forbids a mutable element inside `array`, and the
+        literal is realized as `array <record>`). Returns None for a non-List node,
+        an empty list, a mixed / non-Call element, a keyword or under/over-arity
+        call, or a non-faithful record (e.g. a `@dataclass` whose ctor drops args)."""
+        if not (isinstance(node, ast.List) and node.elts):
+            return None
+        rec_name: Optional[str] = None
+        for e in node.elts:
+            if not (isinstance(e, ast.Call) and isinstance(e.func, ast.Name)):
+                return None
+            nm = e.func.id
+            if nm not in faithful_recs:
+                return None
+            if e.keywords or any(isinstance(a, ast.Starred) for a in e.args):
+                return None
+            if rec_name is None:
+                rec_name = nm
+            elif nm != rec_name:
+                return None
+        return rec_name
 
     # nested-list.md S1: ONE recursive annotation -> WhyML *element-position* type.
     # An element-position type is a PURE Why3 type (Why3 forbids a mutable element

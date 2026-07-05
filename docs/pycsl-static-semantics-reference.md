@@ -354,8 +354,28 @@ dataclass-in-a-list fails CLOSED at Why3 type-check (never a silent unsound upda
 comprehension `[p.x for p in a]` over a record source is lowered natively too. Drivers
 `wl04b_list_{record,tuple}_elem_COLLAPSED.py` (PROVEN), false-twin `wl04b_list_record_falsetwin.py`
 (UNPROVEN); locks 0829/0830 (POSITIVE), NEGATIVE 0831. Residuals (int-collapse / opaque kept): a
-`List[<record>]` LITERAL, a FILTERED record-projection comprehension, a `List[<plain-class>]` element,
-and a record slot of `float`/container type.
+FILTERED record-projection comprehension, a `List[<plain-class>]` element, and a record slot of
+`float`/container type. (The `List[<record>]` LITERAL is now covered by §WL-04c below.)
+
+**§ Flat RECORD-element list LITERAL (wrong-lowering-to-fix.md §WL-04c).** The CONSTRUCTION analog of
+§WL-04b. A list LITERAL whose elements are ALL full-arity positional constructor CALLS to the SAME
+CONTENT-FAITHFUL record (`a = [Point(1, 2), Point(3, 4)]`, `return [Point(1, 2), Point(3, 4)]`) builds
+`array <record>` with each element the FAITHFUL record literal (`{ x = 1; y = 2 }`, the constructor
+args threaded via `_call_record_constructor`) — NOT the int-coercion collapse. The emitter
+(`expressions.py::_expr_to_whyml` `ArrayLitExpr` arm, gated by `_record_ctor_list_elem`) registers the
+local as a record-array local (`_track_collection_metadata` → `_record_array_locals`), so `a[i].field`
+(local) and `\result[i].field` (on a `-> List[R]` return) project the real field via the same
+`(let _rec_ = … in _rec_.<label>)` path as §WL-04b. The element record is emitted PURE (Module5
+`_m5_list_literal_record_elem` adds it to `list_element_record_types` after `generic_visit`). FAITHFUL
+CONSTRUCTION IS REQUIRED: only a record whose constructor sets EVERY field from a positional param (a
+`NamedTuple`, a recognized `Tuple`, an explicit-`__init__` positional class) is threaded; a `@dataclass`
+with no explicit `__init__` DROPS its ctor args (a separate pre-existing gap), so its literal element is
+NOT content-faithful and stays fail-closed (opaque / TYPEERR — never a silent unsound `a[0].x == 0`
+proof). Drivers `wl04c_list_record_literal_COLLAPSED.py` (PROVEN), false-twin
+`wl04c_list_record_literal_falsetwin.py` (UNPROVEN); Gate-B spike
+`spikes/wl04c_list_record_literal_spike.mlw` (Alt-Ergo AND Z3, no cited lemma); locks 0839 (POSITIVE),
+NEGATIVE 0840. Residuals (kept fail-closed): a `@dataclass`-ctor literal (blocked on the dataclass
+positional-ctor-capture gap), a MIXED-record / keyword-arg literal.
 
 **§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
 is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT

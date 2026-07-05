@@ -270,6 +270,14 @@ class FunctionEmissionMixin:
         # `_param_type_str` (`array <record>`); consumed by `_handle_attribute_expr`
         # and the content-faithful comprehension.
         self._record_array_params: Dict[str, str] = {}
+        # WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): a LOCAL
+        # bound from a `List[<record>]` LITERAL of full-arity record CONSTRUCTORS
+        # (`a = [Point(1, 2), Point(3, 4)]`) → the element record's whyml name, so
+        # `a[i].field` lowers to a native record projection `(a[i]).<label>` (not the
+        # opaque `get_field` collapse) — the local twin of `_record_array_params`.
+        # Set by `_track_collection_metadata`; consumed by `_handle_attribute_expr`
+        # and `_namedtuple_positional_access`.
+        self._record_array_locals: Dict[str, str] = {}
         self._ghost_string_vars: Set[str] = set()
         self._ghost_array_vars: Set[str] = set()
         self._ghost_dict_vars: Set[str] = set()

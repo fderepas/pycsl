@@ -41,6 +41,20 @@ class TypeInferenceMixin:
         if vt in ("ArrayLit", "Tuple"):
             elts = val_ir.get("elts", [])
             self._known_collection_sizes[target] = len(elts)
+            # WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): a LOCAL
+            # bound from a `List[<record>]` LITERAL of full-arity, content-faithful
+            # record CONSTRUCTORS (`a = [Point(1, 2), Point(3, 4)]`) is a record-array
+            # local — register the element record's whyml name so `a[i].field` /
+            # `a[i][k]` projects the faithful field natively (the local twin of
+            # `_record_array_params`). A non-record / non-faithful literal is not
+            # matched (byte-identical). No numeric fold is registered for a record
+            # element (the elem_map below only folds Number elements).
+            _rec_elem = self._record_ctor_list_elem(elts)
+            if _rec_elem is not None:
+                _info = self._record_types.get(_rec_elem, {})
+                _wn = _info.get("whyml_name")
+                if _wn is not None:
+                    self._record_array_locals[target] = _wn
             # WL-04a: a PURE-float literal folds an indexed read to the FAITHFUL real
             # value (`a[1]` → `2.5`), matching the `array real` construction — never the
             # int-truncated `2` (which would be an `int` vs `real` type error against the
