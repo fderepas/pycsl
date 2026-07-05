@@ -702,3 +702,43 @@ preamble for a value-record array field — and note iter-21's addendum: struct_
 STALE stub skeleton, so arity needs the whole grown `StructFormat` shape resynced first), plus the
 set-local / IR-recursion / external-callback blocked helpers. Next tractable pickup is again
 smallest-feature-first (string-valued `or`, or the value-record array-preamble).
+
+### Iteration 23 (2026-07-05) — 🎯 safe_exc_name CONVERTS via string-bool-op feature (1261→1260)
+
+The second demand-driven feature flagged in iteration 21 (both-operands-string `or`/`and`) LANDED
+(commit `16f5f6a2`): `s or t` now lowers to a faithful string ITE over emptiness
+(`if str_length_op s > 0 then s else t`); `.lstrip("_")` already yields a length-bounded opaque
+`string`, so `safe_exc_name(name) = name.lstrip("_") or name` lowers to a coherent string. This
+iteration converts `identifiers::safe_exc_name` through the full SL loop.
+
+- **converter:** ported the live body verbatim — `return name.lstrip("_") or name` (+ the live
+  docstring). Contract shape `#@ requires True / ensures True / assigns \nothing`. NO companion type
+  change needed (body touches only the `name` param, `.lstrip`, and `or` — unlike op_translate which
+  needed `OP_MAP: int→Dict[str,str]`). Local `--no-proof`: L3-tc ✓.
+- **Gate A:** T1.b tier, not on floor denylist, contract shape correct → APPROVED; `\trusted` removed.
+- **VERIFIER (fresh, surface-only) + independent re-confirmation — three L planes, ALL PASS:**
+  - **Fidelity:** `check-self-annotate-sync.sh` exit 0 ∧ `self-annotate-mirror-check.sh` exit 0
+    (safe_exc_name body == live verbatim).
+  - **Type-safety:** `Verification SUCCESS` — `safe_exc_name'vc` Valid via best-of-N **Z3** (sanctioned
+    string-theory path). `proof_axiom_allowlist` diff **EMPTY** (no smuggled axiom).
+  - **Corpus inertness:** byte-diff **0** vs the re-pinned E-0 baseline (750 corpus files identical;
+    the mirror file is not in the reference sweep — mirror-only conversions are byte-diff 0 by
+    construction); suite **17/27**, identical to the known pre-existing failed set
+    (pycsl.py `_Directive`, expressions.py/statements.py int/string leaks, 7 unmirrored "file
+    missing") — identifiers.py PASSES, no NEW failure; `\trusted` count **1261 → 1260** (canonical
+    `\\trusted` marker; strict −1).
+- **Gate B + Gate C:** all three planes pass, unblended; non-vacuity holds (tight `\nothing` frame,
+  real verbatim body, genuine string-ITE VC discharge). No coherent-and-wrong caught. Committed
+  `1b029a75`.
+- **Adjacent-leaf sweep:** neither new feature (module-const-dict-get, string-or-and) cheaply unblocks
+  another leaf at byte-diff 0. The only `return X or Y` in identifiers.py was safe_exc_name itself; the
+  two remaining identifiers.py stubs are feature-blocked — `stable_hash` (hashlib, external opaque) and
+  `whyml_ident` (per-char loop + `unicodedata.normalize`/`ord` — needs char-loop invariants + unicode
+  modeling). No module-const-dict `.get(k, str_default)` consumer remains. Stopped.
+
+**End count 1260 (19 handlers/leaves converted cumulatively; 3 this session: op_translate,
+safe_exc_name, + the statements.py fidelity resync).** byte-diff 0 held; allowlist unchanged. Frontier
+back to **feature-gated**: next flagged leaf is `struct_format::arity` (needs the `use array.Array`
+value-record-field preamble AND a stale-`StructFormat`-stub resync — the mirror struct_format.py is a
+generated stub skeleton whose live `StructFormat` has grown a `chars` field + faithful_* methods it
+lacks; see iter-21 addendum). Remaining set-local / IR-recursion / external-callback helpers unchanged.
