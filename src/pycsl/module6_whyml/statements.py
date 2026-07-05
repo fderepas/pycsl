@@ -1069,6 +1069,28 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     ) -> str:
         obj = stmt.object
         field = stmt.field
+        # wrong-lowering-to-fix.md §WL-05d: a field store to a record-typed PARAMETER
+        # or LOCAL var (`p.x = v`, `obj != "self"`, Module 5 now emits it — was silently
+        # dropped). A MUTABLE record lowers to `p.x <- v` below (Why3 infers `writes
+        # {p.x}` on the `let` → caller-visible + sound). But a record pinned PURE because
+        # it is a `List[<record>]` ELEMENT (in `_list_element_record_types`) has an
+        # IMMUTABLE field, so `p.x <- v` would be Why3 TYPE-REJECTED; and even a
+        # standalone param of that (globally-pure) class cannot carry a caller-visible
+        # store. Reject cleanly here (fail CLOSED) instead of emitting a Why3-ill-typed
+        # `<-`. `self` field stores are unaffected (records with a mutation frame).
+        if obj != "self":
+            _obj_cls = getattr(self, "_current_symbol_table", {}).get(obj)
+            if _obj_cls and _obj_cls in getattr(self, "_list_element_record_types", set()):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"in-place field mutation `{obj}.{field} = ...` of a record whose class "
+                    f"`{_obj_cls}` is used as a `List[<record>]` element is out of scope: such "
+                    f"a record is modelled as a PURE (immutable) Why3 record (Why3 forbids a "
+                    f"mutable element inside `array`), so the field store cannot be made "
+                    f"caller-visible. Rebuild the record (`{obj} = {_obj_cls}(...)`) instead.",
+                    stage="module6-whyml",
+                    code="PYCSL-WHYML-PARAM-COLLECTION-MUT",
+                )
         val = self._expr_to_whyml(stmt.value, local_refs)
         if val == "true":
             val = "1"

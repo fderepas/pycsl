@@ -1,0 +1,64 @@
+(* WL-05d SMT-feasibility spike: caller-visible RECORD PARAMETER field mutation,
+   and the fail-closed boundary for a PURE (list-element) record.
+
+   Sub-case B (IMPLEMENTED): a `List[int]` param is ALREADY `array int` (a Why3
+   MUTABLE type) and a `@dataclass`/record param is a MUTABLE record `{ mutable x }`.
+   A field store `p.x = v` lowers to the NATIVE `p.x <- v`; Why3 INFERS the effect
+   (`writes {p.x}`) on the concrete `let`, so the mutation is caller-visible and a
+   write-read-back PROVES. NO explicit writes clause, NO new axiom.
+
+   Sub-case pure-element (FAIL-CLOSED): a record used as a `List[<record>]` element
+   is emitted PURE (`{ x }`, no `mutable`) — Why3 forbids a mutable element inside
+   `array`. A `<-` store on a pure field is TYPE-REJECTED (demonstrated commented,
+   below): the field store cannot be lowered, so PyCSL rejects it cleanly.
+   Alt-Ergo + Z3, no new axiom. *)
+module Spike
+  use int.Int
+  use array.Array
+
+  (* the MUTABLE record a standalone (non-list-element) @dataclass param becomes *)
+  type point = { mutable x: int; mutable y: int }
+
+  (* B1: record param field store, write-read-back PROVES (Why3 infers writes {p.x}) *)
+  let setx (p: point) : unit
+    ensures { p.x = 5 }
+  =
+    p.x <- 5
+
+  (* B2: caller-visibility — the mutation ESCAPES to the caller *)
+  let caller_rec (p: point)
+    requires { p.x = 3 }
+    ensures  { p.x = 5 }   (* caller observes the callee's write *)
+  =
+    setx p
+
+  (* B3: frame soundness — a caller must NOT prove the field UNCHANGED. This goal is
+     deliberately the FALSE twin and is left as an `assert` that would FAIL; we encode
+     its NEGATION as provable instead: after setx, p.x <> 3. *)
+  let caller_frame (p: point)
+    requires { p.x = 3 }
+    ensures  { p.x <> 3 }   (* the write really happened; old value is gone *)
+  =
+    setx p
+
+  (* B4: the LIST-param element store (sub-case A) — array is mutable, native store *)
+  let list_store (a: array int) : unit
+    requires { Array.length a > 0 }
+    ensures  { a[0] = 5 }
+  =
+    a[0] <- 5
+
+  let list_caller (a: array int)
+    requires { Array.length a > 0 }
+    ensures  { a[0] = 5 }
+  =
+    list_store a
+
+  (* pure-element boundary (why the fail-closed guard is needed): a PURE record has an
+     IMMUTABLE field, so `q.x <- 7` is a Why3 TYPE ERROR. Uncommenting the body below
+     makes Why3 reject the module — evidence PyCSL must fail closed BEFORE emitting it.
+        type ppoint = { x: int }            (* no `mutable` — list-element shape *)
+        let bad (q: ppoint) : unit = q.x <- 7   (* TYPE ERROR: assignment to non-mutable field *)
+  *)
+
+end

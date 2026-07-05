@@ -200,8 +200,10 @@ specification logic's type universe:
 τ(tuple)          = int †     (* bare tuple — unlike the recognized Tuple[T1, ..., Tn] above *)
 τ(C)              = record    (* user-defined class C → a WhyML record of its fields, for
                                  `self`, locally-constructed instances, AND a bare C-typed
-                                 parameter whose class is registered — read-only field access
-                                 `p.field`; mutation of a record parameter is out of scope (‡).
+                                 parameter whose class is registered — field READ `p.field`, and
+                                 a field STORE `p.field = v` on a MUTABLE record is caller-visible
+                                 (§WL-05d: `p.field <- v`, inferred `writes`); a PURE (list-element)
+                                 record's field store fails closed (‡).
                                  A `#@ mixin` C with shared/owned fields is the same `record`;
                                  a `#@ compose_from` class flattens its mixins' provided methods +
                                  fields into this record (§2.6, Tier 1) *)
@@ -511,18 +513,26 @@ module-level FIXPOINT (direct item-mutation + transitive param forwarding). A mu
 carry a postcondition on the param post-state (`#@ ensures d["a"] == 5`) for a caller to rely on the
 escape. **Still out of scope (REJECTED, code `PYCSL-WHYML-PARAM-COLLECTION-MUT`):** a mutated dict/set
 **METHOD** param (its types feed the cross-method call-contract map, which the ref promotion would
-desync), the `@mutable_state` param no-op, record-param mutation (‡ below) and nested-list inner mutation
-(above). Drivers: 0820/0821/0832/0833 positive (write-read-back + caller-visibility), 0822/0823 positive
+desync), the `@mutable_state` param no-op, a PURE-record (list-element) field store and a
+subscript/nested-base field store `a[i].f=v` (‡ below, §WL-05d) and nested-list inner mutation
+(above). (A MUTABLE-record param field store `p.f=v` and a LIST param element store `a[i]=v` are
+SUPPORTED — ‡ below, §WL-05d.) Drivers: 0820/0821/0832/0833 positive (write-read-back + caller-visibility), 0822/0823 positive
 (LOCAL), 0834 negative (false post-mutation claim FAILS).
 
 **‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self`, the
 result of a constructor call `C()`, **and** a bare `C`-typed *parameter* whose class is registered
 in `_record_types` are all typed as the class's WhyML record (field defaults per `τ`). A record
-parameter gives **read-only** field access — `p.field` is a direct record read in both body and
+parameter gives a direct record read `p.field` in both body and
 contract (`functions.py::_param_type_str` + the method loop; the old coarsen-to-`int` +
-opaque `getattr_<cls>` path is gone for record params). **Out of scope:** *mutating* a record
-parameter (Why3 records are by-value, so a write does not flow back to the caller — needs the
-frame/`writes` machinery). A **method call** on a record param (`p.m(args)`) now resolves the
+opaque `getattr_<cls>` path is gone for record params). A field STORE `p.field = v` on a MUTABLE
+record param is **caller-visible** (wrong-lowering-to-fix.md §WL-05d): it lowers to the native
+`p.field <- v` and Why3 infers the `writes {p.field}` frame on the concrete `let`, so the mutation
+flows back to the caller (Python objects are by-reference). **Fail-closed:** a record pinned PURE
+because it is a `List[<record>]` element is field-immutable (Why3 forbids a mutable element inside
+`array`), so its field store is REJECTED (`PYCSL-WHYML-PARAM-COLLECTION-MUT`); likewise a store
+through a subscript/nested base (`a[i].f = v`). Before §WL-05d these were silent-drop no-ops — a
+severity-1 fail-OPEN (a caller could prove the field UNCHANGED after a real mutation). A **method
+call** on a record param (`p.m(args)`) now resolves the
 callee contract exactly like a record local (no-more-int-3 A2a): `statements.py::_emit_body_code`
 unions the param→record map into `_current_record_var_classes`, so result-only and
 param-referencing `ensures` propagate to the call site. A *field-referencing* callee ensure

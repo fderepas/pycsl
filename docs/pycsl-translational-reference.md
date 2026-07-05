@@ -339,7 +339,7 @@ def test_precondition(x: int) -> int:
 | `dict` / `set` / `frozenset` | `map κ (option ν)` | Parametric map (no-more-int A1): κ ∈ {`int`, `string`}, and the value type **ν ∈ {`int`, `string`, `seq int`, nested `map …`}**, where — `int` (the default), `string` (str-valued dict), `seq int` (list-valued dict, **immutable seq snapshot** — no mutate-through-alias; A1-residual, driver 0543), and a nested `map …` (dict-of-dict, double subscript). Default `map int (option int)`. `set`/`frozenset` use the same model (value ignored). **κ = string ⇒ `map string (option ν)` with the NATIVE, injective Why3 string key** (`String.(=)`, no `str_hash_op`), so distinct keys are provably non-aliasing (cleared-hash.md, drivers 0755–0758 locals, 0772–0776 record fields). κ = string is inferred for a `Dict[str, _]` param/AnnAssign local, a string-key literal (`{"a": …}`), string-key USAGE (`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key), a string CONCATENATION key `d[a + b]` (both operands `str`; `str_concat_op` pinned to left-cancellative Why3 `concat`, so `a != c ⇒ d[a+b]` non-aliasing proves — cleared-hash.md residual-close 1a, driver 0795) — Module5 `_build_function_symbol_table` — AND a record FIELD declared `Dict[str, ν]`/`Set[str]`/`FrozenSet[str]` (cleared-hash.md S4: `field_key_types` on the record type flips the field map to `map string`; every field op site — store `self.d[k]=v`, subscript `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard` — reads/writes the raw native string key in lockstep). **Residual κ-unknown (CLOSED honest boundary):** a dict/set whose key the model cannot pin to a decidable/injective string (an un-annotated field from `{}`, a non-`str` key, or a derived-string key like `s.upper()`) keeps the legacy `map int` + opaque `str_hash_op` fallback — NOT collision-sound: a distinct-key non-aliasing claim on it stays UNPROVABLE (driver 0796, `# pycsl-expected: FAIL`), NO false injectivity axiom on `str_hash_op` (`proof_axiom_allowlist` unchanged). Non-dict-key hashing (`hash(s)` 0485, decode-equality 0425) is a SEPARATE out-of-scope opacity. Implementation: the ν ladder is consolidated into three helpers `_dv_empty_default`/`_dv_missing_default`/`_dv_store_value` in `module6_whyml/expressions.py` (refactor F1) |
 | `tuple` | `int` (hash) | **Intentional benign collapse (A7).** A bare tuple value hashes to an `int`; element types are NOT modeled. Rare and benign — a future tuple track would lift this, but no driver demands it. (Ghost tuples `\mk_tuple`/`\fst`/`\snd` in *contracts* are modeled faithfully — §T.6.) |
 | `None` / `-> None` | `unit` | Return type for void functions |
-| Class `C` | Record type `c` | Lowercase name. Covers `self`, `C()` locals, **and** a registered `C`-typed parameter (read-only field access; Track 3 — mutation of a record param out of scope) |
+| Class `C` | Record type `c` | Lowercase name. Covers `self`, `C()` locals, **and** a registered `C`-typed parameter. Field READS project directly (Track 3). A field STORE `p.f = v` on a MUTABLE record param/local is caller-visible (wrong-lowering-to-fix.md §WL-05d: lowers to `p.f <- v`, Why3 infers `writes {p.f}`); a record pinned PURE because it is a `List[<record>]` element is field-immutable, so such a store FAILS CLOSED. |
 | `#@ datatype D` | Variant type `d` | Sum type `type d = A \| B int \| …` (§T.4.5); constructed with `B(7)`, consumed by `match` (§T.5.12) |
 | No annotation | `int` | Default |
 
@@ -2794,7 +2794,9 @@ transitive param forwarding) — a READ-ONLY dict/set param keeps the by-value `
 (BYTE-IDENTICAL). A mutating callee should state the post-value (`#@ ensures d["a"]==5`) for a caller to
 rely on it, else the frame havocs the param. **Still REJECTED** (code `PYCSL-WHYML-PARAM-COLLECTION-MUT`,
 `_reject_param_collection_mutation`): a mutated dict/set **METHOD** param (its types feed the cross-method
-call-contract map), the `@mutable_state` param no-op, record-param and nested-list inner mutation.
+call-contract map), the `@mutable_state` param no-op, a `List[<record>]` element field store `a[i].f=v`
+and a PURE-record param field store (§WL-05d fail-closed), and nested-list inner mutation. (A MUTABLE-record
+param field store `p.f=v` and a LIST param element store `a[i]=v` are now SUPPORTED — §WL-05d.)
 Drivers 0820/0821/0832/0833 (positive), 0822/0823 (LOCAL positive), 0834 (negative false-claim).
 
 **§WL-05c — dict/set METHOD-param mutation is a DOCUMENTED BOUNDARY; `del d[k]` fail-OPEN fixed.**
@@ -2809,6 +2811,38 @@ stays **REJECTED** (or the sound `@mutable_state` no-op). The `del d[k]` row abo
 fix: `del` used to be a blanket Module-5 `Pass` no-op that unsoundly proved a deleted key survived; it is
 now faithful (local / standalone-param) or rejected (method param). Spike
 `test-suite/corpus/conformance/spikes/wl05c_del_spike.mlw`; drivers `wl05c_*`; locks 0854–0857.
+
+**§WL-05d — record/list PARAMETER item/field-mutation.** The by-reference escape of a dict/set param
+(WL-05b) has three siblings for record/list params, settled per-sub-case:
+
+```
+T[[def f(a: List[τ]) with a[i]=v]]   =  let f (a: array τ) : … = a[i] <- v      (* Why3 INFERS writes {a} *)
+T[[def f(p: C) with p.x=v, C mutable]] =  let f (p: c) : … = p.x <- v            (* Why3 INFERS writes {p.x} *)
+```
+
+- **(A) LIST param element store `a[i] = v`** — ALREADY sound with no code change: a `List[int]` param is
+  ALREADY `array int` (a Why3 MUTABLE type), so `a[i] = v` lowers to the native `a[i] <- v` and Why3
+  INFERS the write effect on the concrete `let` → caller-visible. Write-read-back PROVES, a caller
+  observes the write, a false-twin stays UNPROVEN.
+- **(B) RECORD/@dataclass param field store `p.x = v`** — a standalone (non-list-element) record param is
+  a MUTABLE Why3 record `{ mutable x; … }`; the store lowers to `p.x <- v` (Why3 infers `writes {p.x}`),
+  caller-visible + sound. This was a **severity-1 fail-OPEN before WL-05d**: Module 5 (`_py_stmt_assign`)
+  emitted a `FieldAssign` IR ONLY for a `self` attribute base, so a non-`self` `p.x = v` matched NO arm
+  and was SILENTLY DROPPED (a no-op) — a caller/body could prove the field UNCHANGED after a real
+  mutation (`p.x = 5` then `ensures p.x == 3` proved Valid). Module 5 now emits `FieldAssign(object=<var>)`
+  when the attribute base is a Name in the function symbol table (a param/local).
+- **Fail-closed:** a field store through a **non-Name base** (`a[i].f = v` subscript base, `x.y.f = v`
+  nested) is REJECTED at Module 5, and a field store on a record whose class is pinned PURE in
+  `_list_element_record_types` (a `List[<record>]` element — immutable, Why3 forbids a mutable element
+  inside `array`) is REJECTED at Module 6 (`_handle_fieldassign_stmt`) — code
+  `PYCSL-WHYML-PARAM-COLLECTION-MUT`. Both previously silent-drop fail-OPENs.
+- **Unchanged (separate boundary):** a **module-GLOBAL singleton** field store `g.v = n` (attribute base
+  is a Name NOT in the function symbol table) keeps its prior no-op — the HAPPY subsystem-ownership tests
+  (0611–0613) rely on it; module-global mutable-record aliasing is a distinct class outside this scope.
+- Spike `test-suite/corpus/conformance/spikes/wl05d_record_param_mut_spike.mlw` (5/5 goals Valid on
+  Alt-Ergo AND Z3, no new axiom); drivers `wl05d_*`; locks 0858 (POSITIVE store), 0859 (POSITIVE
+  caller-visible), 0860 (NEGATIVE — the fixed severity-1 false-twin), 0861 (NEGATIVE — list-element field
+  store REJECTED). Full-corpus byte-diff 0; `\trusted` non-increasing.
 
 ### §T.14.3  Multi-argument `range(start, stop)`
 

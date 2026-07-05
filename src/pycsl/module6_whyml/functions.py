@@ -100,7 +100,11 @@ class FunctionEmissionMixin:
         if symtype in self._record_types:
             # no-more-int-2 Track 3: a bare class-typed param is reconstructed as its record
             # type (was coarsened to int with opaque getattr_<cls>), so `p.field` reads
-            # directly. Read-only: mutating a record param is out of scope (value semantics).
+            # directly. WL-05d (wrong-lowering-to-fix.md §WL-05d): a field STORE `p.field = v`
+            # on a MUTABLE record param is now FAITHFUL and caller-visible — it lowers to the
+            # native `p.field <- v` (Why3 infers the `writes {p.field}` frame). Only a record
+            # pinned PURE because it is a `List[<record>]` element cannot be field-mutated
+            # (immutable element) → that store fails closed (Module5/`_handle_fieldassign_stmt`).
             wn = self._record_types[symtype]["whyml_name"]
             self._record_locals.add(arg)
             self._record_param_classes[arg] = wn

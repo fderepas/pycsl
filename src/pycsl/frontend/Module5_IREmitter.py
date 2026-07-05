@@ -1221,11 +1221,51 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         target = stmt.targets[0]
         if isinstance(target, ast.Name):
             ir_stmts.append({"stmt": "Assign", "target": target.id, "value": self._py_expr_to_ir(stmt.value)})
-        elif (isinstance(target, ast.Attribute) and
-              isinstance(target.value, ast.Name) and
-              target.value.id == 'self'):
-            ir_stmts.append({"stmt": "FieldAssign", "object": "self", "field": target.attr,
-                             "value": self._py_expr_to_ir(stmt.value)})
+        elif isinstance(target, ast.Attribute):
+            # wrong-lowering-to-fix.md §WL-05d (record/list PARAM field-mutation).
+            if isinstance(target.value, ast.Name) and target.value.id == 'self':
+                ir_stmts.append({"stmt": "FieldAssign", "object": "self", "field": target.attr,
+                                 "value": self._py_expr_to_ir(stmt.value)})
+            elif (isinstance(target.value, ast.Name)
+                  and target.value.id in self._cur_func_symtab):
+                # A field store to a record-typed PARAMETER or LOCAL var (`p.x = v`,
+                # `p` in the function's symbol table). Python objects are passed BY
+                # REFERENCE, so a store to a record PARAM field escapes to the caller.
+                # This IR was previously NOT emitted (no matching arm) → the store was
+                # a SILENT NO-OP, an UNSOUND fail-OPEN: a caller/body could prove the
+                # field UNCHANGED after a real mutation (`p.x = 5` then `ensures p.x
+                # == <old>` proved Valid). Emit a `FieldAssign` on the named base;
+                # Module 6 lowers a MUTABLE record to `p.x <- v` (Why3 infers the
+                # `writes {p.x}` frame → caller-visible + sound) and REJECTS a PURE
+                # (list-element-pinned) record. A module-GLOBAL singleton store
+                # (`g.v = n`, base NOT in the function symtab) is deliberately EXCLUDED
+                # here and keeps its prior no-op — a separate boundary (HAPPY subsystem
+                # ownership tests 0611–0613), byte-identical.
+                ir_stmts.append({"stmt": "FieldAssign", "object": target.value.id,
+                                 "field": target.attr,
+                                 "value": self._py_expr_to_ir(stmt.value)})
+            elif not (isinstance(target.value, ast.Name)):
+                # A field store through a NON-Name base — `a[i].f = v` (subscript base),
+                # `x.y.f = v` (nested attribute). A `List[<record>]` element is emitted
+                # PURE/immutable (Why3 forbids a mutable element inside `array`), so there
+                # is NO sound `<-` store for `a[i].f`; the prior silent DROP was a fail-OPEN
+                # (`a[0].x = 5` then `ensures a[0].x == <old>` proved Valid). Fail CLOSED with
+                # a clear diagnostic rather than emit an unsound no-op. (No corpus program
+                # uses this shape → byte-identical.)
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"in-place field mutation `<{type(target.value).__name__} base>.{target.attr} = ...` "
+                    f"is out of scope: a record reached through a subscript/nested base "
+                    f"(e.g. a `List[<record>]` element `a[i].{target.attr}`) is modelled as a "
+                    f"PURE (immutable) record — Why3 forbids a mutable element inside `array`, "
+                    f"so the field store cannot be made caller-visible. Rebuild the element "
+                    f"(`a[i] = Record(...)`) or mutate a local record and store it back.",
+                    stage="ir-emit",
+                    code="PYCSL-WHYML-PARAM-COLLECTION-MUT",
+                )
+            # else: base is a Name NOT in the symbol table (a module-global singleton
+            # field store, `g.v = n`) — keep the prior no-op (byte-identical; separate
+            # boundary from the record/list PARAM class handled above).
         elif isinstance(target, ast.Subscript):
             array_ir = self._py_expr_to_ir(target.value)
             slice_node = target.slice

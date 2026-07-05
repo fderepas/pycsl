@@ -477,7 +477,7 @@ false-positive against the τ-blessed baseline.
 - **Dedup:** none (we-are-getting-better.md #6/#7 are IR-node list attrs in the mirror, a different
   surface).
 
-### WL-05 — dict / set PARAMETER item-mutation — ✅ FIXED → ✅✅ WL-05b: now FAITHFULLY SUPPORTED (caller-visible)
+### WL-05 — dict / set PARAMETER item-mutation — ✅ FIXED → ✅✅ WL-05b: now FAITHFULLY SUPPORTED (caller-visible); WL-05c method-param BOUNDARY; WL-05d record/list param field-mutation (LIST + mutable-record SUPPORTED, pure-record FAIL-CLOSED, severity-1 fail-OPEN FIXED)
 - **Status:** ✅✅ **FAITHFULLY SUPPORTED** (WL-05b, branch `ghost-assign-bc6`). The earlier WL-05 fix
   was a CLEAN REJECTION (sound but conservative). WL-05b IMPLEMENTS the faithful model the rejection
   deferred: Python passes dicts/sets BY REFERENCE, so an inner-mutated dict/set PARAMETER is now
@@ -569,7 +569,59 @@ false-positive against the τ-blessed baseline.
   (verified via `bin/byte-diff-sweep.sh`: 0 content diffs on all common files). NO new axiom;
   `map_update_some`/`map_update_none` are the existing local-collection ops. `\trusted` non-increasing.
 - **Dedup:** none. WL-05's rejection path (`_reject_param_collection_mutation`) is RETAINED for the
-  still-out-of-scope cases (mutated dict/set METHOD params, and the record/list param-mutation class).
+  still-out-of-scope cases (mutated dict/set METHOD params). The **record/list param-mutation class**
+  is now settled by WL-05d below (LIST element + MUTABLE-record field = SUPPORTED; PURE-record field
+  = fail-closed).
+- **WL-05d (T8 — record/list PARAMETER item/field-mutation):** the `record/list param-mutation class`
+  that WL-05 had deferred as one rejection blob was investigated to its mechanism and split into three
+  per-sub-case verdicts — including a **severity-1 fail-OPEN** that was found and FIXED.
+  - **(A) LIST param element store `a[i] = v` — ALREADY SOUND (doc-corrected).** A `List[int]` param
+    is ALREADY `array int` (a Why3 MUTABLE type), so `a[i] = v` lowers to the native `a[i] <- v` and
+    Why3 INFERS the write effect on the concrete `let` → caller-visible + sound with NO code change.
+    The earlier "on the WL-05 rejection path" claim was STALE for the array case: verified
+    write-read-back PROVES, a caller observes the write, and a false-twin (`a[0]==3` after `a[0]=5`)
+    stays UNPROVEN. Locked by driver `wl05d…` + spike goals `list_store`/`list_caller`.
+  - **(B) RECORD/@dataclass param field store `p.x = v` — was severity-1 fail-OPEN → now FAITHFUL &
+    caller-visible.** A standalone (non-list-element) `@dataclass` param is a MUTABLE Why3 record
+    `{ mutable x; … }`. But **Module 5 (`_py_stmt_assign`) only emitted a `FieldAssign` IR when the
+    attribute base was `self`**; a non-`self` base (`p.x = v`) matched NO arm and was SILENTLY DROPPED
+    → a no-op. That was UNSOUND (fail-OPEN): `requires p.x == 3` then `ensures p.x == 3` after
+    `p.x = 5` proved **Valid on Alt-Ergo AND Z3** (real Python has `p.x == 5`). FIX: Module 5 now emits
+    `FieldAssign(object=<var>)` for a non-`self` attribute base whose Name IS in the function's symbol
+    table (a param/local); Module 6 (`_handle_fieldassign_stmt`) lowers it to `p.x <- v` (the record is
+    mutable → Why3 infers `writes {p.x}` → caller-visible). Verified: write-read-back PROVES, the
+    mutation ESCAPES to a caller, and the false-twin stays UNPROVEN.
+  - **(pure-element / subscript base) `a[i].f = v` and a PURE-record param field store — FAIL-CLOSED.**
+    A `List[<record>]` element is emitted PURE (immutable, Why3 forbids a mutable element inside
+    `array`), so `a[i].f = v` (attribute base is a Subscript) has NO sound `<-` store. Before WL-05d it
+    was ALSO a silent-drop fail-OPEN (`a[0].x == 3` after `a[0].x = 5` proved Valid). FIX: Module 5
+    REJECTS any non-`self` attribute store through a non-Name base (`PYCSL-WHYML-PARAM-COLLECTION-MUT`),
+    and Module 6 REJECTS a field store on a record whose class is pinned in `_list_element_record_types`
+    (so a standalone `p: Point` param where `Point` is a list-element elsewhere fails closed rather than
+    emit a Why3-ill-typed `<-`). No false post-store claim can prove for either.
+  - **Module-GLOBAL singleton field store `g.v = n` — UNCHANGED (separate boundary).** A non-`self`
+    attribute base whose Name is NOT in the function symbol table is a module-global singleton write; it
+    keeps its prior no-op (byte-identical), which the HAPPY subsystem-ownership tests (0611–0613) rely
+    on. This is a DISTINCT class (module-global mutable-record aliasing) outside T8's param/list scope;
+    it is noted here as a KNOWN residual (its value-post-state is not currently asserted by any test).
+  - **Spike:** `test-suite/corpus/conformance/spikes/wl05d_record_param_mut_spike.mlw` (mutable-record
+    field store + caller-visibility + frame `p.x <> 3` + the `array int` list twin; **5/5 goals Valid on
+    Alt-Ergo AND Z3**, no new axiom; the commented pure-record `<-` shows the Why3 type rejection that
+    motivates the fail-closed guard).
+  - **Drivers** (`getting-better/wrong-lowering/`): `wl05d_record_param_mut_FAITHFUL.py` → **PROVEN**,
+    `wl05d_record_param_caller_FAITHFUL.py` → **PROVEN**, `wl05d_record_param_falsetwin.py` →
+    **UNPROVEN**, `wl05d_record_noop_UNSOUND_fixed.py` → **UNPROVEN** (was the fail-OPEN Valid),
+    `wl05d_listelem_field_REJECTED.py` → **REJECTED**, `wl05d_pure_param_REJECTED.py` → **REJECTED**.
+  - **Regression locks:** `0858.py` (POSITIVE — record param field store write-read-back), `0859.py`
+    (POSITIVE — record-param mutation escapes to caller), `0860.py` (NEGATIVE `# pycsl-expected: FAIL` —
+    the FIXED severity-1 false-twin `p.x==3` after `p.x=5` UNPROVEN), `0861.py` (NEGATIVE
+    `# pycsl-expected: FAIL` — `List[<record>]` element field store REJECTED).
+  - **Emission differential:** full `pycsl-reference` corpus BYTE-IDENTICAL (`bin/byte-diff-sweep.sh`,
+    733 files, 0 content diffs — no compiled corpus program does a non-`self` param/local record field
+    store; the only non-`self` attribute stores are module-globals `g.v` and `__main__` drivers, both
+    unaffected). IR-conformance goldens unchanged (37 OK/1 MISMATCH core, 0 OK/38 MISMATCH front-end —
+    identical before/after; the mismatches are the pre-existing `ir_version`/`param_annotations`/
+    `mutable_state` drift). NO new axiom; `\trusted` non-increasing.
 
 ### WL-06 — `bytes` subscript `b[i]` emits `subscript_get(int,int)` on an `array int` value — ✅ FIXED (WL-06 coherence) + ✅ WL-06b (faithful byte CONTENT of a literal + immutability)
 - **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). A `bytes`/`bytearray` value is the τ-blessed
@@ -660,7 +712,7 @@ false-positive against the τ-blessed baseline.
 | UNSOUND (1) | 0 open | ~~WL-01 (floor `//`/`%`, neg divisor)~~ **FIXED**, ~~WL-02 (true `/` → int div)~~ **FIXED** |
 | FALSE-GREEN (2) | 0 new | WL-VAC (documented, cross-ref) |
 | COLLAPSED-with-consumer (3) | 0 open | ~~WL-03 (Tuple param)~~ **FIXED**, ~~WL-04 (List[str/float] elem)~~ **FIXED** |
-| WRONG-REPR (4) | 0 open | ~~WL-05 (dict/set param mut)~~ **FIXED**, ~~WL-06 (bytes index)~~ **FIXED** + ~~WL-06b (bytes-literal CONTENT + immutability)~~ **IMPLEMENTED** |
+| WRONG-REPR (4) | 0 open | ~~WL-05 (dict/set param mut)~~ **FIXED** + ~~WL-05d (record/list param field-mut: LIST+mutable-record SUPPORTED, pure-record FAIL-CLOSED, severity-1 fail-OPEN FIXED)~~ **IMPLEMENTED**, ~~WL-06 (bytes index)~~ **FIXED** + ~~WL-06b (bytes-literal CONTENT + immutability)~~ **IMPLEMENTED** |
 | OPAQUE (5) | 0 filed | — |
 
 **ALL 6 WL-* findings are FIXED.** WL-01 and WL-02 (both certified FALSE arithmetic — a green proof for
