@@ -1,0 +1,81 @@
+(* WL-03b SMT-feasibility spike: prove that a `float` record/tuple FIELD SLOT is
+   realized as Why3 `real` (NOT collapsed to int), so a field read reasons at the
+   faithful real type and preserves a fractional value.
+
+   Python's `float` is Why3 `real` (no-more-int Stage D / τ(float)=real). The WL-03
+   synthesized per-slot record and the WL-04b `List[<record>]` element record model
+   their field types as int/bool/str ONLY, so a `float` field slot collapsed to `int`
+   — an UNSOUND leak: `t[1]` of a `Tuple[int, float]` read `2` where Python reads
+   `2.5`. The faithful lowering makes a `float` field slot a `real` field.
+
+   This fixture is the ground-truth that a real field slot — in a plain record, in a
+   synthesized tuple per-slot record, and in a PURE record used as an `array` element
+   — reads and compares CLEANLY at `real` on BOTH Alt-Ergo AND Z3, with NO cited
+   lemma (a native record projection over a Why3 `real` field; `array` accepts the
+   PURE real-field record because `real` is a pure type). *)
+
+module WL03bTupleSlotFloat
+  use int.Int
+  use real.RealInfix
+
+  (* the synthesized WL-03 per-slot record for `Tuple[int, float]`: field1 is REAL,
+     not int (the leak the residual fixes). *)
+  type pytuple_int_real = { field0: int; field1: real }
+
+  (* the faithful lowering of
+     `def g(t: Tuple[int, float]) -> float: return t[1]`  (#@ ensures \result == 2.5)
+     — `t : pytuple_int_real`, so `t[1]` projects the REAL slot `field1`. *)
+  let g (t: pytuple_int_real) : real
+    ensures { result = t.field1 }
+  = t.field1
+
+  (* make-or-break: a concrete tuple record reads the fractional slot faithfully,
+     and the int slot stays int. *)
+  let test_tuple_slot () =
+    let t = { field0 = 3; field1 = (2.5:real) } in
+    assert { t.field1 = (2.5:real) };
+    assert { t.field0 = 3 }
+
+  (* NEGATIVE make-or-break: the fractional value is NOT the truncated int 2.0
+     (would be provable only under the unsound int collapse). *)
+  let test_no_truncation () =
+    let t = { field0 = 0; field1 = (2.5:real) } in
+    assert { not (t.field1 = (2.0:real)) }
+end
+
+module WL03bRecordFloatField
+  use int.Int
+  use real.RealInfix
+  use array.Array
+
+  (* a `@dataclass P: n: int; f: float` — the `f` field is REAL. PURE (immutable)
+     so it can serve as an `array` element (WL-04b constraint). *)
+  type p = { pn: int; pf: real }
+
+  (* plain record local/param: `def h(q: P) -> float: return q.f` *)
+  let h (q: p) : real
+    ensures { result = q.pf }
+  = q.pf
+
+  (* record with a real field as a `List[P]` element: `a[i].f` at real. *)
+  let k (a: array p) (i: int) : real
+    requires { 0 <= i < Array.length a }
+    ensures  { result = (a[i]).pf }
+  = (a[i]).pf
+
+  (* make-or-break: the array of real-field records reads its written fractional
+     field back; sibling int field and untouched slot are independent. *)
+  let test_record_array () =
+    let a = Array.make 3 { pn = 0; pf = (0.0:real) } in
+    a[1] <- { pn = 7; pf = (2.5:real) };
+    assert { (a[1]).pf = (2.5:real) };
+    assert { (a[1]).pn = 7 };
+    assert { (a[0]).pf = (0.0:real) }
+
+  (* NEGATIVE make-or-break: distinct slots hold independent real fields. *)
+  let test_slots_not_conflated () =
+    let a = Array.make 2 { pn = 0; pf = (0.0:real) } in
+    a[0] <- { pn = 0; pf = (1.5:real) };
+    a[1] <- { pn = 0; pf = (4.5:real) };
+    assert { (a[0]).pf <> (a[1]).pf }
+end

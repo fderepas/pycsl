@@ -186,16 +186,17 @@ specification logic's type universe:
 τ(Set[T])         = dict
 τ(frozenset)      = dict      (* frozensets share the set/dict model *)
 τ(FrozenSet[T])   = dict
-τ(Tuple[T1, ..., Tn]) = record   (* WL-03: a RECOGNIZED fixed-length Tuple with known
-                                 scalar slots (int/bool→int, str→string) is a synthesized
-                                 per-slot record `type pytuple_<tags> = { field0: τ(T1);
-                                 …; field{n-1}: τ(Tn) }`, for a PARAMETER and a record FIELD
-                                 (not just a locally-constructed/returned tuple). `t[i]`
-                                 lowers to the i-th record field (`t[1] : string` for
-                                 Tuple[int, str]) via the NamedTuple positional-access model —
-                                 faithfully typed, not the opaque `int` collapse. A float/
-                                 container/class slot, or a variable-length `Tuple[T, ...]`
-                                 (Ellipsis), is NOT recognized → the bare-tuple `int †` row. *)
+τ(Tuple[T1, ..., Tn]) = record   (* WL-03/WL-03b: a RECOGNIZED fixed-length Tuple with known
+                                 scalar slots (int/bool→int, str→string, float→real — WL-03b)
+                                 is a synthesized per-slot record `type pytuple_<tags> =
+                                 { field0: τ(T1); …; field{n-1}: τ(Tn) }`, for a PARAMETER and
+                                 a record FIELD (not just a locally-constructed/returned tuple).
+                                 `t[i]` lowers to the i-th record field (`t[1] : string` for
+                                 Tuple[int, str]; `t[1] : real` for Tuple[int, float]) via the
+                                 NamedTuple positional-access model — faithfully typed, not the
+                                 opaque `int` collapse. A container/class slot, or a
+                                 variable-length `Tuple[T, ...]` (Ellipsis), is NOT recognized →
+                                 the bare-tuple `int †` row. *)
 τ(tuple)          = int †     (* bare tuple — unlike the recognized Tuple[T1, ..., Tn] above *)
 τ(C)              = record    (* user-defined class C → a WhyML record of its fields, for
                                  `self`, locally-constructed instances, AND a bare C-typed
@@ -354,9 +355,9 @@ dataclass-in-a-list fails CLOSED at Why3 type-check (never a silent unsound upda
 comprehension `[p.x for p in a]` over a record source is lowered natively too. Drivers
 `wl04b_list_{record,tuple}_elem_COLLAPSED.py` (PROVEN), false-twin `wl04b_list_record_falsetwin.py`
 (UNPROVEN); locks 0829/0830 (POSITIVE), NEGATIVE 0831. Residuals (int-collapse / opaque kept): a
-record slot of `float`/container type. (The `List[<record>]` LITERAL is now covered by §WL-04c
-below; a FILTERED record-projection comprehension by §WL-04d; a `List[<plain-class-with-__init__>]`
-element by §WL-04e.)
+record slot of container type. (A `float` slot is now the faithful `real` — §WL-03b below; the
+`List[<record>]` LITERAL is now covered by §WL-04c below; a FILTERED record-projection comprehension
+by §WL-04d; a `List[<plain-class-with-__init__>]` element by §WL-04e.)
 
 **§ Flat RECORD-element list LITERAL (wrong-lowering-to-fix.md §WL-04c).** The CONSTRUCTION analog of
 §WL-04b. A list LITERAL whose elements are ALL full-arity positional constructor CALLS to the SAME
@@ -423,7 +424,30 @@ annotation exists (full-corpus byte-diff = 0). Drivers `wl04e_list_plainclass_el
 (PROVEN — read law + store-read-back), false-twin `wl04e_list_plainclass_elem_falsetwin.py` (UNPROVEN);
 Gate-B spike `spikes/wl04e_list_plainclass_elem_spike.mlw` (Alt-Ergo AND Z3, no cited lemma); locks
 0843 (POSITIVE), NEGATIVE 0844. Residual (kept fail-closed): a plain-`__init__` class whose ctor is
-NOT purely positional, and (per §WL-04b) a record slot of `float`/container type.
+NOT purely positional; a record slot of container type (a `float` slot is now the faithful `real` —
+§WL-03b below).
+
+**§ Float record/tuple FIELD SLOT (wrong-lowering-to-fix.md §WL-03b).** The WL-03 synthesized per-slot
+record and the §WL-04b `List[<record>]` element/record models recognized slot/field types int/bool/str
+ONLY, so a `float` field slot collapsed to `int` — an UNSOUND leak that truncated a fractional read
+(`t[1]` of a `Tuple[int, float]`, `q.f` / `a[i].f` of a `@dataclass`/`self.f: float` record, holding
+`2.5`, read `2`). WL-03b realizes a `float` field slot as the faithful Why3 `real` (τ(float)=real,
+no-more-int Stage D): Module5 `_M5_TUPLE_SLOT_TAGS` maps `float`→`real` (so `Tuple[int, float]`
+synthesizes `pytuple_int_real = { field0: int; field1: real }`) and `_field_type_from_annotation`
+maps a `float`-annotated field to the `real` tag; the preamble record emitter maps that tag to a `real`
+field (`_build_witness_str` gets a `0.0` real witness). The projection `t[1]` / `q.f` / `a[i].f` then
+reads a `real`; the float comparison routes through Why3 `real` equality (a `2.5` literal on either
+side drives the real `=`). Because `real` is a PURE type, a record with a `real` field is legal at an
+`array` element position — the §WL-04b PURE-element constraint is preserved. A float field read used
+where an int is expected remains a fail-closed real-vs-int TYPEERR (never a silent truncation). Drivers
+`wl03b_float_record_slot_COLLAPSED.py` (PROVEN — tuple slot + plain record field + `List[R]` element),
+false-twin `wl03b_float_record_slot_falsetwin.py` (UNPROVEN — the int-truncation `== 2.0` claim); Gate-B
+spike `spikes/wl03b_float_record_slot_spike.mlw` (7 goals Valid on Alt-Ergo AND Z3, no cited lemma);
+locks 0845 (POSITIVE), NEGATIVE 0846. Additive: the corpus has no `float` record/tuple field, so the
+full-corpus byte-diff is 0. Residual (kept int-collapse / opaque): a record slot of CONTAINER type
+(`Point` with a `List[int]` field) — a mutable container nested in a record nested in an `array` hits
+the Why3 mutable-element and `array (array τ)` type-rejection (the nested-list boundary); a sound
+pure-`seq`/`map` field representation is future work.
 
 **§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
 is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT

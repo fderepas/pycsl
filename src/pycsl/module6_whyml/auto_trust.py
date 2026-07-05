@@ -41,6 +41,13 @@ class AutoTrustMixin:
                 # Empty map witness (all keys → None); `const` is from
                 # map.Const, matching the empty-dict idiom in expressions.py.
                 parts.append(f"{fn} = (const (None: option int))")
+            elif ft in ("real", "float"):
+                # wrong-lowering-to-fix.md §WL-03b: a `real`-typed field (a faithful
+                # `float` slot) needs a real witness literal — `0` is int-typed and
+                # would mistype the record `by` clause. Additive: no pre-existing
+                # corpus record has a real field, so this branch is only reached by a
+                # float-field record that ALSO carries a class invariant.
+                parts.append(f"{fn} = 0.0")
             elif ft in ("str", "string") or ft == "string":
                 # b14 B1 prerequisite: a `str`-annotated field is Why3 `string`
                 # (preamble.py `str`→`string`), so its witness must be the empty

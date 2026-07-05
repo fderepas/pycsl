@@ -3254,6 +3254,15 @@ class PreambleEmissionMixin:
                         # Why3 `string` (was collapsed to `int`) — the class counterpart of
                         # the TP-1 str local / str param lowering.
                         ftype = "string"
+                    elif ftype in ("real", "float"):
+                        # wrong-lowering-to-fix.md §WL-03b: a `float`-annotated field (a
+                        # `@dataclass`/`NamedTuple`/`self.f: float` field, or a synthesized
+                        # `Tuple[int, float]` slot) is the faithful Why3 `real` (τ(float)=
+                        # real, no-more-int Stage D) — was collapsed to `int`, truncating a
+                        # fractional slot read. The record projection `p.f` / `a[i].f` /
+                        # `t[1]` then reads a `real`. `real` is a PURE type, so such a record
+                        # is legal as an `array` element (WL-04b PURE-element constraint).
+                        ftype = "real"
                     elif ftype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
                         # typed-ir-for-b-ceiling.md B-C2: an ExprIR-valued field is the
                         # typed IR-node sum `emit_ir`. Only in a @mutable_state mirror.

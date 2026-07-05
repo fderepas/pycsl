@@ -1590,7 +1590,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # 07-2333-rev2 TP-3 (Gap 6): a `str` field is a faithful Why3 `string`
                 # (the WhyML record emitter maps the "str" tag to `string`), not int.
                 return "str"
-            if name in ("int", "bool", "float"):
+            if name == "float":
+                # wrong-lowering-to-fix.md §WL-03b: a `float`-annotated record FIELD
+                # (`@dataclass P: f: float`, `self.f: float`, NamedTuple `f: float`)
+                # is the faithful Why3 `real` (τ(float)=real, no-more-int Stage D) —
+                # NOT the unsound int collapse that truncated `p.f == 2.5` to `2`.
+                # The record emitter maps this "real" tag to a `real` field.
+                return "real"
+            if name in ("int", "bool"):
                 return "int"
             # Unrecognised plain name — treat as int (e.g. user types).
             return "int"
@@ -2090,7 +2097,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `str` → `string`. A `float`/container/class slot returns None → fall back
     # to the current (collapsed) behaviour rather than emitting an unfaithful
     # `real`→int record field (record-field `float` is not modeled as `real`).
-    _M5_TUPLE_SLOT_TAGS = {"int": "int", "bool": "int", "str": "str"}
+    # wrong-lowering-to-fix.md §WL-03b: a `float` slot is the faithful Why3 `real`
+    # (τ(float)=real, no-more-int Stage D) — NOT the int collapse. So a recognized
+    # `Tuple[int, float]` synthesizes a per-slot record whose float slot is `real`
+    # and `t[1]` reads the fractional value (was truncated to int). int/bool→int,
+    # str→string, float→real; a container/class slot stays unrecognized (collapse).
+    _M5_TUPLE_SLOT_TAGS = {"int": "int", "bool": "int", "str": "str", "float": "real"}
 
     @staticmethod
     def _m5_tuple_slot_tags(annotation: ast.expr) -> Optional[List[str]]:

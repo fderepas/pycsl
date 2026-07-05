@@ -251,9 +251,10 @@ false-positive against the τ-blessed baseline.
   SCOPE (documented residuals):** the `List[<record>]` LITERAL is now covered by **WL-04c** (below); a
   FILTERED projection comprehension over a record source (`[p.x for p in a if …]`) is now covered by
   **WL-04d** (below); a `List[<plain-class-with-__init__>]` element is now covered by **WL-04e**
-  (below); a record element with a `float`/container field slot (the WL-03 slot recognition is
-  int/bool/str only) remains deferred. str/float (WL-04) and record (WL-04b) are the covered flat
-  leaves.
+  (below); a record element with a `float` field slot is now covered by **WL-03b** (below — the WL-03
+  slot recognition was int/bool/str only, now int/bool/str/float); a record element with a CONTAINER
+  field slot is a documented boundary (**WL-03b** below). str/float (WL-04) and record (WL-04b) are the
+  covered flat leaves.
 - **Record LITERAL (WL-04c) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). A `List[<record>]` LITERAL
   whose elements are ALL full-arity positional constructor CALLS to the SAME CONTENT-FAITHFUL record —
   `a = [Point(1, 2), Point(3, 4)]` (LOCAL) or `return [Point(1, 2), Point(3, 4)]` (with `-> List[Point]`)
@@ -357,8 +358,58 @@ false-positive against the τ-blessed baseline.
   used as a flat `List[R]` element never reaches `_m5_get_list_record_elem`, so the additivity is
   structural). No new axiom; `\trusted` non-increasing; doc-coherency green. **STILL OUT OF SCOPE
   (documented residuals):** a plain-`__init__` class whose ctor is NOT purely positional (a field from
-  a constant / computation / keyword-only param), and (per WL-04b) a record slot of `float`/container
-  type keep the prior (int-collapse / opaque) model.
+  a constant / computation / keyword-only param) keeps the prior model; a record slot of `float` type
+  is now the faithful `real` (WL-03b below); a record slot of CONTAINER type is a documented boundary
+  (WL-03b below).
+- **FLOAT record/tuple FIELD SLOT (WL-03b) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). The WL-03
+  synthesized per-slot record and the WL-04b `List[<record>]` element/record models recognized
+  slot/field types **int/bool/str ONLY**, so a `float` field slot collapsed to `int` — an UNSOUND leak
+  that TRUNCATED a fractional read: `t[1]` of a `Tuple[int, float]`, and `q.f` / `a[i].f` of a
+  `@dataclass`/`self.f: float` record, holding `2.5`, read `2` where real Python reads `2.5`. WL-03b
+  realizes a `float` field slot as the faithful Why3 **`real`** (τ(float)=real, no-more-int Stage D).
+  **Threading (3 small seams, NO new Module6 handler):** Module5 `_M5_TUPLE_SLOT_TAGS` maps
+  `float`→`real` (so a recognized `Tuple[int, float]` synthesizes `pytuple_int_real = { field0: int;
+  field1: real }`) and `_field_type_from_annotation` maps a `float`-annotated field to the `real` tag;
+  the preamble record emitter (`_emit_type_decls`) maps that tag to a `real` field; `_build_witness_str`
+  gets a `0.0` real witness (only reached by a float-field record that ALSO carries a class invariant).
+  The projection `t[1]` (via `_namedtuple_positional_access`) / `q.f` / `a[i].f` (WL-04b
+  `_handle_attribute_expr`, unchanged) then reads a `real`; the float comparison routes through Why3
+  `real` equality (a `2.5` literal on either side drives the real `=`, exactly as the WL-04 `array
+  real` element read). **Because `real` is a PURE type, a record with a `real` field is legal at an
+  `array` element position** — the WL-04b PURE-element constraint is preserved (a `real`-field record
+  used as a `List[R]` element is emitted PURE). A float field read used where an int is expected stays
+  a fail-closed real-vs-int TYPEERR (never a silent truncation). Verdict flips:
+  `getting-better/wrong-lowering/wl03b_float_record_slot_COLLAPSED.py` (`Tuple[int,float]` slot +
+  plain record float field + `List[R]` float-field element, `\result == 2.5`) → **PROVEN**; false-twin
+  `wl03b_float_record_slot_falsetwin.py` (the int-truncation `\result == 2.0` claim) → **UNPROVEN**.
+  SMT spike `test-suite/corpus/conformance/spikes/wl03b_float_record_slot_spike.mlw` (a real tuple
+  slot, a plain real-field record, and a PURE real-field record at an `array` element position —
+  read + read-after-write independence + no-truncation + cross-slot distinctness, 7 goals Valid on
+  **both** Alt-Ergo AND Z3, no cited lemma). Reference locks: `0845.py` (POSITIVE), `0846.py`
+  (NEGATIVE `# pycsl-expected: FAIL` — the int-truncation twin). **Emission-differential:** the ONLY
+  corpus files added are the two NEW locks `0845`/`0846`; every pre-existing corpus file (724 sweep)
+  emits **BYTE-IDENTICALLY** (`bin/byte-diff-sweep.sh`, before/after diff = 0 — the corpus has NO
+  `float` record/tuple field, so the additivity is structural). No new axiom; `\trusted`
+  non-increasing; doc-coherency green.
+- **CONTAINER record FIELD SLOT (WL-03b) — 📎 DOCUMENTED BOUNDARY.** A record slot of CONTAINER type
+  (`Point` with a `List[int]` field, used as a `List[Point]` element so the record sits at an `array`
+  element position) is NOT lowered faithfully; it is a rigorously-argued boundary. **Exact Why3 fact
+  (FACT 1, the rejection):** the faithful mutable-Python-list field model is `array int` (what the
+  corpus's standalone container fields already use, and what supports `p.f[i] = v` / `p.f.append(..)`);
+  a record `{ pn: int; mutable pf: array int }` placed at an `array` element position is TYPE-REJECTED
+  by Why3 — *"This application instantiates pure type variable 'a with a mutable type point_mut"* — the
+  SAME `array (array τ)` / mutable-element rejection the nested-list project met (`array` instantiates a
+  PURE type variable; a record with ANY mutable component is a mutable type). **Exact Why3 fact (FACT
+  2, feasible-but-out-of-scope):** a PURE `seq int` field DOES type-check and its read PROVES on both
+  Alt-Ergo AND Z3 (spike `test-suite/corpus/conformance/spikes/wl03b_container_slot_boundary.mlw`), so
+  a READ-ONLY container-field representation is SMT-sound. **Why it stays a boundary:** adopting the
+  pure-`seq`/`map` field requires a usage-dependent MUTABLE-vs-PURE per-record representation split
+  (the record-field analog of the nested-list `array (seq τ)` vs `matrix int` split) — the field must
+  fall back to pure `seq` ONLY where the record is an `array` element AND the field is never mutated, a
+  field mutation must be REJECTED (fail-closed, else unsound), and it must not regress the existing
+  mutable `array int` standalone container-field records (additivity). That split is a distinct, larger
+  project. A future faithful model would thread that per-record usage analysis; for now the container
+  slot keeps the prior (int-collapse / opaque `array int`) model, fail-closed.
 - **Dedup:** none (we-are-getting-better.md #6/#7 are IR-node list attrs in the mirror, a different
   surface).
 
