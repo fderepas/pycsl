@@ -206,21 +206,44 @@ false-positive against the τ-blessed baseline.
 - **Dedup:** none (we-are-getting-better.md #6/#7 are IR-node list attrs in the mirror, a different
   surface).
 
-### WL-05 — dict / set PARAMETER item-mutation emits inconsistent `ref` code
-- **Construct / position:** `d[k] = v` (`ArraySet`) on a `Dict[...]`/`Set[...]` *parameter*.
-- **Current lowering:** `d := map_update_some !d k v; … Map.get d k` — treats the by-value param
-  `(d: map string (option int))` as a mutable `ref` (`d :=`, `!d`) AND then reads bare `d` (not
-  `!d`) → `string -> option int but is expected to have type ref 'mu`.
-- **Faithful target:** either a clean rejection (param mutation out of scope, as for records/lists),
-  or a `ref`-wrapped param with a proper frame — consistently one or the other.
-- **Class / severity:** WRONG-REPR / 4 (fail-closed via type-check; no false green).
-- **Evidence:** `wl05_dict_param_mut_WRONGREPR.py` → **TYPEERR**. Baseline (NOT a finding):
-  `wl05_dict_local_FAITHFUL.py` (LOCAL dict write-read-back) → PROVEN. Detector D5 (consequence) + D2.
-- **Deliberate-collapse check:** NO. Only RECORD param mutation (static-ref ‡) and LIST inner
-  mutation (nested-list-mutable) are documented out-of-scope; dict/set param mutation is
-  undocumented AND emits broken WhyML rather than a clean rejection.
-- **Fix direction / effort:** in the emitter, either reject param-dict/set mutation with a clear
-  diagnostic, or `ref`-wrap the param and use `!d` uniformly on both write and read. / **S–M**.
+### WL-05 — dict / set PARAMETER item-mutation emits inconsistent `ref` code — ✅ FIXED
+- **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). **Chosen option: CLEAN REJECTION** (option 1,
+  the consistent, sound choice). Python passes dicts/sets BY REFERENCE, so an item-mutation of a
+  PARAMETER must be VISIBLE to the caller — faithful modelling needs a caller-visible mutation frame
+  (`writes {d}`) on a mutable-map param, the SAME hard problem for which RECORD-param mutation
+  (static-ref ‡) and LIST inner mutation (nested-list-mutable) are already documented OUT OF SCOPE.
+  A local-copy model would be UNFAITHFUL (the caller wouldn't see the change), so option 2 is not
+  shippable here. The emitter now **rejects** dict/set param item-mutation with a clear diagnostic
+  (`PYCSL-WHYML-PARAM-COLLECTION-MUT`, `module6_whyml/statements.py::_reject_param_collection_mutation`)
+  instead of emitting the inconsistent `d := map_update_some !d k v; … Map.get d k` ref/non-ref mix.
+- **Construct / position:** `d[k] = v` (`ArraySet`) — and the set twin `s.add(x)`/`s.discard(x)`/
+  `s.remove(x)` — on a `Dict[...]`/`Set[...]` *parameter*.
+- **Was:** `d := map_update_some !d k v; … Map.get d k` — treated the by-value param
+  `(d: map string (option int))` as a mutable `ref` (`d :=`, `!d`) AND then read bare `d` → ill-typed
+  (`string -> option int but is expected to have type ref 'mu`). The set twin silently DROPPED the
+  mutation to a no-op (`let _ = s_add_1 x in ()`) — sound but UNFAITHFUL.
+- **Now:** a clean tool rejection (`[!] PIPELINE ERROR: … in-place mutation of dict/set parameter
+  'd' … is out of scope …`) — the honest diagnostic points the user to RETURN the updated collection
+  or mutate a LOCAL copy. Gated to a formal-param dict/set that is NOT a `ref`-bound local
+  (`_dict_locals`), NOT a self-field (which HAS a frame), and NOT the deliberate @mutable_state param
+  no-op (typed-ir §13) → additive, byte-identical elsewhere.
+- **Class / severity:** WRONG-REPR / 4 (was; now a clean rejection — a sound refusal, no false green).
+- **Verdict flips (now):**
+  - `wl05_dict_param_mut_WRONGREPR.py` → **REJECTED** (clean diagnostic; was TYPEERR / broken WhyML).
+  - `wl05_set_param_mut_WRONGREPR.py` (set twin) → **REJECTED** (was a silent unfaithful no-op).
+  - Baseline `wl05_dict_local_FAITHFUL.py` (LOCAL dict write-read-back) → **STAYS PROVEN**.
+- **Deliberate-collapse check:** now DOCUMENTED. The dict/set param-mutation boundary joins RECORD
+  param mutation (static-ref ‡) and LIST inner mutation (nested-list-mutable) as an aliasing/frame
+  out-of-scope class (UB catalog `param-collection-mutation`; static-semantics §In-place inner
+  mutation note; translational τ-table param-mutation note).
+- **Regression locks (reference corpus):** `0820.py` (NEGATIVE, `# pycsl-expected: FAIL` — dict param
+  `d[k]=v` rejected), `0821.py` (NEGATIVE, `# pycsl-expected: FAIL` — set param `s.add` rejected),
+  `0822.py` (POSITIVE — LOCAL dict write-read-back still proves), `0823.py` (POSITIVE — LOCAL set
+  add-membership still proves). Harness verdict `REJECTED` added to `bin/find-wrong-lowering.py`
+  (a clean `[!] PIPELINE ERROR:` is a distinct, sound outcome from a broken TYPEERR).
+- **Emission differential:** the full 700-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
+  (verified via `bin/byte-diff-sweep.sh`); no corpus program mutates a dict/set PARAMETER (all corpus
+  dict/set writes are LOCAL or self-field) → additive. NO new axiom.
 - **Dedup:** none.
 
 ### WL-06 — `bytes` subscript `b[i]` emits `subscript_get(int,int)` on an `array int` value
@@ -265,10 +288,13 @@ false-positive against the τ-blessed baseline.
 | UNSOUND (1) | 0 open | ~~WL-01 (floor `//`/`%`, neg divisor)~~ **FIXED**, ~~WL-02 (true `/` → int div)~~ **FIXED** |
 | FALSE-GREEN (2) | 0 new | WL-VAC (documented, cross-ref) |
 | COLLAPSED-with-consumer (3) | 0 open | ~~WL-03 (Tuple param)~~ **FIXED**, ~~WL-04 (List[str/float] elem)~~ **FIXED** |
-| WRONG-REPR (4) | 2 | WL-05 (dict/set param mut), WL-06 (bytes index) |
+| WRONG-REPR (4) | 1 | ~~WL-05 (dict/set param mut)~~ **FIXED**, WL-06 (bytes index) |
 | OPAQUE (5) | 0 filed | — |
 
 **Fix priority:** WL-01 and WL-02 (both certified FALSE arithmetic — a green proof for code that
 computes a different value in CPython) are **FIXED**. WL-03 (Tuple param) and WL-04 (List[str/float]
-element) — both turned away legitimate faithful-typed programs — are now **FIXED**. Remaining:
-WL-05/WL-06 emit broken WhyML (fail-closed). Harness + drivers are committed and re-runnable.
+element) — both turned away legitimate faithful-typed programs — are now **FIXED**. WL-05 (dict/set
+param item-mutation, which emitted an inconsistent `ref`/non-`ref` mix) is now **FIXED** via a CLEAN
+REJECTION (the sound, consistent choice — the aliasing/frame boundary shared with record/list param
+mutation). Remaining: WL-06 emits broken WhyML (fail-closed). Harness + drivers are committed and
+re-runnable.

@@ -2755,6 +2755,19 @@ map to `Some 0`, absent keys to `None`.
 `map_update_none` is parallel to `map_update_some` with `ensures
 { result = Map.set m k None }`.
 
+**§ PARAMETER mutation is out of scope (wrong-lowering-to-fix.md §WL-05; UB catalog §7.9).**
+The `d := map_update_some !d k v` / `s := map_update_some !s x 0` emissions above assume the
+collection is a `ref`-bound LOCAL (`let d = ref … in`) — the `:=`/`!d` deref is well-typed only for a
+`ref`. A `Dict[...]`/`Set[...]` **parameter** is a by-value `map …` (NOT a `ref`), so the same emission
+would be ill-typed; and modelling the param as a local `ref` would be UNFAITHFUL (Python mutates the
+argument by reference, so the write must be VISIBLE to the caller — a caller-visible `writes {d}` frame
+PyCSL does not model, the SAME boundary as record-param mutation and nested-list inner mutation). PyCSL
+therefore **REJECTS** an item-mutation `d[k]=v` / `s.add(x)`/`s.discard(x)`/`s.remove(x)` of a dict/set
+PARAMETER with a clear diagnostic (`module6_whyml/statements.py::_reject_param_collection_mutation`, code
+`PYCSL-WHYML-PARAM-COLLECTION-MUT`), instead of emitting the inconsistent `ref`/non-`ref` mix. LOCAL
+dict/set mutation and self-field writes (which have a frame) are unaffected. Faithful rework: RETURN the
+updated collection or mutate a LOCAL copy. Drivers 0820/0821 (negative), 0822/0823 (positive).
+
 ### §T.14.3  Multi-argument `range(start, stop)`
 
 `_classify_iterable` recognises 2-arg `range`:

@@ -358,6 +358,20 @@ type/verification failure, never silently accepted); `a[i].append(..)` (shape-ch
 ragged in-place mutation is out of the rectangular `matrix` model. `\length2d`-contract rectangular
 params likewise use `matrix int`.
 
+**§ In-place mutation of a dict/set PARAMETER (wrong-lowering-to-fix.md §WL-05; UB catalog §7.9).**
+An item-mutation `d[k] = v` of a `Dict[...]` parameter — and the set twin `s.add(x)`/`s.discard(x)`/
+`s.remove(x)` of a `Set[...]`/`frozenset` parameter — is **out of scope** and **REJECTED** with a clear
+diagnostic (`module6_whyml/statements.py::_reject_param_collection_mutation`, code
+`PYCSL-WHYML-PARAM-COLLECTION-MUT`). Python passes dicts/sets BY REFERENCE, so the write must be VISIBLE
+to the caller — a faithful model needs a caller-visible mutation frame (`writes {d}`) on a mutable-map
+parameter, the SAME aliasing/frame problem as record-param mutation (‡ below) and nested-list inner
+mutation (above). Modelling the by-value `map` param as a local `ref` would be UNFAITHFUL (the caller
+would not see the change). The rejection is gated to a formal-param dict/set that is NOT a `ref`-bound
+LOCAL (`_dict_locals`), NOT a self-field (which HAS a frame), and NOT the deliberate `@mutable_state`
+param no-op — so LOCAL dict/set mutation and self-field writes are unaffected. The faithful rework is to
+RETURN the updated collection or mutate a LOCAL copy (a local write-read-back proves; drivers 0820/0821
+negative, 0822/0823 positive).
+
 **‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self`, the
 result of a constructor call `C()`, **and** a bare `C`-typed *parameter* whose class is registered
 in `_record_types` are all typed as the class's WhyML record (field defaults per `τ`). A record

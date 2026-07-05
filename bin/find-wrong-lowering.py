@@ -7,7 +7,9 @@ probes in getting-better/wrong-lowering/. Re-runnable to catch regressions.
 Verdicts:
   PROVEN   — all VCs Valid (default non-vacuity gate ON unless --no-vacuity)
   UNPROVEN — some VC Unknown/Timeout/failed (can't prove)
-  TYPEERR  — WhyML type error / pipeline error (ill-typed lowering)
+  TYPEERR  — WhyML fails Why3's type-check (ill-typed / incoherent lowering)
+  REJECTED — a clean tool rejection (raised PyCSLError; a SOUND refusal to lower
+             an out-of-scope construct, e.g. WL-05 dict/set param mutation)
   VACUOUS  — vacuity gate reported a vacuous function
 
 Usage:
@@ -33,6 +35,12 @@ def run(pyfile, no_vacuity=False, no_proof=False, timeout=180):
     if "vacu" in low and ("fail" in low or "vacuous" in low):
         if re.search(r'vacuous', low):
             return "VACUOUS", out[-400:]
+    # A clean tool rejection (a raised PyCSLError → `[!] PIPELINE ERROR:`) is a
+    # DISTINCT, SOUND outcome from broken WhyML that fails Why3's type-check — the
+    # tool refuses to lower an out-of-scope construct with a clear diagnostic
+    # (e.g. WL-05 dict/set param mutation) rather than emitting incoherent WhyML.
+    if "pipeline error" in low:
+        return "REJECTED", out[-400:]
     if ("type error" in low or "typing error" in low or "not typecheck" in low
             or "does not type-check" in low or "l3-tc ✗" in low
             or "this expression has type" in low):

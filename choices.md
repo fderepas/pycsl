@@ -871,3 +871,47 @@ need the WL-03 record-synthesis seam threaded to the flat list param). Both note
 returning `a[0]`). Repro drivers `getting-better/wrong-lowering/wl04_list_{str,float}_elem_COLLAPSED.py`
 (both → PROVEN, was TYPEERR). τ-table rows (`τ(List[str]) = array string`, `τ(List[float]) = array
 real`) and `wrong-lowering-to-fix.md` §WL-04 (→ FIXED) updated.
+
+---
+
+## WL-05 — dict/set PARAMETER item-mutation: CLEAN REJECTION (option 1) over faithful frame
+
+**Date:** 2026-07-05. **Branch:** `ghost-assign-bc6`. **Finding:** `wrong-lowering-to-fix.md` §WL-05
+(WRONG-REPR, severity 4).
+
+**Defect.** An item-mutation `d[k] = v` (`ArraySet`) of a `Dict[...]`/`Set[...]` PARAMETER emitted
+internally-inconsistent WhyML: `d := map_update_some !d k v; … Map.get d k` — it treated the by-value
+param `(d: map string (option int))` as a mutable `ref` (`d :=`, `!d`) AND then read bare `d` (not `!d`)
+→ `string -> option int but is expected to have type ref 'mu`. Fail-closed (no false green), but a
+broken/incoherent lowering. The set twin `s.add(x)`/`s.discard(x)`/`s.remove(x)` on a standalone param
+silently DROPPED the mutation to a no-op (`let _ = s_add_1 x in ()`) — sound but UNFAITHFUL.
+
+**Decision — CLEAN REJECTION (option 1), NOT a `ref`-wrapped param (option 2).** Python passes
+dicts/sets BY REFERENCE, so an item-mutation of a PARAMETER must be VISIBLE to the caller — a faithful
+model needs a caller-visible mutation frame (`writes {d}`) on a mutable-map parameter. That is the SAME
+aliasing/frame problem for which RECORD-param mutation (static-ref ‡) and nested-LIST inner mutation
+(nested-list-mutable) are already documented OUT OF SCOPE. A `ref`-wrapped LOCAL-COPY model (option 2)
+would be UNFAITHFUL — the caller would not see the change — so it is not shippable here. The consistent,
+sound fix mirrors the record/list param-mutation boundary: **reject** dict/set param item-mutation with
+a clear diagnostic instead of emitting broken (or silently-wrong) WhyML.
+
+**Implementation.** `module6_whyml/statements.py::_reject_param_collection_mutation` raises
+`PyCSLSemanticError` (code `PYCSL-WHYML-PARAM-COLLECTION-MUT`, a clean `[!] PIPELINE ERROR:`). Wired at
+the dict item-write site (`_handle_array_set_stmt`, `is_dict` branch) and the set/dict `.add`/`.discard`/
+`.remove` call site. Gated to a FORMAL param (`_formal_params`) dict/set that is NOT a `ref`-bound LOCAL
+(`_dict_locals`), NOT a self-field (which HAS a frame), and NOT the deliberate `@mutable_state` param
+no-op (typed-ir §13). Harness verdict `REJECTED` added to `bin/find-wrong-lowering.py` (a clean pipeline
+rejection is a distinct, SOUND outcome from a broken TYPEERR).
+
+**Additive / no regression.** The full 700-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
+(`bin/byte-diff-sweep.sh`, before/after via HEAD worktree — all corpus dict/set writes are LOCAL or
+self-field, none mutate a PARAM). NO new axiom (`proof_axiom_allowlist` unchanged). `\trusted`
+non-increasing.
+
+**Regression locks.** `0820.py` (NEGATIVE `# pycsl-expected: FAIL`: dict param `d[k]=v` rejected),
+`0821.py` (NEGATIVE `# pycsl-expected: FAIL`: set param `s.add` rejected), `0822.py` (POSITIVE: LOCAL
+dict write-read-back still proves), `0823.py` (POSITIVE: LOCAL set add-membership still proves). Repro
+drivers `getting-better/wrong-lowering/wl05_{dict,set}_param_mut_WRONGREPR.py` (both → REJECTED, dict was
+TYPEERR; set was a silent no-op). Baseline `wl05_dict_local_FAITHFUL.py` STAYS PROVEN. UB catalog §7.9,
+static-semantics §In-place mutation of a dict/set PARAMETER, translational §T.14.2 param note, and
+`wrong-lowering-to-fix.md` §WL-05 (→ FIXED) updated.

@@ -374,6 +374,54 @@ read-only, PURE-`seq`/`map` `array (seq τ)` model.
 
 ---
 
+## §7.9 in-place mutation of a dict/set PARAMETER
+
+**Source pattern that triggers it.** An in-place mutation of a `Dict[...]` or
+`Set[...]` (or `frozenset`) **parameter** — i.e. a write that Python makes visible
+to the caller through the by-reference argument:
+
+```python
+def f(d: Dict[str, int]) -> int:
+    d["a"] = 5        # triggers (ArraySet on a dict param)
+    return d["a"]
+
+def g(s: Set[int]) -> int:
+    s.add(5)          # triggers (also .discard / .remove on a set/dict param)
+    return 0
+```
+
+**Detection mechanism.** Module 6's statement emitter
+(`module6_whyml/statements.py`). At the dict item-write site
+(`_handle_array_set_stmt`, the `is_dict` branch) and the set/dict method-call site
+(`.add`/`.discard`/`.remove`), a mutation whose target is a formal parameter
+(`_formal_params`) that is NOT a `ref`-bound LOCAL (`_dict_locals`), NOT a self-field
+(which HAS a mutation frame), and NOT the deliberate `@mutable_state` param no-op
+(typed-ir §13) is routed to `_reject_param_collection_mutation`, which raises
+`PyCSLSemanticError` (code `PYCSL-WHYML-PARAM-COLLECTION-MUT`).
+
+**Verification stance.** *Hard error*, no escape annotation. Python passes dicts/sets
+BY REFERENCE, so an item-mutation of a parameter must be VISIBLE to the caller — a
+faithful model needs a caller-visible mutation frame (`writes {d}`) on a mutable-map
+parameter. That is the SAME aliasing/frame problem for which RECORD-param mutation
+(static-ref ‡; static-semantics §Track 3) and nested-LIST inner mutation (§7.8) are
+out of scope. Modelling the by-value `map` param as a local `ref` would be UNFAITHFUL
+(the caller would not see the change) — a sound but silently-wrong lowering. Before
+the WL-05 fix the dict case emitted internally-inconsistent WhyML (`d := map_update_some
+!d k v; … Map.get d k` — a `ref`/non-`ref` mix that fails Why3's type-check) and the set
+case silently dropped the mutation to a no-op; both are now a clean rejection.
+**The faithful rework** is to RETURN the updated collection (`d = f(d)`) or mutate a
+LOCAL dict/set (a `ref`, with a genuine frame) — a local write-read-back is faithfully
+modelled and proves.
+
+**Escape annotation.** None. (The boundary is the missing aliasing/frame model, not a
+trust gap — an annotation cannot make the caller see the by-value mutation.)
+
+**Corpus cross-reference:** `0820` (dict param `d[k]=v` rejected), `0821` (set param
+`s.add` rejected); positive guards `0822` (LOCAL dict write-read-back proves), `0823`
+(LOCAL set add-membership proves). Finding: wrong-lowering-to-fix.md §WL-05.
+
+---
+
 ## Verification-perimeter philosophy
 
 PyCSL's verification target is a subset of Python — value-only,
