@@ -1,0 +1,67 @@
+(* Gate-B spike (WL-04f) — SOUND non-int-leaf inner element mutation a[i][j]=v
+   over the READ model `array (seq τ)` via option (c): a mutable OUTER array whose
+   inner element is functionally updated and stored back:
+        a[i][j] = v   ~~>   a[i] <- Seq.set (a[i]) j v
+
+   The outer `array` is mutable (native Why3 store `a[i] <- _`); the inner `seq`
+   stays PURE/immutable (so `array (seq τ)` is a legal Why3 type — `array (array τ)`
+   is NOT). The functional update produces a new inner seq value that is stored back
+   into the mutable outer slot. This is the non-int-leaf twin of the landed
+   `matrix int` model (int leaf), and it reuses the EXISTING read representation
+   `array (seq τ)` (0797/0798) unchanged.
+
+   Proves, on Alt-Ergo AND Z3, with NO new axiom (Seq/Array laws are Why3 stdlib):
+     (1) write-read-back:      after a[i][j]=v, a[i][j] = v
+     (2) outer-frame:          a distinct row i2 != i is byte-unchanged
+     (3) inner-frame:          within row i, a distinct col j2 != j is unchanged
+     (4) length preservation:  len(a) and len(a[i]) are preserved
+   And a FALSE twin (5) must NOT prove. *)
+
+module NestedInnerMutableSeq
+
+  use int.Int
+  use seq.Seq as S
+  use array.Array   (* unqualified: brings [] read, [] <- store, length in scope *)
+
+  (* (1) write-read-back over string leaf: after the store, a[i][j] = v *)
+  let m_update_readback (a: array (S.seq string)) (i j: int) (v: string) : unit
+    requires { 0 <= i < length a }
+    requires { 0 <= j < S.length a[i] }
+    ensures  { S.get a[i] j = v }
+  = a[i] <- S.set a[i] j v
+
+  (* (2) outer-frame: a distinct row i2 != i is entirely unchanged *)
+  let m_update_outer_frame (a: array (S.seq int)) (i j i2: int) (v: int) : unit
+    requires { 0 <= i  < length a }
+    requires { 0 <= j  < S.length a[i] }
+    requires { 0 <= i2 < length a }
+    requires { i2 <> i }
+    ensures  { a[i2] = old a[i2] }
+  = a[i] <- S.set a[i] j v
+
+  (* (3) inner-frame: within the mutated row, a distinct col j2 != j is unchanged *)
+  let m_update_inner_frame (a: array (S.seq int)) (i j j2: int) (v: int) : unit
+    requires { 0 <= i  < length a }
+    requires { 0 <= j  < S.length a[i] }
+    requires { 0 <= j2 < S.length a[i] }
+    requires { j2 <> j }
+    ensures  { S.get a[i] j2 = old (S.get a[i] j2) }
+  = a[i] <- S.set a[i] j v
+
+  (* (4) length preservation: outer length and the mutated row's length preserved *)
+  let m_update_dims (a: array (S.seq int)) (i j: int) (v: int) : unit
+    requires { 0 <= i < length a }
+    requires { 0 <= j < S.length a[i] }
+    ensures  { length a = old (length a) }
+    ensures  { S.length a[i] = old (S.length a[i]) }
+  = a[i] <- S.set a[i] j v
+
+  (* (5) FALSE twin — must NOT prove: claims the written cell is NOT v.
+     After the store the cell IS v, so this postcondition is false. *)
+  let m_update_falsetwin (a: array (S.seq int)) (i j: int) (v: int) : unit
+    requires { 0 <= i < length a }
+    requires { 0 <= j < S.length a[i] }
+    ensures  { S.get a[i] j <> v }   (* FALSE: it is now v *)
+  = a[i] <- S.set a[i] j v
+
+end

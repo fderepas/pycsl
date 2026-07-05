@@ -361,6 +361,39 @@ false-positive against the τ-blessed baseline.
   a constant / computation / keyword-only param) keeps the prior model; a record slot of `float` type
   is now the faithful `real` (WL-03b below); a record slot of CONTAINER type is a documented boundary
   (WL-03b below).
+- **NESTED-list NON-int-leaf inner mutation (WL-04f) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`).
+  The nested-list feature had int-leaf `List[List[int]]` inner mutation `a[i][j]=v` via the mutable
+  built-in `matrix int` (commit `9f03aae7`, drivers 0802/0803); the NON-int-leaf twin (`List[List[str]]`
+  ~ `array (seq string)`, `List[List[float]]` ~ `array (seq real)`) was a REJECTED boundary (the inner
+  `seq` is a PURE/immutable Why3 value; `array (array τ)` is Why3 TYPE-rejected). WL-04f LANDS it via
+  **option (c): an outer-array store of a functionally-updated inner seq** — `a[i][j]=v`→
+  `a[i] <- Seq.set a[i] j v`. The OUTER `array` IS mutable, so the write is a native `Array.set`
+  effect (`writes {a}`, caller-visible — matching Python's in-place semantics); the inner `seq` stays
+  PURE. Reads are UNCHANGED (`a[i][j]`→`Seq.get a[i] j`); `Seq.set`'s `requires 0 <= j < length` is the
+  IndexError obligation. **Single Module6 seam:** `_handle_array_set_stmt` (module6_whyml/statements.py)
+  gains a leading branch guarded on a `seq `-leaf `_list_nested_elem` param + non-String indices — NO
+  Module5 change (the param already STAYS on `param_list_nested_elem` when non-int-leaf inner-mutated,
+  since only `seq int` is matrix-routed). **SOUNDNESS — no false claim under aliasing (rigorously
+  established):** the value-semantics store diverges from Python's reference mutation ONLY under inner
+  aliasing, which is UNEXPRESSIBLE in PyCSL — an inner list can be neither bound to a local (`b = a[i]`
+  type-fails: a local defaults to `int`) nor shared across outer slots (`a = [row, row]` type-fails:
+  `array (array τ)` is rejected). Both routes were probed and FAIL CLOSED, so every expressible
+  post-state is faithful. Gate-B spike `test-suite/corpus/conformance/spikes/nested-list-inner-mutable-seq.mlw`
+  (write-read-back + outer-frame + inner-frame + dims-preservation Valid on **both** Alt-Ergo AND Z3;
+  false twin Timeout/Unknown = correctly unproven; no new axiom — Seq/Array laws are Why3 stdlib).
+  Reference locks: `0804.py` REPURPOSED from NEGATIVE-rejection to POSITIVE `List[List[str]]` read-back;
+  `0847.py` (POSITIVE `List[List[float]]` read-back + non-aliasing frame); `0848.py` (NEGATIVE
+  `# pycsl-expected: FAIL` — false twin, post cell `!= v` stays UNPROVEN); `0849.py` (NEGATIVE — map-leaf
+  `List[Dict[int,int]]` inner item write `a[i][k]=v` stays fail-closed TYPEERR). **Emission-differential:**
+  the ONLY pre-existing corpus file whose emission changes is `0804.mlw` (before/after
+  `bin/byte-diff-sweep.sh` diff = exactly `0804`); every other of the 726 corpus files is BYTE-IDENTICAL
+  (a nested param that is not `seq `-leaf inner-mutated never reaches the new branch). No new axiom;
+  `\trusted` non-increasing. **STILL OUT OF SCOPE (documented residuals):** a **MAP leaf**
+  (`List[Dict[…]]`) inner item write is fail-closed (0849) — the map analog `a[i] <- map_update a[i] k
+  (Some v)` is an unspiked follow-on; the `seq int` leaf routes to `matrix int` (WL nested-list-mutable,
+  unchanged); `a[i].append(..)` (shape-change) and ragged in-place mutation stay OPAQUE/out-of-model
+  (no false post-state claim); deeper-than-2 (`a[i][j][k]=v`) inner mutation is beyond scope (read is
+  depth-bounded; write not implemented → fail-closed).
 - **FLOAT record/tuple FIELD SLOT (WL-03b) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). The WL-03
   synthesized per-slot record and the WL-04b `List[<record>]` element/record models recognized
   slot/field types **int/bool/str ONLY**, so a `float` field slot collapsed to `int` — an UNSOUND leak

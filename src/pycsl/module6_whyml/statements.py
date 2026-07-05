@@ -633,7 +633,42 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     known_sizes[var_name] = known_sizes[var_name] + 1
                 else:
                     known_sizes[var_name] = 1
-        if (arr.get("type") == "Subscript" and
+        _nested_seq_base = None
+        if (arr.get("type") == "Subscript"
+                and arr.get("value", {}).get("type") == "Var"):
+            _nb = arr["value"]["name"]
+            _nt = getattr(self, "_list_nested_elem", {}).get(_nb, "")
+            if (_nt.startswith("seq ")
+                    and arr.get("index", {}).get("type") != "String"
+                    and stmt.index.to_dict().get("type") != "String"):
+                _nested_seq_base = _nb
+        if _nested_seq_base is not None:
+            # WL-04f (wrong-lowering-to-fix.md §WL-04 nested-inner-mutation): in-place
+            # inner ELEMENT mutation `a[i][j] = v` of a NON-int-leaf nested list
+            # (`List[List[str]]` ~ `array (seq string)`, `List[List[float]]` ~
+            # `array (seq real)`). The int leaf routes to the mutable `matrix int`
+            # model (0802/0803); a non-int leaf has NO mutable 2-D built-in, but the
+            # OUTER `array` IS mutable, so the write lowers to an outer-array store of
+            # a FUNCTIONALLY-updated inner seq (option c, Gate-B spike
+            # spikes/nested-list-inner-mutable-seq.mlw, Valid on Alt-Ergo + Z3):
+            #     a[i][j] = v   ~~>   a[i] <- Seq.set a[i] j v
+            # The inner `seq` stays PURE/immutable (`array (array τ)` is Why3 TYPE-
+            # rejected). `Seq.set`'s `requires 0 <= j < length` is the IndexError
+            # obligation. SOUND within PyCSL's expressible fragment: an inner list
+            # can be neither bound to a local (`b = a[i]` type-fails: a local defaults
+            # to int) nor shared across outer slots (`a = [row, row]` type-fails:
+            # `array (array τ)` is rejected), so Python's reference-vs-value
+            # (aliasing) divergence is UNOBSERVABLE — the value-semantics store is
+            # faithful to every expressible post-state. `seq int` never reaches here
+            # (it is matrix-routed); a `map`-leaf inner mutation and any other shape
+            # fall through to the generic path and fail closed (TYPEERR).
+            base = whyml_ident(_nested_seq_base)
+            row_expr = self._expr_to_whyml(arr["index"], local_refs)
+            col_expr = self._expr_to_whyml(stmt.index, local_refs)
+            val_expr = self._expr_to_whyml(stmt.value, local_refs)
+            row = f"{base}[{row_expr}]"
+            code = f"{indent}{row} <- Seq.set {row} {col_expr} {val_expr}"
+        elif (arr.get("type") == "Subscript" and
                 arr.get("value", {}).get("type") == "Var" and
                 arr.get("value", {}).get("name") in getattr(self, "_array2d_params", set()) and
                 arr.get("value", {}).get("name") not in getattr(self, "_dict_locals", set())):
