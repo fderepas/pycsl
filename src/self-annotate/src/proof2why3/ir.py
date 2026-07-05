@@ -13,12 +13,11 @@ from typing import List, Tuple
 class Var:
     'A free or bound variable reference.'
     name: str
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return self.name
 
 
 @dataclass(frozen=True)
@@ -115,12 +114,11 @@ class Unsupported:
     "A leaf for constructs the parser can't represent. Carries the\n    raw token slice for diagnostic purposes."
     reason: str
     raw: str
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return f"<UNSUPPORTED: {self.reason}>"
 
 
 Term = 0  # pycsl: stubbed type alias (string form unsupported)
