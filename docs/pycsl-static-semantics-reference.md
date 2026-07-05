@@ -182,8 +182,17 @@ specification logic's type universe:
 τ(Set[T])         = dict
 τ(frozenset)      = dict      (* frozensets share the set/dict model *)
 τ(FrozenSet[T])   = dict
-τ(Tuple[T1, ...]) = tuple
-τ(tuple)          = int †     (* bare tuple — unlike the recognized Tuple[T1, ...] above *)
+τ(Tuple[T1, ..., Tn]) = record   (* WL-03: a RECOGNIZED fixed-length Tuple with known
+                                 scalar slots (int/bool→int, str→string) is a synthesized
+                                 per-slot record `type pytuple_<tags> = { field0: τ(T1);
+                                 …; field{n-1}: τ(Tn) }`, for a PARAMETER and a record FIELD
+                                 (not just a locally-constructed/returned tuple). `t[i]`
+                                 lowers to the i-th record field (`t[1] : string` for
+                                 Tuple[int, str]) via the NamedTuple positional-access model —
+                                 faithfully typed, not the opaque `int` collapse. A float/
+                                 container/class slot, or a variable-length `Tuple[T, ...]`
+                                 (Ellipsis), is NOT recognized → the bare-tuple `int †` row. *)
+τ(tuple)          = int †     (* bare tuple — unlike the recognized Tuple[T1, ..., Tn] above *)
 τ(C)              = record    (* user-defined class C → a WhyML record of its fields, for
                                  `self`, locally-constructed instances, AND a bare C-typed
                                  parameter whose class is registered — read-only field access

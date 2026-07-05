@@ -282,6 +282,16 @@ class TypeInferenceMixin:
                 rvcls = getattr(self, "_current_record_var_classes", {}).get(receiver_name)
                 if rvcls is not None and rvcls in self._record_types:
                     cls = self._record_types[rvcls].get("whyml_name")
+                else:
+                    # wrong-lowering.md §WL-03: a record-typed PARAMETER receiver
+                    # (`b: Box` then `b.p[1]`) — `_record_param_classes` already maps
+                    # the param to its record's whyml_name (set by `_param_type_str`).
+                    # Without this a record-param field read falls through to the
+                    # opaque `subscript_get`, blocking the faithful `Tuple[...]` field
+                    # slot read. The value already IS the whyml_name.
+                    pcls = getattr(self, "_record_param_classes", {}).get(receiver_name)
+                    if pcls is not None:
+                        cls = pcls
         if not cls:
             return None
         for info in self._record_types.values():

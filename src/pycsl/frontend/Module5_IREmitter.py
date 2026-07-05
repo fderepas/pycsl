@@ -239,6 +239,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # Best-effort literal-only; a non-literal fields list falls through
         # unchanged (byte-identical fallback).
         self._synthesize_namedtuple_functional(node)
+        # wrong-lowering.md §WL-03: synthesize a per-slot record type_decl for
+        # every recognized fixed-length `Tuple[T1, ..., Tn]` annotation, so a
+        # `Tuple[...]` PARAMETER / FIELD gets the faithful positional-slot model
+        # (`t[1] : string`) instead of the opaque `int` collapse. Runs BEFORE
+        # visiting functions so the param/field type resolvers can resolve a
+        # Tuple annotation to the synthesized record name. Byte-identical for a
+        # module with no recognized Tuple annotation.
+        self._synthesize_tuple_records(node)
 
         # sum-types: `#@ datatype Name = C1 | C2(int) | …` → a variant type_decl, and a
         # constructor registry so a `C1` / `C2(x)` value and a `case C1()` pattern resolve.
@@ -1544,6 +1552,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if annotation is not None:
             if self._irnode_ann_name(annotation) is not None:
                 return "ExprIR"          # typed-ir-for-b-ceiling.md B-C2 (field)
+            # wrong-lowering.md §WL-03: a recognized fixed-length
+            # `Tuple[T1, ..., Tn]` FIELD resolves to its synthesized per-slot
+            # record (registered by `_synthesize_tuple_records`), so the record
+            # field is the sub-record and `self.f[i]` reads the faithful slot —
+            # NOT the `Tuple`→`list`→`array int` collapse. Bare `tuple` /
+            # `Tuple[T, ...]` → None → the legacy collapse (byte-identical).
+            _tup_tags = self._m5_tuple_slot_tags(annotation)
+            if _tup_tags is not None:
+                return self._m5_tuple_record_name(_tup_tags)
             try:
                 fin_tag = self._normalize_final_annotation(annotation)
                 if fin_tag is not None:
@@ -1991,6 +2008,96 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             self.program_ir.setdefault("constructors", {})
             self.program_ir["constructors"][nt_name] = {"type": nt_name,
                                                            "arity": 0}
+
+    # wrong-lowering.md §WL-03 — a RECOGNIZED fixed-length `Tuple[T1, ..., Tn]`
+    # annotation on a PARAMETER or record FIELD is lowered to a synthesized
+    # per-slot record (reusing the NamedTuple record seam), so `t[i]` reads the
+    # FAITHFUL slot type (`t[1] : string` for `Tuple[int, str]`), not the opaque
+    # `int` collapse. A BARE `tuple` (no subscript) and a variable-length
+    # `Tuple[T, ...]` (Ellipsis) are NOT recognized — they keep the τ-blessed
+    # `int†`/`array int` collapse (byte-identical). Only scalar slot types whose
+    # record-field lowering is faithful are recognized: int/bool → `int`,
+    # `str` → `string`. A `float`/container/class slot returns None → fall back
+    # to the current (collapsed) behaviour rather than emitting an unfaithful
+    # `real`→int record field (record-field `float` is not modeled as `real`).
+    _M5_TUPLE_SLOT_TAGS = {"int": "int", "bool": "int", "str": "str"}
+
+    @staticmethod
+    def _m5_tuple_slot_tags(annotation: ast.expr) -> Optional[List[str]]:
+        """For a recognized fixed-length `Tuple[T1, ..., Tn]` annotation (n >= 1,
+        every Ti a recognized scalar, NO Ellipsis), return the list of IR
+        field-type tags [tag(T1), ..., tag(Tn)]. Returns None for a bare `tuple`,
+        a `Tuple` without a subscript, a variable-length `Tuple[T, ...]`, or a
+        slot whose type is not a recognized faithful scalar."""
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Tuple", "tuple")):
+            return None
+        sl = annotation.slice
+        if isinstance(sl, ast.Index):          # py<3.9 compat
+            sl = sl.value
+        elts = sl.elts if isinstance(sl, ast.Tuple) else [sl]
+        if not elts:
+            return None
+        tags: List[str] = []
+        for e in elts:
+            # Variable-length `Tuple[int, ...]` — the Ellipsis makes this a
+            # homogeneous variadic tuple (list-like), NOT a fixed per-slot
+            # record. Not recognized (falls back to the collapse).
+            if isinstance(e, ast.Constant) and e.value is Ellipsis:
+                return None
+            if isinstance(e, ast.Name) and e.id in PyCSLToJSONEmitter._M5_TUPLE_SLOT_TAGS:
+                tags.append(PyCSLToJSONEmitter._M5_TUPLE_SLOT_TAGS[e.id])
+            else:
+                return None
+        return tags
+
+    @staticmethod
+    def _m5_tuple_record_name(tags: List[str]) -> str:
+        """Deterministic synthesized record name for a recognized Tuple slot
+        signature (`Tuple[int, str]` → `pytuple_int_str`). The `pytuple_` prefix
+        is reserved (a user class of that name would be pathological); dedup is by
+        this name so identical slot signatures share ONE record type_decl."""
+        return "pytuple_" + "_".join(tags)
+
+    def _synthesize_tuple_records(self, node: ast.Module) -> None:
+        """wrong-lowering.md §WL-03: for every recognized fixed-length
+        `Tuple[T1, ..., Tn]` annotation anywhere in the module (parameter, field,
+        return, local), synthesize ONE dedup'd record type_decl with fields
+        `field0, ..., field{n-1}` of the faithful slot types, marked
+        `is_namedtuple: True` so positional access `t[i]` reuses the NamedTuple
+        record-field-by-index lowering. Runs BEFORE functions are visited so the
+        param/field type resolvers (`_m5_get_type_name` / `_field_type_from_
+        annotation`) can resolve a Tuple annotation to the synthesized record
+        name. A module with no recognized Tuple annotation synthesizes nothing
+        (byte-identical)."""
+        seen = {td.get("name") for td in self.program_ir["type_decls"]}
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Subscript):
+                continue
+            tags = self._m5_tuple_slot_tags(child)
+            if tags is None:
+                continue
+            rec_name = self._m5_tuple_record_name(tags)
+            if rec_name in seen:
+                continue
+            seen.add(rec_name)
+            fields = [{"name": f"field{i}", "type": t, "mutable": True}
+                      for i, t in enumerate(tags)]
+            init_params = [f["name"] for f in fields]
+            init_body = [{"field": f["name"],
+                          "value": {"type": "Var", "name": f["name"]}}
+                         for f in fields]
+            self.program_ir["type_decls"].append({
+                "kind": "record", "name": rec_name, "fields": fields,
+                "class_invariants": [], "field_defaults": {},
+                "has_hash": False, "has_eq": False, "is_unhashable": False,
+                "constants": {}, "bases": [],
+                "init_params": init_params, "init_body": init_body,
+                "init_ensures": [],
+                "is_mixin": False, "compose_from": [],
+                "is_namedtuple": True,
+            })
 
     # typing-engagement ty2 / 32-1700-typing-spec-8 — Protocol (PEP 544) helpers.
     # The static plane treats `class P(Protocol)` as a contract interface (a named
@@ -3011,6 +3118,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # legacy path (byte-identical) on any non-PyCSLIRError exception.
         if self._irnode_ann_name(annotation) is not None:
             return "ExprIR"              # typed-ir-for-b-ceiling.md B-C2 (param)
+        # wrong-lowering.md §WL-03: a recognized fixed-length `Tuple[T1, ..., Tn]`
+        # param resolves to its synthesized per-slot record (registered by
+        # `_synthesize_tuple_records`), so `_param_type_str` emits the record
+        # type and `t[i]` reads the faithful slot. Bare `tuple` / `Tuple[T, ...]`
+        # → None → the legacy collapse (byte-identical).
+        _tup_tags = self._m5_tuple_slot_tags(annotation)
+        if _tup_tags is not None:
+            return self._m5_tuple_record_name(_tup_tags)
         try:
             fin_tag = self._normalize_final_annotation(annotation)
             if fin_tag is not None:

@@ -123,27 +123,37 @@ false-positive against the τ-blessed baseline.
 
 ## COLLAPSED / WRONG-REPRESENTATION (severity 3–4)
 
-### WL-03 — `Tuple[T1,…]` PARAMETER collapses to bare `int` (opaque `subscript_get`)
+### WL-03 — `Tuple[T1,…]` PARAMETER collapses to bare `int` (opaque `subscript_get`) — ✅ FIXED
+- **Status:** FIXED (branch `ghost-assign-bc6`). A RECOGNIZED fixed-length `Tuple[T1, …, Tn]`
+  PARAMETER **and** record FIELD now gets a synthesized per-slot record (reusing the NamedTuple
+  positional-access seam), so `t[i]` reads the faithful slot type. Bare `tuple` and variable-length
+  `Tuple[T, …]` (Ellipsis) are UNCHANGED (`int †` collapse).
 - **Construct / position:** a `Tuple[...]`-annotated *parameter* (and field); slot read `t[i]`.
-- **Current lowering:** `let f (t: int) …` with `t[i]` → `val subscript_get (x:int)(i:int):int`
-  (content-opaque). The faithful `tuple` model is realized ONLY for locally-constructed / returned
-  tuples, NOT params/fields (a `Tuple[...]` field goes to `list`→`array int`, static-ref §1.4 line 305).
-- **Faithful target:** a per-slot record (as the τ-table's `τ(Tuple[T1,…]) = tuple` claims), or at
-  least a slot-typed read so `t[1] : str` for `Tuple[int,str]`.
+- **Was:** `let f (t: int) …` with `t[i]` → `val subscript_get (x:int)(i:int):int` (content-opaque);
+  the faithful model was realized only for locally-constructed / returned tuples, NOT params/fields
+  (a `Tuple[...]` field went `list`→`array int`).
+- **Now:** Module5 `_synthesize_tuple_records` synthesizes one dedup'd record
+  `type pytuple_<tags> = { field0: τ(T1); …; field{n-1}: τ(Tn) }` (`is_namedtuple: True`, int/bool→int,
+  str→string); `_m5_get_type_name` (param) and `_field_type_from_annotation_inst` (field) resolve a
+  recognized `Tuple` annotation to that record; `_param_type_str` emits the record param; the existing
+  `_namedtuple_positional_access` lowers `t[i]` to `t.field{i}`. A record-PARAM field read (`b.p[1]`)
+  is enabled by extending `_field_type_of` to consult `_record_param_classes`; the preamble record
+  emitter emits a nested-record field type. **New scalars only** (float/container/class slot →
+  unrecognized → unchanged collapse; record-field float is not modeled as `real`).
+- **Faithful target (met):** per-slot record; `t[1] : string` for `Tuple[int,str]`, `t[0] : int`.
 - **Class / severity:** COLLAPSED-with-consumer / 3 (mixed-slot: WRONG-REPR / 4).
-- **Evidence:**
-  - `wl03_tuple_param_COLLAPSED.py` (`Tuple[int,str]`, `return t[1]`) → **TYPEERR** (`t[1]` opaque
-    `int` at a `string` return). Detector D2.
-  - all-int `Tuple[int,int]` param: body `t[0]` is opaque (content UNPROVABLE); a contract-side
-    `\result == t[0]` is itself ill-typed (probe `scratch` `p_tuple_ii`).
-  - Baseline (NOT a finding): `wl03_tuple_local_FAITHFUL.py` (LOCAL tuple `t[1]==20`) → PROVEN.
-- **Deliberate-collapse check:** NO. The τ-table row `τ(Tuple[T1,…]) = tuple` is UNQUALIFIED and
-  claims faithfulness; the param/field realization silently diverges to `int`. Not the τ-blessed
-  *bare* `tuple`→int† row (that is a separate, recognized annotation).
-- **Fix direction / effort:** thread the recognized-`Tuple` slot types through `_param_type_str` /
-  the field realization; give a tuple param the same record/slot model as a local. / **M–L**.
-- **Dedup:** none in we-are-getting-better.md (all its items are `int`-leaks in the SELF-annotation
-  mirror, not the user-facing Tuple-param surface).
+- **Evidence (post-fix):**
+  - `wl03_tuple_param_COLLAPSED.py` (`Tuple[int,str]`, `return t[1]`) → **PROVEN** (was TYPEERR).
+  - all-int `Tuple[int,int]` param `t[0]` → content-**PROVEN** (was opaque/UNPROVABLE).
+  - Baseline `wl03_tuple_local_FAITHFUL.py` (LOCAL tuple `t[1]==20`) → **PROVEN** (unchanged).
+  - Reference locks: `0815.py` (POSITIVE — mixed + homogeneous param slot reads), `0816.py`
+    (NEGATIVE twin, `# pycsl-expected: FAIL` — a false slot-content conflation, must stay UNPROVEN).
+  - SMT spike: `test-suite/corpus/conformance/spikes/wl03_tuple_param_slot_spike.mlw` — per-slot
+    record read of a mixed-type tuple PARAM, all goals Valid on Alt-Ergo AND Z3.
+  - Emission-differential: the full 695-file `pycsl-reference` corpus emits BYTE-IDENTICALLY (no
+    corpus program uses a recognized `Tuple[…]` param/field → additive).
+- **Deliberate-collapse check:** N/A (fixed). The τ-table row is now `τ(Tuple[T1, …, Tn]) = record`.
+- **Dedup:** none in we-are-getting-better.md.
 
 ### WL-04 — `List[T]` with a faithful non-int element (`List[str]`, `List[float]`) — element read collapses to `int`
 - **Construct / position:** element read `a[i]` on a `List[str]`/`List[float]` param at a

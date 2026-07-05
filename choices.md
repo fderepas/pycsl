@@ -780,3 +780,50 @@ with `//` (the sound integer division matching the body): all 13 still PROVE; em
 int-truncation `5/2==2`). Repro drivers `getting-better/wrong-lowering/wl02_truediv_{UNSOUND,TRUE}.py`.
 Concrete-syntax §3.2.8 and translational-reference "True Division (`/`)" corrected (they previously
 documented `/`→Euclidean `div` for contracts — that was the bug).
+
+---
+
+## wrong-lowering WL-03 — realize a recognized `Tuple[T1,…,Tn]` param/field as a synthesized per-slot NamedTuple record (reuse, not a new tuple type)
+
+**Context.** A `Tuple[...]`-annotated PARAMETER (and record FIELD) collapsed to bare `int` with an
+opaque `subscript_get (x:int)(i:int):int`: a `Tuple[int,str]` param `t[1]` read an int at a `string`
+use site (TYPEERR), and an all-int `Tuple[int,int]` param's `t[0]` was content-opaque. The faithful
+per-slot model existed ONLY for locally-constructed / returned tuples (the LOCAL baseline is actually
+literal-folded — `t[1]`→`20` — not a real record). The τ-table row `τ(Tuple[T1,…]) = tuple` was
+UNQUALIFIED but the param/field realization silently diverged to `int`.
+
+**Options.** (1) A native WhyML anonymous tuple type `(int, string)` for the param — REJECTED: Why3 has
+no field/`.1` projection on anonymous tuples, so a subscript-expression `t[i]` cannot be lowered
+cleanly (needs a `match ... with (a,b) ->` destructure, awkward in a contract term). (2) A brand-new
+bespoke tuple record family with its own subscript lowering — REJECTED: duplicates the NamedTuple
+positional-access machinery that already lowers `p[i]` to a record-field-by-index read. (3) **CHOSEN:**
+synthesize ONE dedup'd per-slot record `type pytuple_<tags> = { field0: τ(T1); … }` marked
+`is_namedtuple: True`, and resolve a recognized `Tuple[…]` param/field annotation to it — reusing
+`_param_type_str` (record param), `_namedtuple_positional_access` (`t[i]`→`t.field{i}`), and the
+record-field emitter verbatim.
+
+**Choice.** Option 3. Module5 `_synthesize_tuple_records(node)` walks the module for recognized
+fixed-length `Tuple[T1,…,Tn]` annotations (int/bool→int, str→string slots; NO Ellipsis) and appends a
+dedup'd namedtuple record type_decl BEFORE functions/classes are visited; `_m5_get_type_name` (param)
+and `_field_type_from_annotation_inst` (field) return the synthesized record name for a recognized
+Tuple. A record-PARAM field read (`b.p[1]`) is enabled by teaching `_field_type_of` to consult
+`_record_param_classes`; the preamble record emitter emits a nested-record field type.
+
+**Rationale.** Maximal reuse of the already-proven NamedTuple seam; **byte-identical** across the whole
+695-file corpus (no corpus program uses a recognized `Tuple[…]` param/field → fully additive); the fix
+is exactly the recognized-`Tuple[T1,…]` param/field surface. Bare `tuple` and variable-length
+`Tuple[T, …]` (Ellipsis) stay the τ-blessed `int †` collapse. **Scope limit:** a float/container/class
+slot is NOT recognized (record-field `float` is not modeled as `real`) → those fall back to the current
+collapse rather than emit an unfaithful `real`→int field; that is a fail-safe (documented in the
+τ-table `record` row and `wrong-lowering-to-fix.md` §WL-03).
+
+**No smuggled axiom.** The per-slot record read is SMT-direct on Alt-Ergo AND Z3 — no cited lemma,
+`proof_axiom_allowlist` unchanged. Spike:
+`test-suite/corpus/conformance/spikes/wl03_tuple_param_slot_spike.mlw` (all goals Valid on both provers).
+
+**Regression locks.** `0815.py` (POSITIVE: mixed `Tuple[int,str]` `t[1]==<str>` / `t[0]==<int>` and
+homogeneous `Tuple[int,int]` `t[0]`/`t[1]` param slot reads), `0816.py` (NEGATIVE `# pycsl-expected:
+FAIL`: a false slot-content conflation `\result==t[1]` while returning `t[0]`). Repro drivers
+`getting-better/wrong-lowering/wl03_tuple_{param_COLLAPSED,local_FAITHFUL}.py` (param → PROVEN, local
+baseline stays PROVEN). τ-table (`τ(Tuple[T1,…,Tn]) = record`) and `wrong-lowering-to-fix.md` §WL-03
+(→ FIXED) updated.

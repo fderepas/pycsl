@@ -3245,6 +3245,14 @@ class PreambleEmissionMixin:
                         # typed-ir-for-b-ceiling.md B-C2: an ExprIR-valued field is the
                         # typed IR-node sum `emit_ir`. Only in a @mutable_state mirror.
                         ftype = "emit_ir"
+                    elif ftype in self._record_types:
+                        # wrong-lowering.md §WL-03: a field whose type is another
+                        # (already-declared) record — a synthesized `Tuple[T1, ...]`
+                        # per-slot record used as a FIELD — is the nested record's
+                        # Why3 type, so `self.f[i]` reads the faithful slot. The
+                        # tuple records are appended to `type_decls` BEFORE the class
+                        # records, so they are declared (and in `_record_types`) here.
+                        ftype = self._record_types[ftype]["whyml_name"]
                     elif ftype != "int" and not ftype.startswith(("array ", "map ", "ref ", "string", "emit_ir")):
                         # Unrecognised tag (user-defined class etc.) —
                         # fall back to int rather than emitting an
