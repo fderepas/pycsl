@@ -1,0 +1,60 @@
+(* WL-04 SMT-feasibility spike: prove that a FLAT `List[str]` / `List[float]`
+   PARAMETER, realized as `array string` / `array real`, reads its element at the
+   faithful non-int type at a use site.
+
+   Python `List[str]` / `List[float]` are flat lists of a faithful non-int leaf.
+   PyCSL previously collapsed a `List[...]`-annotated PARAMETER's element to `int`
+   (`let f (a: array int) ... : string = a[i]`), so `a[i] : int` collided with a
+   `str`/`float` return — ill-typed WhyML (Detector D2: TYPEERR). The faithful
+   lowering (wrong-lowering-to-fix.md §WL-04) realizes the parameter as
+   `array string` / `array real`, the one-level-up analog of the nested-list
+   `array (seq τ)` model, so `a[i]` reads the faithful element type. The subscript
+   READ is unchanged (`Array.get` is element-polymorphic).
+
+   This fixture is the ground-truth that a flat non-int list-element read reasons
+   CLEANLY at a use site (`a[i] == "x"` / `a[i] == 1.5`) on BOTH Alt-Ergo AND Z3 —
+   no cited lemma needed (a native `array` read). The two element types live in
+   separate modules so the `int` array-index literals and the `real` element
+   literals never share a notation scope. *)
+
+module WL04SpikeStr
+  use int.Int
+  use string.String
+  use array.Array
+
+  (* the faithful lowering of `def f(a: List[str], i: int) -> str: return a[i]`
+     — `a : array string`, so `a[i]` reads a `string`. *)
+  let f (a: array string) (i: int) : string
+    requires { 0 <= i < Array.length a }
+    ensures  { result = a[i] }
+  = a[i]
+
+  (* make-or-break: a concrete string-array read-after-write equals the written
+     element, and the untouched slot is independent (pure `array string` theory). *)
+  let test_str_read () =
+    let a = Array.make 3 "z" in
+    a[1] <- "x";
+    assert { a[1] = "x" };
+    assert { a[0] = "z" }   (* untouched slot is independent *)
+end
+
+module WL04SpikeReal
+  use real.Real
+  use int.Int
+  use array.Array
+
+  (* the faithful lowering of `def g(a: List[float], i: int) -> float: return a[i]`
+     — `a : array real`, so `a[i]` reads a `real`. *)
+  let g (a: array real) (i: int) : real
+    requires { 0 <= i /\ i < Array.length a }
+    ensures  { result = a[i] }
+  = a[i]
+
+  (* make-or-break: a concrete real-array read equals the written element,
+     and the distinct real elements are independent (slot 2 untouched). *)
+  let test_real_read () =
+    let a = Array.make 3 0.0 in
+    a[1] <- 1.5;
+    assert { a[1] = 1.5 };
+    assert { a[2] = 0.0 }
+end

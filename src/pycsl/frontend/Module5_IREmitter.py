@@ -3203,6 +3203,34 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return "emit_ir"
         return None
 
+    @staticmethod
+    def _m5_get_list_flat_elem_whyml(annotation: ast.expr) -> Optional[str]:
+        """WL-04 (wrong-lowering-to-fix.md §WL-04): for a FLAT `List[τ]` param
+        whose element `τ` is a FAITHFUL NON-INT LEAF (`str`→`string`,
+        `float`→`real`), the WhyML element type — so Module6's
+        `_param_type_str` emits `array string` / `array real` (NOT the
+        collapsed `array int`) and a use-site read `a[i]` reads the faithful
+        element type (`a[i] : string` / `: real`, matching a str/float return).
+
+        Returns None for `List[int]`/`List[bool]` (→ byte-identical `array int`;
+        int-leaf is the τ-blessed default), for a NESTED `List[<container>]`
+        (owned one level up by `_m5_get_list_nested_elem_whyml` →
+        `array (seq τ)`), and for any non-`List` annotation. This is the
+        one-level-up flat analog of the nested-list element analysis."""
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("List", "list")):
+            return None
+        sl = annotation.slice
+        if isinstance(sl, ast.Index):          # py<3.9 compat
+            sl = sl.value
+        if isinstance(sl, ast.Name):
+            if sl.id == "str":
+                return "string"
+            if sl.id == "float":
+                return "real"
+        return None
+
     # nested-list.md S1: ONE recursive annotation -> WhyML *element-position* type.
     # An element-position type is a PURE Why3 type (Why3 forbids a mutable element
     # inside `array`), so a nested `List[U]` becomes `seq (_rec U)` (NOT `array`),
@@ -3371,6 +3399,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # nested read `a[i][j]` routes to `Seq.get`/`Map.get`. Empty for every flat
         # `List[int]`/scalar-leaf list (byte-identical `array int`).
         param_list_nested_elem: Dict[str, str] = {}
+        # WL-04: a FLAT `List[str]`/`List[float]` param -> the faithful WhyML
+        # element type ("string"/"real"), so Module6's `_param_type_str` emits
+        # `array string`/`array real` (not the collapsed `array int`) and a
+        # use-site `a[i]` reads the faithful element type. Empty for every flat
+        # `List[int]`/`List[bool]` and nested list (byte-identical `array int`
+        # / `array (seq τ)`).
+        param_list_flat_elem: Dict[str, str] = {}
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
@@ -3416,6 +3451,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _ne = self._m5_get_list_nested_elem_whyml(arg.annotation)
                 if _ne is not None:
                     param_list_nested_elem[arg.arg] = _ne
+                # WL-04: flat non-int list element (str→string, float→real). Only
+                # fires when the nested-container path did NOT (a nested list has a
+                # Subscript element, so `_m5_get_list_flat_elem_whyml` returns None).
+                _fe = self._m5_get_list_flat_elem_whyml(arg.annotation)
+                if _fe is not None:
+                    param_list_flat_elem[arg.arg] = _fe
             # no-more-int emitter L4b: preserve the param's annotated type as a
             # scalar-dict field on the func IR (like `return_annotation`), so it
             # survives import injection — which rebuilds `symbol_table` with `Any`
@@ -3556,7 +3597,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     scope[ga.target] = dtype
 
         return (scope, dict_value_types, dict_key_types, param_annotations,
-                param_list_elem_types, param_list_nested_elem)
+                param_list_elem_types, param_list_nested_elem,
+                param_list_flat_elem)
 
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
@@ -3572,7 +3614,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._cur_literal_ensures = []
         # refactor.md B-final wedge: Module5 computes the scope itself rather than
         # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
-        _sym, _dvt, _dkt, _pann, _plet, _plne = self._build_function_symbol_table(node)
+        (_sym, _dvt, _dkt, _pann, _plet, _plne,
+         _plfe) = self._build_function_symbol_table(node)
         symbol_table = {k: v for k, v in _sym.items() if k != 'self'}
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
@@ -3698,6 +3741,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # nested-list.md S2: outer-list element type for a `List[<container>]`
             # param (`seq ..`/`map ..`). Empty for flat lists → byte-identical.
             "param_list_nested_elem": dict(_plne),
+            # WL-04: flat non-int list element type ("string"/"real") for a
+            # `List[str]`/`List[float]` param. Empty for flat int lists and
+            # nested lists → byte-identical.
+            "param_list_flat_elem": dict(_plfe),
             "param_defaults": param_defaults,
             "has_mutable_default": has_mutable_default,
             "acts": acts_ir,

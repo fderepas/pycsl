@@ -315,6 +315,19 @@ these (and `list`/`Tuple[...]`) to `list` → `array int` in the WhyML record, b
 buffer / tuple field is array-backed (e.g. the `self.disk: bytearray` virtual disk). So the
 same annotation can be `int` as a parameter but `array int` as a field.
 
+**§ Flat faithful-element list param (wrong-lowering-to-fix.md §WL-04).** A parameter annotated with
+a FLAT `List[str]` / `List[float]` — a list whose element is a faithful NON-INT LEAF — does NOT
+collapse its element to `int`. Module5 (`_m5_get_list_flat_elem_whyml`) records the WhyML element type
+(`str`→`string`, `float`→`real`) in the IR field `param_list_flat_elem`, and the emitter realizes the
+parameter as `array string` / `array real` (`_param_type_str`, right after the nested
+`_list_nested_elem` branch). The subscript READ is UNCHANGED (`Array.get` is element-polymorphic), so
+`a[i] : string`/`: real` matches a str/float use site (return) and `\result == a[i]` is provable
+(drivers `wl04_list_{str,float}_elem_COLLAPSED.py`; locks 0817/0818, NEGATIVE 0819). A flat
+`List[int]`/`List[bool]` has NO entry → byte-identical `array int` (int-leaf is the τ-blessed default).
+This is the one-level-up analog of the nested `array (seq τ)` model below. A `List[str]`/`List[float]`
+LOCAL/RETURN built by a LIST LITERAL is a distinct pre-existing surface (its literal construction
+collapses the elements), not part of §WL-04.
+
 **§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
 is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT
 collapse its element to `int`. Module5 (`_m5_get_list_nested_elem_whyml` → the shared recursive

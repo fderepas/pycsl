@@ -60,6 +60,14 @@ class FunctionEmissionMixin:
                 _ne = getattr(self, "_list_nested_elem", {}).get(arg)
                 if _ne is not None:
                     return f"({safe}: array ({_ne}))"
+                # WL-04: a FLAT `List[str]`/`List[float]` param is `array string`/
+                # `array real` (the faithful non-int element), so `a[i]` reads the
+                # faithful element type (`Array.get` is element-polymorphic; the
+                # `is_array` subscript path is unchanged). A flat `List[int]`/
+                # `List[bool]` has no entry → `array int`, byte-identical.
+                _fe = getattr(self, "_param_list_flat_elem", {}).get(arg)
+                if _fe is not None:
+                    return f"({safe}: array {_fe})"
                 return f"({safe}: array {int_type})"
             return f"({safe}: loc) ({safe}_len: int)"
         if symtype == "str":
@@ -204,6 +212,13 @@ class FunctionEmissionMixin:
         # element type (`seq ..`/`map ..`). Drives the `array (seq τ)` param type and
         # the nested read `a[i][j]` (Seq.get / Map.get). Empty for flat lists.
         self._list_nested_elem: Dict[str, str] = func.get("param_list_nested_elem", {})
+        # WL-04 (wrong-lowering-to-fix.md §WL-04): a FLAT `List[str]`/`List[float]`
+        # param -> its faithful WhyML element type ("string"/"real"). Drives the
+        # `array string`/`array real` param type in `_param_type_str`, so a
+        # use-site read `a[i]` reads the faithful element (matching a str/float
+        # return) instead of the collapsed `array int`. Empty for flat int lists
+        # and nested lists → byte-identical.
+        self._param_list_flat_elem: Dict[str, str] = func.get("param_list_flat_elem", {})
         self._dict_locals = set()
         # todict-reflection-plan.md R1: `d = node.to_dict()` binds `d` as an ALIAS of
         # the typed node (map target → the receiver dotted-name string). A later

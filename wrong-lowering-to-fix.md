@@ -155,25 +155,54 @@ false-positive against the τ-blessed baseline.
 - **Deliberate-collapse check:** N/A (fixed). The τ-table row is now `τ(Tuple[T1, …, Tn]) = record`.
 - **Dedup:** none in we-are-getting-better.md.
 
-### WL-04 — `List[T]` with a faithful non-int element (`List[str]`, `List[float]`) — element read collapses to `int`
+### WL-04 — `List[T]` with a faithful non-int element (`List[str]`, `List[float]`) — element read collapses to `int` — ✅ FIXED
+- **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). A FLAT `List[str]`/`List[float]` PARAMETER
+  now realizes its element as the faithful WhyML type — `array string` (resp. `array real`) — so a
+  use-site read `a[i]` reads the faithful element (`a[i] : string` / `: real`), matching a str/float
+  return. This is the ONE-LEVEL-UP flat analog of the nested-list `array (seq τ)` work: Module5's new
+  `_m5_get_list_flat_elem_whyml` maps a `List[str]`→`"string"` / `List[float]`→`"real"` param
+  annotation into a new IR field `param_list_flat_elem`; Module6's `_param_type_str` consumes it
+  (right after the nested `_list_nested_elem` branch) to emit `array {τ}`. The subscript READ path is
+  UNCHANGED (the `is_array` branch's `Array.get` is element-polymorphic). A flat `List[int]`/
+  `List[bool]` has NO entry (→ byte-identical `array int`), and a nested `List[<container>]` is owned
+  by `_m5_get_list_nested_elem_whyml` (→ `array (seq τ)`, unchanged).
 - **Construct / position:** element read `a[i]` on a `List[str]`/`List[float]` param at a
   faithfully-typed use site (str/real return).
-- **Current lowering:** `let f (a: array int) … : string = a[i]` — `a[i] : int` vs return `: string`
-  (resp. `: real`) → internally inconsistent, ill-typed WhyML.
-- **Faithful target:** `array string` / `array real` (or `array (seq τ)` as the nested model already
-  does for `List[List[…]]`), so `a[i]` reads the faithful element type.
-- **Class / severity:** COLLAPSED-with-consumer / 3.
-- **Evidence:** `wl04_list_str_elem_COLLAPSED.py` → **TYPEERR**; `wl04_list_float_elem_COLLAPSED.py`
-  → **TYPEERR**. Detector D2.
-- **Deliberate-collapse check:** NO — with a caveat. The τ-table says `τ(List[T]) = list (element
-  type opaque)`, which blesses an *opaque int* element. But that blessing is only sound as a
-  *sound-but-uninformative* read; here the surrounding typing is FAITHFUL (return `string`/`real`),
-  so the opaque-int element collides and the emitted WhyML does not type-check — a legitimate
-  function is REJECTED, not verified nor cleanly diagnosed. The nested campaign already proved the
-  faithful element model is achievable (`array (seq τ)`); a flat `List[str]`/`List[float]` should get
-  the analogous `array string` / `array real`.
-- **Fix direction / effort:** realize a flat `List[τ]` parameter's element as `τ` (not `int`) when
-  `τ ∈ {str, float, record, …}`, mirroring the nested-list element analysis one level up. / **M**.
+- **Was:** `let f (a: array int) … : string = a[i]` — `a[i] : int` vs return `: string`
+  (resp. `: real`) → internally inconsistent, ill-typed WhyML (TYPEERR).
+- **Now:** `let f (a: array string) … : string = a[i]` (resp. `array real` / `: real`) — the element
+  read type-checks AND the faithful element property `\result == a[i]` is provable.
+- **Faithful target realized:** `τ(List[str]) = array string`, `τ(List[float]) = array real` (the
+  flat leaf case the nested campaign skipped). Derivation is a native `array` read; SMT discharges it
+  directly — **no cited lemma needed**.
+- **Class / severity:** COLLAPSED-with-consumer / 3 (was).
+- **Verdict flips (now):**
+  - `getting-better/wrong-lowering/wl04_list_str_elem_COLLAPSED.py` → **PROVEN** (bounds requires +
+    faithful `\result == a[i]` at `string`). Was TYPEERR.
+  - `getting-better/wrong-lowering/wl04_list_float_elem_COLLAPSED.py` → **PROVEN** at `real`. Was
+    TYPEERR.
+  - Baseline `List[int]` param element read → **STAYS** `array int` / PROVEN (byte-identical).
+- **SMT-feasibility spike:** `test-suite/corpus/conformance/spikes/wl04_list_flat_elem_spike.mlw` —
+  the `array string` / `array real` element read (`a[i] == "x"` / `a[i] == 1.5`, read-after-write,
+  slot independence) all Valid on **both** Alt-Ergo AND Z3 (no cited lemma).
+- **Regression locks (reference corpus):** `test-suite/corpus/pycsl-reference/0817.py` (POSITIVE —
+  `List[str]` element reads, `\result == a[i]`), `0818.py` (POSITIVE — `List[float]` element reads,
+  fractional value preserved), and `0819.py` (NEGATIVE, `# pycsl-expected: FAIL` — a false
+  element-content conflation `a[0]` claimed `== a[1]`, must stay UNPROVEN).
+- **Emission differential:** the full 697-file `pycsl-reference` corpus emits BYTE-IDENTICALLY
+  (verified via `bin/byte-diff-sweep.sh`); no corpus program has a flat `List[str]`/`List[float]`
+  PARAM (0746 is a `Dict[str, List[str]]` FIELD; 0804 is a nested `List[List[str]]` param → the
+  nested path) → additive.
+- **LOCALS / RETURN (noted, out of scope):** a `List[str]` LOCAL and a `-> List[str]` RETURN that go
+  through the LIST-LITERAL construction (`a = ["x", "y"]`) still collapse the string ELEMENTS to
+  hashed ints (`Array.make 2 (747471683)`), a DISTINCT pre-existing surface (the list-literal
+  string-element lowering, not the parameter-element collapse). My param-only change does not touch
+  it; the return-ANNOTATION side already types `-> List[str]` as `array string`, so a local-literal
+  str list currently mismatches its `array string` return (TYPEERR). Filed as a separate follow-on;
+  NOT part of WL-04 (which is the PARAMETER element).
+- **Record element (noted):** `List[<record>]` is not yet realized as `array <record>` (would need
+  the WL-03 record-synthesis seam threaded to the flat list param); str/float — the two faithful
+  scalar leaves and the two repro drivers — are done.
 - **Dedup:** none (we-are-getting-better.md #6/#7 are IR-node list attrs in the mirror, a different
   surface).
 
@@ -235,11 +264,11 @@ false-positive against the τ-blessed baseline.
 |---|---|---|
 | UNSOUND (1) | 0 open | ~~WL-01 (floor `//`/`%`, neg divisor)~~ **FIXED**, ~~WL-02 (true `/` → int div)~~ **FIXED** |
 | FALSE-GREEN (2) | 0 new | WL-VAC (documented, cross-ref) |
-| COLLAPSED-with-consumer (3) | 2 | WL-03 (Tuple param), WL-04 (List[str/float] elem) |
+| COLLAPSED-with-consumer (3) | 0 open | ~~WL-03 (Tuple param)~~ **FIXED**, ~~WL-04 (List[str/float] elem)~~ **FIXED** |
 | WRONG-REPR (4) | 2 | WL-05 (dict/set param mut), WL-06 (bytes index) |
 | OPAQUE (5) | 0 filed | — |
 
 **Fix priority:** WL-01 and WL-02 (both certified FALSE arithmetic — a green proof for code that
-computes a different value in CPython) are now **FIXED**. Remaining: WL-03/WL-04 turn away legitimate
-faithful-typed programs; WL-05/WL-06 emit broken WhyML (fail-closed). Harness + drivers are committed
-and re-runnable.
+computes a different value in CPython) are **FIXED**. WL-03 (Tuple param) and WL-04 (List[str/float]
+element) — both turned away legitimate faithful-typed programs — are now **FIXED**. Remaining:
+WL-05/WL-06 emit broken WhyML (fail-closed). Harness + drivers are committed and re-runnable.

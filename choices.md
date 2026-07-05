@@ -827,3 +827,47 @@ FAIL`: a false slot-content conflation `\result==t[1]` while returning `t[0]`). 
 `getting-better/wrong-lowering/wl03_tuple_{param_COLLAPSED,local_FAITHFUL}.py` (param → PROVEN, local
 baseline stays PROVEN). τ-table (`τ(Tuple[T1,…,Tn]) = record`) and `wrong-lowering-to-fix.md` §WL-03
 (→ FIXED) updated.
+
+## wrong-lowering WL-04 — realize a FLAT `List[str]`/`List[float]` param element as `array string`/`array real` (one-level-up analog of the nested `array (seq τ)` model)
+
+**Context.** WL-04 (COLLAPSED-with-consumer, severity 3): a FLAT `List[str]`/`List[float]` PARAMETER
+collapsed its element to `int` (`let f (a: array int) … : string = a[i]` — `a[i] : int` vs a `string`
+return), so a legitimate faithful-typed function was REJECTED as ill-typed WhyML (TYPEERR), not
+verified nor cleanly diagnosed. The nested campaign (0797–0810) already proved the faithful element
+model (`List[List[τ]] ~ array (seq τ)`); WL-04 is the flat leaf case it skipped.
+
+**Choice.** Realize a flat `List[τ]` PARAMETER's element as the faithful `τ` when `τ ∈ {str→string,
+float→real}`. Module5 `_m5_get_list_flat_elem_whyml(annotation)` maps `List[str]`→`"string"` /
+`List[float]`→`"real"` (and returns None for `List[int]`/`List[bool]` and any nested
+`List[<container>]`, whose slice is a Subscript), captured at the param site into a NEW IR field
+`param_list_flat_elem`. Module6 `_reset_function_state` loads it as `self._param_list_flat_elem`, and
+`_param_type_str` consumes it (emitting `array {τ}`) in the flat-list arm, RIGHT AFTER the nested
+`_list_nested_elem` branch. The subscript READ path is UNCHANGED — the `is_array` branch's `Array.get`
+is element-polymorphic, so `a[i] : string`/`: real` matches the str/float use site.
+
+**Rationale.** Maximal reuse of the nested-list threading pattern (a dedicated per-param map + one
+`_param_type_str` branch); a NEW dedicated map (not the pre-existing `param_list_elem_types`, whose
+"string"/"emit_ir" tags carry @mutable_state semantics) keeps the @mutable_state builder and the
+field paths BYTE-IDENTICAL. **Byte-identical** across the whole 697-file corpus (verified via
+`bin/byte-diff-sweep.sh`): no corpus program has a flat `List[str]`/`List[float]` PARAM (0746 is a
+`Dict[str, List[str]]` FIELD; 0804 is a nested `List[List[str]]` param → the nested path) → fully
+additive. `List[int]`/bare-`list` stay `array int`; the nested-list work (0797–0810) and WL-03
+tuples (0815/0816) are untouched.
+
+**Scope limit / fail-safe.** A `List[str]`/`List[float]` LOCAL or `-> List[str]` RETURN built by a
+LIST LITERAL (`a = ["x","y"]`) still collapses its string/float ELEMENTS through the pre-existing
+list-literal construction (a DISTINCT surface, not the parameter-element collapse of §WL-04); the
+param-only change does not touch it. `List[<record>]` flat element is a documented follow-on (would
+need the WL-03 record-synthesis seam threaded to the flat list param). Both noted in
+`wrong-lowering-to-fix.md` §WL-04 and the τ-table row.
+
+**No smuggled axiom.** The `array string`/`array real` element read is SMT-direct on Alt-Ergo AND Z3
+— a native `array` read, no cited lemma, `proof_axiom_allowlist` unchanged. Spike:
+`test-suite/corpus/conformance/spikes/wl04_list_flat_elem_spike.mlw` (all goals Valid on both provers).
+
+**Regression locks.** `0817.py` (POSITIVE: `List[str]` element reads, `\result == a[i]` at `string`),
+`0818.py` (POSITIVE: `List[float]` element reads, fractional value preserved at `real`), `0819.py`
+(NEGATIVE `# pycsl-expected: FAIL`: a false element-content conflation `\result == a[1]` while
+returning `a[0]`). Repro drivers `getting-better/wrong-lowering/wl04_list_{str,float}_elem_COLLAPSED.py`
+(both → PROVEN, was TYPEERR). τ-table rows (`τ(List[str]) = array string`, `τ(List[float]) = array
+real`) and `wrong-lowering-to-fix.md` §WL-04 (→ FIXED) updated.
