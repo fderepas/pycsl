@@ -201,7 +201,6 @@ class Module6_WhyMLTranspiler(
         declared = {r["exc_type"] for r in self._module_func_raises.get(callee_name, [])}
         return declared - proved
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
