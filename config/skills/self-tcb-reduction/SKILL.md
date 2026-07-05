@@ -125,6 +125,44 @@ find src/self-annotate/src -name '*.py' -exec grep -h '\trusted' {} \; | wc -l  
 
 Amortize the slow planes: type-check per stub; batch proof + byte-diff per **file** (not per stub).
 
+### 5.1 Streamlined per-stub gate (fast path — DEFAULT)
+
+The naive per-stub gate above runs the **full self-annotation suite** (proves every mirror file) and
+a **full corpus byte-diff sweep** on every stub. Both are almost entirely **redundant** and are the
+loop's dominant cost — DROP them from the per-stub gate:
+
+1. **Mirror files are proved INDEPENDENTLY.** Each mirror `.py` is its own verification program; a
+   change to `identifiers.py` cannot affect `statements.py`'s proof. So the type-safety plane needs
+   to re-prove **only the changed file**, not the whole suite.
+2. **Mirror files are NOT in the reference corpus.** `byte-diff-sweep.sh` sweeps
+   `test-suite/corpus/pycsl-reference/`; a pure-mirror conversion is byte-diff-0 **by construction**.
+   A conversion that also touched the emitter (`src/pycsl/`) is a **feature** build, and its corpus
+   byte-diff is gated ONCE at feature-build time — not per converted stub.
+
+**The streamlined per-stub gate (all fast):**
+```bash
+# fidelity — both sync gates (seconds)
+bash bin/check-self-annotate-sync.sh && bash bin/self-annotate-mirror-check.sh
+# type-safety — prove ONLY the changed mirror file(s); allowlist unchanged
+PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py <changed-mirror-file> --import-path src/pycsl
+git diff --quiet HEAD -- src/pycsl proof_axiom_allowlist.py src/self-annotate/**/proof_axiom_allowlist.py  # no emitter/axiom change in a pure conversion
+# corpus inertness — by construction: assert the diff touches ONLY mirror files
+git diff --name-only HEAD | grep -qv '^src/self-annotate/' && echo "NON-MIRROR CHANGE — run full byte-diff" || echo "mirror-only ⇒ byte-diff 0"
+# count — must strictly shrink
+find src/self-annotate/src -name '*.py' -exec grep -h '\trusted' {} \; | wc -l
+```
+
+**Batch confirmation (once per phase / per file-group, NOT per stub):** run the full
+`bin/run-self-annotation-suite.sh` (no-new-failure vs the known pre-existing set) and one
+`bin/byte-diff-sweep.sh` + `diff -rq` as a final belt-and-suspenders check on the whole batch. This
+turns a ~10-min-per-stub gate into ~30 s/stub while keeping every soundness oracle (the batch check
+catches anything the per-stub git-diff assertion could miss).
+
+**Test-every-N amortization** (if you insist on batching the slow planes at all): keep the fast
+per-stub checks per stub (they localize any failure); run the full suite only every N conversions.
+A batch failure ⇒ revert the batch and bisect with the fast checks. Sound iff failures are rare —
+which, with the fast per-file proof already gating each stub, they are.
+
 ## 6. Done criteria (gate-defined, never self-declared)
 
 Every mirror `.py` stub is `VERIFIED` or `FLOOR:{F1|F3}+reason`; the `\trusted` `wc -l` is at the
