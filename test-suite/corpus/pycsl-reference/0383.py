@@ -12,7 +12,7 @@ WhyML rejects as effectful). See pycsl-annotate skill §"Real-World".
 """
 _ = 0  # anchor
 #@ requires True
-#@ ensures \result == 256 / n
+#@ ensures \result == 256 // n
 #@ raises ZeroDivisionError when n == 0
 #@ assigns \nothing
 def maybe_raise(n: int) -> int:
@@ -22,7 +22,7 @@ def maybe_raise(n: int) -> int:
     return 256 // m
 
 #@ requires n != 0
-#@ ensures \result == 256 / n
+#@ ensures \result == 256 // n
 #@ assigns \nothing
 #@ no_exception ZeroDivisionError
 def safe_caller(n: int) -> int:

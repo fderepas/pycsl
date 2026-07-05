@@ -1,0 +1,39 @@
+(* WL-02 SMT-feasibility spike: prove Python-faithful TRUE division `/` as REAL
+   division over Why3 real.RealInfix, with int operands lifted by real.FromInt.
+
+   Python `a / b` is TRUE division and ALWAYS returns a float (`5 / 2 == 2.5`,
+   even for int operands). PyCSL previously lowered a body `/` on int operands to
+   the integer Euclidean `pycsl_div`, silently dropping the fractional part and
+   PROVING the FALSE `5 / 2 == 2` (CPython = 2.5). The faithful lowering converts
+   both operands to `real` (`from_int`) and divides over reals (`/.`), yielding a
+   `real`. A `real` result used at `int` type is ill-typed (real-vs-int) — a
+   fail-closed rejection, never a silent truncation.
+
+   This is DISTINCT from WL-01 (`//`/`%` floored INTEGER division, unchanged).
+
+   Discharge on Alt-Ergo AND Z3. *)
+module WL02Spike
+  use int.Int
+  use real.RealInfix
+  use real.FromInt
+
+  (* the faithful lowering of a body `a / b` on int operands *)
+  function pycsl_truediv (x y: int) : real = from_int x /. from_int y
+
+  (* make-or-break: the fractional result CPython computes *)
+  goal g_5_2      : pycsl_truediv 5 2 = 2.5           (* CPython 5 / 2 == 2.5 *)
+  goal g_1_2      : pycsl_truediv 1 2 = 0.5           (* CPython 1 / 2 == 0.5 *)
+  goal g_7_2      : pycsl_truediv 7 2 = 3.5           (* CPython 7 / 2 == 3.5 *)
+  goal g_4_2      : pycsl_truediv 4 2 = 2.0           (* exact case still real  *)
+  goal g_neg      : pycsl_truediv (-5) 2 = -. 2.5     (* CPython -5 / 2 == -2.5 *)
+
+  (* the OLD UNSOUND int-truncation value is NOT the true-division result *)
+  goal g_not_int_trunc : pycsl_truediv 5 2 <> 2.0     (* the false `5/2==2` is refuted *)
+
+  (* direct real-literal form (no from_int) — the raw real make-or-break *)
+  goal g_real_direct : (5.0 /. 2.0) = 2.5
+
+  (* from_int agrees with the corresponding real literal (operand lift is sound) *)
+  goal g_fromint_5 : from_int 5 = 5.0
+  goal g_fromint_2 : from_int 2 = 2.0
+end

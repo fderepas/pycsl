@@ -739,6 +739,44 @@ incl. symbolic-divisor `\result == a//b`), `0812.py` (NEGATIVE `# pycsl-expected
 RESOLVED (its `(-7)//2` example was itself wrong — Euclidean agrees for a negative *dividend*; the
 divergence is a negative *divisor*).
 
-**Note for WL-02 (true `/`).** Untouched: `/` still shares the `pycsl_div` mechanism (int operands →
-floored int div). The real fix — `/` returns a `real` — is a separate concern; this change keeps the
-mechanism clean for it.
+**Note for WL-02 (true `/`).** Untouched by WL-01: `/` shared the `pycsl_div` mechanism (int operands →
+floored int div). The real fix — `/` returns a `real` — is now landed as a separate concern (see the
+WL-02 decision below); this WL-01 change kept the mechanism clean for it.
+
+---
+
+## WL-02 — Python `/` (TRUE division) lowers to REAL, not integer `div` (SOUNDNESS)
+
+**Date:** 2026-07-05. **Branch:** `ghost-assign-bc6`.
+
+**Decision.** Python `/` is TRUE division and ALWAYS returns a `float` (`5 / 2 == 2.5`, even for int
+operands). PyCSL previously lowered a body/contract `/` to the integer Euclidean `pycsl_div`, dropping
+the fractional part and UNSOUNDLY proving the false `5 / 2 == 2`. `/` now lowers — in a body **and** in
+a contract — to a **real** division: both int operands are lifted to `real` via `real.FromInt`
+(`from_int`) and divided over the reals with `real.RealInfix` (`/.`). Contract: `from_int a /. from_int
+b`. Body: one abstract `val float_truediv_op (a b: int) : real ensures { result = from_int a /. from_int
+b }` (`from_int` is a logic symbol, unusable in a program term). FLOOR division `//` (IR op `"div"`) is
+UNCHANGED — it stays integer floored (WL-01 intact). Only `/` (IR op `"/"`) is affected.
+
+**Fail-close, not truncate.** Because a `/` result is a `real`, using it at `int` type (`-> int`,
+`#@ ensures \result == 2`) is a real-vs-int **type error** (fail-closed) — never a silent integer
+truncation. This is the documented int/float-mixing boundary. To assert an integer quotient, use `//`.
+
+**No smuggled axiom.** Real division is SMT-direct on Alt-Ergo AND Z3 — no cited lemma, `proof_axiom_
+allowlist` unchanged. Spike: `test-suite/corpus/conformance/spikes/wl02_truediv_real_spike.mlw`.
+
+**Import gating (byte-identity).** `use real.RealInfix`/`use real.FromInt` are emitted only when
+`IRScanner.uses_true_division` finds a BinOp op `"/"`. A program with no `/` is byte-identical. Corpus
+byte-diff: only the 13 programs that used a contract `/` to mean integer division changed.
+
+**Corpus reclassification.** 13 reference programs used `/` in a CONTRACT to mean integer division
+while the body used `//` (e.g. `0353` `\result == 256 / n`, body `256 // n`; `0004`/`0203`/`0209`
+Gauss-sum `n*(n±1)/2`). They RELIED on the old unsound `/`→int. Reclassified by spelling the contract
+with `//` (the sound integer division matching the body): all 13 still PROVE; emission byte-identical
+(10) or differs only by dropping a dead unused `pycsl_div` helper (3, contract-only division).
+
+**Regression locks.** `0813.py` (POSITIVE: `5/2==2.5`, `1/2==0.5`, `7/2==3.5`, exact `4/2==2.0` at
+`float`, plus a `5//2==2` integer guard), `0814.py` (NEGATIVE `# pycsl-expected: FAIL`: the old
+int-truncation `5/2==2`). Repro drivers `getting-better/wrong-lowering/wl02_truediv_{UNSOUND,TRUE}.py`.
+Concrete-syntax §3.2.8 and translational-reference "True Division (`/`)" corrected (they previously
+documented `/`→Euclidean `div` for contracts — that was the bug).

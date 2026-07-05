@@ -68,22 +68,39 @@ false-positive against the τ-blessed baseline.
   (helper block + contract-side `//`/`%`); positive-only lowering unchanged in shape; corpus still
   proves.
 
-### WL-02 — Python `/` (TRUE division, returns float) lowered to integer Euclidean `div`
-- **Construct / position:** `BinOp /` in a body, integer operands, int-return context.
-- **Current lowering:** body `/` → `pycsl_div` (int Euclidean `div`) — the fractional part is dropped.
-- **Faithful target:** Python `a / b` is TRUE division → a `float` (`real`). It should lower to a real
-  division (`float_div_op : real`) or be rejected when the result is used at `int` type — never
-  silently truncated.
-- **Class / severity:** UNSOUND / 1.
-- **Evidence:** `getting-better/wrong-lowering/wl02_truediv_UNSOUND.py` → **PROVEN** `\result == 2`
-  for `5 / 2`, but CPython `5/2 == 2.5` (and `2.5 == 2` is False). Detector D3. (The faithful-typed
-  variant `-> float` fail-closes with a real-vs-int TYPEERR — see the driver header — so only the
-  int-return path is unsound.)
-- **Deliberate-collapse check:** NO. The concrete-syntax reference documents `/`→Euclidean `div` for
-  *contracts*; the body lowering silently does the same, which contradicts Python's core `/`
-  semantics. Not a τ-table row.
-- **Fix direction / effort:** distinguish `/` (true, → real) from `//` (floor, → int) in the body
-  lowering; reject `int`-typed use of `/`. / **M** (interacts with float/int mixing scope).
+### WL-02 — Python `/` (TRUE division, returns float) lowered to integer Euclidean `div` — **FIXED**
+- **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). A Python TRUE-division `/` (IR BinOp op `"/"`)
+  now lowers — in a body **and** in a contract — to a **real** division, NEVER the integer `pycsl_div`.
+  Both int operands are lifted to `real` via `real.FromInt` (`from_int`) and divided over the reals
+  with `real.RealInfix` (`/.`). Contract (`_in_spec`): `from_int a /. from_int b`. Body: bundled into
+  one abstract `val float_truediv_op (a b: int) : real ensures { result = from_int a /. from_int b }`
+  (`from_int` is a logic symbol, unusable in a program term). Because the result is a `real`, a `/`
+  used at `int` type is a real-vs-int **type error** — fail-closed, never a silent integer truncation.
+  FLOOR division `//` (IR op `"div"`) is UNCHANGED (WL-01 intact, stays integer floored). The
+  `use real.RealInfix`/`use real.FromInt` imports are gated on `IRScanner.uses_true_division`, so a
+  program with no `/` is byte-identical.
+- **Real op / drivers:** `float_truediv_op` (`_handle_binop`, `module6_whyml/expressions.py`).
+  `getting-better/wrong-lowering/wl02_truediv_UNSOUND.py` → **TYPEERR** (the false `5/2==2` at int type
+  is a real-vs-int type error; was PROVEN). `getting-better/wrong-lowering/wl02_truediv_TRUE.py` →
+  **PROVEN** the faithful `5 / 2 == 2.5` at `float` (real) type. SMT-feasibility spike (Alt-Ergo AND
+  Z3, no cited lemma): `test-suite/corpus/conformance/spikes/wl02_truediv_real_spike.mlw`
+  (`from_int 5 /. from_int 2 = 2.5`; the old `5/2 = 2.0` refuted; `from_int` operand-lift sound).
+- **Class / severity:** UNSOUND / 1 (was).
+- **Faithful target realized:** Python `a / b` is TRUE division → a `float` (`real`); the fractional
+  part is preserved. Derivation is elementary real arithmetic; SMT discharges it directly — **no cited
+  lemma needed**.
+- **Regression locks (reference corpus):** `test-suite/corpus/pycsl-reference/0813.py` (POSITIVE —
+  proves `5/2==2.5`, `1/2==0.5`, `7/2==3.5`, exact `4/2==2.0` all at `float`, PLUS a `//` guard that
+  `5//2==2` stays integer) and `0814.py` (NEGATIVE, `# pycsl-expected: FAIL` — the old
+  int-truncation `5/2==2`, now a real-vs-int type error).
+- **Corpus programs that relied on the OLD unsound `/`:** 13 reference programs used `/` in a
+  **contract** to mean integer division while the body used `//` (e.g. `0353` `#@ ensures \result ==
+  256 / n` with body `256 // n`; `0004`/`0203`/`0209` Gauss-sum `n*(n±1)/2`). Under the old bug the
+  contract `/` was Euclidean `div`, so they proved. These RELIED on the unsound `/`→int; they were
+  reclassified by spelling the contract with `//` (the sound integer division that matches the body).
+  All 13 still PROVE; their emission is byte-identical to the old (0353–0362,0365,0376,0381–0383,0391)
+  or differs only by dropping a **dead** unused `pycsl_div` helper block (0004/0203/0209, contract-only
+  division). Files: 0004,0203,0209,0353,0359,0361,0362,0365,0376,0381,0382,0383,0391.
 - **Dedup:** none. Related mechanism to WL-01 (`pycsl_div`) but a distinct Python operator + fix.
 
 ---
@@ -206,12 +223,13 @@ false-positive against the τ-blessed baseline.
 
 | severity | count | findings |
 |---|---|---|
-| UNSOUND (1) | 2 | ~~WL-01 (floor `//`/`%`, neg divisor)~~ **FIXED**, WL-02 (true `/` → int div) |
+| UNSOUND (1) | 0 open | ~~WL-01 (floor `//`/`%`, neg divisor)~~ **FIXED**, ~~WL-02 (true `/` → int div)~~ **FIXED** |
 | FALSE-GREEN (2) | 0 new | WL-VAC (documented, cross-ref) |
 | COLLAPSED-with-consumer (3) | 2 | WL-03 (Tuple param), WL-04 (List[str/float] elem) |
 | WRONG-REPR (4) | 2 | WL-05 (dict/set param mut), WL-06 (bytes index) |
 | OPAQUE (5) | 0 filed | — |
 
-**Fix priority:** WL-01 and WL-02 are top — they certify FALSE arithmetic (a green proof for code
-that computes a different value in CPython). WL-03/WL-04 turn away legitimate faithful-typed programs;
-WL-05/WL-06 emit broken WhyML (fail-closed). Harness + drivers are committed and re-runnable.
+**Fix priority:** WL-01 and WL-02 (both certified FALSE arithmetic — a green proof for code that
+computes a different value in CPython) are now **FIXED**. Remaining: WL-03/WL-04 turn away legitimate
+faithful-typed programs; WL-05/WL-06 emit broken WhyML (fail-closed). Harness + drivers are committed
+and re-runnable.

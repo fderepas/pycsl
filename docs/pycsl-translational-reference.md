@@ -221,9 +221,47 @@ use `raises` instead of `requires`:
 **Note:** In specification contexts (requires/ensures), `//` and `%`
 translate to the same floored correction inline over `div`/`mod`
 (operands bound once with `let`), so a body `a // b` and a contract
-`\result == a // b` denote the identical floored value.
+`\result == a // b` denote the identical floored value. `//` and `%` stay
+**integer** (`int.Int`) in both operands and result.
 
 **Implementation:** `_emit_preamble_helpers`.
+
+#### True Division (`/`) — real, not integer (WL-02)
+
+Python `/` is **true division** and ALWAYS returns a `float` — even on integer
+operands (`5 / 2 == 2.5`). It is a DIFFERENT operator from floor division `//`
+(above) and must NOT be conflated. In a body **and** in a contract, `a / b`
+lowers to a **real** division: both int operands are lifted to `real` via
+`real.FromInt` (`from_int`) and divided over the reals with `real.RealInfix`
+(`/.`). The imports `use real.RealInfix` / `use real.FromInt` are triggered by
+`IRScanner.uses_true_division` (a BinOp with IR op `"/"`; `//` is IR op `"div"`).
+
+- **Contract (`_in_spec`):** `from_int a /. from_int b` (a `real` term;
+  `from_int` is a pure logic symbol, admissible in the logical context).
+- **Body:** `from_int` is a logic symbol and is not usable in a program
+  (non-ghost) term, so the int→real lift and the division are bundled into one
+  abstract `val` whose `ensures` pins the exact real value:
+
+```whyml
+  val float_truediv_op (a b: int) : real
+    ensures { result = (from_int a /. from_int b) }
+```
+
+Because a `/` result is a `real`, using it at `int` type (e.g. `-> int` with
+`#@ ensures \result == 2`) is a **real-vs-int type error** — fail-closed, never
+a silent integer truncation (consistent with the int/float-mixing boundary). To
+assert an integer quotient, use `//`. Both-`float` operands were already handled
+by the `real` arithmetic path (`float_div_op`); this rule additionally covers
+`/` on integer operands.
+
+SMT feasibility (Alt-Ergo + Z3, no cited lemma):
+`test-suite/corpus/conformance/spikes/wl02_truediv_real_spike.mlw`
+(`from_int 5 /. from_int 2 = 2.5`, and the old `5/2 = 2.0` is refuted).
+Regression locks: `0813.py` (POSITIVE, `5/2==2.5` at `float`; `5//2==2` guard),
+`0814.py` (NEGATIVE, `# pycsl-expected: FAIL`, old int-truncation `5/2==2`).
+
+**Implementation:** `_handle_binop` (`module6_whyml/expressions.py`),
+`float_truediv_op`; import scan `IRScanner.uses_true_division`.
 
 #### Exception Declarations
 

@@ -1857,11 +1857,22 @@ class PreambleEmissionMixin:
             or any(IRScanner.uses_ord_chr(f.get("contracts", {})) for f in functions) \
             or any("Char." in self._AXIOM_REGISTRY.get(e.get("qualname", ""), "")
                    for f in functions for e in f.get("proof", []))
+        # WL-02: a Python TRUE-division `/` (IR BinOp op "/") in a body or contract lowers
+        # to a REAL division (`from_int a /. from_int b`) — Python `/` always returns a
+        # float. This needs `real.RealInfix` (`/.`) AND `real.FromInt` (`from_int`), even
+        # when the file has no explicit `float` var/return (the int-return misuse must
+        # fail-close as a real-vs-int type error, not silently truncate). Distinct from
+        # FLOOR division `//` (IR op "div"), which stays integer (WL-01).
+        needs_truediv = (
+            any(IRScanner.uses_true_division(body) for body in all_bodies)
+            or any(IRScanner.uses_true_division(f.get("contracts", {})) for f in functions)
+        )
         # no-more-int Stage D: a `float` param/local/return is Why3 `real`; RealInfix
         # provides the disambiguated `+.`/`-.`/`*.`/`/.`/`<.` operators alongside int.Int.
         needs_real = (
             any("float" in f.get("symbol_table", {}).values() for f in functions)
             or any(f.get("return_annotation") == "float" for f in functions)
+            or needs_truediv  # WL-02: `/.` real division
         )
         # no-more-int-7 §B′: a `seq int`-valued dict (`Dict[_, List[int]]`) needs
         # `seq.Seq` for the immutable list-snapshot model.
@@ -1972,6 +1983,7 @@ class PreambleEmissionMixin:
             "needs_string": needs_string,
             "needs_char": needs_char,
             "needs_real": needs_real,
+            "needs_fromint": needs_truediv,
             "needs_seq": needs_seq,
             "needs_map_ghost": needs_map_ghost,
             "needs_ghost_dict": needs_ghost_dict,
@@ -2013,6 +2025,11 @@ class PreambleEmissionMixin:
             out.append("  use string.Char")
         if needs.get("needs_real"):
             out.append("  use real.RealInfix")  # no-more-int Stage D — `+.`/`-.`/… on real
+        if needs.get("needs_fromint"):
+            # WL-02: `from_int : int -> real` lifts int operands of a Python TRUE-division
+            # `/` into the reals before `/.`. Only emitted when a `/` is present, so
+            # float-only programs (no `/` on ints) stay byte-identical.
+            out.append("  use real.FromInt")
         if needs.get("needs_seq"):
             out.append("  use seq.Seq")  # no-more-int-7 §B′ — immutable list-snapshot value model
         if self._value_semantic:

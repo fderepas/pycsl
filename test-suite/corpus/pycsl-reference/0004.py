@@ -1,12 +1,12 @@
 """Test 0004 — PyCSL Annotation Reference 2.2.1"""
 _ = 0  # anchor
 #@ requires n >= 0
-#@ ensures \result == n * (n - 1) / 2
+#@ ensures \result == n * (n - 1) // 2
 def test_loop_invariant(n: int) -> int:
     """Loop invariant: inductive property preserved each iteration."""
     s = 0
     i = 0
-    #@ loop invariant s == i * (i - 1) / 2
+    #@ loop invariant s == i * (i - 1) // 2
     #@ loop invariant 0 <= i and i <= n
     #@ loop variant n - i
     while i < n:

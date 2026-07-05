@@ -1503,6 +1503,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             left = self._coerce_str_arg(left)
             right = self._coerce_str_arg(right)
         if op == "div":
+            if raw_op == "/":
+                # WL-02: Python `/` is TRUE division — it ALWAYS returns a float
+                # (`5 / 2 == 2.5`, even for int operands). Lower to a REAL division:
+                # lift both int operands via `from_int` and divide over the reals
+                # (`/.`). The result is a `real`. A `/` result consumed at `int` type
+                # fail-closes as a real-vs-int type error (never a silent integer
+                # truncation) — consistent with the int/float-mixing boundary. Only
+                # FLOOR division `//` (raw_op "div") stays integer below (WL-01).
+                # (Both-float `/` was already handled by the float block above.)
+                if self._in_spec:
+                    return f"(from_int {left} /. from_int {right})"
+                # Body: `from_int` is a logic symbol (unusable in a program/non-ghost
+                # term), so the int→real lift AND the division are bundled into one
+                # abstract `val` whose `ensures` pins the exact real value. The int
+                # operands stay int program terms; `from_int`/`/.` live only in the
+                # logical `ensures`.
+                self._add_abstract_op(
+                    "val float_truediv_op (a b: int) : real\n"
+                    "    ensures { result = (from_int a /. from_int b) }")
+                return f"(float_truediv_op {left} {right})"
             if self._in_spec:
                 # WL-01: Python `//` is FLOORED division. Emit the sign-of-divisor
                 # correction inline over the always-in-scope Euclidean `div`/`mod`

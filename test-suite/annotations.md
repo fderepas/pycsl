@@ -790,11 +790,18 @@ def _pack_uint16_be(v: int) -> list: ...
 | 6 | 6 | `<`, `>`, `<=`, `>=` | `BinOp` | same |
 | 6b | 6.5 | `in`, `not in` | `CSLIn`, `CSLNotIn` | membership test (desugared to `∃` quantifier) |
 | 7 | 7 | `+`, `-` | `BinOp` | same |
-| 8 | 8 | `*`, `//`, `/`, `%` | `BinOp` | `//` and `/` → WhyML `div`; `%` → WhyML `mod` |
+| 8 | 8 | `*`, `//`, `/`, `%` | `BinOp` | `//` → floored WhyML `div` (int); `%` → floored `mod` (int); `/` → **real** division (float) |
 | 9 | 9 (highest) | `not`, unary `-`, unary `+` | `UnaryOp` | same |
 
-**Note:** `/` in contracts maps to WhyML `div` (Euclidean integer division),
-not Python's float division.
+**Note (`/` is TRUE division — WL-02, FIXED):** `/` in a body **and** in a
+contract is Python's TRUE division and ALWAYS yields a `float` (`real`), even on
+integer operands (`5 / 2 == 2.5`). It lowers to a real division — int operands
+lifted via `real.FromInt` (`from_int`) and divided with `real.RealInfix` (`/.`);
+a body `/` bridges through `val float_truediv_op (a b: int) : real ensures
+{ result = from_int a /. from_int b }`. A `/` result used at `int` type is a
+real-vs-int **type error** (fail-closed) — never a silent integer truncation. To
+assert an integer quotient, use `//` (floored integer division). Previously `/`
+mapped to the floored integer `div`, which unsoundly proved `5 / 2 == 2`.
 
 **Division-by-zero guards:** When `//` or `%` appear in **program code**
 (not in contracts), PyCSL wraps them in helper functions `pycsl_div` /

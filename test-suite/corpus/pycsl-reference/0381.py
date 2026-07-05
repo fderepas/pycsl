@@ -7,14 +7,14 @@ in the caller's body).
 """
 _ = 0  # anchor
 #@ requires n != 0
-#@ ensures \result == 256 / n
+#@ ensures \result == 256 // n
 #@ assigns \nothing
 #@ no_exception ZeroDivisionError
 def safe_divide(n: int) -> int:
     return 256 // n
 
 #@ requires n != 0
-#@ ensures \result == 256 / n
+#@ ensures \result == 256 // n
 #@ assigns \nothing
 #@ no_exception ZeroDivisionError
 def caller(n: int) -> int:

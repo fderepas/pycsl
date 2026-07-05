@@ -574,8 +574,17 @@ unary       ::= UNARY_OP unary
   semantics: a floored `div`/`mod` that corrects Why3's Euclidean `div`/`mod`
   by a sign-of-divisor adjustment (rounds toward −∞; remainder sign follows
   the divisor). The positive-divisor case coincides with Euclidean `div`/`mod`.
-- `/` in contracts currently maps to the same floored integer division (not
-  Python's float/true division — tracked separately as WL-02).
+  Both operands and the result stay **integer** (`int.Int`).
+- `/` (TRUE division) maps — in a body **and** in a contract — to Python's
+  **true/float** semantics: it ALWAYS yields a `real` (float), even on integer
+  operands (`5 / 2 == 2.5`). The lowering lifts both int operands to `real` via
+  `real.FromInt` (`from_int`) and divides over the reals (`real.RealInfix` `/.`);
+  a body `/` bridges through `val float_truediv_op (a b: int) : real ensures
+  { result = from_int a /. from_int b }`. Because the result is a `real`, a `/`
+  used at `int` type (e.g. `#@ ensures \result == 2` with `-> int`) is a
+  real-vs-int **type error** — fail-closed, never a silent integer truncation.
+  (WL-02, FIXED — previously `/` mapped to the floored integer `div`, which
+  unsoundly proved `5 / 2 == 2`. To assert an integer quotient, use `//`.)
 - `<==>` is a single token (biconditional / "if and only if").
 - `in`/`not in` (§3.2.6b) are parsed as separate keywords, not as a
   single token. `not in` is distinguished from the unary `not` operator
