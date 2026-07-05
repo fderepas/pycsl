@@ -354,8 +354,9 @@ dataclass-in-a-list fails CLOSED at Why3 type-check (never a silent unsound upda
 comprehension `[p.x for p in a]` over a record source is lowered natively too. Drivers
 `wl04b_list_{record,tuple}_elem_COLLAPSED.py` (PROVEN), false-twin `wl04b_list_record_falsetwin.py`
 (UNPROVEN); locks 0829/0830 (POSITIVE), NEGATIVE 0831. Residuals (int-collapse / opaque kept): a
-`List[<plain-class>]` element and a record slot of `float`/container type. (The `List[<record>]`
-LITERAL is now covered by §WL-04c below; a FILTERED record-projection comprehension by §WL-04d.)
+record slot of `float`/container type. (The `List[<record>]` LITERAL is now covered by §WL-04c
+below; a FILTERED record-projection comprehension by §WL-04d; a `List[<plain-class-with-__init__>]`
+element by §WL-04e.)
 
 **§ Flat RECORD-element list LITERAL (wrong-lowering-to-fix.md §WL-04c).** The CONSTRUCTION analog of
 §WL-04b. A list LITERAL whose elements are ALL full-arity positional constructor CALLS to the SAME
@@ -399,6 +400,30 @@ false-twin `wl04d_filtered_record_proj_falsetwin.py` (UNPROVEN); Gate-B spike
 per-index false twins NOT entailed); locks 0841 (POSITIVE), NEGATIVE 0842. Residuals (kept opaque /
 length-bound-only): a FILTERED TUPLE-SLOT projection (`[t[0] for t in a if …]`, the element is a
 subscript not an attribute), and a projection whose element is not a pure-int field term.
+
+**§ Flat PLAIN-CLASS-element list param (wrong-lowering-to-fix.md §WL-04e).** Extends §WL-04b's
+recognized-element set to a PLAIN class with an explicit positional `__init__`
+(`class Point: def __init__(self, x, y): self.x = x; self.y = y`) — NOT a `@dataclass`/`NamedTuple`/
+recognized `Tuple`. Such a class is already emitted as a record `type_decl` by `visit_ClassDef` and
+its constructor is CONTENT-FAITHFUL (`Point(1, 2).x` proves `== 1`, not `== 0`), so a flat `List[Point]`
+PARAMETER/RETURN resolves to `array <record>` exactly like §WL-04b: `a[i]` reads a REAL record,
+`a[i].field` projects the faithful field, and a constructed record STORED into the array element
+(`a[0] = Point(5, 6)` → the faithful `{ x = 5; y = 6 }`) reads its written field back. The class is
+recognized by `_m5_is_plain_positional_record_class` (pre-`generic_visit` scan of `node.body`,
+mirroring the dataclass/NamedTuple pre-scan) — it is added to `_m5_record_class_names`, so the
+UNCHANGED `_m5_get_list_record_elem` / `_param_type_str` / `_handle_attribute_expr` §WL-04b threading
+applies. Recognition is FAITHFUL-ONLY: a plain `__init__` whose ANY `self.<attr>` is set from a
+non-positional-param expression (constant / computation / keyword-only param) is REJECTED (kept at the
+`array int` collapse — fail-closed). The element record is emitted PURE (added to
+`list_element_record_types`); a field-mutated plain-class-in-a-list has the SAME fail-closed posture as
+§WL-04b (the element write is dropped, the post-mutation claim UNPROVEN — byte-identical to the
+`@dataclass` path). Additive: a plain class NOT used as a flat `List[R]` element never reaches
+`_m5_get_list_record_elem`, so a bigger recognition set changes NOTHING unless a `List[<plain-class>]`
+annotation exists (full-corpus byte-diff = 0). Drivers `wl04e_list_plainclass_elem_COLLAPSED.py`
+(PROVEN — read law + store-read-back), false-twin `wl04e_list_plainclass_elem_falsetwin.py` (UNPROVEN);
+Gate-B spike `spikes/wl04e_list_plainclass_elem_spike.mlw` (Alt-Ergo AND Z3, no cited lemma); locks
+0843 (POSITIVE), NEGATIVE 0844. Residual (kept fail-closed): a plain-`__init__` class whose ctor is
+NOT purely positional, and (per §WL-04b) a record slot of `float`/container type.
 
 **§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
 is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT

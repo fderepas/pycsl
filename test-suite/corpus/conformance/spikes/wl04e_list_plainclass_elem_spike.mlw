@@ -1,0 +1,63 @@
+(* WL-04e SMT-feasibility spike: prove that a FLAT `List[<plain-class-with-__init__>]`
+   PARAMETER, realized as `array <record>`, reads its element at the faithful RECORD
+   type — the SAME `array <record>` lowering WL-04b established for a
+   `@dataclass`/`NamedTuple`/`Tuple` element, now extended to a PLAIN class whose
+   explicit positional `__init__` sets every field from a param
+   (`class Point: def __init__(self, x, y): self.x = x; self.y = y`).
+
+   Python `List[Point]` for a plain-`__init__` `Point` was previously collapsed to
+   `array int`, and `a[i].x` read the opaque `get_x(a[i])` (content-opaque). The
+   faithful lowering realizes the parameter as `array point`, so `a[i]` reads a real
+   record and `a[i].x` projects the faithful field `px`.
+
+   Distinguishing capability over the collapsed model (make-or-break): a plain
+   positional `__init__` is CONTENT-FAITHFUL (verified: `Point(1, 2).x` proves `== 1`
+   and NOT `== 0`), so a constructed record STORED into the array reads its written
+   field back — the collapsed `get_x` over an opaque int could not prove that concrete
+   value. Why3 FORBIDS a MUTABLE element inside `array`, so the element record is PURE
+   (immutable fields). No cited lemma — a native `array` read composed with a native
+   record projection, on BOTH Alt-Ergo AND Z3. *)
+
+module WL04ePlainClass
+  use int.Int
+  use array.Array
+
+  (* the PURE record lowering of a plain-`__init__` `class Point: self.x, self.y`
+     (immutable fields — mandatory for use as an `array` element). *)
+  type point = { px: int; py: int }
+
+  (* the faithful ctor `Point(x, y)` = the record literal (every field from a param):
+     lowered inline as `{ px = x; py = y }` in program contexts below. *)
+
+  (* faithful lowering of `def f(a: List[Point], i: int) -> int: return a[i].x`. *)
+  let f (a: array point) (i: int) : int
+    requires { 0 <= i < Array.length a }
+    ensures  { result = (a[i]).px }
+  = (a[i]).px
+
+  (* POSITIVE make-or-break: a plain-ctor record STORED into the array reads its
+     written field back (the collapsed opaque `get_x` could not prove this). *)
+  let test_ctor_store_read (a: array point) : int
+    requires { 0 < Array.length a }
+    ensures  { result = 5 }
+  = a[0] <- { px = 5; py = 6 };
+    (a[0]).px
+
+  (* read-after-write independence: sibling field / untouched slot are independent. *)
+  let test_record_read () =
+    let a = Array.make 3 { px = 0; py = 0 } in
+    a[1] <- { px = 7; py = 9 };
+    assert { (a[1]).px = 7 };
+    assert { (a[1]).py = 9 };     (* sibling field is independent *)
+    assert { (a[0]).px = 0 }      (* untouched slot is independent *)
+
+  (* NEGATIVE make-or-break: distinct slots hold independent records, so a false
+     cross-element field conflation `a[0].x = a[1].x` is NOT entailed (the collapse
+     into one opaque int would have forced them equal). This spike DISCHARGES the
+     refutation of the conflation on concrete stores. *)
+  let test_slots_not_conflated () =
+    let a = Array.make 2 { px = 0; py = 0 } in
+    a[0] <- { px = 3; py = 0 };
+    a[1] <- { px = 4; py = 0 };
+    assert { (a[0]).px <> (a[1]).px }
+end

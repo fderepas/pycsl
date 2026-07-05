@@ -250,10 +250,10 @@ false-positive against the τ-blessed baseline.
   0771 STAYS UNPROVEN); every OTHER of the 707 corpus files emits BYTE-IDENTICALLY. **STILL OUT OF
   SCOPE (documented residuals):** the `List[<record>]` LITERAL is now covered by **WL-04c** (below); a
   FILTERED projection comprehension over a record source (`[p.x for p in a if …]`) is now covered by
-  **WL-04d** (below); a `List[<plain-class-with-__init__>]` element (only `@dataclass`/
-  `NamedTuple`/recognized `Tuple` elements are recognized), and a record element with a `float`/
-  container field slot (the WL-03 slot recognition is int/bool/str only) remain deferred. str/float
-  (WL-04) and record (WL-04b) are the covered flat leaves.
+  **WL-04d** (below); a `List[<plain-class-with-__init__>]` element is now covered by **WL-04e**
+  (below); a record element with a `float`/container field slot (the WL-03 slot recognition is
+  int/bool/str only) remains deferred. str/float (WL-04) and record (WL-04b) are the covered flat
+  leaves.
 - **Record LITERAL (WL-04c) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). A `List[<record>]` LITERAL
   whose elements are ALL full-arity positional constructor CALLS to the SAME CONTENT-FAITHFUL record —
   `a = [Point(1, 2), Point(3, 4)]` (LOCAL) or `return [Point(1, 2), Point(3, 4)]` (with `-> List[Point]`)
@@ -324,6 +324,41 @@ false-positive against the τ-blessed baseline.
   TUPLE-SLOT projection (`[t[0] for t in a if …]`, the element is a subscript not an attribute — the
   unfiltered tuple-slot projection is itself already out of the `.field` projection scope), and a
   projection whose element is not a pure-int field term keep the opaque / length-bound-only model.
+- **PLAIN-CLASS element (WL-04e) — ✅ IMPLEMENTED** (branch `ghost-assign-bc6`). A flat `List[Point]`
+  PARAMETER (and pass-through RETURN) where `Point` is a PLAIN class with an explicit positional
+  `__init__` (`class Point: def __init__(self, x, y): self.x = x; self.y = y`) — NOT a
+  `@dataclass`/`NamedTuple`/recognized `Tuple` — was NOT recognized as a list-element record, so it
+  collapsed to `array int` and `a[i].x` read the opaque `get_x(a[i])`. Such a class is ALREADY emitted
+  as a record `type_decl` by `visit_ClassDef` and its constructor is CONTENT-FAITHFUL (verified before
+  relying on it: `Point(1, 2).x` proves `== 1` and NOT `== 0` — unlike a `@dataclass` whose ctor drops
+  its args), so it now resolves to **`array <record>`** exactly like WL-04b: `a[i]` reads a REAL
+  `point`, `a[i].field` projects the faithful field, and a constructed record STORED into an array
+  element (`a[0] = Point(5, 6)` → the faithful `{ x = 5; y = 6 }`, reusing WL-04c's ctor threading)
+  reads its written field back. **Single recognition seam:** `_m5_is_plain_positional_record_class`
+  (a pre-`generic_visit` scan of `node.body`, mirroring the dataclass/NamedTuple pre-scan) adds the
+  class name to `_m5_record_class_names`, so the UNCHANGED WL-04b `_m5_get_list_record_elem` →
+  `_param_type_str` → `array <record>` → `_record_array_params` → `_handle_attribute_expr` threading
+  applies — NO new Module6 code. **FAITHFUL-ONLY recognition:** a plain `__init__` whose ANY
+  `self.<attr>` is set from a non-positional-param expression (constant / computation / keyword-only
+  param) is REJECTED and kept at the `array int` collapse (fail-closed). The element record is emitted
+  **PURE** (`list_element_record_types`); a field-mutated plain-class-in-a-list has the SAME
+  fail-closed posture as WL-04b — BYTE-IDENTICAL to the `@dataclass` path (the element write is
+  dropped, the post-mutation claim UNPROVEN — never a silent unsound update). Verdict flips:
+  `getting-better/wrong-lowering/wl04e_list_plainclass_elem_COLLAPSED.py` (read law + store-read-back)
+  → **PROVEN**; false-twin `wl04e_list_plainclass_elem_falsetwin.py` (`\result == a[1].x`
+  cross-element conflation) → **UNPROVEN**. SMT spike
+  `test-suite/corpus/conformance/spikes/wl04e_list_plainclass_elem_spike.mlw` (an `array <record>`
+  element read + plain-ctor store-read-back + read-after-write independence + cross-element
+  distinctness, Valid on **both** Alt-Ergo AND Z3, no cited lemma). Reference locks: `0843.py`
+  (POSITIVE — `List[Point]` param read law + store-read-back), `0844.py` (NEGATIVE `# pycsl-expected:
+  FAIL` — false cross-element conflation). **Emission-differential:** the ONLY corpus files whose
+  emission changes are the two NEW locks `0843`/`0844`; every OTHER of the 722 pre-existing corpus
+  files emits BYTE-IDENTICALLY (`bin/byte-diff-sweep.sh`, before/after diff = 0 — a plain class NOT
+  used as a flat `List[R]` element never reaches `_m5_get_list_record_elem`, so the additivity is
+  structural). No new axiom; `\trusted` non-increasing; doc-coherency green. **STILL OUT OF SCOPE
+  (documented residuals):** a plain-`__init__` class whose ctor is NOT purely positional (a field from
+  a constant / computation / keyword-only param), and (per WL-04b) a record slot of `float`/container
+  type keep the prior (int-collapse / opaque) model.
 - **Dedup:** none (we-are-getting-better.md #6/#7 are IR-node list attrs in the mirror, a different
   surface).
 

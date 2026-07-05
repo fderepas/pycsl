@@ -268,7 +268,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         for _c in node.body:
             if isinstance(_c, ast.ClassDef) and (
                     self._is_dataclass_decorated(_c)
-                    or self._is_namedtuple_class(_c)):
+                    or self._is_namedtuple_class(_c)
+                    # WL-04e (wrong-lowering-to-fix.md §WL-04 record residual): a
+                    # PLAIN class with an explicit positional `__init__` that assigns
+                    # every field from a same-named param (`class Point: def
+                    # __init__(self, x, y): self.x = x; self.y = y`) is a
+                    # CONTENT-FAITHFUL data record (its ctor is faithful — verified:
+                    # `Point(1, 2).x` proves `== 1`, not `== 0`) and is emitted as a
+                    # record type_decl by `visit_ClassDef`, so a flat `List[Point]`
+                    # element resolves to `array <record>` exactly like a
+                    # `@dataclass`/`NamedTuple` element (element read `a[i].field`
+                    # projects the faithful field). Recognized here (pre-`generic_visit`,
+                    # so source order between the using function and the class is
+                    # irrelevant, mirroring the dataclass/NamedTuple pre-scan).
+                    or self._m5_is_plain_positional_record_class(_c)):
                 self._m5_record_class_names.add(_c.name)
         _list_elem_recs: Set[str] = set()
         for _child in ast.walk(node):
@@ -2394,6 +2407,64 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if isinstance(target, ast.Attribute) and target.attr == "dataclass":
                 return True
         return False
+
+    @staticmethod
+    def _m5_is_plain_positional_record_class(node: ast.ClassDef) -> bool:
+        """WL-04e (wrong-lowering-to-fix.md §WL-04 record residual): True if `node` is
+        a PLAIN class (NOT a `@dataclass` / `NamedTuple` / `TypedDict` / `Protocol` —
+        those are recognized by their own predicates) whose explicit `__init__` is a
+        CONTENT-FAITHFUL POSITIONAL constructor: every `self.<field>` assignment sets
+        the field from a same-position `__init__` positional parameter (an `ast.Name`
+        bound to a positional arg). Such a class is emitted as a record type_decl by
+        `visit_ClassDef` and its ctor is faithful (`Point(1, 2).x` proves `== 1`, not
+        `== 0`), so a flat `List[Point]` element can be realized as `array <record>`
+        (WL-04b), reading `a[i].field` at the faithful field.
+
+        Requires at least one such positional field assignment AND rejects (returns
+        False, keeping the pre-existing `array int` collapse — fail-closed) if ANY
+        `self.<attr>` assignment's RHS is NOT a positional-param `Name` (a constant, a
+        computed expression, a keyword-only/default-bound param): such a ctor is not a
+        pure positional data record, so it must not be threaded into the faithful array
+        element path (its store-and-read-back value would not be sound). Purely a
+        recognition test — no IR mutation; additive (a plain class NOT used as a flat
+        `List[R]` element never reaches `_m5_get_list_record_elem`, so a bigger
+        recognition set changes nothing unless a `List[<plain-class>]` annotation
+        exists)."""
+        if not isinstance(node, ast.ClassDef):
+            return False
+        if (PyCSLToJSONEmitter._is_dataclass_decorated(node)
+                or PyCSLToJSONEmitter._is_namedtuple_class(node)):
+            return False
+        init = next((s for s in node.body
+                     if isinstance(s, ast.FunctionDef) and s.name == "__init__"),
+                    None)
+        if init is None:
+            return False
+        pos_params = {a.arg for a in
+                      (list(getattr(init.args, "posonlyargs", []) or [])
+                       + list(init.args.args))
+                      if a.arg != "self"}
+        if not pos_params:
+            return False
+        saw_field = False
+        for stmt in ast.walk(init):
+            tgt = None
+            rhs = None
+            if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
+                tgt, rhs = stmt.targets[0], stmt.value
+            elif isinstance(stmt, ast.AnnAssign):
+                tgt, rhs = stmt.target, stmt.value
+            if not (isinstance(tgt, ast.Attribute)
+                    and isinstance(tgt.value, ast.Name)
+                    and tgt.value.id == "self"):
+                continue
+            # A `self.<attr>` set from anything OTHER than a positional param Name
+            # (constant / computation / keyword-only param) breaks the pure
+            # positional-record shape → not recognized (fail-closed to `array int`).
+            if not (isinstance(rhs, ast.Name) and rhs.id in pos_params):
+                return False
+            saw_field = True
+        return saw_field
 
     @staticmethod
     def _is_mutable_state_decorated(node: ast.ClassDef) -> bool:
