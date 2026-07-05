@@ -38,7 +38,7 @@ const-string), `types.py` 2, `Transpiler` 1, `proof2why3` 4 (`crosscheck._module
 ### TIER 2 — bounded recognizer features (build + convert freed cluster), by aggregate fan-out
 | # | feature | aggregate fan-out | notes |
 |---|---|--:|---|
-| 2a | **set/frozenset value modeling** (§5 OPEN gap #2) | ~40–50 | cross-cutting: A5 ~11, A6 ~25, A7 ~5, A8 ~4, A3 ~4; a known gap; highest leverage |
+| 2a | **set/frozenset value modeling** (§5 OPEN gap #2) | ~40–50 | cross-cutting: A5 ~11, A6 ~25, A7 ~5, A8 ~4, A3 ~4; a known gap; highest leverage. **PARTIALLY LANDED:** module-const string-set membership (`x in CONST_SET`) now faithful (`collect_module_const_sets` + `_emit_membership` expansion; locks 0876/0877) — unblocks the A8 pair `is_rocq_assumption_allowed`/`is_lean_axiom_allowed`. Still open: set-VALUED returns, set-comprehension, mixed-type sets, set-local fixpoint scanners. |
 | 2b | **mixed-literal f-string** (literal segments hash to int today) | ~9 primary + ~40 secondary | concentrated in Module 6 (the soundness-relevant emitter); single highest-leverage recognizer there |
 | 2c | **str-list `.append` builder** | ~18 | dominates `preamble.py` |
 | 2c | **record-ify plain mixin classes** (`types.py TypeInferenceMixin` → `@mutable_state @dataclass`) | 7 (one-file) | structural; also helps Preamble/AbstractOps mixins |

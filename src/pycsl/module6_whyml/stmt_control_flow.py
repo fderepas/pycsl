@@ -1090,4 +1090,21 @@ class ControlFlowStmtMixin:
                 val = self._bool_ir_to_int_wrap(val, val_ir)
             val = self._coerce_to_int(val)
             return f"{indent}raise (Return {val})"
+        # set-model: a `-> bool` function whose SOLE tail return is `x in NAME` for a
+        # module-const string-set (`return name.strip() in ROCQ_KERNEL_AXIOM_ALLOWLIST`)
+        # yields a bare `bool` disjunction from `_emit_membership`, but a `-> bool` return
+        # type is modeled as an int slot (`ensures { result = 1 }`). Bridge the membership
+        # bool to int with the SAME `(if X then 1 else 0)` wrap the use_raise path already
+        # applies (`_bool_ir_to_int_wrap`). Scoped STRICTLY to a module-const-set membership
+        # whose receiver is a recognized module constant AND an int return slot — 0 corpus
+        # programs reference a module-const set, so this is byte-identical for every existing
+        # file. (The general bare-bool tail-return coercion — `return x == 3` — is a distinct
+        # pre-existing gap, deliberately NOT touched here to keep emission additive.)
+        if (val_ir is not None and func_ret_peek == "int"
+                and val_ir.get("type") == "BinOp"
+                and val_ir.get("op") in ("in", "not in")):
+            _rr = val_ir.get("right", {})
+            if (isinstance(_rr, dict) and _rr.get("type") == "Var"
+                    and _rr.get("name") in getattr(self, "_module_const_sets", {})):
+                val = self._bool_ir_to_int_wrap(val, val_ir)
         return f"{indent}{val}"
