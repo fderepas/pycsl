@@ -118,7 +118,6 @@ collected:
 | `_lock_order` | `#@ lock_order` declaration | `Optional[List[str]]` — ordered list of mutex names |
 | `_module_constants` | top-level `NAME = <int literal>` | `Dict[str, int]` — single-assignment module int constants |
 | `_module_const_dicts` | top-level `NAME = {"k":"v", …}` (str→str) | `Dict[str, Dict[str, str]]` — single-assignment module constant str→str dict literals; recognized at a `NAME.get(k, default)` site as a chained `string` if-then-else |
-| `_module_const_sets` | top-level `NAME = {"a", …}` / `frozenset({…})` (all-str) | `Dict[str, List[str]]` — single-assignment module constant string-set literals (elements in source order, deduped); recognized at an `x in NAME` membership site as a disjunction of string equalities |
 
 **Module-level constants in contracts.** A module-level name bound **exactly once** to an
 integer literal (`K_IHDR = 0`, `LIMIT = 8`; `collect_module_constants`) is a *constant*: it is
@@ -134,23 +133,6 @@ analog of a class-body scalar constant fold. It requires an EXPLICIT default (2 
 dict, `.get(k)` without a default, an empty/reassigned dict, or a same-named local (which shadows the
 constant) all keep the opaque behavior (fail-closed — never a false value). Drivers: reference locks
 `0872` (POSITIVE hit + default), `0873` (NEGATIVE wrong-value twin).
-
-A module-level name bound **exactly once** to a **string-set literal** (`ROCQ_KERNEL_AXIOM_ALLOWLIST =
-{"propext", …}`, or the `frozenset({…})` / `set([…])` form, all elements plain string literals;
-`collect_module_const_sets`) is a *constant set*: an `x in NAME` membership expands the named
-constant to its literal and lowers to a faithful disjunction of string equalities
-(`(str_eq_op x "propext") || …` in a body / a polymorphic `=` disjunction in a spec;
-`expressions.py::_emit_membership`) — EXACTLY as an inline set-display `x in {"a", "b"}` already
-lowers, the set analog of the module-const-dict `.get` fold. The membership is a `bool` over
-`string` operands; when it is the sole tail return of a `-> bool` function (an `int` result slot),
-`_handle_return_stmt` bridges it to int with the `(if X then 1 else 0)` wrap (scoped strictly to the
-module-const-set shape). A set with any non-string element, an empty set, a reassigned name, or a
-same-named local (which shadows the constant) all keep the opaque behavior (fail-closed — never a
-false value); set-VALUED returns, set-comprehension, and mixed-type sets are not yet modeled. This
-narrows §5 OPEN gap #2 (set/frozenset value modeling) to its module-const-membership sub-slice
-(`is_rocq_assumption_allowed` / `is_lean_axiom_allowed` in `proof_axiom_allowlist`). Drivers:
-reference locks `0876` (POSITIVE hit + miss + `not in` + `frozenset`), `0877` (NEGATIVE
-wrong-membership twin).
 
 **String-valued `or` / `and` (`_is_string_expr` / `_handle_binop`).** When **BOTH** operands of a
 Python `a or b` / `a and b` are `string`-typed, the whole expression is itself `string`-typed —

@@ -473,40 +473,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     checks.append(f"({left_c} = {self._coerce_str_arg(elt_w)})")
                 joined = f"({' || '.join(checks)})"
                 return f"(not {joined})" if negate else joined
-        # set-model: `x in NAME` where NAME is a module-level constant string-set literal
-        # (`ALLOWLIST = {"a", "b"}` / `frozenset({...})`) → expand the named constant to
-        # its literal and lower EXACTLY as the inline set-display `x in {"a", "b"}` above:
-        # a disjunction of string equalities `(x = "a" || x = "b" || ...)`. The result is
-        # a `bool` over `string` operands (WL-02: no value->int coercion). This is the
-        # `x in ROCQ_KERNEL_AXIOM_ALLOWLIST` shape in `proof_axiom_allowlist`, whose string
-        # membership previously leaked to the opaque int `contains_check`. A same-named
-        # local/param/dict-local SHADOWS the module constant (checked first), so the
-        # recognizer fires only on the genuine module-level name (fail-closed otherwise).
-        if rhs.get("type") == "Var":
-            _msname = rhs.get("name", "")
-            _mset = getattr(self, "_module_const_sets", {}).get(_msname)
-            _symtab_ms = getattr(self, "_current_symbol_table", {}) or {}
-            if (_mset is not None
-                    and _msname not in _symtab_ms
-                    and _msname not in (local_refs or set())
-                    and _msname not in self._current_params
-                    and _msname not in getattr(self, "_dict_locals", {})):
-                left_ms_ir = expr.get("left")
-                left_is_str = self._is_string_expr(left_ms_ir) if left_ms_ir else False
-                if not self._in_spec and left_is_str:
-                    self._add_abstract_op(
-                        "val str_eq_op (a: string) (b: string) : bool\n"
-                        "    ensures { result <-> (a = b) }")
-                    checks = [f"(str_eq_op {left} {whyml_string_literal(e)})"
-                              for e in _mset]
-                elif self._in_spec:
-                    checks = [f"({left} = {whyml_string_literal(e)})" for e in _mset]
-                else:
-                    left_c = self._coerce_str_arg(left)
-                    checks = [f"({left_c} = {self._coerce_str_arg(whyml_string_literal(e))})"
-                              for e in _mset]
-                joined = f"({' || '.join(checks)})"
-                return f"(not {joined})" if negate else joined
         # Body-local dict OR set/dict-typed parameter OR self.<dict-field>
         rhs_is_map = False
         if rhs.get("type") == "Var":

@@ -76,12 +76,6 @@ class Module6_WhyMLTranspiler(
         # `_lower_dict_get_call` as a chained string if-then-else. Empty for every
         # existing corpus program (byte-identical emission).
         self._module_const_dicts: Dict[str, Dict[str, str]] = self.ir.get("module_const_dicts", {})
-        # set-model: module-level constant string-set literals (`ALLOWLIST = {"a", "b"}`
-        # or `frozenset({...})`) → recognized at an `x in NAME` membership site in
-        # `_emit_membership` as a disjunction of string equalities (the named constant
-        # expanded to its literal, exactly as an inline `{"a", "b"}` set-display). Empty
-        # for every existing corpus program (byte-identical emission).
-        self._module_const_sets: Dict[str, List[str]] = self.ir.get("module_const_sets", {})
         # gap-9: signatures of imported `#@ inductive` predicates whose RULE was
         # NOT crossed (kept opaque to avoid an E-matching blow-up). Lets the
         # `_emit_contract_logic_symbol` fallback declare the opaque predicate

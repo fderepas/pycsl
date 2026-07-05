@@ -9,7 +9,6 @@ from frontend.module5.memoization_rt import MemoizationRTMixin
 from frontend.module5.construction_synth import ConstructionSynthMixin
 from frontend.module_collect import (collect_module_constants,
                                       collect_module_const_dicts,
-                                      collect_module_const_sets,
                                       collect_module_globals)
 from frontend.Module2_Parser import (
     CSLNode, ContractWrapper,
@@ -182,15 +181,6 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         module_const_dicts = collect_module_const_dicts(node)
         if module_const_dicts:
             self.program_ir["module_const_dicts"] = module_const_dicts
-
-        # set-model: module-level constant string-set literals (`ALLOWLIST = {"a", "b"}`
-        # or `frozenset({...})`) → recognized at an `x in NAME` membership site in
-        # Module 6 as a disjunction of string equalities (the set-analogue of the
-        # module-const-dict `.get`). Additive: no corpus program uses a module-const-set
-        # membership, so this field is absent for all existing files (byte-identical).
-        module_const_sets = collect_module_const_sets(node)
-        if module_const_sets:
-            self.program_ir["module_const_sets"] = module_const_sets
 
         # inline.md Phase 1: module-level global object instances `g = C(...)`. Modeled
         # in Module 6 as a Why3 mutable-record global `let g : c = <ctor>`; the ctor
