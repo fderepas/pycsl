@@ -2020,6 +2020,7 @@ string — so `s[a:b] == t` routes to the string path).
 | `s.find(sub)` | — | `str_find_op s sub : int`, `result≥-1` and `result≥0 -> substring s result (len sub) = sub` | `_content_string_method` |
 | `s.lower()` / `s.upper()` | — | `str_lower_op`/`str_upper_op` : **deterministic** `val function`, `len s≥1→len result≥1` + IDEMPOTENCE (fold-marker predicate) ; **literal receiver constant-folded** (Python's own `str.lower`/`upper`) | `_handle_string_value_method` |
 | `s.replace(p,r)` | — | `str_replace_op` : **deterministic** `val function`, `len p=len r → len result=len s` + not-contains identity (`p` nowhere in `s` ⇒ `result=s`) ; **all-literal call constant-folded** | `_handle_string_value_method` |
+| `s or t` / `s and t` (BOTH `str`) | (spec: `&&`/`\|\|` boolean) | **body: string ITE over EMPTINESS** — `s or t` → `(if str_length_op s > 0 then s else t)`; `s and t` → `(if str_length_op s > 0 then t else s)` (Python string truthiness is non-emptiness; the result is the operand itself, `string`-typed, NOT a bool) | `_handle_binop` |
 
 **Content-faithful, not merely length (cleared-string.md).** Because each bridge pins its result
 to a *native* `string.String` symbol (`concat` / `String.substring`) and Why3 1.8.2's

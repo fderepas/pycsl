@@ -134,6 +134,26 @@ dict, `.get(k)` without a default, an empty/reassigned dict, or a same-named loc
 constant) all keep the opaque behavior (fail-closed — never a false value). Drivers: reference locks
 `0872` (POSITIVE hit + default), `0873` (NEGATIVE wrong-value twin).
 
+**String-valued `or` / `and` (`_is_string_expr` / `_handle_binop`).** When **BOTH** operands of a
+Python `a or b` / `a and b` are `string`-typed, the whole expression is itself `string`-typed —
+Python's `or`/`and` return one of the *operands* (not a bool), and a string's truthiness is
+non-emptiness. `_is_string_expr` therefore types a both-string `or`/`and` (the `or` right arm may
+also be `None`, the `<get> or ""` idiom modeled as `""`) as `string`, so it flows as a `string`
+local / return and routes `+`, `.lower()`, etc. through the string ops. In **body** context
+`_handle_binop` lowers `s or t` to `(if str_length_op s > 0 then s else t)` and `s and t` to
+`(if str_length_op s > 0 then t else s)` (`str_length_op ⊨ String.length`; `String.length` is a
+logic symbol, illegal in a program body). The result is `string`-typed: used where a bool/int is
+expected it fails closed at Why3 type-check (WL-02 — never a silent coercion). Bool/int operands are
+UNCHANGED (the `&&`/`||` connective, `if … then 1 else 0`), and in **spec** context `and`/`or` stay
+the boolean connectives. This unblocks self-TCB free functions such as `identifiers.safe_exc_name`
+(`return name.lstrip("_") or name`, both operands `string`), whose `or` previously LEAKED to an int
+truthiness. Reference locks `0874` (POSITIVE — `or`/`and`, non-empty & empty first operand),
+`0875` (NEGATIVE wrong-branch twin); Gate-B spike
+`test-suite/corpus/conformance/spikes/string_or_and_spike.mlw` (Z3 discharges every hit + default
+and refutes both false twins; Alt-Ergo, lacking a string theory, decides only the empty-operand
+duals — best-of-N pipeline is sound either way). No new axiom (`str_length_op` is the pre-existing
+length bridge); no `\trusted`.
+
 A module-level name that is **reassigned** (more than one module-level binding, or written via a
 `global` statement) is **mutable global state** and is *excluded* — it is neither inlined nor
 admitted in contracts, and a reference raises `Undefined variable`. This is by design: a value

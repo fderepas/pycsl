@@ -1074,14 +1074,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and self._is_string_expr(ir.get("body", {}))
                 and self._is_string_expr(ir.get("orelse", {}))):
             return True
-        # resync-campaign.md R2: `<str> or <str>` (`<get> or ""`) is string — so a `.lower()`
-        # on it type-checks. @mutable_state.
-        if (t == "BinOp" and ir.get("op") == "or"
-                and getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())
+        # string-bool-op: a both-operands-string `or`/`and` is itself STRING (Python's
+        # `a or b`/`a and b` return one of the operands, not a bool) — so it types as a
+        # string local / return and routes `+`, `.lower()`, etc. through the string ops.
+        # The `or` right arm may be `None` (`<get> or ""` idiom, right modeled as "").
+        # Both operands must be string; a mixed/bool/int operand keeps the non-string
+        # (bool/int) typing (additivity). Subsumes the earlier @mutable_state `or` branch.
+        if (t == "BinOp" and ir.get("op") in ("and", "or")
                 and self._is_string_expr(ir.get("left", {}))
                 and (self._is_string_expr(ir.get("right", {}))
-                     or (isinstance(ir.get("right"), dict)
+                     or (ir.get("op") == "or"
+                         and isinstance(ir.get("right"), dict)
                          and ir["right"].get("type") == "None"))):
             return True
         if t == "Call":
@@ -1567,6 +1570,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "    ensures { result <-> (a = b) }")
                 _rv = '""' if _r_none else right
                 return f'(if (not (str_eq_op {left} "")) then {left} else {_rv})'
+            # string-bool-op: BOTH operands `string`-typed => faithful string ITE over
+            # EMPTINESS (Python string truthiness is non-emptiness). `s or t` returns the
+            # first operand when non-empty else the second; `s and t` returns the second
+            # when the first is non-empty else the first. The result is itself `string`-
+            # typed; used where a bool/int is expected it fails closed at Why3 type-check
+            # (WL-02 — never a silent coercion). BODY only; in spec context `and`/`or`
+            # remain the boolean &&/|| connectives (unchanged below). NOT @mutable_state-
+            # gated: unblocks self-tcb free functions (`safe_exc_name`'s `… or name`).
+            # Bool/int operands fall through UNCHANGED to the &&/|| path below (additivity).
+            if (not self._in_spec
+                    and self._is_string_expr(expr["left"])
+                    and self._is_string_expr(expr["right"])):
+                # `String.length` is a LOGIC symbol (illegal in a program body); bridge
+                # emptiness through the `str_length_op` val (ensures = String.length).
+                self._add_abstract_op(
+                    "val str_length_op (s: string) : int\n"
+                    "    ensures { result = (String.length s) }")
+                if op == "||":
+                    return (f"(if str_length_op {left} > 0 "
+                            f"then {left} else {right})")
+                return (f"(if str_length_op {left} > 0 "
+                        f"then {right} else {left})")
             left_b = self._to_bool(left, expr["left"])
             right_b = self._to_bool(right, expr["right"])
             if self._in_spec:
