@@ -228,6 +228,52 @@ enumerated in the F1/F3 audited floor with a reason; the `wc -l` trusted count i
 floor; `check-self-annotate-sync.sh`, `self-annotate-mirror-check.sh`, and
 `run-self-annotation-suite.sh` all green; byte-diff 0 throughout.
 
+### Iteration 2026-07-06 — TIER-3-v2 PATH-1 harvest (census `whole-body-census.md` §5 PATH 1)
+
+Harvested the census-confirmed **convertible-NOW** `\trusted` stubs — the bounded, zero-build,
+no-new-axiom conversion the tier3-v2 whole-body census (`getting-better/tier3/whole-body-census.md`)
+recommends as the honest floor. Global canonical `\trusted` count **1249 → 1240** (net **9**
+converted, all in `ir_scanner.py`, mirror-only). `src/pycsl` emitter untouched (byte-diff 0 by
+construction); `why3-semantics` untouched; `proof_axiom_allowlist` unchanged.
+
+**Converted (9, each proven whole-body via per-function `--fun` — safety + termination +
+non-vacuity; live body ported verbatim, fixed contract `requires True`/`ensures True`/`assigns
+\nothing`, `\trusted` marker removed):**
+- `module6_whyml/ir_scanner.py` — `uses_subscript`, `uses_array_lit`, `uses_minmax`,
+  `is_recursive`, `uses_string`, `uses_sum`, `uses_set_card`, `uses_ord_chr`, `uses_divmod`
+  (the 9 substantive reflective IR-tree predicate walkers). Each `irscanner__<name>` reaches
+  `Verification SUCCESS` under `pycsl.py … --fun <name>`. The combined-file gate does NOT time out
+  here — `ir_scanner.py` **PASSES the full-file suite proof** (superseding the 2026-07-05 deferral,
+  which had `uses_inline_set_or_dict_ops` — a typecheck-failer — in the batch).
+
+**Census discrepancies (2 of the "11" did NOT reproduce — NOT forced, per the non-vacuity guard):**
+- `statements.py::_wrap_body_with_return_catch` — census listed it convertible-NOW, but on disk it
+  is **already un-`\trusted`** with the full live body (not a stub); converting it is a no-op and it
+  is **not** in the 1249 count. (It also currently FAILS the full-file statements.py proof on the
+  f-string-hash→int limitation — a pre-existing state independent of this harvest.)
+- `expressions.py::_e` — census listed it convertible-NOW, but with the live body
+  (`return self._expr_to_whyml(ir, lr)`) it **FAILS** `--fun` in the committed mirror: the trusted
+  `_expr_to_whyml` stub's declared return type mismatches (`type int … expected PyCSL_Program.emit_ir`).
+  The census probe passed only because `sync-mirror-bodies.py` also ports every sibling's signature/
+  return-type; a pure single-method edit does not. Left `\trusted` (reverted).
+
+So the measured harvest yield is **9, not 11** (target 1238 → actual **1240**).
+
+**Batch confirmation:** fidelity (`check-self-annotate-sync.sh` — 90 un-trusted mirror fns verbatim;
+`self-annotate-mirror-check.sh` — 51 mirrors in sync) green; byte-diff 0 by construction
+(`src/pycsl` byte-identical to baseline `7a750917`); `run-self-annotation-suite.sh` — the only file
+this iteration touched, `ir_scanner.py`, **PASSES**; the pre-existing FAIL set (`pycsl.py`,
+`expressions.py`, `statements.py`, …) is byte-identical to `7a750917` (no NEW failure). Commit:
+`7e398d4e`.
+
+**Marker campaign closed at the honest floor** per the census: the ADT-relevant convertible-NOW
+frontier is now exhausted (9 harvested; `_wrap` already-converted; `_e` census-non-reproducing).
+Residual = **141 semantic-ceiling other-blockers** (85 `Dict[str,Any]` value-typing + 43
+collection-result modeling + 13 emitter string/self-state/WhyML-gen) **+ 2 leave-trusted**
+(`find_named_expr_targets`, `_collect_assign_targets` — by-ref dict/set param mutation, PyCSL
+rejects at the pipeline, fail-stop) — all outside the IR-node ADT's reach without a live-source
+rewrite.
+
 ---
 
 ## 9. Execution vehicle — the `self-tcb-reduction` Squeeze Loop (SL)
