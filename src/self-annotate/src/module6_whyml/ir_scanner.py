@@ -171,77 +171,134 @@ class IRScanner:
     def uses_for(stmts: List[int]) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def uses_subscript(obj: Any) -> bool:
+        if isinstance(obj, dict):
+            if obj.get("type") == "Subscript":
+                return True
+            return any(IRScanner.uses_subscript(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_subscript(item) for item in obj)
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def uses_array_lit(obj: Any) -> bool:
+        if isinstance(obj, dict):
+            if obj.get("type") == "ArrayLit":
+                return True
+            if (obj.get("type") == "BinOp" and obj.get("op") == "*" and
+                    isinstance(obj.get("left"), dict) and obj["left"].get("type") == "ArrayLit"):
+                return True
+            return any(IRScanner.uses_array_lit(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_array_lit(item) for item in obj)
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def uses_minmax(obj: Any) -> bool:
+        if isinstance(obj, dict):
+            if (obj.get("type") == "Call" and
+                    obj.get("func") in ("min", "max") and
+                    len(obj.get("args", [])) == 2):
+                return True
+            return any(IRScanner.uses_minmax(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_minmax(item) for item in obj)
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def is_recursive(name: str, obj: Any) -> bool:
+        if isinstance(obj, dict):
+            if obj.get("type") == "Call" and obj.get("func") == name:
+                return True
+            return any(IRScanner.is_recursive(name, v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.is_recursive(name, item) for item in obj)
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def uses_string(obj: Any) -> bool:
+        if isinstance(obj, dict):
+            if obj.get("type") == "String":
+                return True
+            return any(IRScanner.uses_string(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_string(item) for item in obj)
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def uses_sum(obj: Any) -> bool:
+        if isinstance(obj, dict):
+            if obj.get("type") == "Sum":
+                return True
+            return any(IRScanner.uses_sum(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_sum(item) for item in obj)
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def uses_set_card(obj: Any) -> bool:
+        if isinstance(obj, dict):
+            if obj.get("type") == "SetCard":
+                return True
+            return any(IRScanner.uses_set_card(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_set_card(item) for item in obj)
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def uses_ord_chr(obj: Any) -> bool:
+        """10-2300-spec-5: True if any `ord(...)`/`chr(...)` call appears, so the
+        preamble pulls `use string.Char` (the char<->int bridge theory). Fires the
+        SAME trigger as the emitter (expressions.py `_call_named_builtins`), so the
+        `use` is emitted iff `ord_op`/`chr_op` is registered — keeping byte-additivity
+        exact (no spurious `use string.Char` when ord/chr is absent)."""
+        if isinstance(obj, dict):
+            if obj.get("type") == "Call" and obj.get("func") in ("ord", "chr"):
+                return True
+            return any(IRScanner.uses_ord_chr(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_ord_chr(item) for item in obj)
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def uses_divmod(stmts: Any) -> bool:
-        return False
+        def _check(obj: Any) -> bool:
+            if isinstance(obj, dict):
+                if obj.get("type") == "BinOp" and obj.get("op") in ("div", "/", "%"):
+                    return True
+                return any(_check(v) for v in obj.values())
+            if isinstance(obj, list):
+                return any(_check(item) for item in obj)
+            return False
+        return _check(stmts)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
