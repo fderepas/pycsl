@@ -489,7 +489,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1639,7 +1638,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # grammar, but the BODY cannot be verified against it without restructuring
     # the f-strings into explicit `+` concatenation — which would diverge from
     # the real source (forbidden by the Phase-C "copy exactly" rule).
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
