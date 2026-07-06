@@ -8,10 +8,14 @@ executed** (tiers 1 and 2a were run; their `--no-proof`-based fan-out estimates 
 - **Loop procedure & the streamlined gate:** `config/skills/self-tcb-reduction/SKILL.md` (esp. §5.1).
 - **Live ledger:** `self-tcb-reduction.md` §8.
 
-## Current state
-- Branch `ghost-assign-bc6`, green: fidelity 77/77 verbatim, mirror-check 51/51, doc-coherency in sync, tree clean.
-- `\trusted` count **1252** (grep-count; ≈1215 real stubs after removing docstring mentions).
-- Session banked: streamlined gate, frontier map, 2 faithful-semantics features (module-const-dict `.get`, string `or`/`and`), 10 verified conversions (1262→1252).
+## Current state (2026-07-06 — tier-3 closed)
+- Branch `ghost-assign-bc6`, green: fidelity 90/90 verbatim, mirror-check 51/51, conformance 38/38, doc-coherency in sync, tree clean.
+- `\trusted` count **1240** (grep-count).
+- Banked: streamlined gate, frontier map, 2 faithful-semantics features (module-const-dict `.get`, string `or`/`and`),
+  the **certified tier-3 ADT foundation** (expr ADT + Rocq/Lean record-valued certificate, 3-axiom ledger held),
+  and **22 verified conversions (1262→1240)** — 10 pre-tier-3 + 3 tier-3-re-triage leaves + 9 tier-3 PATH-1 harvest.
+- **Tiers 1/2/3 marker yields: 8 / 0 / 9.** All three campaigns closed at their honest floors; the remaining
+  frontier is a semantic ceiling / soundly-trusted boundaries (see the TIER 3 banner below).
 
 ## The frontier (one-time triage, ~1215 real stubs)
 | bucket | count | meaning |
@@ -74,7 +78,18 @@ mixin classes** (`types.py TypeInferenceMixin` → `@mutable_state @dataclass`):
 IR-reflection-heavy, so its 7 stubs *might* convert without the full ADT — verify with a full-proof
 spike before committing effort.
 
-### TIER 3 — the value ADT (the real lever) — DECISION REQUIRED, joint with Phase 7
+### TIER 3 — the value ADT (the real lever) — ✅ EXECUTED, CLOSED AT PATH 1 (2026-07-06)
+
+> **Outcome (full plan: `triage-ranked-tcb-tier3.md`; execution record: `attic/triage-ranked-tcb-tier3-phase3*.md`
+> + `getting-better/tier3/`).** Phase 0 GO → certified ADT foundation (expr ADT + Rocq/Lean record-valued
+> certificate, **3-axiom ledger held, independently reproduced**). Then a whole-body census MEASURED the
+> real payoff and **refuted the projection below**: the ADT's ENTIRE reachable set is **≤ 19 of 164
+> stubs**, **86% (141) a semantic ceiling the ADT cannot reach** (raw `Dict[str,Any]` typing / collection
+> modeling, blocked *upstream* of any IR-node kind). **Harvested the 9 free conversions (count 1249→1240)
+> and CLOSED the marker campaign.** The durable win is the certified foundation, NOT a large marker cut.
+> Residual: 2 leave-trusted + 141 trusted-pending (value-model gaps, low-ROI) + 4 floor. The paragraphs
+> below are the PRE-EXECUTION ambition, kept for the record — read through this banner.
+
 The ~1087 hard mass AND the tier-2 conversion enabler are the SAME feature: a recursive typed
 variant/record ADT with isinstance/type dispatch and mutual recursion, covering
 - AST-node value ADT — `pure_ast` ~258, front-end ~148

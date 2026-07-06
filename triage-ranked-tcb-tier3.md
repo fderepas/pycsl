@@ -4,6 +4,28 @@ Detailed execution plan for TIER 3 of `triage-ranked-tcb.md` — the recursive t
 gates ~90% of the `\trusted` frontier AND (as tier-2a proved) the tier-2 marker conversions too.
 This is a research-grade, multi-week effort, **not** a squeeze-loop pass.
 
+> ## ✅ STATUS: EXECUTED — CLOSED AT PATH 1 (2026-07-06)
+> Tier 3 passed its Phase-0 STOP gate (GO) and built the certified foundation; the corrected v2 track
+> (`attic/triage-ranked-tcb-tier3-phase3-v2.md`) then MEASURED the real payoff and CLOSED the marker
+> campaign. `\trusted` count **1249 → 1240**. Outcome vs. the ambition in the sections below:
+> - **Phase 0 ✅** (GO, no new axiom) · **Phase 3 ✅** (conservative certificate, 3-axiom ledger held;
+>   deep `VRec` integration deferred, not needed) · **Phase 4 ✅** (both leave-trusted).
+> - **Phase 1 ◑** — the **expr family landed (9 kinds)**; the **stmt / contract / list-shaped families were
+>   deliberately NOT built**.
+> - **Phase 2 ◑** — **9** `ir_scanner` walkers converted, **NOT** the "~150–200" projected in §Phase 2 below.
+> - **Why closed:** the whole-body census (`getting-better/tier3/whole-body-census.md`, commit `7a750917`)
+>   measured the ADT's ENTIRE reachable payoff at **≤ 19 of 164 stubs**, with **86% (141) a semantic ceiling
+>   the ADT cannot reach** (raw `Dict[str,Any]` typing, collection modeling — blocked *upstream* of any IR
+>   node kind). An independent adversarial review (`getting-better/tier3/plan-review.md`) verified the
+>   certified foundation reproduces but refuted the large-payoff projection.
+> - **Residual** (`getting-better/tier3/step-d-leave-trusted-analysis.md`): 2 LEAVE-TRUSTED (WL-05,
+>   conversion impossible + valueless) + 141 TRUSTED-PENDING (separate value-model gaps, low-ROI,
+>   demand-driven) + 4 irreducible floor.
+>
+> **The "~90% of the frontier" / "~150–200 payoff" framing in the sections below is the PRE-EXECUTION
+> AMBITION — it was REFUTED by measurement.** The durable deliverable is the **certified ADT foundation**,
+> not a large marker cut. The per-phase plan below is kept for the record; read it through this banner.
+
 ## 0. Objective, coupling principle, and the STOP gate
 
 **Objective.** Give the emitter's heterogeneous IR nodes (the `{"type": K, ...}` dicts that Module 6
@@ -33,7 +55,7 @@ converting only if a specific soundness need arises.
 
 ---
 
-## Phase 0 — Feasibility & scope pinning (spikes only; NO src commitment)
+## Phase 0 — Feasibility & scope pinning (spikes only; NO src commitment) — ✅ DONE (GO)
 
 **T3.0.1 — Enumerate the IR-node surface (the ADT signature).**
 - Read `src/pycsl/ir_schema.py` (ExprIR / stmt / contract node kinds + fields) and how
@@ -72,7 +94,10 @@ converting only if a specific soundness need arises.
 
 ---
 
-## Phase 1 — The IR-node ADT in the Module-6 emitter (build, gated per node-family)
+## Phase 1 — The IR-node ADT in the Module-6 emitter (build, gated per node-family) — ◑ EXPR ONLY
+
+> **Status: expr family DONE (9 kinds, commits `8993a5b9`+`d989985f`); stmt/contract/list families NOT
+> built — closed at PATH 1 (see top banner).** The census showed no further family clears v2 §5's calculus.
 
 Only on a Phase-0 GO. Build incrementally by node-family; each family is a full gated feature.
 
@@ -102,7 +127,11 @@ Only on a Phase-0 GO. Build incrementally by node-family; each family is a full 
 
 ---
 
-## Phase 2 — Convert the Module-6 emitter-core cluster (the marker payoff)
+## Phase 2 — Convert the Module-6 emitter-core cluster (the marker payoff) — ◑ 9 CONVERTED, CLOSED
+
+> **Status: 9 `ir_scanner` walkers converted (count 1249→1240, commit `7e398d4e`); campaign CLOSED at
+> PATH 1.** T3.2.1's re-triage was done AS a whole-body census (`whole-body-census.md`) and REFUTED the
+> "~150–200" projection: the ADT's whole reachable set is ≤19, 86% is an unreachable semantic ceiling.
 
 Only after the relevant Phase-1 family lands.
 
@@ -119,11 +148,22 @@ touched by a Phase-1 recognizer change must be re-ported + re-proved in that sam
 Phase-7-backed WhyML-correctness lemma (Phase 3) so the conversion's soundness is anchored, not just
 type-checked. (This is the LINK-3 `*_code_state_coherent` discipline extended to ADT node reads.)
 
-**Expected yield:** the ~150–200 Module-6-core stubs — the real TCB reduction. Track the running count.
+**Expected yield:** ~~the ~150–200 Module-6-core stubs — the real TCB reduction~~ — **REFUTED by the
+whole-body census: actual reachable yield ≤ 19 of 164; realized 9.** (The projection assumed "node
+kind" was the blocker; the real blocker is *reflection style* — generic `Dict[str,Any]` walks + the
+86% semantic ceiling are outside the ADT's reach.)
 
 ---
 
-## Phase 3 — formal-semantics Phase 7 (the certificate; co-lands with Phase 1/2)
+## Phase 3 — formal-semantics Phase 7 (the certificate; co-lands with Phase 1/2) — ✅ DONE (conservative)
+
+> **Status: DONE conservatively (commit `959f30c3`).** The record-valued `val` is a compiled side-car
+> (`Phase2b_RecordVal.v`, `RecordVal.lean`) — read-back/frame/conservativity proved, `pycsl_soundness`/
+> `pycslSoundnessVerified` re-prove UNCHANGED, `Print Assumptions`/`#print axioms` identical to baseline
+> (3-axiom ledger held), independently reproduced. The DEEP integration below (T3.3.1's `VRec` into core
+> `val` + the SOS/WP/Phase6 cascade) was **deliberately NOT done** — it isn't needed for what Phase 1
+> emitted, and doing it is what would have risked the ledger. Reinstate only if a future step needs a
+> value shape the side-car can't cover.
 
 **T3.3.1 — Rocq: record/ADT-valued state.** Extend `Phase2_State.v` (`val`, `state`, `lookup`,
 `update`, `eval_expr`) with nested record values; extend the SOS (`Phase3_SOS.v`), the WP arms
@@ -197,13 +237,21 @@ final leave-trusted outcome and the sharpened per-subsystem soundness classifica
 | Surface not closed (`Any`/dynamic nodes) | T3.0.1 closed-enumeration gate; fail-closed on open kinds |
 | Effort sink on peripheral markers | Phase 4 = leave `pure_ast`/`proof2why3` trusted (value-first) |
 
-## Exit criteria (tier-3 "done")
-- The Module-6-core ADT is landed (Phase 1) and its convertible cluster is verified (Phase 2), with
-  the count reduced to the Module-6-core floor.
-- `pycsl_soundness` / `pycslSoundnessVerified` re-prove with the Phase-7 model, **3 axioms, 0
-  Admitted/sorry** (Phase 3); LINK-2 byte-diff green; `evaluator-axiom-audit.md` current.
-- `pure_ast`/`proof2why3` decisions documented (leave-trusted unless converted).
-- All gates green (fidelity, mirror-check, doc-coherency, corpus byte-diff 0); no new axiom.
+## Exit criteria (tier-3 "done") — met under PATH 1 (re-scoped by the census)
+- ◑ The Module-6-core **expr** ADT is landed (Phase 1) and its convertible cluster verified (Phase 2):
+  count reduced to the **PATH-1 floor 1240**. NOTE: "the Module-6-core floor" as originally imagined
+  (all families converted) is **not achievable via the ADT** — the census proved 86% is an unreachable
+  semantic ceiling, so the honest floor is 1240 + the documented residual, not a full conversion.
+- ✅ `pycsl_soundness` / `pycslSoundnessVerified` re-prove with the (conservative) Phase-7 model,
+  **3 axioms, 0 Admitted/sorry**; independently reproduced. LINK-3 unchanged; `evaluator-axiom-audit.md`
+  current (§3b).
+- ✅ `pure_ast`/`proof2why3` decisions documented (both leave-trusted) + the residual split
+  (`step-d-leave-trusted-analysis.md`).
+- ✅ All gates green (fidelity 90/90, mirror-check 51/51, conformance 38/38, corpus byte-diff 0,
+  doc-coherency); no new axiom.
+
+**Verdict: tier-3 is CLOSED.** Foundation certified + banked; marker payoff harvested (9); the rest is
+a semantic ceiling the ADT cannot reach (leave-trusted / trusted-pending). See the top banner.
 
 ## Dependency order (critical path)
 `T3.0.1 → T3.0.2 ∥ T3.0.3 → T3.0.4 (GO/NO-GO)` →
