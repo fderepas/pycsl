@@ -2,15 +2,17 @@
 name: self-tcb-reduction
 description: >-
   Runs the self-tcb-reduction Squeeze Loop (SL): converts the PyCSL self-annotation
-  mirror's ~1290 `\trusted` stubs into verified body-faithful methods, one at a time,
-  tier by tier (T1 Module-6 emitter first), driving the trusted core down to its
-  irreducible floor (recursion leaves + D2 axioms). Every conversion is held between a
-  soft upper bound U (the live emitter body + a type-safety+frame contract shape + the
-  item-3 ceiling doctrine) and three disjoint hard lower-bound oracle planes L
-  (mirror-sync fidelity, Why3 proof, byte-diff-0 corpus inertness). Use when the user
-  says: "run the tcb reduction loop", "squeeze the trusted stubs", "convert the next
-  \trusted stub", "reduce the self-annotation TCB", "un-trust the expression handlers",
-  or asks to execute self-tcb-reduction.md. Companion plan: self-tcb-reduction.md;
+  mirror's `\trusted` stubs into verified body-faithful methods, held between a soft upper
+  bound U (the live emitter body + a type-safety+frame contract shape) and three disjoint
+  hard lower-bound oracle planes L (mirror-sync fidelity, Why3 proof, byte-diff-0 corpus
+  inertness). STATUS 2026-07: the tier-1/2/3 ADT campaign is CLOSED at count 1240 (certified
+  IR-node ADT foundation banked). ON INVOCATION the loop does NOT auto-run — its FIRST action
+  is to present the state + a next-move menu and ASK THE USER which to pursue (see SKILL.md
+  §11 + config on_invoke_2026_07); the live track is TIER 5 value-model gaps (the 141
+  trusted-pending), census-first. Use when the user says: "run the tcb reduction loop",
+  "squeeze the trusted stubs", "convert the next \trusted stub", "reduce the self-annotation
+  TCB", "un-trust the expression handlers", or asks to execute self-tcb-reduction.md. Plan of
+  record: triage-ranked-tcb.md. Companion loop plan/ledger: self-tcb-reduction.md;
   machine-readable config: self-tcb-reduction.json (same directory).
 ---
 
@@ -257,3 +259,38 @@ soundly-trusted boundary, NOT a conversion backlog.** Convert by measurement, no
 9. **Run an INDEPENDENT ADVERSARIAL review before a big build** — it verified the certified foundation
    reproduces AND refuted the payoff projection (`getting-better/tier3/plan-review.md`), averting a
    wasted grind. Have it *reproduce* the make-or-break gates (build + axiom audit), not take them on trust.
+
+## 11. LOOP ENTRY — the campaign is CLOSED; the loop ASKS before working (do NOT auto-run)
+
+The tier-1/2/3 ADT campaign is closed at count **1240** (§10). There is **no auto-run backlog.** When
+this loop is invoked (Skill call, or "run the tcb reduction loop"), its **FIRST action is NOT to start
+converting** — it is to **present the state + the next-move menu and ASK THE USER which to pursue.**
+**The loop NEVER auto-starts a build or a conversion; the user chooses every time.** This is a hard
+operating rule (the user's standing instruction), not a suggestion.
+
+### The one remaining track — TIER 5: value-model gaps (the 141 trusted-pending)
+`\trusted` stubs blocked NOT by the IR-node ADT (done) but by separate value-model gaps. Census
+breakdown (`getting-better/tier3/whole-body-census.md`; residual analysis
+`getting-better/tier3/step-d-leave-trusted-analysis.md`):
+- **V1 — `Dict[str,Any]` value-typing (~85):** generic heterogeneous-dict reads. The HARD core —
+  likely *harder* than the ADT (generic-`Any` reflection at scale). Default **leave-trusted** unless a
+  census proves otherwise.
+- **V2 — collection-result modeling (~43):** builders/returns whose element types aren't faithfully
+  modelled — tractable via a faithful-collection feature (cf. the string-op / list work). The most
+  promising cluster.
+- **V3 — emitter string / self-state / WhyML-gen (~13):** mixed; SOME are actual emission **bugs to
+  FIX** (a real −1 + a correctness fix), not modelling.
+
+### The menu the loop MUST present on invocation (ask the user; default = A)
+- **A — CENSUS** the 141 (or a chosen sub-class V1/V2/V3) under whole-body `--fun` proof → the measured
+  tractable subset. Cheap, decisive, no build. *(Recommended first — measure before build, §10.2.)*
+- **B — BUILD** one value-model feature a census proved out — fully gated: spike both provers, byte-diff
+  0, whole-body proof, **a co-landing certificate lemma if it introduces a new value shape** (§10.5).
+- **C — CONVERT** a specific census-confirmed cluster (streamlined gate §5.1; per-function `--fun`).
+- **D — STOP** — campaign closed; the residual is a semantic ceiling / soundly-trusted; do nothing.
+
+### Tier-5 discipline (all of §10 applies)
+Census-first, demand-driven, **VALUE not count**, single-writer, whole-body proof, coupling/3-axiom-ledger
+for any new value shape. **Do NOT re-open this as a marker campaign** — expect a small tractable slice
+(V2/V3), with V1 mostly leave-trusted. Whatever the user picks, gate it exactly as §3/§5.1/§10 require,
+and append the outcome to `self-tcb-reduction.md` §8.

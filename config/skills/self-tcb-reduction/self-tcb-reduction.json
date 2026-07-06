@@ -119,7 +119,8 @@
     },
     { "id": "T2", "scope": "semantic analyzer core_ir_semantic.py", "approx_stubs": 66, "soundness_weight": "HIGH", "tractability": "new-contract-class (analyzer invariants)", "order": 2, "note": "spike one method to fix the pattern, then batch" },
     { "id": "T3", "scope": "front-end pipeline (frontend/: pure_ast, Module5_IREmitter, Module2_Parser, Module3_Weaver, monomorphize, ir_resolve, Module1_Ingestor, ir_inline)", "approx_stubs": 671, "soundness_weight": "MEDIUM", "tractability": "harder (structural-preservation contracts)", "order": 3, "demand_gated": true, "note": "Layer-2 re-checks emitted WhyML on every run, so a front-end defect cannot pass silently; leaf-first" },
-    { "id": "T4", "scope": "tooling/orchestration (proof2why3/, pycsl.py, audit_proof*, exception_model)", "approx_stubs": 192, "soundness_weight": "LOW", "tractability": "mostly re-site to F3", "order": 4, "note": "default to documented boundary, not conversion; convert only on demand" }
+    { "id": "T4", "scope": "tooling/orchestration (proof2why3/, pycsl.py, audit_proof*, exception_model)", "approx_stubs": 192, "soundness_weight": "LOW", "tractability": "mostly re-site to F3", "order": 4, "note": "default to documented boundary, not conversion; convert only on demand" },
+    { "id": "T5", "scope": "value-model gaps — the 141 trusted-pending (NOT IR-node-ADT-blocked; the ADT campaign is closed)", "subclasses": { "V1_Dict_str_Any_value_typing": 85, "V2_collection_result_modeling": 43, "V3_emitter_string_selfstate_emission": 13 }, "soundness_weight": "MIXED", "tractability": "V1 default leave-trusted (generic-dict, likely harder than the ADT); V2 faithful-collection feature (most promising); V3 some are emission BUGS to fix (a real -1)", "order": 5, "demand_gated": true, "census_first": true, "note": "THE CURRENT NEXT-MOVE TRACK. Census-first, demand-driven, NOT a marker campaign. The loop ASKS the user each time (see on_invoke_2026_07); it does not auto-run. Sources: getting-better/tier3/whole-body-census.md + step-d-leave-trusted-analysis.md" }
   ],
   "oracle_setup": {
     "E-0_baseline": "pin the clean-tree byte-diff baseline once (stash local edits, sweep clean HEAD, restore); every stub diffs against it",
@@ -139,7 +140,18 @@
     "escalate-not-thrash -> per-stub attempt budget; flag the hard tail"
   ],
   "done_criteria": "every mirror .py stub is VERIFIED or FLOOR:{F1|F3}+reason; \\trusted wc -l at the enumerated floor; check-self-annotate-sync.sh AND self-annotate-mirror-check.sh AND run-self-annotation-suite.sh green; byte-diff 0 throughout; proof_axiom_allowlist unchanged.",
-  "start_scope": "E-0 baseline -> T1.a (24 expression handlers, read-only first)",
+  "start_scope": "DEPRECATED as an auto-start. ON INVOCATION the loop ASKS the user (see on_invoke_2026_07); it does NOT auto-run. The T1-T4 conversion backlog is CLOSED (campaign at count 1240); the live track is T5 value-model gaps, census-first.",
+  "on_invoke_2026_07": {
+    "rule": "HARD OPERATING RULE (user standing instruction): when the loop is invoked, its FIRST action is to present the state + this menu and ASK THE USER which to pursue. NEVER auto-start a build or a conversion. The user chooses every time.",
+    "state_to_present": "campaign CLOSED at count 1240; certified IR-node ADT foundation banked (3-axiom ledger held); residual = 2 leave-trusted + 141 trusted-pending (T5 value-model gaps) + 4 irreducible floor",
+    "menu": [
+      { "key": "A", "action": "CENSUS", "default": true, "desc": "whole-body --fun feasibility census of the 141 (or a chosen sub-class V1/V2/V3) -> the measured tractable subset. Cheap, decisive, no build. RECOMMENDED FIRST (measure before build)." },
+      { "key": "B", "action": "BUILD", "desc": "build one value-model feature a census proved out; fully gated (spike both provers, byte-diff 0, whole-body proof, a co-landing certificate lemma if it introduces a NEW value shape, ledger stays at 3)." },
+      { "key": "C", "action": "CONVERT", "desc": "convert a specific census-confirmed cluster (streamlined gate; per-function --fun)." },
+      { "key": "D", "action": "STOP", "desc": "campaign closed; residual is a semantic ceiling / soundly-trusted; do nothing." }
+    ],
+    "discipline": "all of SKILL.md §10 applies: census-first, demand-driven, VALUE not count, single-writer, whole-body proof, coupling/3-axiom-ledger for any new value shape. Do NOT re-open T5 as a marker campaign; expect a small tractable slice (V2/V3), V1 mostly leave-trusted. Append the outcome to self-tcb-reduction.md §8."
+  },
   "campaign_calibration_2026_07": {
     "plan_of_record": "triage-ranked-tcb.md (this JSON + SKILL.md = the SL loop; self-tcb-reduction.md = loop procedure + append-only ledger, NOT the strategic plan)",
     "status": "tiers 1/2/3 EXECUTED and CLOSED at count 1240; marker yields 8/0/9; certified tier-3 IR-node ADT foundation banked (feasible + sound, 3-axiom ledger held, independently reproduced)",
