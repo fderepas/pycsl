@@ -143,19 +143,38 @@ the ADT node reads; keep the D2 evaluator-axiom boundary enumerated + audited
 
 ---
 
-## Phase 4 — Peripheral subsystems (DECISION: leave trusted, by value)
+## Phase 4 — Peripheral subsystems (DECISION: leave trusted, by value) — ✅ DONE
 
-**T3.4.1 — pure_ast (~258) — Python-AST ADT.** RECOMMEND leave trusted: peripheral to the WP-soundness
-LINK 1/2/3 story (the AST reader is upstream of the certified emitter). Document the decision; convert
-only if a specific soundness gap demands it. (If ever done: a second ADT for CPython `ast.*` nodes,
-same shape as Phase 1 but a distinct, larger surface + dynamic getattr/setattr/tokenize dependence.)
+**Full analysis + evidence: `getting-better/tier3/phase4-peripheral-decision.md`.** Both
+leave-trusted, with the residual gap named precisely per subsystem (not hand-waved "peripheral").
 
-**T3.4.2 — proof2why3 (~130) — `Term` variant ADT + s-expr/JSON tree.** RECOMMEND leave trusted:
-peripheral (the Rocq/Lean s-expr parser is the cited-proof *ingestion* path, not the WP core); also
-subprocess/regex-gated. Document.
+**T3.4.1 — pure_ast (~258) — Python-AST ADT. DECISION: LEAVE TRUSTED.** *False-verifies verdict:*
+**POSSIBLE in principle** — `pure_ast` is UPSTREAM of the certified resolved-IR boundary
+(`docs/ir.md §1`; README §9 "Python parser = TRUSTED BY DESIGN"), so a silent structural misparse
+makes PyCSL verify a program other than the source. This is a **genuine, distinct trust boundary
+(source→IR faithfulness), NOT the WP-soundness the 3-axiom ledger covers** — stated honestly, not
+glossed. *Why leave-trusted anyway:* **conversion would NOT close the gap** — self-annotation proves
+each method's own type-safety/frame, never "the tree faithfully represents Python's grammar" (there
+is no mechanized Python grammar to verify a self-contract against). The gap is instead **compensated**
+by (a) fail-closed `PyCSLSyntaxError` (never a wrong tree), (b) the CPython differential oracle
+(512/517 byte-identical `ast.dump`, 0 mismatch, per the module COVERAGE MANIFEST), (c) the standing
+`bin/frontend-only-conformance.py` source→IR check. Cost is the frontier's **largest** ADT (full
+CPython `ast.*` hierarchy + dynamic getattr/setattr + tokenize/RDP state). *Flip condition:* only if
+a verified grammar-faithfulness artifact is wanted AND a mechanized Python grammar exists — even then,
+strengthen/CI-wire the differential oracle, don't convert.
 
-**T3.4.3 — Update `triage-ranked-tcb.md` + `FRONTIER-TRIAGE.md`** with the final tier-3 outcome +
-whichever peripheral decisions were taken.
+**T3.4.2 — proof2why3 (~115–130) — `Term` variant ADT + s-expr/JSON tree. DECISION: LEAVE TRUSTED.**
+*False-verifies verdict:* **IMPOSSIBLE — fail-stop / assurance-degradation only.** Decisive code fact:
+`proof2why3` is **NOT on the runtime trust path** — `pycsl.py` never imports it; the verifier trusts
+the **hand-curated `_AXIOM_REGISTRY`** in `preamble.py`, and each cited axiom is independently
+anchored by the dual Rocq/Lean proof + `--audit-proof --reverify` (kernel-axiom allow-list).
+`proof2why3` is an *offline* 3-way cross-check + candidate-emit tool; a bug can only degrade an
+assurance check or fail-stop, never inject an axiom. *Flip condition:* only if `proof2why3 emit` is
+ever wired to auto-populate `_AXIOM_REGISTRY` **without** the human-review + `--audit-proof --reverify`
+gate — then it moves onto the trust path.
+
+**T3.4.3 — Updated `triage-ranked-tcb.md` §Tier 3 + `FRONTIER-TRIAGE.md` Phase-4 rows** with the
+final leave-trusted outcome and the sharpened per-subsystem soundness classification. ✅
 
 ---
 

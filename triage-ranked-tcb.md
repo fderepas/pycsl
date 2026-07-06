@@ -93,6 +93,17 @@ s-expr parser). Leaving those trusted is the likely-correct call. The high-value
 **Module-6 emitter core** (~150–200 stubs: `emit_ir`/IR-dict node model), which is exactly what the
 formal semantics already reasons about and what unblocks the tier-2 conversions too.
 
+> **Tier-3 Phase-4 DECISION — both LEAVE TRUSTED (rigorous analysis: `getting-better/tier3/phase4-peripheral-decision.md`).**
+> `proof2why3`: **fail-stop only, cannot false-verify** — it is *not on the runtime trust path*
+> (`pycsl.py` never imports it; the verifier trusts the hand-curated `_AXIOM_REGISTRY`, anchored by
+> `--audit-proof --reverify`). Strong leave-trusted. `pure_ast`: honest correction — it **can**
+> false-verify *in principle* (a silent misparse ⇒ verifying the wrong program), a **distinct
+> source→IR-faithfulness boundary NOT covered by the 3-axiom ledger**. Still leave-trusted, but for
+> the sharper reason that **conversion would not close that gap** (self-contracts can't express
+> grammar faithfulness); the load-bearing control is the CPython differential oracle (512/517
+> byte-identical `ast.dump`, 0 mismatch) + fail-closed `PyCSLSyntaxError` — maintain/CI-wire that
+> rather than convert the reader.
+
 ### FLOOR — 4 irreducible stubs (leave trusted, by construction)
 `ir_resolve._resolve_module_path` / `_get_module_exports` / `_process_dependency` (open files +
 re-invoke Modules 1→5) and `identifiers.stable_hash` (hashlib.sha256). These are D2-adjacent.

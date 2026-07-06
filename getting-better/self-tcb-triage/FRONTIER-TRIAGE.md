@@ -73,6 +73,23 @@ meta-theory doesn't yet cover — capability outrunning its certificate. Hence: 
 casually start. For `pure_ast`/`proof2why3` specifically, "prioritize by value" (leave trusted) is
 the likely-correct call — they are peripheral to the WP-soundness LINK 1/2/3 story.
 
+> **Tier-3 Phase-4 DECISION (T3.4.3) — both LEAVE TRUSTED; full analysis:
+> `getting-better/tier3/phase4-peripheral-decision.md`.**
+> - **`proof2why3` (A7 ~119): fail-stop only — CANNOT false-verify.** Decisive fact: it is *not on the
+>   runtime trust path* — `pycsl.py` never imports it; the verifier trusts the hand-curated
+>   `_AXIOM_REGISTRY` (`preamble.py`), anchored independently by dual Rocq/Lean proof +
+>   `--audit-proof --reverify`. A bug degrades an offline cross-check or fail-stops; it cannot inject
+>   an axiom. Strong leave-trusted. *Flip:* only if `proof2why3 emit` is wired to auto-populate the
+>   registry without the reverify gate.
+> - **`pure_ast` (A1 ~258): can false-verify IN PRINCIPLE** (a silent structural misparse ⇒ verifying
+>   the wrong program) — a **distinct source→IR-faithfulness boundary NOT covered by the 3-axiom
+>   ledger** (it is UPSTREAM of the certified resolved-IR boundary, `docs/ir.md §1`). Still
+>   leave-trusted, but for the sharper reason that **conversion would not close the gap**
+>   (self-contracts can't express Python-grammar faithfulness). Load-bearing control is the CPython
+>   differential oracle (512/517 byte-identical `ast.dump`, 0 mismatch) + fail-closed
+>   `PyCSLSyntaxError` — maintain/CI-wire that, don't convert. *Flip:* only if a verified
+>   grammar-faithfulness artifact is wanted AND a mechanized Python grammar exists to verify against.
+
 ## The 4 genuine floor stubs
 `core_ir`/`ir_resolve`: `_resolve_module_path`, `_get_module_exports`, `_process_dependency`
 (open files + re-invoke Modules 1→5 — irreducible I/O `val`); `identifiers.stable_hash`
