@@ -1,5 +1,20 @@
 # self-tcb-reduction.md — shrink the self-annotation trusted core toward its irreducible floor
 
+> ## 📍 ROLE / HIERARCHY (read first)
+> **This is NOT the current strategic plan.** The **plan of record is `triage-ranked-tcb.md`** — the
+> empirically-calibrated go-forward plan (tier ranking, calibrations, closure). This document's live role
+> is now twofold: (a) the **SL loop procedure** (paired with `config/skills/self-tcb-reduction/SKILL.md`,
+> incl. the §5.1 streamlined gate), and (b) the **append-only §8 iteration ledger** (the execution log).
+> For strategy, direction, and "what's next," read `triage-ranked-tcb.md`; append iteration entries here.
+>
+> **Campaign status (2026-07-06): CLOSED at count 1240.** Tiers 1/2/3 all executed and closed at their
+> honest floors (marker yields **8 / 0 / 9**); the certified tier-3 ADT foundation is banked. The prose
+> below is the original long-horizon framing — historical; read it through this banner and the plan of
+> record. **Next work (NOT planned here):** the **141 trusted-pending** stubs, blocked by separate
+> value-model gaps (85 `Dict[str,Any]` value-typing + 43 collection-result modeling + 13 emitter
+> string/self-state) — a distinct, demand-driven effort outside the ADT campaign
+> (see `getting-better/tier3/whole-body-census.md` + `step-d-leave-trusted-analysis.md`).
+
 **Purpose.** The self-annotation mirror (`src/self-annotate/src/`) carries **≈1290 `\trusted`
 stubs** (one `#@ \trusted reviewer: pycsl-self-annotate` marker each) against only **24 verified
 body-faithful methods** (the completed 18-handler statement-emitter campaign + ~6 supporting
