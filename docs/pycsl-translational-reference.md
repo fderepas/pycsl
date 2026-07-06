@@ -3927,6 +3927,31 @@ discriminant + projections + terminating recursion), 0879 (NEGATIVE twin — a
 false size/discriminant claim stays UNPROVEN). No new axiom, no `\trusted`
 increase.
 
+**Increment 3 — the REST of the fixed-arity EXPR family.** The BinOp recognizer
+above is extended to `Var`/`Number`/`String`/`Subscript`/`Attribute`/`Call`/
+`MkTuple`/`FieldGet` (registered in `expressions.py::_KIND_DISCRIMINANT`), each
+lowering `node.get("type") == "K"` to a real match-based `(is_K node)`:
+
+| Python (emitter-shaped) | WhyML lowering | mechanism |
+|---|---|---|
+| `node.get("type") == "Subscript"` / `.get("value")` / `.get("index")` | `(is_sub node)` / `(svalue_of node)` / `(sindex_of node)` | discriminant + SUB-node projections; recursion terminates via `size_svalue_dec`/`size_sindex_dec`. |
+| `node.get("type") == "Attribute"` / `.get("object")` / `.get("attr")` | `(is_attribute node)` / `(object_of node)` : `emit_ir` / `(name_of node)` : `string` | `object_of` is a SUB-node (recurses; `size_object_dec`); `attr` a leaf. |
+| `node.get("type") == "Call"` / `.get("func")` | `(is_call node)` / `(func_of node)` : `string` | discriminant + string leaf; `arg0_of` decreases via `size_arg0_dec`. |
+| `node.get("type") == "MkTuple"` / `.get("elts")[0..1]` | `(is_tuple node)` / `(elt0_of node)` / `(elt1_of node)` | fixed-arity tuple; `size_elt0_dec`/`size_elt1_dec`. |
+| `node.get("type") == "Var" / "Number" / "String" / "FieldGet"` | `(is_var node)` / `(is_num node)` / `(is_str node)` / `(is_fieldget node)` | LEAF discriminants (no sub-node). `FieldGet` is the NEW `IrFieldGet string string` ctor — `fgobject_of`/`field_of` are BOTH string leaves (§5e: FieldGet.object is a LEAF, unlike Attribute.object). |
+
+The soundness invariant is `is_K ↔ kind_of e = "K"` on every real node, so `Tuple`
+is intentionally ABSENT (its `kind_of` is `"MkTuple"`); the list-shaped kinds
+`ArrayLit`/`SetLit`/`Tuple`/`DictLit` are DEFERRED (a faithful `elts` projection
+needs a structural `list emit_ir` + mutual `size_list`, reworking the opaque
+`args_of : array emit_ir` — a genuinely new shape, not the additive BinOp move).
+Reference locks 0880 (POSITIVE — `expr_size` proves `\result >= 1` recursing
+Subscript/Attribute/BinOp + the 4 leaf discriminants) / 0881 (NEGATIVE twin — a
+false `is_sub` claim stays UNPROVEN). Feasibility: 4/4 tried real handler idioms
+(`_handle_var_expr`/`_handle_subscript`/`_handle_attribute_expr`/
+`_handle_call_expr`) lower via the ADT and prove. Coupling COVERED (no new value
+shape). No new axiom, no `\trusted` increase.
+
 ---
 
 ## §T.12  Complete Method Index

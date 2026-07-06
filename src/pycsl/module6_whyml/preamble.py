@@ -2973,7 +2973,8 @@ class PreambleEmissionMixin:
             " | IrNum int | IrRaw string | IrOther string"
             " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
             " | IrTuple emit_ir emit_ir"
-            " | IrBinOp string emit_ir emit_ir",
+            " | IrBinOp string emit_ir emit_ir"
+            " | IrFieldGet string string",
             "",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
             " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
@@ -2988,6 +2989,7 @@ class PreambleEmissionMixin:
             "    | IrCall _ _ _ -> \"Call\" | IrSub _ _ -> \"Subscript\"",
             "    | IrTuple _ _ -> \"MkTuple\"",
             "    | IrBinOp _ _ _ -> \"BinOp\"",
+            "    | IrFieldGet _ _ -> \"FieldGet\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -2999,6 +3001,29 @@ class PreambleEmissionMixin:
             " lets structural recursion over a projected sub-node terminate. *)",
             "  let function is_binop (e: emit_ir) : bool =",
             "    match e with IrBinOp _ _ _ -> true | _ -> false end",
+            "",
+            "  (* tier3-p1 increment 2 (complete the EXPR family, triage-ranked-tcb-tier3.md"
+            " T3.1.2): the per-kind constructor DISCRIMINANTS. Each is a match-based bool that"
+            " agrees with `kind_of e = \"K\"` on every REAL node yet EXCLUDES the IrOther"
+            " catch-all — the guard shape under which the size-decrease laws hold. Registered"
+            " in expressions.py::_KIND_DISCRIMINANT so `node.get(\"type\") == \"K\"` lowers to"
+            " `(is_K node)` (the faithful match dispatch, not a string compare). *)",
+            "  let function is_var (e: emit_ir) : bool =",
+            "    match e with IrVar _ -> true | _ -> false end",
+            "  let function is_num (e: emit_ir) : bool =",
+            "    match e with IrNum _ -> true | _ -> false end",
+            "  let function is_str (e: emit_ir) : bool =",
+            "    match e with IrStr _ -> true | _ -> false end",
+            "  let function is_sub (e: emit_ir) : bool =",
+            "    match e with IrSub _ _ -> true | _ -> false end",
+            "  let function is_attribute (e: emit_ir) : bool =",
+            "    match e with IrAttr _ _ -> true | _ -> false end",
+            "  let function is_call (e: emit_ir) : bool =",
+            "    match e with IrCall _ _ _ -> true | _ -> false end",
+            "  let function is_tuple (e: emit_ir) : bool =",
+            "    match e with IrTuple _ _ -> true | _ -> false end",
+            "  let function is_fieldget (e: emit_ir) : bool =",
+            "    match e with IrFieldGet _ _ -> true | _ -> false end",
             "",
             "  (* tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections. `op_of` reads the"
             " operator STRING leaf; `left_of`/`right_of` project the SUB-NODES. Total over"
@@ -3043,6 +3068,17 @@ class PreambleEmissionMixin:
             "  let function value_of (e: emit_ir) : string =",
             "    match e with IrStr v -> v | IrRaw v -> v | _ -> \"\" end",
             "",
+            "  (* tier3-p1 increment 2 (§5e / risk-6 asymmetry): FieldGet projections."
+            " FieldGet.object is a LEAF string (`fgobject_of` : string) — UNLIKE"
+            " Attribute.object which is a SUB-node (`object_of` : emit_ir). FieldGet.field is"
+            " also a leaf string (`field_of`). The two `object` reads have DIFFERENT result"
+            " type-classes, so a naive \"object is a sub-node\" rule is wrong for FieldGet. *)",
+            "  let function fgobject_of (e: emit_ir) : string =",
+            "    match e with IrFieldGet o _ -> o | _ -> \"\" end",
+            "",
+            "  let function field_of (e: emit_ir) : string =",
+            "    match e with IrFieldGet _ f -> f | _ -> \"\" end",
+            "",
             "  let function object_of (e: emit_ir) : emit_ir =",
             "    match e with IrAttr o _ -> o | _ -> IrOther \"\" end",
             "",
@@ -3075,6 +3111,20 @@ class PreambleEmissionMixin:
             "",
             "  let function elt1_of (e: emit_ir) : emit_ir =",
             "    match e with IrTuple _ b -> b | _ -> IrOther \"\" end",
+            "",
+            "  (* tier3-p1 increment 2 (T3.1.4): the guarded size-DECREASE laws for the rest of"
+            " the EXPR family — a Subscript's value/index, an Attribute's object, a Call's"
+            " arg0, and a MkTuple's elt0/elt1 sub-node is strictly smaller than the node."
+            " PROVEN (no axiom) by case analysis on the sum + `size`'s `result >= 1`. These"
+            " are the facts an emitter-shaped recursive function over an IR-node param needs"
+            " at each recursive call site (`f (node.get(\"value\"))`, `f (node.get(\"object\"))`,"
+            " …) to discharge the injected `variant { size node }`. *)",
+            "  lemma size_svalue_dec : forall e: emit_ir. is_sub e -> size (svalue_of e) < size e",
+            "  lemma size_sindex_dec : forall e: emit_ir. is_sub e -> size (sindex_of e) < size e",
+            "  lemma size_object_dec : forall e: emit_ir. is_attribute e -> size (object_of e) < size e",
+            "  lemma size_arg0_dec   : forall e: emit_ir. is_call e -> size (arg0_of e) < size e",
+            "  lemma size_elt0_dec   : forall e: emit_ir. is_tuple e -> size (elt0_of e) < size e",
+            "  lemma size_elt1_dec   : forall e: emit_ir. is_tuple e -> size (elt1_of e) < size e",
             "",
             "  (* self-ir-schema.md IR1: the typed slice of `self.ir` the emitter reflects on —"
             " `self.ir.get(\"shared_vars\", [])` is an array of these records"

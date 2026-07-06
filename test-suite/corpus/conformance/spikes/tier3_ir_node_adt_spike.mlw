@@ -87,6 +87,7 @@ module IrNodeAdtSpike
      shape tier-1's ir_scanner lacked. Every function carries a `variant`.
      ========================================================= *)
   let rec function size (n: ir_node) : int
+    ensures { result >= 1 }
     variant { n }
   = match n with
     | Var _        -> 1
@@ -103,6 +104,7 @@ module IrNodeAdtSpike
     | Tuple xs     -> 1 + size_list xs
     end
   with function size_list (l: list ir_node) : int
+    ensures { result >= 0 }
     variant { l }
   = match l with
     | Nil      -> 0
@@ -187,5 +189,46 @@ module IrNodeAdtSpike
   goal g5_real_read : real_val (IReal 2.5) = 2.5
   (* false twin: 2.5 is NOT 2.0 — must be UNPROVEN on both provers *)
   goal g5_false_twin : real_val (IReal 2.5) = 2.0
+
+  (* =========================================================
+     LAW 6 — complete-EXPR-family recognizer (tier3-p1 increment 2):
+     the per-kind discriminant AGREES with the tag, and each recursive
+     kind's sub-node projection strictly DECREASES `size` — the exact
+     universally-quantified facts the live theory's `size_*_dec` lemmas
+     (size_svalue_dec/size_sindex_dec/size_object_dec/size_arg0_dec/…)
+     provide for an emitter-shaped recursion over a projected sub-node.
+     Uses `size`'s `ensures { result >= 1 }` (added above) to close the
+     `size a < 1 + size a + size b` obligations without induction.
+     ========================================================= *)
+  let function is_subscript (n: ir_node) : bool =
+    match n with Subscript _ _ -> true | _ -> false end
+  let function is_attribute (n: ir_node) : bool =
+    match n with Attribute _ _ -> true | _ -> false end
+  let function is_call (n: ir_node) : bool =
+    match n with Call _ _ -> true | _ -> false end
+  let function is_num (n: ir_node) : bool =
+    match n with Num _ -> true | _ -> false end
+  let function is_fieldget (n: ir_node) : bool =
+    match n with FieldGet _ _ -> true | _ -> false end
+
+  let function sub_value (n: ir_node) : ir_node =
+    match n with Subscript v _ -> v | _ -> n end
+  let function sub_index (n: ir_node) : ir_node =
+    match n with Subscript _ i -> i | _ -> n end
+
+  (* discriminant agreement + disjointness (leaf kinds) *)
+  goal g6_num_pos    : is_num (Num (INum 3))
+  goal g6_num_neg    : not (is_num (Var "x"))
+  goal g6_fg_leaf    : forall o f: string. size (FieldGet o f) = 1 /\ is_fieldget (FieldGet o f)
+  (* guarded sub-node size-decrease — the live size_*_dec lemma shapes *)
+  goal g6_sub_dec_l  : forall a b: ir_node. is_subscript (Subscript a b) ->
+                         size (sub_value  (Subscript a b)) < size (Subscript a b)
+  goal g6_sub_dec_r  : forall a b: ir_node. is_subscript (Subscript a b) ->
+                         size (sub_index  (Subscript a b)) < size (Subscript a b)
+  goal g6_attr_dec   : forall o: ir_node, a: string. is_attribute (Attribute o a) ->
+                         size (attr_object (Attribute o a)) < size (Attribute o a)
+  (* false twin: a sub-node is NOT >= the whole node — must stay UNPROVEN *)
+  goal g6_false_twin : forall a b: ir_node.
+                         size (sub_value (Subscript a b)) >= size (Subscript a b)
 
 end

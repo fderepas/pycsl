@@ -652,7 +652,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # the ADT theory (`is_<pred>`). A `.get("type") == K` test against one of these lowers
     # to the discriminant. Kinds NOT listed keep the `str_eq_op (kind_of …) K` path (still
     # sound). Bounded to the EXPR operator node this increment; extend per node-family.
-    _KIND_DISCRIMINANT = {"BinOp": "is_binop"}
+    _KIND_DISCRIMINANT = {
+        "BinOp": "is_binop",
+        # tier3-p1 increment 2: complete the EXPR family. Each `K -> is_K` where the ADT
+        # ctor's `kind_of` returns EXACTLY "K" (is_K <-> kind_of e = K on real nodes). Only
+        # exact-tag matches are safe: `Tuple` is intentionally ABSENT (the ADT models a tuple
+        # as IrTuple whose `kind_of` is "MkTuple", not "Tuple" — a `.get("type") == "Tuple"`
+        # test would disagree with is_tuple, so it stays on the sound `kind_of` string path).
+        "Var": "is_var", "Number": "is_num", "String": "is_str",
+        "Subscript": "is_sub", "Attribute": "is_attribute", "Call": "is_call",
+        "MkTuple": "is_tuple", "FieldGet": "is_fieldget",
+    }
 
     def _emit_ir_receiver_of_type_get(self, ir: Any) -> Optional[Dict[str, Any]]:
         """If `ir` is a reflection of a node's discriminant — `<recv>.get("type")` (Call

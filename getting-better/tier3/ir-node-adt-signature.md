@@ -492,3 +492,56 @@ emit_ir tests differ purely additively and still pass, 31/31 in range); IR uncha
 `unbound type symbol 'emit_ir'` is GONE) and fully proves; mirror reverted. No new axiom, no
 `\trusted` increase. **Certificate-backed by the Phase-0 spike; awaits Phase-3 mechanized-proof
 integration** (co-lands per the coupling rule).
+
+## 9a. Phase-1 REALIZED — the REST of the fixed-arity EXPR family (tier3-p1 increment 3)
+
+Increment 2 (§9) shipped the `BinOp` recognizer alone; this increment **completes the
+fixed-arity EXPR family**. RESOLVED kinds (each `.get("type") == "K"` now lowers to a real
+match-based discriminant `(is_K node)`, registered in `expressions.py::_KIND_DISCRIMINANT`):
+
+| kind | ctor (preamble ADT) | discriminant | sub-node / leaf projections | size-decrease lemma |
+|---|---|---|---|---|
+| `Var` | `IrVar string` | `is_var` | `name_of` (leaf) | — (leaf) |
+| `Number` | `IrNum int` | `is_num` | — | — (leaf) |
+| `String` | `IrStr string` | `is_str` | `value_of` (leaf) | — (leaf) |
+| `Subscript` | `IrSub emit_ir emit_ir` | `is_sub` | `svalue_of`/`sindex_of` (SUB) | `size_svalue_dec`/`size_sindex_dec` |
+| `Attribute` | `IrAttr emit_ir string` | `is_attribute` | `object_of` (SUB), `name_of` (leaf) | `size_object_dec` |
+| `Call` | `IrCall string emit_ir int` | `is_call` | `func_of`/`arg0_of`/`nargs_of` | `size_arg0_dec` |
+| `MkTuple` | `IrTuple emit_ir emit_ir` | `is_tuple` | `elt0_of`/`elt1_of` (SUB) | `size_elt0_dec`/`size_elt1_dec` |
+| `FieldGet` | `IrFieldGet string string` (NEW) | `is_fieldget` | `fgobject_of`/`field_of` (BOTH leaf) | — (leaf, size 1) |
+| `BinOp` (§9) | `IrBinOp string emit_ir emit_ir` | `is_binop` | `op_of`/`left_of`/`right_of` | `size_left_dec`/`size_right_dec` |
+
+**§5e / risk-6 trap honored.** `FieldGet.object` is a LEAF string (`fgobject_of : string`), UNLIKE
+`Attribute.object` which is a SUB-node (`object_of : emit_ir`) — the ADT keeps the two `object`
+reads in distinct result type-classes. The discriminant `is_fieldget` is delivered; the emitter's
+`.get("object")` dispatch is field-name-keyed (not receiver-kind-aware), so faithfully routing a
+FieldGet `.get("object")` to the leaf `fgobject_of` (vs Attribute's sub-node `object_of`) is the
+**one residual gap** — it needs a receiver-kind-aware projection dispatch (deferred; the constructor
++ discriminant + leaf projections all exist in-theory, exercised by the spike LAW 4/6).
+
+**DEFERRED (documented gap): the list-shaped kinds `ArrayLit`/`SetLit`/`Tuple` (and `DictLit`).**
+A faithful `elts` projection needs a `list emit_ir` (or `seq`) constructor + a mutual `size_list`
+measure (the Phase-0 spike PROVES this shape — `Call (list ir_node)` with `size_list`). The live ADT
+currently models an args/elts list as the OPAQUE `val args_of : array emit_ir`, so promoting it to a
+structural list would rework the `elts`→`args_of` projection — a genuinely new shape, not the
+BinOp-template additive move; landing it risks perturbing the @mutable_state mirror tests'
+`args_of`/`stmts_of` projections. Left for a follow-on increment. `Tuple` is also absent from
+`_KIND_DISCRIMINANT` for a second reason: the ADT models a tuple as `IrTuple` whose `kind_of` is
+`"MkTuple"`, so `.get("type") == "Tuple"` would disagree with `is_tuple` (the exact-tag-agreement
+invariant `is_K ↔ kind_of e = K`); it stays on the sound `kind_of` string path.
+
+**Gates green (increment 3):** spike LAW 6 added (discriminant agreement + guarded sub-node
+size-decrease for Subscript/Attribute + FieldGet-leaf size), both provers, no axiom; reference locks
+0880 (POSITIVE — `expr_size` proves `\result >= 1` recursing through Subscript/Attribute/BinOp; leaf
+discriminants Var/Number/String/FieldGet) / 0881 (NEGATIVE twin — false `is_sub` claim stays
+UNPROVEN). Byte-diff = 0 on every non-ADT program; the 11 emit_ir mirror tests + locks 0878/0879
+differ PURELY ADDITIVELY (the `IrFieldGet` ctor on the type line + the new discriminants/projections/
+decrease lemmas) and still pass (removed=1 = the extended `type emit_ir` line, added=35). IR
+unchanged (`IR_VERSION` 1.4, conformance 38/38 both corpora). **Feasibility check: 4/4** of the tried
+real handler idioms (`_handle_var_expr` → `name_of`; `_handle_call_expr` → `is_call`/`func_of`;
+`_handle_attribute_expr` → `is_attribute`/`object_of` + recursion; `_handle_subscript` → `is_sub`/
+`svalue_of`/`sindex_of` + recursion) now lower via the ADT (no `unbound type symbol emit_ir`, no
+`kind_of` int-leak) and fully prove. **Coupling: COVERED** — no new value shape (all sub-node
+projections return `emit_ir`, certified by the conservative record-valued `path_get`; `IrFieldGet`
+carries only string leaves), so no co-landing Phase-3 lemma is required. No new axiom, no `\trusted`
+increase.

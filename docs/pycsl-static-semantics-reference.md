@@ -2253,6 +2253,24 @@ faithful projection is fabricated).
 (or has a `@mutable_state` class); every other program is unaffected
 (byte-identical emission).
 
+**Completed EXPR family (increment 3).** The discriminant rule generalizes beyond
+`BinOp` to the whole fixed-arity expr family: `x.get("type") == "K"` types as the
+`bool` `(is_K x)` for `K ∈ {Var, Number, String, Subscript, Attribute, Call,
+MkTuple, FieldGet, BinOp}`, each `is_K` a match-based constructor test satisfying
+`is_K x ↔ kind_of x = "K"` on every real node. A sub-node projection
+(`x.get("value")`/`.get("index")`/`.get("object")`/`.get("left")`/`.get("right")`)
+types as `emit_ir` and may feed a recursive call; a leaf projection
+(`x.get("name")`/`.get("attr")`/`.get("func")`/`.get("op")`/`.get("field")`) types
+as `string`. The `FieldGet` object read is a LEAF `string` (`fgobject_of`), in
+contrast to the `Attribute` object read which is a SUB-node (`object_of`) — the
+type-class distinction (`string` vs `emit_ir`) is enforced at Why3 L3-type-check,
+never a silent coercion. Termination for a recursion guarded by any of these
+discriminants is discharged by the corresponding guarded size-decrease lemma
+(`is_sub e → size (svalue_of e) < size e`, etc.). The list-shaped kinds
+(`ArrayLit`/`SetLit`/`Tuple`/`DictLit`) remain on the `kind_of` string path
+(no structural `list emit_ir` projection yet); `Tuple` additionally cannot use
+`is_tuple` because the ADT's tuple ctor reports `kind_of = "MkTuple"`.
+
 ---
 
 ## 4. Unsupported Constructs
