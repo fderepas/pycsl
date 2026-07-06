@@ -786,3 +786,70 @@ back to **feature-gated**: next flagged leaf is `struct_format::arity` (needs th
 value-record-field preamble AND a stale-`StructFormat`-stub resync — the mirror struct_format.py is a
 generated stub skeleton whose live `StructFormat` has grown a `chars` field + faithful_* methods it
 lacks; see iter-21 addendum). Remaining set-local / IR-recursion / external-callback helpers unchanged.
+
+### Phase 2 (tier3-p2, 2026-07-06) — expr-ADT re-triage under FULL proof + 3 free string-leaf converts (count 1252→1249)
+
+Executes `triage-ranked-tcb-tier3.md` T3.2.1 (re-triage the Module-6 core WITH the landed expr-ADT,
+under FULL proof, not `--no-proof`) + T3.2.2 (convert the cleanly-provable set). This is the first
+Phase-2 marker-payoff pass over the tier-3 ADT (commits `8993a5b9`+`d989985f`).
+
+**T3.2.1 — re-triage (harness: splice live body verbatim → `--fun <method>` full proof → revert).**
+Swept every trusted stub with a live counterpart across the Module-6 core + A6 IR-readers:
+`expressions.py` (51), `statements.py` (15), `functions.py` (36, whole-file-provable), plus A6
+`ir_scanner.py` (34, 18 sampled), `types.py` (18), `stmt_control_flow.py` (8 smallest). **Verdict:
+CONVERTIBLE = 3; BLOCKED = all IR-node-reading handlers.** The landed ADT advances the typecheck
+frontier (the tier-1 `unbound type symbol 'emit_ir'` is GONE — these node-reads now bind a type) but
+NO IR-reading handler discharges a verbatim whole-body port, because each then hits one of:
+
+- **`.get("value")` scalar-vs-subnode overload** (dominant, ~all of `expressions.py`/`types.py`). The
+  recognizer maps `value`→`svalue_of : emit_ir` (a SUB-node), but literal handlers read `Number.value`
+  (int) / `String.value` (str) as a *scalar leaf* → `type int, but expected string`. `_is_float_expr`,
+  `_is_null_byte_lit`, `_handle_sum_call`, `_linear_form`, `_static_width`, `_val_is_bool`, … all leak
+  here. This is §5e/risk-7 unresolved for the `value` leaf.
+- **list-shaped `.get("elts")/.get("args")`→`args_of : array emit_ir` (OPAQUE)** — can't be iterated
+  faithfully (`ArrayLit`/`SetLit`/`Tuple`/`DictLit` deferred per §9a); `_handle_sum_call`,
+  `_is_null_byte_lit`, comprehension/tuple readers.
+- **list-recursion TERMINATION VC** — the `IRScanner` bool scanners (`uses_arrayset`, `has_continue`,
+  `uses_continue`, `uses_break`, `has_direct_return`, `ends_with_return`, `find_ghost_vars`, …)
+  TYPECHECK under the ADT but the proof FAILS: recursion over a stmt/expr *list* has no `size` measure
+  (`_emit_function` injects `variant {size p}` only for a scalar `emit_ir` param, not `List[ExprIR]`).
+  This is exactly FRONTIER's "`--no-proof` over-counts the 19 ir_scanner leaves" — confirmed under full
+  proof (0/18 sampled convert).
+- **dict/map field builders** (`functions._build_method_*`, `types._collect_*`, `find_array_and_dict_vars`)
+  — `Dict[str,X]` iteration → `array int`/`array string @rho` / `'mu -> option int` gaps (map-local
+  modeling absent).
+- **str-tag inference domain** (`types.py`) — returns type-name strings that mix with int hashes
+  (`type string, but expected int`).
+
+**T3.2.2 — CONVERTED (3, all free string/f-string LEAVES that read NO IR node — missed by the
+iters-16-23 sweeps, NOT ADT-enabled):**
+
+| file | method | shape | proof |
+|---|---|---|---|
+| `expressions.py` | `_array_coerce_arg` | pure `str` coercion (`@staticmethod`, `.strip`/`.startswith`/`.isalnum`) | `--fun` SUCCESS |
+| `statements.py` | `_emit_new_ghost_ref` | `let ghost … in` f-string builder (calls trusted `_stmts_to_whyml` opaquely) | `--fun` SUCCESS |
+| `statements.py` | `_wrap_body_with_return_catch` | return-catch wrapper, string-dispatch on return_type | `--fun` SUCCESS |
+
+Each: verbatim live body + fixed contract (`#@ requires True / ensures True / assigns \nothing`),
+`\trusted` removed. No live emitter method touched → no re-port needed (process rule N/A). Committed
+`e73ec7c6`.
+
+**Gates (streamlined §5.1, all green):** fidelity `check-self-annotate-sync` (80 un-trusted verbatim)
+∧ `self-annotate-mirror-check` (51 in sync); type-safety = 3× `--fun` SUCCESS; `proof_axiom_allowlist`
+diff EMPTY; corpus inertness = emitter (`src/pycsl`) git-IDENTICAL HEAD~1..HEAD (mirror-only) ⇒
+byte-diff 0 by construction, belt-and-suspenders sweep emitted 756 corpus `.mlw` crash-free; **no NEW
+failure** — only 2 files changed, both retain their SAME pre-existing `int`↔`string` leak verdict
+(unchanged from baseline; the leak is in an unconverted method), every other suite file byte-identical
+to HEAD~1. Count **1252→1249** (literal `\trusted`; full marker 1232→1229).
+
+**Honest yield & the next Phase-1 increment (the guide for tier3-p1).** The tier-3 expr-ADT did NOT
+yet yield an IR-reading marker conversion — the 3 converts are incidental free leaves. The **single
+highest-leverage next Phase-1 increment is the list-shaped kinds** (`ArrayLit`/`SetLit`/`Tuple`/`args`/
+`elts` as a structural `list emit_ir` + a `size_list` MUTUAL measure): it simultaneously (a) unblocks
+the `.get("elts")/.get("args")` projections and (b) provides the `size` measure for **list recursion**,
+which is the termination VC blocking the ENTIRE `ir_scanner` family (~34 stubs) — the largest single
+cluster. Second: the **scalar-value-leaf projection** for `Number.value` (int/`ir_num`) and
+`String.value` (string), splitting the overloaded `.get("value")` by receiver-kind — unblocks the
+literal/affine-form readers in `expressions.py`. The stmt/contract node families and set-local/map-local
+modeling remain further out. Both increments are demand-driven emitter features (spike→build→gate),
+per the standing tier-2/tier-3 lesson that a marker conversion needs the value shape BUILT first.
