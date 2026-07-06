@@ -198,3 +198,62 @@ pre-conversion triage matrix, the byte-diff-inertness principles, the leak-diagn
 OPEN gaps, and the efficiency rules — see **`leaf-conversion-recognizers.md`** (next to this file).
 Empirical from the 1273→1266 bottom-up-DAG campaign; the DAG strategy itself is in repo-root
 `giant-recursion.md`.
+
+## 10. Hard-won lessons (2026-07 tier-1/2/3 campaign — HEED THESE; they OVERRIDE optimism)
+
+Plan of record: **`triage-ranked-tcb.md`** (this file is the loop procedure + the `self-tcb-reduction.md`
+§8 ledger). The 2026-07 campaign ran the loop at scale; marker yields were **8 / 0 / 9** across three
+multi-session tiers. The dominant truth: **most of the frontier is a semantic ceiling or a
+soundly-trusted boundary, NOT a conversion backlog.** Convert by measurement, not ambition.
+
+1. **CLASSIFY ON FULL `--fun` PROOF OF THE WHOLE BODY — never `--no-proof`, never an idiom in
+   isolation.** The most expensive mistake, made TWICE. `--no-proof` typecheck over-counted tier-1 **5×**
+   (39 "free" → 8 real). An idiom-in-isolation feasibility probe ("4/4 lower") collapsed when whole
+   bodies were ported (value-model gaps + recursion-termination only surface under proof).
+   **Type-check-clean ≠ proof-clean.** A stub is "convertible" ONLY when its ENTIRE real body, ported
+   verbatim, discharges (`--fun` per recursive fn).
+
+2. **MEASURE BEFORE BUILD.** Never build a multi-session feature/ADT on a *projected* yield. Run a
+   whole-body feasibility CENSUS first (port → full-prove → revert → classify each stub) — cheap,
+   decisive, and it repeatedly refuted large projections. Template: `getting-better/tier3/whole-body-census.md`.
+
+3. **The frontier's real axis is REFLECTION STYLE, not node kind.** *Typed-node readers* (dispatch on
+   `ir.get("type")`, project named fields) are model-addressable. *Generic-`Any`-tree walkers*
+   (`for v in obj.values()` over `Dict[str,Any]`, by-ref-set mutation) are NOT modellable without a
+   live-source rewrite — a **leave-trusted** class. Diagnose by style before assuming a value feature
+   frees a cluster. The 141 residual "trusted-pending" stubs are dominated by 85 `Dict[str,Any]`
+   generic-dict readers = this hard class.
+
+4. **A feature that edits a VERIFIED emitter method MUST re-port + re-prove that mirror method in the
+   SAME commit** (add to Gate B). Skipping it drifts the fidelity gate — the tier-2a `_handle_return_stmt`
+   case: a set-model feature added IR-reflection to a verified method, the mirror couldn't re-verify,
+   the feature was REVERTED (`768f5392`→`5c4b87e0`). If the re-port can't prove, the feature is gated on
+   a deeper model: do NOT re-trust (a +1 regression), do NOT merge a red fidelity gate.
+
+5. **COUPLING RULE for a feature introducing a NEW WhyML value shape** (record/variant ADT, etc.): the
+   emitter capability must co-land with a `src/formal-semantics/` certificate that the new value is
+   sound, or the self-annotation verifies against a construct the meta-theory doesn't cover (capability
+   outrunning its certificate). **Separate two obligations, never conflate:** VALUE soundness (needs a
+   co-landing certificate lemma — axiom-free; a conservative *side-car* is enough, e.g.
+   `Phase2b_RecordVal.v`/`RecordVal.lean`) vs TERMINATION (a Why3-intrinsic `variant` VC, NOT a
+   certificate concern). The **3-axiom ledger must stay at 3** — verify with `Print Assumptions` (Rocq) /
+   `#print axioms` (Lean) after any certificate change.
+
+6. **SINGLE-WRITER on the working tree.** Never run two mirror/emitter-editing agents concurrently — a
+   stash/detached-HEAD race nearly ate committed work. The read-only triage/census probe is the ONLY
+   safely-parallel actor (§8).
+
+7. **VALUE, not count.** Convert only where a whole-body census proves it out; otherwise leave-trusted
+   or demand-driven feature work. A "cheap win" that only proves the fixed `ensures True` contract adds
+   no behavioral content — count it honestly.
+
+8. **The tier-3 ADT foundation EXISTS and is certified** (feasible + sound, ledger held, independently
+   reproduced): the IR-node value ADT (`preamble.py::_emit_exprir_theory`, `expressions.py`
+   discriminant/projection via `_KIND_DISCRIMINANT`, `functions.py` `size`/`variant`) + the Rocq/Lean
+   record-valued certificate. It covers **typed-node reads of the expr family (9 kinds)**. Extend it
+   (stmt/contract families) ONLY if a census proves a worthwhile cluster — the expr census showed ≤19
+   reachable of 164, so no further family was built (PATH 1).
+
+9. **Run an INDEPENDENT ADVERSARIAL review before a big build** — it verified the certified foundation
+   reproduces AND refuted the payoff projection (`getting-better/tier3/plan-review.md`), averting a
+   wasted grind. Have it *reproduce* the make-or-break gates (build + axiom audit), not take them on trust.

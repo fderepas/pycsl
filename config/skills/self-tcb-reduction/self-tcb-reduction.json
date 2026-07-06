@@ -123,7 +123,9 @@
   ],
   "oracle_setup": {
     "E-0_baseline": "pin the clean-tree byte-diff baseline once (stash local edits, sweep clean HEAD, restore); every stub diffs against it",
-    "amortization": "type-check per stub (--no-proof, fast); batch full proof + byte-diff per FILE, not per stub"
+    "amortization": "--no-proof type-check per stub is a SPEED filter ONLY, never the classifier; batch full proof + byte-diff per FILE",
+    "classification_rule_2026_07": "CLASSIFY convertible/blocked ONLY on a WHOLE-BODY full --fun proof, NEVER on --no-proof (over-counted tier-1 ~5x: 39->8) or an idiom-in-isolation probe (collapsed on whole-body port). type-check-clean != proof-clean.",
+    "streamlined_per_stub_gate_SKILL_5.1": "prove ONLY the changed mirror file (independent verification units) + a git-diff mirror-only assertion (mirror not in corpus => byte-diff 0 by construction) + allowlist unchanged + count strictly shrank; run the full suite/sweep once per BATCH, not per stub (~10min/stub -> ~30s/stub)."
   },
   "stabilizers": [
     "vacuous/weak-contract -> Gate C non-vacuity + fixed shape",
@@ -137,5 +139,25 @@
     "escalate-not-thrash -> per-stub attempt budget; flag the hard tail"
   ],
   "done_criteria": "every mirror .py stub is VERIFIED or FLOOR:{F1|F3}+reason; \\trusted wc -l at the enumerated floor; check-self-annotate-sync.sh AND self-annotate-mirror-check.sh AND run-self-annotation-suite.sh green; byte-diff 0 throughout; proof_axiom_allowlist unchanged.",
-  "start_scope": "E-0 baseline -> T1.a (24 expression handlers, read-only first)"
+  "start_scope": "E-0 baseline -> T1.a (24 expression handlers, read-only first)",
+  "campaign_calibration_2026_07": {
+    "plan_of_record": "triage-ranked-tcb.md (this JSON + SKILL.md = the SL loop; self-tcb-reduction.md = loop procedure + append-only ledger, NOT the strategic plan)",
+    "status": "tiers 1/2/3 EXECUTED and CLOSED at count 1240; marker yields 8/0/9; certified tier-3 IR-node ADT foundation banked (feasible + sound, 3-axiom ledger held, independently reproduced)",
+    "lessons": [
+      "classify on WHOLE-BODY full --fun proof, never --no-proof (over-counts ~5x) or idiom-in-isolation (collapses on whole-body port)",
+      "MEASURE BEFORE BUILD: run a whole-body feasibility census before any multi-session feature/ADT (template getting-better/tier3/whole-body-census.md)",
+      "the frontier's real axis is REFLECTION STYLE: typed-node readers (dispatch on .get('type')) are ADT-addressable; generic-Any/Dict[str,Any] walkers (for v in obj.values(), by-ref-set mutation) are unmodellable without a live-source rewrite = leave-trusted",
+      "a feature editing a VERIFIED emitter method MUST re-port + re-prove that mirror method in the SAME commit (tier-2a _handle_return_stmt drift -> set-model feature REVERTED 768f5392->5c4b87e0); if the re-port cannot prove, do NOT re-trust (a +1 regression) and do NOT merge a red fidelity gate",
+      "COUPLING: a feature introducing a NEW WhyML value shape must co-land a src/formal-semantics certificate (a conservative side-car is enough, axiom-free, e.g. Phase2b_RecordVal.v / RecordVal.lean); separate VALUE-soundness (needs certificate lemma) from TERMINATION (a Why3 variant VC, not a certificate concern); the 3-axiom ledger MUST stay at 3 (verify Print Assumptions / #print axioms)",
+      "SINGLE-WRITER on the working tree (two concurrent mirror-editing agents caused a stash/detached-HEAD near-miss); only the read-only census/triage probe parallelizes",
+      "VALUE not count: most of the frontier is a semantic ceiling or a soundly-trusted boundary; convert only where a census proves it out; an ensures-True conversion adds no behavioral content",
+      "run an INDEPENDENT ADVERSARIAL review before a big build; have it REPRODUCE the make-or-break gates (build + axiom audit), not take them on trust"
+    ],
+    "residual": {
+      "leave_trusted": 2,
+      "trusted_pending_value_model_gaps": { "count": 141, "breakdown": "85 Dict[str,Any] value-typing (generic-dict, likely harder than the ADT) + 43 collection-result modeling + 13 emitter string/self-state/emission", "next_effort": "distinct, demand-driven, census-first; NOT an ADT campaign; see step-d-leave-trusted-analysis.md" },
+      "irreducible_floor": 4
+    },
+    "tier_status_override": "the T1-T4 'tiers' array above is the PRE-EXECUTION ambition; its approx_stubs are NOT convertible counts. The tier-3 census showed <=19 of 164 Module-6-core stubs ADT-reachable (86% a semantic ceiling). Read tiers via triage-ranked-tcb.md."
+  }
 }
