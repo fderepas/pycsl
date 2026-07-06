@@ -3,8 +3,24 @@
 **Supersedes §4 of `triage-ranked-tcb-tier3-phase3.md`.** Written from three inputs: the certified
 foundation (independently verified), the adversarial review (`getting-better/tier3/plan-review.md`,
 summarized in phase3 §7), and the plain-English Phase-3↔formal-proof link
-(`triage-ranked-tcb-tier3-phase3-step-back.md`). Date 2026-07-06. Branch `ghost-assign-bc6`, green,
-`\trusted` count **1249**.
+(`triage-ranked-tcb-tier3-phase3-step-back.md`). Date 2026-07-06. Branch `ghost-assign-bc6`, green.
+
+> ## ✅ STATUS: EXECUTED — DONE (2026-07-06)
+> This plan is fully executed on the PATH-1 track the census selected:
+> - **Step A — census:** `getting-better/tier3/whole-body-census.md` (commit `7a750917`). Measured
+>   164 stubs → 11 convertible-now, ≤8 build-projection, 2 unmodellable, 141 semantic-ceiling. Verdict PATH 1.
+> - **Step B — build:** correctly SKIPPED (census showed no ADT build clears v2 §5's calculus).
+> - **Step C — harvest:** 9 `ir_scanner` walkers converted (commit `7e398d4e`), **count 1249 → 1240**,
+>   whole-body-proven; 2 census entries honestly did not reproduce a single-method edit (not forced).
+> - **Step D — leave-trusted analysis:** `getting-better/tier3/step-d-leave-trusted-analysis.md` — the
+>   2 unmodellable stubs LEAVE-TRUSTED (conversion impossible + valueless); the 141 TRUSTED-PENDING
+>   (blocked by separate value-model gaps, NOT leave-trusted-by-design); 4 irreducible floor.
+> - **§6 exit criteria met:** foundation certified + green; docs + review recorded; campaign CLOSED at
+>   the honest floor (1240) with the yield history (tier-1/2/3 = 8/0/9) and the residual split documented.
+>
+> **Nothing further to do on this plan.** The marker campaign is closed; the certified ADT foundation
+> is the durable deliverable. Any future work on the 141 TRUSTED-PENDING stubs is a *separate*
+> value-model effort, demand-driven, out of scope here.
 
 ---
 
