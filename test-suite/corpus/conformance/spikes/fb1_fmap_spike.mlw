@@ -1,0 +1,227 @@
+(* fb1_fmap_spike.mlw — Phase-0 Spike (a): fmap-backed PDict (MAKE-OR-BREAK Track M).
+
+   HYPOTHESIS UNDER TEST (generic-dict-str-and-plan.md §2.2, §3.5): re-back the
+   F-B1 `pyval`'s PDict with Why3's finite-map theory (`fmap.Fmap`) instead of
+   `list (string, pyval)`, on the claim that "Why3's finite-map theory maps to
+   solver-native array/UF reasoning", thereby clearing the two F-B1 SMT
+   pathologies:
+     (i)  string-keyed dispatch under a recursive read — the bare-miss lookup
+          that TIMED OUT on assoc-lists (g2_read_miss_bare in fb1_pyval_spike);
+     (ii) pair-nested termination — a mutually-recursive walk/size over the
+          fmap-backed value whose `variant { size v }` VC discharges (the
+          size_pairs'vc that would NOT discharge in F-B1).
+   GO(a) iff BOTH pathologies discharge on Alt-Ergo AND Z3 with no new axiom.
+
+   VERDICT: **NO-GO** on three independent grounds, all reproduced below.
+   Provers: Alt-Ergo 2.6.2, Z3 4.13.3, under Why3 1.8.2, 10s timelimit.
+   No `axiom` keyword in this file (stdlib fmap/map/set theories only — but see
+   the honesty note in the verdict: fmap.Fmap IS itself an abstract axiomatized
+   theory, a larger trusted base than the pure-inductive `list` foundation). *)
+
+(* =====================================================================
+   GROUND 1 — the literal design is TYPE-REJECTED (does not even compile).
+
+   The following type, uncommented, is rejected by Why3:
+
+     type pyval =
+       | PInt int | PStr string | PBool bool | PNone
+       | PList (list pyval)
+       | PDict (fmap string pyval)     <-- rejected
+
+   Verbatim (why3 prove):
+     "Constructor PDict contains a non strictly positive occurrence of type pyval"
+
+   WHY: `fmap 'k 'v` is `abstract { contents: 'k -> 'v; domain: ... }`, so
+   `fmap string pyval` places `pyval` in the CODOMAIN of the arrow `string ->
+   pyval`, a non-strictly-positive position. The recursive value CANNOT be
+   backed by a raw fmap. The hybrid `PDict (fmap string pyval) (list ...)` is
+   rejected for the SAME reason. This is the same class of wall the nested-list
+   project already recorded ("array (array tau) is Why3 TYPE-REJECTED").
+   So Spike (a)'s literal object — "PDict re-backed by fmap" — is impossible.
+   ===================================================================== *)
+
+(* =====================================================================
+   GROUND 2 — even NON-recursively, fmap does NOT clear pathology (i).
+   Using the best case fmap CAN express (a flat dict of NON-recursive leaves),
+   the string-keyed read/miss STILL does not discharge on both provers.
+   ===================================================================== *)
+module FmapReadPathology
+
+  use int.Int
+  use option.Option
+  use string.String
+  use map.Map
+  use fmap.Fmap
+
+  (* NON-recursive leaf value (recursion through fmap is rejected, GROUND 1) *)
+  type pyval = PInt int | PStr string | PBool bool | PNone
+
+  (* faithful get (KeyError-style option, guarded by mem) *)
+  function pget (m: fmap string pyval) (k: string) : option pyval =
+    if mem k m then Some (m[k]) else None
+
+  (* d = {"a": PInt 1, "b": PInt 2} *)
+  function d : fmap string pyval = add "b" (PInt 2) (add "a" (PInt 1) empty)
+
+  (* --- BARE reads (no fed disequalities). The analog of the assoc-list
+     g2_read_miss_bare FRICTION WITNESS. Documented EXPECTED RESULTS: --- *)
+
+  (* read-HIT first key. assoc-list form: Valid (AE). fmap form:
+     Alt-Ergo TIMEOUT, Z3 TIMEOUT  <-- fmap is WORSE than assoc-list here. *)
+  goal r_hit_a_bare  : pget d "a" = Some (PInt 1)
+
+  (* read-HIT second key: Alt-Ergo Valid, Z3 TIMEOUT. *)
+  goal r_hit_b_bare  : pget d "b" = Some (PInt 2)
+
+  (* BARE MISS (the pathology (i) witness): Alt-Ergo TIMEOUT, Z3 TIMEOUT. *)
+  goal r_miss_z_bare : pget d "z" = None
+
+  (* bare non-membership: Alt-Ergo TIMEOUT, Z3 TIMEOUT. *)
+  goal r_notmem_bare : not (mem "z" d)
+
+  (* --- GUARDED reads (all pairwise string disequalities fed as hypotheses,
+     exactly the "distinctness lemma pack" the plan proposes). Documented: --- *)
+
+  (* GUARDED hit: Alt-Ergo Valid, Z3 TIMEOUT. *)
+  goal r_hit_a_guard :
+    "a"<>"b" -> "a"<>"z" -> "b"<>"z" -> pget d "a" = Some (PInt 1)
+
+  (* GUARDED miss: Alt-Ergo Valid, Z3 TIMEOUT.
+     => even WITH the distinctness pack, fmap does not clear Z3. *)
+  goal r_miss_z_guard :
+    "a"<>"b" -> "a"<>"z" -> "b"<>"z" -> pget d "z" = None
+
+  (* GUARDED non-membership: Alt-Ergo Valid, Z3 TIMEOUT. *)
+  goal r_notmem_guard :
+    "a"<>"b" -> "a"<>"z" -> "b"<>"z" -> not (mem "z" d)
+
+  (* FALSE twin (poisoned read): the value under "a" is NOT PInt 2.
+     MUST stay UNPROVEN on both provers. *)
+  goal r_false_twin : pget d "a" = Some (PInt 2)
+
+end
+
+(* =====================================================================
+   GROUND 2b — the Z3 choke is the ABSTRACT Fmap/Fset theory, NOT strings.
+   Same reads with INT keys (zero string theory): Alt-Ergo Valid, Z3 STILL
+   TIMES OUT. So "fmap = solver-native select/store" is false in this stack:
+   fmap.Fmap is axiomatized over map.Map + set.Fset, and Z3 chokes on the
+   Fset-domain reasoning (add_domain / mem / S.add) regardless of key type.
+   ===================================================================== *)
+module FmapIntKeyControl
+
+  use int.Int
+  use option.Option
+  use map.Map
+  use fmap.Fmap
+
+  type pyval = PInt int | PNone
+  function pget (m: fmap int pyval) (k: int) : option pyval =
+    if mem k m then Some (m[k]) else None
+  function d : fmap int pyval = add 2 (PInt 20) (add 1 (PInt 10) empty)
+
+  (* int-keyed hit: Alt-Ergo Valid, Z3 TIMEOUT. *)
+  goal i_hit_1  : pget d 1 = Some (PInt 10)
+  (* int-keyed miss: Alt-Ergo Valid, Z3 TIMEOUT. *)
+  goal i_miss_9 : pget d 9 = None
+  (* int-keyed non-membership: Alt-Ergo Valid, Z3 TIMEOUT. *)
+  goal i_notmem : not (mem 9 d)
+
+end
+
+(* =====================================================================
+   GROUND 3 — pathology (ii) pair-nested termination: fmap CANNOT express it
+   at all (type-rejected, GROUND 1), AND the size-measure route the plan
+   proposes (§3.5) does not discharge even on the list backing.
+
+   fmap.Fmap is abstract: no induction principle, no structural fold. A
+   `size : pyval -> int` that recurses into a dict's VALUES cannot be defined
+   over an fmap (you cannot fold an abstract map without adding axioms).
+   `Fmap.size` gives only the domain CARDINALITY (key count), not a depth
+   measure over nested values — useless as the walk's termination measure.
+
+   The ONLY walkable faithful form is the list backing (module PyValListDict
+   in fb1_pyval_spike). Here we reproduce the F-B1 friction #2 on THAT form and
+   also test the plan's size-measure variant — both TIME OUT on both provers.
+   ===================================================================== *)
+module PairNestedTermination
+
+  use int.Int
+  use list.List
+  use string.String
+
+  type pyval =
+    | PInt int | PStr string | PBool bool | PNone
+    | PList (list pyval)
+    | PDict (list (string, pyval))
+
+  (* pure LOGIC size: accepted by Why3's SYNTACTIC structural checker
+     (no VC, no axiom) — termination is sound only via this route. *)
+  function size (v: pyval) : int =
+    match v with
+    | PInt _ -> 1 | PStr _ -> 1 | PBool _ -> 1 | PNone -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict fs -> 1 + size_pairs fs end
+  with size_list (l: list pyval) : int =
+    match l with Nil -> 0 | Cons h t -> size h + size_list t end
+  with size_pairs (l: list (string, pyval)) : int =
+    match l with Nil -> 0 | Cons (_, v) t -> size v + size_pairs t end
+
+  (* PROGRAM-form walk with the plan's size-measure variant (§3.5) — this is
+     what the emitter's `for v in obj.values(): recurse(v)` generates. The
+     decrease VCs TIME OUT on BOTH provers (all three), reproducing friction
+     #2: the well-founded VC for the doubly-nested `Cons (_, v) t` subterm is
+     not SMT-dischargeable. Documented EXPECTED: all TIMEOUT (AE and Z3). *)
+  let rec walk (v: pyval) : int
+    variant { size v }
+  = match v with
+    | PInt _ -> 0 | PStr _ -> 0 | PBool _ -> 0 | PNone -> 0
+    | PList xs -> walk_list xs
+    | PDict fs -> walk_pairs fs end
+  with walk_list (l: list pyval) : int
+    variant { size_list l }
+  = match l with Nil -> 0 | Cons h t -> walk h + walk_list t end
+  with walk_pairs (l: list (string, pyval)) : int
+    variant { size_pairs l }
+  = match l with Nil -> 0 | Cons (_, v) t -> walk v + walk_pairs t end
+
+end
+
+(* =====================================================================
+   NEGATIVE CONTROL (§5(i)) — a poisoned walker: a genuine type confusion
+   behind the pyval facade that MUST fail the prover. Over the SOUND list
+   backing, assert an int-only dict yields a string leaf: MUST stay UNPROVEN.
+   (Demonstrates the model rejects type confusion — the pipeline is not
+   coherent-and-wrong.)
+   ===================================================================== *)
+module PoisonedWalkerControl
+
+  use int.Int
+  use list.List
+  use list.Mem
+  use list.Append
+  use string.String
+
+  type pyval =
+    | PInt int | PStr string | PBool bool | PNone
+    | PList (list pyval)
+    | PDict (list (string, pyval))
+
+  function str_leaves (v: pyval) : list string =
+    match v with
+    | PStr s -> Cons s Nil
+    | PInt _ -> Nil | PBool _ -> Nil | PNone -> Nil
+    | PList xs -> str_leaves_list xs
+    | PDict fs -> str_leaves_pairs fs end
+  with str_leaves_list (l: list pyval) : list string =
+    match l with Nil -> Nil | Cons h t -> str_leaves h ++ str_leaves_list t end
+  with str_leaves_pairs (l: list (string, pyval)) : list string =
+    match l with Nil -> Nil | Cons (_,v) t -> str_leaves v ++ str_leaves_pairs t end
+
+  (* POISON: an int-only dict has NO string leaves, so "ghost" is not collected.
+     This goal is FALSE and MUST stay UNPROVEN on both provers. If it EVER
+     proved, the value model would be unsound (coherent-and-wrong). *)
+  goal poison_type_confusion :
+    mem "ghost" (str_leaves (PDict (Cons ("a", PInt 1) Nil)))
+
+end
