@@ -1,0 +1,214 @@
+(* ==========================================================================
+   v2_iter_mutate_spike.mlw — Phase 2'a target-shape feasibility spike, S1.
+   Benchmark 2: find_named_expr_targets  (the MAKE-OR-BREAK).
+
+   Reuses the Phase-0 encoding (v2_pydict_spike.mlw): the strictly-positive
+   concrete universal value `pyval`/`pydict`, interned `irkey`, the `size`
+   measure with +1 per cons cell, and the PROVEN (never axiom) lemma pack
+   discharged by `let rec lemma` (the recursion IS the induction).
+
+   This spike models the TARGET WhyML lowering of:
+
+       def find_named_expr_targets(obj, targets):   # obj: pyval, targets: Set[str]
+           if isinstance(obj, dict):
+               if "target" in obj: targets.add(obj["target"])
+               for k, v in obj.items():                  # generic .items() iteration
+                   find_named_expr_targets(v, targets)   # recurse into universal value
+           elif isinstance(obj, list):
+               for item in obj:
+                   find_named_expr_targets(item, targets)
+
+   The three ingredients that must combine, whole-body, under
+   `requires True / ensures True / writes { targets }`:
+     (i)   generic `.items()` iteration lowered as `let rec walk_dict` over the
+           `pydict` cons-cell spine (the iteration protocol),
+     (ii)  unbounded recursion into each heterogeneous value `v: pyval`,
+           terminating via `variant { size v }` + the pack (D3),
+     (iii) by-ref set mutation (WL-05b / E5): `targets: ref (map string bool)`,
+           `.add` -> store update, `writes { targets }` frame threaded through
+           the whole mutual-recursion group.
+
+   VCs to discharge Valid on Alt-Ergo AND Z3: termination (walk/walk_dict/
+   walk_list variants), type-safety (exhaustive matches through the universal
+   value), and the frame (writes { targets }).
+
+   NO `axiom` keyword anywhere in this file.
+   ========================================================================== *)
+
+module V2IterMutate
+
+  use int.Int
+  use list.List
+  use option.Option
+  use string.String
+  use map.Map
+  use map.Const
+  use ref.Ref
+
+  (* ---------------------------------------------------------------------- *)
+  (* R-B — interned IR keys (constructor (dis)equality, zero string theory). *)
+  (* ---------------------------------------------------------------------- *)
+  type irkey =
+    | K_type | K_left | K_right | K_op | K_z
+    | K_value | K_target | K_body | K_orelse | K_func | K_name
+    | K_dyn string
+
+  (* ---------------------------------------------------------------------- *)
+  (* R-A — strictly-positive concrete universal value.                       *)
+  (* ---------------------------------------------------------------------- *)
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  (* ---- get_target : the E2 lowering of `obj["target"]` with a LITERAL schema
+     key.  A literal schema-key read lowers to a spine walk that MATCHES the
+     `K_target` constructor directly (R-B: constructor reasoning, zero `=`, zero
+     string theory) — exactly `get d K_target` specialized to the literal key.
+     This is a program function (the emitter's read helper); it terminates on
+     the dict spine (`variant { d }`). ---- *)
+  let rec get_target (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil               -> None
+    | DCons K_target v _ -> Some v
+    | DCons _ _ rest     -> get_target rest
+    end
+
+  (* ---- size — +1 per cons cell (head recursion strictly decreases) ---- *)
+  function size (v: pyval) : int
+  = match v with
+    | PInt  _ -> 1
+    | PStr  _ -> 1
+    | PBool _ -> 1
+    | PNone   -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict d  -> 1 + size_dict d
+    end
+  with size_list (l: list pyval) : int
+  = match l with
+    | Nil      -> 0
+    | Cons h t -> 1 + size h + size_list t
+    end
+  with size_dict (d: pydict) : int
+  = match d with
+    | DNil            -> 0
+    | DCons _ v rest  -> 1 + size v + size_dict rest
+    end
+
+  (* ---------------------------------------------------------------------- *)
+  (* R-C — PROVEN lemma pack (`let rec lemma`; NO axiom).                     *)
+  (* ---------------------------------------------------------------------- *)
+  let rec lemma size_pos (v: pyval) : unit
+    ensures { size v > 0 }
+    variant { v }
+  = match v with
+    | PList xs -> size_list_nonneg xs
+    | PDict d  -> size_dict_nonneg d
+    | _ -> ()
+    end
+  with lemma size_list_nonneg (l: list pyval) : unit
+    ensures { size_list l >= 0 }
+    variant { l }
+  = match l with
+    | Nil      -> ()
+    | Cons h t -> size_pos h; size_list_nonneg t
+    end
+  with lemma size_dict_nonneg (d: pydict) : unit
+    ensures { size_dict d >= 0 }
+    variant { d }
+  = match d with
+    | DNil           -> ()
+    | DCons _ v rest -> size_pos v; size_dict_nonneg rest
+    end
+
+  (* =====================================================================
+     E5 / WL-05b — the by-ref set model.  A Set[str] is `ref (map string
+     bool)`; `.add s` sets the membership bit; `writes { targets }` is the
+     caller-visible frame.  (Identical shape to wl05b_param_mut_spike.mlw.)
+     ===================================================================== *)
+  val set_add (m: map string bool) (e: string) : map string bool
+    ensures { result = Map.set m e true }
+
+  (* =====================================================================
+     S1 — THE MAKE-OR-BREAK.  Target lowering of find_named_expr_targets:
+     generic .items() iteration (walk_dict over the cons spine) + unbounded
+     recursion into each heterogeneous value + by-ref mutation, all under a
+     type-safety-only contract with a size-variant.
+     ===================================================================== *)
+  let rec walk (v: pyval) (targets: ref (map string bool)) : unit
+    requires { true }
+    ensures  { true }
+    writes   { targets }
+    variant  { size v }
+  = match v with
+    | PDict d ->
+        (* if "target" in obj: targets.add(obj["target"])  — read via get_target,
+           add the string payload when present *)
+        (match get_target d with
+         | Some (PStr s) -> targets := set_add !targets s
+         | _ -> ()
+         end);
+        (* for k, v in obj.items(): recurse — the generic iteration protocol *)
+        walk_dict d targets
+    | PList xs ->
+        (* for item in obj: recurse *)
+        walk_list xs targets
+    | _ -> ()
+    end
+  with walk_dict (d: pydict) (targets: ref (map string bool)) : unit
+    requires { true }
+    ensures  { true }
+    writes   { targets }
+    variant  { size_dict d }
+  = match d with
+    | DNil            -> ()
+    | DCons _ v rest  -> walk v targets; walk_dict rest targets
+    end
+  with walk_list (xs: list pyval) (targets: ref (map string bool)) : unit
+    requires { true }
+    ensures  { true }
+    writes   { targets }
+    variant  { size_list xs }
+  = match xs with
+    | Nil      -> ()
+    | Cons h t -> walk h targets; walk_list t targets
+    end
+
+  (* Caller-visibility witness: a driver constructs a fresh set, walks a
+     literal nested node, and the mutation escapes (frame is real). *)
+  let driver () : unit =
+    let targets = ref (const false : map string bool) in
+    let node =
+      PDict (DCons K_target (PStr "x")
+            (DCons K_body   (PList (Cons (PDict (DCons K_target (PStr "y") DNil))
+                                   Nil))
+            DNil)) in
+    walk node targets;
+    (* the walk is total & terminating; no assertion needed — the point is
+       that this whole-body call type-checks and its frame is honoured. *)
+    ()
+
+  (* =====================================================================
+     NEGATIVE CONTROL — FALSE TWIN.  A walk that CLAIMS to terminate with
+     `variant { size v }` but recurses on `v` itself (no strict decrease).
+     Its `walk_bad'vc` termination VC MUST stay UNPROVEN on both provers —
+     the shape must be able to fail.
+     ===================================================================== *)
+  let rec walk_bad (v: pyval) (targets: ref (map string bool)) : unit
+    writes  { targets }
+    variant { size v }
+  = match v with
+    | PDict d ->
+        targets := set_add !targets "x";     (* honour the frame on one path *)
+        walk_bad (PDict d) targets           (* size (PDict d) NOT < size (PDict d) *)
+    | _ -> ()
+    end
+
+end

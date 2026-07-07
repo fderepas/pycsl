@@ -1,0 +1,206 @@
+(* ==========================================================================
+   v2_listdict_recurse_spike.mlw — Phase 2'a target-shape feasibility spike, S2.
+   Benchmark 1: find_return_type  (List[Dict[str,Any]] recursion + str tail).
+
+   Reuses the Phase-0 encoding (v2_pydict_spike.mlw): strictly-positive
+   `pyval`/`pydict`, interned `irkey`, the `size` measure (+1 per cons cell),
+   and the PROVEN (never axiom) lemma pack.
+
+   Models the TARGET WhyML lowering of:
+
+       def find_return_type(stmts: List[Dict[str, Any]]) -> str:
+           # walk statements, recurse into nested bodies read by key,
+           # build a ", "-joined result string
+           ...
+
+   The two obstructions Phase 2 named for benchmark 1, addressed here:
+     - D3 termination over a recursion that reads `stmt[key]` (a `get`) and
+       recurses into the nested `List[pyval]` found there — discharged by a
+       `size`-variant + a PROVEN sub-term lemma (`get_body_lt`), NOT an axiom.
+     - the `", ".join(...)`-shaped string tail — routed through the plan's
+       **`doc` ADT** (F4) so that NO walker VC ever contains a string term.
+       `find_rt` returns `doc`; only the certified `render` touches strings,
+       and `render`'s only VC is termination (string payloads stay opaque).
+
+   VCs to discharge Valid on Alt-Ergo AND Z3: termination of find_rt / get_type
+   / get_body / render, and type-safety of every match.  NO string-theory goal.
+
+   NO `axiom` keyword anywhere in this file.
+   ========================================================================== *)
+
+module V2ListDictRecurse
+
+  use int.Int
+  use list.List
+  use option.Option
+  use string.String       (* logic `concat` (for render's payload semantics) *)
+  use string.OCaml as SO   (* program `val concat` (usable in render's body) *)
+
+  (* ---------------------------------------------------------------------- *)
+  (* R-B — interned IR keys.                                                 *)
+  (* ---------------------------------------------------------------------- *)
+  type irkey =
+    | K_type | K_left | K_right | K_op | K_z
+    | K_value | K_target | K_body | K_orelse | K_func | K_name
+    | K_dyn string
+
+  (* ---------------------------------------------------------------------- *)
+  (* R-A — strictly-positive concrete universal value.                       *)
+  (* ---------------------------------------------------------------------- *)
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  (* ---- size — +1 per cons cell ---- *)
+  function size (v: pyval) : int
+  = match v with
+    | PInt  _ -> 1
+    | PStr  _ -> 1
+    | PBool _ -> 1
+    | PNone   -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict d  -> 1 + size_dict d
+    end
+  with size_list (l: list pyval) : int
+  = match l with
+    | Nil      -> 0
+    | Cons h t -> 1 + size h + size_list t
+    end
+  with size_dict (d: pydict) : int
+  = match d with
+    | DNil            -> 0
+    | DCons _ v rest  -> 1 + size v + size_dict rest
+    end
+
+  (* ---------------------------------------------------------------------- *)
+  (* R-C — PROVEN lemma pack (`let rec lemma`; NO axiom).                     *)
+  (* ---------------------------------------------------------------------- *)
+  let rec lemma size_pos (v: pyval) : unit
+    ensures { size v > 0 }
+    variant { v }
+  = match v with
+    | PList xs -> size_list_nonneg xs
+    | PDict d  -> size_dict_nonneg d
+    | _ -> ()
+    end
+  with lemma size_list_nonneg (l: list pyval) : unit
+    ensures { size_list l >= 0 }
+    variant { l }
+  = match l with
+    | Nil      -> ()
+    | Cons h t -> size_pos h; size_list_nonneg t
+    end
+  with lemma size_dict_nonneg (d: pydict) : unit
+    ensures { size_dict d >= 0 }
+    variant { d }
+  = match d with
+    | DNil           -> ()
+    | DCons _ v rest -> size_pos v; size_dict_nonneg rest
+    end
+
+  (* ---- get_type / get_body : E2 literal-schema-key reads, lowered as a
+     spine walk that MATCHES the key constructor directly (R-B; zero `=`,
+     zero string theory).  get_body yields the nested `List[pyval]` the outer
+     recursion descends into. ---- *)
+  let rec get_type (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil             -> None
+    | DCons K_type v _ -> Some v
+    | DCons _ _ rest   -> get_type rest
+    end
+
+  let rec function get_body (d: pydict) : option (list pyval)
+    variant { d }
+  = match d with
+    | DNil                       -> None
+    | DCons K_body (PList b) _   -> Some b
+    | DCons _ _ rest             -> get_body rest
+    end
+
+  (* ---- get_body_lt : the PROVEN sub-term lemma that makes the nested
+     recursion terminate.  `get_body d = Some b -> size_list b < size_dict d`.
+     The recursion IS the induction; each arm's VC is trivial LIA closed by the
+     nonneg/pos pack.  NO axiom. ---- *)
+  let rec lemma get_body_lt (d: pydict) : unit
+    ensures { match get_body d with
+              | Some b -> size_list b < size_dict d
+              | None   -> true end }
+    variant { d }
+  = match d with
+    | DNil                     -> ()
+    | DCons K_body (PList _) _ -> ()            (* head: size_dict = 2 + size_list b + rest *)
+    | DCons _ _ rest           -> get_body_lt rest
+    end
+
+  (* =====================================================================
+     F4 — the document ADT.  Walker methods build `doc`; only `render` (a
+     program function whose ONLY VC is termination) touches strings, so no
+     walker VC ever contains a string term.
+     ===================================================================== *)
+  type doc = DText string | DCat doc doc | DEmpty
+
+  let rec render (d: doc) : string
+    variant { d }
+  = match d with
+    | DText s  -> s
+    | DCat a b -> SO.concat (render a) (render b)
+    | DEmpty   -> ""
+    end
+
+  (* =====================================================================
+     S2 — target lowering of find_return_type.  Recursion over List[pydict]
+     that reads keys (`get_type` / `get_body`) and descends into the nested
+     `stmt["body"]` list; the ", "-join tail is a `DCat` fold (the doc ADT),
+     so no VC touches string theory.  Termination via `size_list`-variant +
+     the proven `get_body_lt` sub-term lemma.
+     ===================================================================== *)
+  let rec find_rt (stmts: list pyval) : doc
+    variant { size_list stmts }
+  = match stmts with
+    | Nil -> DText "None"
+    | Cons stmt rest ->
+        let this =
+          match stmt with
+          | PDict d ->
+              (match get_body d with
+               | Some b -> find_rt b                 (* recurse into stmt["body"] *)
+               | None ->
+                   match get_type d with
+                   | Some (PStr s) -> DText s         (* leaf: stmt["type"] label *)
+                   | _             -> DEmpty
+                   end
+               end)
+          | _ -> DEmpty
+          end
+        in
+        (* the ", ".join-shaped fold, built in the doc ADT *)
+        DCat this (DCat (DText ", ") (find_rt rest))
+    end
+
+  (* top-level: build the doc, render once to a string.  This whole-body call
+     type-checks; its VC is trivial (ensures True) and touches no string theory. *)
+  let find_return_type (stmts: list pyval) : string
+    ensures { true }
+  = render (find_rt stmts)
+
+  (* =====================================================================
+     NEGATIVE CONTROL — FALSE TWIN.  A find_rt that CLAIMS to terminate with
+     `variant { size_list stmts }` but recurses on `stmts` itself (no strict
+     decrease).  Its `find_rt_bad'vc` termination VC MUST stay UNPROVEN.
+     ===================================================================== *)
+  let rec find_rt_bad (stmts: list pyval) : doc
+    variant { size_list stmts }
+  = match stmts with
+    | Nil      -> DEmpty
+    | Cons _ _ -> find_rt_bad stmts    (* size_list stmts NOT < size_list stmts *)
+    end
+
+end
