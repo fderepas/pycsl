@@ -924,6 +924,17 @@ class FunctionEmissionMixin:
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
+        # bigger-build.md Phase 1: if the body is the A-unit generic-fold
+        # catamorphism (recognizer, fail-closed), emit the type-derived
+        # walk/walk_dict/walk_list group over the L1 `pyval`/`pydict` datatype
+        # instead of the (broken) opaque-iterator loop lowering. The templater is
+        # NOT in the TCB — a bug yields an unprovable instance (the `--fun`
+        # re-proof is loud), never a false proof.
+        from module6_whyml.generic_fold import (
+            recognize_generic_fold, emit_generic_fold_group)
+        _gf = recognize_generic_fold(func)
+        if _gf is not None:
+            return emit_generic_fold_group(func, _gf, whyml_ident)
         body_stmts = func["body"]
         is_method = func.get("kind") == "method"
 

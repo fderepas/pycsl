@@ -27,13 +27,21 @@ class IRScanner:
     def find_assigned_vars(stmts: List[int]) -> int:
         return set()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns targets
     @staticmethod
-    def find_named_expr_targets(obj: Any, targets: int) -> None:
-        pass
+    def find_named_expr_targets(obj: Any, targets: Set[str]) -> None:
+        if isinstance(obj, dict):
+            if obj.get("type") == "NamedExpr":
+                targets.add(obj["target"])
+            for k, v in obj.items():
+                if k == "stmt":
+                    continue
+                IRScanner.find_named_expr_targets(v, targets)
+        elif isinstance(obj, list):
+            for item in obj:
+                IRScanner.find_named_expr_targets(item, targets)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

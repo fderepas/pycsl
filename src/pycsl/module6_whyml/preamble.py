@@ -1969,7 +1969,14 @@ class PreambleEmissionMixin:
                 exc = rc.get("exc_type")
                 if exc:
                     user_exceptions.add(exc)
+        # bigger-build.md Phase 1: a function whose body is the A-unit generic-fold
+        # catamorphism (recognizer, fail-closed) routes to the type-derived walk
+        # group and needs the L1 `pyval`/`pydict`/`size` theory. Gated + corpus-inert
+        # (fires on 0/756 programs) → byte-diff-0.
+        from module6_whyml.generic_fold import recognize_generic_fold
+        needs_pydict = any(recognize_generic_fold(f) is not None for f in functions)
         return {
+            "needs_pydict": needs_pydict,
             "needs_array": needs_array,
             "needs_matrix": needs_matrix,
             "needs_minmax": needs_minmax,
@@ -2095,9 +2102,12 @@ class PreambleEmissionMixin:
             out.append("")
         if needs.get("needs_pydict"):
             # WALL-PLAN v2: the concrete-map pyval/pydict/doc theory
-            # (`_emit_pydict_theory`) needs list/option/string. Emit any not already
-            # `use`d above. Gated + never set by the reference corpus → byte-diff-0.
-            for _u in ("  use list.List", "  use option.Option", "  use string.String"):
+            # (`_emit_pydict_theory`) needs list/option/string; the A-unit
+            # accumulator model (`set_add`/`ref (map string bool)`) needs map.Map +
+            # map.Const. Emit any not already `use`d above. Gated + never set by the
+            # reference corpus → byte-diff-0.
+            for _u in ("  use list.List", "  use option.Option", "  use string.String",
+                       "  use map.Map", "  use map.Const"):
                 if _u not in out:
                     out.append(_u)
         return out
@@ -2691,6 +2701,14 @@ class PreambleEmissionMixin:
             "    | DCat a b -> concat (render a) (render b)",
             "    | DDoc_nil -> empty",
             "    end",
+            "",
+            "  (* A-unit accumulator model (WL-05b): a Set[str] is `ref (map string bool)`; *)",
+            "  (* `.add e` sets the membership bit. `pystr_eq` is the string-guard test *)",
+            "  (* (payload equality; the walk contract is `ensures True`, so it need not *)",
+            "  (* interpret the string — only type-check the guard). *)",
+            "  val set_add (m: map string bool) (e: string) : map string bool",
+            "    ensures { result = Map.set m e true }",
+            "  val pystr_eq (a b: string) : bool",
             "",
         ]
 
