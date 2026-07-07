@@ -45,9 +45,24 @@ fix** (byte-diff-gated on the corpus) when the self-annotation can model the re-
 emitter and re-port the mirror once str-list construction/assignment is modellable. Tracked here; not
 counted against the trusted floor.
 
-## Decision
-The emission-defect lever is **dry for clean self-verified −1s**. All Tier-5 levers are now measured
-dead: F1 (yield ≤3), F-B1 (NO-GO), emission defects (best lead = real bug, ~0 clean −1s). **Recommend
-closing the marker campaign at the honest floor 1240** — certified ADT foundation + the measured
-residual (≈125 `Dict[str,Any]` leave-trusted, by-ref-mutation boundary, this deferred emitter fix, 4
-floor).
+## Second lead: `iter_length` root cause (`_emit_metatype_tags` + `statements.py::rec`) — ALSO value-model-gap-blocked
+
+Reproduced `_emit_metatype_tags`: the live body is `for nm, v in (("tag_int",0), …, ("tag_object",99)):`
+— iteration with tuple-unpack over a **heterogeneous `(str, int)` tuple-of-pairs literal**. The emitted
+WhyML (`.mlw:326`) shows the real blocker: the tuple literal is lowered to an **opaque int hash**
+(`iter_length 2068068353`), and the loop body emits `int_to_string nm` — i.e. `nm`, which is the string
+`"tag_int"`, is **mistyped as int** (unpacking a `(str,int)` pair types both slots int). So the "unbound
+`iter_length`" symbol is a *secondary symptom*; the true blocker is the **heterogeneous-tuple-unpack
+value-model gap**, and fixing the `iter_length` declaration alone would not make the body prove. Reverted;
+clean at 1240. (There *is* a real latent declaration/scoping bug behind `iter_length` for tuple-literal
+iterables, deferred with the tuple-unpack fix as a tool-correctness item.)
+
+## Decision — CLOSE at 1240
+Both emission leads (`_call_returns_string_collection`, `_emit_metatype_tags`+`rec`) are **genuine
+emitter issues that are NOT clean self-verified −1s** — each self-verifying re-port hits the same
+`int vs string` / heterogeneous-collection value-model gaps that define Tier 5. **The emission-defect
+lever's honest clean yield is 0.** Every Tier-5 lever is now measured dead: F1 (≤3), F-B1 (NO-GO),
+emission defects (0). **Marker campaign CLOSED at the honest floor 1240** — durable deliverable: the
+certified ADT foundation (3-axiom ledger held); measured residual: ≈125 `Dict[str,Any]` leave-trusted,
+the by-ref-mutation boundary, 2 deferred emitter-correctness items (multi-`_` tuple-unpack wildcard;
+tuple-literal `iter_length` declaration + heterogeneous-tuple-unpack typing), 4 irreducible floor.

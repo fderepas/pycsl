@@ -8,14 +8,22 @@ executed** (tiers 1 and 2a were run; their `--no-proof`-based fan-out estimates 
 - **Loop procedure & the streamlined gate:** `config/skills/self-tcb-reduction/SKILL.md` (esp. §5.1).
 - **Live ledger:** `self-tcb-reduction.md` §8.
 
-## Current state (2026-07-06 — tier-3 closed)
+## Current state (2026-07-07 — tier-3 AND tier-5 closed; MARKER CAMPAIGN CLOSED at 1240)
 - Branch `ghost-assign-bc6`, green: fidelity 90/90 verbatim, mirror-check 51/51, conformance 38/38, doc-coherency in sync, tree clean.
 - `\trusted` count **1240** (grep-count).
 - Banked: streamlined gate, frontier map, 2 faithful-semantics features (module-const-dict `.get`, string `or`/`and`),
   the **certified tier-3 ADT foundation** (expr ADT + Rocq/Lean record-valued certificate, 3-axiom ledger held),
   and **22 verified conversions (1262→1240)** — 10 pre-tier-3 + 3 tier-3-re-triage leaves + 9 tier-3 PATH-1 harvest.
-- **Tiers 1/2/3 marker yields: 8 / 0 / 9.** All three campaigns closed at their honest floors; the remaining
-  frontier is a semantic ceiling / soundly-trusted boundaries (see the TIER 3 banner below).
+- **Tiers 1/2/3 marker yields: 8 / 0 / 9.** All three campaigns closed at their honest floors.
+- **TIER 5 (value-model gaps, the 141 trusted-pending) — EXECUTED & CLOSED, yield 0** (2026-07-07, via the SL
+  ask-each-time loop). Census: 0/98 convertible. **F-B1** (`Dict[str,Any]`/`pyval` model, user-chosen) → measured
+  **NO-GO** (`getting-better/tier3/fb1-feasibility-spike.md`): the type is sound but real generic-dict walkers stay
+  blocked at the emitter by by-ref mutation + opaque-dict collapse. **Emission-defect lever** (2 best leads probed
+  whole-body) → both genuine emitter issues but **0 clean self-verified −1s**: each fix's mirror re-port hits the
+  same `int/string` / heterogeneous-collection value-model gaps (`getting-better/tier3/emission-defect-spike-findings.md`).
+  **The marker campaign is CLOSED.** Residual: 2 leave-trusted + ~125 `Dict[str,Any]`/collection value-model-gapped
+  (trusted-pending, low-ROI) + 2 deferred emitter-correctness items + 4 floor. The durable win is the certified
+  foundation, not a further marker cut. The remaining frontier is a semantic ceiling / soundly-trusted boundaries.
 
 ## The frontier (one-time triage, ~1215 real stubs)
 | bucket | count | meaning |
