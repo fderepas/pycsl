@@ -150,7 +150,14 @@ For EACH family, in order (§4):
 ---
 
 ## 7. Execution ledger (updated as phases land)
-- [ ] Phase 1 — infra + A-unit (22)
+- [◑] Phase 1 — infra + A-unit (22): **MAKE-OR-BREAK PASSED (commit `c436c9af`)**. GenericFold
+  recognizer+node+templater landed (`generic_fold.py`); `find_named_expr_targets` converts via the A-unit
+  catamorphism — full-file proof SUCCESS (variant decrease Valid — the 2′c termination obstruction gone),
+  count 1248→1247, byte-diff 0 (recognizer inert on 0/756), ledger==3 (allowlist+certs untouched, 0 axiom),
+  independently re-verified. **The subsystem works.** 1/22 converted; 21 deferred to per-sub-form
+  extensions: ~5 check-walks (unit+`raise`, no accumulator — next A-unit brick), ~5 by-return functional
+  folds (`set`/`list` result → A-set/A-list, Phase 3), 1 generator, richer-pre-action by-ref collectors.
+- [ ] Phase 1b — A-unit sub-forms (check-walk unit+raise; richer pre-action grammar; instance-method self-call)
 - [ ] Phase 2 — A-doc (3) + A-bool (16)
 - [ ] Phase 3 — A-set / A-list / A-dict (⊂259, per-family go/no-go)
 - [ ] Phase 4 — LINK-2 note + scale-out + stop-loss
