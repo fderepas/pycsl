@@ -157,7 +157,26 @@ For EACH family, in order (§4):
   independently re-verified. **The subsystem works.** 1/22 converted; 21 deferred to per-sub-form
   extensions: ~5 check-walks (unit+`raise`, no accumulator — next A-unit brick), ~5 by-return functional
   folds (`set`/`list` result → A-set/A-list, Phase 3), 1 generator, richer-pre-action by-ref collectors.
-- [ ] Phase 1b — A-unit sub-forms (check-walk unit+raise; richer pre-action grammar; instance-method self-call)
-- [ ] Phase 2 — A-doc (3) + A-bool (16)
-- [ ] Phase 3 — A-set / A-list / A-dict (⊂259, per-family go/no-go)
-- [ ] Phase 4 — LINK-2 note + scale-out + stop-loss
+- [✗] Phase 1b — A-unit check-walk sub-form: **−0 (verified)**. All 5 candidates (`_sa_walk`, `_gso_walk`,
+  `_cp_walk`, `_conc_check_reads`, `_pb_expr`) DEFER — the pre-actions uniformly **reach outside the walk**
+  (variable-key context-map lookup `symtab.get(node-key)`, or a sibling `\trusted`-helper call), a distinct
+  external-dependency feature, not a template slot. No code landed (would fire on 0 methods).
+- [✗] Phase 2 — A-doc benchmark `find_return_type`: **DEFER (verified)**. It does NOT fit the closed A-doc
+  shape — it composes TWO sibling predicate walks (`_has_return`/`_has_return_with_value`) as guards, does
+  **early-return-in-loop** (short-circuit search, not a `DCat` fold), and joins a **synthetic** `["int"]*n`
+  list unrelated to the recursion. **The L2 spike `v2_listdict_recurse_spike.mlw` was an *idealized sketch*,
+  not a faithful lowering of the real body** — so benchmark #2's "proven target" was aspirational.
+- **VERIFIED SCALING REALITY (the decisive finding):** the v3 census classified by the *outer* walk shape
+  (isinstance-dict/walk), but real methods' complexity lives in the **pre-action / composition / control
+  flow** — sibling-helper calls, variable-key context lookups, composed multi-algebra folds, short-circuit
+  search, value-dependent recursion guards. Both benchmarks past #1 DEFERRED on contact. **The census
+  family counts (22 A-unit, 3 A-doc, …) are UPPER BOUNDS that do not survive the real bodies** (same
+  over-count as tier-1/tier-5). **Clean template yield ≈ 1** (the uniquely self-contained
+  `find_named_expr_targets`). Everything else is **per-method feature work** — a context-map value model, a
+  sibling-`val`-interop feature, composed-fold/short-circuit-search algebras — each a bounded but real
+  go/no-go, NOT a free template slot.
+- **BANKED (the genuine win):** the wall is broken *in practice* — a certified catamorphic lowering that
+  emits a proving recursion for a real generic dict-walk, no new trust, no new axiom (count 1248→1247). The
+  reusable `GenericFold` infra + the verified L1 certificate + the L1/L2/L3 decomposition stand.
+- [ ] Phase 3+ — the collection-result families + the per-method dependency features: a distinct
+  multi-session campaign, census-first per family, each measured not projected. NOT session-momentum.
