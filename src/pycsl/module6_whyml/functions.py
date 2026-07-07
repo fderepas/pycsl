@@ -2012,7 +2012,12 @@ class FunctionEmissionMixin:
             v = nu  # nested map value, e.g. `map int (option int)`
         else:
             v = "int"
-        return f"map {k} (option {v})"
+        # A compound value type (`seq int`, `map …`) MUST be parenthesized inside
+        # `option`, else WhyML parses `option seq int` as `option` applied to the
+        # bare `seq` (0-arg) — "Type symbol seq expects 1 argument but is applied
+        # to 0". A scalar `v` (`int`/`string`) needs no parens (byte-identical).
+        v_arg = f"({v})" if " " in v else v
+        return f"map {k} (option {v_arg})"
 
     @staticmethod
     def _parse_mixin_sig(sig: str):
