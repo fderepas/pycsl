@@ -44,16 +44,8 @@ SUITE=(
     "src/self-annotate/src/module6_whyml/ir_scanner.py"
     "src/self-annotate/src/__init__.py"
     "src/self-annotate/src/module6_whyml/__init__.py"
-    # Bucket B — needs richer stubs; currently \trusted with stub bodies
-    "src/self-annotate/src/import_classifier.py"
-    "src/self-annotate/src/ConcurrencyChecker.py"
     # Bucket C — research-grade, \trusted reviewer with stub bodies
     "src/self-annotate/src/audit_proof.py"
-    "src/self-annotate/src/Module1_Ingestor.py"
-    "src/self-annotate/src/Module2_Parser.py"
-    "src/self-annotate/src/Module3_Weaver.py"
-    "src/self-annotate/src/Module4_SemanticAnalyzer.py"
-    "src/self-annotate/src/Module5_IREmitter.py"
     "src/self-annotate/src/Module6_WhyMLTranspiler.py"
     "src/self-annotate/src/pycsl.py"
     "src/self-annotate/src/module6_whyml/auto_trust.py"
@@ -61,6 +53,24 @@ SUITE=(
     "src/self-annotate/src/module6_whyml/statements.py"
     "src/self-annotate/src/module6_whyml/stmt_control_flow.py"
     "src/self-annotate/src/module6_whyml/preamble.py"
+    # Bucket D — frontend/ mirror (relocated from top-level by 0f0f32c7; each mirrors a
+    # live src/pycsl/frontend/ module and is a genuine full-file verification target).
+    # The suite array was NOT updated at relocation time, so these silently left the gate;
+    # repointed + completed here. Module4_SemanticAnalyzer was DELETED in the refactor
+    # (replaced by core_ir_semantic.py) — dropped, not repointed.
+    "src/self-annotate/src/frontend/__init__.py"
+    "src/self-annotate/src/frontend/Module1_Ingestor.py"
+    "src/self-annotate/src/frontend/Module2_Parser.py"
+    "src/self-annotate/src/frontend/Module3_Weaver.py"
+    "src/self-annotate/src/frontend/Module5_IREmitter.py"
+    "src/self-annotate/src/frontend/ConcurrencyChecker.py"
+    "src/self-annotate/src/frontend/import_classifier.py"
+    "src/self-annotate/src/frontend/exec_splice.py"
+    "src/self-annotate/src/frontend/ir_inline.py"
+    "src/self-annotate/src/frontend/ir_resolve.py"
+    "src/self-annotate/src/frontend/module_collect.py"
+    "src/self-annotate/src/frontend/monomorphize.py"
+    "src/self-annotate/src/frontend/pure_ast.py"
 )
 
 GREEN='\033[0;32m'

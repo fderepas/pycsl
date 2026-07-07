@@ -260,6 +260,23 @@ soundly-trusted boundary, NOT a conversion backlog.** Convert by measurement, no
    reproduces AND refuted the payoff projection (`getting-better/tier3/plan-review.md`), averting a
    wasted grind. Have it *reproduce* the make-or-break gates (build + axiom audit), not take them on trust.
 
+10. **The SL gate MUST include a FULL-FILE proof (`bin/run-self-annotation-suite.sh`), not just
+    `--fun` + the two fidelity gates.** `--fun` proves ONE function while TRUSTING its siblings as
+    `val` stubs, so a leaky *verified* method (or an emitter type-lowering bug that only bites when the
+    whole file's signatures are emitted together — e.g. the `option seq int` un-parenthesized-`option`
+    bug) passes `--fun` yet FAILS the whole-file proof. And `check-self-annotate-sync.sh` /
+    `self-annotate-mirror-check.sh` only check body/signature MATCH, never provability. The full-file
+    suite is the only plane that catches a file that type-checks per-function but is not whole-file
+    provable — keep it in the gate battery, green, exit 0.
+
+11. **When mirror files are moved/renamed, UPDATE THE SUITE ARRAY IN THE SAME COMMIT.** The suite array
+    in `run-self-annotation-suite.sh` is a hand-maintained path list — a stale entry counts as
+    `[MISSING]` (a failure) and, worse, silently DROPS the relocated file from the gate. The `0f0f32c7`
+    regression moved 7 files to `frontend/` without touching the array: the array then listed 7 dead
+    top-level paths (suite red, never exit 0) AND the relocated `frontend/` mirrors sat OUTSIDE the gate
+    and drifted (`Module3_Weaver` failed whole-file proof on the `option seq int` bug, undetected for
+    weeks). A move is not done until the suite array points at the new paths and still exits 0.
+
 ## 11. LOOP ENTRY — the campaign is CLOSED; the loop ASKS before working (do NOT auto-run)
 
 The tier-1/2/3 ADT campaign is closed at count **1240** (§10). There is **no auto-run backlog.** When
