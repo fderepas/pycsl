@@ -1285,7 +1285,7 @@ def _run_audit_mode(args: argparse.Namespace) -> int:
     the kernel-axiom allow-list (see sticky-01.md Phase 0).
     """
     from pathlib import Path
-    from audit_proof import audit_rocq, audit_lean, AuditReport, print_report
+    from audit_proof import audit_rocq, audit_lean, AuditReport, print_report, _Directive
     py = Path(args.file)
     rocq_dir = Path(args.rocq_proofs_path) if args.rocq_proofs_path else None
     lean_dir = Path(args.lean_proofs_path) if args.lean_proofs_path else None
