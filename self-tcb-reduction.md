@@ -914,3 +914,32 @@ cluster. Second: the **scalar-value-leaf projection** for `Number.value` (int/`i
 literal/affine-form readers in `expressions.py`. The stmt/contract node families and set-local/map-local
 modeling remain further out. Both increments are demand-driven emitter features (spike→build→gate),
 per the standing tier-2/tier-3 lesson that a marker conversion needs the value shape BUILT first.
+
+**Phase-1 Track-R (R3 / R1' / R2) — STOP-LOSS at 1240; 0 conversions (full: `getting-better/tier3/
+wall-plan-phase1.md`).** Executed the Phase-0 (`wall-plan-phase0.md`) decision "Track M HALTED,
+Track-R-only" through the existing certified IR-node ADT (no new value model; `pyval`/`fmap`
+untouched). Count **1240 → 1240**. Measured clean rate **0/1** direct attempt (+ the tier-5 census's
+0/98 on the same surface). Findings:
+- **The mirror baseline is RED at HEAD** (pre-existing, zero edits this session):
+  `bin/run-self-annotation-suite.sh` FAILs on `expressions.py` (`.mlw:669`, verified
+  `_handle_field_get_expr` — `_class_constants` value-type `option int` read as string) and
+  `statements.py` (`.mlw:508`, verified `_handle_array_set_stmt`), both `int↔string`, plus `pycsl.py`.
+  Git-traced to the WL-04f/05/06 verified-method resyncs (`4ef18975` et al.) — the SKILL §10.4 failure
+  mode (re-port of a verified method that can't re-prove) landed across the WL series and degraded the
+  `e73ec7c6`-era "pre-existing leak in an unconverted method" into a **whole-file typecheck failure**.
+  A whole-file typecheck failure blocks `--fun` proof of EVERY method in the file (confirmed on
+  `_handle_tuple_unpack_stmt`).
+- **R3 BLOCKED:** its targets (`_handle_tuple_unpack_stmt` in statements.py; the `for nm,v in (…)`
+  path via `_emit_metatype_tags`/`_classify_iterable`/`_handle_for_stmt`) are verified methods in RED
+  files, and the `for nm,v` case is a heterogeneous-tuple-literal **value-model feature** (opaque
+  `iter_length` path), not a small typing tweak — out of Track-R scope.
+- **R2 = 0/1:** ADT reflection is gated on a `@mutable_state @dataclass` reader class (recognizers §7);
+  the @mutable_state files are RED, the clean files (types.py/ir_scanner.py/functions.py) are plain
+  classes → `.get("type")` collapses to `int` → B1. Measured `types.py::_val_is_bool` (smallest
+  non-recursive incidental clean stub) → `--fun` `type string, but expected int` FAIL; reverted, 1240.
+- **R1' NOT built** — unused facade = gold-plating (task's explicit prohibition) with every R2 consumer
+  blocked; deferred to a green-baseline session with a co-landing consumer.
+- **Actionable output:** restore the RED baseline (fix the `expressions.py`/`statements.py` verified-body
+  `int↔string` leaks; audit the WL resyncs vs §10.4) BEFORE reopening Track-R Phase-1 — it blocks R3,
+  ADT-routed R2, and R1' alike. Ledger held at 3 axioms; `proof_axiom_allowlist` unchanged; fidelity
+  `check-self-annotate-sync` green (90 verbatim). Deliverables docs-only; no `src/pycsl`/mirror edit.
