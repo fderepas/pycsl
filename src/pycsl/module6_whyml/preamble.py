@@ -2093,6 +2093,13 @@ class PreambleEmissionMixin:
             out.append(f"  predicate separated (a: loc) (na: int) (b: loc) (nb: int) =")
             out.append(f"    a + na <= b \\/ b + nb <= a")
             out.append("")
+        if needs.get("needs_pydict"):
+            # WALL-PLAN v2: the concrete-map pyval/pydict/doc theory
+            # (`_emit_pydict_theory`) needs list/option/string. Emit any not already
+            # `use`d above. Gated + never set by the reference corpus → byte-diff-0.
+            for _u in ("  use list.List", "  use option.Option", "  use string.String"):
+                if _u not in out:
+                    out.append(_u)
         return out
 
     def _emit_preamble_exceptions(self, needs: Dict[str, Any]) -> List[str]:
@@ -2549,12 +2556,151 @@ class PreambleEmissionMixin:
             out.append(f"  {line}")
         return out
 
+    def _emit_pydict_theory(self, needs: Dict[str, Any]) -> List[str]:
+        """WALL-PLAN v2 (generic-dict-str-any-2-plan.md §1 D1–D3, §2 E4, §3 F4):
+        the concrete-map universal-value theory, promoted from the Phase-0 spike
+        (`test-suite/corpus/conformance/spikes/v2_pydict_spike.mlw`, verdict
+        `getting-better/tier3/wall-plan-v2-phase0.md`) into the emitter preamble.
+
+        Pure inductive datatypes + a PROVEN lemma pack — NO `axiom` (R-C). The
+        Rocq/Lean twins (`Phase2c_PyValDict.v` / `PyValDict.lean`) certify the same
+        laws axiom-free, so the 3-axiom ledger is unchanged.
+
+        ADDITIVE / inert: gated on `needs.get("needs_pydict")`, which nothing in
+        the reference corpus sets (Phase 2 routing turns it on), so the emission is
+        byte-diff-0 on the 756-program corpus. The required `use`s are emitted by
+        `_emit_preamble_uses` under the same gate."""
+        if not needs.get("needs_pydict"):
+            return []
+        return [
+            "",
+            "  (* ==== wall-plan v2: concrete-map universal-value theory (inert unless routed) ==== *)",
+            "  (* D2 / R-B — interned IR keys: key (dis)equality is constructor reasoning, *)",
+            "  (* zero string theory in any walker VC. `K_dyn s` is the computed-key fallback. *)",
+            "  type irkey =",
+            "    | K_type | K_left | K_right | K_op | K_z",
+            "    | K_value | K_target | K_body | K_orelse | K_func | K_name",
+            "    | K_dyn string",
+            "",
+            "  (* D1 / R-A — the strictly-positive concrete universal value (no arrow / no map *)",
+            "  (* in any constructor); `pydict` is a bespoke assoc-list keyed by irkey. *)",
+            "  type pyval =",
+            "    | PInt  int",
+            "    | PStr  string",
+            "    | PBool bool",
+            "    | PNone",
+            "    | PList (list pyval)",
+            "    | PDict pydict",
+            "  with pydict =",
+            "    | DNil",
+            "    | DCons irkey pyval pydict",
+            "",
+            "  let function is_pdict (v: pyval) : bool = match v with PDict _ -> true | _ -> false end",
+            "  let function is_plist (v: pyval) : bool = match v with PList _ -> true | _ -> false end",
+            "  let function is_pstr  (v: pyval) : bool = match v with PStr  _ -> true | _ -> false end",
+            "",
+            "  (* get / mem_key : structural over the dict; key test is constructor (dis)equality. *)",
+            "  function get (d: pydict) (k: irkey) : option pyval",
+            "  = match d with",
+            "    | DNil -> None",
+            "    | DCons k' v rest -> if k = k' then Some v else get rest k",
+            "    end",
+            "",
+            "  predicate mem_key (d: pydict) (k: irkey)",
+            "  = match d with",
+            "    | DNil -> false",
+            "    | DCons k' _ rest -> k = k' \\/ mem_key rest k",
+            "    end",
+            "",
+            "  function values (d: pydict) : list pyval",
+            "  = match d with",
+            "    | DNil -> Nil",
+            "    | DCons _ v rest -> Cons v (values rest)",
+            "    end",
+            "",
+            "  (* D3 — size measure: +1 per cons cell (list AND dict), so the HEAD recursion *)",
+            "  (* strictly decreases even for a singleton (the spike's crux fix). *)",
+            "  function size (v: pyval) : int",
+            "  = match v with",
+            "    | PInt _ | PStr _ | PBool _ | PNone -> 1",
+            "    | PList xs -> 1 + size_list xs",
+            "    | PDict d  -> 1 + size_dict d",
+            "    end",
+            "  with size_list (l: list pyval) : int",
+            "  = match l with Nil -> 0 | Cons h t -> 1 + size h + size_list t end",
+            "  with size_dict (d: pydict) : int",
+            "  = match d with DNil -> 0 | DCons _ v rest -> 1 + size v + size_dict rest end",
+            "",
+            "  (* R-C — the PROVEN lemma pack (`let rec lemma`: the recursion IS the induction). *)",
+            "  let rec lemma size_pos (v: pyval) : unit",
+            "    ensures { size v > 0 } variant { v }",
+            "  = match v with",
+            "    | PList xs -> size_list_nonneg xs",
+            "    | PDict d  -> size_dict_nonneg d",
+            "    | _ -> () end",
+            "  with lemma size_list_nonneg (l: list pyval) : unit",
+            "    ensures { size_list l >= 0 } variant { l }",
+            "  = match l with Nil -> () | Cons h t -> size_pos h; size_list_nonneg t end",
+            "  with lemma size_dict_nonneg (d: pydict) : unit",
+            "    ensures { size_dict d >= 0 } variant { d }",
+            "  = match d with DNil -> () | DCons _ v rest -> size_pos v; size_dict_nonneg rest end",
+            "",
+            "  let rec lemma size_dict_mem (k: irkey) (d: pydict) : unit",
+            "    ensures { mem_key d k -> match get d k with",
+            "                             | Some w -> size w < size (PDict d)",
+            "                             | None   -> true end }",
+            "    variant { d }",
+            "  = match d with DNil -> () | DCons _ _ rest -> size_dict_mem k rest end",
+            "",
+            "  (* E4 — wf_ir well-formedness + the compositionality lemma the unguarded read *)",
+            "  (* discharges from. `wf_val` is the per-key expected-shape table (representative *)",
+            "  (* here; `wf_ir_gen.py` emits the full per-(shape,key) predicate from ir_schema.py). *)",
+            "  predicate wf_val (k: irkey) (v: pyval)",
+            "  = match k with",
+            "    | K_op | K_type | K_target | K_func | K_name ->",
+            "        (match v with PStr _ -> true | _ -> false end)",
+            "    | _ -> true",
+            "    end",
+            "",
+            "  predicate wf_dict (d: pydict)",
+            "  = match d with",
+            "    | DNil -> true",
+            "    | DCons k v rest -> wf_val k v /\\ wf_dict rest",
+            "    end",
+            "",
+            "  predicate wf_ir (v: pyval)",
+            "  = match v with PDict d -> wf_dict d | _ -> true end",
+            "",
+            "  let rec lemma wf_ir_binds (k: irkey) (d: pydict) : unit",
+            "    requires { wf_dict d }",
+            "    ensures  { forall v: pyval. get d k = Some v -> wf_val k v }",
+            "    variant  { d }",
+            "  = match d with",
+            "    | DNil -> ()",
+            "    | DCons _ _ rest -> wf_ir_binds k rest",
+            "    end",
+            "",
+            "  (* F4 — the document ADT + render skeleton; only render touches strings, and no *)",
+            "  (* walker VC ever carries a string term (projections flow PStr into DText opaquely). *)",
+            "  type doc = DText string | DInt int | DCat doc doc | DDoc_nil",
+            "  function int_to_str int : string   (* abstract (uninterpreted) — no axiom *)",
+            "  function render (d: doc) : string",
+            "  = match d with",
+            "    | DText s -> s",
+            "    | DInt n  -> int_to_str n",
+            "    | DCat a b -> concat (render a) (render b)",
+            "    | DDoc_nil -> empty",
+            "    end",
+            "",
+        ]
+
     def _emit_preamble(self, needs: Dict[str, Any],
                        module_name: str = "PyCSL_Program") -> List[str]:
         """Emit the WhyML module header: use declarations, exception types, helper functions."""
         out = self._emit_preamble_uses(needs, module_name)
         out += self._emit_preamble_exceptions(needs)
         out += self._emit_preamble_helpers(needs)
+        out += self._emit_pydict_theory(needs)
         out += self._emit_preamble_no_exception_predicates(needs)
         # NOTE: `#@ proof` axioms are emitted by `transpile()` AFTER the type
         # declarations (not here) — an axiom may quantify over a user

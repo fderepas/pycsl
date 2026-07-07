@@ -3,7 +3,7 @@ LEAN_ENV := source $(HOME)/.elan/env &&
 
 LEAN_FILES := PyCSL/AST.lean PyCSL/State.lean PyCSL/SOS.lean \
               PyCSL/DesugarDef.lean PyCSL/Desugar.lean PyCSL/WP.lean \
-              PyCSL/WhileInv.lean PyCSL/Soundness.lean PyCSL/RecordVal.lean \
+              PyCSL/WhileInv.lean PyCSL/Soundness.lean PyCSL/RecordVal.lean PyCSL/PyValDict.lean \
               PyCSL/Tests.lean
 
 all: build

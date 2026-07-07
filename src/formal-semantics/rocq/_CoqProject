@@ -8,6 +8,7 @@ Phase1d_StmtToIr.v
 Phase1b_IrToStmtExtract.v
 Phase2_State.v
 Phase2b_RecordVal.v
+Phase2c_PyValDict.v
 Phase7_MemModel.v
 Phase3_SOS.v
 Phase3b_DesugarDef.v
