@@ -4980,8 +4980,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (obj == "self" and self_type
                 and field in self._class_constants.get(self_type, {})):
             return f"({self._class_constants[self_type][field]})"
-        decl_fields = self._all_record_fields
-        if field in decl_fields:
+        if field in self._all_record_fields:
             return f"{obj}.{self._field_label(self_type, field)}"
         hash_field = stable_hash(field)
         self_type = self._current_self_type
