@@ -1104,8 +1104,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _rec_lower = (self._current_self_type if obj == "self"
                       else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or None)
         safe_field = self._field_label(_rec_lower, field)
-        decl_fields = self._all_record_fields
-        if field in decl_fields:
+        if field in self._all_record_fields:
             # Coerce RHS to the field's declared WhyML type. Without
             # this, `self.<list-field> <- <int-returning-call>` (e.g.
             # `self._lock_order <- get_order(...)` where get_order is
@@ -1152,8 +1151,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         val = self._expr_to_whyml(stmt.value, local_refs)
         op = op_translate(stmt.op)
         safe_field = whyml_ident(field)
-        decl_fields = self._all_record_fields
-        if field in decl_fields:
+        if field in self._all_record_fields:
             code = f"{indent}{obj}.{safe_field} <- {obj}.{safe_field} {op} {val}"
         else:
             hash_field = stable_hash(field)

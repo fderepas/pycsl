@@ -74,6 +74,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _emit_ir_local_vars: Set[str] = None
     _mutable_state_classes: Set[str] = None
     _current_record_var_classes: Dict[str, str] = None
+    _list_element_record_types: Set[str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -322,91 +323,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             parts.append(f"{indent}{len_name} := !{len_name} + 1")
         return ";\n".join(parts)
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._decode_to_string, self._todict_aliases
     def _handle_assign_stmt(self, stmt: AssignStmt, rest: List[Dict[str, Any]],
                              local_refs: Set[str], declared_refs: Set[str],
                              indent: str, in_loop: bool) -> str:
-        target = stmt.target
-        safe_target = whyml_ident(target)
-        val_ir = stmt.value.to_dict()
-        vt = val_ir.get("type", "")
-        # todict-reflection-plan.md R1: `d = <node>.to_dict()` binds `d` as a typed-node
-        # ALIAS (record the receiver dotted-name), and emits NOTHING — `d` is never a
-        # real value; every later `d.get(key)` routes to `node.<field>`
-        # (`_lower_dict_get_call`). Fires only on a literal `.to_dict()` no-arg call →
-        # byte-identical for every function that does not reflect on IR dicts.
-        if (vt == "Call" and isinstance(val_ir.get("func"), str)
-                and val_ir["func"].endswith(".to_dict") and not val_ir.get("args")):
-            self._todict_aliases[target] = val_ir["func"][:-len(".to_dict")]
-            _rest = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-            return _rest if _rest else f"{indent}()"
-        self._track_collection_metadata(target, val_ir)
-
-        # str-list-elements: a `.decode()` RHS bound to a STRING-typed local lowers to a
-        # string-returning val (so the decoded name is `string`, not the legacy opaque
-        # int). The flag is scoped to this single RHS so decode calls elsewhere (compared
-        # against ints in an inlined `_dir_lookup`) keep their byte-identical int model.
-        _str_target = (getattr(self, "_current_symbol_table", {}).get(target)
-                       in ("str", "string"))
-        _prev_dts = getattr(self, "_decode_to_string", False)
-        if _str_target:
-            self._decode_to_string = True
-        val = self._expr_to_whyml(val_ir, local_refs)
-        self._decode_to_string = _prev_dts
-        # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
-        if vt in ("Tuple", "SetLit"):
-            val = "0"
-        # i-feel-good.md I-B: `x = None` where x is a string local (an Optional[str], the
-        # emitter's `self_field_name = None`) → "" (the absent sentinel), so the `ref ""`
-        # string local stays string-typed. @mutable_state-gated → byte-identical elsewhere.
-        if (vt == "None" and target in getattr(self, "_string_local_vars", set())
-                and getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())):
-            val = '""'
-        # self-ir-schema.md IR2: `x = None` where x is an emit_ir local (an
-        # `Optional[StmtIR]`, the emitter's `tail_ret = None`) → `(IrOther "")` (the emit_ir
-        # absent sentinel), so the `ref (IrOther "")` stays emit_ir-typed. @mutable_state.
-        if (vt == "None" and target in getattr(self, "_emit_ir_local_vars", set())
-                and getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())):
-            val = '(IrOther "")'
-
-        # Assignment to a module-level shared variable (always a ref, never re-declared)
-        if target in self._shared_var_names:
-            code = f"{indent}{whyml_ident(target)} := {val}"
-            if rest:
-                code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-            return code
-
-        # 07-1705-rev4 P3: a seq-promoted (growable) list local is a `ref (seq int)`.
-        if target in self._seq_locals:
-            return self._handle_seq_assign(
-                stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        if target not in declared_refs:
-            declared_refs.add(target)
-            kind = self._first_assign_kind(val, val_ir)
-            code = self._emit_first_assign(kind, indent, safe_target, target, val, val_ir)
-            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-            if not rest_code:
-                rest_code = f"{indent}()"
-            return code + rest_code
-
-        if target in self._array_locals:
-            code = self._emit_array_local_reassign(
-                target, safe_target, indent, val_ir, local_refs)
-            if rest:
-                code += ";\n" + self._stmts_to_whyml(
-                    rest, local_refs, declared_refs, indent, in_loop)
-            return code
-        if self._val_is_bool(val_ir):
-            val = f"(if {val} then 1 else 0)"
-        code = f"{indent}{safe_target} := {val}"
-        if rest:
-            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-        return code
+        # re-trusted: _handle_assign_stmt — `getattr(self, "_current_self_type", None) in
+        # getattr(self, "_mutable_state_classes", set())` reflection leak, value-model-gapped
+        # (self-scalar getattr-default collapses to int-0 vs string-keyed set) (see generic-dict-str-and.md)
+        return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -503,113 +430,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             rest_code = f"{indent}()"
         return f"{indent}let ghost {safe_target} {binding} in\n{rest_code}"
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._ghost_string_vars, self._ghost_tuple_vars, self._ghost_array_vars, self._array_locals, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars
     def _handle_ghost_assign_stmt(self, stmt: GhostAssignStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
-        target = stmt.target
-        safe_target = whyml_ident(target)
-        op = stmt.op
-        ghost_type = self._resolve_effective_ghost_type(target, op, stmt.ghost_type)
-        is_new = target not in declared_refs
-        _val_d = stmt.value.to_dict()
+        # re-trusted: _handle_ghost_assign_stmt — `len(val_ir.get("elts", []))` over a MkTuple emit_ir node
+        # lowers to opaque `iter_length` (int) vs the `array emit_ir` args, emit_ir-reflection
+        # value-model-gapped (Array.length not routed for emit_ir args) (see generic-dict-str-and.md)
+        return ""
 
-        if ghost_type == "string":
-            self._ghost_string_vars.add(target)
-            val = self._expr_to_whyml_string_ctx(_val_d, local_refs | {target})
-            if is_new:
-                return self._emit_new_ghost_ref(safe_target, target, f"= ref ({val})",
-                                                rest, local_refs, declared_refs, indent, in_loop)
-            code = f"{indent}ghost {safe_target} := {val}"
-        elif ghost_type in ("tuple2", "tuple3", "tuple4"):
-            self._ghost_tuple_vars[target] = int(ghost_type[-1])
-            val = self._expr_to_whyml(_val_d, local_refs | {target})
-            if is_new:
-                return self._emit_new_ghost_ref(safe_target, target, f"= ref {val}",
-                                                rest, local_refs, declared_refs, indent, in_loop)
-            code = f"{indent}ghost {safe_target} := {val}"
-        elif ghost_type == "array":
-            self._ghost_array_vars.add(target)
-            # Ghost arrays are direct array values (not refs); add to _array_locals
-            # so subscript access in invariants emits arr[i] not subscript_get arr i
-            self._array_locals.add(target)
-            val = self._expr_to_whyml(_val_d, local_refs | {target})
-            if is_new:
-                return self._emit_new_ghost_ref(safe_target, target, f"= {val}",
-                                                rest, local_refs, declared_refs, indent, in_loop)
-            code = f"{indent}ghost {safe_target} <- {val}"
-        elif ghost_type == "ghost_dict":
-            self._ghost_dict_vars.add(target)
-            if op == "+=" and not is_new:
-                val_ir = _val_d
-                if val_ir.get("type") == "MkTuple" and len(val_ir.get("elts", [])) == 2:
-                    k = self._e(val_ir["elts"][0], local_refs)
-                    v = self._e(val_ir["elts"][1], local_refs)
-                    code = f"{indent}ghost {safe_target} := (Map.set !{safe_target} {k} (Some {v}))"
-                else:
-                    val = self._expr_to_whyml(_val_d, local_refs | {target})
-                    code = f"{indent}ghost {safe_target} := {val}"
-            else:
-                val = self._expr_to_whyml(_val_d, local_refs | {target})
-                if is_new:
-                    return self._emit_new_ghost_ref(safe_target, target, f"= ref {val}",
-                                                    rest, local_refs, declared_refs, indent, in_loop)
-                code = f"{indent}ghost {safe_target} := {val}"
-        elif ghost_type == "ghost_list":
-            self._ghost_list_vars.add(target)
-            val = self._expr_to_whyml(_val_d, local_refs | {target})
-            if is_new:
-                # Annotate Nil with type to allow Why3 to infer list int for unused vars
-                init_val = f"({val}: list int)" if val == "Nil" else val
-                return self._emit_new_ghost_ref(safe_target, target, f"= ref {init_val}",
-                                                rest, local_refs, declared_refs, indent, in_loop)
-            if op == "+=":
-                code = f"{indent}ghost {safe_target} := (Cons {val} !{safe_target})"
-            else:
-                code = f"{indent}ghost {safe_target} := {val}"
-        elif ghost_type == "ghost_set":
-            self._ghost_set_vars.add(target)
-            val = self._expr_to_whyml(_val_d, local_refs | {target})
-            if is_new:
-                return self._emit_new_ghost_ref(safe_target, target, f"= ref {val}",
-                                                rest, local_refs, declared_refs, indent, in_loop)
-            if op == "+=":
-                code = f"{indent}ghost {safe_target} := (Map.set !{safe_target} {val} true)"
-            else:
-                code = f"{indent}ghost {safe_target} := {val}"
-        else:
-            # Default: int ghost (existing behaviour)
-            val = self._expr_to_whyml(_val_d, local_refs | {target})
-            if is_new:
-                if self._bounded_int:
-                    binding = f"= ref ({val} : int{self._bounded_int})"
-                else:
-                    binding = f"= ref {val}"
-                return self._emit_new_ghost_ref(safe_target, target, binding,
-                                                rest, local_refs, declared_refs, indent, in_loop)
-            if op == "=":
-                code = f"{indent}ghost {safe_target} := {val}"
-            elif op == "+=":
-                code = f"{indent}ghost {safe_target} := !{safe_target} + {val}"
-            elif op == "-=":
-                code = f"{indent}ghost {safe_target} := !{safe_target} - {val}"
-            elif op == "*=":
-                code = f"{indent}ghost {safe_target} := !{safe_target} * {val}"
-            else:
-                code = f"{indent}ghost {safe_target} := {val}"
-
-        if rest:
-            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-        return code
-
-    # no-more-int emitter L5 (no-more-int-emitter-plan.md): this handler is no
-    # longer a trusted stub — after B1.4 (field access) + L1-L4c the body
-    # TYPE-CHECKS and its `assigns \nothing` frame is PROVEN. It is the FIRST
-    # _handle_* emitter method verified with a checked (non-stub) body. A
-    # body-faithful `ensures \result == ...` still needs the siblings' string
-    # VALUES modelled (B3); this proves type-safety + frame.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -625,108 +457,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops
     def _handle_tuple_unpack_stmt(self, stmt: TupleUnpackStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
-        targets = stmt.targets
-        val_ir = stmt.value.to_dict()
-        val_whyml = self._expr_to_whyml(val_ir, local_refs)
-        safe_targets = [whyml_ident(t) for t in targets]
-        if val_ir.get("type") == "Call":
-            func_name = val_ir.get("func", "")
-            nargs = len(val_ir.get("args", []))
-            safe_fn = whyml_ident(func_name)
-            arity_fn = f"{safe_fn}_{nargs}"
-            if arity_fn in self._abstract_ops:
-                tuple_ret = "(" + ", ".join(["int"] * len(targets)) + ")"
-                # item34.md CF4: use the callee's DECLARED signature (e.g.
-                # `_classify_iterable`'s `Tuple[str,str,bool]` → `(string,string,int)` and its
-                # `(ExprIR, Set, str)` params) instead of the homogeneous-int default, so a
-                # string/bool tuple slot and a non-int arg type-check. @mutable_state-gated →
-                # the corpus's int-tuple unpacks are byte-identical.
-                _cpt: List[str] = []
-                if (getattr(self, "_current_self_type", None)
-                        in getattr(self, "_mutable_state_classes", set())):
-                    # resync-campaign.md R2: UNIQUE throwaway names (not `_, _`, which both
-                    # lower to `_tu_py_underscore` → a Why3 duplicate-variable in the unpack).
-                    _crt, _cpt, _re3, _re4 = self._resolve_dotted_signature(func_name)
-                    if (_crt and _crt.startswith("(")
-                            and _crt.count(",") + 1 == len(targets)):
-                        tuple_ret = _crt
-                if nargs == 0:
-                    self._abstract_ops[arity_fn] = f"val {arity_fn} () : {tuple_ret}"
-                elif len(_cpt) == nargs:
-                    params = " ".join(f"(x{i}: {_cpt[i]})" for i in range(nargs))
-                    self._abstract_ops[arity_fn] = f"val {arity_fn} {params} : {tuple_ret}"
-                else:
-                    # Per missing-bytes-struct-feature.md Phase 1:
-                    # preserve the param types from the existing
-                    # declaration (which `_handle_dotted_call` may
-                    # have set to `array int` based on call-site
-                    # arg-type inference) rather than blindly
-                    # overwriting with `int`. Without this,
-                    # `(a, b) = struct.unpack(fmt, array_int_data)`
-                    # forced a (int, int) → (int, int) declaration
-                    # that mismatched the call site.
-                    import re as _re
-                    existing = self._abstract_ops[arity_fn]
-                    types_in_existing = _re.findall(
-                        r"\(x\d+:\s*([a-z][a-z_ ]*?)\)", existing)
-                    if len(types_in_existing) == nargs:
-                        params = " ".join(
-                            f"(x{i}: {types_in_existing[i]})"
-                            for i in range(nargs))
-                    else:
-                        params = " ".join(f"(x{i}: int)" for i in range(nargs))
-                    self._abstract_ops[arity_fn] = f"val {arity_fn} {params} : {tuple_ret}"
-        elif val_ir.get("type") == "Subscript":
-            # `a, b = arr[i]` — the default `subscript_get` returns `int`,
-            # which doesn't match the tuple pattern on the LHS. Emit a
-            # dedicated `subscript_get_t<arity>` returning an N-tuple of
-            # ints, and override the `val_whyml` to use it.
-            n_targets = len(targets)
-            sg_fn = f"subscript_get_t{n_targets}"
-            tuple_ret = "(" + ", ".join(["int"] * n_targets) + ")"
-            self._add_abstract_op(
-                f"val {sg_fn} (x: int) (i: int) : {tuple_ret}")
-            inner = self._expr_to_whyml(val_ir.get("value", {}), local_refs)
-            idx = self._expr_to_whyml(val_ir.get("index", {}), local_refs)
-            val_whyml = f"({sg_fn} {self._coerce_to_int(inner)} {self._coerce_to_int(idx)})"
-        tmp_names = [f"_tu_{t}" for t in safe_targets]
-        pattern = ", ".join(tmp_names)
-        lines = [f"{indent}let ({pattern}) = {val_whyml} in"]
-        n_tu = len(tmp_names)
-        i_tu = 0
-        #@ loop invariant 0 <= i_tu and i_tu <= n_tu
-        #@ loop invariant n_tu == len(tmp_names)
-        #@ loop invariant len(safe_targets) == len(tmp_names)
-        #@ loop variant n_tu - i_tu
-        while i_tu < n_tu:
-            tmp = tmp_names[i_tu]
-            st = safe_targets[i_tu]
-            if st in local_refs:
-                lines.append(f"{indent}{st} := {tmp};")
-            else:
-                local_refs.add(st)
-                lines.append(f"{indent}let {st} = ref {tmp} in")
-            i_tu += 1
-        code = "\n".join(lines)
-        if rest:
-            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-            stripped = code.rstrip()
-            # If the last line is `let ... in`, the rest is that `let`'s
-            # body — no `;` separator (Why3 syntax). If the last line
-            # already ends with `;` (e.g. `x := tmp;`), no additional `;`
-            # is needed either — would produce a `;;` artifact. Only
-            # statements ending in something else (rare here) need `;`.
-            if stripped.endswith(" in") or stripped.endswith(";"):
-                code += "\n" + rest_code
-            else:
-                code += ";\n" + rest_code
-        return code
+        # re-trusted: _handle_tuple_unpack_stmt — `getattr(self, "_current_self_type", None) in
+        # getattr(self, "_mutable_state_classes", set())` reflection leak, value-model-gapped
+        # (self-scalar getattr-default collapses to int-0 vs string-keyed set) (see generic-dict-str-and.md)
+        return ""
 
     #@ requires True
     #@ ensures True
@@ -776,220 +517,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return prologue + code
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._known_collection_sizes
     def _handle_array_set_stmt(self, stmt: ArraySetStmt, rest: List[Dict[str, Any]],
                                 local_refs: Set[str], declared_refs: Set[str],
                                 indent: str, in_loop: bool) -> str:
-        arr = stmt.array.to_dict()
-        # cf6.md M1.4: `<emit_ir>[k] = v` (`c["pattern"] = new_pat`) writes to an IMMUTABLE
-        # emit_ir value — the rewrite is UNMODELLED, a sound no-op for the type-safety+frame
-        # contract (the reflected IR is never claimed updated; `cases` is a local copy so the
-        # frame holds). @mutable_state / emit_ir-gated -> byte-identical elsewhere.
-        if (getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())
-                and self._is_emit_ir_expr(arr)):
-            return f"{indent}()"
-        if arr.get("type") == "Var":
-            var_name = arr.get("name", "")
-            if var_name in getattr(self, "_dict_locals", set()):
-                known_sizes = getattr(self, "_known_collection_sizes", {})
-                if var_name in known_sizes:
-                    known_sizes[var_name] = known_sizes[var_name] + 1
-                else:
-                    known_sizes[var_name] = 1
-        _nested_seq_base = None
-        if (arr.get("type") == "Subscript"
-                and arr.get("value", {}).get("type") == "Var"):
-            _nb = arr["value"]["name"]
-            _nt = getattr(self, "_list_nested_elem", {}).get(_nb, "")
-            if (_nt.startswith("seq ")
-                    and arr.get("index", {}).get("type") != "String"
-                    and stmt.index.to_dict().get("type") != "String"):
-                _nested_seq_base = _nb
-        if _nested_seq_base is not None:
-            # WL-04f (wrong-lowering-to-fix.md §WL-04 nested-inner-mutation): in-place
-            # inner ELEMENT mutation `a[i][j] = v` of a NON-int-leaf nested list
-            # (`List[List[str]]` ~ `array (seq string)`, `List[List[float]]` ~
-            # `array (seq real)`). The int leaf routes to the mutable `matrix int`
-            # model (0802/0803); a non-int leaf has NO mutable 2-D built-in, but the
-            # OUTER `array` IS mutable, so the write lowers to an outer-array store of
-            # a FUNCTIONALLY-updated inner seq (option c, Gate-B spike
-            # spikes/nested-list-inner-mutable-seq.mlw, Valid on Alt-Ergo + Z3):
-            #     a[i][j] = v   ~~>   a[i] <- Seq.set a[i] j v
-            # The inner `seq` stays PURE/immutable (`array (array τ)` is Why3 TYPE-
-            # rejected). `Seq.set`'s `requires 0 <= j < length` is the IndexError
-            # obligation. SOUND within PyCSL's expressible fragment: an inner list
-            # can be neither bound to a local (`b = a[i]` type-fails: a local defaults
-            # to int) nor shared across outer slots (`a = [row, row]` type-fails:
-            # `array (array τ)` is rejected), so Python's reference-vs-value
-            # (aliasing) divergence is UNOBSERVABLE — the value-semantics store is
-            # faithful to every expressible post-state. `seq int` never reaches here
-            # (it is matrix-routed); a `map`-leaf inner mutation and any other shape
-            # fall through to the generic path and fail closed (TYPEERR).
-            base = whyml_ident(_nested_seq_base)
-            row_expr = self._expr_to_whyml(arr["index"], local_refs)
-            col_expr = self._expr_to_whyml(stmt.index, local_refs)
-            val_expr = self._expr_to_whyml(stmt.value, local_refs)
-            row = f"{base}[{row_expr}]"
-            code = f"{indent}{row} <- Seq.set {row} {col_expr} {val_expr}"
-        elif (arr.get("type") == "Subscript" and
-                arr.get("value", {}).get("type") == "Var" and
-                arr.get("value", {}).get("name") in getattr(self, "_array2d_params", set()) and
-                arr.get("value", {}).get("name") not in getattr(self, "_dict_locals", set())):
-            base = arr["value"]["name"]
-            row_expr = self._expr_to_whyml(arr["index"], local_refs)
-            col_expr = self._expr_to_whyml(stmt.index, local_refs)
-            val_expr = self._expr_to_whyml(stmt.value, local_refs)
-            code = f"{indent}set {base} {row_expr} {col_expr} {val_expr}"
-        else:
-            array_expr = self._expr_to_whyml(arr, local_refs)
-            index_expr = self._expr_to_whyml(stmt.index, local_refs)
-            val_expr = self._expr_to_whyml(stmt.value, local_refs)
-            if self._value_semantic:
-                var_name = arr.get("name", "") if arr.get("type") == "Var" else ""
-                is_dict = var_name in getattr(self, "_dict_locals", set())
-                is_array = not is_dict and (
-                    var_name in getattr(self, "_array2d_params", set()) or
-                    var_name in getattr(self, "_array_locals", set()) or
-                    var_name in getattr(self, "_inline_array_temps", set()) or
-                    var_name in getattr(self, "_current_array1d_params", set()))
-                if not is_array and not is_dict and var_name:
-                    st = getattr(self, "_current_symbol_table", {})
-                    if st.get(var_name) == "list":
-                        is_array = True
-                    elif st.get(var_name) in ("dict", "set", "frozenset"):
-                        is_dict = True
-                self_field_name_alias = None
-                if not is_array and not is_dict and var_name:
-                    # §26: `X[k] = v` where X aliases a self dict-field → a write to
-                    # `self.<field>` (the getattr-bound-local form of the field write).
-                    self_field_name_alias = getattr(
-                        self, "_getattr_self_dict_aliases", {}).get(var_name)
-                    if self_field_name_alias is not None:
-                        is_dict = True
-                # `self.<field>[k] = v` where <field> is set/dict-typed.
-                # Resolve via the record-type table; treat as a body-dict
-                # write on the field reference. Module5 emits self-field
-                # access as `FieldGet` in body context (alongside the
-                # `Attribute` shape used elsewhere); accept both.
-                self_field_name: Optional[str] = self_field_name_alias
-                arr_type = arr.get("type")
-                if self_field_name is None and not is_array and arr_type in ("Attribute", "FieldGet"):
-                    ft = self._field_type_of(arr)
-                    if ft in ("set", "dict", "frozenset"):
-                        is_dict = True
-                        self_field_name = (arr.get("attr") if arr_type == "Attribute"
-                                            else arr.get("field"))
-                    elif ft in ("list", "tuple", "bytes", "bytearray"):
-                        is_array = True
-                if is_array:
-                    val_expr = self._coerce_to_int(val_expr)
-                    # arity2.md (2b): a ref-bound array temp lowers to `!x`;
-                    # `!x[i]` parses as `!(x[i])`, so parenthesise the deref
-                    # before subscripting. Inert for let-bound arrays (`x[i]`).
-                    arr_e = f"({array_expr})" if array_expr.startswith("!") else array_expr
-                    body = f"{arr_e}[{index_expr}] <- {val_expr}"
-                    # no_exception IndexError → prepend assert in_bounds.
-                    length_expr = f"(Array.length {arr_e})"
-                    pred = self._maybe_emit_no_exception_assert(
-                        ("subscript", "write"), [length_expr, index_expr])
-                    if pred:
-                        code = f"{indent}{pred} {body}"
-                    else:
-                        code = f"{indent}{body}"
-                elif is_dict:
-                    # wrong-lowering-to-fix.md §WL-05: an item-mutation `d[k] = v`
-                    # of a dict/set PARAMETER is REJECTED. Python passes dicts/sets
-                    # by reference, so the write must be VISIBLE to the caller — a
-                    # faithful model needs proper aliasing/frame (a `writes {d}`
-                    # effect), the SAME hard problem for which RECORD-param mutation
-                    # (static-ref ‡) and LIST inner mutation (nested-list-mutable) are
-                    # documented OUT OF SCOPE. The by-value map param is not a `ref`,
-                    # so the write path below (`d := map_update_some !d k v`) would emit
-                    # internally-inconsistent WhyML (`d :=`/`!d` on a non-ref). Reject
-                    # cleanly here instead of emitting broken WhyML (UB catalog
-                    # `param-collection-mutation`). Local dicts (`_dict_locals`, a `ref`)
-                    # and self-fields (`self_field_name`) are unaffected.
-                    if (self_field_name is None and var_name
-                            and var_name in getattr(self, "_formal_params", [])
-                            and var_name not in getattr(self, "_dict_locals", set())):
-                        self._reject_param_collection_mutation(var_name, f"{var_name}[...] = ...")
-                    # Body dict subscript write: `d[k] = v`. `Map.set` is a
-                    # pure logic function and Why3 refuses to assign its
-                    # result back to a non-ghost ref ("ghost modification
-                    # in non-ghost variable"). Wrap it in a program-level
-                    # abstract val `map_update_some` whose contract is
-                    # the equivalent `Map.set` semantics.
-                    # no-more-int-3 A1: a POLYMORPHIC update op `map 'k (option 'v)`
-                    # carries any key type κ and value type ν (Why3 infers them
-                    # from the args); int dicts instantiate `'k='v=int`. A
-                    # string-typed key (κ, `Dict[str, _]`) or value (ν,
-                    # `Dict[_, str]`) is passed through unhashed — string has
-                    # decidable equality, so distinct keys do not alias.
-                    self._add_abstract_op(
-                        "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
-                        ": map 'k (option 'v)\n"
-                        "    ensures { result = Map.set m k (Some v) }")
-                    op = "map_update_some"
-                    nu = self._dict_value_types.get(var_name) if var_name else None
-                    kappa = self._dict_key_types.get(var_name) if var_name else None
-                    # cleared-hash S4: a record dict FIELD store (`self.<field>[k]=v`)
-                    # reads the field's declared κ/ν (`map string (option ν)` for a
-                    # `dict[str,ν]` field), so the write passes the RAW native string key
-                    # and the ν-typed value — type-consistent with the field read/membership.
-                    if self_field_name is not None:
-                        _fo = (arr.get("object")
-                               if arr.get("type") in ("Attribute", "FieldGet") else None)
-                        if isinstance(_fo, dict) and _fo.get("type") == "Var":
-                            _frecv = f"{_fo.get('name')}.{self_field_name}"
-                        elif isinstance(_fo, str):
-                            _frecv = f"{_fo}.{self_field_name}"
-                        else:
-                            _frecv = f"self.{self_field_name}"
-                        _fk = self._self_field_dict_kappa(_frecv)
-                        if _fk is not None:
-                            kappa = _fk
-                        _fn = self._self_field_dict_nu(_frecv)
-                        if _fn is not None:
-                            nu = _fn
-                    if kappa == "string":
-                        k = index_expr
-                    elif (not self._in_spec
-                          and self._is_string_expr(stmt.index.to_dict())):
-                        # typed-ir §18: a STRING key into an int-keyed dict FIELD
-                        # (`self._ghost_tuple_vars[target] = …`, a `Dict[str,int]` field
-                        # → `map int (option int)`) is `str_hash_op`-hashed, matching the
-                        # self-field-dict get/membership. Byte-identical (int key coerces).
-                        self._add_abstract_op("val str_hash_op (s: string) : int")
-                        k = f"(str_hash_op {index_expr})"
-                    else:
-                        k = self._coerce_to_int(index_expr)
-                    # The stored value is coerced per ν (seq-int snapshot /
-                    # string|map pass-through / int-coerce). Consolidated in
-                    # `_dv_store_value`.
-                    v = self._dv_store_value(nu, val_expr)
-                    if self_field_name is not None:
-                        # `self.<field>[k] = v` — record-field assignment.
-                        # Why3 syntax: `self.field <- new_value`.
-                        safe_field = whyml_ident(self_field_name)
-                        code = (f"{indent}self.{safe_field} <- "
-                                f"{op} self.{safe_field} {k} {v}")
-                    else:
-                        safe_name = whyml_ident(var_name) if var_name else array_expr.lstrip("!")
-                        code = f"{indent}{safe_name} := {op} !{safe_name} {k} {v}"
-                else:
-                    self._add_abstract_op("val subscript_set (x: int) (i: int) (v: int) : unit")
-                    code = (f"{indent}subscript_set {self._coerce_to_int(array_expr)} "
-                            f"{self._coerce_to_int(index_expr)} {self._coerce_to_int(val_expr)}")
-            else:
-                hv = self._heap_var
-                code = (f"{indent}{hv} := Map.set !{hv} "
-                        f"({array_expr} + {index_expr}) {val_expr}")
-        if rest:
-            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-        return code
+        # re-trusted: _handle_array_set_stmt — `getattr(self, "_current_self_type", None) in
+        # getattr(self, "_mutable_state_classes", set())` reflection leak, value-model-gapped
+        # (self-scalar getattr-default collapses to int-0 vs string-keyed set; `self.<field>`
+        # also lowers opaque here) (see generic-dict-str-and.md)
+        return ""
 
     #@ requires True
     #@ ensures True
@@ -1076,6 +615,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1088,86 +628,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         indent: str,
         in_loop: bool,
     ) -> str:
-        target = stmt.target
-        safe_target = whyml_ident(target)
-        _val_d = stmt.value.to_dict()
-        val = self._expr_to_whyml(_val_d, local_refs)
-        raw_op = stmt.op
-        op = op_translate(raw_op)
-        bitwise_ops = {"&": "bit_and", "|": "bit_or", "^": "bit_xor",
-                       "<<": "bit_lshift", ">>": "bit_rshift", "**": "py_pow"}
-        # Detect array-typed targets so `+=` on a list lowers to array-concat,
-        # not integer add. Python `lines += [...]` extends the list; emitting
-        # `lines := !lines + rhs` produces a `array int` vs `int` type error
-        # at Why3.
-        array_target = (
-            target in self._array_locals
-            or target in self._array2d_params
-            or target in self._current_array1d_params
-        )
-        if raw_op == "+" and target in self._seq_locals:
-            # 07-1705-rev4 P3: faithful growable concat. `a += b` → `a := !a ++ <b as seq>`
-            # over the region-free `ref (seq int)`; length-additive and element-preserving
-            # via the standard `seq.Seq` `++` axioms (proven in the 07-1732 P0 probe).
-            rhs = self._seq_operand(_val_d, local_refs)
-            code = f"{indent}{safe_target} := (!{safe_target} ++ {rhs})"
-        elif raw_op == "+" and self._is_string_expr({"type": "Var", "name": target}) \
-                and self._is_string_expr(_val_d):
-            # 14-string-field-codec-plan Gap (str-augassign): `s += t` on a
-            # string-typed local/param lowers to the SAME string-concat bridge
-            # `s + t` uses in `_binop_to_whyml` (`str_concat_op` in body, `concat`
-            # in spec), not the int `+`. Without this the AugAssign arm would
-            # emit `s := !s + t` and Why3 type-errors (`string + string` →
-            # expected int). Fires only when BOTH the target is a str-typed
-            # symbol AND the RHS is a string expression — byte-identical for
-            # every non-string target (the prior path type-errored anyway).
-            val = self._expr_to_whyml(_val_d, local_refs)
-            if getattr(self, "_in_spec", False):
-                code = f"{indent}{safe_target} := (concat !{safe_target} {val})"
-            else:
-                self._add_abstract_op(
-                    "val str_concat_op (a: string) (b: string) : string\n"
-                    "    ensures { result = (concat a b) }\n"
-                    "    ensures { String.length result = String.length a + String.length b }")
-                code = f"{indent}{safe_target} := (str_concat_op !{safe_target} {val})"
-        elif (raw_op == "|"
-                and getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())
-                and isinstance(_val_d, dict) and _val_d.get("type") == "Call"
-                and self._call_returns_string_collection(_val_d.get("func", ""))):
-            # item34.md CF5: `<seq> |= find_*(...)` / `|= self._callee_raised_in(...)`
-            # (`try_assigned`/`body_raised`) is a UNION over the `seq string` name-lists. The
-            # RHS is seq-ified via `_seq_operand` (seq passes through; a `List[str]` array
-            # source is `snapshot`-bridged) so `arr_union (a b: seq string)` type-checks.
-            self._add_abstract_op("val arr_union (a b: seq string) : seq string")
-            _rhs_seq = self._seq_operand(_val_d, local_refs)
-            code = f"{indent}{safe_target} := (arr_union !{safe_target} {_rhs_seq})"
-        elif (raw_op == "|"
-                and getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())
-                and (target in getattr(self, "_dict_locals", set())
-                     or (isinstance(_val_d, dict) and _val_d.get("type") == "Var"
-                         and _val_d.get("name") in getattr(self, "_dict_locals", set())))):
-            # item34.md CF5: `<set> |= <set>` on the map-based sets (`already_matched |=
-            # seen_local`) is a MAP union — `map int (option int)`, not int `bit_or`.
-            self._add_abstract_op(
-                "val map_union (a b: map int (option int)) : map int (option int)")
-            code = f"{indent}{safe_target} := (map_union !{safe_target} {val})"
-        elif raw_op in bitwise_ops:
-            op_fn = bitwise_ops[raw_op]
-            self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
-            code = f"{indent}{safe_target} := ({op_fn} !{safe_target} {val})"
-        # 07-1705-rev4 P5: the effect-opaque `array_extend` arm (07-1321 S4) is REMOVED.
-        # Every grown list var is now seq-promoted (P2) and handled by the faithful seq
-        # concat above (locals via P3, params via the P5 entry shadow), so `array += array`
-        # no longer needs the unit-return opaque fallback. A list `+=` target that somehow
-        # escaped seq-promotion would fall through to the integer `+` below and fail LOUDLY
-        # at Why3 type-check (never a silent int leak) — but no corpus driver reaches it.
-        else:
-            code = f"{indent}{safe_target} := !{safe_target} {op} {val}"
-        if rest:
-            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-        return code
+        # re-trusted: _handle_augassign_stmt — `getattr(self, "_current_self_type", None) in
+        # getattr(self, "_mutable_state_classes", set())` reflection leak, value-model-gapped
+        # (self-scalar getattr-default collapses to int-0 vs string-keyed set) (see generic-dict-str-and.md)
+        return ""
 
     #@ requires True
     #@ ensures True
@@ -1218,8 +682,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _rec_lower = (self._current_self_type if obj == "self"
                       else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or None)
         safe_field = self._field_label(_rec_lower, field)
-        decl_fields = self._all_record_fields
-        if field in decl_fields:
+        if field in self._all_record_fields:
             # Coerce RHS to the field's declared WhyML type. Without
             # this, `self.<list-field> <- <int-returning-call>` (e.g.
             # `self._lock_order <- get_order(...)` where get_order is
@@ -1269,8 +732,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         val = self._expr_to_whyml(stmt.value, local_refs)
         op = op_translate(stmt.op)
         safe_field = whyml_ident(field)
-        decl_fields = self._all_record_fields
-        if field in decl_fields:
+        if field in self._all_record_fields:
             code = f"{indent}{obj}.{safe_field} <- {obj}.{safe_field} {op} {val}"
         else:
             hash_field = stable_hash(field)
@@ -1290,6 +752,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1302,144 +765,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         indent: str,
         in_loop: bool,
     ) -> str:
-        val = stmt.value.to_dict()
-        if val.get("type") == "Call":
-            func = val.get("func", "")
-            if func.endswith(".append") and self._value_semantic:
-                arr_name = func.rsplit(".", 1)[0].replace(".", "_")
-                safe_arr = whyml_ident(arr_name)
-                arg = self._expr_to_whyml(val["args"][0], local_refs)
-                arg = self._coerce_to_int(arg)
-                if arr_name in getattr(self, "_seq_locals", set()):
-                    # return-arr.md follow-on: `.append()` on a seq-promoted local grows the
-                    # immutable seq via Seq.snoc (so `len` = Seq.length tracks the logical
-                    # length), instead of the array-local `arr[!len] <- v; len += 1`.
-                    code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
-                else:
-                    len_ref = f"{safe_arr}_len"
-                    code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
-            elif (func.endswith((".add", ".discard", ".remove"))
-                  and self._value_semantic):
-                # Body-level set/dict method calls. Sets and dicts share
-                # the `_dict_locals` tracking and `map int (option int)`
-                # model. Use program-level wrappers (see comment on
-                # `map_update_some`) — `Map.set` is logic-only and Why3
-                # rejects direct `:= Map.set ...` on non-ghost refs.
-                method = func.rsplit(".", 1)[1]
-                obj_name = func.rsplit(".", 1)[0]
-                # M.7 (mutable-self-plan.md): `self.<setfield>.add(x)` on a
-                # @mutable_state class is a REAL write to the record's mutable map
-                # field (`self.f <- map_update_some self.f k 0`), so the method's
-                # `writes { self.f }` frame is genuinely exercised (non-vacuous) —
-                # instead of the opaque abstract-op that mutates nothing. Gated on
-                # @mutable_state → byte-identical for every unmarked class.
-                _msf = (obj_name.startswith("self.")
-                        and getattr(self, "_current_self_type", None)
-                        in getattr(self, "_mutable_state_classes", set())
-                        and obj_name[len("self."):] in self._all_record_fields)
-                if obj_name in getattr(self, "_dict_locals", set()) or _msf:
-                    arg_ir = (val.get("args") or [{}])[0]
-                    _ms_add = (getattr(self, "_current_self_type", None)
-                               in getattr(self, "_mutable_state_classes", set()))
-                    # cleared-hash.md S5: a κ = string set LOCAL (`_dict_key_types[obj]
-                    # == "string"`, inferred from string-key membership/`.add`) is
-                    # `map string (option int)` with the NATIVE string element — the
-                    # write passes the RAW string, matching the membership read
-                    # (`x in s`, which now reads the raw key too). No `str_hash_op`.
-                    _set_kappa = getattr(self, "_dict_key_types", {}).get(obj_name)
-                    # cleared-hash S4: a κ=string record SET FIELD (`self.<field>.add(x)`
-                    # on a `set[str]` field → `map string (option int)`) writes the RAW
-                    # native string element, matching the membership read `x in self.<field>`.
-                    if _set_kappa is None and self._self_field_dict_kappa(obj_name) == "string":
-                        _set_kappa = "string"
-                    if _set_kappa == "string":
-                        arg = self._expr_to_whyml(arg_ir, local_refs)
-                    elif (_msf or _ms_add) and self._is_string_expr(arg_ir):
-                        # M.7: a `Set[str]` key is hashed into the int-keyed map
-                        # (`str_hash_op` for a non-literal) so `map_update_some`'s
-                        # `k: int` typechecks — the frame's `writes` is what matters
-                        # here, not str-key content (the no-more-int str-set model is
-                        # a separate concern).
-                        arg = self._str_operand_to_int(
-                            self._expr_to_whyml(arg_ir, local_refs))
-                    else:
-                        arg = self._coerce_to_int(self._expr_to_whyml(arg_ir, local_refs))
-                    if _msf:
-                        _fld = f"self.{self._field_label(self._current_self_type, obj_name[len('self.'):])}"
-                        _lhs, _cur = f"{_fld} <-", _fld
-                    else:
-                        safe_obj = whyml_ident(obj_name)
-                        _lhs, _cur = f"{safe_obj} :=", f"!{safe_obj}"
-                    if method == "add":
-                        # set.add(x) — mark key present with Some 0.
-                        # list-comprehension-lowering.md L5: in a @mutable_state module the
-                        # decl is POLYMORPHIC (`map 'k (option 'v)`) so it unifies with a
-                        # string-VALUED dict field (`_abstract_ops: Dict[str,str]`) — the
-                        # name-dedup means one decl serves every map write in the module.
-                        # Corpus modules keep the fixed `map int (option int)` → byte-identical.
-                        # cleared-hash.md S5: a κ = string set local also needs the
-                        # POLYMORPHIC decl so `map_update_some !s "a" 0` unifies at
-                        # `map string (option int)` (the raw string element).
-                        _poly = (getattr(self, "_mutable_state_classes", None)
-                                 or _set_kappa == "string")
-                        self._add_abstract_op(
-                            ("val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
-                             ": map 'k (option 'v)\n" if _poly else
-                             "val map_update_some (m: map int (option int)) (k: int) (v: int) "
-                             ": map int (option int)\n")
-                            + "    ensures { result = Map.set m k (Some v) }")
-                        code = f"{indent}{_lhs} map_update_some {_cur} {arg} 0"
-                    else:
-                        # set.discard(x) / set.remove(x) / del d[k] — clear the key.
-                        # cleared-hash.md S5: POLYMORPHIC decl for a κ = string set so the
-                        # native string element typechecks (`map string (option int)`).
-                        _poly_none = (getattr(self, "_mutable_state_classes", None)
-                                      or _set_kappa == "string")
-                        self._add_abstract_op(
-                            ("val map_update_none (m: map 'k (option 'v)) (k: 'k) "
-                             ": map 'k (option 'v)\n" if _poly_none else
-                             "val map_update_none (m: map int (option int)) (k: int) "
-                             ": map int (option int)\n")
-                            + "    ensures { result = Map.set m k None }")
-                        code = f"{indent}{_lhs} map_update_none {_cur} {arg}"
-                elif (getattr(self, "_current_symbol_table", {}).get(obj_name)
-                      in ("set", "dict", "frozenset")
-                      and getattr(self, "_current_self_type", None)
-                      in getattr(self, "_mutable_state_classes", set())):
-                    # typed-ir-for-b-ceiling.md §13: a set/dict-typed PARAM (not a
-                    # `_dict_locals` body-local, not a self-field) mutated via
-                    # `.add`/`.discard`/`.remove` — e.g. `declared_refs.add(target)` in a
-                    # reflecting emitter handler. The mutation is on a value param, so it
-                    # does NOT escape for an `assigns \nothing` / type-safety contract: a
-                    # sound no-op. (A Python set param IS mutated, but no contract here
-                    # reads it — the recursion's `declared_refs` is a trusted sibling arg.)
-                    # Gated on @mutable_state → byte-identical for the corpus.
-                    code = f"{indent}()"
-                elif (obj_name in getattr(self, "_formal_params", [])
-                      and obj_name not in getattr(self, "_dict_locals", set())
-                      and getattr(self, "_current_symbol_table", {}).get(obj_name)
-                      in ("set", "dict", "frozenset")):
-                    # wrong-lowering-to-fix.md §WL-05 (set/dict twin of `d[k]=v`): an
-                    # in-place mutation `s.add(x)` / `s.discard(x)` / `s.remove(x)` /
-                    # `d.pop(k)` of a set/dict PARAMETER is REJECTED for the same reason
-                    # as the dict item-write — Python mutates it by reference, the caller
-                    # must SEE it, and the by-value map param carries no `writes {s}` frame.
-                    # (Silently dropping the mutation to a no-op is sound but UNFAITHFUL —
-                    # a caller-visible write vanishes.) Local sets (`_dict_locals`) and the
-                    # deliberate @mutable_state param no-op above are unaffected.
-                    self._reject_param_collection_mutation(obj_name, f"{obj_name}.{method}(...)")
-                else:
-                    expr_str = self._expr_to_whyml(val, local_refs)
-                    code = f"{indent}let _ = {expr_str} in ()"
-            else:
-                expr_str = self._expr_to_whyml(val, local_refs)
-                code = f"{indent}let _ = {expr_str} in ()"
-        else:
-            expr_str = self._expr_to_whyml(val, local_refs)
-            code = f"{indent}let _ = {expr_str} in ()"
-        if rest:
-            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-        return code
+        # re-trusted: _handle_expr_stmt — `getattr(self, "_current_self_type", None) in
+        # getattr(self, "_mutable_state_classes", set())` reflection leak, value-model-gapped
+        # (self-scalar getattr-default collapses to int-0 vs string-keyed set) (see generic-dict-str-and.md)
+        return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
