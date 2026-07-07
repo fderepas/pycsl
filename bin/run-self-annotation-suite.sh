@@ -42,6 +42,9 @@ SUITE=(
     "src/self-annotate/src/module6_whyml/types.py"
     "src/self-annotate/src/module6_whyml/functions.py"
     "src/self-annotate/src/module6_whyml/ir_scanner.py"
+    # Wall-plan v2 Phase 1 (deliverable 4): the typed IR-node accessor layer, fully
+    # verified (no \trusted) — total, exception-free string-read + guard accessors.
+    "src/self-annotate/src/module6_whyml/irx.py"
     "src/self-annotate/src/__init__.py"
     "src/self-annotate/src/module6_whyml/__init__.py"
     # Bucket C — research-grade, \trusted reviewer with stub bodies
