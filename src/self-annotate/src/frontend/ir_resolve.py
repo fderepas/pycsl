@@ -16,12 +16,21 @@ from frontend.Module2_Parser import Module2_Parser
 from frontend.Module3_Weaver import Module3_Weaver
 from frontend.Module5_IREmitter import Module5_IREmitter
 from frontend.ir_inline import apply_inline_globals
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _collect_calls(obj: Any) -> int:
-    return set()
+def _collect_calls(obj: Any) -> Set[str]:
+    """Recursively collect function names from Call nodes in IR."""
+    calls = set()
+    if isinstance(obj, dict):
+        if obj.get("type") == "Call":
+            calls.add(obj["func"])
+        for v in obj.values():
+            calls |= _collect_calls(v)
+    elif isinstance(obj, list):
+        for item in obj:
+            calls |= _collect_calls(item)
+    return calls
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

@@ -931,10 +931,16 @@ class FunctionEmissionMixin:
         # NOT in the TCB — a bug yields an unprovable instance (the `--fun`
         # re-proof is loud), never a false proof.
         from module6_whyml.generic_fold import (
-            recognize_generic_fold, emit_generic_fold_group)
+            recognize_generic_fold, emit_generic_fold_group,
+            recognize_setfold, emit_setfold_group)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)
+        # phase3.md §3.1: the A-set returned-set fold (result_algebra = SET). Same
+        # fail-closed discipline; a template bug is a loud unprovable instance.
+        _sf = recognize_setfold(func)
+        if _sf is not None:
+            return emit_setfold_group(func, _sf, whyml_ident)
         body_stmts = func["body"]
         is_method = func.get("kind") == "method"
 

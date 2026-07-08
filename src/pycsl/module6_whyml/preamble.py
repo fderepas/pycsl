@@ -1973,8 +1973,11 @@ class PreambleEmissionMixin:
         # catamorphism (recognizer, fail-closed) routes to the type-derived walk
         # group and needs the L1 `pyval`/`pydict`/`size` theory. Gated + corpus-inert
         # (fires on 0/756 programs) → byte-diff-0.
-        from module6_whyml.generic_fold import recognize_generic_fold
-        needs_pydict = any(recognize_generic_fold(f) is not None for f in functions)
+        from module6_whyml.generic_fold import (
+            recognize_generic_fold, recognize_setfold)
+        needs_pydict = any(
+            recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
+            for f in functions)
         return {
             "needs_pydict": needs_pydict,
             "needs_array": needs_array,
@@ -2107,7 +2110,7 @@ class PreambleEmissionMixin:
             # map.Const. Emit any not already `use`d above. Gated + never set by the
             # reference corpus → byte-diff-0.
             for _u in ("  use list.List", "  use option.Option", "  use string.String",
-                       "  use map.Map", "  use map.Const"):
+                       "  use map.Map", "  use map.Const", "  use bool.Bool"):
                 if _u not in out:
                     out.append(_u)
         return out
@@ -2698,8 +2701,8 @@ class PreambleEmissionMixin:
             "  = match d with",
             "    | DText s -> s",
             "    | DInt n  -> int_to_str n",
-            "    | DCat a b -> concat (render a) (render b)",
-            "    | DDoc_nil -> empty",
+            "    | DCat a b -> String.concat (render a) (render b)",
+            "    | DDoc_nil -> String.empty",
             "    end",
             "",
             "  (* A-unit accumulator model (WL-05b): a Set[str] is `ref (map string bool)`; *)",
@@ -2709,6 +2712,14 @@ class PreambleEmissionMixin:
             "  val set_add (m: map string bool) (e: string) : map string bool",
             "    ensures { result = Map.set m e true }",
             "  val pystr_eq (a b: string) : bool",
+            "",
+            "  (* A-set result algebra (phase3.md §3.1): a RETURNED set is the same *)",
+            "  (* `map string bool`; the `|=` union fold combinator is pointwise or. *)",
+            "  (* PURELY DEFINED (map = string -> bool) — no axiom, certified by *)",
+            "  (* construction, so the returned-set model needs no new certificate *)",
+            "  (* beyond the already-certified L1 set repr. *)",
+            "  let function set_union (a b: map string bool) : map string bool",
+            "    = fun (k: string) -> orb (Map.get a k) (Map.get b k)",
             "",
         ]
 
