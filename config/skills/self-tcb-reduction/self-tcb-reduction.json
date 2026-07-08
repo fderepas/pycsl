@@ -141,6 +141,12 @@
   ],
   "done_criteria": "every mirror .py stub is VERIFIED or FLOOR:{F1|F3}+reason; \\trusted wc -l at the enumerated floor; check-self-annotate-sync.sh AND self-annotate-mirror-check.sh AND run-self-annotation-suite.sh green; byte-diff 0 throughout; proof_axiom_allowlist unchanged.",
   "start_scope": "DEPRECATED as an auto-start. ON INVOCATION the loop ASKS the user (see on_invoke_2026_07); it does NOT auto-run. The T1-T4 conversion backlog is CLOSED (campaign at count 1240); the live track is T5 value-model gaps, census-first.",
+  "research_grade_boundary_rule": {
+    "trigger": "STANDING RULE (SKILL.md §12): the moment a residual is about to be characterized as research-grade / needs-a-new-value-model / unbounded-capability / not-a-bounded-fold / a-distinct-multi-session-feature, STOP and AUTO-produce a standalone external-reviewer report BEFORE moving on. Do NOT wait to be asked. Writing 'this is research-grade' in a status/ledger without co-producing the report is a process error.",
+    "report_requirements": "self-contained (zero project context); GLOBALLY framed (always describe the global problem: self-verification bootstrap + 3-axiom Rocq/Lean ledger + coupling rule + LINK-1/2/3 + the type-safety+frame-only scope cut); measured issues with evidence + what is already SOLVED; a request for SOTA comparison (open questions tagged with anchors); a frozen benchmark (a rigorous 'no technique can' is an equally valuable closure). Store at repo root, descriptive name, commit.",
+    "templates": ["generic-dict-str-and.md", "generic-dict-str-any-2.md", "wall-plan-v2-phase2c-stand-alone.md", "ir-traversal-residual-stand-alone.md"],
+    "doctrine": "Bank the measured certified foundation, hand the sharp well-posed open question to a reviewer, and STOP grinding a wall the loop cannot cross with bounded work."
+  },
   "on_invoke_2026_07": {
     "rule": "HARD OPERATING RULE (user standing instruction): when the loop is invoked, its FIRST action is to present the state + this menu and ASK THE USER which to pursue. NEVER auto-start a build or a conversion. The user chooses every time.",
     "state_to_present": "campaign CLOSED at count 1240; certified IR-node ADT foundation banked (3-axiom ledger held); residual = 2 leave-trusted + 141 trusted-pending (T5 value-model gaps) + 4 irreducible floor",

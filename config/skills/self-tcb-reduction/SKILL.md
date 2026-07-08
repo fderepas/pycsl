@@ -311,3 +311,32 @@ Census-first, demand-driven, **VALUE not count**, single-writer, whole-body proo
 for any new value shape. **Do NOT re-open this as a marker campaign** — expect a small tractable slice
 (V2/V3), with V1 mostly leave-trusted. Whatever the user picks, gate it exactly as §3/§5.1/§10 require,
 and append the outcome to `self-tcb-reduction.md` §8.
+
+## 12. AT A RESEARCH-GRADE BOUNDARY — auto-produce an external-reviewer report (STANDING RULE; do NOT wait to be asked)
+
+**Trigger:** the moment you are about to characterize a residual as *"research-grade / needs a new value
+model / an unbounded capability / not a bounded fold / a distinct multi-session feature"* — i.e. a wall
+that is NOT a bounded engineering fix — **STOP and produce a standalone external-reviewer report before
+moving on.** The user must never have to ask for it (they have asked three times: `generic-dict-str-and.md`,
+`generic-dict-str-any-2.md`, `wall-plan-v2-phase2c-stand-alone.md` — make it automatic). Writing "this is
+research-grade" in a status/ledger WITHOUT co-producing the report is now a process error.
+
+**The report MUST be:**
+- **Self-contained** — submittable to an external PL / deductive-verification / verified-compilation
+  reviewer with ZERO project context (define PyCSL, the pipeline, the terms).
+- **Globally framed — ALWAYS describe the global problem, never just the local symptom.** Situate it in:
+  the self-verification bootstrap (PyCSL verifying its own emitter), the **3-axiom Rocq 8.20 + Lean 4.29
+  ledger** + the coupling rule (new value shapes co-land an axiom-free certificate), **LINK-1/2/3**, and the
+  decisive **type-safety + frame-only scope cut** (never value-faithful) that keeps the problem bounded.
+- **A measured statement of the issues** — the exact obstacles with EVIDENCE (what was tried, verbatim
+  errors, both-prover results), AND what is already SOLVED/certified (so the reviewer doesn't re-solve it).
+- **A request for state-of-the-art comparison** — enumerated open questions, each tagged with candidate
+  SOTA anchors so the reviewer maps techniques onto the stated constraints.
+- **A frozen benchmark / success criteria** — the exact reproducible artifacts a proposal must clear; state
+  that a rigorous "no technique can, under these constraints" is an equally valuable closure.
+
+**Templates (copy their shape):** `generic-dict-str-and.md` (internal wall report), `generic-dict-str-any-2.md`
+and `wall-plan-v2-phase2c-stand-alone.md` (external-reviewer statements). Store at repo root with a
+descriptive name; commit it. This is the honest close-out of a research-grade boundary: **bank the measured
+certified foundation, hand the sharp well-posed open question to a reviewer, and stop grinding** — rather
+than burning session-momentum on a wall the loop cannot cross with bounded work.
