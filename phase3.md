@@ -102,9 +102,22 @@ projected; per-family go/no-go; bank honestly at the clean floor.
   fidelity 96/96. **HONEST yield 3/9**: the "9 clean" was itself an over-count — 6 deferred (fail-closed):
   3 are A-unit by-ref (not returned-set), 2 a stmt-list structural sub-shape B, 1 has extra params. The
   census over-counts even inside a live-verified "clean" subset.
-- [✗] 3.2 — A-dict: **banked** (only 1 clean; NO-GO per 3.0).
+- [✗] 3.2 — A-dict: **banked, NO-GO (live-body-verified).** The 1 "clean" candidate `_subst_type_in_ir`
+  (`frontend/monomorphize.py`) is on inspection NOT a bounded returned-dict fold — it **reconstructs** the
+  pydict preserving keys (`new[k] = …`), rewrites on a **variable-value comparison** against a runtime
+  parameter (`v == tvar`), threads 3 params, and returns the rebuilt node. That needs pydict *construction*
+  + param-value comparison, well beyond the template — disproportionate for one method. Same outer-shape
+  over-count as everywhere else. Banked.
 - [✗] 3.3 — A-list: **banked** (0 clean; NO-GO per 3.0).
-- **Net (whole wall effort): 1248 → 1244 — 4 generic-dict walkers un-trusted** (1 A-unit + 3 A-set) via the
-  certified catamorphic lowering, no new axiom, byte-diff 0. The residual is a long tail of per-shape
-  features (A-unit by-ref extensions, sub-shape-B structural recursion, extra-param threading), each a
-  bounded go/no-go with a small measured yield — not bulk conversions.
+- **PHASE 3 COMPLETE.** Yield = **A-set 3** (1247→1244); A-dict/A-list NO-GO (verified). No further tractable
+  conversions in phase3 — the remaining collection-builders are value-dependent / composed / reconstruction
+  shapes, each a distinct research-grade feature, not a bounded fold.
+
+### Phase-3 close-out (2026-07-08)
+Whole-wall net at phase-3 close: **1248 → 1242 — 6 generic-dict walkers un-trusted and self-proved**
+(1 A-unit benchmark + 2 A-unit-grammar bricks [`b4f3d935`] + 3 A-set [`feb80dff`]), all via the certified
+catamorphic lowering, **no new trust, no new axiom, byte-diff 0, suite 34/34 exit 0**, `#@ assigns` frame-
+fidelity enforced (`2699bc4d`), reference-corpus coverage landed (0882/0883/0884). The reusable `GenericFold`
+infra + certified L1 foundation stand. **The residual is a per-shape long tail** (A-list/A-dict result models,
+sibling-`val` interop, context-map value model, composed/short-circuit algebras) — a distinct census-first
+campaign, each bounded and measured, NOT session-momentum. `bigger-build.md` §7 is the live overall ledger.
