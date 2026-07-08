@@ -407,6 +407,15 @@ def _recognize(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     # The accumulator must be a set/dict parameter (by-ref collection).
     if func.get("param_annotations", {}).get(acc) not in ("set", "dict"):
         return None
+    # The by-ref mutation must be DECLARED: the accumulator must appear in the
+    # `#@ assigns` frame. A wrong / `\nothing` assigns on a mutating walk does NOT
+    # fire (fail-closed) — closing the frame-fidelity gap where the templater's
+    # `writes { acc }` would otherwise silently override (ignore) the contract's
+    # declared frame. Keeps the emitted `writes { acc }` consistent with the
+    # method's own `#@ assigns`.
+    _assigns = func.get("contracts", {}).get("assigns", []) or []
+    if not any(_is_var(a, acc) for a in _assigns):
+        return None
     # A `-> None` unit fold (result algebra = UNIT).
     if func.get("return_annotation") not in ("None", None):
         return None
