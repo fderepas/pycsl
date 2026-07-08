@@ -55,12 +55,19 @@ class FunctionEmissionMixin:
     def _compute_scope_sets(self, func: int):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _collect_assign_targets(self, node: Any, acc: int) -> None:
-        pass
+    #@ assigns acc
+    def _collect_assign_targets(self, node: Any, acc: Set[str]) -> None:
+        """Recursively gather Assign/AugAssign simple-name targets anywhere in a stmt subtree."""
+        if isinstance(node, dict):
+            if node.get("stmt") in ("Assign", "AugAssign") and isinstance(node.get("target"), str):
+                acc.add(node["target"])
+            for v in node.values():
+                self._collect_assign_targets(v, acc)
+        elif isinstance(node, list):
+            for v in node:
+                self._collect_assign_targets(v, acc)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -1139,7 +1139,7 @@ def _check_happy(ir) -> None:
                 stacklevel=2)
 
 
-def _hp_collect_written(node, written) -> None:
+def _hp_collect_written(node: Any, written: set) -> None:
     if isinstance(node, dict):
         if node.get("stmt") == "ArraySet":
             arr = node.get("array")

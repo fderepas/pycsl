@@ -112,7 +112,188 @@ def _match_pre_action(stmt: Any, subj: str, acc: str) -> Optional[Dict[str, str]
     akey = _is_string(sub.get("index"))
     if akey is None:
         return None
-    return {"guard_key": gkey, "guard_val": gval, "add_key": akey}
+    return {"kind": "eq", "guard_key": gkey, "guard_val": gval, "add_key": akey}
+
+
+def _match_pre_action_intuple(stmt: Any, subj: str,
+                             acc: str) -> Optional[Dict[str, Any]]:
+    """In-tuple + isinstance(str) pre-action (bigger-build A-unit grammar delta):
+
+        if <subj>.get("<gkey>") in (<str-tuple>) and isinstance(<subj>.get("<akey>"), str):
+            <acc>.add(<subj>["<akey>"])
+
+    An `in`-tuple key-value guard over interned keys (constructor membership: is
+    the `<gkey>` value one of the literal strings?) conjoined with an
+    `isinstance(str)` narrowing of the *added* key `<akey>`, gating a
+    `set_add` of `<subj>["<akey>"]`. Under the fixed `ensures True` contract the
+    tuple/isinstance narrowings are pure boolean gates on WHICH string is added
+    (they constrain neither type-safety nor termination), and the `isinstance
+    str` maps EXACTLY to the `Some (PStr t)` reader arm — the faithful lowering
+    reads `<akey>` and adds its string payload only when `<gkey>` matches a tuple
+    element AND `<akey>` is a string. Returns
+    {kind: "intuple_isinstance", guard_key, guard_vals, add_key} or None
+    (fail-closed). The isinstance narrowing MUST target the same key as the add
+    (a mismatch rejects), and every tuple element must be a string literal."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    # left: <subj>.get("<gkey>") in (<str-tuple>)
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "in"):
+        return None
+    lget = left.get("left", {})
+    if not (isinstance(lget, dict) and lget.get("type") == "Call"
+            and lget.get("func") == f"{subj}.get"
+            and len(lget.get("args", [])) == 1):
+        return None
+    gkey = _is_string(lget["args"][0])
+    if gkey is None:
+        return None
+    if not _is_string_tuple(left.get("right", {})):
+        return None
+    gvals = [_is_string(e) for e in left["right"]["elts"]]
+    # right: isinstance(<subj>.get("<akey>"), str)
+    if not (isinstance(right, dict) and right.get("type") == "Call"
+            and right.get("func") == "isinstance"
+            and len(right.get("args", [])) == 2):
+        return None
+    iarg, icls = right["args"][0], right["args"][1]
+    if not (isinstance(iarg, dict) and iarg.get("type") == "Call"
+            and iarg.get("func") == f"{subj}.get"
+            and len(iarg.get("args", [])) == 1):
+        return None
+    akey_isi = _is_string(iarg["args"][0])
+    if akey_isi is None or not _is_var(icls, "str"):
+        return None
+    # body: <acc>.add(<subj>["<akey>"])
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return None
+    add = body[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"
+            and len(call.get("args", [])) == 1):
+        return None
+    sub = call["args"][0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), subj)):
+        return None
+    akey = _is_string(sub.get("index"))
+    if akey is None or akey != akey_isi:
+        return None
+    return {"kind": "intuple_isinstance", "guard_key": gkey,
+            "guard_vals": gvals, "add_key": akey}
+
+
+def _flatten_and(node: Any) -> List[Any]:
+    """Left-associatively flatten an `and`-tree into its conjunct list."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "and"):
+        return _flatten_and(node.get("left")) + _flatten_and(node.get("right"))
+    return [node]
+
+
+def _match_pre_action_nested_field(stmt: Any, subj: str,
+                                   acc: str) -> Optional[Dict[str, Any]]:
+    """Nested-field-read pre-action (bigger-build A-unit grammar delta):
+
+        if <subj>.get("<gkey>") == "<gval>":
+            <lv> = <subj>.get("<ckey>")
+            if isinstance(<lv>, dict) and <lv>.get("<k1>") == "<v1>" and ... :
+                <acc>.add(<lv>.get("<akey>"))
+
+    An outer literal-key equality guard, a LOCAL bound to a *child* dict
+    (`<subj>.get("<ckey>")`), then a nested guard that narrows the child to a
+    dict (`isinstance(<lv>, dict)`) and constrains one-or-more of its literal
+    keys, gating `set_add` of the child's `<akey>` value. Under the fixed
+    `ensures True` contract the equality narrowings are pure boolean gates on
+    WHICH string is added, and `isinstance(<lv>, dict)` maps EXACTLY to the
+    `Some (PDict arr)` reader arm — the faithful lowering projects the child
+    pydict and reads its literal keys. Returns
+    {kind: "nested_field", guard_key, guard_val, child_key, field_guards, add_key}
+    or None (fail-closed). The child-narrowing MUST be an `isinstance(<lv>, dict)`
+    on the bound local, every field guard MUST be `<lv>.get(k)==v` on that same
+    local, and the add MUST read a literal key of that local."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer = _match_eq_guard(stmt.get("test", {}), subj)
+    if outer is None:
+        return None
+    gkey, gval = outer
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    # body[0]: <lv> = <subj>.get("<ckey>")
+    asg = body[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    lv = asg.get("target")
+    if not isinstance(lv, str):
+        return None
+    cval = asg.get("value", {})
+    if not (isinstance(cval, dict) and cval.get("type") == "Call"
+            and cval.get("func") == f"{subj}.get"
+            and len(cval.get("args", [])) == 1):
+        return None
+    ckey = _is_string(cval["args"][0])
+    if ckey is None:
+        return None
+    # body[1]: if isinstance(<lv>,dict) and <lv>.get(k)==v and ... : <acc>.add(<lv>.get("<akey>"))
+    inner = body[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"):
+        return None
+    if inner.get("orelse"):
+        return None
+    conjuncts = _flatten_and(inner.get("test", {}))
+    saw_isinstance = False
+    field_guards: List[tuple] = []
+    for c in conjuncts:
+        if (isinstance(c, dict) and c.get("type") == "Call"
+                and c.get("func") == "isinstance"
+                and len(c.get("args", [])) == 2
+                and _is_var(c["args"][0], lv) and _is_var(c["args"][1], "dict")):
+            if saw_isinstance:
+                return None
+            saw_isinstance = True
+            continue
+        eq = _match_eq_guard(c, lv)
+        if eq is None:
+            return None
+        field_guards.append(eq)
+    if not saw_isinstance or not field_guards:
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1:
+        return None
+    add = ibody[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"
+            and len(call.get("args", [])) == 1):
+        return None
+    av = call["args"][0]
+    if not (isinstance(av, dict) and av.get("type") == "Call"
+            and av.get("func") == f"{lv}.get"
+            and len(av.get("args", [])) == 1):
+        return None
+    akey = _is_string(av["args"][0])
+    if akey is None:
+        return None
+    return {"kind": "nested_field", "guard_key": gkey, "guard_val": gval,
+            "child_key": ckey, "field_guards": field_guards, "add_key": akey}
 
 
 def _match_dict_loop(stmt: Any, subj: str, acc: str, fname: str) -> Optional[Dict[str, Any]]:
@@ -163,16 +344,33 @@ def _canon_call(cf: str) -> str:
     return cf
 
 
+def _call_is_self(cf: Any, fname: str) -> bool:
+    """True iff the call-target string names *this* function `fname` — the
+    module-level bare name, the class-qualified static call (`Cls.meth` mangles
+    to `cls__meth`), OR the instance self-recursion `self.<meth>` (the emitted
+    name is `<class>__<meth>`, so `fname` ends with `__<meth>`). The `self.`
+    form is fail-closed: a sibling call `self.other` has `meth == "other"` and
+    `fname` (this method) does not end with `__other`, so it rejects."""
+    if not isinstance(cf, str):
+        return False
+    if _canon_call(cf) == fname:
+        return True
+    if cf.startswith("self."):
+        meth = cf[len("self."):]
+        return bool(meth) and fname.endswith("__" + meth)
+    return False
+
+
 def _match_self_recursion(stmt: Any, acc: str, fname: str) -> bool:
     """`<self>(<value_var>, <acc>)` as an ExprStmt, where `<self>` resolves to
-    this same function (module-level bare name or class-qualified static call)."""
+    this same function (module-level bare name, class-qualified static call, or
+    instance-method `self.<meth>` self-recursion)."""
     if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
         return False
     call = stmt.get("value", {})
     if not (isinstance(call, dict) and call.get("type") == "Call"):
         return False
-    cf = call.get("func")
-    if not isinstance(cf, str) or _canon_call(cf) != fname:
+    if not _call_is_self(call.get("func"), fname):
         return False
     args = call.get("args", [])
     return (len(args) == 2 and _is_var(args[0]) and _is_var(args[1], acc))
@@ -228,6 +426,10 @@ def _recognize(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     pre = None
     if dbody:
         maybe_pre = _match_pre_action(dbody[0], subj, acc)
+        if maybe_pre is None:
+            maybe_pre = _match_pre_action_intuple(dbody[0], subj, acc)
+        if maybe_pre is None:
+            maybe_pre = _match_pre_action_nested_field(dbody[0], subj, acc)
         if maybe_pre is not None:
             pre = maybe_pre
             dbody = dbody[1:]
@@ -284,30 +486,88 @@ def emit_generic_fold_group(func: Dict[str, Any], gf: Dict[str, Any],
     pre = gf["pre_action"]
     # ---- literal-key readers (only those the pre-action needs) ----
     reader_names: Dict[str, str] = {}
-    if pre is not None:
-        for role, key in (("guard", pre["guard_key"]), ("add", pre["add_key"])):
-            ctor = _irkey_ctor(key)
-            rname = f"{n}__get_{_reader_suffix(key)}"
-            if rname in reader_names.values():
-                continue
-            reader_names[key] = rname
-            out.append(f"  let rec {rname} (d: pydict) : option pyval")
-            out.append("    variant { d }")
-            out.append("  = match d with")
-            out.append("    | DNil -> None")
-            out.append(f"    | DCons {ctor} v _ -> Some v")
+    _emitted_readers: set = set()
+
+    def _emit_reader(key: str) -> str:
+        """Emit (once) a literal-key spine reader for `key`; return its name.
+        A single generic `pydict -> option pyval` reader works on ANY pydict
+        (the walked node OR a projected child), so it is shared by key."""
+        rname = f"{n}__get_{_reader_suffix(key)}"
+        reader_names[key] = rname
+        if rname in _emitted_readers:
+            return rname
+        _emitted_readers.add(rname)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if key in _NAMED_KEYS:
+            # interned constructor — direct pattern match, zero string theory.
+            out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
             out.append(f"    | DCons _ _ rest -> {rname} rest")
-            out.append("    end")
+        else:
+            # computed key `K_dyn s` — a string literal cannot appear in a
+            # pattern, so match the `K_dyn s` cell and test the payload.
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        out.append("    end")
+        return rname
+
+    if pre is not None:
+        if pre.get("kind") == "nested_field":
+            needed = ([pre["guard_key"], pre["child_key"]]
+                      + [k for k, _ in pre["field_guards"]] + [pre["add_key"]])
+        else:
+            needed = [pre["guard_key"], pre["add_key"]]
+        for key in needed:
+            _emit_reader(key)
 
     # ---- inlined pre-action ----
-    if pre is not None:
+    if pre is not None and pre.get("kind") == "nested_field":
         gname = reader_names[pre["guard_key"]]
+        cname = reader_names[pre["child_key"]]
         aname = reader_names[pre["add_key"]]
         out.append(f"  let {n}__pre (d: pydict) ({acc}: {acc_ty}) : unit")
         out.append(f"    writes {{ {acc} }}")
         out.append(f"  = match {gname} d with")
         out.append("    | Some (PStr s) ->")
         out.append(f'        if pystr_eq s "{pre["guard_val"]}" then')
+        # project the child pydict (`isinstance(<lv>, dict)` -> `Some (PDict arr)`)
+        out.append(f"          (match {cname} d with")
+        out.append("           | Some (PDict arr) ->")
+        # nest one literal-key equality gate per field guard, innermost = the add.
+        indent = "               "
+        closers: List[str] = []
+        for (fk, fv) in pre["field_guards"]:
+            fname_r = reader_names[fk]
+            out.append(f"{indent}(match {fname_r} arr with")
+            out.append(f"{indent} | Some (PStr c) -> if pystr_eq c \"{fv}\" then")
+            closers.append(f"{indent}   else () | _ -> () end)")
+            indent += "   "
+        out.append(f"{indent}(match {aname} arr with")
+        out.append(f"{indent} | Some (PStr f) -> {acc} := set_add !{acc} f")
+        out.append(f"{indent} | _ -> () end)")
+        for cl in reversed(closers):
+            out.append(cl)
+        out.append("           | _ -> () end)")
+        out.append("        else ()")
+        out.append("    | _ -> () end")
+    elif pre is not None:
+        gname = reader_names[pre["guard_key"]]
+        aname = reader_names[pre["add_key"]]
+        if pre.get("kind") == "intuple_isinstance":
+            # disjunction over the tuple's string elements — parenthesized so the
+            # `||` chain binds inside the `if` test.
+            cond = "(" + " || ".join(f'pystr_eq s "{v}"' for v in pre["guard_vals"]) + ")"
+        else:
+            # single-value equality — emitted UNPARENTHESIZED to stay byte-identical
+            # to the pre-extension A-unit output (strict additivity).
+            cond = f'pystr_eq s "{pre["guard_val"]}"'
+        out.append(f"  let {n}__pre (d: pydict) ({acc}: {acc_ty}) : unit")
+        out.append(f"    writes {{ {acc} }}")
+        out.append(f"  = match {gname} d with")
+        out.append("    | Some (PStr s) ->")
+        out.append(f"        if {cond} then")
         out.append(f"          (match {aname} d with")
         out.append(f"           | Some (PStr t) -> {acc} := set_add !{acc} t")
         out.append("           | _ -> () end)")

@@ -284,12 +284,21 @@ def _check_acts(func) -> None:
 def _check_happy(ir) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
-def _hp_collect_written(node, written) -> None:
-    pass
+#@ assigns written
+def _hp_collect_written(node: Any, written: set) -> None:
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if (isinstance(arr, dict) and arr.get("type") == "FieldGet"
+                    and arr.get("object") == "self"):
+                written.add(arr.get("field"))
+        for v in node.values():
+            _hp_collect_written(v, written)
+    elif isinstance(node, list):
+        for x in node:
+            _hp_collect_written(x, written)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
