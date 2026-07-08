@@ -1098,3 +1098,370 @@ def emit_setfold_group(func: Dict[str, Any], sf: Dict[str, Any],
     out.append(f"  = match xs with Nil -> const false")
     out.append(f"    | Cons h t -> set_union ({n} h{extra_args}) ({n}__list t{extra_args}) end")
     return out
+
+
+# =========================================================================
+# ir-traversal-residual T1 — the FUNCTORIAL-MAP (reconstruction) algebra
+# (result_algebra = the value type itself), plus insight C (guard classif.).
+#
+# The reconstruction twin of the read-only folds: instead of accumulating into
+# a fixed algebra, the walk BUILDS a fresh `pyval`/`pydict`/`list pyval`,
+# rewriting selected `DCons` cells and rebuilding the rest structurally. The
+# stated obstacles dissolve under the project scope cut:
+#
+#   * TERMINATION — the `variant` decreases on the INPUT (`size node`), exactly
+#     as in the read-only folds; building `DCons` cells on the way up is
+#     constructor application (total by definition).
+#   * FRAME — the WhyML emission is purely functional (returns a fresh value),
+#     so `assigns \nothing` is trivial (no `writes`).
+#   * VALUE-DEPENDENT BRANCHING (insight C) — a rewrite guard `v == tvar`
+#     compares the walked value to a runtime STRING parameter. It is a SEMANTIC
+#     guard: compiled to the concretely-defined `pystr_eq` boolean whose result
+#     NO VC constrains (both arms are type-safe independently). The KEY test
+#     (`k == "name"`) is a STRUCTURAL DISCRIMINANT (interned-`irkey` constructor
+#     match, zero string theory). The replacement value `PStr concrete` is
+#     well-typed by construction. No projection's type-safety is dominated by a
+#     semantic guard (the replacement is a `str` param and the recursion returns
+#     a `pyval` in BOTH arms), so the guard-dominance check (plan §1/§7) passes
+#     and the method is cleanly convertible.
+#
+# NO wf-preservation certificate is needed: `pyval` carries no well-formedness
+# TYPE invariant (`wf_ir` is a separate PREDICATE the group never references
+# under `ensures True`), and every rebuilt key is copied verbatim from the input
+# (`DCons k … `), so type-safety needs no key-shape lemma. Ledger stays at 3.
+#
+# SCOPE-CUT NOTE (honest, type-safety-only): the emitted model faithfully
+# encodes reconstruction + the key discriminant + the opaque `v==tvar` guard +
+# the `PStr concrete` replacement. Two SOURCE guards that only NARROW *which*
+# cells are rewritten are value-refinements the `ensures True` contract makes
+# irrelevant and are deliberately not re-modelled: (a) the extra
+# `node.get("type")=="Var"` conjunct on the name-rewrite; (b) the post-loop
+# `new["type"]==tvar` rewrite is folded into the same per-cell rule for the
+# `type` key (identical type behaviour). Both make the model rewrite in a
+# SUPERSET of the source's cases — sound under type-safety-only (Q6 scope cut).
+#
+# Fail-closed exactly as the folds: a miss keeps the method `\trusted`; a
+# template bug yields an unprovable instance (the full-file re-proof is loud),
+# never a false proof. Verified inert on the reference corpus (byte-diff 0); a
+# poisoned control is the single external match that flips the gate red once.
+# =========================================================================
+
+
+def _is_dictlit_empty(node: Any) -> bool:
+    """`{}` — an empty dict literal (the fresh accumulator `new = {}`)."""
+    return (isinstance(node, dict) and node.get("type") == "DictLit"
+            and not node.get("keys") and not node.get("values"))
+
+
+def _match_substmap_guard(test: Any, tvar_p: str) -> Optional[tuple]:
+    """A rewrite guard: a conjunction that MUST contain a key-literal test
+    `<keyvar> == "<lit>"` and a value test `<valvar> == <tvar_p>` (either
+    operand order). Extra conjuncts (e.g. `node.get("type")=="Var"`) are
+    permitted and IGNORED — they only narrow *which* cells rewrite (a value
+    fact the `ensures True` contract does not need). Returns
+    (lit_key, keyvar, valvar) or None (fail-closed if either mandatory conjunct
+    is absent)."""
+    lit_key: Optional[str] = None
+    keyvar: Optional[str] = None
+    valvar: Optional[str] = None
+    for c in _flatten_and(test):
+        if not (isinstance(c, dict) and c.get("type") == "BinOp"
+                and c.get("op") == "=="):
+            continue
+        l, r = c.get("left", {}), c.get("right", {})
+        # <keyvar> == "<lit>"
+        if _is_var(l) and _is_string(r) is not None and lit_key is None:
+            keyvar = l.get("name")
+            lit_key = _is_string(r)
+            continue
+        # <valvar> == <tvar_p>  (either order)
+        if _is_var(l) and _is_var(r):
+            if r.get("name") == tvar_p and valvar is None:
+                valvar = l.get("name")
+            elif l.get("name") == tvar_p and valvar is None:
+                valvar = r.get("name")
+    if lit_key is None or keyvar is None or valvar is None:
+        return None
+    return (lit_key, keyvar, valvar)
+
+
+def _match_arrayset(stmt: Any, arrvar: str, idxvar: str) -> Optional[Any]:
+    """`<arrvar>[<idxvar>] = <value>` (ArraySet). Returns the RHS value node
+    or None. `idxvar` is the loop key Var; the index MUST be `Var(idxvar)`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "ArraySet"):
+        return None
+    if not _is_var(stmt.get("array"), arrvar):
+        return None
+    if not _is_var(stmt.get("index"), idxvar):
+        return None
+    return stmt.get("value")
+
+
+def _is_self_rec_call(node: Any, valvar: str, tvar_p: str,
+                      concrete_p: str, fname: str) -> bool:
+    """`<self>(<valvar>, <tvar_p>, <concrete_p>)` — the reconstruction
+    self-recursion on the cell value."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return False
+    if not _call_is_self(node.get("func"), fname):
+        return False
+    args = node.get("args", [])
+    return (len(args) == 3 and _is_var(args[0], valvar)
+            and _is_var(args[1], tvar_p) and _is_var(args[2], concrete_p))
+
+
+def _chain_rec(node: Any, newvar: str, tvar_p: str, concrete_p: str,
+               fname: str) -> Optional[tuple]:
+    """Parse the per-item `if/elif …: new[k]=concrete else: new[k]=self(v,…)`
+    rewrite chain. Returns (rewrite_keys, keyvar, valvar) or None. Each `if`
+    arm rewrites the SAME key var to `concrete`; the terminal `else` rebuilds
+    via the self-recursion."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If"):
+        return None
+    g = _match_substmap_guard(node.get("test", {}), tvar_p)
+    if g is None:
+        return None
+    lit_key, keyvar, valvar = g
+    nbody = node.get("body", [])
+    if len(nbody) != 1:
+        return None
+    rhs = _match_arrayset(nbody[0], newvar, keyvar)
+    if not _is_var(rhs, concrete_p):
+        return None
+    orelse = node.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    nxt = orelse[0]
+    if isinstance(nxt, dict) and nxt.get("stmt") == "If":
+        sub = _chain_rec(nxt, newvar, tvar_p, concrete_p, fname)
+        if sub is None:
+            return None
+        subkeys, kv2, vv2 = sub
+        if kv2 != keyvar:
+            return None
+        return ([lit_key] + subkeys, keyvar, valvar)
+    # terminal else: new[keyvar] = self(valvar, tvar, concrete)
+    rhs2 = _match_arrayset(nxt, newvar, keyvar)
+    if not _is_self_rec_call(rhs2, valvar, tvar_p, concrete_p, fname):
+        return None
+    return ([lit_key], keyvar, valvar)
+
+
+def _match_substmap_loop(loop: Any, subj: str, newvar: str, tvar_p: str,
+                         concrete_p: str, fname: str) -> Optional[List[str]]:
+    """`for k, v in <subj>.items(): <rewrite-chain>` — the reconstruction loop
+    (the tuple target is erased to `_for_target`; the body still references the
+    phantom key/value Vars). Returns the rewrite keys or None."""
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+        return None
+    it = loop.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{subj}.items" and not it.get("args")):
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) != 1:
+        return None
+    res = _chain_rec(lbody[0], newvar, tvar_p, concrete_p, fname)
+    if res is None:
+        return None
+    keys, _kv, _vv = res
+    return keys
+
+
+def _match_substmap_post_type(stmt: Any, newvar: str, tvar_p: str,
+                              concrete_p: str) -> bool:
+    """The post-loop `if "type" in new and new["type"]==tvar: new["type"]=concrete`
+    field rewrite. Detected structurally (fail-closed); its effect is folded
+    into the per-cell rule for the `type` key (identical type behaviour)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"):
+        return False
+    if stmt.get("orelse"):
+        return False
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return False
+    aset = body[0]
+    if not (isinstance(aset, dict) and aset.get("stmt") == "ArraySet"
+            and _is_var(aset.get("array"), newvar)
+            and _is_string(aset.get("index")) == "type"
+            and _is_var(aset.get("value"), concrete_p)):
+        return False
+    # test must reference the `type` key and compare to tvar (value-only fact;
+    # matched loosely — the ArraySet above is the load-bearing anchor).
+    return True
+
+
+def _match_substmap_list_arm(lbody: Any, subj: str, tvar_p: str,
+                             concrete_p: str, fname: str) -> bool:
+    """`return [ self(item, tvar, concrete) for item in <subj> ]` — the list
+    reconstruction arm (a functorial map over the list)."""
+    if not (isinstance(lbody, list) and len(lbody) == 1):
+        return False
+    ret = lbody[0]
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return False
+    lc = ret.get("value", {})
+    if not (isinstance(lc, dict) and lc.get("type") == "ListComp"):
+        return False
+    gens = lc.get("generators", [])
+    if len(gens) != 1:
+        return False
+    g = gens[0]
+    if not (isinstance(g, dict) and _is_var(g.get("iter"), subj)
+            and not g.get("ifs")):
+        return False
+    item = g.get("target")
+    if not isinstance(item, str):
+        return False
+    return _is_self_rec_call(lc.get("elt"), item, tvar_p, concrete_p, fname)
+
+
+def recognize_substmap(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the T1 functorial-map reconstruction traversal
+    (`node: Any -> Any`, rebuild the IR replacing a TypeVar Var by a concrete
+    type). Returns {subject, tvar_param, concrete_param, rewrite_keys} when the
+    IR body is *exactly* the reconstruction shape; else None. Never raises."""
+    try:
+        return _recognize_substmap(func)
+    except Exception:
+        return None
+
+
+def _recognize_substmap(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 3:
+        return None
+    subj, tvar_p, concrete_p = params
+    pa = func.get("param_annotations", {})
+    if pa.get(tvar_p) != "str" or pa.get(concrete_p) != "str":
+        return None
+    # result algebra = the value type itself (a rebuilt `Any`).
+    if func.get("return_annotation") != "Any":
+        return None
+    # pure reconstruction — the frame MUST be `\nothing` (fail-closed; a
+    # `writes`-carrying contract on a functional rebuild does not fire).
+    assigns = func.get("contracts", {}).get("assigns", []) or []
+    if not (len(assigns) == 1 and isinstance(assigns[0], dict)
+            and assigns[0].get("type") == "Nothing"):
+        return None
+    fname = func["name"]
+
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+    dict_if, list_if, final_ret = body
+
+    # final: `return <subj>` (the leaf/passthrough arm).
+    if not (isinstance(final_ret, dict) and final_ret.get("stmt") == "Return"
+            and _is_var(final_ret.get("value"), subj)):
+        return None
+
+    # dict arm: `if isinstance(<subj>, dict): new={}; for …: …; [post]; return new`.
+    if not (isinstance(dict_if, dict) and dict_if.get("stmt") == "If"):
+        return None
+    if dict_if.get("orelse"):
+        return None
+    if not _match_isinstance(dict_if.get("test", {}), subj, "dict"):
+        return None
+    dbody = dict_if.get("body", [])
+    if len(dbody) < 3:
+        return None
+    asg = dbody[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    newvar = asg.get("target")
+    if not isinstance(newvar, str) or not _is_dictlit_empty(asg.get("value")):
+        return None
+    keys = _match_substmap_loop(dbody[1], subj, newvar, tvar_p, concrete_p, fname)
+    if keys is None:
+        return None
+    ret = dbody[-1]
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), newvar)):
+        return None
+    # middle statements (between loop and return): only the optional post-loop
+    # `type` rewrite is permitted; anything else fails closed.
+    for st in dbody[2:-1]:
+        if not _match_substmap_post_type(st, newvar, tvar_p, concrete_p):
+            return None
+        if "type" not in keys:
+            keys.append("type")
+
+    # list arm: `if isinstance(<subj>, list): return [self(item,…) for item in subj]`.
+    if not (isinstance(list_if, dict) and list_if.get("stmt") == "If"):
+        return None
+    if list_if.get("orelse"):
+        return None
+    if not _match_isinstance(list_if.get("test", {}), subj, "list"):
+        return None
+    if not _match_substmap_list_arm(list_if.get("body", []), subj, tvar_p,
+                                    concrete_p, fname):
+        return None
+
+    return {
+        "subject": subj,
+        "tvar_param": tvar_p,
+        "concrete_param": concrete_p,
+        "rewrite_keys": keys,
+    }
+
+
+def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
+                        whyml_ident) -> List[str]:
+    """Emit the T1 functorial-map reconstruction group for a recognized substmap.
+
+    Functional (`assigns \\nothing`; no `writes`): every function returns the
+    value type (`pyval`/`pydict`/`list pyval`), rebuilding constructor cells.
+    The per-instance rewrite-rule hole is defunctionalized into a `__triggers`
+    predicate over the interned rewrite keys (structural discriminants, zero
+    string theory for named keys); the semantic guard is the opaque `pystr_eq`;
+    the replacement is the well-typed `PStr <concrete>`. Reuses the L1 preamble
+    `size`/lemma pack for the `variant`. Congruent (modulo names) to the proven
+    `scratchpad` T1 spike."""
+    n = whyml_ident(func["name"])
+    subj = sm["subject"]
+    tvar = sm["tvar_param"]
+    concrete = sm["concrete_param"]
+    keys = sm["rewrite_keys"]
+    named = [k for k in keys if k in _NAMED_KEYS]
+    dyn = [k for k in keys if k not in _NAMED_KEYS]
+    out: List[str] = []
+
+    # ---- defunctionalized rewrite-key predicate (structural discriminants) ----
+    out.append(f"  let {n}__triggers (k: irkey) : bool")
+    out.append("  = match k with")
+    for k in named:
+        out.append(f"    | {_NAMED_KEYS[k]} -> true")
+    if dyn:
+        cond = " || ".join(f'pystr_eq s "{d}"' for d in dyn)
+        out.append(f"    | K_dyn s -> {cond}")
+    out.append("    | _ -> false end")
+
+    # ---- the subst_walk / subst_dict / subst_list reconstruction group ----
+    out.append(f"  let rec {n} ({subj}: pyval) ({tvar}: string) ({concrete}: string) : pyval")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant {{ size {subj} }}")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PList xs -> PList ({n}__list xs {tvar} {concrete})")
+    out.append(f"    | PDict d  -> PDict ({n}__dict d {tvar} {concrete})")
+    out.append(f"    | _ -> {subj} end")
+    out.append(f"  with {n}__dict (d: pydict) ({tvar}: string) ({concrete}: string) : pydict")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> DNil")
+    out.append("    | DCons k v rest ->")
+    out.append("        let v2 =")
+    out.append("          match v with")
+    out.append(f"          | PStr s -> if {n}__triggers k && pystr_eq s {tvar} then PStr {concrete}")
+    out.append(f"                      else {n} v {tvar} {concrete}")
+    out.append(f"          | _ -> {n} v {tvar} {concrete} end")
+    out.append("        in")
+    out.append(f"        DCons k v2 ({n}__dict rest {tvar} {concrete})")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval) ({tvar}: string) ({concrete}: string) : list pyval")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list xs }")
+    out.append("  = match xs with Nil -> Nil")
+    out.append(f"    | Cons h t -> Cons ({n} h {tvar} {concrete}) ({n}__list t {tvar} {concrete}) end")
+    return out

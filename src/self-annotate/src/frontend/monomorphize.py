@@ -130,12 +130,26 @@ def _specialize_decl(decl: int, tvar: str, concrete: str, new_name: str) -> int:
 def _specialize_function(func: int, tvar: str, concrete: str, new_class_name: str, new_self_type: Optional[str]=None) -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _subst_type_in_ir(node: Any, tvar: str, concrete: str) -> Any:
-    return None
+    if isinstance(node, dict):
+        new = {}
+        for k, v in node.items():
+            if k == "name" and v == tvar and node.get("type") == "Var":
+                new[k] = concrete
+            elif k == "return_annotation" and v == tvar:
+                new[k] = concrete
+            else:
+                new[k] = _subst_type_in_ir(v, tvar, concrete)
+        # Also handle field-type strings and annotation strings.
+        if "type" in new and new["type"] == tvar:
+            new["type"] = concrete
+        return new
+    if isinstance(node, list):
+        return [_subst_type_in_ir(item, tvar, concrete) for item in node]
+    return node
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
