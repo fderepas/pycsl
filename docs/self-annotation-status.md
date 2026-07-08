@@ -10,35 +10,35 @@ This document tracks how far that self-proof has progressed.
 
 | | |
 |---|---|
-| **Last regenerated** | 2026-05-31 |
-| **Milestone** | Squeeze S4 — the fourth "squeeze" (tightening pass) defined in `csl-from-scratch` §0.5. Each squeeze raises the bar for what must be proven before code ships. |
+| **Last regenerated** | 2026-07-08 |
+| **Metric** | **Function-level** `\trusted`-stub count (superseding the earlier module-level headline). Lower is better. |
 | **Owning system** | SY8-SelfAnnotate (`src/self-annotate/`), per [`projects/pycsl/PROJECT.md`](../projects/pycsl/PROJECT.md) |
-| **Live suite** | `bin/run-self-annotation-suite.sh` |
+| **Live suite** | `bin/run-self-annotation-suite.sh` — **34/34 files proved, exit 0** |
 | **Verifier mirror** | `src/self-annotate/src/` — a file-for-file copy of `src/pycsl/` with `#@` proof annotations layered on top |
 
 ---
 
 ## Headline
 
-**All 26 modules pass the prover, but only 1 is fully proven.**
+**The suite is genuinely green (34/34, full-file proofs), and the trusted core is down to `\trusted` = 1244 function-level stubs — with the `Dict[str, Any]` self-verification wall broken in practice.**
 
-Every module in the mirror passes `pycsl <file>.py` (the suite's
-mechanical gate), so the S4 milestone is **satisfied**. However, the
-proofs vary in depth:
+The metric has moved from the old module-level view ("26/26 modules
+pass, 1 body-verified") to a **per-function** count: every emitter
+method in the mirror is either a **body-verified** (`#@`-annotated,
+verbatim-of-live, proved) function or a `\trusted` stub. Current
+state (committed HEAD):
 
-- **Body-verified (1 module — `errors.py`):** the prover sees the
-  real implementation and checks it against its contracts
-  (`requires`/`ensures`). This is a genuine proof.
-- **Contract-surface only (23 modules):** the prover checks that
-  contracts are consistent, but the function bodies are replaced by
-  trusted stubs (`\trusted reviewer: pycsl-self-annotate`). This
-  verifies the *interface* without proving the *implementation*.
-- **Empty `__init__.py` (2 modules):** trivially pass; nothing to
-  prove.
-
-In short: the gate is green, but most of the proof strength is still
-ahead — moving modules from "contract-surface" to "body-verified" is
-the work remaining for subsequent squeezes.
+- **Body-verified functions: 97** — the prover sees the real
+  implementation and discharges its contracts. This is genuine proof
+  and includes, as of 2026-07, several **generic `Dict[str, Any]`
+  IR-walkers** proved via a certified catamorphic lowering (see the
+  wall campaign below) — the class that was long considered
+  research-grade.
+- **`\trusted` stubs: 1244** — assumed contracts; the residual
+  trusted core, dominated by the value-model / per-shape long tail.
+- The gate is a **full-file proof** per mirror file (not `--fun`,
+  which trusts siblings and can mask a leaky verified method — a
+  masking hole found and closed 2026-07).
 
 ---
 
@@ -46,84 +46,58 @@ the work remaining for subsequent squeezes.
 
 ```
 $ bin/run-self-annotation-suite.sh
-[PASS] src/self-annotate/src/__init__.py
-[PASS] src/self-annotate/src/module6_whyml/__init__.py
-[PASS] src/self-annotate/src/import_classifier.py
-[PASS] src/self-annotate/src/ConcurrencyChecker.py
-[PASS] src/self-annotate/src/audit_proof.py
-[PASS] src/self-annotate/src/Module1_Ingestor.py
-[PASS] src/self-annotate/src/Module2_Parser.py
-[PASS] src/self-annotate/src/Module3_Weaver.py
-[PASS] src/self-annotate/src/Module4_SemanticAnalyzer.py
-[PASS] src/self-annotate/src/Module5_IREmitter.py
-[PASS] src/self-annotate/src/Module6_WhyMLTranspiler.py
-[PASS] src/self-annotate/src/pycsl.py
-[PASS] src/self-annotate/src/module6_whyml/auto_trust.py
-[PASS] src/self-annotate/src/module6_whyml/expressions.py
-[PASS] src/self-annotate/src/module6_whyml/statements.py
-[PASS] src/self-annotate/src/module6_whyml/preamble.py
-
+...
 ===============================
- Self-annotation: 26/26 proved
+ Self-annotation: 34/34 proved
 ===============================
+# exit 0
 ```
 
+The suite proves each file **in full** (no `--fun` filter). Its file
+list was corrected 2026-07 (7 stale top-level paths repointed to the
+relocated `frontend/` mirror; the deleted `Module4_SemanticAnalyzer`
+dropped), so it now exits 0 with **0 MISSING, 0 FAIL** — the first
+genuinely-green run after a masked pre-existing breakage was repaired.
 The suite is wired into `bin/run-reference-tests.sh` as a CI gate.
 
 ---
 
-## Coverage by bucket
+## The 2026-07 campaign — the `Dict[str, Any]` self-verification wall
 
-Per [`src/self-annotate/coverage-report.md`](../src/self-annotate/coverage-report.md)
-(last regenerated 2026-05-28):
+The dominant residual blocker is that the emitter reads its own IR as
+untyped `Dict[str, Any]`, which WhyML could not faithfully model. The
+2026-07 effort **decomposed and largely resolved** this:
 
-| Bucket | Discipline | Module count | Examples |
-|---|---|---:|---|
-| **A** (tractable now) | Bodies CAN be proven once stdlib stubs land; today they ship `\trusted` | **11** | `errors.py` (the *one* fully proven), `ir_schema.py`, `exception_model.py`, 6 `module6_whyml/` submodules (`identifiers`, `scc`, `abstract_ops`, `types`, `functions`, `ir_scanner`), 2 `__init__.py` |
-| **B** (needs richer stubs) | Pure Python but uses `ast.NodeVisitor` patterns PyCSL can't resolve yet | **2** | `import_classifier.py`, `ConcurrencyChecker.py` |
-| **C** (research-grade) | Uses libcst / Lark / in-place AST mutation / recursive string-building — modelling these is multi-quarter work | **13** | `Module1_Ingestor` through `Module6_WhyMLTranspiler`, `audit_proof.py`, `pycsl.py`, 4 heavier `module6_whyml/` mixins (`auto_trust`, `expressions`, `statements`, `preamble`) |
+- **L1 — value modeling: SOLVED & CERTIFIED.** A concrete `pydict`
+  universal-value type (interned constructor keys + Why3
+  `compute_in_goal` proof-by-evaluation) clears the SMT pathologies on
+  both Alt-Ergo and Z3, with an **axiom-free Rocq 8.20 + Lean 4.29
+  certificate** (`Print Assumptions` = "Closed under the global
+  context"; `#print axioms` = kernel-only). The **3-axiom trust ledger
+  is held at 3** — no new axiom was added.
+- **L2 — target-shape provability: PROVEN** (both provers) for the
+  generic-walk and read+build shapes.
+- **L3 — emitter code-generation: BROKEN IN PRACTICE.** A `GenericFold`
+  recognizer + templater (`src/pycsl/module6_whyml/generic_fold.py`)
+  emits the type-derived `walk`/`walk_dict`/`walk_list` catamorphism
+  for a recognized generic-dict walk; **each instance is re-proved by
+  Why3** (a template bug yields an unprovable instance, never a false
+  proof → **no new trust**).
 
-### Verification strength
+**Converted so far (committed, each full-file "Verification SUCCESS",
+byte-diff 0, no new axiom):** `find_named_expr_targets` (A-unit by-ref
+mutation), plus `_collect_calls`, `find_calls_in_ir`,
+`collection_binder_kinds` (A-set returned-set folds). A 5th
+(`_collect_assign_targets`) is in flight.
 
-| Strength | Count |
-|---|---:|
-| Body-verified (full proof) | **1** (`errors.py`) |
-| `\trusted reviewer:` (contract surface only) | **22** |
-| Empty `__init__.py` | 2 |
-
-`errors.py` is the only module where the prover sees the actual
-implementation — it proves `#@ class invariant self.line >= 0`
-against the in-source body. Everything else ships
-`\trusted reviewer: pycsl-self-annotate` at every function/method
-with stub bodies that return type-appropriate placeholders.
-
----
-
-## Annotation density in the mirror
-
-`src/self-annotate/src/` is a file-for-file mirror of `src/pycsl/`
-with `#@` annotations layered on. Top-annotated modules:
-
-| Module | `#@` lines | LOC |
-|---|---:|---:|
-| `Module5_IREmitter.py` | 522 | 1,584 |
-| `Module2_Parser.py` | 440 | 1,200 |
-| `Module4_SemanticAnalyzer.py` | 130 | 643 |
-| `pycsl.py` | 88 | 908 |
-| `audit_proof.py` | 64 | 504 |
-| `Module3_Weaver.py` | 60 | 367 |
-| `Module1_Ingestor.py` | 52 | 266 |
-| `Module6_WhyMLTranspiler.py` | 42 | 325 |
-| `ConcurrencyChecker.py` | 28 | 166 |
-| `import_classifier.py` | 20 | 111 |
-| `exception_model.py` | 12 | 137 |
-| `ir_schema.py` | 5 | 147 |
-| `errors.py` | 1 | 46 |
-
-Total: **2,174 `#@` lines** across 13 modules in the mirror —
-substantial annotation work, mostly contract surface
-(`requires`/`ensures`/`assigns` per function signature) rather than
-loop invariants or body-level proofs.
+**Honest scaling economics (measured):** the structural census
+*over-counts* convertible methods at every level — real complexity
+lives in the pre-action / composition / control-flow (sibling-helper
+calls, variable-key context lookups, short-circuit search), not the
+walk shape. So the *capability* is proven and general, but the *count*
+comes **method-by-method** through a long tail of bounded per-shape
+features. Full trace: `bigger-build.md`, `phase3.md`, and
+`getting-better/tier3/wall-plan-v2-phase*.md`.
 
 ---
 
@@ -153,34 +127,42 @@ S8: [SY6-PycslLib, SY8-SelfAnnotate]
 
 The Squeeze coverage check (`bin/cmmi-audit.sh [C8.5]`) passes
 because S4 has an owner. **The check verifies ownership, not
-strength.** Strengthening S4 from "26/26 prove via `\trusted`" to
-"26/26 prove via body verification" is engineering work tracked
-under `src/self-annotate/plan-formal-*.md`, not under the CMMI
-plan series.
+strength.** Strengthening S4 — driving the function-level `\trusted`
+count down toward its irreducible floor by moving stubs to
+body-verified — is engineering work tracked under `bigger-build.md` /
+`phase3.md` and `getting-better/tier3/`, not under the CMMI plan
+series.
 
 ---
 
 ## Gaps blocking deeper coverage
 
-From the bucket A → bucket B → bucket C progression in the
-coverage report, the named blockers are:
+The residual `\trusted` core is dominated by **value-model and
+per-shape blockers**, now precisely characterized by the 2026-07
+census/decomposition:
 
-1. **Bucket A → full proof**: needs stdlib stubs for `isinstance`,
-   set operations, and dict-membership with non-trivial
-   postconditions. `ir_schema.py` is the next candidate.
+1. **Generic `Dict[str, Any]` walkers** — the historically
+   research-grade class. **Broken in practice** via the certified
+   `pydict` model + `GenericFold` catamorphic lowering (above);
+   converts method-by-method as each per-shape pre-action grammar is
+   added (in-tuple guards, `isinstance` narrowings, nested field
+   reads, by-return collection algebras).
 
-2. **Bucket B → full proof**: needs `ast.NodeVisitor` modelling
-   (PyCSL's function-call resolution doesn't follow it yet) →
-   would require extending `src/pycsl_lib/` with `ast.*` stubs.
+2. **Composed / dependency-carrying walks** — methods that call
+   sibling `\trusted` helpers, do variable-key context-map lookups
+   (`symtab.get(node-key)`), short-circuit search, or compose multiple
+   folds. Each needs a distinct bounded feature (a sibling-`val`
+   interop model, a context-map value model, a short-circuit
+   algebra) — not a free template slot.
 
-3. **Bucket C → full proof**: needs models for libcst / Lark /
-   in-place AST mutation / recursive string emission. Some can be
-   anchored to formal-semantics theorems
-   (`Phase5b_Soundness.pycsl_soundness`,
-   `Phase6h_CorrMain.wp_gen_correct`,
-   `Phase6i_Soundness.why3_implements_wp_w_derived`) via
-   `#@ proof rocq` citations — listed as "future PRs" in §2 Bucket
-   C of the coverage report.
+3. **Collection-result modeling** — returned `list`/`dict` folds and
+   string builders; A-set is done, A-list/A-dict await faithful
+   returned-collection models. String-building tails route through a
+   `doc` ADT to avoid SMT string theory.
+
+Every new WhyML value shape must **co-land an axiom-free Rocq + Lean
+certificate** (the coupling rule); the 3-axiom ledger is asserted in
+CI via `Print Assumptions` / `#print axioms`.
 
 ---
 
@@ -226,28 +208,35 @@ That collector is **not yet implemented** — see
 
 | Metric | Value |
 |---|---:|
-| Suite modules | 26 |
-| Pass rate | 26/26 (100%) |
-| Body-verified | 1 (`errors.py`) |
-| `\trusted` (surface-only) | 22 |
-| Empty | 2 |
-| Total `#@` lines in mirror | 2,174 |
-| Squeeze S4 status (CMMI) | **satisfied at contract-surface level** |
-| Squeeze S4 strengthening | engineering work, multi-quarter |
+| Suite files | 34 |
+| Pass rate | **34/34 (100%), exit 0, full-file proofs** |
+| Body-verified functions | **97** |
+| `\trusted` stubs (function-level) | **1244** |
+| Trust ledger (Rocq 8.20 + Lean 4.29) | **3 axioms — held, axiom-free extensions** |
+| `Dict[str,Any]` wall | **broken in practice** (certified catamorphic lowering; ≥4 generic-dict walkers self-proved) |
 
-The framework makes the gap visible. Moving the dial from "1
-body-verified" to "5 body-verified" is squeeze-strengthening
-engineering work — tracked under
-`src/self-annotate/plan-formal-*.md`, not under the CMMI plan
-series.
+The metric is now the **per-function `\trusted` count** (lower is
+better). Driving it down is body-verification work; the 2026-07
+campaign moved the historically research-grade `Dict[str, Any]`
+IR-walker class from `\trusted` to self-proved via a certified
+lowering, with **no new trust axiom**. The remaining core is a long
+tail of bounded per-shape features (tracked in `bigger-build.md` /
+`phase3.md`), converted method-by-method.
 
 ---
 
 ## References
 
+- `bigger-build.md` / `phase3.md` (repo root) — the live wall-campaign
+  plans of record + execution ledgers (the current authoritative
+  status of the `\trusted`-reduction work).
+- `getting-better/tier3/` — the census, feasibility spikes, and
+  per-phase verified findings of the 2026-07 wall campaign.
+- `generic-dict-str-any-2.md` / `wall-plan-v2-phase2c-stand-alone.md`
+  (repo root) — self-contained, external-reviewer problem statements.
 - [`src/self-annotate/coverage-report.md`](../src/self-annotate/coverage-report.md)
-  — the authoritative per-module status table (canonical source for
-  this status doc).
+  — the earlier per-module status table (module-level framing, now
+  superseded by the function-level metric above).
 - [`bin/run-self-annotation-suite.sh`](../bin/run-self-annotation-suite.sh)
   — the live verifier.
 - [`config/skills/csl-from-scratch/SKILL.md`](../config/skills/csl-from-scratch/SKILL.md)
