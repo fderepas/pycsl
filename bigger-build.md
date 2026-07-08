@@ -175,8 +175,28 @@ For EACH family, in order (§4):
   `find_named_expr_targets`). Everything else is **per-method feature work** — a context-map value model, a
   sibling-`val`-interop feature, composed-fold/short-circuit-search algebras — each a bounded but real
   go/no-go, NOT a free template slot.
-- **BANKED (the genuine win):** the wall is broken *in practice* — a certified catamorphic lowering that
-  emits a proving recursion for a real generic dict-walk, no new trust, no new axiom (count 1248→1247). The
-  reusable `GenericFold` infra + the verified L1 certificate + the L1/L2/L3 decomposition stand.
-- [ ] Phase 3+ — the collection-result families + the per-method dependency features: a distinct
-  multi-session campaign, census-first per family, each measured not projected. NOT session-momentum.
+- [◑] Brick — A-unit by-ref **pre-action grammar** extension (`b4f3d935`): in-tuple guard + `isinstance(str)`
+  + nested-field compound-guard + `self.<meth>` self-recursion. Converted **2/3** (`_collect_assign_targets`,
+  `_hp_collect_written`); deferred `_collect_call_targets` (`rsplit` string-op → would need string theory/axiom).
+  Count 1244→1242, full-file-proved, byte-diff 0, ledger==3.
+- [◑] Phase 3 — collection-result families (**see `phase3.md`**): census refinement (`3f756947`) → **A-set GO**
+  (9 clean), A-dict (1)/A-list (0) banked. **A-set converted 3/9** (`3bec4b92` spike + `feb80dff`):
+  `_collect_calls`, `find_calls_in_ir`, `collection_binder_kinds`; count 1247→1244; the "9 clean" was itself an
+  over-count (6 reclassified/deferred). Returned-set = `map string bool` + pure `set_union` — no certificate,
+  ledger==3.
+- [✓] Reference-corpus coverage (`e5ee58a7`, `2699bc4d`): fixtures **0882** (in-tuple) / **0883** (nested-field)
+  PASS + **0884** (`assigns \nothing`) FAIL — positive/negative twins for the grammar.
+- [✓] **Soundness fix (`2699bc4d`):** the A-unit recognizer now **requires the accumulator in `#@ assigns`**
+  to fire — a wrong/`\nothing` frame is denied the lowering (0884 correctly FAILS). `#@ assigns` no longer ignored.
+
+- **BANKED / current status:** the wall is broken *in practice AND scaling* — **6 generic-dict walkers un-trusted
+  and self-proved** (1 A-unit benchmark + 2 A-unit-grammar + 3 A-set) via the certified catamorphic lowering,
+  **no new trust, no new axiom, byte-diff 0, count 1248 → 1242.** The reusable `GenericFold` infra (A-unit
+  ref-mutation + A-set returned-set + the pre-action grammar), the certified L1 foundation, and the L1/L2/L3 +
+  census decomposition all stand.
+- **VERIFIED ECONOMICS:** yield is **method-by-method** — the census over-counts even live-verified "clean"
+  subsets; each remaining shape (context-map value model, sibling-`val` interop, composed/short-circuit
+  algebras, A-list/A-dict returned-collection models) is a bounded per-shape go/no-go, not a free slot.
+- [ ] Remaining — the per-shape long tail: A-list/A-dict result models, the sibling-interop / context-map
+  dependency features, and the composed/short-circuit algebras. A distinct census-first campaign; NOT
+  session-momentum.
