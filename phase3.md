@@ -94,7 +94,17 @@ capability** — a certified returned-collection fold coupled to `pyval` — not
 projected; per-family go/no-go; bank honestly at the clean floor.
 
 ## 7. Execution ledger
-- [ ] 3.0 — census refinement (clean-count per family; go/no-go)
-- [ ] 3.1 — A-set (spike → certificate → template → convert clean subset)
-- [ ] 3.2 — A-dict
-- [ ] 3.3 — A-list
+- [✓] 3.0 — census refinement (`3f756947`): A-set 9-clean **GO**; A-dict 1, A-list 0 **bank**. (Verified.)
+- [◑] 3.1 — A-set (`3bec4b92` spike GO, `feb80dff` template+convert): **3/9 converted, count 1247→1244**,
+  all 3 files full-file-proved (independently re-verified: `ir_resolve.py`, `scc.py`, `ir_scanner.py` all
+  "Verification SUCCESS"), spike GO (returned-set = `map string bool` + pure `set_union` `let function` —
+  **no certificate needed, ledger==3, no axiom**), byte-diff 0 (recognizer inert on 0/756), poison RED→revert,
+  fidelity 96/96. **HONEST yield 3/9**: the "9 clean" was itself an over-count — 6 deferred (fail-closed):
+  3 are A-unit by-ref (not returned-set), 2 a stmt-list structural sub-shape B, 1 has extra params. The
+  census over-counts even inside a live-verified "clean" subset.
+- [✗] 3.2 — A-dict: **banked** (only 1 clean; NO-GO per 3.0).
+- [✗] 3.3 — A-list: **banked** (0 clean; NO-GO per 3.0).
+- **Net (whole wall effort): 1248 → 1244 — 4 generic-dict walkers un-trusted** (1 A-unit + 3 A-set) via the
+  certified catamorphic lowering, no new axiom, byte-diff 0. The residual is a long tail of per-shape
+  features (A-unit by-ref extensions, sub-shape-B structural recursion, extra-param threading), each a
+  bounded go/no-go with a small measured yield — not bulk conversions.
