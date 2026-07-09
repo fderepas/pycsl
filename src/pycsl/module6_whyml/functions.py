@@ -936,7 +936,8 @@ class FunctionEmissionMixin:
             recognize_substmap, emit_substmap_group,
             recognize_bool_existence, emit_bool_existence_group,
             recognize_frt, emit_frt_group,
-            recognize_sawalk, emit_sawalk_group)
+            recognize_sawalk, emit_sawalk_group,
+            recognize_dictfold, emit_dictfold_group)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)
@@ -978,6 +979,14 @@ class FunctionEmissionMixin:
         _sa = recognize_sawalk(func)
         if _sa is not None:
             return emit_sawalk_group(func, _sa, whyml_ident)
+        # alist-adict-census §3: the returned-`sdict` dict-fold (result_algebra =
+        # a string-keyed dict, by RETURN). The by-key-grouping twin of the A-set
+        # returned-set fold; reuses the certified `sdict` + purely-defined
+        # `sappend`. Same fail-closed discipline; a template bug is a loud
+        # unprovable instance, never a false proof.
+        _df = recognize_dictfold(func)
+        if _df is not None:
+            return emit_dictfold_group(func, _df, whyml_ident)
         body_stmts = func["body"]
         is_method = func.get("kind") == "method"
 

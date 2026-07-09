@@ -1975,12 +1975,15 @@ class PreambleEmissionMixin:
         # (fires on 0/756 programs) → byte-diff-0.
         from module6_whyml.generic_fold import (
             recognize_generic_fold, recognize_setfold, recognize_substmap,
-            recognize_bool_existence, recognize_frt, recognize_sawalk)
+            recognize_bool_existence, recognize_frt, recognize_sawalk,
+            recognize_dictfold)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
         # already-landed pydict-group mirrors stay byte-identical).
-        needs_sdict = any(recognize_sawalk(f) is not None for f in functions)
+        needs_sdict = any(
+            recognize_sawalk(f) is not None or recognize_dictfold(f) is not None
+            for f in functions)
         needs_pydict = needs_sdict or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_substmap(f) is not None
@@ -2622,6 +2625,17 @@ class PreambleEmissionMixin:
             "  = match s with",
             "    | SNil -> None",
             "    | SCons k' v rest -> if pystr_eq k k' then Some v else slookup k rest",
+            "    end",
+            "",
+            "  (* census §3: the returned-`sdict` dict-fold `.update`-merge combinator. *)",
+            "  (* Purely DEFINED list-concat over the certified `sdict`; totality is *)",
+            "  (* discharged by Why3 (structural `variant`), no axiom — the returned-dict *)",
+            "  (* model needs no new certificate beyond the already-certified `sdict`. *)",
+            "  let rec sappend (a b: sdict) : sdict",
+            "    variant { a }",
+            "  = match a with",
+            "    | SNil -> b",
+            "    | SCons k v rest -> SCons k v (sappend rest b)",
             "    end",
         ]
 

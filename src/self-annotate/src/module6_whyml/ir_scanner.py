@@ -114,13 +114,33 @@ class IRScanner:
     def find_record_vars(stmts: List[int], record_types: int) -> int:
         return set()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def find_record_var_classes(stmts: List[int], record_types: int) -> int:
-        return {}
+    def find_record_var_classes(stmts: List[Dict[str, Any]],
+                                record_types: Set[str]) -> Dict[str, str]:
+        """Map each local assigned from a record constructor (`c = C()`) to its
+        class name `C`. Lets method calls `c.method(...)` resolve the callee's
+        contract (`<class>__<method>`), the same way `self.method(...)` does."""
+        out: Dict[str, str] = {}
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign":
+                val = stmt.get("value", {})
+                if (isinstance(val, dict) and val.get("type") == "Call" and
+                        val.get("func", "") in record_types):
+                    tgt = stmt.get("target", "")
+                    if tgt:
+                        out[tgt] = val.get("func", "")
+            for key in ("body", "orelse"):
+                if key in stmt and isinstance(stmt[key], list):
+                    out.update(IRScanner.find_record_var_classes(stmt[key], record_types))
+            if stmt.get("stmt") in ("While", "For"):
+                out.update(IRScanner.find_record_var_classes(stmt.get("body", []), record_types))
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    out.update(IRScanner.find_record_var_classes(c.get("body", []), record_types))
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -2357,3 +2357,305 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
     out.append("    variant { size_list xs }")
     out.append(f"  = match xs with Nil -> () | Cons h t -> {n} h {p1} {p2}; {n}__list t {p1} {p2} end")
     return out
+
+
+# =========================================================================
+# alist-adict-census §3 (the ONE marginal A-dict opportunity) — the
+# returned-`sdict` DICT-FOLD result algebra (result_algebra = a string-keyed
+# dict, by RETURN). The by-KEY-grouping twin of the A-set returned-set fold.
+#
+# The two live methods (`find_record_var_classes`, `_collect_tuple_array_locals`)
+# are clean structural folds that build a dict keyed by a RUNTIME string
+# (`out[<x>.get("target")] = <value>`) and merge the recursive descents with
+# `out.update(self(<child>, …))`. L1 `pydict` does NOT model them (its keys are
+# interned `irkey` constructors); they need the already-certified `sdict`
+# (Phase C, `Phase2c_PyValDict.v` / `PyValDict.lean`, the 2nd/last certificate)
+# whose keys are runtime strings. The merge combinator is the purely-DEFINED
+# `sappend` (list concat over the certified datatype — no axiom, totality
+# discharged by Why3, exactly as `set_union` was for A-set); the 3-axiom ledger
+# is UNCHANGED and no new certificate is needed.
+#
+# The emitted group is the FUNCTIONAL generic pyval walk (`assigns \nothing`; no
+# `writes`), entered on the `list pyval` of statements: `build`/`build_val`/
+# `build_dict` each return `sdict`, combined by `sappend`, `variant { size … }`
+# over the L1 measure — congruent (modulo names / sdict-for-set) to the proven
+# `v2_setfold_spike`. The per-node pre-action reads the runtime-string KEY
+# (`<x>.get("target")` -> `Some (PStr k)` -> `k`) and inserts one `SCons k <val>`
+# cell under the stmt-tag structural discriminant (a `pystr_eq` boolean gate no
+# VC constrains, insight C).
+#
+# SCOPE-CUT (honest, type-safety-only, under the fixed `ensures True` contract,
+# same discipline as the T1 note above):
+#   * The walk visits ALL dict/list children (the generic pyval catamorphism),
+#     a SUPERSET of the source's specific `body`/`orelse`/cases/handlers descent.
+#     Collecting entries at more nodes is sound under type-safety-only (the
+#     result stays a well-typed `(string, PStr|PInt)` sdict).
+#   * For a STRING-valued dict the inserted value is read faithfully
+#     (`<x>.get("value").get("func")`, gated on membership in the threaded set);
+#     for an INT-valued dict the source value is a COMPUTED arity (a list
+#     comprehension + set-cardinality the contract does not need), modelled as a
+#     placeholder `PInt 0` — a value-refinement `ensures True` makes irrelevant.
+#
+# Fail-closed exactly as the other folds: a miss keeps the method `\trusted`; a
+# template bug yields an unprovable instance (the full-file re-proof is loud),
+# never a false proof. Verified inert on the reference corpus (byte-diff 0); a
+# poisoned control is the single external match that flips the gate red once.
+# =========================================================================
+
+
+def _iter_dict_nodes(node: Any):
+    """Yield every dict node in the IR subtree rooted at `node` (pre-order)."""
+    if isinstance(node, dict):
+        yield node
+        for v in node.values():
+            yield from _iter_dict_nodes(v)
+    elif isinstance(node, list):
+        for x in node:
+            yield from _iter_dict_nodes(x)
+
+
+def _match_acc_update_self(stmt: Any, acc: str, fname: str) -> bool:
+    """`<acc>.update(<self>(<child>, …))` as an ExprStmt — the merge fold."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return False
+    call = stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.update"):
+        return False
+    args = call.get("args", [])
+    if len(args) != 1:
+        return False
+    inner = args[0]
+    return (isinstance(inner, dict) and inner.get("type") == "Call"
+            and _call_is_self(inner.get("func"), fname))
+
+
+def recognize_dictfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the returned-`sdict` dict-fold (census §3).
+
+    Returns {subject, extra_params, acc, gkey, tag, key_key, value} when the IR
+    body is *exactly* `out = {}; for x in <listparam>: … out[x.get(K)] = <v> …;
+    return out` with ≥1 `out.update(self(…))` merge; else None. Never raises."""
+    try:
+        return _recognize_dictfold(func)
+    except Exception:
+        return None
+
+
+def _recognize_dictfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("return_annotation") != "dict":
+        return None
+    params = func.get("formal_params", [])
+    if not params:
+        return None
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+    init, loop, ret = body
+
+    # init: `<acc> = {}`
+    if not (isinstance(init, dict) and init.get("stmt") == "Assign"):
+        return None
+    acc = init.get("target")
+    if not isinstance(acc, str):
+        return None
+    iv = init.get("value", {})
+    if not (isinstance(iv, dict) and iv.get("type") == "DictLit"
+            and not iv.get("keys") and not iv.get("values")):
+        return None
+
+    # ret: `return <acc>`
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), acc)):
+        return None
+
+    # loop: `for <x> in <subjparam>:` over a `list`-annotated formal param.
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+        return None
+    subj = loop.get("iter", {})
+    if not (_is_var(subj) and subj.get("name") in params):
+        return None
+    subj = subj["name"]
+    if func.get("param_annotations", {}).get(subj) != "list":
+        return None
+    x = loop.get("target")
+    if not isinstance(x, str):
+        return None
+    # extra params: every non-subject formal must be a threaded read-only `set`.
+    extra = [p for p in params if p != subj]
+    pa = func.get("param_annotations", {})
+    for e in extra:
+        if pa.get(e) != "set":
+            return None
+
+    lbody = loop.get("body", [])
+
+    # ≥1 self-recursion merge `<acc>.update(self(…))`.
+    if not any(_match_acc_update_self(s, acc, func["name"])
+               for s in _iter_dict_nodes(lbody)):
+        return None
+
+    # exactly one ArraySet on <acc> (the runtime-keyed insert).
+    sets = [s for s in _iter_dict_nodes(lbody)
+            if s.get("stmt") == "ArraySet" and _is_var(s.get("array"), acc)]
+    if len(sets) != 1:
+        return None
+    aset = sets[0]
+
+    # KEY: `<acc>[<kv>] = …` where `<kv> = <x>.get("<key_key>"[, def])`.
+    idx = aset.get("index", {})
+    if not _is_var(idx):
+        return None
+    kv = idx["name"]
+    key_key = None
+    for s in _iter_dict_nodes(lbody):
+        if (s.get("stmt") == "Assign" and s.get("target") == kv):
+            key_key = _match_get_call(s.get("value", {}), x)
+            break
+    if key_key is None:
+        return None
+
+    # tag guard: `<x>.get("<gkey>") == "<TAG>"` somewhere in the loop body.
+    gkey = None
+    tag = None
+    for s in _iter_dict_nodes(lbody):
+        if s.get("stmt") == "If":
+            t = _match_stmt_tag_test(s.get("test", {}), x)
+            if t is not None:
+                gkey, tag = "stmt", t
+                break
+    if tag is None:
+        return None
+
+    # VALUE model, keyed on the accumulator's inferred dict value type.
+    vtype = (func.get("dict_value_types") or {}).get(acc)
+    vexpr = aset.get("value", {})
+    value: Dict[str, Any]
+    if vtype == "string":
+        # `<vloc>.get("<vkey>"[, def])` with `<vloc> = <x>.get("<vckey>"[, def])`.
+        if not (isinstance(vexpr, dict) and vexpr.get("type") == "Call"):
+            return None
+        vfunc = vexpr.get("func", "")
+        if not (isinstance(vfunc, str) and vfunc.endswith(".get")):
+            return None
+        vloc = vfunc[:-len(".get")]
+        vkey = _is_string((vexpr.get("args") or [None])[0])
+        if vkey is None:
+            return None
+        vckey = None
+        for s in _iter_dict_nodes(lbody):
+            if s.get("stmt") == "Assign" and s.get("target") == vloc:
+                vckey = _match_get_call(s.get("value", {}), x)
+                break
+        if vckey is None:
+            return None
+        # a faithful membership gate needs exactly one threaded set parameter.
+        if len(extra) != 1:
+            return None
+        value = {"kind": "str2", "child_key": vckey, "field_key": vkey,
+                 "set_param": extra[0]}
+    else:
+        # computed / int value → placeholder `PInt 0` (value-refinement).
+        value = {"kind": "int"}
+
+    return {"subject": subj, "extra_params": extra, "acc": acc,
+            "guard_key": gkey, "tag": tag, "key_key": key_key, "value": value}
+
+
+def _pv_reader_lines(n: str, key: str) -> List[str]:
+    """Emit a spine reader `pydict -> option pyval` for a literal `key` (interned
+    constructor for a named key, else the `K_dyn s` `pystr_eq` fallback)."""
+    suf = _reader_suffix(key)
+    out = [f"  let rec {n}__get_{suf} (d: pydict) : option pyval",
+           "    variant { d }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    else:
+        out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {n}__get_{suf} rest')
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    out.append("    end")
+    return out
+
+
+def emit_dictfold_group(func: Dict[str, Any], df: Dict[str, Any],
+                        whyml_ident) -> List[str]:
+    """Emit the returned-`sdict` dict-fold group for a recognized census-§3 fold.
+
+    Functional (`assigns \\nothing`; no `writes`): `build`/`build_val`/
+    `build_dict` each return `sdict`, combined by the purely-defined `sappend`.
+    Threaded read-only `set` params are typed `map string bool`. Congruent
+    (modulo names / sdict-for-set) to the proven `v2_setfold_spike`."""
+    n = whyml_ident(func["name"])
+    subj = whyml_ident(df["subject"])
+    extra = df["extra_params"]
+    gkey, tag, kkey = df["guard_key"], df["tag"], df["key_key"]
+    value = df["value"]
+
+    extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
+    extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
+    out: List[str] = []
+
+    # ---- spine readers (dedup by key) ----
+    needed = [gkey, kkey]
+    if value["kind"] == "str2":
+        needed += [value["child_key"], value["field_key"]]
+    seen: set = set()
+    for key in needed:
+        if key in seen:
+            continue
+        seen.add(key)
+        out += _pv_reader_lines(n, key)
+
+    gsuf = _reader_suffix(gkey)
+    ksuf = _reader_suffix(kkey)
+
+    # ---- the per-node pre-action: guarded runtime-keyed insert ----
+    out.append(f"  let {n}__pre (d: pydict){extra_sig} : sdict")
+    out.append(f"  = match {n}__get_{gsuf} d with")
+    out.append("    | Some (PStr s) ->")
+    out.append(f'        if pystr_eq s "{tag}" then')
+    out.append(f"          (match {n}__get_{ksuf} d with")
+    out.append("           | Some (PStr k) ->")
+    if value["kind"] == "str2":
+        csuf = _reader_suffix(value["child_key"])
+        fsuf = _reader_suffix(value["field_key"])
+        setp = whyml_ident(value["set_param"])
+        out.append(f"               (match {n}__get_{csuf} d with")
+        out.append("                | Some (PDict vd) ->")
+        out.append(f"                    (match {n}__get_{fsuf} vd with")
+        out.append(f"                     | Some (PStr fn) -> if Map.get {setp} fn then SCons k (PStr fn) SNil else SNil")
+        out.append("                     | _ -> SNil end)")
+        out.append("                | _ -> SNil end)")
+    else:
+        out.append("               SCons k (PInt 0) SNil")
+    out.append("           | _ -> SNil end)")
+    out.append("        else SNil")
+    out.append("    | _ -> SNil end")
+
+    # ---- the returned-sdict walk / build_val / build_dict group ----
+    out.append(f"  let rec {n} ({subj}: list pyval){extra_sig} : sdict")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant {{ size_list {subj} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | Nil -> SNil")
+    out.append(f"    | Cons h t -> sappend ({n}__val h{extra_args}) ({n} t{extra_args})")
+    out.append("    end")
+    out.append(f"  with {n}__val (v: pyval){extra_sig} : sdict")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> sappend ({n}__pre d{extra_args}) ({n}__dict d{extra_args})")
+    out.append(f"    | PList xs -> {n} xs{extra_args}")
+    out.append("    | _ -> SNil")
+    out.append("    end")
+    out.append(f"  with {n}__dict (d: pydict){extra_sig} : sdict")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> SNil")
+    out.append(f"    | DCons _ v rest -> sappend ({n}__val v{extra_args}) ({n}__dict rest{extra_args})")
+    out.append("    end")
+    return out
