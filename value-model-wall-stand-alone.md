@@ -318,3 +318,61 @@ closes the track.
   distinct from this *value*-shape wall).
 - Reproduce a wall in one command: `python3 src/pycsl/pycsl.py <mirror-file> --import-path src/pycsl`
   after removing a `\trusted` marker from `_build_soundness_report` (B1) or `_strip_outer_parens` (B3).
+
+---
+
+## 8. Measured update — 2026-07-09 execution + censuses (sharpens §2/§3/§6; the wall is now precise)
+
+Since this report was written, the bounded plan (`value-model-wall-stand-alone-plan-2.md`) was executed and
+several further whole-body censuses run. Two of the walls' faces were **closed as bounded** and the dynamic
+face was **sharpened** to a precise, reproducible statement. Net self-annotation `\trusted`: **1236 → 1234**.
+All results are byte-diff-0 on the reference corpus, ledger held at 3.
+
+**Newly SOLVED / banked (do not re-solve).**
+- **String-as-character-sequence (was Wall 2) — SOLVED, no new theory.** A character is a 1-character
+  `str_sub_op` string; `enumerate(s)`/`for ch in s` lowers to an integer-indexed `while` with the arithmetic
+  variant `String.length s − i`; `ch == c` is `str_eq_op` compiled as an unconstrained boolean (no SMT
+  string theory in any VC). `_strip_outer_parens` proves (loop invariant + variant decrease + postcondition
+  all Valid). No new value shape, no certificate.
+- **Closed-key records (route R) — CONFIRMED + already certified.** `@dataclass`/`TypedDict` monomorphize to
+  native WhyML records with faithful per-field types and thread across a call boundary; the record value
+  shape is certified axiom-free on **both** provers (`Phase2b_RecordVal.v` + `RecordVal.lean`). No new
+  certificate is needed for a record over certified fields.
+
+**Sharpened dynamic wall (heterogeneous `Dict[str, Any]`) — the read is NOT the blocker; its COMPOSITION is.**
+A mirror-only defensive-projection (`d.get("k")` → `slookup "k" d` + a total `match` over `pyval`) was fully
+built and measured. It dissolves the read cleanly — but a census of **70** generic-dict-read `\trusted`
+methods found **net-new unblocks = 0**: the read is *never the sole blocker*. Every real reader composes the
+read with a second wall — string-set membership over an int-modelled set, collection-element/array typing,
+self-state mutation, a giant `_expr_to_whyml` sibling call, or a nested-heterogeneous return. Two further
+bounded leads were **measured and refuted**, both reducing to this composition:
+- **`PList`/`PDict` collection-valued projection** — the collection-valued reads (`get(k, [])`/`{}`,
+  `List[Dict]` iteration) are **not over generic pyval** but over the **emit_ir IR-node ADT args**
+  (`array emit_ir`), plain **arrays** (`array int`), or **module-constant tuple-keyed maps** — distinct
+  shapes, ~0 converted by a pyval-list projection.
+- **emit_ir-args reflection** — the arg-count model already exists (`nargs_of : int`, `args_of : array
+  emit_ir`); the 3 `\trusted` methods that read emit_ir args all *iterate/index* the args and call
+  `_expr_to_whyml` per element + mutate self-state → `nargs_of` converts 0.
+
+**B1′ measured wall (the frozen reproducer, refined).** `_build_soundness_report`, `\trusted` removed, stalls
+at its **first statement** `ir_data.get("functions", [])` — a collection-valued read (`List[Dict[str,Any]]`)
+whose result is *iterated*, `f["name"]`/`f.get("contracts",{}).get("ensures")` projected, folded into a
+variable-key `map string (option int)` (`counts[bucket] += 1`), set-algebra'd and `sorted`, and returned as a
+nested-heterogeneous record. A pointwise `pyval` read model does not lift it; the wall is the **composition**.
+
+**Two partial-B0s now established (equally valuable closures, per §6 B0).**
+1. **Corpus-facing generic-dict projection is byte-diff-UNSAFE.** The reference corpus itself exercises the
+   target shapes (7 `Dict[str,Any]`, 10 `.get("…")`, 4 `.values()/.items()` walks over 844 programs), so no
+   recognizer is simultaneously corpus-inert and mirror-covering; the non-mirror walker residue is a
+   principled `TRUSTED(essential)`.
+2. **A theory-composition boundary.** The certified `pyval.size` measure collides *by name* with the
+   `emit_ir.size` IR-node ADT measure, so a mirror file emitting the emit_ir ADT cannot also host the pyval
+   theory (a rename would perturb existing emitters' `.mlw`).
+
+**The sharpened open question for the reviewer.** Not "model a heterogeneous dict read" (solved pointwise via
+the certified `pyval`/`slookup`) but: **how does a *verifying* compiler discharge the COMPOSITION** — a
+generic-dict read whose result is iterated/indexed, threaded through a variable-key homogeneous-map fold,
+set-algebra, and a nested-heterogeneous record return — **as one whole-body VC, first-order, automatic,
+byte-diff-0, ledger-preserving**, when the same pipeline must also host the emit_ir IR-node ADT (the
+`size`-theory-collision constraint)? A rigorous "no technique can, under these constraints" remains an
+equally valuable closure. The bounded floor is **1234**; the composition is the wall.
