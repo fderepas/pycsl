@@ -935,7 +935,8 @@ class FunctionEmissionMixin:
             recognize_setfold, emit_setfold_group,
             recognize_substmap, emit_substmap_group,
             recognize_bool_existence, emit_bool_existence_group,
-            recognize_frt, emit_frt_group)
+            recognize_frt, emit_frt_group,
+            recognize_sawalk, emit_sawalk_group)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)
@@ -970,6 +971,13 @@ class FunctionEmissionMixin:
         _sm = recognize_substmap(func)
         if _sm is not None:
             return emit_substmap_group(func, _sm, whyml_ident)
+        # ir-traversal-residual T3: the context-threading walk `_sa_walk`
+        # (env-threaded fold + `sdict` string-keyed symbol table + source-level
+        # raise). Same fail-closed discipline; a template bug is a loud
+        # unprovable instance, never a false proof.
+        _sa = recognize_sawalk(func)
+        if _sa is not None:
+            return emit_sawalk_group(func, _sa, whyml_ident)
         body_stmts = func["body"]
         is_method = func.get("kind") == "method"
 

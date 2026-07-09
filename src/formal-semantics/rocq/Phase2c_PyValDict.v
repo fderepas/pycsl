@@ -339,6 +339,75 @@ Theorem render_nil_right : forall a, render (DCat a DDoNil) = render a.
 Proof. intro a; simpl. rewrite str_app_nil_r. reflexivity. Qed.
 
 (* ===================================================================== *)
+(* T3 — ir-traversal-residual: the string-keyed symbol table `sdict`        *)
+(*      (env-threaded fold, plan §5).  A SECOND, deliberately-boring        *)
+(*      datatype whose keys are RUNTIME strings (NOT interned irkey), with  *)
+(*      an option-valued `slookup` — the 2nd/last co-landed certificate.    *)
+(*      Ordinary inductive datatype + a total structural Fixpoint; the      *)
+(*      lemma pack is one induction each.  NO axiom.  Two facts keep the    *)
+(*      computed-key read in the solved discipline: (a) `String.eqb`'s      *)
+(*      result is program code no VC constrains (insight C); (b) the read   *)
+(*      returns `option` with an explicit `None` arm (defensive            *)
+(*      totalization).                                                      *)
+(* ===================================================================== *)
+
+Inductive sdict : Type :=
+  | SNil
+  | SCons (k : string) (v : pyval) (rest : sdict).
+
+Fixpoint slookup (k : string) (s : sdict) : option pyval :=
+  match s with
+  | SNil => None
+  | SCons k' v rest => if String.eqb k k' then Some v else slookup k rest
+  end.
+
+(* smem : membership by key (the boolean companion, mirroring mem_key). *)
+Fixpoint smem (k : string) (s : sdict) : bool :=
+  match s with
+  | SNil => false
+  | SCons k' _ rest => String.eqb k k' || smem k rest
+  end.
+
+(* slookup termination/totality is structural (a total Fixpoint) — Rocq
+   accepts it by construction.  We certify the OPTION-SHAPE / IN-BOUNDS pack. *)
+
+(* (1) head hit — a matching head key reads its bound value. *)
+Lemma slookup_hit_head :
+  forall k k' v rest, String.eqb k k' = true ->
+    slookup k (SCons k' v rest) = Some v.
+Proof. intros k k' v rest H; simpl; rewrite H; reflexivity. Qed.
+
+(* (2) soundness — a `Some` hit implies membership (mirrors get_some_mem). *)
+Lemma slookup_some_smem :
+  forall s k v, slookup k s = Some v -> smem k s = true.
+Proof.
+  induction s as [| k' v' rest IH]; intros k v H; simpl in *.
+  - discriminate.
+  - destruct (String.eqb k k') eqn:E; simpl.
+    + reflexivity.
+    + rewrite (IH k v H); reflexivity.
+Qed.
+
+(* sdict_size : total node count of a symbol table (for the in-bounds law). *)
+Fixpoint sdict_size (s : sdict) : nat :=
+  match s with
+  | SNil => 0
+  | SCons _ v rest => 1 + size v + sdict_size rest
+  end.
+
+(* (3) in-bounds / sub-term — a value found by slookup is strictly smaller
+   than the table it lives in (mirrors size_dict_mem for the pydict case). *)
+Theorem size_slookup_mem :
+  forall s k v, slookup k s = Some v -> size v < sdict_size s.
+Proof.
+  induction s as [| k' v' rest IH]; intros k v H; simpl in *.
+  - discriminate.
+  - destruct (String.eqb k k') eqn:E.
+    + injection H; intro; subst v'. lia.
+    + specialize (IH k v H). lia.
+Qed.
+
+(* ===================================================================== *)
 (* VERDICT — assumption audit.  Every result Closed under the global       *)
 (*    context (NO axiom): the 3-axiom trust ledger is intact, +0.          *)
 (* ===================================================================== *)
@@ -356,3 +425,6 @@ Print Assumptions wf_ir_op_is_str.
 Print Assumptions render_cat_assoc.
 Print Assumptions render_nil_left.
 Print Assumptions render_nil_right.
+Print Assumptions slookup_hit_head.
+Print Assumptions slookup_some_smem.
+Print Assumptions size_slookup_mem.

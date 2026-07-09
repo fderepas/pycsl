@@ -234,6 +234,65 @@ theorem render_nil_left (a : Doc) : render (.cat .nil a) = render a := by
 theorem render_nil_right (a : Doc) : render (.cat a .nil) = render a := by
   simp [render]
 
+-- ===================================================================== --
+-- T3 — ir-traversal-residual: the string-keyed symbol table `SDict`        --
+--   (env-threaded fold, plan §5). A SECOND, deliberately-boring datatype   --
+--   whose keys are RUNTIME strings (NOT interned IrKey), with an           --
+--   option-valued `slookup` — the 2nd/last co-landed certificate.          --
+--   Ordinary inductive datatype + a total structural def; the lemma pack   --
+--   is one induction each. NO axiom.                                       --
+-- ===================================================================== --
+
+inductive SDict where
+  | nil
+  | cons (k : String) (v : PyVal) (rest : SDict)
+
+def slookup (k : String) : SDict → Option PyVal
+  | .nil => none
+  | .cons k' v rest => if k == k' then some v else slookup k rest
+
+def smem (k : String) : SDict → Bool
+  | .nil => false
+  | .cons k' _ rest => (k == k') || smem k rest
+
+/-- Head hit — a matching head key reads its bound value. -/
+theorem slookup_hit_head (k k' : String) (v : PyVal) (rest : SDict)
+    (h : (k == k') = true) : slookup k (.cons k' v rest) = some v := by
+  simp [slookup, h]
+
+/-- Soundness — a `some` hit implies membership (mirrors get_some_mem). -/
+theorem slookup_some_smem (s : SDict) (k : String) (v : PyVal)
+    (h : slookup k s = some v) : smem k s = true := by
+  induction s with
+  | nil => simp [slookup] at h
+  | cons k' v' rest ih =>
+      simp only [slookup] at h
+      by_cases hk : k == k'
+      · simp [smem, hk]
+      · simp only [hk] at h
+        simp [smem, hk, ih h]
+
+/-- Total node count of a symbol table (for the in-bounds law). -/
+def sdictSize : SDict → Nat
+  | .nil => 0
+  | .cons _ v rest => 1 + size v + sdictSize rest
+
+/-- In-bounds / sub-term — a value found by slookup is strictly smaller than
+    the table it lives in (mirrors size_dict_mem for the PyDict case). -/
+theorem size_slookup_mem (s : SDict) (k : String) (v : PyVal)
+    (h : slookup k s = some v) : size v < sdictSize s := by
+  induction s with
+  | nil => simp [slookup] at h
+  | cons k' v' rest ih =>
+      simp only [slookup] at h
+      by_cases hk : k == k'
+      · simp only [hk, if_true, Option.some.injEq] at h
+        subst h
+        simp only [sdictSize]; omega
+      · simp only [hk] at h
+        have := ih h
+        simp only [sdictSize]; omega
+
 end PyValDict
 
 -- ===================================================================== --
@@ -251,3 +310,6 @@ end PyValDict
 #print axioms PyValDict.render_cat_assoc
 #print axioms PyValDict.render_nil_left
 #print axioms PyValDict.render_nil_right
+#print axioms PyValDict.slookup_hit_head
+#print axioms PyValDict.slookup_some_smem
+#print axioms PyValDict.size_slookup_mem

@@ -2044,3 +2044,316 @@ def emit_frt_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append(f"        let r = {n}__child v in")
     out.append(f"        if not ({n}__is_int_or_unit r) then r else {n}__child_d rest end")
     return out
+
+
+# ============================================================================
+# ir-traversal-residual T3 — env-threaded fold + `sdict` + source-level raise
+# (plan §5 / §6.2). The context-threading residual shape `_sa_walk(node, where,
+# symtab)`: a walk that threads a read-only symbol table (`symtab`) and a
+# context string (`where`) down the descent, reads `symtab.get(<computed-key>)`,
+# and `raise`s `PyCSLSemanticError` on a mismatch. The env does NOT affect
+# termination — the `variant` stays `size node` (an inherited attribute).
+# ============================================================================
+
+def _match_sa_selfrec3(stmt: Any, fname: str, p1: str, p2: str) -> bool:
+    """`<self>(<any-var>, <p1>, <p2>)` as an ExprStmt — the 3-arg env-threaded
+    self-recursion (`_sa_walk(v, where, symtab)`); the two trailing args are the
+    read-only threaded env (`where`, `symtab`) passed VERBATIM."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return False
+    call = stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return False
+    if not _call_is_self(call.get("func"), fname):
+        return False
+    args = call.get("args", [])
+    return (len(args) == 3 and _is_var(args[0])
+            and _is_var(args[1], p1) and _is_var(args[2], p2))
+
+
+def _match_sa_values_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) -> bool:
+    """`for v in <subj>.values(): <self>(v, p1, p2)`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"):
+        return False
+    it = stmt.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{subj}.values" and not it.get("args")):
+        return False
+    body = stmt.get("body", [])
+    return len(body) == 1 and _match_sa_selfrec3(body[0], fname, p1, p2)
+
+
+def _match_sa_list_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) -> bool:
+    """`for x in <subj>: <self>(x, p1, p2)`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"):
+        return False
+    if not _is_var(stmt.get("iter"), subj):
+        return False
+    body = stmt.get("body", [])
+    return len(body) == 1 and _match_sa_selfrec3(body[0], fname, p1, p2)
+
+
+def _match_sa_raise(stmt: Any) -> Optional[str]:
+    """A `raise <Exc>(...)` statement — returns the exception type name."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Raise"):
+        return None
+    exc = stmt.get("exc_type")
+    return exc if isinstance(exc, str) else None
+
+
+def _match_sa_pre(inner_if: Any, subj: str, symparam: str) -> Optional[Dict[str, Any]]:
+    """Match the ArraySet pre-action guard (the computed-key symtab read + the
+    two mismatch raises) and extract its data. Shape:
+
+        if <subj>.get("stmt") == "<TAG>":
+            arr = <subj>.get("<ARRAY_KEY>")
+            if isinstance(arr, dict) and arr.get("<TYPE_KEY>") == "<TYPE_VAL>":
+                name = arr.get("<NAME_KEY>")
+                arr_type = <symparam>.get(name)
+                if arr_type is None: raise <Exc>(...)
+                if arr_type not in (<S0>, <S1>, ...): raise <Exc>(...)
+
+    Returns {tag, array_key, type_key, type_val, name_key, ok_types, exc} or None.
+    """
+    if not (isinstance(inner_if, dict) and inner_if.get("stmt") == "If"
+            and not inner_if.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(inner_if.get("test", {}), subj)
+    if tag is None:
+        return None
+    ibody = inner_if.get("body", [])
+    if len(ibody) != 2:
+        return None
+    # [0] arr = <subj>.get("<ARRAY_KEY>")
+    a0 = ibody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    arrvar = a0.get("target")
+    array_key = _match_get_call(a0.get("value", {}), subj)
+    if not isinstance(arrvar, str) or array_key is None:
+        return None
+    # [1] the `isinstance(arr, dict) and arr.get("<TYPE_KEY>") == "<TYPE_VAL>"` If
+    a1 = ibody[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "If" and not a1.get("orelse")):
+        return None
+    t1 = a1.get("test", {})
+    if not (isinstance(t1, dict) and t1.get("type") == "BinOp" and t1.get("op") == "and"):
+        return None
+    if not _match_isinstance(t1.get("left", {}), arrvar, "dict"):
+        return None
+    tr = t1.get("right", {})
+    if not (isinstance(tr, dict) and tr.get("type") == "BinOp" and tr.get("op") == "=="):
+        return None
+    type_val = _is_string(tr.get("right"))
+    type_key = _match_get_call(tr.get("left", {}), arrvar)
+    if type_val is None or type_key is None:
+        return None
+    gbody = a1.get("body", [])
+    if len(gbody) != 4:
+        return None
+    # [0] name = arr.get("<NAME_KEY>")
+    g0 = gbody[0]
+    if not (isinstance(g0, dict) and g0.get("stmt") == "Assign"):
+        return None
+    namevar = g0.get("target")
+    name_key = _match_get_call(g0.get("value", {}), arrvar)
+    if not isinstance(namevar, str) or name_key is None:
+        return None
+    # [1] arr_type = <symparam>.get(name)
+    g1 = gbody[1]
+    if not (isinstance(g1, dict) and g1.get("stmt") == "Assign"):
+        return None
+    atvar = g1.get("target")
+    gv = g1.get("value", {})
+    if not (isinstance(gv, dict) and gv.get("type") == "Call"
+            and gv.get("func") == f"{symparam}.get"):
+        return None
+    gargs = gv.get("args", [])
+    if not (isinstance(atvar, str) and len(gargs) == 1 and _is_var(gargs[0], namevar)):
+        return None
+    # [2] if arr_type is None: raise <Exc>
+    g2 = gbody[2]
+    if not (isinstance(g2, dict) and g2.get("stmt") == "If" and not g2.get("orelse")):
+        return None
+    t2 = g2.get("test", {})
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp" and t2.get("op") == "=="
+            and _is_var(t2.get("left"), atvar)
+            and isinstance(t2.get("right"), dict) and t2["right"].get("type") == "None"):
+        return None
+    g2b = g2.get("body", [])
+    if len(g2b) != 1:
+        return None
+    exc = _match_sa_raise(g2b[0])
+    if exc is None:
+        return None
+    # [3] if arr_type not in (<S0>, ...): raise <Exc>
+    g3 = gbody[3]
+    if not (isinstance(g3, dict) and g3.get("stmt") == "If" and not g3.get("orelse")):
+        return None
+    t3 = g3.get("test", {})
+    if not (isinstance(t3, dict) and t3.get("type") == "BinOp" and t3.get("op") == "not in"
+            and _is_var(t3.get("left"), atvar)):
+        return None
+    tup = t3.get("right", {})
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    ok_types = [_is_string(e) for e in tup.get("elts", [])]
+    if not ok_types or any(s is None for s in ok_types):
+        return None
+    g3b = g3.get("body", [])
+    if len(g3b) != 1 or _match_sa_raise(g3b[0]) != exc:
+        return None
+    return {"tag": tag, "array_key": array_key, "type_key": type_key,
+            "type_val": type_val, "name_key": name_key,
+            "ok_types": ok_types, "exc": exc}
+
+
+def recognize_sawalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the T3 context-threading walk `_sa_walk(node, where,
+    symtab)` (plan §5). Returns a descriptor or None; never raises."""
+    try:
+        return _recognize_sawalk(func)
+    except Exception:
+        return None
+
+
+def _recognize_sawalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 3:
+        return None
+    subj, p1, p2 = params[0], params[1], params[2]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+    # dict-arm: exactly [pre-action If, values loop]
+    dbody = outer.get("body", [])
+    if len(dbody) != 2:
+        return None
+    pre = _match_sa_pre(dbody[0], subj, p2)
+    if pre is None:
+        return None
+    if not _match_sa_values_loop(dbody[1], subj, fname, p1, p2):
+        return None
+    # else-arm: exactly `if isinstance(node, list): for x in node: self(x, p1, p2)`
+    orelse = outer.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    inner = orelse[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If" and not inner.get("orelse")):
+        return None
+    if not _match_isinstance(inner.get("test", {}), subj, "list"):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1 or not _match_sa_list_loop(ibody[0], subj, fname, p1, p2):
+        return None
+    return {"subject": subj, "env1": p1, "env2": p2, "pre": pre}
+
+
+def _sa_reader_lines(n: str, key: str, as_str: bool) -> List[str]:
+    """Emit a spine reader `pydict -> option (string|pyval)` for `key`, using the
+    interned constructor for a named key (zero string theory) or the `K_dyn s`
+    fallback with a `pystr_eq` payload test for a computed key."""
+    suf = _reader_suffix(key)
+    rty = "option string" if as_str else "option pyval"
+    out = [f"  let rec {n}__get_{suf} (d: pydict) : {rty}",
+           "    variant { d }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        hit = "(PStr s) _ -> Some s" if as_str else "v _ -> Some v"
+        out.append(f"    | DCons {_NAMED_KEYS[key]} {hit}")
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    elif as_str:
+        out.append(f'    | DCons (K_dyn k) (PStr s) rest -> if pystr_eq k "{key}" then Some s else {n}__get_{suf} rest')
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    else:
+        out.append(f'    | DCons (K_dyn k) v rest -> if pystr_eq k "{key}" then Some v else {n}__get_{suf} rest')
+        out.append(f"    | DCons _ _ rest -> {n}__get_{suf} rest")
+    out.append("    end")
+    return out
+
+
+def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
+                      whyml_ident) -> List[str]:
+    """Emit the T3 env-threaded walk group for a recognized `_sa_walk`.
+
+    The env (`where: string`, `symtab: sdict`) is threaded read-only down the
+    `pyval`/`pydict`/`list pyval` catamorphism; the `variant` is `size node`
+    (the env does not affect termination). The computed-key symbol-table read is
+    `slookup name symtab : option pyval` — a total, option-valued lookup over the
+    string-keyed `sdict` (defensive totalization); which entry is found is a
+    value question no VC constrains (insight C: `pystr_eq`'s result is
+    unconstrained). A mismatch `raise`s the source exception, declared `raises
+    { <Exc> }` on every function in the group (exceptions are inside
+    `why3_implements_wp_w`, axiom 3 — the ledger does not move)."""
+    n = whyml_ident(func["name"])
+    subj = sa["subject"]
+    p1, p2 = sa["env1"], sa["env2"]
+    pre = sa["pre"]
+    exc = pre["exc"]  # already a valid WhyML exception ident (user_exceptions)
+    out: List[str] = []
+    # ---- spine readers for the pre-action's computed/interned keys ----
+    out += _sa_reader_lines(n, "stmt", as_str=True)
+    out += _sa_reader_lines(n, pre["array_key"], as_str=False)
+    out += _sa_reader_lines(n, pre["type_key"], as_str=True)
+    out += _sa_reader_lines(n, pre["name_key"], as_str=True)
+    # ---- ok-type membership (semantic guard, insight C: result unconstrained) ----
+    cond = " || ".join(f'pystr_eq s "{t}"' for t in pre["ok_types"])
+    out.append(f"  let function {n}__ok_type (s: string) : bool = {cond}")
+    # ---- the pre-action: the computed-key symtab read + the two mismatch raises ----
+    stmt_suf = _reader_suffix("stmt")
+    arr_suf = _reader_suffix(pre["array_key"])
+    type_suf = _reader_suffix(pre["type_key"])
+    name_suf = _reader_suffix(pre["name_key"])
+    out.append(f"  let {n}__pre ({subj}: pyval) ({p2}: sdict) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_{stmt_suf} d with")
+    out.append(f'         | Some st -> if pystr_eq st "{pre["tag"]}" then')
+    out.append(f"             (match {n}__get_{arr_suf} d with")
+    out.append("              | Some (PDict ad) ->")
+    out.append(f"                  (match {n}__get_{type_suf} ad with")
+    out.append(f'                   | Some ty -> if pystr_eq ty "{pre["type_val"]}" then')
+    out.append(f"                       (match {n}__get_{name_suf} ad with")
+    out.append(f"                        | Some nm ->")
+    out.append(f"                            (match slookup nm {p2} with")
+    out.append(f"                             | None -> raise {exc}")
+    out.append(f"                             | Some (PStr aty) -> if {n}__ok_type aty then () else raise {exc}")
+    out.append(f"                             | Some _ -> raise {exc}")
+    out.append("                             end)")
+    out.append("                        | None -> () end)")
+    out.append("                     else ()")
+    out.append("                   | None -> () end)")
+    out.append("              | _ -> () end)")
+    out.append("           else ()")
+    out.append("         | None -> () end)")
+    out.append("    | _ -> () end")
+    # ---- the env-threaded walk / walk_dict / walk_list group ----
+    out.append(f"  let rec {n} ({subj}: pyval) ({p1}: string) ({p2}: sdict) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"    variant {{ size {subj} }}")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PDict d -> {n}__pre {subj} {p2}; {n}__dict d {p1} {p2}")
+    out.append(f"    | PList xs -> {n}__list xs {p1} {p2}")
+    out.append("    | _ -> () end")
+    out.append(f"  with {n}__dict (d: pydict) ({p1}: string) ({p2}: sdict) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> ()")
+    out.append(f"    | DCons _ v rest -> {n} v {p1} {p2}; {n}__dict rest {p1} {p2}")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval) ({p1}: string) ({p2}: sdict) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append("    variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> () | Cons h t -> {n} h {p1} {p2}; {n}__list t {p1} {p2} end")
+    return out

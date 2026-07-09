@@ -1975,8 +1975,13 @@ class PreambleEmissionMixin:
         # (fires on 0/756 programs) → byte-diff-0.
         from module6_whyml.generic_fold import (
             recognize_generic_fold, recognize_setfold, recognize_substmap,
-            recognize_bool_existence, recognize_frt)
-        needs_pydict = any(
+            recognize_bool_existence, recognize_frt, recognize_sawalk)
+        # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
+        # to the env-threaded pyval/pydict group and additionally needs the
+        # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
+        # already-landed pydict-group mirrors stay byte-identical).
+        needs_sdict = any(recognize_sawalk(f) is not None for f in functions)
+        needs_pydict = needs_sdict or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_substmap(f) is not None
             or recognize_bool_existence(f) is not None
@@ -1984,6 +1989,7 @@ class PreambleEmissionMixin:
             for f in functions)
         return {
             "needs_pydict": needs_pydict,
+            "needs_sdict": needs_sdict,
             "needs_array": needs_array,
             "needs_matrix": needs_matrix,
             "needs_minmax": needs_minmax,
@@ -2589,6 +2595,37 @@ class PreambleEmissionMixin:
         `_emit_preamble_uses` under the same gate."""
         if not needs.get("needs_pydict"):
             return []
+        return self._pydict_theory_lines() + self._sdict_theory_lines(needs)
+
+    def _sdict_theory_lines(self, needs: Dict[str, Any]) -> List[str]:
+        """ir-traversal-residual T3 (plan §5): the string-keyed symbol table
+        `sdict` — a SECOND, deliberately-boring datatype whose keys are RUNTIME
+        strings (not interned `irkey`), with an option-valued `slookup` (variant
+        on the list, structural). Two facts keep computed-key reads in the solved
+        discipline: (a) `pystr_eq`'s result is program code no VC constrains
+        (insight C); (b) the read returns `option` with an explicit `None` arm
+        (defensive totalization) — no string theory enters any VC. Pure inductive
+        datatype + a defined function; certified axiom-free in
+        `Phase2c_PyValDict.v` / `PyValDict.lean` (the 2nd/last certificate), so
+        the 3-axiom ledger is UNCHANGED. Gated on `needs_sdict` (corpus-inert)."""
+        if not needs.get("needs_sdict"):
+            return []
+        return [
+            "",
+            "  (* ==== ir-traversal-residual T3: string-keyed symbol table `sdict` ==== *)",
+            "  (* keys are RUNTIME strings (not interned irkey); slookup is option-valued *)",
+            "  (* (defensive totalization) + `pystr_eq`-tested (result no VC constrains). *)",
+            "  type sdict = SNil | SCons string pyval sdict",
+            "",
+            "  let rec slookup (k: string) (s: sdict) : option pyval",
+            "    variant { s }",
+            "  = match s with",
+            "    | SNil -> None",
+            "    | SCons k' v rest -> if pystr_eq k k' then Some v else slookup k rest",
+            "    end",
+        ]
+
+    def _pydict_theory_lines(self) -> List[str]:
         return [
             "",
             "  (* ==== wall-plan v2: concrete-map universal-value theory (inert unless routed) ==== *)",

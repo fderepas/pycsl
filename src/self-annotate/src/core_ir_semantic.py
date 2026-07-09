@@ -137,12 +137,32 @@ def _ir_free_vars(node):
 def _check_subscript_assignments(func) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _sa_walk(node, where, symtab) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if isinstance(arr, dict) and arr.get("type") == "Var":
+                name = arr.get("name")
+                arr_type = symtab.get(name)
+                if arr_type is None:
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to undefined variable '{name}' in {where}.",
+                        code="PYCSL-SEM-SUBSCRIPT",
+                    )
+                if arr_type not in ("list", "List", "dict", "Dict", "Any"):
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to non-list/dict variable '{name}' "
+                        f"(type '{arr_type}') in {where}.",
+                        code="PYCSL-SEM-SUBSCRIPT",
+                    )
+        for v in node.values():
+            _sa_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _sa_walk(x, where, symtab)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
