@@ -943,3 +943,38 @@ untouched). Count **1240 → 1240**. Measured clean rate **0/1** direct attempt 
   `int↔string` leaks; audit the WL resyncs vs §10.4) BEFORE reopening Track-R Phase-1 — it blocks R3,
   ADT-routed R2, and R1' alike. Ledger held at 3 axioms; `proof_axiom_allowlist` unchanged; fidelity
   `check-self-annotate-sync` green (90 verbatim). Deliverables docs-only; no `src/pycsl`/mirror edit.
+
+---
+
+### Iteration — 2026-07-09 · Track A (census): V2 collection-result frontier · count held 1237
+
+**Trigger:** SL loop re-entered at 1237 (bounded-algebra IR-fold/traversal frontier exhausted per
+`bigger-build.md §7`). User chose **A — CENSUS**. Scoped to **V2 (collection-result modeling)** in the
+model-addressable emitter modules (`module6_whyml/*`, `core_ir_semantic.py`) — NOT the
+`frontend/pure_ast.py` (262) / `Module5_IREmitter.py` (180) flat AST-builder bulk (already out-of-frontier).
+
+**Method:** static shape triage over the 19 collection-returning `\trusted` candidates → whole-body
+`--fun` proof on the survivors (§10.1: classify on full proof, never inspection).
+
+**Verdict — V2 yields 0 clean conversions (frontier confirmed exhausted):**
+- **16 / 19 out-of-frontier by static shape:** the `functions.py::_build_method_*_map` family (10) returns
+  `Dict[str, List[Dict[str,Any]]]` — **nested-pyval dict-values** (ensures-clause AST subtrees), V1-adjacent,
+  not the flat `sdict` frontier; the `Set[str]`/`List` collectors (`_typed_local_vars`, `find_iteration_mutations`,
+  `_build_method_param_types_map`) **compose non-algebra `\trusted` siblings + write self-state**
+  (`self._ghost_tuple_vars.update`, `self._inline_array_temps = …`) — the D-outlining-over-non-algebra class.
+- **3 static survivors, all fall under full proof:**
+  - `types.py::_split_tuple_type` — **PROOF FAILED, measured:** ported live body
+    (`rt.strip(); inner[1:-1]; inner.split(",")` comprehension) → `This expression has type int, but is
+    expected to have type array string`. The `str.split(sep) -> List[str]` (whole-list, not element-index)
+    chain leaks `int`; the faithful-`split`-into-`array string` op is **not modelled**. Reverted, 1237.
+  - `scc.py::compute_sccs` — nested recursive **closure** (`strongconnect`) over captured mutable state +
+    **non-structural recursion** (variant = unvisited-node count). Out-of-frontier.
+  - `scc.py::sort_functions_by_scc` — composes `compute_sccs`. Out.
+
+**One bounded feature surfaced (Track-B candidate, NOT research-grade):** faithful
+`str.split(sep) -> array string` (extends the landed faithful-string-op P1–P4 which did split-**elem** but
+not whole-list split). Would unblock `_split_tuple_type` (+1) and any sibling whole-list-split string method.
+A bounded emitter feature, gated like any Track-B build (both provers, byte-diff 0, whole-body proof).
+
+**Outcome:** census confirms the residual V2 frontier is at the honest floor — the tractable slice is
+`str.split` alone. No conversion landed (correct — measure before build); tree clean, count 1237, ledger==3.
