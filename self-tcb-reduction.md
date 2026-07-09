@@ -1086,3 +1086,55 @@ across V1/V3, globally framed (3-axiom ledger, LINK-3, scope cut, coupling rule)
 (verbatim L3-tc failures for `_build_soundness_report` B1 / `_strip_outer_parens` B3), what's certified
 (`pyval`/`pydict`/`sdict`), SOTA-tagged open questions, frozen benchmark B0/B1/B2/B3. Distinct from the
 CONTROL-shape wall reports (`wall-plan-v2-phase2c-stand-alone.md`, `ir-traversal-residual-stand-alone.md`).
+
+---
+
+### Campaign — 2026-07-09 · EXECUTED `value-model-wall-stand-alone-plan-2.md` (7 phases) · 1236 → 1235
+
+Spike-gated, single-writer, every agent claim independently re-verified (re-prove / worktree byte-diff /
+ledger / count / fidelity). Phase-by-phase measured verdicts:
+
+- **E0 (param-extraction fix)** — `92cef465`. `functions.py::_build_param_list` method branch iterated the
+  polluted `symbol_table` (loop tuple-targets + locals) and skipped `local_refs`, so `for i,ch in ...`
+  promoted `i,ch` to method params AND dropped a reassigned param (`s=s.strip()` → `unbound 's'`). Fixed:
+  iterate `_formal_params` (like the standalone branch). Regression fixture 0886. **Byte-diff 0** over 760
+  corpus (re-verified). No marker change; ledger==3.
+- **W2 (char-level string iteration)** — `544775d0`. A char IS a 1-char `str_sub_op` string; `enumerate(s)`/
+  `for ch in s` → integer-indexed `while` with the arithmetic variant `String.length s - !i` (no seq-char
+  theory, no new value shape, no certificate); `ch=="("` via `str_eq_op` as an unconstrained boolean.
+  Needed: preserve for-loop tuple-targets through the IR (`ForStmt.tuple_targets`, Module5+ir_schema) +
+  a reassigned-string-param entry-shadow fix (`_typed_local_vars`). **Converted `_strip_outer_parens`**
+  (--fun proof SUCCESS: invariant preservation + variant decrease + postcondition Valid). Byte-diff 0 over
+  761 corpus (re-verified); the two mirrors whose emission shifted differ ONLY by `+mutable tuple_targets:
+  int` (byte-identical bodies) + L3-tc ✓ ⇒ proofs preserved. Fixture 0887. **\trusted 1236→1235.**
+- **S1 (record-threading spike)** — verdict **PASS**, folded into `c9cee5f5`. `@dataclass`/`TypedDict`
+  already lower to native WhyML records with faithful per-field types; a generated record type threads
+  value-level across an independent call boundary; bare `Dict[str,Any]` is NOT route R (opaque map).
+  **Certificate = branch (a): none** — the record shape is already certified axiom-free
+  (`Phase2b_RecordVal.v` + `RecordVal.lean` BOTH present; S1's "no Lean mirror" flag was wrong); ledger 3.
+- **R (record route)** — `c9cee5f5`. Honest yield **0 pure-R conversions** of real `\trusted` methods
+  (measured): the closed-key-record census = 3, all non-pure-R — `as_dict` is already a verified TypedDict
+  method (false hit) and a fresh un-trust attempt FAILS L3-tc (int-vs-string in the self-field/`message()`
+  construction); `_build_soundness_report` + `_to_cache_payload` carry heterogeneous nested fields = route
+  U. The `_build_method_*_map` B2 family = homogeneous dynamic-key maps, NOT route R. Banked the **B1
+  capability fixture 0888** (@dataclass producer+consumer, value contracts, proves). Mechanism done+
+  certified; residual pure-R applicability = 0 without U.
+- **S2 (U corpus-inertness)** — measured: the corpus DOES exercise the route-U shapes (7 `Dict[str,Any]`,
+  10 `.get("…")`, 4 `.values()/.items()` walks over 844 programs), so a corpus-facing U recognizer is NOT
+  byte-diff-0-safe → **corpus-facing U inadmissible; the non-mirror walker residue is a partial B0**
+  (documented `TRUSTED(essential)`). U0 stays mirror-only (inert by construction).
+- **U0 / B1' (mirror defensive projection)** — **not built; measured ~0 yield.** A U0 spike on the most
+  favorable ANY-WALK method (`_collect_field_decode_str_locals`, Set[str] return) failed L3-tc on
+  `array int` vs `int` — a **collection/array-typing** blocker, NOT the generic-dict read pyval-routing
+  would fix. Confirmed by the V1 census (0/26, blockers = nested-pyval returns + composition + string-emit).
+  B1' (`_build_soundness_report`) is blocked on the nested-heterogeneous **return** (the full pyval value
+  model). So U0 does not address the actual walls; the value-model residual IS the research boundary
+  already documented in `value-model-wall-stand-alone.md` (benchmarks B0/B1'/B2). No build (measure-before-
+  build, §10.2).
+
+**Net:** 1236 → 1235 (**+1** real conversion via W2) + an emitter correctness fix (E0) + route-R
+capability confirmed/certified (B1 fixture) + three grounded spike verdicts (S1 PASS, S2 partial-B0, U0
+~0) that sharpen the research boundary. Ledger held at 3, corpus byte-diff 0 throughout, fidelity green,
+suite-affected mirrors proof-preserved. The plan is fully executed; the value-model wall's bounded faces
+(char-iteration, closed-key records) are banked, and its dynamic face (heterogeneous nested Dict[str,Any])
+is the documented open problem.
