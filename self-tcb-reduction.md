@@ -1079,3 +1079,10 @@ narrowing of the str-list gap. Consistent with the 2026-07-07 finding (even the 
 
 **Outcome:** all three value-model tracks census-confirmed at their floor this session — V2 banked (+1
 `str.split`), V1 leave-trusted (0), V3 emitter-defect (0). No V3 conversion. Tree clean, ledger==3, 1236.
+
+**§12 external-reviewer report produced:** `value-model-wall-stand-alone.md` (repo root) — the
+value-model wall (heterogeneous `Dict[str,Any]` + string-as-character-sequence) confirmed research-grade
+across V1/V3, globally framed (3-axiom ledger, LINK-3, scope cut, coupling rule), measured evidence
+(verbatim L3-tc failures for `_build_soundness_report` B1 / `_strip_outer_parens` B3), what's certified
+(`pyval`/`pydict`/`sdict`), SOTA-tagged open questions, frozen benchmark B0/B1/B2/B3. Distinct from the
+CONTROL-shape wall reports (`wall-plan-v2-phase2c-stand-alone.md`, `ir-traversal-residual-stand-alone.md`).
