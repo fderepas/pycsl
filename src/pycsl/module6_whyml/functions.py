@@ -413,8 +413,19 @@ class FunctionEmissionMixin:
             # bytes/bytearray reach `array int` via the `\valid`/array1d_params
             # path, so the old method-only bytes/bytearray symtype shortcut
             # (unused across the corpus) folds away.
-            for arg in symbol_table:
-                if arg in local_refs or arg in ghost_vars:
+            #
+            # E0 param-extraction fix: iterate the UNPOLLUTED `_formal_params`
+            # (source-ordered real parameters, `self` excluded) — NOT the
+            # `symbol_table`, which Module4 also fills with for-loop tuple
+            # targets and AnnAssign locals. Iterating `symbol_table` promoted
+            # a `for i, ch in ...` loop target (`i`, `ch`) to method parameters,
+            # AND skipping `local_refs` DROPPED a real param that the body
+            # reassigns (e.g. `s = s.strip()`), yielding `unbound symbol 's'`.
+            # This mirrors the standalone branch below: formal params stay in
+            # the signature even when mutated — they are promoted to refs inside
+            # `_emit_body_code` via `let X = ref X in` shadowing.
+            for arg in self._formal_params:
+                if arg in ghost_vars:
                     continue
                 param_parts.append(
                     self._param_type_str(arg, set(), array2d_params,
