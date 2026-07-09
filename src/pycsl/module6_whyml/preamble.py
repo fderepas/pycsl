@@ -1974,10 +1974,13 @@ class PreambleEmissionMixin:
         # group and needs the L1 `pyval`/`pydict`/`size` theory. Gated + corpus-inert
         # (fires on 0/756 programs) → byte-diff-0.
         from module6_whyml.generic_fold import (
-            recognize_generic_fold, recognize_setfold, recognize_substmap)
+            recognize_generic_fold, recognize_setfold, recognize_substmap,
+            recognize_bool_existence, recognize_frt)
         needs_pydict = any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_substmap(f) is not None
+            or recognize_bool_existence(f) is not None
+            or recognize_frt(f) is not None
             for f in functions)
         return {
             "needs_pydict": needs_pydict,

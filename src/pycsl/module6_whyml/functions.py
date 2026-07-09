@@ -933,10 +933,33 @@ class FunctionEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_generic_fold, emit_generic_fold_group,
             recognize_setfold, emit_setfold_group,
-            recognize_substmap, emit_substmap_group)
+            recognize_substmap, emit_substmap_group,
+            recognize_bool_existence, emit_bool_existence_group,
+            recognize_frt, emit_frt_group)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)
+        # ir-traversal-residual A-bool: the statement-tree existence fold (the
+        # lambda-lifted `_has_return*` closures). Fail-closed; loud unprovable
+        # instance on any template bug.
+        _be = recognize_bool_existence(func)
+        if _be is not None:
+            return emit_bool_existence_group(func, _be, whyml_ident)
+        # ir-traversal-residual D + T2: the composed `find_return_type`
+        # (outlined bool folds + first-match search + certified string tail).
+        _frt = recognize_frt(func)
+        if _frt is not None:
+            # The certified string tail uses the same abstract string ops the
+            # normal expression lowering would register; register them here since
+            # the recognizer bypasses that path.
+            self._add_abstract_op(
+                "val str_concat_op (a: string) (b: string) : string\n"
+                "    ensures { result = (concat a b) }\n"
+                "    ensures { String.length result = String.length a + String.length b }")
+            self._add_abstract_op(
+                "val str_join_arr (sep: string) (xs: array string) : string\n"
+                "    ensures { String.length result >= 0 }")
+            return emit_frt_group(func, _frt, whyml_ident)
         # phase3.md §3.1: the A-set returned-set fold (result_algebra = SET). Same
         # fail-closed discipline; a template bug is a loud unprovable instance.
         _sf = recognize_setfold(func)

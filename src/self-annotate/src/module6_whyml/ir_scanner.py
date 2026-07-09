@@ -348,12 +348,60 @@ class IRScanner:
     def find_iteration_mutations(stmts: List[int]) -> List[int]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def find_return_type(stmts: List[int]) -> str:
-        return ""
+    def find_return_type(stmts: List[Dict[str, Any]]) -> str:
+        def _has_return(stmts: List[Dict[str, Any]]) -> bool:
+            for stmt in stmts:
+                if stmt["stmt"] == "Return":
+                    return True
+                for key in ("body", "orelse"):
+                    if key in stmt and _has_return(stmt[key]):
+                        return True
+                if stmt.get("stmt") == "Match":
+                    for c in stmt.get("cases", []):
+                        if _has_return(c.get("body", [])):
+                            return True
+            return False
+
+        def _has_return_with_value(stmts: List[Dict[str, Any]]) -> bool:
+            for stmt in stmts:
+                if stmt["stmt"] == "Return" and stmt.get("value"):
+                    return True
+                for key in ("body", "orelse"):
+                    if key in stmt and _has_return_with_value(stmt[key]):
+                        return True
+                if stmt.get("stmt") == "Match":
+                    for c in stmt.get("cases", []):
+                        if _has_return_with_value(c.get("body", [])):
+                            return True
+            return False
+
+        if not _has_return(stmts):
+            return "unit"
+        if not _has_return_with_value(stmts):
+            return "unit"
+
+        for stmt in stmts:
+            if stmt["stmt"] == "Return" and stmt.get("value"):
+                val = stmt["value"]
+                if val.get("type") == "Tuple":
+                    n = len(val.get("elts", []))
+                    return "(" + ", ".join(["int"] * n) + ")"
+                if val.get("type") == "String":
+                    return "int"
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    result = IRScanner.find_return_type(stmt[key])
+                    if result not in ("int", "unit"):
+                        return result
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    result = IRScanner.find_return_type(c.get("body", []))
+                    if result not in ("int", "unit"):
+                        return result
+        return "int"
 
 
