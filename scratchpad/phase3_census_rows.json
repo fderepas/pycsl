@@ -560,19 +560,6 @@
  },
  {
   "file": "core_ir_semantic.py",
-  "name": "_hp_collect_written",
-  "family": "A-set",
-  "builder": true,
-  "clean": true,
-  "reason": "CLEAN",
-  "loc": 12,
-  "mode": "by-ref-param",
-  "kind": "set",
-  "self_rec": true,
-  "acc_var": "written"
- },
- {
-  "file": "core_ir_semantic.py",
   "name": "_ir_free_vars",
   "family": "A-set",
   "builder": true,
@@ -725,19 +712,6 @@
   "mode": null,
   "kind": null,
   "self_rec": false,
-  "acc_var": null
- },
- {
-  "file": "core_ir_semantic.py",
-  "name": "_sa_walk",
-  "family": "other",
-  "builder": false,
-  "clean": false,
-  "reason": "sibling-call:PyCSLSemanticError;variable-key-get;not-collection-builder",
-  "loc": 23,
-  "mode": null,
-  "kind": null,
-  "self_rec": true,
   "acc_var": null
  },
  {
@@ -3420,19 +3394,6 @@
  },
  {
   "file": "frontend/ir_resolve.py",
-  "name": "_collect_calls",
-  "family": "A-set",
-  "builder": true,
-  "clean": true,
-  "reason": "CLEAN",
-  "loc": 12,
-  "mode": "return-local",
-  "kind": "set",
-  "self_rec": true,
-  "acc_var": "calls"
- },
- {
-  "file": "frontend/ir_resolve.py",
   "name": "_contract_referenced_names",
   "family": "A-set",
   "builder": true,
@@ -4132,19 +4093,6 @@
   "kind": "dict",
   "self_rec": false,
   "acc_var": "spec"
- },
- {
-  "file": "frontend/monomorphize.py",
-  "name": "_subst_type_in_ir",
-  "family": "A-dict",
-  "builder": true,
-  "clean": true,
-  "reason": "CLEAN",
-  "loc": 23,
-  "mode": "return-local",
-  "kind": "dict",
-  "self_rec": true,
-  "acc_var": "new"
  },
  {
   "file": "frontend/monomorphize.py",
@@ -5835,19 +5783,6 @@
  },
  {
   "file": "module6_whyml/functions.py",
-  "name": "_collect_assign_targets",
-  "family": "A-set",
-  "builder": true,
-  "clean": true,
-  "reason": "CLEAN",
-  "loc": 10,
-  "mode": "by-ref-param",
-  "kind": "set",
-  "self_rec": true,
-  "acc_var": "acc"
- },
- {
-  "file": "module6_whyml/functions.py",
   "name": "_collect_record_fields",
   "family": "A-set",
   "builder": true,
@@ -5904,8 +5839,8 @@
   "family": "A-list",
   "builder": true,
   "clean": false,
-  "reason": "no-self-recursion;sibling-call:_build_param_list,_bytes_param_range_requires,_callee_raised_in;variable-key-get",
-  "loc": 254,
+  "reason": "no-self-recursion;sibling-call:_add_abstract_op,_build_param_list,_bytes_param_range_requires;variable-key-get",
+  "loc": 297,
   "mode": "return-local",
   "kind": "list",
   "self_rec": false,
@@ -6160,19 +6095,6 @@
  },
  {
   "file": "module6_whyml/ir_scanner.py",
-  "name": "collection_binder_kinds",
-  "family": "A-set",
-  "builder": true,
-  "clean": true,
-  "reason": "CLEAN",
-  "loc": 18,
-  "mode": "return-local",
-  "kind": "set",
-  "self_rec": true,
-  "acc_var": "found"
- },
- {
-  "file": "module6_whyml/ir_scanner.py",
   "name": "ends_with_return",
   "family": "A-bool",
   "builder": false,
@@ -6287,19 +6209,6 @@
   "kind": "set",
   "self_rec": true,
   "acc_var": "record_vars"
- },
- {
-  "file": "module6_whyml/ir_scanner.py",
-  "name": "find_return_type",
-  "family": "A-bool",
-  "builder": false,
-  "clean": false,
-  "reason": "sibling-call:_has_return,_has_return_with_value;in-loop-return;variable-subscript-read;not-collection-builder",
-  "loc": 51,
-  "mode": null,
-  "kind": null,
-  "self_rec": true,
-  "acc_var": null
  },
  {
   "file": "module6_whyml/ir_scanner.py",
@@ -6737,7 +6646,7 @@
   "builder": false,
   "clean": false,
   "reason": "no-self-recursion;sibling-call:_func_returns_string_seq,_refs_array_fn,collect_user_exceptions;in-loop-break;variable-key-get;variable-subscript-read;not-collection-builder",
-  "loc": 306,
+  "loc": 319,
   "mode": null,
   "kind": null,
   "self_rec": false,
@@ -6781,19 +6690,6 @@
   "kind": null,
   "self_rec": false,
   "acc_var": null
- },
- {
-  "file": "module6_whyml/scc.py",
-  "name": "find_calls_in_ir",
-  "family": "A-set",
-  "builder": true,
-  "clean": true,
-  "reason": "CLEAN",
-  "loc": 12,
-  "mode": "return-local",
-  "kind": "set",
-  "self_rec": true,
-  "acc_var": "calls"
  },
  {
   "file": "module6_whyml/scc.py",
