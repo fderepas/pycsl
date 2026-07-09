@@ -302,9 +302,16 @@ For an external reviewer cloning the repository as of 2026-07-09:
   BUILT and admissible-by-construction, but measured **0 net-new unblocks** — the generic-dict read is never
   the sole blocker — so it was reverted as gold-plating (no consumer). B1′ hit its wall at the first
   collection-valued read. A second **partial B0** was measured: the `pyval.size`/`emit_ir.size` theory-name
-  collision blocks U on any emit_ir-hosting mirror file. The remaining bounded work if U is ever reopened is
-  **collection-valued projection** (`PList`/`PDict` for `.get(k, [])`/`{}` + `List[Dict]` iteration), not the
-  scalar read — that, plus resolving the size-theory collision, is what a real B1′ needs.
+  collision blocks U on any emit_ir-hosting mirror file. **UPDATE (post-execution censuses `6027657b`,
+  `87c66866`): there is NO remaining bounded lead.** The `PList`/`PDict` collection-valued-projection idea
+  once conjectured here was CENSUSED and **refuted** — those reads are over the emit_ir IR-node ADT / plain
+  arrays / module-constant maps, **not** generic `pyval`, so a pyval-list projection converts ~0; the
+  IR-node-args reflection lead was likewise refuted (the arg-*count* model already exists; the methods
+  *iterate/process* args, composing `_expr_to_whyml` + self-state). What a real B1′ needs is not a bounded
+  projection but **discharge of the whole-body COMPOSITION** (read → iterate → variable-key map fold →
+  set-algebra → nested-heterogeneous return) as one first-order automatic VC under the frame-only contract —
+  the research boundary. See the step-back brief `09-2223.md` and the canonical statement
+  `value-model-wall-stand-alone.md` §8.
 - **The recurring brick** (type-safety dominated by a semantic guard) stands as in rev 1: mechanically
   detectable by guard-dominance; per-method close-out by source normalization, defensive shape change, or
   documented `TRUSTED(essential)`.
