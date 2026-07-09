@@ -1152,3 +1152,33 @@ measured wall: `_build_soundness_report` stalls at its first statement `ir_data.
 boundary. Sub-finding: the certified `pyval.size` collides by name with the `emit_ir.size` ADT measure,
 so a mirror file emitting the emit_ir ADT cannot also host the pyval theory (a concrete theory-composition
 boundary). Ledger==3, fidelity 52/52, why3-semantics untouched.
+
+---
+
+### Census — 2026-07-09 · collection-valued-read cluster (the U0 lead) · count held 1234
+
+**Trigger:** SL loop re-entered at 1234; user chose **A — CENSUS** the ~10 methods the U0 census flagged
+as blocked on a collection-valued read (`.get(k, [])`/`{}`, `List[Dict]` iteration), to measure whether a
+`PList`/`PDict` pyval projection would unblock them BEFORE building (§10.2).
+
+**Verdict — the cluster is NOT a `PList`/`PDict` opportunity; build refuted.** Enumerated 26 collection-
+valued-read `\trusted` candidates; the tractable subset's reads are **not over generic `Dict[str,Any]`
+pyval** but over distinct value shapes, each a separate gap:
+- **emit_ir ADT args (dominant)** — `val_ir.get("elts", [])` reads the emit_ir node's args as `array
+  emit_ir`; iterating/coercing them clashes with `array int`. **Grounded:** `_seq_init_expr` un-trusted →
+  L3-tc `array emit_ir vs array int`; `_handle_ghost_assign_stmt` is self-documented as this exact gap
+  (`len(val_ir.get("elts"))` over a MkTuple emit_ir → opaque `iter_length` int vs `array emit_ir` args,
+  emit_ir-reflection value-model-gapped, generic-dict-str-and.md). This is emit_ir-args `Array.length`
+  routing, NOT pyval-list projection.
+- **array-element typing** — `_collect_field_decode_str_locals` → `array int` vs `int` (measured earlier).
+- **module-constant tuple-keyed map** — `triggers_for` → `TRIGGERS.get(op_key, [])`, a `Tuple`-keyed const
+  map returning `List[Trigger]` (list-of-record); a different shape again.
+- the rest are giant orchestrators (`transpile`, `_run_pipeline`, `_run_proofs`, `_transpile_modular`) or
+  I/O (`_print_soundness_report`) — not read-shaped conversions.
+
+**Outcome:** a `PList`/`PDict` pyval projection would convert **~0** of the cluster — the collection-valued
+reads are emit_ir-ADT-args / array-element / module-const-map, distinct from generic pyval dicts. The
+bounded-looking lead dissolves on measurement. The dominant surfaced gap is **emit_ir-args reflection**
+(`Array.length`/element routing for `array emit_ir`), a separate value-model piece feeding the same
+documented research wall — not pursued (census-only; distinct from PList/PDict). No build; no conversion;
+tree clean, ledger==3, 1234.
