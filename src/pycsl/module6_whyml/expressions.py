@@ -923,6 +923,62 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         return recv_ir, (call_ir.get("args") or [None])[0]
 
+    def _split_comp_array_string(self, node, local_refs, invariant_ctx, subst):
+        """faithful-string-op.md §3.4 (whole-list): a comprehension
+        `[<str-elt> for t in <string>.split(sep) (if …)]` — a SINGLE generator over a
+        `<string>.split(sep)`/`.rsplit` source whose element expression is itself
+        string-typed once the target `t` is bound to a string — lowers to an OPAQUE
+        `array string` (content unmodelled, `length >= 0` only: a sound under-approximation,
+        exactly like `str_split_elem_op` for the element read). This is the whole-list
+        counterpart of the split-ELEM path (`<split>[i]`): the split value AS a list of
+        strings, so a `List[str]` return/local built by `[p.strip() for p in s.split(",")]`
+        types faithfully instead of collapsing to the opaque int `list_comp`.
+
+        Tightly gated on the split shape AND a string-valued element, so a non-split or
+        int-element comprehension stays on the existing int/opaque path (byte-identical).
+        Reached only OUTSIDE `@mutable_state` (the mutable-state block already lowers a
+        string comprehension to `list_comp_string`), so the two never disagree. None if not
+        applicable."""
+        _d = node.to_dict()
+        _gens = _d.get("generators", []) or []
+        if len(_gens) != 1:
+            return None
+        _g = _gens[0]
+        _rs = self._split_call_recv_sep(_g.get("iter", {}))
+        if _rs is None:
+            return None
+        _recv_ir, _sep_ir = _rs
+        _tgt = _g.get("target")
+        if not isinstance(_tgt, str):
+            return None
+        _elt = _d.get("elt", {})
+        # Type the loop target as a string (the split yields string ELEMENTS) and require
+        # the element expression to be string-valued under that binding — else the
+        # comprehension is NOT `array string` (e.g. `[len(p) for p in s.split(sep)]` stays
+        # int). Restore the symbol table afterwards (the comprehension itself is opaque).
+        _symtab = getattr(self, "_current_symbol_table", None)
+        _had = _symtab is not None and _tgt in _symtab
+        _old = _symtab.get(_tgt) if _symtab is not None else None
+        if _symtab is not None:
+            _symtab[_tgt] = "str"
+        try:
+            _elt_str = self._is_string_expr(_elt)
+        finally:
+            if _symtab is not None:
+                if _had:
+                    _symtab[_tgt] = _old
+                else:
+                    _symtab.pop(_tgt, None)
+        if not _elt_str:
+            return None
+        _recvw = self._expr_to_whyml(_recv_ir, local_refs or set(), invariant_ctx, subst)
+        _sepw = (self._expr_to_whyml(_sep_ir, local_refs or set(), invariant_ctx, subst)
+                 if _sep_ir is not None else '" "')
+        self._add_abstract_op(
+            "val str_split_op (s: string) (sep: string) : array string\n"
+            "    ensures { Array.length result >= 0 }")
+        return f"(str_split_op {_recvw} {_sepw})"
+
     def _is_literal_string_join(self, ir):
         """faithful-string-op.md §3.5: True if `ir` is `sep.join([s0, s1, …])` over a
         LITERAL list/tuple of STRING elements (receiver form) — the case
@@ -6596,6 +6652,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"val {_op} (src: {_coll} 'a) : {_coll} {_et}\n"
                     f"    ensures {{ {_len} result {_law} {_len} src }}")
                 return f"({_op} {_srcw})"
+            # faithful-string-op.md §3.4 (whole-list): outside @mutable_state, a
+            # `[<str-elt> for t in <string>.split(sep)]` comprehension is a faithful
+            # `array string` (opaque, length ≥ 0) — the whole-list counterpart of the
+            # split-ELEM path. Tightly gated on the split shape + string element, so a
+            # non-split / int comprehension stays on the opaque `list_comp` (byte-identical).
+            _split_arr = self._split_comp_array_string(node, local_refs, invariant_ctx, subst)
+            if _split_arr is not None:
+                return _split_arr
             self._add_abstract_op("val list_comp (x: int) : int")
             return "(list_comp 0)"
         if isinstance(node, SetCompExpr):

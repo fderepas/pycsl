@@ -538,6 +538,28 @@ class IRScanner:
         return False
 
     @staticmethod
+    def uses_str_split_comp(obj: Any) -> bool:
+        """faithful-string-op.md §3.4 (whole-list): True if `obj` contains a comprehension
+        `[<elt> for t in <string>.split(sep)]` — a `ListComp` a generator of which iterates a
+        `.split`/`.rsplit` Call. Such a comprehension lowers to `str_split_op … : array string`
+        (`_split_comp_array_string`), so the preamble must `use array.Array` even when the file
+        has no other array. Mirrors that recognizer's shape; byte-safe (no corpus file has a
+        qualifying string-element split-comp — the lowering byte-diff is 0)."""
+        if isinstance(obj, dict):
+            if obj.get("type") == "ListComp":
+                for g in (obj.get("generators") or []):
+                    it = g.get("iter") if isinstance(g, dict) else None
+                    if (isinstance(it, dict) and it.get("type") == "Call"
+                            and isinstance(it.get("func"), str)
+                            and (it["func"].endswith(".split")
+                                 or it["func"].endswith(".rsplit"))):
+                        return True
+            return any(IRScanner.uses_str_split_comp(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_str_split_comp(item) for item in obj)
+        return False
+
+    @staticmethod
     def uses_minmax(obj: Any) -> bool:
         if isinstance(obj, dict):
             if (obj.get("type") == "Call" and

@@ -1782,6 +1782,7 @@ class PreambleEmissionMixin:
                 or any(IRScanner.uses_subscript(body) for body in all_bodies)
                 or any(IRScanner.uses_arrayset(body) for body in all_bodies)
                 or any(IRScanner.uses_array_lit(body) for body in all_bodies)
+                or any(IRScanner.uses_str_split_comp(body) for body in all_bodies)
                 or any(IRScanner.uses_ghost_type(body, {"array"}) for body in all_bodies)
                 or axiom_needs_array
                 or _binder_needs_array

@@ -978,3 +978,41 @@ A bounded emitter feature, gated like any Track-B build (both provers, byte-diff
 
 **Outcome:** census confirms the residual V2 frontier is at the honest floor — the tractable slice is
 `str.split` alone. No conversion landed (correct — measure before build); tree clean, count 1237, ledger==3.
+
+---
+
+### Iteration — 2026-07-09 · Track B (build): faithful whole-list `str.split` → `array string` · 1237 → 1236
+
+**Trigger:** the V2 census (above) surfaced ONE bounded feature — the whole-list
+`str.split(sep) -> array string` op (the landed faithful-string-op P1–P4 did split-**elem**
+`s.split(sep)[i]` but not the whole list). User chose **B — BUILD**. Gated per §3/§5.1/§10.
+
+**Built (emitter, `src/pycsl/module6_whyml/`):**
+- `expressions.py::_split_comp_array_string` — recognizes a comprehension
+  `[<str-elt> for t in <string>.split(sep)]` (single generator, split source, element
+  string-typed once the loop target is bound to `str`) → an OPAQUE `array string`
+  (`val str_split_op (s sep: string) : array string ensures { Array.length result >= 0 }`).
+  A sound under-approximation (content unmodelled, like `str_split_elem_op`); the per-element
+  transform is dropped, sound under the `ensures True` self-annotation contract. Placed AFTER
+  the `@mutable_state` block (which already lowers a string comp to `list_comp_string`), so it
+  fires only for non-mutable-state files — the two never disagree.
+- `ir_scanner.py::uses_str_split_comp` + `preamble.py` `needs_array` wiring — a `ListComp` over
+  a `.split`/`.rsplit` iterator now triggers `use array.Array` (else `str_split_op : array string`
+  hits `unbound type symbol 'array'` in a file with no other array). Loose scanner (no dataflow):
+  it also fires on a non-string-receiver split-comp (`pycsl.py::args.provers.split(",,")`), whose
+  recognizer does NOT fire — a harmless unused `use array.Array` import; the file still proves.
+
+**Converted:** `types.py::_split_tuple_type` (`rt.strip(); inner[1:-1]; [p.strip() for p in
+inner.split(",")]`) — the census's measured blocker — now full-file-proves. `\trusted` 1237 → 1236.
+
+**Gates (all green):** type-safety — mirror `types.py` full-file `Verification SUCCESS`; fidelity
+— `self-annotate-mirror-check` 52/52 in sync; corpus inertness — **byte-diff 0** over 759 corpus
+files (reliable in-tree baseline; the worktree baseline was invalid — no `.venv`) with all 3 emitter
+files changed; ledger — **==3**, `src/formal-semantics` + `proof_axiom_allowlist` untouched, NO new
+axiom (`str_split_op` is a `val` with a sound length law), NO new value shape (`array string`
+pre-existing → no certificate); suite — the changed-emission mirrors (`types`/`pycsl`/`preamble`) all
+re-proved, unchanged-emission mirrors byte-identical to HEAD (no other split-comp in the mirror tree).
+Reference fixture **0885** (positive) proves under the feature emitter.
+
+**Outcome:** +1 marker (1236), a reusable faithful whole-list `str.split` lowering banked. The next
+whole-list-split string method in the mirror is now convertible on the same op.

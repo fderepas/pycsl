@@ -20,7 +20,7 @@ This document tracks how far that self-proof has progressed.
 
 ## Headline
 
-**The suite is genuinely green (34/34, full-file proofs), and the trusted core is down to `\trusted` = 1237 function-level stubs — with the `Dict[str, Any]` self-verification wall broken in practice.**
+**The suite is genuinely green (34/34, full-file proofs), and the trusted core is down to `\trusted` = 1236 function-level stubs — with the `Dict[str, Any]` self-verification wall broken in practice.**
 
 The metric has moved from the old module-level view ("26/26 modules
 pass, 1 body-verified") to a **per-function** count: every emitter
@@ -34,7 +34,7 @@ state (committed HEAD):
   IR-walkers** proved via a certified catamorphic lowering (see the
   wall campaign below) — the class that was long considered
   research-grade.
-- **`\trusted` stubs: 1237** — assumed contracts; the residual
+- **`\trusted` stubs: 1236** — assumed contracts; the residual
   trusted core, dominated by the value-model / per-shape long tail.
 - The gate is a **full-file proof** per mirror file (not `--fun`,
   which trusts siblings and can mask a leaky verified method — a
@@ -99,7 +99,7 @@ no new axiom):** 9 IR-traversal methods — `find_named_expr_targets` (A-unit
 ref) · `_collect_calls`/`find_calls_in_ir`/`collection_binder_kinds` (A-set)
 · `_collect_assign_targets`/`_hp_collect_written` (A-unit grammar) ·
 `_subst_type_in_ir` (reconstruction) · `find_return_type` (composed +
-short-circuit) · `_sa_walk` (context-threading). **Count 1248 → 1237 over
+short-circuit) · `_sa_walk` (context-threading). **Count 1248 → 1236 over
 the wall effort; the 3-axiom ledger held throughout** (two axiom-free
 Rocq 8.20 + Lean 4.29 certificates: the `pydict` value model and the `sdict`
 symbol-table pack — both re-verified `Print Assumptions`/`#print axioms`).
@@ -226,7 +226,7 @@ That collector is **not yet implemented** — see
 | Suite files | 34 |
 | Pass rate | **34/34 (100%), exit 0, full-file proofs** |
 | Body-verified functions | **~100** |
-| `\trusted` stubs (function-level) | **1237** |
+| `\trusted` stubs (function-level) | **1236** |
 | Trust ledger (Rocq 8.20 + Lean 4.29) | **3 axioms — held, axiom-free extensions** |
 | `Dict[str,Any]` wall | **broken in practice** (certified catamorphic lowering; ≥4 generic-dict walkers self-proved) |
 

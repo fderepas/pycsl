@@ -117,12 +117,18 @@ class TypeInferenceMixin:
     def _collect_array_var_assigns(self, stmts: List[int], seed: int=None) -> int:
         return set()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _split_tuple_type(self, rt: str) -> List[str]:
-        return []
+        """Split a WhyML tuple type `(int, array int, map int (option int))` into its
+        top-level slot type strings. The slot types in play (int / array int / string /
+        real / `map int (option int)`) contain NO top-level comma, so a comma split of
+        the paren-stripped body is exact."""
+        inner = rt.strip()
+        if inner.startswith("(") and inner.endswith(")"):
+            inner = inner[1:-1]
+        return [p.strip() for p in inner.split(",")]
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
