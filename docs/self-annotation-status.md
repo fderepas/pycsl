@@ -20,7 +20,7 @@ This document tracks how far that self-proof has progressed.
 
 ## Headline
 
-**The suite is genuinely green (34/34, full-file proofs), and the trusted core is down to `\trusted` = 1244 function-level stubs — with the `Dict[str, Any]` self-verification wall broken in practice.**
+**The suite is genuinely green (34/34, full-file proofs), and the trusted core is down to `\trusted` = 1239 function-level stubs — with the `Dict[str, Any]` self-verification wall broken in practice.**
 
 The metric has moved from the old module-level view ("26/26 modules
 pass, 1 body-verified") to a **per-function** count: every emitter
@@ -28,13 +28,13 @@ method in the mirror is either a **body-verified** (`#@`-annotated,
 verbatim-of-live, proved) function or a `\trusted` stub. Current
 state (committed HEAD):
 
-- **Body-verified functions: 97** — the prover sees the real
+- **Body-verified functions: ~100** — the prover sees the real
   implementation and discharges its contracts. This is genuine proof
   and includes, as of 2026-07, several **generic `Dict[str, Any]`
   IR-walkers** proved via a certified catamorphic lowering (see the
   wall campaign below) — the class that was long considered
   research-grade.
-- **`\trusted` stubs: 1244** — assumed contracts; the residual
+- **`\trusted` stubs: 1239** — assumed contracts; the residual
   trusted core, dominated by the value-model / per-shape long tail.
 - The gate is a **full-file proof** per mirror file (not `--fun`,
   which trusts siblings and can mask a leaky verified method — a
@@ -84,19 +84,34 @@ untyped `Dict[str, Any]`, which WhyML could not faithfully model. The
   Why3** (a template bug yields an unprovable instance, never a false
   proof → **no new trust**).
 
-**Converted so far (committed, each full-file "Verification SUCCESS",
-byte-diff 0, no new axiom):** `find_named_expr_targets` (A-unit by-ref
-mutation), plus `_collect_calls`, `find_calls_in_ir`,
-`collection_binder_kinds` (A-set returned-set folds). A 5th
-(`_collect_assign_targets`) is in flight.
+- **The non-fold traversal residual: ALSO broken (2026-07 traversal plan).**
+  Beyond the bounded folds, the emitter's IR-traversal methods came in five
+  non-fold shapes — **reconstruction** (functorial map), **value-dependent
+  branching**, **short-circuit search**, **composed multi-algebra**, and
+  **context-threading** (symbol tables). All five fall to the same
+  recognizer+templater by **schema, not synthesis**: guard classification
+  (semantic guards = unconstrained booleans, zero string theory), the
+  functorial-map / option / bool algebras, traversal outlining, and an
+  env-threaded fold over a certified string-keyed `sdict`.
 
-**Honest scaling economics (measured):** the structural census
-*over-counts* convertible methods at every level — real complexity
-lives in the pre-action / composition / control-flow (sibling-helper
-calls, variable-key context lookups, short-circuit search), not the
-walk shape. So the *capability* is proven and general, but the *count*
-comes **method-by-method** through a long tail of bounded per-shape
-features. Full trace: `bigger-build.md`, `phase3.md`, and
+**Converted (committed, each full-file "Verification SUCCESS", byte-diff 0,
+no new axiom):** 9 IR-traversal methods — `find_named_expr_targets` (A-unit
+ref) · `_collect_calls`/`find_calls_in_ir`/`collection_binder_kinds` (A-set)
+· `_collect_assign_targets`/`_hp_collect_written` (A-unit grammar) ·
+`_subst_type_in_ir` (reconstruction) · `find_return_type` (composed +
+short-circuit) · `_sa_walk` (context-threading). **Count 1248 → 1239 over
+the wall effort; the 3-axiom ledger held throughout** (two axiom-free
+Rocq 8.20 + Lean 4.29 certificates: the `pydict` value model and the `sdict`
+symbol-table pack — both re-verified `Print Assumptions`/`#print axioms`).
+
+**Honest scaling economics (measured):** the structural census *over-counts*
+convertible methods at every level — real complexity lives in the pre-action
+/ composition / control-flow, not the walk shape — so the *capability* is
+general but the *count* comes method-by-method. The `GenericFold` generator
+now covers the IR-traversal frontier; the remaining `\trusted` is non-traversal
+(I/O, hashing, generic-`Any` mutation) or the A-list/A-dict returned-collection
+models. Full trace + the open-problem statement handed to external review:
+`bigger-build.md`, `phase3.md`, `ir-traversal-residual-stand-alone*.md`,
 `getting-better/tier3/wall-plan-v2-phase*.md`.
 
 ---
@@ -210,8 +225,8 @@ That collector is **not yet implemented** — see
 |---|---:|
 | Suite files | 34 |
 | Pass rate | **34/34 (100%), exit 0, full-file proofs** |
-| Body-verified functions | **97** |
-| `\trusted` stubs (function-level) | **1244** |
+| Body-verified functions | **~100** |
+| `\trusted` stubs (function-level) | **1239** |
 | Trust ledger (Rocq 8.20 + Lean 4.29) | **3 axioms — held, axiom-free extensions** |
 | `Dict[str,Any]` wall | **broken in practice** (certified catamorphic lowering; ≥4 generic-dict walkers self-proved) |
 

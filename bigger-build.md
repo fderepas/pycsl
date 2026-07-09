@@ -197,6 +197,25 @@ For EACH family, in order (§4):
 - **VERIFIED ECONOMICS:** yield is **method-by-method** — the census over-counts even live-verified "clean"
   subsets; each remaining shape (context-map value model, sibling-`val` interop, composed/short-circuit
   algebras, A-list/A-dict returned-collection models) is a bounded per-shape go/no-go, not a free slot.
-- [ ] Remaining — the per-shape long tail: A-list/A-dict result models, the sibling-interop / context-map
-  dependency features, and the composed/short-circuit algebras. A distinct census-first campaign; NOT
-  session-momentum.
+- [✓] **Traversal plan (`ir-traversal-residual-stand-alone-plan.md`) — EXECUTED, all 5 non-fold shapes
+  broken.** The "schema not synthesis" thesis confirmed end-to-end (synthesis never needed). Three
+  benchmarks converted, each full-file-proved + independently re-verified, **ledger held at 3**:
+  - **Phase A** (`ccb6ff90`) — **C** (guard classification: semantic guards = unconstrained booleans, zero
+    string theory) + **T1** (functorial-map algebra: reconstruction `pyval→pyval`, variant on input, pure)
+    → `_subst_type_in_ir`. No certificate. 1241.
+  - **Phase B** (`6320e4f9`) — **T2** (option/first-match algebra) + **D** (traversal outlining: composed
+    method → first-order glue over certified sub-traversals) + **A-bool** (fold into `bool` by `||`)
+    → `find_return_type`. No certificate. Refinement: recurse on direct sub-terms (not size-bounded field
+    readers) to survive `split_vc`. 1240.
+  - **Phase C** (`17252838`) — **T3** (env-threaded fold) + **`sdict`** (string-keyed symbol-table datatype +
+    option `slookup`) + `raises` → `_sa_walk`. **One axiom-free Rocq+Lean certificate** (the 2nd/last;
+    `Print Assumptions`="Closed under the global context", `#print axioms`=kernel-only — I re-verified both).
+    1239.
+  - Suite-array completeness fix: `core_ir_semantic.py` (Module4's replacement, holding these conversions)
+    was silently un-gated — now added to `run-self-annotation-suite.sh`.
+- **CURRENT NET: 1248 → 1239 — 9 IR-traversal methods un-trusted and self-proved** across A-unit ref, A-set
+  returned-set, A-unit-grammar, and the 5 traversal shapes (reconstruction / value-dependent / short-circuit
+  / composed / context-threading), all via the certified `GenericFold` generator, **no new trust, byte-diff
+  0, ledger held at 3** (2 axiom-free certificates total). The residual `GenericFold` algebras cover the
+  IR-traversal frontier; remaining `\trusted` is non-traversal (I/O, hashing, generic-`Any` mutation) or the
+  A-list/A-dict returned-collection models — a distinct census-first campaign, NOT session-momentum.

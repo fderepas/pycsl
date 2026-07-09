@@ -60,7 +60,9 @@ SUITE=(
     # live src/pycsl/frontend/ module and is a genuine full-file verification target).
     # The suite array was NOT updated at relocation time, so these silently left the gate;
     # repointed + completed here. Module4_SemanticAnalyzer was DELETED in the refactor
-    # (replaced by core_ir_semantic.py) — dropped, not repointed.
+    # and REPLACED by core_ir_semantic.py — now gated (it holds verified conversions:
+    # _hp_collect_written, _sa_walk via the traversal catamorphism generator).
+    "src/self-annotate/src/core_ir_semantic.py"
     "src/self-annotate/src/frontend/__init__.py"
     "src/self-annotate/src/frontend/Module1_Ingestor.py"
     "src/self-annotate/src/frontend/Module2_Parser.py"
