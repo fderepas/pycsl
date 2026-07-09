@@ -37,6 +37,41 @@ is both inert and covering — the dynamic-walker residue closes as a **partial 
 
 ---
 
+## 0.5 MEASURED RESULTS — plan EXECUTED 2026-07-09 (commits `92cef465..c694a008`)
+
+All 7 phases were run spike-gated and single-writer; every step's claim was independently re-verified
+(re-prove / worktree-at-HEAD byte-diff / ledger / count / fidelity). `\trusted` **1236 → 1234** (net **−2**:
+W2 `_strip_outer_parens`, plus one latent auto-trust stub). Ledger held at **3**, corpus byte-diff **0**
+throughout, fidelity 52/52, `why3-semantics` untouched. The prospective plan (§1–§11) is retained below as
+the design rationale; this section records what the build actually measured.
+
+| phase | prospective claim | MEASURED outcome |
+|---|---|---|
+| **E0** | param-fix, blast radius unknown | ✅ `_build_param_list` iterates `_formal_params` (not the polluted `symbol_table`); **byte-diff 0** over 760 corpus (the only diff is new fixture 0886); no marker change (`92cef465`) |
+| **W2** | banks B3 + string-slice methods | ✅ **+1** `_strip_outer_parens` — char = 1-char `str_sub_op`; `enumerate(s)` → indexed `while` + arithmetic variant `String.length s − i`; `--fun` proof: invariant preservation + **variant decrease** + postcondition all Valid; byte-diff 0; fixture 0887. Char-iteration population was ~1–3 (not ≤13 — most V3 are string-emit dispatchers, out of W2 scope) (`544775d0`) |
+| **S1** | decides R; likely pass-within-body-only | ✅ **PASS (value-level)** — `@dataclass`/`TypedDict` already lower to native records that thread across a call boundary. `Dict[str,Any]` = opaque map (route U), NOT R. **Certificate = branch (a): NONE** — record shape already certified axiom-free on **both** provers (`Phase2b_RecordVal.v` + `RecordVal.lean` present; the earlier "no Lean mirror" flag was wrong) (`c9cee5f5`) |
+| **R** | banks B1 + B2-subset | ⚪ **0 pure-R conversions of real `\trusted` methods.** Closed-key-record census = 3, all non-pure-R: `as_dict` already a verified TypedDict method (a fresh un-trust attempt FAILS L3-tc, int-vs-string in the self-field/`message()` construction); `_build_soundness_report` + `_to_cache_payload` carry heterogeneous nested fields = route U. `_build_method_*_map` B2 family = homogeneous **dynamic-key maps**, NOT route R. Banked the **B1 capability fixture 0888** (`@dataclass` producer+consumer, value contracts, proves). Mechanism done+certified; pure-R residual applicability = **0** without U (`c9cee5f5`) |
+| **S2** | decides corpus-facing U | ⚪ **corpus-facing U INADMISSIBLE.** The corpus DOES exercise the target shapes (7 `Dict[str,Any]`, 10 `.get("…")`, 4 `.values()/.items()` walks over 844 programs) → a corpus-facing recognizer is not byte-diff-0-safe. The non-mirror walker residue is a **partial B0** (documented `TRUSTED(essential)`). U0 stays mirror-only |
+| **U0** | mirror-only, banks the walker class | ⚪ **BUILT, then REVERTED as gold-plating.** The mirror-only defensive-pyval-projection (sdict params + slookup-routed `d.get("k")` + mirror-mode gate; corpus byte-diff 0 by construction) was fully implemented and measured. Census of **70** generic-dict-read `\trusted` methods → **net-new U0 unblocks = 0**: the read is **never the sole blocker** (always composed with a string-set-membership-over-int-set / collection-element-array-typing / nested-heterogeneous-return / self-state / emit_ir-`size`-collision wall). Per the no-unused-facade rule ([[track_b_opacity]] precedent), the 5-file build was **not landed**. It surfaced **1 latent stub** `_should_auto_trust_map_return` that proves whole-body **at HEAD without U0** → landed honestly (+1, type-safety+frame only). **`\trusted` 1235 → 1234** (`0bbf5504`) |
+| **B1′** | R+U integration, proves after U0 | ⚪ **MEASURED WALL.** `_build_soundness_report` (verbatim, `\trusted` removed) stalls at its **first statement** `ir_data.get("functions", [])` — a **collection-valued** read (`List[Dict[str,Any]]`) that U0's scalar/string projection does not cover, so it falls to `Map.get` on an `sdict` param: `pycsl.mlw:341 "type sdict but expected 'mu -> 'mu1"`. B1′ needs `PList`/`PDict` projection + `List[Dict]` iteration + variable-key map update + set-algebra + a nested-heterogeneous record return — the documented research boundary |
+
+**Sharpened wall (the decisive finding).** Route U's problem is **not the read** — U0 dissolves
+`d.get("k")` into a certified `slookup`/`pyval` defensive projection cleanly. The wall is the read's
+**composition** with the surrounding collection/self-state machinery, and the collection-valued reads
+(`.get(k, [])`/`{}`, `List[Dict]` iteration) that sit in front of every real IR walker. A **new
+theory-composition boundary** was also measured: the certified `pyval.size` measure collides *by name*
+with the `emit_ir.size` IR-node ADT measure, so a mirror file emitting the emit_ir ADT cannot also host the
+pyval theory (U0 fail-closes on those files; a rename would perturb existing emitters' `.mlw`).
+
+**Net closure.** The wall's **bounded faces** are banked — char-level strings (W2, shipped) and closed-key
+records (R, already certified + already applied). Its **dynamic face** — heterogeneous nested `Dict[str,Any]`
+with collection-valued reads — is confirmed the research boundary of `value-model-wall-stand-alone.md`,
+now sharpened to *the read's composition, plus PList/PDict collection-valued projection, plus the
+pyval/emit_ir size-theory collision*. B0 is **not** warranted for W2/R (they broke); it **is** warranted, as a
+partial B0, for corpus-facing U (S2) and the emit_ir-hosting mirror files (theory collision).
+
+---
+
 ## 1. Build order and the two decision spikes (C2; doubts 1, 2, 6)
 
 ```
@@ -247,19 +282,24 @@ For an external reviewer cloning the repository as of 2026-07-09:
 
 ---
 
-## 10. Honest close-out positions (C9)
+## 10. Honest close-out positions (C9) — RESOLVED by the 2026-07-09 execution (see §0.5)
 
-- **W2:** breaks, demonstrably, pending only per-method guard confirmation from the E0 re-census.
-  B0 not warranted.
-- **R:** breaks for genuinely closed-key, U-free shapes **if S1 passes across call boundaries**; degrades
-  gracefully (single-body returns) or closes as future work otherwise. B0 not warranted either way — the
-  question is yield, not possibility.
-- **U:** **the open question, kept open.** U0 (mirror-only) is admissible by construction and banks the
-  self-verification value. Corpus-facing U is admissible only if S2 exhibits an inert-and-covering gate;
-  if no such gate exists, the dynamic-walker residue outside the mirror is a **partial B0** — a
-  principled, documented `TRUSTED(essential)` boundary for exactly that sub-class, which is the
-  statement's own "equally valuable closure" and should be posed to the external reviewer in precisely
-  that form.
+- **W2 — BROKE (measured).** `_strip_outer_parens` proved (`--fun`: invariant + variant decrease +
+  postcondition Valid); char-iteration dissolves into shipped machinery, no new shape, no certificate.
+  Guard-dominance confirmed for the target. B0 not warranted. (+1)
+- **R — mechanism CONFIRMED + CERTIFIED (S1 PASS, value-level), pure-R residual yield = 0 (measured).**
+  Records thread across a call boundary via `@dataclass`/`TypedDict`; certificate branch (a) — none needed,
+  already certified both provers. But every real `\trusted` closed-key-record method is R+U (heterogeneous
+  nested fields), so pure-R converts **0**; banked the B1 capability fixture. B0 not warranted; the limit is
+  applicability, not possibility.
+- **U — the open question, now SHARPENED (measured).** S2: corpus-facing U is **inadmissible** (the corpus
+  exercises the target shapes) → **partial B0** for the non-mirror walker residue. U0 (mirror-only) was
+  BUILT and admissible-by-construction, but measured **0 net-new unblocks** — the generic-dict read is never
+  the sole blocker — so it was reverted as gold-plating (no consumer). B1′ hit its wall at the first
+  collection-valued read. A second **partial B0** was measured: the `pyval.size`/`emit_ir.size` theory-name
+  collision blocks U on any emit_ir-hosting mirror file. The remaining bounded work if U is ever reopened is
+  **collection-valued projection** (`PList`/`PDict` for `.get(k, [])`/`{}` + `List[Dict]` iteration), not the
+  scalar read — that, plus resolving the size-theory collision, is what a real B1′ needs.
 - **The recurring brick** (type-safety dominated by a semantic guard) stands as in rev 1: mechanically
   detectable by guard-dominance; per-method close-out by source normalization, defensive shape change, or
   documented `TRUSTED(essential)`.
