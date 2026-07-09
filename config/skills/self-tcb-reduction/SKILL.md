@@ -317,7 +317,10 @@ breakdown (`getting-better/tier3/whole-body-census.md`; residual analysis
 - **B — BUILD** one value-model feature a census proved out — fully gated: spike both provers, byte-diff
   0, whole-body proof, **a co-landing certificate lemma if it introduces a new value shape** (§10.5).
 - **C — CONVERT** a specific census-confirmed cluster (streamlined gate §5.1; per-function `--fun`).
-- **D — STOP** — campaign closed; the residual is a semantic ceiling / soundly-trusted; do nothing.
+- **D — STOP** — campaign closed; the residual is a semantic ceiling / soundly-trusted. **NOT "do
+  nothing":** STOP at the bounded floor is a §12 trigger — before/with proposing D you MUST produce or
+  **update** the external-reviewer report with the session's measured evidence, and phrase the move as
+  "hand off / refresh the reviewer report," never a bare stop.
 
 ### Tier-5 discipline (all of §10 applies)
 Census-first, demand-driven, **VALUE not count**, single-writer, whole-body proof, coupling/3-axiom-ledger
@@ -327,12 +330,32 @@ and append the outcome to `self-tcb-reduction.md` §8.
 
 ## 12. AT A RESEARCH-GRADE BOUNDARY — auto-produce an external-reviewer report (STANDING RULE; do NOT wait to be asked)
 
-**Trigger:** the moment you are about to characterize a residual as *"research-grade / needs a new value
-model / an unbounded capability / not a bounded fold / a distinct multi-session feature"* — i.e. a wall
-that is NOT a bounded engineering fix — **STOP and produce a standalone external-reviewer report before
-moving on.** The user must never have to ask for it (they have asked three times: `generic-dict-str-and.md`,
-`generic-dict-str-any-2.md`, `wall-plan-v2-phase2c-stand-alone.md` — make it automatic). Writing "this is
-research-grade" in a status/ledger WITHOUT co-producing the report is now a process error.
+**Trigger (any of these — not only the first):**
+1. the moment you are about to characterize a residual as *"research-grade / needs a new value
+   model / an unbounded capability / not a bounded fold / a distinct multi-session feature"* — a wall
+   that is NOT a bounded engineering fix; **or**
+2. **cumulative convergence** — when a session's *multiple* measured censuses/spikes all refute their
+   bounded leads and **converge on the SAME wall** (e.g. "every lead dissolves into the read's
+   composition"). The convergence IS the research-grade characterization, even if no single step said
+   "research-grade"; **or**
+3. **whenever the loop is about to recommend STOP / menu-option D because "the bounded frontier is
+   exhausted."** Reaching the bounded floor IS a research-grade boundary.
+
+**STOP-implies-report (the rule the user strengthened).** At any of these triggers you must **STOP and
+produce OR UPDATE the standalone external-reviewer report before moving on** — and the close-out move you
+PROPOSE to the user must be *"produce/update-and-hand-off the reviewer report"*, **not a bare "stop."**
+Recommending STOP (or writing "this is research-grade / the floor is N" in a status/ledger) WITHOUT
+producing-or-updating the report **and** offering it as the close-out is a **process error**. The user
+must never have to ask for it (they have asked repeatedly — `generic-dict-str-and.md`,
+`generic-dict-str-any-2.md`, `wall-plan-v2-phase2c-stand-alone.md`, `value-model-wall-stand-alone.md` —
+make it automatic).
+
+**Keep-current (a stale report is as much a process error as no report).** If a report for this wall
+ALREADY exists, you do NOT skip §12 — you **UPDATE it** with the session's new measured evidence: every
+census/spike that sharpened the wall (which lead was refuted and how, verbatim errors, what is now
+newly-SOLVED/certified, the tightened benchmark). A report that predates the session's measurements and
+no longer reflects the sharpened wall must be revised in the same close-out. State in the menu that the
+proposed move updates the *existing* report by name.
 
 **The report MUST be:**
 - **Self-contained** — submittable to an external PL / deductive-verification / verified-compilation
