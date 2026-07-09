@@ -1,0 +1,329 @@
+(* pycsl-formal-export.mlw — S-ext spike (richer-contracts-bridge-plan.md §2, §5)
+   ============================================================================
+
+   FALSIFIER SPIKE, not a build. Answers whether the extraction + M1-namespacing
+   story of the formal<->mirror bridge holds, by co-hosting, in ONE file:
+
+     (1) EmitAssignExport — a WhyML RE-STATEMENT of the certified per-arm emitter
+         `emit_assign` from `rocq/Phase6L_EmitAssign.v` (the exported `emit_F_assign`).
+         Extraction verdict (see report): the existing Rocq extraction pipeline
+         (`Phase6L_EmitExtract.v`) targets **OCaml only** (`extracted/EmitExtract.ml`,
+         driving `test-suite/extraction-byte-diff`). There is NO Rocq->WhyML path.
+         So the honest export is this faithful re-statement; its equivalence to the
+         Rocq original is a NAMED BRIDGE-AUDIT OBLIGATION (audit against
+         Phase6L_EmitAssign.v `emit_assign`/`acceptable_assign_emissions`), NOT a new
+         soundness axiom. The 3-axiom ledger is untouched.
+
+     (2) PyValExport — a faithful copy of the certified pyval theory
+         (`rocq/Phase2c_PyValDict.v`, WhyML twin `preamble.py::_pydict_theory_lines`).
+         The plan named the predicate `wf_pyval`; its ACTUAL certified name is
+         `wf_ir` (built from `wf_val` / `wf_dict`), certified axiom-free in
+         Phase2c_PyValDict.v (theorem `wf_ir_binds`). Also carries the certified
+         `size` measure (theorem `size_pos`) — this is one half of the M1 collision.
+
+     (3) EmitIrAdt — the emitter's own emit-IR ADT (`expr` + a structural `size`
+         node measure). Its `size` is the OTHER half of the 09-2223 §5.2 collision.
+
+     (4) BridgeHost — the mirror module that co-hosts (2)+(3)+(1) under the M1
+         namespacing discipline (`use ... as PV` / `use ... as EI`, 09-2223-plan §1),
+         so the two `size` symbols coexist qualified. Control that FAILS without the
+         discipline: see `pycsl-formal-export-collision-control.mlw`.
+
+   Acceptance: `why3 prove` type-checks; the non-trivial goals (emit-membership,
+   wf_ir application, size coexistence) are Valid. No `axiom` keyword anywhere.
+*)
+
+(* ==========================================================================
+   (2) PyValExport — certified pyval theory (Phase2c_PyValDict.v twin).
+   Faithful to preamble.py::_pydict_theory_lines. Exports `wf_ir` + `size`.
+   ========================================================================== *)
+module PyValExport
+  use int.Int
+  use list.List
+  use option.Option
+
+  (* D2 / R-B — interned IR keys (constructor (dis)equality; no string theory). *)
+  type irkey =
+    | K_type | K_left | K_right | K_op | K_z
+    | K_value | K_target | K_body | K_orelse | K_func | K_name
+    | K_dyn string
+
+  (* D1 / R-A — strictly-positive concrete universal value. *)
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  (* get : structural over the dict; key test is constructor (dis)equality. *)
+  function get (d: pydict) (k: irkey) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons k' v rest -> if k = k' then Some v else get rest k
+    end
+
+  predicate mem_key (d: pydict) (k: irkey)
+  = match d with
+    | DNil -> false
+    | DCons k' _ rest -> k = k' \/ mem_key rest k
+    end
+
+  (* D3 — size measure: +1 per cons cell (list AND dict). One HALF of the
+     M1 §5.2 `size` collision (the pyval measure). *)
+  function size (v: pyval) : int
+  = match v with
+    | PInt _ | PStr _ | PBool _ | PNone -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict d  -> 1 + size_dict d
+    end
+  with size_list (l: list pyval) : int
+  = match l with Nil -> 0 | Cons h t -> 1 + size h + size_list t end
+  with size_dict (d: pydict) : int
+  = match d with DNil -> 0 | DCons _ v rest -> 1 + size v + size_dict rest end
+
+  (* R-C — the PROVEN lemma pack (the recursion IS the induction). Certified
+     axiom-free in Phase2c_PyValDict.v (Theorem size_pos et al.). *)
+  let rec lemma size_pos (v: pyval) : unit
+    ensures { size v > 0 } variant { v }
+  = match v with
+    | PList xs -> size_list_nonneg xs
+    | PDict d  -> size_dict_nonneg d
+    | _ -> () end
+  with lemma size_list_nonneg (l: list pyval) : unit
+    ensures { size_list l >= 0 } variant { l }
+  = match l with Nil -> () | Cons h t -> size_pos h; size_list_nonneg t end
+  with lemma size_dict_nonneg (d: pydict) : unit
+    ensures { size_dict d >= 0 } variant { d }
+  = match d with DNil -> () | DCons _ v rest -> size_pos v; size_dict_nonneg rest end
+
+  (* E4 — wf_ir well-formedness (the certified predicate the plan called
+     `wf_pyval`) + the compositionality lemma (Phase2c Theorem wf_ir_binds). *)
+  predicate wf_val (k: irkey) (v: pyval)
+  = match k with
+    | K_op | K_type | K_target | K_func | K_name ->
+        (match v with PStr _ -> true | _ -> false end)
+    | _ -> true
+    end
+
+  predicate wf_dict (d: pydict)
+  = match d with
+    | DNil -> true
+    | DCons k v rest -> wf_val k v /\ wf_dict rest
+    end
+
+  predicate wf_ir (v: pyval)
+  = match v with PDict d -> wf_dict d | _ -> true end
+
+  let rec lemma wf_ir_binds (k: irkey) (d: pydict) : unit
+    requires { wf_dict d }
+    ensures  { forall v: pyval. get d k = Some v -> wf_val k v }
+    variant  { d }
+  = match d with
+    | DNil -> ()
+    | DCons _ _ rest -> wf_ir_binds k rest
+    end
+end
+
+(* ==========================================================================
+   (3) EmitIrAdt — the emitter's emit-IR ADT: the formal `expr` type + a
+   structural node `size` measure. This `size` is the OTHER half of the
+   09-2223 §5.2 collision (it clashes with PyValExport.size if both are
+   inlined into one theory — see the collision-control file).
+   ========================================================================== *)
+module EmitIrAdt
+  use int.Int
+  use string.String
+  use list.List
+
+  type binop = OpAdd | OpSub | OpMul | OpDiv | OpMod
+  type cmpop = OpEq | OpNe | OpLt | OpLe | OpGt | OpGe
+
+  (* Phase1_AST `expr` (the 9 formal constructors emit_assign dispatches on). *)
+  type expr =
+    | EInt int
+    | EVar string
+    | ESubscript string expr
+    | ELen string
+    | EBinOp binop expr expr
+    | ENeg expr
+    | ECmp cmpop expr expr
+    | EFieldGet string string
+    | ECall string (list expr)
+
+  (* The emit-IR node measure — same NAME `size` as the pyval measure. *)
+  function size (e: expr) : int
+  = match e with
+    | EInt _ | EVar _ | ELen _ | EFieldGet _ _ -> 1
+    | ESubscript _ i -> 1 + size i
+    | ENeg e1 -> 1 + size e1
+    | EBinOp _ a b | ECmp _ a b -> 1 + size a + size b
+    | ECall _ _ -> 1
+    end
+
+  (* Positivity (the recursion IS the induction); mirrors PyValExport.size_pos. *)
+  let rec lemma size_pos (e: expr) : unit
+    ensures { size e >= 1 } variant { e }
+  = match e with
+    | ESubscript _ i -> size_pos i
+    | ENeg e1 -> size_pos e1
+    | EBinOp _ a b | ECmp _ a b -> size_pos a; size_pos b
+    | _ -> ()
+    end
+end
+
+(* ==========================================================================
+   (1) EmitAssignExport — the exported per-arm emitter `emit_F_assign`, a
+   faithful WhyML re-statement of Phase6L_EmitAssign.v `emit_assign`.
+   Uses the emit-IR ADT qualified (M1). Proves the certified membership
+   theorem `emit_assign_correct` as a goal.
+   ========================================================================== *)
+module EmitAssignExport
+  use int.Int
+  use list.List
+  use list.Mem
+  use option.Option
+  use string.String
+  use EmitIrAdt as EI
+
+  type ident = string
+
+  (* z_to_string / newline are presentational; the Rocq original spells out a
+     decimal printer and a "\n" char. Abstracting them keeps the load-bearing
+     BRANCH structure of emit_assign exact while staying escape-clean. The
+     membership theorem does not depend on their definitions. *)
+  function z_to_string int : string
+  constant nl : string
+
+  function pretty_binop (op: EI.binop) : string
+  = match op with
+    | EI.OpAdd -> "+" | EI.OpSub -> "-" | EI.OpMul -> "*"
+    | EI.OpDiv -> "/" | EI.OpMod -> "mod" end
+
+  function pretty_cmpop (op: EI.cmpop) : string
+  = match op with
+    | EI.OpEq -> "=" | EI.OpNe -> "<>" | EI.OpLt -> "<"
+    | EI.OpLe -> "<=" | EI.OpGt -> ">" | EI.OpGe -> ">=" end
+
+  (* pretty_expr — models `_expr_to_whyml` for the 9 formal constructors
+     (Phase6L_EmitAssign.v `pretty_expr`). Variables bare (presentational gap). *)
+  function pretty_expr (e: EI.expr) : string
+  = match e with
+    | EI.EInt n          -> z_to_string n
+    | EI.EVar x          -> x
+    | EI.ESubscript a i  -> concat a (concat "[" (concat (pretty_expr i) "]"))
+    | EI.ELen a          -> concat "(length " (concat a ")")
+    | EI.EBinOp op e1 e2 -> concat "(" (concat (pretty_expr e1)
+                              (concat " " (concat (pretty_binop op)
+                              (concat " " (concat (pretty_expr e2) ")")))))
+    | EI.ENeg e1         -> concat "(- " (concat (pretty_expr e1) ")")
+    | EI.ECmp op e1 e2   -> concat "(" (concat (pretty_expr e1)
+                              (concat " " (concat (pretty_cmpop op)
+                              (concat " " (concat (pretty_expr e2) ")")))))
+    | EI.EFieldGet obj f -> concat obj (concat "." f)
+    | EI.ECall f args    -> concat f (concat "(" (concat (pretty_args args) ")"))
+    end
+  with pretty_args (xs: list EI.expr) : string
+  = match xs with
+    | Nil -> ""
+    | Cons x Nil -> pretty_expr x
+    | Cons x rest -> concat (pretty_expr x) (concat ", " (pretty_args rest))
+    end
+
+  (* The four pieces of per-function state Module 6 consults (Phase6L record). *)
+  type assign_state = {
+    as_shared_vars   : list ident;
+    as_declared_refs : list ident;
+    as_bounded_int   : option string;
+  }
+
+  function ident_in (x: ident) (xs: list ident) : bool
+  = match xs with
+    | Nil -> false
+    | Cons h t -> if x = h then true else ident_in x t
+    end
+
+  (* emit_F_assign — faithful re-statement of Phase6L_EmitAssign.v `emit_assign`.
+     Five source branches; on formal `expr` only branches 1/2e/2g/5 fire. *)
+  function emit_F_assign (s: assign_state) (x: ident) (e: EI.expr) : string
+  = if ident_in x s.as_shared_vars then
+      (* Branch 1: shared var *)
+      concat x (concat " := " (pretty_expr e))
+    else if not (ident_in x s.as_declared_refs) then
+      (* Branch 2: fresh local; on `expr` only bounded_int / default kinds fire. *)
+      match s.as_bounded_int with
+      | Some bits ->  (* Branch 2e *)
+          concat "let " (concat x (concat " = ref (" (concat (pretty_expr e)
+            (concat " : int" (concat bits (concat ") in" nl))))))
+      | None ->       (* Branch 2g *)
+          concat "let " (concat x (concat " = ref " (concat (pretty_expr e)
+            (concat " in" nl))))
+      end
+    else
+      (* Branch 5: existing local *)
+      concat x (concat " := " (pretty_expr e))
+
+  (* acceptable_assign_emissions — the <=3 surface forms (Phase6L). *)
+  function acceptable_assign_emissions
+             (s: assign_state) (x: ident) (e: EI.expr) : list string
+  = let assign_form = concat x (concat " := " (pretty_expr e)) in
+    let let_default = concat "let " (concat x (concat " = ref " (concat (pretty_expr e)
+                        (concat " in" nl)))) in
+    let let_bounded = match s.as_bounded_int with
+      | Some bits -> concat "let " (concat x (concat " = ref (" (concat (pretty_expr e)
+                       (concat " : int" (concat bits (concat ") in" nl))))))
+      | None -> let_default
+      end in
+    Cons assign_form (Cons let_default (Cons let_bounded Nil))
+
+  (* The certified correctness theorem (Phase6L Theorem emit_assign_correct),
+     re-proved here as a mirror-side goal: whatever state, the emission is in
+     the acceptable set. Non-trivial VC => demonstrates the export is usable. *)
+  goal emit_assign_correct :
+    forall s: assign_state, x: ident, e: EI.expr.
+      mem (emit_F_assign s x e) (acceptable_assign_emissions s x e)
+end
+
+(* ==========================================================================
+   (4) BridgeHost — the MIRROR module. Co-hosts the certified pyval theory
+   (2), the emit-IR ADT (3), and the emitter export (1) under M1 namespacing.
+   Both `PV.size` and `EI.size` coexist because they are QUALIFIED. This is
+   the "one module hosting both theories" that 09-2223 §5.2 said could not
+   exist unqualified.
+   ========================================================================== *)
+module BridgeHost
+  use int.Int
+  use list.List
+  use string.String
+  use option.Option
+  use PyValExport      as PV
+  use EmitIrAdt        as EI
+  use EmitAssignExport as FX
+
+  (* M1 payoff: the two same-named `size` measures live side by side, resolved
+     purely by qualification. Non-trivial goal exercising BOTH. *)
+  goal size_coexist :
+    forall v: PV.pyval, e: EI.expr.
+      PV.size v > 0 /\ EI.size e >= 1
+
+  (* The exported certified predicate is usable in a mirror-side obligation:
+     a PDict whose sole entry types correctly is wf_ir. This is the shape of a
+     C1 `ensures wf_ir \result` the bridge will generate. *)
+  goal wf_ir_usable :
+    PV.wf_ir (PV.PDict (PV.DCons PV.K_op (PV.PStr "Add") PV.DNil))
+
+  (* The exported emitter is usable in a mirror-side obligation: the C3 shape
+     `\result = emit_F_assign ...`, here as a concrete reduction on the default
+     (branch-2g) state for `x = y`. *)
+  goal emit_usable :
+    let s = { FX.as_shared_vars = (Nil: list FX.ident);
+              FX.as_declared_refs = Nil;
+              FX.as_bounded_int = None } in
+    FX.emit_F_assign s "x" (EI.EVar "y")
+      = concat "let " (concat "x" (concat " = ref " (concat "y"
+          (concat " in" FX.nl))))
+end
