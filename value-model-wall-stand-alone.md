@@ -3,6 +3,14 @@
 *A self-contained problem statement for reviewers in programming-language theory, deductive program
 verification, and verified compilation. No prior knowledge of the system is assumed.*
 
+> **Role of this file (read first — the `value-model-wall-stand-alone*` family has four members).**
+> This is the **external-reviewer problem statement** — the single *living, reviewer-facing* artifact for
+> the value-model wall, kept current per the self-tcb-reduction SKILL §12. It is **NOT a plan**. The
+> **build plan** is `value-model-wall-stand-alone-plan-2.md` (rev 2; supersedes the now-obsolete rev-1
+> `value-model-wall-stand-alone-plan.md`); the fix-review of rev 1 is `value-model-wall-stand-alone-fix.md`.
+> Canonical characterization of the *measured wall* lives HERE (§8); plan-2 §0.5 is the internal
+> *execution ledger* (what the build did) and defers to this file for the wall statement.
+
 ---
 
 ## 0. What we are asking you

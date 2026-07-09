@@ -1,5 +1,11 @@
 # value-model-wall-stand-alone-plan.md — Breaking the two value-model walls: plan
 
+> **⚠ SUPERSEDED (rev 1).** This plan is obsolete — replaced by
+> **`value-model-wall-stand-alone-plan-2.md`** (rev 2), which incorporates every change in
+> `value-model-wall-stand-alone-fix.md` (C1–C9) and was the version actually executed (see plan-2 §0.5
+> for the measured results). Kept only for provenance. The living reviewer-facing problem statement is
+> `value-model-wall-stand-alone.md`.
+
 *Self-contained plan, 2026-07-09. Companion and answer to the open-problem statement
 "Modelling heterogeneous Python values for self-verification" (`value-model-wall-stand-alone.md`).
 Assumes its §1–§2 context: the certified `pyval`/`pydict`/`sdict` datatypes (axiom-free Rocq 8.20 +

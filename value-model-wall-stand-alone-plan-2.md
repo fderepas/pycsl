@@ -39,6 +39,11 @@ is both inert and covering — the dynamic-walker residue closes as a **partial 
 
 ## 0.5 MEASURED RESULTS — plan EXECUTED 2026-07-09 (commits `92cef465..c694a008`)
 
+> **Scope of this section:** the internal **execution ledger** — what the *build* did, phase by phase. The
+> *reviewer-facing characterization of the wall itself* is canonical in the problem statement
+> `value-model-wall-stand-alone.md` **§8** (kept current per SKILL §12); this table defers to it and should
+> not diverge from it.
+
 All 7 phases were run spike-gated and single-writer; every step's claim was independently re-verified
 (re-prove / worktree-at-HEAD byte-diff / ledger / count / fidelity). `\trusted` **1236 → 1234** (net **−2**:
 W2 `_strip_outer_parens`, plus one latent auto-trust stub). Ledger held at **3**, corpus byte-diff **0**
