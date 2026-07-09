@@ -213,9 +213,22 @@ For EACH family, in order (§4):
     1239.
   - Suite-array completeness fix: `core_ir_semantic.py` (Module4's replacement, holding these conversions)
     was silently un-gated — now added to `run-self-annotation-suite.sh`.
-- **CURRENT NET: 1248 → 1239 — 9 IR-traversal methods un-trusted and self-proved** across A-unit ref, A-set
-  returned-set, A-unit-grammar, and the 5 traversal shapes (reconstruction / value-dependent / short-circuit
-  / composed / context-threading), all via the certified `GenericFold` generator, **no new trust, byte-diff
-  0, ledger held at 3** (2 axiom-free certificates total). The residual `GenericFold` algebras cover the
-  IR-traversal frontier; remaining `\trusted` is non-traversal (I/O, hashing, generic-`Any` mutation) or the
-  A-list/A-dict returned-collection models — a distinct census-first campaign, NOT session-momentum.
+- [✓] **A-list/A-dict returned-collection campaign — CLOSED at the honest floor.** Census (`7b68c7ff`,
+  `getting-better/tier3/alist-adict-census.md`): **both families BANK, clean 0/0** — C/D/T1 did not lift the
+  count above phase3.0; the phase3.0 "1 clean A-dict" (`_subst_type_in_ir`) is now converted via T1; the
+  "74 A-list / 40 A-dict" were mostly **flat non-fold emitter builders** (miscategorized by outer shape),
+  the true 14 fold candidates all external-dependency-blocked (context maps, non-algebra siblings,
+  `.rsplit`/`.partition`, in-place rewrite). **The one marginal opportunity converted** (`6fead643`): a
+  returned-`sdict` dict-fold algebra (recognize `out={}; …out[k]=v…; return out` → build an `sdict`) reusing
+  the **already-certified `sdict`** + a pure `let rec sappend` (Why3-intrinsic totality) — **no new
+  certificate** → `find_record_var_classes` + `_collect_tuple_array_locals`, each full-file-proved
+  (re-verified), byte-diff 0, ledger==3. 1239→1237. Census prediction held exactly (no key-distinctness
+  obligation under `ensures True`).
+- **CURRENT NET: 1248 → 1237 — 11 IR-traversal methods un-trusted and self-proved** across A-unit ref, A-set
+  returned-set, A-unit-grammar, the 5 traversal shapes (reconstruction / value-dependent / short-circuit /
+  composed / context-threading), and the returned-`sdict` dict-fold, all via the certified `GenericFold`
+  generator, **no new trust, byte-diff 0, ledger held at 3** (2 axiom-free certificates total: `pydict` +
+  `sdict`). **The `GenericFold` generator now covers the entire IR-fold/traversal frontier that admits a
+  bounded algebra.** Remaining `\trusted` is genuinely out of that frontier: non-traversal methods (I/O,
+  hashing, flat string-emitter builders composing non-algebra helpers) and external-dependency-blocked
+  walkers — a documented boundary (`ir-traversal-residual-stand-alone.md`), NOT session-momentum.
