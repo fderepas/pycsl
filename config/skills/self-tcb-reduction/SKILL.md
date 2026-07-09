@@ -260,6 +260,19 @@ soundly-trusted boundary, NOT a conversion backlog.** Convert by measurement, no
    reproduces AND refuted the payoff projection (`getting-better/tier3/plan-review.md`), averting a
    wasted grind. Have it *reproduce* the make-or-break gates (build + axiom audit), not take them on trust.
 
+10. **A recognizer/templater that emits its own FRAME/EFFECT from the body MUST gate on the declared
+    `#@ assigns` — else the contract is unenforced for recognized methods (the frame-fidelity gap).** The
+    `GenericFold` templater emitted `writes { acc }` derived from the actual mutation, silently IGNORING
+    the source `#@ assigns`: a walk contract-ed `assigns \nothing` still "verified" (the emitted frame was
+    correct; the annotation was decorative). The reference fixture `0884` exposed it. **Fix (`2699bc4d`):**
+    the recognizer now REQUIRES the mutated accumulator to appear in the declared frame (fail-closed
+    `_is_var` over `contracts.assigns`) — a wrong / `\nothing` assigns is denied the certified lowering and
+    cannot verify (`0884` correctly FAILS). **Generalize:** whenever a code generator derives an effect
+    (`writes`/`raises`/`variant`) from the BODY rather than the contract, add a fail-closed check that the
+    CONTRACT declares it, or the recognized methods' contracts are decorative — a silent
+    contract-vs-implementation hole. Lock non-vacuity with a positive/negative reference-corpus twin
+    (a `assigns \nothing` negative that MUST stay unproven).
+
 10. **The SL gate MUST include a FULL-FILE proof (`bin/run-self-annotation-suite.sh`), not just
     `--fun` + the two fidelity gates.** `--fun` proves ONE function while TRUSTING its siblings as
     `val` stubs, so a leaky *verified* method (or an emitter type-lowering bug that only bites when the
