@@ -1016,3 +1016,34 @@ Reference fixture **0885** (positive) proves under the feature emitter.
 
 **Outcome:** +1 marker (1236), a reusable faithful whole-list `str.split` lowering banked. The next
 whole-list-split string method in the mirror is now convertible on the same op.
+
+---
+
+### Iteration — 2026-07-09 · Track A (census): V1 `Dict[str,Any]` hard core · count held 1236
+
+**Trigger:** user chose **A — CENSUS V1** (the hard core, §11 V1: default leave-trusted unless a
+census proves otherwise). Whole-body-proof census of the generic-dict class.
+
+**Enumerated:** 26 `\trusted` methods with an explicit `Dict[str, Any]` param (the ~85 estimate
+counted `List[Dict[str,Any]]` + generic dict-walk bodies without the exact annotation). Static shape
+triage → whole-body proof on survivors (§10.1).
+
+**Verdict — V1 yields 0 clean conversions (the §10.3 leave-trusted core, confirmed):**
+- **22 / 26 out-of-frontier by shape:** STR-EMIT (the emitter's string-generation dispatch —
+  `_handle_*_stmt`, `_stmts_to_whyml`, `_emit_body_code`, `_handle_return/assign/ghost_assign_stmt`);
+  SELF-STATE + multi-SIBLING composition (`_compute_shared_module_maps` 14 siblings, `_stmts_to_whyml`
+  19, `_typed_local_vars` 10, `_emit_prefunctions_infra` 9); ANY-WALK generic tree walkers
+  (`_collect_field_decode_str_locals`, `_emit_frame_condition`).
+- **4 static survivors, all out-of-frontier:** `_handle_augassign_stmt` / `_handle_expr_stmt` — giant
+  string-emit statement dispatchers; `_print_soundness_report` — pure I/O + `json.dumps` (unmodellable);
+  `_build_soundness_report` — **GROUNDED, measured:** the mirror already carries the full body (a
+  `\trusted` method, not a `{}` stub); removed `\trusted` → **L3-tc FAILED** (`but is expected to have
+  type int`). Its return `{"file": …, "summary": counts, "vcs": [<dict>…]}` is a heterogeneous nested
+  `Dict[str,Any]` (string / `Dict[str,int]` / `List[Dict[str,Any]]` values in one dict) — the exact
+  nested-pyval shape the V2 `_build_method_*_map` family also fails on. Reverted, 1236.
+
+**Outcome:** V1 is the emitter's string-generation dispatch + generic Any-walkers + nested-pyval
+builders — a documented leave-trusted class, now census-confirmed at 0. No conversion (correct: the
+census proved the default). The self-annotation `\trusted` residual is at the honest floor for the
+value-model tracks: V2 (banked, 1 str.split feature converted), V1 (leave-trusted, confirmed), with
+V3 (~13 emitter string/self-state, some real bugs) the only un-censused sub-class.
