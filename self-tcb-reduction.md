@@ -1138,3 +1138,17 @@ capability confirmed/certified (B1 fixture) + three grounded spike verdicts (S1 
 suite-affected mirrors proof-preserved. The plan is fully executed; the value-model wall's bounded faces
 (char-iteration, closed-key records) are banked, and its dynamic face (heterogeneous nested Dict[str,Any])
 is the documented open problem.
+
+**U0/B1' RE-EXECUTED as a real build (2026-07-09, `0bbf5504`)** — superseding the prior spike-only
+close. U0 mirror-only defensive-pyval-projection was actually BUILT (sdict params + slookup-routed
+`d.get("k")` + mirror-mode gate; corpus byte-diff 0 by construction) and MEASURED: census of 70
+generic-dict-read `\trusted` methods → the read is **never the sole blocker** (always composed with a
+string-set-membership / collection-element / nested-return / self-state / emit_ir-`size`-collision wall)
+→ **net-new U0 unblocks = 0** → the 5-file build **REVERTED as gold-plating** (no-unused-facade rule,
+[[track_b_opacity]] precedent). Census surfaced **1 latent stub** `_should_auto_trust_map_return` that
+proves whole-body at HEAD without U0 (+1, **1234**, counted honestly — type-safety+frame only). **B1'**
+measured wall: `_build_soundness_report` stalls at its first statement `ir_data.get("functions", [])`
+(collection-valued read, not covered by scalar U0 projection; pycsl.mlw:341) — the documented research
+boundary. Sub-finding: the certified `pyval.size` collides by name with the `emit_ir.size` ADT measure,
+so a mirror file emitting the emit_ir ADT cannot also host the pyval theory (a concrete theory-composition
+boundary). Ledger==3, fidelity 52/52, why3-semantics untouched.
