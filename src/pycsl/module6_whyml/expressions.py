@@ -2147,6 +2147,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     ret_type = "array int"
         return ret_type, param_types, result_ensures, field_spec
 
+    # richer-contracts-bridge C1 (S-c1): certified predicates/functions from the
+    # preamble pyval theory (`_pydict_theory_lines`) that a mirror `#@ ensures`
+    # may apply to `\result`. Routed to a DIRECT application `(wf_ir result)` /
+    # `(size result)` — NOT the opaque numbered `val wf_ir_1 (x0:int):int` the
+    # unknown-call fallback would fabricate (which is unbound + wrongly int-typed).
+    # The induction backing these facts is done ONCE in Rocq/Lean (Phase2c
+    # `wf_ir_binds` / `size_pos`), so SMT only applies the predicate to the
+    # constructor spine. Corpus-inert: no reference-corpus contract names these
+    # (verified: byte-diff 0); if the pyval theory is not in scope the direct
+    # application is a LOUD unbound-symbol error, never a false proof.
+    _CERTIFIED_PYVAL_ARITY = {"wf_ir": 1, "wf_dict": 1, "size": 1, "size_list": 1,
+                              "size_dict": 1}
+
     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
         """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
         # module-emission.md (§T.2.7m): a CROSS-MODULE `self.<m>(...)` call — the callee
@@ -2984,6 +2997,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(f"val {arity_fn} {params} : string")
             coerced = [self._coerce_to_int(a) for a in args]
             return f"({arity_fn} {' '.join(coerced)})"
+        # richer-contracts-bridge C1 (S-c1): a certified predicate/function from the
+        # preamble pyval theory (`_pydict_theory_lines`) applied in a `#@ ensures`
+        # to `\result` — `wf_ir(\result)` / `size(\result)` — lowers to a DIRECT
+        # application `(wf_ir result)` / `(size result)`, NOT the opaque numbered
+        # `val <fn>_1 (x0:int):int` the unknown-call fallback fabricates (unbound +
+        # wrongly int-typed, breaking the pyval-shaped `\result`). The induction is
+        # done ONCE in Rocq/Lean (Phase2c `wf_ir_binds` / `size_pos`); SMT only
+        # applies the predicate to the constructor spine. Corpus-inert (no reference
+        # contract names these — byte-diff 0); a missing theory is a LOUD
+        # unbound-symbol error, never a false proof.
+        _cert_arity = self._CERTIFIED_PYVAL_ARITY.get(func_name)
+        if (getattr(self, "_in_spec", False) and _cert_arity is not None
+                and len(args) == _cert_arity):
+            return f"({func_name} {' '.join(args)})"
         safe_fn = whyml_ident(func_name)
         if (func_name not in local_refs
                 and func_name not in self._current_params

@@ -131,7 +131,7 @@ def _specialize_function(func: int, tvar: str, concrete: str, new_class_name: st
     return {}
 
 #@ requires True
-#@ ensures True
+#@ ensures size(\result) > 0
 #@ assigns \nothing
 def _subst_type_in_ir(node: Any, tvar: str, concrete: str) -> Any:
     if isinstance(node, dict):

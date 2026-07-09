@@ -932,6 +932,27 @@ class FunctionEmissionMixin:
                     f"-> ((0 <= {b}[_wl06c_i]) && ({b}[_wl06c_i] < 256)))) }}")
         return out
 
+    def _lower_fold_ensures(self, func: Dict[str, Any]) -> List[str]:
+        """Lower a recognized fold method's `#@ ensures` clauses to WhyML strings
+        for emission on the fold's TOP-LEVEL function (richer-contracts-bridge C1).
+
+        Returns `["true"]` when the method carries only the default `ensures True`
+        (or none) — so the emitted top-level `ensures` is byte-identical to the
+        historical hardcoded `ensures { true }` (corpus-inert). A richer ensures
+        (e.g. `wf_ir(\\result)` / `size(\\result) > 0`, a certified predicate the
+        preamble pyval theory already puts in scope) is lowered through the normal
+        contract path (`\\result` -> the WhyML `result` keyword) and emitted, so the
+        certified fact becomes a checked postcondition instead of `True`."""
+        ens_exprs = func.get("contracts", {}).get("ensures", []) or []
+        prev_spec = getattr(self, "_in_spec", False)
+        self._in_spec = True
+        try:
+            lowered = [self._expr_to_whyml(e, set()) for e in ens_exprs]
+        finally:
+            self._in_spec = prev_spec
+        lowered = [s for s in lowered if s and s.strip() and s.strip() != "true"]
+        return lowered or ["true"]
+
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
@@ -982,7 +1003,8 @@ class FunctionEmissionMixin:
         # (result_algebra = the value type itself). Same fail-closed discipline.
         _sm = recognize_substmap(func)
         if _sm is not None:
-            return emit_substmap_group(func, _sm, whyml_ident)
+            return emit_substmap_group(func, _sm, whyml_ident,
+                                       self._lower_fold_ensures(func))
         # ir-traversal-residual T3: the context-threading walk `_sa_walk`
         # (env-threaded fold + `sdict` string-keyed symbol table + source-level
         # raise). Same fail-closed discipline; a template bug is a loud

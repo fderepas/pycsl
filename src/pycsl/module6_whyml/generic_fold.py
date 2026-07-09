@@ -1407,7 +1407,7 @@ def _recognize_substmap(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
-                        whyml_ident) -> List[str]:
+                        whyml_ident, top_ensures: Optional[List[str]] = None) -> List[str]:
     """Emit the T1 functorial-map reconstruction group for a recognized substmap.
 
     Functional (`assigns \\nothing`; no `writes`): every function returns the
@@ -1438,8 +1438,14 @@ def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
     out.append("    | _ -> false end")
 
     # ---- the subst_walk / subst_dict / subst_list reconstruction group ----
+    # richer-contracts-bridge C1: the top-level function carries the METHOD's own
+    # `#@ ensures` (default `["true"]` => byte-identical to the historical
+    # hardcoded `ensures { true }`; a certified predicate on `\result` becomes a
+    # checked postcondition). Helper functions keep `ensures { true }`.
+    _te = top_ensures or ["true"]
+    _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
     out.append(f"  let rec {n} ({subj}: pyval) ({tvar}: string) ({concrete}: string) : pyval")
-    out.append("    requires { true } ensures { true }")
+    out.append(f"    requires {{ true }}{_ens_line}")
     out.append(f"    variant {{ size {subj} }}")
     out.append(f"  = match {subj} with")
     out.append(f"    | PList xs -> PList ({n}__list xs {tvar} {concrete})")
