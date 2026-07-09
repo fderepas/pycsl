@@ -208,6 +208,36 @@ class ControlFlowStmtMixin:
         self._add_abstract_op("val iter_get (x: int) (i: int) : int")
         return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
 
+    def _string_char_iter(self, iter_ir: Dict[str, Any], target: str,
+                          tuple_targets: Optional[List[str]],
+                          local_refs: Set[str]) -> Optional[Tuple[str, Optional[str], str, bool]]:
+        """W2 — recognise character-level iteration over a STRING and return
+        `(operand, idx_name, ch_name, is_tuple)`, else None. Two shapes:
+          - `for i, ch in enumerate(s)` (tuple target, `is_tuple=True`): binds the
+            index `i` and the 1-char string `ch = str_sub_op s !idx 1`. This case
+            needs the dedicated dual-binding while-loop (`enumerate` is not a
+            length-yielding iterable in `_classify_iterable`).
+          - `for ch in s` (single target, `is_tuple=False`): `_classify_iterable`'s
+            G2 branch already binds `ch = str_sub_op s !idx 1`; here we only report
+            it so the caller can type `ch` as a string (so `ch == "("` routes through
+            `str_eq_op`, not the int-hash).
+        A char is a 1-char `str_sub_op` string; NO char type, NO new theory. Gated on
+        `_value_semantic` and a string-typed operand → inert for the store model and
+        any non-string iterable (byte-identical corpus)."""
+        if iter_ir.get("type") == "Call" and iter_ir.get("func") == "enumerate":
+            args = iter_ir.get("args", []) or []
+            if (len(args) == 1 and isinstance(args[0], dict)
+                    and self._is_string_expr(args[0])
+                    and tuple_targets and len(tuple_targets) == 2):
+                operand = self._expr_to_whyml(args[0], local_refs)
+                return (operand, tuple_targets[0], tuple_targets[1], True)
+        if (iter_ir.get("type") == "Var" and not tuple_targets
+                and getattr(self, "_current_symbol_table", {}).get(
+                    iter_ir.get("name", "")) == "str"):
+            operand = self._expr_to_whyml(iter_ir, local_refs)
+            return (operand, None, target, False)
+        return None
+
     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -220,25 +250,67 @@ class ControlFlowStmtMixin:
         loop_indent = (indent + "  ") if has_direct_ret else indent
         inner_indent = loop_indent + "  "
 
-        body_local = local_refs | {target}
-        body_declared = declared_refs.copy() | {target}
+        tuple_targets = getattr(stmt, "tuple_targets", None)
+        str_ci = (self._string_char_iter(iter_ir, target, tuple_targets, local_refs)
+                  if self._value_semantic else None)
+        # W2: extra loop-bound names (a tuple target binds i AND ch) + typing the
+        # char binding as a string so its `== "("` guards route through str_eq_op.
+        extra_locals: Set[str] = set()
+        saved_str_locals = None
+        if str_ci is not None:
+            _op, _idx_name, _ch_name, _is_tuple = str_ci
+            extra_locals = {n for n in (_idx_name, _ch_name) if n and n != "_"}
+            saved_str_locals = getattr(self, "_string_local_vars", set())
+            self._string_local_vars = set(saved_str_locals) | {_ch_name}
+
+        body_local = local_refs | {target} | extra_locals
+        body_declared = declared_refs.copy() | {target} | extra_locals
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
         if not inner_body:
             inner_body = f"{inner_indent}()"
+        if saved_str_locals is not None:
+            self._string_local_vars = saved_str_locals
 
         has_cont = IRScanner.has_continue(_body_d)
-        len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
+        if str_ci is not None and str_ci[3]:
+            # W2 tuple char-iteration: bound is `String.length s`; the counter runs
+            # 0..len, the element is the 1-char `str_sub_op s !idx 1`. Bypasses
+            # `_classify_iterable` (enumerate is not a length iterable there).
+            self._for_idx_init = "0"
+            self._add_abstract_op(
+                "val str_length_op (s: string) : int\n"
+                "    ensures { result = (String.length s) }")
+            len_expr, elem_expr, is_range = f"(str_length_op {str_ci[0]})", None, False
+        else:
+            len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
 
         while_parts = [f"{loop_indent}while !{idx} < {len_expr} do"]
         # seq-model-pivot.md SQ5: a @mutable_state for-loop (the emitter's `for var in
         # shared_for_mutex`) carries the index bound + a decreasing variant so the element
         # read's `0 <= idx` and the loop's termination discharge (the `idx < len` upper bound
         # is the loop condition). @mutable_state-gated → the corpus for-loops are byte-identical.
+        # W2: any character-level string iteration (single `for ch in s` OR the
+        # tuple `for i, ch in enumerate(s)`) supplies its own arithmetic variant
+        # below, so the @mutable_state block must not ALSO emit one (Why3 forbids
+        # multiple `variant` clauses) — and its `str_length_op` variant term would
+        # be illegal in a logic clause anyway.
+        _str_char = str_ci is not None
         if (getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())):
+                in getattr(self, "_mutable_state_classes", set())
+                and not _str_char):
             while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
             while_parts.append(f"{inner_indent}variant {{ {len_expr} - !{idx} }}")
+        # W2: character-level string iteration carries an ARITHMETIC termination
+        # variant — the LOGIC `String.length s` (not the program `str_length_op`,
+        # which is illegal in a variant term) strictly bounds the counter, and the
+        # counter increments by 1 each iteration, so `String.length s - !idx`
+        # decreases and stays >= 0 (SMT-trivial integer subtraction; no structural
+        # measure). Gated on `str_ci` → inert for every non-string loop.
+        if _str_char:
+            _slen = f"(String.length {str_ci[0]})"
+            while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} <= {_slen} }}")
+            while_parts.append(f"{inner_indent}variant {{ {_slen} - !{idx} }}")
         inv_subst = {target: idx} if is_range else None
         inv_refs = local_refs | {idx}
         self._in_spec = True
@@ -266,13 +338,33 @@ class ControlFlowStmtMixin:
             i_var_f += 1
         self._in_spec = False
 
+        def _bind_lines(bind_indent: str) -> List[str]:
+            # W2 tuple char-iteration binds BOTH the index (i := the counter) and
+            # the 1-char string (ch := str_sub_op s !idx 1). Every other loop binds
+            # the single `elem_expr` — byte-identical.
+            if str_ci is not None and str_ci[3]:
+                _op, _idx_name, _ch_name, _ = str_ci
+                self._add_abstract_op(
+                    "val str_sub_op (s: string) (lo len: int) : string\n"
+                    "    ensures { result = (String.substring s lo len) }\n"
+                    "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                    " -> String.length result = len }")
+                lines: List[str] = []
+                if _idx_name and _idx_name != "_":
+                    lines.append(f"{bind_indent}let {whyml_ident(_idx_name)} = ref !{idx} in")
+                if _ch_name and _ch_name != "_":
+                    lines.append(f"{bind_indent}let {whyml_ident(_ch_name)} = "
+                                 f"ref (str_sub_op {_op} !{idx} 1) in")
+                return lines
+            return [f"{bind_indent}let {safe_target} = ref ({elem_expr}) in"]
+
         if has_cont:
             while_parts.append(f"{inner_indent}try")
-            while_parts.append(f"{inner_indent}  let {safe_target} = ref ({elem_expr}) in")
+            while_parts.extend(_bind_lines(inner_indent + "  "))
             while_parts.append(inner_body)
             while_parts.append(f"{inner_indent}with PyCSL_Continue -> () end;")
         else:
-            while_parts.append(f"{inner_indent}let {safe_target} = ref ({elem_expr}) in")
+            while_parts.extend(_bind_lines(inner_indent))
             while_parts.append(inner_body + ";")
 
         while_parts.append(f"{inner_indent}{idx} := !{idx} + 1")

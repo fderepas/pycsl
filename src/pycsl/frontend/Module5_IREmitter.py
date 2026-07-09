@@ -1475,7 +1475,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _process_for(self, node: ast.For) -> Dict[str, Any]:
         target = node.target.id if isinstance(node.target, ast.Name) else "_for_target"
-        return {
+        d: Dict[str, Any] = {
             "stmt": "For",
             "line": getattr(node, "lineno", 0),  # §4.4 statement-level span (refactor.md B4a)
             "target": target,
@@ -1488,6 +1488,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "allow_iteration_mutation": bool(getattr(node, 'csl_allow_iteration_mutation', False)),
             "lineno": getattr(node, "lineno", 0),
         }
+        # W2 char-iteration: a tuple loop target (`for i, ch in enumerate(s)`)
+        # binds several names at once; keep them so Module6 can bind both the
+        # index and the element (the single `target` collapses them to
+        # `_for_target`, losing `i`/`ch`). Emitted ONLY for a tuple target, so a
+        # plain `for x in …` dict stays byte-identical (the key is absent).
+        if isinstance(node.target, ast.Tuple):
+            d["tuple_targets"] = [
+                e.id if isinstance(e, ast.Name) else "_" for e in node.target.elts]
+        return d
 
     def _process_if(self, node: ast.If) -> Dict[str, Any]:
         return {

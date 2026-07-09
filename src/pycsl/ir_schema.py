@@ -352,6 +352,9 @@ class ForStmt(StmtIR):
     body: List["StmtIR"]
     allow_iteration_mutation: bool
     lineno: int
+    # W2 char-iteration: element names of a tuple loop target
+    # (`for i, ch in …` → ["i", "ch"]). None for a plain single-name target.
+    tuple_targets: Optional[List[str]] = None
 
 
 @dataclass(frozen=True)
@@ -1084,7 +1087,8 @@ def _stmt_from_dict_inner(d: Dict[str, Any]) -> StmtIR:
                        variants=_es(d.get("variants", [])),
                        body=_ss(d.get("body", [])),
                        allow_iteration_mutation=d.get("allow_iteration_mutation", False),
-                       lineno=d.get("lineno", 0))
+                       lineno=d.get("lineno", 0),
+                       tuple_targets=d.get("tuple_targets"))
     if k == "Return":
         v = d.get("value")
         return ReturnStmt(kind=k, value=_e(v) if v is not None else None)
@@ -1496,6 +1500,10 @@ def _stmt_to_dict(s: StmtIR) -> Dict[str, Any]:
         out["body"] = [b.to_dict() for b in s.body]
         out["allow_iteration_mutation"] = s.allow_iteration_mutation
         out["lineno"] = s.lineno
+        # W2: emit only when present, so a plain single-name `for` round-trips
+        # to the same key-set (the round-trip guard in `_stmt_from_dict`).
+        if s.tuple_targets is not None:
+            out["tuple_targets"] = s.tuple_targets
     elif isinstance(s, ReturnStmt):
         out["value"] = s.value.to_dict() if s.value is not None else None
     elif isinstance(s, ExprStmt):

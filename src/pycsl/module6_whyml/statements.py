@@ -2080,6 +2080,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         string_vars |= self._collect_field_decode_str_locals(body_stmts)
         # no-more-int emitter L2: locals bound from a `string`-returning call.
         string_vars |= self._collect_str_call_result_locals(body_stmts)
+        # A reassigned formal string PARAM (`s = s.strip()`) is NOT a fresh typed
+        # local: it must follow the int-param entry-shadow path (`let s = ref s in`
+        # + `s := …`), never a let-bind at first assign (which would deref `!s`
+        # before the ref exists). The str-method collectors above re-added params
+        # that the `string_vars` comprehension above (`name not in _formal_params`)
+        # deliberately excluded; restore that exclusion so the param reaches
+        # `pre_decl_vars` and is shadowed at function entry.
+        string_vars -= set(self._formal_params)
         self._string_local_vars = string_vars
         # typed-ir §19: emit_ir locals — excluded from the int `ref 0` pre-decl (they get
         # a `ref (IrOther "")` pre-decl in `_emit_body_code`), so their `:=` typechecks.

@@ -308,13 +308,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _coerce_dotted_args(self, args: List[str], param_types: List[str]) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _strip_outer_parens(s: str) -> str:
-        return ""
+        s = s.strip()
+        if not (s.startswith("(") and s.endswith(")")):
+            return s
+        depth = 0
+        for i, ch in enumerate(s):
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    return s[1:-1].strip() if i == len(s) - 1 else s
+        return s
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
