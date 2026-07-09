@@ -1,0 +1,351 @@
+module M2SpikeImm
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use seq.Seq
+  use int.MinMax
+  use map.Map
+  use map.Const
+  use option.Option
+  use array.Array
+  use list.List
+  use bool.Bool
+
+  (* D2 / R-B — interned IR keys: key (dis)equality is constructor reasoning, *)
+  (* zero string theory in any walker VC. `K_dyn s` is the computed-key fallback. *)
+  type irkey =
+    | K_type | K_left | K_right | K_op | K_z
+    | K_value | K_target | K_body | K_orelse | K_func | K_name
+    | K_dyn string
+
+  (* D1 / R-A — the strictly-positive concrete universal value (no arrow / no map *)
+  (* in any constructor); `pydict` is a bespoke assoc-list keyed by irkey. *)
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  let function is_pdict (v: pyval) : bool = match v with PDict _ -> true | _ -> false end
+  let function is_plist (v: pyval) : bool = match v with PList _ -> true | _ -> false end
+  let function is_pstr  (v: pyval) : bool = match v with PStr  _ -> true | _ -> false end
+
+  (* get / mem_key : structural over the dict; key test is constructor (dis)equality. *)
+  function get (d: pydict) (k: irkey) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons k' v rest -> if k = k' then Some v else get rest k
+    end
+
+  predicate mem_key (d: pydict) (k: irkey)
+  = match d with
+    | DNil -> false
+    | DCons k' _ rest -> k = k' \/ mem_key rest k
+    end
+
+  function values (d: pydict) : list pyval
+  = match d with
+    | DNil -> Nil
+    | DCons _ v rest -> Cons v (values rest)
+    end
+
+  (* D3 — size measure: +1 per cons cell (list AND dict), so the HEAD recursion *)
+  (* strictly decreases even for a singleton (the spike's crux fix). *)
+  function size (v: pyval) : int
+  = match v with
+    | PInt _ | PStr _ | PBool _ | PNone -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict d  -> 1 + size_dict d
+    end
+  with size_list (l: list pyval) : int
+  = match l with Nil -> 0 | Cons h t -> 1 + size h + size_list t end
+  with size_dict (d: pydict) : int
+  = match d with DNil -> 0 | DCons _ v rest -> 1 + size v + size_dict rest end
+
+  (* R-C — the PROVEN lemma pack (`let rec lemma`: the recursion IS the induction). *)
+  let rec lemma size_pos (v: pyval) : unit
+    ensures { size v > 0 } variant { v }
+  = match v with
+    | PList xs -> size_list_nonneg xs
+    | PDict d  -> size_dict_nonneg d
+    | _ -> () end
+  with lemma size_list_nonneg (l: list pyval) : unit
+    ensures { size_list l >= 0 } variant { l }
+  = match l with Nil -> () | Cons h t -> size_pos h; size_list_nonneg t end
+  with lemma size_dict_nonneg (d: pydict) : unit
+    ensures { size_dict d >= 0 } variant { d }
+  = match d with DNil -> () | DCons _ v rest -> size_pos v; size_dict_nonneg rest end
+
+  let rec lemma size_dict_mem (k: irkey) (d: pydict) : unit
+    ensures { mem_key d k -> match get d k with
+                             | Some w -> size w < size (PDict d)
+                             | None   -> true end }
+    variant { d }
+  = match d with DNil -> () | DCons _ _ rest -> size_dict_mem k rest end
+
+  (* E4 — wf_ir well-formedness + the compositionality lemma the unguarded read *)
+  (* discharges from. `wf_val` is the per-key expected-shape table (representative *)
+  (* here; `wf_ir_gen.py` emits the full per-(shape,key) predicate from ir_schema.py). *)
+  predicate wf_val (k: irkey) (v: pyval)
+  = match k with
+    | K_op | K_type | K_target | K_func | K_name ->
+        (match v with PStr _ -> true | _ -> false end)
+    | _ -> true
+    end
+
+  predicate wf_dict (d: pydict)
+  = match d with
+    | DNil -> true
+    | DCons k v rest -> wf_val k v /\ wf_dict rest
+    end
+
+  predicate wf_ir (v: pyval)
+  = match v with PDict d -> wf_dict d | _ -> true end
+
+  let rec lemma wf_ir_binds (k: irkey) (d: pydict) : unit
+    requires { wf_dict d }
+    ensures  { forall v: pyval. get d k = Some v -> wf_val k v }
+    variant  { d }
+  = match d with
+    | DNil -> ()
+    | DCons _ _ rest -> wf_ir_binds k rest
+    end
+
+  (* F4 — the document ADT + render skeleton; only render touches strings, and no *)
+  (* walker VC ever carries a string term (projections flow PStr into DText opaquely). *)
+  type doc = DText string | DInt int | DCat doc doc | DDoc_nil
+  function int_to_str int : string   (* abstract (uninterpreted) — no axiom *)
+  function render (d: doc) : string
+  = match d with
+    | DText s -> s
+    | DInt n  -> int_to_str n
+    | DCat a b -> String.concat (render a) (render b)
+    | DDoc_nil -> String.empty
+    end
+
+  (* A-unit accumulator model (WL-05b): a Set[str] is `ref (map string bool)`; *)
+  (* `.add e` sets the membership bit. `pystr_eq` is the string-guard test *)
+  (* (payload equality; the walk contract is `ensures True`, so it need not *)
+  (* interpret the string — only type-check the guard). *)
+  val set_add (m: map string bool) (e: string) : map string bool
+    ensures { result = Map.set m e true }
+  val pystr_eq (a b: string) : bool
+
+  (* A-set result algebra (phase3.md §3.1): a RETURNED set is the same *)
+  (* `map string bool`; the `|=` union fold combinator is pointwise or. *)
+  (* PURELY DEFINED (map = string -> bool) — no axiom, certified by *)
+  (* construction, so the returned-set model needs no new certificate *)
+  (* beyond the already-certified L1 set repr. *)
+  let function set_union (a b: map string bool) : map string bool
+    = fun (k: string) -> orb (Map.get a k) (Map.get b k)
+
+  let rec _collect_calls__get_K_type (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil -> None
+    | DCons K_type v _ -> Some v
+    | DCons _ _ rest -> _collect_calls__get_K_type rest
+    end
+  let rec _collect_calls__get_K_func (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil -> None
+    | DCons K_func v _ -> Some v
+    | DCons _ _ rest -> _collect_calls__get_K_func rest
+    end
+  let _collect_calls__pre (d: pydict) : map string bool
+  = match _collect_calls__get_K_type d with
+    | Some (PStr s) ->
+        if pystr_eq s "Call" then
+          (match _collect_calls__get_K_func d with
+           | Some (PStr t) -> set_add (const false) t
+           | _ -> const false end)
+        else const false
+    | _ -> const false end
+  let rec _collect_calls (obj: pyval) : map string bool
+    requires { true } ensures { true }
+    variant { size obj }
+  = match obj with
+    | PDict d -> set_union (_collect_calls__pre d) (_collect_calls__dict d)
+    | PList xs -> _collect_calls__list xs
+    | _ -> const false end
+  with _collect_calls__dict (d: pydict) : map string bool
+    requires { true } ensures { true }
+    variant { size_dict d }
+  = match d with
+    | DNil -> const false
+    | DCons _ v rest -> set_union (_collect_calls v) (_collect_calls__dict rest)
+    end
+  with _collect_calls__list (xs: list pyval) : map string bool
+    requires { true } ensures { true }
+    variant { size_list xs }
+  = match xs with Nil -> const false
+    | Cons h t -> set_union (_collect_calls h) (_collect_calls__list t) end
+
+  (* ================= M2: boundary decoder + through-chain B-comp ================= *)
+
+  (* additional set algebra (pointwise), same map string bool repr as set_union *)
+  let function set_inter (a b: map string bool) : map string bool
+    = fun (k: string) -> andb (Map.get a k) (Map.get b k)
+  let function set_diff (a b: map string bool) : map string bool
+    = fun (k: string) -> andb (Map.get a k) (notb (Map.get b k))
+
+  (* sorted(set) : opaque faithful val -> array string (str_split_op precedent) *)
+  val py_sorted (m: map string bool) : list string
+
+  (* the decoded typed function record. fn_body : pyval  <-- the EXACT type
+     _collect_calls consumes (C6: bottoms out in the already-consumed opaque type). *)
+  type ir_func = {
+    fn_name: string;
+    fn_trusted: bool;
+    fn_abstract: bool;
+    fn_preserves: bool;
+    fn_ensures: bool;
+    fn_body: pyval;
+  }
+
+  (* string-keyed lookups, mirroring how the emitter lowers f.get("k"):
+     interned keys get a specialized walker; dynamic keys go through K_dyn+pystr_eq *)
+  let rec get_K_name (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil -> None
+    | DCons K_name v _ -> Some v
+    | DCons _ _ rest -> get_K_name rest end
+  let rec get_K_body (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil -> None
+    | DCons K_body v _ -> Some v
+    | DCons _ _ rest -> get_K_body rest end
+  let rec get_dyn (d: pydict) (key: string) : option pyval
+    variant { d }
+  = match d with
+    | DNil -> None
+    | DCons (K_dyn s) v rest -> if pystr_eq s key then Some v else get_dyn rest key
+    | DCons _ _ rest -> get_dyn rest key end
+
+  (* bool(x) truthiness, defensive/total *)
+  let truthy (o: option pyval) : bool
+  = match o with
+    | None -> false
+    | Some PNone -> false
+    | Some (PBool b) -> b
+    | Some (PList Nil) -> false
+    | Some (PStr s) -> not (pystr_eq s "")
+    | Some _ -> true end
+
+  (* decode_ensures : bool(f.get("contracts",{}).get("ensures")) *)
+  let decode_ensures (o: option pyval) : bool
+  = match o with
+    | Some (PDict c) -> truthy (get_dyn c "ensures")
+    | _ -> false end
+
+  (* decode_func : NOT recursive (all fields are leaves/opaque-carry). fn_body
+     carries the raw body pyval straight through to _collect_calls. *)
+  let decode_func (v: pyval) : option ir_func
+  = match v with
+    | PDict d -> Some {
+        fn_name      = (match get_K_name d with Some (PStr s) -> s | _ -> "" end);
+        fn_trusted   = (match get_dyn d "trusted"  with Some (PBool b) -> b | _ -> false end);
+        fn_abstract  = (match get_dyn d "abstract" with Some (PBool b) -> b | _ -> false end);
+        fn_preserves = (match get_dyn d "preserves" with Some (PBool b) -> b | _ -> false end);
+        fn_ensures   = decode_ensures (get_dyn d "contracts");
+        fn_body      = (match get_K_body d with Some b -> b | None -> PNone end);
+      }
+    | _ -> None end
+
+  (* decode_func_list : recurse the outer PList; malformed elements skipped *)
+  let rec decode_func_list (v: pyval) : list ir_func
+    variant { size v }
+  = match v with
+    | PList xs -> decode_elems xs
+    | _ -> Nil end
+  with decode_elems (xs: list pyval) : list ir_func
+    variant { size_list xs }
+  = match xs with
+    | Nil -> Nil
+    | Cons h t -> (match decode_func h with
+                   | Some f -> Cons f (decode_elems t)
+                   | None   -> decode_elems t end) end
+
+  (* trusted_names = {f["name"] for f in funcs if f.get("trusted") or f.get("abstract")} *)
+  let rec build_trusted (fs: list ir_func) : map string bool
+    variant { fs }
+  = match fs with
+    | Nil -> const false
+    | Cons f rest ->
+        if f.fn_trusted || f.fn_abstract
+        then set_add (build_trusted rest) f.fn_name
+        else build_trusted rest end
+
+  (* the vcs accumulator element: a record (nested-heterogeneous return, certified
+     record route -> pyval exits the return type). Only the fields B-comp sets. *)
+  type vc_entry = {
+    ve_function: string;
+    ve_bucket: string;
+    ve_has_contract: bool;
+    ve_trusted: bool;
+    ve_abstract: bool;
+    ve_preserves: bool;
+    ve_deps: list string;
+  }
+
+  type counts_t = {
+    mutable c_modelled: int;
+    mutable c_specified: int;
+    mutable c_stubbed: int;
+    mutable c_confinement: int;
+  }
+
+  type soundness_report = {
+    sr_file: string;
+    sr_summary: counts_t;
+    sr_vcs: list vc_entry;
+  }
+
+  (* B-comp, lowered THROUGH the decoder AND through _collect_calls.
+     Local accumulators only -> frame is trivial (assigns \nothing). *)
+  let _build_soundness_report (ir_data: pyval) (filename: string) : soundness_report
+    requires { true } ensures { true }
+  = let funcs = decode_func_list
+        (match ir_data with
+         | PDict d -> (match get_dyn d "functions" with Some v -> v | None -> PNone end)
+         | _ -> PNone end) in
+    let trusted_names = build_trusted funcs in
+    let counts = { c_modelled = 0; c_specified = 0; c_stubbed = 0; c_confinement = 0 } in
+    let vcs = ref (Nil : list vc_entry) in
+    let rec loop (fs: list ir_func) : unit
+      variant { fs }
+    = match fs with
+      | Nil -> ()
+      | Cons f rest ->
+          let name = f.fn_name in
+          let ens = f.fn_ensures in
+          let bucket =
+            if f.fn_preserves then "Confinement"
+            else if f.fn_trusted || f.fn_abstract
+                 then (if ens then "Specified" else "Stubbed")
+                 else "Modelled" in
+          (* counts[bucket] += 1 : variable-key update over the 4 buckets *)
+          (if pystr_eq bucket "Confinement" then counts.c_confinement <- counts.c_confinement + 1
+           else if pystr_eq bucket "Specified" then counts.c_specified <- counts.c_specified + 1
+           else if pystr_eq bucket "Stubbed" then counts.c_stubbed <- counts.c_stubbed + 1
+           else counts.c_modelled <- counts.c_modelled + 1);
+          (* deps = sorted( ( _collect_calls(f.body) & trusted_names ) - {name} ) *)
+          let deps = py_sorted (set_diff (set_inter (_collect_calls f.fn_body) trusted_names)
+                                         (set_add (const false) name)) in
+          vcs := Cons { ve_function = name; ve_bucket = bucket; ve_has_contract = ens;
+                        ve_trusted = f.fn_trusted; ve_abstract = f.fn_abstract;
+                        ve_preserves = f.fn_preserves; ve_deps = deps } !vcs;
+          loop rest end
+    in
+    loop funcs;
+    { sr_file = filename; sr_summary = counts; sr_vcs = !vcs }
+end

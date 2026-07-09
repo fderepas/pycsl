@@ -1212,3 +1212,34 @@ net-new), the PList/PDict collection-valued lead, and now emit_ir-args reflectio
 dissolves on whole-body measurement into the SAME wall: the generic/ADT read's **composition** with the
 surrounding collection/self-state/giant-sibling machinery. The residual is the documented research
 boundary (`value-model-wall-stand-alone.md`); the honest floor for bounded work is **1234**.
+
+---
+
+### Spike — 2026-07-09 · extended S-dec (composition-wall M1+M2 falsifier) · count held 1234
+
+Executed `09-2223-fix.md` Appendix (extended S-dec) — a falsifier for M1+M2 of the composition-wall plan
+`09-2223-plan.md`. Hand-written target `.mlw` (zero source edits); every verdict independently re-verified
+(re-emit / Alt-Ergo+Z3 / ledger audit). Full record: `09-2223-sdec-findings.md`; evidence in
+`getting-better/composition-wall/`.
+
+**Verdict: M1+M2 CONFIRMED at the TARGET level — the composition wall is dissolvable for B-comp.**
+- **M1** (rename pyval `size`→`pv_size` so `pyval` + `emit_ir` co-host): two-theory module type-checks + all
+  goals discharge best-of-N (Z3 clears the 4 emit_ir size-decrease lemmas Alt-Ergo times out on). Rename is
+  WhyML-emission-only — certs define their own `size` → `Print Assumptions`/`#print axioms` unchanged.
+- **C2 linchpin REFUTED for B-comp:** `_collect_calls` emits as `(obj: pyval) : map string bool` (an
+  already-verified pydict catamorphism) — pyval-NATIVE, so the decoder's `fn_body: pyval` feeds it and the
+  clash does NOT relocate. (Overturns the plan/brief hypothesis that the sibling wanted `array int`/`emit_ir`.)
+- **M2** whole-body `_build_soundness_report'vc` + `_collect_calls'vc` prove — **20/20 Valid** through the
+  sibling chain. Sole plan correction: `sorted` payload must be immutable `seq`/`list string`, not
+  `array string` (WhyML region wall; already-solved nested-container class).
+- **C1 certificate = branch (a):** records-over-certified-fields + a structural pyval-`size` fold → no new
+  Rocq/Lean theorem; the 20 SMT VCs ARE the per-instance proof; ledger diff empty. (Nuance: a real build
+  should still confirm the meta-theory covers a `pyval → list<record>` ELIMINATOR under the coupling rule.)
+- **Correction:** M1 is UNEXERCISED by B-comp (its module has 0 `emit_ir` refs; only M2 needed); M1 enables
+  a different class.
+
+**Scope (critical):** the spike proves the decoder TARGET is reachable/provable/axiom-clean — NOT that the
+emitter can GENERATE it from source. The **M2 emitter build** (recognizer → decode boundary, mirror-gated,
+byte-diff-0, fidelity-verbatim) + the **C5 census** (IR-shaped & pyval-native-sibling vs not) are the next
+phase. My brief's research-grade pessimism is overturned at the target level for IR-shaped reflection with a
+pyval-native sibling; the open question shifts to emitter-generability + per-method reach.
