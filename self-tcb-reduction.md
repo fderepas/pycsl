@@ -1182,3 +1182,33 @@ bounded-looking lead dissolves on measurement. The dominant surfaced gap is **em
 (`Array.length`/element routing for `array emit_ir`), a separate value-model piece feeding the same
 documented research wall — not pursued (census-only; distinct from PList/PDict). No build; no conversion;
 tree clean, ledger==3, 1234.
+
+---
+
+### Census — 2026-07-09 · emit_ir-args reflection gap · count held 1234
+
+**Trigger:** the collection-valued census surfaced emit_ir-args reflection (`val_ir.get("elts")` →
+`array emit_ir`) as the dominant blocker; user chose **A — CENSUS** whether routing `len`/`Array.length`/
+element for emit_ir args unblocks a worthwhile cluster before building.
+
+**Verdict — refuted; ~0 bounded conversions.** The emit_ir-args model ALREADY exists (`preamble.py`:
+`nargs_of (e: emit_ir) : int` for the arg count, `args_of : array emit_ir` for the args). The
+`\trusted` methods reading emit_ir args = **only 3**, and ALL are composition-walled, not length-only:
+- `_seq_init_expr` — iterates `val_ir.get("elts")` building `Seq.cons`, coercing each via
+  `_coerce_to_int(_expr_to_whyml(e))` (grounded earlier: L3-tc `array emit_ir vs array int`).
+- `_emit_array_local_reassign` — iterate/process.
+- `_handle_ghost_assign_stmt` — a giant `ghost_type` string-emit dispatcher that **indexes** the args
+  (`val_ir["elts"][0]`/`[1]`), mutates self-state (`_ghost_*_vars`, `_array_locals`), and composes four
+  siblings (`_e`, `_expr_to_whyml`, `_expr_to_whyml_string_ctx`, `_resolve_effective_ghost_type`); the
+  `len(...get("elts"))` is one incidental op.
+
+None is count-only, so the already-built `nargs_of` converts 0; the methods need emit_ir **element access
+routed to the expr-emitter** (`_expr_to_whyml`, a giant sibling) + self-state — the out-of-frontier
+composition wall, not a bounded length/element routing. Census refutes the lead. No build, no conversion.
+
+**Session close-out (all bounded value-model leads now measured-refuted).** V1/V2/V3 censuses,
+route R (done+certified, 0 pure-R residual), route U (corpus-facing inadmissible; U0 mirror-only 0
+net-new), the PList/PDict collection-valued lead, and now emit_ir-args reflection — every bounded lead
+dissolves on whole-body measurement into the SAME wall: the generic/ADT read's **composition** with the
+surrounding collection/self-state/giant-sibling machinery. The residual is the documented research
+boundary (`value-model-wall-stand-alone.md`); the honest floor for bounded work is **1234**.
