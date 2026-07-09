@@ -129,13 +129,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # Provenance, by handler:
     #   _handle_assign_stmt     ── validated-by: lemma assign_code_state_coherent      + LINK-2
     #   _handle_augassign_stmt  ── validated-by: lemma aug_assign_code_state_coherent  + LINK-2
-    #   _handle_array_set_stmt  ── validated-by: axiom array_set_code_state_coherent (audited) + LINK-2
+    #   _handle_array_set_stmt  ── validated-by: lemma array_set_code_state_coherent (Z3-Valid) + LINK-2
     #   _handle_seq_assign / _handle_tuple_unpack_stmt
-    #                           ── validated-by: seq (axiom) ∘ assign (lemma), audited at this layer
+    #                           ── validated-by: seq (lemma) ∘ assign (lemma) — proved fragment + LINK-2
     #   _handle_expr_stmt / _handle_fieldassign_stmt / _handle_fieldaugassign_stmt /
-    #   _handle_critical_section_stmt / _handle_ghost_assign_stmt /
-    #   _handle_ghost_array_set_stmt / _handle_array_slice_set_stmt
-    #                           ── no base-WP arm yet: explicitly audited-trusted, LINK-2 only
+    #   _handle_array_slice_set_stmt
+    #                           ── validated-by: lemma {expr,field_assign,field_aug,slice_set}_code_state_coherent
+    #                              (Z3-Valid, effect axiom is the audited D2 boundary) + PROVED-COMPOSED in Rocq
+    #                              (Phase6L_ComposeIfWhile.v emit_stmts_coherent, 0 Admitted) + LINK-2
+    #   _handle_ghost_assign_stmt / _handle_ghost_array_set_stmt
+    #                           ── validated-by: PROVED-COMPOSED in Rocq (reduce to assign/arrayset:
+    #                              Phase6L_ComposeIfWhile.v ghost_assign_coh / ghost_arrset_coh) + LINK-2
+    #   _handle_critical_section_stmt
+    #                           ── validated-by: PROVED-COMPOSED via its body (critical_havoc P = P;
+    #                              atomic critical_wrapper axiom, Phase6L_ComposeIfWhile.v) + LINK-2
+    #                              (real concurrency havoc = Phase-7, still audited-trusted)
     # (Note: PyCSL's grammar rejects a `#@ validated-by:` contract keyword, so this
     #  provenance is recorded as plain comments rather than inline `#@` directives.)
 
