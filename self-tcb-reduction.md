@@ -1047,3 +1047,35 @@ builders — a documented leave-trusted class, now census-confirmed at 0. No con
 census proved the default). The self-annotation `\trusted` residual is at the honest floor for the
 value-model tracks: V2 (banked, 1 str.split feature converted), V1 (leave-trusted, confirmed), with
 V3 (~13 emitter string/self-state, some real bugs) the only un-censused sub-class.
+
+---
+
+### Iteration — 2026-07-09 · Track A (census): V3 emitter-defect RE-CENSUS · count held 1236
+
+**Trigger:** user chose **A — CENSUS V3** (the last un-censused sub-class). V3 was already censused
+0/13 on 2026-07-07 (`tier5-value-model-census.md`, `emission-defect-spike-findings.md`), but that
+predates THIS session's string/array-string advances (faithful `str.split -> array string`, str-list
+literals) — so I re-probed whether the str-list value-model gaps that blocked V3 have narrowed.
+
+**Re-probed the best B1-free lead `_strip_outer_parens`** (pure string fn, no `Dict[str,Any]` behind —
+the census's single best fix-then-convert candidate). Ported the whole body, typechecked under the
+CURRENT emitter → **L3-tc FAILED** with THREE distinct emission defects, none touched by the string-op
+work:
+1. **Broken parameter emission** — `_strip_outer_parens(s: str)` (a `@staticmethod` with a
+   `for i, ch in enumerate(s)` loop) emits signature `(self) (i: int) (ch: int) : string` — the emitter
+   took the loop TUPLE-TARGET `i, ch` as parameters and **dropped `s`**, so `let s = ref (str_strip_op !s)`
+   references `!s` before binding → the census's "unbound 's'" (a genuine staticmethod + tuple-unpack-loop
+   param-extraction defect, NOT a `--fun` artifact).
+2. **`enumerate(s)` over a string** → undeclared `iter_length` / `enumerate_1` / `iter_get` (the recurring
+   `iter_length` defect, shared with `_emit_metatype_tags`).
+3. **Char `ch` modeled as `int`** (`ch = 747334986`, the hash of `"("`) — char-level string iteration is
+   not modeled.
+
+**Verdict — V3 stays 0/13.** The string-op advances (`str.split`, str-list literals) do NOT reach V3's
+blockers: char-level string iteration (`for ch in s` / `enumerate(s)`), the `iter_length` root-cause, and
+the staticmethod-param/tuple-unpack-loop emission bug. Each is a distinct feature/defect fix, not a
+narrowing of the str-list gap. Consistent with the 2026-07-07 finding (even the best emission-defect lead
+`_call_returns_string_collection` is not a clean self-verified −1 — its fix re-proves a verified method).
+
+**Outcome:** all three value-model tracks census-confirmed at their floor this session — V2 banked (+1
+`str.split`), V1 leave-trusted (0), V3 emitter-defect (0). No V3 conversion. Tree clean, ledger==3, 1236.
