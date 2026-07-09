@@ -43,12 +43,19 @@ class AutoTrustMixin:
     def _is_linear_vc(ensures_exprs: List[Any], requires_exprs: Optional[List[Any]]=None) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _should_auto_trust_map_return(self, func: int, func_trusted: bool) -> bool:
-        return False
+    def _should_auto_trust_map_return(self, func: Dict[str, Any], func_trusted: bool) -> bool:
+        """Class M sub-case for set/dict-typed returns. Functions declared
+        `-> Set[T]` / `-> Dict[K, V]` with early returns inside `if`
+        branches emit `raise (Return (map_update_some ...))` which Why3
+        rejects because `Return int` can't carry a `map int (option int)`
+        payload. Auto-trust so the body is skipped and the contract alone
+        is emitted. Tracked in `self._auto_trusted_map_returns`."""
+        if func_trusted:
+            return False
+        return func.get("return_annotation") in ("set", "dict", "frozenset")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
