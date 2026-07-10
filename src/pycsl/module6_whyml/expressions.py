@@ -608,8 +608,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "        String.substring haystack i (String.length needle) = needle) }")
             scall = f"(str_contains_op {right} {left})"
             return f"(not {scall})" if negate else scall
+        # A string-typed LEFT (e.g. a G1 record string-field `val_ir.op`) reaching the
+        # opaque `contains_check` fallback (the container is an int-modeled module
+        # frozenset, not a string-key map) must be hashed into the int domain via
+        # `str_hash_op` — `_coerce_str_arg` only folds a string *literal*, leaving a
+        # non-literal string term type-clashing with `contains_check`'s int param. This
+        # keeps the field READ (non-vacuous) while the frozenset membership stays opaque
+        # (an orthogonal, pre-existing modeling limit — not a G2 string compare). Fires
+        # only for a string left at the fallback → corpus-byte-inert.
+        _left_ir = expr.get("left")
+        _left_c = (self._str_operand_to_int(left)
+                   if (_left_ir and self._is_string_expr(_left_ir))
+                   else self._coerce_str_arg(left))
         self._add_abstract_op("val contains_check (x: int) (c: int) : bool")
-        call = f"(contains_check {self._coerce_str_arg(left)} {self._coerce_str_arg(right)})"
+        call = f"(contains_check {_left_c} {self._coerce_str_arg(right)})"
         return f"(not {call})" if negate else call
 
     def _emit_bitwise_or_power(self, op_char: str, expr: Dict[str, Any],
@@ -1084,6 +1096,63 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(str_strip_op {recv})"
         return None
 
+    def _record_get_field(self, expr: Dict[str, Any]):
+        """G1/G2 recognizer core (09-2223 pure-classifier increment): resolve a
+        `<record-var>.get("<key>"[, default])` Call whose RECEIVER is a record-typed
+        param/local (a `@dataclass`/`TypedDict` monomorphized to a native WhyML record)
+        and whose literal KEY names a declared field of that record.
+
+        Returns `(recv_name, field_label, field_type_tag)` — the receiver var name, the
+        WhyML field label (`_field_label`, so `pure`→`py_pure`), and the field's IR type
+        tag (`"str"`/`"bool"`/`"int"`/…) — or None if any gate fails. The record-typed-
+        receiver gate is the whole point: it fires ONLY when `recv` is in
+        `_current_record_var_classes` (records only, NEVER a plain `Dict[str,Any]`), so
+        a generic dict `.get` keeps the legacy opaque `<recv>_get_N` op (corpus-inert).
+
+        This is the FAITHFUL, NON-VACUOUS lowering: the record field IS read
+        (`func.py_pure`), not dropped into an opaque `func_get_1 <hash>`."""
+        if not isinstance(expr, dict):
+            return None
+        func_name = expr.get("func")
+        if not (isinstance(func_name, str) and func_name.endswith(".get")):
+            return None
+        recv = func_name[:-len(".get")]
+        # bare receiver only (`func.get`, not `self.foo.get` — the latter is the §12
+        # self-field-dict path); a dotted receiver is never a record-typed VAR here.
+        if not recv or "." in recv:
+            return None
+        args_ir = expr.get("args") or []
+        if not args_ir:
+            return None
+        k0 = args_ir[0]
+        if not (isinstance(k0, dict) and k0.get("type") == "String"):
+            return None
+        key = k0.get("value")
+        # `_current_record_var_classes` (record locals + params) is the primary map;
+        # fall back to `_record_param_classes` (populated at signature emission) so the
+        # PRE-body string-local classification pass — which runs before the per-body
+        # `_current_record_var_classes` is rebuilt — still resolves a record PARAM.
+        cls = (getattr(self, "_current_record_var_classes", {}).get(recv)
+               or getattr(self, "_record_param_classes", {}).get(recv))
+        if not cls:
+            return None
+        rts = getattr(self, "_record_types", {})
+        # `cls` is the record's WhyML name (`_current_record_var_classes` /
+        # `_record_param_classes` store whyml_name), which may be a reserved-word-
+        # mangled label (`Rec`→`py_rec`), so match on `whyml_name` first — a plain
+        # `k.lower()` compare misses the `py_`-prefixed cases.
+        rt = (rts.get(cls) or rts.get(str(cls).lower())
+              or next((v for k, v in rts.items()
+                       if v.get("whyml_name") == cls
+                       or k.lower() == str(cls).lower()), None))
+        if not rt:
+            return None
+        ftypes = rt.get("field_types", {})
+        if key not in ftypes:
+            return None
+        label = self._field_label(rt.get("whyml_name", str(cls).lower()), key)
+        return (recv, label, ftypes[key])
+
     def _self_field_dict_nu(self, recv: str):
         """self-field-dict-reflection (typed-ir-for-b-ceiling.md §12): when `recv` is a
         `self.<field>` (or `<recordvar>.<field>`) naming a `dict`/`set`/`frozenset`
@@ -1208,6 +1277,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return True
         if t == "Call":
             _fn = ir.get("func", "")
+            # G2 (09-2223 pure-classifier increment): `<record-var>.get("<str-field>")` is
+            # STRING-typed (its G1 lowering is the native `func.kind : string`), so a
+            # comparison `func.get("kind") == "method"` routes through `str_eq_op` — a
+            # faithful string content compare — instead of the unfaithful int-hash
+            # `(func_get_1 …) <> 317966025`. Gated on the record-typed receiver + a `str`
+            # field via `_record_get_field` (never a plain dict), so it is corpus-byte-inert.
+            _rg = self._record_get_field(ir)
+            if _rg is not None and _rg[2] == "str":
+                return True
             # `str(x)` is string-typed (identity on a str, `int_to_string` on an int) — so a
             # `.lower()`/`.strip()` on it (`str(binder_type).lower()`) recognizes as a faithful
             # string-value method rather than falling to the opaque scalar op.
@@ -2802,6 +2880,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         func_name = expr["func"]
+        # G1 (09-2223 pure-classifier increment): `<record-var>.get("<field>"[, default])`
+        # on a record-typed param/local reads the NATIVE record field, not the opaque
+        # `<recv>_get_N <int-hash>` abstract op that drops the read (a vacuous/unfaithful
+        # "proof"). Gated on the record-typed-receiver (`_current_record_var_classes`) — a
+        # plain `Dict[str,Any]` receiver is NOT in that map, so it keeps the legacy opaque
+        # op and stays corpus-byte-inert. The `.get`'s defensive default (a 2nd arg for the
+        # absent-key case) is dropped: a declared field is always present in the record
+        # model, so the field read is total (sound under `ensures True`, faithful for a
+        # TypedDict whose key is declared).
+        _rget = self._record_get_field(expr)
+        if _rget is not None:
+            _recv, _label, _ = _rget
+            return f"{whyml_ident(_recv)}.{_label}"
         # typed-ir-for-b-ceiling.md B-C2: an INLINE `<node>.to_dict()` (no args) in a
         # @mutable_state method is IDENTITY on the typed IR — the node already IS its
         # `emit_ir` value — so lower to the receiver (the BOUND form is R1's alias).

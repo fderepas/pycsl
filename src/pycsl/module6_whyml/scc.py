@@ -1,6 +1,19 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple, TypedDict
+
+
+class LogicSymbolView(TypedDict):
+    """Closed-key view of the exactly-three IR-function keys that the
+    `emits_as_logic_symbol` classifier reads. Runtime-inert (a TypedDict IS a
+    dict, so every existing caller passing a full function-IR dict is
+    unaffected); statically it monomorphizes to a native WhyML record with
+    faithful per-field types (`pure`/`lemma`: bool, `kind`: str), so the
+    self-annotation mirror can lower `func.get("k")` to the record field read
+    and `func.get("kind") == "method"` to a string compare (09-2223 G1/G2)."""
+    pure: bool
+    kind: str
+    lemma: bool
 
 
 def find_calls_in_ir(obj: Any, func_names_set: Set[str]) -> Set[str]:
@@ -88,7 +101,7 @@ def compute_sccs(names: Set[str], call_graph: Dict[str, Set[str]]) -> List[List[
     return sccs
 
 
-def emits_as_logic_symbol(func: Dict[str, Any]) -> bool:
+def emits_as_logic_symbol(func: LogicSymbolView) -> bool:
     """The SINGLE shared "is this a logic symbol" classifier (scc.md). A function
     whose contract reference forces WhyML declaration order is one that lowers to a
     real `let [rec] function`, so a `(f args)` term in a contract needs `f` declared

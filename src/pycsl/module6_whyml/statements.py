@@ -1656,6 +1656,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if not isinstance(v, dict):
                 return False
             t = v.get("type")
+            # G1 (09-2223 pure-classifier increment): a record `<var>.get("<str-field>")`
+            # is a STRING value — its G1 lowering is the native field read
+            # `<var>.<label> : string` — so the receiving local is a string ref
+            # (`ref ""`), never the integer `ref 0`, and its `:=`/comparisons typecheck
+            # and route through `str_eq_op`. Ungated (fires only on a record-typed
+            # receiver via `_record_get_field`, never a plain dict) → corpus-byte-inert.
+            _rgv = self._record_get_field(v)
+            if _rgv is not None and _rgv[2] == "str":
+                return True
             # faithful-string-op.md §3: a local bound from `.replace`/`.lower`/`.upper`/
             # `.strip` or a `<string>.split(sep)[i]` element is a STRING local (pre-decl
             # `ref ""`), so its `:=` typechecks — outside @mutable_state too. Scoped to the

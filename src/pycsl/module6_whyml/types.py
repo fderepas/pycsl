@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, TypedDict
 
 
 # Bool-typed BinOp operators — RHS of any of these is a Python bool and
@@ -8,6 +8,16 @@ from typing import Any, Dict, List, Optional, Set
 _BOOL_BINOPS = frozenset({
     "==", "!=", "<", "<=", ">", ">=", "is", "is not", "in", "not in",
 })
+
+
+class ValIRBoolView(TypedDict):
+    """Closed-key view of the two IR-expression keys `_val_is_bool` reads
+    (`type`, `op` — both `str`). Runtime-inert (a TypedDict IS a dict), it
+    monomorphizes to a native WhyML record so the mirror's `val_ir.get("type")`
+    lowers to the field read `val_ir.py_type` and the literal comparisons route
+    through `str_eq_op` (09-2223 G1/G2), not an opaque int-hash op."""
+    type: str
+    op: str
 
 
 class TypeInferenceMixin:
@@ -93,7 +103,7 @@ class TypeInferenceMixin:
             self._known_collection_sizes[target] = len(unique_vals)
 
     @staticmethod
-    def _val_is_bool(val_ir: Dict[str, Any]) -> bool:
+    def _val_is_bool(val_ir: ValIRBoolView) -> bool:
         """RHS expression is bool-typed in Python — needs `if … then 1 else 0`
         when stored into a WhyML `int` slot."""
         vt = val_ir.get("type", "")
