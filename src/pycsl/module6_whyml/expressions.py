@@ -2158,7 +2158,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # (verified: byte-diff 0); if the pyval theory is not in scope the direct
     # application is a LOUD unbound-symbol error, never a false proof.
     _CERTIFIED_PYVAL_ARITY = {"wf_ir": 1, "wf_dict": 1, "size": 1, "size_list": 1,
-                              "size_dict": 1}
+                              "size_dict": 1,
+                              # richer-contracts-bridge P2.1 (C2): the DEEP
+                              # well-formedness family the substmap fold preserves
+                              # (emitted by emit_substmap_group in wf-preservation
+                              # mode; strengthens the certified shallow wf_ir).
+                              "wf_ir_deep": 1, "wf_dict_deep": 1, "wf_list_deep": 1,
+                              # richer-contracts-bridge P2.2 (C2): the set-fold
+                              # leaf->empty relational predicate (v, r).
+                              "setfold_leaf_empty": 2,
+                              # richer-contracts-bridge P2.3 (C2): emitted-fragment
+                              # grammar membership.
+                              "in_emitted_fragment": 1, "frag_dict": 1,
+                              "frag_list": 1}
 
     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
         """Handle dotted method calls (x.method(...)): emit abstract val declaration."""

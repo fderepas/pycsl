@@ -986,14 +986,38 @@ def _recognize_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
+def _setfold_leaf_empty_lines() -> List[str]:
+    """richer-contracts-bridge P2.2 (C2): the RELATIONAL `setfold_leaf_empty`
+    predicate — a set fold's output on a NON-container (leaf) input is the EMPTY
+    set (the set-fold analog of decoder totality / `None => skipped`). Pure
+    definition, NO axiom; the fact discharges from the top function's leaf arm
+    (`_ -> const false`) alone."""
+    return [
+        "  (* richer-contracts-bridge P2.2 (C2): a set fold maps a leaf (non-dict,",
+        "     non-list) input to the EMPTY set — its output domain is drawn only",
+        "     from container structure. Pure definition, NO axiom. *)",
+        "  predicate setfold_leaf_empty (v: pyval) (r: map string bool)",
+        "  = match v with",
+        "    | PDict _ -> true",
+        "    | PList _ -> true",
+        "    | _ -> r = (const false : map string bool)",
+        "    end",
+    ]
+
+
 def emit_setfold_group(func: Dict[str, Any], sf: Dict[str, Any],
-                       whyml_ident) -> List[str]:
+                       whyml_ident, top_ensures: Optional[List[str]] = None) -> List[str]:
     """Emit the returned-set catamorphism group for a recognized A-set fold.
 
     Functional (`assigns \\nothing`; no `writes` frame): every function returns
     `map string bool`, combined by the preamble's purely-defined `set_union`.
     Threaded read-only `set` parameters are typed `map string bool` and passed
-    through. Congruent (modulo names) to the proven `v2_setfold_spike.mlw`."""
+    through. Congruent (modulo names) to the proven `v2_setfold_spike.mlw`.
+
+    richer-contracts-bridge P2.2: the TOP-level function carries the METHOD's own
+    `#@ ensures` (`top_ensures`, default `["true"]` => byte-identical historical
+    `ensures { true }`). A relational `setfold_leaf_empty(subj, \\result)` fact is
+    emitted alongside its predicate; helpers keep `ensures { true }`."""
     n = whyml_ident(func["name"])
     subj = sf["subject"]
     extra = sf["extra_params"]
@@ -1003,6 +1027,9 @@ def emit_setfold_group(func: Dict[str, Any], sf: Dict[str, Any],
     extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
     extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
     out: List[str] = []
+    _te = list(top_ensures or ["true"])
+    if any("setfold_leaf_empty" in c for c in _te):
+        out.extend(_setfold_leaf_empty_lines())
 
     # ---- literal-key readers (guard / membership / add keys the pre needs) ----
     if pre is not None:
@@ -1073,8 +1100,9 @@ def emit_setfold_group(func: Dict[str, Any], sf: Dict[str, Any],
     # ---- the walk / walk_dict / walk_list returned-set group ----
     pre_term = (f"set_union ({n}__pre d{extra_args}) ({n}__dict d{extra_args})"
                 if pre is not None else f"{n}__dict d{extra_args}")
+    _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
     out.append(f"  let rec {n} ({subj}: pyval){extra_sig} : map string bool")
-    out.append("    requires { true } ensures { true }")
+    out.append(f"    requires {{ true }}{_ens_line}")
     out.append(f"    variant {{ size {subj} }}")
     out.append(f"  = match {subj} with")
     out.append(f"    | PDict d -> {pre_term}")
@@ -1406,8 +1434,100 @@ def _recognize_substmap(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
+def _frag_predicate_lines() -> List[str]:
+    """richer-contracts-bridge P2.3 (C2): `in_emitted_fragment` — the grammar-
+    membership predicate scoped to the emitted IR fragment the evaluator axioms
+    range over (`src/self-annotate/evaluator-axiom-audit.md`). Structural half:
+    the fragment carries no bare `PNone` sentinel (the string-TAG half — which
+    audited `stmt` tags appear — is the `pystr_eq`-opaque boundary the audit
+    leaves to prose). A bridge-audit obligation (pure definition, NO axiom); the
+    type-substitution preserves it, so it lands as a preservation contract."""
+    return [
+        "",
+        "  (* richer-contracts-bridge P2.3 (C2): emitted-fragment grammar membership",
+        "     (structural scope: no bare PNone sentinel). Bridge-audit predicate tying",
+        "     the method to evaluator-axiom-audit.md's boundary BY CONTRACT. NO axiom. *)",
+        "  predicate in_emitted_fragment (v: pyval)",
+        "  = match v with",
+        "    | PNone -> false",
+        "    | PInt _ | PStr _ | PBool _ -> true",
+        "    | PList xs -> frag_list xs",
+        "    | PDict d  -> frag_dict d",
+        "    end",
+        "  with frag_dict (d: pydict)",
+        "  = match d with",
+        "    | DNil -> true",
+        "    | DCons _ v rest -> in_emitted_fragment v /\\ frag_dict rest",
+        "    end",
+        "  with frag_list (xs: list pyval)",
+        "  = match xs with",
+        "    | Nil -> true",
+        "    | Cons h t -> in_emitted_fragment h /\\ frag_list t",
+        "    end",
+    ]
+
+
+def _wf_deep_predicate_lines() -> List[str]:
+    """richer-contracts-bridge P2.1 (C2): the DEEP well-formedness predicate
+    family + the two lemmas tying it to the certified shallow wf_ir.
+
+    The certified `wf_ir` (Phase2c_PyValDict.v, preamble) is SHALLOW (top-level
+    dict keys only); measured NOT to be an inductive invariant of the recursive
+    substitution (threading it as `requires` leaves the recursive-call
+    precondition undischargeable — the __dict/__list VCs time out). The genuinely
+    preservable invariant recurses into list elements AND dict values. It is a
+    pure DEFINITION (no `axiom`; ledger untouched), and the two `let rec lemma`s
+    prove `wf_ir_deep v -> wf_ir v`, so `ensures wf_ir_deep result` entails the
+    audited shallow wf_ir. Bridge-audit predicate, generator-owned."""
+    return [
+        "",
+        "  (* richer-contracts-bridge P2.1 (C2): DEEP well-formedness — the INDUCTIVE",
+        "     invariant of the recursive substitution (recurses into list elements AND",
+        "     dict values). Strengthens the certified shallow wf_ir; pure definition,",
+        "     NO axiom. The two lemmas prove it implies the certified wf_ir. *)",
+        "  predicate wf_ir_deep (v: pyval)",
+        "  = match v with",
+        "    | PDict d  -> wf_dict_deep d",
+        "    | PList xs -> wf_list_deep xs",
+        "    | _ -> true",
+        "    end",
+        "  with wf_dict_deep (d: pydict)",
+        "  = match d with",
+        "    | DNil -> true",
+        "    | DCons k v rest -> wf_val k v /\\ wf_ir_deep v /\\ wf_dict_deep rest",
+        "    end",
+        "  with wf_list_deep (xs: list pyval)",
+        "  = match xs with",
+        "    | Nil -> true",
+        "    | Cons h t -> wf_ir_deep h /\\ wf_list_deep t",
+        "    end",
+        "  (* Bridge tie: the deep predicate strengthens the certified shallow wf_ir",
+        "     (Phase2c_PyValDict.v), so `ensures wf_ir_deep result` entails the audited",
+        "     wf_ir. Proved by structural induction — NO axiom. *)",
+        "  let rec lemma wf_dict_deep_shallow (d: pydict) : unit",
+        "    requires { wf_dict_deep d } ensures { wf_dict d } variant { d }",
+        "  = match d with DNil -> () | DCons _ _ rest -> wf_dict_deep_shallow rest end",
+        "  let lemma wf_ir_deep_shallow (v: pyval) : unit",
+        "    requires { wf_ir_deep v } ensures { wf_ir v }",
+        "  = match v with PDict d -> wf_dict_deep_shallow d | _ -> () end",
+        "  (* Lemma-pack fact for the string-key case: a value that stays a PStr",
+        "     whenever it was a PStr keeps wf_val for its key. `let lemma` (CALLED by",
+        "     the fold body => split-robust exact instantiation); the explicit case",
+        "     split on k discharges its own VC. *)",
+        "  let lemma wf_val_str_stable (k: irkey) (v v2: pyval) : unit",
+        "    requires { wf_val k v }",
+        "    requires { match v with PStr _ -> "
+        "(match v2 with PStr _ -> true | _ -> false end) | _ -> true end }",
+        "    ensures  { wf_val k v2 }",
+        "  = match k with",
+        "    | K_op | K_type | K_target | K_func | K_name -> ()",
+        "    | _ -> () end",
+    ]
+
+
 def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
-                        whyml_ident, top_ensures: Optional[List[str]] = None) -> List[str]:
+                        whyml_ident, top_ensures: Optional[List[str]] = None,
+                        top_requires: Optional[List[str]] = None) -> List[str]:
     """Emit the T1 functorial-map reconstruction group for a recognized substmap.
 
     Functional (`assigns \\nothing`; no `writes`): every function returns the
@@ -1442,17 +1562,57 @@ def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
     # `#@ ensures` (default `["true"]` => byte-identical to the historical
     # hardcoded `ensures { true }`; a certified predicate on `\result` becomes a
     # checked postcondition). Helper functions keep `ensures { true }`.
-    _te = top_ensures or ["true"]
+    _te = list(top_ensures or ["true"])
+    _tr = list(top_requires or ["true"])
+    # richer-contracts-bridge P2.1 (C2): wf-preservation mode fires iff the
+    # METHOD's contract threads the deep well-formedness predicate. When it does,
+    # (i) emit the deep predicate family + connecting lemmas (gated => corpus and
+    # non-wf mirrors byte-identical), (ii) thread the method's requires onto the
+    # top-level function, (iii) emit the per-helper preservation contracts
+    # (__dict: wf_dict_deep, __list: wf_list_deep) so Why3 discharges the
+    # induction helper-by-helper, (iv) add the string-stability ensures the
+    # lemma pack needs for the string-key case.
+    # richer-contracts-bridge C2 preservation families: each is a deep predicate
+    # the type-substitution PRESERVES.  A family fires iff the METHOD's contract
+    # threads its top predicate (in `_te`/`_tr`).  Each contributes a `<dict>`/
+    # `<list>` requires+ensures conjunct on the helpers so Why3 discharges the
+    # induction helper-by-helper.  wf_ir_deep (P2.1) additionally needs the
+    # string-stability ensures + the called str-lemma hint (its wf_val string-key
+    # case); in_emitted_fragment (P2.3) needs neither (its leaf/PStr arms hold).
+    _families = [
+        ("wf_ir_deep",          "wf_dict_deep", "wf_list_deep", _wf_deep_predicate_lines),
+        ("in_emitted_fragment", "frag_dict",    "frag_list",    _frag_predicate_lines),
+    ]
+    _active = [f for f in _families if any(f[0] in c for c in (_te + _tr))]
+    _wf_preserve = any(f[0] == "wf_ir_deep" for f in _active)
+    if _active:
+        for _top, _d, _l, _emit in _active:
+            out.extend(_emit())
+        if _wf_preserve:
+            _te = _te + [
+                f"match {subj} with PStr _ -> "
+                f"(match result with PStr _ -> true | _ -> false end) | _ -> true end"
+            ]
+        _dreq = " /\\ ".join(f"{f[1]} d" for f in _active)
+        _dens = " /\\ ".join(f"{f[1]} result" for f in _active)
+        _lreq = " /\\ ".join(f"{f[2]} xs" for f in _active)
+        _lens = " /\\ ".join(f"{f[2]} result" for f in _active)
+        _dict_contract = f"    requires {{ {_dreq} }} ensures {{ {_dens} }}"
+        _list_contract = f"    requires {{ {_lreq} }} ensures {{ {_lens} }}"
+    else:
+        _dict_contract = "    requires { true } ensures { true }"
+        _list_contract = "    requires { true } ensures { true }"
     _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
+    _req_line = "".join(f" requires {{ {r} }}" for r in _tr)
     out.append(f"  let rec {n} ({subj}: pyval) ({tvar}: string) ({concrete}: string) : pyval")
-    out.append(f"    requires {{ true }}{_ens_line}")
+    out.append(f"   {_req_line}{_ens_line}")
     out.append(f"    variant {{ size {subj} }}")
     out.append(f"  = match {subj} with")
     out.append(f"    | PList xs -> PList ({n}__list xs {tvar} {concrete})")
     out.append(f"    | PDict d  -> PDict ({n}__dict d {tvar} {concrete})")
     out.append(f"    | _ -> {subj} end")
     out.append(f"  with {n}__dict (d: pydict) ({tvar}: string) ({concrete}: string) : pydict")
-    out.append("    requires { true } ensures { true }")
+    out.append(_dict_contract)
     out.append("    variant { size_dict d }")
     out.append("  = match d with")
     out.append("    | DNil -> DNil")
@@ -1463,10 +1623,19 @@ def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
     out.append(f"                      else {n} v {tvar} {concrete}")
     out.append(f"          | _ -> {n} v {tvar} {concrete} end")
     out.append("        in")
+    if _wf_preserve:
+        # Split-robust proof hints for `ensures wf_dict_deep result`: the
+        # recursion preserves PStr-ness (str-stability of the top-level ensures);
+        # the CALLED lemma turns that + wf_val k v (precondition head) into
+        # wf_val k v2; wf_ir_deep v2 comes from the recursion's own postcondition.
+        out.append("        assert { match v with PStr _ -> "
+                   "(match v2 with PStr _ -> true | _ -> false end) | _ -> true end };")
+        out.append("        wf_val_str_stable k v v2;")
+        out.append("        assert { wf_ir_deep v2 };")
     out.append(f"        DCons k v2 ({n}__dict rest {tvar} {concrete})")
     out.append("    end")
     out.append(f"  with {n}__list (xs: list pyval) ({tvar}: string) ({concrete}: string) : list pyval")
-    out.append("    requires { true } ensures { true }")
+    out.append(_list_contract)
     out.append("    variant { size_list xs }")
     out.append("  = match xs with Nil -> Nil")
     out.append(f"    | Cons h t -> Cons ({n} h {tvar} {concrete}) ({n}__list t {tvar} {concrete}) end")

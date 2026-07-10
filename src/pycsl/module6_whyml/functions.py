@@ -944,12 +944,47 @@ class FunctionEmissionMixin:
         contract path (`\\result` -> the WhyML `result` keyword) and emitted, so the
         certified fact becomes a checked postcondition instead of `True`."""
         ens_exprs = func.get("contracts", {}).get("ensures", []) or []
+        # A relational ensures may reference the method's PARAMETERS (e.g.
+        # `setfold_leaf_empty(obj, \result)`); register the formal params so a
+        # bare param name emits bare (not a `!`-deref / abstract constant). Inert
+        # for param-free ensures (`size(\result)`) => byte-identical.
+        params = list(func.get("formal_params", []) or [])
         prev_spec = getattr(self, "_in_spec", False)
+        prev_params = getattr(self, "_current_params", set())
         self._in_spec = True
+        self._current_params = set(prev_params) | set(params)
         try:
             lowered = [self._expr_to_whyml(e, set()) for e in ens_exprs]
         finally:
             self._in_spec = prev_spec
+            self._current_params = prev_params
+        lowered = [s for s in lowered if s and s.strip() and s.strip() != "true"]
+        return lowered or ["true"]
+
+    def _lower_fold_requires(self, func: Dict[str, Any]) -> List[str]:
+        """Lower a recognized fold method's `#@ requires` clauses to WhyML strings
+        for emission on the fold's TOP-LEVEL function (richer-contracts-bridge
+        C2). Returns `["true"]` when the method carries only the default
+        `requires True` (byte-identical to the historical hardcoded
+        `requires { true }`). A richer precondition (e.g. `wf_ir_deep(node)`, the
+        deep well-formedness the substitution preserves) is threaded onto the
+        emitted `let rec` so the per-helper preservation induction can discharge
+        the recursive-call preconditions."""
+        req_exprs = func.get("contracts", {}).get("requires", []) or []
+        # A requires references the method's PARAMETERS (e.g. `wf_ir_deep(node)`).
+        # A param is emitted BARE (not `!`-dereffed) exactly when it is in
+        # `_current_params`; seeding `local_refs` instead would mis-lower it to a
+        # `!node` deref of a non-ref. So temporarily register the formal params.
+        params = list(func.get("formal_params", []) or [])
+        prev_spec = getattr(self, "_in_spec", False)
+        prev_params = getattr(self, "_current_params", set())
+        self._in_spec = True
+        self._current_params = set(prev_params) | set(params)
+        try:
+            lowered = [self._expr_to_whyml(e, set()) for e in req_exprs]
+        finally:
+            self._in_spec = prev_spec
+            self._current_params = prev_params
         lowered = [s for s in lowered if s and s.strip() and s.strip() != "true"]
         return lowered or ["true"]
 
@@ -998,13 +1033,15 @@ class FunctionEmissionMixin:
         # fail-closed discipline; a template bug is a loud unprovable instance.
         _sf = recognize_setfold(func)
         if _sf is not None:
-            return emit_setfold_group(func, _sf, whyml_ident)
+            return emit_setfold_group(func, _sf, whyml_ident,
+                                      self._lower_fold_ensures(func))
         # ir-traversal-residual T1: the functorial-map RECONSTRUCTION traversal
         # (result_algebra = the value type itself). Same fail-closed discipline.
         _sm = recognize_substmap(func)
         if _sm is not None:
             return emit_substmap_group(func, _sm, whyml_ident,
-                                       self._lower_fold_ensures(func))
+                                       self._lower_fold_ensures(func),
+                                       self._lower_fold_requires(func))
         # ir-traversal-residual T3: the context-threading walk `_sa_walk`
         # (env-threaded fold + `sdict` string-keyed symbol table + source-level
         # raise). Same fail-closed discipline; a template bug is a loud

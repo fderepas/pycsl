@@ -122,3 +122,126 @@ Emitted WhyML top-level function contract:
 - No mirror `.py` change (the sole C1 contract on `_subst_type_in_ir` was already
   written by S-c1 and the generator reproduced it idempotently).
 - No `src/formal-semantics`, no allowlist, no new axiom.
+
+---
+
+# P2 addendum — C2 (structural/relational, generator-emitted)
+
+*Executed 2026-07-10, branch `ghost-assign-bc6`, base HEAD `9565ce0f`. All C2
+contracts are produced by `bin/gen-bridge-contracts.py` (REGISTRY-owned,
+`--check` idempotent, `--lint` clean), PROVE verbatim (pipeline
+Alt-Ergo→Z3, per-goal; a prover, not L3-tc), are non-vacuous (twin fails), and
+are corpus byte-diff-0 + ledger-0 (no `src/formal-semantics`/allowlist change,
+no `axiom` keyword — the deep/relational/fragment predicates are pure
+DEFINITIONS + proved WhyML `lemma`s).*
+
+## Methods lifted to C2
+
+| method | file | family | C2 fact(s) | rung |
+|---|---|---|---|---|
+| `_subst_type_in_ir` | frontend/monomorphize.py | substmap (T1) | `wf_ir_deep` preservation (P2.1) + `in_emitted_fragment` preservation (P2.3), atop the retained C1 `size(\result)>0` | **C2** |
+| `collection_binder_kinds` | module6_whyml/ir_scanner.py | setfold | `setfold_leaf_empty(obj,\result)` — leaf⇒empty relation (P2.2) | **C2** |
+
+## P2.1 — wf-preservation: the honest ceiling + the resolution
+
+- **Ceiling finding (measured):** the CERTIFIED shallow `wf_ir`
+  (Phase2c_PyValDict.v line 262-263: top-level dict keys only, no recursion into
+  values/lists) is **NOT an inductive invariant** of the recursive substitution.
+  Threading it as `#@ requires wf_ir(node) / #@ ensures wf_ir(\result)` proves
+  the TOP VC (0.08s) but the helper VCs `_subst_type_in_ir__dict'vc` /
+  `__list'vc` **TIME OUT** (Alt-Ergo, 20s, 318k/174k steps) — not because SMT
+  cannot redo the induction, but because the recursive-call precondition
+  `wf_ir <subvalue>` is GENUINELY UNDISCHARGEABLE (shallow wf_ir constrains
+  neither list elements nor non-string-key dict values). This is a real C2
+  ceiling for the certified-shallow predicate.
+- **Resolution (proved):** the genuinely-preservable invariant is a DEEP
+  strengthening `wf_ir_deep` / `wf_dict_deep` / `wf_list_deep` (recurses into
+  list elements AND dict values). It is a pure DEFINITION (NO axiom) emitted by
+  `emit_substmap_group`, with two proved `let rec lemma`s
+  `wf_dict_deep_shallow` / `wf_ir_deep_shallow` establishing
+  `wf_ir_deep v -> wf_ir v` (so `ensures wf_ir_deep(\result)` ENTAILS the
+  audited shallow `wf_ir`). Requires-threading + per-helper preservation
+  ensures (`__dict: wf_dict_deep`, `__list: wf_list_deep`) discharge the
+  induction helper-by-helper. The wf_val string-key case needs one lemma-pack
+  fact — a CALLED `let lemma wf_val_str_stable` (split-robust exact
+  instantiation) + a string-stability ensures on the top. Whole-file proof:
+  **SUCCESS! All contracts formally proven**; every subst/lemma goal Valid
+  (`__dict'vc` 2.0-3.1s Alt-Ergo). Non-vacuous: an `ensures false` twin times
+  out (preconditions consistent).
+
+## P2.2 — one generator-emitted relational ensures (setfold)
+
+- `setfold_leaf_empty(v, r)` = a set fold maps a LEAF (non-dict, non-list) input
+  to the EMPTY set (`r = const false`) — the set-fold analog of decoder
+  totality / `None ⇒ skipped`. Pure definition, NO axiom; discharges from the
+  top fold's `_ -> const false` arm alone (no per-helper threading needed).
+- Co-landed: the `top_ensures` thread on `emit_setfold_group` (reverted in P1 as
+  an unused facade) is re-landed HERE with its consumer.
+- `collection_binder_kinds` postcondition **Valid**; whole `--fun` proof SUCCESS.
+  Non-vacuous: a twin with the leaf arm demanding `const true` TIMES OUT under
+  BOTH Alt-Ergo and Z3.
+
+## P2.3 — `in_emitted_fragment` (grammar membership)
+
+- `in_emitted_fragment(v)` = grammar-membership scoped to the emitted IR fragment
+  the evaluator axioms range over (`src/self-annotate/evaluator-axiom-audit.md`).
+  Structural scope: no bare `PNone` sentinel. The string-TAG half (which audited
+  `stmt` tags appear) is the `pystr_eq`-opaque boundary the audit leaves to
+  prose — so the CONTRACT captures the structural half, the audit prose the tag
+  half.
+- **Audit classification:** a BRIDGE-AUDIT OBLIGATION (a WhyML re-statement of
+  the audited fragment grammar) — NOT a soundness axiom. Pure definition, ledger
+  untouched. Its correspondence to `evaluator-axiom-audit.md`'s fragment is
+  audited, not proven.
+- Landed as a PRESERVATION contract on `_subst_type_in_ir` (the type-substitution
+  rewrites annotation strings only, never removes the structural spine, so
+  fragment membership is preserved), composed with the P2.1 wf machinery in
+  `emit_substmap_group`. Whole-file proof SUCCESS. Non-vacuous: the predicate is
+  genuinely non-trivial (`in_emitted_fragment PNone` is UNPROVABLE — it is
+  false; the no-precondition identity `ensures in_emitted_fragment(\result)`
+  times out), and DROPPING `requires in_emitted_fragment(node)` breaks the
+  fragment ensures on the leaf arm under BOTH provers (`wf_ir_deep node ->
+  in_emitted_fragment node` is false — PNone witness) — i.e. the requires is
+  load-bearing.
+
+## Gates (all green)
+
+- **Every C2 contract PROVES** verbatim (pipeline per-goal Alt-Ergo→Z3): both
+  mirror files report `Verification SUCCESS! All contracts formally proven`.
+- **Non-vacuous:** twins fail (above).
+- **Generated, not hand-written:** `gen-bridge-contracts.py` REGISTRY reproduces
+  every clause byte-for-byte; `--check` idempotent; `--lint` clean (now covers
+  hand-written bridge `#@ requires` AND `#@ ensures`).
+- **Corpus byte-diff 0:** worktree-at-HEAD baseline vs working tree, one
+  foreground `bin/byte-diff-sweep.sh` each — **763/763 identical** (the deep /
+  relational / fragment predicate blocks + per-helper contracts are gated on the
+  C2 contract being present; no reference-corpus program routes them).
+- **Ledger == 3:** `git diff HEAD -- src/formal-semantics
+  '**/proof_axiom_allowlist.py'` empty; no `axiom` keyword emitted.
+- **Fidelity:** `bin/self-annotate-mirror-check.sh` → all 52/52 in sync.
+
+## Files changed by P2
+
+- `src/pycsl/module6_whyml/generic_fold.py` — `_wf_deep_predicate_lines`
+  (P2.1 deep wf family + connecting lemmas + `wf_val_str_stable`),
+  `_frag_predicate_lines` (P2.3 `in_emitted_fragment`),
+  `_setfold_leaf_empty_lines` (P2.2); `emit_substmap_group` gains
+  requires-threading + a composable preservation-family loop (wf_ir_deep +
+  in_emitted_fragment) with per-helper contracts and body proof-hints;
+  `emit_setfold_group` gains the `top_ensures` thread + leaf-empty predicate.
+- `src/pycsl/module6_whyml/functions.py` — `_lower_fold_requires` (new);
+  `_lower_fold_ensures`/`_lower_fold_requires` seed `_current_params` so
+  param-referencing bridge clauses lower bare (not `!`-deref / abstract const);
+  setfold dispatch passes `_lower_fold_ensures`; substmap dispatch passes
+  requires too.
+- `src/pycsl/module6_whyml/expressions.py` — `_CERTIFIED_PYVAL_ARITY` gains
+  `wf_ir_deep`/`wf_dict_deep`/`wf_list_deep`/`setfold_leaf_empty`(2)/
+  `in_emitted_fragment`/`frag_dict`/`frag_list` (direct application, not the
+  opaque numbered fallback).
+- `bin/gen-bridge-contracts.py` — FACT_CATALOG gains `wf_ir_deep_preserve`,
+  `setfold_leaf_empty_fact`, `in_emitted_fragment_preserve`; multi-fact /
+  requires+ensures / `{subject}`-aware clause model; decorator-preserving block
+  reconstruction; lint covers requires.
+- Mirror `#@` (generator-written): `_subst_type_in_ir` (C2 wf + fragment),
+  `collection_binder_kinds` (C2 setfold relation).
+- No `src/formal-semantics`, no allowlist, no new axiom.

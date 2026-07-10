@@ -130,8 +130,11 @@ def _specialize_decl(decl: int, tvar: str, concrete: str, new_name: str) -> int:
 def _specialize_function(func: int, tvar: str, concrete: str, new_class_name: str, new_self_type: Optional[str]=None) -> int:
     return {}
 
-#@ requires True
+#@ requires wf_ir_deep(node)
+#@ requires in_emitted_fragment(node)
 #@ ensures size(\result) > 0
+#@ ensures wf_ir_deep(\result)
+#@ ensures in_emitted_fragment(\result)
 #@ assigns \nothing
 def _subst_type_in_ir(node: Any, tvar: str, concrete: str) -> Any:
     if isinstance(node, dict):

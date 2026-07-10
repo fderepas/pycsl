@@ -60,7 +60,7 @@ class IRScanner:
         return False
 
     #@ requires True
-    #@ ensures True
+    #@ ensures setfold_leaf_empty(obj, \result)
     #@ assigns \nothing
     @staticmethod
     def collection_binder_kinds(obj: Any) -> Set[str]:
