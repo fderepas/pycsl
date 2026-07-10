@@ -51,3 +51,22 @@ candidates need JSON-I/O / worklist-closure / tuple-key-map / list-of-record mod
 compounding gap (or the composition wall). **The pointwise closed-key classifier subclass is fully exhausted
 at −3** (G1/G2 ×2 + option-of-record ×1). The boundary-1 residual is now genuinely the composition wall
 (research-grade, value-model-wall report §5) or these harder per-method gaps. No build (measure-before-build).
+
+---
+
+## bases_closure spike (2026-07-10) — compounding hard gap, refuted as bounded
+
+Measure-before-build spike of the last worklist candidate. Un-trusted `bases_closure(exc:str)->frozenset`
+(a transitive-closure over the str-key const map `EXCEPTION_BASES: Dict[str, tuple]` via `seen:set` /
+`frontier:list` with `while frontier: pop/if-in-seen/add/extend`). **First blocker is NOT termination:**
+whole-file L3-tc → `type string, but expected int` — a string-vs-int leak from the **string set/list
+operations** (string membership/add/pop/extend + string-set return `frozenset`). Behind that sits the
+lexicographic **worklist-termination variant** `(|universe∖seen|, |frontier|)` the emitter cannot synthesize
+(the frontier GROWS; not a range/structural loop — same class as the SCC/Tarjan wall). So `bases_closure` is
+a COMPOUNDING hard gap (faithful string-collections + worklist termination), NOT a bounded conversion.
+Refuted. No build.
+
+**Boundary-1 final (this session): −4** (1234→1230) — G1/G2 record-read (2), option-of-record (1),
+compound-const-map (1). Bounded frontier EXHAUSTED. Residual = the composition wall (research-grade),
+non-modellable I/O (`_parse_why3_json`/`_resolve_runtime_config` — JSON/config), and compounding hard gaps
+(`bases_closure` — string-collections + worklist termination). Each a distinct research/hard build.
