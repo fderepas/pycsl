@@ -1,3 +1,27 @@
+# Contract-strength census — richer-contracts-bridge (P1–P4, FINAL)
+
+## FINAL tally (P1–P4, 2026-07-09/10) — the bridge's contract-strength map
+
+| Rung | Live methods | Contracts |
+|---|---|---|
+| **C3** (`\result = emit_F_F`, semantic) | **0 live** (S-c3 witness only) | gated on lifting `_expr_to_whyml` — see `src/formal-semantics/bridge-theorem-schema.md` §2 |
+| **C2** (structural/relational) | **2** | `_subst_type_in_ir` (`wf_ir_deep` preservation + `in_emitted_fragment`); `collection_binder_kinds` (`setfold_leaf_empty`) |
+| **C1** (measure/shape) | **1** | `_subst_type_in_ir` (`size(\result) > 0`) |
+| **C0** (floor) | all others | `requires True / ensures True / assigns F` |
+
+- **`trusted_contracts_axiom` footprint shrunk on 2 methods** — the bridge's honest metric (not the
+  `\trusted` marker count, which stays **1234**; C1/C2 replace `ensures True` with a checked certified fact).
+- **Ledger held at 3** throughout (all additions are pure defs + proved lemmas, or mechanically-cross-checked
+  bridge-audit obligations — never soundness axioms); **corpus byte-diff 0** at every phase.
+- **Phase outcomes:** P0 infra (generator + cross-check + round-trip) green; **P1** C1 = a measured singleton
+  (already lifted by S-c1); **P2** C2 = the load-bearing wf-preservation resolved via `wf_ir_deep` + relational
+  + `in_emitted_fragment` (2 methods); **P3** C3 = measured 0 live (the `_expr_to_whyml` trusted-`val` wall);
+  **P4** = this census + the theorem-schema note (the bridge's certificate).
+- **The certificate:** `src/formal-semantics/bridge-theorem-schema.md` — the composition (C3 + coherence ⟹
+  WP transformation, modulo the 3-axiom ledger), sound and demonstrated, with C3-on-live gated on one named lift.
+
+---
+
 # Contract-strength census — richer-contracts-bridge P1 (C1 measure/shape)
 
 *Deliverable of P1 (`richer-contracts-bridge-plan.md` §3). Generated 2026-07-10,
