@@ -3198,7 +3198,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _cert_arity = self._CERTIFIED_PYVAL_ARITY.get(func_name)
         if (getattr(self, "_in_spec", False) and _cert_arity is not None
                 and len(args) == _cert_arity):
-            return f"({func_name} {' '.join(args)})"
+            # M1 size-rename: the pyval measure is emitted as `pv_size` (it no longer
+            # collides with the emit_ir `size`); the contract-facing name stays `size`
+            # (user writes `size(\result)`), so translate ONLY the pyval measure symbol
+            # here. size_list/size_dict keep their (non-colliding) names.
+            _emit_name = "pv_size" if func_name == "size" else func_name
+            return f"({_emit_name} {' '.join(args)})"
         safe_fn = whyml_ident(func_name)
         if (func_name not in local_refs
                 and func_name not in self._current_params
