@@ -96,6 +96,29 @@ method: `--fun` (whole-body). Per file at P3 close: ONE whole-file proof (backgr
 §10.10 sibling-interaction check — REQUIRED before commit (the sprawl-attempt skipped this). A `--fun`
 SUCCESS with a whole-file FAIL means REVERT.
 
+## Post-M1 REFINED build map (measured 2026-07-10, `getting-better/post-m1-census.md`)
+
+M1 is landed (collision gone). The census + first-target spikes measured the REAL shape of the build:
+
+- **`@mutable_state` on `TypeInferenceMixin` is now viable BUT regresses `_split_tuple_type`**
+  (`seq string` vs `array`, the seq-model changes its `List[str]` lowering) — a **coupled repair**:
+  flipping `@mutable_state` on the mixin requires repairing `_split_tuple_type` in the SAME increment
+  (a known seq/array-boundary class). This is an all-or-nothing coupling on this file.
+- **The readers form a LEAF-FIRST CASCADE** (feedback: fix leaves with correct value contracts first):
+  - `_rhs_yields_map` / `_rhs_yields_array` recurse like `_is_float_expr` (ExprIR ADT: `.get("body")` →
+    `body_of`, `variant { size val_ir }`) — that part is the EXISTING tier-3 ADT. Their blocker is the
+    SIBLING **`_field_type_of`**: its stub is `attr_ir: int` (int-typed), so `self._field_type_of(val_ir)`
+    fails (`emit_ir` vs `int`) AND the caller's `... in ("set","dict","frozenset")` int-hash-compares
+    because the stub returns int. → **`_field_type_of` is the LEAF: it must be typed
+    `(attr_ir:"ExprIR")->Optional[str]` with a string-valued result contract, converted FIRST.**
+  - `_field_type_of` itself is a nested-dict reader (`self._record_types[...]["field_types"][field]`) →
+    needs the **nested-dict** projection recognizer.
+- **Refined FIRST-target order:** leaf `_field_type_of` (nested-dict + ExprIR sig) → then `_rhs_yields_map`
+  + `_rhs_yields_array` (ExprIR ADT + set-membership + self-map, mostly existing) → each with the
+  `@mutable_state`+`_split_tuple_type`-repair coupling landed once. `_call_return_whyml_type` (A3/A4/U +
+  getattr + or-chain) is a SEPARATE, heavier sub-cluster — do the `_field_type_of`→`_rhs_yields_*` leg
+  first (fewer NEW recognizers: nested-dict + set-membership vs rpartition/union-return/getattr).
+
 ## Order & first action
 Build order in ONE tree: **U → A4 → A1 → A3 → convert**, single commit at the end. The one dangerous gate
 is A3's string-local pre-decl (rpartition-targets only); everything else is corpus-inert by measurement.
