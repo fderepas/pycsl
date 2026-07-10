@@ -3959,6 +3959,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 chain = (f"(if {_cmp(kk)} then {whyml_string_literal(vv)} "
                          f"else {chain})")
             return chain
+        # compound-key const-map get: a module-const dict with a tuple key + list
+        # value (`TRIGGERS`) read as `NAME.get(k, [])` lowers to the FAITHFUL defaulting
+        # lookup over the opaque `map <key> (option (list <elem>))` constant:
+        #   (match Map.get NAME k with Some l_ -> l_ | None -> Nil end)
+        # The `[]` default is the empty list `Nil`; the returned term is `list <elem>`
+        # (the getter's return type). Requires an EXPLICIT empty-list default (2 args)
+        # and that `recv` is the genuine module constant (not shadowed by a local/param).
+        # Fires only on a compound const dict → byte-identical for every corpus program.
+        _mcc = getattr(self, "_module_const_compound_dicts", {}).get(recv)
+        if (_mcc is not None and len(args) == 2
+                and recv not in _symtab0
+                and recv not in (local_refs or set())
+                and recv not in self._current_params):
+            _dargs = expr.get("args") or []
+            if (len(_dargs) == 2 and isinstance(_dargs[1], dict)
+                    and _dargs[1].get("type") == "ArrayLit"
+                    and not _dargs[1].get("elts")):
+                return (f"(match Map.get {whyml_ident(recv)} {args[0]} "
+                        f"with Some l_ -> l_ | None -> Nil end)")
         # todict-reflection-plan.md R1: `d` aliases `node.to_dict()` — route
         # `d.get(key)` to the node's TYPED field (no dict materialized).
         _recv_dotted = getattr(self, "_todict_aliases", {}).get(recv)

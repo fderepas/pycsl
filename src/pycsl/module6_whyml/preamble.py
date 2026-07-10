@@ -2031,6 +2031,11 @@ class PreambleEmissionMixin:
             "needs_no_exception": needs_no_exception,
             "bounded_sizes": bounded_sizes,
             "user_exceptions": user_exceptions,
+            # compound-key const-map lowering: a tuple-keyed const dict needs
+            # `map.Map` + `option.Option` + `list.List` in scope for its opaque
+            # `val constant` and the defaulting `Map.get`/`Nil` at the getter site.
+            "needs_compound_const_map": bool(
+                self.ir.get("module_const_compound_dicts")),
         }
 
     def _emit_preamble_uses(self, needs: Dict[str, Any],
@@ -2131,6 +2136,14 @@ class PreambleEmissionMixin:
             out.append(f"  predicate separated (a: loc) (na: int) (b: loc) (nb: int) =")
             out.append(f"    a + na <= b \\/ b + nb <= a")
             out.append("")
+        if needs.get("needs_compound_const_map"):
+            # compound-key const-map lowering: ensure map.Map / option.Option /
+            # list.List are in scope for the opaque `val constant` map and the
+            # defaulting `Map.get … Nil` getter. Guarded appends keep the file
+            # byte-identical for the corpus (the flag is never set there).
+            for _u in ("  use map.Map", "  use option.Option", "  use list.List"):
+                if _u not in out:
+                    out.append(_u)
         if needs.get("needs_pydict"):
             # WALL-PLAN v2: the concrete-map pyval/pydict/doc theory
             # (`_emit_pydict_theory`) needs list/option/string; the A-unit
@@ -3131,6 +3144,30 @@ class PreambleEmissionMixin:
         self._current_self_type = prev_self
         self._in_spec = prev_spec
         return facts
+
+    def _emit_module_const_compound_maps(self) -> List[str]:
+        """compound-key const-map lowering: emit each module-const dict with a
+        compound (tuple) key + list value (`TRIGGERS`) as an OPAQUE Why3 map constant
+
+            val constant <NAME> : map <key_whyml> (option (list <elem_whyml>))
+
+        The content is UNMODELLED — sound under the weak `ensures True` contract of the
+        getter — while the TYPE is faithful: the key is the native tuple, the value the
+        `option`-wrapped list (so a `.get(k, [])` read defaults `None -> Nil`). Emitted
+        after the type declarations (order-insensitive for an opaque val). Empty for
+        every corpus program (no tuple-keyed const dict) → byte-identical."""
+        mcc = getattr(self, "_module_const_compound_dicts", {}) or {}
+        if not mcc:
+            return []
+        out: List[str] = []
+        for name in sorted(mcc):
+            meta = mcc[name]
+            wid = whyml_ident(name)
+            out.append(
+                f"  val constant {wid} : map {meta['key_whyml']} "
+                f"(option (list {meta['elem_whyml']}))")
+        out.append("")
+        return out
 
     def _emit_module_globals(self) -> List[str]:
         """inline.md Phase 1: emit each module-level global object instance `g = C(...)`

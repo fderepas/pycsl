@@ -113,6 +113,136 @@ def collect_module_const_dicts(node: ast.Module) -> Dict[str, Dict[str, str]]:
             and n not in written_via_global}
 
 
+_COMPOUND_SCALAR_WHYML = {"str": "string", "int": "int", "bool": "int", "float": "real"}
+
+
+def _compound_paren(w: str) -> str:
+    """Parenthesize a WhyML type for use as an `option`/`list` argument. A tuple
+    type is already fully bracketed (`(string, string)`) and a bare scalar has no
+    space, so both are left as-is; a multi-token type (`option string`) is wrapped."""
+    if " " not in w:
+        return w
+    if w.startswith("(") and w.endswith(")"):
+        return w
+    return f"({w})"
+
+
+def _compound_ann_whyml(ann: Any, aliases: Dict[str, Any]) -> Optional[str]:
+    """Map a Python type-annotation AST node to a PURE (immutable) WhyML type
+    string, resolving module-level `NAME = <type>` aliases. Supports the faithful
+    slot vocabulary the compound-key const-map lowering needs:
+
+      str→string  int/bool→int  float→real
+      Optional[T]→`option <T>`   List[T]→`list <T>`   Tuple[A, B, ...]→`(A, B, ...)`
+
+    Returns None (fail-closed) for any unrecognized construct, so the enclosing
+    const dict is simply not collected and keeps its opaque fallback."""
+    if isinstance(ann, ast.Name):
+        if ann.id in _COMPOUND_SCALAR_WHYML:
+            return _COMPOUND_SCALAR_WHYML[ann.id]
+        if ann.id in aliases:
+            return _compound_ann_whyml(aliases[ann.id], aliases)
+        return None
+    if isinstance(ann, ast.Subscript):
+        base = ann.value
+        if not isinstance(base, ast.Name):
+            return None
+        sl = ann.slice
+        if isinstance(sl, ast.Index):          # py<3.9 compat
+            sl = sl.value
+        if base.id == "Optional":
+            inner = _compound_ann_whyml(sl, aliases)
+            return None if inner is None else f"option {_compound_paren(inner)}"
+        if base.id == "List":
+            inner = _compound_ann_whyml(sl, aliases)
+            return None if inner is None else f"list {_compound_paren(inner)}"
+        if base.id in ("Tuple", "tuple"):
+            elts = sl.elts if isinstance(sl, ast.Tuple) else [sl]
+            if not elts:
+                return None
+            parts = []
+            for e in elts:
+                if isinstance(e, ast.Constant) and e.value is Ellipsis:
+                    return None                # variadic Tuple[T, ...] — not a fixed tuple
+                w = _compound_ann_whyml(e, aliases)
+                if w is None:
+                    return None
+                parts.append(w)
+            return "(" + ", ".join(parts) + ")"
+    return None
+
+
+def collect_module_const_compound_dicts(node: ast.Module) -> Dict[str, Dict[str, str]]:
+    """Module-level constant dicts with a COMPOUND (tuple) key and a LIST value —
+    the `TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {...}` shape in
+    `exception_model.py`. A top-level ANNOTATED assignment bound EXACTLY ONCE whose
+    annotation is `Dict[<Tuple[...]>, List[<E>]]` (both slots deriving a pure WhyML
+    type via `_compound_ann_whyml`, with module-level `NAME = Tuple[...]` type aliases
+    resolved), not `#@ shared` / never written via `global`.
+
+    Returns `{NAME: {"key_whyml": "(string, option string)", "elem_whyml":
+    "(string, string)"}}`. Such a dict lowers FAITHFULLY: the constant becomes an
+    opaque `val constant NAME : map <key_whyml> (option (list <elem_whyml>))` and a
+    `NAME.get(k, [])` read becomes `(match Map.get NAME k with Some l -> l | None ->
+    Nil)` — the real defaulting lookup returning `list <elem_whyml>`, sound under
+    `ensures True`. Fail-closed and TIGHTLY GATED on a tuple key + list value, so a
+    plain `Dict[str, int]` corpus dict is never collected (byte-identical)."""
+    # Collect module-level type aliases (`Trigger = Tuple[str, str]`) so a `List[Trigger]`
+    # value annotation resolves through the alias to its tuple element type.
+    aliases: Dict[str, Any] = {}
+    for child in getattr(node, "body", []):
+        if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                and isinstance(child.targets[0], ast.Name)
+                and isinstance(child.value, (ast.Subscript, ast.Name))):
+            aliases[child.targets[0].id] = child.value
+
+    counts: Dict[str, int] = {}
+    candidates: Dict[str, Dict[str, str]] = {}
+    for child in getattr(node, "body", []):
+        if not (isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name)):
+            continue
+        target = child.target.id
+        counts[target] = counts.get(target, 0) + 1
+        value, annotation = child.value, child.annotation
+        if not (isinstance(value, ast.Dict) and value.keys):
+            continue
+        # annotation must be Dict[K, V]
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Dict", "dict")):
+            continue
+        sl = annotation.slice
+        if isinstance(sl, ast.Index):
+            sl = sl.value
+        if not (isinstance(sl, ast.Tuple) and len(sl.elts) == 2):
+            continue
+        k_ann, v_ann = sl.elts
+        # key must be a COMPOUND (tuple) type — the tight gate
+        if not (isinstance(k_ann, ast.Subscript)
+                and isinstance(k_ann.value, ast.Name)
+                and k_ann.value.id in ("Tuple", "tuple")):
+            continue
+        # value must be a List[E]
+        if not (isinstance(v_ann, ast.Subscript)
+                and isinstance(v_ann.value, ast.Name)
+                and v_ann.value.id == "List"):
+            continue
+        e_ann = v_ann.slice
+        if isinstance(e_ann, ast.Index):
+            e_ann = e_ann.value
+        key_whyml = _compound_ann_whyml(k_ann, aliases)
+        elem_whyml = _compound_ann_whyml(e_ann, aliases)
+        if key_whyml is None or elem_whyml is None:
+            continue
+        candidates[target] = {"key_whyml": key_whyml, "elem_whyml": elem_whyml}
+    shared = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+    written_via_global = {n for g in ast.walk(node) if isinstance(g, ast.Global)
+                          for n in g.names}
+    return {n: v for n, v in candidates.items()
+            if counts.get(n, 0) == 1 and n not in shared
+            and n not in written_via_global}
+
+
 def collect_module_globals(node: ast.Module, class_names: set) -> Dict[str, ast.Call]:
     """inline.md Phase 1 — module-level global OBJECT instances: a top-level
     `g = C(<args>)` where `C` is a class defined in the module, bound EXACTLY ONCE at

@@ -76,6 +76,14 @@ class Module6_WhyMLTranspiler(
         # `_lower_dict_get_call` as a chained string if-then-else. Empty for every
         # existing corpus program (byte-identical emission).
         self._module_const_dicts: Dict[str, Dict[str, str]] = self.ir.get("module_const_dicts", {})
+        # compound-key const-map lowering: `{NAME: {"key_whyml":…, "elem_whyml":…}}`
+        # for a module-const dict with a tuple key + list value (`TRIGGERS`). Each
+        # becomes an opaque `val constant NAME : map <key> (option (list <elem>))`
+        # (emitted after the type decls) and a `NAME.get(k, [])` read lowers to the
+        # faithful defaulting `Map.get` in `_lower_dict_get_call`. Empty for every
+        # corpus program (byte-identical emission).
+        self._module_const_compound_dicts: Dict[str, Dict[str, str]] = self.ir.get(
+            "module_const_compound_dicts", {})
         # gap-9: signatures of imported `#@ inductive` predicates whose RULE was
         # NOT crossed (kept opaque to avoid an E-matching blow-up). Lets the
         # `_emit_contract_logic_symbol` fallback declare the opaque predicate
@@ -504,6 +512,7 @@ class Module6_WhyMLTranspiler(
 
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
+        out += self._emit_module_const_compound_maps()
 
         # inductive.md: `#@ inductive` predicates emit AFTER datatypes (their rules
         # reference constructors) and BEFORE axioms/functions (which may mention the
@@ -755,6 +764,7 @@ class Module6_WhyMLTranspiler(
             out += self._emit_class_inv_axioms(self.ir)
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
+        out += self._emit_module_const_compound_maps()
         self._inductive_preds = (
             {ind["name"] for ind in self.ir.get("inductive_decls", [])}
             | {m["name"] for ind in self.ir.get("inductive_decls", [])

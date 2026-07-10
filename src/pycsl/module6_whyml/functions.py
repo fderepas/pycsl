@@ -15,6 +15,12 @@ class FunctionEmissionMixin:
                         int_type: str) -> str:
         """Return the WhyML parameter type string for a standalone function argument."""
         safe = whyml_ident(arg)
+        # compound-key const-map getter: the key parameter takes the native tuple key
+        # type (`(string, option string)`) so `Map.get NAME k` type-checks. Gated on
+        # the recognized getter → never fires for a corpus param (byte-identical).
+        _ck = getattr(self, "_compound_key_params", {})
+        if arg in _ck:
+            return f"({safe}: {_ck[arg]})"
         if arg in ref_params:
             return f"({safe}: ref {int_type})"
         if arg in array2d_params:
@@ -221,6 +227,16 @@ class FunctionEmissionMixin:
         self._current_params = (
             (set(symbol_table.keys()) | local_refs | ghost_vars) - self._shared_var_names
         )
+        # compound-key const-map getter: `return NAME.get(k, [])` where NAME is a
+        # tuple-keyed const dict → the return type is `list <elem>` and the key param
+        # `k` takes the native tuple key type. Recognized here so `_compute_return_type`
+        # and `_param_type_str` (both called downstream in `_emit_function`) can consult
+        # it. None for every other function → byte-identical.
+        self._compound_map_getter = self._recognize_compound_map_getter(func, body_stmts)
+        self._compound_key_params: Dict[str, str] = {}
+        if self._compound_map_getter is not None:
+            self._compound_key_params[self._compound_map_getter["key_param"]] = (
+                self._compound_map_getter["key_whyml"])
         self._array_locals = set()
         # arity2.md (2b — operation selection): array locals that the
         # declaration path types correctly (via `_collect_array_var_assigns`'
@@ -865,10 +881,63 @@ class FunctionEmissionMixin:
         rec(body_stmts)
         return found[0]
 
+    def _recognize_compound_map_getter(
+            self, func: Dict[str, Any],
+            body_stmts: List[Dict[str, Any]]) -> Optional[Dict[str, str]]:
+        """Recognize the compound-key const-map getter shape
+
+            def f(k): return NAME.get(k, [])
+
+        where NAME is a tuple-keyed const dict collected in
+        `_module_const_compound_dicts`. Returns `{"map_name", "key_param",
+        "key_whyml", "elem_whyml"}` for a faithful lowering, else None (fail-closed).
+        Requires the body be EXACTLY one `Return` of `NAME.get(<Var>, [])` with an
+        empty-list default — the shape whose `None -> Nil` arm is the honest `[]`
+        default. Any other body keeps its existing lowering (byte-identical)."""
+        mcc = getattr(self, "_module_const_compound_dicts", {}) or {}
+        if not mcc or len(body_stmts) != 1:
+            return None
+        stmt = body_stmts[0]
+        if stmt.get("stmt") != "Return":
+            return None
+        val = stmt.get("value")
+        if not (isinstance(val, dict) and val.get("type") == "Call"):
+            return None
+        fn = val.get("func", "")
+        if not (isinstance(fn, str) and fn.endswith(".get")):
+            return None
+        recv = fn[:-len(".get")]
+        meta = mcc.get(recv)
+        if meta is None:
+            return None
+        args = val.get("args") or []
+        if len(args) != 2:
+            return None
+        key_arg, default_arg = args
+        if not (isinstance(key_arg, dict) and key_arg.get("type") == "Var"):
+            return None
+        if not (isinstance(default_arg, dict)
+                and default_arg.get("type") == "ArrayLit"
+                and not default_arg.get("elts")):
+            return None
+        return {
+            "map_name": recv,
+            "key_param": key_arg.get("name"),
+            "key_whyml": meta["key_whyml"],
+            "elem_whyml": meta["elem_whyml"],
+        }
+
     def _compute_return_type(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]]) -> str:
         """Compute the WhyML return type for one function, applying the
         `List[T] → array int`, `Set[T]`/`Dict[K, V]` → `map int (option int)`,
         and bounded-int overrides."""
+        # compound-key const-map getter: `-> List[<tuple>]` returned as the map's
+        # value list `list <elem_whyml>` (a PURE, immutable list of native tuples —
+        # `array <record>` would be Why3-rejected for a mutable element). Gated on the
+        # recognized getter shape → byte-identical for every other function.
+        _cmg = getattr(self, "_compound_map_getter", None)
+        if _cmg is not None:
+            return f"list {_cmg['elem_whyml']}"
         bounded_int = func.get("bounded_int")
         return_type = IRScanner.find_return_type(body_stmts)
         return_type = self._refine_tuple_return_type(func, body_stmts, return_type)

@@ -9,6 +9,7 @@ from frontend.module5.memoization_rt import MemoizationRTMixin
 from frontend.module5.construction_synth import ConstructionSynthMixin
 from frontend.module_collect import (collect_module_constants,
                                       collect_module_const_dicts,
+                                      collect_module_const_compound_dicts,
                                       collect_module_globals)
 from frontend.Module2_Parser import (
     CSLNode, ContractWrapper,
@@ -181,6 +182,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         module_const_dicts = collect_module_const_dicts(node)
         if module_const_dicts:
             self.program_ir["module_const_dicts"] = module_const_dicts
+
+        # compound-key const-map lowering: a module-const dict with a COMPOUND
+        # (tuple) key and a LIST value (`TRIGGERS: Dict[Tuple[str, Optional[str]],
+        # List[Trigger]]`) lowers to an opaque `val constant NAME : map <key>
+        # (option (list <elem>))` and a `NAME.get(k, [])` defaulting lookup. Tightly
+        # gated on the tuple-key + list-value shape → absent for every plain-dict
+        # corpus program (byte-identical emission).
+        module_const_compound_dicts = collect_module_const_compound_dicts(node)
+        if module_const_compound_dicts:
+            self.program_ir["module_const_compound_dicts"] = module_const_compound_dicts
 
         # inline.md Phase 1: module-level global object instances `g = C(...)`. Modeled
         # in Module 6 as a Why3 mutable-record global `let g : c = <ctor>`; the ctor
