@@ -49,6 +49,21 @@ renders via a trusted program `val`. Reaching C3 on live handlers therefore requ
 LINK-3 **coherence** lemmas already discharge once, formally (the `handle_F_code` string-parametric specs
 take the *already-rendered* sub-string as a parameter with a hypothesis, mirroring the witness shape).
 
+**Sharpened (measured 2026-07-10, the C3-"P-next" spike).** The C3-on-live gate is DEEPER than "lift the
+recursive `_expr_to_whyml`" — it is blocked already at the **leaf** renderer. A leaf-first attempt (lift
+just the identifier/var renderer so a handler over a *variable* argument could reach C3) fails: `whyml_ident`
+— the identifier mangler EVERY handler renders through, even for a bare variable — computes
+`unicodedata.normalize('NFD', ch)` (Unicode canonical decomposition) over `ord(ch) > 127` codepoints plus a
+`WHYML_RESERVED` membership. A *deterministic WhyML logic model* of `whyml_ident` would have to model the
+Unicode NFD decomposition tables — a **char-level Unicode string wall** (beyond W2's simple char-iteration,
+which does not do codepoint arithmetic or Unicode normalization). So the trusted-`val` boundary is not merely
+the recursive expression dispatcher; it bottoms out in a **non-logic-modellable leaf** (Unicode
+normalization). **C3-on-live is therefore NOT a bounded lift** — it is gated on modelling Unicode NFD in
+WhyML logic, which no bounded engineering step provides. This vindicates the extensional design: the
+coherence side treats the emitter's output *as the string it is* (whatever `whyml_ident` computes), which is
+exactly why LINK-3 covers the semantics without a deterministic re-statement. The bridge's live-code reach
+is therefore **capped at C1/C2** — not by momentum, but by a measured char-level-Unicode wall at the leaf.
+
 ## 3. What the bridge therefore certifies today
 
 - **The schema is sound and demonstrated** — where a method reaches C3, its running output provably performs
