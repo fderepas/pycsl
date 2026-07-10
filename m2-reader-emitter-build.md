@@ -1,5 +1,16 @@
 # M2 reader-emitter build — faithful string-map readers (multi-session)
 
+> **STATUS 2026-07-10: P3 target BLOCKED on the 09-2223 M1 `size`-rename.** The build ran under this plan
+> (byte-diff 0, no gate loosening, no sprawl) and found `_call_return_whyml_type` branch 3 needs the
+> `@mutable_state`-gated getattr-self-field-`.get` rewrite, which CONFLICTS with A1's `@dataclass`-NOT-
+> `@mutable_state` requirement (emit_ir `size` two-theory collision). `rpartition-probe.mlw` under-modeled
+> branch 3 (omitted the getattr-`or` chain), so its convertibility verdict was incomplete. U + A4 machinery
+> builds byte-inert but converts nothing alone (+3 support stubs, reverted). **This cluster is
+> LEAVE-TRUSTED until the M1 `size`-rename lands** (so `@mutable_state` can coexist with non-emit_ir
+> string-map typing). See `getting-better/reader-census-2026-07-10.md` "SECOND BUILD ATTEMPT".
+> The plan below is retained as the design for when M1 is done.
+
+
 *Self-contained build plan, 2026-07-10. Converts the flat-`Dict[str,str]` reader cluster
 (`_call_return_whyml_type` first) from `\trusted` to verified bodies, by generating — from the emitter —
 the WhyML shape the probe (`getting-better/composition-wall/rpartition-probe.mlw`, Alt-Ergo Valid) already

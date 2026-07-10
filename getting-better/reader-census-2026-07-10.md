@@ -150,3 +150,31 @@ bounded (374 lines) nor byte-inert (corpus regression) — the M2-emitter-build 
 target-provable ≠ emitter-generable). The reader frontier's cheap-win supply IS exhausted at 1
 (`_is_float_expr`); every deeper conversion needs non-bounded, corpus-perturbing emitter plumbing that
 does not pass the byte-diff gate as a small increment.
+
+## SECOND BUILD ATTEMPT (2026-07-10, refined plan) — hit a REAL architectural wall (not sprawl)
+
+Re-ran the M2 build under the refined plan (byte-diff-0 gating, no gate loosening, single commit). This
+time the converter behaved correctly — **byte-diff 0, no gate loosening, stopped instead of sprawling** —
+and surfaced a decisive negative finding: **`_call_return_whyml_type` is not convertible via {A1,A3,A4,U},
+because my probe OVER-SIMPLIFIED branch 3.**
+
+- The real branch 3 is `cls = getattr(self,"_current_record_var_classes",{}).get(obj) or
+  getattr(self,"_module_global_classes",{}).get(obj)` — a **getattr-self-field-`.get`** chain plus a
+  string **`or`-of-options**. `rpartition-probe.mlw` modeled `current_self_type` as a plain `string`
+  PARAM and omitted this chain entirely → its "convertible via 3 recognizers" verdict was on an
+  INCOMPLETE model. (Probe-fidelity lesson: a hand-target must model EVERY branch, not the easy ones.)
+- The getattr-self-field-`.get` rewrite (`expressions.py:3385`, `typed-ir §14`) is **`@mutable_state`-gated**.
+  But A1 requires `TypeInferenceMixin` be `@dataclass`-**NOT**-`@mutable_state` (else the emit_ir ADT's
+  `size` two-theory collision, 09-2223 M1). **These CONFLICT**: a method needing both the getattr-field
+  machinery AND the non-emit_ir string-map typing cannot get both in one mixin without first resolving the
+  M1 `size`-rename. That is a genuine architectural wall, not a missing recognizer.
+- The U (union-return-exception) + A4 (option-return) machinery DID build byte-inert (0 corpus Optional
+  returns, as measured) — but converts nothing alone, and syncing the U-diff into the mirror's
+  `_handle_return_stmt`/`_wrap_body_with_return_catch` cost **+3** `\trusted` support stubs (net +3, no −1).
+  Reverted in full.
+
+**Consequence:** the flat-`Dict[str,str]` reader cluster is NOT a bounded M2 build. Converting
+`_call_return_whyml_type` needs the **09-2223 M1 `size`-rename** (so `@mutable_state` + non-emit_ir typing
+coexist) PLUS the getattr-field + string-`or`-chain recognizers — genuinely research-/M1-scale, not a small
+increment. The reader frontier is **floored at the 1 banked −1** (`_is_float_expr`); this cluster is
+LEAVE-TRUSTED pending the M1 rename. The M2 plan's P3 target (`_call_return_whyml_type`) is BLOCKED on M1.
