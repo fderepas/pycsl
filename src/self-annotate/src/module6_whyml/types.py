@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Set, TypedDict
+from dataclasses import dataclass
+def mutable_state(cls): return cls
 _BOOL_BINOPS = frozenset({'==', '!=', '<', '<=', '>', '>=', 'is', 'is not', 'in', 'not in'})
 
 
@@ -25,8 +27,22 @@ class BoolWrapIRView(TypedDict):
     op: str
     func: str
 ""  # pycsl
+@mutable_state
+@dataclass
 class TypeInferenceMixin:
     'Type inference and collection-metadata tracking for the transpiler.\n\n    Covers three concerns:\n\n    * **First-assignment classification** (`_first_assign_kind`,\n      `_emit_first_assign` callers): record vs lambda vs array vs dict vs\n      bounded-int vs default, used to pick the `let X = ...` shape.\n    * **RHS type queries** (`_rhs_yields_array`, `_rhs_yields_map`,\n      `_field_type_for`, `_field_type_of`): does this IR expression\n      produce an `array int` / `map int (option int)` / typed self-field?\n      Drives the dict-vs-array vs int slot choices throughout statement\n      emission.\n    * **Collection constant-folding metadata** (`_track_collection_metadata`):\n      records known sizes/elements of literal collections so `len(...)`\n      and `sum(...)` can fold to constants during expression emission.\n\n    Mixed into Module6_WhyMLTranspiler. State accessed via `self`:\n    `_record_types`, `_known_collection_sizes`, `_known_collection_elements`,\n    `_array_locals`, `_dict_locals`, `_current_symbol_table`,\n    `_current_array1d_params`, `_current_self_type`,\n    `_module_method_return_types`, `_bounded_int`, the various\n    `_ghost_*_vars` sets.\n    '
+    _record_types: Dict[str, Any] = None
+    _current_symbol_table: Dict[str, str] = None
+    _current_self_type: str = ""
+    _module_method_return_types: Dict[str, str] = None
+    _current_record_var_classes: Dict[str, str] = None
+    _module_global_classes: Dict[str, str] = None
+    _array_locals: Set[str] = None
+    _dict_locals: Set[str] = None
+    _current_array1d_params: Set[str] = None
+    _variant_types: Dict[str, str] = None
+    _mutable_state_classes: Set[str] = None
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -55,18 +71,60 @@ class TypeInferenceMixin:
     def _first_assign_kind(self, val: str, val_ir: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _rhs_yields_array(self, val_ir: int) -> bool:
+    def _rhs_yields_array(self, val_ir: "ExprIR") -> bool:
+        """Parallel of `_rhs_yields_map` for `array int`-typed RHS.
+        True for list/tuple-typed param Vars, list-typed self-fields,
+        and Calls to functions known to return `array int`."""
+        if not isinstance(val_ir, dict):
+            return False
+        t = val_ir.get("type", "")
+        if t == "Var":
+            name = val_ir.get("name", "")
+            if name in self._array_locals or name in self._current_array1d_params:
+                return True
+            # bytes/bytearray are array-int-typed per
+            # missing-bytes-struct-feature.md Phase 1.
+            if self._current_symbol_table.get(name) in (
+                    "list", "tuple", "bytes", "bytearray"):
+                return True
+            return False
+        if t in ("Attribute", "FieldGet"):
+            return self._field_type_of(val_ir) in (
+                "list", "tuple", "bytes", "bytearray")
+        if t == "Call":
+            fn = val_ir.get("func", "")
+            if fn.startswith("self."):
+                tail = fn[len("self."):]
+                cls = self._current_self_type
+                key = f"{cls}__{tail}" if cls else tail
+            else:
+                key = fn
+            return self._module_method_return_types.get(key) == "array int"
         return False
 
+    # M2 (2026-07-10 converter run): PARKED, NOT converted. `_rhs_yields_array` (below)
+    # converts clean, but `_rhs_yields_map`'s `IfExpr` recursive arm —
+    # `val_ir.get("body")` / `val_ir.get("orelse")` — hits a genuine emit_ir-ADT gap, not
+    # a "fire an existing recognizer" case: `_EMIT_IR_PROJ` (module6_whyml/expressions.py)
+    # has NO "orelse" entry at all (`orelse_of` does not exist in the preamble ADT), and
+    # its "body" entry is hardwired to `stmts_of` (the stmt-list reader used by
+    # IfStmt/TryStmt), which collides with the IfExprExpr ternary's SCALAR `body`
+    # sub-expression — the shared table has no per-node-kind disambiguation. Reproduced:
+    # `PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/
+    # types.py --import-path src/pycsl --fun typeinferencemixin___rhs_yields_map` ->
+    # "This expression has type int, but is expected to have type ... emit_ir" (the
+    # `orelse` arm hits the untagged `.get` fallback, which hashes the key to an int).
+    # Fixing this needs a NEW ADT total-function projector (`orelse_of`) plus a
+    # context-sensitive "body" override — out of scope for this increment (no new
+    # opaque val, no ad-hoc ADT surface without a mandate). Kept on the trusted-stub path.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _rhs_yields_map(self, val_ir: int) -> bool:
+    def _rhs_yields_map(self, val_ir: "ExprIR") -> bool:
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -87,7 +145,7 @@ class TypeInferenceMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _field_type_of(self, attr_ir: int) -> Optional[str]:
+    def _field_type_of(self, attr_ir: "ExprIR") -> Optional[str]:
         return None
 
     #@ requires True

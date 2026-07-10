@@ -185,7 +185,7 @@ class TypeInferenceMixin:
             return "bounded_int"
         return "default"
 
-    def _rhs_yields_array(self, val_ir: Dict[str, Any]) -> bool:
+    def _rhs_yields_array(self, val_ir: "ExprIR") -> bool:
         """Parallel of `_rhs_yields_map` for `array int`-typed RHS.
         True for list/tuple-typed param Vars, list-typed self-fields,
         and Calls to functions known to return `array int`."""
@@ -216,7 +216,7 @@ class TypeInferenceMixin:
             return self._module_method_return_types.get(key) == "array int"
         return False
 
-    def _rhs_yields_map(self, val_ir: Dict[str, Any]) -> bool:
+    def _rhs_yields_map(self, val_ir: "ExprIR") -> bool:
         """Heuristic: does this RHS IR yield a `map int (option int)`
         value? True for set/dict-typed param Vars, IfExpr branches that
         do, BinOp `|`/`&` between map-typed sides (Python set ops),
@@ -289,7 +289,7 @@ class TypeInferenceMixin:
                 return info.get("field_types", {}).get(field)
         return None
 
-    def _field_type_of(self, attr_ir: Dict[str, Any]) -> Optional[str]:
+    def _field_type_of(self, attr_ir: "ExprIR") -> Optional[str]:
         """Resolve `self.<field>` or `global.<field>` to its declared IR type tag,
         or None if the target is not a known record-field access. Accepts both
         shapes: `Attribute(value=Var(name), attr=F)` and `FieldGet(object=name,

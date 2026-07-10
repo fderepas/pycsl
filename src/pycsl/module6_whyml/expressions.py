@@ -948,9 +948,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
         Tightly gated on the split shape AND a string-valued element, so a non-split or
         int-element comprehension stays on the existing int/opaque path (byte-identical).
-        Reached only OUTSIDE `@mutable_state` (the mutable-state block already lowers a
-        string comprehension to `list_comp_string`), so the two never disagree. None if not
-        applicable."""
+        M2-split-comp-return: tried BEFORE the @mutable_state opaque-length path (not just
+        outside it) — a `.split(...)`-sourced comprehension under @mutable_state would
+        otherwise mismatch (`list_comp_string` over the CF5 `seq string` split source vs the
+        declared `array string`). None if not applicable."""
         _d = node.to_dict()
         _gens = _d.get("generators", []) or []
         if len(_gens) != 1:
@@ -6834,6 +6835,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _content = self._content_comp(node, local_refs, invariant_ctx, subst)
             if _content is not None:
                 return _content
+            # faithful-string-op.md §3.4 (whole-list) / M2-split-comp-return: a
+            # `[<str-elt> for t in <string>.split(sep)]` comprehension is a faithful
+            # `array string` (opaque, length >= 0) — the whole-list counterpart of the
+            # split-ELEM path. Tried BEFORE the @mutable_state opaque-length path below:
+            # under @mutable_state, `<string>.split(sep)` used as a bare expression lowers
+            # to a `seq string` (CF5, `snapshot`-wrapped) for REASSIGNABLE-list use, but a
+            # comprehension whose SOURCE is directly a `.split(...)` call needs the
+            # materialized `array string` shape (matches an `array string`-typed return/
+            # local) — `list_comp_string` over the CF5 `seq string` source would leave a
+            # seq/array mismatch at the declared type. Tightly gated on the split shape +
+            # string element (`_split_comp_array_string`), so a non-split / int
+            # comprehension is unaffected and falls through unchanged (byte-identical) —
+            # for a non-@mutable_state class this is the same call the tail branch used to
+            # make (pure reordering, no behavior change); the corpus has no @mutable_state
+            # classes, so this is corpus-byte-inert either way.
+            _split_arr = self._split_comp_array_string(node, local_refs, invariant_ctx, subst)
+            if _split_arr is not None:
+                return _split_arr
             # list-comprehension-lowering.md L1: a comprehension `[elt for t in src (if …)]`
             # → an abstract array of the ELEMENT type with a length law (`= len src` with no
             # filter, `<= len src` with an `if`). Content is unmodeled (sound under-approx —
@@ -6891,14 +6910,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"val {_op} (src: {_coll} 'a) : {_coll} {_et}\n"
                     f"    ensures {{ {_len} result {_law} {_len} src }}")
                 return f"({_op} {_srcw})"
-            # faithful-string-op.md §3.4 (whole-list): outside @mutable_state, a
-            # `[<str-elt> for t in <string>.split(sep)]` comprehension is a faithful
-            # `array string` (opaque, length ≥ 0) — the whole-list counterpart of the
-            # split-ELEM path. Tightly gated on the split shape + string element, so a
-            # non-split / int comprehension stays on the opaque `list_comp` (byte-identical).
-            _split_arr = self._split_comp_array_string(node, local_refs, invariant_ctx, subst)
-            if _split_arr is not None:
-                return _split_arr
+            # M2-split-comp-return: the split-shape comprehension is now tried earlier
+            # (right after `_content_comp`, before this @mutable_state branch) — see the
+            # comment there. Anything reaching this point is a non-split (or non-string-
+            # element) comprehension: opaque int `list_comp`.
             self._add_abstract_op("val list_comp (x: int) : int")
             return "(list_comp 0)"
         if isinstance(node, SetCompExpr):
