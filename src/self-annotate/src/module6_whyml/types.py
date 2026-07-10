@@ -64,12 +64,65 @@ class TypeInferenceMixin:
             return True
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _first_assign_kind(self, val: str, val_ir: int) -> str:
-        return ""
+    def _first_assign_kind(self, val: str, val_ir: "ExprIR") -> str:
+        """Classify a first-declaration RHS into one of: record, lambda,
+        array, slice, dict, bounded_int, default. Drives the `let X = …`
+        shape selection in `_handle_assign_stmt`."""
+        vt = val_ir.get("type", "")
+        if vt == "Call" and val_ir.get("func", "") in self._record_types:
+            return "record"
+        if vt == "Lambda":
+            return "lambda"
+        if vt == "SliceAccess":
+            return "slice"
+        # body-gate gap-4: a list/array literal (`inode = [0, 1, 1, mode, …]`) IS an
+        # array value — the detection passes add it to `_array_locals`, so it must be
+        # VALUE-declared (`let X = (let _alit = Array.make … in … _alit)`), NOT `ref`.
+        # The lowered string starts with `(let _alit = Array.make …`, not `(Array.make`,
+        # so the string-prefix check below missed it and it fell to the `ref` default —
+        # leaving `_array_locals` (read bare) and the `ref` decl inconsistent, so passing
+        # the local as a whole value emitted the ref instead of its array contents.
+        if vt in ("ArrayLit", "ListLit"):
+            return "array"
+        if (val.startswith("(Array.make") or val == "(Array.make 1024 0)"
+                or val.startswith("(sorted_1 ")
+                or val.startswith("(struct_pack_")):
+            # struct_pack returns `array int` (a pure value). Emit it
+            # as `let X = (struct_pack_...) in` (NOT wrapped in ref)
+            # to avoid Why3's `ref (array int)` region-collapse error.
+            return "array"
+        if vt == "Call" and val_ir.get("func", "").startswith("self."):
+            method_tail = val_ir["func"][len("self."):]
+            cls = self._current_self_type
+            lookup = f"{cls}__{method_tail}" if cls else method_tail
+            if self._module_method_return_types.get(lookup) == "array int":
+                return "array"
+        # inline.md: bare function calls (from inlined bodies) returning
+        # array int, and Var references to known array locals.
+        if self._rhs_yields_array(val_ir):
+            return "array"
+        # Body dict/set: recognise both legacy abstract-val emission and
+        # the new `map.Map (option int)` form, plus IR-level signals so
+        # detection doesn't depend on val-string shape.
+        if (val.startswith("(dict_new")
+                or val.startswith("(const (None: option int)")
+                or val.startswith("(map_update_some ")
+                or val.startswith("(map_update_none ")
+                or vt in ("DictLit", "SetLit")
+                or (vt == "Call" and val_ir.get("func") in ("dict", "set", "frozenset"))):
+            return "dict"
+        # RHS is (or contains) a Var bound to a set/dict-typed parameter.
+        # Detect the bare Var case and the IfExpr/BinOp wrappers whose
+        # leaves yield map-typed values (e.g. `inner_held = held | {x}
+        # if mutex else held`).
+        if self._rhs_yields_map(val_ir):
+            return "dict"
+        if self._bounded_int:
+            return "bounded_int"
+        return "default"
 
     #@ requires True
     #@ ensures True

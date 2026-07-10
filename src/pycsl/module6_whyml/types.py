@@ -128,7 +128,7 @@ class TypeInferenceMixin:
             return True
         return False
 
-    def _first_assign_kind(self, val: str, val_ir: Dict[str, Any]) -> str:
+    def _first_assign_kind(self, val: str, val_ir: "ExprIR") -> str:
         """Classify a first-declaration RHS into one of: record, lambda,
         array, slice, dict, bounded_int, default. Drives the `let X = …`
         shape selection in `_handle_assign_stmt`."""
