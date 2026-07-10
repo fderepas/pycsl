@@ -60,3 +60,16 @@ constructor. Measured consequences:
   size_body_dec/size_orelse_dec lemmas) → `_EMIT_IR_PROJ` "body"/"orelse" (disambiguate IfExprExpr from
   `stmts_of`) → sanctioned 15-program re-proof → convert `_rhs_yields_map` (−1). Reusable: `orelse_of`
   also unblocks the `_is_string_expr` IfExpr arm. Best done as a focused increment with the M1 discipline.
+
+### orelse_of mini-M1 — REFINED: the `body`/`stmts_of` disambiguation is the HARD blocker (2026-07-10)
+Deeper measurement of the mini-M1 found a SECOND, genuinely-hard sub-problem beyond the sanctioned IrIfExpr
+theory change: `_EMIT_IR_PROJ["body"]` = `stmts_of` (`array int`, the If/For/While/Try stmt-list), but an
+IfExpr's `.get("body")` must be a SCALAR `body_of` (`emit_ir`). The two collide on the key `"body"` with
+DIFFERENT WhyML types. The existing context-override precedent (`"value_of" if key=="value"`,
+`"svalue_of" if key=="pattern"`) is KEY-based — but `body` is ambiguous by key, and the receiver's node
+kind is DYNAMIC (a param, not statically IfExpr). So disambiguation needs EXPECTED-TYPE-driven lowering
+(the `.get("body")` result flows into an `emit_ir`-expecting recursive `_rhs_yields_map` call) — genuinely
+new bidirectional-typing recognizer machinery, NOT a mechanical projector add. Combined with the sanctioned
+IrIfExpr theory change (15-program re-proof), the orelse_of increment is a substantial build with a hard
+core — best undertaken as a dedicated focused session, not a tail-of-session increment. `_rhs_yields_map`
+stays trusted pending it.
