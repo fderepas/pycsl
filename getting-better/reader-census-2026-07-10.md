@@ -32,8 +32,33 @@ against ALL gates (the census's `--fun`-only pass is INSUFFICIENT — it misses 
   the FIRST gap in `_is_string_expr` but that method needs the full Gap-A/C set too, so the accessor
   alone converts nothing (facade — do not land alone).
 
-## Takeaway
-The model-addressable-reader frontier has ONE free -1 (`_is_float_expr`, banked); every other reader
-probed bottoms out in Gap A/B/C — the same `Dict[str,Any]`-monomorphization family as the composition
-wall. The next real yield is a FEATURE build (Gap A TypedDict-view is the highest-leverage: ~4 methods),
-not more lone conversions.
+## Widened batch (9 more readers across types.py/functions.py/core_ir_semantic.py) — 0 convertible
+
+| Method | file | mirror≟live sig | Verdict | Class |
+|---|---|---|---|---|
+| `_call_return_whyml_type` | types.py | yes | VALUE-GAP | A — `rmap.get(fn)` → `int` val vs `string` return arm |
+| `_field_type_for` | types.py | yes | VALUE-GAP | A — `info.get("field_types",{}).get(field)` → `int` vs `string` |
+| `_resolve_effective_ghost_type` | types.py | yes | VALUE-GAP | A — `str_concat`/`subscript_get` typed `int` vs f-string arm |
+| `_has_dynamic_exec` | functions.py | NO (live `Dict`, mirror `int`) | TIMEOUT | walker — `while stack … stack.extend(node.values())` heap-DFS, 30s/goal unproven |
+| `_returns_string_seq` | functions.py | NO (live `List[Dict]`) | VALUE-GAP | A + nested `def rec` closure → opaque `py_rec_1` |
+| `_first_tuple_return_elts` | functions.py | NO (live `List[Dict]`) | VALUE-GAP | A + recursive-return-type (`int` vs `array int` elts) |
+| `_callable_tag_to_whyml` | functions.py | yes | VALUE-GAP | A (re-confirmed: `record_types[tag]["whyml_name"]`) |
+| `_lemma_returns_value` | core_ir_semantic.py | yes | TIMEOUT | closure — variant-less recursive nested `walk`, termination VC unprovable |
+| `_body_has_return` | core_ir_semantic.py | yes | TIMEOUT | closure — identical variant-less `walk` shape |
+
+## Takeaway (both batches, 17 readers probed)
+The model-addressable-reader frontier has exactly ONE free -1 (`_is_float_expr`, banked); ALL 16 other
+readers bottom out in one of:
+- **Gap A** — `Dict[str,Any].get`/dict-subscript lowered to an `int`-typed opaque val, colliding with a
+  `string`/union return arm. Dominant (≈8 methods). Fix = faithful `.get`→`string`/union-typed accessor
+  (the closed-key TypedDict-view monomorphization, `ValIRBoolView` pattern). **Highest leverage.**
+- **Recursive nested-`walk` closure, variant-less** — #8/#9 (and the core_ir_semantic AST-walker family,
+  64 stubs). Fix = emit the nested `def walk(node)` closure with a structural `variant { size node }`
+  (as the hand-written `let rec` lemma pack in the same .mlw already does). A DISTINCT bounded feature;
+  but those walkers ALSO read generic dicts (Gap A) + do by-ref-set mutation (§10.3 hard class), so the
+  variant alone won't convert them — necessary, not sufficient.
+- **Unbounded heap-walk** (`while stack`) — #4, genuinely hard (leave-trusted class).
+
+The next real yield is a FEATURE build. **Gap A** (faithful dict-`.get` lowering / TypedDict-view) is
+confirmed the highest-leverage single feature — it unblocks ≈4 readers outright (#1,#2,#3,#7) and is a
+prerequisite for the List[Dict] ones (#5,#6). No more lone conversions remain in this frontier.
