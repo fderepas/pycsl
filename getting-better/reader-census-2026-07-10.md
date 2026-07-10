@@ -178,3 +178,24 @@ because my probe OVER-SIMPLIFIED branch 3.**
 coexist) PLUS the getattr-field + string-`or`-chain recognizers — genuinely research-/M1-scale, not a small
 increment. The reader frontier is **floored at the 1 banked −1** (`_is_float_expr`); this cluster is
 LEAVE-TRUSTED pending the M1 rename. The M2 plan's P3 target (`_call_return_whyml_type`) is BLOCKED on M1.
+
+## M1 SPIKE (2026-07-10) — the size-rename is NOT byte-diff-0-able (structural refactor, not an increment)
+
+Spiked the M1 unblocker directly. The `@mutable_state`+pyval `size` collision (`preamble.py:2719`
+`function size (v: pyval)` vs `preamble.py:3327` `let rec function size (e: emit_ir)`) reproduces with the
+real body + `@mutable_state`. The 09-2223 fix is to rename one `size`. **Measured blocker: BOTH `size`
+symbols are corpus-present** — pyval `size` in **2** corpus programs (0882, 0883), emit_ir `size` in **15**
+(0746–0751, 0774, 0776, 0878, 0881, …). So renaming EITHER changes corpus WhyML output → **byte-diff ≠ 0**.
+
+M1 is therefore a **global, semantics-preserving rename requiring a SANCTIONED BASELINE RESET + full
+756-corpus RE-PROOF** (verify every program still *proves*, not just re-emits), NOT the loop's byte-inert
+recognizer discipline. A possible mirror-only alternative — suppress co-emission of both theories in the
+mirror module — is blocked when a method genuinely needs BOTH pyval (fold) AND emit_ir (`@mutable_state`
+reflection), which is exactly the reader-cluster case.
+
+**Final verdict on the reader frontier:** THREE walls in sequence (byte-diff sprawl → getattr/`@mutable_state`
+conflict → M1-not-byte-diff-0) confirm the flat-`Dict[str,str]` reader cluster is **LEAVE-TRUSTED**. Its
+~4-marker value is far below the cost (a corpus-wide `size`-rename refactor + re-proof, or a theory-
+co-emission redesign). The loop's bounded-increment supply on the reader frontier is **exhausted at the 1
+banked −1** (`_is_float_expr`, 1230→1229). Further reader conversion is a deliberate structural project, not
+a squeeze-loop increment — to be undertaken only as its own scoped initiative, not under the byte-diff-0 loop.
