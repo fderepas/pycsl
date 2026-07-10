@@ -122,3 +122,31 @@ concat + the A4 option→return-union mapping (`Some v -> Arm_str v | None -> Ar
 None is a string wall; none touches the live emitter's corpus output (mirror-gated); ledger stays 3. The
 frontier is NOT floored — it needs a bounded 3-recognizer build for a real −1 (and A1/A4 are reusable
 across the flat-`Dict[str,str]` cluster; A2/nested-dict remain separate for the param-dict members).
+
+## BUILD ATTEMPT (2026-07-10) — FAILED byte-diff: target-provable ≠ emitter-generable
+
+Built A1+A3+A4 to actually convert `_call_return_whyml_type`. The `--fun` proof reached SUCCESS and count
+hit 1228, BUT the build **failed the authoritative corpus byte-diff** (corpus `0887.mlw`: `let s = ref s`
+→ `let s = ref ""`) and **over-scoped badly** (374 lines / 9 files). REVERTED in full; count back to 1229.
+
+Why the probe's "3 bounded recognizers" underestimated the cost — the emitter GENERATION of the target
+needs *supporting* plumbing the probe (hand-written target) never exercised:
+- **string-local pre-declaration collector** (`_collect_predecl_string_assign_vars`): to make the
+  rpartition-unpacked `obj`/`method` and cross-branch locals pre-declare `ref ""` (string) not `ref 0`
+  (int). This collector was NOT byte-inert — it re-typed a corpus string-local (`0887` char-iter `s`),
+  perturbing output. Would need a mirror-only gate it didn't have.
+- **union early-return exception machinery** (new `Return_<union>` exception + catch + preamble ordering,
+  in preamble.py / Module6_WhyMLTranspiler.py / stmt_control_flow.py): an `Optional[T]`-returning function
+  with EARLY returns (the `if … return` branches) needs a typed return-exception, not the generic int one.
+  Substantial additive machinery, not a "recognizer".
+- **two `@mutable_state` gate loosenings** (expressions.py): scope creep the converter added unprompted —
+  independent corpus-perturbation risk.
+- **un-trusted-but-not-independently-gated** mirror methods added to hit 1228 (a masking risk, not a clean
+  proof).
+
+**Verdict:** `_call_return_whyml_type` is **NOT a bounded −1**. The probe correctly proved the TARGET
+WhyML sound (A3 is not a string wall), but emitter-generation is the real cost, and here it is neither
+bounded (374 lines) nor byte-inert (corpus regression) — the M2-emitter-build gap (09-2223 lesson:
+target-provable ≠ emitter-generable). The reader frontier's cheap-win supply IS exhausted at 1
+(`_is_float_expr`); every deeper conversion needs non-bounded, corpus-perturbing emitter plumbing that
+does not pass the byte-diff gate as a small increment.
