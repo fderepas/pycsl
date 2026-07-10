@@ -158,26 +158,55 @@ class TypeInferenceMixin:
             return self._module_method_return_types.get(key) == "array int"
         return False
 
-    # M2 (2026-07-10 converter run): PARKED, NOT converted. `_rhs_yields_array` (below)
-    # converts clean, but `_rhs_yields_map`'s `IfExpr` recursive arm —
-    # `val_ir.get("body")` / `val_ir.get("orelse")` — hits a genuine emit_ir-ADT gap, not
-    # a "fire an existing recognizer" case: `_EMIT_IR_PROJ` (module6_whyml/expressions.py)
-    # has NO "orelse" entry at all (`orelse_of` does not exist in the preamble ADT), and
-    # its "body" entry is hardwired to `stmts_of` (the stmt-list reader used by
-    # IfStmt/TryStmt), which collides with the IfExprExpr ternary's SCALAR `body`
-    # sub-expression — the shared table has no per-node-kind disambiguation. Reproduced:
-    # `PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/
-    # types.py --import-path src/pycsl --fun typeinferencemixin___rhs_yields_map` ->
-    # "This expression has type int, but is expected to have type ... emit_ir" (the
-    # `orelse` arm hits the untagged `.get` fallback, which hashes the key to an int).
-    # Fixing this needs a NEW ADT total-function projector (`orelse_of`) plus a
-    # context-sensitive "body" override — out of scope for this increment (no new
-    # opaque val, no ad-hoc ADT surface without a mandate). Kept on the trusted-stub path.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # orelse_of mini-M1 (post-m1-census.md): CONVERTED. The `IfExpr` recursive arm's
+    # `val_ir.get("body", {})` / `val_ir.get("orelse", {})` now terminates: the emit_ir
+    # ADT gained an `IrIfExpr emit_ir emit_ir` constructor (preamble.py
+    # `_emit_exprir_theory`, following the IrBinOp precedent) with `body_of`/`orelse_of`
+    # projectors + the PROVEN `size_ifexpr_body_dec`/`size_ifexpr_orelse_dec` lemmas, and
+    # `_EMIT_IR_PROJ` gained an unambiguous "orelse" entry plus a default-argument-shape
+    # override that routes ".get(\"body\", {})" to the new scalar `body_of` (vs the
+    # existing ".get(\"body\", [])" stmt-list `stmts_of`, unchanged). The `variant { size
+    # val_ir }` now discharges via those two lemmas.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _rhs_yields_map(self, val_ir: "ExprIR") -> bool:
+        """Heuristic: does this RHS IR yield a `map int (option int)`
+        value? True for set/dict-typed param Vars, IfExpr branches that
+        do, BinOp `|`/`&` between map-typed sides (Python set ops),
+        Subscript-read on a dict-typed self-field, or a Call to a
+        function declared `-> Set[T]` / `-> Dict[K, V]` (looked up via
+        the module-level return-type map)."""
+        if not isinstance(val_ir, dict):
+            return False
+        t = val_ir.get("type", "")
+        if t == "Var":
+            name = val_ir.get("name", "")
+            if name in self._dict_locals:
+                return True
+            if self._current_symbol_table.get(name) in ("set", "dict", "frozenset"):
+                return True
+            return False
+        if t in ("Attribute", "FieldGet"):
+            return self._field_type_of(val_ir) in ("set", "dict", "frozenset")
+        if t == "Call":
+            fn = val_ir.get("func", "")
+            # `self.<method>(...)` — apply class-prefix mangling.
+            if fn.startswith("self."):
+                tail = fn[len("self."):]
+                cls = self._current_self_type
+                key = f"{cls}__{tail}" if cls else tail
+            else:
+                key = fn
+            return self._module_method_return_types.get(key) == "map int (option int)"
+        if t == "IfExpr":
+            return (self._rhs_yields_map(val_ir.get("body", {}))
+                    or self._rhs_yields_map(val_ir.get("orelse", {})))
+        if t == "BinOp" and val_ir.get("op") in ("|", "&", "^", "-"):
+            # Python set union/intersection/xor/difference syntax. If
+            # either operand is map-typed, the result is too.
+            return (self._rhs_yields_map(val_ir.get("left", {}))
+                    or self._rhs_yields_map(val_ir.get("right", {})))
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate

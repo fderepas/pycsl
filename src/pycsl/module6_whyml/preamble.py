@@ -3250,19 +3250,25 @@ class PreambleEmissionMixin:
             "",
             "  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model."
             " tier3-p1 T3.1.1: extended with IrBinOp (op, left, right) — the EXPR-family"
-            " operator node — realizing the Phase-0 spike design in the live emitter. *)",
+            " operator node — realizing the Phase-0 spike design in the live emitter."
+            " post-m1-census.md orelse_of mini-M1: extended with IrIfExpr (body, orelse) —"
+            " the IfExpr ternary node — following the IrBinOp precedent verbatim. *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrRaw string | IrOther string"
             " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
             " | IrTuple emit_ir emit_ir"
             " | IrBinOp string emit_ir emit_ir"
-            " | IrFieldGet string string",
+            " | IrFieldGet string string"
+            " | IrIfExpr emit_ir emit_ir",
             "",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
             " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
             " B-C6: IrTuple carries the first two elements (elts[0], elts[1]) — the"
             " emitter reflects on a MkTuple node's `elts` in the ghost-dict `+=` branch."
-            " tier3-p1: IrBinOp carries the operator string and the left/right sub-nodes. *)",
+            " tier3-p1: IrBinOp carries the operator string and the left/right sub-nodes."
+            " orelse_of mini-M1: IrIfExpr carries the body (then/value) and orelse (else)"
+            " sub-nodes — the emitter reflects on an IfExpr ternary's `.get(\"body\")`/"
+            " `.get(\"orelse\")`. *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
@@ -3272,6 +3278,7 @@ class PreambleEmissionMixin:
             "    | IrTuple _ _ -> \"MkTuple\"",
             "    | IrBinOp _ _ _ -> \"BinOp\"",
             "    | IrFieldGet _ _ -> \"FieldGet\"",
+            "    | IrIfExpr _ _ -> \"IfExpr\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3283,6 +3290,13 @@ class PreambleEmissionMixin:
             " lets structural recursion over a projected sub-node terminate. *)",
             "  let function is_binop (e: emit_ir) : bool =",
             "    match e with IrBinOp _ _ _ -> true | _ -> false end",
+            "",
+            "  (* orelse_of mini-M1: the IfExpr constructor DISCRIMINANT, following is_binop"
+            " verbatim — a match-based bool that EXCLUDES the IrOther catch-all, which is"
+            " what makes the size-decrease laws (below) hold and thus lets structural"
+            " recursion over a projected sub-node (body_of/orelse_of) terminate. *)",
+            "  let function is_ifexpr (e: emit_ir) : bool =",
+            "    match e with IrIfExpr _ _ -> true | _ -> false end",
             "",
             "  (* tier3-p1 increment 2 (complete the EXPR family, triage-ranked-tcb-tier3.md"
             " T3.1.2): the per-kind constructor DISCRIMINANTS. Each is a match-based bool that"
@@ -3319,6 +3333,15 @@ class PreambleEmissionMixin:
             "  let function right_of (e: emit_ir) : emit_ir =",
             "    match e with IrBinOp _ _ r -> r | _ -> IrOther \"\" end",
             "",
+            "  (* orelse_of mini-M1: IfExpr field projections, following left_of/right_of"
+            " verbatim. `body_of` projects the then/value sub-node, `orelse_of` the else"
+            " sub-node. Total over the sum (a non-IfExpr reads the IrOther \"\" sentinel). *)",
+            "  let function body_of (e: emit_ir) : emit_ir =",
+            "    match e with IrIfExpr b _ -> b | _ -> IrOther \"\" end",
+            "",
+            "  let function orelse_of (e: emit_ir) : emit_ir =",
+            "    match e with IrIfExpr _ o -> o | _ -> IrOther \"\" end",
+            "",
             "  (* tier3-p1 T3.1.4 (spike LAW 3): the structural subtree-size measure. The"
             " `variant { e }` is STRUCTURAL (recurses on pattern-bound sub-terms), so it"
             " discharges natively here. The `ensures { result >= 1 }` — proven at this"
@@ -3329,6 +3352,7 @@ class PreambleEmissionMixin:
             "    variant { e }",
             "  = match e with",
             "    | IrBinOp _ l r -> 1 + size l + size r",
+            "    | IrIfExpr b o -> 1 + size b + size o",
             "    | IrSub a b -> 1 + size a + size b",
             "    | IrTuple a b -> 1 + size a + size b",
             "    | IrAttr o _ -> 1 + size o",
@@ -3343,6 +3367,16 @@ class PreambleEmissionMixin:
             " recursive call sites (`f (node.get(\"left\"))`) to discharge termination. *)",
             "  lemma size_left_dec  : forall e: emit_ir. is_binop e -> size (left_of e) < size e",
             "  lemma size_right_dec : forall e: emit_ir. is_binop e -> size (right_of e) < size e",
+            "",
+            "  (* orelse_of mini-M1: the guarded size-DECREASE laws for IfExpr — a ternary's"
+            " body/orelse sub-node is strictly smaller than the node. PROVEN (no axiom) by"
+            " case analysis on the sum + `size`'s `result >= 1`, following size_left_dec/"
+            " size_right_dec verbatim. These are the facts an emitter-shaped recursive"
+            " function over an IR-node param needs at its recursive call sites"
+            " (`f (node.get(\"body\", {}))`, `f (node.get(\"orelse\", {}))`) to discharge"
+            " the injected `variant { size node }`. *)",
+            "  lemma size_ifexpr_body_dec : forall e: emit_ir. is_ifexpr e -> size (body_of e) < size e",
+            "  lemma size_ifexpr_orelse_dec : forall e: emit_ir. is_ifexpr e -> size (orelse_of e) < size e",
             "",
             "  let function name_of (e: emit_ir) : string =",
             "    match e with IrVar n -> n | IrAttr _ a -> a | _ -> \"\" end",

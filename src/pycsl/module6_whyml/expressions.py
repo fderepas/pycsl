@@ -101,6 +101,12 @@ _EMIT_IR_PROJ = {
     # tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections — `op` is the operator
     # STRING (`op_of`); `left`/`right` are the SUB-NODES (`left_of`/`right_of`, → emit_ir).
     "op": "op_of", "left": "left_of", "right": "right_of",
+    # orelse_of mini-M1: IfExpr's `orelse` (else sub-node) is UNAMBIGUOUS (used nowhere
+    # else) → the table entry suffices. IfExpr's `body` (then sub-node) COLLIDES with the
+    # If/For/While/Try stmt-list `body` (→ `stmts_of`, above); disambiguated at the
+    # `.get(key, default)` call site by the default-argument shape (empty-dict `{}` default
+    # → `body_of`; empty-list `[]`/no default → `stmts_of`), NOT here in the table.
+    "orelse": "orelse_of",
 }
 # `pattern` is CONTEXT-DEPENDENT: SUBSCRIPT `c["pattern"]` → a sub-NODE (below); `.get("pattern")`
 # → the KIND string (here). Different code paths read each tuple, so it appears in both.
@@ -3881,6 +3887,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"({lhs} = {self._TAG_LITERAL[t_tag]})"
         return f"(subtag {self._tag_of_value(args_ir[0])} {t_tag})"
 
+    @staticmethod
+    def _get_default_is_empty_dict(expr: Dict[str, Any]) -> bool:
+        """orelse_of mini-M1: True iff a `.get(key, default)` Call's SECOND arg is an
+        empty-dict literal (`{}`, `DictLit` with no keys) — the shape an IfExpr's
+        `.get("body", {})`/`.get("orelse", {})` uses. Used to disambiguate the emit_ir
+        reflection key "body" (stmt-list `stmts_of` vs IfExpr scalar `body_of`) at the
+        `.get` projection sites in `_lower_dict_get_call`. An empty-list `[]` default or
+        no default at all (the If/For/While/Try `.get("body", [])` stmt-list shape) is
+        NOT an empty dict, so it falls through to the table's `stmts_of` unchanged."""
+        _dargs = expr.get("args") or []
+        if len(_dargs) < 2:
+            return False
+        _default = _dargs[1]
+        return (isinstance(_default, dict) and _default.get("type") == "DictLit"
+                and not _default.get("keys"))
+
     def _lower_dict_get_call(self, expr: Dict[str, Any], args: List[str],
                               func_name: str, local_refs: Optional[Set[str]],
                               invariant_ctx: bool,
@@ -3914,7 +3936,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # an element's `.get("value")` reads its SCALAR string (a leaf String/Number
                     # node's value, e.g. `args[1]["value"]` = the getattr field name) → value_of,
                     # not the sub-node svalue_of that `_EMIT_IR_PROJ["value"]` picks for chaining.
-                    _proj = "value_of" if _k == "value" else _EMIT_IR_PROJ.get(_k)
+                    # orelse_of mini-M1: "body" is AMBIGUOUS — the If/For/While/Try stmt-list
+                    # reader (`.get("body", [])`/no default → `stmts_of`, the table entry) vs an
+                    # IfExpr's SCALAR then-branch (`.get("body", {})` → `body_of`). Disambiguate
+                    # by the `.get` DEFAULT ARGUMENT shape: an empty-dict-literal `{}` default
+                    # means the receiver is a ternary node, not a stmt-list container.
+                    _proj = ("value_of" if _k == "value"
+                             else "body_of" if (_k == "body" and self._get_default_is_empty_dict(expr))
+                             else _EMIT_IR_PROJ.get(_k))
                     if _proj:
                         _rv = self._expr_to_whyml(_rcv, local_refs or set(),
                                                   invariant_ctx, subst)
@@ -4004,7 +4033,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if self._is_emit_ir_expr(_recv_ir):
             _kir = (expr.get("args") or [{}])[0]
             if isinstance(_kir, dict) and _kir.get("type") == "String":
-                _proj = _EMIT_IR_PROJ.get(_kir.get("value"))
+                _k2 = _kir.get("value")
+                # orelse_of mini-M1: same "body" disambiguation as the subscript-receiver
+                # site above — an empty-dict `{}` default routes to the IfExpr scalar
+                # `body_of`, everything else keeps the table's `stmts_of`.
+                _proj = ("body_of" if (_k2 == "body" and self._get_default_is_empty_dict(expr))
+                         else _EMIT_IR_PROJ.get(_k2))
                 if _proj:
                     _rv = self._expr_to_whyml(_recv_ir, local_refs or set(),
                                               invariant_ctx, subst)
