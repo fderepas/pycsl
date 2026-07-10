@@ -96,8 +96,29 @@ converts nothing.**
 | `_callable_tag_to_whyml` | nested-dict subscript + string-literal returns |
 | `_rhs_yields_array/_map` | A2 (param TypedDict-view) + Set-membership + A1 |
 
-**Verdict:** the reader frontier has NO cheap bounded feature left that yields ≥1 conversion. Gap A is a
-splinter of 4–5 sub-features; converting even ONE cluster method (`_call_return_whyml_type`) needs A1 +
-A4 + `str.rpartition` modeling. The measure-before-build spike AVOIDED a multi-file build on a bad
-projection. A1 (self-field string-map typing) is correct, reusable infrastructure but must co-land with
-enough of A2/A3/A4 to convert a real method — it is not landed alone.
+**Verdict (first pass):** the reader frontier has NO cheap bounded feature left that yields ≥1
+conversion. Gap A is a splinter of 4–5 sub-features; converting even ONE cluster method
+(`_call_return_whyml_type`) needs A1 + A4 + `str.rpartition` modeling.
+
+## PROBE CORRECTION (2026-07-10, `rpartition-probe.mlw`) — A3 is NOT a wall; the method IS convertible
+
+The "needs `str.rpartition` modeling → string wall" pessimism was WRONG. The self-annotation contract is
+**type-safety+frame only** (`ensures True`) — `rpartition` needs NO semantics, only a TYPE-CORRECT val.
+Hand-wrote the exact shape of `_call_return_whyml_type` (`rpartition-probe.mlw`): field as
+`map string (option string)` (A1) + `val str_rpartition_op (s sep: string) : (string, string, string)`
+(A3, no axiom — analogous to the existing `val str_split_op : array string`) + `.lower()` + f-string-key
+concat + the A4 option→return-union mapping (`Some v -> Arm_str v | None -> Arm_none`, no int-0 default).
+
+**`call_return_whyml_type'vc` → Valid (Alt-Ergo, 0.04s, 6 steps).** Ledger untouched (0 axioms — the
+`val`s are uninterpreted, characterized by nothing; type-safety only).
+
+**Corrected verdict:** `_call_return_whyml_type` is **CONVERTIBLE via 3 bounded recognizers**:
+- **A1** — `@dataclass` + `Dict[str,str]` field decl (mirror-only scaffold; BUILT+verified in the spike).
+- **A3** — recognize `x.rpartition(sep)` → emit `str_rpartition_op` val + a 3-string-tuple unpack
+  (the `str_split_op` pattern; a bounded expression recognizer, no axiom).
+- **A4** — when a `map _ (option ν)` `.get(k)` result flows to an `Optional[ν]` return, map the option to
+  the return union instead of unwrapping with an int-0 default (a bounded return/option-lowering fix).
+
+None is a string wall; none touches the live emitter's corpus output (mirror-gated); ledger stays 3. The
+frontier is NOT floored — it needs a bounded 3-recognizer build for a real −1 (and A1/A4 are reusable
+across the flat-`Dict[str,str]` cluster; A2/nested-dict remain separate for the param-dict members).
