@@ -31,3 +31,23 @@ The pure single-level closed-key classifier subclass (no iteration / sibling cal
 **Verdict:** boundary-1's tractable pointwise-classifier piece is banked (−2, verified). The residual is
 either the composition wall (research-grade, per the value-model-wall report) or a fan of distinct small
 lowering features (Optional-of-record, isinstance-on-pyval, …), each ~1 method — diminishing returns.
+
+---
+
+## Next-feature reach census (2026-07-10) — the pointwise subclass is EXHAUSTED at −3
+
+Censused whether the two named next features (isinstance-on-pyval, local-dict-str-key lowering) would unlock
+a worthwhile PURE-classifier cluster BEFORE building either. **Verdict: ~0 — refuted.** The 4 candidates that
+pass a crude pure-filter all have COMPOUNDING blockers, not the named feature:
+- `_parse_why3_json` — a JSON stream parser (`JSONDecoder.raw_decode` while-loop); I/O, not modellable.
+- `_resolve_runtime_config` — reads a config FILE + `json.load` + argparse; I/O, not modellable.
+- `bases_closure` — a worklist transitive-closure (`while frontier: pop/extend` over a const dict); a graph
+  algorithm, not a bounded lookup.
+- `triggers_for` — `TRIGGERS.get(op_key, [])` where `op_key: Tuple[str, Optional[str]]` → `List[Trigger]`;
+  a COMPOUND (tuple) key + list-of-record value, not a str-key lookup.
+
+So building isinstance-on-pyval / local-dict-str-key lowering unlocks **~0** pure methods — the looks-eligible
+candidates need JSON-I/O / worklist-closure / tuple-key-map / list-of-record models, each a distinct
+compounding gap (or the composition wall). **The pointwise closed-key classifier subclass is fully exhausted
+at −3** (G1/G2 ×2 + option-of-record ×1). The boundary-1 residual is now genuinely the composition wall
+(research-grade, value-model-wall report §5) or these harder per-method gaps. No build (measure-before-build).
