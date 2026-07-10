@@ -11,6 +11,19 @@ class ValIRBoolView(TypedDict):
     through `str_eq_op` (09-2223 G1/G2), not an opaque int-hash op."""
     type: str
     op: str
+
+
+class BoolWrapIRView(TypedDict):
+    """Closed-key view of the three IR-expression keys `_bool_ir_to_int_wrap`
+    reads (`type`, `op`, `func` — all `str`). Runtime-inert (a TypedDict IS a
+    dict); `Optional[BoolWrapIRView]` monomorphizes to `option <record>` (the
+    boundary-1 G1 option-of-record projection), so — after the `if val_ir is
+    None` guard — `val_ir.get("type")` projects the field from the `Some` arm
+    (`match val_ir with Some _r -> _r.py_type | None -> ""`) and the literal
+    comparisons route through `str_eq_op`, not an opaque int-hash op."""
+    type: str
+    op: str
+    func: str
 ""  # pycsl
 class TypeInferenceMixin:
     'Type inference and collection-metadata tracking for the transpiler.\n\n    Covers three concerns:\n\n    * **First-assignment classification** (`_first_assign_kind`,\n      `_emit_first_assign` callers): record vs lambda vs array vs dict vs\n      bounded-int vs default, used to pick the `let X = ...` shape.\n    * **RHS type queries** (`_rhs_yields_array`, `_rhs_yields_map`,\n      `_field_type_for`, `_field_type_of`): does this IR expression\n      produce an `array int` / `map int (option int)` / typed self-field?\n      Drives the dict-vs-array vs int slot choices throughout statement\n      emission.\n    * **Collection constant-folding metadata** (`_track_collection_metadata`):\n      records known sizes/elements of literal collections so `len(...)`\n      and `sum(...)` can fold to constants during expression emission.\n\n    Mixed into Module6_WhyMLTranspiler. State accessed via `self`:\n    `_record_types`, `_known_collection_sizes`, `_known_collection_elements`,\n    `_array_locals`, `_dict_locals`, `_current_symbol_table`,\n    `_current_array1d_params`, `_current_self_type`,\n    `_module_method_return_types`, `_bounded_int`, the various\n    `_ghost_*_vars` sets.\n    '
@@ -77,12 +90,27 @@ class TypeInferenceMixin:
     def _field_type_of(self, attr_ir: int) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _bool_ir_to_int_wrap(self, val: str, val_ir: int) -> str:
-        return ""
+    def _bool_ir_to_int_wrap(self, val: str, val_ir: Optional[BoolWrapIRView]) -> str:
+        if val_ir is None:
+            return val
+        t = val_ir.get("type", "")
+        op = val_ir.get("op", "")
+        is_bool_source = (
+            (t == "Compare")
+            or (t == "BoolOp" and op in ("and", "or"))
+            or (t == "UnaryOp" and op == "not")
+            or (t == "BinOp" and op in ("==", "!=", "<", ">", "<=", ">=", "in", "not in"))
+            or (t == "Call" and val_ir.get("func", "") in (
+                "isinstance", "hasattr", "any", "all"))
+            or (t in ("Exists", "Forall", "SetMem", "SetSubset", "SetEq",
+                      "MapEq", "HasKey"))
+        )
+        if is_bool_source:
+            return f"(if {val} then 1 else 0)"
+        return val
 
     #@ requires True
     #@ ensures True

@@ -1665,6 +1665,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             _rgv = self._record_get_field(v)
             if _rgv is not None and _rgv[2] == "str":
                 return True
+            # option-of-record projection (boundary-1 G1 extension): a
+            # `<optvar>.get("<str-field>")` on an `Optional[<record>]` receiver is a
+            # STRING value (the Some arm projects `_r.<label> : string`), so the local
+            # (`t = val_ir.get("type", "")`) is a string ref (`ref ""`). Gated on
+            # `_option_record_get_field` → corpus-byte-inert.
+            _orgv = self._option_record_get_field(v)
+            if _orgv is not None and _orgv[2] == "str":
+                return True
             # faithful-string-op.md §3: a local bound from `.replace`/`.lower`/`.upper`/
             # `.strip` or a `<string>.split(sep)[i]` element is a STRING local (pre-decl
             # `ref ""`), so its `:=` typechecks — outside @mutable_state too. Scoped to the

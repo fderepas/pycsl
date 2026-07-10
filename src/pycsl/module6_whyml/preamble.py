@@ -1942,6 +1942,16 @@ class PreambleEmissionMixin:
         if _binder_needs_map:
             needs_body_dict = True
             needs_ghost_dict = True
+        # option-of-record projection (boundary-1 G1 extension): an `Optional[<record>]`
+        # param (symbol_table symtype `"option:<R>"`) lowers to `option <record>` in the
+        # signature, so `option.Option` must be `use`d even with no body dict/map. Mirrors
+        # the set/dict param-type check above. Gated on the `option:` symtype prefix →
+        # byte-inert for every module without an Optional-of-record param.
+        needs_option_record = any(
+            isinstance(v, str) and v.startswith("option:")
+            for func in functions
+            for v in func.get("symbol_table", {}).values()
+        )
         needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
         needs_sum = any(IRScanner.uses_sum(func) for func in functions)
         needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
@@ -2013,6 +2023,7 @@ class PreambleEmissionMixin:
             "needs_seq": needs_seq,
             "needs_map_ghost": needs_map_ghost,
             "needs_ghost_dict": needs_ghost_dict,
+            "needs_option_record": needs_option_record,
             "needs_list_ghost": needs_list_ghost,
             "needs_sum": needs_sum,
             "needs_set_card": needs_set_card,
@@ -2074,11 +2085,14 @@ class PreambleEmissionMixin:
             if needs["needs_map_ghost"] or needs.get("needs_body_dict") or _record_has_map:
                 out.append("  use map.Map")
                 out.append("  use map.Const")
-            if needs["needs_ghost_dict"] or needs.get("needs_body_dict") or _record_has_map:
+            if (needs["needs_ghost_dict"] or needs.get("needs_body_dict")
+                    or _record_has_map or needs.get("needs_option_record")):
                 # Body-level Python dicts are modelled as
                 # `ref (map int (option int))` (parallel to ghost dicts);
                 # `None` marks absent keys. self-field-dict-reflection (§12): a record
-                # `map …` field also needs `option`.
+                # `map …` field also needs `option`. option-of-record projection
+                # (boundary-1 G1 extension): an `Optional[<record>]` param is
+                # `option <record>` → needs `option.Option` too.
                 out.append("  use option.Option")
             # `array.Array` MUST be imported AFTER `map.Map` — both
             # provide a `([])` operator, and when both are in scope the

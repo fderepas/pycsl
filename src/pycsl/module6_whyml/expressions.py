@@ -1153,6 +1153,63 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         label = self._field_label(rt.get("whyml_name", str(cls).lower()), key)
         return (recv, label, ftypes[key])
 
+    def _option_record_get_field(self, expr: Dict[str, Any]):
+        """option-of-record projection (boundary-1 G1 extension): resolve a
+        `<optvar>.get("<key>"[, default])` Call whose RECEIVER is an
+        `Optional[<record>]` param (registered in `_option_record_param_classes`
+        by `_symtype_to_whyml`) and whose literal KEY names a declared field of
+        that record.
+
+        Returns `(recv, label, field_type_tag, none_default)` — the receiver var
+        name, the WhyML field label, the field's IR type tag, and the WhyML term
+        for the `None ->` match arm (the `.get`'s 2nd-arg default if a literal,
+        else the field-type default). The caller emits
+        `(match recv with Some _r -> _r.<label> | None -> <none_default> end)`:
+        the field IS read from the `Some` arm (NON-VACUOUS), and — after the
+        `if recv is None: return …` guard — the `None` arm is dead but present
+        (total match). Gated on `_option_record_param_classes`, so it fires ONLY
+        for an `Optional[<record>]` receiver → corpus-byte-inert."""
+        if not isinstance(expr, dict):
+            return None
+        func_name = expr.get("func")
+        if not (isinstance(func_name, str) and func_name.endswith(".get")):
+            return None
+        recv = func_name[:-len(".get")]
+        if not recv or "." in recv:
+            return None
+        wn = getattr(self, "_option_record_param_classes", {}).get(recv)
+        if not wn:
+            return None
+        args_ir = expr.get("args") or []
+        if not args_ir:
+            return None
+        k0 = args_ir[0]
+        if not (isinstance(k0, dict) and k0.get("type") == "String"):
+            return None
+        key = k0.get("value")
+        rts = getattr(self, "_record_types", {})
+        rt = next((v for v in rts.values() if v.get("whyml_name") == wn), None)
+        if not rt:
+            return None
+        ftypes = rt.get("field_types", {})
+        if key not in ftypes:
+            return None
+        label = self._field_label(wn, key)
+        ftype = ftypes[key]
+        # `None ->` arm default: the `.get`'s 2nd arg if it is a literal of the
+        # matching kind, else the field-type zero. This arm is dead (the body
+        # guards `if recv is None: return …`), so any well-typed default is sound;
+        # the string default `""` / int `0` keep the match total and typed.
+        none_default = '""' if ftype == "str" else "0"
+        if len(args_ir) >= 2 and isinstance(args_ir[1], dict):
+            d = args_ir[1]
+            if ftype == "str" and d.get("type") == "String":
+                none_default = f'"{d.get("value", "")}"'
+            elif ftype in ("int", "bool") and d.get("type") in ("Number", "Bool"):
+                _dv = d.get("value")
+                none_default = str(int(_dv)) if isinstance(_dv, (int, float, bool)) else "0"
+        return (recv, label, ftype, none_default)
+
     def _self_field_dict_nu(self, recv: str):
         """self-field-dict-reflection (typed-ir-for-b-ceiling.md §12): when `recv` is a
         `self.<field>` (or `<recordvar>.<field>`) naming a `dict`/`set`/`frozenset`
@@ -1285,6 +1342,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # field via `_record_get_field` (never a plain dict), so it is corpus-byte-inert.
             _rg = self._record_get_field(ir)
             if _rg is not None and _rg[2] == "str":
+                return True
+            # option-of-record projection (boundary-1 G1 extension): `<optvar>.get("<str-
+            # field>")` on an `Optional[<record>]` receiver is STRING-typed (the Some arm
+            # projects `_r.<label> : string`), so `optvar.get("type") == "Compare"` routes
+            # through `str_eq_op`, not the int-hash. Gated on `_option_record_get_field`.
+            _org = self._option_record_get_field(ir)
+            if _org is not None and _org[2] == "str":
                 return True
             # `str(x)` is string-typed (identity on a str, `int_to_string` on an int) — so a
             # `.lower()`/`.strip()` on it (`str(binder_type).lower()`) recognizes as a faithful
@@ -1583,6 +1647,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # The faithful `option emit_ir` (a real `Some/None` match) is the follow-on
             # when a value-faithful `ensures` over an optional sub-node is needed. §9.
             _nn = expr["right"] if expr["left"].get("type") == "None" else expr["left"]
+            # option-of-record projection (boundary-1 G1 extension): `p is None` on an
+            # `Optional[<record>]` param is the FAITHFUL option `None` test — a real
+            # match, NOT the emit_ir always-present model. Both arms reachable (the
+            # caller passes an arbitrary `option <record>`) → the field-reading Some arm
+            # after the guard is NON-VACUOUS. Gated on `_option_record_param_classes`.
+            if (isinstance(_nn, dict) and _nn.get("type") == "Var"
+                    and _nn.get("name") in getattr(self, "_option_record_param_classes", {})):
+                _ov = whyml_ident(_nn.get("name"))
+                _chk = f"(match {_ov} with None -> true | Some _ -> false end)"
+                return _chk if raw_op == "==" else f"(not {_chk})"
             if self._is_emit_ir_expr(_nn):
                 return "false" if raw_op == "==" else "true"
             # cf6.md M1.6: `<tuple-local> is None` — a tuple value (`union_info =
@@ -2893,6 +2967,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if _rget is not None:
             _recv, _label, _ = _rget
             return f"{whyml_ident(_recv)}.{_label}"
+        # option-of-record projection (boundary-1 G1 extension): `<optvar>.get("<field>")`
+        # on an `Optional[<record>]` receiver projects the field from the `Some` arm —
+        # `(match optvar with Some _r -> _r.<label> | None -> <default> end)`. The field
+        # IS read (NON-VACUOUS); the `None` arm is dead under the body's `is None` guard
+        # but present so the match is total. Gated on `_option_record_param_classes`
+        # (only an Optional-of-record param) → corpus-byte-inert.
+        _org = self._option_record_get_field(expr)
+        if _org is not None:
+            _orecv, _olabel, _oft, _odflt = _org
+            return (f"(match {whyml_ident(_orecv)} with "
+                    f"Some _r -> _r.{_olabel} | None -> {_odflt} end)")
         # typed-ir-for-b-ceiling.md B-C2: an INLINE `<node>.to_dict()` (no args) in a
         # @mutable_state method is IDENTITY on the typed IR — the node already IS its
         # `emit_ir` value — so lower to the receiver (the BOUND form is R1's alias).

@@ -2880,6 +2880,55 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return arms
         return None
 
+    def _m5_declared_record_names(self) -> Set[str]:
+        """The set of class names that lower to a native WhyML record (a
+        `@dataclass` / `TypedDict` class / `NamedTuple` / synthesized functional
+        record / plain positional-record class). Queried dynamically off
+        `program_ir["type_decls"]` (kind == "record") PLUS the pre-`generic_visit`
+        `_m5_record_class_names` pre-scan, so a record defined BEFORE its use
+        (the ordinary case — `class ValIRBoolView(TypedDict)` above the mixin)
+        is recognized during the using method's param resolution."""
+        names: Set[str] = set(getattr(self, "_m5_record_class_names", set()) or set())
+        for td in self.program_ir.get("type_decls", []):
+            if td.get("kind") == "record" and td.get("name"):
+                names.add(td["name"])
+        return names
+
+    def _optional_record_arm(self, ann_expr: ast.expr) -> Optional[str]:
+        """option-of-record projection (boundary-1 G1 extension): if `ann_expr`
+        is EXACTLY the doubleton `Optional[R]` / `R | None` / `Union[R, None]`
+        where `R` is a DECLARED record type (a `@dataclass`/`TypedDict`/…), return
+        `R`'s class name; else None.
+
+        Tightly gated to the record|None doubleton — a second non-None arm, a
+        bare `Any`/builtin arm, or a non-record `R` all return None, so the
+        general `_normalize_union_annotation` (synthesizing a per-site variant,
+        dropping `Any` per GT1) and every non-record `Optional` stay
+        byte-identical. The caller renders the returned name as an `option
+        <record>` symtype (`"option:<R>"`)."""
+        arms = self._collect_union_arms(ann_expr)
+        if arms is None:
+            return None
+        rec_names = self._m5_declared_record_names()
+        rec_arm: Optional[str] = None
+        saw_none = False
+        for elt in arms:
+            if isinstance(elt, ast.Constant) and elt.value is None:
+                saw_none = True
+                continue
+            if isinstance(elt, ast.Name) and elt.id == "None":
+                saw_none = True
+                continue
+            if isinstance(elt, ast.Name) and elt.id in rec_names:
+                if rec_arm is not None:
+                    return None          # two record arms — not the doubleton
+                rec_arm = elt.id
+                continue
+            return None                  # any other arm (builtin/Any/nested/subscript)
+        if rec_arm is not None and saw_none:
+            return rec_arm
+        return None
+
     def _normalize_union_annotation(self, ann_expr: ast.expr,
                                     scope_name: str) -> str:
         """Recognize `Union`/`Optional`/`|` annotations and synthesize a per-site
@@ -3384,6 +3433,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # non-PyCSLIRError exception. PyCSLIRError (L4a/L5c rejections)
                 # MUST propagate — they are deliberate static rejections.
                 pass
+        # option-of-record projection (boundary-1 G1 extension): `Optional[R]` /
+        # `R | None` where R is a DECLARED record → the `option <record>` symtype
+        # `"option:<R>"` (Module6 renders `option <wn>` + registers the param so a
+        # None-guarded `val_ir.get("k")` projects the field from the Some arm). Runs
+        # BEFORE the general Union normalization (which drops the record arm as `Any`
+        # per GT1, collapsing to a vacuous `Arm_None`-only variant). Tightly gated to
+        # the record|None doubleton, so every non-record Union stays byte-identical.
+        try:
+            _optrec = self._optional_record_arm(annotation)
+            if _optrec is not None:
+                return f"option:{_optrec}"
+        except Exception:
+            pass
         if scope_name:
             try:
                 return self._normalize_union_annotation(annotation, scope_name)

@@ -20,6 +20,19 @@ class ValIRBoolView(TypedDict):
     op: str
 
 
+class BoolWrapIRView(TypedDict):
+    """Closed-key view of the three IR-expression keys `_bool_ir_to_int_wrap`
+    reads (`type`, `op`, `func` — all `str`). Runtime-inert (a TypedDict IS a
+    dict); `Optional[BoolWrapIRView]` monomorphizes to `option <record>` (the
+    boundary-1 G1 option-of-record projection), so — after the `if val_ir is
+    None` guard — `val_ir.get("type")` projects the field from the `Some` arm
+    (`match val_ir with Some _r -> _r.py_type | None -> ""`) and the literal
+    comparisons route through `str_eq_op`, not an opaque int-hash op."""
+    type: str
+    op: str
+    func: str
+
+
 class TypeInferenceMixin:
     """Type inference and collection-metadata tracking for the transpiler.
 
@@ -337,7 +350,7 @@ class TypeInferenceMixin:
                 return info.get("field_types", {}).get(field_name)
         return None
 
-    def _bool_ir_to_int_wrap(self, val: str, val_ir: Optional[Dict[str, Any]]) -> str:
+    def _bool_ir_to_int_wrap(self, val: str, val_ir: Optional[BoolWrapIRView]) -> str:
         """If val_ir denotes a bool-typed IR expression, wrap val with
         an int coercion `(if X then 1 else 0)`. Mirrors the bool-source
         detection in _to_bool() so a `return isinstance(x, T)` style

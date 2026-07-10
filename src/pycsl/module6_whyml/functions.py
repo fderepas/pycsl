@@ -109,6 +109,21 @@ class FunctionEmissionMixin:
             self._record_locals.add(arg)
             self._record_param_classes[arg] = wn
             return f"({safe}: {wn})"
+        # option-of-record projection (boundary-1 G1 extension): Module5 lowers an
+        # `Optional[<record>]` param to the symtype `"option:<R>"` — render it as the
+        # native `option <record>` and register the param → record whyml-name so a
+        # None-guarded `p.get("k")` projects the field from the Some arm
+        # (`_option_record_get_field`). A bare `is None` on `p` compares against the
+        # option `None`. Byte-safe: no corpus param annotates `Optional[<record>]`.
+        if isinstance(symtype, str) and symtype.startswith("option:"):
+            _rname = symtype[len("option:"):]
+            _rt = self._record_types.get(_rname)
+            if _rt is not None:
+                _wn = _rt["whyml_name"]
+                self._option_record_param_classes[arg] = _wn
+                return f"({safe}: option {_wn})"
+            # Unknown record — fall through to the int collapse (never fires for a
+            # declared record; keeps the branch total).
         if symtype in self._variant_types:
             # sum-types: a `#@ datatype`-typed param is its Why3 variant type.
             return f"({safe}: {self._variant_types[symtype]['whyml_name']})"
@@ -267,6 +282,11 @@ class FunctionEmissionMixin:
         # no-more-int-2 Track 3: a bare class-typed parameter reconstructed as a record
         # (param name → whyml record type), so `p.field` is a direct read, not opaque getattr.
         self._record_param_classes: Dict[str, str] = {}
+        # option-of-record projection (boundary-1 G1 extension): an `Optional[<record>]`
+        # param (Module5 symtype `"option:<R>"`) → the record's whyml name, so a
+        # None-guarded `p.get("k")` projects the field from the `Some` arm
+        # (`_option_record_get_field`) and `p is None` compares the option `None`.
+        self._option_record_param_classes: Dict[str, str] = {}
         # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): a flat
         # `List[<record>]` param (or the loop target of a comprehension over one) →
         # the ELEMENT record's whyml name, so `a[i].field` lowers to a native record
