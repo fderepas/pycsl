@@ -240,12 +240,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _is_string_expr(self, ir: "ExprIR") -> bool:
         return False
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _is_float_expr(self, ir: "ExprIR") -> bool:
-        return ""
+        """True if an IR expression is float-typed (no-more-int Stage D): a float literal,
+        a `float`-typed Var, or float arithmetic. Routes ops to Why3 `real`."""
+        t = ir.get("type")
+        if t == "Number":
+            return isinstance(ir.get("value"), float)
+        if t == "Var":
+            return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) == "float"
+        if t == "BinOp" and ir.get("op") in ("+", "-", "*", "/"):
+            return (self._is_float_expr(ir.get("left", {}))
+                    and self._is_float_expr(ir.get("right", {})))
+        return False
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

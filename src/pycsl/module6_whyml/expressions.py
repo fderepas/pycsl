@@ -1544,7 +1544,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return ft in ("str", "string")
         return False
 
-    def _is_float_expr(self, ir: Dict[str, Any]) -> bool:
+    def _is_float_expr(self, ir: "ExprIR") -> bool:
         """True if an IR expression is float-typed (no-more-int Stage D): a float literal,
         a `float`-typed Var, or float arithmetic. Routes ops to Why3 `real`."""
         t = ir.get("type")
