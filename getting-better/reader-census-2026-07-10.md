@@ -62,3 +62,42 @@ readers bottom out in one of:
 The next real yield is a FEATURE build. **Gap A** (faithful dict-`.get` lowering / TypedDict-view) is
 confirmed the highest-leverage single feature — it unblocks ≈4 readers outright (#1,#2,#3,#7) and is a
 prerequisite for the List[Dict] ones (#5,#6). No more lone conversions remain in this frontier.
+
+## SPIKE (2026-07-10) — the "Gap A = one feature = 4 methods" projection is REFUTED
+
+Spiked `_call_return_whyml_type` (the flat-`Dict[str,str]` cluster member) to whole-body proof. Finding:
+**"Gap A" is NOT one feature — it splinters into ≥4 independent sub-gaps, and field-typing alone
+converts nothing.**
+
+- **A1 — self-field string-dict typing** (BUILT + VERIFIED in the spike): decorating the mirror
+  `TypeInferenceMixin` `@dataclass` (NOT `@mutable_state` — that pulls the emit_ir ADT and hits the
+  09-2223 M1 `size` two-theory collision) + declaring `_module_method_return_types: Dict[str, str]`
+  types the field faithfully as `map string (option string)` and binds `rmap` to it. **Works.** But it
+  is a **facade alone** (no-unused-facade): it converts zero methods by itself.
+- **A4 — option-return mapping** (NOT built): `return rmap.get(fn)` where the method returns
+  `Optional[str]` lowers the `Map.get … : option string` with a `None -> 0` **int** default instead of
+  mapping the option to the `Optional[str]` return union (`Some v → Arm_0 v | None → Arm_None`). First
+  failure (`types.mlw:218 int vs string`).
+- **A3 — unmodeled string ops** (NOT built, partly HARD): `fn.rpartition(".")` → opaque `fn_rpartition_1`
+  (unmodeled); this poisons everything downstream — `obj`/`method` become `int`, so the f-string key
+  `str_concat`s and `.lower()` (`cls_lower_0 ()`) all fall opaque. `str.rpartition` is genuine
+  string-library work (search-on-last-sep), not a recognizer tweak.
+- **A2 — param `Dict[str,Any]` → TypedDict view** (the `ValIRBoolView` pattern): needed by
+  `_rhs_yields_array`/`_rhs_yields_map` (param-dict `.get("type")`), separate from A1.
+- **nested-dict** (`_record_types[…]["field_types"][field]`): needed by `_field_type_for`,
+  `_callable_tag_to_whyml`; distinct again.
+
+**Per-method sub-feature requirement (measured, not projected):**
+
+| Method | needs (beyond A1) |
+|---|---|
+| `_call_return_whyml_type` | A4 + A3(`rpartition`,`.lower`,f-string-key) |
+| `_field_type_for` | nested-dict iteration + A4 |
+| `_callable_tag_to_whyml` | nested-dict subscript + string-literal returns |
+| `_rhs_yields_array/_map` | A2 (param TypedDict-view) + Set-membership + A1 |
+
+**Verdict:** the reader frontier has NO cheap bounded feature left that yields ≥1 conversion. Gap A is a
+splinter of 4–5 sub-features; converting even ONE cluster method (`_call_return_whyml_type`) needs A1 +
+A4 + `str.rpartition` modeling. The measure-before-build spike AVOIDED a multi-file build on a bad
+projection. A1 (self-field string-map typing) is correct, reusable infrastructure but must co-land with
+enough of A2/A3/A4 to convert a real method — it is not landed alone.
