@@ -384,3 +384,30 @@ set-algebra, and a nested-heterogeneous record return — **as one whole-body VC
 byte-diff-0, ledger-preserving**, when the same pipeline must also host the emit_ir IR-node ADT (the
 `size`-theory-collision constraint)? A rigorous "no technique can, under these constraints" remains an
 equally valuable closure. The bounded floor is **1234**; the composition is the wall.
+
+---
+
+## 9. Measured update — 2026-07-10: the composition wall is BOUNDED via the TypedDict route (sharpens §8)
+
+§8 characterized the dynamic `Dict[str,Any]` composition (canonical: `_build_soundness_report` / B-comp) as
+the research-grade wall — measured against the **pyval-decoder route** (route the read through `pyval`/`slookup`),
+where the read's *composition* with iteration/fold/nested-return is the open problem (SOTA §5).
+
+A spike of the **TypedDict route** (monomorphize each dict to a native WhyML record UP FRONT, sidestepping the
+`pyval` decoder) overturns that pessimism **for this route**: B-comp decomposes into **~5 BOUNDED
+recognizer/type-plumbing features** — the same family as the shipped record `.get`→field (G1), string-field
+`str_eq_op` (G2), option-of-record, `List[dataclass]` (WL-04b), and compound-const-map lowerings that landed
+this campaign. Verified walls: (1) `List[<record>]` field + element access (element type dropped to int),
+(2) set-comprehension over `List[record]` → an opaque op, needing a comprehension→fold synthesis into the
+already-proven `map string bool` A-set model, (3) nested `.get(...).get(...)` + `bool()`, (4) `List[record]`
+append/return `materialize` element-type, (5) compound-field TypedDict construction. The variable-key map-fold
+(`counts[bucket]+=1`) is ALREADY handled. Wall map: `getting-better/composition-wall/bcomp-typeddict-wallmap.md`.
+
+**Consequence for the open question.** The research-grade framing (SOTA §5 — synthesize records+decoders from
+reflective field-access) is specific to the **pyval-decoder route**, which must *infer* the record shape from
+`d.get(k)` patterns. The **TypedDict route requires the shape to be DECLARED** (a runtime-inert `TypedDict`
+annotation — the annotation IS the "synthesis" input), reducing the problem to bounded lowering. So the honest
+statement is: **generic-`Dict[str,Any]`-composition inference is research-grade; the same method with a declared
+`TypedDict` shape is a bounded ~5-feature lowering build.** A reviewer's SOTA-synthesis answer buys the
+*annotation-free* case; the annotated case is already engineering (in progress). B0 (impossibility) is therefore
+NOT warranted for the composition wall under a declared-shape (TypedDict) discipline.
