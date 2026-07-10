@@ -44,3 +44,19 @@ build is worth doing only as its own scoped initiative (est. 5+ recognizers + 1 
 the first −1, then the cluster rolls). Recommend: pursue M2 only under an explicit multi-session mandate;
 otherwise the reader cluster stays leave-trusted with M1 banked as the enabling prerequisite for when M2 is
 undertaken.
+
+## orelse_of / IrIfExpr increment — scope measured (2026-07-10): a sanctioned mini-M1
+`_rhs_yields_map`'s IfExpr arm recurses on `.get("body")`/`.get("orelse")`. The emit_ir ADT has NO
+`IrIfExpr` constructor (IfExpr → `IrOther`), so `body_of`/`orelse_of` would return the sentinel and the
+`variant { size val_ir }` FAILS (no size-decrease). Termination needs a real `IrIfExpr emit_ir emit_ir`
+constructor. Measured consequences:
+- **No new axiom / no cert** — adding a constructor follows the `IrBinOp` precedent (git shows IrBinOp's
+  addition never touched `src/formal-semantics/`; emit_ir is not cert-referenced). Ledger stays 3.
+- **NOT byte-diff-0** — the emit_ir theory block is emitted IDENTICALLY across all 15 corpus emit_ir
+  programs (1 distinct `type emit_ir` line); adding `IrIfExpr` grows it → all 15 change. Semantics-
+  preserving (additive constructor they don't use) but a **sanctioned shared-theory change** requiring the
+  M1 discipline: diff-review = exactly-the-additive-constructor, then re-prove the 15 affected programs.
+- **Build = mini-M1:** IrIfExpr (constructor + kind_of arm + is_ifexpr + body_of/orelse_of + size arm +
+  size_body_dec/size_orelse_dec lemmas) → `_EMIT_IR_PROJ` "body"/"orelse" (disambiguate IfExprExpr from
+  `stmts_of`) → sanctioned 15-program re-proof → convert `_rhs_yields_map` (−1). Reusable: `orelse_of`
+  also unblocks the `_is_string_expr` IfExpr arm. Best done as a focused increment with the M1 discipline.
