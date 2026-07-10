@@ -73,3 +73,19 @@ new bidirectional-typing recognizer machinery, NOT a mechanical projector add. C
 IrIfExpr theory change (15-program re-proof), the orelse_of increment is a substantial build with a hard
 core — best undertaken as a dedicated focused session, not a tail-of-session increment. `_rhs_yields_map`
 stays trusted pending it.
+
+### Cross-file ExprIR-reader census (2026-07-10) — REFUTED: dependency stubs are fidelity-blocked
+Censused `statements.py` (already `@mutable_state`) trusted ExprIR-reader stubs. A triage `--fun` sweep
+flagged `_field_label` + `_val_is_bool` as "convertible", but the FULL gate battery refutes them: the
+fidelity gate (`self-annotate-mirror-check.sh`) errors *"un-trusted mirror def not in source:
+StatementEmissionMixin._field_label"*. Root cause: these are **dependency stubs** — `_field_label` is
+DEFINED on `ExpressionEmissionMixin`, `_val_is_bool` on `TypeInferenceMixin`; the live
+`StatementEmissionMixin` defines NEITHER (it inherits/mixes them). A mirror class can only un-trust a
+method its LIVE class actually DEFINES; a same-class live body must exist for fidelity. So a class's
+trusted stubs for methods defined elsewhere are **structurally unconvertible in that file** (the −1 must be
+taken where the method is DEFINED, not where it is USED). The census's other 4 candidates are the same
+dependency-stub class (doubly-blocked: fidelity + a recognizer gap). Consequence: the byte-0 cheap-win
+supply via cross-file dependency stubs is EMPTY; the only genuine statements.py targets are the
+StatementEmissionMixin-DEFINED handlers (`_handle_*_stmt`, `_stmts_to_whyml` — large), and the reader
+cluster's remaining −1s are all behind the mini-M1 (orelse_of) or nested-dict. Lesson: census by
+DEFINING-class, not using-class.
