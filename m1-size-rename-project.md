@@ -1,5 +1,22 @@
 # M1 `size`-rename — structural project to unblock the `@mutable_state`+pyval reader cluster
 
+> **STATUS 2026-07-10: DONE (committed `63f48806`).** pyval `size`→`pv_size` applied
+> (preamble.py + generic_fold.py + expressions.py contract-lowering). Verified:
+> - **diff-review** — corpus emit-diff is EXACTLY `size`→`pv_size` on 0882/0883 (the 2 pyval programs);
+>   765 programs + all 15 emit_ir programs BYTE-IDENTICAL (mechanically confirmed via normalized diff).
+> - **re-proof (targeted = complete)** — only 2 corpus programs (0882/0883) and 8 mirror files
+>   (core_ir_semantic, pycsl, ir_resolve, ir_scanner, types, scc, functions, monomorphize) emit `pv_size`;
+>   EVERY other file is byte-identical → its proof is unchanged (identical WhyML ⇒ identical proof). All 2
+>   corpus + 7 mirror re-proved SUCCESS; monomorphize's emission = HEAD modulo the rename (semantics-
+>   preserving, so M1 cannot change its outcome; its "INCOMPLETE" is pre-existing solver-timeout-under-load).
+> - **golden** — `v2_pydict_theory_emitted.mlw` regenerated to `pv_size` (proves Valid; comment kept).
+> - **ledger STAYS 3** — no `.v`/`.lean`/allowlist touched; cert `size` is name-independent (invariant).
+> - **collision RESOLVED** — `@mutable_state` `TypeInferenceMixin` now type-checks (was "Symbol size is
+>   already defined"). The M1 purpose is achieved.
+>
+> Next: the M2 recognizer build (`m2-reader-emitter-build.md`), gated on the §6 post-M1 go/no-go census.
+
+
 *Self-contained project plan, 2026-07-10. This is NOT a squeeze-loop increment — it is a deliberate,
 one-time **global rename with a sanctioned corpus baseline reset**, because the fix is not byte-diff-0
 (measured). Scoped per the reader-census findings (`getting-better/reader-census-2026-07-10.md`): the
