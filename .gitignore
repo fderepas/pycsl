@@ -47,3 +47,4 @@ metrics/cron.log
 metrics/.cmmi-*.lock
 
 .claude/
+getting-better/.driver-*

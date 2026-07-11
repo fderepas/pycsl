@@ -9,8 +9,10 @@ description: >-
   verified against the base loop's three L-planes. It is an SL monitoring an SL (per
   sl-monitoring-sl). Use when the user says "run the self-tcb-reduction driver", "drive the
   tcb reduction", "automate breaking the walls", "monitor self-tcb-reduction", or asks to
-  break a named wall XXX end-to-end. Companion: self-tcb-reduction (the base loop),
-  sl-monitoring-sl (the meta-pattern), sl-builder (the SL template).
+  break a named wall XXX end-to-end. Add a DURATION ("... for 2 hours", "... for 90 min")
+  to run AUTONOMOUS time-boxed mode — iterate walls back-to-back with NO per-iteration
+  prompting until the wall-clock deadline, committing each increment (see §A). Companion:
+  self-tcb-reduction (the base loop), sl-monitoring-sl (the meta-pattern), sl-builder.
 ---
 
 # self-tcb-reduction-driver — a squeeze loop that drives the self-tcb-reduction squeeze loop
@@ -24,6 +26,67 @@ cheap win — runs the **wall-breaking workflow** end-to-end. It is a *monitor o
 sub-loop's actors do not share. The workflow it automates is exactly the one run manually
 and validated on the `_field_type_of` wall (report → independent review → impl plan →
 spike-gated execute → conversion OR sanctioned refutation).
+
+## A. Modes — interactive vs AUTONOMOUS time-boxed
+
+- **Interactive (no duration).** "Run the self-tcb-reduction-driver SL loop" → run ONE driver iteration
+  (§4), present the outcome, and STOP (the user drives the cadence — as runs #1/#2 did). Gate W may
+  present its escalate/decline decision.
+- **Autonomous time-boxed (a duration is given).** "... **for 2 hours**" / "... **for 90 min**" / "...
+  **for 45m**" → iterate walls **back-to-back with NO per-iteration prompting** until a wall-clock
+  deadline. This is the mode this section governs.
+
+### A.1 Setup (once, at invocation)
+1. Parse the duration to seconds. Compute the deadline and PERSIST it to a file (so it survives context
+   summarization across a long run — do NOT hold it only in context):
+   ```bash
+   SECS=7200   # 2h; 90 min -> 5400; 45m -> 2700
+   date -d "+${SECS} seconds" +%s > getting-better/.driver-deadline
+   date +%s > getting-better/.driver-started
+   ```
+2. Announce: "Autonomous driver: running until <deadline>. Iterating walls; committing each increment; no
+   prompts until the deadline or you interrupt."
+
+### A.2 The autonomous loop (repeat until the deadline)
+Each iteration, in order, WITHOUT asking the user:
+1. **Clock check.** `NOW=$(date +%s); DL=$(cat getting-better/.driver-deadline)`. If `NOW >= DL` → go to A.3
+   (finish). Reserve headroom: if `DL - NOW` is less than the estimated cost of the next step (a full cycle
+   needs ~1 fable review + spike; an inline conversion needs ~1 gate battery), do only what fits — prefer a
+   cheap inline conversion or a measurement over starting a full cycle that can't finish before the deadline.
+2. **Run the base loop as a SUB-AGENT, NON-INTERACTIVELY.** It must NOT present its §11 menu; it does its
+   measure-before-build triage and RETURNS the structured wall-signal `{stub, attempts, first_blocker,
+   cheap_win}` (Gate W's input) — never its rationale (the barrier).
+3. **Gate W** (autonomous): `cheap_win == true` → the base loop converts it inline (full base-loop gate
+   battery via the driver-verifier), commit, next iteration. `cheap_win == false` AND stuck AND not already
+   CERTIFIED-BOUNDARY → escalate the full cycle (§4 steps 3–8: report → fable review [Gate R] → impl plan
+   [Gate P] → spike [Gate S] → BROKEN build [Gate B/C] or CERTIFIED-BOUNDARY). Neither → record and skip.
+4. **Commit EVERY increment immediately** (a conversion, a CERTIFIED-BOUNDARY record, a lesson) so an
+   interruption at any point loses nothing. NEVER leave a dirty tree between iterations; revert a
+   sprawling/refuted build to clean before committing its finding.
+5. **Gate S-lesson** on any consolidated lesson → `wall-lessons.md`. Next iteration.
+
+### A.3 Finish (deadline reached, or the frontier is at floor)
+- Stop iterating. `rm getting-better/.driver-deadline getting-better/.driver-started`.
+- Emit ONE summary: walls RESOLVED this run (BROKEN vs CERTIFIED-BOUNDARY), conversions + count delta,
+  lessons banked, and the unpushed-commit count. Do NOT auto-push (the standing rule holds: push only on
+  an explicit "push"/"push it") — list what is ready to push.
+- If the frontier reaches its floor (every remaining stub is BROKEN / CERTIFIED-BOUNDARY / below Gate W)
+  BEFORE the deadline, STOP EARLY and say so — do not spin on non-walls to burn the clock.
+
+### A.4 Autonomy discipline (non-negotiable — speed never relaxes rigor)
+- **The gate battery is unchanged.** Autonomous mode runs FASTER by not prompting, never by skipping a
+  gate: fidelity ∧ whole-file Why3 ∧ byte-diff-0 (or sanctioned reset) ∧ ledger==3 ∧ non-vacuity, and every
+  agent claim re-verified by the driver-verifier (§2). A speed-motivated `--fun`-only accept is forbidden.
+- **Cross-turn continuation.** A single turn's context is finite; when it fills before the deadline, the
+  harness summarizes and continues — the persisted `.driver-deadline` file is how the next context window
+  knows to keep going and when to stop (re-read it each iteration; do not re-ask the user). If the harness
+  offers `ScheduleWakeup`/`/loop` dynamic pacing, a long idle wait (e.g. a background proof) may reschedule
+  rather than block, but the deadline file remains the single source of truth.
+- **Interruptibility.** A user message mid-run is honored immediately (answer it, then resume or stop per
+  their instruction). Each increment being committed means an interrupt is always at a clean boundary.
+- **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
+  a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
+  the wall-signal for the next run) and spend the tail on cheaper items.
 
 ## 0. Deliverable & correctness
 
