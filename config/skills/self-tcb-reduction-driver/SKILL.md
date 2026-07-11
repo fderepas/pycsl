@@ -90,17 +90,37 @@ spike-gated execute → conversion OR sanctioned refutation).
 
 ## 3. Gates
 
-- **Gate W (wall-escalation — fires the whole workflow, or does NOT).** Escalate to the
-  report→review→impl→execute cycle ONLY if: the base-loop sub-agent reports the stub STUCK
-  (≥ the base loop's per-stub attempt budget) AND a whole-body-proof measurement shows it is not
-  a cheap win AND it is not already CERTIFIED-BOUNDARY. Otherwise the base loop handles it inline.
-  This gate is the cost control — the cycle is expensive (report + fable + impl + multi-agent
-  execute); do not spend it on routine conversions.
-- **Gate R (reviewer independence).** `XXX-response.md` is accepted only if authored by an actor
-  whose context contained `XXX.md` + `L` and provably NOT the sub-loop's rationale (enforced by
-  spawning fable with only the report + oracle access, never the base-loop transcript). A review
-  that echoes the sub-loop's framing without an independent `L`-grounded check is REJECTED (it is
-  a rubber stamp, the failure this whole design exists to prevent).
+- **Gate W (wall-escalation — fires the whole workflow, or does NOT).** The base-loop sub-agent
+  RETURNS, as its soft output (never its in-context rationale — the barrier), a structured
+  **wall-signal**: `{stub, attempts_spent, first_blocker (the exact --fun/type error), cheap_win:
+  bool}` where `cheap_win` is the base loop's own measure-before-build verdict (port → whole-body
+  `--fun` → classify → revert). Escalate to the report→review→impl→execute cycle ONLY if
+  `attempts_spent ≥ the per-stub budget` AND `cheap_win == false` AND the stub is not already in
+  `wall-lessons.md` as CERTIFIED-BOUNDARY. Otherwise the base loop handles it inline. The driver
+  gates on the RETURNED wall-signal, not by reading the sub-loop's work — this is the cost control
+  (the cycle is expensive: report + fable + impl + multi-agent execute) AND the barrier (the driver
+  decides from soft outputs only).
+- **Gate R (reviewer independence — WITH ARTIFACT TEETH).** `XXX-response.md` is accepted only if
+  BOTH hold: (a) it was authored by an actor whose context contained `XXX.md` + `L` and provably
+  NOT the sub-loop's rationale (enforced by spawning fable with only the report + repo/oracle
+  access, never the base-loop transcript); AND (b) **it contains at least one independent ORACLE
+  ARTIFACT** — a hand `.mlw` the reviewer wrote and proved with `why3 prove`, a `byte-diff-sweep`
+  it ran, an emit-and-`grep` of the actual generated WhyML, or a `pycsl --fun` run — that CONFIRMS
+  or REFUTES a NAMED factual claim of `XXX.md` (e.g. "the report says `map` can't be iterated —
+  verified: `for x in m` is a why3 syntax error", or "the report says byte-inert — refuted: 0882
+  changed"). A response that only re-reasons from the prose, with **zero** oracle runs cited, is
+  REJECTED as a rubber stamp — the fable prompt (step 4) MUST demand the artifact, and the driver
+  MUST check the response cites one. This is the load-bearing fix: the reviewer's value is a
+  *different evidence base (`L`)*, not a second opinion on the prose; an unrun `L` makes the review
+  a `U`-only audit that must SAY SO and is downgraded (per sl-monitoring-sl "oracle availability is
+  honest, not assumed").
+- **Gate P (impl-plan acceptance — the spike-gate cannot be skipped).** `XXX-impl.md` is accepted
+  for execution ONLY if its FIRST action is a named **make-or-break falsifier spike** (a cheapest
+  test that could REFUTE the whole build before any emitter edit) AND it carries an explicit
+  **refutation exit** (a "spike REFUTES → CERTIFIED-BOUNDARY, stop" branch) AND the three-L-plane
+  gate battery AND honest costed scope. An impl plan that begins with "build" instead of "spike",
+  or that has no refutation branch, is REJECTED and re-planned — this is what prevents step 6's
+  "execute until done" from grinding an impossible wall (the failure point of the raw idea).
 - **Gate S (impl-plan spike — measure before build).** `XXX-impl.md`'s FIRST executed action is
   its make-or-break spike. Its verdict routes the loop: spike PASSES → proceed to the build; spike
   REFUTES → the wall is CERTIFIED-BOUNDARY (record + stop, do NOT build); spike REFINES (a
@@ -115,12 +135,20 @@ spike-gated execute → conversion OR sanctioned refutation).
   non-vacuity (the converted body reads real accessors, no opaque `_get_N <hash>`); a
   feature-editing-a-verified-emitter-method carries the §10.4 re-port + re-proof in the SAME
   increment; every touched stub ends VERIFIED or FLOOR+reason.
-- **Gate S-lesson (skill-consistency, per sl-monitoring-sl).** Every wall-lesson the driver would
-  consolidate (e.g. "search-by-value-field ≠ enumerate → check for a missing index before pydict")
-  is checked before entering the store: **ignore-signal** lessons ("treat X as a wall/noise") get
-  the **trigger test** (perturb X, does `L` move?) → PASS / CARVE-OUT / REJECT; **defer-to-oracle**
-  lessons ("on case S do the L-sanctioned action") get the **validity test** (does `L` distinguish
-  S?). A lesson enters the store only after a verdict; over-general ones are carved, never kept whole.
+- **Gate S-lesson (skill-consistency, per sl-monitoring-sl) — WITH A CONCRETE STORE.** The lesson
+  **store** is a named ledger: `getting-better/wall-lessons.md` (one entry per resolved wall), and,
+  for a lesson general enough to change base-loop policy, a CARVE-OUT appended to
+  `self-tcb-reduction.md` §10 — NEVER an inline edit to the base loop's reasoning. The **write
+  protocol:** a candidate lesson (the driver's compressed takeaway from a resolved wall, e.g.
+  "search-by-value-field ≠ enumerate → check for a missing index before `pydict`") is checked
+  BEFORE it is written: **ignore-signal** lessons ("treat X as a wall/noise") get the **trigger
+  test** (perturb X, does `L`'s verdict move?) → PASS / CARVE-OUT / REJECT; **defer-to-oracle**
+  lessons ("on case S do the L-sanctioned action") get the **validity test** (does `L` actually
+  distinguish S?). Only PASS or CARVE-OUT is written, WITH: the wall it came from, the `L`-input
+  that revealed the divergence, and (for a carve-out) the exact narrower rule. An over-general
+  lesson is carved to its valid complement, never kept whole; an irreconcilable one is REJECTED and
+  logged (loud-fail). This is the gate that stops "all `.values()` are walls" from entering as a
+  rule — the trigger test finds the reverse-index-fixable input and forces the carve-out.
 
 ## 4. Loop steps (per wall XXX)
 
@@ -134,15 +162,21 @@ spike-gated execute → conversion OR sanctioned refutation).
    It states the global picture (what PyCSL is, where the wall sits), the wall as first seen, the
    deeper truth (is it fundamental or a modeling choice?), the SOTA lens, the honestly-costed routes,
    and honest limits — every claim reproducible from cited evidence.
-4. **fable reviewer** (Gate R): spawn a **fable** sub-agent whose context is `XXX.md` + the base
-   loop `U`/`L` (Why3, byte-diff, the spike ability) and **NOT** the sub-loop's contents. Prompt:
-   *"Using `XXX.md`, generate `XXX-response.md` — an independent review; verify or refute its claims
-   against the oracle."* It returns `XXX-response.md`.
+4. **fable reviewer** (Gate R): spawn a **fable** sub-agent (`model: fable` / `subagent_type` fable)
+   whose context is `XXX.md` + repo access to the base loop `U`/`L` (Why3, byte-diff, `pycsl --fun`,
+   the ability to write+prove a `.mlw` spike) and **NOT** the sub-loop's contents/transcript. Prompt:
+   *"Using `XXX.md`, generate `XXX-response.md` — an independent review. You MUST RUN the oracle:
+   write and prove at least one `.mlw` spike, or run a byte-diff / emit-and-grep / `pycsl --fun`, to
+   CONFIRM or REFUTE a named factual claim of the report — cite the run and its output. A review with
+   no oracle run is not acceptable."* Gate R checks the returned `XXX-response.md` cites ≥1 oracle
+   artifact; if not, REJECT and re-spawn (a prose-only response is the rubber stamp this gate exists
+   to stop).
 5. **impl planner** synthesizes:
    > *"Using `XXX-response.md` and `XXX.md`, generate `XXX-impl.md`, an implementation plan to break
    > the wall."*
-   The plan MUST be spike-first (first action = a make-or-break falsifier) with a refutation exit,
-   the three-L-plane gate battery, reference-corpus fixtures, and honest costed scope.
+   Then **Gate P**: accept the plan for execution ONLY if its first action is a make-or-break spike
+   with a refutation exit + the three-L-plane battery + costed scope; else re-plan (no execution from
+   a build-first plan).
 6. **executor(s)** (spawned per the plan): *"Execute `XXX-impl.md` by spawning one or several agents
    to do the plan. Favor rigor. Check the claims made by the agent."* Each agent leaves edits for the
    driver-verifier — no commit.
