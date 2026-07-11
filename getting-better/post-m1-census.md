@@ -115,3 +115,23 @@ chain** recognizer, THEN (2) the **nested-dict** `self._record_types[gcls].get("
 build, NOT single-nested-dict. Still high-value (de-int-hashes _rhs_yields_array/_rhs_yields_map's Attribute
 branches) but the cost is 2-3 recognizers. Stays trusted. NOTE: the Gap-C or-{} recognizer is REUSABLE
 (the same `x.get(a) or x.get(b) or {}` idiom recurs across the emitter's node-reader family).
+
+### Fresh-frontier census: proof2why3/ (2026-07-10) — HARD across the board, no cheap wins
+Censused the proof2why3/ trusted stubs (47: parser 19, canonical 15, from_sexp 13) as a fresh frontier
+outside the emitter reader cluster. Characterization by body inspection: dominated by hard classes, none
+byte-0-cheap.
+- **regex** (4 files use `re.sub`/`re.match`): `_camel_to_snake`, `normalize_surface`, `_normalize_type_string`
+  etc. — arbitrary regex substitution, unmodellable in WhyML. Leave-trusted.
+- **generic-Any tuple walkers** (from_sexp.py: `_walk_kername`/`_walk_modpath`/`_const_name` — `kn[0]=="KerName"`,
+  `kn[1]`, `kn[2]` untyped-tuple indexing): the §10.3 generic-Any-tree class. Leave-trusted.
+- **stateful recursive-descent parser** (parser.py: `self.pos`/`self.tokens`, `take`/`peek`/`expect`/`parse_*`):
+  mutable token-stream parsing — a hard stateful class.
+- **Term-ADT tree REWRITERS** (canonical.py: `_flip_comparisons`/`substitute`/`alpha_normalize` recurse over a
+  `Term` variant AND CONSTRUCT new nodes `App(head=.., args=tuple(..))`): a potential FEATURE build (Term as a
+  WhyML variant + construction + termination), harder than the emit_ir READERS (which return bool/str, not a
+  new tree), NOT a cheap conversion.
+**Verdict:** proof2why3/ is trusted by DESIGN (regex/generic-Any/stateful/ADT-rewrite), like the reader
+cluster's residual. The mirror's byte-0 cheap-win supply is EXHAUSTED across frontiers; further \trusted
+reduction now needs FEATURE builds (U union-return; Term-ADT-construction; nested-dict; getattr) or is
+leave-trusted (regex, generic-Any walkers, map-values-iteration). The campaign is at its cheap-conversion
+floor; remaining progress is deliberate feature engineering, not squeeze-loop increments.
