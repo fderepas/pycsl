@@ -1,5 +1,37 @@
 # file-type-of-wall-impl.md — implementation plan to break the `_field_type_of` wall
 
+> **STATUS 2026-07-10: S-reverse-index spike EXECUTED (§8 first action). The reverse index is VALIDATED but
+> INSUFFICIENT alone — lifting the leaves needs a separate build (§8's "blocks on something else" case).**
+> Applied C1–C5 (reverse-index init + insert + field + both bodies rewritten, live+mirror) and measured:
+> - **Reverse index VALIDATED.** The reviewer's core hypothesis holds: **corpus byte-diff 0** (authoritative
+>   767-file worktree sweep) — the refactor is behavior-preserving, confirming `whyml_name` is unique across
+>   the reference corpus (no collision). The `.values()` enumeration wall is genuinely cleared: neither
+>   method blocks on `.values()` anymore.
+> - **But neither leaf converts** (both `--fun` FAIL, on gaps ORTHOGONAL to the reverse index):
+>   - `_field_type_for` — blocks at the **union early-return exception (U)** (`types.mlw:421`,
+>     `_union__field_type_for_0 but expected int`): an `Optional[str]`-returning function with multiple
+>     `return`s needs a `Return_<union>` exception, which does not exist (only `Return int`/`Return_str`/
+>     `Return_seq`/`Return_<arity>`). U is REUSABLE (also gates `_call_return_whyml_type`) and corpus-inert
+>     (0 corpus `Optional`-returns), but has a real ordering subtlety (the `_union_*` type is per-function
+>     synthesized, so `Return_<union>` must be declared after it — the piece that made U sprawl once).
+>   - `_field_type_of` — blocks EARLIER, at the **Gap-C `or-{}`** in its *unchanged* `cls`-resolution
+>     (`types.mlw:445`, `receiver = attr_ir.get("value") or attr_ir.get("object") or {}`), never reaching
+>     the reverse-index read. Needs U + Gap-C + getattr-chain.
+> - **Why the reviewer's premise was incomplete:** it assumed the `cls`-resolution and the return were
+>   "unchanged/simple," but they were TRUSTED-and-never-lowered — so their REAL lowering surfaces U (both
+>   methods) and Gap-C+getattr (`_field_type_of`). The reverse index is necessary and correct; it is not
+>   sufficient. The value read (`info.get("field_types",{}).get(f)`) also emits an opaque `map string
+>   (option int)` value (Q1 → likely needs a minimal `RecordInfoView` view), but that gate is masked behind
+>   U and was not reached cleanly.
+>
+> **Refined scope to actually lift the leaves:** `_field_type_for` = reverse index + **U** (+ maybe
+> RecordInfoView); `_field_type_of` = reverse index + **U** + **Gap-C or-{}** + **getattr-chain** (+ maybe
+> RecordInfoView). The reverse index (C1–C5) is validated byte-inert and re-appliable; per no-unused-facade
+> it was REVERTED (it converts no `\trusted` stub without U). Next dedicated build: **U first** (reusable,
+> gates the closer leaf `_field_type_for`), then the reverse index + RecordInfoView, then Gap-C+getattr for
+> `_field_type_of`. This is the "separate, smaller build" §8 anticipated — not part of this plan's spike.
+
+
 *Implementation plan, 2026-07-10. Derived from `file-type-of-wall.md` (the wall report) and
 `file-type-of-wall-response.md` (the reviewer's counter, which supersedes the report's §6 routes for THIS
 method pair). The reviewer is right and the report over-scoped: `_field_type_of`/`_field_type_for` do NOT
