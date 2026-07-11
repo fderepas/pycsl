@@ -27,6 +27,27 @@ sub-loop's actors do not share. The workflow it automates is exactly the one run
 and validated on the `_field_type_of` wall (report → independent review → impl plan →
 spike-gated execute → conversion OR sanctioned refutation).
 
+## P. Priority — DRAIN CHEAP WINS FIRST; break walls only when nothing cheap remains
+
+**The default order is cheap-first, walls-last, and it is not negotiable per iteration.** Wall-breaking (the
+report → fable review → impl → execute cycle) is EXPENSIVE (a fable review + spikes + multi-agent execute)
+and yields at most one stub; a cheap conversion is one gate battery and yields one stub too — so *every*
+remaining cheap win is converted BEFORE *any* wall is escalated. Concretely:
+
+- **Phase 1 (DEFAULT) — drain.** Repeatedly ask the base loop for the *next cheap stub* (`cheap_win == true`
+  under its measure-before-build triage) and convert it (full base-loop gate battery, driver-verified,
+  committed). Stay in Phase 1 as long as the base loop returns a cheap stub. This is where the driver spends
+  its time by default.
+- **Phase 2 — break walls.** ONLY when the base loop reports **no cheap stub remains** (every residual is a
+  wall or already CERTIFIED-BOUNDARY) does the driver escalate ONE wall through the full cycle (§4 steps
+  3–8). After a wall resolves — whether BROKEN (which may unlock *new* cheap stubs, e.g. a leaf that
+  un-blocks its callers) or CERTIFIED-BOUNDARY — **return to Phase 1** and re-drain before touching the next
+  wall. A BROKEN wall often creates cheap follow-ons; take them before the next expensive cycle.
+
+So the loop is: *drain all cheap → break one wall → drain all cheap again → break the next wall → …*, and it
+terminates at floor (no cheap stub AND every wall BROKEN or CERTIFIED-BOUNDARY). Gate W is the per-stub
+discriminator that implements this: it escalates a wall ONLY after confirming the cheap queue is empty.
+
 ## A. Modes — interactive vs AUTONOMOUS time-boxed
 
 - **Interactive (no duration).** "Run the self-tcb-reduction-driver SL loop" → run ONE driver iteration
@@ -53,13 +74,18 @@ Each iteration, in order, WITHOUT asking the user:
    (finish). Reserve headroom: if `DL - NOW` is less than the estimated cost of the next step (a full cycle
    needs ~1 fable review + spike; an inline conversion needs ~1 gate battery), do only what fits — prefer a
    cheap inline conversion or a measurement over starting a full cycle that can't finish before the deadline.
-2. **Run the base loop as a SUB-AGENT, NON-INTERACTIVELY.** It must NOT present its §11 menu; it does its
-   measure-before-build triage and RETURNS the structured wall-signal `{stub, attempts, first_blocker,
-   cheap_win}` (Gate W's input) — never its rationale (the barrier).
-3. **Gate W** (autonomous): `cheap_win == true` → the base loop converts it inline (full base-loop gate
-   battery via the driver-verifier), commit, next iteration. `cheap_win == false` AND stuck AND not already
-   CERTIFIED-BOUNDARY → escalate the full cycle (§4 steps 3–8: report → fable review [Gate R] → impl plan
-   [Gate P] → spike [Gate S] → BROKEN build [Gate B/C] or CERTIFIED-BOUNDARY). Neither → record and skip.
+2. **Phase 1 — run the base loop as a SUB-AGENT, NON-INTERACTIVELY, to CONVERT the next CHEAP stub.** It
+   must NOT present its §11 menu; its task is "convert the next stub your measure-before-build triage rates
+   `cheap_win == true` (full base-loop gate battery), OR — if NONE remains — return the signal
+   `no_cheap_remaining` plus the list of residual wall stubs `{stub, first_blocker}` (never its rationale —
+   the barrier)." If it converted a cheap stub → the driver-verifier re-checks the three L-planes, COMMIT,
+   **stay in Phase 1** (next iteration, drain more). Repeat until `no_cheap_remaining`.
+3. **Phase 2 — Gate W** (only reached when Phase 1 returns `no_cheap_remaining`): pick ONE residual wall
+   (stuck, `cheap_win == false`, not already CERTIFIED-BOUNDARY) and escalate the full cycle (§4 steps 3–8:
+   report → fable review [Gate R] → impl plan [Gate P] → spike [Gate S] → BROKEN build [Gate B/C] or
+   CERTIFIED-BOUNDARY). Commit the outcome. Then **return to Phase 1** — a BROKEN wall may have unlocked new
+   cheap stubs (drain them before the next wall); a CERTIFIED-BOUNDARY wall is recorded so Phase 1 skips it.
+   Do NOT escalate a wall while any cheap stub remains.
 4. **Commit EVERY increment immediately** (a conversion, a CERTIFIED-BOUNDARY record, a lesson) so an
    interruption at any point loses nothing. NEVER leave a dirty tree between iterations; revert a
    sprawling/refuted build to clean before committing its finding.
@@ -159,7 +185,9 @@ Each iteration, in order, WITHOUT asking the user:
   bool}` where `cheap_win` is the base loop's own measure-before-build verdict (port → whole-body
   `--fun` → classify → revert). Escalate to the report→review→impl→execute cycle ONLY if
   `attempts_spent ≥ the per-stub budget` AND `cheap_win == false` AND the stub is not already in
-  `wall-lessons.md` as CERTIFIED-BOUNDARY. Otherwise the base loop handles it inline. The driver
+  `wall-lessons.md` as CERTIFIED-BOUNDARY **AND the cheap queue is empty** (Phase 1 has drained — the base
+  loop reported `no_cheap_remaining`; see §P). Draining cheap wins ALWAYS precedes breaking a wall.
+  Otherwise the base loop handles it inline. The driver
   gates on the RETURNED wall-signal, not by reading the sub-loop's work — this is the cost control
   (the cycle is expensive: report + fable + impl + multi-agent execute) AND the barrier (the driver
   decides from soft outputs only).
@@ -216,8 +244,11 @@ Each iteration, in order, WITHOUT asking the user:
 ## 4. Loop steps (per wall XXX)
 
 1. **driver-coordinator** runs `self-tcb-reduction` as a **sub-agent** (one level deeper — the
-   barrier is physical). The sub-agent does routine conversions and, on a stuck stub, returns a
-   wall signal (the stub, its measured first blocker) — NOT its full rationale.
+   barrier is physical) in **Phase 1 (drain)**: the sub-agent converts routine (cheap) conversions
+   until NONE remains, returning either a converted-cheap-stub result (→ commit, stay in Phase 1) or
+   the `no_cheap_remaining` signal + the residual wall list (the stub + its measured first blocker),
+   NOT its full rationale. **Only** `no_cheap_remaining` advances to step 2 (Phase 2 / wall-breaking).
+   See §P — draining ALL cheap wins precedes breaking ANY wall.
 2. **Gate W** → escalate or continue. On escalate, the driver names the wall `XXX` (a short slug).
 3. **report author** writes the self-contained state-of-the-art report:
    > *"Write the self-contained report `XXX.md` to be sent for review regarding state of the art.
@@ -292,9 +323,11 @@ or below Gate W (a cheap win the base loop handles). No actor's self-report coun
 
 ## 8. Execution order
 
-Run the base-loop sub-agent → Gate W → (on a wall) report → fable review (Gate R) → impl plan → spike
-(Gate S) → BROKEN build (Gate B/C) or CERTIFIED-BOUNDARY. Sequence walls serially (shared emitter
-recognizers ⇒ conflicts); the ONLY safely-parallel actor is the read-only measurement/triage probe.
+**DRAIN CHEAP FIRST (§P):** Phase 1 = run the base-loop sub-agent to convert every cheap stub, looping
+until `no_cheap_remaining`; ONLY THEN Phase 2 = Gate W → (one wall) report → fable review (Gate R) → impl
+plan → spike (Gate S) → BROKEN build (Gate B/C) or CERTIFIED-BOUNDARY → **return to Phase 1** (a BROKEN wall
+may unlock new cheap stubs). Sequence walls serially (shared emitter recognizers ⇒ conflicts); the ONLY
+safely-parallel actor is the read-only measurement/triage probe.
 Escalate-not-thrash: a per-wall attempt budget; a refuted or sprawling build reverts to clean + records
 a gap, never leaves an un-verified tree.
 
