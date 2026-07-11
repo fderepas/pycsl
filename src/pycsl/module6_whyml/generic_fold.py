@@ -1742,10 +1742,19 @@ def _is_selfcall_1(node: Any, name_box: List[str]) -> bool:
 
 
 def recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Fail-closed match of the A-bool statement-tree existence fold (the
-    lambda-lifted `_has_return` / `_has_return_with_value` closures).
+    """Fail-closed match of the A-bool statement-tree existence fold — the
+    lambda-lifted `_has_return` / `_has_return_with_value` closures (tag
+    "Return", 3-arm loop body incl. the Match/cases descent), AND (stmt-walker
+    foundation, list-adt-foundation-build.md) the plain single-tag scanners
+    `uses_for`/`uses_arrayset`-shaped methods: `for stmt in xs: if <tag-test>:
+    return True; for key in ("body","orelse"): if key in stmt and
+    self(stmt[key]): return True // return False` — a 2-arm loop body (no
+    Match/cases arm) over ANY literal tag ("For", "ArraySet", ... — not just
+    "Return"). Both are the SAME structural shape (tag-test arm + field-
+    descend arm + an OPTIONAL cases-descend arm); the tag and the presence of
+    the cases arm are the only degrees of freedom.
 
-    Returns {subject, self_name, with_value} or None. Never raises."""
+    Returns {subject, self_name, with_value, tag} or None. Never raises."""
     try:
         return _recognize_bool_existence(func)
     except Exception:
@@ -1771,7 +1780,7 @@ def _recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             and tail["value"].get("type") == "Bool"
             and tail["value"].get("value") is False):
         return None
-    # loop: `for stmt in <subj>: <3 arms>`
+    # loop: `for stmt in <subj>: <2-or-3 arms>`
     if not (isinstance(loop, dict) and loop.get("stmt") == "For"
             and _is_var(loop.get("iter"), subj)):
         return None
@@ -1779,18 +1788,24 @@ def _recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not isinstance(stmtv, str):
         return None
     lbody = loop.get("body", [])
-    if len(lbody) != 3:
+    # the Match/cases-descend arm (a2) is OPTIONAL — `uses_for`/`uses_arrayset`
+    # only ever descend "body"/"orelse", with no Match arm at all.
+    if len(lbody) not in (2, 3):
         return None
-    a0, a1, a2 = lbody
+    a0, a1 = lbody[0], lbody[1]
+    a2 = lbody[2] if len(lbody) == 3 else None
     names: List[str] = []
     with_value = False
-    # arm 0: if <stmt-return-test>: return True
+    # arm 0: if <stmt-tag-test>: return True  (ANY literal tag, not just "Return")
     if not (isinstance(a0, dict) and a0.get("stmt") == "If" and not a0.get("orelse")):
         return None
     t0 = a0.get("test", {})
     tag0 = _match_stmt_tag_test(t0, stmtv)
     if tag0 is None:
         # with-value twin: `<stmt>["stmt"]=="Return" and <stmt>.get("value")`
+        # — inherently Return-specific (the `.get("value")` guard only makes
+        # sense for the Return tag), so this alternate arm-0 shape stays
+        # hardcoded to "Return" (it is a DIFFERENT AST shape, not a tag choice).
         if not (isinstance(t0, dict) and t0.get("type") == "BinOp"
                 and t0.get("op") == "and"):
             return None
@@ -1798,19 +1813,19 @@ def _recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if tag0 != "Return" or _match_get_call(t0.get("right", {}), stmtv) != "value":
             return None
         with_value = True
-    if tag0 != "Return":
+    if tag0 is None:
         return None
     if not (len(a0.get("body", [])) == 1 and _is_bool_true_return(a0["body"][0])):
         return None
     # arm 1: for key in ("body","orelse"): if key in stmt and self(stmt[key]): return True
     if not _match_field_descend_loop(a1, stmtv, names):
         return None
-    # arm 2: if stmt.get("stmt")=="Match": for c in stmt.get("cases",[]): if self(c.get("body",[])): return True
-    if not _match_cases_descend(a2, stmtv, names):
+    # arm 2 (optional): if stmt.get("stmt")=="Match": for c in stmt.get("cases",[]): if self(c.get("body",[])): return True
+    if a2 is not None and not _match_cases_descend(a2, stmtv, names):
         return None
     if not names or any(x != names[0] for x in names):
         return None
-    return {"subject": subj, "self_name": names[0], "with_value": with_value}
+    return {"subject": subj, "self_name": names[0], "with_value": with_value, "tag": tag0}
 
 
 def _match_field_descend_loop(node: Any, stmtv: str, names: List[str]) -> bool:
@@ -1905,10 +1920,13 @@ def emit_bool_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     sub-terms (the `v` of `DCons`, the `h`/`t` of `Cons`), so each `variant`
     (`size`/`size_dict`/`size_list`) decreases syntactically — split_vc-robust,
     the proven A-set shape. The `stmt`-tag discriminant at `PDict` nodes mirrors
-    the source's `stmt["stmt"]=="Return"` test; under `ensures True` the returned
-    bool is a value fact the contract does not constrain (insight C), so the walk
-    OR-descends the whole subtree (a superset of `body`/`orelse`/`cases`)."""
+    the source's `stmt["stmt"]==<tag>` test (the recognized literal tag —
+    "Return", "For", "ArraySet", ... — threaded from `desc["tag"]`, not
+    hardcoded); under `ensures True` the returned bool is a value fact the
+    contract does not constrain (insight C), so the walk OR-descends the whole
+    subtree (a superset of `body`/`orelse`/`cases`)."""
     n = whyml_ident(func["name"])
+    tag = desc["tag"]
     out = _emit_stmt_reader(n)
     out.append(f"  let rec {n} (stmts: list pyval) : bool")
     out.append("    requires { true } ensures { true } variant { size_list stmts }")
@@ -1916,7 +1934,7 @@ def emit_bool_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append(f"  with {n}__v (v: pyval) : bool")
     out.append("    requires { true } ensures { true } variant { pv_size v }")
     out.append("  = match v with")
-    out.append(f'    | PDict d -> {n}__stmt_is v "Return" || {n}__d d')
+    out.append(f'    | PDict d -> {n}__stmt_is v "{tag}" || {n}__d d')
     out.append(f"    | PList xs -> {n} xs")
     out.append("    | _ -> false end")
     out.append(f"  with {n}__d (d: pydict) : bool")

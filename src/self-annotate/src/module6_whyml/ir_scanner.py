@@ -3,12 +3,17 @@ from typing import Dict, Any, Set, List, Tuple
 ""  # pycsl
 class IRScanner:
     'Stateless recursive walkers over the IR dict tree.'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def uses_arrayset(stmts: List[int]) -> bool:
+    def uses_arrayset(stmts: List[Dict[str, Any]]) -> bool:
+        for stmt in stmts:
+            if stmt.get("stmt") == "ArraySet":
+                return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.uses_arrayset(stmt[key]):
+                    return True
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -206,12 +211,17 @@ class IRScanner:
     def has_early_return(stmts: List[int]) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def uses_for(stmts: List[int]) -> bool:
+    def uses_for(stmts: List[Dict[str, Any]]) -> bool:
+        for stmt in stmts:
+            if stmt["stmt"] == "For":
+                return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.uses_for(stmt[key]):
+                    return True
         return False
 
     #@ requires True
