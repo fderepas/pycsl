@@ -89,3 +89,17 @@ supply via cross-file dependency stubs is EMPTY; the only genuine statements.py 
 StatementEmissionMixin-DEFINED handlers (`_handle_*_stmt`, `_stmts_to_whyml` — large), and the reader
 cluster's remaining −1s are all behind the mini-M1 (orelse_of) or nested-dict. Lesson: census by
 DEFINING-class, not using-class.
+
+### _is_string_expr post-orelse_of probe (2026-07-10) — IfExpr arm CLEARED, next blocker = getattr-None-default
+Ported _is_string_expr (238-line ExprIR reader) after the orelse_of mini-M1 landed. CONFIRMED: the IfExpr
+arm now emits `self__is_string_expr_1 (body_of ir)` / `(orelse_of ir)` — orelse_of unblocked it (the
+earlier `ir_get_2 <hash>` int-collapse is gone). BUT --fun hits a NEXT blocker (expressions.mlw:593
+"type int, expected string"): the same IfExpr guard's `getattr(self,"_current_self_type",None) in
+getattr(self,"_mutable_state_classes",set())` lowers the set-membership KEY to `Map.get ... (0)` (int) —
+the `getattr(self,"<str-field>",None)` with a NONE default collapses the string field to int. Distinct
+recognizer gap: **getattr-self-field with None-default on a STRING field, used as a set-membership key**.
+_is_string_expr's 238 lines (G1/G2 record.get, str-value methods, FString, Attribute/FieldGet, str-or-chain)
+likely hold further blockers past this. So _is_string_expr is NOT a clean -1 post-orelse_of — it needs the
+getattr-None-default-string recognizer next (and a full port-to-first-blocker sweep to enumerate the rest).
+Stays trusted. Reader-cluster remaining -1s all still need a NEW recognizer (nested-dict / getattr-None /
+A2 / A3-A4-U / stmt-walker).
