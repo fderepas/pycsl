@@ -89,3 +89,11 @@ constructs an ADT value). **Gate W ESCALATED** — the full report→fable-revie
 oracle review overturned the report's uncertainty. Next phase = the emitter build (`term-rewriter-wall-impl.md`
 T-C1..C4), spike-gated on T-C1 (emitter-generability, the half the target-spike didn't cover). This run
 demonstrates the FULL driver cycle (contrast run #1, where Gate W correctly declined to escalate a non-wall).
+
+## 2026-07-11 — Driver run #3 (AUTONOMOUS, 4h): Phase 1 = no_cheap_remaining; Phase 2 = _field_type_for build
+Phase 1 drain: confirmed the cheap-conversion supply is EXHAUSTED (reader byte-0 wins all landed; the last
+untested class, the `_collect_*` stmt-walkers, measured NOT cheap — `for s in stmts` over `List[Dict]` +
+Set/dict accumulators = a stmt-walker feature gap). → Phase 2. Target: the `_field_type_for` build (all
+pieces now scoped: reverse index [validated byte-inert], U [mechanism validated], RecordInfoView recognizer
+[bounded — `_m5_get_dict_value_type` + the `_m5_record_class_names` registry], §10.4 re-port of the 2 U-edited
+verified methods). Delegated + driver-verifier-gated.
