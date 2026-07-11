@@ -1,5 +1,32 @@
 # gap-c-or-par.md — the `_field_type_of` 3-recognizer all-or-nothing build
 
+> **STATUS 2026-07-10: REFUTED at the S-R2 make-or-break spike. `_field_type_of` is NOT convertible —
+> LEAVE-TRUSTED (map-values-iteration class).** The plan's first action (S-R2, the make-or-break) killed
+> the build before any emitter work — measure-before-build as designed. R2 was MISDIAGNOSED as a
+> nested-dict *value-type* problem; the real wall is `_field_type_of`'s `for info in
+> self._record_types.values()` — **iterating a Why3 `map`'s values in executable code, which is
+> impossible**. Verified (independently re-proven): (1) WhyML has NO `for x in <expr>` construct —
+> `for v in m.values() do … done` is a hard **syntax error** (`for` is int-range only); Why3 `map 'a 'b =
+> 'a -> 'b` is a total function with no reified key set, so it is executably *indexable* but not executably
+> *enumerable*. (2) Switching `_record_types` to an iterable (`array`/`list`) makes `.values()` work but
+> BREAKS the keyed `_record_types[gcls]` lookup (an array has no string subscript; would need an invented
+> `class_key` field the live value shape lacks) — so keyed-lookup and values-iteration cannot share one
+> representation. (3) Corroborated project-wide: `auto_trust.py:283-330` explicitly auto-trusts For-loops
+> over map-yielding iterables ("WhyML maps don't have a natural iteration model … the only sound option is
+> to auto-trust"); prior spikes `fb1_fmap_spike.mlw` (fmap NO-GO) and `v2_setfold_spike.mlw` (uses a bespoke
+> inductive `pydict`, never `map`, for `.values()` recursion) record the same wall; 0 of 217 repo `.mlw`
+> files iterate a `map.Map`. Evidence: `getting-better/composition-wall/sr2-values-spike.mlw` (4 goals
+> Valid; part (a) keyed-lookup proves, part (b) `.values()`-iteration cannot be expressed).
+>
+> **Consequence:** `_field_type_of` (and the parallel `_field_type_for`, same `_record_types.values()`
+> search) stay `\trusted` — they are the map-values-iteration leave-trusted class, NOT a recognizer gap.
+> The int-hash faithfulness residual in `_rhs_yields_array`/`_rhs_yields_map`'s Attribute branches is
+> therefore PERMANENT (bounded by this leave-trusted leaf), not a follow-on. R1 (Gap-C `or-{}`) remains a
+> real, reusable recognizer but converts nothing here (its only in-plan consumer, `_field_type_of`, is
+> walled at R2) — do NOT build R1 standalone (no-unused-facade). The plan below is retained as the record
+> of the refuted design.
+
+
 *Self-contained build plan, 2026-07-10. Converts the mirror leaf `_field_type_of`
 (`src/self-annotate/src/module6_whyml/types.py`, `TypeInferenceMixin`) from `\trusted` to a verified
 body, unlocking a −1 that ALSO retroactively de-int-hashes two already-converted methods. Successor to
