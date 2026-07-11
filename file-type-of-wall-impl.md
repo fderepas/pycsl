@@ -24,7 +24,27 @@
 >   (option int)` value (Q1 → likely needs a minimal `RecordInfoView` view), but that gate is masked behind
 >   U and was not reached cleanly.
 >
-> **Refined scope to actually lift the leaves:** `_field_type_for` = reverse index + **U** (+ maybe
+> **U design pinned (2026-07-10, pre-build investigation).** The make-or-break for U is the *declaration
+ordering* (the piece that sprawled last time). Measured from the emitted `types.mlw` of a union-returning
+function: **`exception Return int` at line 14 → type-decls → the per-function `type _union__field_type_for_0
+= Arm_0_0 string | Arm_0_None` at line 320 → `let …field_type_for … : _union__field_type_for_0` at line
+412.** So `Return_<union>` CANNOT be declared with the other exceptions (line 14, `preamble.py:2170`) — the
+union type it carries does not exist yet there. It must be emitted AFTER the union types are declared
+(~line 320, between `_emit_type_decls` and the functions). The union-type emission point is per-function /
+non-obvious (no `_emit_union_types` method; likely emitted alongside each function or a collected pass near
+`Module6_WhyMLTranspiler` line ~513+). **U's build, once the emission point is located:** (1) a needs-scan
+collecting `{fn: union_type_name}` for union-returning functions with early/in-loop returns; (2) emit
+`exception Return_<safe_union_name> <union_type>` immediately after each such union type is declared; (3)
+`stmt_control_flow.py::_handle_return_stmt` use_raise path — when `self._func_return_type` is a `_union_*`,
+`raise (Return_<safe_union_name> {val})` (val already union-injected by the EXISTING
+`_maybe_inject_union_return`); (4) the body-catch `with Return_<safe_union_name> r -> r`. Gate: byte-diff 0
+(corpus-inert — 0 corpus `Optional`-returns, measured), whole-file proof, ledger 3. RECOMMENDATION: build U
+as a DEDICATED focused increment (it is the ~76-line feature that sprawled once via the string-local
+collector; the U machinery itself is bounded but the ordering + raise/catch wiring wants careful,
+fresh-context gating). It is REUSABLE (unblocks `_field_type_for` after the reverse index, and is one of the
+gates for `_call_return_whyml_type`).
+
+**Refined scope to actually lift the leaves:** `_field_type_for` = reverse index + **U** (+ maybe
 > RecordInfoView); `_field_type_of` = reverse index + **U** + **Gap-C or-{}** + **getattr-chain** (+ maybe
 > RecordInfoView). The reverse index (C1–C5) is validated byte-inert and re-appliable; per no-unused-facade
 > it was REVERTED (it converts no `\trusted` stub without U). Next dedicated build: **U first** (reusable,
