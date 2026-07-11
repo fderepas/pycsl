@@ -97,3 +97,36 @@ Set/dict accumulators = a stmt-walker feature gap). → Phase 2. Target: the `_f
 pieces now scoped: reverse index [validated byte-inert], U [mechanism validated], RecordInfoView recognizer
 [bounded — `_m5_get_dict_value_type` + the `_m5_record_class_names` registry], §10.4 re-port of the 2 U-edited
 verified methods). Delegated + driver-verifier-gated.
+
+**RESULT: STOPPED at net 0 — REVERTED to clean (count held 1226). `_field_type_for` is NOT a bounded
+landing; it is a RECEDING-HORIZON build that bottoms out at the SAME gap the Phase-1 `_collect_*` drain did.**
+Two converter passes (validated recipe + a 4th/5th recognizer pass) built EIGHT pieces — reverse index,
+RecordInfoView value-typing (+3 sub-additions), U union-early-return (3 edits), §10.4 re-port, `opt_record_local`
+first-assign kind, `_collect_opt_record_var_assigns` stmt-walker, `option recordinfoview` truthiness, and the
+`_opt_record_field_types_get` compound-chain recognizer. With ALL of them the target body *itself* proves
+(`--fun typeinferencemixin___field_type_for` = SUCCESS). But landing it as a real −1 requires the mirror to
+carry a body-faithful `_collect_opt_record_var_assigns` (the stmt-list-walker that typed-classifies the
+opt-record local so it escapes the blanket `ref 0` pre-declare). That walker does NOT verify:
+- `src/self-annotate/src/module6_whyml/types.mlw:457` (whole-file): `found := (map_union !found
+  (self__collect_opt_record_var_assigns_1 (subscript_get !s !k)))` → **"This expression has type int, but is
+  expected to have type array.Array.array int"**. The recursion over nested `s["body"]`/`s["orelse"]` lowers the
+  sub-list arg via `subscript_get` (yields `int`) while the recursive callee's synthesized signature expects
+  `array int` — **the generic stmt-list-walk lowering gap.** Making the walker a `\trusted` stub instead adds
+  +1, exactly cancelling the −1 → net 0. Hard-stop taken; whole tree reverted.
+
+**CONVERGENCE INSIGHT (the high-value takeaway):** the `_field_type_for` build and the entire Phase-1
+`_collect_*` stmt-walker class DO NOT have two problems — they have ONE: **the recursive stmt-list-walk
+lowering gap** (`subscript_get` on a `Dict[str,Any]` stmt's `s["body"]`/`s["orelse"]` list-child yields `int`,
+not `array int`, so a recursive walker over the stmt tree cannot type-check). Fix that ONE gap and BOTH the
+`_collect_*` drain AND `_field_type_for`'s completion unlock together. This is the pivotal next wall — and it
+is the SAME shape as lesson 3's leave-trusted class (`Dict[str,Any]` generic-tree walkers), so the prior is a
+BOUNDARY, but the double-hit elevates it to Gate-W escalation for a definitive oracle verdict.
+
+**Lesson (receding-horizon kind → validity test):**
+> A build advertised as "all pieces scoped" can still RECEDE if one piece's own body-verification obligation
+> lands on an UNSOLVED emitter gap. Validity test: after the target body proves under `--fun`, does the
+> WHOLE FILE prove? Here NO — a support helper (`_collect_opt_record_var_assigns`) hit the stmt-list-walk gap.
+> **Carry-forward:** before scoping a reader-conversion as bounded, check whether it needs a NEW recursive
+> stmt/expr-tree WALKER helper in the mirror. If it does, it inherits the generic-tree-walk boundary (lesson 3)
+> — treat as feature-gated, not a cheap landing. `--fun`-proves-the-body ≠ file-proves (SL lesson 10 restated
+> for support helpers, not just siblings).
