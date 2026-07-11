@@ -153,3 +153,33 @@ stmt list AND recurse into nested `s["body"]`/`s["orelse"]`/`s["finalbody"]`/`ha
   black-box walkers = the HARDER generic-Any gap (lesson 3), a different boundary.
 **VERDICT: escalate Schema 1 (34-method unlock, half-built) as a genuine Gate-W wall → report+oracle-spike
 cycle. `stmt-walker-wall.md`.**
+
+**ORACLE CYCLE COMPLETE (2026-07-11) — stmt-walker wall = BOUNDED FEATURE; build DEFERRED with the gap pinned.**
+Full driver cycle fired (report → independent fable oracle → impl plan → §2 emitter spike):
+- **Fable oracle (blind to sub-loop)** wrote `stmt-walker-spike.mlw`: `stmtir` variant with a 4-list-child
+  `STry` + handlers as a mutually-recursive second sort, cons-cell `size`/`size_list`, element-decrease as a
+  PROVED `let rec lemma`, reader `ends_with_return` with `variant`. **Driver-re-verified: 14/14 Valid on
+  Alt-Ergo AND Z3, 0 `^axiom`, `bad_walk` control Timeouts (non-vacuous).** `array stmtir` is Why3-TYPE-REJECTED
+  → child MUST be pure `list`/`seq`. (R)/(L)/(T)/multi-field all PASS. Verdict: BOUNDED FEATURE, not a boundary.
+- **§2 emitter make-or-break (isolated worktree): GENERABLE-WITH-GAP.** S-C1 (`_emit_stmtir_theory`, the
+  `_emit_exprir_theory` twin) EMITS the proven theory → **9/9 Valid both solvers, 0 axioms, `list` children,
+  corpus-byte-inert** (stash-diff confirmed). But the walker lowering needs **≥3 new recognizers** and
+  hard-stopped (no sprawl): the pinned make-or-break is **`functions.py:68-97` — `_param_type_str` routes EVERY
+  `List[T]` param into the `array <T>` family; there is NO `list <T>` exit**, so `List["StmtIR"]`→`array int`
+  (the live failure's root). Plus a `stmts[-1]`→`Cons`-recursion body recognizer and `variant { stmt_size }`
+  synthesis.
+
+**PIVOTAL CONVERGENCE (the run's top finding):** the `list <T>` ADT-child type family + list-structural
+recursion body form is needed by BOTH remaining breakable walls — the **stmt-walker** (34 readers, this) AND
+the **term-rewriter** (`term-rewriter-wall-impl.md` T-C2/T-C3: comprehension→`list term`, `list`-child
+constructor). ONE shared foundation (`functions.py`'s `list <T>` param/field family + the `Cons`-recursion body
+form) unblocks both. That is the pivotal next-session build; S-C1's theory-emission recipe is proven-ready and
+byte-inert, waiting on the param-family fix.
+
+**Lesson (defer-with-pinned-gap kind):**
+> When a wall is oracle-proven BREAKABLE but the emitter build reveals a genuine multi-recognizer M2 gap, the
+> driver's win is the PINNED gap + a proven-ready foundation piece, NOT a forced conversion. Land nothing that
+> reduces no count (lesson 7); DEFER the build with the exact make-or-break line recorded (`functions.py:68`,
+> the `list <T>` param family) so the next session builds deliberately, not blind. Distinguish this from a
+> CERTIFIED BOUNDARY (map-iteration, generic-Any walkers): a deferred-breakable has a proven target + a pinned,
+> bounded gap; a boundary has neither.

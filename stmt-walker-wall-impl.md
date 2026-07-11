@@ -36,6 +36,40 @@ with `body: List["StmtIR"]`, `orelse`, `finalbody`). Two facts make this tractab
   not `array`) AND emit the `size_list` leg + the element-decrease `let rec lemma`. Whether the existing
   `_emit_exprir_theory`-style generator handles a self-list-child is the exact unknown.
 
+## 2bis. §2 SPIKE RESULT (2026-07-11, isolated worktree — VERDICT: GENERABLE-WITH-GAP)
+
+The §2 make-or-break was RUN in an isolated worktree. Outcome, precisely:
+- **S-C1 (theory emission) FULLY LANDS.** A hand-written `_emit_stmtir_theory()` (preamble.py, ~110 lines, the
+  `_emit_exprir_theory` twin) emits the proven spike's `stmtir`/`shandler` sum (`size*`→`stmt_size*` to avoid
+  clashing with the coexisting `emit_ir` `size`), wired into Module6 after the `_emit_exprir_theory()` call,
+  same `_mutable_state_classes`/`_uses_ir_node_param` gate. The EMITTED theory: **9/9 Valid (Alt-Ergo + Z3),
+  0 `^axiom`, children emit as pure `list stmtir` (NOT `array`)** — incl. `STry (list stmtir) (list shandler)
+  (list stmtir) (list stmtir) with shandler = EHandler (list stmtir)` + the element-decrease `let rec lemma`.
+  **Corpus-byte-inert CONFIRMED** (stash-diff on 0342 byte-identical; `stmtir` absent from 5 spot-checked corpus
+  files). So the foundation's theory half is proven emittable and zero-risk — the next session re-emits it in
+  minutes from this recipe.
+- **S-C2/S-C3 (walker lowering) HARD-STOPPED at a pinned gap — the true M2 make-or-break.** Converting the
+  simplest bool walker (`IRScanner.ends_with_return`) needs **≥3 new recognizers**, so no blind build was made:
+  1. **`list <T>` PARAM-TYPE FAMILY — `functions.py:68-97` (`_param_type_str`'s List dispatcher).** It routes
+     EVERY `List[T]` param into the `array <T>` family (int/string/real/record/seq/map via `_list_nested_elem`/
+     `_param_list_flat_elem`); there is **NO `list <T>` (Why3 `list.List`) exit at all**. So `List["StmtIR"]`
+     silently lowers to `array int` — the exact reported `int` vs `array int` failure. This is a NEW type-family
+     branch (not a lookup-table entry): the emitter has never produced a `list <T>` parameter. **This is the
+     build's real make-or-break** (§1's flagged risk, now pinned to a line).
+  2. **list-structural body recursion** — `if not stmts: …; last = stmts[-1]` has no `[-1]` on a Why3 `list`;
+     must lower to the spike's `match … | Cons x Nil -> … | Cons _ rest -> recurse` form (a body recognizer).
+  3. **`variant { stmt_size … }` synthesis** for the recursive call against the S-C1 theory (S-C3).
+- **CONVERGENCE:** recognizer #1 (the `list <T>` param/field family) is ALSO exactly what the **term-rewriter
+  wall** (`term-rewriter-wall-impl.md` T-C2/T-C3: comprehension→`list term` helper, `list`-child constructor)
+  needs. BOTH remaining breakable walls converge on ONE foundation: **the `list <T>` ADT-child type family +
+  list-structural recursion body form.** That shared foundation is the pivotal next build.
+
+**Driver decision (2026-07-11):** DEFER the foundation build to a focused session (it is a genuine 3-recognizer
++ N-conversion multi-session project; every such build receded within this run, so a 120-min forced attempt
+would sprawl). S-C1 is proven-ready; the gap is pinned to `functions.py:68`. Build order for the next session:
+the `list <T>` param/field family FIRST (unblocks both walls), then S-C1 land + one bool walker as one
+count-reducing increment, then the cluster.
+
 ## 2. First action — the EMITTER make-or-break spike (Gate S of the build)
 
 BEFORE any converter work, in a worktree, answer ONE question: **does PyCSL emit a valid, provable `stmtir`
