@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="781px" preserveAspectRatio="none" style="width:2952px;height:781px;background:#FDFDFD;" version="1.1" viewBox="0 0 2952 781" width="2952px" zoomAndPan="magnify"><defs/><g><text fill="#000000" font-family="Helvetica" font-size="18" lengthAdjust="spacingAndGlyphs" textLength="542" x="1220.5" y="19.2419">self-tcb-reduction — the Squeeze Loop (bounds • actors • gates)</text><!--MD5=[c7e2eff8cb3936e8394e3dcf771faf0a]
+cluster U--><rect fill="#E8F0FE" height="333.87" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="737" x="1069" y="56.7058"/><text fill="#222222" font-family="Helvetica" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="351" x="1262" y="73.6718">U  —  UPPER BOUND (soft: transcription authority)</text><!--MD5=[99eba6e841e10f0e903161ac505afb50]
+cluster A--><rect fill="#FFFFFF" height="361.41" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="1095" x="1846" y="252.9058"/><text fill="#222222" font-family="Helvetica" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="340" x="2223.5" y="269.8718">ACTORS  —  each pinned to its own disjoint (U, L)</text><!--MD5=[806684192a35eec0da82840a1081b5d2]
+cluster L--><rect fill="#E6F4EA" height="312.94" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="662" x="1095" y="457.5758"/><text fill="#222222" font-family="Helvetica" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="646" x="1103" y="474.5418">L  —  LOWER BOUND (hard: 3 disjoint executable oracle planes, ALL required, NEVER blended)</text><!--MD5=[b3b444921c8b4ce57d1ac277af47b801]
+cluster G--><rect fill="#FCE8E6" height="112.13" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="1015" x="22" y="74.2358"/><text fill="#222222" font-family="Helvetica" font-size="14" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="113" x="473" y="91.2018">GATES (pipeline)</text><!--MD5=[d7065250a2f8bfae8594a6d5c73b2ea9]
+entity Ulive--><rect fill="#D2E3FC" height="58.1358" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="234" x="1093" y="112.2358"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="163" x="1103" y="137.2018">the LIVE emitter method</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="214" x="1103" y="156.2697">(src/pycsl/…) — verbatim source</text><!--MD5=[a71fdbc2769fe428052ae98f3ed77192]
+entity Ucontract--><rect fill="#D2E3FC" height="77.2038" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="401" x="1361.5" y="102.7058"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="137" x="1371.5" y="127.6718">fixed contract shape</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="381" x="1371.5" y="146.7397">#@ requires True / ensures True / assigns &lt;tight-frame&gt;</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="257" x="1371.5" y="165.8076">(NEVER value-faithful, NEVER vacuous)</text><!--MD5=[f8ca38ba6a72e3b3febe2d302cbf129f]
+entity Uceiling--><rect fill="#D2E3FC" height="58.1358" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="248" x="1100" y="308.4358"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="152" x="1110" y="333.4018">item-3 ceiling doctrine</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="228" x="1110" y="352.4697">(what may be re-sited to the floor)</text><!--MD5=[74ae13a03863147ae30e011dc1ccfa85]
+entity coord--><rect fill="#FFF6D6" height="77.2038" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="312" x="1889" y="298.9058"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="78" x="1899" y="323.8718">coordinator</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="292" x="1899" y="342.9397">tier work-list • delegation • verdicts • ledger</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="272" x="1899" y="362.0076">(cannot edit code; cannot rubber-stamp)</text><!--MD5=[cd3823f5cf3e42da4ac48109940ef88b]
+entity conv--><rect fill="#FFE9C7" height="77.2038" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="334" x="2236" y="298.9058"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="64" x="2246" y="323.8718">converter</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="270" x="2246" y="342.9397">verbatim mirror body + #@ + recognizer</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="314" x="2246" y="362.0076">(cannot weaken/axiom; blind to baseline+floor)</text><!--MD5=[99ffd81f317678cd42da2592779f4370]
+entity veri--><rect fill="#D8F5D8" height="77.2038" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="312" x="2605" y="298.9058"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="48" x="2615" y="323.8718">verifier</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="292" x="2615" y="342.9397">runs the 3 L-planes FRESH from the surface</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="228" x="2615" y="362.0076">(blind to the converter's rationale)</text><!--MD5=[f50c9344242b353bb98c25a4bfd37e49]
+entity floor--><rect fill="#F5D8E8" height="77.2038" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="330" x="1889" y="513.1058"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="85" x="1899" y="538.0718">floor-auditor</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="213" x="1899" y="557.1397">PASS/REJECT a re-siting to F1/F3</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="310" x="1899" y="576.2076">(ceiling doctrine; blind to convenience motive)</text><!--MD5=[e7b7cd7d8eb36e19e158a5c2eb44de61]
+entity probe--><rect fill="#E8E8F8" height="58.1358" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="274" x="2254" y="522.6458"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="254" x="2264" y="547.6118">triage-probe (opt., parallel, read-only)</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="177" x="2264" y="566.6797">one classification per stub</text><!--MD5=[bc2e674a20b151eaa5dee01185d5bd79]
+entity Lfid--><rect fill="#CEEAD6" height="96.2717" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="220" x="1119" y="503.5758"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="77" x="1129" y="528.5418">① FIDELITY</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="187" x="1129" y="547.6097">check-self-annotate-sync.sh</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="200" x="1129" y="566.6776">self-annotate-mirror-check.sh</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="172" x="1129" y="585.7455">(mirror body == live body)</text><!--MD5=[22a80d6984e616394077ba5f4b15df47]
+entity Ltype--><rect fill="#CEEAD6" height="77.2038" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="317" x="1374.5" y="513.1058"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="104" x="1384.5" y="538.0718">② TYPE-SAFETY</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="95" x="1384.5" y="557.1397">pycsl.py &lt;file&gt;</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" text-decoration="line-through" textLength="167" x="1483.5" y="557.1397">import-path (whole-file +</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="27" x="1654.5" y="557.1397">fun)</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="224" x="1384.5" y="576.2076">proof_axiom_allowlist unchanged</text><!--MD5=[c172d339eb51b529c5fc0f8405dc73aa]
+entity Lcorp--><rect fill="#CEEAD6" height="77.2038" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="244" x="1119" y="669.3158"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="154" x="1129" y="694.2818">③ CORPUS INERTNESS</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="196" x="1129" y="713.3497">byte-diff-sweep vs HEAD == 0</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="122" x="1129" y="732.4176">suite no-new-fail •</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="96" x="1257" y="732.4176">rusted count ↓</text><!--MD5=[edb0d356577db682ceb48cbab438047d]
+entity GA--><rect fill="#F6C7C2" height="58.1358" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="299" x="38.5" y="112.2358"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="44" x="48.5" y="137.2018">Gate A</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="279" x="48.5" y="156.2697">(editorial: tier / not-floor / contract shape)</text><!--MD5=[1796b2c05538d53eb5fa387d8d74e9bd]
+entity GB--><rect fill="#F6C7C2" height="58.1358" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="343" x="372.5" y="112.2358"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="44" x="382.5" y="137.2018">Gate B</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="323" x="382.5" y="156.2697">(machine: all 3 L-planes + count ↓ + no smuggle)</text><!--MD5=[eef3f094aa25142ce89e2590d2eee39c]
+entity GC--><rect fill="#F6C7C2" height="58.1358" rx="5" ry="5" style="stroke: #888888; stroke-width: 1.5;" width="270" x="751" y="112.2358"/><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="44" x="761" y="137.2018">Gate C</text><text fill="#222222" font-family="Helvetica" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="250" x="761" y="156.2697">(no-blend + non-vacuity + floor-audit)</text><path d="M1781,681.3558 L1781,734.4739 A5,5 0 0 0 1786,739.4739 L2296,739.4739 A5,5 0 0 0 2301,734.4739 L2301,686.3558 L2291,676.3558 L1786,676.3558 A5,5 0 0 0 1781,681.3558 " fill="#FBFB77" style="stroke: #A80036; stroke-width: 1.0;"/><path d="M2291,676.3558 L2291,683.8558 A2.5,2.5 0 0 0 2293.5,686.3558 L2301,686.3558 L2291,676.3558 " fill="#FBFB77" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="Helvetica" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="122" x="1787" y="695.2529">Correctness = U ∩ L :</text><text fill="#000000" font-family="Helvetica" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="467" x="1787" y="712.9589">verbatim-faithful ∧ type-safe ∧ corpus-inert ∧ (if re-sited) genuinely irreducible.</text><text fill="#000000" font-family="Helvetica" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="499" x="1787" y="730.6649">Dominant failure guarded: a stub that "verifies" a STALE copy (coherent-and-wrong).</text><!--MD5=[1516fef85b3cf51cac44b7c0b75b67eb]
+link U to A--><path d="M1806.0643,170.2704 C1806.1414,170.5378 1806.2189,170.8066 1806.2968,171.0768 C1806.6085,172.1577 1806.9269,173.2616 1807.2514,174.3869 C1812.4441,192.393 1819.2281,215.9177 1826.0113,239.4396 C1832.7944,262.9615 1839.5766,286.4805 1844.7655,304.4754 C1845.0898,305.6001 1845.4079,306.7032 1845.7193,307.7833 C1845.7972,308.0534 1845.8747,308.322 1845.9517,308.5891 " fill="none" id="U-&gt;A" style="stroke: #555555; stroke-width: 1.0;"/><polygon fill="#555555" points="1845.9517,308.5891,1847.3015,298.8332,1844.5664,303.7849,1839.6147,301.0497,1845.9517,308.5891" style="stroke: #555555; stroke-width: 1.0;"/><text fill="#000000" font-family="Helvetica" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="118" x="1823.65" y="224.8029">bounds from above</text><!--MD5=[1f234ef74551150cbccc3095456509a8]
+link A to L--><path d="M1845.8535,347.4171 C1845.7147,347.5646 1845.5744,347.7136 1845.4325,347.8641 C1845.1488,348.1651 1844.8589,348.4718 1844.5629,348.7842 C1843.9709,349.4091 1843.3547,350.0564 1842.7153,350.7244 C1841.4365,352.0605 1840.065,353.4797 1838.609,354.968 C1835.697,357.9448 1832.4475,361.1983 1828.9275,364.6183 C1814.8475,378.2983 1796.44,394.6408 1778,406.5758 C1770.65,411.3258 1765.06,407.4358 1760,414.5758 C1751.3625,426.7633 1746.31,441.1971 1743.6011,456.0333 C1743.5164,456.497 1743.4341,456.961 1743.354,457.4254 " fill="none" id="A-&gt;L" style="stroke: #555555; stroke-width: 1.0;"/><polygon fill="#555555" points="1743.354,457.4254,1748.8258,449.2364,1744.204,452.4982,1740.9423,447.8763,1743.354,457.4254" style="stroke: #555555; stroke-width: 1.0;"/><text fill="#000000" font-family="Helvetica" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="111" x="1761" y="429.4729">must satisfy below</text><!--MD5=[b251d7e383c164b79528f250dd8b4a85]
+link GA to GB--><path d="M337.84,141.3058 C347.11,141.3058 356.38,141.3058 365.65,141.3058 " fill="none" id="GA-&gt;GB" style="stroke: #555555; stroke-width: 1.0;"/><polygon fill="#555555" points="370.55,141.3058,361.55,137.3058,365.55,141.3058,361.55,145.3058,370.55,141.3058" style="stroke: #555555; stroke-width: 1.0;"/><!--MD5=[7fc899681356e34953cb15da33cf5d9b]
+link GB to GC--><path d="M715.67,141.3058 C725.22,141.3058 734.77,141.3058 744.32,141.3058 " fill="none" id="GB-&gt;GC" style="stroke: #555555; stroke-width: 1.0;"/><polygon fill="#555555" points="749.09,141.3058,740.09,137.3058,744.09,141.3058,740.09,145.3058,749.09,141.3058" style="stroke: #555555; stroke-width: 1.0;"/><!--MD5=[c84d5d52992d8a799d44c836b139248f]
+link L to GMN25--><path d="M1757.2524,558.4084 C1757.3479,558.4738 1757.4442,558.5397 1757.5412,558.606 C1757.9293,558.8715 1758.3293,559.1448 1758.7409,559.4258 C1759.5642,559.9877 1760.4339,560.5802 1761.348,561.2015 C1768.6603,566.1715 1778.8069,572.9808 1790.6513,580.6933 C1814.34,596.1183 1844.82,615.1558 1873,630.3158 C1903.35,646.6358 1937.83,662.7558 1967.63,675.9658 " fill="none" id="L-GMN25" style="stroke: #555555; stroke-width: 1.0; stroke-dasharray: 7.0,7.0;"/><!--MD5=[758bc181860adf80f9d33a008ab7bd82]
+link Ulive to Ucontract--><!--MD5=[5e88e0899887191d3e02740fa4817ffa]
+link Ulive to Uceiling--><!--MD5=[7002585dc02b0ecdf23fb7b8359a62cc]
+link coord to conv--><!--MD5=[48d13ff4f7b0300b6372bb9e3a9eb10a]
+link conv to veri--><!--MD5=[8b95bce4e05f6078b391d296094b31ec]
+link coord to floor--><!--MD5=[3b285f11e614a5b4f5c57d225c327b29]
+link floor to probe--><!--MD5=[38949aad2550dbb20ad4159fbec1d09f]
+link Lfid to Ltype--><!--MD5=[cfe3564a23e51b8245fccf4e1552cf0b]
+link Lfid to Lcorp--><!--MD5=[b55dc98cc792f6b26ed369aa80cbde67]
+link Ucontract to coord--><!--MD5=[8bb57cc39259d863c3474116dd65fdc2]
+link Uceiling to Lfid--><!--MD5=[9655911ab7bd18fcc7e00388e51d570e]
+@startuml sl-base-structure
+skinparam backgroundColor #FDFDFD
+skinparam defaultFontName Helvetica
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam ArrowColor #555555
+skinparam rectangle {
+  BorderColor #888888
+  FontColor #222222
+}
+
+title self-tcb-reduction — the Squeeze Loop (bounds • actors • gates)
+
+rectangle "U  —  UPPER BOUND (soft: transcription authority)" as U #E8F0FE {
+  rectangle "the LIVE emitter method\n(src/pycsl/…) — verbatim source" as Ulive #D2E3FC
+  rectangle "fixed contract shape\n#@ requires True / ensures True / assigns <tight-frame>\n(NEVER value-faithful, NEVER vacuous)" as Ucontract #D2E3FC
+  rectangle "item-3 ceiling doctrine\n(what may be re-sited to the floor)" as Uceiling #D2E3FC
+}
+
+rectangle "ACTORS  —  each pinned to its own disjoint (U, L)" as A #FFFFFF {
+  rectangle "coordinator\ntier work-list • delegation • verdicts • ledger\n(cannot edit code; cannot rubber-stamp)" as coord #FFF6D6
+  rectangle "converter\nverbatim mirror body + #@ + recognizer\n(cannot weaken/axiom; blind to baseline+floor)" as conv #FFE9C7
+  rectangle "verifier\nruns the 3 L-planes FRESH from the surface\n(blind to the converter's rationale)" as veri #D8F5D8
+  rectangle "floor-auditor\nPASS/REJECT a re-siting to F1/F3\n(ceiling doctrine; blind to convenience motive)" as floor #F5D8E8
+  rectangle "triage-probe (opt., parallel, read-only)\none classification per stub" as probe #E8E8F8
+}
+
+rectangle "L  —  LOWER BOUND (hard: 3 disjoint executable oracle planes, ALL required, NEVER blended)" as L #E6F4EA {
+  rectangle "① FIDELITY\ncheck-self-annotate-sync.sh\nself-annotate-mirror-check.sh\n(mirror body == live body)" as Lfid #CEEAD6
+  rectangle "② TYPE-SAFETY\npycsl.py <file> - -import-path (whole-file + - -fun)\nproof_axiom_allowlist unchanged" as Ltype #CEEAD6
+  rectangle "③ CORPUS INERTNESS\nbyte-diff-sweep vs HEAD == 0\nsuite no-new-fail • \\trusted count ↓" as Lcorp #CEEAD6
+}
+
+rectangle "GATES (pipeline)" as G #FCE8E6 {
+  rectangle "Gate A\n(editorial: tier / not-floor / contract shape)" as GA #F6C7C2
+  rectangle "Gate B\n(machine: all 3 L-planes + count ↓ + no smuggle)" as GB #F6C7C2
+  rectangle "Gate C\n(no-blend + non-vacuity + floor-audit)" as GC #F6C7C2
+}
+
+U -down-> A : bounds from above
+A -down-> L : must satisfy below
+GA -right-> GB
+GB -right-> GC
+
+note bottom of L
+  Correctness = U ∩ L :
+  verbatim-faithful ∧ type-safe ∧ corpus-inert ∧ (if re-sited) genuinely irreducible.
+  Dominant failure guarded: a stub that "verifies" a STALE copy (coherent-and-wrong).
+end note
+@enduml
+
+PlantUML version 1.2020.02(Sun Mar 01 11:22:07 CET 2020)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Java Version: 25.0.3+9-2-26.04.2-Ubuntu
+Operating System: Linux
+Default Encoding: UTF-8
+Language: en
+Country: US
+--></g></svg>
