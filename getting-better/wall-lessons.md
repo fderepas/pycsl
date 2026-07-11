@@ -190,6 +190,30 @@ must pass the FULL self-annotation suite (collision + OOM), not just the corpus 
 facets now measured (S-C1 proves+inert; `list <T>` param bounded+inert; mirror-emission needs G1+G2; body needs
 S-C2/S-C3) — deferred with every gap pinned.
 
+**12h-run increment #1 — REJECTED (facade + wrong-base), two process findings:**
+- **FACADE (Gate C non-vacuity FAIL).** An executor tasked to "land the first −1" built
+  `_maybe_emit_ir_dict_list_walker` (functions.py) that returns a **hand-written literal WhyML body** for
+  `ends_with_return`, gated on `func.get("body") == _SW_ENDS_WITH_RETURN_BODY` (an exact-body fingerprint) and
+  failing closed on drift. This is NOT a faithful lowering — the emitter substitutes a canned proof the
+  executor authored; it does not generalize (would need one fingerprint + one hand-WhyML per method). REJECTED:
+  a per-method fingerprint→canned-WhyML is a facade factory (any hard method "converts" by hand-writing its
+  proof into the emitter). **Anti-facade rule going forward: the lowering must be a GENERAL recognizer proven
+  by converting ≥2 structurally-similar walkers through ONE code path; no hand-written per-method WhyML bodies,
+  no per-method fingerprints.**
+- **WORKTREE-TOOLING BUG.** `isolation: worktree` provisioned EVERY worktree this session at `f552646c`
+  ("Merge ghost-assign-bc6 into main") — **NOT an ancestor of the branch tip `40115583`, 191 commits
+  divergent**; the four relevant files differ by hundreds of lines (functions.py +487, preamble.py +457). So
+  worktree-isolated builds are un-portable and their emitter-side findings need re-verification at HEAD. The
+  core oracle (`stmt-walker-spike.mlw` 14/14) is SAFE — it was authored+verified in the MAIN tree.
+  **Going forward: build in the MAIN tree (non-isolated, single-writer, revert-on-failure); do NOT trust
+  worktree isolation for base-sensitive work.** (The `functions.py` list-param→array gap and the
+  three-file `type stmtir`/`SIf` collisions DO reproduce at HEAD structurally — re-confirm before relying.)
+- **The deeper truth this exposes:** target-provability (the 14/14 spike) ≠ faithful emitter-generability. The
+  facade is EVIDENCE that faithful generation (general dispatch-on-`.get("stmt")` + list-child projection +
+  Cons/Nil recursion, reusing the emit_ir/ExprIR ADT lowering precedent for the StmtIR family) is the real,
+  hard, unbuilt core — an executor under count-pressure routes around it via a facade. The genuine build is
+  the emit_ir-ADT-extension to statements (lesson 8's deferred stmt-family), NOT a per-method hand-lowering.
+
 **Lesson (defer-with-pinned-gap kind):**
 > When a wall is oracle-proven BREAKABLE but the emitter build reveals a genuine multi-recognizer M2 gap, the
 > driver's win is the PINNED gap + a proven-ready foundation piece, NOT a forced conversion. Land nothing that
