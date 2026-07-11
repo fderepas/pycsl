@@ -70,6 +70,65 @@ would sprawl). S-C1 is proven-ready; the gap is pinned to `functions.py:68`. Bui
 the `list <T>` param/field family FIRST (unblocks both walls), then S-C1 land + one bool walker as one
 count-reducing increment, then the cluster.
 
+## 2ter. `list <T>` TYPE-FAMILY PROBE (2026-07-11, second isolated worktree — VERDICT: BOUNDED, green light)
+
+Probed the pinned make-or-break (`functions.py:68`): is a `list <T>` param/field type-family exit a bounded,
+byte-inert add, or is the `array <T>` commitment entangled? **VERDICT: BOUNDED at the signature/type-family
+level.** Evidence:
+- **~185 lines across 4 files** produce a correct `(stmts: list stmtir)` signature from a `List["StmtIR"]`
+  param: (1) `Module5_IREmitter.py` new `_m5_get_ir_node_list_elem` (narrow-gated on literal `"StmtIR"` in
+  `List[...]`) threaded into the func IR as `param_ir_list_elem`; (2) `functions.py` `_param_type_str` checks it
+  FIRST, before the `array` machinery, returning `(safe: list <elem>)`; (3) `preamble.py` `_emit_stmtir_theory`
+  (S-C1) + `needs_list_ghost` forced under @mutable_state so `use list.List/Length/Nth/Mem/Append` land;
+  (4) Module6 wiring. A probe class `Walker.walk(self, stmts: List["StmtIR"]) -> int` emitted
+  `val walker__walk (self: walker) (stmts: list stmtir) : int` and type-checked (`L1✓ L2✓ L3-tc✓`).
+- **Byte-inert CONFIRMED** — 5 corpus files (0001/0002/0100/0342/0500) byte-identical stash-vs-edits. The exit
+  is routed OUTSIDE the `array1d_params`/`_array_locals` machinery, so none of the ~15 array-consumer sites fire
+  for the param *as long as the body never touches it*.
+- **Entanglement precisely bounded to the BODY (not the signature):** `_current_symbol_table[arg]` for a
+  `List["StmtIR"]` param still legacy-resolves to `"list"`, so any BODY reference (even read-only) hits the
+  array-family paths across ~15 sites / 8 categories (truthiness, `len`, `.join`, subscript, slice, array-set,
+  augassign, for-iteration). And Why3 `list.List` is NOT indexable (`stmts[-1]` has no `Array.get` twin) → the
+  body needs a QUALITATIVELY different lowering: structural `match Nil -> … | Cons x rest -> …` recursion +
+  `variant { stmt_size … }` synthesis (S-C2/S-C3). That is the separate multi-session project, confirmed.
+
+**Net for the next session:** the type-family FOUNDATION (S-C1 theory + the `list <T>` param/field exit) is a
+**clean, bounded, corpus-byte-inert green light** (~185 lines, recipe in the two worktree spikes). The BODY
+conversion (S-C2 `match Nil/Cons` recursion + S-C3 variant synthesis, replacing array-indexed idioms) is the
+larger, well-scoped remainder. Both breakable walls (stmt-walker's 34 readers + term-rewriter's T-C2/T-C3)
+consume this same foundation.
+
+## 2quater. SELF-ANNOTATION-SUITE SAFETY GATE (2026-07-11, isolated worktree — VERDICT: BREAKS as gated)
+
+The §2ter probe proved corpus-byte-inertness, but the theory + `list <T>` exit are `@mutable_state`-gated and
+the MIRROR files ARE `@mutable_state`, so the theory emits into their OWN `.mlw`. Running the full
+self-annotation suite against the foundation edits found it **NOT mirror-proof-safe as currently gated** — TWO
+distinct root causes, both must be fixed before the foundation can land:
+1. **Name collision (emission-level break).** Three mirror files ALREADY model statement IR with their own
+   Why3 decls — `stmt_control_flow.py` (`type stmtir = int`, line 180), `statements.py`
+   (`type stmt_ir = … | SIf expr_ir int int | …` + `type stmtir = int`, line 173), `expressions.py`
+   (`type stmtir`, line 216). `_emit_stmtir_theory` emits `type stmtir` + `SIf/SPass/SExpr/SReturn/SWhile/
+   STry/EHandler` into EVERY `@mutable_state` file → `Symbol stmtir/SIf is already defined`.
+2. **Context bloat / OOM (TRUE regression).** `Module6_WhyMLTranspiler.py` went **PASS → FAIL** — 2 goals
+   `Unknown (why3: Out of memory)`, confirmed in single-threaded isolation (not concurrent flakiness). The
+   full theory (stmtir ADT + 4 mutually-recursive size fns + 2 `let rec lemma` + 3 corollary lemmas + forced
+   `list.List/Mem/Append` imports) inflates the shared-module SMT context enough to OOM previously-proving
+   goals. Fidelity gates unaffected (67/67 sync, 51/51 mirror). All OTHER green `@mutable_state` mirrors
+   (types/functions/ir_scanner/auto_trust/preamble/…) stayed green.
+
+**Two ADDED next-session requirements (beyond the `list <T>` param family + S-C2/S-C3 body work):**
+- **(G1) Narrow the trigger.** Emit the `stmtir` theory ONLY into a module that actually has a
+  `List["StmtIR"]` param/field — NOT all `@mutable_state`. (The `@mutable_state` gate is too coarse.)
+- **(G2) Collision guard + OOM-aware theory.** Guard against a file's own emitted `stmtir`/`stmt_ir`/`SIf`
+  (reserve a prefix, e.g. `_sw_stmtir`, or suppress when the name is already declared); and keep the emitted
+  theory LEAN (the OOM shows the 5-lemma bundle is too heavy for a large shared module — emit only the lemmas
+  a present walker actually needs, or a slimmer measure).
+
+**Net:** the foundation's three halves are now each measured — S-C1 theory (proves, byte-inert), the `list <T>`
+param family (bounded, byte-inert), and the mirror-emission safety (BREAKS as gated → needs G1+G2). The
+next-session build must land trigger-narrowing (G1) + collision/OOM guard (G2) BEFORE S-C1's theory can emit
+into the mirror, then S-C2/S-C3 for the body. Deferred with all gaps pinned.
+
 ## 2. First action — the EMITTER make-or-break spike (Gate S of the build)
 
 BEFORE any converter work, in a worktree, answer ONE question: **does PyCSL emit a valid, provable `stmtir`

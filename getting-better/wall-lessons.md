@@ -176,6 +176,20 @@ constructor). ONE shared foundation (`functions.py`'s `list <T>` param/field fam
 form) unblocks both. That is the pivotal next-session build; S-C1's theory-emission recipe is proven-ready and
 byte-inert, waiting on the param-family fix.
 
+**`list <T>` type-family probe + SUITE-SAFETY gate (2026-07-11):** (a) the `list <T>` param exit is BOUNDED +
+corpus-byte-inert (~185 lines, signature emits `list stmtir`); BUT (b) the **self-annotation-suite safety gate
+= BREAKS as gated** — the theory is `@mutable_state`-gated and the MIRROR files ARE `@mutable_state`, so it
+emits into their own `.mlw` and (1) COLLIDES with three files already declaring their own `type
+stmtir`/`stmt_ir`/`SIf` (`stmt_control_flow.py`, `statements.py`, `expressions.py`), and (2) OOMs
+`Module6_WhyMLTranspiler.py` (PASS→FAIL, 2 goals `Out of memory` — TRUE regression from the 5-lemma theory
+bloating the shared module). **Added next-session requirements: (G1) narrow the emit trigger to modules that
+actually contain a `List["StmtIR"]` param/field (not all `@mutable_state`); (G2) collision guard (reserved
+prefix / suppress-when-declared) + a LEAN theory (emit only the lemmas a present walker needs).** Meta-lesson:
+byte-inert-on-corpus ≠ safe — the mirror IS `@mutable_state`, so ANY `@mutable_state`-gated emitter feature
+must pass the FULL self-annotation suite (collision + OOM), not just the corpus byte-diff. All four foundation
+facets now measured (S-C1 proves+inert; `list <T>` param bounded+inert; mirror-emission needs G1+G2; body needs
+S-C2/S-C3) — deferred with every gap pinned.
+
 **Lesson (defer-with-pinned-gap kind):**
 > When a wall is oracle-proven BREAKABLE but the emitter build reveals a genuine multi-recognizer M2 gap, the
 > driver's win is the PINNED gap + a proven-ready foundation piece, NOT a forced conversion. Land nothing that
