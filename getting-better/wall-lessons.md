@@ -130,3 +130,26 @@ BOUNDARY, but the double-hit elevates it to Gate-W escalation for a definitive o
 > stmt/expr-tree WALKER helper in the mirror. If it does, it inherits the generic-tree-walk boundary (lesson 3)
 > — treat as feature-gated, not a cheap landing. `--fun`-proves-the-body ≠ file-proves (SL lesson 10 restated
 > for support helpers, not just siblings).
+
+**CENSUS (2026-07-11, read-only probe) — the stmt-walk gap unlock is WORTHWHILE (42 methods).** Measured the
+cluster the stmt-family typed-node ADT would unlock: **42 bucket-A recursive stmt-tree walkers** (iterate a
+stmt list AND recurse into nested `s["body"]`/`s["orelse"]`/`s["finalbody"]`/`handlers` children). Split:
+- **Schema 1 — dict-IR `StmtIR` sum: 34/42 (81%).** `core_ir_semantic.py` (8: `_noreturn_walk_stmts`,
+  `_final_walk_body`, `_final_check_stmt`, `_union_c8_walk`, `_pb_body/_pb_stmt`, `_cs_body/_cs_stmt`),
+  `ir_scanner.py` (20 — a dedicated "stateless recursive walkers over the IR dict tree" class: `uses_arrayset`,
+  `ends_with_return`, `find_assigned_vars`, `find_ghost_vars`, `has_continue`, `collect_user_exceptions`,
+  `has_early_return`, …), `types.py` (`_collect_tuple_var_assigns`, `_collect_array_var_assigns`), Module5
+  `_scan_2d_in_stmt`, `auto_trust._collect_map_typed_locals`, `ir_inline.inline_stmts`, and the giant
+  `statements._stmts_to_whyml`. KEY: the Python-side typed `StmtIR` sum ALREADY EXISTS
+  (`statements.py:stmt_from_dict`/`.to_dict()`, "ir-schema-spec.md §6 Phase B") — but handlers round-trip
+  `stmt.body`/`.orelse` back through `.to_dict()` into `List[Dict[str,Any]]` before recursing, which is
+  exactly where `subscript_get: int` vs `array int` bites. Data-model half built; the WhyML-lowerable typed
+  signature (`array stmtir` fields, no dict round-trip) is missing. ~7 constructors (If/While/For/Try/
+  ExceptHandler/Match/Case).
+- **Schema 2 — pure_ast attribute-node ADT: 8/42 (19%).** `ConcurrencyChecker._walk_body/_walk_stmt` +
+  `pure_ast._Unparser` (`visit_If/While/For/Try/TryStar`, `do_visit_try`) — attribute-based dataclass nodes,
+  a SEPARATE schema mirroring Python's `ast.AST` hierarchy.
+- Bucket B (~25, NOT this gap): generic `.values()`/`.items()` full-node reflection + `ast.walk`/`iter_child_nodes`
+  black-box walkers = the HARDER generic-Any gap (lesson 3), a different boundary.
+**VERDICT: escalate Schema 1 (34-method unlock, half-built) as a genuine Gate-W wall → report+oracle-spike
+cycle. `stmt-walker-wall.md`.**
