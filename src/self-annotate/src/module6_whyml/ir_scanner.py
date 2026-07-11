@@ -155,20 +155,30 @@ class IRScanner:
     def has_continue(stmts: List[int]) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def uses_continue(stmts: List[int]) -> bool:
+    def uses_continue(stmts: List[Dict[str, Any]]) -> bool:
+        for stmt in stmts:
+            if stmt["stmt"] == "Continue":
+                return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.uses_continue(stmt[key]):
+                    return True
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def uses_break(stmts: List[int]) -> bool:
+    def uses_break(stmts: List[Dict[str, Any]]) -> bool:
+        for stmt in stmts:
+            if stmt["stmt"] == "Break":
+                return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.uses_break(stmt[key]):
+                    return True
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
