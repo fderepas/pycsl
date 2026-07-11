@@ -103,3 +103,15 @@ likely hold further blockers past this. So _is_string_expr is NOT a clean -1 pos
 getattr-None-default-string recognizer next (and a full port-to-first-blocker sweep to enumerate the rest).
 Stays trusted. Reader-cluster remaining -1s all still need a NEW recognizer (nested-dict / getattr-None /
 A2 / A3-A4-U / stmt-walker).
+
+### _field_type_of measured (2026-07-10) — 2+ recognizers, Gap-C or-{} is the FIRST gate (before nested-dict)
+Ported _field_type_of (60-line ExprIR reader) on the scaffold. FIRST blocker (types.mlw:449) is NOT the
+nested-dict — it is the **Gap-C `or-{}` chain**: `receiver = attr_ir.get("value") or attr_ir.get("object")
+or {}` lowers to int-boolean nonsense (`if true||true then 1 else 0 || (const (None: option int))`), i.e.
+the `<emit_ir>.get("value") or <emit_ir>.get("object") or {}` first-non-None-node projection with an
+empty-dict sentinel is unrecognized. So _field_type_of needs, in order: (1) **Gap-C or-{} node-projection
+chain** recognizer, THEN (2) the **nested-dict** `self._record_types[gcls].get("whyml_name")` /
+`.get("field_types",{}).get(field)` (types.py:325/335), THEN getattr-self-field chains. A 2-3 recognizer
+build, NOT single-nested-dict. Still high-value (de-int-hashes _rhs_yields_array/_rhs_yields_map's Attribute
+branches) but the cost is 2-3 recognizers. Stays trusted. NOTE: the Gap-C or-{} recognizer is REUSABLE
+(the same `x.get(a) or x.get(b) or {}` idiom recurs across the emitter's node-reader family).
