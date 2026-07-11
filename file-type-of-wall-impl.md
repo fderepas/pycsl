@@ -24,7 +24,33 @@
 >   (option int)` value (Q1 → likely needs a minimal `RecordInfoView` view), but that gate is masked behind
 >   U and was not reached cleanly.
 >
-> **U design pinned (2026-07-10, pre-build investigation).** The make-or-break for U is the *declaration
+> **U BUILD 2026-07-10 — CORE MECHANISM VALIDATED; landing cascaded (§10.4 re-port + RecordInfoView typing).**
+Implemented U per the pinned design and it WORKS: (1) needs-scan via lazy registration — `_handle_return_stmt`
+registers `self._used_union_return_excs.add(func_ret)` when it emits `raise (Return<union> val)` for a
+`_union_*` return; (2) `Module6_WhyMLTranspiler` buffers `func_lines`, then emits `exception Return<union>
+<union>` for each registered name BETWEEN the type-decls (already in `out`) and the functions — solving the
+ordering constraint; (3) `_wrap_body_with_return_catch` gets the `with Return<union> r -> r` arm. RESULT:
+`exception Return_union__field_type_for_0` emitted correctly, and `_field_type_for`'s **union early-return
+blocker (was `types.mlw:421`) is CLEARED**. The core U mechanism is proven. But LANDING `_field_type_for`
+cascaded into two residuals, so the full increment was reverted (clean):
+- **§10.4 re-port cascade.** U edits TWO already-VERIFIED emitter methods — `_handle_return_stmt`
+  (stmt_control_flow.py) and `_wrap_body_with_return_catch` (statements.py). Their mirror copies then diverge
+  ("un-trusted mirror body != live"), so per §10.4 they must be re-ported to the mirror AND re-proven in the
+  same increment. Bounded but real (2 verified methods to re-verify with the new union arms).
+- **RecordInfoView nested-value-typing gap.** Declaring `RecordInfoView(TypedDict){whyml_name:str,
+  field_types:Dict[str,str]}` + retyping `_record_types_by_whyml_name: Dict[str, RecordInfoView]` did NOT
+  propagate: the field still emitted `map string (option int)` (the `Dict[str, <TypedDict>]` VALUE-type is
+  not recognized), and `recordinfoview.field_types` emitted `map int (option int)` not `map string (option
+  string)` (a `Dict[str,str]` FIELD inside a TypedDict-view is not string-typed). So `_field_type_for`'s
+  value read `info.get("field_types",{}).get(field)` still int-collapses (`types.mlw:432`). Needs a
+  nested-TypedDict-view value-type recognizer (Dict-of-view + view-with-typed-dict-field) — a separate
+  bounded build, distinct from U.
+**Refined:** `_field_type_for` = reverse index (byte-inert, validated) + U (core validated) + §10.4 re-port
+of the 2 methods + RecordInfoView nested-value-typing. U's hard part (the ordering) is SOLVED; the residuals
+are bounded and scoped. Next dedicated increment: land U's 3 emitter edits + the §10.4 re-port first (a real
+−0 infra that unblocks every Optional-multi-return method), THEN the RecordInfoView typing, THEN convert.
+
+**U design pinned (2026-07-10, pre-build investigation).** The make-or-break for U is the *declaration
 ordering* (the piece that sprawled last time). Measured from the emitted `types.mlw` of a union-returning
 function: **`exception Return int` at line 14 → type-decls → the per-function `type _union__field_type_for_0
 = Arm_0_0 string | Arm_0_None` at line 320 → `let …field_type_for … : _union__field_type_for_0` at line
