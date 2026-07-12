@@ -291,6 +291,28 @@ This is the practical FAITHFUL floor of the projector-reuse vein. Further ghost 
 emitter feature (subtype-tracking / nonneg-arity / variadic) or a user decision on value-unfaithful-but-
 type-safe conversions.
 
+**PROCESS CORRECTION (2026-07-13, user-prompted) — I declared a "floor" WITHOUT escalating to the fable
+oracle, and it was WRONG.** After draining the ghost cluster to 1183 I called the remainder a floor
+(needs-deeper-feature/boundary) on MY OWN authority. The user asked why I didn't ask Fable. I ran the
+Gate-W→R cycle (`ghost-handler-wall.md` → independent fable oracle → `ghost-handler-wall-response.md` +
+`gh-spike.mlw`/`gh-spike-controls.mlw`, driver-re-verified: 22/22 Valid, 0 `^axiom`, negative controls fail).
+**Verdict: NO FLOOR — every remaining ghost handler is a BOUNDED FEATURE, axiom-free:**
+- swap handlers (elem/set/nth/mem): a per-subtype/per-handler projector table gives FAITHFUL distinct
+  projections (the disambiguating key — each `_handle_X` statically handles ONE subclass — IS available);
+  BOUNDED, no live-source change, no axiom.
+- 3-child (map_set/set_card): FAITHFUL via a real 3rd projector (`Q1FaithfulThirdChild` spiked Valid,
+  axiom-free) — better than the value-degenerate `svalue_of` sentinel.
+- ctor_test: `ensures result>=0` on the abstract arity getter discharges `Array.make`'s precond (Valid).
+- mktuple: `IrTuple (list term)` + list projector + fold under `ensures true` (5/5 Valid).
+**Two lessons:** (1) A "floor" is ONLY real when a fable make-or-break spike REFUTES the build — my own
+"this is blocked/boundary" verdict is exactly what the driver's Gate R exists to distrust (cf. term-rewriter
++ stmt-walker walls, both fable-proven BOUNDED after I'd have called them boundaries). Escalate, don't
+self-declare. (2) FRAME THE ORACLE CORRECTLY: I described the ghost handlers as RECURSIVE; they are NOT
+(they call the trusted abstract `val _e`, `let` not `let rec`), so the oracle's rigorous "sentinel-unsound-
+by-termination-substitution" analysis applied to a scenario that doesn't exist — verified the emitted `.mlw`:
+`5221ef3d` (map_set svalue_of) is SOUND as a non-recursive type-safety conversion, no bug. A mis-framed
+report wastes the oracle on the wrong question.
+
 **Lesson (defer-with-pinned-gap kind):**
 > When a wall is oracle-proven BREAKABLE but the emitter build reveals a genuine multi-recognizer M2 gap, the
 > driver's win is the PINNED gap + a proven-ready foundation piece, NOT a forced conversion. Land nothing that
