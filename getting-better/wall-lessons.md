@@ -255,6 +255,22 @@ members characterized:** the ≥2-via-one-matcher tractable walkers are DRAINED.
 **Doctrine applied:** do NOT build a single-instance recognizer (facade risk) or grind bespoke +1 new-value-model
 machinery on the heavy file for diminishing return. The stmt-walker wall is at its recognizer-reuse floor.
 
+**GHOST-HANDLER cluster at floor (2026-07-12) — clean projector-reuse vein exhausted, 1226→1188 (−38).**
+~19 ghost expr-handlers converted via byte-inert emitter enablers (gating fix + `_EMIT_IR_NODE_ATTRS`/
+`_EMIT_IR_STR_ATTRS` name→projector maps reusing IrBinOp's left_of/right_of + name_of; NO emit_ir theory
+change, ledger held 3). REMAINING = BLOCKED on deeper features:
+- **elem/set + nth/mem/proj/ctor_test (7): BLOCKED on emitter subtype-tracking.** `_handle_attribute_expr`
+  (expressions.py:5059) sees only the attr NAME (`expr.get("attr")`), NOT the node's ExprIR SUBTYPE. A
+  name→projector map can't disambiguate position-SWAPPING names (`SetAddExpr(set,elem)` vs
+  `SetMemExpr(elem,set)` — `elem` is field-2 in one, field-1 in the other). Fixing needs the node subtype
+  threaded to the generic attr-lowering site (a deeper emitter feature) or ir_schema field renames (touches
+  live code — out of scope). A per-handler map would be a facade.
+- **map_set/set_card/str_sub/ctor_payload/ghost_copy_range/ghost_make (6): need a 3rd projector** (emit_ir
+  only has left_of/right_of for 2-child; a 3-child node needs a new projector, likely a theory-adjacent add).
+- **mktuple (1): variadic `elts`** — needs list-child handling.
+CAUTION for any future projector-table edit in expressions.py: it reroutes expressions.py's OWN mirror
+(BinOp/ArrayEq/Permutation handlers) → MUST re-prove expressions.py (~15-20min, the largest mirror file).
+
 **Lesson (defer-with-pinned-gap kind):**
 > When a wall is oracle-proven BREAKABLE but the emitter build reveals a genuine multi-recognizer M2 gap, the
 > driver's win is the PINNED gap + a proven-ready foundation piece, NOT a forced conversion. Land nothing that
