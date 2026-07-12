@@ -11,6 +11,7 @@ from ir_schema import (
     ArrayLitExpr, ForallExpr, ExistsExpr, MapValueIsExpr, VarExpr, FieldGetExpr,
     DictLitExpr, ListCompExpr, SetCompExpr, DictCompExpr, ForallItemsExpr,
     SetAddExpr, SetRemoveExpr, SetMemExpr, NthExpr, MemExpr, ExprIR,
+    MapSetExpr, SetCardExpr,
 )
 
 # Phase-B-expr: handlers migrated to accept a typed ExprIR node (rather than the
@@ -123,10 +124,14 @@ _EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard", "left", "r
 # since it is not a sub-node in the wire format) joins the STRING-attr table on the
 # same "reused projector, no theory change" footing as `var`/`base`/…; unambiguous
 # (only these two subclasses declare `arr`, both at field position 1).
+# ghost-handler-wall Q3a: `ctor` (CtorTestExpr/CtorPayloadExpr's str-typed
+# constructor-tag field) joins the table on the same footing — unambiguous
+# (only these two subclasses declare `ctor`, `_EMIT_IR_PROJ["ctor"]` already routes
+# the legacy wire-dict `.get("ctor")` reflection through the same `name_of`).
 _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
                       "label": "name_of", "name": "name_of", "func": "func_of",
                       "base": "name_of", "base1": "name_of", "base2": "name_of",
-                      "arr": "name_of"}
+                      "arr": "name_of", "ctor": "name_of"}
 # 2-child-cluster mini-M1 (following the orelse_of precedent verbatim): SUB-NODE-valued
 # attribute reads on a base-`ExprIR` emit_ir node for a 2-child ghost `ir_schema.ExprIR`
 # dataclass (`MapGetExpr(dict, key)`, `HasKeyExpr(dict, key)`, `MapRemoveExpr(dict, key)`,
@@ -179,18 +184,29 @@ _EMIT_IR_NODE_ATTRS = {"dict": "left_of", "key": "right_of", "head": "left_of", 
 # the subclass's OWN declared dataclass field order (idx0 -> left_of, idx1 ->
 # right_of, the same 2-slot convention as dict/key, head/tail, left/right,
 # lo/hi, size/default above), not hand-picked per attr name.
+# ghost-handler-wall Q2 faithful-3rd-child re-do (map_set/set_card,
+# ghost-handler-wall-response.md §2/§1.4, spiked axiom-free in
+# gh-spike.mlw::Q1FaithfulThirdChild): idx2 -> `ter_thd_of`, the 3rd
+# projector over the new GENERIC `IrTer3` constructor (preamble.py
+# `_emit_exprir_theory`) — same idx0/idx1/idx2 schema-derived convention,
+# extended by one slot. `MapSetExpr(dict, key, value)` and
+# `SetCardExpr(set, lo, hi)` are the only 3-field ExprIR subclasses in the
+# swap-family table, so idx0/idx1 route through `ter_fst_of`/`ter_snd_of`
+# (NOT the shared left_of/right_of — a single node cannot be BOTH an IrBinOp
+# and an IrTer3, so left_of/right_of would sentinel on an IrTer3-shaped node;
+# ter_fst_of/ter_snd_of are the IrTer3-native equivalents).
 _EMIT_IR_BASE_FIELDS = {f.name for f in dataclasses.fields(ExprIR)}
 
 
-def _schema_swap_projectors(cls) -> Dict[str, str]:
+def _schema_swap_projectors(cls, slots: Tuple[str, ...] = ("left_of", "right_of")) -> Dict[str, str]:
     # `dataclasses.fields(cls)` includes INHERITED base-class fields (`kind`,
-    # from `IRNode`) ahead of the subclass's own — exclude them so index 0/1
+    # from `IRNode`) ahead of the subclass's own — exclude them so index 0/1/…
     # land on the subclass's OWN declared fields (`set`/`elem`, `elem`/`set`,
-    # `list`/`index`, `elem`/`list`), matching the field order the report and
-    # the live handler bodies actually read.
+    # `list`/`index`, `elem`/`list`, `dict`/`key`/`value`, `set`/`lo`/`hi`),
+    # matching the field order the report and the live handler bodies
+    # actually read.
     _own = [f for f in dataclasses.fields(cls) if f.name not in _EMIT_IR_BASE_FIELDS]
-    _slots = ("left_of", "right_of")
-    return {f.name: _slots[i] for i, f in enumerate(_own) if i < len(_slots)}
+    return {f.name: slots[i] for i, f in enumerate(_own) if i < len(slots)}
 
 
 _EMIT_IR_HANDLER_SUBTYPE = {
@@ -200,10 +216,24 @@ _EMIT_IR_HANDLER_SUBTYPE = {
     "_handle_nth_expr": NthExpr,
     "_handle_mem_expr": MemExpr,
 }
+# ghost-handler-wall Q2 faithful-3rd-child re-do: the two 3-field ghost
+# handlers get their OWN 3-slot sub-table (idx0/idx1/idx2 -> ter_fst_of/
+# ter_snd_of/ter_thd_of), kept separate from `_EMIT_IR_HANDLER_SUBTYPE`
+# above (whose 2-slot subclasses must keep resolving through left_of/
+# right_of — the ALREADY-faithful, byte-identical mapping for the swap
+# family) so extending this table never perturbs the 2-child one.
+_EMIT_IR_HANDLER_SUBTYPE_3 = {
+    "_handle_map_set_expr": MapSetExpr,
+    "_handle_set_card_expr": SetCardExpr,
+}
 _EMIT_IR_HANDLER_ATTR_PROJ = {
     _hname: _schema_swap_projectors(_hcls)
     for _hname, _hcls in _EMIT_IR_HANDLER_SUBTYPE.items()
 }
+_EMIT_IR_HANDLER_ATTR_PROJ.update({
+    _hname: _schema_swap_projectors(_hcls, ("ter_fst_of", "ter_snd_of", "ter_thd_of"))
+    for _hname, _hcls in _EMIT_IR_HANDLER_SUBTYPE_3.items()
+})
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -4033,6 +4063,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _rv = self._expr_to_whyml(_rcv, local_refs or set(),
                                                   invariant_ctx, subst)
                         return f"({_proj} {_rv})"
+        # ghost-handler-wall Q3a (self-tcb-reduction, ghost-handler-wall-response.md
+        # §Q3a/gh-spike.mlw::Q3Arity): a bare `.get("arity", <default>)` call (2 args)
+        # whose receiver the tool cannot resolve to a concrete dict type — e.g. a
+        # constructor-registry chain `X.get(ctor, {}).get("arity", 0)`, which the
+        # generic unannotated-callee fallback would otherwise collapse to a bare,
+        # UNCONSTRAINED opaque `get_2` shared by every other unresolved 2-arg `.get`
+        # call in the file — is DOMAIN-KNOWN-NONNEGATIVE: an "arity" is a
+        # constructor/argument COUNT, never negative, by the codebase's own registry
+        # convention (populated from `len(payload)` / a literal >= 0 everywhere
+        # `_constructors[...]["arity"]` is built). Keyed by the LITERAL KEY STRING
+        # (not by handler/function identity — general and schema-driven; fires for
+        # ANY `.get("arity", ...)` call the tool can't type, not one handler), this
+        # gives the opaque getter its own DISTINCT abstract op with a genuine
+        # `ensures { result >= 0 }` (an assumed, trusted-stub-shaped contract — same
+        # footing as any other abstract `val`, and scoped OFF the shared `get_2` used
+        # by unrelated `.get(...)` calls), so a downstream `Array.make <arity> ...`
+        # (the WhyML lowering of Python's `[x] * arity`) discharges its `0 <= n`
+        # precondition instead of failing on an unconstrained opaque int.
+        if func_name == "get" and len(args) == 2:
+            _k0 = (expr.get("args") or [None])[0]
+            if isinstance(_k0, dict) and _k0.get("type") == "String" and _k0.get("value") == "arity":
+                self._add_abstract_op(
+                    "val get_arity_field (x0: int) (x1: int) : int\n"
+                    "    ensures { result >= 0 }")
+                return (f"(get_arity_field {self._coerce_to_int(args[0])} "
+                        f"{self._coerce_to_int(args[1])})")
         if "." not in func_name:
             return None
         recv, method = func_name.rsplit(".", 1)

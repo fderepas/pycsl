@@ -56,12 +56,15 @@ class GhostSpecOpsMixin:
     def _handle_proj_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_ctor_test_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_ctor_test_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        x = self._e({"type": "Var", "name": node.var}, lr)
+        ctor = node.ctor
+        arity = getattr(self, "_constructors", {}).get(ctor, {}).get("arity", 0)
+        binders = (" " + " ".join(["_"] * arity)) if arity else ""
+        return f"(match {x} with {ctor}{binders} -> true | _ -> false end)"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

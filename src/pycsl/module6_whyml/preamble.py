@@ -3273,14 +3273,21 @@ class PreambleEmissionMixin:
             " tier3-p1 T3.1.1: extended with IrBinOp (op, left, right) — the EXPR-family"
             " operator node — realizing the Phase-0 spike design in the live emitter."
             " post-m1-census.md orelse_of mini-M1: extended with IrIfExpr (body, orelse) —"
-            " the IfExpr ternary node — following the IrBinOp precedent verbatim. *)",
+            " the IfExpr ternary node — following the IrBinOp precedent verbatim."
+            " ghost-handler-wall Q2/gh-spike.mlw::Q1FaithfulThirdChild: extended with"
+            " IrTer3 (a, b, c) — a GENERIC 3-emit_ir-child node, following the"
+            " IrBinOp/IrIfExpr precedent verbatim — for the 3-child ghost handlers"
+            " (MapSetExpr(dict,key,value), SetCardExpr(set,lo,hi)) whose 3rd child"
+            " previously fell through to the `svalue_of` sentinel (sound but"
+            " value-degenerate; see ghost-handler-wall-response.md §1.4/§2). *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrRaw string | IrOther string"
             " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
             " | IrTuple emit_ir emit_ir"
             " | IrBinOp string emit_ir emit_ir"
             " | IrFieldGet string string"
-            " | IrIfExpr emit_ir emit_ir",
+            " | IrIfExpr emit_ir emit_ir"
+            " | IrTer3 emit_ir emit_ir emit_ir",
             "",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
             " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
@@ -3300,6 +3307,7 @@ class PreambleEmissionMixin:
             "    | IrBinOp _ _ _ -> \"BinOp\"",
             "    | IrFieldGet _ _ -> \"FieldGet\"",
             "    | IrIfExpr _ _ -> \"IfExpr\"",
+            "    | IrTer3 _ _ _ -> \"Ter3\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3342,6 +3350,12 @@ class PreambleEmissionMixin:
             "  let function is_fieldget (e: emit_ir) : bool =",
             "    match e with IrFieldGet _ _ -> true | _ -> false end",
             "",
+            "  (* ghost-handler-wall Q2: the IrTer3 constructor DISCRIMINANT, following"
+            " is_binop/is_ifexpr verbatim — a match-based bool that EXCLUDES the IrOther"
+            " catch-all, which is what makes the size-decrease laws (below) hold. *)",
+            "  let function is_ter3 (e: emit_ir) : bool =",
+            "    match e with IrTer3 _ _ _ -> true | _ -> false end",
+            "",
             "  (* tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections. `op_of` reads the"
             " operator STRING leaf; `left_of`/`right_of` project the SUB-NODES. Total over"
             " the sum (a non-BinOp reads the empty string / the IrOther \"\" sentinel). *)",
@@ -3363,6 +3377,23 @@ class PreambleEmissionMixin:
             "  let function orelse_of (e: emit_ir) : emit_ir =",
             "    match e with IrIfExpr _ o -> o | _ -> IrOther \"\" end",
             "",
+            "  (* ghost-handler-wall Q2 (self-tcb-reduction, ghost-handler-wall-response.md"
+            " §2/gh-spike.mlw::Q1FaithfulThirdChild): IrTer3 field projections, following"
+            " left_of/right_of/body_of/orelse_of verbatim — a GENERIC 3-emit_ir-child node"
+            " reused by every 3-child ghost handler (not one constructor per handler)."
+            " `ter_fst_of`/`ter_snd_of`/`ter_thd_of` project the 1st/2nd/3rd sub-node in"
+            " declared dataclass field order (the same idx0/idx1/idx2 convention"
+            " `_schema_swap_projectors` already uses for the 2-child swap family)."
+            " Total over the sum (a non-Ter3 reads the IrOther \"\" sentinel). *)",
+            "  let function ter_fst_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTer3 a _ _ -> a | _ -> IrOther \"\" end",
+            "",
+            "  let function ter_snd_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTer3 _ b _ -> b | _ -> IrOther \"\" end",
+            "",
+            "  let function ter_thd_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTer3 _ _ c -> c | _ -> IrOther \"\" end",
+            "",
             "  (* tier3-p1 T3.1.4 (spike LAW 3): the structural subtree-size measure. The"
             " `variant { e }` is STRUCTURAL (recurses on pattern-bound sub-terms), so it"
             " discharges natively here. The `ensures { result >= 1 }` — proven at this"
@@ -3378,6 +3409,7 @@ class PreambleEmissionMixin:
             "    | IrTuple a b -> 1 + size a + size b",
             "    | IrAttr o _ -> 1 + size o",
             "    | IrCall _ a _ -> 1 + size a",
+            "    | IrTer3 a b c -> 1 + size a + size b + size c",
             "    | _ -> 1",
             "    end",
             "",
@@ -3398,6 +3430,17 @@ class PreambleEmissionMixin:
             " the injected `variant { size node }`. *)",
             "  lemma size_ifexpr_body_dec : forall e: emit_ir. is_ifexpr e -> size (body_of e) < size e",
             "  lemma size_ifexpr_orelse_dec : forall e: emit_ir. is_ifexpr e -> size (orelse_of e) < size e",
+            "",
+            "  (* ghost-handler-wall Q2: the guarded size-DECREASE laws for IrTer3 — each of"
+            " the 3 sub-nodes is strictly smaller than the node. PROVEN (no axiom) by case"
+            " analysis on the sum + `size`'s `result >= 1`, following size_left_dec/"
+            " size_right_dec/size_ifexpr_body_dec verbatim. Not required by the two"
+            " NON-recursive consumers (map_set/set_card just read each child once), but"
+            " kept for parity with every other multi-child constructor's projector triple"
+            " and to pre-clear any future recursive walker over IrTer3. *)",
+            "  lemma size_ter_fst_dec : forall e: emit_ir. is_ter3 e -> size (ter_fst_of e) < size e",
+            "  lemma size_ter_snd_dec : forall e: emit_ir. is_ter3 e -> size (ter_snd_of e) < size e",
+            "  lemma size_ter_thd_dec : forall e: emit_ir. is_ter3 e -> size (ter_thd_of e) < size e",
             "",
             "  let function name_of (e: emit_ir) : string =",
             "    match e with IrVar n -> n | IrAttr _ a -> a | _ -> \"\" end",
