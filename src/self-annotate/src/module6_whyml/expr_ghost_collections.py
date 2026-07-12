@@ -33,12 +33,14 @@ class GhostCollectionOpsMixin:
         # option-type design: absent keys map to None
         return "(const (None: option int))"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_map_get_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_map_get_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        d = self._e(node.dict, lr)
+        k = self._e(node.key, lr)
+        d_r = self._deref(d)
+        return f"(match Map.get {d_r} {k} with | Some v_ -> v_ | None -> 0 end)"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -54,12 +56,15 @@ class GhostCollectionOpsMixin:
     def _handle_map_eq_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_has_key_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_has_key_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        # option-type design: key is present iff its value is Some (not None)
+        d = self._e(node.dict, lr)
+        k = self._e(node.key, lr)
+        d_r = self._deref(d)
+        return f"(Map.get {d_r} {k} <> None)"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -144,12 +149,14 @@ class GhostCollectionOpsMixin:
     def _handle_nil_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
         return "Nil"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_cons_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_cons_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        h = self._e(node.head, lr)
+        t = self._e(node.tail, lr)
+        t_r = self._deref(t)
+        return f"(Cons {h} {t_r})"
 
     #@ requires True
     #@ ensures True

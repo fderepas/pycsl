@@ -119,6 +119,22 @@ _EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard", "left", "r
 _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
                       "label": "name_of", "name": "name_of", "func": "func_of",
                       "base": "name_of", "base1": "name_of", "base2": "name_of"}
+# 2-child-cluster mini-M1 (following the orelse_of precedent verbatim): SUB-NODE-valued
+# attribute reads on a base-`ExprIR` emit_ir node for a 2-child ghost `ir_schema.ExprIR`
+# dataclass (`MapGetExpr(dict, key)`, `HasKeyExpr(dict, key)`, `MapRemoveExpr(dict, key)`,
+# `ConsExpr(head, tail)`) → the 1st declared dataclass field projects via `left_of`, the 2nd
+# via `right_of` — REUSING IrBinOp's existing projectors + proven size-decrease lemmas
+# (`preamble.py::_emit_exprir_theory`), not a new constructor. Each entry's position is
+# UNAMBIGUOUS across every `ir_schema.ExprIR` subclass that declares it (`dict` is always the
+# 1st field, `key` always the 2nd, across MapGetExpr/MapSetExpr/HasKeyExpr/MapRemoveExpr;
+# `head`/`tail` only appear on ConsExpr) — unlike `elem`/`set`/`list`, whose position SWAPS
+# between subclasses (`SetAddExpr(set, elem)` vs `SetMemExpr(elem, set)`; `NthExpr(list, ...)`
+# vs `MemExpr(elem, list)`), so those are deliberately NOT added here (would need a
+# per-subclass disambiguator, out of scope for this increment). Checked in
+# `_handle_attribute_expr` before the `svalue_of` default, so `node.dict`/`node.key` (and
+# `node.head`/`node.tail`) emit as DISTINCT terms instead of colliding on the single
+# `svalue_of` catch-all.
+_EMIT_IR_NODE_ATTRS = {"dict": "left_of", "key": "right_of", "head": "left_of", "tail": "right_of"}
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -5124,6 +5140,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # list (`args_of`, an `array emit_ir`), so `for elt in node.elts` iterates it.
             if attr in ("elts", "parts", "args", "captures"):
                 return f"(args_of {_os})"
+            # 2-child-cluster mini-M1: an unambiguous 2-child-dataclass sub-node attr
+            # (`node.dict`/`node.key`/`node.head`/`node.tail`) → its DISTINCT left_of/right_of
+            # projector, avoiding the svalue_of collision when a handler reads both children
+            # of the SAME node (e.g. `_handle_map_get_expr`'s `node.dict` and `node.key`).
+            if attr in _EMIT_IR_NODE_ATTRS:
+                return f"({_EMIT_IR_NODE_ATTRS[attr]} {_os})"
             return f"(svalue_of {_os})"
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
         # cleared-array.md S2: in a SPEC/logic context (a contract or a
