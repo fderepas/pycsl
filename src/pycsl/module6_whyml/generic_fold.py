@@ -2583,6 +2583,151 @@ def _match_echo_arm(stmt: Any, stmtv: str, acc: str, fname: str,
     return tag if _match_union_rec_field(body[0], acc, fname, extra, stmtv, "body") else None
 
 
+# ---- G-set-accumulate-trywalk (`collect_user_exceptions`) -------------------
+#
+# A fourth loop-body shape: after the optional simple add-arm, an OPTIONAL
+# additional arm gated on a distinct tag whose body is `for <h> in
+# <stmtv>.get("<key>", []): <exc-split-add chain>; <acc> |= self(<h>.get("<key2>",
+# [])[, extra...])` — i.e. a nested per-element walk (over e.g. a `Try`'s
+# `handlers` list) that both (a) ADDS a value derived from a nested field
+# (`h.get("exc_type")`, split/stripped into pieces) and (b) self-recurses into
+# a nested field of each element (`h.get("body")`). Under `ensures True`
+# neither needs separate emission: (a) is a value fact the certified contract
+# does not need (same scope-cut doctrine as the chain add-arm's dropped
+# transform — insight C), and (b) is already a SOUND SUPERSET of what the
+# standard full-subtree `n__d`/`n__v` OR-walk covers (it descends into EVERY
+# dict field, including a nested list-of-dicts under an arbitrary key, so the
+# handler-body recursion is redundant with the general walk exactly like an
+# echo-arm's contribution). So this arm is validated as SHAPE ONLY
+# (fail-closed) and contributes NOTHING to `emit_stmt_setfold_group` beyond
+# what the existing `direct`/`chain`/`value_guarded` pre-action (from the
+# arm ahead of it) already emits — no new WhyML theory, no new pre_action
+# kind, no new reader.
+
+def _match_stmt_direct_add_arm(stmt: Any, stmtv: str, acc: str) -> Optional[Dict[str, Any]]:
+    """Simple compound-guarded add-arm (`collect_user_exceptions`'s first
+    arm):
+        if <stmtv>.get("stmt") == "<TAG>" and <stmtv>.get("<key>"):
+            <acc>.add(<field-ref-on-stmt>)
+    (Subscript or `.get()` field-ref, either syntactic form.) The truthy
+    second conjunct is a value fact already subsumed by the `direct`
+    emission's `option`-match (an absent/falsy key reads `None` -> `const
+    false` regardless), so only the SHAPE — including that the truthy-tested
+    key equals the add source — is validated. Returns {kind: "direct",
+    outer_tag, add_key} or None (fail-closed)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    conjuncts = _flatten_and(stmt.get("test", {}))
+    if len(conjuncts) != 2:
+        return None
+    tag = _match_stmt_tag_test(conjuncts[0], stmtv)
+    if tag is None:
+        return None
+    truthy_key = _match_field_ref(conjuncts[1], stmtv)
+    if truthy_key is None:
+        return None
+    add_key = _match_elif_add_body(stmt.get("body", []), stmtv, acc)
+    if add_key is None or add_key != truthy_key:
+        return None
+    return {"kind": "direct", "outer_tag": tag, "add_key": add_key}
+
+
+def _match_trywalk_exc_block(assign: Any, ifblock: Any, hvar: str, acc: str) -> bool:
+    """`<v> = <hvar>.get("<key>"); if <v>: for <ep> in <v>.split("<sep>"):
+        <ep> = <ep>.strip(); if <ep>: <acc>.add(<ep>)` — a value-DROPPED
+    split/strip/truthy-add chain (the exact pieces are a value fact `ensures
+    True` does not need); only the SHAPE is validated, fail-closed."""
+    if not (isinstance(assign, dict) and assign.get("stmt") == "Assign"):
+        return False
+    v = assign.get("target")
+    if not isinstance(v, str) or v in (hvar, acc):
+        return False
+    if _match_get_call(assign.get("value", {}), hvar) is None:
+        return False
+    if not (isinstance(ifblock, dict) and ifblock.get("stmt") == "If" and not ifblock.get("orelse")):
+        return False
+    if not _is_var(ifblock.get("test"), v):
+        return False
+    ibody = ifblock.get("body", [])
+    if len(ibody) != 1:
+        return False
+    loop = ibody[0]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For" and not loop.get("orelse")):
+        return False
+    it = loop.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call" and it.get("func") == f"{v}.split"
+            and len(it.get("args", [])) == 1 and _is_string(it["args"][0]) is not None):
+        return False
+    epvar = loop.get("target")
+    lb2 = loop.get("body", [])
+    if not isinstance(epvar, str) or epvar in (v, hvar, acc) or len(lb2) != 2:
+        return False
+    stripasg, addif = lb2
+    if not (isinstance(stripasg, dict) and stripasg.get("stmt") == "Assign"
+            and stripasg.get("target") == epvar):
+        return False
+    sv = stripasg.get("value", {})
+    if not (isinstance(sv, dict) and sv.get("type") == "Call" and sv.get("func") == f"{epvar}.strip"
+            and not sv.get("args")):
+        return False
+    if not (isinstance(addif, dict) and addif.get("stmt") == "If" and not addif.get("orelse")):
+        return False
+    if not _is_var(addif.get("test"), epvar):
+        return False
+    ab = addif.get("body", [])
+    if len(ab) != 1:
+        return False
+    a0 = ab[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Expr"):
+        return False
+    call = a0.get("value", {})
+    return (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1
+            and _is_var(call["args"][0], epvar))
+
+
+def _match_stmt_trywalk_arm(stmt: Any, stmtv: str, acc: str, fname: str,
+                            extra: List[str]) -> Optional[str]:
+    """Optional trywalk-arm:
+        if <stmtv>.get("stmt") == "<TAG>":
+            for <h> in <stmtv>.get("<key1>", []):
+                <exc-split-add chain>            # _match_trywalk_exc_block
+                <acc> |= self(<h>.get("<key2>", [])[, extra...])
+    Every key (`TAG`, `key1`, `key2`) is read off the IR, not hardcoded.
+    Returns the matched tag or None (fail-closed)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if tag is None:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return None
+    loop = body[0]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For" and not loop.get("orelse")):
+        return None
+    if _match_get_call(loop.get("iter", {}), stmtv) is None:
+        return None
+    hvar = loop.get("target")
+    if not isinstance(hvar, str) or hvar in (acc, stmtv) or hvar in extra:
+        return None
+    lb = loop.get("body", [])
+    if len(lb) != 3:
+        return None
+    assign, ifblock, unionstmt = lb
+    if not _match_trywalk_exc_block(assign, ifblock, hvar, acc):
+        return None
+    if not (isinstance(unionstmt, dict) and unionstmt.get("stmt") == "AugAssign"
+            and unionstmt.get("target") == acc and unionstmt.get("op") == "|"):
+        return None
+    uargs = _match_stmt_union_call(unionstmt.get("value", {}), acc, fname, extra)
+    if uargs is None:
+        return None
+    if _match_get_call(uargs[0], hvar) is None:
+        return None
+    return tag
+
+
 def recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Fail-closed match of the G-set-accumulate-multiway statement-tree
     Set[str] fold (see the module note above). Returns
@@ -2650,9 +2795,18 @@ def _recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     maybe_pre = _match_stmt_add_arm(lbody[0], stmtv, acc, extra)
     if maybe_pre is None:
         maybe_pre = _match_chain_add_arm(lbody[0], stmtv, acc)
+    if maybe_pre is None:
+        maybe_pre = _match_stmt_direct_add_arm(lbody[0], stmtv, acc)
     if maybe_pre is not None:
         pre = maybe_pre
         idx = 1
+
+    # Optional trywalk-arm (`collect_user_exceptions`): a nested per-handler
+    # walk between the simple add-arm and the required body/orelse descend
+    # loop. Validated as SHAPE ONLY — see the G-set-accumulate-trywalk note
+    # above — and contributes no separate emission.
+    if idx < len(lbody) and _match_stmt_trywalk_arm(lbody[idx], stmtv, acc, fname, extra) is not None:
+        idx += 1
 
     if idx >= len(lbody) or not _match_stmt_descend_loop(lbody[idx], stmtv, acc, fname, extra):
         return None

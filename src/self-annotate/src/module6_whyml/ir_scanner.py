@@ -234,13 +234,28 @@ class IRScanner:
                     return True
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def collect_user_exceptions(stmts: List[int]) -> int:
-        return set()
+    def collect_user_exceptions(stmts: List[Dict[str, Any]]) -> Set[str]:
+        result = set()
+        for stmt in stmts:
+            if stmt.get("stmt") == "Raise" and stmt.get("exc_type"):
+                result.add(stmt["exc_type"])
+            if stmt.get("stmt") == "Try":
+                for h in stmt.get("handlers", []):
+                    exc = h.get("exc_type")
+                    if exc:
+                        for ep in exc.split("|"):
+                            ep = ep.strip()
+                            if ep:
+                                result.add(ep)
+                    result |= IRScanner.collect_user_exceptions(h.get("body", []))
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    result |= IRScanner.collect_user_exceptions(stmt[key])
+        return result
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
