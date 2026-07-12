@@ -214,6 +214,28 @@ S-C2/S-C3) — deferred with every gap pinned.
   hard, unbuilt core — an executor under count-pressure routes around it via a facade. The genuine build is
   the emit_ir-ADT-extension to statements (lesson 8's deferred stmt-family), NOT a per-method hand-lowering.
 
+**Stmt-walker campaign (2026-07-12, 8h runs) — recognizer-reuse breakthrough draining the cluster.**
+1226→1211 via general, certified-machinery recognizers (each triple-plane gated, ledger held at 3, zero
+facades, corpus always byte-inert). Landed recognizers in `generic_fold.py`: `recognize_bool_existence`
+(generalized to any-tag + compound-guard + inline-if-descend: uses_arrayset/for/continue/break/ghost_type,
+has_continue), `recognize_stmt_setfold` (3 sub-shapes value_guarded/direct/chain: find_lambda_vars/
+record_vars/ghost_vars/append_targets), `recognize_void_dispatch` (_pb_body/_cs_body/_final_walk_body),
+`recognize_void_generic_descend` (_pb_descend/_cs_descend). See [[stmt_walker_recognizer_breakthrough]].
+
+**COUPLING/ORDERING FINDING (_pb_stmt/_cs_stmt BLOCKED — a boundary given current emission):** the
+multiway-context twins `_pb_stmt`/`_cs_stmt` cannot be converted faithfully BECAUSE the already-landed
+void-family siblings (`_pb_body` via `recognize_void_dispatch`, `_pb_descend` via generic-descend) pass
+`_pb_stmt` a bare opaque `int` / literal `0` (the sound "trusted callee can't observe it" handle). Why3
+pins `_pb_stmt`'s signature to `(s: int)` across the module → a scalar with NO projectable dict structure,
+so its 4-arm dispatch's field reads (`s.get("invariants")`/`variants`/`body`) can't be lowered. The 3
+escapes all violate discipline: re-emit siblings (changes verified contracts), an int↔pyval decode theory
+(new axiom), or fabricate constant trip counts (a REJECTED facade, per the increment-#1 lesson). **Lesson:
+converting a tree-walker's DESCEND/BODY siblings with the opaque-handle trick FORECLOSES faithfully
+converting the sibling that NEEDS the real subject structure (the multiway dispatcher). Order matters — a
+dispatcher that projects real fields must be converted with a pyval subject BEFORE (or together with) its
+callers, or its callers' opaque-int emission makes it a boundary.** For now `_pb_stmt`/`_cs_stmt` = boundary
+(reversible only by a larger increment that re-emits the whole `_pb_*`/`_cs_*` family with a pyval subject).
+
 **Lesson (defer-with-pinned-gap kind):**
 > When a wall is oracle-proven BREAKABLE but the emitter build reveals a genuine multi-recognizer M2 gap, the
 > driver's win is the PINNED gap + a proven-ready foundation piece, NOT a forced conversion. Land nothing that
