@@ -49,12 +49,16 @@ class GhostCollectionOpsMixin:
     def _handle_map_set_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_map_eq_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_map_eq_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.left, lr)
+        r = self._e(node.right, lr)
+        l_r = self._deref(l)
+        r_r = self._deref(r)
+        # Why3 forall uses '.' as body separator, not ','
+        return f"(forall k_: int. Map.get {l_r} k_ = Map.get {r_r} k_)"
 
     #@ requires True
     #@ ensures True
@@ -66,12 +70,14 @@ class GhostCollectionOpsMixin:
         d_r = self._deref(d)
         return f"(Map.get {d_r} {k} <> None)"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_map_remove_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_map_remove_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        d = self._e(node.dict, lr)
+        k = self._e(node.key, lr)
+        d_r = self._deref(d)
+        return f"(Map.set {d_r} {k} None)"
 
     #@ requires True
     #@ ensures True
@@ -101,26 +107,39 @@ class GhostCollectionOpsMixin:
     def _handle_set_mem_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_union_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_union_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.left, lr)
+        r = self._e(node.right, lr)
+        l_r = self._deref(l)
+        r_r = self._deref(r)
+        v = "_k_su"
+        # Use parenthesised parameter for validity in both program and spec contexts
+        return f"(fun ({v}: int) -> (Map.get {l_r} {v}) || (Map.get {r_r} {v}))"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_inter_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_inter_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.left, lr)
+        r = self._e(node.right, lr)
+        l_r = self._deref(l)
+        r_r = self._deref(r)
+        v = "_k_si"
+        return f"(fun ({v}: int) -> (Map.get {l_r} {v}) && (Map.get {r_r} {v}))"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_diff_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_diff_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.left, lr)
+        r = self._e(node.right, lr)
+        l_r = self._deref(l)
+        r_r = self._deref(r)
+        v = "_k_sd"
+        return f"(fun ({v}: int) -> (Map.get {l_r} {v}) && not (Map.get {r_r} {v}))"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -129,19 +148,28 @@ class GhostCollectionOpsMixin:
     def _handle_set_card_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_subset_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_subset_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.left, lr)
+        r = self._e(node.right, lr)
+        l_r = self._deref(l)
+        r_r = self._deref(r)
+        v = "_k_ss"
+        return f"(forall {v}: int, Map.get {l_r} {v} -> Map.get {r_r} {v})"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_eq_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_eq_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.left, lr)
+        r = self._e(node.right, lr)
+        l_r = self._deref(l)
+        r_r = self._deref(r)
+        v = "_k_se"
+        # Why3 forall uses '.' as body separator, not ','
+        return f"(forall {v}: int. Map.get {l_r} {v} = Map.get {r_r} {v})"
 
     #@ requires True
     #@ ensures True
@@ -197,11 +225,15 @@ class GhostCollectionOpsMixin:
     def _handle_mem_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_append_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_append_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.left, lr)
+        r = self._e(node.right, lr)
+        l_r = self._deref(l)
+        r_r = self._deref(r)
+        # Why3 list.Append exports '(++)', not 'List.(++)'
+        return f"({l_r} ++ {r_r})"
 
 

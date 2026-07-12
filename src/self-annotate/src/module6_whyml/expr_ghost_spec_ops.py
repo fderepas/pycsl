@@ -70,12 +70,14 @@ class GhostSpecOpsMixin:
     def _handle_ctor_payload_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_strconcat_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_strconcat_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._expr_to_whyml_string_ctx(node.left.to_dict(), lr)
+        r = self._expr_to_whyml_string_ctx(node.right.to_dict(), lr)
+        # Why3 string.String exports 'concat' (not '^' or 'String.(^)')
+        return f"(concat {l} {r})"
 
     #@ requires True
     #@ ensures True
@@ -91,12 +93,11 @@ class GhostSpecOpsMixin:
     def _handle_str_sub_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_ghost_copy_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_ghost_copy_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        return f"(Array.copy {node.arr})"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -116,9 +116,15 @@ _EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard", "left", "r
 # (`node.kind`/`node.var`/`node.op`/…, where the handler annotates `node: "ExprIR"` but accesses a
 # concrete subclass's str field) → the discriminant/name projection. Non-listed attrs fall to the
 # `svalue_of` sub-node default. @mutable_state-gated in `_handle_attribute_expr`/`_is_string_expr`.
+# ghost-handler-cluster batch drain C: `arr` (GhostCopyExpr/GhostCopyRangeExpr's
+# str-typed array-variable-name field, embedded directly — not through `self._e`,
+# since it is not a sub-node in the wire format) joins the STRING-attr table on the
+# same "reused projector, no theory change" footing as `var`/`base`/…; unambiguous
+# (only these two subclasses declare `arr`, both at field position 1).
 _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
                       "label": "name_of", "name": "name_of", "func": "func_of",
-                      "base": "name_of", "base1": "name_of", "base2": "name_of"}
+                      "base": "name_of", "base1": "name_of", "base2": "name_of",
+                      "arr": "name_of"}
 # 2-child-cluster mini-M1 (following the orelse_of precedent verbatim): SUB-NODE-valued
 # attribute reads on a base-`ExprIR` emit_ir node for a 2-child ghost `ir_schema.ExprIR`
 # dataclass (`MapGetExpr(dict, key)`, `HasKeyExpr(dict, key)`, `MapRemoveExpr(dict, key)`,
@@ -134,7 +140,15 @@ _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
 # `_handle_attribute_expr` before the `svalue_of` default, so `node.dict`/`node.key` (and
 # `node.head`/`node.tail`) emit as DISTINCT terms instead of colliding on the single
 # `svalue_of` catch-all.
-_EMIT_IR_NODE_ATTRS = {"dict": "left_of", "key": "right_of", "head": "left_of", "tail": "right_of"}
+# ghost-handler-cluster batch drain: `left`/`right` extend the same table. Every
+# `ir_schema.ExprIR` subclass that declares BOTH names declares `left` immediately before
+# `right` (verified across all 11: BinOpExpr, StrConcatExpr, ArrayEqExpr, PermutationExpr,
+# MapEqExpr, SetUnionExpr, SetInterExpr, SetDiffExpr, SetSubsetExpr, SetEqExpr, AppendExpr) —
+# `left` is always the 1st ExprIR-typed sub-node field, `right` always the 2nd (BinOpExpr's
+# leading `op: str` is a string leaf, not a sub-node slot, so it does not perturb the
+# left/right sub-node order). Position-unambiguous like `dict`/`key`/`head`/`tail` above.
+_EMIT_IR_NODE_ATTRS = {"dict": "left_of", "key": "right_of", "head": "left_of", "tail": "right_of",
+                       "left": "left_of", "right": "right_of"}
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
