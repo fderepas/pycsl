@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
@@ -9,6 +10,7 @@ from ir_schema import (
     UnknownPyExprExpr, SliceExpr, OldFieldExpr, StarredExpr, TupleExpr,
     ArrayLitExpr, ForallExpr, ExistsExpr, MapValueIsExpr, VarExpr, FieldGetExpr,
     DictLitExpr, ListCompExpr, SetCompExpr, DictCompExpr, ForallItemsExpr,
+    SetAddExpr, SetRemoveExpr, SetMemExpr, NthExpr, MemExpr, ExprIR,
 )
 
 # Phase-B-expr: handlers migrated to accept a typed ExprIR node (rather than the
@@ -161,6 +163,47 @@ _EMIT_IR_NODE_ATTRS = {"dict": "left_of", "key": "right_of", "head": "left_of", 
                        "left": "left_of", "right": "right_of",
                        "lo": "left_of", "hi": "right_of",
                        "size": "left_of", "default": "right_of"}
+# ghost-handler-wall Q2 (per-subtype swap family, oracle-proven BOUNDED —
+# ghost-handler-wall-response.md §2, spiked axiom-free in gh-spike.mlw::
+# Q1Projections h_faithful/h_swapped, both Valid at identical step counts).
+# `elem`/`set`/`list`/`index` are deliberately NOT in `_EMIT_IR_NODE_ATTRS`
+# above: their FIELD POSITION SWAPS across `ir_schema.ExprIR` subclasses
+# (`SetAddExpr(set, elem)` vs `SetMemExpr(elem, set)`; `NthExpr(list, index)`
+# vs `MemExpr(elem, list)`), so one global name->projector entry cannot
+# faithfully serve both directions. The disambiguating key IS available: each
+# of these handlers is dispatched on exactly ONE ExprIR subclass, and
+# `_current_emitting_func` (set per-function in
+# `functions.py::_emit_function`) already names the enclosing handler while
+# its body is lowered. So the projector table here is keyed by (handler,
+# attr), not by attr alone — and each per-handler sub-table is DERIVED from
+# the subclass's OWN declared dataclass field order (idx0 -> left_of, idx1 ->
+# right_of, the same 2-slot convention as dict/key, head/tail, left/right,
+# lo/hi, size/default above), not hand-picked per attr name.
+_EMIT_IR_BASE_FIELDS = {f.name for f in dataclasses.fields(ExprIR)}
+
+
+def _schema_swap_projectors(cls) -> Dict[str, str]:
+    # `dataclasses.fields(cls)` includes INHERITED base-class fields (`kind`,
+    # from `IRNode`) ahead of the subclass's own — exclude them so index 0/1
+    # land on the subclass's OWN declared fields (`set`/`elem`, `elem`/`set`,
+    # `list`/`index`, `elem`/`list`), matching the field order the report and
+    # the live handler bodies actually read.
+    _own = [f for f in dataclasses.fields(cls) if f.name not in _EMIT_IR_BASE_FIELDS]
+    _slots = ("left_of", "right_of")
+    return {f.name: _slots[i] for i, f in enumerate(_own) if i < len(_slots)}
+
+
+_EMIT_IR_HANDLER_SUBTYPE = {
+    "_handle_set_add_expr": SetAddExpr,
+    "_handle_set_remove_expr": SetRemoveExpr,
+    "_handle_set_mem_expr": SetMemExpr,
+    "_handle_nth_expr": NthExpr,
+    "_handle_mem_expr": MemExpr,
+}
+_EMIT_IR_HANDLER_ATTR_PROJ = {
+    _hname: _schema_swap_projectors(_hcls)
+    for _hname, _hcls in _EMIT_IR_HANDLER_SUBTYPE.items()
+}
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -5166,6 +5209,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # list (`args_of`, an `array emit_ir`), so `for elt in node.elts` iterates it.
             if attr in ("elts", "parts", "args", "captures"):
                 return f"(args_of {_os})"
+            # ghost-handler-wall Q2: a position-SWAPPING attr (`elem`/`set`/`list`/`index`)
+            # is disambiguated by the ENCLOSING HANDLER, since a single global name entry
+            # cannot serve both `SetAddExpr(set, elem)` and `SetMemExpr(elem, set)`
+            # faithfully. Checked BEFORE the global `_EMIT_IR_NODE_ATTRS` table (which
+            # deliberately excludes these names — see its comment); inert whenever
+            # `_current_emitting_func` is not one of the five swap-family handlers, so
+            # every other mirror/corpus emission is byte-identical.
+            _cef = getattr(self, "_current_emitting_func", None) or ""
+            for _hname, _projmap in _EMIT_IR_HANDLER_ATTR_PROJ.items():
+                if attr in _projmap and (_cef == _hname or _cef.endswith("__" + _hname)):
+                    return f"({_projmap[attr]} {_os})"
             # 2-child-cluster mini-M1: an unambiguous 2-child-dataclass sub-node attr
             # (`node.dict`/`node.key`/`node.head`/`node.tail`) → its DISTINCT left_of/right_of
             # projector, avoiding the svalue_of collision when a handler reads both children

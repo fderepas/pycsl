@@ -89,26 +89,38 @@ class GhostCollectionOpsMixin:
         # Why3: map.Const exports 'const', not 'Map.const'
         return "(const false)"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_add_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_add_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        s = self._e(node.set, lr)
+        e = self._e(node.elem, lr)
+        s_r = self._deref(s)
+        return f"(Map.set {s_r} {e} true)"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_remove_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_remove_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        s = self._e(node.set, lr)
+        e = self._e(node.elem, lr)
+        s_r = self._deref(s)
+        return f"(Map.set {s_r} {e} false)"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_mem_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_mem_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        e = self._e(node.elem, lr)
+        s_ir = node.set
+        s_t = s_ir.kind
+        if s_t in ("SetUnion", "SetInter", "SetDiff"):
+            # Functional set (lambda int -> bool) — use direct application, not Map.get
+            s = self._e(s_ir, lr)
+            return f"({s} {e})"
+        s = self._e(s_ir, lr)
+        s_r = self._deref(s)
+        return f"(Map.get {s_r} {e})"
 
     #@ requires True
     #@ ensures True
@@ -217,19 +229,25 @@ class GhostCollectionOpsMixin:
         # Why3 list.Length theory exports 'length', not 'List.length'
         return f"(length {l_r})"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_nth_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_nth_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.list, lr)
+        i = self._e(node.index, lr)
+        l_r = self._deref(l)
+        # Why3 list.NthNoOpt exports 'nth: int -> list 'a -> 'a' (partial, axioms nth_cons_0/nth_cons_n)
+        return f"(nth {i} {l_r})"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_mem_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_mem_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        e = self._e(node.elem, lr)
+        l = self._e(node.list, lr)
+        l_r = self._deref(l)
+        # Why3 list.Mem exports 'mem', not 'List.mem'
+        return f"(mem {e} {l_r})"
 
     #@ requires True
     #@ ensures True
