@@ -2054,6 +2054,268 @@ def emit_bool_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
 
 
 # =========================================================================
+# A-bool MULTIWAY statement-tree existence fold — `recognize_bool_multiway`.
+#
+# Sibling of `recognize_bool_existence` for a DIFFERENT source shape: instead
+# of a rigid 2-3-arm loop body testing `<stmt>["stmt"]==<TAG>` directly, this
+# is a genuine multiway `stype = stmt.get("stmt")` dispatch (`has_direct_
+# return`/`has_in_loop_return`-shaped): the tag is read into a local ONCE,
+# then a SEQUENCE of `if stype == "<TAG>"` / `if stype in ("<TAG>", ...)`
+# arms follow -- as either separate top-level `if` statements (has_direct_
+# return) or a Python `if/elif/elif` chain (compiled as nested `If`s threaded
+# through `orelse`, has_in_loop_return). Each arm's action is one of:
+#   * a bare `return True` (the tag alone is decisive);
+#   * `if (<call>(<subj>.get("body"/"orelse", []))) or ...): return True`
+#     (an OR-chain of 1+ recursive calls into named child fields);
+#   * the `body`/`orelse` field-descend LOOP (`_match_field_descend_loop`,
+#     reused verbatim from `recognize_bool_existence`);
+#   * the two-statement Try/handlers arm: `if <call>(<subj>.get("body", [])):
+#     return True` followed by `for h in <subj>.get("handlers", []): if
+#     <call>(h.get("body", [])): return True`.
+#
+# A recursive call's CALLEE NAME is never checked for consistency: any bare
+# name is accepted (self-recursion, OR a sibling call like `has_in_loop_
+# return`'s cross-call to `has_direct_return`) -- because emission does not
+# reproduce the source's call graph at all. Under `ensures True` (insight C)
+# the emitted catamorphism OR-descends the WHOLE subtree regardless of which
+# specific arm/callee the source used (a sound superset), so the sibling
+# call is subsumed by the same self-descent: only the call's STRUCTURAL
+# shape (single arg, a genuine child-field accessor) is validated, never its
+# name. No new WhyML theory -- `emit_bool_multiway_group` is a trivial
+# N-tag generalization of `emit_bool_existence_group` (OR across every tag
+# collected from the recognized arms instead of one), reusing the identical
+# `_emit_stmt_reader`/`pv_size`/`size_dict`/`size_list` machinery.
+# =========================================================================
+
+
+def _match_stype_tag_or_tags(test: Any, stypev: str) -> Optional[List[str]]:
+    """`<stypev> == "<TAG>"` -> [TAG]; `<stypev> in (<TAG>, ...)` -> [TAG, ...].
+    None (fail-closed) otherwise."""
+    if not isinstance(test, dict) or test.get("type") != "BinOp":
+        return None
+    if test.get("op") == "==" and _is_var(test.get("left"), stypev):
+        tag = _is_string(test.get("right"))
+        return [tag] if tag is not None else None
+    if test.get("op") == "in" and _is_var(test.get("left"), stypev):
+        right = test.get("right", {})
+        if isinstance(right, dict) and right.get("type") == "Tuple":
+            tags = [_is_string(e) for e in right.get("elts", [])]
+            if tags and all(t is not None for t in tags):
+                return tags
+    return None
+
+
+def _is_selfcall_like(node: Any, subjv: str, names: List[str]) -> bool:
+    """`<any-name>(<subjv>.get("body"/"orelse", ...))` -- a 1-arg call whose
+    func is a bare name (self OR sibling, name unchecked) and whose sole arg
+    descends into a named child field of `subjv`. Records the callee name in
+    `names` (bookkeeping only -- never gates)."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return False
+    f = node.get("func")
+    if not isinstance(f, str):
+        return False
+    args = node.get("args", [])
+    if len(args) != 1:
+        return False
+    if _match_get_call(args[0], subjv) not in ("body", "orelse"):
+        return False
+    names.append(f)
+    return True
+
+
+def _match_selfcall_or_chain(test: Any, subjv: str, names: List[str]) -> bool:
+    """A boolean `or`-chain (any arity via right-recursion) of `_is_selfcall_
+    like` calls on `subjv`."""
+    if (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "or"):
+        return (_match_selfcall_or_chain(test.get("left", {}), subjv, names)
+                and _match_selfcall_or_chain(test.get("right", {}), subjv, names))
+    return _is_selfcall_like(test, subjv, names)
+
+
+def _match_try_handlers_arm(arm_body: List[Any], stmtv: str, names: List[str]) -> bool:
+    """`if <call-chain>(<stmtv>.get("body", [])): return True` followed by
+    `for h in <stmtv>.get("handlers", []): if <call-chain>(h.get("body",
+    [])): return True` -- the Try-arm shape descending into both the Try's
+    own body and every handler's body."""
+    if len(arm_body) != 2:
+        return False
+    s1, s2 = arm_body
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If" and not s1.get("orelse")):
+        return False
+    if not _match_selfcall_or_chain(s1.get("test", {}), stmtv, names):
+        return False
+    if not (len(s1.get("body", [])) == 1 and _is_bool_true_return(s1["body"][0])):
+        return False
+    if not (isinstance(s2, dict) and s2.get("stmt") == "For"):
+        return False
+    if _match_get_call(s2.get("iter", {}), stmtv) != "handlers":
+        return False
+    hvar = s2.get("target")
+    if not isinstance(hvar, str):
+        return False
+    lb = s2.get("body", [])
+    if len(lb) != 1:
+        return False
+    iff = lb[0]
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
+        return False
+    if not _match_selfcall_or_chain(iff.get("test", {}), hvar, names):
+        return False
+    return len(iff.get("body", [])) == 1 and _is_bool_true_return(iff["body"][0])
+
+
+def _match_multiway_arm_body(arm_body: List[Any], stmtv: str, names: List[str]) -> bool:
+    """One arm's action: bare `return True`, the field-descend LOOP
+    (`_match_field_descend_loop`, no extra params), an inline OR-chain `if`,
+    or the two-statement Try/handlers arm."""
+    if len(arm_body) == 1 and _is_bool_true_return(arm_body[0]):
+        return True
+    if len(arm_body) == 1 and _match_field_descend_loop(arm_body[0], stmtv, names, []):
+        return True
+    if (len(arm_body) == 1 and isinstance(arm_body[0], dict)
+            and arm_body[0].get("stmt") == "If" and not arm_body[0].get("orelse")
+            and _match_selfcall_or_chain(arm_body[0].get("test", {}), stmtv, names)
+            and len(arm_body[0].get("body", [])) == 1
+            and _is_bool_true_return(arm_body[0]["body"][0])):
+        return True
+    if _match_try_handlers_arm(arm_body, stmtv, names):
+        return True
+    return False
+
+
+def _expand_multiway_if_chain(s: Any) -> Optional[List[Tuple[Any, List[Any]]]]:
+    """One top-level statement -> its `(test, body)` arm(s): a bare `If` with
+    no `orelse` is a single arm; an `If` whose `orelse` is a SINGLETON nested
+    `If` (Python's `elif`-chain IR shape) unrolls into that arm plus every
+    arm of the chain, recursively. Any other non-empty `orelse` (a genuine
+    catch-all) fails closed."""
+    if not (isinstance(s, dict) and s.get("stmt") == "If"):
+        return None
+    arms = [(s.get("test", {}), s.get("body", []))]
+    orelse = s.get("orelse", [])
+    if not orelse:
+        return arms
+    if len(orelse) == 1 and isinstance(orelse[0], dict) and orelse[0].get("stmt") == "If":
+        rest = _expand_multiway_if_chain(orelse[0])
+        if rest is None:
+            return None
+        return arms + rest
+    return None
+
+
+def _flatten_multiway_if_chain(stmts: List[Any]) -> Optional[List[Tuple[Any, List[Any]]]]:
+    """Flatten a list of top-level statements -- each either a standalone
+    `If` (has_direct_return-shaped: separate sibling ifs) or an `elif`-chain
+    (has_in_loop_return-shaped: one `If` threaded through `orelse`) -- into
+    one flat arm list, in source order. Both source shapes collapse to the
+    SAME arm list shape; only how they are threaded in the IR differs."""
+    out: List[Tuple[Any, List[Any]]] = []
+    for s in stmts:
+        chain = _expand_multiway_if_chain(s)
+        if chain is None:
+            return None
+        out.extend(chain)
+    return out
+
+
+def recognize_bool_multiway(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the multiway `stype = stmt.get("stmt")` dispatch
+    A-bool statement-tree existence fold (`has_direct_return`/`has_in_loop_
+    return`-shaped). See the module comment above for the full shape.
+    Returns {subject, tags} or None. Never raises."""
+    try:
+        return _recognize_bool_multiway(func)
+    except Exception:
+        return None
+
+
+def _recognize_bool_multiway(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 2:
+        return None
+    loop, tail = body
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtv = loop.get("target")
+    if not isinstance(stmtv, str):
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) < 2:
+        return None
+    a0 = lbody[0]
+    # arm0: stype = stmt.get("stmt")
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and _match_get_call(a0.get("value", {}), stmtv) == "stmt"):
+        return None
+    stypev = a0.get("target")
+    if not isinstance(stypev, str):
+        return None
+    arms = _flatten_multiway_if_chain(lbody[1:])
+    if not arms:
+        return None
+    names: List[str] = []
+    tags: List[str] = []
+    for test, arm_body in arms:
+        arm_tags = _match_stype_tag_or_tags(test, stypev)
+        if not arm_tags:
+            return None
+        if not _match_multiway_arm_body(arm_body, stmtv, names):
+            return None
+        for t in arm_tags:
+            if t not in tags:
+                tags.append(t)
+    if not names:
+        return None
+    return {"subject": subj, "tags": tags}
+
+
+def emit_bool_multiway_group(func: Dict[str, Any], desc: Dict[str, Any],
+                             whyml_ident) -> List[str]:
+    """Emit the multiway A-bool statement-tree existence fold -- the SAME
+    universal `pyval`/`pydict`/`list pyval` OR-catamorphism as `emit_bool_
+    existence_group`, generalized from ONE literal tag to the N tags
+    collected off the recognized arms (`desc["tags"]`), OR'd together at
+    each `PDict` node. No new WhyML theory: reuses `_emit_stmt_reader` and
+    the certified `pv_size`/`size_dict`/`size_list` L1 catamorphism
+    verbatim."""
+    n = whyml_ident(func["name"])
+    tags = desc["tags"]
+    tag_disj = " || ".join(f'{n}__stmt_is v "{t}"' for t in tags)
+    out = _emit_stmt_reader(n)
+    out.append(f"  let rec {n} (stmts: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list stmts }")
+    out.append(f"  = match stmts with Nil -> false | Cons h t -> {n}__v h || {n} t end")
+    out.append(f"  with {n}__v (v: pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {tag_disj} || {n}__d d")
+    out.append(f"    | PList xs -> {n} xs")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__d (d: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append(f"    | DCons _ v rest -> {n}__v v || {n}__d rest end")
+    return out
+
+
+# =========================================================================
 # bigger-build G-set-accumulate-multiway — the Set[str] statement-tree
 # accumulate fold: the BY-RETURN sibling of `recognize_bool_existence`
 # (same `list pyval`/tag-dispatch/body-orelse-descend statement-tree shape)

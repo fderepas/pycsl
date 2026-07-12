@@ -1092,6 +1092,7 @@ class FunctionEmissionMixin:
             recognize_stmt_setfold, emit_stmt_setfold_group,
             recognize_substmap, emit_substmap_group,
             recognize_bool_existence, emit_bool_existence_group,
+            recognize_bool_multiway, emit_bool_multiway_group,
             recognize_frt, emit_frt_group,
             recognize_sawalk, emit_sawalk_group,
             recognize_dictfold, emit_dictfold_group,
@@ -1106,6 +1107,14 @@ class FunctionEmissionMixin:
         _be = recognize_bool_existence(func)
         if _be is not None:
             return emit_bool_existence_group(func, _be, whyml_ident)
+        # ir-traversal-residual A-bool MULTIWAY: the `stype = stmt.get("stmt")`
+        # dispatch sibling of the above (`has_direct_return`/`has_in_loop_
+        # return`-shaped) -- a genuine multiway `if stype == "<TAG>"`/`elif`
+        # chain (incl. Try/handlers descend), reusing the same OR-descend
+        # catamorphism generalized to N tags. Same fail-closed discipline.
+        _bm = recognize_bool_multiway(func)
+        if _bm is not None:
+            return emit_bool_multiway_group(func, _bm, whyml_ident)
         # ir-traversal-residual D + T2: the composed `find_return_type`
         # (outlined bool folds + first-match search + certified string tail).
         _frt = recognize_frt(func)

@@ -265,20 +265,52 @@ class IRScanner:
     def collect_escaping_exceptions(stmts: List[int]) -> int:
         return set()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def has_direct_return(stmts: List[int]) -> bool:
+    def has_direct_return(stmts: List[Dict[str, Any]]) -> bool:
+        for stmt in stmts:
+            stype = stmt.get("stmt")
+            if stype == "Return":
+                return True
+            if stype == "If":
+                if (IRScanner.has_direct_return(stmt.get("body", [])) or
+                        IRScanner.has_direct_return(stmt.get("orelse", []))):
+                    return True
+            if stype == "Try":
+                # User Try blocks never catch the internal Return exception,
+                # so any Return inside a Try propagates to the function body.
+                if IRScanner.has_direct_return(stmt.get("body", [])):
+                    return True
+                for h in stmt.get("handlers", []):
+                    if IRScanner.has_direct_return(h.get("body", [])):
+                        return True
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def has_in_loop_return(stmts: List[int]) -> bool:
+    def has_in_loop_return(stmts: List[Dict[str, Any]]) -> bool:
+        for stmt in stmts:
+            stype = stmt.get("stmt")
+            if stype in ("While", "For"):
+                if (IRScanner.has_direct_return(stmt.get("body", [])) or
+                        IRScanner.has_in_loop_return(stmt.get("body", []))):
+                    return True
+            elif stype == "If":
+                for key in ("body", "orelse"):
+                    if key in stmt and IRScanner.has_in_loop_return(stmt[key]):
+                        return True
+            elif stype == "Try":
+                # See has_direct_return: Returns inside Try escape to the
+                # enclosing function body, including any enclosing loop.
+                if IRScanner.has_in_loop_return(stmt.get("body", [])):
+                    return True
+                for h in stmt.get("handlers", []):
+                    if IRScanner.has_in_loop_return(h.get("body", [])):
+                        return True
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
