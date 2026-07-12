@@ -271,6 +271,26 @@ change, ledger held 3). REMAINING = BLOCKED on deeper features:
 CAUTION for any future projector-table edit in expressions.py: it reroutes expressions.py's OWN mirror
 (BinOp/ArrayEq/Permutation handlers) → MUST re-prove expressions.py (~15-20min, the largest mirror file).
 
+**GHOST-HANDLER cluster at FAITHFUL floor (2026-07-13, 1226→1183 = −43).** ~21 handlers converted via
+byte-inert projector-map reuse (0/1/2-child unambiguous names dict/key/head/tail/left/right/lo/hi/size/
+default → left_of/right_of; scalars → name_of; 3-child map_set/set_card via the 3rd child's svalue_of
+default — 3 DISTINCT projectors, no collision). REMAINING BLOCKED for a FAITHFUL conversion:
+- **elem/set/nth/mem/proj (swap): no subtype info.** All live handlers type `node: "ExprIR"` (base), so a
+  name→projector map can't faithfully disambiguate a name whose FIELD POSITION swaps across subclasses
+  (`SetAddExpr(set,elem)` vs `SetMemExpr(elem,set)`). DOCTRINE NUANCE: they ARE convertible under the fixed
+  `ensures True` contract (map one swap-name → left_of, the other falls to svalue_of default → 2 distinct
+  size-bounded projectors → proves type-safety+termination, non-facade) — BUT the projection is
+  value-UNFAITHFUL (wrong child) and needs a position-INCONSISTENT global map entry. Held the FAITHFUL line
+  (VALUE-not-count): did NOT manufacture these. A faithful conversion needs subtype-tracking (thread the
+  handler's specific ExprIR subtype to `_handle_attribute_expr`, which today sees only the attr NAME) — a
+  deeper emitter feature, or specific-subtype live-signature annotations (risky live change).
+- **ctor_test**: `Array.make !arity` precond `n>=0` undischargeable (abstract arity getter has no
+  `ensures result>=0`) — needs a nonneg-safe getter.
+- **mktuple**: variadic `elts` list.
+This is the practical FAITHFUL floor of the projector-reuse vein. Further ghost progress needs a deeper
+emitter feature (subtype-tracking / nonneg-arity / variadic) or a user decision on value-unfaithful-but-
+type-safe conversions.
+
 **Lesson (defer-with-pinned-gap kind):**
 > When a wall is oracle-proven BREAKABLE but the emitter build reveals a genuine multi-recognizer M2 gap, the
 > driver's win is the PINNED gap + a proven-ready foundation piece, NOT a forced conversion. Land nothing that
