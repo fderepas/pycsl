@@ -48,13 +48,23 @@ class IRScanner:
             for item in obj:
                 IRScanner.find_named_expr_targets(item, targets)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def find_ghost_vars(stmts: List[int]) -> int:
-        return set()
+    def find_ghost_vars(stmts: List[Dict[str, Any]]) -> Set[str]:
+        ghosts = set()
+        for stmt in stmts:
+            if stmt["stmt"] == "GhostAssign":
+                ghosts.add(stmt["target"])
+            elif stmt["stmt"] == "While":
+                ghosts.update(IRScanner.find_ghost_vars(stmt["body"]))
+            elif stmt["stmt"] == "If":
+                ghosts.update(IRScanner.find_ghost_vars(stmt.get("body", [])))
+                ghosts.update(IRScanner.find_ghost_vars(stmt.get("orelse", [])))
+            elif stmt["stmt"] == "For":
+                ghosts.update(IRScanner.find_ghost_vars(stmt.get("body", [])))
+        return ghosts
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -394,13 +404,24 @@ class IRScanner:
             return False
         return _check(stmts)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def find_append_targets(stmts: List[int]) -> int:
-        return set()
+    def find_append_targets(stmts: List[Dict[str, Any]]) -> Set[str]:
+        result = set()
+        for stmt in stmts:
+            if stmt.get("stmt") == "Expr":
+                val = stmt.get("value", {})
+                if val.get("type") == "Call":
+                    func = val.get("func", "")
+                    if func.endswith(".append"):
+                        arr_name = func.rsplit(".", 1)[0]
+                        result.add(arr_name.replace(".", "_"))
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    result |= IRScanner.find_append_targets(stmt[key])
+        return result
 
     _MUTATING_METHODS: int = {'append', 'pop', 'clear', 'add', 'remove', 'discard', 'update', 'extend', 'insert', 'setdefault'}
     #@ \trusted reviewer: pycsl-self-annotate

@@ -2076,7 +2076,289 @@ def _match_stmt_add_arm(stmt: Any, stmtv: str, acc: str,
     add_key = _match_get_call(call["args"][0], stmtv)
     if add_key is None:
         return None
-    return {"outer_tag": outer_tag, "val_local": valv, "guards": guards, "add_key": add_key}
+    return {"kind": "value_guarded", "outer_tag": outer_tag, "val_local": valv,
+            "guards": guards, "add_key": add_key}
+
+
+# ---- G-set-accumulate-simple: the CHAIN add-arm (`find_append_targets`) -----
+#
+# A second add-arm shape: instead of ONE nested value+isinstance+guards level
+# (`_match_stmt_add_arm`), the guard is a CHAIN of N literal-key `.get()`
+# projections, each re-bound to a fresh local and re-guarded (a field-equality
+# OR a string-method boolean test, e.g. `.endswith(".append")`), terminating
+# in `<acc>.add(<EXPR>)` where `<EXPR>` may be an arbitrary value TRANSFORM
+# (`.rsplit(...)[0].replace(...)`) of one of the chain's bound locals — under
+# `ensures True` (insight C, the doctrine this whole module applies
+# throughout: substmap's scope-cut note, `_match_pre_action_nested_field`'s
+# guard-narrowing, `_match_set_pre_action_tuple`'s `local_read` kind) the
+# EXACT string added is a value fact the certified contract does not need, so
+# the transform is DROPPED and the chain's OWN literal-key projection (the
+# local's PROVENANCE, traced back through the transform) becomes the emitted
+# add source. Reuses the identical per-key `pydict` readers and `set_add`
+# machinery as every other shape in this family — no new WhyML theory.
+
+_STR_BOOL_METHODS = {"endswith", "startswith"}
+
+
+def _match_method_bool_guard(node: Any, local: str) -> bool:
+    """`<local>.<endswith|startswith>("<lit>")` — a string-method boolean
+    guard. The literal argument and the boolean result are both value facts
+    `ensures True` does not need; only the SHAPE (which local it tests) is
+    validated, fail-closed."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return False
+    f = node.get("func")
+    if not isinstance(f, str) or "." not in f:
+        return False
+    recv, meth = f.rsplit(".", 1)
+    if recv != local or meth not in _STR_BOOL_METHODS:
+        return False
+    args = node.get("args", [])
+    return len(args) == 1 and _is_string(args[0]) is not None
+
+
+def _match_field_bind(stmt: Any) -> Optional[tuple]:
+    """`<name> = <parent>.get("<key>"[, default])` -> (name, parent, key) or
+    None. `<parent>` is a dotted-call receiver (a string PREFIX of the `func`
+    attribute, e.g. `"val.get"` -> receiver `"val"`), not a Var argument."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    name = stmt.get("target")
+    if not isinstance(name, str):
+        return None
+    val = stmt.get("value", {})
+    if not (isinstance(val, dict) and val.get("type") == "Call"):
+        return None
+    f = val.get("func")
+    if not isinstance(f, str) or not f.endswith(".get"):
+        return None
+    parent = f[:-len(".get")]
+    args = val.get("args", [])
+    if not args:
+        return None
+    key = _is_string(args[0])
+    if key is None:
+        return None
+    return (name, parent, key)
+
+
+def _collect_refs(node: Any, out: set) -> None:
+    """Recursively collect every Var name AND every dotted-call RECEIVER name
+    referenced anywhere in `node` (an arbitrary expression IR subtree). A
+    dotted-call receiver (e.g. `func` in `func.rsplit(...)`) is encoded as a
+    string PREFIX of the `func` attribute, not a separate Var node, so it
+    needs its own extraction alongside the plain Var case."""
+    if isinstance(node, dict):
+        if node.get("type") == "Var" and isinstance(node.get("name"), str):
+            out.add(node["name"])
+        f = node.get("func")
+        if isinstance(f, str) and "." in f:
+            out.add(f.rsplit(".", 1)[0])
+        for v in node.values():
+            _collect_refs(v, out)
+    elif isinstance(node, list):
+        for x in node:
+            _collect_refs(x, out)
+
+
+def _refs_single_root(expr: Any, paths: Dict[str, List[str]],
+                      stmtv: str) -> Optional[List[str]]:
+    """Trace `expr` (a value TRANSFORM, e.g. `arr_name.replace(".", "_")`)
+    back to the SINGLE chain-bound local (or `stmtv` itself) it is built
+    from — every Var/receiver referenced in `expr` must resolve to the SAME
+    field-path, else ambiguous (fail-closed). Returns that field path (the
+    ordered list of literal keys from `stmtv`), or None."""
+    names: set = set()
+    _collect_refs(expr, names)
+    resolved: set = set()
+    for nm in names:
+        if nm == stmtv:
+            resolved.add(())
+        elif nm in paths:
+            resolved.add(tuple(paths[nm]))
+        else:
+            return None
+    if len(resolved) != 1:
+        return None
+    return list(next(iter(resolved)))
+
+
+def _match_chain_add_arm(stmt: Any, stmtv: str, acc: str) -> Optional[Dict[str, Any]]:
+    """CHAIN add-arm (`find_append_targets` shape):
+        if <stmt-tag-test>:
+            <l1> = <stmtv-or-local>.get("<k1>"[, default])
+            if <field-eq guard on l1> | <method-bool guard on l1>:
+                <l2> = <l1>.get("<k2>"[, default])
+                if <guard on l2>:
+                    ...
+                    [<transform> = <expr over ONE bound local>]   # optional
+                    <acc>.add(<expr over ONE bound local>)
+    Returns {kind: "chain", outer_tag, field_path: [k1, k2, ...]} — the
+    literal-key projection chain from `stmtv` down to the local whose
+    PROVENANCE the (possibly transformed) add argument traces to — or None
+    (fail-closed)."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer_tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if outer_tag is None:
+        return None
+    paths: Dict[str, List[str]] = {}
+    cur = stmt.get("body", [])
+    while len(cur) == 2:
+        bind = _match_field_bind(cur[0])
+        guardif = cur[1]
+        if bind is None or not (isinstance(guardif, dict) and guardif.get("stmt") == "If"
+                                and not guardif.get("orelse")):
+            break
+        name, parent, key = bind
+        if parent == stmtv:
+            base: List[str] = []
+        elif parent in paths:
+            base = paths[parent]
+        else:
+            return None
+        guard = guardif.get("test", {})
+        if not (_match_field_eq_guard(guard, name) is not None
+                or _match_method_bool_guard(guard, name)):
+            return None
+        paths[name] = base + [key]
+        cur = guardif.get("body", [])
+    # terminal body: an OPTIONAL single transform-Assign, then the add call.
+    idx = 0
+    if len(cur) >= 1 and isinstance(cur[0], dict) and cur[0].get("stmt") == "Assign":
+        tname = cur[0].get("target")
+        troot = _refs_single_root(cur[0].get("value"), paths, stmtv)
+        if isinstance(tname, str) and troot is not None:
+            paths[tname] = troot
+            idx = 1
+    if len(cur) != idx + 1:
+        return None
+    addstmt = cur[idx]
+    if not (isinstance(addstmt, dict) and addstmt.get("stmt") == "Expr"):
+        return None
+    call = addstmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1):
+        return None
+    add_path = _refs_single_root(call["args"][0], paths, stmtv)
+    if not add_path:
+        return None
+    return {"kind": "chain", "outer_tag": outer_tag, "field_path": add_path}
+
+
+# ---- G-set-accumulate-elif-chain (`find_ghost_vars`) ------------------------
+#
+# A third loop-body shape: instead of an optional add-arm followed by an
+# UNCONDITIONAL descend-loop over `("body", "orelse")` (the shape above), the
+# ENTIRE loop body is a single right-leaning If/orelse ELIF CHAIN — one tag
+# per leaf, EXACTLY ONE leaf is the add-arm (`<acc>.add(<field-ref>)`, a
+# direct Subscript/`.get()` projection, no value-nesting), every OTHER leaf is
+# a descend-arm (1+ self-recursive union statements), and unmatched tags fall
+# through a terminal empty `orelse` (a no-op). Both syntactic union forms
+# Python offers are accepted: `<acc> |= <self>(...)` (AugAssign) AND
+# `<acc>.update(<self>(...))` (a method-call ExprStmt) — `set.update(x)` and
+# `set |= x` are semantically identical, so both lower to the same
+# `set_union`. Under `ensures True` the emitted full-subtree OR-union
+# catamorphism (identical to the shape above) is a sound SUPERSET of
+# whichever fields each leaf selectively recurses into, so the descend
+# leaves are only VALIDATED (fail-closed shape check), never individually
+# replayed — no new WhyML theory, the SAME `n__d`/`n__v` walk emits both
+# shapes.
+
+def _match_field_ref(node: Any, subj: str) -> Optional[str]:
+    """`<subj>[<lit>]` (Subscript) or `<subj>.get(<lit>[, default])` (Call) ->
+    the literal key, else None. Both syntactic forms project the same field."""
+    key = _match_subscript_str(node, subj)
+    if key is not None:
+        return key
+    return _match_get_call(node, subj)
+
+
+def _match_elif_union_stmt(stmt: Any, stmtv: str, acc: str, fname: str,
+                           extra: List[str]) -> bool:
+    """`<acc> |= <self>(<field-ref>[, extra...])` OR
+    `<acc>.update(<self>(<field-ref>[, extra...]))` — the two syntactic forms
+    Python offers for set union-accumulation; both are accepted (same
+    `set_union` semantics)."""
+    call = None
+    if (isinstance(stmt, dict) and stmt.get("stmt") == "AugAssign"
+            and stmt.get("target") == acc and stmt.get("op") == "|"):
+        call = stmt.get("value", {})
+    elif isinstance(stmt, dict) and stmt.get("stmt") == "Expr":
+        v = stmt.get("value", {})
+        if (isinstance(v, dict) and v.get("type") == "Call"
+                and v.get("func") == f"{acc}.update" and len(v.get("args", [])) == 1):
+            call = v["args"][0]
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return False
+    cf = call.get("func")
+    if not isinstance(cf, str) or _canon_call(cf) != fname:
+        return False
+    args = call.get("args", [])
+    if len(args) != 1 + len(extra):
+        return False
+    if not all(_is_var(args[1 + i], e) for i, e in enumerate(extra)):
+        return False
+    return _match_field_ref(args[0], stmtv) is not None
+
+
+def _match_elif_add_body(body: Any, stmtv: str, acc: str) -> Optional[str]:
+    """A leaf's body is exactly `<acc>.add(<field-ref-on-stmt>)`."""
+    if not (isinstance(body, list) and len(body) == 1):
+        return None
+    st0 = body[0]
+    if not (isinstance(st0, dict) and st0.get("stmt") == "Expr"):
+        return None
+    call = st0.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1):
+        return None
+    return _match_field_ref(call["args"][0], stmtv)
+
+
+def _match_elif_descend_body(body: Any, stmtv: str, acc: str, fname: str,
+                             extra: List[str]) -> bool:
+    """A leaf's body is 1+ self-recursive union statements (any mix of the
+    two syntactic forms), and nothing else."""
+    return bool(body) and all(_match_elif_union_stmt(st, stmtv, acc, fname, extra)
+                              for st in body)
+
+
+def _match_elif_chain(node: Any, stmtv: str, acc: str, fname: str,
+                      extra: List[str]) -> Optional[Dict[str, Any]]:
+    """Parse a right-leaning If/orelse elif-chain. Exactly ONE leaf is the
+    add-arm; every other leaf is a descend-arm; every tag is distinct; the
+    chain must terminate in an empty `orelse` (fail-closed — no unrecognized
+    tail action). Returns {kind: "direct", outer_tag, add_key} or None."""
+    add: Optional[tuple] = None
+    seen_tags: set = set()
+    cur = node
+    while True:
+        if not (isinstance(cur, dict) and cur.get("stmt") == "If"):
+            return None
+        tag = _match_stmt_tag_test(cur.get("test", {}), stmtv)
+        if tag is None or tag in seen_tags:
+            return None
+        seen_tags.add(tag)
+        body = cur.get("body", [])
+        add_key = _match_elif_add_body(body, stmtv, acc)
+        if add_key is not None:
+            if add is not None:
+                return None
+            add = (tag, add_key)
+        elif not _match_elif_descend_body(body, stmtv, acc, fname, extra):
+            return None
+        orelse = cur.get("orelse", [])
+        if not orelse:
+            break
+        if len(orelse) != 1:
+            return None
+        cur = orelse[0]
+    if add is None:
+        return None
+    return {"kind": "direct", "outer_tag": add[0], "add_key": add[1]}
 
 
 def _match_stmt_union_call(node: Any, acc: str, fname: str, extra: List[str]) -> Optional[List[Any]]:
@@ -2245,9 +2527,20 @@ def _recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not lbody:
         return None
 
+    # Elif-chain loop body (`find_ghost_vars`): the WHOLE loop body is one
+    # If/orelse chain (add-arm + descend-arms fused, no separate unconditional
+    # descend-loop). Tried first since it consumes ALL of `lbody` at once.
+    if len(lbody) == 1 and isinstance(lbody[0], dict) and lbody[0].get("stmt") == "If":
+        chain = _match_elif_chain(lbody[0], stmtv, acc, fname, extra)
+        if chain is not None:
+            return {"subject": subj, "acc_local": acc, "extra_params": extra,
+                    "stmtvar": stmtv, "pre_action": chain}
+
     pre = None
     idx = 0
     maybe_pre = _match_stmt_add_arm(lbody[0], stmtv, acc, extra)
+    if maybe_pre is None:
+        maybe_pre = _match_chain_add_arm(lbody[0], stmtv, acc)
     if maybe_pre is not None:
         pre = maybe_pre
         idx = 1
@@ -2306,7 +2599,57 @@ def emit_stmt_setfold_group(func: Dict[str, Any], desc: Dict[str, Any],
         out.append("    end")
         return rname
 
-    if pre is not None:
+    if pre is not None and pre.get("kind") == "direct":
+        # find_ghost_vars elif-chain shape: `<acc>.add(<field-ref-on-stmt>)`,
+        # no value-nesting, no guards — the simplest add-arm in the family.
+        _emit_reader("stmt")
+        _emit_reader(pre["add_key"])
+        stmtr = reader_names["stmt"]
+        addr = reader_names[pre["add_key"]]
+        out.append(f"  let {n}__pre (d: pydict){extra_sig} : map string bool")
+        out.append(f"  = match {stmtr} d with")
+        out.append("    | Some (PStr tg0) ->")
+        out.append(f'        if pystr_eq tg0 "{pre["outer_tag"]}" then')
+        out.append(f"          (match {addr} d with")
+        out.append("           | Some (PStr t) -> set_add (const false) t")
+        out.append("           | _ -> const false end)")
+        out.append("        else const false")
+        out.append("    | _ -> const false end")
+    elif pre is not None and pre.get("kind") == "chain":
+        # find_append_targets chain shape: a MULTI-level literal-key
+        # projection (`field_path`) reached through N nested nested-dict
+        # guards; the terminal projection is the add source (the source's own
+        # value-transform of it is dropped — a value fact `ensures True` does
+        # not need, the same scope-cut doctrine as every other shape here).
+        path = pre["field_path"]
+        _emit_reader("stmt")
+        for key in path:
+            _emit_reader(key)
+        stmtr = reader_names["stmt"]
+        out.append(f"  let {n}__pre (d: pydict){extra_sig} : map string bool")
+        out.append(f"  = match {stmtr} d with")
+        out.append("    | Some (PStr tg0) ->")
+        out.append(f'        if pystr_eq tg0 "{pre["outer_tag"]}" then')
+        indent = "          "
+        cur = "d"
+        closers: List[str] = []
+        for i, key in enumerate(path[:-1]):
+            rname = reader_names[key]
+            dv = f"d{i + 1}"
+            out.append(f"{indent}(match {rname} {cur} with")
+            out.append(f"{indent} | Some (PDict {dv}) ->")
+            closers.append(f"{indent} | _ -> const false end)")
+            indent += "     "
+            cur = dv
+        last = reader_names[path[-1]]
+        out.append(f"{indent}(match {last} {cur} with")
+        out.append(f"{indent} | Some (PStr t) -> set_add (const false) t")
+        out.append(f"{indent} | _ -> const false end)")
+        for cl in reversed(closers):
+            out.append(cl)
+        out.append("        else const false")
+        out.append("    | _ -> const false end")
+    elif pre is not None:
         _emit_reader("stmt")
         _emit_reader("value")
         for (_kind, gk, _gv) in pre["guards"]:
