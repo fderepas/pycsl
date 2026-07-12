@@ -147,8 +147,20 @@ _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
 # `left` is always the 1st ExprIR-typed sub-node field, `right` always the 2nd (BinOpExpr's
 # leading `op: str` is a string leaf, not a sub-node slot, so it does not perturb the
 # left/right sub-node order). Position-unambiguous like `dict`/`key`/`head`/`tail` above.
+# ghost-handler-cluster batch drain D (mini-M1, following left/right verbatim): `lo`/`hi`
+# extend the same table. Every `ir_schema.ExprIR` subclass that declares BOTH names declares
+# them at the SAME raw field position across all 5: IsSortedExpr, SumExpr, StrSubExpr,
+# GhostCopyRangeExpr, SetCardExpr — `lo` is always field index 1 (right after a single
+# leading field, str OR ExprIR-typed), `hi` always field index 2. Mapped by the SAME
+# left_of/right_of pair (a 2-slot reuse, not a new constructor); the leading field (`base`/
+# `arr`/`string`/`set`) is separately routed (str leaf → name_of, or left UNMAPPED to fall
+# through to the `svalue_of` default) so no attr on a single node collides. `default`/`size`
+# extend the table too: GhostMakeExpr's only 2 declared fields, `size` at index 0 → left_of,
+# `default` at index 1 → right_of — the same 2-slot shape as dict/key, no 3rd field to route.
 _EMIT_IR_NODE_ATTRS = {"dict": "left_of", "key": "right_of", "head": "left_of", "tail": "right_of",
-                       "left": "left_of", "right": "right_of"}
+                       "left": "left_of", "right": "right_of",
+                       "lo": "left_of", "hi": "right_of",
+                       "size": "left_of", "default": "right_of"}
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin

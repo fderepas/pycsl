@@ -86,12 +86,14 @@ class GhostSpecOpsMixin:
         s = self._expr_to_whyml_string_ctx(node.string.to_dict(), lr)
         return f"(String.length {s})"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_str_sub_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_str_sub_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        s = self._expr_to_whyml_string_ctx(node.string.to_dict(), lr)
+        lo = self._e(node.lo, lr)
+        hi = self._e(node.hi, lr)
+        return f"(String.substring {s} {lo} ({hi} - {lo}))"
 
     #@ requires True
     #@ ensures True
@@ -99,18 +101,20 @@ class GhostSpecOpsMixin:
     def _handle_ghost_copy_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
         return f"(Array.copy {node.arr})"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_ghost_copy_range_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_ghost_copy_range_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        lo = self._e(node.lo, lr)
+        hi = self._e(node.hi, lr)
+        return f"(Array.sub {node.arr} {lo} ({hi} - {lo}))"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_ghost_make_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_ghost_make_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        n = self._e(node.size, lr)
+        v = self._e(node.default, lr)
+        return f"(Array.make {n} {v})"
 
 
