@@ -1729,13 +1729,22 @@ def _is_bool_true_return(stmt: Any) -> bool:
             and stmt["value"].get("value") is True)
 
 
-def _is_selfcall_1(node: Any, name_box: List[str]) -> bool:
-    """A 1-arg Call whose func is a bare name; records the callee in name_box
-    (all existence-fold self-calls must share one callee name)."""
+def _is_selfcall_n(node: Any, name_box: List[str], extra: List[str]) -> bool:
+    """A `(1 + len(extra))`-arg Call whose func is a bare name; the first arg
+    is the recursion target, and the remaining args thread the read-only
+    `extra` params UNCHANGED, in order (the `uses_ghost_type`-shaped
+    `self(stmt[key], types)` self-recursion). Records the callee in name_box
+    (all existence-fold self-calls must share one callee name). `extra=[]`
+    reproduces the original 1-arg-only check exactly."""
     if not (isinstance(node, dict) and node.get("type") == "Call"):
         return False
     f = node.get("func")
-    if not isinstance(f, str) or len(node.get("args", [])) != 1:
+    if not isinstance(f, str):
+        return False
+    args = node.get("args", [])
+    if len(args) != 1 + len(extra):
+        return False
+    if not all(_is_var(args[1 + i], e) for i, e in enumerate(extra)):
         return False
     name_box.append(f)
     return True
@@ -1754,7 +1763,19 @@ def recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     descend arm + an OPTIONAL cases-descend arm); the tag and the presence of
     the cases arm are the only degrees of freedom.
 
-    Returns {subject, self_name, with_value, tag} or None. Never raises."""
+    Two further generalizations of the SAME shape (both threaded through the
+    identical `let rec`/`__v`/`__d` OR-descend emission, no new code path):
+      * arm 0 accepts a COMPOUND `<tag-test> and <stmt>.get(<key>) in <extra>`
+        guard (`uses_ghost_type`-shaped) when the method threads a second,
+        read-only `set`-typed parameter -- under `ensures True` the membership
+        conjunct is a value fact the fold does not need (insight C).
+      * arm 1 accepts an INLINED single-If descend (`has_continue`-shaped:
+        `if <tag "If">: if (self(body) or self(orelse)): return True`) as an
+        alternate SOURCE shape for the same OR-descend, instead of the
+        generic `for key in ("body","orelse")` loop.
+
+    Returns {subject, self_name, with_value, tag, extra_params} or None.
+    Never raises."""
     try:
         return _recognize_bool_existence(func)
     except Exception:
@@ -1763,11 +1784,19 @@ def recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 def _recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     params = func.get("formal_params", [])
-    if len(params) != 1:
+    if len(params) not in (1, 2):
         return None
     subj = params[0]
-    if func.get("param_annotations", {}).get(subj) != "list":
+    extra = params[1:]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
         return None
+    # An optional 2nd param is a read-only membership SET, threaded UNCHANGED
+    # through every recursive call (the `uses_ghost_type`-shaped compound
+    # guard). Fail-closed: any non-`set` 2nd param rejects.
+    for e in extra:
+        if pa.get(e) != "set":
+            return None
     if func.get("return_annotation") != "bool":
         return None
     body = func.get("body", [])
@@ -1801,35 +1830,69 @@ def _recognize_bool_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
     t0 = a0.get("test", {})
     tag0 = _match_stmt_tag_test(t0, stmtv)
-    if tag0 is None:
+    if tag0 is None and (isinstance(t0, dict) and t0.get("type") == "BinOp"
+                         and t0.get("op") == "and"):
         # with-value twin: `<stmt>["stmt"]=="Return" and <stmt>.get("value")`
-        # — inherently Return-specific (the `.get("value")` guard only makes
+        # -- inherently Return-specific (the `.get("value")` guard only makes
         # sense for the Return tag), so this alternate arm-0 shape stays
         # hardcoded to "Return" (it is a DIFFERENT AST shape, not a tag choice).
-        if not (isinstance(t0, dict) and t0.get("type") == "BinOp"
-                and t0.get("op") == "and"):
-            return None
-        tag0 = _match_stmt_tag_test(t0.get("left", {}), stmtv)
-        if tag0 != "Return" or _match_get_call(t0.get("right", {}), stmtv) != "value":
-            return None
-        with_value = True
+        maybe_tag = _match_stmt_tag_test(t0.get("left", {}), stmtv)
+        if maybe_tag == "Return" and _match_get_call(t0.get("right", {}), stmtv) == "value":
+            tag0, with_value = "Return", True
+        else:
+            # compound membership-guarded tag test (`uses_ghost_type` shape):
+            # `<tag-test> and <stmt>.get("<key>") in <extra-param>` (either
+            # conjunct order). Needs the optional 2nd `set` param -- fails
+            # closed (via `_match_in_guard`) when `extra` is empty.
+            tag0 = _match_compound_tag_mem_guard(t0, stmtv, extra)
     if tag0 is None:
         return None
     if not (len(a0.get("body", [])) == 1 and _is_bool_true_return(a0["body"][0])):
         return None
-    # arm 1: for key in ("body","orelse"): if key in stmt and self(stmt[key]): return True
-    if not _match_field_descend_loop(a1, stmtv, names):
+    # arm 1: for key in ("body","orelse"): if key in stmt and self(stmt[key], extra...): return True
+    #     OR the INLINED single-If descend (`has_continue` shape): if <tag "If">:
+    #     if (self(body, extra...) or self(orelse, extra...)): return True
+    if not (_match_field_descend_loop(a1, stmtv, names, extra)
+            or _match_inline_if_descend(a1, stmtv, names, extra)):
         return None
-    # arm 2 (optional): if stmt.get("stmt")=="Match": for c in stmt.get("cases",[]): if self(c.get("body",[])): return True
-    if a2 is not None and not _match_cases_descend(a2, stmtv, names):
+    # arm 2 (optional): if stmt.get("stmt")=="Match": for c in stmt.get("cases",[]): if self(c.get("body",[]), extra...): return True
+    if a2 is not None and not _match_cases_descend(a2, stmtv, names, extra):
         return None
     if not names or any(x != names[0] for x in names):
         return None
-    return {"subject": subj, "self_name": names[0], "with_value": with_value, "tag": tag0}
+    return {"subject": subj, "self_name": names[0], "with_value": with_value,
+            "tag": tag0, "extra_params": extra}
 
 
-def _match_field_descend_loop(node: Any, stmtv: str, names: List[str]) -> bool:
-    """`for key in ("body","orelse"): if key in <stmt> and <self>(<stmt>[key]): return True`."""
+def _match_compound_tag_mem_guard(test: Any, stmtv: str,
+                                  extra: List[str]) -> Optional[str]:
+    """`<tag-test> and <stmt>.get("<key>") in <extra-param>` (either conjunct
+    order) -- the compound existence-arm guard threading a read-only
+    membership SET parameter (`uses_ghost_type`-shaped:
+    `stmt.get("stmt")=="GhostAssign" and stmt.get("ghost_type") in types`).
+    Under `ensures True` the membership conjunct is a value fact the fold
+    does not need (insight C) -- only its SHAPE is validated. Returns the
+    literal TAG, or None (fail-closed; also None when `extra` is empty, since
+    `_match_in_guard` then has no valid RHS to match)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    tag = _match_stmt_tag_test(left, stmtv)
+    mem_side = right
+    if tag is None:
+        tag = _match_stmt_tag_test(right, stmtv)
+        mem_side = left
+    if tag is None:
+        return None
+    if _match_in_guard(mem_side, stmtv, extra) is None:
+        return None
+    return tag
+
+
+def _match_field_descend_loop(node: Any, stmtv: str, names: List[str],
+                              extra: List[str]) -> bool:
+    """`for key in ("body","orelse"): if key in <stmt> and <self>(<stmt>[key][, extra...]): return True`."""
     if not (isinstance(node, dict) and node.get("stmt") == "For"):
         return False
     it = node.get("iter", {})
@@ -1853,8 +1916,8 @@ def _match_field_descend_loop(node: Any, stmtv: str, names: List[str]) -> bool:
     if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "in"
             and _is_var(left.get("left"), keyv) and _is_var(left.get("right"), stmtv)):
         return False
-    # right: self(stmt[key])
-    if not _is_selfcall_1(right, names):
+    # right: self(stmt[key][, extra...])
+    if not _is_selfcall_n(right, names, extra):
         return False
     arg = right["args"][0]
     if not (isinstance(arg, dict) and arg.get("type") == "Subscript"
@@ -1863,9 +1926,44 @@ def _match_field_descend_loop(node: Any, stmtv: str, names: List[str]) -> bool:
     return len(iff.get("body", [])) == 1 and _is_bool_true_return(iff["body"][0])
 
 
-def _match_cases_descend(node: Any, stmtv: str, names: List[str]) -> bool:
+def _match_inline_if_descend(node: Any, stmtv: str, names: List[str],
+                             extra: List[str]) -> bool:
+    """`if <stmt-tag-test "If">: if (<self>(<stmt>.get("body",[])[, extra...])
+        or <self>(<stmt>.get("orelse",[])[, extra...])): return True` -- the
+    INLINED single-If descend arm (`has_continue`-shaped): a tag-gated nested
+    If whose test is an `or` of the two self-recursions on body/orelse,
+    instead of the generic `for key in ("body","orelse")` loop. Same
+    OR-descend RESULT under `ensures True` -- `emit_bool_existence_group`
+    always OR-descends the whole subtree regardless of which source arm-1
+    shape matched -- so this is purely an alternate SOURCE shape, not a
+    separate emission."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If" and not node.get("orelse")):
+        return False
+    if _match_stmt_tag_test(node.get("test", {}), stmtv) != "If":
+        return False
+    body = node.get("body", [])
+    if len(body) != 1:
+        return False
+    inner = body[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If" and not inner.get("orelse")):
+        return False
+    test = inner.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "or"):
+        return False
+    left, right = test.get("left", {}), test.get("right", {})
+    if not (_is_selfcall_n(left, names, extra)
+            and _match_get_call(left["args"][0], stmtv) == "body"):
+        return False
+    if not (_is_selfcall_n(right, names, extra)
+            and _match_get_call(right["args"][0], stmtv) == "orelse"):
+        return False
+    return len(inner.get("body", [])) == 1 and _is_bool_true_return(inner["body"][0])
+
+
+def _match_cases_descend(node: Any, stmtv: str, names: List[str],
+                         extra: List[str]) -> bool:
     """`if <stmt>.get("stmt")=="Match": for c in <stmt>.get("cases",[]):
-        if <self>(c.get("body",[])): return True`."""
+        if <self>(c.get("body",[])[, extra...]): return True`."""
     if not (isinstance(node, dict) and node.get("stmt") == "If" and not node.get("orelse")):
         return False
     if _match_stmt_tag_test(node.get("test", {}), stmtv) != "Match":
@@ -1886,7 +1984,7 @@ def _match_cases_descend(node: Any, stmtv: str, names: List[str]) -> bool:
     if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
         return False
     call = iff.get("test", {})
-    if not _is_selfcall_1(call, names):
+    if not _is_selfcall_n(call, names, extra):
         return False
     if _match_get_call(call["args"][0], cvar) != "body":
         return False
@@ -1924,23 +2022,34 @@ def emit_bool_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     "Return", "For", "ArraySet", ... — threaded from `desc["tag"]`, not
     hardcoded); under `ensures True` the returned bool is a value fact the
     contract does not constrain (insight C), so the walk OR-descends the whole
-    subtree (a superset of `body`/`orelse`/`cases`)."""
+    subtree (a superset of `body`/`orelse`/`cases`).
+
+    `desc["extra_params"]` (the `uses_ghost_type`-shaped optional read-only
+    membership SET, default empty) is threaded UNCHANGED through every
+    generated signature and recursive call, typed `map string bool` exactly
+    as `recognize_setfold`'s `extra_params` — its VALUE is never inspected
+    (the compound guard is dropped under `ensures True`, same insight-C
+    doctrine), only its ARITY matters. Empty `extra_params` reproduces the
+    original emission byte-for-byte (empty signature/arg suffixes)."""
     n = whyml_ident(func["name"])
     tag = desc["tag"]
+    extra = desc.get("extra_params") or []
+    extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
+    extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
     out = _emit_stmt_reader(n)
-    out.append(f"  let rec {n} (stmts: list pyval) : bool")
+    out.append(f"  let rec {n} (stmts: list pyval){extra_sig} : bool")
     out.append("    requires { true } ensures { true } variant { size_list stmts }")
-    out.append(f"  = match stmts with Nil -> false | Cons h t -> {n}__v h || {n} t end")
-    out.append(f"  with {n}__v (v: pyval) : bool")
+    out.append(f"  = match stmts with Nil -> false | Cons h t -> {n}__v h{extra_args} || {n} t{extra_args} end")
+    out.append(f"  with {n}__v (v: pyval){extra_sig} : bool")
     out.append("    requires { true } ensures { true } variant { pv_size v }")
     out.append("  = match v with")
-    out.append(f'    | PDict d -> {n}__stmt_is v "{tag}" || {n}__d d')
-    out.append(f"    | PList xs -> {n} xs")
+    out.append(f'    | PDict d -> {n}__stmt_is v "{tag}" || {n}__d d{extra_args}')
+    out.append(f"    | PList xs -> {n} xs{extra_args}")
     out.append("    | _ -> false end")
-    out.append(f"  with {n}__d (d: pydict) : bool")
+    out.append(f"  with {n}__d (d: pydict){extra_sig} : bool")
     out.append("    requires { true } ensures { true } variant { size_dict d }")
     out.append("  = match d with DNil -> false")
-    out.append(f"    | DCons _ v rest -> {n}__v v || {n}__d rest end")
+    out.append(f"    | DCons _ v rest -> {n}__v v{extra_args} || {n}__d rest{extra_args} end")
     return out
 
 

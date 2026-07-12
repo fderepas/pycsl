@@ -66,12 +66,18 @@ class IRScanner:
                 ghosts.update(IRScanner.find_ghost_vars(stmt.get("body", [])))
         return ghosts
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def uses_ghost_type(stmts: List[int], types: int) -> bool:
+    def uses_ghost_type(stmts: List[Dict[str, Any]], types: Set[str]) -> bool:
+        """Return True if any GhostAssign in stmts (recursively) has ghost_type in types."""
+        for stmt in stmts:
+            if stmt.get("stmt") == "GhostAssign" and stmt.get("ghost_type") in types:
+                return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.uses_ghost_type(stmt[key], types):
+                    return True
         return False
 
     #@ requires True
@@ -188,12 +194,18 @@ class IRScanner:
                     out.update(IRScanner.find_record_var_classes(c.get("body", []), record_types))
         return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def has_continue(stmts: List[int]) -> bool:
+    def has_continue(stmts: List[Dict[str, Any]]) -> bool:
+        for stmt in stmts:
+            if stmt["stmt"] == "Continue":
+                return True
+            if stmt["stmt"] == "If":
+                if (IRScanner.has_continue(stmt.get("body", [])) or
+                        IRScanner.has_continue(stmt.get("orelse", []))):
+                    return True
         return False
 
     #@ requires True
