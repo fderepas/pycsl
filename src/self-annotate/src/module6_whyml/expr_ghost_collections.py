@@ -1,8 +1,31 @@
 from __future__ import annotations
 from typing import Any, Dict, Optional, Set
+def mutable_state(cls): return cls
 ""  # pycsl
+@mutable_state
 class GhostCollectionOpsMixin:
     "Ghost-collection spec-operator handlers — the `\\map_*` / `\\set_*` and\n    ghost-list (`\\nil`/`\\cons`/`\\hd`/`\\tl`/`\\list_length`/`\\nth`/`\\mem`/`++`)\n    expression handlers, each emitting a fixed Why3 form over the\n    `map int (option int)` / `map int bool` / `list int` models.\n\n    Extracted verbatim from `ExpressionEmissionMixin` (Part B move 3c, mirroring\n    the module5/ split). `ExpressionEmissionMixin` inherits this mixin, so the\n    handlers resolve via MRO through the facade's `_EXPR_DISPATCH` and call back\n    into `self._e` / `self._deref` (which stay in `ExpressionEmissionMixin`)."
+
+    # item34.md CF0.3 pattern (mirrored from stmt_control_flow.py): cross-file
+    # recursion-leaf / bridge sibling stubs for `_e`/`_deref` (defined in
+    # `ExpressionEmissionMixin`, expressions.py, which this mixin composes with at
+    # runtime). Standalone per-file verification of this mixin cannot see that
+    # sibling class, so a same-named call would otherwise auto-synthesize a
+    # generic int-typed stub; the local trusted redeclaration types the param the
+    # way this file actually calls it (an ExprIR sub-node), matching the
+    # already-tolerated mirror-only shim precedent.
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    #@ assigns \nothing
+    def _e(self, ir: "ExprIR", lr: Set[str]) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    #@ assigns \nothing
+    def _deref(self, expr: str) -> str:
+        return ""
+
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -128,26 +151,30 @@ class GhostCollectionOpsMixin:
     def _handle_cons_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_hd_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_hd_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.list, lr)
+        l_r = self._deref(l)
+        return f"(match {l_r} with | Cons h_ _ -> h_ | Nil -> absurd end)"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_tl_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_tl_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.list, lr)
+        l_r = self._deref(l)
+        return f"(match {l_r} with | Cons _ t_ -> t_ | Nil -> absurd end)"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_list_length_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_list_length_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(node.list, lr)
+        l_r = self._deref(l)
+        # Why3 list.Length theory exports 'length', not 'List.length'
+        return f"(length {l_r})"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

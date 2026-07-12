@@ -2761,6 +2761,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                    "type": self._mixin_field_type(s.type_str),
                                    "mutable": True})
                     field_defaults.setdefault(s.name, 0)
+        # tcb: register EVERY @mutable_state-decorated class name, regardless of
+        # whether it gets a "record" type_decl below (a stateless class with no
+        # fields/bases stays a scalar `type c = int` alias — a WhyML record cannot
+        # carry zero fields, so it is never forced into one). Module 6's
+        # `_mutable_state_classes` unions this with the record-kind type_decl scan,
+        # so the emit_ir attribute-projection gate (`_handle_attribute_expr`) fires
+        # for a @mutable_state class's methods even when the class itself never
+        # becomes a populated record. Every corpus @mutable_state class already has
+        # ≥1 field (so `fields or bases` is True and it is captured by the existing
+        # type_decl scan too) → this is additive-only (duplicate, harmless) there.
+        if self._is_mutable_state_decorated(node):
+            self.program_ir.setdefault("mutable_state_class_names", []).append(node.name)
         if fields or bases:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]

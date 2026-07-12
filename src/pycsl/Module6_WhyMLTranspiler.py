@@ -426,6 +426,15 @@ class Module6_WhyMLTranspiler(
         self._mutable_state_classes = {
             whyml_ident(td["name"].lower()) for td in type_decls
             if isinstance(td, dict) and td.get("kind") == "record" and td.get("mutable_state")
+        } | {
+            # gating fix (self-tcb-reduction): a @mutable_state class with no fields/bases
+            # never gets a "record" type_decl (Module5's `fields or bases` gate — a WhyML
+            # record cannot carry zero fields), so it would never reach the set above even
+            # though it IS @mutable_state-decorated. `mutable_state_class_names` is the
+            # unconditional AST-level registration (Module5_IREmitter.visit_ClassDef) —
+            # class-set membership, not method-name or record-population dependent. Empty
+            # for every module with no such stateless-but-decorated class → byte-identical.
+            whyml_ident(n.lower()) for n in self.ir.get("mutable_state_class_names", [])
         }
         # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): record CLASS names
         # (type_decls keys) used as a flat `List[<record>]` ELEMENT, so `_emit_type_decls`
