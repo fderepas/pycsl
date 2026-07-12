@@ -16,12 +16,20 @@ class IRScanner:
                     return True
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def ends_with_return(stmts: List[int]) -> bool:
+    def ends_with_return(stmts: List[Dict[str, Any]]) -> bool:
+        if not stmts:
+            return False
+        last = stmts[-1]
+        st = last.get("stmt") or last.get("type")
+        if st == "Return":
+            return True
+        if st == "If":
+            return (IRScanner.ends_with_return(last.get("body", []))
+                    and IRScanner.ends_with_return(last.get("orelse", [])))
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -313,12 +321,35 @@ class IRScanner:
                         return True
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def has_early_return(stmts: List[int]) -> bool:
+    def has_early_return(stmts: List[Dict[str, Any]]) -> bool:
+        for i, stmt in enumerate(stmts):
+            stype = stmt.get("stmt")
+            if stype == "If":
+                has_ret = IRScanner.has_direct_return(stmt.get("body", []))
+                has_rest = (i < len(stmts) - 1)
+                if has_ret and has_rest:
+                    return True
+                if IRScanner.has_early_return(stmt.get("body", [])):
+                    return True
+                if IRScanner.has_early_return(stmt.get("orelse", [])):
+                    return True
+            elif stype in ("For", "While"):
+                if IRScanner.has_early_return(stmt.get("body", [])):
+                    return True
+            elif stype == "Try":
+                handlers = stmt.get("handlers", [])
+                for h in handlers:
+                    if IRScanner.has_direct_return(h.get("body", [])):
+                        if i < len(stmts) - 1:
+                            return True
+                    if IRScanner.has_early_return(h.get("body", [])):
+                        return True
+                if IRScanner.has_early_return(stmt.get("body", [])):
+                    return True
         return False
 
     #@ requires True

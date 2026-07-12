@@ -1093,6 +1093,7 @@ class FunctionEmissionMixin:
             recognize_substmap, emit_substmap_group,
             recognize_bool_existence, emit_bool_existence_group,
             recognize_bool_multiway, emit_bool_multiway_group,
+            recognize_bool_lastelem, recognize_bool_earlyreturn,
             recognize_frt, emit_frt_group,
             recognize_sawalk, emit_sawalk_group,
             recognize_dictfold, emit_dictfold_group,
@@ -1115,6 +1116,21 @@ class FunctionEmissionMixin:
         _bm = recognize_bool_multiway(func)
         if _bm is not None:
             return emit_bool_multiway_group(func, _bm, whyml_ident)
+        # ir-traversal-residual A-bool LAST-ELEMENT dispatch: `ends_with_
+        # return`-shaped (inspects only `<stmts>[-1]`). A third source shape
+        # feeding the SAME `emit_bool_multiway_group` catamorphism -- see
+        # generic_fold.py's module comment above `recognize_bool_lastelem`.
+        _ble = recognize_bool_lastelem(func)
+        if _ble is not None:
+            return emit_bool_multiway_group(func, _ble, whyml_ident)
+        # ir-traversal-residual A-bool ENUMERATE positional dispatch:
+        # `has_early_return`-shaped (`for i, stmt in enumerate(stmts)` +
+        # `i < len(stmts) - 1` guards). A fourth source shape feeding the
+        # SAME catamorphism -- see generic_fold.py's module comment above
+        # `recognize_bool_earlyreturn`.
+        _ber = recognize_bool_earlyreturn(func)
+        if _ber is not None:
+            return emit_bool_multiway_group(func, _ber, whyml_ident)
         # ir-traversal-residual D + T2: the composed `find_return_type`
         # (outlined bool folds + first-match search + certified string tail).
         _frt = recognize_frt(func)

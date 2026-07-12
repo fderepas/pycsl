@@ -2316,6 +2316,387 @@ def emit_bool_multiway_group(func: Dict[str, Any], desc: Dict[str, Any],
 
 
 # =========================================================================
+# A-bool LAST-ELEMENT tag-dispatch fold — `recognize_bool_lastelem`.
+#
+# A THIRD sibling source shape for the identical `emit_bool_multiway_group`
+# catamorphism (no new WhyML): instead of folding over the WHOLE list
+# (`recognize_bool_existence`) or a multiway dispatch inside a `for stmt in
+# stmts` loop (`recognize_bool_multiway`), `ends_with_return`-shaped methods
+# inspect only the LAST element:
+#     if not <stmts>: return False
+#     <last> = <stmts>[-1]
+#     <st> = <last>.get("stmt") [or <last>.get("type")]
+#     if <st> == "<TAG>": return True
+#     if <st> == "<TAG2>": return (<self>(<last>.get("<k1>",[])) and/or
+#                                   <self>(<last>.get("<k2>",[])))
+#     ...
+#     return False
+# Under `ensures True` (insight C) the RETURN VALUE is unconstrained, so the
+# recognizer does not need to reproduce "look only at the last element" —
+# it only needs to certify the source IS this shape (fail-closed), then
+# defers to the SAME whole-subtree OR-descend used for the other two bool
+# shapes (`emit_bool_multiway_group`, reused verbatim via the identical
+# {subject, tags} descriptor).
+# =========================================================================
+
+
+def _match_last_index_subscript(node: Any, subj: str) -> bool:
+    """`<subj>[-1]` -- a Subscript whose index is the literal `-1`
+    (`UnaryOp "-"` over `Number 1`, the IR shape for a negative literal)."""
+    if not (isinstance(node, dict) and node.get("type") == "Subscript"
+            and _is_var(node.get("value"), subj)):
+        return False
+    idx = node.get("index", {})
+    return (isinstance(idx, dict) and idx.get("type") == "UnaryOp"
+            and idx.get("op") == "-"
+            and isinstance(idx.get("expr"), dict)
+            and idx["expr"].get("type") == "Number"
+            and idx["expr"].get("value") == 1)
+
+
+def _match_last_tag_read(node: Any, lastv: str) -> bool:
+    """`<lastv>.get("<key>")` alone, or `<lastv>.get("<k1>") or <lastv>.get(
+    "<k2>")` -- the tag-discriminant read off the last element (`ends_with_
+    return`-shaped: `last.get("stmt") or last.get("type")`). Either a single
+    read or an `or`-fallback of two reads; fails closed otherwise."""
+    if _match_get_call(node, lastv) is not None:
+        return True
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        return (_match_get_call(node.get("left", {}), lastv) is not None
+                and _match_get_call(node.get("right", {}), lastv) is not None)
+    return False
+
+
+def _match_bool_combo(node: Any, subjv: str, names: List[str]) -> bool:
+    """Any `and`/`or` nesting of `_is_selfcall_like` leaves on `subjv`
+    (`ends_with_return`-shaped: `self(last.get("body",[])) and self(last.get(
+    "orelse",[]))`). Fails closed on anything else."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") in ("and", "or")):
+        return (_match_bool_combo(node.get("left", {}), subjv, names)
+                and _match_bool_combo(node.get("right", {}), subjv, names))
+    return _is_selfcall_like(node, subjv, names)
+
+
+def _match_lastelem_arm_body(arm_body: List[Any], lastv: str,
+                             names: List[str]) -> bool:
+    """One last-element-dispatch arm's action: bare `return True`, or
+    `return (<and/or-combo of self-calls into <lastv>'s body/orelse>)`."""
+    if len(arm_body) != 1:
+        return False
+    if _is_bool_true_return(arm_body[0]):
+        return True
+    stmt = arm_body[0]
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Return"):
+        return False
+    return _match_bool_combo(stmt.get("value"), lastv, names)
+
+
+def recognize_bool_lastelem(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the LAST-ELEMENT tag-dispatch A-bool statement-
+    tree existence fold (`ends_with_return`-shaped). See the module comment
+    above for the full shape. Returns {subject, tags} (the `emit_bool_
+    multiway_group` descriptor, reused verbatim) or None. Never raises."""
+    try:
+        return _recognize_bool_lastelem(func)
+    except Exception:
+        return None
+
+
+def _recognize_bool_lastelem(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) < 4:
+        return None
+    guard, bind, disc = body[0], body[1], body[2]
+    rest = body[3:]
+    # guard: if not <subj>: return False
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")):
+        return None
+    gtest = guard.get("test", {})
+    if not (isinstance(gtest, dict) and gtest.get("type") == "UnaryOp"
+            and gtest.get("op") == "not" and _is_var(gtest.get("expr"), subj)):
+        return None
+    gbody = guard.get("body", [])
+    if not (len(gbody) == 1 and isinstance(gbody[0], dict)
+            and gbody[0].get("stmt") == "Return"
+            and isinstance(gbody[0].get("value"), dict)
+            and gbody[0]["value"].get("type") == "Bool"
+            and gbody[0]["value"].get("value") is False):
+        return None
+    # bind: <lastv> = <subj>[-1]
+    if not (isinstance(bind, dict) and bind.get("stmt") == "Assign"
+            and _match_last_index_subscript(bind.get("value", {}), subj)):
+        return None
+    lastv = bind.get("target")
+    if not isinstance(lastv, str):
+        return None
+    # disc: <stv> = <lastv>.get("<key>") [or <lastv>.get("<key2>")]
+    if not (isinstance(disc, dict) and disc.get("stmt") == "Assign"
+            and _match_last_tag_read(disc.get("value", {}), lastv)):
+        return None
+    stv = disc.get("target")
+    if not isinstance(stv, str):
+        return None
+    # rest: N tag-dispatch arms + a `return False` tail
+    if len(rest) < 2:
+        return None
+    arms_stmts, tail = rest[:-1], rest[-1]
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    arms = _flatten_multiway_if_chain(arms_stmts)
+    if not arms:
+        return None
+    names: List[str] = []
+    tags: List[str] = []
+    for test, arm_body in arms:
+        arm_tags = _match_stype_tag_or_tags(test, stv)
+        if not arm_tags:
+            return None
+        if not _match_lastelem_arm_body(arm_body, lastv, names):
+            return None
+        for t in arm_tags:
+            if t not in tags:
+                tags.append(t)
+    if not names:
+        return None
+    return {"subject": subj, "tags": tags}
+
+
+# =========================================================================
+# A-bool ENUMERATE positional-dispatch fold — `recognize_bool_earlyreturn`.
+#
+# A FOURTH sibling source shape for the same `emit_bool_multiway_group`
+# catamorphism: `has_early_return`-shaped methods loop `for i, stmt in
+# enumerate(stmts)` (an index-tracking twin of `recognize_bool_multiway`'s
+# plain `for stmt in stmts`) and thread the index into a POSITIONAL "is
+# there a statement after this one" guard (`i < len(stmts) - 1`) that gates
+# an otherwise-ordinary recursive-call arm. Under `ensures True` (insight C)
+# the guard's VALUE is a fact the fold does not need — the recognizer only
+# certifies the guard reads REAL accessors (the loop's own index var, `len`
+# of the same list param), never evaluates it — then defers to the same
+# whole-subtree OR-descend as every other bool-dispatch shape.
+# =========================================================================
+
+
+def _match_enumerate_for(node: Any, subj: str) -> Optional[tuple]:
+    """`for <i>, <s> in enumerate(<subj>):` -> (idxvar, stmtvar), or None.
+    Reads the IR's `tuple_targets` field (the front-end's enumerate/tuple-
+    unpack target list) -- never inspects the loop body to find the names."""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return None
+    it = node.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "enumerate" and len(it.get("args", [])) == 1
+            and _is_var(it["args"][0], subj)):
+        return None
+    tt = node.get("tuple_targets")
+    if not (isinstance(tt, list) and len(tt) == 2
+            and all(isinstance(x, str) for x in tt)):
+        return None
+    return tt[0], tt[1]
+
+
+def _match_positional_guard(node: Any, idxvar: str, subj: str) -> bool:
+    """`<idxvar> < len(<subj>) - <literal>` -- the positional "is there a
+    statement after this one" guard (`has_early_return`-shaped). Structural
+    only: under `ensures True` the guard's VALUE is unneeded (insight C), so
+    this validates the guard's SHAPE (the same index var bound by the
+    enclosing `enumerate` loop, `len` of the same list param) without
+    evaluating the comparison."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "<" and _is_var(node.get("left"), idxvar)):
+        return False
+    right = node.get("right", {})
+    if not (isinstance(right, dict) and right.get("type") == "BinOp"
+            and right.get("op") == "-"):
+        return False
+    lenc = right.get("left", {})
+    if not (isinstance(lenc, dict) and lenc.get("type") == "Call"
+            and lenc.get("func") == "len" and len(lenc.get("args", [])) == 1
+            and _is_var(lenc["args"][0], subj)):
+        return False
+    lit = right.get("right", {})
+    return isinstance(lit, dict) and lit.get("type") == "Number"
+
+
+def _match_guarded_call_return(stmts_slice: List[Any], stmtv: str, idxvar: str,
+                               subj: str, names: List[str]) -> int:
+    """3-statement `<retv> = <call>(<stmtv>...); <restv> = <positional-
+    guard>; if <retv> and <restv>: return True` arm-prefix (`has_early_
+    return`-shaped): a genuine self/sibling call bound to a local, ANDed
+    with a positional "trailing statement" fact (dropped under `ensures
+    True` -- insight C), gating a bare `return True`. Returns 3 (consumed)
+    or 0 (no match)."""
+    if len(stmts_slice) < 3:
+        return 0
+    a0, a1, a2 = stmts_slice[0], stmts_slice[1], stmts_slice[2]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return 0
+    retv = a0.get("target")
+    if not (isinstance(retv, str) and _is_selfcall_like(a0.get("value", {}), stmtv, names)):
+        return 0
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign"):
+        return 0
+    restv = a1.get("target")
+    if not (isinstance(restv, str)
+            and _match_positional_guard(a1.get("value", {}), idxvar, subj)):
+        return 0
+    if not (isinstance(a2, dict) and a2.get("stmt") == "If" and not a2.get("orelse")):
+        return 0
+    test = a2.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and" and _is_var(test.get("left"), retv)
+            and _is_var(test.get("right"), restv)):
+        return 0
+    if not (len(a2.get("body", [])) == 1 and _is_bool_true_return(a2["body"][0])):
+        return 0
+    return 3
+
+
+def _match_earlyreturn_if_arm(arm_body: List[Any], stmtv: str, idxvar: str,
+                              subj: str, names: List[str]) -> bool:
+    """The `has_early_return`-shaped If-tag arm: the 3-statement guarded-
+    call-return prefix, followed by 1-2 trailing `if <call>(<stmtv>...):
+    return True` self-descend arms."""
+    consumed = _match_guarded_call_return(arm_body, stmtv, idxvar, subj, names)
+    if not consumed:
+        return False
+    trailing = arm_body[consumed:]
+    if not (1 <= len(trailing) <= 2):
+        return False
+    for s in trailing:
+        if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")
+                and _is_selfcall_like(s.get("test", {}), stmtv, names)
+                and len(s.get("body", [])) == 1 and _is_bool_true_return(s["body"][0])):
+            return False
+    return True
+
+
+def _match_earlyreturn_try_arm(arm_body: List[Any], stmtv: str, idxvar: str,
+                               subj: str, names: List[str]) -> bool:
+    """The `has_early_return`-shaped Try-tag arm: `<hvarlist> = <stmtv>.get(
+    "handlers", []); for <h> in <hvarlist>: (if <call>(<h>...): if
+    <positional-guard>: return True); (if <call>(<h>...): return True); if
+    <call>(<stmtv>...): return True` -- a handlers-loop-FIRST reordering of
+    `_match_try_handlers_arm` with a positional-gated inner arm."""
+    if len(arm_body) != 3:
+        return False
+    s0, s1, s2 = arm_body
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"
+            and _match_get_call(s0.get("value", {}), stmtv) == "handlers"):
+        return False
+    hvar_list = s0.get("target")
+    if not isinstance(hvar_list, str):
+        return False
+    if not (isinstance(s1, dict) and s1.get("stmt") == "For"
+            and _is_var(s1.get("iter"), hvar_list)):
+        return False
+    hvar = s1.get("target")
+    if not isinstance(hvar, str):
+        return False
+    lb = s1.get("body", [])
+    if len(lb) != 2:
+        return False
+    i0, i1 = lb
+    if not (isinstance(i0, dict) and i0.get("stmt") == "If" and not i0.get("orelse")
+            and _is_selfcall_like(i0.get("test", {}), hvar, names)):
+        return False
+    ib = i0.get("body", [])
+    if not (len(ib) == 1 and isinstance(ib[0], dict) and ib[0].get("stmt") == "If"
+            and not ib[0].get("orelse")
+            and _match_positional_guard(ib[0].get("test", {}), idxvar, subj)
+            and len(ib[0].get("body", [])) == 1 and _is_bool_true_return(ib[0]["body"][0])):
+        return False
+    if not (isinstance(i1, dict) and i1.get("stmt") == "If" and not i1.get("orelse")
+            and _is_selfcall_like(i1.get("test", {}), hvar, names)
+            and len(i1.get("body", [])) == 1 and _is_bool_true_return(i1["body"][0])):
+        return False
+    return (isinstance(s2, dict) and s2.get("stmt") == "If" and not s2.get("orelse")
+            and _is_selfcall_like(s2.get("test", {}), stmtv, names)
+            and len(s2.get("body", [])) == 1 and _is_bool_true_return(s2["body"][0]))
+
+
+def recognize_bool_earlyreturn(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the ENUMERATE positional-dispatch A-bool
+    statement-tree existence fold (`has_early_return`-shaped). See the
+    module comment above. Returns {subject, tags} (the `emit_bool_multiway_
+    group` descriptor, reused verbatim) or None. Never raises."""
+    try:
+        return _recognize_bool_earlyreturn(func)
+    except Exception:
+        return None
+
+
+def _recognize_bool_earlyreturn(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 2:
+        return None
+    loop, tail = body
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    idx_stmt = _match_enumerate_for(loop, subj)
+    if idx_stmt is None:
+        return None
+    idxvar, stmtv = idx_stmt
+    lbody = loop.get("body", [])
+    if len(lbody) < 2:
+        return None
+    a0 = lbody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and _match_get_call(a0.get("value", {}), stmtv) == "stmt"):
+        return None
+    stypev = a0.get("target")
+    if not isinstance(stypev, str):
+        return None
+    arms = _flatten_multiway_if_chain(lbody[1:])
+    if not arms:
+        return None
+    names: List[str] = []
+    tags: List[str] = []
+    for test, arm_body in arms:
+        arm_tags = _match_stype_tag_or_tags(test, stypev)
+        if not arm_tags:
+            return None
+        ok = (_match_multiway_arm_body(arm_body, stmtv, names)
+              or _match_earlyreturn_if_arm(arm_body, stmtv, idxvar, subj, names)
+              or _match_earlyreturn_try_arm(arm_body, stmtv, idxvar, subj, names))
+        if not ok:
+            return None
+        for t in arm_tags:
+            if t not in tags:
+                tags.append(t)
+    if not names:
+        return None
+    return {"subject": subj, "tags": tags}
+
+
+# =========================================================================
 # bigger-build G-set-accumulate-multiway — the Set[str] statement-tree
 # accumulate fold: the BY-RETURN sibling of `recognize_bool_existence`
 # (same `list pyval`/tag-dispatch/body-orelse-descend statement-tree shape)
