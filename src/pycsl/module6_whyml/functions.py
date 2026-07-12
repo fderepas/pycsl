@@ -1089,6 +1089,7 @@ class FunctionEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_generic_fold, emit_generic_fold_group,
             recognize_setfold, emit_setfold_group,
+            recognize_stmt_setfold, emit_stmt_setfold_group,
             recognize_substmap, emit_substmap_group,
             recognize_bool_existence, emit_bool_existence_group,
             recognize_frt, emit_frt_group,
@@ -1125,6 +1126,14 @@ class FunctionEmissionMixin:
         if _sf is not None:
             return emit_setfold_group(func, _sf, whyml_ident,
                                       self._lower_fold_ensures(func))
+        # bigger-build G-set-accumulate-multiway: the Set[str] statement-tree
+        # accumulate fold (by-return sibling of `recognize_bool_existence`, same
+        # `list pyval`/tag-dispatch/body-orelse-descend shape, `recognize_setfold`'s
+        # `map string bool` algebra). Same fail-closed discipline.
+        _ssf = recognize_stmt_setfold(func)
+        if _ssf is not None:
+            return emit_stmt_setfold_group(func, _ssf, whyml_ident,
+                                           self._lower_fold_ensures(func))
         # ir-traversal-residual T1: the functorial-map RECONSTRUCTION traversal
         # (result_algebra = the value type itself). Same fail-closed discipline.
         _sm = recognize_substmap(func)

@@ -103,21 +103,52 @@ class IRScanner:
     def uses_inline_set_or_dict_ops(obj: Any) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def find_lambda_vars(stmts: List[int]) -> int:
-        return set()
+    def find_lambda_vars(stmts: List[Dict[str, Any]]) -> Set[str]:
+        lambda_vars = set()
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign":
+                val = stmt.get("value", {})
+                if isinstance(val, dict) and val.get("type") == "Lambda":
+                    lambda_vars.add(stmt.get("target", ""))
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    lambda_vars |= IRScanner.find_lambda_vars(stmt[key])
+            if stmt.get("stmt") == "While":
+                lambda_vars |= IRScanner.find_lambda_vars(stmt.get("body", []))
+            if stmt.get("stmt") == "For":
+                lambda_vars |= IRScanner.find_lambda_vars(stmt.get("body", []))
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    lambda_vars |= IRScanner.find_lambda_vars(c.get("body", []))
+        return lambda_vars
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def find_record_vars(stmts: List[int], record_types: int) -> int:
-        return set()
+    def find_record_vars(stmts: List[Dict[str, Any]], record_types: Set[str]) -> Set[str]:
+        record_vars = set()
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign":
+                val = stmt.get("value", {})
+                if (isinstance(val, dict) and val.get("type") == "Call" and
+                        val.get("func", "") in record_types):
+                    record_vars.add(stmt.get("target", ""))
+            for key in ("body", "orelse"):
+                if key in stmt and isinstance(stmt[key], list):
+                    record_vars |= IRScanner.find_record_vars(stmt[key], record_types)
+            if stmt.get("stmt") == "While":
+                record_vars |= IRScanner.find_record_vars(stmt.get("body", []), record_types)
+            if stmt.get("stmt") == "For":
+                record_vars |= IRScanner.find_record_vars(stmt.get("body", []), record_types)
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    record_vars |= IRScanner.find_record_vars(c.get("body", []), record_types)
+        return record_vars
 
     #@ requires True
     #@ ensures True

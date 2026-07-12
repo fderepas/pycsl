@@ -1944,6 +1944,428 @@ def emit_bool_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     return out
 
 
+# =========================================================================
+# bigger-build G-set-accumulate-multiway — the Set[str] statement-tree
+# accumulate fold: the BY-RETURN sibling of `recognize_bool_existence`
+# (same `list pyval`/tag-dispatch/body-orelse-descend statement-tree shape)
+# whose result algebra is a returned `Set[str]` (the `recognize_setfold`
+# `map string bool` algebra) instead of `bool`. Reuses BOTH existing
+# machineries verbatim — no new WhyML theory, no new abstract op, no axiom:
+# the `pyval`/`pydict`/`size*` L1 theory (`needs_pydict`) and the purely-
+# defined `set_add`/`set_union` (`map string bool`) already certified by
+# `recognize_setfold`.
+#
+# Recognized shape (`find_lambda_vars`/`find_record_vars`):
+#     <acc> = set()
+#     for <stmt> in <stmts>:
+#         if <stmt>.get("stmt") == "<TAG>":              # optional add-arm
+#             <val> = <stmt>.get("value", {})
+#             if isinstance(<val>, dict) and <guards on val>:
+#                 <acc>.add(<stmt>.get("<addkey>", ""))
+#         for key in ("body", "orelse"):                  # required descend
+#             if key in <stmt> [and isinstance(<stmt>[key], list)]:
+#                 <acc> |= self(<stmt>[key][, extra...])
+#         if <stmt>.get("stmt") == "While": <acc> |= self(<stmt>.get("body", [])[, extra...])   # optional echo
+#         if <stmt>.get("stmt") == "For": <acc> |= self(<stmt>.get("body", [])[, extra...])      # optional echo
+#         if <stmt>.get("stmt") == "Match":                                                       # optional echo
+#             for c in <stmt>.get("cases", []): <acc> |= self(c.get("body", [])[, extra...])
+#     return <acc>
+#
+# Under `ensures True` (insight C, `recognize_bool_existence`'s doctrine) the
+# WhyML lowering does NOT need to replicate the selective body/orelse/cases
+# projection: the emitted catamorphism OR-unions (via `set_add`) the whole
+# `pydict` subtree (the proven `emit_bool_existence_group`/`emit_setfold_group`
+# walk), a superset of the Python recursion — the redundant While/For/Match
+# echo arms are then no-ops under the returned-value-unconstrained contract,
+# so the recognizer only needs to VALIDATE their presence (fail-closed: any
+# other trailing arm rejects), never re-derive their (redundant) contribution.
+# =========================================================================
+
+
+def _match_field_eq_guard(node: Any, valv: str) -> Optional[tuple]:
+    """`<valv>.get("<key>"[, default]) == "<lit>"` -> (key, lit) or None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp" and node.get("op") == "=="):
+        return None
+    key = _match_get_call(node.get("left", {}), valv)
+    if key is None:
+        return None
+    lit = _is_string(node.get("right"))
+    if lit is None:
+        return None
+    return (key, lit)
+
+
+def _match_field_in_guard(node: Any, valv: str, extra: List[str]) -> Optional[tuple]:
+    """`<valv>.get("<key>"[, default]) in <extra_set_param>` -> (key, param) or
+    None. The right operand must be one of the threaded `set`-typed params."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp" and node.get("op") == "in"):
+        return None
+    key = _match_get_call(node.get("left", {}), valv)
+    if key is None:
+        return None
+    right = node.get("right", {})
+    if not (_is_var(right) and right.get("name") in extra):
+        return None
+    return (key, right.get("name"))
+
+
+def _match_stmt_add_arm(stmt: Any, stmtv: str, acc: str,
+                        extra: List[str]) -> Optional[Dict[str, Any]]:
+    """Optional add-arm:
+        if <stmt>.get("stmt") == "<TAG>":
+            <val> = <stmt>.get("value", {})
+            if isinstance(<val>, dict) and <guards>:
+                <acc>.add(<stmt>.get("<addkey>"[, default]))
+    `<guards>` is a conjunction of one-or-more `<val>.get(k)==lit` (eq) /
+    `<val>.get(k) in <extra_set_param>` (in) tests, in any mix. Returns
+    {outer_tag, val_local, guards: [(kind, key, lit_or_param)], add_key} or
+    None (fail-closed)."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer_tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if outer_tag is None:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    asg = body[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    valv = asg.get("target")
+    if not isinstance(valv, str):
+        return None
+    if _match_get_call(asg.get("value", {}), stmtv) != "value":
+        return None
+    inner = body[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If" and not inner.get("orelse")):
+        return None
+    conjuncts = _flatten_and(inner.get("test", {}))
+    saw_isinstance = False
+    guards: List[tuple] = []
+    for c in conjuncts:
+        if (isinstance(c, dict) and c.get("type") == "Call" and c.get("func") == "isinstance"
+                and len(c.get("args", [])) == 2 and _is_var(c["args"][0], valv)
+                and _is_var(c["args"][1], "dict")):
+            if saw_isinstance:
+                return None
+            saw_isinstance = True
+            continue
+        eq = _match_field_eq_guard(c, valv)
+        if eq is not None:
+            guards.append(("eq", eq[0], eq[1]))
+            continue
+        mem = _match_field_in_guard(c, valv, extra)
+        if mem is not None:
+            guards.append(("in", mem[0], mem[1]))
+            continue
+        return None
+    if not saw_isinstance or not guards:
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1:
+        return None
+    add = ibody[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1):
+        return None
+    add_key = _match_get_call(call["args"][0], stmtv)
+    if add_key is None:
+        return None
+    return {"outer_tag": outer_tag, "val_local": valv, "guards": guards, "add_key": add_key}
+
+
+def _match_stmt_union_call(node: Any, acc: str, fname: str, extra: List[str]) -> Optional[List[Any]]:
+    """`<self>(<arg0>[, extra...])` as a Call value -> its args list, or None
+    (does not check `arg0`'s own shape — the caller does)."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return None
+    cf = node.get("func")
+    if not isinstance(cf, str) or _canon_call(cf) != fname:
+        return None
+    args = node.get("args", [])
+    if len(args) != 1 + len(extra):
+        return None
+    if not all(_is_var(args[1 + i], e) for i, e in enumerate(extra)):
+        return None
+    return args
+
+
+def _match_stmt_descend_loop(node: Any, stmtv: str, acc: str, fname: str,
+                             extra: List[str]) -> bool:
+    """Required descend-arm:
+        for key in ("body", "orelse"):
+            if key in <stmt> [and isinstance(<stmt>[key], list)]:
+                <acc> |= self(<stmt>[key][, extra...])"""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return False
+    it = node.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Tuple"):
+        return False
+    if [_is_string(e) for e in it.get("elts", [])] != ["body", "orelse"]:
+        return False
+    keyv = node.get("target")
+    lb = node.get("body", [])
+    if len(lb) != 1:
+        return False
+    iff = lb[0]
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
+        return False
+    conjuncts = _flatten_and(iff.get("test", {}))
+    c0 = conjuncts[0]
+    if not (isinstance(c0, dict) and c0.get("type") == "BinOp" and c0.get("op") == "in"
+            and _is_var(c0.get("left"), keyv) and _is_var(c0.get("right"), stmtv)):
+        return False
+    if len(conjuncts) == 2:
+        c1 = conjuncts[1]
+        if not (isinstance(c1, dict) and c1.get("type") == "Call" and c1.get("func") == "isinstance"
+                and len(c1.get("args", [])) == 2 and _is_var(c1["args"][1], "list")):
+            return False
+        sub = c1["args"][0]
+        if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+                and _is_var(sub.get("value"), stmtv) and _is_var(sub.get("index"), keyv)):
+            return False
+    elif len(conjuncts) != 1:
+        return False
+    body = iff.get("body", [])
+    if len(body) != 1:
+        return False
+    aug = body[0]
+    if not (isinstance(aug, dict) and aug.get("stmt") == "AugAssign"
+            and aug.get("target") == acc and aug.get("op") == "|"):
+        return False
+    args = _match_stmt_union_call(aug.get("value", {}), acc, fname, extra)
+    if args is None:
+        return False
+    arg0 = args[0]
+    return (isinstance(arg0, dict) and arg0.get("type") == "Subscript"
+            and _is_var(arg0.get("value"), stmtv) and _is_var(arg0.get("index"), keyv))
+
+
+def _match_union_rec_field(stmt0: Any, acc: str, fname: str, extra: List[str],
+                           srcvar: str, key: str) -> bool:
+    """`<acc> |= self(<srcvar>.get("<key>"[, default])[, extra...])`."""
+    if not (isinstance(stmt0, dict) and stmt0.get("stmt") == "AugAssign"
+            and stmt0.get("target") == acc and stmt0.get("op") == "|"):
+        return False
+    args = _match_stmt_union_call(stmt0.get("value", {}), acc, fname, extra)
+    if args is None:
+        return False
+    return _match_get_call(args[0], srcvar) == key
+
+
+def _match_echo_arm(stmt: Any, stmtv: str, acc: str, fname: str,
+                    extra: List[str]) -> Optional[str]:
+    """Optional REDUNDANT (under `ensures True`) echo-arm — recognized so the
+    matcher fail-closes on anything ELSE trailing the loop, never to re-derive
+    its (already-covered-by-the-full-subtree-walk) contribution:
+        if <stmt>.get("stmt") == "While": <acc> |= self(<stmt>.get("body", [])[, extra...])
+        if <stmt>.get("stmt") == "For": <acc> |= self(<stmt>.get("body", [])[, extra...])
+        if <stmt>.get("stmt") == "Match":
+            for c in <stmt>.get("cases", []): <acc> |= self(c.get("body", [])[, extra...])
+    Returns the matched tag or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if tag is None:
+        return None
+    body = stmt.get("body", [])
+    if tag == "Match":
+        if len(body) != 1:
+            return None
+        loop = body[0]
+        if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+            return None
+        if _match_get_call(loop.get("iter", {}), stmtv) != "cases":
+            return None
+        cvar = loop.get("target")
+        lb = loop.get("body", [])
+        if not isinstance(cvar, str) or len(lb) != 1:
+            return None
+        return tag if _match_union_rec_field(lb[0], acc, fname, extra, cvar, "body") else None
+    if len(body) != 1:
+        return None
+    return tag if _match_union_rec_field(body[0], acc, fname, extra, stmtv, "body") else None
+
+
+def recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the G-set-accumulate-multiway statement-tree
+    Set[str] fold (see the module note above). Returns
+    {subject, acc_local, extra_params, stmtvar, pre_action|None} or None.
+    Never raises."""
+    try:
+        return _recognize_stmt_setfold(func)
+    except Exception:
+        return None
+
+
+def _recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if not params:
+        return None
+    subj = params[0]
+    extra = params[1:]
+    pa = func.get("param_annotations", {})
+    if pa.get(subj) != "list":
+        return None
+    for e in extra:
+        if pa.get(e) != "set":
+            return None
+    if func.get("return_annotation") != "set":
+        return None
+    fname = func["name"]
+
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+    init, loop, ret = body
+    if not (isinstance(init, dict) and init.get("stmt") == "Assign"):
+        return None
+    acc = init.get("target")
+    if not isinstance(acc, str) or acc == subj or acc in extra:
+        return None
+    iv = init.get("value")
+    if not (isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), acc)):
+        return None
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and not loop.get("orelse") and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtv = loop.get("target")
+    if not isinstance(stmtv, str) or stmtv in (acc, subj) or stmtv in extra:
+        return None
+    lbody = list(loop.get("body", []))
+    if not lbody:
+        return None
+
+    pre = None
+    idx = 0
+    maybe_pre = _match_stmt_add_arm(lbody[0], stmtv, acc, extra)
+    if maybe_pre is not None:
+        pre = maybe_pre
+        idx = 1
+
+    if idx >= len(lbody) or not _match_stmt_descend_loop(lbody[idx], stmtv, acc, fname, extra):
+        return None
+    idx += 1
+
+    seen_echo_tags: set = set()
+    while idx < len(lbody):
+        tag = _match_echo_arm(lbody[idx], stmtv, acc, fname, extra)
+        if tag is None or tag in seen_echo_tags:
+            return None
+        seen_echo_tags.add(tag)
+        idx += 1
+
+    return {"subject": subj, "acc_local": acc, "extra_params": extra,
+            "stmtvar": stmtv, "pre_action": pre}
+
+
+def emit_stmt_setfold_group(func: Dict[str, Any], desc: Dict[str, Any],
+                            whyml_ident, top_ensures: Optional[List[str]] = None) -> List[str]:
+    """Emit the G-set-accumulate-multiway Set[str] statement-tree fold for a
+    recognized closure. Reuses the certified `pyval`/`pydict`/`size*` L1 theory
+    and the purely-defined `set_add`/`set_union` `map string bool` algebra
+    (`recognize_setfold`'s machinery) — a full-subtree OR-union catamorphism
+    over `stmts: list pyval` (the `emit_bool_existence_group` walk shape,
+    congruent modulo the `bool`->`map string bool`/`||`->`set_union` algebra
+    swap), with an inlined pre-action reading the recognized add-arm's guards
+    off the matched `PDict`. NO new WhyML theory, no new abstract op, no axiom."""
+    n = whyml_ident(func["name"])
+    extra = desc["extra_params"]
+    pre = desc["pre_action"]
+    extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
+    extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
+    out: List[str] = []
+    _te = list(top_ensures or ["true"])
+
+    reader_names: Dict[str, str] = {}
+
+    def _emit_reader(key: str) -> str:
+        if key in reader_names:
+            return reader_names[key]
+        rname = f"{n}__get_{_reader_suffix(key)}"
+        reader_names[key] = rname
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if key in _NAMED_KEYS:
+            out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        else:
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        out.append("    end")
+        return rname
+
+    if pre is not None:
+        _emit_reader("stmt")
+        _emit_reader("value")
+        for (_kind, gk, _gv) in pre["guards"]:
+            _emit_reader(gk)
+        _emit_reader(pre["add_key"])
+
+        stmtr = reader_names["stmt"]
+        valr = reader_names["value"]
+        addr = reader_names[pre["add_key"]]
+        out.append(f"  let {n}__pre (d: pydict){extra_sig} : map string bool")
+        out.append(f"  = match {stmtr} d with")
+        out.append("    | Some (PStr tg0) ->")
+        out.append(f'        if pystr_eq tg0 "{pre["outer_tag"]}" then')
+        out.append(f"          (match {valr} d with")
+        out.append("           | Some (PDict vd) ->")
+        indent = "               "
+        closers: List[str] = []
+        for i, (kind, gk, gv) in enumerate(pre["guards"]):
+            gname = reader_names[gk]
+            gpat = f"gv{i}"
+            out.append(f"{indent}(match {gname} vd with")
+            if kind == "eq":
+                out.append(f'{indent} | Some (PStr {gpat}) -> if pystr_eq {gpat} "{gv}" then')
+            else:
+                pname = whyml_ident(gv)
+                out.append(f"{indent} | Some (PStr {gpat}) -> if Map.get {pname} {gpat} then")
+            closers.append(f"{indent}   else const false | _ -> const false end)")
+            indent += "   "
+        out.append(f"{indent}(match {addr} d with")
+        out.append(f"{indent} | Some (PStr t) -> set_add (const false) t")
+        out.append(f"{indent} | _ -> const false end)")
+        for cl in reversed(closers):
+            out.append(cl)
+        out.append("           | _ -> const false end)")
+        out.append("        else const false")
+        out.append("    | _ -> const false end")
+
+    pre_term = (f"set_union ({n}__pre d{extra_args}) ({n}__d d{extra_args})"
+                if pre is not None else f"{n}__d d{extra_args}")
+    _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
+    out.append(f"  let rec {n} (stmts: list pyval){extra_sig} : map string bool")
+    out.append(f"    requires {{ true }}{_ens_line}")
+    out.append("    variant { size_list stmts }")
+    out.append("  = match stmts with")
+    out.append(f"    | Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({n}__v h{extra_args}) ({n} t{extra_args}) end")
+    out.append(f"  with {n}__v (v: pyval){extra_sig} : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {pre_term}")
+    out.append(f"    | PList xs -> {n} xs{extra_args}")
+    out.append("    | _ -> const false end")
+    out.append(f"  with {n}__d (d: pydict){extra_sig} : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append(f"    | DCons _ v rest -> set_union ({n}__v v{extra_args}) ({n}__d rest{extra_args}) end")
+    return out
+
+
 def recognize_frt(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Fail-closed match of the composed `find_return_type` (D + T2). Returns
     {subject, closures:[c1,c2]} or None. Never raises."""
