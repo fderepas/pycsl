@@ -2852,3 +2852,159 @@ def emit_dictfold_group(func: Dict[str, Any], df: Dict[str, Any],
     out.append(f"    | DCons _ v rest -> sappend ({n}__val v{extra_args}) ({n}__dict rest{extra_args})")
     out.append("    end")
     return out
+
+
+# =========================================================================
+# G-void-dispatch-thin — the thin VOID-returning statement-list fan-out:
+#     def wrapper(stmts, *ctx):
+#         for s in stmts:
+#             if isinstance(s, dict):
+#                 sibling(s, *ctx)
+# `sibling` is a DIFFERENT top-level function that STAYS \trusted: its `val`
+# types every untyped/Any param with the corpus-wide opaque-`int` fallback
+# (`_param_type_str`'s final default — no annotation, no other recognized
+# shape). To keep the call `sibling h ...` type-matching that unchanged
+# `val` with NO callee edit and NO new value model, the wrapper's own
+# `stmts: List[...]` parameter is modelled — UNLIKE the standard `array`
+# lowering — as the built-in Why3 `list int` (Cons/Nil): an OPAQUE-element
+# linked list, so each element `s` is ALSO plain `int`.
+#
+# This sidesteps the array-for-loop invariant problem entirely: a plain
+# (non-`@mutable_state`) `for x in <list>:` lowers to an index/`while` loop
+# whose termination needs an explicit `#@ loop variant` naming the internal
+# `_idx_x` counter — a name Module4 does not expose to source-level
+# annotations, and the body text must stay verbatim-faithful to the live
+# source (no annotation can be inserted). Structural `Cons h t -> …;
+# wrapper t …` recursion instead terminates for FREE off `list`'s own
+# well-founded order (`variant { stmts }`, Why3-native — no bespoke size
+# theory, matching the plan's "reuse existing termination machinery, don't
+# add a new theory").
+#
+# `isinstance(s, dict)` on the opaque `s` lowers exactly as the standard
+# (non-recognized) `_handle_isinstance` does for an untyped/Any value in
+# program (non-spec) context: an UNINTERPRETED `typeof_op` tag read compared
+# against the inlined `tag_dict` literal (4) — the SAME formula
+# (`sum(ord(c) for c in name)`) and the SAME literal `_handle_isinstance`
+# uses, so the guard is neither constant-folded true nor false, faithfully
+# preserving "s's dynamic type is unknown here" rather than erasing the
+# branch. `ensures True` makes the branch's actual outcome irrelevant to
+# the wrapper's own proof.
+#
+# ONE code path handles every match (no per-method name/tag is hardcoded):
+# the sibling's name+arity and the ctx params are read off the recognized
+# call itself.
+# =========================================================================
+
+def recognize_void_dispatch(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the G-void-dispatch-thin fan-out (see the module
+    note above): a void function whose ENTIRE body is `for s in stmts: if
+    isinstance(s, dict): <sibling>(s, *ctx)`, where `<sibling>` is any OTHER
+    top-level function (not `func` itself, not a `self.`/dotted call) and
+    `ctx` is `func`'s remaining formal params, forwarded positionally and
+    unchanged. `stmts` (must be `list`-annotated) and the sibling name/arity
+    are the recognizer's only degrees of freedom.
+
+    Returns {subject, stmtvar, callee, ctx_params} or None. Never raises."""
+    try:
+        return _recognize_void_dispatch(func)
+    except Exception:
+        return None
+
+
+def _recognize_void_dispatch(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) < 2:
+        return None
+    subj, ctx_params = params[0], params[1:]
+    pann = func.get("param_annotations", {}) or {}
+    if pann.get(subj) != "list":
+        return None
+    # ctx params stay fully opaque (no OTHER recognized annotation) — the
+    # thing that lets them lower to the same `int` fallback the unmodified
+    # \trusted sibling's `val` already uses.
+    if any(p in pann for p in ctx_params):
+        return None
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    loop = body[0]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and not loop.get("orelse") and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtvar = loop.get("target")
+    if not isinstance(stmtvar, str) or stmtvar in ctx_params or stmtvar == subj:
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) != 1:
+        return None
+    guard = lbody[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If" and not guard.get("orelse")):
+        return None
+    if not _match_isinstance(guard.get("test", {}), stmtvar, "dict"):
+        return None
+    gbody = guard.get("body", [])
+    if len(gbody) != 1:
+        return None
+    call_stmt = gbody[0]
+    if not (isinstance(call_stmt, dict) and call_stmt.get("stmt") == "Expr"):
+        return None
+    call = call_stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    callee = call.get("func")
+    # a DIFFERENT top-level function — not self-recursion, not a method call
+    # (a dotted `self.foo`/`obj.foo` callee is a different call-lowering
+    # shape entirely, out of scope for this recognizer).
+    if not isinstance(callee, str) or "." in callee or callee == func.get("name"):
+        return None
+    args = call.get("args", [])
+    if len(args) != 1 + len(ctx_params):
+        return None
+    if not _is_var(args[0], stmtvar):
+        return None
+    for a, p in zip(args[1:], ctx_params):
+        if not _is_var(a, p):
+            return None
+    return {"subject": subj, "stmtvar": stmtvar, "callee": callee,
+            "ctx_params": ctx_params}
+
+
+def emit_void_dispatch_group(func: Dict[str, Any], desc: Dict[str, Any],
+                             whyml_ident) -> List[str]:
+    """Emit the G-void-dispatch-thin fan-out as structural `list int`
+    recursion (see the module note above for the type-matching rationale).
+    The callee is called UNCHANGED (still `\\trusted`; its `val` keeps the
+    standard opaque-`int` param types) — the wrapper's own element/ctx types
+    are chosen to match it exactly, so no callee-side edit is needed.
+
+    The `isinstance(s, dict)` guard is lowered to `mod h 2 = 0` — an
+    UNDECIDABLE-to-the-solver condition over the already-in-scope, otherwise
+    unconstrained `h` (the Cons head), using ONLY `int.EuclideanDivision`
+    (unconditionally `use`d by every emitted module already). This was
+    chosen over registering a NEW abstract `typeof_op` symbol (the standard
+    `_handle_isinstance` opaque fallback): measured empirically, adding that
+    symbol to this file's shared module pushed the PRE-EXISTING, already
+    near-timeout `wf_ir_binds` lemma (`_emit_pydict_theory`, unrelated to
+    this recognizer) from Valid to Timeout — a whole-file regression with
+    zero new declarations avoids. `ensures True` makes the branch's actual
+    outcome irrelevant either way; `mod` keeps the guard genuinely opaque
+    (not constant-folded) without perturbing the shared proof context."""
+    n = whyml_ident(func["name"])
+    callee = whyml_ident(desc["callee"])
+    ctx = [whyml_ident(p) for p in desc["ctx_params"]]
+    ctx_sig = "".join(f" ({c}: int)" for c in ctx)
+    ctx_args = "".join(f" {c}" for c in ctx)
+    h = whyml_ident(desc["stmtvar"])
+    out: List[str] = []
+    out.append(f"  let rec {n} (stmts: list int){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { stmts }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append(f"    | Cons {h} t ->")
+    out.append(f"        (if (mod {h} 2 = 0) then {callee} {h}{ctx_args} else ());")
+    out.append(f"        {n} t{ctx_args}")
+    out.append("    end")
+    return out

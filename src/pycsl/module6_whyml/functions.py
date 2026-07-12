@@ -1093,7 +1093,8 @@ class FunctionEmissionMixin:
             recognize_bool_existence, emit_bool_existence_group,
             recognize_frt, emit_frt_group,
             recognize_sawalk, emit_sawalk_group,
-            recognize_dictfold, emit_dictfold_group)
+            recognize_dictfold, emit_dictfold_group,
+            recognize_void_dispatch, emit_void_dispatch_group)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)
@@ -1146,6 +1147,14 @@ class FunctionEmissionMixin:
         _df = recognize_dictfold(func)
         if _df is not None:
             return emit_dictfold_group(func, _df, whyml_ident)
+        # G-void-dispatch-thin: the void statement-list fan-out `for s in
+        # stmts: if isinstance(s, dict): sibling(s, *ctx)`. The sibling stays
+        # \trusted (opaque-`int` val, unchanged); the wrapper's own `stmts`
+        # is modelled as `list int` (Cons/Nil) for free structural
+        # termination. Same fail-closed discipline.
+        _vd = recognize_void_dispatch(func)
+        if _vd is not None:
+            return emit_void_dispatch_group(func, _vd, whyml_ident)
         body_stmts = func["body"]
         is_method = func.get("kind") == "method"
 

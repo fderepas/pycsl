@@ -7,7 +7,7 @@ the source. The mirror-check gate enforces signature parity.
 """
 from __future__ import annotations
 import warnings
-from typing import Any
+from typing import Any, Dict, List
 from errors import PyCSLSemanticError
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -60,12 +60,15 @@ _PB_LENGTHLESS_TYPES = ('dict', 'Dict', 'set', 'Set', 'frozenset', 'FrozenSet')
 def _check_contract_exprs(func, known) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _pb_body(stmts, fname, symtab, known) -> None:
-    pass
+def _pb_body(stmts: List[Dict[str, Any]], fname, symtab, known) -> None:
+    """Walk a statement list, applying the contract-expr checks to while-invariants
+    and ghost values with their surface-specific context, recursing into nested bodies."""
+    for s in stmts:
+        if isinstance(s, dict):
+            _pb_stmt(s, fname, symtab, known)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -95,12 +98,13 @@ def _pb_expr(node, ctx, symtab, known) -> None:
 def _check_contract_scope(func, module_constants) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _cs_body(stmts, fname, symtab, mc) -> None:
-    pass
+def _cs_body(stmts: List[Dict[str, Any]], fname, symtab, mc) -> None:
+    for s in stmts:
+        if isinstance(s, dict):
+            _cs_stmt(s, fname, symtab, mc)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -327,12 +331,14 @@ def _hp_collect_written(node: Any, written: set) -> None:
 def _check_final(ir) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _final_walk_body(stmts, fname, module_finals, class_attr_finals) -> None:
-    pass
+def _final_walk_body(stmts: List[Dict[str, Any]], fname, module_finals, class_attr_finals) -> None:
+    """Walk a list of IR statements for Final write-policy violations."""
+    for s in stmts:
+        if isinstance(s, dict):
+            _final_check_stmt(s, fname, module_finals, class_attr_finals)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

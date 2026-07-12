@@ -1987,7 +1987,7 @@ class PreambleEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_generic_fold, recognize_setfold, recognize_substmap,
             recognize_bool_existence, recognize_frt, recognize_sawalk,
-            recognize_dictfold)
+            recognize_dictfold, recognize_void_dispatch)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
@@ -2001,9 +2001,16 @@ class PreambleEmissionMixin:
             or recognize_bool_existence(f) is not None
             or recognize_frt(f) is not None
             for f in functions)
+        # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
+        # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only
+        # `list.List` in scope, gated separately from `needs_pydict`/
+        # `needs_list_ghost` so their emission stays byte-identical. Gated +
+        # never set by the reference corpus (self-annotate-mirror-only) → byte-diff-0.
+        needs_void_dispatch = any(recognize_void_dispatch(f) is not None for f in functions)
         return {
             "needs_pydict": needs_pydict,
             "needs_sdict": needs_sdict,
+            "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
             "needs_matrix": needs_matrix,
             "needs_minmax": needs_minmax,
@@ -2114,6 +2121,14 @@ class PreambleEmissionMixin:
                 out.append("  use list.NthNoOpt")
                 out.append("  use list.Mem")
                 out.append("  use list.Append")
+            elif needs.get("needs_void_dispatch"):
+                # G-void-dispatch-thin needs ONLY the bare `list.List` Cons/Nil
+                # ADT (structural `variant { stmts }` recursion) — Length/
+                # NthNoOpt/Mem/Append are unused axiom baggage that measurably
+                # perturbed an unrelated pre-existing lemma's solver timing in
+                # this file (`wf_ir_binds`, `_emit_pydict_theory`) when
+                # included; omitting them restored it to Valid.
+                out.append("  use list.List")
         else:
             out.append("  use map.Map")
             if needs["needs_list_ghost"]:
@@ -2122,6 +2137,8 @@ class PreambleEmissionMixin:
                 out.append("  use list.NthNoOpt")
                 out.append("  use list.Mem")
                 out.append("  use list.Append")
+            elif needs.get("needs_void_dispatch"):
+                out.append("  use list.List")
             if needs["needs_minmax"]:
                 out.append("  use int.MinMax")
             out.append("")
