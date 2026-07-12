@@ -236,6 +236,25 @@ dispatcher that projects real fields must be converted with a pyval subject BEFO
 callers, or its callers' opaque-int emission makes it a boundary.** For now `_pb_stmt`/`_cs_stmt` = boundary
 (reversible only by a larger increment that re-emits the whole `_pb_*`/`_cs_*` family with a pyval subject).
 
+**Stmt-walker campaign near floor (2026-07-12, 1226→1206 = −20 via recognizer reuse). Remaining cluster
+members characterized:** the ≥2-via-one-matcher tractable walkers are DRAINED. Boundary map of the rest:
+- **Opaque-int-coupling boundaries** (same class as _pb_stmt): `_final_check_stmt` (its converted caller
+  `_final_walk_body` passes `s` opaque → signature pinned to `(s: int)`, no projectable fields). `_pb_stmt`/
+  `_cs_stmt` (prior). Reversible only by re-emitting the whole caller family with a pyval subject.
+- **Single-instance shapes** (below the ≥2 generality bar → a new recognizer for ONE method risks a
+  fingerprint/facade): `_union_c8_walk` (per-tag dispatch + sibling-call-with-real-args; NOT caller-coupled,
+  so tractable IN PRINCIPLE, but only 1 instance of the shape in the mirror).
+- **New-feature builds**: `_noreturn_walk_stmts` (STATEFUL — threads `prev_noreturn_call` across loop
+  iterations, order-dependent conditional raise; no fold-recognizer precedent — a genuinely new
+  state-threaded-void-fold primitive).
+- **Different-value-model boundaries**: `_collect_mutations` (by-ref `out:List`), `find_array_and_dict_vars`/
+  `find_iteration_mutations` (Tuple/record returns), `_collect_tuple_var_assigns` (Dict + self-side-channel),
+  `_collect_array_var_assigns` (fixpoint `while changed`), `find_assigned_vars` (unbounded by-ref side-call),
+  `collect_escaping_exceptions` (external `handler_catches` oracle), `uses_inline_set_or_dict_ops` (generic-Any
+  `.values()` walker = lesson-3 boundary).
+**Doctrine applied:** do NOT build a single-instance recognizer (facade risk) or grind bespoke +1 new-value-model
+machinery on the heavy file for diminishing return. The stmt-walker wall is at its recognizer-reuse floor.
+
 **Lesson (defer-with-pinned-gap kind):**
 > When a wall is oracle-proven BREAKABLE but the emitter build reveals a genuine multi-recognizer M2 gap, the
 > driver's win is the PINNED gap + a proven-ready foundation piece, NOT a forced conversion. Land nothing that
