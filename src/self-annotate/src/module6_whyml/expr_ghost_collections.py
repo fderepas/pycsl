@@ -42,12 +42,15 @@ class GhostCollectionOpsMixin:
         d_r = self._deref(d)
         return f"(match Map.get {d_r} {k} with | Some v_ -> v_ | None -> 0 end)"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_map_set_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_map_set_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        d = self._e(node.dict, lr)
+        k = self._e(node.key, lr)
+        v = self._e(node.value, lr)
+        d_r = self._deref(d)
+        return f"(Map.set {d_r} {k} (Some {v}))"
 
     #@ requires True
     #@ ensures True
@@ -141,12 +144,15 @@ class GhostCollectionOpsMixin:
         v = "_k_sd"
         return f"(fun ({v}: int) -> (Map.get {l_r} {v}) && not (Map.get {r_r} {v}))"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_card_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_card_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        s = self._e(node.set, lr)
+        lo = self._e(node.lo, lr)
+        hi = self._e(node.hi, lr)
+        s_r = self._deref(s)
+        return f"(set_card {s_r} {lo} {hi})"
 
     #@ requires True
     #@ ensures True
