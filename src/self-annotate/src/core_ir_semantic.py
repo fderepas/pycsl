@@ -77,12 +77,19 @@ def _pb_body(stmts: List[Dict[str, Any]], fname, symtab, known) -> None:
 def _pb_stmt(s, fname, symtab, known) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _pb_descend(v, fname, symtab, known) -> None:
-    pass
+    if isinstance(v, dict):
+        if "stmt" in v:
+            _pb_stmt(v, fname, symtab, known)
+        else:
+            for x in v.values():
+                _pb_descend(x, fname, symtab, known)
+    elif isinstance(v, list):
+        for x in v:
+            _pb_descend(x, fname, symtab, known)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -113,12 +120,19 @@ def _cs_body(stmts: List[Dict[str, Any]], fname, symtab, mc) -> None:
 def _cs_stmt(s, fname, symtab, mc) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _cs_descend(v, fname, symtab, mc) -> None:
-    pass
+    if isinstance(v, dict):
+        if "stmt" in v:
+            _cs_stmt(v, fname, symtab, mc)
+        else:
+            for x in v.values():
+                _cs_descend(x, fname, symtab, mc)
+    elif isinstance(v, list):
+        for x in v:
+            _cs_descend(x, fname, symtab, mc)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

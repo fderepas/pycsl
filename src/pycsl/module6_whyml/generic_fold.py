@@ -3430,3 +3430,228 @@ def emit_void_dispatch_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append(f"        {n} t{ctx_args}")
     out.append("    end")
     return out
+
+
+# =========================================================================
+# G-void-generic-descend — the VOID untyped-value tree descender (the
+# `_pb_descend`/`_cs_descend` twin pair, mutually recursive with the
+# G-void-dispatch-thin siblings `_pb_body`/`_cs_body`):
+#     def wrapper(v, *ctx):
+#         if isinstance(v, dict):
+#             if "stmt" in v:
+#                 sibling(v, *ctx)
+#             else:
+#                 for x in v.values():
+#                     wrapper(x, *ctx)
+#         elif isinstance(v, list):
+#             for x in v:
+#                 wrapper(x, *ctx)
+#
+# UNLIKE G-void-dispatch-thin, the subject `v` is genuinely heterogeneous
+# (no `List[...]` annotation — it is descended through both `dict` and
+# `list` shapes across the recursion), so it needs the REAL `pyval`/`pydict`
+# L1 catamorphism (`needs_pydict`, the `recognize_bool_existence` theory) —
+# not the opaque `list int` model. `isinstance(v, dict)`/`isinstance(v,
+# list)` lower to the pyval tag match itself (`PDict`/`PList`), which is
+# MORE faithful than the `mod h 2 = 0` opaque-guard fallback (real
+# information, not a scrambled parity bit) — that fallback is reserved for
+# an already-opaque scalar, which `v` here is not. `"stmt" in v` reuses the
+# EXISTING `_emit_stmt_reader` presence reader verbatim (the same helper
+# `recognize_bool_existence`'s group already emits) — no new WhyML theory.
+#
+# `sibling` (`_pb_stmt`/`_cs_stmt`) STAYS \trusted, so its `val` keeps the
+# corpus-wide opaque-`int` param type for its untyped `s` (the
+# `_param_type_str` Any-fallback) — the SAME convention `_pb_body`'s already-
+# landed `emit_void_dispatch_group` relies on. Since a `\trusted val` has no
+# body, its contract (`ensures true`) makes the caller-supplied int value
+# formally irrelevant; the call forwards the literal `0` as that opaque
+# handle (`pv_size`/`size_dict` are pure LOGIC `function`s — ghost/spec-only,
+# rejected in a program-expression position, so they cannot supply it) —
+# sound for the same reason `emit_void_dispatch_group` forwards an opaque
+# `list int` Cons element with no relation to real dict content: the
+# trusted callee cannot observe or constrain the value it receives.
+#
+# Termination is the direct structural sub-term at every recursive site
+# (`pv_size v` / `size_dict d` / `size_list xs`), split_vc-robust — the
+# proven A-bool/A-set shape reused verbatim.
+#
+# ONE code path handles every match (no per-method name/tag is hardcoded):
+# the sibling's name and the ctx params are read off the recognized call.
+# =========================================================================
+
+def recognize_void_generic_descend(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the G-void-generic-descend untyped tree
+    descender (see the module note above): a void function whose ENTIRE
+    body is `if isinstance(v, dict): (if "stmt" in v: sibling(v, *ctx) else:
+    for x in v.values(): self(x, *ctx)) elif isinstance(v, list): for x in
+    v: self(x, *ctx)`. `sibling` is any OTHER top-level function (not
+    `func` itself, not a dotted call); `ctx` is `func`'s remaining formal
+    params, forwarded positionally and unchanged. `v` must be UNANNOTATED
+    (the genuinely heterogeneous subject — a `list`-annotated subject is the
+    G-void-dispatch-thin shape instead).
+
+    Returns {subject, ctx_params, callee} or None. Never raises."""
+    try:
+        return _recognize_void_generic_descend(func)
+    except Exception:
+        return None
+
+
+def _match_self_recurse_call(body: Any, self_name: str, xvar: str,
+                             ctx_params: List[str]) -> bool:
+    """`self(<xvar>, *ctx_params)` as the sole statement of a loop body."""
+    if not isinstance(body, list) or len(body) != 1:
+        return False
+    s = body[0]
+    if not (isinstance(s, dict) and s.get("stmt") == "Expr"):
+        return False
+    call = s.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == self_name):
+        return False
+    args = call.get("args", [])
+    if len(args) != 1 + len(ctx_params):
+        return False
+    if not _is_var(args[0], xvar):
+        return False
+    for a, p in zip(args[1:], ctx_params):
+        if not _is_var(a, p):
+            return False
+    return True
+
+
+def _recognize_void_generic_descend(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) < 2:
+        return None
+    subj, ctx_params = params[0], params[1:]
+    pann = func.get("param_annotations", {}) or {}
+    # `v` must be genuinely untyped — a `list`-annotated subject is the
+    # G-void-dispatch-thin shape (`recognize_void_dispatch`), a different
+    # recognizer.
+    if subj in pann or any(p in pann for p in ctx_params):
+        return None
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+    obody = outer.get("body", [])
+    if len(obody) != 1:
+        return None
+    inner = obody[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"):
+        return None
+    itest = inner.get("test", {})
+    if not (isinstance(itest, dict) and itest.get("type") == "BinOp"
+            and itest.get("op") == "in"
+            and _is_string(itest.get("left")) == "stmt"
+            and _is_var(itest.get("right"), subj)):
+        return None
+    # true arm: sibling(v, *ctx)
+    ibody = inner.get("body", [])
+    if len(ibody) != 1:
+        return None
+    call_stmt = ibody[0]
+    if not (isinstance(call_stmt, dict) and call_stmt.get("stmt") == "Expr"):
+        return None
+    call = call_stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    callee = call.get("func")
+    if not isinstance(callee, str) or "." in callee or callee == func.get("name"):
+        return None
+    cargs = call.get("args", [])
+    if len(cargs) != 1 + len(ctx_params):
+        return None
+    if not _is_var(cargs[0], subj):
+        return None
+    for a, p in zip(cargs[1:], ctx_params):
+        if not _is_var(a, p):
+            return None
+    # false arm: for x in v.values(): self(x, *ctx)
+    iorelse = inner.get("orelse", [])
+    if len(iorelse) != 1:
+        return None
+    dloop = iorelse[0]
+    if not (isinstance(dloop, dict) and dloop.get("stmt") == "For"
+            and not dloop.get("orelse")):
+        return None
+    dit = dloop.get("iter", {})
+    if not (isinstance(dit, dict) and dit.get("type") == "Call"
+            and dit.get("func") == f"{subj}.values" and not dit.get("args")):
+        return None
+    xvar = dloop.get("target")
+    if not isinstance(xvar, str) or xvar in ctx_params or xvar == subj:
+        return None
+    if not _match_self_recurse_call(dloop.get("body", []), func.get("name"),
+                                    xvar, ctx_params):
+        return None
+    # outer orelse: elif isinstance(v, list): for x in v: self(x, *ctx)
+    oorelse = outer.get("orelse", [])
+    if len(oorelse) != 1:
+        return None
+    linner = oorelse[0]
+    if not (isinstance(linner, dict) and linner.get("stmt") == "If"
+            and not linner.get("orelse")):
+        return None
+    if not _match_isinstance(linner.get("test", {}), subj, "list"):
+        return None
+    lbody = linner.get("body", [])
+    if len(lbody) != 1:
+        return None
+    lloop = lbody[0]
+    if not (isinstance(lloop, dict) and lloop.get("stmt") == "For"
+            and not lloop.get("orelse")):
+        return None
+    if not _is_var(lloop.get("iter"), subj):
+        return None
+    xvar2 = lloop.get("target")
+    if not isinstance(xvar2, str) or xvar2 in ctx_params or xvar2 == subj:
+        return None
+    if not _match_self_recurse_call(lloop.get("body", []), func.get("name"),
+                                    xvar2, ctx_params):
+        return None
+    return {"subject": subj, "ctx_params": ctx_params, "callee": callee}
+
+
+def emit_void_generic_descend_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                    whyml_ident) -> List[str]:
+    """Emit the G-void-generic-descend untyped tree descender as a `pyval`/
+    `pydict`/`list pyval` mutual catamorphism into `unit` (see the module
+    note above). Reuses `_emit_stmt_reader` verbatim for the `"stmt" in v`
+    presence check (only its `__get_stmt` half is consulted here; the
+    `__stmt_is` half it also emits is simply unused, not a new theory)."""
+    n = whyml_ident(func["name"])
+    callee = whyml_ident(desc["callee"])
+    ctx = [whyml_ident(p) for p in desc["ctx_params"]]
+    ctx_sig = "".join(f" ({c}: int)" for c in ctx)
+    ctx_args = "".join(f" {c}" for c in ctx)
+    out: List[str] = []
+    out.extend(_emit_stmt_reader(n))
+    out.append(f"  let rec {n} (v: pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {n}__get_stmt d with")
+    out.append(f"        | Some _ -> {callee} 0{ctx_args}")
+    out.append(f"        | None -> {n}__d d{ctx_args} end)")
+    out.append(f"    | PList xs -> {n}__l xs{ctx_args}")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    out.append(f"  with {n}__d (d: pydict){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with DNil -> ()")
+    out.append(f"    | DCons _ v rest -> {n} v{ctx_args}; {n}__d rest{ctx_args} end")
+    out.append(f"  with {n}__l (xs: list pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list xs }")
+    out.append("  = match xs with Nil -> ()")
+    out.append(f"    | Cons h t -> {n} h{ctx_args}; {n}__l t{ctx_args} end")
+    return out

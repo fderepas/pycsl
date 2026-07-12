@@ -1095,7 +1095,8 @@ class FunctionEmissionMixin:
             recognize_frt, emit_frt_group,
             recognize_sawalk, emit_sawalk_group,
             recognize_dictfold, emit_dictfold_group,
-            recognize_void_dispatch, emit_void_dispatch_group)
+            recognize_void_dispatch, emit_void_dispatch_group,
+            recognize_void_generic_descend, emit_void_generic_descend_group)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)
@@ -1164,6 +1165,16 @@ class FunctionEmissionMixin:
         _vd = recognize_void_dispatch(func)
         if _vd is not None:
             return emit_void_dispatch_group(func, _vd, whyml_ident)
+        # G-void-generic-descend: the void UNTYPED tree descender
+        # `if isinstance(v, dict): (if "stmt" in v: sibling(v, *ctx) else:
+        # for x in v.values(): self(x, *ctx)) elif isinstance(v, list): for
+        # x in v: self(x, *ctx)`. Unlike G-void-dispatch-thin, `v` is
+        # genuinely heterogeneous (no `list` annotation) — modelled as the
+        # real `pyval`/`pydict` L1 catamorphism. The sibling stays \trusted
+        # (opaque-`int` val, unchanged). Same fail-closed discipline.
+        _vgd = recognize_void_generic_descend(func)
+        if _vgd is not None:
+            return emit_void_generic_descend_group(func, _vgd, whyml_ident)
         body_stmts = func["body"]
         is_method = func.get("kind") == "method"
 
