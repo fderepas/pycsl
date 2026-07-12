@@ -3,12 +3,12 @@ from typing import Any, Dict, Optional, Set
 ""  # pycsl
 class GhostCollectionOpsMixin:
     "Ghost-collection spec-operator handlers — the `\\map_*` / `\\set_*` and\n    ghost-list (`\\nil`/`\\cons`/`\\hd`/`\\tl`/`\\list_length`/`\\nth`/`\\mem`/`++`)\n    expression handlers, each emitting a fixed Why3 form over the\n    `map int (option int)` / `map int bool` / `list int` models.\n\n    Extracted verbatim from `ExpressionEmissionMixin` (Part B move 3c, mirroring\n    the module5/ split). `ExpressionEmissionMixin` inherits this mixin, so the\n    handlers resolve via MRO through the facade's `_EXPR_DISPATCH` and call back\n    into `self._e` / `self._deref` (which stay in `ExpressionEmissionMixin`)."
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_map_empty_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_map_empty_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        # option-type design: absent keys map to None
+        return "(const (None: option int))"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -45,12 +45,12 @@ class GhostCollectionOpsMixin:
     def _handle_map_remove_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_set_empty_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_set_empty_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        # Why3: map.Const exports 'const', not 'Map.const'
+        return "(const false)"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -115,12 +115,11 @@ class GhostCollectionOpsMixin:
     def _handle_set_eq_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_nil_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_nil_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        return "Nil"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
