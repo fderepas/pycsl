@@ -812,6 +812,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "Sum":           ("IrSum", ["base", "lo", "hi"]),
         "AssignsRegion": ("IrAssignsRegion", ["base", "low", "high"]),
         "ForallItems":   ("IrForallItems", ["key", "val", "map", "body"]),
+        # post-m1-census.md map/set/list batch mini-M1: wire the MAP/SET/LIST
+        # ghost-collection family's inline `{"type": K, ...}` constructions
+        # (Module5's `_csl_map_empty`/`_csl_map_get`/`_csl_map_set`/`_csl_map_eq`/
+        # `_csl_has_key`/`_csl_map_remove`/`_csl_set_empty`/`_csl_set_add`/
+        # `_csl_set_remove`/`_csl_set_mem`/`_csl_set_union`/`_csl_set_inter`/
+        # `_csl_set_diff`/`_csl_set_card`/`_csl_set_subset`/`_csl_set_eq`/`_csl_nil`/
+        # `_csl_cons`/`_csl_hd`/`_csl_tl`/`_csl_list_length`/`_csl_nth`/`_csl_mem`/
+        # `_csl_append`) to the matching `emit_ir` ctors added alongside the SPEC-OP
+        # family (preamble.py `_emit_exprir_theory`).
+        "MapEmpty":  ("IrMapEmpty", []),
+        "MapGet":    ("IrMapGet", ["dict", "key"]),
+        "MapSet":    ("IrMapSet", ["dict", "key", "value"]),
+        "MapEq":     ("IrMapEq", ["left", "right"]),
+        "HasKey":    ("IrHasKey", ["dict", "key"]),
+        "MapRemove": ("IrMapRemove", ["dict", "key"]),
+        "SetEmpty":  ("IrSetEmpty", []),
+        "SetAdd":    ("IrSetAdd", ["set", "elem"]),
+        "SetRemove": ("IrSetRemove", ["set", "elem"]),
+        "SetMem":    ("IrSetMem", ["elem", "set"]),
+        "SetUnion":  ("IrSetUnion", ["left", "right"]),
+        "SetInter":  ("IrSetInter", ["left", "right"]),
+        "SetDiff":   ("IrSetDiff", ["left", "right"]),
+        "SetCard":   ("IrSetCard", ["set", "lo", "hi"]),
+        "SetSubset": ("IrSetSubset", ["left", "right"]),
+        "SetEq":     ("IrSetEq", ["left", "right"]),
+        "Nil":       ("IrNil", []),
+        "Cons":      ("IrCons", ["head", "tail"]),
+        "Hd":        ("IrHd", ["list"]),
+        "Tl":        ("IrTl", ["list"]),
+        "ListLength": ("IrListLength", ["list"]),
+        "Nth":       ("IrNth", ["list", "index"]),
+        "Mem":       ("IrMem", ["elem", "list"]),
+        "Append":    ("IrAppend", ["left", "right"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in

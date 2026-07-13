@@ -414,173 +414,167 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_ghost_make(self, node: GhostMakeExpr) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_map_empty(self, node: MapEmptyExpr) -> int:
-        return {}
+    def _csl_map_empty(self, node: MapEmptyExpr) -> Dict[str, Any]:
+        return {"type": "MapEmpty"}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_map_get(self, node: MapGetExpr) -> int:
-        return {}
+    def _csl_map_get(self, node: MapGetExpr) -> Dict[str, Any]:
+        return {"type": "MapGet", "dict": self._csl_to_ir(node.dict_expr),
+                "key": self._csl_to_ir(node.key)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_map_set(self, node: MapSetExpr) -> int:
-        return {}
+    def _csl_map_set(self, node: MapSetExpr) -> Dict[str, Any]:
+        return {"type": "MapSet", "dict": self._csl_to_ir(node.dict_expr),
+                "key": self._csl_to_ir(node.key), "value": self._csl_to_ir(node.value)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_map_eq(self, node: MapEqExpr) -> int:
-        return {}
+    def _csl_map_eq(self, node: MapEqExpr) -> Dict[str, Any]:
+        return {"type": "MapEq", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_has_key(self, node: HasKeyExpr) -> int:
-        return {}
+    def _csl_has_key(self, node: HasKeyExpr) -> Dict[str, Any]:
+        return {"type": "HasKey", "dict": self._csl_to_ir(node.dict_expr),
+                "key": self._csl_to_ir(node.key)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_map_remove(self, node: MapRemoveExpr) -> int:
-        return {}
+    def _csl_map_remove(self, node: MapRemoveExpr) -> Dict[str, Any]:
+        return {"type": "MapRemove", "dict": self._csl_to_ir(node.dict_expr),
+                "key": self._csl_to_ir(node.key)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_empty(self, node: SetEmptyExpr) -> int:
-        return {}
+    def _csl_set_empty(self, node: SetEmptyExpr) -> Dict[str, Any]:
+        return {"type": "SetEmpty"}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_add(self, node: SetAddExpr) -> int:
-        return {}
+    def _csl_set_add(self, node: SetAddExpr) -> Dict[str, Any]:
+        return {"type": "SetAdd", "set": self._csl_to_ir(node.set_expr),
+                "elem": self._csl_to_ir(node.elem)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_remove(self, node: SetRemoveExpr) -> int:
-        return {}
+    def _csl_set_remove(self, node: SetRemoveExpr) -> Dict[str, Any]:
+        return {"type": "SetRemove", "set": self._csl_to_ir(node.set_expr),
+                "elem": self._csl_to_ir(node.elem)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_mem(self, node: SetMemExpr) -> int:
-        return {}
+    def _csl_set_mem(self, node: SetMemExpr) -> Dict[str, Any]:
+        return {"type": "SetMem", "elem": self._csl_to_ir(node.elem),
+                "set": self._csl_to_ir(node.set_expr)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_union(self, node: SetUnionExpr) -> int:
-        return {}
+    def _csl_set_union(self, node: SetUnionExpr) -> Dict[str, Any]:
+        return {"type": "SetUnion", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_inter(self, node: SetInterExpr) -> int:
-        return {}
+    def _csl_set_inter(self, node: SetInterExpr) -> Dict[str, Any]:
+        return {"type": "SetInter", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_diff(self, node: SetDiffExpr) -> int:
-        return {}
+    def _csl_set_diff(self, node: SetDiffExpr) -> Dict[str, Any]:
+        return {"type": "SetDiff", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_card(self, node: SetCardExpr) -> int:
-        return {}
+    def _csl_set_card(self, node: SetCardExpr) -> Dict[str, Any]:
+        return {"type": "SetCard", "set": self._csl_to_ir(node.set_expr),
+                "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_subset(self, node: SetSubsetExpr) -> int:
-        return {}
+    def _csl_set_subset(self, node: SetSubsetExpr) -> Dict[str, Any]:
+        return {"type": "SetSubset", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_set_eq(self, node: SetEqExpr) -> int:
-        return {}
+    def _csl_set_eq(self, node: SetEqExpr) -> Dict[str, Any]:
+        return {"type": "SetEq", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_nil(self, node: NilExpr) -> int:
-        return {}
+    def _csl_nil(self, node: NilExpr) -> Dict[str, Any]:
+        return {"type": "Nil"}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_cons(self, node: ConsExpr) -> int:
-        return {}
+    def _csl_cons(self, node: ConsExpr) -> Dict[str, Any]:
+        return {"type": "Cons", "head": self._csl_to_ir(node.head),
+                "tail": self._csl_to_ir(node.tail)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_hd(self, node: HdExpr) -> int:
-        return {}
+    def _csl_hd(self, node: HdExpr) -> Dict[str, Any]:
+        return {"type": "Hd", "list": self._csl_to_ir(node.list_expr)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_tl(self, node: TlExpr) -> int:
-        return {}
+    def _csl_tl(self, node: TlExpr) -> Dict[str, Any]:
+        return {"type": "Tl", "list": self._csl_to_ir(node.list_expr)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_list_length(self, node: ListLengthExpr) -> int:
-        return {}
+    def _csl_list_length(self, node: ListLengthExpr) -> Dict[str, Any]:
+        return {"type": "ListLength", "list": self._csl_to_ir(node.list_expr)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_nth(self, node: NthExpr) -> int:
-        return {}
+    def _csl_nth(self, node: NthExpr) -> Dict[str, Any]:
+        return {"type": "Nth", "list": self._csl_to_ir(node.list_expr),
+                "index": self._csl_to_ir(node.index)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_mem(self, node: MemExpr) -> int:
-        return {}
+    def _csl_mem(self, node: MemExpr) -> Dict[str, Any]:
+        return {"type": "Mem", "elem": self._csl_to_ir(node.elem),
+                "list": self._csl_to_ir(node.list_expr)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_append(self, node: AppendExpr) -> int:
-        return {}
+    def _csl_append(self, node: AppendExpr) -> Dict[str, Any]:
+        return {"type": "Append", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

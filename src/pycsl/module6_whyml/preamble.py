@@ -3289,6 +3289,18 @@ class PreambleEmissionMixin:
             " `_csl_valid`, `_csl_separated`, `_csl_length2d`, `_csl_valid2d`,"
             " `_csl_is_sorted`, `_csl_array_eq`, `_csl_permutation`, `_csl_sum`,"
             " `_csl_assigns_region`, `_csl_forall_items` single-return CSL-AST-node"
+            " constructions verbatim (IrBinOp precedent)."
+            " post-m1-census.md map/set/list batch mini-M1: extended with the"
+            " MAP/SET/LIST ghost-collection family — IrMapEmpty/IrMapGet/IrMapSet/"
+            " IrMapEq/IrHasKey/IrMapRemove/IrSetEmpty/IrSetAdd/IrSetRemove/IrSetMem/"
+            " IrSetUnion/IrSetInter/IrSetDiff/IrSetCard/IrSetSubset/IrSetEq/IrNil/"
+            " IrCons/IrHd/IrTl/IrListLength/IrNth/IrMem/IrAppend — realizing the"
+            " `_csl_map_empty`, `_csl_map_get`, `_csl_map_set`, `_csl_map_eq`,"
+            " `_csl_has_key`, `_csl_map_remove`, `_csl_set_empty`, `_csl_set_add`,"
+            " `_csl_set_remove`, `_csl_set_mem`, `_csl_set_union`, `_csl_set_inter`,"
+            " `_csl_set_diff`, `_csl_set_card`, `_csl_set_subset`, `_csl_set_eq`,"
+            " `_csl_nil`, `_csl_cons`, `_csl_hd`, `_csl_tl`, `_csl_list_length`,"
+            " `_csl_nth`, `_csl_mem`, `_csl_append` single-return CSL-AST-node"
             " constructions verbatim (IrBinOp precedent). *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrRaw string | IrOther string"
@@ -3312,7 +3324,18 @@ class PreambleEmissionMixin:
             " | IrPermutation emit_ir emit_ir"
             " | IrSum string emit_ir emit_ir"
             " | IrAssignsRegion string emit_ir emit_ir"
-            " | IrForallItems string string string emit_ir",
+            " | IrForallItems string string string emit_ir"
+            " | IrMapEmpty | IrMapGet emit_ir emit_ir | IrMapSet emit_ir emit_ir emit_ir"
+            " | IrMapEq emit_ir emit_ir | IrHasKey emit_ir emit_ir"
+            " | IrMapRemove emit_ir emit_ir"
+            " | IrSetEmpty | IrSetAdd emit_ir emit_ir | IrSetRemove emit_ir emit_ir"
+            " | IrSetMem emit_ir emit_ir | IrSetUnion emit_ir emit_ir"
+            " | IrSetInter emit_ir emit_ir | IrSetDiff emit_ir emit_ir"
+            " | IrSetCard emit_ir emit_ir emit_ir | IrSetSubset emit_ir emit_ir"
+            " | IrSetEq emit_ir emit_ir"
+            " | IrNil | IrCons emit_ir emit_ir | IrHd emit_ir | IrTl emit_ir"
+            " | IrListLength emit_ir | IrNth emit_ir emit_ir | IrMem emit_ir emit_ir"
+            " | IrAppend emit_ir emit_ir",
             "",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
             " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
@@ -3348,6 +3371,18 @@ class PreambleEmissionMixin:
             "    | IrSum _ _ _ -> \"Sum\"",
             "    | IrAssignsRegion _ _ _ -> \"AssignsRegion\"",
             "    | IrForallItems _ _ _ _ -> \"ForallItems\"",
+            "    | IrMapEmpty -> \"MapEmpty\" | IrMapGet _ _ -> \"MapGet\"",
+            "    | IrMapSet _ _ _ -> \"MapSet\" | IrMapEq _ _ -> \"MapEq\"",
+            "    | IrHasKey _ _ -> \"HasKey\" | IrMapRemove _ _ -> \"MapRemove\"",
+            "    | IrSetEmpty -> \"SetEmpty\" | IrSetAdd _ _ -> \"SetAdd\"",
+            "    | IrSetRemove _ _ -> \"SetRemove\" | IrSetMem _ _ -> \"SetMem\"",
+            "    | IrSetUnion _ _ -> \"SetUnion\" | IrSetInter _ _ -> \"SetInter\"",
+            "    | IrSetDiff _ _ -> \"SetDiff\" | IrSetCard _ _ _ -> \"SetCard\"",
+            "    | IrSetSubset _ _ -> \"SetSubset\" | IrSetEq _ _ -> \"SetEq\"",
+            "    | IrNil -> \"Nil\" | IrCons _ _ -> \"Cons\"",
+            "    | IrHd _ -> \"Hd\" | IrTl _ -> \"Tl\"",
+            "    | IrListLength _ -> \"ListLength\" | IrNth _ _ -> \"Nth\"",
+            "    | IrMem _ _ -> \"Mem\" | IrAppend _ _ -> \"Append\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3462,6 +3497,27 @@ class PreambleEmissionMixin:
             "    | IrSum _ l h -> 1 + size l + size h",
             "    | IrAssignsRegion _ l h -> 1 + size l + size h",
             "    | IrForallItems _ _ _ b -> 1 + size b",
+            "    | IrMapGet d k -> 1 + size d + size k",
+            "    | IrMapSet d k v -> 1 + size d + size k + size v",
+            "    | IrMapEq l r -> 1 + size l + size r",
+            "    | IrHasKey d k -> 1 + size d + size k",
+            "    | IrMapRemove d k -> 1 + size d + size k",
+            "    | IrSetAdd s e -> 1 + size s + size e",
+            "    | IrSetRemove s e -> 1 + size s + size e",
+            "    | IrSetMem e s -> 1 + size e + size s",
+            "    | IrSetUnion l r -> 1 + size l + size r",
+            "    | IrSetInter l r -> 1 + size l + size r",
+            "    | IrSetDiff l r -> 1 + size l + size r",
+            "    | IrSetCard s lo hi -> 1 + size s + size lo + size hi",
+            "    | IrSetSubset l r -> 1 + size l + size r",
+            "    | IrSetEq l r -> 1 + size l + size r",
+            "    | IrCons h t -> 1 + size h + size t",
+            "    | IrHd l -> 1 + size l",
+            "    | IrTl l -> 1 + size l",
+            "    | IrListLength l -> 1 + size l",
+            "    | IrNth l i -> 1 + size l + size i",
+            "    | IrMem e l -> 1 + size e + size l",
+            "    | IrAppend l r -> 1 + size l + size r",
             "    | _ -> 1",
             "    end",
             "",

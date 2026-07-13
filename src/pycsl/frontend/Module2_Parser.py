@@ -678,33 +678,43 @@ class MapEmptyExpr(CSLNode):
 @dataclass
 class MapGetExpr(CSLNode):
     """\\map_get(d, k) — look up key k in ghost dict d."""
-    dict_expr: CSLNode
-    key: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_map_get): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    dict_expr: "ExprIR"
+    key: "ExprIR"
 
 @dataclass
 class MapSetExpr(CSLNode):
     """\\map_set(d, k, v) — return ghost dict d with d[k] := v."""
-    dict_expr: CSLNode
-    key: CSLNode
-    value: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_map_set): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    dict_expr: "ExprIR"
+    key: "ExprIR"
+    value: "ExprIR"
 
 @dataclass
 class MapEqExpr(CSLNode):
     """\\map_eq(d1, d2) — extensional equality of two ghost dicts."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_map_eq): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class HasKeyExpr(CSLNode):
     """\\has_key(d, k) — true iff ghost dict d has a present (non-None) value at key k."""
-    dict_expr: CSLNode
-    key: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_has_key): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    dict_expr: "ExprIR"
+    key: "ExprIR"
 
 @dataclass
 class MapRemoveExpr(CSLNode):
     """\\map_remove(d, k) — return ghost dict d with key k removed (set to None/absent)."""
-    dict_expr: CSLNode
-    key: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_map_remove): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    dict_expr: "ExprIR"
+    key: "ExprIR"
 
 # --- Ghost set nodes ---
 
@@ -716,57 +726,75 @@ class SetEmptyExpr(CSLNode):
 @dataclass
 class SetAddExpr(CSLNode):
     """\\set_add(s, x) — ghost set with x added."""
-    set_expr: CSLNode
-    elem: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_add): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    set_expr: "ExprIR"
+    elem: "ExprIR"
 
 @dataclass
 class SetRemoveExpr(CSLNode):
     """\\set_remove(s, x) — ghost set with x removed."""
-    set_expr: CSLNode
-    elem: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_remove): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    set_expr: "ExprIR"
+    elem: "ExprIR"
 
 @dataclass
 class SetMemExpr(CSLNode):
     """\\set_mem(x, s) — x is a member of ghost set s."""
-    elem: CSLNode
-    set_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_mem): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    elem: "ExprIR"
+    set_expr: "ExprIR"
 
 @dataclass
 class SetUnionExpr(CSLNode):
     """\\set_union(s1, s2) — union of two ghost sets."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_union): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class SetInterExpr(CSLNode):
     """\\set_inter(s1, s2) — intersection of two ghost sets."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_inter): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class SetDiffExpr(CSLNode):
     """\\set_diff(s1, s2) — set difference s1 \\ s2."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_diff): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class SetCardExpr(CSLNode):
     """\\set_card(s, lo, hi) — cardinality of s restricted to [lo, hi)."""
-    set_expr: CSLNode
-    lo: CSLNode
-    hi: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_card): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    set_expr: "ExprIR"
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 @dataclass
 class SetSubsetExpr(CSLNode):
     """\\set_subset(s1, s2) — s1 is a subset of s2."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_subset): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class SetEqExpr(CSLNode):
     """\\set_eq(s1, s2) — extensional equality of two ghost sets."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_eq): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 # --- Ghost list nodes ---
 
@@ -778,41 +806,55 @@ class NilExpr(CSLNode):
 @dataclass
 class ConsExpr(CSLNode):
     """\\cons(x, l) — prepend x to ghost list l."""
-    head: CSLNode
-    tail: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_cons): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    head: "ExprIR"
+    tail: "ExprIR"
 
 @dataclass
 class HdExpr(CSLNode):
     """\\hd(l) — head of ghost list l (requires l non-empty)."""
-    list_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_hd): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    list_expr: "ExprIR"
 
 @dataclass
 class TlExpr(CSLNode):
     """\\tl(l) — tail of ghost list l (requires l non-empty)."""
-    list_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_tl): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    list_expr: "ExprIR"
 
 @dataclass
 class ListLengthExpr(CSLNode):
     """\\list_length(l) — length of ghost list l."""
-    list_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_list_length): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    list_expr: "ExprIR"
 
 @dataclass
 class NthExpr(CSLNode):
     """\\nth(l, i) — ith element of ghost list l (requires 0 <= i < length)."""
-    list_expr: CSLNode
-    index: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_nth): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    list_expr: "ExprIR"
+    index: "ExprIR"
 
 @dataclass
 class MemExpr(CSLNode):
     """\\mem(x, l) — x appears in ghost list l."""
-    elem: CSLNode
-    list_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_mem): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    elem: "ExprIR"
+    list_expr: "ExprIR"
 
 @dataclass
 class AppendExpr(CSLNode):
     """\\append(l1, l2) — concatenation of two ghost lists."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_append): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class GhostArraySetDecl(CSLNode):
