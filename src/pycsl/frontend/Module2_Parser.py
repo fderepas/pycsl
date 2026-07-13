@@ -181,7 +181,9 @@ class FieldSubscript(CSLNode):
     `\\forall i; (lo <= i and i < hi) ==> self.disk[i] == \\old(self.disk[i])`
     on a `\\trusted`/`\\abstract` writer (meta.md Stage B, option C)."""
     field: str       # the field name (no "self." prefix), e.g. "disk"
-    index: CSLNode
+    # tcb(M5) FREE bucket (_csl_field_subscript): retyped `CSLNode` -> `"ExprIR"`,
+    # BinOp.left/right precedent verbatim (pure type-hint).
+    index: "ExprIR"
 
 @dataclass
 class GlobalFieldSubscript(CSLNode):
@@ -192,7 +194,9 @@ class GlobalFieldSubscript(CSLNode):
     riding the existing gap-10 global-field projection + spec-context `Array.get` machinery."""
     obj: str         # the module-global instance name, e.g. "_filesystem"
     field: str       # the field name, e.g. "fd_inode"
-    index: CSLNode
+    # tcb(M5) FREE bucket (_csl_global_field_subscript): retyped `CSLNode` ->
+    # `"ExprIR"`, BinOp.left/right precedent verbatim (pure type-hint).
+    index: "ExprIR"
 
 @dataclass
 class ClassInvariant(CSLNode):
@@ -501,8 +505,10 @@ class CSLSlice(CSLNode):
 class ChainedSubscript(CSLNode):
     """Represents `arr[i][j]` chained subscript access (2D array element)."""
     array: str
-    index1: CSLNode
-    index2: CSLNode
+    # tcb(M5) FREE bucket (_csl_chained_subscript): retyped `CSLNode` -> `"ExprIR"`,
+    # BinOp.left/right precedent verbatim (pure type-hint).
+    index1: "ExprIR"
+    index2: "ExprIR"
 
 @dataclass
 class NestedSubscript(CSLNode):

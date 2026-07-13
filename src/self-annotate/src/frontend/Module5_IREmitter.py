@@ -79,19 +79,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_field_access(self, node: CSLFieldAccess) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_field_subscript(self, node: CSLFieldSubscript) -> int:
-        return {}
+    def _csl_field_subscript(self, node: CSLFieldSubscript) -> Dict[str, Any]:
+        return {"type": "Subscript",
+                "value": {"type": "FieldGet", "object": "self", "field": node.field},
+                "index": self._csl_to_ir(node.index)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_global_field_subscript(self, node: CSLGlobalFieldSubscript) -> int:
-        return {}
+    def _csl_global_field_subscript(self, node: CSLGlobalFieldSubscript) -> Dict[str, Any]:
+        return {"type": "Subscript",
+                "value": {"type": "Attribute",
+                          "object": {"type": "Var", "name": node.obj},
+                          "attr": node.field},
+                "index": self._csl_to_ir(node.index)}
 
     #@ requires True
     #@ ensures True
@@ -196,12 +200,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_subscript(self, node: SubscriptAccess) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_chained_subscript(self, node: ChainedSubscript) -> int:
-        return {}
+    def _csl_chained_subscript(self, node: ChainedSubscript) -> Dict[str, Any]:
+        inner = {"type": "Subscript",
+                 "value": {"type": "Var", "name": node.array},
+                 "index": self._csl_to_ir(node.index1)}
+        return {"type": "Subscript",
+                "value": inner,
+                "index": self._csl_to_ir(node.index2)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -250,6 +258,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ ensures True
     #@ assigns \nothing
     def _csl_contract_wrapper(self, node: ContractWrapper) -> int:
+        # tcb(M5) FREE-bucket census: BLOCKED, not free. `node.expr` doesn't type-check
+        # against the abstract base `ContractWrapper` — it has NO dataclass fields (`class
+        # ContractWrapper(CSLNode): pass`); `expr` is declared separately on each of the 4
+        # concrete subclasses (Requires/Ensures/LoopInvariant/LoopVariant). `--fun` on the
+        # naive passthrough body fails: "unbound function or predicate symbol
+        # 'contractwrapper_expr'" — the self-annotate type model has no projector for a
+        # field that lives only on subclasses of the declared param type. Unifying it would
+        # need new infra (a union/sum discriminator over the 4 concrete types, or moving
+        # `expr` onto the base class — a real Module2_Parser.py hierarchy change), which is
+        # out of scope for this FREE-bucket increment. Left \trusted.
         return {}
 
     #@ \trusted reviewer: pycsl-self-annotate

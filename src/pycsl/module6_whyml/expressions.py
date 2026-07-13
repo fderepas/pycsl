@@ -783,6 +783,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (preamble.py _emit_exprir_theory) already exists — wires the `{"type":"BinOp",
         # "op":..., "left":..., "right":...}` construction (Module5's `_csl_binop`) to it.
         "BinOp":    ("IrBinOp", ["op", "left", "right"]),
+        # M5 FREE-bucket (_csl_field_subscript/_csl_global_field_subscript/
+        # _csl_chained_subscript): `IrSub emit_ir emit_ir` and `IrFieldGet string
+        # string` (preamble.py _emit_exprir_theory) already exist in the theory —
+        # wire the `{"type":"Subscript", "value":…, "index":…}` and
+        # `{"type":"FieldGet", "object":…, "field":…}` constructions to them.
+        "Subscript": ("IrSub", ["value", "index"]),
+        "FieldGet":  ("IrFieldGet", ["object", "field"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
