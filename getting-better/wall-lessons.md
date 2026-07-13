@@ -313,6 +313,22 @@ by-termination-substitution" analysis applied to a scenario that doesn't exist �
 `5221ef3d` (map_set svalue_of) is SOUND as a non-recursive type-safety conversion, no bug. A mis-framed
 report wastes the oracle on the wrong question.
 
+**GHOST CLUSTER COMPLETE (2026-07-13, 1226→1176 = −50 session) — all ghost expr handlers converted EXCEPT
+proj/ctor_payload (reverted by a WORTH judgment, not a breakability boundary).** The fable escalation (after
+the user corrected my self-declared floor) unlocked the whole cluster: swap handlers (per-subtype projector
+table), ctor_test (arity ensures>=0), map_set/set_card (IrTer3 mini-M1), mktuple (existing args_of +
+genexpr→listcomp live refactor). proj/ctor_payload ARE breakable but an executor sprawled to build them —
+num_of int-projector mini-M1 + a list-local-from-`.get` recognizer (ir_scanner.py) + native-element-write
+(statements.py, a GENERAL emitter path → corpus-perturbation risk) + a type-inference extension (types.py) +
+a helper stub — for a net of only −1 (2 converted, 1 stub added). REVERTED: 3 general-live-emitter-feature
+additions + a shared theory + a stub for net −1 is disproportionate blast radius (measure-before-build,
+VALUE-not-count, flag-risky-live-changes). **KEY DISTINCTION (post-correction): fable adjudicates
+BREAKABILITY; the COORDINATOR judges WORTH. A wall being fable-BOUNDED does NOT mean every instance is worth
+building — a net-−1 conversion requiring 3 new general-emitter features that risk corpus perturbation is a
+decline-on-worth, not a floor-declaration. Both self-declaring a floor (wrong, per the user) AND grinding a
+breakable-but-disproportionate build (wrong, sprawl) are errors; the discipline is escalate-to-verify-
+breakability THEN judge-worth.**
+
 **Lesson (defer-with-pinned-gap kind):**
 > When a wall is oracle-proven BREAKABLE but the emitter build reveals a genuine multi-recognizer M2 gap, the
 > driver's win is the PINNED gap + a proven-ready foundation piece, NOT a forced conversion. Land nothing that
