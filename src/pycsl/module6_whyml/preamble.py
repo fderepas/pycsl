@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Set, Tuple
 
 from module6_whyml.identifiers import whyml_ident, safe_mutex_name, safe_exc_name
@@ -3514,6 +3515,35 @@ class PreambleEmissionMixin:
             "",
         ]
 
+    def _reserved_exprir_symbols(self) -> Set[str]:
+        """field-label/emit_ir-symbol collision fix: the set of top-level WhyML
+        symbol names the `emit_ir` ADT theory (`_emit_exprir_theory`) declares —
+        `let (rec) function` names, `val` declarations, `lemma` names, and inline
+        record field labels (e.g. `sharedvar`'s `sv_name`/`sv_mutex`) all share
+        Why3's global per-module namespace. A record field with one of these
+        names (`size`, `kind_of`, `is_binop`, `left_of`, …) collides exactly like
+        two records sharing a field — `_field_label`'s existing ambiguous-field
+        qualification handles that shape once the name is registered here.
+
+        Derived by parsing `_emit_exprir_theory()`'s OWN emitted text (not a
+        hand-maintained duplicate list), so this set can never drift out of sync
+        with the theory it protects against. Cached: the theory text is static
+        per instance."""
+        cached = getattr(self, "_reserved_exprir_symbols_cache", None)
+        if cached is not None:
+            return cached
+        text = "\n".join(self._emit_exprir_theory())
+        names: Set[str] = set()
+        names.update(re.findall(r"\blet\s+(?:rec\s+)?function\s+(\w+)", text))
+        names.update(re.findall(r"\bval\s+(\w+)", text))
+        names.update(re.findall(r"\blemma\s+(\w+)", text))
+        # inline record types declared within the theory (e.g. `sharedvar`) —
+        # capture their field labels too.
+        for rec_body in re.findall(r"\{([^{}]*)\}", text):
+            names.update(re.findall(r"(\w+)\s*:", rec_body))
+        self._reserved_exprir_symbols_cache = names
+        return names
+
     def _emit_type_decls(self, type_decls: List[Dict[str, Any]]) -> Tuple[List[str], Set[str]]:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []
@@ -3541,6 +3571,15 @@ class PreambleEmissionMixin:
             _rec_fields = {f["name"] for td in type_decls
                            if td.get("kind") == "record" for f in td.get("fields", [])}
             self._ambiguous_fields |= (_rec_fields & _local_names)
+            # ghost-assign-bc6: a record field whose name matches a top-level
+            # symbol the `emit_ir` ADT theory declares (`size`, `kind_of`,
+            # `is_*`, `*_of`, …) collides in Why3's shared module namespace —
+            # qualify it the same way. Gated on `_mutable_state_classes` (the
+            # SAME condition `_emit_exprir_theory()` fires under), so a
+            # non-@mutable_state corpus program — which never emits the theory
+            # — never has this collision and the qualification never fires
+            # (byte-identical for the corpus).
+            self._ambiguous_fields |= (_rec_fields & self._reserved_exprir_symbols())
         n = len(type_decls)
         i = 0
         _VPAY = {"int": "int", "bool": "int", "str": "string", "float": "real"}

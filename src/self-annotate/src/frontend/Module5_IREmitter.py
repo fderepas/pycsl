@@ -8,7 +8,13 @@ from frontend.module5.memoization_rt import MemoizationRTMixin
 from frontend.module5.construction_synth import ConstructionSynthMixin
 from frontend.module_collect import collect_module_constants, collect_module_globals
 from frontend.Module2_Parser import CSLNode, ContractWrapper, Requires, Ensures, LoopInvariant, LoopVariant, BinOp as CSLBinOp, UnaryOp as CSLUnaryOp, Var as CSLVar, Number as CSLNumber, Result as CSLResult, Old as CSLOld, Nothing, FieldAccess as CSLFieldAccess, FieldSubscript as CSLFieldSubscript, GlobalFieldSubscript as CSLGlobalFieldSubscript, Forall, Exists, ArrayLength, InGlobals, InScope, SubscriptAccess, AssignsRegion, Valid, Separated, At as CSLAt, Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral, CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice, DictView, ForallItems, ChainedSubscript, GhostArraySetDecl, MkTupleExpr, FstExpr, SndExpr, ProjExpr, CtorTest, CtorPayload, StrConcatExpr, StrLengthExpr, StrSubExpr, GhostCopyExpr, GhostCopyRangeExpr, GhostMakeExpr, MapEmptyExpr, MapGetExpr, MapSetExpr, MapEqExpr, HasKeyExpr, MapRemoveExpr, SetEmptyExpr, SetAddExpr, SetRemoveExpr, SetMemExpr, SetUnionExpr, SetInterExpr, SetDiffExpr, SetCardExpr, SetSubsetExpr, SetEqExpr, NilExpr, ConsExpr, HdExpr, TlExpr, ListLengthExpr, NthExpr, MemExpr, AppendExpr, Act, Given, Complete, Disjoint
+def mutable_state(cls): return cls
 ""  # pycsl
+# gating fix (self-tcb-reduction, mirror-only shim): mark the JSON-IR emitter class
+# @mutable_state so `node.attr` reads in its `_csl_*` handlers lower via the emit_ir
+# ADT projection (`_lower_irnode_construction`), following the expr_ghost_collections.py
+# precedent verbatim (fieldless mixin, no dummy field).
+@mutable_state
 class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVisitor):
     'Walks the Annotated AST and translates it into a JSON-serializable IR.'
     #@ \trusted reviewer: pycsl-self-annotate
@@ -82,12 +88,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_global_field_subscript(self, node: CSLGlobalFieldSubscript) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_var(self, node: CSLVar) -> int:
-        return {}
+    def _csl_var(self, node: CSLVar) -> Dict[str, Any]:
+        return {"type": "Var", "name": node.name}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -96,12 +101,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_number(self, node: CSLNumber) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_string(self, node: CSLStringLiteral) -> int:
-        return {}
+    def _csl_string(self, node: CSLStringLiteral) -> Dict[str, Any]:
+        return {"type": "String", "value": node.value}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
