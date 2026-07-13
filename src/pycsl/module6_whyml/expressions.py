@@ -779,6 +779,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "String":   ("IrStr", ["value"]),
         "Number":   ("IrNum", ["value"]),
         "RawWhyml": ("IrRaw", ["whyml"]),
+        # self-tcb-reduction spike (csl-ast-as-emit_ir): `IrBinOp string emit_ir emit_ir`
+        # (preamble.py _emit_exprir_theory) already exists — wires the `{"type":"BinOp",
+        # "op":..., "left":..., "right":...}` construction (Module5's `_csl_binop`) to it.
+        "BinOp":    ("IrBinOp", ["op", "left", "right"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in

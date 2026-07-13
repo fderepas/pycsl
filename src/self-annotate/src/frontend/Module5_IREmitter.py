@@ -46,19 +46,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return ""
 
     _CSL_HANDLERS: int = {CSLBinOp: '_csl_binop', CSLUnaryOp: '_csl_unaryop', CSLFieldAccess: '_csl_field_access', CSLFieldSubscript: '_csl_field_subscript', CSLGlobalFieldSubscript: '_csl_global_field_subscript', CSLVar: '_csl_var', CSLNumber: '_csl_number', CSLStringLiteral: '_csl_string', CSLBool: '_csl_bool', CSLNone: '_csl_none', CSLResult: '_csl_result', CSLOld: '_csl_old', Nothing: '_csl_nothing', Forall: '_csl_forall', ForallItems: '_csl_forall_items', Exists: '_csl_exists', ArrayLength: '_csl_array_length', InGlobals: '_csl_in_globals', InScope: '_csl_in_scope', SubscriptAccess: '_csl_subscript', AssignsRegion: '_csl_assigns_region', Valid: '_csl_valid', Separated: '_csl_separated', CSLAt: '_csl_at', Length2D: '_csl_length2d', Valid2D: '_csl_valid2d', ContractWrapper: '_csl_contract_wrapper', Requires: '_csl_contract_wrapper', Ensures: '_csl_contract_wrapper', LoopInvariant: '_csl_contract_wrapper', LoopVariant: '_csl_contract_wrapper', FunctionVariant: '_csl_function_variant', CallExpr: '_csl_call_expr', IsSorted: '_csl_is_sorted', ArrayEq: '_csl_array_eq', Permutation: '_csl_permutation', Sum: '_csl_sum', CSLIn: '_csl_in', CSLNotIn: '_csl_not_in', CSLSlice: '_csl_slice', ChainedSubscript: '_csl_chained_subscript', MkTupleExpr: '_csl_mktuple', FstExpr: '_csl_fst', SndExpr: '_csl_snd', ProjExpr: '_csl_proj', CtorTest: '_csl_ctor_test', CtorPayload: '_csl_ctor_payload', StrConcatExpr: '_csl_strconcat', StrLengthExpr: '_csl_str_length', StrSubExpr: '_csl_str_sub', GhostCopyExpr: '_csl_ghost_copy', GhostCopyRangeExpr: '_csl_ghost_copy_range', GhostMakeExpr: '_csl_ghost_make', MapEmptyExpr: '_csl_map_empty', MapGetExpr: '_csl_map_get', MapSetExpr: '_csl_map_set', MapEqExpr: '_csl_map_eq', HasKeyExpr: '_csl_has_key', MapRemoveExpr: '_csl_map_remove', SetEmptyExpr: '_csl_set_empty', SetAddExpr: '_csl_set_add', SetRemoveExpr: '_csl_set_remove', SetMemExpr: '_csl_set_mem', SetUnionExpr: '_csl_set_union', SetInterExpr: '_csl_set_inter', SetDiffExpr: '_csl_set_diff', SetCardExpr: '_csl_set_card', SetSubsetExpr: '_csl_set_subset', SetEqExpr: '_csl_set_eq', NilExpr: '_csl_nil', ConsExpr: '_csl_cons', HdExpr: '_csl_hd', TlExpr: '_csl_tl', ListLengthExpr: '_csl_list_length', NthExpr: '_csl_nth', MemExpr: '_csl_mem', AppendExpr: '_csl_append'}
+    # self-tcb-reduction spike (csl-ast-as-emit_ir): param+return retyped `CSLNode`/`int`
+    # -> `"ExprIR"` so the recursive dispatcher's signature is `emit_ir -> emit_ir`
+    # (matches `_field_type_from_annotation_inst`'s `_irnode_ann_name` recognition and
+    # `_symtype_to_whyml`'s param-side mapping). Stays \trusted (body unchanged) — this
+    # is a signature-only retype, not a body conversion.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_to_ir(self, node: CSLNode) -> int:
+    def _csl_to_ir(self, node: "ExprIR") -> "ExprIR":
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_binop(self, node: CSLBinOp) -> int:
-        return {}
+    def _csl_binop(self, node: CSLBinOp) -> Dict[str, Any]:
+        return {"type": "BinOp", "op": node.op,
+                "left": self._csl_to_ir(node.left), "right": self._csl_to_ir(node.right)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

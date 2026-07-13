@@ -992,6 +992,18 @@ class FunctionEmissionMixin:
             return_type = self._variant_types[ann]["whyml_name"]
         elif ann in getattr(self, "_record_types", {}) and return_type == "int":
             return_type = self._record_types[ann]["whyml_name"]
+        # self-tcb-reduction spike (csl-ast-as-emit_ir): a `trusted` dispatcher whose
+        # declared return annotation is an IR-node tag (`-> "ExprIR"`) resolves to
+        # `emit_ir` — the return-side counterpart of `_symtype_to_whyml`'s param-side
+        # mapping (line ~2260). `_returns_emit_ir` only fires for a body that
+        # constructs a `{"type": K}` literal; a trusted stub's placeholder body
+        # (`return {}`) has none, so this ann-based fallback is needed for the
+        # dispatcher's `val` signature to type-check as `emit_ir -> emit_ir`. Only
+        # reachable when `ann` carries one of the 4 recognized IR-node tags — no
+        # corpus function outside a @mutable_state mirror uses them (byte-identical).
+        elif (ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
+                and return_type == "int"):
+            return_type = "emit_ir"
         if bounded_int and return_type == "int":
             return_type = f"int{bounded_int}"
         return return_type
@@ -1537,6 +1549,14 @@ class FunctionEmissionMixin:
                 # WhyML `string`, not the legacy int hash — so a caller can type a
                 # `s = f(...)` local as string. (MEASUREMENT branch — gated.)
                 ret = "string"
+            elif ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR") and ret == "int":
+                # self-tcb-reduction spike (csl-ast-as-emit_ir): the `self.<method>(...)`
+                # SELF-CALL abstract-val sibling of `_compute_return_type`'s ann-based
+                # `emit_ir` fallback (line ~2260-2270) — a `trusted` IR-node dispatcher
+                # called from WITHIN the same @mutable_state class (e.g. `_csl_binop`
+                # calling `self._csl_to_ir(node.left)`) is abstracted here, not there, so
+                # this map needs the SAME recognition or the self-call site sees `int`.
+                ret = "emit_ir"
             result[func["name"]] = ret
         return result
 

@@ -92,9 +92,16 @@ class LoopVariant(ContractWrapper):
 
 @dataclass
 class BinOp(CSLNode):
-    left: CSLNode
+    # self-tcb-reduction spike (csl-ast-as-emit_ir): retyped left/right from `CSLNode`
+    # to the forward-ref `"ExprIR"` so Module5's `_field_type_from_annotation_inst`
+    # (via `_irnode_ann_name`) lowers the record fields to `emit_ir` instead of the
+    # opaque-tag `int` fallback — the SAME recognized mechanism `_e(self, ir:
+    # "ExprIR", ...)` already uses for params (expr_ghost_collections.py). Mirror-only
+    # (self-annotate-mirror-check.sh compares signatures by (kind,name,n_params), not
+    # annotations — corpus-inert by construction).
+    left: "ExprIR"
     op: str
-    right: CSLNode
+    right: "ExprIR"
 
 @dataclass
 class UnaryOp(SingleExprNode):

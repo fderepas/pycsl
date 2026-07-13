@@ -127,9 +127,18 @@ class LoopVariant(ContractWrapper):
 
 @dataclass
 class BinOp(CSLNode):
-    left: CSLNode
+    # self-tcb-reduction spike (csl-ast-as-emit_ir): left/right retyped `CSLNode` ->
+    # the forward-ref `"ExprIR"` so a self-annotation mirror that imports this class
+    # (`from frontend.Module2_Parser import BinOp as CSLBinOp`) gets `cslbinop_left`/
+    # `right : emit_ir` record fields (via `_field_type_from_annotation_inst`'s
+    # `_irnode_ann_name` recognition), matching `_e(self, ir: "ExprIR", ...)`'s
+    # existing param-side use of the same tag. PURE TYPE-HINT — `dataclasses`/Python
+    # never evaluate/enforce it at runtime (no behavior change to the live parser).
+    # A regular (non-mirror) PyCSL program never imports this class into VERIFIED
+    # code, so this field never becomes a `type_decl` for the corpus (inert there).
+    left: "ExprIR"
     op: str
-    right: CSLNode
+    right: "ExprIR"
 
 @dataclass
 class UnaryOp(SingleExprNode):
