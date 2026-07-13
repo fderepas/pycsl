@@ -362,3 +362,28 @@ byte-diff 0 verified by stash-sweep**. This is the legitimate face of a tool fix
 sprawl): a genuine correctness gap, one gated line reusing existing machinery, byte-inert, unblocking a
 conversion the campaign already wanted. Distinguish: fixing a CORRECTNESS GAP that blocks a wanted conversion
 (land it) vs. BUILDING speculative features for a marginal count (decline).
+
+**MODULE5 `_csl_*` CONSTRUCTION FAMILY — census FALSE-GREEN caught; recursive family is a CSL-AST-as-int
+frontend BOUNDARY (2026-07-13).** After converting `_csl_var`/`_csl_string` (string-leaf, real IrVar/IrStr),
+an automated census ported all ~72 `_csl_*` live bodies + ran `--fun`, reporting **62 SUCCESS**. ALL 62 WERE
+FACADES. Two independent tells, both in the emitted `.mlw`: (1) the body was `(IrOther "BinOp")` — a
+node-IGNORING sentinel, because `_IRNODE_CTORS` (expressions.py:776) only wires 5 kinds (Var/Attribute/String/
+Number/RawWhyml); every other kind falls to `(IrOther "{kind}")` (line 1409), and (2) a Why3 **"unused variable
+node"** warning — the body doesn't read `node` at all. A `--fun` SUCCESS under `ensures True` proves the sentinel
+body type-safe but the conversion is VACUOUS (removing `\trusted` while the method emits a node-ignoring constant
+is the exact reclassification-dodge facade the campaign forbids). **This repeats the tier-1 `--no-proof` 39→8
+overcount at the CONSTRUCTION layer: a census MUST check the `.mlw` body reads `node` + constructs the RIGHT
+(non-IrOther) ctor, never just `--fun` green.** THEN probed the real fix: the theory ALREADY has IrBinOp/IrSub/
+IrTuple/IrCall/IrIfExpr/IrFieldGet — wiring "BinOp"→IrBinOp into `_IRNODE_CTORS` (theory-free, @mutable_state-gated,
+corpus-inert) DID make `_csl_binop` emit a real `(IrBinOp node.cslbinop_op (csl_to_ir left) (csl_to_ir right))`.
+But it FAILS to prove: the mirror models the **entire CSL AST as opaque `int`** (`type cslbinop = {cslbinop_left:
+int; cslbinop_op: string; cslbinop_right: int}`, `val _csl_to_ir (node: int): int`), so the emit_ir children are
+`int`, not emit_ir → `IrBinOp` type-rejects them. `_csl_var`/`_csl_string` converted ONLY because they read
+STRING fields (`cslvar_name: string`), never int-node children. **The recursive `_csl_*` construction family is
+a genuine BOUNDARY under the current modeling: it needs the whole CSL AST record hierarchy re-lowered from `int`
+to real node types + `_csl_to_ir` retyped `int→emit_ir` (the `-> "ExprIR"` annotation alone doesn't reach the
+cross-call bridge `val self__csl_to_ir_1 (x0:int):int`). That is a deep multi-session frontend remodel (no-more-int
+at the CSL-AST layer), NOT a ctor-wiring win.** Fieldless leaves (none/result/nothing → IrOther "None" loses no
+data but leaves `node` unused) are doctrine-borderline (ghost-handler Q1) and marginal; not chased. Module5
+construction cluster = DONE at var/string; the rest is the int-AST boundary. VALUE lesson: a construction census
+without a body-reads-node check manufactures facades at scale.
