@@ -26,12 +26,12 @@ class GhostSpecOpsMixin:
     def _expr_to_whyml_string_ctx(self, ir: "ExprIR", lr: Set[str]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_mktuple_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
+    def _handle_mktuple_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        parts = ", ".join([self._e(e, lr) for e in node.elts])
+        return f"({parts})"
 
     #@ requires True
     #@ ensures True
