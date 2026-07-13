@@ -3301,7 +3301,23 @@ class PreambleEmissionMixin:
             " `_csl_set_diff`, `_csl_set_card`, `_csl_set_subset`, `_csl_set_eq`,"
             " `_csl_nil`, `_csl_cons`, `_csl_hd`, `_csl_tl`, `_csl_list_length`,"
             " `_csl_nth`, `_csl_mem`, `_csl_append` single-return CSL-AST-node"
-            " constructions verbatim (IrBinOp precedent). *)",
+            " constructions verbatim (IrBinOp precedent)."
+            " post-m1-census.md misc single-return batch mini-M1: extended with the"
+            " STRING/TUPLE/GHOST + fieldless family — IrFst/IrSnd/IrCtorTest/"
+            " IrCtorPayload/IrStrConcat/IrStrLength/IrStrSub/IrGhostCopy/"
+            " IrGhostCopyRange/IrGhostMake/IrSliceAccess/IrSlice/IrNone/IrResult/"
+            " IrNothing — realizing the `_csl_fst`, `_csl_snd`, `_csl_ctor_test`,"
+            " `_csl_ctor_payload`, `_csl_strconcat`, `_csl_str_length`, `_csl_str_sub`,"
+            " `_csl_ghost_copy`, `_csl_ghost_copy_range`, `_csl_ghost_make`,"
+            " `_csl_slice`, `_csl_none`, `_csl_result`, `_csl_nothing` single-return"
+            " CSL-AST-node constructions verbatim (IrBinOp precedent)."
+            " IrSlice realizes the NESTED `{\"type\": \"Slice\", \"lower\":…, \"upper\":…,"
+            " \"step\": None}` literal inside `_csl_slice`'s `SliceAccess` payload — a"
+            " 2-level dict construction, the `\"value\"` sibling already lowering via the"
+            " pre-existing IrVar. `_csl_bool`/`_csl_number` stay \\trusted — `CSLBool."
+            " value`/`CSLNumber.value` are `bool`/`float` record fields that lower to"
+            " `int`/`real` (no-more-int doctrine), mismatching an `IrBool bool`/"
+            " `IrNum int` payload; see the CHECK-CAREFULLY note in the batch plan. *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrRaw string | IrOther string"
             " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
@@ -3335,7 +3351,15 @@ class PreambleEmissionMixin:
             " | IrSetEq emit_ir emit_ir"
             " | IrNil | IrCons emit_ir emit_ir | IrHd emit_ir | IrTl emit_ir"
             " | IrListLength emit_ir | IrNth emit_ir emit_ir | IrMem emit_ir emit_ir"
-            " | IrAppend emit_ir emit_ir",
+            " | IrAppend emit_ir emit_ir"
+            " | IrFst emit_ir | IrSnd emit_ir"
+            " | IrCtorTest string string | IrCtorPayload string string int"
+            " | IrStrConcat emit_ir emit_ir | IrStrLength emit_ir"
+            " | IrStrSub emit_ir emit_ir emit_ir"
+            " | IrGhostCopy string | IrGhostCopyRange string emit_ir emit_ir"
+            " | IrGhostMake emit_ir emit_ir"
+            " | IrSliceAccess emit_ir emit_ir | IrSlice emit_ir emit_ir"
+            " | IrNone | IrResult | IrNothing",
             "",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
             " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
@@ -3383,6 +3407,14 @@ class PreambleEmissionMixin:
             "    | IrHd _ -> \"Hd\" | IrTl _ -> \"Tl\"",
             "    | IrListLength _ -> \"ListLength\" | IrNth _ _ -> \"Nth\"",
             "    | IrMem _ _ -> \"Mem\" | IrAppend _ _ -> \"Append\"",
+            "    | IrFst _ -> \"FstExpr\" | IrSnd _ -> \"SndExpr\"",
+            "    | IrCtorTest _ _ -> \"CtorTest\" | IrCtorPayload _ _ _ -> \"CtorPayload\"",
+            "    | IrStrConcat _ _ -> \"StrConcat\" | IrStrLength _ -> \"StrLength\"",
+            "    | IrStrSub _ _ _ -> \"StrSub\"",
+            "    | IrGhostCopy _ -> \"GhostCopy\" | IrGhostCopyRange _ _ _ -> \"GhostCopyRange\"",
+            "    | IrGhostMake _ _ -> \"GhostMake\"",
+            "    | IrSliceAccess _ _ -> \"SliceAccess\" | IrSlice _ _ -> \"Slice\"",
+            "    | IrNone -> \"None\" | IrResult -> \"Result\" | IrNothing -> \"Nothing\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3518,6 +3550,15 @@ class PreambleEmissionMixin:
             "    | IrNth l i -> 1 + size l + size i",
             "    | IrMem e l -> 1 + size e + size l",
             "    | IrAppend l r -> 1 + size l + size r",
+            "    | IrFst t -> 1 + size t",
+            "    | IrSnd t -> 1 + size t",
+            "    | IrStrConcat l r -> 1 + size l + size r",
+            "    | IrStrLength s -> 1 + size s",
+            "    | IrStrSub s l h -> 1 + size s + size l + size h",
+            "    | IrGhostCopyRange _ l h -> 1 + size l + size h",
+            "    | IrGhostMake sz d -> 1 + size sz + size d",
+            "    | IrSliceAccess v s -> 1 + size v + size s",
+            "    | IrSlice l h -> 1 + size l + size h",
             "    | _ -> 1",
             "    end",
             "",

@@ -514,8 +514,10 @@ class ForallItems(QuantifierNode):
 class CSLSlice(CSLNode):
     """Represents `arr[lo:hi]` slice notation in contracts."""
     collection: str
-    low: CSLNode
-    high: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_slice): retyped `CSLNode`
+    # -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    low: "ExprIR"
+    high: "ExprIR"
 
 @dataclass
 class ChainedSubscript(CSLNode):
@@ -600,12 +602,16 @@ class MkTupleExpr(CSLNode):
 @dataclass
 class FstExpr(CSLNode):
     """\\fst(t) — first component of a ghost tuple."""
-    tuple_expr: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_fst): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    tuple_expr: "ExprIR"
 
 @dataclass
 class SndExpr(CSLNode):
     """\\snd(t) — second component of a ghost tuple."""
-    tuple_expr: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_snd): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    tuple_expr: "ExprIR"
 
 @dataclass
 class ProjExpr(CSLNode):
@@ -633,20 +639,27 @@ class CtorPayload(CSLNode):
 @dataclass
 class StrConcatExpr(CSLNode):
     """s ^ t — string concatenation in ghost / contract context."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_strconcat): retyped `CSLNode`
+    # -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class StrLengthExpr(CSLNode):
     r"""\str_length(s) — length of a ghost string variable."""
-    string: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_str_length): retyped
+    # `CSLNode` -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure
+    # type-hint).
+    string: "ExprIR"
 
 @dataclass
 class StrSubExpr(CSLNode):
     r"""\str_sub(s, lo, hi) — substring of ghost string s from lo to hi."""
-    string: CSLNode
-    lo: CSLNode
-    hi: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_str_sub): retyped `CSLNode`
+    # -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    string: "ExprIR"
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 # --- Ghost array nodes ---
 
@@ -659,14 +672,20 @@ class GhostCopyExpr(CSLNode):
 class GhostCopyRangeExpr(CSLNode):
     """\\copy_range(arr, lo, hi) — bounded snapshot: arr[lo..hi-1] into a new ghost array."""
     arr: str       # CNAME of the source array
-    lo: CSLNode    # lower bound (inclusive)
-    hi: CSLNode    # upper bound (exclusive)
+    # tcb(M5) misc single-return batch mini-M1 (_csl_ghost_copy_range): retyped
+    # `CSLNode` -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure
+    # type-hint).
+    lo: "ExprIR"   # lower bound (inclusive)
+    hi: "ExprIR"   # upper bound (exclusive)
 
 @dataclass
 class GhostMakeExpr(CSLNode):
     """\\make(n, v) — create a ghost array of length n filled with v."""
-    size: CSLNode
-    default: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_ghost_make): retyped
+    # `CSLNode` -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure
+    # type-hint).
+    size: "ExprIR"
+    default: "ExprIR"
 
 # --- Ghost dict nodes ---
 

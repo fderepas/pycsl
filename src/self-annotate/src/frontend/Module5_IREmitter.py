@@ -122,19 +122,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_bool(self, node: CSLBool) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_none(self, node: CSLNone) -> int:
-        return {}
+    def _csl_none(self, node: CSLNone) -> Dict[str, Any]:
+        return {"type": "None"}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_result(self, node: CSLResult) -> int:
-        return {}
+    def _csl_result(self, node: CSLResult) -> Dict[str, Any]:
+        return {"type": "Result"}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -143,12 +141,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_old(self, node: CSLOld) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_nothing(self, node: Nothing) -> int:
-        return {}
+    def _csl_nothing(self, node: Nothing) -> Dict[str, Any]:
+        return {"type": "Nothing"}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -323,12 +320,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_not_in(self, node: CSLNotIn) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_slice(self, node: CSLSlice) -> int:
-        return {}
+    def _csl_slice(self, node: CSLSlice) -> Dict[str, Any]:
+        return {"type": "SliceAccess",
+                "value": {"type": "Var", "name": node.collection},
+                "slice": {"type": "Slice",
+                          "lower": self._csl_to_ir(node.low),
+                          "upper": self._csl_to_ir(node.high),
+                          "step": None}}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -337,19 +338,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_mktuple(self, node: MkTupleExpr) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_fst(self, node: FstExpr) -> int:
-        return {}
+    def _csl_fst(self, node: FstExpr) -> Dict[str, Any]:
+        return {"type": "FstExpr", "tuple": self._csl_to_ir(node.tuple_expr)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_snd(self, node: SndExpr) -> int:
-        return {}
+    def _csl_snd(self, node: SndExpr) -> Dict[str, Any]:
+        return {"type": "SndExpr", "tuple": self._csl_to_ir(node.tuple_expr)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -358,61 +357,58 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_proj(self, node: ProjExpr) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_ctor_test(self, node: CtorTest) -> int:
-        return {}
+    def _csl_ctor_test(self, node: CtorTest) -> Dict[str, Any]:
+        return {"type": "CtorTest", "var": node.var, "ctor": node.ctor}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_ctor_payload(self, node: CtorPayload) -> int:
-        return {}
+    def _csl_ctor_payload(self, node: CtorPayload) -> Dict[str, Any]:
+        return {"type": "CtorPayload", "var": node.var, "ctor": node.ctor,
+                "index": getattr(node, "index", 0)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_strconcat(self, node: StrConcatExpr) -> int:
-        return {}
+    def _csl_strconcat(self, node: StrConcatExpr) -> Dict[str, Any]:
+        return {"type": "StrConcat", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_str_length(self, node: StrLengthExpr) -> int:
-        return {}
+    def _csl_str_length(self, node: StrLengthExpr) -> Dict[str, Any]:
+        return {"type": "StrLength", "string": self._csl_to_ir(node.string)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_str_sub(self, node: StrSubExpr) -> int:
-        return {}
+    def _csl_str_sub(self, node: StrSubExpr) -> Dict[str, Any]:
+        return {"type": "StrSub", "string": self._csl_to_ir(node.string),
+                "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_ghost_copy(self, node: GhostCopyExpr) -> int:
-        return {}
+    def _csl_ghost_copy(self, node: GhostCopyExpr) -> Dict[str, Any]:
+        return {"type": "GhostCopy", "arr": node.arr}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_ghost_copy_range(self, node: GhostCopyRangeExpr) -> int:
-        return {}
+    def _csl_ghost_copy_range(self, node: GhostCopyRangeExpr) -> Dict[str, Any]:
+        return {"type": "GhostCopyRange", "arr": node.arr,
+                "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_ghost_make(self, node: GhostMakeExpr) -> int:
-        return {}
+    def _csl_ghost_make(self, node: GhostMakeExpr) -> Dict[str, Any]:
+        return {"type": "GhostMake", "size": self._csl_to_ir(node.size),
+                "default": self._csl_to_ir(node.default)}
 
     #@ requires True
     #@ ensures True

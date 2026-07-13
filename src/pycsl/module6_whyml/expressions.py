@@ -845,6 +845,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "Nth":       ("IrNth", ["list", "index"]),
         "Mem":       ("IrMem", ["elem", "list"]),
         "Append":    ("IrAppend", ["left", "right"]),
+        # post-m1-census.md misc single-return batch mini-M1: wire the STRING/TUPLE/
+        # GHOST + fieldless family's inline `{"type": K, ...}` constructions
+        # (Module5's `_csl_fst`/`_csl_snd`/`_csl_ctor_test`/`_csl_ctor_payload`/
+        # `_csl_strconcat`/`_csl_str_length`/`_csl_str_sub`/`_csl_ghost_copy`/
+        # `_csl_ghost_copy_range`/`_csl_ghost_make`/`_csl_slice`/`_csl_none`/
+        # `_csl_result`/`_csl_nothing`) to the matching `emit_ir` ctors added
+        # alongside the MAP/SET/LIST family (preamble.py `_emit_exprir_theory`).
+        # `_csl_bool` stays \trusted (bool field lowers to `int`, not `bool`) — no
+        # "Bool" entry here.
+        "FstExpr":  ("IrFst", ["tuple"]),
+        "SndExpr":  ("IrSnd", ["tuple"]),
+        "CtorTest":    ("IrCtorTest", ["var", "ctor"]),
+        "CtorPayload": ("IrCtorPayload", ["var", "ctor", "index"]),
+        "StrConcat": ("IrStrConcat", ["left", "right"]),
+        "StrLength": ("IrStrLength", ["string"]),
+        "StrSub":    ("IrStrSub", ["string", "lo", "hi"]),
+        "GhostCopy":      ("IrGhostCopy", ["arr"]),
+        "GhostCopyRange": ("IrGhostCopyRange", ["arr", "lo", "hi"]),
+        "GhostMake":      ("IrGhostMake", ["size", "default"]),
+        "SliceAccess": ("IrSliceAccess", ["value", "slice"]),
+        "Slice":       ("IrSlice", ["lower", "upper"]),
+        "None":    ("IrNone", []),
+        "Result":  ("IrResult", []),
+        "Nothing": ("IrNothing", []),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
