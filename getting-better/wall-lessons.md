@@ -433,3 +433,23 @@ case-sensitivity bug (`obj_type.lower()` vs original-case `_record_types` keys);
 worth fixing. REMAINING TAIL: early-return handlers (field_access/subscript/old/forall/exists/in/proj/function_variant
 — need the Return_emit_ir return-catch infra, patch saved) + variadic (mktuple/call — need a seq/list-emit_ir-carrying
 ctor, a genuinely new capability = biggest/riskiest lift, assess worth).
+
+**MODULE5 CSL-AST BUILD COMPLETE @ 1095 + NEXT-LEVER MAP (2026-07-14).** The authorized _csl_* construction build
+landed 59 conversions (1154→1095, commits 29873c2c..0bf0a1b8), all whole-file-proof + non-vacuity + corpus-additive-
+mini-M1 verified, ledger 3. 14 _csl_* remain, each a CHARACTERIZED blocker (worth-declined with evidence, not a loose
+floor). Two measured spikes settle the two largest remaining clusters:
+- **VARIADIC trio (mktuple/call_expr/list_to_ir, +3)**: spiked. `seq emit_ir` is Why3-POSITIVITY-REJECTED in a variant
+  ("non strictly positive occurrence"); `list emit_ir` works + a total size measure is clean (mutual-recursive
+  size/list_size + one `let rec lemma` by structural induction — a flat SMT `mem x l -> size x <= list_size l` goal
+  times out, the inductive proof discharges in 227 steps). BUT the real wall: the list-comp `[csl_to_ir(e) for e in
+  node.elts]` does NOT lower — `node.elts` is opaque `array int`, body emits `(IrOther "MkTuple")` (false green under
+  ensures True — caught by .mlw inspection). Needs the list-FIELD remodel (array int→array/list emit_ir) + list-comp→
+  map lowering. Deferred (list-field extension of the frontend remodel).
+- **_py_expr_*/_py_stmt_* (~40 methods, the Python-AST→IR emitter, SAME `{"type":K}` construction pattern as _csl_*)**:
+  BLOCKED one level DEEPER than the CSL case. CSL classes are @dataclass → auto-modeled as WhyML RECORDS (retype the
+  field annotation CSLNode→"ExprIR" and children become emit_ir). pure_ast `ast.*` nodes are METACLASS-built
+  (`_NODE_SPEC` + `_build_nodes`, no per-field annotations) → modeled as OPAQUE `int` (`val _py_expr_binop (expr:int)
+  :int`), not even records. Converting needs pure_ast nodes first modeled as RECORDS from `_NODE_SPEC` (a metaclass→
+  WhyML-record emitter feature that doesn't exist) THEN the emit_ir field retype. That's the pure_ast boundary (the
+  262-trusted metaclass module, frontier-map's "hardest"). The _py_expr_* cluster is the biggest next lever but gated
+  on this deep pure_ast-record-modeling build — NOT a cheap continuation of the _csl_* mechanism.
