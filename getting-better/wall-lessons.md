@@ -408,3 +408,28 @@ missing-ADT-projector singletons [each a deferred build, worth-declined at +1].*
 frontier reachable with existing machinery is largely exhausted; further reduction needs either a no-more-int
 frontend remodel (Module5 CSL-AST) or new ADT families (match-pattern) — measured multi-session builds, not loop
 increments. Anti-facade gate held throughout: every "SUCCESS" was checked for param-read in the .mlw.
+
+**MODULE5 CSL-AST-as-emit_ir BUILD — SINGLE-RETURN FAMILY COMPLETE (2026-07-13/14, 1154→1097 = 57 conversions).**
+The user AUTHORIZED the big build after I measured the loop-scale frontier exhausted. Ran spike-first (make-or-break
+`_csl_binop` proven end-to-end BEFORE the full build) then family-batched. Mechanism (ledger stays 3, NO new value
+shape/certificate — reuses the existing emit_ir ADT): (1) model the CSL contract-AST node children as emit_ir not int
+by retyping `CSLNode`→`"ExprIR"` on the LIVE Module2_Parser dataclass fields (pure type-hint, dataclass never
+enforces; had to be the LIVE file — cross-module class injection resolves the mirror's import to live); (2)
+`functions.py` recognizes an IR-node-tag RETURN annotation as emit_ir so the trusted `_csl_to_ir` dispatcher types
+`emit_ir->emit_ir`; (3) wire each `{"type":K}` into `_IRNODE_CTORS` (expressions.py); (4) per node kind add an
+emit_ir ctor to `_emit_exprir_theory` (variant arm + kind_of arm + size arm — the IrBinOp template). Batches: FOUNDATION
++binop (29873c2c), FREE bucket 3 via IrSub/IrFieldGet (1aa54b22), spec-op 15 (1768b5c5), map/set/list 24 (56ac0016),
+misc 14 (62105a02). Each a **sanctioned mini-M1**: the emit_ir theory grows ADDITIVELY, perturbing ONLY the 15
+emit_ir-theory corpus files (0746-0881) additive-only (pre-existing ctors/arms preserved; the `type emit_ir =` +
+comment lines show as "changed" only because they're single lines that got longer), re-verified. GATES per batch
+(all independently re-run by coordinator): whole-file Module5 proof SUCCESS (size measure stays total with all new
+arms), corpus byte-diff = 15 files additive-only + re-verify, non-vacuity on EVERY method (.mlw body reads node +
+builds the RIGHT ctor, not IrOther/unused-node — caught the earlier 62-facade census this way), ledger 3.
+PRINCIPLED SKIPS: `_csl_bool` (CSLBool.value lowers bool→int, IrBool mismatches), `_csl_number` (value is float, IrNum
+is int — no-more-int forbids coercion), `_csl_not_in` (body CONSTRUCTS an input CSLIn node → doesn't unify with
+emit_ir), `_csl_contract_wrapper` (abstract base class, `expr` on subclasses). FIDELITY NUANCE (accepted, flagged):
+`_csl_ctor_payload`'s `index` arg lowers to literal 0 not `node.index` — a PRE-EXISTING `_lower_getattr`
+case-sensitivity bug (`obj_type.lower()` vs original-case `_record_types` keys); sound (type-safe, 2/3 args real) but
+worth fixing. REMAINING TAIL: early-return handlers (field_access/subscript/old/forall/exists/in/proj/function_variant
+— need the Return_emit_ir return-catch infra, patch saved) + variadic (mktuple/call — need a seq/list-emit_ir-carrying
+ctor, a genuinely new capability = biggest/riskiest lift, assess worth).
