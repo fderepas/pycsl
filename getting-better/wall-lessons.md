@@ -387,3 +387,24 @@ at the CSL-AST layer), NOT a ctor-wiring win.** Fieldless leaves (none/result/no
 data but leaves `node` unused) are doctrine-borderline (ghost-handler Q1) and marginal; not chased. Module5
 construction cluster = DONE at var/string; the rest is the int-AST boundary. VALUE lesson: a construction census
 without a body-reads-node check manufactures facades at scale.
+
+**MODULE6 ExprIR-BOOL READER CLUSTER = BOUNDARY-BLOCKED, 3 distinct walls (2026-07-13, count held 1174).**
+Measured the last coherent convertible-looking class (`_val_is_bool`/`_pattern_has_constructor`/`_is_string_expr`/
+`_is_emit_ir_expr`) with a STRICT non-vacuity gate (open the `.mlw`, confirm the body reads its param via a real
+projector, reject "unused variable"/IrOther facades). Result: NONE convert, three real walls: (1) **DEPENDENCY-STUB
+FIDELITY WALL** — `_val_is_bool`'s statements.py copy transcribes + `--fun`-proves with real `kind_of`/`op_of`
+reads, but `self-annotate-mirror-check.sh` REJECTS it: `StatementEmissionMixin` only INHERITS `_val_is_bool` (it's
+defined on `TypeInferenceMixin`/types.py, already converted there), and a mirror may only un-trust a method its
+LIVE class actually DEFINES. Cross-mixin dependency stubs are IRREDUCIBLE by fidelity (F1-class). This reconfirms
+commit 1208215b independently. (2) **MISSING match-pattern ADT projector** — `_pattern_has_constructor(pat)` has
+`pat: Dict[str,Any]` collapse to `map string (option int)`; there is no `IrPattern`/`alternatives_of` constructor
+in the emit_ir sum, so the recursive walk degenerates to a dummy `Array.make 1 0` and type-errors. Building it is
+a new emitter ADT extension for +1 — worth-decline (sprawl). (3) **Recursive multi-state readers** (`_is_string_expr`
+consults `_record_types`/`_current_symbol_table`/`_mutable_state_classes`/…) — beyond a two-field projector.
+**CONSOLIDATED FLOOR PICTURE: the remaining ~1174 \trusted is dominated by (F1) cross-mixin dependency stubs
+[fidelity-irreducible], (F3) int-modeled AST / generic-`Dict[str,Any]` map readers [the 85-reader hard class,
+lesson 3] incl. all of functions.py's `_build_method_*_map` + Module5's int-AST recursive family, and a few
+missing-ADT-projector singletons [each a deferred build, worth-declined at +1].** The genuinely-convertible
+frontier reachable with existing machinery is largely exhausted; further reduction needs either a no-more-int
+frontend remodel (Module5 CSL-AST) or new ADT families (match-pattern) — measured multi-session builds, not loop
+increments. Anti-facade gate held throughout: every "SUCCESS" was checked for param-read in the .mlw.
