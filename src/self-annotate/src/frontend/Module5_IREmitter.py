@@ -65,12 +65,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "BinOp", "op": node.op,
                 "left": self._csl_to_ir(node.left), "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_unaryop(self, node: CSLUnaryOp) -> int:
-        return {}
+    def _csl_unaryop(self, node: CSLUnaryOp) -> Dict[str, Any]:
+        return {"type": "UnaryOp", "op": node.op, "expr": self._csl_to_ir(node.expr)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -158,12 +157,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_forall(self, node: Forall) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_forall_items(self, node: ForallItems) -> int:
-        return {}
+    def _csl_forall_items(self, node: ForallItems) -> Dict[str, Any]:
+        return {"type": "ForallItems", "key": node.key, "val": node.val,
+                "map": node.coll, "body": self._csl_to_ir(node.body)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -172,26 +171,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_exists(self, node: Exists) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_array_length(self, node: ArrayLength) -> int:
-        return {}
+    def _csl_array_length(self, node: ArrayLength) -> Dict[str, Any]:
+        return {"type": "ArrayLen", "var": node.var}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_in_globals(self, node: InGlobals) -> int:
-        return {}
+    def _csl_in_globals(self, node: InGlobals) -> Dict[str, Any]:
+        return {"type": "InGlobals", "name": node.name}   # 07-1839 P2
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_in_scope(self, node: InScope) -> int:
-        return {}
+    def _csl_in_scope(self, node: InScope) -> Dict[str, Any]:
+        return {"type": "InScope", "name": node.name}     # 07-1839 P3
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -211,47 +207,46 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "value": inner,
                 "index": self._csl_to_ir(node.index2)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_assigns_region(self, node: AssignsRegion) -> int:
-        return {}
+    def _csl_assigns_region(self, node: AssignsRegion) -> Dict[str, Any]:
+        return {"type": "AssignsRegion", "base": node.base,
+                "low": self._csl_to_ir(node.low), "high": self._csl_to_ir(node.high)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_valid(self, node: Valid) -> int:
-        return {}
+    def _csl_valid(self, node: Valid) -> Dict[str, Any]:
+        return {"type": "Valid", "base": node.base, "length": self._csl_to_ir(node.length)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_separated(self, node: Separated) -> int:
-        return {}
+    def _csl_separated(self, node: Separated) -> Dict[str, Any]:
+        return {"type": "Separated", "base1": node.base1,
+                "len1": self._csl_to_ir(node.length1),
+                "base2": node.base2, "len2": self._csl_to_ir(node.length2)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_at(self, node: CSLAt) -> int:
-        return {}
+    def _csl_at(self, node: CSLAt) -> Dict[str, Any]:
+        return {"type": "At", "expr": self._csl_to_ir(node.expr), "label": node.label}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_length2d(self, node: Length2D) -> int:
-        return {}
+    def _csl_length2d(self, node: Length2D) -> Dict[str, Any]:
+        return {"type": "Length2D", "base": node.base,
+                "rows": self._csl_to_ir(node.rows), "cols": self._csl_to_ir(node.cols)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_valid2d(self, node: Valid2D) -> int:
-        return {}
+    def _csl_valid2d(self, node: Valid2D) -> Dict[str, Any]:
+        return {"type": "Valid2D", "base": node.base,
+                "row": self._csl_to_ir(node.row), "col": self._csl_to_ir(node.col)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -284,33 +279,35 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_call_expr(self, node: CallExpr) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_is_sorted(self, node: IsSorted) -> int:
-        return {}
+    def _csl_is_sorted(self, node: IsSorted) -> Dict[str, Any]:
+        return {"type": "IsSorted", "base": node.base,
+                "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_array_eq(self, node: ArrayEq) -> int:
-        return {}
+    def _csl_array_eq(self, node: ArrayEq) -> Dict[str, Any]:
+        return {"type": "ArrayEq",
+                "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_permutation(self, node: Permutation) -> int:
-        return {}
+    def _csl_permutation(self, node: Permutation) -> Dict[str, Any]:
+        return {"type": "Permutation",
+                "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_sum(self, node: Sum) -> int:
-        return {}
+    def _csl_sum(self, node: Sum) -> Dict[str, Any]:
+        return {"type": "Sum", "base": node.base,
+                "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

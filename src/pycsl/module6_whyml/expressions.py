@@ -790,6 +790,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `{"type":"FieldGet", "object":…, "field":…}` constructions to them.
         "Subscript": ("IrSub", ["value", "index"]),
         "FieldGet":  ("IrFieldGet", ["object", "field"]),
+        # post-m1-census.md spec-op batch mini-M1: wire the SPEC-OP family's inline
+        # `{"type": K, ...}` constructions (Module5's `_csl_unaryop`/`_csl_at`/
+        # `_csl_array_length`/`_csl_in_globals`/`_csl_in_scope`/`_csl_valid`/
+        # `_csl_separated`/`_csl_length2d`/`_csl_valid2d`/`_csl_is_sorted`/
+        # `_csl_array_eq`/`_csl_permutation`/`_csl_sum`/`_csl_assigns_region`/
+        # `_csl_forall_items`) to the matching `emit_ir` ctors added alongside
+        # IrBinOp/IrIfExpr/IrTer3 (preamble.py `_emit_exprir_theory`).
+        "UnaryOp":       ("IrUnaryOp", ["op", "expr"]),
+        "At":            ("IrAt", ["expr", "label"]),
+        "ArrayLen":      ("IrArrayLen", ["var"]),
+        "InGlobals":     ("IrInGlobals", ["name"]),
+        "InScope":       ("IrInScope", ["name"]),
+        "Valid":         ("IrValid", ["base", "length"]),
+        "Separated":     ("IrSeparated", ["base1", "len1", "base2", "len2"]),
+        "Length2D":      ("IrLength2D", ["base", "rows", "cols"]),
+        "Valid2D":       ("IrValid2D", ["base", "row", "col"]),
+        "IsSorted":      ("IrIsSorted", ["base", "lo", "hi"]),
+        "ArrayEq":       ("IrArrayEq", ["left", "right"]),
+        "Permutation":   ("IrPermutation", ["left", "right"]),
+        "Sum":           ("IrSum", ["base", "lo", "hi"]),
+        "AssignsRegion": ("IrAssignsRegion", ["base", "low", "high"]),
+        "ForallItems":   ("IrForallItems", ["key", "val", "map", "body"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
@@ -5259,7 +5281,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if _key is not None:
                         _rl = _rt[_key].get("whyml_name", _ot.lower())
                         return f"{whyml_ident(var_name)}.{self._field_label(_rl, attr)}"
-                return f"{whyml_ident(var_name)}.{attr}"
+                # tcb(M5) spec-op batch mini-M1 (_csl_at): a NON-ambiguous field whose Python
+                # name is a WhyML RESERVED WORD (e.g. `label` — `At.label`) is declared with
+                # the `whyml_ident`-sanitized label (`py_label`, `_field_label`'s `base` for the
+                # non-ambiguous case, preamble.py `_field_label` call at record-declaration
+                # time). This bare fallback previously emitted the RAW `attr` unconditionally —
+                # a latent mismatch that only a reserved-word field name can trigger (`attr` is
+                # unchanged by `whyml_ident` for every existing non-reserved field, so this is
+                # byte-identical elsewhere). Route through `whyml_ident` to match the
+                # declaration.
+                return f"{whyml_ident(var_name)}.{whyml_ident(attr)}"
         # self-ir-schema.md IR2: `<emit_ir>.value` / `.target` / … (a StmtIR field access on
         # an emit_ir node, e.g. `body_stmts[-1].value`) is an opaque emit_ir SUB-NODE —
         # `svalue_of` returns `IrOther ""` for a non-IrSub node (sound; content unmodeled),

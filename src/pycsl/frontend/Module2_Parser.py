@@ -143,7 +143,9 @@ class BinOp(CSLNode):
 @dataclass
 class UnaryOp(SingleExprNode):
     op: str
-    expr: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_unaryop): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    expr: "ExprIR"
 
 @dataclass
 class Var(CSLNode):
@@ -262,22 +264,28 @@ class InScope(CSLNode):
 class AssignsRegion(CSLNode):
     """Represents `arr[lo..hi]` inside an assigns clause (frame condition region)."""
     base: str       # array parameter name
-    low: CSLNode    # lower bound expression (inclusive)
-    high: CSLNode   # upper bound expression (exclusive)
+    # tcb(M5) spec-op batch mini-M1 (_csl_assigns_region): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    low: "ExprIR"    # lower bound expression (inclusive)
+    high: "ExprIR"   # upper bound expression (exclusive)
 
 @dataclass
 class Valid(CSLNode):
     """Represents `\\valid(arr, n)` — memory region [arr, arr+n) is allocated."""
     base: str
-    length: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_valid): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    length: "ExprIR"
 
 @dataclass
 class Separated(CSLNode):
     """Represents `\\separated(a, na, b, nb)` — regions [a,a+na) and [b,b+nb) don't overlap."""
     base1: str
-    length1: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_separated): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    length1: "ExprIR"
     base2: str
-    length2: CSLNode
+    length2: "ExprIR"
 
 @dataclass
 class Label(CSLNode):
@@ -297,22 +305,28 @@ class CheckPoint(CSLNode):
 @dataclass
 class At(CSLNode):
     """Represents `\\at(expr, L)` — value of expr at program point L."""
-    expr: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_at): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    expr: "ExprIR"
     label: str
 
 @dataclass
 class Length2D(CSLNode):
     """Represents `\\length2d(arr, m, n)` — arr has m rows each of length n."""
     base: str
-    rows: CSLNode
-    cols: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_length2d): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    rows: "ExprIR"
+    cols: "ExprIR"
 
 @dataclass
 class Valid2D(CSLNode):
     """Represents `\\valid2d(arr, i, j)` — (i,j) is a valid 2D index into arr."""
     base: str
-    row: CSLNode
-    col: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_valid2d): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    row: "ExprIR"
+    col: "ExprIR"
 
 @dataclass
 class FunctionVariant(CSLNode):
@@ -492,7 +506,9 @@ class ForallItems(QuantifierNode):
     key: str
     val: str
     coll: str
-    body: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_forall_items): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    body: "ExprIR"
 
 @dataclass
 class CSLSlice(CSLNode):
@@ -530,15 +546,19 @@ class CallExpr(CSLNode):
 class IsSorted(CSLNode):
     """Represents `\\is_sorted(a, lo, hi)` — array is sorted in range."""
     base: str
-    lo: CSLNode
-    hi: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_is_sorted): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 @dataclass
 class ArrayEq(CSLNode):
     """Represents `\\array_eq(a, b)` — two arrays have equal length and
     equal elements at every index (extensional content equality)."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_array_eq): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class Permutation(CSLNode):
@@ -546,15 +566,19 @@ class Permutation(CSLNode):
     multiset of elements). Unlike `\\array_eq` it does NOT unfold to a
     first-order formula; it lowers to an uninterpreted Why3 `predicate permut`
     that a proof-assistant-imported axiom constrains (no-more-int A2b Gap 1)."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_permutation): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class Sum(CSLNode):
     """Represents `\\sum(a, lo, hi)` — sum of array elements in range."""
     base: str
-    lo: CSLNode
-    hi: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_sum): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 @dataclass
 class GhostAssignDecl(CSLNode):

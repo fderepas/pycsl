@@ -3280,7 +3280,16 @@ class PreambleEmissionMixin:
             " IrBinOp/IrIfExpr precedent verbatim — for the 3-child ghost handlers"
             " (MapSetExpr(dict,key,value), SetCardExpr(set,lo,hi)) whose 3rd child"
             " previously fell through to the `svalue_of` sentinel (sound but"
-            " value-degenerate; see ghost-handler-wall-response.md §1.4/§2). *)",
+            " value-degenerate; see ghost-handler-wall-response.md §1.4/§2)."
+            " post-m1-census.md spec-op batch mini-M1: extended with the SPEC-OP"
+            " family — IrUnaryOp/IrAt/IrArrayLen/IrInGlobals/IrInScope/IrValid/"
+            " IrSeparated/IrLength2D/IrValid2D/IrIsSorted/IrArrayEq/IrPermutation/"
+            " IrSum/IrAssignsRegion/IrForallItems — realizing the `_csl_unaryop`,"
+            " `_csl_at`, `_csl_array_length`, `_csl_in_globals`, `_csl_in_scope`,"
+            " `_csl_valid`, `_csl_separated`, `_csl_length2d`, `_csl_valid2d`,"
+            " `_csl_is_sorted`, `_csl_array_eq`, `_csl_permutation`, `_csl_sum`,"
+            " `_csl_assigns_region`, `_csl_forall_items` single-return CSL-AST-node"
+            " constructions verbatim (IrBinOp precedent). *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrRaw string | IrOther string"
             " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
@@ -3288,7 +3297,22 @@ class PreambleEmissionMixin:
             " | IrBinOp string emit_ir emit_ir"
             " | IrFieldGet string string"
             " | IrIfExpr emit_ir emit_ir"
-            " | IrTer3 emit_ir emit_ir emit_ir",
+            " | IrTer3 emit_ir emit_ir emit_ir"
+            " | IrUnaryOp string emit_ir"
+            " | IrAt emit_ir string"
+            " | IrArrayLen string"
+            " | IrInGlobals string"
+            " | IrInScope string"
+            " | IrValid string emit_ir"
+            " | IrSeparated string emit_ir string emit_ir"
+            " | IrLength2D string emit_ir emit_ir"
+            " | IrValid2D string emit_ir emit_ir"
+            " | IrIsSorted string emit_ir emit_ir"
+            " | IrArrayEq emit_ir emit_ir"
+            " | IrPermutation emit_ir emit_ir"
+            " | IrSum string emit_ir emit_ir"
+            " | IrAssignsRegion string emit_ir emit_ir"
+            " | IrForallItems string string string emit_ir",
             "",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
             " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
@@ -3309,6 +3333,21 @@ class PreambleEmissionMixin:
             "    | IrFieldGet _ _ -> \"FieldGet\"",
             "    | IrIfExpr _ _ -> \"IfExpr\"",
             "    | IrTer3 _ _ _ -> \"Ter3\"",
+            "    | IrUnaryOp _ _ -> \"UnaryOp\"",
+            "    | IrAt _ _ -> \"At\"",
+            "    | IrArrayLen _ -> \"ArrayLen\"",
+            "    | IrInGlobals _ -> \"InGlobals\"",
+            "    | IrInScope _ -> \"InScope\"",
+            "    | IrValid _ _ -> \"Valid\"",
+            "    | IrSeparated _ _ _ _ -> \"Separated\"",
+            "    | IrLength2D _ _ _ -> \"Length2D\"",
+            "    | IrValid2D _ _ _ -> \"Valid2D\"",
+            "    | IrIsSorted _ _ _ -> \"IsSorted\"",
+            "    | IrArrayEq _ _ -> \"ArrayEq\"",
+            "    | IrPermutation _ _ -> \"Permutation\"",
+            "    | IrSum _ _ _ -> \"Sum\"",
+            "    | IrAssignsRegion _ _ _ -> \"AssignsRegion\"",
+            "    | IrForallItems _ _ _ _ -> \"ForallItems\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3411,6 +3450,18 @@ class PreambleEmissionMixin:
             "    | IrAttr o _ -> 1 + size o",
             "    | IrCall _ a _ -> 1 + size a",
             "    | IrTer3 a b c -> 1 + size a + size b + size c",
+            "    | IrUnaryOp _ e -> 1 + size e",
+            "    | IrAt e _ -> 1 + size e",
+            "    | IrValid _ l -> 1 + size l",
+            "    | IrSeparated _ l1 _ l2 -> 1 + size l1 + size l2",
+            "    | IrLength2D _ r c -> 1 + size r + size c",
+            "    | IrValid2D _ r c -> 1 + size r + size c",
+            "    | IrIsSorted _ l h -> 1 + size l + size h",
+            "    | IrArrayEq l r -> 1 + size l + size r",
+            "    | IrPermutation l r -> 1 + size l + size r",
+            "    | IrSum _ l h -> 1 + size l + size h",
+            "    | IrAssignsRegion _ l h -> 1 + size l + size h",
+            "    | IrForallItems _ _ _ b -> 1 + size b",
             "    | _ -> 1",
             "    end",
             "",
