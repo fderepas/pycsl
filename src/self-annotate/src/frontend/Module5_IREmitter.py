@@ -71,12 +71,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_unaryop(self, node: CSLUnaryOp) -> Dict[str, Any]:
         return {"type": "UnaryOp", "op": node.op, "expr": self._csl_to_ir(node.expr)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_field_access(self, node: CSLFieldAccess) -> int:
-        return {}
+    def _csl_field_access(self, node: CSLFieldAccess) -> Dict[str, Any]:
+        # no-more-int-2 Track 3: `self.f` is a FieldGet; `p.f` on a record-typed param is an
+        # Attribute (routed through _handle_attribute_expr, which reads a record param directly).
+        # 07-0903 W2: `\result.<field>` — field access on a record-returning function's
+        # result. Carry a Result receiver so Module6 emits `result.<field_label>`.
+        if node.object == "\\result":
+            return {"type": "Attribute",
+                    "object": {"type": "Result"}, "attr": node.field}
+        if node.object != "self":
+            return {"type": "Attribute",
+                    "object": {"type": "Var", "name": node.object}, "attr": node.field}
+        return {"type": "FieldGet", "object": node.object, "field": node.field}
 
     #@ requires True
     #@ ensures True
@@ -186,12 +195,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_in_scope(self, node: InScope) -> Dict[str, Any]:
         return {"type": "InScope", "name": node.name}     # 07-1839 P3
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_subscript(self, node: SubscriptAccess) -> int:
-        return {}
+    def _csl_subscript(self, node: SubscriptAccess) -> Dict[str, Any]:
+        if node.array == "\\result":
+            return {"type": "Subscript",
+                    "value": {"type": "Result"},
+                    "index": self._csl_to_ir(node.index)}
+        return {"type": "Subscript",
+                "value": {"type": "Var", "name": node.array},
+                "index": self._csl_to_ir(node.index)}
 
     #@ requires True
     #@ ensures True

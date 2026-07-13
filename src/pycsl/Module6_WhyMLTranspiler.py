@@ -518,6 +518,16 @@ class Module6_WhyMLTranspiler(
         # param/local; corpus has neither → byte-identical.
         if getattr(self, "_mutable_state_classes", None) or getattr(self, "_uses_ir_node_param", False):
             out += self._emit_exprir_theory()
+            # Return_emit_ir infra: an emit_ir-returning function's early-return catch
+            # (`_wrap_body_with_return_catch`) needs this exception — it must be declared
+            # AFTER the `emit_ir` ADT (just emitted above) since it carries an `emit_ir`
+            # payload, so it cannot live in `_emit_preamble_exceptions` (which runs before
+            # the ADT is in scope). `needs_return_emit_ir` is False for the whole existing
+            # corpus (no emit_ir-returning function has an early/in-loop return there yet)
+            # → inert.
+            if needs.get("needs_return_emit_ir"):
+                out.append("")
+                out.append("  exception Return_emit_ir emit_ir")
 
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines

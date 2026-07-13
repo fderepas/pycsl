@@ -800,3 +800,34 @@ class IRScanner:
                     if result not in ("int", "unit"):
                         return result
         return "int"
+
+    @staticmethod
+    def returns_emit_ir_literal(stmts: List[Dict[str, Any]]) -> bool:
+        """Return_emit_ir infra: True if some `return` in `stmts` (including inside an
+        If/For/While/Try body, matching find_return_type's own traversal) returns a
+        DIRECT inline `{"type": K, ...}` IR-node literal (a Python dict literal — IR
+        shape `DictLit` with a `"type"` string key) — the shape `_csl_field_access` /
+        `_csl_subscript` build (`return {"type": "Attribute", ...}`). Narrower than the
+        Module6 alias-tracking `_returns_emit_ir` (which also follows a `node = {...};
+        return node` local binding through the symbol table AND is gated on
+        `_current_self_type`, which is not yet set at the preamble needs-scan's
+        pre-pass): this static, self-contained check covers ONLY the direct-literal
+        shape, so it needs no per-function state and can run before the per-function
+        symbol table / `_current_self_type` are set up. Extend it if a future
+        conversion needs the indirect (through-local) shape."""
+        for stmt in stmts:
+            if stmt.get("stmt") == "Return":
+                v = stmt.get("value")
+                if isinstance(v, dict) and v.get("type") == "DictLit":
+                    for k in v.get("keys", []):
+                        if (isinstance(k, dict) and k.get("type") == "String"
+                                and k.get("value") == "type"):
+                            return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.returns_emit_ir_literal(stmt[key]):
+                    return True
+            if stmt.get("stmt") == "Try":
+                for h in stmt.get("handlers", []):
+                    if IRScanner.returns_emit_ir_literal(h.get("body", [])):
+                        return True
+        return False

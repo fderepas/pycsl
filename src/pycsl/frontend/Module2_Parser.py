@@ -207,7 +207,9 @@ class ClassInvariant(CSLNode):
 @dataclass
 class SubscriptAccess(CSLNode):
     array: str
-    index: CSLNode
+    # tcb(M5) Return_emit_ir mini-M1 (_csl_subscript): retyped `CSLNode` -> `"ExprIR"`,
+    # BinOp.left/right precedent verbatim (pure type-hint).
+    index: "ExprIR"
 
 @dataclass
 class SubscriptFieldAccess(CSLNode):

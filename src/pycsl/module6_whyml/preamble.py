@@ -1804,6 +1804,7 @@ class PreambleEmissionMixin:
         needs_return_seq = False
         needs_return_seq_str = False
         needs_return_str = False
+        needs_return_emit_ir = False
         tuple_return_arities: Set[int] = set()
         n = len(functions)
         i = 0
@@ -1839,6 +1840,17 @@ class PreambleEmissionMixin:
                     # find_return_type reports `int` for a string body.) Structured so a
                     # later `Return_<T>` generalization (real/record) slots in here.
                     needs_return_str = True
+                elif IRScanner.returns_emit_ir_literal(func["body"]):
+                    # Return_emit_ir infra: an emit_ir-returning function (a recursive
+                    # `_csl_*`-style dispatcher building a `{"type": K}` IR-node literal)
+                    # with an early/in-loop return carries the node payload through a
+                    # dedicated `exception Return_emit_ir emit_ir` — the plain `exception
+                    # Return int` would mis-type it (int is not emit_ir). Mirrors the
+                    # Return_str/Return_seq machinery above. `find_return_type` reports
+                    # `int` for a dict-literal body (like it does for string bodies), so
+                    # this static literal-shape check (not `ret_type`/`ann`) is the
+                    # detector — see IRScanner.returns_emit_ir_literal.
+                    needs_return_emit_ir = True
                 else:
                     needs_return_exc = True
             i += 1
@@ -2025,6 +2037,7 @@ class PreambleEmissionMixin:
             "needs_return_seq": needs_return_seq,
             "needs_return_seq_str": needs_return_seq_str,
             "needs_return_str": needs_return_str,
+            "needs_return_emit_ir": needs_return_emit_ir,
             "needs_return_void": needs_return_void,
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,

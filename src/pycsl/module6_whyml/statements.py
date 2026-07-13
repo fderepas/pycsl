@@ -1527,6 +1527,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # back (no materialize needed — `string` is immutable). Structured so a later
             # `Return_<T>` generalization (real/record) extends this branch.
             return f"    try\n{body_code}\n    with Return_str r -> r end"
+        if return_type == "emit_ir":
+            # Return_emit_ir infra: an emit_ir-returning function (a recursive `_csl_*`-
+            # style dispatcher building/returning a `{"type": K}` IR-node) with an
+            # early/in-loop return raises `Return_emit_ir <emit_ir>`; the catch hands the
+            # node payload straight back (immutable — no materialize needed), the same
+            # shape as the Return_str arm just above.
+            return f"    try\n{body_code}\n    with Return_emit_ir r -> r end"
         return f"    try\n{body_code}\n    with Return r -> r end"
 
     def _collect_string_elem_read_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:

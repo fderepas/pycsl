@@ -1156,6 +1156,13 @@ class ControlFlowStmtMixin:
                 # return raises `Return_str <string>` (caught by the `with Return_str r -> r`
                 # arm). `val` is already the lowered string expression — no int coercion.
                 return f"{indent}raise (Return_str {val})"
+            if func_ret == "emit_ir":
+                # Return_emit_ir infra: an emit_ir-returning function's early/in-loop
+                # return raises `Return_emit_ir <emit_ir>` (caught by the `with
+                # Return_emit_ir r -> r` arm, statements.py::_wrap_body_with_return_catch).
+                # `val` is already the lowered emit_ir constructor expression (e.g. `(IrAttr
+                # ... ...)`) — no int coercion, mirroring the Return_str arm above.
+                return f"{indent}raise (Return_emit_ir {val})"
             # Array-returning functions with early returns CANNOT use the
             # straightforward `raise (Return arr)` shape — Why3 forbids
             # `array int` in exception payloads (mutable types), and the
