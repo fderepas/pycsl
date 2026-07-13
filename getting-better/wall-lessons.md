@@ -336,3 +336,29 @@ breakability THEN judge-worth.**
 > the `list <T>` param family) so the next session builds deliberately, not blind. Distinguish this from a
 > CERTIFIED BOUNDARY (map-iteration, generic-Any walkers): a deferred-breakable has a proven target + a pinned,
 > bounded gap; a boundary has neither.
+
+**_field_type_of / _field_type_for — ORACLE-VALIDATED REVERSE-INDEX, but INSUFFICIENT ALONE → worth-decline
+(2026-07-13).** Fable adjudicated the `_field_type_of`/`_field_type_for` wall (`file-type-of-wall*.md`): the
+report mis-classified them as needing map-ENUMERATION; the oracle's counter is they need a **reverse index** (a
+second keyed map `_record_types_by_whyml_name`, populated at the single write site, since the search key
+`whyml_name` is already in the value). The reverse index was SPIKED and VALIDATED: **corpus byte-diff 0**,
+sound, re-appliable. BUT the spike also proved neither leaf converts on the reverse index alone — each is gated
+on ORTHOGONAL emitter features: `_field_type_for` needs + U (union-return closer + a RecordInfoView TypedDict
+value-view) + a §10.4 re-port; `_field_type_of` needs + U + Gap-C (or-`{}`) + a getattr-chain. That is a
+**4-feature receding-horizon build for +2** — the same disproportionate-blast-radius shape as proj/ctor_payload.
+DECLINED ON WORTH (not a floor, not a boundary): the reverse index alone reduces no count (lesson 7 —
+land-nothing-that-reduces-no-count), and the full build's ROI (+2 for 4 general-emitter features, each its own
+verification) is negative. The oracle's category lesson is banked: **"search by a field of the value" is NOT
+evidence of a need to enumerate — check for a missing index first.**
+
+**_csl_var/_csl_string CONVERTED via a TOOL-CORRECTNESS FIX (2026-07-13, 1176→1174).** Turning the mirror
+`PyCSLToJSONEmitter` `@mutable_state` (to construct `IrVar`/`IrStr`) turned on the `emit_ir` theory, whose
+top-level `size` measure collided with the bare `size` FIELD of an imported `GhostMakeExpr` record →
+`Symbol size is already defined`. Root cause: `_field_label`'s ambiguous-field set never considered names the
+`emit_ir` theory reserves. Fix: `_emit_type_decls` unions the theory's declared-symbol set (parsed from
+`_emit_exprir_theory`'s OWN emitted text, drift-proof) into the ambiguous set — but ONLY inside the existing
+`_mutable_state_classes`-gated block, so corpus programs (never `@mutable_state`) never trigger it → **corpus
+byte-diff 0 verified by stash-sweep**. This is the legitimate face of a tool fix (contrast proj/ctor_payload's
+sprawl): a genuine correctness gap, one gated line reusing existing machinery, byte-inert, unblocking a
+conversion the campaign already wanted. Distinguish: fixing a CORRECTNESS GAP that blocks a wanted conversion
+(land it) vs. BUILDING speculative features for a marginal count (decline).
