@@ -608,11 +608,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return ""
 
     _PY_EXPR_HANDLERS: int = {ast.Name: '_py_expr_name', ast.Constant: '_py_expr_constant', ast.UnaryOp: '_py_expr_unaryop', ast.BinOp: '_py_expr_binop', ast.Compare: '_py_expr_compare', ast.BoolOp: '_py_expr_boolop', ast.Call: '_py_expr_call', ast.Tuple: '_py_expr_tuple', ast.Subscript: '_py_expr_subscript', ast.List: '_py_expr_list', ast.Attribute: '_py_expr_attribute', ast.Dict: '_py_expr_dict', ast.Set: '_py_expr_set', ast.ListComp: '_py_expr_listcomp', ast.SetComp: '_py_expr_setcomp', ast.DictComp: '_py_expr_dictcomp', ast.JoinedStr: '_py_expr_fstring', ast.IfExp: '_py_expr_ifexp', ast.Starred: '_py_expr_starred', ast.NamedExpr: '_py_expr_walrus', ast.Lambda: '_py_expr_lambda', ast.Slice: '_py_expr_slice'}
+    # py-expr-structural-dep-wall-response.md piece 3: param+return retyped `int`
+    # -> `"ExprIR"` (the `_csl_to_ir` precedent, line ~58) so the recursive
+    # dispatcher's signature is `emit_ir -> emit_ir`, matching
+    # `_field_type_from_annotation_inst`'s `_irnode_ann_name` recognition and
+    # `_symtype_to_whyml`'s param-side mapping. Stays \trusted (body unchanged) —
+    # signature-only retype, not a body conversion.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_to_ir(self, expr: ast.expr) -> int:
+    def _py_expr_to_ir(self, expr: "ExprIR") -> "ExprIR":
         return {}
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -636,12 +642,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_unaryop(self, expr: ast.UnaryOp) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # py-expr-structural-dep-wall-response.md spike: `expr` is a pure_ast BinOp
+    # node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped
+    # from the opaque `Any`->int fallback to the structurally-harvested `binop`
+    # record (piece 1/2/3 — see ir_resolve.py). Verbatim body port of the LIVE
+    # `_py_expr_binop` (Module5_IREmitter.py:1021).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_binop(self, expr: ast.BinOp) -> int:
-        return {}
+        return {"type": "BinOp", "op": self._py_op_to_str(expr.op),
+                "left": self._py_expr_to_ir(expr.left), "right": self._py_expr_to_ir(expr.right)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

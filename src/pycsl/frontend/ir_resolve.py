@@ -203,6 +203,209 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
     return result
 
 
+# ── py-expr-structural-dep-wall-response.md: structural-only shape-import ──
+#
+# The FABLE oracle's BREAKABLE verdict (criterion C1-C3, response §4) licenses
+# harvesting a dependency's plain record `type_decl` SHAPE (field names + WhyML
+# field types ONLY) WITHOUT running the dependency's semantic/UB verification
+# (Module3+), for the ~20 non-list `_py_expr_*` handlers whose param is a
+# pure_ast node (`ast.BinOp`, …) — pure_ast's ~90 node classes are `type()`-
+# synthesized from the static `_NODE_SPEC` dict, so `_process_dependency`'s full
+# Module1->Module5 run CRASHES in Module3_Weaver on pure_ast's deprecated
+# `Num`/`Str`/`Ellipsis` compat shim (UB-7.6: non-trivial `__new__`). This mode
+# is a DISJOINT pass from `_process_dependency` — it never runs Module3, never
+# reads a `contracts_map`, and produces ONLY bare-record `type_decl`s, so the
+# three obligations hold BY CONSTRUCTION, not by convention:
+#   C1 (verification-independence): `_harvest_node_spec_records` can only ever
+#      emit a plain field-bag (`class_invariants: []`, no refinement) — there is
+#      no code path in this module that could attach an invariant to a harvested
+#      decl, so the decl's meaning cannot depend on whether Module3 would have
+#      accepted or rejected the source class.
+#   C2 (no proof-bearing content): the harvest reads the `_NODE_SPEC` dict
+#      literal ONLY; it never touches a `contracts_map`/`csl_ensures` — no
+#      B-side `ensures` can ride along in this pass.
+#   C3 (B verified elsewhere): pure_ast.py is a member of the self-annotation
+#      suite (`bin/run-self-annotation-suite.sh`) — its own verification is a
+#      separate, tracked pass from this one.
+# Spike scope (per the oracle's obligation 2): ONE hand-authored table entry,
+# `BinOp`, feeding the `_py_expr_binop` conversion. NOT batched to the other
+# ~20 non-list `_py_expr_*` handlers — each addition to `_PURE_AST_FIELD_TABLE`
+# is a deliberate, reviewed act (mirrors `_synthesize_typeddict_functional`'s
+# scope discipline).
+
+_PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
+    # node name -> [(field name, IR field-type tag), ...], in `_NODE_SPEC` FIELD
+    # order (order is part of the fidelity cross-check below). "ExprIR" fields
+    # are expr children lowered by the importer's OWN `_py_expr_to_ir`
+    # dispatcher; "int" fields are non-expr leaves (an operator-class instance,
+    # read only by the trusted `_py_op_to_str` dispatcher) — obligation 3
+    # (field-totality): BinOp's 3 fields are always set by the parser (no
+    # `_OPTIONAL_FIELDS` entry for `BinOp` in pure_ast.py), so a TOTAL WhyML
+    # record is faithful here.
+    "BinOp": [("left", "ExprIR"), ("op", "int"), ("right", "ExprIR")],
+}
+
+
+def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
+    """Piece 2 (structural harvest): recognize the module-level `_NODE_SPEC =
+    {...}` dict literal (pure_ast.py's ASDL-derived node table — the same
+    dict-literal-recognition PATTERN `_synthesize_typeddict_functional`
+    (Module5_IREmitter.py) uses for a functional `TypedDict(...)` call) and
+    synthesize a plain record `type_decl` for each entry ALSO present in
+    `_PURE_AST_FIELD_TABLE`.
+
+    C1/C2 are enforced BY CONSTRUCTION here, not by convention: this function
+    reads ONLY the literal dict AST node plus `_PURE_AST_FIELD_TABLE` — there is
+    no `contracts_map`, no `csl_class_invariants`, no `ensures` anywhere in its
+    scope, so no invariant or proof-bearing content can ever be attached to a
+    harvested decl.
+
+    Obligation 2 (fidelity): cross-checks each table entry's field NAMES (in
+    order) against the actual `_NODE_SPEC` tuple for that node; a mismatch (the
+    hand-authored table drifted from the real spec) is DROPPED — the caller
+    falls back to the pre-existing opaque `int` typing rather than emitting a
+    wrong-shaped record."""
+    records: Dict[str, Dict[str, Any]] = {}
+    for stmt in getattr(tree, "body", []) or []:
+        if not (isinstance(stmt, _ast.Assign) and len(stmt.targets) == 1
+                and isinstance(stmt.targets[0], _ast.Name)
+                and stmt.targets[0].id == "_NODE_SPEC"
+                and isinstance(stmt.value, _ast.Dict)):
+            continue
+        for k, v in zip(stmt.value.keys, stmt.value.values):
+            if not (isinstance(k, _ast.Constant) and isinstance(k.value, str)):
+                continue
+            node_name = k.value
+            table_entry = _PURE_AST_FIELD_TABLE.get(node_name)
+            if table_entry is None:
+                continue
+            # v is `(base_name, fields_tuple, attributes)` — cross-check the
+            # fields tuple's element NAMES/ARITY against the table (obligation 2).
+            if not (isinstance(v, _ast.Tuple) and len(v.elts) >= 2
+                    and isinstance(v.elts[1], _ast.Tuple)):
+                continue
+            spec_field_names = [e.value for e in v.elts[1].elts
+                                if isinstance(e, _ast.Constant)
+                                and isinstance(e.value, str)]
+            if spec_field_names != [fname for fname, _ in table_entry]:
+                continue  # table drifted from _NODE_SPEC — refuse, stay opaque
+            fields = [{"name": fname, "type": ftype, "mutable": True}
+                     for fname, ftype in table_entry]
+            records[node_name] = {
+                "kind": "record", "name": node_name, "fields": fields,
+                "class_invariants": [],
+                "field_defaults": {fname: 0 for fname, _ in table_entry},
+                "has_hash": False, "has_eq": False, "is_unhashable": False,
+                "constants": {}, "bases": [],
+                "init_params": [], "init_body": [], "init_ensures": [],
+                "is_mixin": False, "compose_from": [],
+            }
+        break  # only one `_NODE_SPEC` assignment is ever expected
+    return records
+
+
+def _process_dependency_structural(filepath: str,
+                                   struct_cache: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """Piece 1: structural-only dependency-compile mode. Parses `filepath` with
+    the pure-Python front-end parser ONLY — Module1's contract extraction and
+    Module3's semantic/UB verification are NOT run (this is the point: it skips
+    the UB-7.6 crash on pure_ast's `Num`/`Str`/`Ellipsis` compat shim) — and
+    returns the `_NODE_SPEC`-harvested records (piece 2). Cached separately from
+    the verified-dependency `cache` used by `_process_dependency`: the two
+    passes are disjoint (a real verified compile of the same file elsewhere,
+    e.g. via `_resolve_imported_classes`, is unaffected by this cache, and vice
+    versa)."""
+    filepath = os.path.abspath(filepath)
+    if filepath in struct_cache:
+        return struct_cache[filepath]
+    with open(filepath) as f:
+        dep_source = f.read()
+    tree = _ast.parse(dep_source)
+    records = _harvest_node_spec_records(tree)
+    struct_cache[filepath] = records
+    return records
+
+
+def _resolve_pure_ast_param_records(validated_ast: Any, main_file: str,
+                                    ir_data: Dict[str, Any],
+                                    struct_cache: Dict[str, Any]) -> None:
+    """Piece 3: cross-file dotted-param resolution. For a param annotated
+    `<alias>.<NodeName>` where `<alias>` is the local name bound by a
+    `from <pkg> import pure_ast as <alias>` import (`ir_data["imports"]`) and
+    `<NodeName>` is a structurally-harvested pure_ast record (piece 1+2), patch
+    the function's `symbol_table[param]` from the opaque `Any`->int fallback to
+    the harvested record's name, so Module6 types the param as the record. The
+    harvested `type_decl` is injected into `ir_data["type_decls"]` (additive
+    only, de-duped by name — never overwrites an existing decl of the same
+    name).
+
+    No-op (byte-identical) unless BOTH a `pure_ast`-alias import AND a matching
+    dotted param annotation are present in `main_file` — the whole corpus has
+    neither, so this pass is corpus-inert for every existing driver."""
+    aliases: List[Tuple[str, str, int]] = []  # (local, dotted module path, level)
+    for entry in ir_data.get("imports", []):
+        if len(entry) < 5:
+            continue
+        local, original, module, level, is_mod = entry[:5]
+        if is_mod or original != "pure_ast":
+            continue
+        dotted = f"{module}.{original}" if module else original
+        aliases.append((local, dotted, level))
+    if not aliases:
+        return
+
+    harvested: Dict[str, Dict[str, Any]] = {}
+    alias_names: Set[str] = set()
+    for local, dotted, level in aliases:
+        resolved = _resolve_module_path(dotted, level, main_file)
+        if resolved is None:
+            continue
+        recs = _process_dependency_structural(resolved, struct_cache)
+        if recs:
+            alias_names.add(local)
+            harvested.update(recs)
+    if not harvested:
+        return
+
+    used: Set[str] = set()
+    func_by_name = {f["name"]: f for f in ir_data.get("functions", [])}
+
+    def _patch(func_name: str, fn_node: Any) -> None:
+        func_ir = func_by_name.get(func_name)
+        if func_ir is None:
+            return
+        symtab = func_ir.get("symbol_table")
+        if symtab is None:
+            return
+        for arg in fn_node.args.args:
+            ann = arg.annotation
+            if not (isinstance(ann, _ast.Attribute)
+                    and isinstance(ann.value, _ast.Name)
+                    and ann.value.id in alias_names
+                    and ann.attr in harvested):
+                continue
+            symtab[arg.arg] = ann.attr
+            used.add(ann.attr)
+
+    for node in getattr(validated_ast, "body", []) or []:
+        if isinstance(node, _ast.ClassDef):
+            cname = node.name.lower()
+            for m in node.body:
+                if isinstance(m, _ast.FunctionDef):
+                    _patch(f"{cname}__{m.name}", m)
+        elif isinstance(node, _ast.FunctionDef):
+            _patch(node.name, node)
+
+    if not used:
+        return
+    existing = {td.get("name") for td in ir_data.get("type_decls", [])}
+    for name in sorted(used):
+        if name in existing:
+            continue
+        ir_data.setdefault("type_decls", []).append(harvested[name])
+        existing.add(name)
+
+
 # gap-13: the two directory-uniqueness CLASS-INVARIANT axioms must survive the
 # importer strip below. Unlike the heavy scan axioms, the importer is EXACTLY
 # where they are needed: the class invariant's ESTABLISHMENT VC lives on the
@@ -970,6 +1173,12 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
     # later `apply_inheritance` pass can monomorphize them onto the subclass.
     imported_names |= _resolve_imported_base_classes(
         module_imports, main_file, ir_data, deep, cache, processing_set)
+    # py-expr-structural-dep-wall-response.md piece 3: cross-file dotted pure_ast
+    # node param resolution (`expr: ast.BinOp`). Disjoint from the verified
+    # `cache` above (its own `struct_cache`, structural-only — see piece 1/2);
+    # no-op unless a `pure_ast`-alias import AND a matching dotted param
+    # annotation are both present (corpus-inert for every other driver).
+    _resolve_pure_ast_param_records(validated_ast, main_file, ir_data, {})
     return imported_names
 
 
