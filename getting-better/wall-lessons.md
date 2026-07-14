@@ -453,3 +453,22 @@ floor). Two measured spikes settle the two largest remaining clusters:
   WhyML-record emitter feature that doesn't exist) THEN the emit_ir field retype. That's the pure_ast boundary (the
   262-trusted metaclass module, frontier-map's "hardest"). The _py_expr_* cluster is the biggest next lever but gated
   on this deep pure_ast-record-modeling build — NOT a cheap continuation of the _csl_* mechanism.
+
+**REGRESSION LESSON (2026-07-14) — the FULL SUITE is mandatory; per-batch gates miss shared-class importers.**
+The Module5 CSL-AST build retyped shared CSL-AST dataclass fields (CSLBinOp.left etc. CSLNode->"ExprIR"). Each batch
+gated with: Module5 whole-file proof + mirror-check + corpus byte-diff — ALL GREEN. But the FULL self-annotation
+suite (run once at build end) caught that Module2_Parser.py + Module3_Weaver.py mirrors REGRESSED to `unbound type
+symbol 'emit_ir'`: they OWN/import those dataclasses but are NOT @mutable_state, so they referenced emit_ir without
+emitting the theory (the ExprIR-field->emit_ir map at preamble.py:3956 was unconditional despite its "@mutable_state
+only" comment). Why the per-batch gates missed it: (a) Module5 IS @mutable_state so its proof was fine; (b) mirror-check
+only checks FIDELITY (source sync), never provability; (c) corpus byte-diff only covers reference programs, not the
+non-@mutable_state MIRROR importers. This is exactly lesson 10 ("the SL gate MUST include a FULL-FILE proof... --fun +
+the two fidelity gates are insufficient") generalized to CROSS-FILE: when a shared TYPE/class is retyped, EVERY mirror
+that defines/imports it must re-prove, not just the @mutable_state consumer. Fix (commit after 0bf0a1b8): gate the
+ExprIR-field->emit_ir mapping on the theory-emission condition (`_mutable_state_classes or _uses_ir_node_param`) so
+non-theory files fall to the int default; corpus byte-diff 0, all 35 suite mirrors green. **RULE: run the full
+self-annotation suite before declaring any shared-type/shared-class change done — the per-file/per-batch gates are
+necessary but NOT sufficient for cross-file type changes.**
+
+**BUILD SEALED: Module5 CSL-AST-as-emit_ir COMPLETE @ 1095, 35/35 suite green, cumulative corpus byte-diff = 15
+emit_ir files additive-only, ledger 3. 59 conversions (1154->1095).**
