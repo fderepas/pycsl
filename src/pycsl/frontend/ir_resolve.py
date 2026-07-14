@@ -272,22 +272,38 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # (module6_whyml/statements.py `_wrap_body_with_return_catch`) and the
     # pre-existing `IrNum`/`IrNone`/`IrVar` ctors — NO new theory constructor.
     "Name": [("id", "string"), ("ctx", "int")],
-    # `_py_expr_walrus` (NamedExpr) was INVESTIGATED for this batch and found
-    # blocked, not just unattempted: the live body computes
+    # isinstance-on-emit_ir batch (self-tcb-reduction M5): Attribute's 3 fields
+    # (`value`, `attr`, `ctx`) are total (no `_OPTIONAL_FIELDS` entry). `value`
+    # tagged "ExprIR" (the child expr, lowered by `_py_expr_to_ir`); `attr` tagged
+    # "string" (read as the attribute-name string in both return dicts); `ctx`
+    # tagged "int" — the expr_context leaf, carried opaque for record totality.
+    # Feeds `_py_expr_attribute`, whose `isinstance(expr.value, ast.Name)` INPUT-
+    # side type test on the already-ExprIR-typed `value` child now lowers to the
+    # emit_ir ADT discriminant `(is_var expr.value)` (module6_whyml/expressions.py
+    # `_handle_isinstance` + `_AST_CLASS_TO_IR_KIND`), `expr.value.id` to
+    # `(name_of expr.value)` (`_EMIT_IR_STR_ATTRS["id"]`), and the
+    # `obj_ir = self._py_expr_to_ir(expr.value)` local to a `ref (IrOther "")`
+    # emit_ir sentinel (statements.py `_collect_emit_ir_result_locals`, the
+    # emit_ir-returning-call recognizer). Returns real IrFieldGet / IrAttr ctors.
+    "Attribute": [("value", "ExprIR"), ("attr", "string"), ("ctx", "int")],
+    # isinstance-on-emit_ir batch (self-tcb-reduction M5): NamedExpr's 2 fields
+    # (`target`, `value`) are total (no `_OPTIONAL_FIELDS` entry), both tagged
+    # "ExprIR". Feeds `_py_expr_walrus`, whose
     # `target_name = expr.target.id if isinstance(expr.target, ast.Name) else
-    # "_walrus"` — an INPUT-side `isinstance` type test + conditional, not a
-    # bare field read, so it is not a clean fixed-child convert under this
-    # structural-only mode (same class of block as Subscript's `isinstance`
-    # branch above). No table entry until the isinstance-test capability lands.
+    # "_walrus"` computes a STRING via the same isinstance-on-a-child capability as
+    # Attribute (`isinstance(expr.target, ast.Name)` -> `(is_var expr.target)`,
+    # `expr.target.id` -> `(name_of expr.target)`), then returns the new
+    # `IrNamedExpr` ctor (module6_whyml/expressions.py `_IRNODE_CTORS["NamedExpr"]`
+    # + preamble.py `_emit_exprir_theory`) carrying the target-name string and the
+    # `self._py_expr_to_ir(expr.value)` emit_ir sub-node.
+    "NamedExpr": [("target", "ExprIR"), ("value", "ExprIR")],
     #
-    # `_py_expr_attribute` was INVESTIGATED for this (multi-branch) batch and
-    # found blocked: the live body guards on `isinstance(expr.value, ast.Name)
-    # and expr.value.id == 'self'` — an INPUT-side `isinstance` type test on the
-    # `value` child (Attribute's `value` is any expr node, not necessarily a
-    # Name), the SAME class of block as NamedExpr/Subscript above. The
-    # `{"type":"FieldGet",...}` / `{"type":"Attribute",...}` split cannot be
-    # expressed as a bare field read here. No table entry until the
-    # isinstance-test capability lands.
+    # `_py_expr_attribute` — CONVERTED (isinstance-on-emit_ir batch, see the
+    # "Attribute" table entry above). Its `isinstance(expr.value, ast.Name)` guard
+    # is exactly the isinstance-on-a-CHILD-NODE capability that landed here: the
+    # `value` child is ExprIR-typed, so the INPUT-side type test lowers to the
+    # emit_ir ADT discriminant `(is_var expr.value)` and `expr.value.id` to
+    # `(name_of expr.value)`. The FieldGet/Attribute split is a real if/else.
     #
     # `_py_expr_constant` was INVESTIGATED and found blocked: the live body
     # dispatches on the CONSTANT VALUE's Python type — `expr.value is None`,

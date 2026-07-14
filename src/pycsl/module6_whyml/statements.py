@@ -1935,6 +1935,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if (v.get("type") == "Call" and isinstance(_fn, str)
                     and _fn.endswith(".to_dict") and not v.get("args")):
                 return True
+            # isinstance-on-emit_ir batch (self-tcb-reduction M5): a CALL whose
+            # resolved return type is the `emit_ir` sum — e.g.
+            # `obj_ir = self._py_expr_to_ir(expr.value)`, the recursive expr-lowering
+            # dispatcher — is an emit_ir local (pre-declared `ref (IrOther "")`). The
+            # census-flagged general gap (ir_resolve.py): the collector previously only
+            # recognized `.to_dict()`/field-read/Var/IfExpr emit_ir shapes, never a
+            # generic emit_ir-returning method call. @mutable_state-gated (this whole
+            # collector no-ops off the mutable-state classes), so corpus-inert.
+            if v.get("type") == "Call" and isinstance(_fn, str):
+                _crt, _, _, _ = self._resolve_dotted_signature(_fn)
+                if _crt == "emit_ir":
+                    return True
             # item34.md CF1: an `Optional[emit_ir]` ternary (`stmt.value.to_dict() if … else
             # None`) is an emit_ir local — one arm emit_ir, the other emit_ir/None.
             if v.get("type") == "IfExpr":

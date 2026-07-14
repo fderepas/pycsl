@@ -714,12 +714,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_list(self, expr: ast.List) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # isinstance-on-emit_ir batch (self-tcb-reduction M5): `expr` is a pure_ast
+    # Attribute node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`)
+    # retyped from the opaque `Any`->int fallback to the structurally-harvested
+    # `Attribute` record (fields `value`:ExprIR, `attr`:string, `ctx`:int).
+    # Verbatim body port of the LIVE `_py_expr_attribute` (Module5_IREmitter.py:1115).
+    # The `isinstance(expr.value, ast.Name)` input-side type test on the ExprIR-typed
+    # `value` child lowers to the emit_ir ADT discriminant `(is_var expr.value)`
+    # (module6_whyml/expressions.py `_handle_isinstance` + `_AST_CLASS_TO_IR_KIND`),
+    # `expr.value.id` to `(name_of expr.value)` (`_EMIT_IR_STR_ATTRS["id"]`), and the
+    # `obj_ir = self._py_expr_to_ir(expr.value)` local to a `ref (IrOther "")` emit_ir
+    # sentinel (statements.py `_collect_emit_ir_result_locals` emit_ir-returning-call
+    # recognizer). Returns pre-existing IrFieldGet / IrAttr ctors — NO new theory ctor.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_attribute(self, expr: ast.Attribute) -> int:
-        return {}
+    def _py_expr_attribute(self, expr: ast.Attribute) -> "ExprIR":
+        if isinstance(expr.value, ast.Name) and expr.value.id == 'self':
+            return {"type": "FieldGet", "object": "self", "field": expr.attr}
+        obj_ir = self._py_expr_to_ir(expr.value)
+        return {"type": "Attribute", "object": obj_ir, "attr": expr.attr}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -790,12 +804,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_starred(self, expr: ast.Starred) -> "ExprIR":
         return {"type": "Starred", "value": self._py_expr_to_ir(expr.value)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # isinstance-on-emit_ir batch (self-tcb-reduction M5): `expr` is a pure_ast
+    # NamedExpr node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`)
+    # retyped from the opaque `Any`->int fallback to the structurally-harvested
+    # `NamedExpr` record (fields `target`:ExprIR, `value`:ExprIR). Verbatim body
+    # port of the LIVE `_py_expr_walrus` (Module5_IREmitter.py:1161). The
+    # `isinstance(expr.target, ast.Name)` input-side type test lowers to
+    # `(is_var expr.target)` and `expr.target.id` to `(name_of expr.target)`; the
+    # `target_name` string ternary + the new `IrNamedExpr` ctor complete it — NO
+    # facade, NO isinstance_op.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_walrus(self, expr: ast.NamedExpr) -> int:
-        return {}
+    def _py_expr_walrus(self, expr: ast.NamedExpr) -> "ExprIR":
+        target_name = expr.target.id if isinstance(expr.target, ast.Name) else "_walrus"
+        return {"type": "NamedExpr", "target": target_name,
+                "value": self._py_expr_to_ir(expr.value)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

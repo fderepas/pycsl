@@ -3373,7 +3373,8 @@ class PreambleEmissionMixin:
             " | IrGhostMake emit_ir emit_ir"
             " | IrSliceAccess emit_ir emit_ir | IrSlice emit_ir emit_ir"
             " | IrNone | IrResult | IrNothing"
-            " | IrStarred emit_ir",
+            " | IrStarred emit_ir"
+            " | IrNamedExpr string emit_ir",
             "",
             "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"
             " emit_ir child (`_py_expr_starred`'s `value` field) — a GENERIC"
@@ -3435,6 +3436,7 @@ class PreambleEmissionMixin:
             "    | IrSliceAccess _ _ -> \"SliceAccess\" | IrSlice _ _ -> \"Slice\"",
             "    | IrNone -> \"None\" | IrResult -> \"Result\" | IrNothing -> \"Nothing\"",
             "    | IrStarred _ -> \"Starred\"",
+            "    | IrNamedExpr _ _ -> \"NamedExpr\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3580,6 +3582,7 @@ class PreambleEmissionMixin:
             "    | IrSliceAccess v s -> 1 + size v + size s",
             "    | IrSlice l h -> 1 + size l + size h",
             "    | IrStarred v -> 1 + size v",
+            "    | IrNamedExpr _ v -> 1 + size v",
             "    | _ -> 1",
             "    end",
             "",

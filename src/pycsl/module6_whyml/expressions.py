@@ -131,7 +131,13 @@ _EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard", "left", "r
 _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
                       "label": "name_of", "name": "name_of", "func": "func_of",
                       "base": "name_of", "base1": "name_of", "base2": "name_of",
-                      "arr": "name_of", "ctor": "name_of"}
+                      "arr": "name_of", "ctor": "name_of",
+                      # isinstance-on-emit_ir batch (self-tcb-reduction M5): `.id` on
+                      # an already-lowered ExprIR child (`expr.value.id` in
+                      # `_py_expr_attribute`) reads the IrVar name string — the same
+                      # `name_of` projector `.var`/`.name` already route to (an
+                      # IrVar's payload). Only fires when the receiver is emit_ir.
+                      "id": "name_of"}
 # 2-child-cluster mini-M1 (following the orelse_of precedent verbatim): SUB-NODE-valued
 # attribute reads on a base-`ExprIR` emit_ir node for a 2-child ghost `ir_schema.ExprIR`
 # dataclass (`MapGetExpr(dict, key)`, `HasKeyExpr(dict, key)`, `MapRemoveExpr(dict, key)`,
@@ -878,6 +884,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # SetCardExpr precedent verbatim.
         "Starred": ("IrStarred", ["value"]),
         "IfExpr":  ("IrTer3", ["test", "body", "orelse"]),
+        # isinstance-on-emit_ir batch (self-tcb-reduction M5): wire `_py_expr_walrus`'s
+        # inline `{"type":"NamedExpr","target":<str>,"value":<emit_ir>}` construction to
+        # the new `IrNamedExpr string emit_ir` ctor (preamble.py `_emit_exprir_theory`)
+        # — `target` is the assignment-target NAME string (the walrus body computes it as
+        # a plain string via the `expr.target.id if … else "_walrus"` ternary), `value`
+        # the emit_ir sub-node. A GENERIC name+child node, following IrStarred/IrGhostCopy;
+        # no discriminant/projector (nothing reflects a NamedExpr node back).
+        "NamedExpr": ("IrNamedExpr", ["target", "value"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
@@ -894,6 +908,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "Var": "is_var", "Number": "is_num", "String": "is_str",
         "Subscript": "is_sub", "Attribute": "is_attribute", "Call": "is_call",
         "MkTuple": "is_tuple", "FieldGet": "is_fieldget",
+    }
+
+    # isinstance-on-emit_ir batch (self-tcb-reduction M5): map a Python AST node
+    # class name (`ast.<Node>`) to the IR `type` tag `_py_expr_to_ir` produces for
+    # it. A `isinstance(<emit_ir child>, ast.<Node>)` test (the Module5 `_py_expr_*`
+    # handlers' input-side type test on an already-lowered ExprIR child) then lowers
+    # to the emit_ir ADT constructor discriminant `(is_<kind> child)` via
+    # `_KIND_DISCRIMINANT` (see `_handle_isinstance`). Only the entries whose target
+    # kind has a discriminant are useful; `Slice` is intentionally absent until an
+    # `is_slice` discriminant lands.
+    _AST_CLASS_TO_IR_KIND = {
+        "Name": "Var", "Attribute": "Attribute", "Subscript": "Subscript",
+        "Call": "Call", "Tuple": "MkTuple",
     }
 
     def _emit_ir_receiver_of_type_get(self, ir: Any) -> Optional[Dict[str, Any]]:
@@ -4079,6 +4106,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         x has a concrete τ; symbolic at the `Any` tail; fully uninterpreted if T is an
         unknown type."""
         args_ir = expr.get("args", [])
+        # isinstance-on-emit_ir batch (self-tcb-reduction M5): `isinstance(<emit_ir
+        # child>, ast.<Node>)` — an input-side type test on an already-lowered ExprIR
+        # child node (the Module5 `_py_expr_*` handlers' `isinstance(expr.value,
+        # ast.Name)` shape) — lowers to the emit_ir ADT constructor DISCRIMINANT
+        # `(is_<kind> child)`. arg1 is the AST class `ast.<Node>` (an Attribute with
+        # object=Var("ast"), attr=<Node>). Double-gated on `_is_emit_ir_expr(arg0)`
+        # AND the `ast.`-dotted second arg, so corpus programs (no emit_ir isinstance)
+        # are byte-inert. Faithful: on every REAL node `_py_expr_to_ir` produces, the
+        # child's `type` tag agrees with `is_<kind>` (the same law `_KIND_DISCRIMINANT`
+        # relies on for `.get("type") == "K"`).
+        _a0 = args_ir[0] if args_ir else None
+        _a1 = args_ir[1] if len(args_ir) > 1 else None
+        if (isinstance(_a0, dict) and isinstance(_a1, dict)
+                and _a1.get("type") == "Attribute"
+                and isinstance(_a1.get("object"), dict)
+                and _a1["object"].get("type") == "Var"
+                and _a1["object"].get("name") == "ast"
+                and self._is_emit_ir_expr(_a0)):
+            _kind = self._AST_CLASS_TO_IR_KIND.get(_a1.get("attr"))
+            _pred = self._KIND_DISCRIMINANT.get(_kind) if _kind else None
+            if _pred:
+                _av = self._expr_to_whyml(_a0, set(), getattr(self, "_in_spec", False), None)
+                return f"({_pred} {_av})"
         t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
         t_tag = self._tag_of_type(t_name)
         if not t_tag:
