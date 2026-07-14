@@ -260,6 +260,18 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # the GENERIC `IrTer3` ctor (module6_whyml/preamble.py `_emit_exprir_theory`,
     # ghost-handler-wall Q2) rather than a new per-node constructor.
     "IfExp": [("test", "ExprIR"), ("body", "ExprIR"), ("orelse", "ExprIR")],
+    # _py_expr multi-branch batch (mini-M1): Name's 2 fields (`id`, `ctx`) are
+    # total (no `_OPTIONAL_FIELDS` entry). `id` tagged "string" — the FIRST
+    # string-typed field in this structural-import path — because the live
+    # `_py_expr_name` body READS it as a string (guards `expr.id == "Ellipsis"`
+    # / `== "None"` and the `{"type":"Var","name":expr.id}` return); `ctx`
+    # tagged "int" like BinOp's/UnaryOp's `op` — an expr_context leaf
+    # (Load/Store/Del) the body never reads, carried opaque for record totality.
+    # Feeds `_py_expr_name`, whose 3 return paths (IrNum 0 / IrNone / IrVar id)
+    # travel through the pre-existing `Return_emit_ir` early-return exception
+    # (module6_whyml/statements.py `_wrap_body_with_return_catch`) and the
+    # pre-existing `IrNum`/`IrNone`/`IrVar` ctors — NO new theory constructor.
+    "Name": [("id", "string"), ("ctx", "int")],
     # `_py_expr_walrus` (NamedExpr) was INVESTIGATED for this batch and found
     # blocked, not just unattempted: the live body computes
     # `target_name = expr.target.id if isinstance(expr.target, ast.Name) else
@@ -267,6 +279,24 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # bare field read, so it is not a clean fixed-child convert under this
     # structural-only mode (same class of block as Subscript's `isinstance`
     # branch above). No table entry until the isinstance-test capability lands.
+    #
+    # `_py_expr_attribute` was INVESTIGATED for this (multi-branch) batch and
+    # found blocked: the live body guards on `isinstance(expr.value, ast.Name)
+    # and expr.value.id == 'self'` — an INPUT-side `isinstance` type test on the
+    # `value` child (Attribute's `value` is any expr node, not necessarily a
+    # Name), the SAME class of block as NamedExpr/Subscript above. The
+    # `{"type":"FieldGet",...}` / `{"type":"Attribute",...}` split cannot be
+    # expressed as a bare field read here. No table entry until the
+    # isinstance-test capability lands.
+    #
+    # `_py_expr_constant` was INVESTIGATED and found blocked: the live body
+    # dispatches on the CONSTANT VALUE's Python type — `expr.value is None`,
+    # `isinstance(expr.value, bool/str/bytes/complex)`, `expr.value is ...` —
+    # an INPUT-side value-type test the structural harvest cannot express (the
+    # harvested `value` field is a single opaque leaf, not a discriminated
+    # union of Python scalar types). Additionally its `kind` field is in
+    # `_OPTIONAL_FIELDS` (pure_ast.py), breaking the field-totality obligation.
+    # No table entry until a value-type-discrimination capability lands.
     #
     # `_py_expr_subscript`/`_py_expr_slice` were INVESTIGATED for this batch and
     # found blocked, not just unattempted (see the non-list-py-expr-batch report):

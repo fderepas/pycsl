@@ -621,12 +621,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_to_ir(self, expr: "ExprIR") -> "ExprIR":
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr multi-branch batch (mini-M1): `expr` is a pure_ast Name node,
+    # cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from
+    # the opaque `Any`->int fallback to the structurally-harvested `Name` record
+    # (fields `id`:string, `ctx`:int). Verbatim body port of the LIVE
+    # `_py_expr_name` (Module5_IREmitter.py:985) — a STRING-guarded 3-branch
+    # dispatch on `expr.id` (`== "Ellipsis"` / `== "None"`). The 3 early-return
+    # emit_ir literals travel through the pre-existing `Return_emit_ir` exception
+    # (module6_whyml/statements.py `_wrap_body_with_return_catch`); each builds a
+    # pre-existing ctor — IrNum 0 / IrNone / IrVar (reading `expr.id`) — NO new
+    # emit_ir theory constructor.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_name(self, expr: ast.Name) -> int:
-        return {}
+    def _py_expr_name(self, expr: ast.Name) -> "ExprIR":
+        if expr.id == "Ellipsis":
+            return {"type": "Number", "value": 0}
+        if expr.id == "None":
+            return {"type": "None"}
+        return {"type": "Var", "name": expr.id}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
