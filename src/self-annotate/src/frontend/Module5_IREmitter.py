@@ -635,12 +635,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_constant(self, expr: ast.Constant) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # non-list _py_expr_* batch (tier 1): `expr` is a pure_ast UnaryOp node,
+    # cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from
+    # the opaque `Any`->int fallback to the structurally-harvested `UnaryOp`
+    # record. Verbatim body port of the LIVE `_py_expr_unaryop`
+    # (Module5_IREmitter.py:1017).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_unaryop(self, expr: ast.UnaryOp) -> int:
-        return {}
+        return {"type": "UnaryOp", "op": self._py_op_to_str(expr.op),
+                "expr": self._py_expr_to_ir(expr.operand)}
 
     # py-expr-structural-dep-wall-response.md spike: `expr` is a pure_ast BinOp
     # node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped

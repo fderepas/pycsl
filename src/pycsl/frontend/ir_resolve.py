@@ -243,6 +243,29 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # `_OPTIONAL_FIELDS` entry for `BinOp` in pure_ast.py), so a TOTAL WhyML
     # record is faithful here.
     "BinOp": [("left", "ExprIR"), ("op", "int"), ("right", "ExprIR")],
+    # non-list _py_expr_* batch (tier 1): UnaryOp's 2 fields (`op`, `operand`)
+    # are total (no `_OPTIONAL_FIELDS` entry) — `op` tagged "int" like BinOp's
+    # (read only through the trusted `_py_op_to_str` dispatcher), `operand`
+    # tagged "ExprIR" (lowered by `_py_expr_to_ir`).
+    "UnaryOp": [("op", "int"), ("operand", "ExprIR")],
+    # `_py_expr_subscript`/`_py_expr_slice` were INVESTIGATED for this batch and
+    # found blocked, not just unattempted (see the non-list-py-expr-batch report):
+    # Subscript's body branches on `isinstance(slice_node, ast.Slice)` — an
+    # INPUT-side type test the structural mode cannot express (each harvested
+    # pure_ast node is an opaque record, not a member of a common discriminated
+    # union); the sound OUTPUT-side rewrite (discriminate on
+    # `_py_expr_to_ir(expr.slice).get("type")` instead) needs `_is_emit_ir_expr`
+    # (module6_whyml/expressions.py) / `_is_emit_ir_val`
+    # (module6_whyml/statements.py `_collect_emit_ir_result_locals`) to recognize
+    # a `self._py_expr_to_ir(...)` CALL as an ExprIR-typed value/receiver — a real
+    # Module6 capability gap (today they only special-case `.to_dict()`/`.get()`
+    # chains and field/Var shapes, not a generic recursive-dispatcher call). Slice
+    # additionally has all 3 fields in `_OPTIONAL_FIELDS` (pure_ast.py), which the
+    # field-totality obligation above does not support (an Optional-ExprIR field
+    # tag does not exist), and the existing `IrSlice` ctor
+    # (module6_whyml/expressions.py `_IRNODE_CTORS["Slice"]`) only carries
+    # lower/upper anyway (drops step). Neither gets a table entry until one of
+    # those capabilities lands.
 }
 
 
