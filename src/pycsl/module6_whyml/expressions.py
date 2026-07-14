@@ -869,6 +869,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "None":    ("IrNone", []),
         "Result":  ("IrResult", []),
         "Nothing": ("IrNothing", []),
+        # _py_expr fixed-child batch (mini-M1): wire `_py_expr_starred`'s inline
+        # `{"type":"Starred","value":…}` construction to the new `IrStarred`
+        # ctor (preamble.py `_emit_exprir_theory`); wire `_py_expr_ifexp`'s
+        # `{"type":"IfExpr","test":…,"body":…,"orelse":…}` to the EXISTING
+        # generic `IrTer3` ctor (ghost-handler-wall Q2) — no new theory
+        # constructor for the 3-child ternary, following the MapSetExpr/
+        # SetCardExpr precedent verbatim.
+        "Starred": ("IrStarred", ["value"]),
+        "IfExpr":  ("IrTer3", ["test", "body", "orelse"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in

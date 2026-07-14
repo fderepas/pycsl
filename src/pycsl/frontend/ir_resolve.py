@@ -248,6 +248,26 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # (read only through the trusted `_py_op_to_str` dispatcher), `operand`
     # tagged "ExprIR" (lowered by `_py_expr_to_ir`).
     "UnaryOp": [("op", "int"), ("operand", "ExprIR")],
+    # _py_expr fixed-child batch (mini-M1): Starred's 2 fields (`value`, `ctx`)
+    # are total (no `_OPTIONAL_FIELDS` entry). `value` tagged "ExprIR" (lowered
+    # by `_py_expr_to_ir`); `ctx` tagged "int" like BinOp's/UnaryOp's `op` — an
+    # expr_context leaf (Load/Store/Del) the live `_py_expr_starred` body never
+    # reads, carried opaque for record totality only.
+    "Starred": [("value", "ExprIR"), ("ctx", "int")],
+    # _py_expr fixed-child batch (mini-M1): IfExp's 3 fields (`test`, `body`,
+    # `orelse`) are total (no `_OPTIONAL_FIELDS` entry), all tagged "ExprIR"
+    # (each lowered by `_py_expr_to_ir`) — feeds `_py_expr_ifexp`, which reuses
+    # the GENERIC `IrTer3` ctor (module6_whyml/preamble.py `_emit_exprir_theory`,
+    # ghost-handler-wall Q2) rather than a new per-node constructor.
+    "IfExp": [("test", "ExprIR"), ("body", "ExprIR"), ("orelse", "ExprIR")],
+    # `_py_expr_walrus` (NamedExpr) was INVESTIGATED for this batch and found
+    # blocked, not just unattempted: the live body computes
+    # `target_name = expr.target.id if isinstance(expr.target, ast.Name) else
+    # "_walrus"` — an INPUT-side `isinstance` type test + conditional, not a
+    # bare field read, so it is not a clean fixed-child convert under this
+    # structural-only mode (same class of block as Subscript's `isinstance`
+    # branch above). No table entry until the isinstance-test capability lands.
+    #
     # `_py_expr_subscript`/`_py_expr_slice` were INVESTIGATED for this batch and
     # found blocked, not just unattempted (see the non-list-py-expr-batch report):
     # Subscript's body branches on `isinstance(slice_node, ast.Slice)` — an

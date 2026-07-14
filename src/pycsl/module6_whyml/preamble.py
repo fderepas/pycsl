@@ -3372,8 +3372,14 @@ class PreambleEmissionMixin:
             " | IrGhostCopy string | IrGhostCopyRange string emit_ir emit_ir"
             " | IrGhostMake emit_ir emit_ir"
             " | IrSliceAccess emit_ir emit_ir | IrSlice emit_ir emit_ir"
-            " | IrNone | IrResult | IrNothing",
+            " | IrNone | IrResult | IrNothing"
+            " | IrStarred emit_ir",
             "",
+            "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"
+            " emit_ir child (`_py_expr_starred`'s `value` field) — a GENERIC"
+            " 1-emit_ir-child node, following the IrFst/IrHd single-child precedent"
+            " (no discriminant/size-decrease lemma pair; those consumers are"
+            " non-recursive single reads, same as this one). *)",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
             " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
             " B-C6: IrTuple carries the first two elements (elts[0], elts[1]) — the"
@@ -3428,6 +3434,7 @@ class PreambleEmissionMixin:
             "    | IrGhostMake _ _ -> \"GhostMake\"",
             "    | IrSliceAccess _ _ -> \"SliceAccess\" | IrSlice _ _ -> \"Slice\"",
             "    | IrNone -> \"None\" | IrResult -> \"Result\" | IrNothing -> \"Nothing\"",
+            "    | IrStarred _ -> \"Starred\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3572,6 +3579,7 @@ class PreambleEmissionMixin:
             "    | IrGhostMake sz d -> 1 + size sz + size d",
             "    | IrSliceAccess v s -> 1 + size v + size s",
             "    | IrSlice l h -> 1 + size l + size h",
+            "    | IrStarred v -> 1 + size v",
             "    | _ -> 1",
             "    end",
             "",

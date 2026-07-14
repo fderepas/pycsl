@@ -750,19 +750,32 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_fstring(self, expr: ast.JoinedStr) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr fixed-child batch (mini-M1): `expr` is a pure_ast IfExp node,
+    # cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from
+    # the opaque `Any`->int fallback to the structurally-harvested `IfExp`
+    # record. Verbatim body port of the LIVE `_py_expr_ifexp`
+    # (Module5_IREmitter.py:1153) — 3 emit_ir children reuse the GENERIC
+    # `IrTer3` ctor (module6_whyml/expressions.py `_IRNODE_CTORS["IfExpr"]`),
+    # NO new emit_ir theory constructor.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_ifexp(self, expr: ast.IfExp) -> int:
-        return {}
+    def _py_expr_ifexp(self, expr: ast.IfExp) -> "ExprIR":
+        return {"type": "IfExpr", "test": self._py_expr_to_ir(expr.test),
+                "body": self._py_expr_to_ir(expr.body),
+                "orelse": self._py_expr_to_ir(expr.orelse)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr fixed-child batch (mini-M1): `expr` is a pure_ast Starred node,
+    # cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from
+    # the opaque `Any`->int fallback to the structurally-harvested `Starred`
+    # record. Verbatim body port of the LIVE `_py_expr_starred`
+    # (Module5_IREmitter.py:1158) — 1 emit_ir child, new `IrStarred` ctor
+    # (module6_whyml/preamble.py `_emit_exprir_theory`).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_starred(self, expr: ast.Starred) -> int:
-        return {}
+    def _py_expr_starred(self, expr: ast.Starred) -> "ExprIR":
+        return {"type": "Starred", "value": self._py_expr_to_ir(expr.value)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
