@@ -3953,9 +3953,21 @@ class PreambleEmissionMixin:
                         # `t[1]` then reads a `real`. `real` is a PURE type, so such a record
                         # is legal as an `array` element (WL-04b PURE-element constraint).
                         ftype = "real"
-                    elif ftype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                    elif (ftype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
+                          and (getattr(self, "_mutable_state_classes", None)
+                               or getattr(self, "_uses_ir_node_param", False))):
                         # typed-ir-for-b-ceiling.md B-C2: an ExprIR-valued field is the
-                        # typed IR-node sum `emit_ir`. Only in a @mutable_state mirror.
+                        # typed IR-node sum `emit_ir` — but ONLY when the `emit_ir` theory
+                        # is actually emitted (same gate as Module6_WhyMLTranspiler's
+                        # theory-emission at :519). A file that merely DEFINES/imports an
+                        # ExprIR-field record without being @mutable_state (e.g. the
+                        # Module2_Parser / Module3_Weaver mirrors, which own the CSL-AST
+                        # dataclasses whose fields were retyped CSLNode->ExprIR for the
+                        # Module5 construction build) does NOT emit the theory, so mapping
+                        # the field to `emit_ir` there yields an `unbound type symbol
+                        # 'emit_ir'`. Gate it: non-theory files fall through to the int
+                        # default below (their pre-build behavior). Corpus-inert (no corpus
+                        # record uses an ExprIR field).
                         ftype = "emit_ir"
                     elif ftype in self._record_types:
                         # wrong-lowering.md §WL-03: a field whose type is another
