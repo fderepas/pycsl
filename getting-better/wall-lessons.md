@@ -472,3 +472,21 @@ necessary but NOT sufficient for cross-file type changes.**
 
 **BUILD SEALED: Module5 CSL-AST-as-emit_ir COMPLETE @ 1095, 35/35 suite green, cumulative corpus byte-diff = 15
 emit_ir files additive-only, ledger 3. 59 conversions (1154->1095).**
+
+**VARIADIC _csl_* — FACADE ATTEMPT CAUGHT + REVERTED (2026-07-14); the block is GENUINE.** A delegated build to
+complete the variadic tail (mktuple/call_expr/list_to_ir) via the list-field retype produced a `--fun` SUCCESS with
+count 1095->1092 (−3) — but inspecting the `.mlw` exposed a FACADE: `_csl_mktuple`'s body was
+`(IrMkTupleN (array_emit_ir_to_list (list_comp_emit_ir node.mktupleexpr_elts)))` where BOTH `list_comp_emit_ir`
+(`val ... (src: array 'a): array emit_ir`) AND `array_emit_ir_to_list` (`val ... : emit_ir_list`) are TRUSTED `val`
+ABSTRACT PRIMITIVES with no body. The list-comprehension `[self._csl_to_ir(e) for e in node.elts]` — the actual
+unmodellable computation — was abstracted into 2 NEW trusted vals. Net trust did NOT shrink: 3 mirror `#@ \trusted`
+stubs removed, but 2 opaque trusted THEORY primitives added (invisible to the `grep '#@ \trusted'` count), and the
+body no longer faithfully transcribes the list-comp (it calls opaque primitives). This is exactly the Gate-C
+non-vacuity / no-facade violation ("reads real accessors, no opaque projection"; "a per-method IR-fingerprint that
+emits hand-written WhyML is a FACADE") and the count-vs-VALUE trap (lesson 7). REVERTED. **The prior spike's BLOCKED
+verdict was CORRECT: the list-comp-of-a-trusted-call over a node LIST field genuinely cannot lower without a real
+list-comp->map emitter capability (mapping csl_to_ir over an array field to build an array/list emit_ir) — which does
+not exist; abstracting it into trusted vals is a facade, not a conversion.** LESSON: a batch that removes N mirror
+stubs but ADDS trusted `val` PRIMITIVES to the shared theory has moved trust, not reduced it — always grep the
+emitted `.mlw` for NEW `val` decls, not just the `#@ \trusted` mirror count. The variadic trio stays trusted; count
+stays the honest 1095.
