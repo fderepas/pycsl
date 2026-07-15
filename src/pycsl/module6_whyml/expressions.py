@@ -905,6 +905,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `kind_of (IrMkTupleN ..) = "MkTuple"`.
         "MkTuple": ("IrMkTupleN", ["elts"]),
         "Tuple":   ("IrMkTupleN", ["elts"]),
+        # variadic content-law comprehension (FABLE-sanctioned), batch 2: wire the
+        # remaining elts/args-list-shaped tuple constructions to their OWN irlist ctors
+        # (preamble.py `_emit_exprir_theory`). `_py_expr_list`'s `{"type":"ArrayLit",
+        # "elts":[self._py_expr_to_ir(e) for e in expr.elts]}` -> `IrListN irlist`;
+        # `_py_expr_set`'s `{"type":"SetLit","elts":[…]}` -> `IrSetN irlist`;
+        # `_csl_call_expr`'s `{"type":"Call","func":node.func,"args":[self._csl_to_ir(a)
+        # for a in node.args]}` -> `IrCallN string irlist` (func is the CallExpr record's
+        # `func: str` field; args the shared-disp content-law comprehension). Each single
+        # `elts`/`args` payload lowers (expressions.py `_content_comp` variadic branch) to
+        # `(list_content_comp_N <src>)` carrying the length + per-index content law over the
+        # shared `emit_ir_disp__<disp>`. Distinct ctor per node kind for clarity.
+        "ArrayLit": ("IrListN", ["elts"]),
+        "SetLit":   ("IrSetN", ["elts"]),
+        "Call":     ("IrCallN", ["func", "args"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in

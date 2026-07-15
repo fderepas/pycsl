@@ -310,6 +310,18 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # `emit_ir_disp__py_expr_to_ir` `val function`, then builds the new `IrMkTupleN` ctor
     # (expressions.py `_IRNODE_CTORS["Tuple"]` + preamble.py `_emit_exprir_theory`).
     "Tuple": [("elts", "ExprIRList"), ("ctx", "int")],
+    # variadic content-law comprehension (FABLE-sanctioned), batch 2: List and Set share
+    # Tuple's element-list shape. List's fields (`elts`, `ctx`) and Set's single field
+    # (`elts`) are total (no `_OPTIONAL_FIELDS` entry for either); `elts` tagged
+    # "ExprIRList" -> `array emit_ir`, `ctx` "int" (the expr_context leaf, opaque). Feed
+    # `_py_expr_list` (`{"type":"ArrayLit","elts":[self._py_expr_to_ir(e) for e in
+    # expr.elts]}` -> `IrListN`) and `_py_expr_set` (`{"type":"SetLit","elts":[…]}` ->
+    # `IrSetN`); the `elts` comprehension lowers to `(list_content_comp_N expr.elts)` over
+    # the SHARED `emit_ir_disp__py_expr_to_ir`. (`_csl_call_expr`'s Call node uses the
+    # CSL-AST `CallExpr` dataclass record, not this pure_ast table — its `args` retype is
+    # in Module2_Parser.py.)
+    "List": [("elts", "ExprIRList"), ("ctx", "int")],
+    "Set":  [("elts", "ExprIRList")],
     #
     # `_py_expr_attribute` — CONVERTED (isinstance-on-emit_ir batch, see the
     # "Attribute" table entry above). Its `isinstance(expr.value, ast.Name)` guard

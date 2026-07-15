@@ -283,12 +283,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_function_variant(self, node: FunctionVariant) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # variadic content-law comprehension (FABLE-sanctioned), batch 2: `node` is a CSL-AST
+    # `CallExpr` record whose `args` field is retyped `List["ExprIR"]` (Module2_Parser.py)
+    # -> an `array emit_ir` (the `MkTupleExpr.elts` precedent). `node.func` is the record's
+    # `func: str` field (a plain string). The comprehension `[self._csl_to_ir(a) for a in
+    # node.args]` lowers (module6_whyml/expressions.py `_content_comp` variadic branch) to
+    # `(list_content_comp_N node.args)` : `irlist` carrying BOTH a length law AND a per-index
+    # content law over the SHARED `emit_ir_disp__csl_to_ir` `val function` (one symbol per
+    # dispatcher, FABLE condition 2). The return builds the new `IrCallN string irlist` ctor
+    # (expressions.py `_IRNODE_CTORS["Call"]` + preamble.py `_emit_exprir_theory`). Verbatim
+    # body port of the LIVE `_csl_call_expr` (Module5_IREmitter.py:667).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_call_expr(self, node: CallExpr) -> int:
-        return {}
+    def _csl_call_expr(self, node: CallExpr) -> Dict[str, Any]:
+        return {"type": "Call", "func": node.func,
+                "args": [self._csl_to_ir(a) for a in node.args]}
 
     #@ requires True
     #@ ensures True
@@ -727,12 +737,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_subscript(self, expr: ast.Subscript) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # variadic content-law comprehension (FABLE-sanctioned), batch 2: `expr` is a pure_ast
+    # List node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from
+    # the opaque `Any`->int fallback to the structurally-harvested `List` record whose `elts`
+    # field is a List-of-ExprIR (`_PURE_AST_FIELD_TABLE["List"]`) -> `array emit_ir`. The
+    # comprehension `[self._py_expr_to_ir(e) for e in expr.elts]` lowers (expressions.py
+    # `_content_comp` variadic branch) to `(list_content_comp_N expr.elts)` : `irlist` with
+    # BOTH a length law AND a per-index content law over the SHARED
+    # `emit_ir_disp__py_expr_to_ir` `val function`. The return builds the new `IrListN
+    # irlist` ctor (expressions.py `_IRNODE_CTORS["ArrayLit"]`). Verbatim body port of the
+    # LIVE `_py_expr_list` (Module5_IREmitter.py:1112).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_list(self, expr: ast.List) -> int:
-        return {}
+    def _py_expr_list(self, expr: ast.List) -> Dict[str, Any]:
+        return {"type": "ArrayLit", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
 
     # isinstance-on-emit_ir batch (self-tcb-reduction M5): `expr` is a pure_ast
     # Attribute node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`)
@@ -762,12 +781,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_dict(self, expr: ast.Dict) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # variadic content-law comprehension (FABLE-sanctioned), batch 2: `expr` is a pure_ast
+    # Set node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from the
+    # opaque `Any`->int fallback to the structurally-harvested `Set` record whose single
+    # `elts` field is a List-of-ExprIR (`_PURE_AST_FIELD_TABLE["Set"]`) -> `array emit_ir`.
+    # The comprehension `[self._py_expr_to_ir(e) for e in expr.elts]` lowers (expressions.py
+    # `_content_comp` variadic branch) to `(list_content_comp_N expr.elts)` : `irlist` with
+    # BOTH a length law AND a per-index content law over the SHARED
+    # `emit_ir_disp__py_expr_to_ir` `val function`. The return builds the new `IrSetN irlist`
+    # ctor (expressions.py `_IRNODE_CTORS["SetLit"]`). Verbatim body port of the LIVE
+    # `_py_expr_set` (Module5_IREmitter.py:1126).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_set(self, expr: ast.Set) -> int:
-        return {}
+    def _py_expr_set(self, expr: ast.Set) -> Dict[str, Any]:
+        return {"type": "SetLit", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

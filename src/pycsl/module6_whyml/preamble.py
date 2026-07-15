@@ -3376,6 +3376,9 @@ class PreambleEmissionMixin:
             " | IrStarred emit_ir"
             " | IrNamedExpr string emit_ir"
             " | IrMkTupleN irlist"
+            " | IrListN irlist"
+            " | IrSetN irlist"
+            " | IrCallN string irlist"
             "  with irlist = ILNil | ILCons emit_ir irlist",
             "",
             "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"
@@ -3408,7 +3411,14 @@ class PreambleEmissionMixin:
             " FABLE §6 condition 3. Non-vacuity holds by ILCons injectivity (a non-functional"
             " hostile is refuted). size's `_ -> 1` catch-all covers IrMkTupleN (no recursive"
             " consumer reflects a tuple's element list back — the IrStarred single-read"
-            " precedent). *)",
+            " precedent). IrListN/IrSetN carry the SAME `irlist` payload for `_py_expr_list`'s"
+            " ArrayLit / `_py_expr_set`'s SetLit tuple-shaped element lists; IrCallN carries a"
+            " func-name `string` + the `irlist` args of `_csl_call_expr`'s Call node (the"
+            " content law over `emit_ir_disp__csl_to_ir`). Distinct ctors per node kind for"
+            " clarity; each has its own kind_of arm (\"ArrayLit\"/\"SetLit\"/\"Call\"), all"
+            " covered by size's `_ -> 1`. IrCallN's \"Call\" tag is intentionally shared with"
+            " the pre-existing projection-reflection IrCall (non-injective kind_of is sound —"
+            " the IrCall/IrCallN precedent). *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
@@ -3458,6 +3468,9 @@ class PreambleEmissionMixin:
             "    | IrStarred _ -> \"Starred\"",
             "    | IrNamedExpr _ _ -> \"NamedExpr\"",
             "    | IrMkTupleN _ -> \"MkTuple\"",
+            "    | IrListN _ -> \"ArrayLit\"",
+            "    | IrSetN _ -> \"SetLit\"",
+            "    | IrCallN _ _ -> \"Call\"",
             "    | IrOther k -> k",
             "    end",
             "",

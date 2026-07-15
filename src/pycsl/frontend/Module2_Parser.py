@@ -544,7 +544,17 @@ class NestedSubscript(CSLNode):
 class CallExpr(CSLNode):
     """Represents a function call in a contract expression."""
     func: str
-    args: List[CSLNode]
+    # variadic content-law comprehension (FABLE-sanctioned): `args` is a list of
+    # already-lowered ExprIR children (the emitter's `_csl_call_expr` maps
+    # `self._csl_to_ir` over them). Retyped `List[CSLNode]` -> `List["ExprIR"]` so the
+    # imported record field is `array emit_ir` (value_type "emit_ir", the
+    # `_m5_get_list_elem_type` forward-ref path — same as `MkTupleExpr.elts`), letting
+    # the emit_ir dispatcher comprehension `[self._csl_to_ir(a) for a in node.args]`
+    # lower with both a length law and a per-index content law over the shared
+    # `emit_ir_disp__csl_to_ir`, then build the `IrCallN string irlist` ctor. Signature-
+    # only retype (string forward-ref, no runtime effect); the parser still fills `args`
+    # with CSL AST nodes, which the emitter lowers.
+    args: List["ExprIR"]
 
 @dataclass
 class IsSorted(CSLNode):
