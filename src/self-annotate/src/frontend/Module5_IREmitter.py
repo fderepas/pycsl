@@ -345,12 +345,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                           "upper": self._csl_to_ir(node.high),
                           "step": None}}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # variadic content-law comprehension (FABLE-sanctioned): `node` is a MkTupleExpr
+    # record whose `elts` field is retyped `List["ExprIR"]` (Module2_Parser.py) -> an
+    # `array emit_ir`. The comprehension `[self._csl_to_ir(e) for e in node.elts]` lowers
+    # (module6_whyml/expressions.py `_content_comp` variadic branch) to
+    # `(list_content_comp_N node.elts)` : `irlist` carrying BOTH a length law AND a
+    # per-index content law over the SHARED `emit_ir_disp__csl_to_ir` `val function`
+    # (the get_x projection-comprehension precedent, extended to a recursive dispatcher).
+    # The whole return builds the new `IrMkTupleN irlist` ctor
+    # (expressions.py `_IRNODE_CTORS["MkTuple"]` + preamble.py `_emit_exprir_theory`).
+    # The content law pins map STRUCTURE (per-index deterministic function of source), NOT
+    # dispatcher value-semantics — honest labeling per FABLE condition 3.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_mktuple(self, node: MkTupleExpr) -> int:
-        return {}
+    def _csl_mktuple(self, node: MkTupleExpr) -> Dict[str, Any]:
+        return {"type": "MkTuple", "elts": [self._csl_to_ir(e) for e in node.elts]}
 
     #@ requires True
     #@ ensures True
@@ -693,12 +703,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_call(self, expr: ast.Call) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # variadic content-law comprehension (FABLE-sanctioned): `expr` is a pure_ast Tuple
+    # node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from the
+    # opaque `Any`->int fallback to the structurally-harvested `Tuple` record whose `elts`
+    # field is a List-of-ExprIR (`_PURE_AST_FIELD_TABLE["Tuple"]`) -> `array emit_ir`. The
+    # comprehension `[self._py_expr_to_ir(e) for e in expr.elts]` lowers (expressions.py
+    # `_content_comp` variadic branch) to `(list_content_comp_N expr.elts)` : `irlist`
+    # with BOTH a length law AND a per-index content law over the SHARED
+    # `emit_ir_disp__py_expr_to_ir` `val function` (one symbol per dispatcher, FABLE
+    # condition 2). The return builds the new `IrMkTupleN` ctor
+    # (expressions.py `_IRNODE_CTORS["Tuple"]`). Verbatim body port of the LIVE
+    # `_py_expr_tuple` (Module5_IREmitter.py:1098).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_tuple(self, expr: ast.Tuple) -> int:
-        return {}
+    def _py_expr_tuple(self, expr: ast.Tuple) -> Dict[str, Any]:
+        return {"type": "Tuple", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

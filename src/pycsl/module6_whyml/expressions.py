@@ -892,6 +892,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # the emit_ir sub-node. A GENERIC name+child node, following IrStarred/IrGhostCopy;
         # no discriminant/projector (nothing reflects a NamedExpr node back).
         "NamedExpr": ("IrNamedExpr", ["target", "value"]),
+        # variadic content-law comprehension (FABLE-sanctioned): wire `_csl_mktuple`'s
+        # `{"type":"MkTuple","elts":[self._csl_to_ir(e) for e in node.elts]}` and
+        # `_py_expr_tuple`'s `{"type":"Tuple","elts":[self._py_expr_to_ir(e) for e in
+        # expr.elts]}` constructions to the new `IrMkTupleN irlist` ctor
+        # (preamble.py `_emit_exprir_theory`). The single `elts` payload is itself an
+        # `irlist` (the monomorphic cons-list mutually-recursive with emit_ir) — the
+        # comprehension `[<disp>(e) for e in <array emit_ir>]` lowers (expressions.py
+        # `_content_comp` variadic branch) to `(list_content_comp_N <elts>)` carrying the
+        # length + per-index content law over the shared `emit_ir_disp__<disp>`. Both
+        # MkTuple (CSL AST) and Tuple (pure_ast) produce the SAME variadic node;
+        # `kind_of (IrMkTupleN ..) = "MkTuple"`.
+        "MkTuple": ("IrMkTupleN", ["elts"]),
+        "Tuple":   ("IrMkTupleN", ["elts"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
@@ -6343,6 +6356,140 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _cargs = "".join(f" {nm}" for nm, _ in _extra)
         return f"({op} {srca}{_cargs})"
 
+    # variadic content-law comprehension (FABLE-sanctioned): the recursive IR dispatchers
+    # whose call over the loop target is the recognized element shape. ONE shared
+    # `emit_ir_disp__<disp>` `val function` per dispatcher (FABLE §6 condition 2) — the
+    # method name after the last dot, leading underscore stripped, keyed here.
+    _IR_DISPATCHERS = ("_csl_to_ir", "_py_expr_to_ir")
+
+    def _disp_call_over_target(self, elt: Any, target: str) -> Optional[str]:
+        """Return the dispatcher method name if `elt` is a bare recursive-dispatcher call
+        `self.<disp>(<Var target>)` over the loop target (`<disp>` in `_IR_DISPATCHERS`),
+        else None. The single argument must be exactly the loop target (an unmodified
+        per-element map), so the emitted content law `nth i = <disp>(src[i])` is faithful."""
+        if not (isinstance(elt, dict) and elt.get("type") == "Call"):
+            return None
+        fn = elt.get("func")
+        if not isinstance(fn, str):
+            return None
+        disp = fn.rsplit(".", 1)[-1]
+        if disp not in self._IR_DISPATCHERS:
+            return None
+        args = elt.get("args") or []
+        if len(args) != 1:
+            return None
+        a0 = args[0]
+        if not (isinstance(a0, dict) and a0.get("type") == "Var"
+                and a0.get("name") == target):
+            return None
+        return disp
+
+    def _record_of_receiver(self, obj: Any) -> Optional[Dict[str, Any]]:
+        """The `_record_types` record dict for a receiver `Var` (self / module-global /
+        record-var / record-param / imported-record-param), or None. Mirrors the class
+        resolution in `_field_type_of`, but returns the whole record so callers can read
+        `field_types` / `field_value_types`."""
+        if not (isinstance(obj, dict) and obj.get("type") == "Var"):
+            return None
+        recv = obj.get("name")
+        rts = getattr(self, "_record_types", {})
+        wn = None
+        if recv == "self":
+            wn = self._current_self_type
+        else:
+            gcls = getattr(self, "_module_global_classes", {}).get(recv)
+            if gcls in rts:
+                return rts[gcls]
+            rvcls = getattr(self, "_current_record_var_classes", {}).get(recv)
+            if rvcls in rts:
+                return rts[rvcls]
+            wn = (getattr(self, "_record_param_classes", {}).get(recv)
+                  or getattr(self, "_current_symbol_table", {}).get(recv))
+        if not wn:
+            return None
+        if wn in rts:
+            return rts[wn]
+        for k, v in rts.items():
+            if v.get("whyml_name") == wn or k.lower() == str(wn).lower():
+                return v
+        return None
+
+    def _src_is_array_emit_ir(self, src_ir: Any) -> bool:
+        """True iff the comprehension source `src_ir` lowers to an `array emit_ir`: a
+        record field of type `list`/`tuple` with element value_type `emit_ir` (a
+        `List[ExprIR]` field — `node.elts` on a MkTupleExpr / `expr.elts` on the harvested
+        pure_ast Tuple), an emit_ir node-LIST attr (`.elts`/`.parts`/`.args`/`.captures`
+        via `args_of`), or an `array emit_ir` local. This is the type-safety guard on the
+        variadic op (the op takes `array emit_ir`); anything else falls through."""
+        if not isinstance(src_ir, dict):
+            return False
+        t = src_ir.get("type")
+        if t in ("Attribute", "FieldGet"):
+            attr = src_ir.get("attr") or src_ir.get("field")
+            obj = src_ir.get("object") or src_ir.get("value") or {}
+            # emit_ir node-list attr → `(args_of <emit_ir>)` : `array emit_ir`
+            if attr in ("elts", "parts", "args", "captures") and self._is_emit_ir_expr(obj):
+                return True
+            # record `List[ExprIR]` field → `array emit_ir`
+            rt = self._record_of_receiver(obj)
+            if rt is not None:
+                if (rt.get("field_value_types", {}).get(attr) in ("emit_ir", "ExprIR")
+                        and rt.get("field_types", {}).get(attr) in ("list", "tuple")):
+                    return True
+            return False
+        if t == "Var":
+            return getattr(self, "_array_elem_types", {}).get(src_ir.get("name")) == "emit_ir"
+        return False
+
+    def _variadic_content_comp(self, g: Dict[str, Any], target: str, elt: Any,
+                               src_ir: Any, local_refs: Set[str], invariant_ctx: bool,
+                               subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """variadic content-law comprehension (FABLE-sanctioned, `variadic-content-law-wall
+        -response.md`): lower `[self.<disp>(t) for t in <array emit_ir>]` — the emitter's
+        variadic-tuple body — to `(list_content_comp_N <src>)` : `irlist` carrying
+        BOTH a length law AND a per-index content law over a SHARED, per-dispatcher
+        `emit_ir_disp__<disp>` `val function`. Returns the op application, or None to fall
+        through. @mutable_state-gated (the emitter model) → corpus byte-inert.
+
+        The law pins map STRUCTURE — `nth i result` is a deterministic function
+        (`emit_ir_disp__<disp>`) of `src[i]` — NOT dispatcher value-semantics; honest per
+        FABLE §6 condition 3. The content law is NON-VACUOUS (strictly stronger than the
+        length-only facade the reverted attempt used): a non-functional hostile (unequal
+        outputs on equal source elements) is refuted for every interpretation of the fresh
+        `val function` (FABLE §2/§5). BOTH conjuncts are ALWAYS emitted (FABLE §6 cond 1);
+        the op NEVER degrades to length-only."""
+        if getattr(self, "_current_self_type", None) not in getattr(
+                self, "_mutable_state_classes", set()):
+            return None
+        if g.get("ifs"):
+            return None
+        disp = self._disp_call_over_target(elt, target)
+        if disp is None:
+            return None
+        if not self._src_is_array_emit_ir(src_ir):
+            return None
+        srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+        srca = self._array_coerce_arg(srcw)
+        # FABLE §6 condition 2: ONE shared symbol per DISPATCHER, reused across every site
+        # (dedup by name in `_add_abstract_op`). Restores the get_x-style cross-site
+        # observability the projection precedent has.
+        sym = "emit_ir_disp__" + disp.lstrip("_")
+        self._add_abstract_op(f"val function {sym} (e: emit_ir) : emit_ir")
+        n = getattr(self, "_comp_content_counter", 0)
+        self._comp_content_counter = n + 1
+        op = f"list_content_comp_{n}"
+        # FABLE §6 condition 1: BOTH conjuncts (length + per-index content law), always.
+        # The result carrier is the MONOMORPHIC `irlist` (IrMkTupleN's payload — NOT the
+        # polymorphic `list emit_ir`, whose library axioms explode the emit_ir size-decrease
+        # lemmas; see preamble.py `_emit_exprir_theory`). `irlen`/`irnth` are its length/nth.
+        decl = (
+            f"val {op} (src: array emit_ir) : irlist\n"
+            f"    ensures {{ irlen result = Array.length src }}\n"
+            f"    ensures {{ forall _ci : int. 0 <= _ci < Array.length src ->\n"
+            f"                irnth _ci result = (let _celt = src[_ci] in {sym} _celt) }}")
+        self._add_abstract_op(decl)
+        return f"({op} {srca})"
+
     def _content_comp(self, node: "ExprIR", local_refs: Set[str],
                       invariant_ctx: bool,
                       subst: Optional[Dict[str, str]]) -> Optional[str]:
@@ -6369,6 +6516,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and src_ir.get("name") in getattr(self, "_seq_locals", set())):
             return None
         elt = _d.get("elt", {})
+        # variadic content-law comprehension (FABLE-sanctioned): a comprehension
+        # `[self.<disp>(t) for t in <array emit_ir>]` whose element is a RECURSIVE IR
+        # DISPATCHER call (`_csl_to_ir`/`_py_expr_to_ir`, emit_ir -> emit_ir) over the
+        # loop target — the emitter's `_csl_mktuple`/`_py_expr_tuple` variadic-tuple body.
+        # Lowers to an `irlist` op carrying BOTH a length law AND a per-index content
+        # law over a SHARED, per-dispatcher `emit_ir_disp__<disp>` `val function` (the
+        # get_x projection-comprehension precedent extended to a dispatcher; FABLE §6).
+        # Tried FIRST (before the pure-int/nested paths, which its `array emit_ir` source
+        # never matches). @mutable_state-gated → corpus byte-inert.
+        if not g.get("ifs"):
+            _variadic = self._variadic_content_comp(g, target, elt, src_ir,
+                                                    local_refs, invariant_ctx, subst)
+            if _variadic is not None:
+                return _variadic
         # nested-list.md S4: the subscript-projection comprehension
         # `[x[k] for x in a]` over a `List[List[τ]]` / `List[Dict[..]]` source
         # `a` (`array (seq τ)` / `array (map κ (option ν))`). The loop target `x`

@@ -392,7 +392,16 @@ class GhostAssignDecl(CSLNode):
 @dataclass
 class MkTupleExpr(CSLNode):
     '\\mktuple(a, b[, c[, d]]) — construct a ghost tuple.'
-    elts: List[CSLNode]
+    # variadic content-law comprehension (FABLE-sanctioned): `elts` is a list of
+    # already-lowered ExprIR children (the emitter's `_csl_mktuple` maps
+    # `self._csl_to_ir` over them). Retyped `List[CSLNode]` -> `List["ExprIR"]` so
+    # the imported record field is `array emit_ir` (value_type "emit_ir", the
+    # `_m5_get_list_elem_type` forward-ref path), letting the emit_ir dispatcher
+    # comprehension `[self._csl_to_ir(e) for e in node.elts]` lower with both a
+    # length law and a per-index content law over the shared `emit_ir_disp__csl_to_ir`.
+    # Signature-only retype (matches the `_csl_to_ir` param's own `"ExprIR"`); the
+    # parser still fills `elts` with CSL AST nodes, which the emitter lowers.
+    elts: List["ExprIR"]
 
 @dataclass
 class FstExpr(CSLNode):

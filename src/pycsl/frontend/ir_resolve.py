@@ -297,6 +297,19 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # + preamble.py `_emit_exprir_theory`) carrying the target-name string and the
     # `self._py_expr_to_ir(expr.value)` emit_ir sub-node.
     "NamedExpr": [("target", "ExprIR"), ("value", "ExprIR")],
+    # variadic content-law comprehension (FABLE-sanctioned): Tuple's 2 fields (`elts`,
+    # `ctx`) are total (no `_OPTIONAL_FIELDS` entry). `elts` tagged "ExprIRList" — the
+    # FIRST list-of-ExprIR field in this structural-import path — which `_harvest_node_spec
+    # _records` expands to a `{"type":"list","value_type":"emit_ir"}` field, i.e.
+    # `array emit_ir` (preamble.py record emitter, i-feel-good.md I-E `List[str]`→`array
+    # string` precedent, value_type "emit_ir" instead of "string"); `ctx` tagged "int" —
+    # the expr_context leaf, carried opaque for record totality. Feeds `_py_expr_tuple`,
+    # whose `[self._py_expr_to_ir(e) for e in expr.elts]` comprehension lowers (module6_whyml
+    # /expressions.py `_content_comp` variadic branch) to `(list_content_comp_N expr.elts)`
+    # : `irlist` carrying a length + per-index content law over the SHARED
+    # `emit_ir_disp__py_expr_to_ir` `val function`, then builds the new `IrMkTupleN` ctor
+    # (expressions.py `_IRNODE_CTORS["Tuple"]` + preamble.py `_emit_exprir_theory`).
+    "Tuple": [("elts", "ExprIRList"), ("ctx", "int")],
     #
     # `_py_expr_attribute` — CONVERTED (isinstance-on-emit_ir batch, see the
     # "Attribute" table entry above). Its `isinstance(expr.value, ast.Name)` guard
@@ -378,8 +391,18 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
                                 and isinstance(e.value, str)]
             if spec_field_names != [fname for fname, _ in table_entry]:
                 continue  # table drifted from _NODE_SPEC — refuse, stay opaque
-            fields = [{"name": fname, "type": ftype, "mutable": True}
-                     for fname, ftype in table_entry]
+            # variadic content-law comprehension: the "ExprIRList" tag (a list-of-ExprIR
+            # field, e.g. Tuple.elts) expands to a `{"type":"list","value_type":"emit_ir"}`
+            # field — the preamble record emitter then maps `list`+value_type `emit_ir` to
+            # `array emit_ir` (i-feel-good.md I-E, value_type "emit_ir"). Every other tag is
+            # a scalar field carried through verbatim.
+            fields = []
+            for fname, ftype in table_entry:
+                if ftype == "ExprIRList":
+                    fields.append({"name": fname, "type": "list",
+                                   "value_type": "emit_ir", "mutable": True})
+                else:
+                    fields.append({"name": fname, "type": ftype, "mutable": True})
             records[node_name] = {
                 "kind": "record", "name": node_name, "fields": fields,
                 "class_invariants": [],

@@ -3374,7 +3374,9 @@ class PreambleEmissionMixin:
             " | IrSliceAccess emit_ir emit_ir | IrSlice emit_ir emit_ir"
             " | IrNone | IrResult | IrNothing"
             " | IrStarred emit_ir"
-            " | IrNamedExpr string emit_ir",
+            " | IrNamedExpr string emit_ir"
+            " | IrMkTupleN irlist"
+            "  with irlist = ILNil | ILCons emit_ir irlist",
             "",
             "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"
             " emit_ir child (`_py_expr_starred`'s `value` field) — a GENERIC"
@@ -3389,6 +3391,24 @@ class PreambleEmissionMixin:
             " orelse_of mini-M1: IrIfExpr carries the body (then/value) and orelse (else)"
             " sub-nodes — the emitter reflects on an IfExpr ternary's `.get(\"body\")`/"
             " `.get(\"orelse\")`. *)",
+            "  (* variadic content-law comprehension (FABLE-sanctioned): IrMkTupleN carries"
+            " the VARIADIC element list of a tuple node (`_csl_mktuple`/`_py_expr_tuple`'s"
+            " `elts` — an `array emit_ir` mapped through the recursive dispatcher). The"
+            " payload is `irlist` — a MONOMORPHIC cons-list mutually-recursive WITH emit_ir"
+            " (ILNil/ILCons), NOT the polymorphic library `list emit_ir`: the polymorphic"
+            " `list.List` axioms, unavoidably in scope before the ADT type, made the emit_ir"
+            " `size_*_dec` size-decrease lemmas EXPLODE (27-34M-step 30s timeout, measured);"
+            " the self-contained `irlist` keeps them at ~30K steps (measured Valid, 0.03s)."
+            " `irlen`/`irnth` (below) are its length/nth, used by the comprehension op's"
+            " content law — declared AFTER the size lemmas so nothing perturbs them. The op"
+            " emits BOTH a length law AND a per-index content law over a SHARED, per-dispatcher"
+            " `emit_ir_disp__<disp>` `val function` (expressions.py `_content_comp` variadic"
+            " branch). The content law pins map STRUCTURE — result[i] is a deterministic"
+            " function of src[i] — NOT dispatcher value-semantics; honest labeling per the"
+            " FABLE §6 condition 3. Non-vacuity holds by ILCons injectivity (a non-functional"
+            " hostile is refuted). size's `_ -> 1` catch-all covers IrMkTupleN (no recursive"
+            " consumer reflects a tuple's element list back — the IrStarred single-read"
+            " precedent). *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
@@ -3437,6 +3457,7 @@ class PreambleEmissionMixin:
             "    | IrNone -> \"None\" | IrResult -> \"Result\" | IrNothing -> \"Nothing\"",
             "    | IrStarred _ -> \"Starred\"",
             "    | IrNamedExpr _ _ -> \"NamedExpr\"",
+            "    | IrMkTupleN _ -> \"MkTuple\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3678,6 +3699,24 @@ class PreambleEmissionMixin:
             "  lemma size_arg0_dec   : forall e: emit_ir. is_call e -> size (arg0_of e) < size e",
             "  lemma size_elt0_dec   : forall e: emit_ir. is_tuple e -> size (elt0_of e) < size e",
             "  lemma size_elt1_dec   : forall e: emit_ir. is_tuple e -> size (elt1_of e) < size e",
+            "",
+            "  (* variadic content-law comprehension (FABLE-sanctioned): the length and nth of"
+            " the monomorphic `irlist` (IrMkTupleN's payload). Declared AFTER the size"
+            " size-decrease lemmas so their proofs never see these defining axioms. Used ONLY"
+            " by the comprehension content-law op's `ensures` (an abstract `val` — assumed,"
+            " never a VC here). `irnth`'s out-of-range/nil default is `IrOther \"\"` (the"
+            " emit_ir absent-sentinel), total. Non-vacuity of the content law rests on ILCons"
+            " INJECTIVITY: a non-functional hostile (unequal outputs on equal source elements)"
+            " is refuted for every interpretation of the shared `emit_ir_disp__<disp>`. *)",
+            "  let rec function irlen (l: irlist) : int",
+            "    ensures { result >= 0 }",
+            "    variant { l }",
+            "  = match l with ILNil -> 0 | ILCons _ t -> 1 + irlen t end",
+            "",
+            "  let rec function irnth (i: int) (l: irlist) : emit_ir",
+            "    variant { l }",
+            "  = match l with ILNil -> IrOther \"\""
+            " | ILCons h t -> if i <= 0 then h else irnth (i - 1) t end",
             "",
             "  (* self-ir-schema.md IR1: the typed slice of `self.ir` the emitter reflects on —"
             " `self.ir.get(\"shared_vars\", [])` is an array of these records"
@@ -3945,8 +3984,17 @@ class PreambleEmissionMixin:
                         # elements) in a @mutable_state module (the emitter model + its
                         # imported IR records); the corpus has no such module → `array int`,
                         # byte-identical.
+                        # variadic content-law comprehension (FABLE-sanctioned): a
+                        # `List[ExprIR]` field (value_type "emit_ir" — MkTupleExpr.elts /
+                        # the harvested pure_ast Tuple.elts) is `array emit_ir`. The gate is
+                        # widened to match the SCALAR ExprIR->emit_ir mapping below (and the
+                        # emit_ir-theory-emission gate): any @mutable_state module OR any
+                        # IR-node-typed param (`_uses_ir_node_param`) — the Module5 mirror
+                        # imports its IR records via the latter, not @mutable_state. Both
+                        # gates are False for the corpus → `array int`, byte-identical.
                         if (f.get("value_type") in ("string", "emit_ir")
-                                and getattr(self, "_mutable_state_classes", None)):
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
                             ftype = f"array {f.get('value_type')}"
                         else:
                             ftype = "array int"
