@@ -506,3 +506,26 @@ mirroring the irlist solution, to keep the size lemmas out of the option axioms.
 construction are proven; only the carrier-type encoding needs the monomorphic swap. Unlocks forall/exists/
 function_variant (~3) + any _py_expr optional-field handlers. Worth: modest (~3-5), behind the monomorphic-encoding
 restructuring — deferred, not a clean loop increment.
+
+**SCALING CEILING — emit_ir SHARED-THEORY GROWTH broke the largest mirrors' verification (2026-07-16).** After the
+session drove Module5 conversions via aggressive emit_ir-ADT growth (~10 ctors at _csl-build-start → ~80 ctors +
+irlist + iropt_ir/iropt_str MUTUAL RECURSION by HEAD), the full self-annotation suite REGRESSED: statements.py (the
+largest @mutable_state mirror), stmt_control_flow.py, and monomorphize.py now FAIL (INCOMPLETE — per-goal SMT
+Unknown/Timeout, NOT Invalid; the conversions are SOUND). Bisect: statements.py PROVES at the sealed _csl build
+(12b744cf, SEALED_PROOF_EXIT 0) but FAILS from the _py_expr build (0370c16c) onward. Ruled out: (a) a single emitter
+change — reverting the statements.py +12 (emit_ir-call-local recognizer) does NOT fix it; (b) a timelimit budget —
+Alt-Ergo at 90s/goal still fails. CAUSE: the emit_ir theory is emitted MONOLITHICALLY into EVERY @mutable_state
+mirror's .mlw (shared), so its growth taxes the size-decrease/E-matching reasoning of ALL of them — the largest ones
+cross the provable budget even though they only READ emit_ir (never construct the new Module5-only ctors). NB the
+12b744cf→0370c16c step added only ~2 ctors yet flipped the result, so statements.py is NEAR-THE-EDGE / partly FLAKY
+(the 35/35 at 12b744cf may have been a lucky run) — the growth WORSENED a pre-existing marginality. **CRITICAL GATE
+LESSON (generalizes the Module2_Parser cross-file rule): the per-batch gates (whole-file Module5 proof + additive
+corpus byte-diff) STRUCTURALLY CANNOT see cumulative shared-theory cost on OTHER @mutable_state mirrors — ONLY THE
+FULL SUITE catches it. Any batch that GROWS the shared emit_ir theory MUST run the full self-annotation suite before
+commit, not just Module5.** FIX OPTIONS (a real decision, none small): (A) THEORY-TAILORING — emit only the emit_ir
+ctors each mirror actually uses (statements.py needs the READ ctors, not IrMkTupleN/IrForall/... — a smaller
+self-consistent variant per file; sound but a genuine emitter feature); (B) REVERT the theory growth from the _py_expr
+build onward (~26 conversions) to the sealed 12b744cf; (C) accept + mitigate (higher timelimit + Rocq/Lean discharge
+of the hard goals). The 77 conversions this session are individually SOUND (each: Module5 proof + non-vacuity + additive
+byte-diff + ledger 3); the violated invariant is the FULL-SUITE re-verification, from the shared theory outgrowing the
+largest mirrors' budget. This is the verification-scaling ceiling of the monolithic-shared-emit_ir-theory design.
