@@ -1558,6 +1558,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not (isinstance(kind_ir, dict) and kind_ir.get("type") == "String"):
             return None
         kind = kind_ir.get("value")
+        # optional-field builder (monomorphic-option ADTs): a quantifier
+        # construction (`_csl_forall`/`_csl_exists`, merged by
+        # `_recognize_optfield_builder`) lowers to `(IrForall var body <iropt_str>
+        # <iropt_ir>)`, reading node's `option` binder fields and converting them
+        # to the monomorphic option ADTs at the ctor arg. Handled BEFORE the
+        # generic fixed-payload `_IRNODE_CTORS` path.
+        if kind in getattr(self, "_QUANTIFIER_OPT_CTORS", {}):
+            return self._lower_quant_optfield(kind, fields, local_refs,
+                                              invariant_ctx, subst)
         ctor = self._IRNODE_CTORS.get(kind)
         if ctor is None:
             return f'(IrOther "{kind}")'
@@ -1568,6 +1577,60 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f'(IrOther "{kind}")'
             args.append(self._expr_to_whyml(fields[f], local_refs, invariant_ctx, subst))
         return f"({cname} {' '.join(args)})"
+
+    def _lower_quant_optfield(self, kind: str, fields: Dict[str, Any],
+                              local_refs: Set[str], invariant_ctx: bool,
+                              subst: Optional[Dict[str, str]]) -> str:
+        """optional-field builder (monomorphic-option ADTs): lower a merged
+        `_csl_forall`/`_csl_exists` construction dict to
+        `(IrForall var body <iropt_str> <iropt_ir>)`. The two OPTIONAL binder
+        fields are read from node's `option`-typed record fields and CONVERTED to
+        the monomorphic option ADTs at the ctor arg:
+
+            binder_type (option string)  -> match .. with Some s -> IrSSome s
+                                                        | None   -> IrSNone
+            domain      (option emit_ir) -> match .. with Some d -> IrOSome (disp d)
+                                                        | None   -> IrONone
+
+        where `disp` is the recursive IR dispatcher `_csl_to_ir` applied to the
+        unwrapped sub-node (the faithful `self._csl_to_ir(node.domain)`). An
+        absent optional field (no conditional-add for it) defaults to the None
+        ctor. NON-FACADE: every field is read from `node`; no dropped optional,
+        no opaque val. A malformed domain value (not a dispatcher Call) fails
+        closed to `IrOther`."""
+        cname = self._QUANTIFIER_OPT_CTORS[kind]
+        if "var" not in fields or "body" not in fields:
+            return f'(IrOther "{kind}")'
+        var_w = self._expr_to_whyml(fields["var"], local_refs, invariant_ctx, subst)
+        body_w = self._expr_to_whyml(fields["body"], local_refs, invariant_ctx, subst)
+        # binder_type -> iropt_str (raw `option string` field, no dispatcher)
+        if "binder_type" in fields:
+            bt_w = self._expr_to_whyml(fields["binder_type"], local_refs,
+                                       invariant_ctx, subst)
+            opt_str = (f"(match {bt_w} with Some _qs -> IrSSome _qs "
+                       f"| None -> IrSNone end)")
+        else:
+            opt_str = "IrSNone"
+        # domain -> iropt_ir (`option emit_ir` field; dispatcher applied inside Some)
+        if "domain" in fields:
+            dv = fields["domain"]
+            if not (isinstance(dv, dict) and dv.get("type") == "Call"
+                    and (dv.get("args") or [])):
+                return f'(IrOther "{kind}")'
+            arg_w = self._expr_to_whyml(dv["args"][0], local_refs,
+                                        invariant_ctx, subst)
+            # `_qd` is the match-bound sub-node (a plain immutable `emit_ir`), NOT
+            # a ref-local — keep it OUT of local_refs so it lowers to bare `_qd`
+            # (no `!` deref) as the dispatcher argument.
+            disp_call = {"type": "Call", "func": dv.get("func"),
+                         "args": [{"type": "Var", "name": "_qd"}]}
+            disp_w = self._expr_to_whyml(disp_call, local_refs or set(),
+                                         invariant_ctx, subst)
+            opt_ir = (f"(match {arg_w} with Some _qd -> IrOSome {disp_w} "
+                      f"| None -> IrONone end)")
+        else:
+            opt_ir = "IrONone"
+        return f"({cname} {var_w} {body_w} {opt_str} {opt_ir})"
 
     def _todict_routed_ir(self, recv_dotted: str, key: str) -> Dict[str, Any]:
         """todict-reflection-plan.md R1: the TYPED-field IR that `<recv>.get(key)`

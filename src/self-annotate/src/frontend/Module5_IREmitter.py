@@ -156,12 +156,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_nothing(self, node: Nothing) -> Dict[str, Any]:
         return {"type": "Nothing"}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # optional-field builder (monomorphic-option ADTs): `node` is a Forall record
+    # whose `body` field is `emit_ir` and whose `binder_type`/`domain` fields are
+    # `option string`/`option emit_ir` (Module2_Parser.py retype). The mutable-dict-
+    # conditional-add body `d = {..}; if getattr(node,F,None) is not None: d[F]=V;
+    # return d` lowers (functions.py `_recognize_optfield_builder`, expressions.py
+    # `_lower_quant_optfield`) to `(IrForall node.var (csl_to_ir node.body)
+    # <iropt_str from binder_type> <iropt_ir mapping csl_to_ir over domain>)` — the
+    # optionals READ from node's option fields and converted to the monomorphic
+    # `iropt_str`/`iropt_ir` at the ctor arg (NO dropped field, NO opaque val).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_forall(self, node: Forall) -> int:
-        return {}
+    def _csl_forall(self, node: Forall) -> Dict[str, Any]:
+        d: Dict[str, Any] = {"type": "Forall", "var": node.var, "body": self._csl_to_ir(node.body)}
+        if getattr(node, "binder_type", None) is not None:
+            d["binder_type"] = node.binder_type
+        if getattr(node, "domain", None) is not None:
+            d["domain"] = self._csl_to_ir(node.domain)
+        return d
 
     #@ requires True
     #@ ensures True
@@ -170,12 +183,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "ForallItems", "key": node.key, "val": node.val,
                 "map": node.coll, "body": self._csl_to_ir(node.body)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # optional-field builder (monomorphic-option ADTs): identical shape to
+    # `_csl_forall` over the Exists node — lowers to `(IrExists node.var
+    # (csl_to_ir node.body) <iropt_str> <iropt_ir>)`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_exists(self, node: Exists) -> int:
-        return {}
+    def _csl_exists(self, node: Exists) -> Dict[str, Any]:
+        d: Dict[str, Any] = {"type": "Exists", "var": node.var, "body": self._csl_to_ir(node.body)}
+        if getattr(node, "binder_type", None) is not None:
+            d["binder_type"] = node.binder_type
+        if getattr(node, "domain", None) is not None:
+            d["domain"] = self._csl_to_ir(node.domain)
+        return d
 
     #@ requires True
     #@ ensures True

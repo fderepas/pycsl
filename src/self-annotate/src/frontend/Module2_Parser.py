@@ -162,16 +162,20 @@ class SubscriptAccess(CSLNode):
 @dataclass
 class Forall(QuantifierNode):
     var: str
-    body: CSLNode
+    # optional-field builder (monomorphic-option ADTs): `body` retyped `CSLNode`
+    # -> `"ExprIR"` (record field `emit_ir`); `domain` retyped `Optional[CSLNode]`
+    # -> `Optional["ExprIR"]` (record field `option emit_ir`). `binder_type` stays
+    # `Optional[str]` -> `option string`. See live Module2_Parser.py.
+    body: "ExprIR"
     binder_type: Optional[str] = None
-    domain: Optional[CSLNode] = None
+    domain: Optional["ExprIR"] = None
 
 @dataclass
 class Exists(QuantifierNode):
     var: str
-    body: CSLNode
+    body: "ExprIR"
     binder_type: Optional[str] = None
-    domain: Optional[CSLNode] = None
+    domain: Optional["ExprIR"] = None
 
 @dataclass
 class ArrayLength(CSLNode):

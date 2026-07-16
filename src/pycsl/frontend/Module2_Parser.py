@@ -226,19 +226,28 @@ class SubscriptFieldAccess(CSLNode):
 @dataclass
 class Forall(QuantifierNode):
     var: str
-    body: CSLNode
+    # optional-field builder (monomorphic-option ADTs): `body` retyped `CSLNode`
+    # -> `"ExprIR"` so the imported record field is `emit_ir` (the CSLBinOp.left
+    # precedent), letting `_csl_forall`'s `self._csl_to_ir(node.body)` lower to
+    # `(self__csl_to_ir_1 node.forall_body)`. Signature-only forward-ref → no
+    # runtime effect; only the IR-record-import model sees `emit_ir`.
+    body: "ExprIR"
     # quantification.md: typed/bounded binder. `binder_type=None` ⇒ legacy int
     # path (emits `forall var : int.` verbatim → byte-identical). `domain` is the
     # `in S` bounded term (P3), else None.
+    # optional-field builder: `domain` retyped `Optional[CSLNode]` -> `Optional
+    # ["ExprIR"]` so the record field is `option emit_ir` (converted to the
+    # monomorphic `iropt_ir` at the ctor arg). `binder_type` stays `Optional[str]`
+    # -> `option string` (→ `iropt_str`).
     binder_type: Optional[str] = None
-    domain: Optional[CSLNode] = None
+    domain: Optional["ExprIR"] = None
 
 @dataclass
 class Exists(QuantifierNode):
     var: str
-    body: CSLNode
+    body: "ExprIR"
     binder_type: Optional[str] = None
-    domain: Optional[CSLNode] = None
+    domain: Optional["ExprIR"] = None
 
 @dataclass
 class ArrayLength(CSLNode):

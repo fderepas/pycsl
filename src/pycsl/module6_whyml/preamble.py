@@ -3379,7 +3379,11 @@ class PreambleEmissionMixin:
             " | IrListN irlist"
             " | IrSetN irlist"
             " | IrCallN string irlist"
-            "  with irlist = ILNil | ILCons emit_ir irlist",
+            " | IrForall string emit_ir iropt_str iropt_ir"
+            " | IrExists string emit_ir iropt_str iropt_ir"
+            "  with irlist = ILNil | ILCons emit_ir irlist"
+            "  with iropt_str = IrSNone | IrSSome string"
+            "  with iropt_ir = IrONone | IrOSome emit_ir",
             "",
             "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"
             " emit_ir child (`_py_expr_starred`'s `value` field) — a GENERIC"
@@ -3419,6 +3423,24 @@ class PreambleEmissionMixin:
             " covered by size's `_ -> 1`. IrCallN's \"Call\" tag is intentionally shared with"
             " the pre-existing projection-reflection IrCall (non-injective kind_of is sound —"
             " the IrCall/IrCallN precedent). *)",
+            "  (* optional-field builder (monomorphic-option ADTs): IrForall/IrExists carry a"
+            " binder var (string), a body sub-node (emit_ir), and the two OPTIONAL binder"
+            " fields of `_csl_forall`/`_csl_exists` — the typed/bounded `binder_type`"
+            " (`Optional[str]`) and the `in S` `domain` (`Optional[ExprIR]`). The optionals"
+            " are carried as MONOMORPHIC option-like ADTs — `iropt_str = IrSNone | IrSSome"
+            " string` and `iropt_ir = IrONone | IrOSome emit_ir` — NOT the polymorphic library"
+            " `option string`/`option emit_ir`: adding a polymorphic `option emit_ir` INSIDE"
+            " the recursive emit_ir sum brings the `option.Option` library axioms into scope"
+            " before the emit_ir/irlist `size_*_dec` size-decrease lemmas, exploding them to a"
+            " 400s `--fun _csl_forall` TIMEOUT (measured, reverted 2026-07-16); the self-"
+            " contained `iropt_ir` keeps them fast (the irlist precedent). The construction"
+            " (expressions.py `_lower_irnode_construction`, `_QUANTIFIER_OPT_CTORS`) reads the"
+            " Forall/Exists RECORD's `option` fields and converts them at the ctor arg:"
+            " `match node.binder_type with Some s -> IrSSome s | None -> IrSNone` and"
+            " `match node.domain with Some d -> IrOSome (csl_to_ir d) | None -> IrONone`."
+            " size (below) recurses ONLY the body (`1 + size b`); the domain-opt is NOT"
+            " counted (no consumer recurses a quantifier's domain — same as IrForallItems),"
+            " so `iropt_ir`/`iropt_str` need NO size arm and stay out of the size lemmas. *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
@@ -3471,6 +3493,8 @@ class PreambleEmissionMixin:
             "    | IrListN _ -> \"ArrayLit\"",
             "    | IrSetN _ -> \"SetLit\"",
             "    | IrCallN _ _ -> \"Call\"",
+            "    | IrForall _ _ _ _ -> \"Forall\"",
+            "    | IrExists _ _ _ _ -> \"Exists\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3617,6 +3641,8 @@ class PreambleEmissionMixin:
             "    | IrSlice l h -> 1 + size l + size h",
             "    | IrStarred v -> 1 + size v",
             "    | IrNamedExpr _ v -> 1 + size v",
+            "    | IrForall _ b _ _ -> 1 + size b",
+            "    | IrExists _ b _ _ -> 1 + size b",
             "    | _ -> 1",
             "    end",
             "",
@@ -4011,6 +4037,27 @@ class PreambleEmissionMixin:
                             ftype = f"array {f.get('value_type')}"
                         else:
                             ftype = "array int"
+                    elif ftype == "option":
+                        # optional-field builder (monomorphic-option ADTs): an
+                        # `Optional[str]` / `Optional[ExprIR]` record field
+                        # (Forall/Exists `binder_type`/`domain`) is a faithful
+                        # `option string` / `option emit_ir` — read + converted to
+                        # the monomorphic `iropt_str`/`iropt_ir` at the ctor arg
+                        # (expressions.py `_lower_irnode_construction`). GATED on
+                        # @mutable_state OR an IR-node-typed param (the same gate
+                        # as the ExprIR->emit_ir field mapping below and the
+                        # emit_ir-theory-emission gate): the Module5 mirror imports
+                        # its IR records via the latter. Both gates are False for
+                        # the corpus → the historical `int` collapse, byte-identical
+                        # (only 3 corpus files carry any `Optional[...]` field, all
+                        # non-@mutable_state → int).
+                        _ov = f.get("value_type")
+                        if (_ov in ("string", "emit_ir")
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            ftype = f"option {_ov}"
+                        else:
+                            ftype = "int"
                     elif ftype in ("string", "str"):
                         # 07-2333-rev2 TP-3 (Gap 6): a `str`-annotated field is a faithful
                         # Why3 `string` (was collapsed to `int`) — the class counterpart of

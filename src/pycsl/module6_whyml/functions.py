@@ -881,6 +881,119 @@ class FunctionEmissionMixin:
         rec(body_stmts)
         return found[0]
 
+    # optional-field builder (monomorphic-option ADTs): the CSL-AST quantifier
+    # nodes whose `_csl_*` handler is a mutable-dict-conditional-add construction
+    # `d = {base}; if getattr(node, F, None) is not None: d[F] = V; return d`.
+    # Maps the node kind → the emit_ir constructor (preamble.py `_emit_exprir_
+    # theory`). The two OPTIONAL binder fields are `binder_type` (Optional[str] →
+    # `iropt_str`) and `domain` (Optional[ExprIR] → `iropt_ir`). Fail-closed: a
+    # kind not here keeps its normal (dict→map) lowering.
+    _QUANTIFIER_OPT_CTORS = {"Forall": "IrForall", "Exists": "IrExists"}
+
+    @staticmethod
+    def _optfield_guard_name(test: Any, dname: str) -> Optional[str]:
+        """The optional field name F if `test` is `getattr(node, "F", None) is not
+        None` (IR: `BinOp !=`/`is not` with a `getattr(Var, String, None)` left and a
+        `None` right) or the direct `node.F is not None` (`BinOp != Attribute None`),
+        else None. `dname` is unused here — the guard reads `node`, distinct from the
+        result local — kept for signature symmetry with the recognizer."""
+        if not (isinstance(test, dict) and test.get("type") == "BinOp"
+                and test.get("op") in ("!=", "is not")):
+            return None
+        right = test.get("right")
+        if not (isinstance(right, dict) and right.get("type") == "None"):
+            return None
+        left = test.get("left")
+        if not isinstance(left, dict):
+            return None
+        if left.get("type") == "Call" and left.get("func") == "getattr":
+            args = left.get("args") or []
+            if (len(args) >= 2 and isinstance(args[1], dict)
+                    and args[1].get("type") == "String"):
+                return args[1].get("value")
+        if left.get("type") in ("Attribute", "FieldGet"):
+            return left.get("attr") or left.get("field")
+        return None
+
+    def _recognize_optfield_builder(
+            self, func: Dict[str, Any],
+            body_stmts: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+        """optional-field builder (monomorphic-option ADTs): recognize the
+        mutable-dict-conditional-add body of `_csl_forall`/`_csl_exists`
+
+            d = {"type": K, "var": .., "body": ..}
+            if getattr(node, F, None) is not None: d[F] = V     (0..n If's)
+            return d
+
+        (K in `_QUANTIFIER_OPT_CTORS`, each F a declared optional binder field).
+        Returns a REWRITTEN single-`Return` body whose value is the MERGED emit_ir
+        construction dict (base fields + the conditional-add optional entries),
+        which `_lower_irnode_construction`/`_lower_quant_optfield` lowers to
+        `(IrForall var body <iropt_str> <iropt_ir>)` — the optionals read from
+        node's `option` record fields and converted at the ctor arg. Fail-closed:
+        None on any mismatch (the body keeps its normal lowering). @mutable_state-
+        gated (the emitter model) → corpus byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return None
+        if len(body_stmts) < 2:
+            return None
+        last = body_stmts[-1]
+        if last.get("stmt") != "Return":
+            return None
+        rv = last.get("value")
+        if not (isinstance(rv, dict) and rv.get("type") == "Var"):
+            return None
+        dname = rv.get("name")
+        first = body_stmts[0]
+        if first.get("stmt") != "Assign" or first.get("target") != dname:
+            return None
+        dlit = first.get("value")
+        if not (isinstance(dlit, dict) and dlit.get("type") == "DictLit"):
+            return None
+        keys = dlit.get("keys", [])
+        values = dlit.get("values", [])
+        if not keys or len(keys) != len(values):
+            return None
+        base: Dict[str, Any] = {}
+        for k, v in zip(keys, values):
+            if not (isinstance(k, dict) and k.get("type") == "String"):
+                return None
+            base[k.get("value")] = v
+        kind_ir = base.get("type")
+        if not (isinstance(kind_ir, dict) and kind_ir.get("type") == "String"):
+            return None
+        if kind_ir.get("value") not in self._QUANTIFIER_OPT_CTORS:
+            return None
+        # The middle statements are the conditional-add If's — one optional field
+        # each. Merge each `d[F] = V` into the construction dict as key F → V.
+        merged_keys = list(keys)
+        merged_values = list(values)
+        for st in body_stmts[1:-1]:
+            if st.get("stmt") != "If" or st.get("orelse"):
+                return None
+            f = self._optfield_guard_name(st.get("test"), dname)
+            if f is None:
+                return None
+            ifbody = st.get("body") or []
+            if len(ifbody) != 1:
+                return None
+            aset = ifbody[0]
+            if aset.get("stmt") != "ArraySet":
+                return None
+            arr = aset.get("array")
+            if not (isinstance(arr, dict) and arr.get("type") == "Var"
+                    and arr.get("name") == dname):
+                return None
+            idx = aset.get("index")
+            if not (isinstance(idx, dict) and idx.get("type") == "String"
+                    and idx.get("value") == f):
+                return None
+            merged_keys.append({"type": "String", "value": f})
+            merged_values.append(aset.get("value"))
+        new_dlit = {"type": "DictLit", "keys": merged_keys, "values": merged_values}
+        return [{"stmt": "Return", "value": new_dlit}]
+
     def _recognize_compound_map_getter(
             self, func: Dict[str, Any],
             body_stmts: List[Dict[str, Any]]) -> Optional[Dict[str, str]]:
@@ -1213,6 +1326,15 @@ class FunctionEmissionMixin:
         if _vgd is not None:
             return emit_void_generic_descend_group(func, _vgd, whyml_ident)
         body_stmts = func["body"]
+        # optional-field builder (monomorphic-option ADTs): rewrite the
+        # `_csl_forall`/`_csl_exists` mutable-dict-conditional-add body to a single
+        # `Return` of the merged emit_ir construction dict, so the normal `let`
+        # scaffolding (params, emit_ir return type via `_returns_emit_ir`,
+        # `_lower_irnode_construction`) emits `(IrForall var body <opt> <opt>)`.
+        # Fail-closed (None → unchanged); @mutable_state-gated → corpus byte-inert.
+        _optb = self._recognize_optfield_builder(func, body_stmts)
+        if _optb is not None:
+            body_stmts = _optb
         is_method = func.get("kind") == "method"
 
         local_refs, ghost_vars = self._reset_function_state(func, body_stmts)

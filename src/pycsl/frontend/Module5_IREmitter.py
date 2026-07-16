@@ -1672,6 +1672,37 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             nm = None
         return nm if nm in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR") else None
 
+    @staticmethod
+    def _m5_get_option_field_inner(annotation):
+        """optional-field builder (monomorphic-option ADTs): if `annotation` is
+        `Optional[str]` or `Optional[<IR-node>]` (ExprIR/StmtIR/IRNode/
+        ContractExprIR — bare Name or forward-ref string), return the option's
+        inner value-type tag ("string" / "emit_ir") so the record field is a
+        faithful `option string` / `option emit_ir` (`Forall`/`Exists`
+        `binder_type`/`domain`). NOT for `Optional[List/Dict/Set/...]` (those keep
+        their list/int collapse) nor `Optional[<other class>]` (int) — else None.
+        Consulted ONLY at record-field collection; the WhyML mapping is further
+        gated on @mutable_state / IR-node param, so the corpus stays byte-inert."""
+        a = annotation
+        if type(a).__name__ != "Subscript":
+            return None
+        av = getattr(a, "value", None)
+        if type(av).__name__ != "Name" or getattr(av, "id", None) != "Optional":
+            return None
+        inner = getattr(a, "slice", None)
+        itn = type(inner).__name__
+        if itn == "Name":
+            nm = getattr(inner, "id", None)
+        elif itn == "Constant" and isinstance(getattr(inner, "value", None), str):
+            nm = inner.value
+        else:
+            return None  # Optional[List[..]]/Optional[Dict[..]]/etc — not a scalar
+        if nm == "str":
+            return "string"
+        if nm in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+            return "emit_ir"
+        return None
+
     def _field_type_from_annotation(annotation: Optional[ast.expr]) -> str:
         """Lower a Python type annotation to the IR field-type tag.
 
@@ -2491,12 +2522,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     ftype = self._field_type_from_annotation_inst(
                         stmt.annotation, node.name)
                     _fld2 = {"name": stmt.target.id, "type": ftype, "mutable": True}
+                    # optional-field builder (monomorphic-option ADTs): an
+                    # `Optional[str]`/`Optional[ExprIR]` field is `option string`/
+                    # `option emit_ir` (Forall/Exists binder_type/domain). Overrides
+                    # the scalar tag ftype ("int" for Optional[str]; "ExprIR" for the
+                    # `_irnode_ann_name`-unwrapped Optional[ExprIR]) with the option
+                    # tag + inner value_type. The record emitter gates the WhyML.
+                    _optin2 = self._m5_get_option_field_inner(stmt.annotation)
+                    if _optin2 is not None:
+                        _fld2["type"] = "option"
+                        _fld2["value_type"] = _optin2
                     # self-field-dict-reflection (typed-ir §12): a `dict[str, str]` field's
                     # value type, so `self.<field>.get(k)` reads a string.
-                    _vt2 = self._m5_get_dict_value_type(stmt.annotation)
+                    _vt2 = self._m5_get_dict_value_type(stmt.annotation) if _optin2 is None else None
                     if _vt2:
                         _fld2["value_type"] = _vt2
-                    else:
+                    elif _optin2 is None:
                         _le2 = self._m5_get_list_elem_type(stmt.annotation)
                         # cf6.md M1.2: MatchStmt.cases (imported @dataclass) → array emit_ir.
                         if _le2 is None and self._cf6_is_cases_list_of_dict(
