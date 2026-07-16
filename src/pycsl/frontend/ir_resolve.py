@@ -322,6 +322,23 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # in Module2_Parser.py.)
     "List": [("elts", "ExprIRList"), ("ctx", "int")],
     "Set":  [("elts", "ExprIRList")],
+    # optional-field ext (monomorphic-option ADTs): Slice's 3 fields (`lower`,
+    # `upper`, `step`) are ALL declared optional (`_OPTIONAL_FIELDS['Slice'] =
+    # ('lower','upper','step')`, pure_ast.py) — the FIRST all-optional record in
+    # this structural-import path. Each tagged "OptExprIR" -> a
+    # `{"type":"option","value_type":"emit_ir"}` field, i.e. `option emit_ir`
+    # (the Forall/Exists `domain` precedent). Feeds `_py_expr_slice`, whose body
+    # `lower = self._py_expr_to_ir(expr.lower) if expr.lower else None` (×3) then
+    # `return {"type":"Slice","lower":lower,"upper":upper,"step":step}` is
+    # rewritten by functions.py `_recognize_slice_builder` to a single
+    # `{"type":"SliceN",...}` construction with the ternaries inlined, which
+    # expressions.py `_lower_sliceN_optfield` lowers to `(IrSliceN <opt> <opt>
+    # <opt>)` — each bound `match expr.X with Some _v -> IrOSome (disp _v) | None
+    # -> IrONone`, faithfully carrying the present/absent option (NO dropped
+    # field; unlike the spec-side IrSlice which drops step). This LIFTS the
+    # earlier "Slice blocked" note below (an Optional-ExprIR field tag NOW
+    # exists, and IrSliceN keeps all three bounds).
+    "Slice": [("lower", "OptExprIR"), ("upper", "OptExprIR"), ("step", "OptExprIR")],
     #
     # `_py_expr_attribute` — CONVERTED (isinstance-on-emit_ir batch, see the
     # "Attribute" table entry above). Its `isinstance(expr.value, ast.Name)` guard
@@ -339,24 +356,28 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # `_OPTIONAL_FIELDS` (pure_ast.py), breaking the field-totality obligation.
     # No table entry until a value-type-discrimination capability lands.
     #
-    # `_py_expr_subscript`/`_py_expr_slice` were INVESTIGATED for this batch and
-    # found blocked, not just unattempted (see the non-list-py-expr-batch report):
-    # Subscript's body branches on `isinstance(slice_node, ast.Slice)` — an
-    # INPUT-side type test the structural mode cannot express (each harvested
-    # pure_ast node is an opaque record, not a member of a common discriminated
-    # union); the sound OUTPUT-side rewrite (discriminate on
-    # `_py_expr_to_ir(expr.slice).get("type")` instead) needs `_is_emit_ir_expr`
-    # (module6_whyml/expressions.py) / `_is_emit_ir_val`
-    # (module6_whyml/statements.py `_collect_emit_ir_result_locals`) to recognize
-    # a `self._py_expr_to_ir(...)` CALL as an ExprIR-typed value/receiver — a real
-    # Module6 capability gap (today they only special-case `.to_dict()`/`.get()`
-    # chains and field/Var shapes, not a generic recursive-dispatcher call). Slice
-    # additionally has all 3 fields in `_OPTIONAL_FIELDS` (pure_ast.py), which the
-    # field-totality obligation above does not support (an Optional-ExprIR field
-    # tag does not exist), and the existing `IrSlice` ctor
-    # (module6_whyml/expressions.py `_IRNODE_CTORS["Slice"]`) only carries
-    # lower/upper anyway (drops step). Neither gets a table entry until one of
-    # those capabilities lands.
+    # `_py_expr_slice` — CONVERTED (optional-field ext, see the "Slice" table
+    # entry above). The two blockers cited historically are BOTH lifted: an
+    # Optional-ExprIR field tag ("OptExprIR" → `option emit_ir`) now exists, and
+    # the new `IrSliceN` ctor keeps ALL THREE bounds (lower/upper/step) as real
+    # `iropt_ir` values — it does NOT reuse the spec-side `IrSlice` (which drops
+    # step). The body's `disp(expr.X) if expr.X else None` ternaries are handled
+    # by `_recognize_slice_builder`/`_lower_sliceN_optfield` (no `isinstance`
+    # input-side test is involved — the option field IS the discriminant).
+    #
+    # `_py_expr_subscript` was INVESTIGATED for this batch and found blocked, not
+    # just unattempted (see the non-list-py-expr-batch report): Subscript's body
+    # branches on `isinstance(slice_node, ast.Slice)` — an INPUT-side type test
+    # the structural mode cannot express (each harvested pure_ast node is an
+    # opaque record, not a member of a common discriminated union); the sound
+    # OUTPUT-side rewrite (discriminate on `_py_expr_to_ir(expr.slice).get("type")`
+    # instead) needs `_is_emit_ir_expr` (module6_whyml/expressions.py) /
+    # `_is_emit_ir_val` (module6_whyml/statements.py
+    # `_collect_emit_ir_result_locals`) to recognize a `self._py_expr_to_ir(...)`
+    # CALL as an ExprIR-typed value/receiver — a real Module6 capability gap
+    # (today they only special-case `.to_dict()`/`.get()` chains and field/Var
+    # shapes, not a generic recursive-dispatcher call). No table entry until that
+    # capability lands.
 }
 
 
@@ -412,6 +433,16 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
             for fname, ftype in table_entry:
                 if ftype == "ExprIRList":
                     fields.append({"name": fname, "type": "list",
+                                   "value_type": "emit_ir", "mutable": True})
+                elif ftype == "OptExprIR":
+                    # optional-field ext (monomorphic-option ADTs): an
+                    # `Optional[ExprIR]` pure_ast field (Slice.lower/upper/step,
+                    # each in `_OPTIONAL_FIELDS['Slice']`) expands to a
+                    # `{"type":"option","value_type":"emit_ir"}` field — the
+                    # preamble record emitter maps `option`+value_type `emit_ir`
+                    # to `option emit_ir` (the Forall/Exists `domain` precedent),
+                    # collapsing to `int` off @mutable_state (corpus byte-inert).
+                    fields.append({"name": fname, "type": "option",
                                    "value_type": "emit_ir", "mutable": True})
                 else:
                     fields.append({"name": fname, "type": ftype, "mutable": True})

@@ -305,12 +305,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # out of scope for this FREE-bucket increment. Left \trusted.
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # optional-field ext (monomorphic-option ADTs): `node` is the imported
+    # `FunctionVariant` record whose `expr` field is retyped `"ExprIR"` -> `emit_ir`
+    # (Module2_Parser.py) and whose `ordering` is `Optional[str]` -> `option string`.
+    # The TYPE-LESS base dict `{"expr": self._csl_to_ir(node.expr)}` + the truthiness-
+    # guarded `if node.ordering: ir["ordering"] = node.ordering` lower (functions.py
+    # `_recognize_functionvariant_builder` + expressions.py
+    # `_lower_functionvariant_optfield`) to the new `IrFunctionVariant emit_ir iropt_str`
+    # ctor (preamble.py `_emit_exprir_theory`): expr = `(self._csl_to_ir node.expr)`,
+    # ordering = `match node.ordering with Some s -> IrSSome s | None -> IrSNone`
+    # (`node.ordering` is a parser `expect_name()` token, never empty → truthiness =
+    # presence). Verbatim body port of the LIVE `_csl_function_variant`
+    # (Module5_IREmitter.py:661).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_function_variant(self, node: FunctionVariant) -> int:
-        return {}
+    def _csl_function_variant(self, node: FunctionVariant) -> Dict[str, Any]:
+        ir: Dict[str, Any] = {"expr": self._csl_to_ir(node.expr)}
+        if node.ordering:
+            ir["ordering"] = node.ordering
+        return ir
 
     # variadic content-law comprehension (FABLE-sanctioned), batch 2: `node` is a CSL-AST
     # `CallExpr` record whose `args` field is retyped `List["ExprIR"]` (Module2_Parser.py)
@@ -905,12 +919,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_lambda(self, expr: ast.Lambda) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # optional-field ext (monomorphic-option ADTs): `expr` is the harvested pure_ast
+    # `Slice` record (ir_resolve.py `_PURE_AST_FIELD_TABLE["Slice"]`), whose 3 ALL-
+    # optional fields (`lower`/`upper`/`step`, `_OPTIONAL_FIELDS['Slice']`) are each an
+    # `option emit_ir`. Each `self._py_expr_to_ir(expr.X) if expr.X else None` ternary
+    # lowers (functions.py `_recognize_slice_builder` + expressions.py
+    # `_lower_sliceN_optfield`) to the monomorphic `iropt_ir` `match expr.X with Some
+    # _v -> IrOSome (self._py_expr_to_ir _v) | None -> IrONone`, and the return builds
+    # the new `IrSliceN iropt_ir iropt_ir iropt_ir` ctor (preamble.py
+    # `_emit_exprir_theory`) carrying ALL THREE bounds. Verbatim body port of the LIVE
+    # `_py_expr_slice` (Module5_IREmitter.py:1171).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_slice(self, expr: ast.Slice) -> int:
-        return {}
+    def _py_expr_slice(self, expr: ast.Slice) -> Dict[str, Any]:
+        lower = self._py_expr_to_ir(expr.lower) if expr.lower else None
+        upper = self._py_expr_to_ir(expr.upper) if expr.upper else None
+        step = self._py_expr_to_ir(expr.step) if expr.step else None
+        return {"type": "Slice", "lower": lower, "upper": upper, "step": step}
 
     _PY_STMT_HANDLERS: int = {ast.Assign: '_py_stmt_assign', ast.AugAssign: '_py_stmt_augassign', ast.Return: '_py_stmt_return', ast.While: '_py_stmt_while', ast.For: '_py_stmt_for', ast.If: '_py_stmt_if', ast.Continue: '_py_stmt_continue', ast.Assert: '_py_stmt_assert', ast.Raise: '_py_stmt_raise', ast.AnnAssign: '_py_stmt_annassign', ast.Expr: '_py_stmt_expr', ast.Try: '_py_stmt_try', ast.With: '_py_stmt_with', ast.Pass: '_py_stmt_pass', ast.Break: '_py_stmt_break', ast.Delete: '_py_stmt_delete'}
     _PY_OP_MAP: int = {ast.Add: '+', ast.Sub: '-', ast.Mult: '*', ast.Div: '/', ast.FloorDiv: 'div', ast.Mod: '%', ast.Eq: '==', ast.NotEq: '!=', ast.Lt: '<', ast.LtE: '<=', ast.Gt: '>', ast.GtE: '>=', ast.USub: '-', ast.UAdd: '+', ast.Not: 'not', ast.Invert: '~', ast.In: 'in', ast.NotIn: 'not in', ast.Is: '==', ast.IsNot: '!=', ast.BitAnd: '&', ast.BitOr: '|', ast.BitXor: '^', ast.LShift: '<<', ast.RShift: '>>', ast.Pow: '**'}

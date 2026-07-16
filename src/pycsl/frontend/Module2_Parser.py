@@ -342,7 +342,14 @@ class Valid2D(CSLNode):
 @dataclass
 class FunctionVariant(CSLNode):
     """Represents `#@ \\variant <expr>` or `#@ \\variant (<expr>, <ordering>)`."""
-    expr: CSLNode
+    # optional-field ext (monomorphic-option ADTs): `expr` retyped `CSLNode` ->
+    # `"ExprIR"` so the imported record field is `emit_ir` (the Forall.body
+    # precedent), letting `_csl_function_variant`'s `self._csl_to_ir(node.expr)`
+    # lower to `(self__csl_to_ir_1 node.function_variant_expr)`. Signature-only
+    # forward-ref → no runtime effect; only the IR-record-import model sees
+    # `emit_ir`. `ordering` stays `Optional[str]` -> `option string` (→ `iropt_str`);
+    # it is a parser `expect_name()` token, so NEVER the empty string.
+    expr: "ExprIR"
     ordering: Optional[str] = None   # None → integer, str → named well-founded relation
 
 @dataclass

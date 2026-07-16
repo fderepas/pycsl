@@ -3387,6 +3387,8 @@ class PreambleEmissionMixin:
             " | IrCallN string irlist"
             " | IrForall string emit_ir iropt_str iropt_ir"
             " | IrExists string emit_ir iropt_str iropt_ir"
+            " | IrSliceN iropt_ir iropt_ir iropt_ir"
+            " | IrFunctionVariant emit_ir iropt_str"
             "  with irlist = ILNil | ILCons emit_ir irlist"
             "  with iropt_str = IrSNone | IrSSome string"
             "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -3447,6 +3449,32 @@ class PreambleEmissionMixin:
             " size (below) recurses ONLY the body (`1 + size b`); the domain-opt is NOT"
             " counted (no consumer recurses a quantifier's domain — same as IrForallItems),"
             " so `iropt_ir`/`iropt_str` need NO size arm and stay out of the size lemmas. *)",
+            "  (* optional-field ext (monomorphic-option ADTs): IrSliceN carries the THREE"
+            " ternary-optional bounds of `_py_expr_slice` — `lower`/`upper`/`step`, each the"
+            " Python `disp(expr.X) if expr.X else None` (an `Optional[ExprIR]` pure_ast Slice"
+            " field, `_OPTIONAL_FIELDS['Slice']`). Each bound is carried as the SAME monomorphic"
+            " `iropt_ir` the quantifier domain uses — NOT a bare emit_ir — so a MISSING bound is"
+            " the honest `IrONone` and a present one `IrOSome (self._py_expr_to_ir v)`, reading"
+            " the `option emit_ir` Slice record field and unwrapping at the ctor arg (expressions."
+            " py `_lower_sliceN_optfield`, routed via the SliceN internal tag from functions.py"
+            " `_recognize_slice_builder`). kind_of returns \"Slice\" (the real `.get(\"type\")`"
+            " tag `_py_expr_slice` emits) — non-injective with the spec-side IrSlice (which drops"
+            " step); the IrCall/IrCallN precedent. No consumer recurses a slice bound, so — like"
+            " IrForall's domain — NO size arm is needed (falls to `_ -> 1`), keeping the size"
+            " lemmas fast. *)",
+            "  (* optional-field ext (monomorphic-option ADTs): IrFunctionVariant realizes the"
+            " TYPE-LESS `_csl_function_variant` dict `{\"expr\": self._csl_to_ir(node.expr)}` +"
+            " optional `if node.ordering: ir[\"ordering\"] = node.ordering`. It carries the"
+            " required `expr` sub-node (a bare emit_ir — the `self._csl_to_ir(node.expr)`"
+            " dispatch, so `_csl_function_variant` — itself a `_csl_to_ir` handler — stays"
+            " emit_ir-typed) and the OPTIONAL `ordering` as `iropt_str`. `node.ordering` is a"
+            " parser `expect_name()` token (Optional[str], NEVER the empty string), so the"
+            " Python truthiness `if node.ordering:` is exactly presence: `match node.ordering"
+            " with Some s -> IrSSome s | None -> IrSNone` (functions.py"
+            " `_recognize_functionvariant_builder`, expressions.py"
+            " `_lower_functionvariant_optfield`). kind_of returns \"FunctionVariant\" — a label"
+            " only (the source dict is type-less, so nothing reflects `.get(\"type\")` on it);"
+            " size recurses the real `expr` child (`1 + size e`), NOT the iropt_str. *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
@@ -3502,6 +3530,8 @@ class PreambleEmissionMixin:
             "    | IrCallN _ _ -> \"Call\"",
             "    | IrForall _ _ _ _ -> \"Forall\"",
             "    | IrExists _ _ _ _ -> \"Exists\"",
+            "    | IrSliceN _ _ _ -> \"Slice\"",
+            "    | IrFunctionVariant _ _ -> \"FunctionVariant\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3650,6 +3680,7 @@ class PreambleEmissionMixin:
             "    | IrNamedExpr _ v -> 1 + size v",
             "    | IrForall _ b _ _ -> 1 + size b",
             "    | IrExists _ b _ _ -> 1 + size b",
+            "    | IrFunctionVariant e _ -> 1 + size e",
             "    | _ -> 1",
             "    end",
             "",

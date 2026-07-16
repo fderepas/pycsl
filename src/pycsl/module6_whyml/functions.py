@@ -994,6 +994,199 @@ class FunctionEmissionMixin:
         new_dlit = {"type": "DictLit", "keys": merged_keys, "values": merged_values}
         return [{"stmt": "Return", "value": new_dlit}]
 
+    @staticmethod
+    def _is_slice_optfield_ternary(rhs: Any) -> bool:
+        """True if `rhs` is the `_py_expr_slice` per-bound ternary shape
+        `self.<disp>(expr.F) if expr.F else None` (IR: `IfExpr` with a `None`
+        `orelse`, a recursive-IR-dispatcher `Call` body over an `Attribute`
+        field read, and a `test` that reads the SAME field). `_lower_sliceN_
+        optfield` re-checks the details; this is the shape gate for the body
+        rewrite."""
+        if not (isinstance(rhs, dict) and rhs.get("type") == "IfExpr"):
+            return False
+        orelse = rhs.get("orelse")
+        if not (isinstance(orelse, dict) and orelse.get("type") == "None"):
+            return False
+        body = rhs.get("body")
+        if not (isinstance(body, dict) and body.get("type") == "Call"):
+            return False
+        fn = body.get("func")
+        if not (isinstance(fn, str)
+                and fn.rsplit(".", 1)[-1] in ("_csl_to_ir", "_py_expr_to_ir")):
+            return False
+        bargs = body.get("args") or []
+        if len(bargs) != 1:
+            return False
+        a0 = bargs[0]
+        if not (isinstance(a0, dict) and a0.get("type") in ("Attribute", "FieldGet")):
+            return False
+        fname = a0.get("attr") or a0.get("field")
+        test = rhs.get("test")
+        # test reads the SAME optional field (faithful `if expr.F`)
+        return (isinstance(test, dict) and test.get("type") in ("Attribute", "FieldGet")
+                and (test.get("attr") or test.get("field")) == fname)
+
+    def _recognize_slice_builder(
+            self, func: Dict[str, Any],
+            body_stmts: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+        """optional-field ext (monomorphic-option ADTs): recognize the
+        `_py_expr_slice` body
+
+            lower = self._py_expr_to_ir(expr.lower) if expr.lower else None   (×N)
+            ...
+            return {"type": "Slice", "lower": lower, "upper": upper, "step": step}
+
+        — leading local Assigns each bound to the per-bound ternary
+        (`_is_slice_optfield_ternary`), then a `Return` of a `{"type":"Slice",
+        ...}` DictLit whose non-`type` values are Var refs to exactly those
+        locals. Returns a REWRITTEN single-`Return` body whose DictLit is
+        re-tagged `"SliceN"` (an internal lowering discriminant DISTINCT from the
+        spec-side `_csl_slice` "Slice" → `IrSlice`) with each bound's Var replaced
+        INLINE by its ternary, which `_lower_irnode_construction`/
+        `_lower_sliceN_optfield` lowers to `(IrSliceN <opt> <opt> <opt>)`.
+        Fail-closed: None on any mismatch (body keeps its normal lowering).
+        @mutable_state-gated (the emitter model) → corpus byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return None
+        if len(body_stmts) < 2:
+            return None
+        last = body_stmts[-1]
+        if last.get("stmt") != "Return":
+            return None
+        rv = last.get("value")
+        if not (isinstance(rv, dict) and rv.get("type") == "DictLit"):
+            return None
+        keys = rv.get("keys", [])
+        values = rv.get("values", [])
+        if not keys or len(keys) != len(values):
+            return None
+        dfields: Dict[str, Any] = {}
+        for k, v in zip(keys, values):
+            if not (isinstance(k, dict) and k.get("type") == "String"):
+                return None
+            dfields[k.get("value")] = v
+        kind = dfields.get("type")
+        if not (isinstance(kind, dict) and kind.get("type") == "String"
+                and kind.get("value") == "Slice"):
+            return None
+        # The leading statements are the per-bound local Assigns (ternary RHS).
+        localmap: Dict[str, Any] = {}
+        for st in body_stmts[:-1]:
+            if st.get("stmt") != "Assign":
+                return None
+            tgt = st.get("target")
+            if not isinstance(tgt, str):
+                return None
+            if not self._is_slice_optfield_ternary(st.get("value")):
+                return None
+            localmap[tgt] = st.get("value")
+        # Every non-`type` dict value must be a Var ref to one of those locals;
+        # inline each with its ternary (and re-tag "type" -> "SliceN").
+        new_keys = list(keys)
+        new_values = []
+        for k, v in zip(keys, values):
+            if k.get("value") == "type":
+                new_values.append({"type": "String", "value": "SliceN"})
+                continue
+            if not (isinstance(v, dict) and v.get("type") == "Var"
+                    and v.get("name") in localmap):
+                return None
+            new_values.append(localmap[v.get("name")])
+        new_dlit = {"type": "DictLit", "keys": new_keys, "values": new_values}
+        return [{"stmt": "Return", "value": new_dlit}]
+
+    @staticmethod
+    def _truthiness_guard_field(test: Any) -> Optional[str]:
+        """The field name F if `test` is the BARE truthiness guard `node.F`
+        (IR: an `Attribute`/`FieldGet` read with no comparison — the
+        `if node.ordering:` shape), else None. Distinct from
+        `_optfield_guard_name` (which matches the `node.F is not None` BinOp
+        form)."""
+        if not (isinstance(test, dict) and test.get("type") in ("Attribute", "FieldGet")):
+            return None
+        obj = test.get("object") or test.get("value")
+        if not (isinstance(obj, dict) and obj.get("type") == "Var"):
+            return None
+        return test.get("attr") or test.get("field")
+
+    def _recognize_functionvariant_builder(
+            self, func: Dict[str, Any],
+            body_stmts: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+        """optional-field ext (monomorphic-option ADTs): recognize the TYPE-LESS
+        `_csl_function_variant` mutable-dict-conditional-add body
+
+            ir = {"expr": self._csl_to_ir(node.expr)}
+            if node.ordering: ir["ordering"] = node.ordering     (0..1 If's)
+            return ir
+
+        — a base dict with an `"expr"` key and NO `"type"` key, then 0-or-more
+        BARE-truthiness-guarded (`_truthiness_guard_field`) conditional-adds, then
+        `return <the dict local>`. Returns a REWRITTEN single-`Return` body whose
+        DictLit is tagged with the INTERNAL `"type": "FunctionVariant"`
+        discriminant (the source dict is type-less; this tag only routes the
+        lowering) plus the merged conditional-add entries, which
+        `_lower_irnode_construction`/`_lower_functionvariant_optfield` lowers to
+        `(IrFunctionVariant <expr> <iropt_str>)`. Scoped to the type-less-with-
+        `expr` shape (only `_csl_function_variant` has it). Fail-closed: None on
+        any mismatch. @mutable_state-gated → corpus byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return None
+        if len(body_stmts) < 2:
+            return None
+        last = body_stmts[-1]
+        if last.get("stmt") != "Return":
+            return None
+        rv = last.get("value")
+        if not (isinstance(rv, dict) and rv.get("type") == "Var"):
+            return None
+        dname = rv.get("name")
+        first = body_stmts[0]
+        if first.get("stmt") != "Assign" or first.get("target") != dname:
+            return None
+        dlit = first.get("value")
+        if not (isinstance(dlit, dict) and dlit.get("type") == "DictLit"):
+            return None
+        keys = dlit.get("keys", [])
+        values = dlit.get("values", [])
+        if not keys or len(keys) != len(values):
+            return None
+        base: Dict[str, Any] = {}
+        for k, v in zip(keys, values):
+            if not (isinstance(k, dict) and k.get("type") == "String"):
+                return None
+            base[k.get("value")] = v
+        # Scope: type-LESS base with an `expr` key (only _csl_function_variant).
+        if "type" in base or "expr" not in base:
+            return None
+        merged_keys = [{"type": "String", "value": "type"}] + list(keys)
+        merged_values = [{"type": "String", "value": "FunctionVariant"}] + list(values)
+        for st in body_stmts[1:-1]:
+            if st.get("stmt") != "If" or st.get("orelse"):
+                return None
+            f = self._truthiness_guard_field(st.get("test"))
+            if f is None:
+                return None
+            ifbody = st.get("body") or []
+            if len(ifbody) != 1:
+                return None
+            aset = ifbody[0]
+            if aset.get("stmt") != "ArraySet":
+                return None
+            arr = aset.get("array")
+            if not (isinstance(arr, dict) and arr.get("type") == "Var"
+                    and arr.get("name") == dname):
+                return None
+            idx = aset.get("index")
+            if not (isinstance(idx, dict) and idx.get("type") == "String"
+                    and idx.get("value") == f):
+                return None
+            merged_keys.append({"type": "String", "value": f})
+            merged_values.append(aset.get("value"))
+        new_dlit = {"type": "DictLit", "keys": merged_keys, "values": merged_values}
+        return [{"stmt": "Return", "value": new_dlit}]
+
     def _recognize_compound_map_getter(
             self, func: Dict[str, Any],
             body_stmts: List[Dict[str, Any]]) -> Optional[Dict[str, str]]:
@@ -1335,6 +1528,22 @@ class FunctionEmissionMixin:
         _optb = self._recognize_optfield_builder(func, body_stmts)
         if _optb is not None:
             body_stmts = _optb
+        # optional-field ext (monomorphic-option ADTs): rewrite the
+        # `_py_expr_slice` 3-ternary-bound body to a single `Return` of the
+        # `{"type":"SliceN",...}` construction (ternaries inlined), so the normal
+        # scaffolding emits `(IrSliceN <opt> <opt> <opt>)`. Fail-closed (None →
+        # unchanged); @mutable_state-gated → corpus byte-inert.
+        _slb = self._recognize_slice_builder(func, body_stmts)
+        if _slb is not None:
+            body_stmts = _slb
+        # optional-field ext (monomorphic-option ADTs): rewrite the TYPE-LESS
+        # `_csl_function_variant` body to a single `Return` of the
+        # `{"type":"FunctionVariant",...}` construction, so the normal scaffolding
+        # emits `(IrFunctionVariant <expr> <iropt_str>)`. Fail-closed (None →
+        # unchanged); @mutable_state-gated → corpus byte-inert.
+        _fvb = self._recognize_functionvariant_builder(func, body_stmts)
+        if _fvb is not None:
+            body_stmts = _fvb
         is_method = func.get("kind") == "method"
 
         local_refs, ghost_vars = self._reset_function_state(func, body_stmts)

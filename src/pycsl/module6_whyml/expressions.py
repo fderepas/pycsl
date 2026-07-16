@@ -1571,6 +1571,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if kind in getattr(self, "_QUANTIFIER_OPT_CTORS", {}):
             return self._lower_quant_optfield(kind, fields, local_refs,
                                               invariant_ctx, subst)
+        # optional-field ext (monomorphic-option ADTs): the `_py_expr_slice`
+        # construction (rewritten to the internal "SliceN" tag by functions.py
+        # `_recognize_slice_builder`) lowers to `(IrSliceN <opt> <opt> <opt>)`,
+        # each bound the ternary `disp(expr.X) if expr.X else None` converted to
+        # the monomorphic `iropt_ir`. Handled BEFORE the generic `_IRNODE_CTORS`
+        # path (whose "Slice" tag is the DISTINCT spec-side IrSlice).
+        if kind == "SliceN":
+            return self._lower_sliceN_optfield(fields, local_refs,
+                                               invariant_ctx, subst)
+        # optional-field ext (monomorphic-option ADTs): the TYPE-LESS
+        # `_csl_function_variant` construction (rewritten to the internal
+        # "FunctionVariant" tag by functions.py `_recognize_functionvariant_
+        # builder`) lowers to `(IrFunctionVariant <expr> <iropt_str>)`.
+        if kind == "FunctionVariant":
+            return self._lower_functionvariant_optfield(fields, local_refs,
+                                                        invariant_ctx, subst)
         # cleanup batch (no-more-int doctrine): a "Number" node whose `value` payload is
         # a float-typed field read (`_csl_number`'s `node.value`, `CSLNumber.value:
         # float` → the WhyML `real` field) lowers to the NEW `IrNumF real` leaf, NOT the
@@ -1650,6 +1666,100 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         else:
             opt_ir = "IrONone"
         return f"({cname} {var_w} {body_w} {opt_str} {opt_ir})"
+
+    def _slice_bound_to_iropt_ir(self, tern: Any, local_refs: Set[str],
+                                 invariant_ctx: bool,
+                                 subst: Optional[Dict[str, str]]) -> str:
+        """optional-field ext (monomorphic-option ADTs): convert ONE
+        `_py_expr_slice` bound — the ternary `disp(expr.X) if expr.X else None`
+        (an `IfExpr` over an `option emit_ir` Slice record field) — to the
+        monomorphic `iropt_ir`:
+
+            match expr.X with Some _v -> IrOSome (disp _v) | None -> IrONone end
+
+        where `disp` is the recursive IR dispatcher (`self._py_expr_to_ir`)
+        applied to the UNWRAPPED sub-node `_v` (faithful to
+        `self._py_expr_to_ir(expr.X)` when the option is `Some _v`), and `None`
+        yields `IrONone` (the Python `None` bound). NON-FACADE: the option field
+        is read from `expr` and both arms are real. A shape that slips past the
+        recognizer's gate fails closed to `IrONone`."""
+        if not (isinstance(tern, dict) and tern.get("type") == "IfExpr"):
+            return "IrONone"
+        body = tern.get("body")
+        orelse = tern.get("orelse")
+        if not (isinstance(orelse, dict) and orelse.get("type") == "None"):
+            return "IrONone"
+        if not (isinstance(body, dict) and body.get("type") == "Call"):
+            return "IrONone"
+        fn = body.get("func")
+        if not (isinstance(fn, str)
+                and fn.rsplit(".", 1)[-1] in self._IR_DISPATCHERS):
+            return "IrONone"
+        bargs = body.get("args") or []
+        if len(bargs) != 1:
+            return "IrONone"
+        # `bargs[0]` is the `option emit_ir` field read `expr.X`; match on it raw.
+        optfld_w = self._expr_to_whyml(bargs[0], local_refs or set(),
+                                       invariant_ctx, subst)
+        # `_v` is the match-bound sub-node (a plain immutable `emit_ir`), NOT a
+        # ref-local — keep it OUT of local_refs so it lowers to bare `_v` (no `!`
+        # deref) as the dispatcher argument.
+        disp_call = {"type": "Call", "func": fn,
+                     "args": [{"type": "Var", "name": "_v"}]}
+        disp_w = self._expr_to_whyml(disp_call, local_refs or set(),
+                                     invariant_ctx, subst)
+        return (f"(match {optfld_w} with Some _v -> IrOSome {disp_w} "
+                f"| None -> IrONone end)")
+
+    def _lower_sliceN_optfield(self, fields: Dict[str, Any],
+                               local_refs: Set[str], invariant_ctx: bool,
+                               subst: Optional[Dict[str, str]]) -> str:
+        """optional-field ext (monomorphic-option ADTs): lower the rewritten
+        `_py_expr_slice` construction `{"type":"SliceN","lower":..,"upper":..,
+        "step":..}` (ternaries inlined by `_recognize_slice_builder`) to
+        `(IrSliceN <opt lower> <opt upper> <opt step>)`. Each bound is converted
+        to `iropt_ir` by `_slice_bound_to_iropt_ir`, faithfully carrying the
+        present/absent option (NO dropped field). A missing bound key (never the
+        case for the real `_py_expr_slice`, whose dict always has all three)
+        defaults to `IrONone`."""
+        lo = self._slice_bound_to_iropt_ir(fields.get("lower"), local_refs,
+                                            invariant_ctx, subst)
+        hi = self._slice_bound_to_iropt_ir(fields.get("upper"), local_refs,
+                                            invariant_ctx, subst)
+        st = self._slice_bound_to_iropt_ir(fields.get("step"), local_refs,
+                                           invariant_ctx, subst)
+        return f"(IrSliceN {lo} {hi} {st})"
+
+    def _lower_functionvariant_optfield(self, fields: Dict[str, Any],
+                                        local_refs: Set[str], invariant_ctx: bool,
+                                        subst: Optional[Dict[str, str]]) -> str:
+        """optional-field ext (monomorphic-option ADTs): lower the rewritten
+        TYPE-LESS `_csl_function_variant` construction
+        `{"type":"FunctionVariant","expr":..,("ordering":..)}` to
+        `(IrFunctionVariant <expr> <iropt_str>)`. `expr` is the required
+        `self._csl_to_ir(node.expr)` sub-node (a bare emit_ir). `ordering` (when
+        present) is the `node.ordering` `option string` field, converted to
+        `iropt_str`:
+
+            match node.ordering with Some s -> IrSSome s | None -> IrSNone
+
+        `node.ordering` is a parser `expect_name()` token — NEVER the empty
+        string — so `if node.ordering:` truthiness is exactly presence and this
+        mapping is faithful. An absent `ordering` (no conditional-add) is
+        `IrSNone`. NON-FACADE: every field read from `node`; no dropped optional,
+        no opaque val. A missing `expr` fails closed to `IrOther`."""
+        if "expr" not in fields:
+            return '(IrOther "FunctionVariant")'
+        expr_w = self._expr_to_whyml(fields["expr"], local_refs or set(),
+                                     invariant_ctx, subst)
+        if "ordering" in fields:
+            ord_w = self._expr_to_whyml(fields["ordering"], local_refs or set(),
+                                        invariant_ctx, subst)
+            opt_str = (f"(match {ord_w} with Some _os -> IrSSome _os "
+                       f"| None -> IrSNone end)")
+        else:
+            opt_str = "IrSNone"
+        return f"(IrFunctionVariant {expr_w} {opt_str})"
 
     def _todict_routed_ir(self, recv_dotted: str, key: str) -> Dict[str, Any]:
         """todict-reflection-plan.md R1: the TYPED-field IR that `<recv>.get(key)`
