@@ -542,3 +542,15 @@ Module2_Parser; **full suite is MANDATORY for shared field/type changes**). (2) 
 from the theory growth (statements.py proof went ~5min→~20min; theory-tailoring remains valid HEADROOM if the large
 mirrors approach the budget, but it was NOT this regression's fix). SPIKE-BEFORE-BIG-FIX validated: I nearly built the
 wrong (tailoring) fix; the spike caught the misdiagnosis.
+
+**THEORY-TAILORING attempt — SPEEDUP REAL but implementation PERTURBED CORPUS + broke monomorphize; REVERTED
+(2026-07-16).** Built minimal-emit_ir-for-opaque-use-mirrors (RICH vs OPAQUE per-file, decided from emitted-body
+symbol usage). SPIKE positive: statements.py proved in 830s (~14min, down from >20min) with its minimal theory;
+Module5 unchanged (370s, full theory). BUT the full gate FAILED: (1) corpus byte-diff = 8 files CHANGED — the RICH/
+OPAQUE detection mis-fired on the 15 emit_ir CORPUS fixtures (0746-0881), re-emitting their theory differently (NOT
+corpus-inert — a byte-diff-0 violation); (2) monomorphize.py REGRESSED 35→34 (mis-classified — got minimal theory but
+needs more, OR the detection was wrong for it). REVERTED to the clean pushed 07c85bfc. The IDEA is valid (real
+speedup) but the DETECTION must (a) NEVER fire for corpus programs — gate it strictly to MIRROR files, keeping the 15
+emit_ir corpus fixtures on the FULL theory byte-identical; (b) correctly classify every mirror (monomorphize needs
+rich). Fixing needs careful detection + ~90min full-suite gate cycles for a MODEST benefit (20→14min). DEFERRED —
+not worth the expensive iteration now; the ~90min gate cost is the real constraint but this fix didn't pay for itself.
