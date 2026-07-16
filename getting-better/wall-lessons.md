@@ -490,3 +490,19 @@ not exist; abstracting it into trusted vals is a facade, not a conversion.** LES
 stubs but ADDS trusted `val` PRIMITIVES to the shared theory has moved trust, not reduced it — always grep the
 emitted `.mlw` for NEW `val` decls, not just the `#@ \trusted` mirror count. The variadic trio stays trusted; count
 stays the honest 1095.
+
+**OPTIONAL-FIELD-BUILDER (_csl_forall/exists) — recognizer WORKS but option-in-variant EXPLODES the proof; REVERTED
+(2026-07-16).** Built the mutable-dict-conditional-add recognizer (`d={base}; if getattr(node,f,None) is not None:
+d[f]=v; return d` → `IrForall var body (opt binder_type) (opt domain)`, `_QUANTIFIER_OPT_CTORS` fail-closed to
+Forall/Exists) + faithful construction: the `.mlw` body reads all fields and carries the optionals as REAL `option`
+values (`node.binder_type` threaded through, `match node.domain with Some d -> Some (csl_to_ir d) | None -> None`),
+0 facade val, 0 axiom, corpus byte-diff 15-additive/0-non-emitir, Module2/Module3 prove. BUT `--fun _csl_forall`
+TIMES OUT at 400s (whole-file Module5 fails) — adding `IrForall string emit_ir (option string) (option emit_ir)` to
+the emit_ir variant brings the option-LIBRARY axioms into scope, exploding the emit_ir/irlist `size_*_dec` mutual-
+recursion lemmas — the SAME solver-scaling wall the variadic build hit with polymorphic `list` (solved there by a
+MONOMORPHIC `irlist`). PINNED FIX (deferred): encode the optional fields with MONOMORPHIC option-like ADTs (e.g.
+`iremitopt = IrONone | IrOSome emit_ir`, `irstropt = IrSNone | IrSSome string`) instead of the polymorphic `option`,
+mirroring the irlist solution, to keep the size lemmas out of the option axioms. The RECOGNIZER + faithful
+construction are proven; only the carrier-type encoding needs the monomorphic swap. Unlocks forall/exists/
+function_variant (~3) + any _py_expr optional-field handlers. Worth: modest (~3-5), behind the monomorphic-encoding
+restructuring — deferred, not a clean loop increment.
