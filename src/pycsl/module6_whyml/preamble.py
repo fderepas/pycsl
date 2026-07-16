@@ -3327,12 +3327,18 @@ class PreambleEmissionMixin:
             " IrSlice realizes the NESTED `{\"type\": \"Slice\", \"lower\":…, \"upper\":…,"
             " \"step\": None}` literal inside `_csl_slice`'s `SliceAccess` payload — a"
             " 2-level dict construction, the `\"value\"` sibling already lowering via the"
-            " pre-existing IrVar. `_csl_bool`/`_csl_number` stay \\trusted — `CSLBool."
-            " value`/`CSLNumber.value` are `bool`/`float` record fields that lower to"
-            " `int`/`real` (no-more-int doctrine), mismatching an `IrBool bool`/"
-            " `IrNum int` payload; see the CHECK-CAREFULLY note in the batch plan. *)",
+            " pre-existing IrVar."
+            " cleanup batch (no-more-int doctrine): `_csl_number`/`_csl_bool` NOW convert —"
+            " `CSLNumber.value` is a `float` record field lowering to `real`, carried by the"
+            " NEW `IrNumF real` leaf (distinct from the pre-existing `IrNum int`, which the"
+            " int-literal `{\"type\":\"Number\",\"value\":0}` in `_py_expr_name` keeps);"
+            " `CSLBool.value` is a `bool` record field lowering to `int` (bool-as-int),"
+            " carried by the NEW `IrBoolC int` leaf. The Number/IrNumF split is chosen at"
+            " construction (expressions.py `_lower_irnode_construction`) by the value arg's"
+            " type — a `real`-typed field read → `IrNumF`, an int literal → `IrNum`. Both"
+            " leaves are childless (no size arm; `_ -> 1` catch-all covers them). *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
-            " | IrNum int | IrRaw string | IrOther string"
+            " | IrNum int | IrNumF real | IrBoolC int | IrRaw string | IrOther string"
             " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
             " | IrTuple emit_ir emit_ir"
             " | IrBinOp string emit_ir emit_ir"
@@ -3445,6 +3451,7 @@ class PreambleEmissionMixin:
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
             "    | IrStr _ -> \"String\" | IrNum _ -> \"Number\"",
+            "    | IrNumF _ -> \"Number\" | IrBoolC _ -> \"Bool\"",
             "    | IrRaw _ -> \"RawWhyml\"",
             "    | IrCall _ _ _ -> \"Call\" | IrSub _ _ -> \"Subscript\"",
             "    | IrTuple _ _ -> \"MkTuple\"",

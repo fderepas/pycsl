@@ -111,12 +111,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_var(self, node: CSLVar) -> Dict[str, Any]:
         return {"type": "Var", "name": node.name}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # cleanup batch (no-more-int doctrine): `node` is a CSLNumber record whose `value`
+    # field is `float` → `real`. The single-return construction `{"type": "Number",
+    # "value": node.value}` lowers (expressions.py `_lower_irnode_construction` Number
+    # branch) to `(IrNumF node.value)` — the NEW `IrNumF real` leaf reading node's real
+    # field. Distinct from the int-literal `IrNum` (`_py_expr_name`'s `Number 0`). NO
+    # dropped field, NO opaque val. Verbatim body port of the LIVE `_csl_number`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_number(self, node: CSLNumber) -> int:
-        return {}
+    def _csl_number(self, node: CSLNumber) -> Dict[str, Any]:
+        return {"type": "Number", "value": node.value}
 
     #@ requires True
     #@ ensures True
@@ -124,12 +129,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_string(self, node: CSLStringLiteral) -> Dict[str, Any]:
         return {"type": "String", "value": node.value}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # cleanup batch: `node` is a CSLBool record whose `value` field is `bool` → `int`
+    # (bool-as-int convention). The single-return construction `{"type": "Bool",
+    # "value": node.value}` lowers (expressions.py `_IRNODE_CTORS["Bool"]`) to the NEW
+    # `IrBoolC int` leaf `(IrBoolC node.value)`, reading node's int field. NO dropped
+    # field, NO opaque val. Verbatim body port of the LIVE `_csl_bool`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_bool(self, node: CSLBool) -> int:
-        return {}
+    def _csl_bool(self, node: CSLBool) -> Dict[str, Any]:
+        return {"type": "Bool", "value": node.value}
 
     #@ requires True
     #@ ensures True

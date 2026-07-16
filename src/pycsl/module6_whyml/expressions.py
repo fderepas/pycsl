@@ -858,8 +858,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `_csl_ghost_copy_range`/`_csl_ghost_make`/`_csl_slice`/`_csl_none`/
         # `_csl_result`/`_csl_nothing`) to the matching `emit_ir` ctors added
         # alongside the MAP/SET/LIST family (preamble.py `_emit_exprir_theory`).
-        # `_csl_bool` stays \trusted (bool field lowers to `int`, not `bool`) — no
-        # "Bool" entry here.
+        # cleanup batch: `_csl_bool`'s `{"type":"Bool","value":node.value}` wires to the
+        # new `IrBoolC int` ctor (preamble.py `_emit_exprir_theory`). `CSLBool.value` is a
+        # `bool` record field lowering to `int` (bool-as-int convention), so the payload is
+        # the int field read — `(IrBoolC node.value)`. `_csl_bool` is the ONLY handler that
+        # constructs a "Bool" node, so this reroute is scoped to it.
+        "Bool":     ("IrBoolC", ["value"]),
         "FstExpr":  ("IrFst", ["tuple"]),
         "SndExpr":  ("IrSnd", ["tuple"]),
         "CtorTest":    ("IrCtorTest", ["var", "ctor"]),
@@ -1567,6 +1571,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if kind in getattr(self, "_QUANTIFIER_OPT_CTORS", {}):
             return self._lower_quant_optfield(kind, fields, local_refs,
                                               invariant_ctx, subst)
+        # cleanup batch (no-more-int doctrine): a "Number" node whose `value` payload is
+        # a float-typed field read (`_csl_number`'s `node.value`, `CSLNumber.value:
+        # float` → the WhyML `real` field) lowers to the NEW `IrNumF real` leaf, NOT the
+        # int `IrNum`. `_field_type_of` returns the "float" IR tag for such a field (the
+        # record slot is a `real` in WhyML). An int-literal `value` (`_py_expr_name`'s
+        # `{"type":"Number","value":0}`) is not a float field read → falls through to the
+        # generic `IrNum int` path below. So the split is decided faithfully by the
+        # payload's type, never dropped.
+        if kind == "Number":
+            _vfld = fields.get("value")
+            if isinstance(_vfld, dict) and (
+                    self._field_type_of(_vfld) in ("float", "real")
+                    or self._is_float_expr(_vfld)):
+                _vw = self._expr_to_whyml(_vfld, local_refs, invariant_ctx, subst)
+                return f"(IrNumF {_vw})"
         ctor = self._IRNODE_CTORS.get(kind)
         if ctor is None:
             return f'(IrOther "{kind}")'
