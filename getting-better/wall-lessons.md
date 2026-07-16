@@ -529,3 +529,16 @@ build onward (~26 conversions) to the sealed 12b744cf; (C) accept + mitigate (hi
 of the hard goals). The 77 conversions this session are individually SOUND (each: Module5 proof + non-vacuity + additive
 byte-diff + ledger 3); the violated invariant is the FULL-SUITE re-verification, from the shared theory outgrowing the
 largest mirrors' budget. This is the verification-scaling ceiling of the monolithic-shared-emit_ir-theory design.
+
+**CORRECTION to the "SCALING CEILING" entry above (2026-07-16): the PRIMARY cause was a TYPE-ERROR regression, NOT
+theory size.** A theory-tailoring spike REFUTED the scaling hypothesis (a minimal emit_ir did NOT fix statements.py —
+it still hit the SAME error). Forensics: commit b18932b8 (`_m5_get_option_field_inner`) typed EVERY `Optional[ExprIR]`
+field as `option emit_ir`; consumer mirrors (statements.py, stmt_control_flow.py) read sibling such fields (`stmt.upper`)
+as BARE `emit_ir`, so `is not None` mis-lowered to `option emit_ir <> int` — a hard TYPECHECK failure. FIX (cdb97120):
+a scoped `_M5_OPTION_FIELD_ALLOWLIST` (5 construction fields) restores all others to bare; statements.py typechecks +
+PROVES again, all conversions preserved. TWO real lessons: (1) the per-batch gate gap struck AGAIN (b18932b8 passed
+Module5-proof+byte-diff but broke consumer mirrors the full suite would have caught — this is the 2nd instance after
+Module2_Parser; **full suite is MANDATORY for shared field/type changes**). (2) There IS a SECONDARY soft proof-slowness
+from the theory growth (statements.py proof went ~5min→~20min; theory-tailoring remains valid HEADROOM if the large
+mirrors approach the budget, but it was NOT this regression's fix). SPIKE-BEFORE-BIG-FIX validated: I nearly built the
+wrong (tailoring) fix; the spike caught the misdiagnosis.
