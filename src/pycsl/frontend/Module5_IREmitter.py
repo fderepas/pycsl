@@ -1672,8 +1672,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             nm = None
         return nm if nm in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR") else None
 
+    # option-field-type regression fix (scoped allow-list): b18932b8 typed EVERY
+    # `Optional[str]`/`Optional[ExprIR]` @dataclass field as `option string`/`option
+    # emit_ir`, but the CONSUMER mirrors (module6_whyml/statements.py,
+    # stmt_control_flow.py) read sibling `Optional[ExprIR]` fields (ArraySliceSetStmt.
+    # upper, ReturnStmt.value, RaiseStmt.exc_*, CriticalSectionStmt.*) as BARE
+    # always-present `emit_ir` (`if stmt.upper is not None:`). The over-broad option
+    # typing mis-lowered those consumers to `option emit_ir <> int` — a hard typecheck
+    # error. Only the CONSTRUCTION conversions of this campaign actually build these
+    # fields as option: `_csl_forall`/`_csl_exists` (Forall/Exists binder_type+domain)
+    # and `_csl_function_variant` (FunctionVariant.ordering). This allow-list, keyed on
+    # (class-name, field-name), restricts the option typing to exactly those fields;
+    # every other `Optional[...]` field keeps the sealed always-present `emit_ir`/int
+    # model. (Slice lower/upper/step take the DISTINCT ir_resolve `_OPTIONAL_FIELDS`
+    # "OptExprIR" path, unaffected by this method.)
+    _M5_OPTION_FIELD_ALLOWLIST = frozenset({
+        ("Forall", "binder_type"), ("Forall", "domain"),
+        ("Exists", "binder_type"), ("Exists", "domain"),
+        ("FunctionVariant", "ordering"),
+    })
+
     @staticmethod
-    def _m5_get_option_field_inner(annotation):
+    def _m5_get_option_field_inner(annotation, class_name=None, field_name=None):
         """optional-field builder (monomorphic-option ADTs): if `annotation` is
         `Optional[str]` or `Optional[<IR-node>]` (ExprIR/StmtIR/IRNode/
         ContractExprIR — bare Name or forward-ref string), return the option's
@@ -1682,7 +1702,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         `binder_type`/`domain`). NOT for `Optional[List/Dict/Set/...]` (those keep
         their list/int collapse) nor `Optional[<other class>]` (int) — else None.
         Consulted ONLY at record-field collection; the WhyML mapping is further
-        gated on @mutable_state / IR-node param, so the corpus stays byte-inert."""
+        gated on @mutable_state / IR-node param, so the corpus stays byte-inert.
+
+        Scoped by `_M5_OPTION_FIELD_ALLOWLIST` (option-field-type regression fix):
+        an annotation matching the shape but whose (class_name, field_name) is NOT a
+        construction-conversion field returns None, so it follows the exact sealed
+        always-present path (the consumer mirrors read it as bare `emit_ir`)."""
+        if (class_name is not None
+                and (class_name, field_name)
+                not in PyCSLToJSONEmitter._M5_OPTION_FIELD_ALLOWLIST):
+            return None
         a = annotation
         if type(a).__name__ != "Subscript":
             return None
@@ -2528,7 +2557,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     # the scalar tag ftype ("int" for Optional[str]; "ExprIR" for the
                     # `_irnode_ann_name`-unwrapped Optional[ExprIR]) with the option
                     # tag + inner value_type. The record emitter gates the WhyML.
-                    _optin2 = self._m5_get_option_field_inner(stmt.annotation)
+                    _optin2 = self._m5_get_option_field_inner(
+                        stmt.annotation, node.name, stmt.target.id)
                     if _optin2 is not None:
                         _fld2["type"] = "option"
                         _fld2["value_type"] = _optin2
