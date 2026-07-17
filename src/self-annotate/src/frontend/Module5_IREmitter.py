@@ -152,12 +152,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_result(self, node: CSLResult) -> Dict[str, Any]:
         return {"type": "Result"}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # isinstance-on-CSL-class recognizer (self-tcb-reduction M5): `node` is a CSLOld
+    # record whose `expr` field is retyped `emit_ir` (Module2_Parser.py). The TRUE
+    # branch `isinstance(node.expr, CSLFieldAccess)` lowers to `is_fieldget node.expr`
+    # (CSLFieldAccess is modeled as IrFieldGet — its raw (object:str, field:str) shape),
+    # via the `_CSL_CLASS_TO_IR_KIND` bare-class sibling of the ast.<Node> recognizer;
+    # the `{"type":"OldField","object":node.expr.object,"field":node.expr.field}`
+    # construction reads the two leaf strings via `fgobject_of`/`field_of`
+    # (`_EMIT_IR_HANDLER_ATTR_PROJ["_csl_old"]`) and builds `IrOldField string string`.
+    # The FALSE branch builds `IrOld (csl_to_ir node.expr)`. Verbatim body port of the
+    # LIVE `_csl_old`; NO opaque val, NO dropped field.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_old(self, node: CSLOld) -> int:
-        return {}
+    def _csl_old(self, node: CSLOld) -> Dict[str, Any]:
+        if isinstance(node.expr, CSLFieldAccess):
+            return {"type": "OldField", "object": node.expr.object, "field": node.expr.field}
+        return {"type": "Old", "expr": self._csl_to_ir(node.expr)}
 
     #@ requires True
     #@ ensures True

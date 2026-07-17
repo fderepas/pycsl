@@ -165,7 +165,14 @@ class Result(CSLNode):
 
 @dataclass
 class Old(SingleExprNode):
-    expr: CSLNode
+    # isinstance-on-CSL-class recognizer (self-tcb-reduction M5): retyped `CSLNode` ->
+    # `"ExprIR"`, BinOp.left/right precedent verbatim (pure type-hint) — so a
+    # self-annotation mirror that imports this class lowers `Old.expr` to the `emit_ir`
+    # record field, letting Module5's `_csl_old` read `node.expr` as an emit_ir node
+    # (the `isinstance(node.expr, CSLFieldAccess)` guard + `.object`/`.field`
+    # projections). Corpus-inert: the annotation is only consulted when PyCSL models
+    # this dataclass during self-annotation, never at runtime parse time.
+    expr: "ExprIR"
 
 @dataclass
 class Nothing(CSLNode):

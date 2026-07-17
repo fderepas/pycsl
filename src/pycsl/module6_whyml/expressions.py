@@ -240,6 +240,18 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
     _hname: _schema_swap_projectors(_hcls, ("ter_fst_of", "ter_snd_of", "ter_thd_of"))
     for _hname, _hcls in _EMIT_IR_HANDLER_SUBTYPE_3.items()
 })
+# isinstance-on-CSL-class recognizer (self-tcb-reduction M5, _csl_old): `.object`/
+# `.field` DOTTED reads on the emit_ir node `node.expr` (a CSLFieldAccess modeled as
+# IrFieldGet — established by the enclosing `isinstance(node.expr, CSLFieldAccess)`
+# guard). Both project to LEAF STRINGS via the FieldGet-specific `fgobject_of`/`field_of`
+# — NOT the generic `object_of` (which is IrAttr's emit_ir SUB-node, the wrong type-class
+# for FieldGet, risk-6 asymmetry). Scoped to `_csl_old` via `_current_emitting_func` so
+# every other handler's `.object` (an IrAttr sub-node read) is unperturbed. Hand-specified
+# (not `_schema_swap_projectors`-derived): these are cross-constructor string projectors,
+# not the idx0/idx1 left_of/right_of dataclass-order convention.
+_EMIT_IR_HANDLER_ATTR_PROJ.update({
+    "_csl_old": {"object": "fgobject_of", "field": "field_of"},
+})
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -796,6 +808,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `{"type":"FieldGet", "object":…, "field":…}` constructions to them.
         "Subscript": ("IrSub", ["value", "index"]),
         "FieldGet":  ("IrFieldGet", ["object", "field"]),
+        # isinstance-on-CSL-class recognizer (self-tcb-reduction M5, _csl_old): wire the
+        # two constructions of `_csl_old`. `{"type":"Old","expr":<emit_ir>}` -> `IrOld
+        # emit_ir` (the wrapped sub-node); `{"type":"OldField","object":<str>,"field":
+        # <str>}` -> `IrOldField string string` (the flat `\old(x.f)` node's two leaf
+        # strings, read off the CSLFieldAccess-modeled-as-IrFieldGet node.expr via
+        # `fgobject_of`/`field_of` — see `_EMIT_IR_HANDLER_ATTR_PROJ["_csl_old"]`).
+        "Old":       ("IrOld", ["expr"]),
+        "OldField":  ("IrOldField", ["object", "field"]),
         # post-m1-census.md spec-op batch mini-M1: wire the SPEC-OP family's inline
         # `{"type": K, ...}` constructions (Module5's `_csl_unaryop`/`_csl_at`/
         # `_csl_array_length`/`_csl_in_globals`/`_csl_in_scope`/`_csl_valid`/
@@ -952,6 +972,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _AST_CLASS_TO_IR_KIND = {
         "Name": "Var", "Attribute": "Attribute", "Subscript": "Subscript",
         "Call": "Call", "Tuple": "MkTuple",
+    }
+
+    # isinstance-on-CSL-class recognizer (self-tcb-reduction M5): the SIBLING of
+    # `_AST_CLASS_TO_IR_KIND` for a *CSL* AST class named as a BARE `Var` second arg
+    # (`isinstance(node.expr, CSLFieldAccess)` in `_csl_old`), rather than the dotted
+    # `ast.<Node>` form. Each CSL class maps to the `emit_ir` kind that models it, so
+    # the test lowers to that kind's discriminant `(is_<kind> child)` via
+    # `_KIND_DISCRIMINANT`. `CSLFieldAccess` (raw fields `object:str`, `field:str`) is
+    # modeled as IrFieldGet — the ONLY constructor whose (string, string) shape matches
+    # the raw AST node — so its discriminant is `is_fieldget` and the TRUE-branch
+    # `.object`/`.field` reads project via `fgobject_of`/`field_of`. Single-kind (NOT
+    # the multi-kind Attribute-or-FieldGet of `_csl_field_access`'s OUTPUT lowering:
+    # `_csl_old` reads node.expr's RAW strings, it never calls `_csl_field_access`).
+    _CSL_CLASS_TO_IR_KIND = {
+        "CSLFieldAccess": "FieldGet",
     }
 
     def _emit_ir_receiver_of_type_get(self, ir: Any) -> Optional[Dict[str, Any]]:
@@ -4344,6 +4379,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and _a1["object"].get("name") == "ast"
                 and self._is_emit_ir_expr(_a0)):
             _kind = self._AST_CLASS_TO_IR_KIND.get(_a1.get("attr"))
+            _pred = self._KIND_DISCRIMINANT.get(_kind) if _kind else None
+            if _pred:
+                _av = self._expr_to_whyml(_a0, set(), getattr(self, "_in_spec", False), None)
+                return f"({_pred} {_av})"
+        # isinstance-on-CSL-class recognizer (self-tcb-reduction M5): the SIBLING form
+        # where the second arg is a BARE `Var` naming a *CSL* AST class
+        # (`isinstance(node.expr, CSLFieldAccess)` in `_csl_old`) instead of the dotted
+        # `ast.<Node>`. Same faithful lowering: on every REAL node the child's `type`
+        # tag agrees with `is_<kind>` (the `_CSL_CLASS_TO_IR_KIND` -> `_KIND_DISCRIMINANT`
+        # chain). Double-gated on `_is_emit_ir_expr(arg0)` AND the class-name allow-list,
+        # so a non-emit_ir isinstance (or one against an unlisted class) is byte-inert.
+        if (isinstance(_a0, dict) and isinstance(_a1, dict)
+                and _a1.get("type") == "Var"
+                and _a1.get("name") in self._CSL_CLASS_TO_IR_KIND
+                and self._is_emit_ir_expr(_a0)):
+            _kind = self._CSL_CLASS_TO_IR_KIND.get(_a1.get("name"))
             _pred = self._KIND_DISCRIMINANT.get(_kind) if _kind else None
             if _pred:
                 _av = self._expr_to_whyml(_a0, set(), getattr(self, "_in_spec", False), None)

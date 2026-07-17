@@ -126,7 +126,14 @@ class Result(CSLNode):
 
 @dataclass
 class Old(SingleExprNode):
-    expr: CSLNode
+    # isinstance-on-CSL-class recognizer (self-tcb-reduction M5): retyped `expr` from
+    # `CSLNode` to the forward-ref `"ExprIR"` so Module5's `_field_type_from_annotation_inst`
+    # lowers the record field to `emit_ir` — letting `_csl_old` read `node.expr` as an
+    # emit_ir node (the `isinstance(node.expr, CSLFieldAccess)` guard + `.object`/`.field`
+    # projections). Mirror-only (self-annotate-mirror-check compares signatures by
+    # (kind,name,n_params), not annotations — corpus-inert by construction), the BinOp
+    # left/right precedent verbatim.
+    expr: "ExprIR"
 
 @dataclass
 class Nothing(CSLNode):

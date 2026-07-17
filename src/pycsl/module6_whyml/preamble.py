@@ -3343,6 +3343,7 @@ class PreambleEmissionMixin:
             " | IrTuple emit_ir emit_ir"
             " | IrBinOp string emit_ir emit_ir"
             " | IrFieldGet string string"
+            " | IrOld emit_ir | IrOldField string string"
             " | IrIfExpr emit_ir emit_ir"
             " | IrTer3 emit_ir emit_ir emit_ir"
             " | IrUnaryOp string emit_ir"
@@ -3406,6 +3407,18 @@ class PreambleEmissionMixin:
             " orelse_of mini-M1: IrIfExpr carries the body (then/value) and orelse (else)"
             " sub-nodes — the emitter reflects on an IfExpr ternary's `.get(\"body\")`/"
             " `.get(\"orelse\")`. *)",
+            "  (* isinstance-on-CSL-class recognizer (self-tcb-reduction M5, _csl_old):"
+            " IrOld carries the single wrapped emit_ir sub-node (`_csl_old`'s FALSE"
+            " branch `{\"type\":\"Old\",\"expr\":self._csl_to_ir(node.expr)}`); IrOldField"
+            " carries the two LEAF strings of the flat `\\old(x.f)` node (`_csl_old`'s TRUE"
+            " branch `{\"type\":\"OldField\",\"object\":node.expr.object,\"field\":"
+            " node.expr.field}`, reading the CSLFieldAccess's raw `object`/`field` string"
+            " fields). CSLFieldAccess-as-emit_ir is modeled as IrFieldGet (its raw"
+            " (object:str, field:str) shape matches IrFieldGet string string exactly), so"
+            " `isinstance(node.expr, CSLFieldAccess)` lowers to `is_fieldget node.expr` and"
+            " the two reads project via `fgobject_of`/`field_of`. Neither node is reflected"
+            " back (terminal outputs), so no discriminant/size-decrease law is needed —"
+            " both fall to size's `_ -> 1` catch-all (the IrForallItems-domain precedent). *)",
             "  (* variadic content-law comprehension (FABLE-sanctioned): IrMkTupleN carries"
             " the VARIADIC element list of a tuple node (`_csl_mktuple`/`_py_expr_tuple`'s"
             " `elts` — an `array emit_ir` mapped through the recursive dispatcher). The"
@@ -3532,6 +3545,7 @@ class PreambleEmissionMixin:
             "    | IrExists _ _ _ _ -> \"Exists\"",
             "    | IrSliceN _ _ _ -> \"Slice\"",
             "    | IrFunctionVariant _ _ -> \"FunctionVariant\"",
+            "    | IrOld _ -> \"Old\" | IrOldField _ _ -> \"OldField\"",
             "    | IrOther k -> k",
             "    end",
             "",
