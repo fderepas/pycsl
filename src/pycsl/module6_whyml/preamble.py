@@ -3832,6 +3832,59 @@ class PreambleEmissionMixin:
         self._reserved_exprir_symbols_cache = names
         return names
 
+    # ------------------------------------------------------------------
+    # theory-tailoring — minimal emit_ir for opaque-use mirrors
+    # ------------------------------------------------------------------
+    # The full `_emit_exprir_theory` (~80-ctor sum + kind_of + every
+    # projector/discriminant + the recursive `size` + its size-decrease
+    # LEMMAS + irlist/iropt/irnth/irlen) is emitted MONOLITHICALLY into every
+    # mirror whose class is @mutable_state OR that carries an emit_ir param.
+    # But some mirrors use emit_ir PURELY OPAQUELY — they pass emit_ir
+    # params/locals to `trusted` `val`s and never CONSTRUCT a real IR-node
+    # ctor nor PROJECT one (kind_of/left_of/size/is_*/irnth/...) in any PROVEN
+    # (non-`trusted`) body. Those mirrors only need `type emit_ir` to EXIST (so
+    # opaque params/locals/record-fields typecheck and the `IrOther ""`
+    # absent-sentinel constructs) — not the 80-ctor theory. Emitting the
+    # minimal surface for them keeps every VC's SMT context small, so they
+    # prove ~4x faster. SOUND: each mirror is proven independently against its
+    # OWN emit_ir, and a single-ctor emit_ir is sound for opaque use. This does
+    # NOT change any conversion (count is unchanged) — pure emission
+    # performance headroom.
+    #
+    # The RICH/OPAQUE decision is made by an EXPLICIT class-name ALLOW-LIST
+    # (`_TAILOR_OPAQUE_MIRROR_CLASSES` in Module6_WhyMLTranspiler — currently
+    # just `StatementEmissionMixin`; `ControlFlowStmtMixin` is NOT opaque, it
+    # applies `svalue_of`, so it keeps the FULL theory) gated in
+    # `_transpile` — corpus programs never define these emitter mixin classes,
+    # so the tailoring is corpus-inert BY CONSTRUCTION (every corpus program
+    # keeps the full theory / stays byte-identical). This deliberately does NOT
+    # use a post-hoc emitted-body symbol scan (which mis-classified corpus
+    # files and monomorphize in a prior attempt).
+
+    def _emit_minimal_emit_ir_theory(self) -> List[str]:
+        """The MINIMAL emit_ir surface for an OPAQUE-use mirror: just the bare
+        types so opaque params/locals/record-fields typecheck and `IrOther ""`
+        constructs. Drops the sum's rich ctors, kind_of, every
+        projector/discriminant, `size` + its size-decrease lemmas, and
+        irlist/iropt/irnth/irlen. `ir_num` and `sharedvar` are retained (both
+        trivial, zero proof cost; `sharedvar` backs the separately-emitted
+        `val ir_shared_vars : array sharedvar`). Selected by the class-name
+        allow-list gate in `_transpile`."""
+        return [
+            "  (* theory-tailoring: MINIMAL emit_ir — this mirror uses emit_ir"
+            " PURELY OPAQUELY (no IR-node ctor construction / no projection in"
+            " any proven body), so only the bare type need exist. The full"
+            " ~80-ctor theory (kind_of/size/projectors/lemmas/irlist/iropt) is"
+            " dropped to keep every VC's SMT context small (~4x faster proof);"
+            " sound because each mirror is proven against its OWN emit_ir."
+            " Gated by an explicit class-name allow-list (corpus-inert by"
+            " construction). See preamble.py::_emit_minimal_emit_ir_theory. *)",
+            "  type ir_num = INum int | IReal real",
+            "  type emit_ir = IrOther string",
+            "  type sharedvar = { sv_name: string; sv_mutex: string }",
+            "",
+        ]
+
     def _emit_type_decls(self, type_decls: List[Dict[str, Any]]) -> Tuple[List[str], Set[str]]:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []

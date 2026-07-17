@@ -517,7 +517,32 @@ class Module6_WhyMLTranspiler(
         # in scope first. Gated on a @mutable_state class OR (tier3-p1) an IR-node-typed
         # param/local; corpus has neither → byte-identical.
         if getattr(self, "_mutable_state_classes", None) or getattr(self, "_uses_ir_node_param", False):
-            out += self._emit_exprir_theory()
+            # theory-tailoring: emit the MINIMAL emit_ir surface for opaque-use
+            # emitter mirrors, gated by an EXPLICIT class-name ALLOW-LIST
+            # (`_TAILOR_OPAQUE_MIRROR_CLASSES`). These mirrors pass emit_ir
+            # purely opaquely (no ctor construction / no projection in any
+            # proven body), so only the bare `type emit_ir` need exist — the
+            # ~80-ctor theory (kind_of/size/projectors/lemmas/irlist/iropt) is
+            # dropped, keeping every VC's SMT context small (~4x faster proof).
+            # Corpus programs NEVER define these emitter mixin classes, so the
+            # tailoring is corpus-inert BY CONSTRUCTION (full theory kept /
+            # byte-identical there). The allow-list is matched against the
+            # file's @mutable_state class names (the reliable AST-level
+            # registration from Module5_IREmitter.visit_ClassDef) — NOT a
+            # post-hoc emitted-body symbol scan (which mis-classified corpus +
+            # monomorphize in a prior attempt). See preamble.py.
+            # Only `StatementEmissionMixin` (statements.py) is TRULY opaque:
+            # its proven bodies never construct/project a rich emit_ir symbol,
+            # so the minimal surface typechecks + proves (verified). NOTE:
+            # `ControlFlowStmtMixin` (stmt_control_flow.py) is NOT opaque — its
+            # bodies apply `svalue_of` (a rich projector), so it must keep the
+            # FULL theory (a minimal surface fails with `unbound ... svalue_of`);
+            # it is deliberately excluded from the allow-list.
+            _TAILOR_OPAQUE_MIRROR_CLASSES = {"StatementEmissionMixin"}
+            if set(self.ir.get("mutable_state_class_names", [])) & _TAILOR_OPAQUE_MIRROR_CLASSES:
+                out += self._emit_minimal_emit_ir_theory()
+            else:
+                out += self._emit_exprir_theory()
             # Return_emit_ir infra: an emit_ir-returning function's early-return catch
             # (`_wrap_body_with_return_catch`) needs this exception — it must be declared
             # AFTER the `emit_ir` ADT (just emitted above) since it carries an `emit_ir`
