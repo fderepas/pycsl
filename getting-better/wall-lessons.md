@@ -554,3 +554,17 @@ speedup) but the DETECTION must (a) NEVER fire for corpus programs — gate it s
 emit_ir corpus fixtures on the FULL theory byte-identical; (b) correctly classify every mirror (monomorphize needs
 rich). Fixing needs careful detection + ~90min full-suite gate cycles for a MODEST benefit (20→14min). DEFERRED —
 not worth the expensive iteration now; the ~90min gate cost is the real constraint but this fix didn't pay for itself.
+
+**THEORY-TAILORING CORRECTED + LANDED (2026-07-17, commit 4d696ed3) — class-name allow-list, corpus-inert.** The
+reverted auto-detection is replaced by an EXPLICIT allow-list `_TAILOR_OPAQUE_MIRROR_CLASSES = {"StatementEmissionMixin"}`
+(matched against `mutable_state_class_names`): a file gets the MINIMAL emit_ir (`type emit_ir = IrOther string` +
+ir_num/sharedvar, no ctors/projectors/size/lemmas/irlist/iropt) iff it defines an allow-listed class; else the FULL
+theory, byte-identical. CORPUS-INERT BY CONSTRUCTION (corpus programs never define the mirror mixin classes) — corpus
+byte-diff = 0 (independently re-verified HEAD-vs-parent; vs the auto-scan attempt's 8-file perturbation). statements.py
+proves 20min→14min. Full suite stays 35/35 (only statements.py's .mlw changes; the other 34 byte-identical → prove
+unchanged). count 1077, ledger 3. IMPORTANT: `ControlFlowStmtMixin` is NOT opaque (its proven bodies use `svalue_of`
+→ minimal fails `unbound svalue_of`) — the auto-scan had silently kept it rich, masking this; the allow-list + an
+OPACITY CHECK (does the minimal surface typecheck+prove?) is the correct gate. TO EXTEND: add a mirror class to the
+allow-list ONLY after confirming its proven bodies construct/project NO emit_ir AND it proves with minimal. Modest
+payoff now (only statements.py qualifies — the other slow mirrors genuinely need rich), but the machinery + headroom
+are banked, and it's the correct corpus-inert form.
