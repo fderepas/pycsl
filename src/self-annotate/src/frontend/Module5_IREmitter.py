@@ -908,12 +908,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         obj_ir = self._py_expr_to_ir(expr.value)
         return {"type": "Attribute", "object": obj_ir, "attr": expr.attr}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr_dict increment (self-tcb-reduction M5, C-bucket): the DUAL child-list
+    # handler. A bespoke Module6 lowering emits it FAITHFULLY: `keys=[disp(k) if k else
+    # None for k in expr.keys]` -> the CONCRETE `dict_keys_prog (dict_keys_ast expr)`
+    # (None-guarded keys map, `if is_none k then IrNone else disp k`); `values=[disp(v)
+    # for v in expr.values]` -> `dict_values_prog` (plain map). Returns the new gated
+    # `IrDictLit <keys irlist> <values irlist>` emit_ir ctor. isinstance_op = 0. Verbatim
+    # body port of the LIVE `_py_expr_dict`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_dict(self, expr: ast.Dict) -> int:
-        return {}
+        keys = [self._py_expr_to_ir(k) if k else {"type": "None"} for k in expr.keys]
+        values = [self._py_expr_to_ir(v) for v in expr.values]
+        return {"type": "DictLit", "keys": keys, "values": values}
 
     # variadic content-law comprehension (FABLE-sanctioned), batch 2: `expr` is a pure_ast
     # Set node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from the
@@ -931,26 +939,39 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_set(self, expr: ast.Set) -> Dict[str, Any]:
         return {"type": "SetLit", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr_listcomp increment (self-tcb-reduction M5, C-bucket): FIXED-CHILD. A
+    # bespoke lowering emits `IrListComp (py_expr_to_ir expr.elt) (listcomp_gens_ir expr)`
+    # — the elt via `_py_expr_to_ir`, the generators via the trusted
+    # `_comprehension_generators_to_ir` (stays \trusted, retyped emit_ir). New gated
+    # IrListComp ctor. isinstance_op = 0. Verbatim body port of the LIVE `_py_expr_listcomp`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_listcomp(self, expr: ast.ListComp) -> int:
-        return {}
+        return {"type": "ListComp", "elt": self._py_expr_to_ir(expr.elt),
+                "generators": self._comprehension_generators_to_ir(expr.generators)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr_setcomp increment (self-tcb-reduction M5, C-bucket): sibling of listcomp
+    # -> the new gated IrSetComp ctor. isinstance_op = 0. Verbatim body port of the LIVE
+    # `_py_expr_setcomp`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_setcomp(self, expr: ast.SetComp) -> int:
-        return {}
+        return {"type": "SetComp", "elt": self._py_expr_to_ir(expr.elt),
+                "generators": self._comprehension_generators_to_ir(expr.generators)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr_dictcomp increment (self-tcb-reduction M5, C-bucket): FIXED-CHILD (key +
+    # value + generators) -> the new gated IrDictComp ctor. key/value via `_py_expr_to_ir`,
+    # generators via the trusted `_comprehension_generators_to_ir`. isinstance_op = 0.
+    # Verbatim body port of the LIVE `_py_expr_dictcomp`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_dictcomp(self, expr: ast.DictComp) -> int:
-        return {}
+        return {"type": "DictComp", "key": self._py_expr_to_ir(expr.key),
+                "value": self._py_expr_to_ir(expr.value),
+                "generators": self._comprehension_generators_to_ir(expr.generators)}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

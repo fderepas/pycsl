@@ -2038,6 +2038,78 @@ class FunctionEmissionMixin:
         ]
         return L
 
+    def _expr_bespoke_body(self, func: Dict[str, Any], param_ty: str,
+                           body_expr: str) -> List[str]:
+        """Shared scaffold for a RETURN-value `_py_expr_*` bespoke: a `let <name> (self)
+        (expr: <param_ty>) : emit_ir = <body_expr>` block. Corpus-inert (each caller keys
+        on a named mirror method under `_uses_stmt_ir`)."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        return [
+            f"  let {name} (self: {cls}) (expr: {param_ty}) : emit_ir",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            f"    {body_expr}",
+        ]
+
+    def _is_py_expr_dict(self, func: Dict[str, Any]) -> bool:
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method" and nm.endswith("_py_expr_dict")
+                and self._uses_stmt_ir())
+
+    def _emit_py_expr_dict_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """_py_expr_dict increment: `keys=[disp(k) if k else None for k in expr.keys];
+        values=[disp(v) for v in expr.values]; return {DictLit, keys, values}`. The DUAL
+        child-list -> the CONCRETE `dict_keys_prog` (None-guarded keys map) +
+        `dict_values_prog` (plain values map); the new gated IrDictLit ctor carries both
+        irlists. isinstance_op = 0. Corpus-inert."""
+        return self._expr_bespoke_body(
+            func, "py_dict_node",
+            "(IrDictLit (dict_keys_prog (dict_keys_ast expr))"
+            " (dict_values_prog (dict_values_ast expr)))")
+
+    def _is_py_expr_listcomp(self, func: Dict[str, Any]) -> bool:
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method" and nm.endswith("_py_expr_listcomp")
+                and self._uses_stmt_ir())
+
+    def _emit_py_expr_listcomp_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """_py_expr_listcomp increment: `{ListComp, disp(expr.elt),
+        self._comprehension_generators_to_ir(expr.generators)}`. FIXED-CHILD: elt via
+        `_py_expr_to_ir`, generators via the trusted `listcomp_gens_ir` (like
+        `_match_pattern_to_ir`). The new gated IrListComp ctor. isinstance_op = 0."""
+        return self._expr_bespoke_body(
+            func, "py_listcomp_node",
+            "(IrListComp (self__py_expr_to_ir_1 (listcomp_elt_ast expr))"
+            " (listcomp_gens_ir expr))")
+
+    def _is_py_expr_setcomp(self, func: Dict[str, Any]) -> bool:
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method" and nm.endswith("_py_expr_setcomp")
+                and self._uses_stmt_ir())
+
+    def _emit_py_expr_setcomp_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """_py_expr_setcomp increment: sibling of listcomp -> the gated IrSetComp ctor."""
+        return self._expr_bespoke_body(
+            func, "py_setcomp_node",
+            "(IrSetComp (self__py_expr_to_ir_1 (setcomp_elt_ast expr))"
+            " (setcomp_gens_ir expr))")
+
+    def _is_py_expr_dictcomp(self, func: Dict[str, Any]) -> bool:
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method" and nm.endswith("_py_expr_dictcomp")
+                and self._uses_stmt_ir())
+
+    def _emit_py_expr_dictcomp_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """_py_expr_dictcomp increment: `{DictComp, disp(expr.key), disp(expr.value),
+        generators}` -> the gated IrDictComp ctor (key + value + generators). isinstance_op
+        = 0."""
+        return self._expr_bespoke_body(
+            func, "py_dictcomp_node",
+            "(IrDictComp (self__py_expr_to_ir_1 (dictcomp_key_ast expr))"
+            " (self__py_expr_to_ir_1 (dictcomp_value_ast expr)) (dictcomp_gens_ir expr))")
+
     def _is_emit_ghost_assign(self, func: Dict[str, Any]) -> bool:
         """SGhostArraySet/SGhostAssign increment (self-tcb-reduction M5, C-bucket): True
         iff `func` is the mirror's `_emit_ghost_assign` handler and the stmt_ir theory is
@@ -2232,6 +2304,16 @@ class FunctionEmissionMixin:
         # handler (param-name compaction + body -> the gated IrLambda ctor). Corpus-inert.
         if self._is_py_expr_lambda(func):
             return self._emit_py_expr_lambda_bespoke(func)
+        # dict/comprehension increments (gated-emit_ir-ctor): IrDictLit (dual compaction) /
+        # IrListComp / IrSetComp / IrDictComp (fixed-child + trusted generators). Corpus-inert.
+        if self._is_py_expr_dict(func):
+            return self._emit_py_expr_dict_bespoke(func)
+        if self._is_py_expr_listcomp(func):
+            return self._emit_py_expr_listcomp_bespoke(func)
+        if self._is_py_expr_setcomp(func):
+            return self._emit_py_expr_setcomp_bespoke(func)
+        if self._is_py_expr_dictcomp(func):
+            return self._emit_py_expr_dictcomp_bespoke(func)
         # _py_expr_compare increment (self-tcb-reduction M5, C-bucket): the ast-LIST-HEAD
         # expr handler (`expr.ops[0]`/`expr.comparators[0]`) -> IrBinOp. Corpus-inert.
         if self._is_py_expr_compare(func):

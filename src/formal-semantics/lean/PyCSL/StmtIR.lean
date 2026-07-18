@@ -721,6 +721,29 @@ theorem lparams_empty : lparams [] = [] := rfl
 theorem lparams_evil_wrong_name :
     lparams [.LVar "x", .LVar "y"] ≠ [.LVar "x", .LVar "z"] := by decide
 
+-- ===================================================================== --
+-- 5e. The CONCRETE dict DUAL compaction — WhyML `dict_keys_of` (None-guard) --
+--     and `dict_values_of`. Modelled concretely so None/Some is provable. --
+-- ===================================================================== --
+
+inductive DNode where | DVar (id : String) | DNone
+deriving DecidableEq
+def dIsNone : DNode → Bool | .DNone => true | _ => false
+def ddisp : DNode → DNode := id
+def dkeys : List DNode → List DNode
+  | [] => []
+  | k :: t => (if dIsNone k then .DNone else ddisp k) :: dkeys t
+def dvals : List DNode → List DNode
+  | [] => []
+  | v :: t => ddisp v :: dvals t
+
+theorem dkeys_observe :
+    dkeys [.DVar "a", .DNone] = [.DVar "a", .DNone] := rfl
+theorem dvals_observe :
+    dvals [.DVar "1", .DVar "2"] = [.DVar "1", .DVar "2"] := rfl
+theorem dkeys_none_preserved : dkeys [.DNone] = [.DNone] := rfl
+theorem dkeys_evil_none_neq_var : dkeys [.DNone] ≠ [.DVar "a"] := by decide
+
 end StmtIRCert
 
 -- ===================================================================== --
@@ -840,3 +863,7 @@ end StmtIRCert
 #print axioms StmtIRCert.lparams_observe
 #print axioms StmtIRCert.lparams_empty
 #print axioms StmtIRCert.lparams_evil_wrong_name
+#print axioms StmtIRCert.dkeys_observe
+#print axioms StmtIRCert.dvals_observe
+#print axioms StmtIRCert.dkeys_none_preserved
+#print axioms StmtIRCert.dkeys_evil_none_neq_var

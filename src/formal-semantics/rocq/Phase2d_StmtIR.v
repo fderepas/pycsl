@@ -972,6 +972,56 @@ Proof. simpl; discriminate. Qed.
 End LambdaParams.
 
 (* ===================================================================== *)
+(* 5e. The CONCRETE dict DUAL compaction — the WhyML twins of               *)
+(*     `dict_keys_of` (`[disp(k) if k else None for k in keys]`, None-guard) *)
+(*     and `dict_values_of` (`[disp(v) for v in values]`).  Modelled        *)
+(*     CONCRETELY (a tiny `dnode` with a None marker) so the None/Some key   *)
+(*     distinction is provable NON-vacuously.                               *)
+(* ===================================================================== *)
+
+Section DictLit.
+
+(* A minimal concrete key/value node: a var (present), or the None-key marker. *)
+Inductive dnode : Type := DVar (id : string) | DNone.
+Definition is_none (e : dnode) : bool := match e with DNone => true | _ => false end.
+(* the (here identity) dispatcher. *)
+Definition ddisp (e : dnode) : dnode := e.
+
+(* dict_keys_of : map with the None-guard (`if is_none k then DNone else disp k`). *)
+Fixpoint dkeys (l : list dnode) : list dnode :=
+  match l with
+  | nil => nil
+  | k :: t => (if is_none k then DNone else ddisp k) :: dkeys t
+  end.
+(* dict_values_of : plain map. *)
+Fixpoint dvals (l : list dnode) : list dnode :=
+  match l with
+  | nil => nil
+  | v :: t => ddisp v :: dvals t
+  end.
+
+(* OBSERVABILITY (non-vacuity): a `{a: 1, **spread}` mix (`[DVar "a"; DNone]`) keeps
+   the present key and marks the spread-key None — the None/Some distinction survives. *)
+Theorem dkeys_observe :
+  dkeys (DVar "a" :: DNone :: nil) = DVar "a" :: DNone :: nil.
+Proof. reflexivity. Qed.
+Theorem dvals_observe :
+  dvals (DVar "1" :: DVar "2" :: nil) = DVar "1" :: DVar "2" :: nil.
+Proof. reflexivity. Qed.
+
+(* The None-key is PRESERVED as DNone, NOT dropped/collapsed — the guard is real. *)
+Theorem dkeys_none_preserved : dkeys (DNone :: nil) = DNone :: nil.
+Proof. reflexivity. Qed.
+
+(* EVIL TWIN: the None-key is NOT a present var — refutable, so the None/Some
+   distinction is genuinely pinned (non-vacuous). *)
+Theorem dkeys_evil_none_neq_var :
+  dkeys (DNone :: nil) <> DVar "a" :: nil.
+Proof. simpl; discriminate. Qed.
+
+End DictLit.
+
+(* ===================================================================== *)
 (* 6. VERDICT — assumption audit.  Every result must be `Closed under the  *)
 (*    global context` (NO axiom): the 3-axiom trust ledger is intact.      *)
 (* ===================================================================== *)
@@ -1061,6 +1111,10 @@ Print Assumptions sghostassign_gtype_observable.
 Print Assumptions lparams_observe.
 Print Assumptions lparams_empty.
 Print Assumptions lparams_evil_wrong_name.
+Print Assumptions dkeys_observe.
+Print Assumptions dvals_observe.
+Print Assumptions dkeys_none_preserved.
+Print Assumptions dkeys_evil_none_neq_var.
 Print Assumptions size_slist_lt_swhile.
 Print Assumptions size_body_lt_sif.
 Print Assumptions size_orelse_lt_sif.

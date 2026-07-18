@@ -3408,7 +3408,12 @@ class PreambleEmissionMixin:
             # builds it) — every OTHER emit_ir-theory file (incl. corpus files that emit
             # `type emit_ir`, e.g. 0746) is byte-identical (empty string off-gate). size's
             # `| _ -> 1` catch-all covers it (flat for the measure).
-            + (" | IrLambda irlist emit_ir" if self._uses_stmt_ir() else "")
+            + (" | IrLambda irlist emit_ir"
+               " | IrDictLit irlist irlist"
+               " | IrListComp emit_ir emit_ir"
+               " | IrSetComp emit_ir emit_ir"
+               " | IrDictComp emit_ir emit_ir emit_ir"
+               if self._uses_stmt_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -3565,9 +3570,14 @@ class PreambleEmissionMixin:
             "    | IrSliceN _ _ _ -> \"Slice\"",
             "    | IrFunctionVariant _ _ -> \"FunctionVariant\"",
             "    | IrOld _ -> \"Old\" | IrOldField _ _ -> \"OldField\"",
-            # _py_expr_lambda increment: the IrLambda tag (gated WITH the ctor above so
-            # kind_of stays exhaustive in both configurations — corpus byte-inert).
-            *(["    | IrLambda _ _ -> \"Lambda\""] if self._uses_stmt_ir() else []),
+            # _py_expr_lambda/dict/comprehension increments: the gated tags (gated WITH the
+            # ctors above so kind_of stays exhaustive in both configurations — byte-inert).
+            *(["    | IrLambda _ _ -> \"Lambda\""
+               " | IrDictLit _ _ -> \"DictLit\""
+               " | IrListComp _ _ -> \"ListComp\""
+               " | IrSetComp _ _ -> \"SetComp\""
+               " | IrDictComp _ _ _ -> \"DictComp\""]
+              if self._uses_stmt_ir() else []),
             "    | IrOther k -> k",
             "    end",
             "",
@@ -4320,6 +4330,51 @@ class PreambleEmissionMixin:
                 "    end",
                 "  val function lambda_param_names_prog (l: irlist) : irlist",
                 "    ensures { result = lambda_param_names_of l }",
+                "  (* _py_expr_dict increment (self-tcb-reduction M5, C-bucket): the DUAL"
+                " child-list `keys=[disp(k) if k else None for k in expr.keys]; values="
+                " [disp(v) for v in expr.values]`. `is_none` is the `k else None` truthiness"
+                " test (a None key = IrNone, for `{**spread}`); `dict_keys_of` is the"
+                " CONCRETE keys map WITH the None-guard (`if is_none k then IrNone else disp"
+                " k`), `dict_values_of` the plain values map — NOT abstract length-only"
+                " laws. `dict_dispatch` models the trusted `_py_expr_to_ir`. The IrDictLit"
+                " ctor carries the two compacted irlists. *)",
+                "  let function is_none (e: emit_ir) : bool =",
+                "    match e with IrNone -> true | _ -> false end",
+                "  val function dict_dispatch (e: emit_ir) : emit_ir",
+                "  function dict_keys_of (l: irlist) : irlist =",
+                "    match l with",
+                "    | ILNil -> ILNil",
+                "    | ILCons k t -> ILCons (if is_none k then IrNone else dict_dispatch k)"
+                " (dict_keys_of t)",
+                "    end",
+                "  function dict_values_of (l: irlist) : irlist =",
+                "    match l with",
+                "    | ILNil -> ILNil",
+                "    | ILCons v t -> ILCons (dict_dispatch v) (dict_values_of t)",
+                "    end",
+                "  val function dict_keys_prog (l: irlist) : irlist",
+                "    ensures { result = dict_keys_of l }",
+                "  val function dict_values_prog (l: irlist) : irlist",
+                "    ensures { result = dict_values_of l }",
+                "  type py_dict_node",
+                "  val function dict_keys_ast (s: py_dict_node) : irlist",
+                "  val function dict_values_ast (s: py_dict_node) : irlist",
+                "  (* _py_expr_listcomp/setcomp/dictcomp increment (self-tcb-reduction M5,"
+                " C-bucket): the comprehension nodes — FIXED-CHILD (elt/key/value via disp)"
+                " + the generators via the trusted `_comprehension_generators_to_ir` (an"
+                " opaque emit_ir reader, like `_match_pattern_to_ir`). No child-list"
+                " iteration. IrListComp/IrSetComp carry elt + generators; IrDictComp carries"
+                " key + value + generators. *)",
+                "  type py_listcomp_node",
+                "  val function listcomp_elt_ast (s: py_listcomp_node) : emit_ir",
+                "  val function listcomp_gens_ir (s: py_listcomp_node) : emit_ir",
+                "  type py_setcomp_node",
+                "  val function setcomp_elt_ast (s: py_setcomp_node) : emit_ir",
+                "  val function setcomp_gens_ir (s: py_setcomp_node) : emit_ir",
+                "  type py_dictcomp_node",
+                "  val function dictcomp_key_ast (s: py_dictcomp_node) : emit_ir",
+                "  val function dictcomp_value_ast (s: py_dictcomp_node) : emit_ir",
+                "  val function dictcomp_gens_ir (s: py_dictcomp_node) : emit_ir",
                 "  let rec function boolop_fold (op: string) (acc: emit_ir) (rest: irlist)"
                 " : emit_ir",
                 "    variant { rest }",

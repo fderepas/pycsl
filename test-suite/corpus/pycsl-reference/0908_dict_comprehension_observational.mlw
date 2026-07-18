@@ -1,0 +1,100 @@
+module WallDictComprehensionObservation
+  use int.Int
+  use seq.Seq
+
+  (* self-tcb-reduction M5, C-bucket: OBSERVATIONAL non-vacuity for `_py_expr_dict`
+     (IrDictLit + the DUAL None-guarded compaction) and the comprehension handlers
+     (IrListComp/IrSetComp/IrDictComp — FIXED-CHILD elt/key/value + trusted generators).
+     The emit_ir subset, the gated ctors and the CONCRETE dict compactions below are
+     VERBATIM the PyCSL tool's emitted output (module6_whyml/preamble.py::_emit_exprir_theory
+     gated on _uses_stmt_ir; grep-confirmed). `emit_dict`/`emit_listcomp` reproduce the tool's
+     `_py_expr_dict`/`_py_expr_listcomp` bodies. `disp` models the trusted _py_expr_to_ir;
+     `gens` the trusted _comprehension_generators_to_ir. *)
+
+  type emit_ir = IrVar string | IrOther string | IrNone
+               | IrDictLit irlist irlist | IrListComp emit_ir emit_ir
+  with irlist = ILNil | ILCons emit_ir irlist
+  let function kind_of (e: emit_ir) : string =
+    match e with
+    | IrVar _ -> "Var" | IrOther _ -> "Other" | IrNone -> "None"
+    | IrDictLit _ _ -> "DictLit" | IrListComp _ _ -> "ListComp"
+    end
+  let function is_none (e: emit_ir) : bool = match e with IrNone -> true | _ -> false end
+  let function dict_keys_field (e: emit_ir) : irlist =
+    match e with IrDictLit k _ -> k | _ -> ILNil end
+  let function dict_values_field (e: emit_ir) : irlist =
+    match e with IrDictLit _ v -> v | _ -> ILNil end
+  let function listcomp_elt_field (e: emit_ir) : emit_ir =
+    match e with IrListComp el _ -> el | _ -> IrOther "" end
+  let function listcomp_gens_field (e: emit_ir) : emit_ir =
+    match e with IrListComp _ g -> g | _ -> IrOther "" end
+  let rec function irnth (i: int) (l: irlist) : emit_ir
+    variant { l }
+  = match l with ILNil -> IrOther "" | ILCons h t -> if i <= 0 then h else irnth (i-1) t end
+  let rec function irlen (l: irlist) : int
+    ensures { result >= 0 } variant { l }
+  = match l with ILNil -> 0 | ILCons _ t -> 1 + irlen t end
+
+  val function disp (e: emit_ir) : emit_ir            (* trusted _py_expr_to_ir *)
+  val function gens (e: emit_ir) : emit_ir            (* trusted _comprehension_generators_to_ir *)
+
+  (* ---- VERBATIM tool-emitted CONCRETE dict DUAL compaction (None-guarded keys + plain
+     values). NOT length-only laws. ---- *)
+  function dict_keys_of (l: irlist) : irlist =
+    match l with
+    | ILNil -> ILNil
+    | ILCons k t -> ILCons (if is_none k then IrNone else disp k) (dict_keys_of t)
+    end
+  function dict_values_of (l: irlist) : irlist =
+    match l with
+    | ILNil -> ILNil
+    | ILCons v t -> ILCons (disp v) (dict_values_of t)
+    end
+  val function dict_keys_prog (l: irlist) : irlist ensures { result = dict_keys_of l }
+  val function dict_values_prog (l: irlist) : irlist ensures { result = dict_values_of l }
+
+  (* ---- VERBATIM tool-emitted `_py_expr_dict` / `_py_expr_listcomp` bodies. ---- *)
+  let function emit_dict (keys values: irlist) : emit_ir =
+    IrDictLit (dict_keys_prog keys) (dict_values_prog values)
+  let function emit_listcomp (elt g: emit_ir) : emit_ir =
+    IrListComp (disp elt) g
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — dict {a:1, **spread(None-key)} + a listcomp.*)
+  (* ==================================================================== *)
+
+  (* `{a: 1, **spread}` -> keys [disp a; IrNone], values [disp 1; disp spread]. *)
+  let driver_dict () : unit =
+    let keys = ILCons (IrVar "a") (ILCons IrNone ILNil) in    (* 2nd key is a None spread-key *)
+    let values = ILCons (IrVar "1") (ILCons (IrVar "s") ILNil) in
+    let node = emit_dict keys values in
+    assert { kind_of node = "DictLit" };
+    assert { irlen (dict_keys_field node) = 2 };
+    assert { kind_of (irnth 0 (dict_keys_field node)) = kind_of (disp (IrVar "a")) };
+    assert { irnth 1 (dict_keys_field node) = IrNone };       (* the None-key is PRESERVED *)
+    assert { irnth 0 (dict_values_field node) = disp (IrVar "1") }
+
+  (* `[elt for ... in ...]` -> IrListComp (disp elt) (gens ...). *)
+  let driver_listcomp (elt g: emit_ir) : unit =
+    let node = emit_listcomp elt g in
+    assert { kind_of node = "ListComp" };
+    assert { listcomp_elt_field node = disp elt };
+    assert { listcomp_gens_field node = g }
+
+  (* EVIL TWIN 1 (dict None-key dropped): the 2nd key is IrNone, NOT a present var —
+     must stay UNPROVEN (else the None/Some key distinction is vacuous). *)
+  let driver_evil_dict_none () : unit =
+    let keys = ILCons (IrVar "a") (ILCons IrNone ILNil) in
+    let node = emit_dict keys ILNil in
+    assert { irnth 1 (dict_keys_field node) = disp (IrVar "a") }
+
+  (* EVIL TWIN 2 (dict wrong count): a 2-key dict does NOT have 3 keys — UNPROVEN. *)
+  let driver_evil_dict_count () : unit =
+    let keys = ILCons (IrVar "a") (ILCons IrNone ILNil) in
+    let node = emit_dict keys ILNil in
+    assert { irlen (dict_keys_field node) = 3 }
+
+  (* EVIL TWIN 3 (listcomp wrong tag): a listcomp is NOT a "DictLit" — UNPROVEN. *)
+  let driver_evil_listcomp_tag (elt g: emit_ir) : unit =
+    assert { kind_of (emit_listcomp elt g) = "DictLit" }
+end
