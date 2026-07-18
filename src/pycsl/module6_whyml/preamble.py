@@ -4014,6 +4014,7 @@ class PreambleEmissionMixin:
                 " | SFieldAssign string string emit_ir"
                 " | SArraySliceSet emit_ir iropt_ir iropt_ir emit_ir"
                 " | STupleUnpack strlist emit_ir"
+                " | SCriticalSection string stmt_list emit_ir emit_ir"
                 "  with stmt_list = SLNil | SLCons stmt_ir stmt_list"
                 "  with handler_list = HLNil | HLCons except_handler handler_list"
                 "  with except_handler ="
@@ -4038,7 +4039,8 @@ class PreambleEmissionMixin:
                 " | SDelSubscript _ _ -> \"DelSubscript\""
                 " | SFieldAssign _ _ _ -> \"FieldAssign\""
                 " | SArraySliceSet _ _ _ _ -> \"ArraySliceSet\""
-                " | STupleUnpack _ _ -> \"TupleUnpack\"",
+                " | STupleUnpack _ _ -> \"TupleUnpack\""
+                " | SCriticalSection _ _ _ _ -> \"CriticalSection\"",
                 "    end",
                 "",
                 "  (* The MUTUAL well-founded size measure over stmt_ir/stmt_list — the"
@@ -4057,6 +4059,7 @@ class PreambleEmissionMixin:
                 "    | STry b hs oe fb -> 1 + size_slist b + size_hlist hs"
                 " + size_slist oe + size_slist fb",
                 "    | SMatch _ cs -> 1 + size_mclist cs",
+                "    | SCriticalSection _ b _ _ -> 1 + size_slist b",
                 "    | _ -> 1",
                 "    end",
                 "  with function size_slist (l: stmt_list) : int",
@@ -4222,6 +4225,22 @@ class PreambleEmissionMixin:
                 " AST reader (the typed analogue of iter_get). Gated on `_uses_stmt_ir`. *)",
                 "  type py_delete_node",
                 "  val function del_targets_ast (s: py_delete_node) : seq emit_ir",
+                "",
+                "  (* SCriticalSection increment (self-tcb-reduction M5, C-bucket): the typed"
+                " AST reader for `_py_stmt_with`. `py_with_node` models `ast.With`;"
+                " `with_body_ast` reads `stmt.body` (`array int`, the dispatcher param);"
+                " `csl_mutex_ast` models the WEAVE-INJECTED `getattr(stmt,"
+                " 'csl_critical_mutex', None) or getattr(stmt, 'csl_acquires', None)` mutex"
+                " as an opaque `iropt_str` (the mutex NAME, `IrSNone` for a plain `with:`) —"
+                " the weaver's `#@ critical`/`#@ acquires` attribute is runtime data on the"
+                " With node, so the reader is the honest opaque model (NOT the generic"
+                " getattr int-erasure). `mutex_invariant_ir` is the trusted"
+                " `_get_mutex_invariant_ir(mutex)` (an emit_ir val, like the pattern"
+                " dispatcher). Gated on `_uses_stmt_ir`. *)",
+                "  type py_with_node",
+                "  val function with_body_ast (s: py_with_node) : array int",
+                "  val function csl_mutex_ast (s: py_with_node) : iropt_str",
+                "  val function mutex_invariant_ir (mutex: string) : emit_ir",
                 "",
                 "  (* SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction"
                 " M5, C-bucket): the typed AST reader for `_py_stmt_assign`. `py_assign_node`"

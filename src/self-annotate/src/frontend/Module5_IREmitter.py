@@ -1348,21 +1348,38 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "finalbody": self._py_stmts_to_ir(stmt.finalbody)
         })
 
-    # SUB-BODY recursion (C-bucket): SKIPPED this increment (not a clean whole-body
-    # port). `_py_stmt_with`'s live body is NOT a plain sub-body append: (1) the mutex
-    # is a `getattr(stmt, 'csl_critical_mutex', None) or getattr(stmt, 'csl_acquires',
-    # None)` getattr-or chain (the pure_ast AST-attribute boundary); (2) the else branch
-    # is `ir_stmts.extend(body_ir)` — a SEQ-CONCAT of the whole sub-body onto the ref, a
-    # NEW mutation shape distinct from the single-element snoc convention; (3) the mutex
-    # arm appends a 5-field CriticalSection node (mutex string, body sublist,
-    # assume/prove_invariant emit_ir from `_get_mutex_invariant_ir`) — a new
-    # SCriticalSection ctor. A later increment (extend-append lowering + SCriticalSection).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SCriticalSection increment (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
+    # caller-visible mutable `ref (seq stmt_ir)` param. The mutex/extend handler. A bespoke
+    # Module6 lowering (functions.py `_emit_py_stmt_with_bespoke`, keyed on the method name
+    # under `_uses_stmt_ir`) emits it FAITHFULLY (the generic lowering int-erases the
+    # weave-injected mutex attrs to 0 — making the CriticalSection branch dead — and no-ops
+    # the extend):
+    #   - `mutex = getattr(stmt, 'csl_critical_mutex', None) or getattr(stmt,
+    #     'csl_acquires', None)` reads WEAVE-INJECTED attrs (not in pure_ast) -> the opaque
+    #     `csl_mutex_ast stmt : iropt_str` reader (the honest model of the runtime mutex
+    #     attribute); `if mutex:` -> the is-Some test. isinstance_op = 0.
+    #   - `body_ir = self._py_stmts_to_ir(stmt.body)` -> the dispatcher's `seq stmt_ir`.
+    #   - mutex present (`IrSSome m`) -> `SCriticalSection m (seq_to_sl body_ir)
+    #     (mutex_invariant_ir m) (mutex_invariant_ir m)` snoc'd onto ir_stmts (the new
+    #     SCriticalSection ctor; `_get_mutex_invariant_ir` stays \trusted).
+    #   - no mutex (`IrSNone`) -> `ir_stmts := !ir_stmts ++ body_ir`, the seq-CONCAT extend
+    #     (`ir_stmts.extend(body_ir)`, a REAL caller-visible mutation under `writes {
+    #     ir_stmts }`, NOT the generic no-op). Verbatim body port of the LIVE `_py_stmt_with`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_with(self, stmt: ast.With, ir_stmts: List[int]) -> None:
-        pass
+        mutex = (getattr(stmt, 'csl_critical_mutex', None) or
+                 getattr(stmt, 'csl_acquires', None))
+        body_ir = self._py_stmts_to_ir(stmt.body)
+        if mutex:
+            inv = self._get_mutex_invariant_ir(mutex)
+            ir_stmts.append({
+                "stmt": "CriticalSection", "mutex": mutex, "body": body_ir,
+                "assume_invariant": inv, "prove_invariant": inv,
+            })
+        else:
+            ir_stmts.extend(body_ir)
 
     # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
     # caller-visible mutable `ref (seq stmt_ir)` param (the None-returning + `#@ assigns

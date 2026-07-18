@@ -94,6 +94,8 @@ inductive StmtIr (ε : Type) where
   | SFieldAssign (base : String) (fld : String) (v : ε)
   | SArraySliceSet (arr : ε) (lo : IrOpt ε) (up : IrOpt ε) (v : ε)
   | STupleUnpack (tgts : StrL) (v : ε)
+  -- SCriticalSection increment: mutex name + guarded body (COMPOUND) + invariants.
+  | SCriticalSection (mtx : String) (b : StmtList ε) (ai : ε) (pi : ε)
 inductive StmtList (ε : Type) where
   | SLNil
   | SLCons (h : StmtIr ε) (t : StmtList ε)
@@ -135,6 +137,7 @@ def stmtKindOf : StmtIr ε → String
   | .SFieldAssign _ _ _ => "FieldAssign"
   | .SArraySliceSet _ _ _ _ => "ArraySliceSet"
   | .STupleUnpack _ _ => "TupleUnpack"
+  | .SCriticalSection _ _ _ _ => "CriticalSection"
 
 /- The MUTUAL well-founded size measure — WhyML `size_stmt`/`size_slist`. -/
 mutual
@@ -158,6 +161,7 @@ def sizeStmt : StmtIr ε → Nat
   | .SFieldAssign _ _ _ => 1
   | .SArraySliceSet _ _ _ _ => 1
   | .STupleUnpack _ _ => 1
+  | .SCriticalSection _ b _ _ => 1 + sizeSList b
 def sizeSList : StmtList ε → Nat
   | .SLNil => 0
   | .SLCons h t => sizeStmt h + sizeSList t
@@ -217,6 +221,7 @@ inductive PyStmt (ε : Type) where
   | PFieldAssign (base : String) (fld : String) (v : ε)
   | PArraySliceSet (arr : ε) (lo : IrOpt ε) (up : IrOpt ε) (v : ε)
   | PTupleUnpack (tgts : StrL) (v : ε)
+  | PCriticalSection (mtx : String) (b : StmtList ε) (ai : ε) (pi : ε)
 
 /-- The dict->ctor map (`{"stmt":"Pass"} ↦ SPass`, ..., `{"stmt":"While"} ↦
     SWhile ...`). -/
@@ -240,6 +245,7 @@ def abs : PyStmt ε → StmtIr ε
   | .PFieldAssign b f v => .SFieldAssign b f v
   | .PArraySliceSet a lo up v => .SArraySliceSet a lo up v
   | .PTupleUnpack t v => .STupleUnpack t v
+  | .PCriticalSection m b ai pi => .SCriticalSection m b ai pi
 
 /-- The Python-side tag string of a recognized node. -/
 def pyKindOf : PyStmt ε → String
@@ -262,6 +268,7 @@ def pyKindOf : PyStmt ε → String
   | .PFieldAssign _ _ _ => "FieldAssign"
   | .PArraySliceSet _ _ _ _ => "ArraySliceSet"
   | .PTupleUnpack _ _ => "TupleUnpack"
+  | .PCriticalSection _ _ _ _ => "CriticalSection"
 
 -- ===================================================================== --
 -- 3. (b) `abs` is total + injective + surjective.                        --
@@ -293,6 +300,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | SFieldAssign b f v => exact ⟨.PFieldAssign b f v, rfl⟩
   | SArraySliceSet a lo up v => exact ⟨.PArraySliceSet a lo up v, rfl⟩
   | STupleUnpack t v => exact ⟨.PTupleUnpack t v, rfl⟩
+  | SCriticalSection m b ai pi => exact ⟨.PCriticalSection m b ai pi, rfl⟩
 
 -- ===================================================================== --
 -- 4. (c) `stmtKindOf` EXACT per ctor + AGREES through `abs`.             --
@@ -575,6 +583,33 @@ theorem stupleunpack_empty_neq_nonempty (s : String) (r : StrL) (v : ε) :
   intro he; cases he
 
 -- ===================================================================== --
+-- SCriticalSection observability (non-vacuity). COMPOUND — sub-body.      --
+-- ===================================================================== --
+
+theorem stmtKindOf_critical (m : String) (b : StmtList ε) (ai pi : ε) :
+    stmtKindOf (StmtIr.SCriticalSection m b ai pi) = "CriticalSection" := rfl
+theorem tag_critical_neq_try (m : String) (b : StmtList ε) (ai pi : ε)
+    (bb : StmtList ε) (hs : HandlerList ε) (oe fb : StmtList ε) :
+    stmtKindOf (StmtIr.SCriticalSection m b ai pi) ≠ stmtKindOf (StmtIr.STry bb hs oe fb) := by
+  simp only [stmtKindOf]; decide
+theorem scritical_mutex_observable (m n : String) (b : StmtList ε) (ai pi : ε) (h : m ≠ n) :
+    (StmtIr.SCriticalSection m b ai pi) ≠ StmtIr.SCriticalSection n b ai pi := by
+  intro he; cases he; exact h rfl
+theorem scritical_assume_observable (m : String) (b : StmtList ε) (a c pi : ε) (h : a ≠ c) :
+    (StmtIr.SCriticalSection m b a pi) ≠ StmtIr.SCriticalSection m b c pi := by
+  intro he; cases he; exact h rfl
+theorem scritical_body_empty_neq_nonempty (m : String) (ai pi : ε)
+    (h : StmtIr ε) (r : StmtList ε) :
+    (StmtIr.SCriticalSection m .SLNil ai pi) ≠ StmtIr.SCriticalSection m (.SLCons h r) ai pi := by
+  intro he; cases he
+theorem scritical_size_grows_with_body (m : String) (ai pi : ε)
+    (h : StmtIr ε) (r : StmtList ε) :
+    sizeStmt (StmtIr.SCriticalSection m .SLNil ai pi)
+      < sizeStmt (StmtIr.SCriticalSection m (.SLCons h r) ai pi) := by
+  have := sizeStmt_pos h
+  simp [sizeStmt, sizeSList]; omega
+
+-- ===================================================================== --
 -- 5b. The CONCRETE Tuple-exc_type compaction — WhyML var_names_of /       --
 --     join_pipe / tuple_exc_type. Modelled concretely so observability    --
 --     is provable NON-vacuously (a length-only law would be vacuous).     --
@@ -705,3 +740,9 @@ end StmtIRCert
 #print axioms StmtIRCert.sarrayslice_upper_none_neq_some
 #print axioms StmtIRCert.stupleunpack_targets_observable
 #print axioms StmtIRCert.stupleunpack_empty_neq_nonempty
+#print axioms StmtIRCert.stmtKindOf_critical
+#print axioms StmtIRCert.tag_critical_neq_try
+#print axioms StmtIRCert.scritical_mutex_observable
+#print axioms StmtIRCert.scritical_assume_observable
+#print axioms StmtIRCert.scritical_body_empty_neq_nonempty
+#print axioms StmtIRCert.scritical_size_grows_with_body

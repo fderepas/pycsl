@@ -135,6 +135,10 @@ Inductive stmt_ir : Type :=
   | SFieldAssign (base : string) (fld : string) (v : emit)
   | SArraySliceSet (arr : emit) (lo : iropt) (up : iropt) (v : emit)
   | STupleUnpack (tgts : strl) (v : emit)
+  (* SCriticalSection increment (_py_stmt_with mutex branch): the mutex NAME (string),
+     the guarded BODY (stmt_list — COMPOUND, mutually recursive), the assume/prove
+     invariants (foreign emit). *)
+  | SCriticalSection (mtx : string) (b : stmt_list) (ai : emit) (pi : emit)
 with stmt_list : Type :=
   | SLNil
   | SLCons (h : stmt_ir) (t : stmt_list)
@@ -183,6 +187,7 @@ Definition stmt_kind_of (s : stmt_ir) : string :=
   | SFieldAssign _ _ _ => "FieldAssign"
   | SArraySliceSet _ _ _ _ => "ArraySliceSet"
   | STupleUnpack _ _ => "TupleUnpack"
+  | SCriticalSection _ _ _ _ => "CriticalSection"
   end.
 
 (* ===================================================================== *)
@@ -197,6 +202,7 @@ Fixpoint size_stmt (s : stmt_ir) : nat :=
   | STry b hs oe fb => 1 + size_slist b + size_hlist hs
                         + size_slist oe + size_slist fb
   | SMatch _ cs => 1 + size_mclist cs
+  | SCriticalSection _ b _ _ => 1 + size_slist b
   | _           => 1
   end
 with size_slist (l : stmt_list) : nat :=
@@ -340,7 +346,8 @@ Inductive pystmt : Type :=
   | PDelSubscript (arr : emit) (idx : emit)
   | PFieldAssign (base : string) (fld : string) (v : emit)
   | PArraySliceSet (arr : emit) (lo : iropt) (up : iropt) (v : emit)
-  | PTupleUnpack (tgts : strl) (v : emit).
+  | PTupleUnpack (tgts : strl) (v : emit)
+  | PCriticalSection (mtx : string) (b : stmt_list) (ai : emit) (pi : emit).
 
 (* The dict->ctor map (`{"stmt":"Pass"} |-> SPass`, ..., `{"stmt":"While",...}
    |-> SWhile ...`). *)
@@ -365,6 +372,7 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PFieldAssign b f v => SFieldAssign b f v
   | PArraySliceSet a lo up v => SArraySliceSet a lo up v
   | PTupleUnpack t v => STupleUnpack t v
+  | PCriticalSection m b ai pi => SCriticalSection m b ai pi
   end.
 
 (* The Python-side tag string of a recognized node (the `"stmt"` value). *)
@@ -389,6 +397,7 @@ Definition py_kind_of (s : pystmt) : string :=
   | PFieldAssign _ _ _ => "FieldAssign"
   | PArraySliceSet _ _ _ _ => "ArraySliceSet"
   | PTupleUnpack _ _ => "TupleUnpack"
+  | PCriticalSection _ _ _ _ => "CriticalSection"
   end.
 
 (* ===================================================================== *)
@@ -420,6 +429,7 @@ Proof.
   - exists (PFieldAssign base fld v); reflexivity.
   - exists (PArraySliceSet arr lo up v); reflexivity.
   - exists (PTupleUnpack tgts v); reflexivity.
+  - exists (PCriticalSection mtx b ai pi); reflexivity.
 Qed.
 
 (* ===================================================================== *)
@@ -736,6 +746,33 @@ Theorem stupleunpack_empty_neq_nonempty : forall s r v,
   STupleUnpack TgtNil v <> STupleUnpack (TgtCons s r) v.
 Proof. intros; discriminate. Qed.
 
+(* ===================================================================== *)
+(* SCriticalSection observability (non-vacuity).  COMPOUND — sub-body.     *)
+(* ===================================================================== *)
+
+Theorem stmt_kind_of_critical : forall m b ai pi,
+  stmt_kind_of (SCriticalSection m b ai pi) = "CriticalSection".
+Proof. reflexivity. Qed.
+Theorem tag_critical_neq_try : forall m b ai pi bb hs oe fb,
+  stmt_kind_of (SCriticalSection m b ai pi) <> stmt_kind_of (STry bb hs oe fb).
+Proof. intros; simpl; discriminate. Qed.
+(* The mutex name, the assume/prove invariants, and the sub-body are each observable. *)
+Theorem scritical_mutex_observable : forall m n b ai pi,
+  m <> n -> SCriticalSection m b ai pi <> SCriticalSection n b ai pi.
+Proof. intros m n b ai pi H C; inversion C; contradiction. Qed.
+Theorem scritical_assume_observable : forall m b a c pi,
+  a <> c -> SCriticalSection m b a pi <> SCriticalSection m b c pi.
+Proof. intros m b a c pi H C; inversion C; contradiction. Qed.
+(* An EMPTY guarded body and a non-empty one are DISTINCT (the sub-body is observed,
+   not collapsed); their sizes differ. *)
+Theorem scritical_body_empty_neq_nonempty : forall m ai pi h r,
+  SCriticalSection m SLNil ai pi <> SCriticalSection m (SLCons h r) ai pi.
+Proof. intros; discriminate. Qed.
+Theorem scritical_size_grows_with_body : forall m ai pi h r,
+  size_stmt (SCriticalSection m SLNil ai pi)
+    < size_stmt (SCriticalSection m (SLCons h r) ai pi).
+Proof. intros; simpl; pose proof (size_stmt_pos h); lia. Qed.
+
 End StmtIR.
 
 (* ===================================================================== *)
@@ -877,6 +914,12 @@ Print Assumptions sarrayslice_upper_none_neq_some.
 Print Assumptions sarrayslice_array_observable.
 Print Assumptions stupleunpack_targets_observable.
 Print Assumptions stupleunpack_empty_neq_nonempty.
+Print Assumptions stmt_kind_of_critical.
+Print Assumptions tag_critical_neq_try.
+Print Assumptions scritical_mutex_observable.
+Print Assumptions scritical_assume_observable.
+Print Assumptions scritical_body_empty_neq_nonempty.
+Print Assumptions scritical_size_grows_with_body.
 Print Assumptions size_slist_lt_swhile.
 Print Assumptions size_body_lt_sif.
 Print Assumptions size_orelse_lt_sif.

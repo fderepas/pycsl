@@ -1,0 +1,127 @@
+module WallStmtWithObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+
+  (* stmt-list-append-mutation wall (C-bucket), SCriticalSection increment: OBSERVATIONAL
+     non-vacuity for the `_py_stmt_with` conversion — the mutex CriticalSection branch AND
+     the no-mutex extend (seq-CONCAT) branch. The stmt_ir/SCriticalSection ADT, stmt_list,
+     sl_len, seq_to_sl and the bridge lemma below are VERBATIM the PyCSL tool's emitted
+     output (module6_whyml/preamble.py::_emit_exprir_theory gated on _uses_stmt_ir; grep-
+     confirmed). `emit_with` reproduces VERBATIM the tool's emitted `_py_stmt_with` body
+     (functions.py::_emit_py_stmt_with_bespoke): the opaque `csl_mutex_ast` weave-attr
+     folded into an iropt_str, the mutex-present -> SCriticalSection snoc, the no-mutex ->
+     `ir_stmts := !ir_stmts ++ body_ir` seq-CONCAT (real caller-visible mutation). `disp`
+     models the trusted _py_stmts_to_ir; `mutex_invariant_ir` the trusted
+     _get_mutex_invariant_ir. *)
+
+  type emit_ir
+  val constant emit0 : emit_ir
+  type iropt_str = IrSNone | IrSSome string
+  val function mutex_invariant_ir (mutex: string) : emit_ir  (* trusted _get_mutex_invariant_ir *)
+
+  (* ---- VERBATIM tool-emitted stmt_ir with the SCriticalSection ctor. ---- *)
+  type stmt_ir = SPass | SBreak | SExpr emit_ir
+    | SCriticalSection string stmt_list emit_ir emit_ir
+  with stmt_list = SLNil | SLCons stmt_ir stmt_list
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SExpr _ -> "Expr"
+    | SCriticalSection _ _ _ _ -> "CriticalSection"
+    end
+
+  let rec function sl_len (l: stmt_list) : int
+    ensures { result >= 0 } variant { l }
+  = match l with SLNil -> 0 | SLCons _ t -> 1 + sl_len t end
+  let rec function seq_to_sl_from (s: seq stmt_ir) (i: int) : stmt_list
+    requires { 0 <= i <= Seq.length s } variant { Seq.length s - i }
+  = if i >= Seq.length s then SLNil
+    else SLCons (Seq.get s i) (seq_to_sl_from s (i + 1))
+  let function seq_to_sl (s: seq stmt_ir) : stmt_list = seq_to_sl_from s 0
+  let rec lemma seq_to_sl_from_len (s: seq stmt_ir) (i: int)
+    requires { 0 <= i <= Seq.length s }
+    ensures  { sl_len (seq_to_sl_from s i) = Seq.length s - i }
+    variant  { Seq.length s - i }
+  = if i >= Seq.length s then () else seq_to_sl_from_len s (i + 1)
+  lemma seq_to_sl_len : forall s: seq stmt_ir. sl_len (seq_to_sl s) = Seq.length s
+
+  (* read-back projectors (concrete defaults — no `any`). *)
+  let function crit_mutex_of (s: stmt_ir) : string =
+    match s with SCriticalSection m _ _ _ -> m | _ -> "" end
+  let function crit_body_of (s: stmt_ir) : stmt_list =
+    match s with SCriticalSection _ b _ _ -> b | _ -> SLNil end
+  let function crit_assume_of (s: stmt_ir) : emit_ir =
+    match s with SCriticalSection _ _ ai _ -> ai | _ -> emit0 end
+
+  (* ---- VERBATIM tool-emitted `_py_stmt_with` body: the mutex/extend two-branch
+     dispatch, snoc (CriticalSection) / seq-concat (extend) onto the ref itself. ---- *)
+  let emit_with (mutex: iropt_str) (body: seq stmt_ir) (ir_stmts: ref (seq stmt_ir)) : unit
+    ensures { !ir_stmts =
+      (match mutex with
+       | IrSSome m -> Seq.snoc (old !ir_stmts)
+           (SCriticalSection m (seq_to_sl body) (mutex_invariant_ir m) (mutex_invariant_ir m))
+       | IrSNone -> (old !ir_stmts) ++ body
+       end) }
+    writes { ir_stmts }
+  = match mutex with
+    | IrSSome m ->
+        ir_stmts := Seq.snoc !ir_stmts
+          (SCriticalSection m (seq_to_sl body) (mutex_invariant_ir m) (mutex_invariant_ir m))
+    | IrSNone ->
+        ir_stmts := !ir_stmts ++ body
+    end
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — the two branches.                         *)
+  (* ==================================================================== *)
+
+  (* `with lock:` (mutex present) -> SCriticalSection with mutex name + 2-stmt body. *)
+  let driver_mutex () : unit =
+    let body = Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SBreak in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_with (IrSSome "lock") body ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    let node = Seq.get !ir_stmts 0 in
+    assert { stmt_kind_of node = "CriticalSection" };
+    assert { crit_mutex_of node = "lock" };
+    assert { sl_len (crit_body_of node) = 2 };
+    assert { crit_assume_of node = mutex_invariant_ir "lock" }
+
+  (* plain `with:` (no mutex) -> the body is CONCATENATED onto ir_stmts (extend);
+     ir_stmts grows by len(body) = 3, NOT wrapped in a single node. *)
+  let driver_extend () : unit =
+    let body = Seq.snoc (Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SBreak) SPass in
+    let ir_stmts = ref (Seq.snoc (Seq.empty: seq stmt_ir) SBreak) in   (* one pre-existing node *)
+    emit_with IrSNone body ir_stmts;
+    assert { Seq.length !ir_stmts = 4 };            (* 1 pre-existing + 3 concatenated *)
+    assert { Seq.get !ir_stmts 0 = SBreak };        (* the pre-existing node is preserved *)
+    assert { Seq.get !ir_stmts 1 = SPass }          (* the first concatenated body stmt *)
+
+  (* EVIL TWIN 1 (wrong tag): the mutex node is NOT "Expr" — UNPROVEN. *)
+  let driver_evil_tag () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_with (IrSSome "lock") (Seq.empty: seq stmt_ir) ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Expr" }
+
+  (* EVIL TWIN 2 (wrong mutex): the mutex name is NOT "other" — UNPROVEN. *)
+  let driver_evil_mutex () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_with (IrSSome "lock") (Seq.empty: seq stmt_ir) ir_stmts;
+    assert { crit_mutex_of (Seq.get !ir_stmts 0) = "other" }
+
+  (* EVIL TWIN 3 (extend wrong count): a no-mutex extend of a 3-stmt body onto a
+     1-node seq does NOT yield length 5 — UNPROVEN. *)
+  let driver_evil_extend () : unit =
+    let body = Seq.snoc (Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SBreak) SPass in
+    let ir_stmts = ref (Seq.snoc (Seq.empty: seq stmt_ir) SBreak) in
+    emit_with IrSNone body ir_stmts;
+    assert { Seq.length !ir_stmts = 5 }
+
+  (* EVIL TWIN 4 (extend not a single node): a no-mutex `with:` does NOT append one
+     CriticalSection node (length 2) — the body is CONCATENATED, not wrapped. UNPROVEN. *)
+  let driver_evil_wrap () : unit =
+    let body = Seq.snoc (Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SBreak) SPass in
+    let ir_stmts = ref (Seq.snoc (Seq.empty: seq stmt_ir) SBreak) in
+    emit_with IrSNone body ir_stmts;
+    assert { Seq.length !ir_stmts = 2 }
+end

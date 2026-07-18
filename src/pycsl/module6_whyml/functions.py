@@ -2004,9 +2004,71 @@ class FunctionEmissionMixin:
         ]
         return L
 
+    def _is_py_stmt_with(self, func: Dict[str, Any]) -> bool:
+        """SCriticalSection increment (self-tcb-reduction M5, C-bucket): True iff `func`
+        is the mirror's `_py_stmt_with` handler and the stmt_ir theory is emitted.
+        Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method"
+                and nm.endswith("_py_stmt_with")
+                and self._uses_stmt_ir())
+
+    def _emit_py_stmt_with_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """SCriticalSection increment (self-tcb-reduction M5, C-bucket): the FAITHFUL
+        whole-body lowering of `_py_stmt_with`:
+
+            mutex = getattr(stmt, 'csl_critical_mutex', None) or getattr(stmt,
+                    'csl_acquires', None)
+            body_ir = self._py_stmts_to_ir(stmt.body)
+            if mutex:
+                inv = self._get_mutex_invariant_ir(mutex)
+                ir_stmts.append({"stmt":"CriticalSection","mutex":mutex,"body":body_ir,
+                                 "assume_invariant":inv,"prove_invariant":inv})
+            else:
+                ir_stmts.extend(body_ir)
+
+        GATE 0 (the weave-attr crux): `getattr(stmt, 'csl_critical_mutex', None) or
+        getattr(stmt, 'csl_acquires', None)` reads WEAVE-INJECTED attrs the generic
+        lowering int-erases to 0 (making the CriticalSection branch dead + the extend a
+        no-op). The bespoke folds the getattr-or into the opaque `csl_mutex_ast stmt :
+        iropt_str` reader (the honest model of the runtime mutex attribute) — the
+        `if mutex:` truthiness is the is-Some test, isinstance_op = 0. The two branches:
+          - mutex present (`IrSSome m`) -> `SCriticalSection m (seq_to_sl body_ir)
+            (mutex_invariant_ir m) (mutex_invariant_ir m)` snoc'd onto ir_stmts.
+          - no mutex (`IrSNone`) -> `ir_stmts := !ir_stmts ++ body_ir`, the seq-CONCAT
+            extend (`ir_stmts.extend(body_ir)`, a REAL caller-visible mutation under
+            `writes { ir_stmts }`, NOT the generic no-op).
+        `_get_mutex_invariant_ir` stays \trusted. Corpus-inert."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        disp_s = "self__py_stmts_to_ir_1"
+        L = [
+            f"  let {name} (self: {cls}) (stmt: py_with_node)"
+            f" (ir_stmts: ref (seq stmt_ir)) : unit",
+            "    requires { true }",
+            "    ensures  { true }",
+            "    writes { ir_stmts }",
+            "  =",
+            f"    let body_ir = {disp_s} (with_body_ast stmt) in",
+            "    match csl_mutex_ast stmt with",
+            "    | IrSSome m ->",
+            "        ir_stmts := Seq.snoc !ir_stmts",
+            "          (SCriticalSection m (seq_to_sl body_ir)"
+            " (mutex_invariant_ir m) (mutex_invariant_ir m))",
+            "    | IrSNone ->",
+            "        ir_stmts := !ir_stmts ++ body_ir",
+            "    end",
+        ]
+        return L
+
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
+        # SCriticalSection increment (self-tcb-reduction M5, C-bucket): the `_py_stmt_with`
+        # mutex/extend handler — bespoke (the generic lowering int-erases the weave-injected
+        # mutex attrs + no-ops the extend). Corpus-inert.
+        if self._is_py_stmt_with(func):
+            return self._emit_py_stmt_with_bespoke(func)
         # SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction M5,
         # C-bucket): the `_py_stmt_assign` 5-branch handler — bespoke (the generic
         # lowering int-erases the target dispatch, the symtab membership, and the Tuple
