@@ -1100,14 +1100,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _py_expr_subscript(self, expr: ast.Subscript) -> Dict[str, Any]:
         value = self._py_expr_to_ir(expr.value)
-        slice_node = expr.slice
-        if isinstance(slice_node, ast.Index):
-            slice_node = slice_node.value
-        if isinstance(slice_node, ast.Slice):
-            slice_ir = self._py_expr_to_ir(slice_node)
+        slice_ir = self._py_expr_to_ir(expr.slice)
+        if slice_ir.get("type") == "Slice":
             return {"type": "SliceAccess", "value": value, "slice": slice_ir}
-        index = self._py_expr_to_ir(slice_node)
-        return {"type": "Subscript", "value": value, "index": index}
+        return {"type": "Subscript", "value": value, "index": slice_ir}
 
     def _py_expr_list(self, expr: ast.List) -> Dict[str, Any]:
         return {"type": "ArrayLit", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}

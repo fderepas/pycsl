@@ -286,6 +286,18 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # emit_ir sentinel (statements.py `_collect_emit_ir_result_locals`, the
     # emit_ir-returning-call recognizer). Returns real IrFieldGet / IrAttr ctors.
     "Attribute": [("value", "ExprIR"), ("attr", "string"), ("ctx", "int")],
+    # output-side slice-discrimination (self-tcb-reduction M5): Subscript's 3 fields
+    # (`value`, `slice`, `ctx`) are total (no `_OPTIONAL_FIELDS` entry). `value` and
+    # `slice` tagged "ExprIR" (both `self._py_expr_to_ir(...)`-lowered sub-nodes), `ctx`
+    # "int" (the expr_context leaf, opaque). Feeds `_py_expr_subscript`, whose input-side
+    # `isinstance(node.slice, ast.Slice)` test was rewritten to the SOUND output-side form
+    # `self._py_expr_to_ir(expr.slice).get("type") == "Slice"`: the `slice_ir` local is
+    # recognized as an emit_ir node (statements.py `_collect_emit_ir_result_locals`, the
+    # emit_ir-returning-call recognizer types it "ExprIR"), and `.get("type") == "Slice"`
+    # lowers (expressions.py `_emit_ir_kind_discriminant` + `_KIND_DISCRIMINANT["Slice"]`)
+    # to the constructor discriminant `(is_slice slice_ir)`. Returns distinct real ctors —
+    # `IrSliceAccess` (`_IRNODE_CTORS["SliceAccess"]`) vs `IrSub` (`_IRNODE_CTORS["Subscript"]`).
+    "Subscript": [("value", "ExprIR"), ("slice", "ExprIR"), ("ctx", "int")],
     # isinstance-on-emit_ir batch (self-tcb-reduction M5): NamedExpr's 2 fields
     # (`target`, `value`) are total (no `_OPTIONAL_FIELDS` entry), both tagged
     # "ExprIR". Feeds `_py_expr_walrus`, whose

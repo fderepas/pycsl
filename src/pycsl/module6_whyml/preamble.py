@@ -3599,6 +3599,19 @@ class PreambleEmissionMixin:
             "  let function is_fieldget (e: emit_ir) : bool =",
             "    match e with IrFieldGet _ _ -> true | _ -> false end",
             "",
+            "  (* output-side slice-discrimination (self-tcb-reduction M5, _py_expr_subscript):"
+            " the Slice-kind constructor DISCRIMINANT. `_py_expr_subscript` rewrites its"
+            " input-side `isinstance(node.slice, ast.Slice)` test to the SOUND output-side"
+            " `self._py_expr_to_ir(node.slice).get(\"type\") == \"Slice\"` — discriminating on"
+            " the LOWERED slice's kind (expressions.py::_KIND_DISCRIMINANT `\"Slice\" ->"
+            " is_slice`). Matches BOTH slice ctors so it agrees with `kind_of e = \"Slice\"`"
+            " on every REAL node (the is_binop faithfulness law): IrSliceN (the 3-bound node"
+            " `_py_expr_slice` actually emits) AND the spec-side IrSlice, while EXCLUDING the"
+            " IrOther catch-all. No consumer recurses a slice sub-node here (a boolean test"
+            " only), so — like the other EXPR discriminants — no size arm/lemma is needed. *)",
+            "  let function is_slice (e: emit_ir) : bool =",
+            "    match e with IrSlice _ _ -> true | IrSliceN _ _ _ -> true | _ -> false end",
+            "",
             "  (* ghost-handler-wall Q2: the IrTer3 constructor DISCRIMINANT, following"
             " is_binop/is_ifexpr verbatim — a match-based bool that EXCLUDES the IrOther"
             " catch-all, which is what makes the size-decrease laws (below) hold. *)",

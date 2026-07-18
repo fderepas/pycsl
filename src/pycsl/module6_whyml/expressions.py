@@ -959,6 +959,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "Var": "is_var", "Number": "is_num", "String": "is_str",
         "Subscript": "is_sub", "Attribute": "is_attribute", "Call": "is_call",
         "MkTuple": "is_tuple", "FieldGet": "is_fieldget",
+        # output-side slice-discrimination (self-tcb-reduction M5, _py_expr_subscript):
+        # `<emit_ir>.get("type") == "Slice"` lowers to `(is_slice <recv>)` — the SOUND
+        # output-side rewrite of `_py_expr_subscript`'s input-side `isinstance(node.slice,
+        # ast.Slice)`. `is_slice` (preamble.py) matches both slice ctors, agreeing with
+        # `kind_of e = "Slice"` on every real node (the is_binop faithfulness law).
+        "Slice": "is_slice",
     }
 
     # isinstance-on-emit_ir batch (self-tcb-reduction M5): map a Python AST node
@@ -967,11 +973,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # handlers' input-side type test on an already-lowered ExprIR child) then lowers
     # to the emit_ir ADT constructor discriminant `(is_<kind> child)` via
     # `_KIND_DISCRIMINANT` (see `_handle_isinstance`). Only the entries whose target
-    # kind has a discriminant are useful; `Slice` is intentionally absent until an
-    # `is_slice` discriminant lands.
+    # kind has a discriminant are useful. `Slice` maps to the `is_slice` discriminant
+    # (landed with the output-side slice-discrimination batch); the `_py_expr_to_ir`
+    # lowering of an `ast.Slice` is `IrSliceN` (kind "Slice"), so an isinstance-on-emit_ir
+    # test `isinstance(<lowered>, ast.Slice)` would lower to `(is_slice <lowered>)`.
     _AST_CLASS_TO_IR_KIND = {
         "Name": "Var", "Attribute": "Attribute", "Subscript": "Subscript",
-        "Call": "Call", "Tuple": "MkTuple",
+        "Call": "Call", "Tuple": "MkTuple", "Slice": "Slice",
     }
 
     # isinstance-on-CSL-class recognizer (self-tcb-reduction M5): the SIBLING of

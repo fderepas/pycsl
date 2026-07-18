@@ -820,12 +820,31 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_expr_tuple(self, expr: ast.Tuple) -> Dict[str, Any]:
         return {"type": "Tuple", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # output-side slice-discrimination (self-tcb-reduction M5): `expr` is a pure_ast
+    # Subscript node. The LIVE `_py_expr_subscript` (Module5_IREmitter.py) was rewritten
+    # from an INPUT-side `isinstance(node.slice, ast.Slice)` test — unmodellable (the
+    # harvested pure_ast nodes are opaque records, no common discriminated union) — to the
+    # SOUND OUTPUT-side form: lower the slice with the recursive dispatcher
+    # `self._py_expr_to_ir(expr.slice)` (recognized as an `emit_ir` local via the
+    # `_resolve_dotted_signature == "emit_ir"` recognizer in statements.py
+    # `_collect_emit_ir_result_locals`, which types `slice_ir` as ExprIR), then
+    # discriminate on the LOWERED slice's kind via `slice_ir.get("type") == "Slice"`. For
+    # this @mutable_state mirror the compare lowers (by design, expressions.py ~2513) to the
+    # already-proven `str_eq_op (kind_of slice_ir) "Slice"` output-side reflection; the
+    # match-based `(is_slice slice_ir)` discriminant (`_KIND_DISCRIMINANT["Slice"]`, landed
+    # this batch, preamble.py) is the driver-path (non-@mutable_state) sibling. Either way
+    # the two arms build DISTINCT real ctors — `IrSliceAccess value slice_ir`
+    # (`_IRNODE_CTORS["SliceAccess"]`) vs `IrSub value slice_ir` (`_IRNODE_CTORS["Subscript"]`),
+    # ZERO isinstance_op. Verbatim body port of the LIVE (output-side) `_py_expr_subscript`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_subscript(self, expr: ast.Subscript) -> int:
-        return {}
+    def _py_expr_subscript(self, expr: ast.Subscript) -> Dict[str, Any]:
+        value = self._py_expr_to_ir(expr.value)
+        slice_ir = self._py_expr_to_ir(expr.slice)
+        if slice_ir.get("type") == "Slice":
+            return {"type": "SliceAccess", "value": value, "slice": slice_ir}
+        return {"type": "Subscript", "value": value, "index": slice_ir}
 
     # variadic content-law comprehension (FABLE-sanctioned), batch 2: `expr` is a pure_ast
     # List node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from
