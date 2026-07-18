@@ -1038,12 +1038,60 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_assign(self, stmt: ast.Assign, ir_stmts: List[int]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5, C-bucket):
+    # `ir_stmts` is a caller-visible mutable `ref (seq stmt_ir)` param; the `stmt` param is
+    # typed the `AugAssign` record (`_PURE_AST_FIELD_TABLE["AugAssign"]`: target/value
+    # ExprIR, op int). The THREE-branch dispatch on the target shape lowers via the
+    # isinstance-on-emit_ir recognizer (`isinstance(stmt.target, ast.Name/Attribute/
+    # Subscript)` -> `is_var`/`is_attribute`/`is_sub stmt.target`, isinstance_op = 0):
+    #   (1) Name: `.append({"stmt":"AugAssign","target":stmt.target.id,"op":self._py_op_to_str
+    #       (stmt.op),"value":self._py_expr_to_ir(stmt.value)})` snocs `SAugAssign (name_of
+    #       stmt.target) (py_op_to_str stmt.op) (py_expr_to_ir stmt.value)` — the new
+    #       `SAugAssign string string emit_ir` ctor (target NAME via `name_of`, OP via the
+    #       trusted `_py_op_to_str` string val, RHS via the dispatcher).
+    #   (2) self-field: the guard `isinstance(stmt.target, ast.Attribute) and isinstance(
+    #       stmt.target.value, ast.Name) and stmt.target.value.id == 'self'` lowers to
+    #       `is_attribute stmt.target && is_var (avalue_of stmt.target) && str_eq_op (name_of
+    #       (avalue_of stmt.target)) "self"`; the append snocs `SFieldAugAssign (name_of
+    #       stmt.target) (py_op_to_str stmt.op) (py_expr_to_ir stmt.value)` — the new
+    #       `SFieldAugAssign string string emit_ir` ctor (field NAME `stmt.target.attr` via
+    #       `name_of`; the constant `object:"self"` is DROPPED, pinned by the guard).
+    #   (3) subscript: the OUTPUT-side slice-discrimination (the d866a1b9 `_py_expr_subscript`
+    #       precedent) — `slice_ir = self._py_expr_to_ir(stmt.target.slice)` (an emit_ir local,
+    #       `stmt.target.slice` -> `sindex_of`), guard `not (slice_ir.get("type") == "Slice")`
+    #       (-> `not (str_eq_op (kind_of !slice_ir) "Slice")`), then snocs the desugared
+    #       `SArraySet (py_expr_to_ir (avalue_of stmt.target)) !slice_ir (IrBinOp (py_op_to_str
+    #       stmt.op) !read_ir (py_expr_to_ir stmt.value))` — the new `SArraySet emit_ir emit_ir
+    #       emit_ir` ctor, the inline `{"type":"BinOp",...}` value reusing IrBinOp. The
+    #       `.value` disambiguation (self-field IrAttr object vs subscript IrSub array) is the
+    #       unified `avalue_of` projector, scoped to this handler.
+    # isinstance_op = 0. Verbatim body port of the LIVE `_py_stmt_augassign`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_augassign(self, stmt: ast.AugAssign, ir_stmts: List[int]) -> None:
-        pass
+        if isinstance(stmt.target, ast.Name):
+            ir_stmts.append({"stmt": "AugAssign", "target": stmt.target.id,
+                             "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
+        elif (isinstance(stmt.target, ast.Attribute) and
+              isinstance(stmt.target.value, ast.Name) and
+              stmt.target.value.id == 'self'):
+            ir_stmts.append({"stmt": "FieldAugAssign", "object": "self", "field": stmt.target.attr,
+                             "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
+        elif isinstance(stmt.target, ast.Subscript):
+            # `c[k] op= v` — desugar to a subscript store of `(c[k]) op v` (the proven
+            # ArraySet path). Output-side slice-discrimination (the `_py_expr_subscript`
+            # precedent): lower the slice once and discriminate on the lowered kind; the
+            # dead `ast.Index` unwrap (Python <3.9) is dropped (byte-identical on 3.9+).
+            slice_ir = self._py_expr_to_ir(stmt.target.slice)
+            if not (slice_ir.get("type") == "Slice"):
+                read_ir = self._py_expr_to_ir(stmt.target)
+                ir_stmts.append({
+                    "stmt": "ArraySet",
+                    "array": self._py_expr_to_ir(stmt.target.value),
+                    "index": slice_ir,
+                    "value": {"type": "BinOp", "op": self._py_op_to_str(stmt.op),
+                              "left": read_ir, "right": self._py_expr_to_ir(stmt.value)}})
 
     # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
     # caller-visible mutable `ref (seq stmt_ir)` param (the None-returning + `#@ assigns

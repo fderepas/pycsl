@@ -1,0 +1,194 @@
+module WallStmtAugAssignObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+  use option.Option
+
+  (* SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5, C-bucket),
+     STEP-2b: OBSERVATIONAL non-vacuity for the _py_stmt_augassign conversion — the FIRST
+     stmt_ir ctors for the augmented-assignment statement `x op= v` / `self.f op= v` /
+     `c[k] op= v`, dispatched THREE ways on the target shape (isinstance-on-emit_ir ->
+     is_var / is_attribute / is_sub, isinstance_op = 0).
+
+     emit_ir is given a MINIMAL faithful subset here (IrVar / IrAttr / IrSub / IrStr /
+     IrBinOp / IrOther + is_var / is_attribute / is_sub / name_of / avalue_of / sindex_of /
+     kind_of) — exactly the discriminants/projectors the three branches use; the real
+     preamble emit_ir is a superset on which they agree on these ctors. `disp` models the
+     recursive dispatcher self._py_expr_to_ir (an emit_ir -> emit_ir val); `op_str` models
+     the trusted self._py_op_to_str (an int -> string val). The stmt_ir block + the
+     emit_augassign body below are VERBATIM the PyCSL tool's emitted Module5_IREmitter.mlw
+     output (module6_whyml/preamble.py::_emit_exprir_theory gated on _uses_stmt_ir; the ctor
+     lowering via expressions.py::_lower_stmt_ir_node + _STMT_IR_CTORS; the `.value`/`.slice`/
+     `.attr` projections via _EMIT_IR_HANDLER_ATTR_PROJ["_py_stmt_augassign"] =
+     {value: avalue_of, slice: sindex_of, attr: name_of}) — grep-confirmed from the emitted
+     pycsltojsonemitter___py_stmt_augassign body. *)
+
+  (* ---- MINIMAL faithful emit_ir subset + discriminants/projectors (real preamble superset
+     agrees on these ctors). ---- *)
+  type emit_ir = IrVar string | IrAttr emit_ir string | IrSub emit_ir emit_ir
+               | IrStr string | IrBinOp string emit_ir emit_ir | IrOther string
+  let function is_var (e: emit_ir) : bool = match e with IrVar _ -> true | _ -> false end
+  let function is_attribute (e: emit_ir) : bool = match e with IrAttr _ _ -> true | _ -> false end
+  let function is_sub (e: emit_ir) : bool = match e with IrSub _ _ -> true | _ -> false end
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar n -> n | IrAttr _ a -> a | _ -> "" end
+  (* the UNIFIED `.value` projector: IrAttr's OBJECT (self-field branch) OR IrSub's ARRAY
+     (subscript branch). *)
+  let function avalue_of (e: emit_ir) : emit_ir =
+    match e with IrAttr o _ -> o | IrSub v _ -> v | _ -> IrOther "" end
+  let function sindex_of (e: emit_ir) : emit_ir =
+    match e with IrSub _ i -> i | _ -> IrOther "" end
+  let function kind_of (e: emit_ir) : string =
+    match e with IrVar _ -> "Var" | IrAttr _ _ -> "Attribute" | IrSub _ _ -> "Subscript"
+    | IrStr _ -> "String" | IrBinOp _ _ _ -> "BinOp" | IrOther _ -> "Other" end
+
+  val str_eq_op (a b: string) : bool
+    ensures { result <-> (a = b) }
+
+  (* `disp` models self._py_expr_to_ir; `op_str` models self._py_op_to_str. Abstract
+     `function`s so they are deterministic (the value-equality VCs need `disp e = disp e`). *)
+  val function disp (e: emit_ir) : emit_ir
+  val function op_str (o: int) : string
+
+  (* ---- VERBATIM tool-emitted stmt_ir block: the THREE new augmented-assignment ctors.
+     SAugAssign/SFieldAugAssign carry a NAME string + an OP string + the RHS emit_ir;
+     SArraySet carries the array + index + desugared BinOp value (all emit_ir). TAG-
+     PRESERVING. ---- *)
+  type iropt_str = IrSNone | IrSSome string
+  type iropt_ir = IrONone | IrOSome emit_ir
+  type stmt_ir = SPass | SBreak | SContinue | SReturn iropt_ir | SExpr emit_ir
+               | SAssign string emit_ir
+               | SAssert emit_ir iropt_str
+               | SAugAssign string string emit_ir
+               | SFieldAugAssign string string emit_ir
+               | SArraySet emit_ir emit_ir emit_ir
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"
+    | SReturn _ -> "Return" | SExpr _ -> "Expr" | SAssign _ _ -> "Assign"
+    | SAssert _ _ -> "Assert"
+    | SAugAssign _ _ _ -> "AugAssign" | SFieldAugAssign _ _ _ -> "FieldAugAssign"
+    | SArraySet _ _ _ -> "ArraySet"
+    end
+
+  (* ---- emit_augassign: body VERBATIM from the tool (real writes { ir_stmts }; the
+     three-branch dispatch is_var / is_attribute+is_var+str_eq_op / is_sub, with the
+     subscript branch's output-side slice-discrimination `not (str_eq_op (kind_of !slice_ir)
+     "Slice")`). `target` models stmt.target : emit_ir; `op` models stmt.op : int; `value`
+     models stmt.value : emit_ir. ---- *)
+  (* The `ensures` is an ADDED VC checked against the verbatim body: had the tool dropped a
+     field, collapsed a branch guard, or erased the tag, it would be UNPROVABLE. The three
+     branch guards use `= "self"` / `<> "Slice"` (equivalent to the body's `str_eq_op`
+     via its `result <-> a = b` ensures). *)
+  let emit_augassign (target: emit_ir) (op: int) (value: emit_ir)
+                     (ir_stmts: ref (seq stmt_ir)) : unit
+    ensures { !ir_stmts =
+      (if is_var target then
+         Seq.snoc (old !ir_stmts) (SAugAssign (name_of target) (op_str op) (disp value))
+       else if is_attribute target && is_var (avalue_of target)
+               && name_of (avalue_of target) = "self" then
+         Seq.snoc (old !ir_stmts) (SFieldAugAssign (name_of target) (op_str op) (disp value))
+       else if is_sub target && kind_of (disp (sindex_of target)) <> "Slice" then
+         Seq.snoc (old !ir_stmts) (SArraySet (disp (avalue_of target)) (disp (sindex_of target))
+           (IrBinOp (op_str op) (disp target) (disp value)))
+       else old !ir_stmts) }
+    writes { ir_stmts }
+  =
+    let slice_ir = ref (IrOther "") in
+    let read_ir = ref (IrOther "") in
+    if (is_var target) then begin
+      ir_stmts := Seq.snoc !ir_stmts (SAugAssign (name_of target) (op_str op) (disp value))
+    end else begin
+      if ((if ((if (is_attribute target) && (is_var (avalue_of target)) then 1 else 0) <> 0)
+            && (str_eq_op (name_of (avalue_of target)) "self") then 1 else 0) <> 0) then begin
+        ir_stmts := Seq.snoc !ir_stmts (SFieldAugAssign (name_of target) (op_str op) (disp value))
+      end else begin
+        if (is_sub target) then begin
+          slice_ir := (disp (sindex_of target));
+          if (not (str_eq_op (kind_of !slice_ir) "Slice")) then begin
+            read_ir := (disp target);
+            ir_stmts := Seq.snoc !ir_stmts (SArraySet (disp (avalue_of target)) !slice_ir
+                          (IrBinOp (op_str op) !read_ir (disp value)))
+          end
+        end
+      end
+    end
+
+  (* OBSERVATIONAL non-vacuity (Name branch): `x op= v` appends SAugAssign with the TARGET
+     NAME, the OP string, AND the disp'd RHS — the real ctor, never a shared 0. *)
+  let driver_name (v: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_augassign (IrVar "x") 3 v ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 = SAugAssign "x" (op_str 3) (disp v) };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "AugAssign" }
+
+  (* OBSERVATIONAL non-vacuity (self-field branch): `self.count op= v` — the guard
+     is_attribute && is_var (avalue_of) && str_eq_op (name_of (avalue_of)) "self" holds for
+     an IrAttr whose object is IrVar "self"; appends SFieldAugAssign with the FIELD NAME. *)
+  let driver_self_field (v: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_augassign (IrAttr (IrVar "self") "count") 5 v ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 = SFieldAugAssign "count" (op_str 5) (disp v) };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "FieldAugAssign" }
+
+  (* self-field guard is REAL: an IrAttr whose object is NOT `self` (name <> "self") does
+     NOT take the field branch — it falls through to the subscript branch (is_sub false),
+     so NOTHING is appended. The `== 'self'` string-equality guard is honest. *)
+  let driver_field_not_self (v: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_augassign (IrAttr (IrVar "other") "count") 5 v ir_stmts;
+    assert { Seq.length !ir_stmts = 0 }
+
+  (* OBSERVATIONAL non-vacuity (subscript branch): `c[k] op= v` — under the output-side
+     non-Slice guard, appends SArraySet with the ARRAY (avalue_of), the INDEX (disp'd
+     sindex_of), and the desugared `(c[k]) op v` IrBinOp VALUE. The `requires` supplies the
+     guard hypothesis (a non-Slice index) the abstract `disp` cannot itself decide. *)
+  let driver_subscript (v: emit_ir) : unit
+    requires { kind_of (disp (sindex_of (IrSub (IrVar "a") (IrVar "i")))) <> "Slice" }
+  =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_augassign (IrSub (IrVar "a") (IrVar "i")) 1 v ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 =
+               SArraySet (disp (IrVar "a")) (disp (IrVar "i"))
+                 (IrBinOp (op_str 1) (disp (IrSub (IrVar "a") (IrVar "i"))) (disp v)) };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "ArraySet" }
+
+  (* subscript SLICE guard is REAL: when the index IS a Slice-kinded node, the store is
+     SUPPRESSED (a `c[lo:hi] op= v` slice augassign is dropped, faithful to the LIVE code). *)
+  let driver_subscript_slice (v: emit_ir) : unit
+    requires { kind_of (disp (sindex_of (IrSub (IrVar "a") (IrVar "i")))) = "Slice" }
+  =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_augassign (IrSub (IrVar "a") (IrVar "i")) 1 v ir_stmts;
+    assert { Seq.length !ir_stmts = 0 }
+
+  (* Positive non-vacuity: the three augmented-assignment nodes are PROVABLY DISTINCT
+     (distinct tags), the payloads are OBSERVABLE (the field name is carried, not a shared
+     0), and each is <> a wrong ctor. If Valid, the tags/payloads are genuinely observed. *)
+  let driver_refute (v: emit_ir) : unit =
+    let a = ref (Seq.empty: seq stmt_ir) in
+    let b = ref (Seq.empty: seq stmt_ir) in
+    emit_augassign (IrVar "x") 3 v a;
+    emit_augassign (IrAttr (IrVar "self") "count") 3 v b;
+    assert { Seq.get !a 0 <> Seq.get !b 0 };
+    assert { Seq.get !a 0 <> SAugAssign "y" (op_str 3) (disp v) };
+    assert { Seq.get !a 0 <> SAssign "x" (disp v) };
+    assert { Seq.get !b 0 <> SFieldAugAssign "total" (op_str 3) (disp v) }
+
+  (* EVIL TWIN 1 (wrong tag): a Name-target augassign is NOT a plain SAssign (the `op=`
+     is not collapsed onto `=`). Must stay UNPROVEN. *)
+  let driver_evil_tag (v: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_augassign (IrVar "x") 3 v ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SAssign "x" (disp v) }
+
+  (* EVIL TWIN 2 (wrong field name): the self-field append did NOT carry a different field
+     name — the `stmt.target.attr` projection is real. Must stay UNPROVEN. *)
+  let driver_evil_field (v: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_augassign (IrAttr (IrVar "self") "count") 5 v ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SFieldAugAssign "total" (op_str 5) (disp v) }
+end

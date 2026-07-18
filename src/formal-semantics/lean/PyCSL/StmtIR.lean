@@ -69,6 +69,9 @@ inductive StmtIr (ε : Type) where
   | SExpr (e : ε)
   | SAssign (n : String) (e : ε)
   | SAssert (t : ε) (m : IrOptStr)
+  | SAugAssign (n : String) (op : String) (e : ε)
+  | SFieldAugAssign (f : String) (op : String) (e : ε)
+  | SArraySet (a : ε) (i : ε) (v : ε)
   | SWhile (t : ε) (b : StmtList ε)
   | SIf (t : ε) (b : StmtList ε) (el : StmtList ε)
   | SFor (t : ε) (b : StmtList ε)
@@ -90,6 +93,9 @@ def stmtKindOf : StmtIr ε → String
   | .SExpr _ => "Expr"
   | .SAssign _ _ => "Assign"
   | .SAssert _ _ => "Assert"
+  | .SAugAssign _ _ _ => "AugAssign"
+  | .SFieldAugAssign _ _ _ => "FieldAugAssign"
+  | .SArraySet _ _ _ => "ArraySet"
   | .SWhile _ _ => "While"
   | .SIf _ _ _ => "If"
   | .SFor _ _ => "For"
@@ -104,6 +110,9 @@ def sizeStmt : StmtIr ε → Nat
   | .SExpr _ => 1
   | .SAssign _ _ => 1
   | .SAssert _ _ => 1
+  | .SAugAssign _ _ _ => 1
+  | .SFieldAugAssign _ _ _ => 1
+  | .SArraySet _ _ _ => 1
   | .SWhile _ b => 1 + sizeSList b
   | .SIf _ b el => 1 + sizeSList b + sizeSList el
   | .SFor _ b => 1 + sizeSList b
@@ -144,6 +153,9 @@ inductive PyStmt (ε : Type) where
   | PExpr (e : ε)
   | PAssign (n : String) (e : ε)
   | PAssert (t : ε) (m : IrOptStr)
+  | PAugAssign (n : String) (op : String) (e : ε)
+  | PFieldAugAssign (f : String) (op : String) (e : ε)
+  | PArraySet (a : ε) (i : ε) (v : ε)
   | PWhile (t : ε) (b : StmtList ε)
   | PIf (t : ε) (b : StmtList ε) (el : StmtList ε)
   | PFor (t : ε) (b : StmtList ε)
@@ -158,6 +170,9 @@ def abs : PyStmt ε → StmtIr ε
   | .PExpr e => .SExpr e
   | .PAssign n e => .SAssign n e
   | .PAssert t m => .SAssert t m
+  | .PAugAssign n op e => .SAugAssign n op e
+  | .PFieldAugAssign f op e => .SFieldAugAssign f op e
+  | .PArraySet a i v => .SArraySet a i v
   | .PWhile t b => .SWhile t b
   | .PIf t b el => .SIf t b el
   | .PFor t b => .SFor t b
@@ -171,6 +186,9 @@ def pyKindOf : PyStmt ε → String
   | .PExpr _ => "Expr"
   | .PAssign _ _ => "Assign"
   | .PAssert _ _ => "Assert"
+  | .PAugAssign _ _ _ => "AugAssign"
+  | .PFieldAugAssign _ _ _ => "FieldAugAssign"
+  | .PArraySet _ _ _ => "ArraySet"
   | .PWhile _ _ => "While"
   | .PIf _ _ _ => "If"
   | .PFor _ _ => "For"
@@ -193,6 +211,9 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | SExpr e => exact ⟨.PExpr e, rfl⟩
   | SAssign n e => exact ⟨.PAssign n e, rfl⟩
   | SAssert t m => exact ⟨.PAssert t m, rfl⟩
+  | SAugAssign n op e => exact ⟨.PAugAssign n op e, rfl⟩
+  | SFieldAugAssign f op e => exact ⟨.PFieldAugAssign f op e, rfl⟩
+  | SArraySet a i v => exact ⟨.PArraySet a i v, rfl⟩
   | SWhile t b => exact ⟨.PWhile t b, rfl⟩
   | SIf t b el => exact ⟨.PIf t b el, rfl⟩
   | SFor t b => exact ⟨.PFor t b, rfl⟩
@@ -204,6 +225,10 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
 theorem stmtKindOf_pass : stmtKindOf (ε := ε) .SPass = "Pass" := rfl
 theorem stmtKindOf_assign (n : String) (e : ε) : stmtKindOf (.SAssign n e) = "Assign" := rfl
 theorem stmtKindOf_assert (t : ε) (m : IrOptStr) : stmtKindOf (.SAssert t m) = "Assert" := rfl
+-- SAugAssign/SFieldAugAssign/SArraySet increment: the three tags are EXACT per constructor.
+theorem stmtKindOf_augassign (n op : String) (e : ε) : stmtKindOf (.SAugAssign n op e) = "AugAssign" := rfl
+theorem stmtKindOf_fieldaugassign (f op : String) (e : ε) : stmtKindOf (.SFieldAugAssign f op e) = "FieldAugAssign" := rfl
+theorem stmtKindOf_arrayset (a i v : ε) : stmtKindOf (.SArraySet a i v) = "ArraySet" := rfl
 theorem stmtKindOf_return (o : IrOpt ε) : stmtKindOf (.SReturn o) = "Return" := rfl
 theorem stmtKindOf_while (t : ε) (b : StmtList ε) : stmtKindOf (.SWhile t b) = "While" := rfl
 theorem stmtKindOf_if (t : ε) (b el : StmtList ε) : stmtKindOf (.SIf t b el) = "If" := rfl
@@ -229,6 +254,15 @@ theorem tag_assign_neq_return (n : String) (e : ε) (o : IrOpt ε) : stmtKindOf 
 theorem tag_assert_neq_expr (t : ε) (m : IrOptStr) (e : ε) : stmtKindOf (.SAssert t m) ≠ stmtKindOf (.SExpr e) := by
   simp only [stmtKindOf]; decide
 theorem tag_assert_neq_assign (t : ε) (m : IrOptStr) (n : String) (e : ε) : stmtKindOf (.SAssert t m) ≠ stmtKindOf (.SAssign n e) := by
+  simp only [stmtKindOf]; decide
+-- SAugAssign/SFieldAugAssign/SArraySet increment: pairwise distinct + distinct from plain Assign.
+theorem tag_augassign_neq_assign (n op : String) (e : ε) (m : String) (f : ε) : stmtKindOf (.SAugAssign n op e) ≠ stmtKindOf (.SAssign m f) := by
+  simp only [stmtKindOf]; decide
+theorem tag_augassign_neq_fieldaug (n op : String) (e : ε) (f g : String) (h : ε) : stmtKindOf (.SAugAssign n op e) ≠ stmtKindOf (.SFieldAugAssign f g h) := by
+  simp only [stmtKindOf]; decide
+theorem tag_augassign_neq_arrayset (n op : String) (e a i v : ε) : stmtKindOf (.SAugAssign n op e) ≠ stmtKindOf (.SArraySet a i v) := by
+  simp only [stmtKindOf]; decide
+theorem tag_fieldaug_neq_arrayset (f g : String) (h a i v : ε) : stmtKindOf (.SFieldAugAssign f g h) ≠ stmtKindOf (.SArraySet a i v) := by
   simp only [stmtKindOf]; decide
 theorem tag_while_neq_if (t : ε) (b : StmtList ε) (o : ε) (c d : StmtList ε) :
     stmtKindOf (.SWhile t b) ≠ stmtKindOf (.SIf o c d) := by simp only [stmtKindOf]; decide
@@ -268,6 +302,32 @@ theorem sassert_test_observable (t u : ε) (m : IrOptStr) (h : t ≠ u) :
     (StmtIr.SAssert t m) ≠ StmtIr.SAssert u m := by
   intro he; cases he; exact h rfl
 
+/-- (c'''''') SAugAssign/SFieldAugAssign/SArraySet non-vacuity: every carried field is
+    OBSERVABLE — the target/field NAME, the OP string, and the emit_ir sub-nodes are carried
+    faithfully by the injective constructors, never a shared 0 (the 0900 fixture at the ADT
+    level). -/
+theorem saugassign_target_observable (n m op : String) (e : ε) (h : n ≠ m) :
+    (StmtIr.SAugAssign n op e) ≠ StmtIr.SAugAssign m op e := by
+  intro he; cases he; exact h rfl
+theorem saugassign_op_observable (n op1 op2 : String) (e : ε) (h : op1 ≠ op2) :
+    (StmtIr.SAugAssign n op1 e) ≠ StmtIr.SAugAssign n op2 e := by
+  intro he; cases he; exact h rfl
+theorem saugassign_value_observable (n op : String) (e f : ε) (h : e ≠ f) :
+    (StmtIr.SAugAssign n op e) ≠ StmtIr.SAugAssign n op f := by
+  intro he; cases he; exact h rfl
+theorem sfieldaug_field_observable (f g op : String) (e : ε) (h : f ≠ g) :
+    (StmtIr.SFieldAugAssign f op e) ≠ StmtIr.SFieldAugAssign g op e := by
+  intro he; cases he; exact h rfl
+theorem sarrayset_array_observable (a b i v : ε) (h : a ≠ b) :
+    (StmtIr.SArraySet a i v) ≠ StmtIr.SArraySet b i v := by
+  intro he; cases he; exact h rfl
+theorem sarrayset_index_observable (a i j v : ε) (h : i ≠ j) :
+    (StmtIr.SArraySet a i v) ≠ StmtIr.SArraySet a j v := by
+  intro he; cases he; exact h rfl
+theorem sarrayset_value_observable (a i v w : ε) (h : v ≠ w) :
+    (StmtIr.SArraySet a i v) ≠ StmtIr.SArraySet a i w := by
+  intro he; cases he; exact h rfl
+
 /-- (c''') SUB-BODY non-vacuity: an SWhile with an EMPTY sub-body and one with a
     node are DISTINCT nodes (the sub-body is OBSERVABLE), and their sizes differ
     (the 0896 fixture's driver_refute / driver_evil_count at the ADT level). -/
@@ -299,6 +359,20 @@ end StmtIRCert
 #print axioms StmtIRCert.kindOf_agree
 #print axioms StmtIRCert.stmtKindOf_assign
 #print axioms StmtIRCert.stmtKindOf_assert
+#print axioms StmtIRCert.stmtKindOf_augassign
+#print axioms StmtIRCert.stmtKindOf_fieldaugassign
+#print axioms StmtIRCert.stmtKindOf_arrayset
+#print axioms StmtIRCert.tag_augassign_neq_assign
+#print axioms StmtIRCert.tag_augassign_neq_fieldaug
+#print axioms StmtIRCert.tag_augassign_neq_arrayset
+#print axioms StmtIRCert.tag_fieldaug_neq_arrayset
+#print axioms StmtIRCert.saugassign_target_observable
+#print axioms StmtIRCert.saugassign_op_observable
+#print axioms StmtIRCert.saugassign_value_observable
+#print axioms StmtIRCert.sfieldaug_field_observable
+#print axioms StmtIRCert.sarrayset_array_observable
+#print axioms StmtIRCert.sarrayset_index_observable
+#print axioms StmtIRCert.sarrayset_value_observable
 #print axioms StmtIRCert.tag_assign_neq_expr
 #print axioms StmtIRCert.tag_assign_neq_return
 #print axioms StmtIRCert.tag_assert_neq_expr

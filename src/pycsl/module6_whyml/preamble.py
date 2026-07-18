@@ -3771,6 +3771,18 @@ class PreambleEmissionMixin:
             "  let function object_of (e: emit_ir) : emit_ir =",
             "    match e with IrAttr o _ -> o | _ -> IrOther \"\" end",
             "",
+            "  (* SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5): the"
+            " UNIFIED `.value` projector for `_py_stmt_augassign`, which reads `stmt.target"
+            ".value` in BOTH the self-field branch (`stmt.target` is an IrAttr — its `.value`"
+            " is the Attribute OBJECT sub-node) and the subscript branch (`stmt.target` is an"
+            " IrSub — its `.value` is the Subscript ARRAY sub-node). A REFINEMENT of both"
+            " `object_of` (IrAttr arm) and `svalue_of` (IrSub arm): it agrees with `svalue_of`"
+            " on every non-IrAttr node and with `object_of` on every non-IrSub node, so each"
+            " branch's guard pins which arm fires. Scoped to `_py_stmt_augassign` via"
+            " `_EMIT_IR_HANDLER_ATTR_PROJ`. *)",
+            "  let function avalue_of (e: emit_ir) : emit_ir =",
+            "    match e with IrAttr o _ -> o | IrSub v _ -> v | _ -> IrOther \"\" end",
+            "",
             "  let function func_of (e: emit_ir) : string =",
             "    match e with IrCall f _ _ -> f | _ -> \"\" end",
             "",
@@ -3969,10 +3981,25 @@ class PreambleEmissionMixin:
                 " `size_stmt`/`size_slist` lemmas stay byte-identical. Shared by the"
                 " `Assign` dict-key both `_py_stmt_annassign` (`x: T = v`) and — a later"
                 " increment — `_py_stmt_assign`'s Name-target branch append. *)",
+                "  (* SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction"
+                " M5, C-bucket, this increment): the augmented-assignment statement"
+                " `x op= v` / `self.f op= v` / `c[k] op= v` (the `_py_stmt_augassign`"
+                " three-branch dispatch). SAugAssign carries the TARGET NAME (string,"
+                " `stmt.target.id` via `name_of`), the OP string (`py_op_to_str stmt.op`),"
+                " and the RHS emit_ir (`py_expr_to_ir stmt.value`). SFieldAugAssign carries"
+                " the self-FIELD NAME (string, `stmt.target.attr` via `name_of`), the OP"
+                " string, and the RHS — the constant `object:\"self\"` is DROPPED (the guard"
+                " `stmt.target.value.id == 'self'` pins it). SArraySet carries the ARRAY, the"
+                " INDEX, and the desugared `(c[k]) op v` BinOp VALUE (all emit_ir). All three"
+                " are FLAT (no sub-body list), so they fall in `size_stmt`'s `| _ -> 1`"
+                " catch-all — NO change to the mutual size measure. *)",
                 "  type stmt_ir = SPass | SBreak | SContinue"
                 " | SReturn iropt_ir | SExpr emit_ir"
                 " | SAssign string emit_ir"
                 " | SAssert emit_ir iropt_str"
+                " | SAugAssign string string emit_ir"
+                " | SFieldAugAssign string string emit_ir"
+                " | SArraySet emit_ir emit_ir emit_ir"
                 " | SWhile emit_ir stmt_list"
                 " | SIf emit_ir stmt_list stmt_list"
                 " | SFor emit_ir stmt_list"
@@ -3984,6 +4011,9 @@ class PreambleEmissionMixin:
                 "    | SReturn _ -> \"Return\" | SExpr _ -> \"Expr\""
                 " | SAssign _ _ -> \"Assign\"",
                 "    | SAssert _ _ -> \"Assert\"",
+                "    | SAugAssign _ _ _ -> \"AugAssign\""
+                " | SFieldAugAssign _ _ _ -> \"FieldAugAssign\""
+                " | SArraySet _ _ _ -> \"ArraySet\"",
                 "    | SWhile _ _ -> \"While\" | SIf _ _ _ -> \"If\""
                 " | SFor _ _ -> \"For\"",
                 "    end",

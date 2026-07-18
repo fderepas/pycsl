@@ -252,6 +252,20 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
     "_csl_old": {"object": "fgobject_of", "field": "field_of"},
 })
+# SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5): the
+# `_py_stmt_augassign` body reads THREE distinct sub-nodes/leaves off `stmt.target`
+# (an emit_ir node whose concrete shape is pinned per-branch by an `isinstance`
+# guard): `.value` — the self-field branch's Attribute OBJECT (IrAttr) AND the
+# subscript branch's Subscript ARRAY (IrSub), unified by `avalue_of`; `.slice` — the
+# subscript INDEX child (`sindex_of`, IrSub's 2nd arg); `.attr` — the self-field NAME
+# string (`name_of`, which returns IrAttr's attr leaf). Scoped to `_py_stmt_augassign`
+# via `_current_emitting_func` so every other handler's `.value` (the `svalue_of`
+# subscript-only default) is unperturbed. `.id` stays the global `_EMIT_IR_STR_ATTRS`
+# `name_of` (checked first).
+_EMIT_IR_HANDLER_ATTR_PROJ.update({
+    "_py_stmt_augassign": {"value": "avalue_of", "slice": "sindex_of",
+                           "attr": "name_of"},
+})
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -1760,6 +1774,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (`is_str _m`), else `IrSNone`, faithful to the compound guard `stmt.msg and
         # isinstance(stmt.msg, Constant) and isinstance(stmt.msg.value, str)`.
         "Assert":   ("SAssert", [("test", "expr"), ("msg", "assert_msg")]),
+        # SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5,
+        # C-bucket): the augmented-assignment statement nodes (the `_py_stmt_augassign`
+        # three-branch dispatch). AugAssign carries the TARGET NAME (`stmt.target.id` ->
+        # `name_of`, "str" child = the default `_expr_to_whyml`), the OP string
+        # (`self._py_op_to_str(stmt.op)` -> the trusted `(py_op_to_str stmt.op)` call, "str"
+        # child), and the RHS emit_ir (`self._py_expr_to_ir(stmt.value)`, "expr" child).
+        # FieldAugAssign is the sibling for `self.f op= v`: `field` = `stmt.target.attr`
+        # (-> `name_of`, "str" child), then op + value; the constant `object:"self"` key is
+        # NOT in the payload (dropped — the `stmt.target.value.id == 'self'` guard pins it).
+        # ArraySet is the desugaring of `c[k] op= v` to a subscript store of `(c[k]) op v`:
+        # `array` (`self._py_expr_to_ir(stmt.target.value)`), `index` (the `slice_ir` local),
+        # and `value` (the inline `{"type":"BinOp",...}` reusing `_IRNODE_CTORS["BinOp"]` ->
+        # IrBinOp) — all "expr" children.
+        "AugAssign":      ("SAugAssign", [("target", "str"), ("op", "str"),
+                                          ("value", "expr")]),
+        "FieldAugAssign": ("SFieldAugAssign", [("field", "str"), ("op", "str"),
+                                               ("value", "expr")]),
+        "ArraySet":       ("SArraySet", [("array", "expr"), ("index", "expr"),
+                                         ("value", "expr")]),
         # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the compound
         # statements carry their nested statement body/orelse LISTS. The `"expr"`
         # child (test/iter) lowers to a bare emit_ir; the `"stmtlist"` child

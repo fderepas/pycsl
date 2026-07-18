@@ -101,6 +101,9 @@ Inductive stmt_ir : Type :=
   | SExpr (e : emit)
   | SAssign (n : string) (e : emit)
   | SAssert (t : emit) (m : ioptstr)
+  | SAugAssign (n : string) (op : string) (e : emit)
+  | SFieldAugAssign (f : string) (op : string) (e : emit)
+  | SArraySet (a : emit) (i : emit) (v : emit)
   | SWhile (t : emit) (b : stmt_list)
   | SIf (t : emit) (b : stmt_list) (el : stmt_list)
   | SFor (t : emit) (b : stmt_list)
@@ -124,6 +127,9 @@ Definition stmt_kind_of (s : stmt_ir) : string :=
   | SExpr _     => "Expr"
   | SAssign _ _ => "Assign"
   | SAssert _ _ => "Assert"
+  | SAugAssign _ _ _ => "AugAssign"
+  | SFieldAugAssign _ _ _ => "FieldAugAssign"
+  | SArraySet _ _ _ => "ArraySet"
   | SWhile _ _  => "While"
   | SIf _ _ _   => "If"
   | SFor _ _    => "For"
@@ -198,6 +204,9 @@ Inductive pystmt : Type :=
   | PExpr (e : emit)
   | PAssign (n : string) (e : emit)
   | PAssert (t : emit) (m : ioptstr)
+  | PAugAssign (n : string) (op : string) (e : emit)
+  | PFieldAugAssign (f : string) (op : string) (e : emit)
+  | PArraySet (a : emit) (i : emit) (v : emit)
   | PWhile (t : emit) (b : stmt_list)
   | PIf (t : emit) (b : stmt_list) (el : stmt_list)
   | PFor (t : emit) (b : stmt_list).
@@ -213,6 +222,9 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PExpr e     => SExpr e
   | PAssign n e => SAssign n e
   | PAssert t m => SAssert t m
+  | PAugAssign n op e => SAugAssign n op e
+  | PFieldAugAssign f op e => SFieldAugAssign f op e
+  | PArraySet a i v => SArraySet a i v
   | PWhile t b  => SWhile t b
   | PIf t b el  => SIf t b el
   | PFor t b    => SFor t b
@@ -228,6 +240,9 @@ Definition py_kind_of (s : pystmt) : string :=
   | PExpr _     => "Expr"
   | PAssign _ _ => "Assign"
   | PAssert _ _ => "Assert"
+  | PAugAssign _ _ _ => "AugAssign"
+  | PFieldAugAssign _ _ _ => "FieldAugAssign"
+  | PArraySet _ _ _ => "ArraySet"
   | PWhile _ _  => "While"
   | PIf _ _ _   => "If"
   | PFor _ _    => "For"
@@ -250,6 +265,9 @@ Proof.
   - exists (PExpr e); reflexivity.
   - exists (PAssign n e); reflexivity.
   - exists (PAssert t m); reflexivity.
+  - exists (PAugAssign n op e); reflexivity.
+  - exists (PFieldAugAssign f op e); reflexivity.
+  - exists (PArraySet a i v); reflexivity.
   - exists (PWhile t b); reflexivity.
   - exists (PIf t b el); reflexivity.
   - exists (PFor t b); reflexivity.
@@ -267,6 +285,11 @@ Theorem stmt_kind_of_return   : forall o, stmt_kind_of (SReturn o) = "Return". P
 Theorem stmt_kind_of_expr     : forall e, stmt_kind_of (SExpr e) = "Expr".     Proof. reflexivity. Qed.
 Theorem stmt_kind_of_assign   : forall n e, stmt_kind_of (SAssign n e) = "Assign". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_assert   : forall t m, stmt_kind_of (SAssert t m) = "Assert". Proof. reflexivity. Qed.
+(* SAugAssign/SFieldAugAssign/SArraySet increment: the three augmented-assignment tags
+   are EXACT on their constructors. *)
+Theorem stmt_kind_of_augassign : forall n op e, stmt_kind_of (SAugAssign n op e) = "AugAssign". Proof. reflexivity. Qed.
+Theorem stmt_kind_of_fieldaugassign : forall f op e, stmt_kind_of (SFieldAugAssign f op e) = "FieldAugAssign". Proof. reflexivity. Qed.
+Theorem stmt_kind_of_arrayset : forall a i v, stmt_kind_of (SArraySet a i v) = "ArraySet". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_while    : forall t b, stmt_kind_of (SWhile t b) = "While". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_if       : forall t b el, stmt_kind_of (SIf t b el) = "If". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_for      : forall t b, stmt_kind_of (SFor t b) = "For".     Proof. reflexivity. Qed.
@@ -300,6 +323,17 @@ Proof. intros; simpl; discriminate. Qed.
 Theorem tag_assert_neq_expr   : forall t m e, stmt_kind_of (SAssert t m) <> stmt_kind_of (SExpr e).
 Proof. intros; simpl; discriminate. Qed.
 Theorem tag_assert_neq_assign : forall t m n e, stmt_kind_of (SAssert t m) <> stmt_kind_of (SAssign n e).
+Proof. intros; simpl; discriminate. Qed.
+(* SAugAssign/SFieldAugAssign/SArraySet increment: the three augmented-assignment tags are
+   pairwise distinct AND distinct from the plain Assign tag (an `x op= v` is NOT collapsed
+   onto `x = v`, and the three target shapes are separate node kinds). *)
+Theorem tag_augassign_neq_assign : forall n op e m f, stmt_kind_of (SAugAssign n op e) <> stmt_kind_of (SAssign m f).
+Proof. intros; simpl; discriminate. Qed.
+Theorem tag_augassign_neq_fieldaug : forall n op e f g h, stmt_kind_of (SAugAssign n op e) <> stmt_kind_of (SFieldAugAssign f g h).
+Proof. intros; simpl; discriminate. Qed.
+Theorem tag_augassign_neq_arrayset : forall n op e a i v, stmt_kind_of (SAugAssign n op e) <> stmt_kind_of (SArraySet a i v).
+Proof. intros; simpl; discriminate. Qed.
+Theorem tag_fieldaug_neq_arrayset : forall f g h a i v, stmt_kind_of (SFieldAugAssign f g h) <> stmt_kind_of (SArraySet a i v).
 Proof. intros; simpl; discriminate. Qed.
 (* SUB-BODY increment: the compound tags are distinct from each other and from
    the simple ones (While/If/For are provably separate nodes, not a shared 0). *)
@@ -341,6 +375,25 @@ Proof. intros t s r H C; inversion C; contradiction. Qed.
 Theorem sassert_test_observable : forall t u m, t <> u -> SAssert t m <> SAssert u m.
 Proof. intros t u m H C; inversion C; contradiction. Qed.
 
+(* (c'''''') SAugAssign/SFieldAugAssign/SArraySet non-vacuity: every carried field is
+   OBSERVABLE — the injective constructors carry the target/field NAME, the OP string, and
+   the emit_ir sub-nodes faithfully, never a shared 0.  If two nodes differ in any field
+   they are DISTINCT (the 0900 fixture's driver_refute / evil twins at the ADT level). *)
+Theorem saugassign_target_observable : forall n m op e, n <> m -> SAugAssign n op e <> SAugAssign m op e.
+Proof. intros n m op e H C; inversion C; contradiction. Qed.
+Theorem saugassign_op_observable : forall n op1 op2 e, op1 <> op2 -> SAugAssign n op1 e <> SAugAssign n op2 e.
+Proof. intros n op1 op2 e H C; inversion C; contradiction. Qed.
+Theorem saugassign_value_observable : forall n op e f, e <> f -> SAugAssign n op e <> SAugAssign n op f.
+Proof. intros n op e f H C; inversion C; contradiction. Qed.
+Theorem sfieldaug_field_observable : forall f g op e, f <> g -> SFieldAugAssign f op e <> SFieldAugAssign g op e.
+Proof. intros f g op e H C; inversion C; contradiction. Qed.
+Theorem sarrayset_array_observable : forall a b i v, a <> b -> SArraySet a i v <> SArraySet b i v.
+Proof. intros a b i v H C; inversion C; contradiction. Qed.
+Theorem sarrayset_index_observable : forall a i j v, i <> j -> SArraySet a i v <> SArraySet a j v.
+Proof. intros a i j v H C; inversion C; contradiction. Qed.
+Theorem sarrayset_value_observable : forall a i v w, v <> w -> SArraySet a i v <> SArraySet a i w.
+Proof. intros a i v w H C; inversion C; contradiction. Qed.
+
 (* (c''') SUB-BODY non-vacuity: an SWhile whose sub-body is EMPTY (SLNil) and one
    whose sub-body has a node (SLCons ...) are DISTINCT nodes — the sub-body is
    OBSERVABLE, not collapsed (the 0896 fixture's driver_refute / driver_evil_count
@@ -379,6 +432,20 @@ Print Assumptions stmt_kind_of_for.
 Print Assumptions kind_of_agree.
 Print Assumptions stmt_kind_of_assign.
 Print Assumptions stmt_kind_of_assert.
+Print Assumptions stmt_kind_of_augassign.
+Print Assumptions stmt_kind_of_fieldaugassign.
+Print Assumptions stmt_kind_of_arrayset.
+Print Assumptions tag_augassign_neq_assign.
+Print Assumptions tag_augassign_neq_fieldaug.
+Print Assumptions tag_augassign_neq_arrayset.
+Print Assumptions tag_fieldaug_neq_arrayset.
+Print Assumptions saugassign_target_observable.
+Print Assumptions saugassign_op_observable.
+Print Assumptions saugassign_value_observable.
+Print Assumptions sfieldaug_field_observable.
+Print Assumptions sarrayset_array_observable.
+Print Assumptions sarrayset_index_observable.
+Print Assumptions sarrayset_value_observable.
 Print Assumptions tag_assign_neq_expr.
 Print Assumptions tag_assign_neq_return.
 Print Assumptions tag_assert_neq_expr.

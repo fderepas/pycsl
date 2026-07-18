@@ -1334,19 +1334,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             ir_stmts.append({"stmt": "FieldAugAssign", "object": "self", "field": stmt.target.attr,
                              "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
         elif isinstance(stmt.target, ast.Subscript):
-            # collections-plan: `c[k] op= v` (subscript augmented assignment) was
-            # silently dropped (no arm here). Desugar to a plain subscript store of
-            # `(c[k]) op v` — reusing the proven ArraySet path (→ map_update_some for
-            # a dict / Counter, Array.set for a list). Also fixes `arr[i] += v`.
-            slice_node = stmt.target.slice
-            if isinstance(slice_node, ast.Index):  # <3.9 compatibility
-                slice_node = slice_node.value
-            if not isinstance(slice_node, ast.Slice):
-                read_ir = self._py_expr_to_ir(stmt.target)  # c[k] (read)
+            # `c[k] op= v` — desugar to a subscript store of `(c[k]) op v` (the proven
+            # ArraySet path). Output-side slice-discrimination (the `_py_expr_subscript`
+            # precedent): lower the slice once and discriminate on the lowered kind; the
+            # dead `ast.Index` unwrap (Python <3.9) is dropped (byte-identical on 3.9+).
+            slice_ir = self._py_expr_to_ir(stmt.target.slice)
+            if not (slice_ir.get("type") == "Slice"):
+                read_ir = self._py_expr_to_ir(stmt.target)
                 ir_stmts.append({
                     "stmt": "ArraySet",
                     "array": self._py_expr_to_ir(stmt.target.value),
-                    "index": self._py_expr_to_ir(slice_node),
+                    "index": slice_ir,
                     "value": {"type": "BinOp", "op": self._py_op_to_str(stmt.op),
                               "left": read_ir, "right": self._py_expr_to_ir(stmt.value)}})
 

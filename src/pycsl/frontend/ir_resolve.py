@@ -412,6 +412,24 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # IrSNone) | None -> IrSNone` — present-as-string-literal-Constant iff the guard
     # holds, faithful to the isinstance(Constant)+isinstance(str) test.
     "Assert": [("test", "ExprIR"), ("msg", "OptExprIR")],
+    # SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5, C-bucket):
+    # the `x op= v` / `self.f op= v` / `c[k] op= v` augmented-assignment statement.
+    # `_NODE_SPEC['AugAssign'] = ('stmt', ('target', 'op', 'value'), None)`; all three
+    # fields are non-optional. `target` tagged "ExprIR" -> `emit_ir` (the assignment
+    # target, an already-lowered Name/Attribute/Subscript node — the three
+    # `isinstance(stmt.target, ast.Name/Attribute/Subscript)` dispatch guards lower to
+    # `is_var`/`is_attribute`/`is_sub` via the isinstance-on-emit_ir recognizer). `op`
+    # tagged "int" like BinOp's/UnaryOp's `op` (the opaque operator leaf `_py_op_to_str`
+    # maps to a string). `value` tagged "ExprIR" -> `emit_ir` (`self._py_expr_to_ir(stmt.
+    # value)`). This types `_py_stmt_augassign`'s `stmt` param as the `AugAssign` record so
+    # the body's three-branch dispatch lowers to `SAugAssign (name_of stmt.target)
+    # (py_op_to_str stmt.op) (py_expr_to_ir stmt.value)` (Name branch, `stmt.target.id` ->
+    # `name_of`), `SFieldAugAssign (name_of stmt.target) (py_op_to_str stmt.op) (py_expr_to_ir
+    # stmt.value)` (self-field branch, `stmt.target.attr` -> `name_of`, `stmt.target.value`
+    # -> `avalue_of`, `== 'self'` -> `str_eq_op`), and `SArraySet (py_expr_to_ir (avalue_of
+    # stmt.target)) <slice_ir> (IrBinOp ..)` (Subscript branch, `stmt.target.slice` ->
+    # `sindex_of`, output-side `slice_ir.get("type") == "Slice"` guard).
+    "AugAssign": [("target", "ExprIR"), ("op", "int"), ("value", "ExprIR")],
     # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the COMPOUND statement
     # nodes whose `_process_*` handler builds an SWhile/SIf/SFor. Field NAMES/order
     # match `_NODE_SPEC` exactly (the harvest cross-check is name-only). `test`/`iter`
