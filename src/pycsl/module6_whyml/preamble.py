@@ -3959,6 +3959,7 @@ class PreambleEmissionMixin:
                 "  type stmt_ir = SPass | SBreak | SContinue"
                 " | SReturn iropt_ir | SExpr emit_ir"
                 " | SAssign string emit_ir"
+                " | SAssert emit_ir iropt_str"
                 " | SWhile emit_ir stmt_list"
                 " | SIf emit_ir stmt_list stmt_list"
                 " | SFor emit_ir stmt_list"
@@ -3969,6 +3970,7 @@ class PreambleEmissionMixin:
                 " | SContinue -> \"Continue\"",
                 "    | SReturn _ -> \"Return\" | SExpr _ -> \"Expr\""
                 " | SAssign _ _ -> \"Assign\"",
+                "    | SAssert _ _ -> \"Assert\"",
                 "    | SWhile _ _ -> \"While\" | SIf _ _ _ -> \"If\""
                 " | SFor _ _ -> \"For\"",
                 "    end",

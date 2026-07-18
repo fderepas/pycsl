@@ -47,6 +47,14 @@ inductive IrOpt (ε : Type) where
   | IrOSome (e : ε)
   deriving DecidableEq
 
+/-- The monomorphic option-STRING sibling — mirrors the WhyML `iropt_str = IrSNone
+    | IrSSome string`. `SAssert` carries it (the OPTIONAL assert-message string); it
+    references NO type variable, so it never mentions `StmtIr`. -/
+inductive IrOptStr where
+  | ISNone
+  | ISSome (s : String)
+  deriving DecidableEq
+
 /- The MUTUAL block: `StmtIr` and its sub-body list `StmtList`. `ε` abstracts
    the WhyML emit_ir expr-child type (a FOREIGN type variable, so no `StmtIr`
    sub-term appears through it — no mutual recursion with emit_ir). The COMPOUND
@@ -60,6 +68,7 @@ inductive StmtIr (ε : Type) where
   | SReturn (o : IrOpt ε)
   | SExpr (e : ε)
   | SAssign (n : String) (e : ε)
+  | SAssert (t : ε) (m : IrOptStr)
   | SWhile (t : ε) (b : StmtList ε)
   | SIf (t : ε) (b : StmtList ε) (el : StmtList ε)
   | SFor (t : ε) (b : StmtList ε)
@@ -80,6 +89,7 @@ def stmtKindOf : StmtIr ε → String
   | .SReturn _ => "Return"
   | .SExpr _ => "Expr"
   | .SAssign _ _ => "Assign"
+  | .SAssert _ _ => "Assert"
   | .SWhile _ _ => "While"
   | .SIf _ _ _ => "If"
   | .SFor _ _ => "For"
@@ -93,6 +103,7 @@ def sizeStmt : StmtIr ε → Nat
   | .SReturn _ => 1
   | .SExpr _ => 1
   | .SAssign _ _ => 1
+  | .SAssert _ _ => 1
   | .SWhile _ b => 1 + sizeSList b
   | .SIf _ b el => 1 + sizeSList b + sizeSList el
   | .SFor _ b => 1 + sizeSList b
@@ -132,6 +143,7 @@ inductive PyStmt (ε : Type) where
   | PReturn (o : IrOpt ε)
   | PExpr (e : ε)
   | PAssign (n : String) (e : ε)
+  | PAssert (t : ε) (m : IrOptStr)
   | PWhile (t : ε) (b : StmtList ε)
   | PIf (t : ε) (b : StmtList ε) (el : StmtList ε)
   | PFor (t : ε) (b : StmtList ε)
@@ -145,6 +157,7 @@ def abs : PyStmt ε → StmtIr ε
   | .PReturn o => .SReturn o
   | .PExpr e => .SExpr e
   | .PAssign n e => .SAssign n e
+  | .PAssert t m => .SAssert t m
   | .PWhile t b => .SWhile t b
   | .PIf t b el => .SIf t b el
   | .PFor t b => .SFor t b
@@ -157,6 +170,7 @@ def pyKindOf : PyStmt ε → String
   | .PReturn _ => "Return"
   | .PExpr _ => "Expr"
   | .PAssign _ _ => "Assign"
+  | .PAssert _ _ => "Assert"
   | .PWhile _ _ => "While"
   | .PIf _ _ _ => "If"
   | .PFor _ _ => "For"
@@ -178,6 +192,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | SReturn o => exact ⟨.PReturn o, rfl⟩
   | SExpr e => exact ⟨.PExpr e, rfl⟩
   | SAssign n e => exact ⟨.PAssign n e, rfl⟩
+  | SAssert t m => exact ⟨.PAssert t m, rfl⟩
   | SWhile t b => exact ⟨.PWhile t b, rfl⟩
   | SIf t b el => exact ⟨.PIf t b el, rfl⟩
   | SFor t b => exact ⟨.PFor t b, rfl⟩
@@ -188,6 +203,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
 
 theorem stmtKindOf_pass : stmtKindOf (ε := ε) .SPass = "Pass" := rfl
 theorem stmtKindOf_assign (n : String) (e : ε) : stmtKindOf (.SAssign n e) = "Assign" := rfl
+theorem stmtKindOf_assert (t : ε) (m : IrOptStr) : stmtKindOf (.SAssert t m) = "Assert" := rfl
 theorem stmtKindOf_return (o : IrOpt ε) : stmtKindOf (.SReturn o) = "Return" := rfl
 theorem stmtKindOf_while (t : ε) (b : StmtList ε) : stmtKindOf (.SWhile t b) = "While" := rfl
 theorem stmtKindOf_if (t : ε) (b el : StmtList ε) : stmtKindOf (.SIf t b el) = "If" := rfl
@@ -208,6 +224,11 @@ theorem tag_return_neq_expr (o : IrOpt ε) (e : ε) : stmtKindOf (.SReturn o) �
 theorem tag_assign_neq_expr (n : String) (e f : ε) : stmtKindOf (.SAssign n e) ≠ stmtKindOf (.SExpr f) := by
   simp only [stmtKindOf]; decide
 theorem tag_assign_neq_return (n : String) (e : ε) (o : IrOpt ε) : stmtKindOf (.SAssign n e) ≠ stmtKindOf (.SReturn o) := by
+  simp only [stmtKindOf]; decide
+-- SAssert increment: the Assert tag is distinct from the Expr and Assign tags.
+theorem tag_assert_neq_expr (t : ε) (m : IrOptStr) (e : ε) : stmtKindOf (.SAssert t m) ≠ stmtKindOf (.SExpr e) := by
+  simp only [stmtKindOf]; decide
+theorem tag_assert_neq_assign (t : ε) (m : IrOptStr) (n : String) (e : ε) : stmtKindOf (.SAssert t m) ≠ stmtKindOf (.SAssign n e) := by
   simp only [stmtKindOf]; decide
 theorem tag_while_neq_if (t : ε) (b : StmtList ε) (o : ε) (c d : StmtList ε) :
     stmtKindOf (.SWhile t b) ≠ stmtKindOf (.SIf o c d) := by simp only [stmtKindOf]; decide
@@ -231,6 +252,20 @@ theorem sassign_target_observable (n m : String) (e : ε) (h : n ≠ m) :
   intro he; cases he; exact h rfl
 theorem sassign_value_observable (n : String) (e f : ε) (h : e ≠ f) :
     (StmtIr.SAssign n e) ≠ StmtIr.SAssign n f := by
+  intro he; cases he; exact h rfl
+
+/-- (c''''') SAssert non-vacuity: the OPTIONAL msg string and the TEST expr are BOTH
+    observable — an assert without a message (SAssert t ISNone) and one with a string
+    message (SAssert t (ISSome s)) are DISTINCT; two present messages differing in text
+    are DISTINCT; the test expr is observable. The conditional msg-add is a real option. -/
+theorem sassert_msg_none_neq_some (t : ε) (s : String) :
+    (StmtIr.SAssert t .ISNone) ≠ StmtIr.SAssert t (.ISSome s) := by
+  intro he; cases he
+theorem sassert_msg_observable (t : ε) (s r : String) (h : s ≠ r) :
+    (StmtIr.SAssert t (.ISSome s)) ≠ StmtIr.SAssert t (.ISSome r) := by
+  intro he; cases he; exact h rfl
+theorem sassert_test_observable (t u : ε) (m : IrOptStr) (h : t ≠ u) :
+    (StmtIr.SAssert t m) ≠ StmtIr.SAssert u m := by
   intro he; cases he; exact h rfl
 
 /-- (c''') SUB-BODY non-vacuity: an SWhile with an EMPTY sub-body and one with a
@@ -263,10 +298,16 @@ end StmtIRCert
 #print axioms StmtIRCert.stmtKindOf_for
 #print axioms StmtIRCert.kindOf_agree
 #print axioms StmtIRCert.stmtKindOf_assign
+#print axioms StmtIRCert.stmtKindOf_assert
 #print axioms StmtIRCert.tag_assign_neq_expr
 #print axioms StmtIRCert.tag_assign_neq_return
+#print axioms StmtIRCert.tag_assert_neq_expr
+#print axioms StmtIRCert.tag_assert_neq_assign
 #print axioms StmtIRCert.sassign_target_observable
 #print axioms StmtIRCert.sassign_value_observable
+#print axioms StmtIRCert.sassert_msg_none_neq_some
+#print axioms StmtIRCert.sassert_msg_observable
+#print axioms StmtIRCert.sassert_test_observable
 #print axioms StmtIRCert.tag_pass_neq_break
 #print axioms StmtIRCert.tag_while_neq_if
 #print axioms StmtIRCert.tag_while_neq_for

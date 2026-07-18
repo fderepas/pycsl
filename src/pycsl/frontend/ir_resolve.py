@@ -385,6 +385,21 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # `_lower_stmt_ir_node`'s "str"/"expr"-with-opt-unwrap child kinds.
     "AnnAssign": [("target", "ExprIR"), ("annotation", "int"),
                   ("value", "OptExprIR"), ("simple", "int")],
+    # SAssert increment (self-tcb-reduction M5, C-bucket): the `assert test, msg`
+    # statement. `_NODE_SPEC['Assert'] = ('stmt', ('test', 'msg'), None)`; `msg` is
+    # optional (`_OPTIONAL_FIELDS['Assert'] = ('msg',)`), tagged "OptExprIR" ->
+    # `option emit_ir` (the Return/AnnAssign precedent). `test` tagged "ExprIR" ->
+    # `emit_ir` (`self._py_expr_to_ir(stmt.test)`). This types `_py_stmt_assert`'s
+    # `stmt` param as the `Assert` record so the build-up-then-append body
+    # `ir_node = {"stmt":"Assert","test":..}; if stmt.msg and isinstance(stmt.msg,
+    # Constant) and isinstance(stmt.msg.value, str): ir_node["msg"] = stmt.msg.value;
+    # ir_stmts.append(ir_node)` lowers to `SAssert (py_expr_to_ir stmt.test)
+    # <iropt_str>` — the new `SAssert emit_ir iropt_str` ctor. The msg option field
+    # feeds the "assert_msg" child kind (expressions.py `_lower_stmt_ir_node`):
+    # `match stmt.msg with Some _m -> (if is_str _m then IrSSome (value_of _m) else
+    # IrSNone) | None -> IrSNone` — present-as-string-literal-Constant iff the guard
+    # holds, faithful to the isinstance(Constant)+isinstance(str) test.
+    "Assert": [("test", "ExprIR"), ("msg", "OptExprIR")],
     # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the COMPOUND statement
     # nodes whose `_process_*` handler builds an SWhile/SIf/SFor. Field NAMES/order
     # match `_NODE_SPEC` exactly (the harvest cross-check is name-only). `test`/`iter`

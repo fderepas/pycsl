@@ -1171,6 +1171,126 @@ class FunctionEmissionMixin:
                 return None
         return [{"stmt": "Return", "value": dlit}]
 
+    # SAssert increment (self-tcb-reduction M5, C-bucket): the statement kinds whose
+    # `_py_stmt_*` handler is a BUILD-UP-THEN-APPEND (bind a `{"stmt":K}` node local,
+    # conditionally attach an optional field, then `ir_stmts.append(<local>)`) rather
+    # than a build-up-then-RETURN (`_recognize_stmtir_builder`). Only "Assert" today.
+    _STMT_IR_APPEND_BUILD_KINDS = frozenset({"Assert"})
+
+    def _recognize_stmt_append_builder(
+            self, func: Dict[str, Any],
+            body_stmts: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+        """SAssert increment (self-tcb-reduction M5, C-bucket) BUILD-UP-THEN-APPEND
+        recognizer: recognize the `_py_stmt_assert` shape
+
+            ir_node = {"stmt": "Assert", "test": self._py_expr_to_ir(stmt.test)}
+            if <guard>: ir_node["msg"] = stmt.msg.value        (0..n conditional-adds)
+            ir_stmts.append(ir_node)
+
+        and REWRITE it to a single `ir_stmts.append({"stmt":"Assert","test":..,
+        "msg":stmt.msg})` — the conditionally-added optional field FOLDED into the node
+        literal as the RAW option field read (`stmt.msg`), which `_lower_stmt_ir_node`'s
+        "assert_msg" child kind lowers to the faithful `iropt_str`
+        (`match stmt.msg with Some _m -> (if is_str _m then IrSSome (value_of _m) else
+        IrSNone) | None -> IrSNone`). The append site then snocs `SAssert (py_expr_to_ir
+        stmt.test) <iropt_str>` onto the `ref (seq stmt_ir)` param (the existing
+        `_stmt_seq_append_params` marks it mutable — the build-up-then-append seed).
+
+        UNLIKE `_recognize_stmtir_builder` (which DROPS the conditionally-added field),
+        this KEEPS it as an option: the `msg` value is re-derived from the SAME `stmt.msg`
+        field the conditional-add's value (`stmt.msg.value`) reads, so no field is invented.
+        Fail-closed: None on ANY shape mismatch (a prelude local, a wrong terminal, a
+        conditional-add that is not `if C: node[F]=stmt.F.value`, an unrecognized kind) →
+        the body keeps its normal (unlowered) shape. @mutable_state-gated → corpus
+        byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return None
+        if len(body_stmts) < 2:
+            return None
+        # Terminal: `<p>.append(<Var v>)`.
+        last = body_stmts[-1]
+        if last.get("stmt") not in ("Expr", "ExprStmt"):
+            return None
+        lv = last.get("value")
+        if not (isinstance(lv, dict) and lv.get("type") == "Call"):
+            return None
+        fn = lv.get("func", "")
+        if not (isinstance(fn, str) and fn.endswith(".append")):
+            return None
+        aargs = lv.get("args") or []
+        if len(aargs) != 1:
+            return None
+        av = aargs[0]
+        if not (isinstance(av, dict) and av.get("type") == "Var"):
+            return None
+        vname = av.get("name")
+        # The base node literal must be the FIRST statement (no dropped prelude locals).
+        base_st = body_stmts[0]
+        if not (base_st.get("stmt") == "Assign" and base_st.get("target") == vname
+                and isinstance(base_st.get("value"), dict)
+                and base_st["value"].get("type") == "DictLit"):
+            return None
+        dlit = base_st["value"]
+        keys = list(dlit.get("keys", []) or [])
+        vals = list(dlit.get("values", []) or [])
+        base: Dict[str, Any] = {}
+        for k, v in zip(keys, vals):
+            if not (isinstance(k, dict) and k.get("type") == "String"):
+                return None
+            base[k.get("value")] = v
+        kind_ir = base.get("stmt")
+        if not (isinstance(kind_ir, dict) and kind_ir.get("type") == "String"):
+            return None
+        skind = kind_ir.get("value")
+        if skind not in self._STMT_IR_APPEND_BUILD_KINDS:
+            return None
+        # Conditional-adds (between base and terminal): each `if <guard>: v[F] = V`
+        # (single ArraySet on v, no else). Collect field-name -> value.
+        added: Dict[str, Any] = {}
+        for st in body_stmts[1:-1]:
+            if st.get("stmt") != "If" or st.get("orelse"):
+                return None
+            ifbody = st.get("body") or []
+            if len(ifbody) != 1:
+                return None
+            aset = ifbody[0]
+            if aset.get("stmt") != "ArraySet":
+                return None
+            arr = aset.get("array")
+            if not (isinstance(arr, dict) and arr.get("type") == "Var"
+                    and arr.get("name") == vname):
+                return None
+            idx = aset.get("index")
+            if not (isinstance(idx, dict) and idx.get("type") == "String"):
+                return None
+            added[idx.get("value")] = aset.get("value")
+        if skind == "Assert":
+            # The ONLY optional field is `msg`, set to `stmt.msg.value`
+            # (Attribute(Attribute(Var, "msg"), "value")). Extract `stmt.msg` — the
+            # `option emit_ir` field the "assert_msg" child kind reads — as the value's
+            # `.object`, so the msg option is derived from the SAME field, never invented.
+            if set(added.keys()) != {"msg"}:
+                return None
+            raw = added["msg"]
+            if not (isinstance(raw, dict) and raw.get("type") == "Attribute"
+                    and raw.get("attr") == "value"):
+                return None
+            msg_field = raw.get("object")
+            if not (isinstance(msg_field, dict) and msg_field.get("type") == "Attribute"
+                    and msg_field.get("attr") == "msg"):
+                return None
+            new_dlit = {
+                "type": "DictLit",
+                "keys": keys + [{"type": "String", "value": "msg"}],
+                "values": vals + [msg_field],
+            }
+            return [{
+                "stmt": last.get("stmt"),
+                "value": {"type": "Call", "func": fn, "args": [new_dlit]},
+            }]
+        return None
+
     @staticmethod
     def _is_slice_optfield_ternary(rhs: Any) -> bool:
         """True if `rhs` is the `_py_expr_slice` per-bound ternary shape
@@ -1728,6 +1848,15 @@ class FunctionEmissionMixin:
         _sib = self._recognize_stmtir_builder(func, body_stmts)
         if _sib is not None:
             body_stmts = _sib
+        # SAssert increment (self-tcb-reduction M5, C-bucket): rewrite a BUILD-UP-THEN-
+        # APPEND handler (`_py_stmt_assert`: `ir_node = {"stmt":"Assert",...}; if C:
+        # ir_node["msg"]=stmt.msg.value; ir_stmts.append(ir_node)`) to a single
+        # `ir_stmts.append({"stmt":"Assert","test":..,"msg":stmt.msg})`, so the append
+        # site snocs `SAssert (py_expr_to_ir stmt.test) <iropt_str>`. Fail-closed (None →
+        # unchanged); @mutable_state-gated → corpus byte-inert.
+        _sab = self._recognize_stmt_append_builder(func, body_stmts)
+        if _sab is not None:
+            body_stmts = _sab
         # optional-field ext (monomorphic-option ADTs): rewrite the
         # `_py_expr_slice` 3-ternary-bound body to a single `Return` of the
         # `{"type":"SliceN",...}` construction (ternaries inlined), so the normal
@@ -3113,17 +3242,30 @@ class FunctionEmissionMixin:
         mutated: Set[str] = set()
 
         def walk(stmts: List[Dict[str, Any]]) -> None:
+            # SAssert increment (C-bucket): locals bound (earlier in THIS statement
+            # list) to a `{"stmt": K}` node literal — the build-up-then-append shape
+            # (`ir_node = {"stmt":"Assert",...}; ...; ir_stmts.append(ir_node)`). An
+            # append of such a local is a stmt-ir append even though the arg is a Var,
+            # so the receiving param is still a `ref (seq stmt_ir)`.
+            built_stmt_locals: Set[str] = set()
             for st in stmts:
                 if not isinstance(st, dict):
                     continue
+                if (st.get("stmt") == "Assign" and isinstance(st.get("target"), str)
+                        and self._is_stmt_ir_node(st.get("value"))):
+                    built_stmt_locals.add(st["target"])
                 if st.get("stmt") in ("Expr", "ExprStmt"):
                     val = st.get("value", {})
                     if isinstance(val, dict) and val.get("type") == "Call":
                         fn = val.get("func", "")
                         args = val.get("args", []) or []
+                        a0 = args[0] if args else None
+                        is_built_local = (
+                            isinstance(a0, dict) and a0.get("type") == "Var"
+                            and a0.get("name") in built_stmt_locals)
                         if (isinstance(fn, str) and fn.endswith(".append") and args
-                                and self._is_stmt_ir_append_arg(
-                                    args[0], stmt_ir_returning)):
+                                and (self._is_stmt_ir_append_arg(a0, stmt_ir_returning)
+                                     or is_built_local)):
                             recv = fn.rsplit(".", 1)[0]
                             if recv in params:
                                 mutated.add(recv)

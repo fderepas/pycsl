@@ -1096,23 +1096,30 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_continue(self, stmt: ast.Continue, ir_stmts: List[int]) -> None:
         ir_stmts.append({"stmt": "Continue"})
 
-    # SAssign + str-Constant recognizer (C-bucket): SKIPPED this increment (the msg
-    # option-narrowing is NOT a clean port). `_py_stmt_assert` BUILDS its node incrementally
-    # then appends (`ir_node = {"stmt":"Assert","test":..}; if stmt.msg and isinstance(stmt.
-    # msg, ast.Constant) and isinstance(stmt.msg.value, str): ir_node["msg"] = stmt.msg.value;
-    # ir_stmts.append(ir_node)`) — a build-up-then-APPEND with a CONDITIONAL dict-field-add,
-    # a shape the append convention (single-element snoc of a literal/call) does not model
-    # (the build-up recognizer handles build-up-RETURN, not build-up-append). It also needs a
-    # NEW `SAssert emit_ir (option string)` ctor (test + OPTIONAL msg string), the str-
-    # Constant recognizer reused on `stmt.msg` (now landed), and `stmt.msg.value` -> value_of
-    # (the IrStr string leaf). Deferred until the build-up-append + optional-string-field ctor
-    # machinery lands.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SAssert increment (self-tcb-reduction M5, C-bucket): `ir_stmts` is a caller-visible
+    # mutable `ref (seq stmt_ir)` param. This is a BUILD-UP-THEN-APPEND: `ir_node` is bound
+    # to the base `{"stmt":"Assert","test":self._py_expr_to_ir(stmt.test)}` node, then a
+    # CONDITIONAL field-add `if stmt.msg and isinstance(stmt.msg, Constant) and isinstance(
+    # stmt.msg.value, str): ir_node["msg"] = stmt.msg.value` attaches the optional message,
+    # then `ir_stmts.append(ir_node)` snocs it. The `_recognize_stmt_append_builder`
+    # (functions.py) folds these three statements into a single `ir_stmts.append({"stmt":
+    # "Assert","test":..,"msg":stmt.msg})`, which `_lower_stmt_ir_node` lowers to
+    # `ir_stmts := Seq.snoc !ir_stmts (SAssert (py_expr_to_ir stmt.test) <iropt_str>)` — the
+    # new `SAssert emit_ir iropt_str` ctor (Phase2d_StmtIR.v / StmtIR.lean). The msg option
+    # field lowers via the "assert_msg" child kind: `match stmt.msg with Some _m -> (if
+    # is_str _m then IrSSome (value_of _m) else IrSNone) | None -> IrSNone` — the FAITHFUL
+    # present-as-string-literal-Constant option (the compound guard collapses to is-Some &&
+    # is_str, and `stmt.msg.value` projects via `value_of`, `IrStr v -> v`), tag-preserving
+    # (SAssert, never erased to 0). isinstance_op = 0. Verbatim body port of the LIVE
+    # `_py_stmt_assert`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_assert(self, stmt: ast.Assert, ir_stmts: List[int]) -> None:
-        pass
+        ir_node: Dict[str, Any] = {"stmt": "Assert", "test": self._py_expr_to_ir(stmt.test)}
+        if stmt.msg and isinstance(stmt.msg, ast.Constant) and isinstance(stmt.msg.value, str):
+            ir_node["msg"] = stmt.msg.value
+        ir_stmts.append(ir_node)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

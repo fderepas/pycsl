@@ -1,0 +1,121 @@
+module WallStmtAssertObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+  use option.Option
+
+  (* SAssert increment (self-tcb-reduction M5, C-bucket), STEP-2b: OBSERVATIONAL
+     non-vacuity for the _py_stmt_assert conversion — the FIRST stmt_ir ctor carrying
+     an emit_ir TEST beside an OPTIONAL msg STRING (iropt_str), built by a BUILD-UP-
+     THEN-APPEND handler (ir_node = {..}; if <guard>: ir_node["msg"]=..; ir_stmts.
+     append(ir_node)).
+
+     emit_ir is given a MINIMAL faithful subset here (IrVar / IrStr / IrOther + is_str /
+     value_of) — exactly the discriminant/projector the assert msg lowering uses; the real
+     preamble emit_ir is a superset on which is_str/value_of agree with these on IrStr nodes.
+     `disp` models the recursive dispatcher self._py_expr_to_ir (an emit_ir -> emit_ir val).
+     The stmt_ir block + the emit_assert body below are VERBATIM the PyCSL tool's emitted
+     Module5_IREmitter.mlw output (module6_whyml/preamble.py::_emit_exprir_theory gated on
+     _uses_stmt_ir; the msg option via expressions.py::_lower_stmt_ir_node's "assert_msg"
+     child kind; the build-up-then-append fold via functions.py::_recognize_stmt_append_
+     builder — grep-confirmed from the emitted pycsltojsonemitter___py_stmt_assert body:
+       ir_stmts := Seq.snoc !ir_stmts (SAssert (disp stmt.test)
+         (match stmt.msg with Some _m -> (if is_str _m then IrSSome (value_of _m)
+                                          else IrSNone) | None -> IrSNone end)) ). *)
+
+  (* ---- MINIMAL faithful emit_ir subset + discriminant/projector (real preamble superset
+     agrees on these ctors). ---- *)
+  type emit_ir = IrVar string | IrStr string | IrOther string
+  let function is_str (e: emit_ir) : bool = match e with IrStr _ -> true | _ -> false end
+  let function value_of (e: emit_ir) : string =
+    match e with IrStr v -> v | IrOther v -> v | _ -> "" end
+
+  (* `disp` models self._py_expr_to_ir applied to the TEST sub-node. Abstract; a `function`
+     so it is deterministic (`disp e = disp e`), which the value equality VCs need. *)
+  val function disp (e: emit_ir) : emit_ir
+
+  (* ---- VERBATIM tool-emitted stmt_ir block: SAssert carries the TEST expr (emit_ir) + the
+     OPTIONAL msg string (iropt_str = IrSNone | IrSSome string). TAG-PRESERVING. ---- *)
+  type iropt_str = IrSNone | IrSSome string
+  type iropt_ir = IrONone | IrOSome emit_ir
+  type stmt_ir = SPass | SBreak | SContinue | SReturn iropt_ir | SExpr emit_ir
+               | SAssign string emit_ir
+               | SAssert emit_ir iropt_str
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"
+    | SReturn _ -> "Return" | SExpr _ -> "Expr" | SAssign _ _ -> "Assign"
+    | SAssert _ _ -> "Assert"
+    end
+
+  (* ---- emit_assert: signature + body VERBATIM from the tool (real writes { ir_stmts };
+     the msg option derived from stmt.msg : option emit_ir via `match .. Some _m -> if is_str
+     _m then IrSSome (value_of _m) else IrSNone | None -> IrSNone`). `test` models stmt.test :
+     emit_ir; `msg` models stmt.msg : option emit_ir. The `ensures` is an ADDED VC checked
+     against the verbatim body: had the tool dropped the msg, collapsed the option guard, or
+     erased the tag, it would be UNPROVABLE. ---- *)
+  let emit_assert (test: emit_ir) (msg: option emit_ir)
+                  (ir_stmts: ref (seq stmt_ir)) : unit
+    requires { true }
+    ensures  { !ir_stmts = Seq.snoc (old !ir_stmts)
+                 (SAssert (disp test)
+                   (match msg with Some _m -> (if is_str _m then IrSSome (value_of _m)
+                                               else IrSNone) | None -> IrSNone end)) }
+    writes { ir_stmts }
+  =
+    ir_stmts := Seq.snoc !ir_stmts
+      (SAssert (disp test)
+        (match msg with Some _m -> (if is_str _m then IrSSome (value_of _m)
+                                    else IrSNone) | None -> IrSNone end))
+
+  (* OBSERVATIONAL non-vacuity (msg PRESENT, IrSSome): a Some string-literal Constant msg
+     appends SAssert with the RIGHT test AND the value_of msg carried as IrSSome. *)
+  let driver_assert_msg (t: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assert t (Some (IrStr "boom")) ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 = SAssert (disp t) (IrSSome "boom") };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Assert" }
+
+  (* OBSERVATIONAL non-vacuity (msg ABSENT, IrSNone): NO msg (the `assert test` shape)
+     appends SAssert with IrSNone — the is-Some guard is REAL, not collapsed to always-Some. *)
+  let driver_assert_nomsg (t: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assert t None ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 = SAssert (disp t) IrSNone };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Assert" }
+
+  (* OBSERVATIONAL non-vacuity (msg present but NON-string Constant): a Some non-IrStr msg
+     appends SAssert with IrSNone — the `is_str` half of the guard is REAL (a non-string
+     Constant is NOT carried as a message, faithful to isinstance(stmt.msg.value, str)). *)
+  let driver_assert_nonstr_msg (t: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assert t (Some (IrVar "x")) ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SAssert (disp t) IrSNone }
+
+  (* Positive non-vacuity: msg-present and msg-absent asserts are PROVABLY DISTINCT (IrSSome
+     <> IrSNone), the msg text is OBSERVABLE (IrSSome "boom" <> IrSSome "other"), and SAssert
+     is <> a wrong ctor. If Valid, the tags/payloads are genuinely observed, not vacuous. *)
+  let driver_refute (t: emit_ir) : unit =
+    let a = ref (Seq.empty: seq stmt_ir) in
+    let b = ref (Seq.empty: seq stmt_ir) in
+    emit_assert t (Some (IrStr "boom")) a;
+    emit_assert t None b;
+    assert { Seq.get !a 0 <> Seq.get !b 0 };
+    assert { Seq.get !a 0 <> SAssert (disp t) (IrSSome "other") };
+    assert { Seq.get !a 0 <> SExpr (disp t) }
+
+  (* EVIL TWIN 1 (msg-absent must NOT be IrSSome): asserting a message-less assert carried a
+     string message. Must stay UNPROVEN (else the is-Some guard is vacuously ignored). *)
+  let driver_evil_nomsg (t: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assert t None ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SAssert (disp t) (IrSSome "boom") }
+
+  (* EVIL TWIN 2 (wrong tag): asserting a real assert produced SExpr. Must stay UNPROVEN. *)
+  let driver_evil_tag (t: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assert t (Some (IrStr "boom")) ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SExpr (disp t) }
+end

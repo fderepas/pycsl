@@ -1743,6 +1743,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # by `stmt.value is not None`, so the option is Some and the "opt_unwrap" child kind
         # unwraps it (`match <optfield> with Some _v -> disp _v | None -> IrOther ""`).
         "Assign":   ("SAssign", [("target", "str"), ("value", "opt_unwrap")]),
+        # SAssert increment (self-tcb-reduction M5, C-bucket): the `assert test, msg`
+        # statement (the `_py_stmt_assert` build-up-then-append, folded to a single
+        # literal by `_recognize_stmt_append_builder`). `test` is the mandatory emit_ir
+        # ("expr" child). `msg` is the OPTIONAL message string: the raw `stmt.msg`
+        # (`option emit_ir`) field, lowered by the "assert_msg" child kind to `iropt_str`
+        # — `IrSSome (value_of _m)` iff the msg is a Some string-literal Constant
+        # (`is_str _m`), else `IrSNone`, faithful to the compound guard `stmt.msg and
+        # isinstance(stmt.msg, Constant) and isinstance(stmt.msg.value, str)`.
+        "Assert":   ("SAssert", [("test", "expr"), ("msg", "assert_msg")]),
         # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the compound
         # statements carry their nested statement body/orelse LISTS. The `"expr"`
         # child (test/iter) lowers to a bare emit_ir; the `"stmtlist"` child
@@ -1837,6 +1846,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # record and the Some arm applies the real dispatcher `_py_expr_to_ir`.
                 args.append(self._opt_field_disp_unwrap(
                     fields[f], local_refs, invariant_ctx, subst))
+            elif child_kind == "assert_msg":
+                # SAssert increment (C-bucket): the OPTIONAL assert message. `fields[f]`
+                # is the raw `stmt.msg` field read (`option emit_ir`). The `_py_stmt_assert`
+                # guard `stmt.msg and isinstance(stmt.msg, Constant) and isinstance(stmt.msg
+                # .value, str)` means "msg is a Some string-literal Constant"; a string
+                # Constant lowers to exactly `IrStr`, so the compound guard collapses to
+                # `is-Some && is_str (unwrapped)`, and `stmt.msg.value` (the string payload)
+                # projects via `value_of` (`IrStr v -> v`). Lower to `iropt_str`:
+                #   match <msg> with Some _m -> (if is_str _m then IrSSome (value_of _m)
+                #                                 else IrSNone) | None -> IrSNone
+                # NON-facade: the option field is read from the record, the Some arm applies
+                # the real `is_str` discriminant + `value_of` projector; absent/non-string
+                # msg is faithfully `IrSNone` (the guard's else — no append of a msg).
+                msg_w = self._expr_to_whyml(
+                    fields[f], local_refs, invariant_ctx, subst)
+                args.append(
+                    f"(match {msg_w} with Some _m -> "
+                    f"(if is_str _m then IrSSome (value_of _m) else IrSNone) "
+                    f"| None -> IrSNone end)")
             elif child_kind == "stmtlist":
                 # SUB-BODY recursion (C-bucket): the sub-statement list
                 # `self._py_stmts_to_ir(node.body)` is a `seq stmt_ir` (the trusted

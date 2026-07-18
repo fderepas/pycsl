@@ -81,9 +81,18 @@ Inductive iropt : Type :=
   | IrONone
   | IrOSome (e : emit).
 
+(* The monomorphic option-STRING sibling — mirrors the WhyML `iropt_str = IrSNone
+   | IrSSome string`.  SAssert carries it (the OPTIONAL assert-message STRING, the
+   `stmt.msg` string-literal Constant); it references NO type variable, so it never
+   mentions `stmt_ir`. *)
+Inductive ioptstr : Type :=
+  | ISNone
+  | ISSome (s : string).
+
 (* The MUTUAL block: stmt_ir and its sub-body list stmt_list.  The compound
    nodes carry `stmt_list` bodies (SWhile: test+body; SIf: test+body+orelse;
-   SFor: iter+body); `stmt_list` is the bespoke monomorphic cons. *)
+   SFor: iter+body); `stmt_list` is the bespoke monomorphic cons.  SAssert carries
+   the TEST expr (foreign `emit`) + the OPTIONAL msg string (`ioptstr`). *)
 Inductive stmt_ir : Type :=
   | SPass
   | SBreak
@@ -91,6 +100,7 @@ Inductive stmt_ir : Type :=
   | SReturn (o : iropt)
   | SExpr (e : emit)
   | SAssign (n : string) (e : emit)
+  | SAssert (t : emit) (m : ioptstr)
   | SWhile (t : emit) (b : stmt_list)
   | SIf (t : emit) (b : stmt_list) (el : stmt_list)
   | SFor (t : emit) (b : stmt_list)
@@ -113,6 +123,7 @@ Definition stmt_kind_of (s : stmt_ir) : string :=
   | SReturn _   => "Return"
   | SExpr _     => "Expr"
   | SAssign _ _ => "Assign"
+  | SAssert _ _ => "Assert"
   | SWhile _ _  => "While"
   | SIf _ _ _   => "If"
   | SFor _ _    => "For"
@@ -160,12 +171,15 @@ Proof. intros h t; simpl; lia. Qed.
 Definition iropt_eq_dec : forall x y : iropt, {x = y} + {x <> y}.
 Proof. decide equality; apply emit_eq_dec. Defined.
 
+Definition ioptstr_eq_dec : forall x y : ioptstr, {x = y} + {x <> y}.
+Proof. decide equality; apply string_dec. Defined.
+
 Fixpoint stmt_ir_eq_dec (x y : stmt_ir) : {x = y} + {x <> y}
 with stmt_list_eq_dec (x y : stmt_list) : {x = y} + {x <> y}.
 Proof.
   - decide equality;
-      (apply emit_eq_dec || apply iropt_eq_dec || apply stmt_list_eq_dec
-       || apply string_dec).
+      (apply emit_eq_dec || apply iropt_eq_dec || apply ioptstr_eq_dec
+       || apply stmt_list_eq_dec || apply string_dec).
   - decide equality; apply stmt_ir_eq_dec.
 Defined.
 
@@ -183,6 +197,7 @@ Inductive pystmt : Type :=
   | PReturn (o : iropt)
   | PExpr (e : emit)
   | PAssign (n : string) (e : emit)
+  | PAssert (t : emit) (m : ioptstr)
   | PWhile (t : emit) (b : stmt_list)
   | PIf (t : emit) (b : stmt_list) (el : stmt_list)
   | PFor (t : emit) (b : stmt_list).
@@ -197,6 +212,7 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PReturn o   => SReturn o
   | PExpr e     => SExpr e
   | PAssign n e => SAssign n e
+  | PAssert t m => SAssert t m
   | PWhile t b  => SWhile t b
   | PIf t b el  => SIf t b el
   | PFor t b    => SFor t b
@@ -211,6 +227,7 @@ Definition py_kind_of (s : pystmt) : string :=
   | PReturn _   => "Return"
   | PExpr _     => "Expr"
   | PAssign _ _ => "Assign"
+  | PAssert _ _ => "Assert"
   | PWhile _ _  => "While"
   | PIf _ _ _   => "If"
   | PFor _ _    => "For"
@@ -232,6 +249,7 @@ Proof.
   - exists (PReturn o); reflexivity.
   - exists (PExpr e); reflexivity.
   - exists (PAssign n e); reflexivity.
+  - exists (PAssert t m); reflexivity.
   - exists (PWhile t b); reflexivity.
   - exists (PIf t b el); reflexivity.
   - exists (PFor t b); reflexivity.
@@ -248,6 +266,7 @@ Theorem stmt_kind_of_continue : stmt_kind_of SContinue = "Continue". Proof. refl
 Theorem stmt_kind_of_return   : forall o, stmt_kind_of (SReturn o) = "Return". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_expr     : forall e, stmt_kind_of (SExpr e) = "Expr".     Proof. reflexivity. Qed.
 Theorem stmt_kind_of_assign   : forall n e, stmt_kind_of (SAssign n e) = "Assign". Proof. reflexivity. Qed.
+Theorem stmt_kind_of_assert   : forall t m, stmt_kind_of (SAssert t m) = "Assert". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_while    : forall t b, stmt_kind_of (SWhile t b) = "While". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_if       : forall t b el, stmt_kind_of (SIf t b el) = "If". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_for      : forall t b, stmt_kind_of (SFor t b) = "For".     Proof. reflexivity. Qed.
@@ -275,6 +294,12 @@ Proof. intros o e; simpl; discriminate. Qed.
 Theorem tag_assign_neq_expr   : forall n e f, stmt_kind_of (SAssign n e) <> stmt_kind_of (SExpr f).
 Proof. intros; simpl; discriminate. Qed.
 Theorem tag_assign_neq_return : forall n e o, stmt_kind_of (SAssign n e) <> stmt_kind_of (SReturn o).
+Proof. intros; simpl; discriminate. Qed.
+(* SAssert increment: the Assert tag is distinct from the Expr and Assign tags
+   (the `_py_stmt_assert` node is NOT collapsed onto a sibling statement kind). *)
+Theorem tag_assert_neq_expr   : forall t m e, stmt_kind_of (SAssert t m) <> stmt_kind_of (SExpr e).
+Proof. intros; simpl; discriminate. Qed.
+Theorem tag_assert_neq_assign : forall t m n e, stmt_kind_of (SAssert t m) <> stmt_kind_of (SAssign n e).
 Proof. intros; simpl; discriminate. Qed.
 (* SUB-BODY increment: the compound tags are distinct from each other and from
    the simple ones (While/If/For are provably separate nodes, not a shared 0). *)
@@ -304,6 +329,18 @@ Proof. intros n m e H C; inversion C; contradiction. Qed.
 Theorem sassign_value_observable : forall n e f, e <> f -> SAssign n e <> SAssign n f.
 Proof. intros n e f H C; inversion C; contradiction. Qed.
 
+(* (c''''') SAssert non-vacuity: the OPTIONAL msg string is OBSERVABLE — an assert
+   WITHOUT a message (SAssert t ISNone) and one WITH a string message (SAssert t
+   (ISSome s)) are DISTINCT nodes; two present messages differing in text are
+   DISTINCT; and the TEST expr is observable too.  The conditional msg-add is a real
+   option (IrSSome/IrSNone), never a shared 0 — the `if stmt.msg ...` guard is honest. *)
+Theorem sassert_msg_none_neq_some : forall t s, SAssert t ISNone <> SAssert t (ISSome s).
+Proof. intros t s H; discriminate. Qed.
+Theorem sassert_msg_observable : forall t s r, s <> r -> SAssert t (ISSome s) <> SAssert t (ISSome r).
+Proof. intros t s r H C; inversion C; contradiction. Qed.
+Theorem sassert_test_observable : forall t u m, t <> u -> SAssert t m <> SAssert u m.
+Proof. intros t u m H C; inversion C; contradiction. Qed.
+
 (* (c''') SUB-BODY non-vacuity: an SWhile whose sub-body is EMPTY (SLNil) and one
    whose sub-body has a node (SLCons ...) are DISTINCT nodes — the sub-body is
    OBSERVABLE, not collapsed (the 0896 fixture's driver_refute / driver_evil_count
@@ -330,6 +367,7 @@ Print Assumptions size_slist_lt_sfor.
 Print Assumptions size_head_le_slcons.
 Print Assumptions size_tail_le_slcons.
 Print Assumptions iropt_eq_dec.
+Print Assumptions ioptstr_eq_dec.
 Print Assumptions stmt_ir_eq_dec.
 Print Assumptions stmt_list_eq_dec.
 Print Assumptions abs_injective.
@@ -340,10 +378,16 @@ Print Assumptions stmt_kind_of_if.
 Print Assumptions stmt_kind_of_for.
 Print Assumptions kind_of_agree.
 Print Assumptions stmt_kind_of_assign.
+Print Assumptions stmt_kind_of_assert.
 Print Assumptions tag_assign_neq_expr.
 Print Assumptions tag_assign_neq_return.
+Print Assumptions tag_assert_neq_expr.
+Print Assumptions tag_assert_neq_assign.
 Print Assumptions sassign_target_observable.
 Print Assumptions sassign_value_observable.
+Print Assumptions sassert_msg_none_neq_some.
+Print Assumptions sassert_msg_observable.
+Print Assumptions sassert_test_observable.
 Print Assumptions tag_pass_neq_break.
 Print Assumptions tag_while_neq_if.
 Print Assumptions tag_while_neq_for.
