@@ -2099,6 +2099,17 @@ class PreambleEmissionMixin:
             out.append("  use real.FromInt")
         if needs.get("needs_seq"):
             out.append("  use seq.Seq")  # no-more-int-7 §B′ — immutable list-snapshot value model
+        if self._uses_pyconst_val():
+            # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the
+            # `_py_expr_constant` complex branch truncates the real part of a PVComplex
+            # `.value` — `int(expr.value.real)` -> `(real_trunc (pvreal_of expr.value))`,
+            # where `real_trunc`'s spec is pinned to `truncate : real -> int` (`real.Truncate`).
+            # GATED TIGHTLY on a Constant/`pyconst_val` field actually being present (only the
+            # Module5 mirror harvests one) — NOT on the broad emit_ir-theory condition — so the
+            # real-arithmetic axioms of `real.Truncate` are NOT injected into the SMT context of
+            # every other full-theory mirror (that bloats their vacuity/proof search). A corpus
+            # file (no pyconst_val field) never sees this use -> byte-identical.
+            out.append("  use real.Truncate")
         if self._value_semantic:
             if needs["needs_matrix"]:
                 out.append("  use matrix.Matrix")
@@ -3815,7 +3826,95 @@ class PreambleEmissionMixin:
             " content stays opaque via `ir_shared_vars`. *)",
             "  type sharedvar = { sv_name: string; sv_mutex: string }",
             "",
+            # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the WHOLE
+            # block — type + `is_pv*`/`pv*_of` + `real_trunc`/`bytes_content_comp` — is emitted
+            # ONLY in a file that actually harvested a Constant record (`_uses_pyconst_val`;
+            # only the Module5 mirror). Every OTHER full-theory mirror gets NOTHING here, so it
+            # stays byte-identical to the pre-feature emitter: adding the 7-constructor
+            # `pyconst_val` datatype to their emit_ir theory made Why3's `split_vc` enumerate
+            # its constructor cases, exploding the vacuity/proof sub-goal count on heavy
+            # mirrors (e.g. `stmt_control_flow`'s `_handle_for_stmt`). Sound: no other mirror
+            # references `pyconst_val`, so it is only ever declared where it is used. Corpus is
+            # likewise fully inert (its emit_ir drivers have no Constant field).
+            *(([
+                "  (* pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the"
+                " discriminated union of the Python CONSTANT scalar kinds an `ast.Constant`"
+                " node's `.value` field holds — the value-model capability the resolver note"
+                " (frontend/ir_resolve.py `_PURE_AST_FIELD_TABLE`, the \"_py_expr_constant"
+                " blocked\" paragraph) named as the missing value-type-discrimination (the"
+                " harvested `value` field was a single opaque leaf, not a discriminated union"
+                " of Python scalar types). STANDALONE + MONOMORPHIC: DISJOINT from the emit_ir"
+                " mutual-recursion block above (no `with`, no shared `size` induction), so it"
+                " adds NO constructor to emit_ir's soundness induction and NO size-decrease"
+                " obligation. `is_pv*` discriminants + total `pv*_of` projectors follow the"
+                " emit_ir `is_binop`/`left_of` precedent. A `_py_expr_constant`-style"
+                " `isinstance(expr.value, bool/str/int/bytes/complex)` / `expr.value is None` /"
+                " `is ...` INPUT-side value-type test lowers to the matching `is_pv*`"
+                " discriminant (module6_whyml/expressions.py `_handle_isinstance` / the `is"
+                " None` handler). Co-landed with an AXIOM-FREE Rocq+Lean certificate"
+                " (src/formal-semantics/rocq/Phase2c_PyConstVal.v + lean/PyCSL/PyConstVal.lean):"
+                " the abstraction map py-scalar->pyconst_val is total + injective-per-kind, the"
+                " `is_pv*` agree with Python isinstance/`is None`, and the `pv*_of` are exact"
+                " on their variant. *)",
+                "  type pyconst_val = PVNone | PVBool bool | PVInt int | PVStr string"
+                " | PVBytes (seq int) | PVComplex real | PVEllipsis",
+                "  let function is_pvnone (v: pyconst_val) : bool ="
+                " match v with PVNone -> true | _ -> false end",
+                "  let function is_pvbool (v: pyconst_val) : bool ="
+                " match v with PVBool _ -> true | _ -> false end",
+                "  let function is_pvint (v: pyconst_val) : bool ="
+                " match v with PVInt _ -> true | _ -> false end",
+                "  let function is_pvstr (v: pyconst_val) : bool ="
+                " match v with PVStr _ -> true | _ -> false end",
+                "  let function is_pvbytes (v: pyconst_val) : bool ="
+                " match v with PVBytes _ -> true | _ -> false end",
+                "  let function is_pvcomplex (v: pyconst_val) : bool ="
+                " match v with PVComplex _ -> true | _ -> false end",
+                "  let function is_pvellipsis (v: pyconst_val) : bool ="
+                " match v with PVEllipsis -> true | _ -> false end",
+                "  let function pvbool_of (v: pyconst_val) : bool ="
+                " match v with PVBool b -> b | _ -> false end",
+                "  let function pvint_of (v: pyconst_val) : int ="
+                " match v with PVInt n -> n | _ -> 0 end",
+                "  let function pvstr_of (v: pyconst_val) : string ="
+                " match v with PVStr s -> s | _ -> \"\" end",
+                "  let function pvbytes_of (v: pyconst_val) : seq int ="
+                " match v with PVBytes b -> b | _ -> Seq.empty end",
+                "  let function pvreal_of (v: pyconst_val) : real ="
+                " match v with PVComplex r -> r | _ -> 0.0 end",
+                # complex branch of `_py_expr_constant`: `int(expr.value.real)` is a real->int
+                # truncation. Why3's `real.Truncate.truncate` is a LOGIC function (rejected in
+                # a program/ghost-free context), so expose a program-callable wrapper PINNED by
+                # `ensures` to that exact stdlib symbol — NOT an opaque `val` (its result is
+                # fully determined by the trusted `truncate`, adding no PyCSL axiom / TCB).
+                "  val function real_trunc (r: real) : int"
+                "    ensures { result = truncate r }",
+                # bytes content-comprehension: the CONTENT law for `[IrNum(b) for b in
+                # <PVBytes payload>]` (the byte-literal branch). Total over the source seq,
+                # per-index `IrNum (Seq.get s i)` + exact length — value-faithful, NOT an opaque
+                # length-only stub. Abstract `val function` (its `ensures` is assumed, never a
+                # VC), the `list_content_comp_N` precedent over a `seq int` source with the
+                # `IrNum` leaf ctor. Non-vacuous: `IrNum` is injective.
+                "  val function bytes_content_comp (s: seq int) : irlist",
+                "    ensures { irlen result = Seq.length s }",
+                "    ensures { forall i: int. 0 <= i < Seq.length s ->"
+                " irnth i result = IrNum (Seq.get s i) }",
+                "",
+            ]) if self._uses_pyconst_val() else []),
         ]
+
+    def _uses_pyconst_val(self) -> bool:
+        """pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): True iff this
+        file actually harvested a Constant record — a `pyconst_val`-typed field is present in
+        some `type_decl`. Only then is the real-truncation wrapper `real_trunc` (and its
+        `use real.Truncate`) emitted, so the real-arithmetic axioms stay OUT of every other
+        full-theory mirror's SMT context. The pure pyconst_val type + its non-real accessors +
+        `bytes_content_comp` remain unconditional (axiom-free, cheap, unused-val-inert)."""
+        for td in self.ir.get("type_decls", []) or []:
+            for f in td.get("fields", []) or []:
+                if f.get("type") == "PyConstVal":
+                    return True
+        return False
 
     def _reserved_exprir_symbols(self) -> Set[str]:
         """field-label/emit_ir-symbol collision fix: the set of top-level WhyML
@@ -4193,6 +4292,20 @@ class PreambleEmissionMixin:
                         # default below (their pre-build behavior). Corpus-inert (no corpus
                         # record uses an ExprIR field).
                         ftype = "emit_ir"
+                    elif (ftype == "PyConstVal"
+                          and (getattr(self, "_mutable_state_classes", None)
+                               or getattr(self, "_uses_ir_node_param", False))):
+                        # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket):
+                        # a `.value`-of-`ast.Constant` field (harvested from the pure_ast
+                        # Constant node, ir_resolve.py `_PURE_AST_FIELD_TABLE`) is the
+                        # discriminated union of Python constant scalar kinds `pyconst_val`
+                        # (preamble.py `_emit_exprir_theory`). GATED identically to the
+                        # ExprIR->emit_ir mapping above (@mutable_state OR an IR-node-typed
+                        # param — the Module5 mirror imports its pure_ast records via the
+                        # latter), so the type is bound exactly where the theory is emitted.
+                        # Both gates are False for the corpus -> falls through to the int
+                        # default below, byte-identical.
+                        ftype = "pyconst_val"
                     elif ftype in self._record_types:
                         # wrong-lowering.md §WL-03: a field whose type is another
                         # (already-declared) record — a synthesized `Tuple[T1, ...]`

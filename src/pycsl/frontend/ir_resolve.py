@@ -339,6 +339,24 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # earlier "Slice blocked" note below (an Optional-ExprIR field tag NOW
     # exists, and IrSliceN keeps all three bounds).
     "Slice": [("lower", "OptExprIR"), ("upper", "OptExprIR"), ("step", "OptExprIR")],
+    # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): Constant's
+    # 2 fields (`value`, `kind`) match `_NODE_SPEC['Constant'] = ('expr',
+    # ('value','kind'), None)` in order. `value` tagged "PyConstVal" — the FIRST
+    # value-scalar-union field in this structural-import path — which the preamble
+    # record emitter maps to the `pyconst_val` discriminated-union ADT
+    # (module6_whyml/preamble.py `_emit_exprir_theory`): the discriminated union of
+    # the Python constant scalar kinds (None/bool/int/str) an `ast.Constant.value`
+    # holds. This LIFTS the "value-type-discrimination" blocker cited below: the
+    # `value` field is no longer a single opaque leaf but a proper sum, so
+    # `_py_expr_constant`'s INPUT-side `isinstance(expr.value, bool/str/int)` /
+    # `expr.value is None` value-type tests lower to the `is_pv*` discriminants
+    # (module6_whyml/expressions.py `_handle_isinstance` / the `is None` handler),
+    # and `expr.value` reads through the `pv*_of` projectors. `kind` tagged "int"
+    # like Name's/Attribute's `ctx` — an opaque leaf the live `_py_expr_constant`
+    # body never reads, carried for record totality only (every parser construction
+    # sets `kind=None`; its `_OPTIONAL_FIELDS` membership does not affect the
+    # structural harvest, which cross-checks field NAMES only).
+    "Constant": [("value", "PyConstVal"), ("kind", "int")],
     #
     # `_py_expr_attribute` — CONVERTED (isinstance-on-emit_ir batch, see the
     # "Attribute" table entry above). Its `isinstance(expr.value, ast.Name)` guard
@@ -347,14 +365,18 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # emit_ir ADT discriminant `(is_var expr.value)` and `expr.value.id` to
     # `(name_of expr.value)`. The FieldGet/Attribute split is a real if/else.
     #
-    # `_py_expr_constant` was INVESTIGATED and found blocked: the live body
-    # dispatches on the CONSTANT VALUE's Python type — `expr.value is None`,
-    # `isinstance(expr.value, bool/str/bytes/complex)`, `expr.value is ...` —
-    # an INPUT-side value-type test the structural harvest cannot express (the
-    # harvested `value` field is a single opaque leaf, not a discriminated
-    # union of Python scalar types). Additionally its `kind` field is in
-    # `_OPTIONAL_FIELDS` (pure_ast.py), breaking the field-totality obligation.
-    # No table entry until a value-type-discrimination capability lands.
+    # `_py_expr_constant` — the value-type-discrimination capability that BLOCKED
+    # it has now LANDED (the "Constant" table entry above + the `pyconst_val` ADT):
+    # `expr.value is None` / `isinstance(expr.value, bool/str/int)` lower to the
+    # `is_pvnone`/`is_pvbool`/`is_pvstr`/`is_pvint` discriminants. The None/bool/
+    # str/int CORE thus lowers faithfully. The bytes / complex / Ellipsis branches
+    # (`[IrNum(b) for b in expr.value]` per-byte comprehension over the bytes
+    # payload; `int(expr.value.real)` complex trunc; `expr.value is ...`) need
+    # further value-model infra (a PVBytes iterable + a bytes content-comprehension,
+    # a PVComplex real+trunc, a PVEllipsis singleton); until that lands the WHOLE
+    # body cannot be ported faithfully, so `_py_expr_constant` stays `\trusted` this
+    # round (no half-body conversion) — the ADT + recognizers are banked for the
+    # follow-on. See value-model-wall-stand-alone.md.
     #
     # `_py_expr_slice` — CONVERTED (optional-field ext, see the "Slice" table
     # entry above). The two blockers cited historically are BOTH lifted: an

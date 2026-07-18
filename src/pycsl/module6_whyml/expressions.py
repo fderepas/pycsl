@@ -1118,6 +1118,67 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return True
         return False
 
+    def _pyconst_val_field_read(self, ir: Any) -> Optional[Dict[str, Any]]:
+        """pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): if `ir` reads
+        a `pyconst_val`-typed record field (`expr.value` where `expr` is a Constant-record
+        param whose harvested `value` field has type "PyConstVal", ir_resolve.py
+        `_PURE_AST_FIELD_TABLE`), return `ir` itself (the field-read node, which lowers to
+        the record projection); else None. Mirrors `_is_emit_ir_expr`'s Attribute branch —
+        keyed on the param's record type in `_current_symbol_table` and the field's
+        declared type in `_record_types[...]["field_types"]`. This is the discriminant a
+        `_py_expr_constant`-style value-type test (`isinstance(expr.value, bool/str/int)` /
+        `expr.value is None`) reflects on."""
+        if not (isinstance(ir, dict) and ir.get("type") in ("Attribute", "FieldGet")):
+            return None
+        obj = ir.get("object", {})
+        if not (isinstance(obj, dict) and obj.get("type") == "Var"):
+            return None
+        rec = getattr(self, "_current_symbol_table", {}).get(obj.get("name", ""))
+        rt = getattr(self, "_record_types", {}).get(rec)
+        if not rt:
+            return None
+        ft = rt.get("field_types", {}).get(ir.get("attr") or ir.get("field"))
+        return ir if ft == "PyConstVal" else None
+
+    @staticmethod
+    def _is_number_dictlit(elt: Any) -> bool:
+        """pyconst_val bytes comprehension: True iff `elt` is an inline `{"type":"Number",
+        "value": …}` IR-node construction (a DictLit whose "type" key is the String
+        "Number") — the per-byte `IrNum b` element of the bytes comprehension."""
+        if not (isinstance(elt, dict) and elt.get("type") == "DictLit"):
+            return False
+        for k, v in zip(elt.get("keys", []), elt.get("values", [])):
+            if (isinstance(k, dict) and k.get("type") == "String" and k.get("value") == "type"
+                    and isinstance(v, dict) and v.get("type") == "String"
+                    and v.get("value") == "Number"):
+                return True
+        return False
+
+    def _pyconst_bytes_comp(self, node: Any, local_refs: Set[str], invariant_ctx: bool,
+                            subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """pyconst_val bytes content-comprehension (self-tcb-reduction M5, B-bucket): lower
+        `[{"type":"Number","value":b} for b in expr.value]` (one generator, no filter, a
+        `pyconst_val`-typed `.value` source, a per-byte `IrNum` element) to
+        `(bytes_content_comp (pvbytes_of expr.value))` : irlist. Returns None for any other
+        shape (the caller then tries the generic comprehension paths). See preamble.py
+        `bytes_content_comp`."""
+        _d = node.to_dict()
+        gens = _d.get("generators", []) or []
+        if len(gens) != 1:
+            return None
+        g = gens[0]
+        if g.get("ifs"):
+            return None
+        if not isinstance(g.get("target"), str):
+            return None
+        src_ir = g.get("iter", {})
+        if self._pyconst_val_field_read(src_ir) is None:
+            return None
+        if not self._is_number_dictlit(_d.get("elt", {})):
+            return None
+        _srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+        return f"(bytes_content_comp (pvbytes_of {_srcw}))"
+
     def _todict_recv_node_ir(self, recv_dotted: str) -> Dict[str, Any]:
         """The node IR for a dotted receiver (`self.types` → `Attribute(Var(self), types)`)."""
         parts = recv_dotted.split(".")
@@ -1645,8 +1706,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         for f in payload:
             if f not in fields:
                 return f'(IrOther "{kind}")'
-            args.append(self._expr_to_whyml(fields[f], local_refs, invariant_ctx, subst))
+            _pv = self._project_pyconst_val_ctor_arg(
+                fields[f], kind, f, local_refs, invariant_ctx, subst)
+            if _pv is not None:
+                args.append(_pv)
+            else:
+                args.append(self._expr_to_whyml(fields[f], local_refs, invariant_ctx, subst))
         return f"({cname} {' '.join(args)})"
+
+    def _project_pyconst_val_ctor_arg(self, arg_ir: Any, kind: str, field: str,
+                                      local_refs: Set[str], invariant_ctx: bool,
+                                      subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): a
+        `_py_expr_constant`-style `{"type": "String"/"Number"/"Bool", "value": expr.value}`
+        construction reads the `pyconst_val`-typed `.value` field in a VALUE position, but
+        the target leaf constructor expects a scalar (`IrStr string` / `IrNum int` /
+        `IrBoolC int`). Project the field read through the matching total accessor so the
+        ctor arg is well-typed and value-faithful:
+
+            String -> IrStr  (pvstr_of expr.value)                : string
+            Number -> IrNum  (pvint_of expr.value)                : int
+            Bool   -> IrBoolC (if pvbool_of expr.value then 1 else 0) : int (bool-as-int,
+                     the pre-existing IrBoolC convention shared with `_csl_bool`)
+
+        Returns the projected WhyML string, or None when the arg is not a pyconst_val
+        `.value` read (the caller then lowers it generically). Corpus-inert: only fires on a
+        pyconst_val field read, which the corpus never produces."""
+        if field != "value" or self._pyconst_val_field_read(arg_ir) is None:
+            return None
+        _pvs = self._expr_to_whyml(arg_ir, local_refs, invariant_ctx, subst)
+        _proj = {"String": "pvstr_of", "Number": "pvint_of"}.get(kind)
+        if _proj is not None:
+            return f"({_proj} {_pvs})"
+        if kind == "Bool":
+            return f"(if pvbool_of {_pvs} then 1 else 0)"
+        return None
 
     def _lower_quant_optfield(self, kind: str, fields: Dict[str, Any],
                               local_refs: Set[str], invariant_ctx: bool,
@@ -2125,6 +2219,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 left = "1" if expr["left"].get("value") else "0"
             if expr["right"].get("type") == "Bool":
                 right = "1" if expr["right"].get("value") else "0"
+        # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the Ellipsis
+        # branch of `_py_expr_constant`, `expr.value is ...`. Module5 lowers the `...`
+        # literal to `{"type":"Number","value":0}` and `ast.Is` to `==` (`_py_op_to_str`),
+        # so the guard reaches here as `<pyconst_val field read> == <Number 0>`. Recognize
+        # that shape -> `(is_pvellipsis expr.value)`, the faithful PVEllipsis singleton test
+        # (NOT the meaningless pyconst_val=int comparison). Both arms reachable -> non-vacuous.
+        # A `pyconst_val` is compared to a bare int literal ONLY in this Ellipsis check, so
+        # the recognizer is unambiguous here; corpus-inert (no corpus pyconst_val).
+        if raw_op in ("==", "!="):
+            _pv_e = (self._pyconst_val_field_read(expr["left"])
+                     or self._pyconst_val_field_read(expr["right"]))
+            _num_side = (expr["right"] if self._pyconst_val_field_read(expr["left"])
+                         else expr["left"])
+            if (_pv_e is not None and isinstance(_num_side, dict)
+                    and _num_side.get("type") == "Number" and _num_side.get("value") == 0):
+                _pvs = self._expr_to_whyml(_pv_e, local_refs, invariant_ctx, subst)
+                _chk = f"(is_pvellipsis {_pvs})"
+                return _chk if raw_op == "==" else f"(not {_chk})"
         # typing-engagement ty1 / 25-1700-typing-spec-1 §1.2 C5: `x is None`
         # (BinOp `==`/`!=` with `None`) on a Union-typed variable lowers to a
         # constructor check against the nullary `Arm_<idx>_None` ctor, NOT `x=0`.
@@ -2158,6 +2270,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and _nn.get("name") in getattr(self, "_option_record_param_classes", {})):
                 _ov = whyml_ident(_nn.get("name"))
                 _chk = f"(match {_ov} with None -> true | Some _ -> false end)"
+                return _chk if raw_op == "==" else f"(not {_chk})"
+            # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): a
+            # `_py_expr_constant`-style `expr.value is None` value-type test — where the
+            # non-None side is a `pyconst_val`-typed record-field read (`_pyconst_val_field_read`)
+            # — is the FAITHFUL `is_pvnone` discriminant, NOT the emit_ir always-present model.
+            # `is` lowers to `==` (Module5 `_py_op_to_str`, `ast.Is: "=="`), so `expr.value is
+            # None` -> `(is_pvnone expr.value)` and `is not None` -> `(not (is_pvnone …))`.
+            # Both arms reachable (a Constant's `.value` may or may not be PVNone) -> the guarded
+            # branch is NON-VACUOUS. Faithful per the Phase2c_PyConstVal certificate: the
+            # abstraction map sends Python `None` to PVNone and `is_pvnone` decides exactly it.
+            _pv_none = self._pyconst_val_field_read(_nn)
+            if _pv_none is not None:
+                _pvs = self._expr_to_whyml(_pv_none, local_refs, invariant_ctx, subst)
+                _chk = f"(is_pvnone {_pvs})"
                 return _chk if raw_op == "==" else f"(not {_chk})"
             if self._is_emit_ir_expr(_nn):
                 return "false" if raw_op == "==" else "true"
@@ -4207,6 +4333,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if isinstance(val, (int, float)):
                     return str(int(val) if func_name == "int" else abs(int(val)))
             if func_name == "int":
+                # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the
+                # complex branch of `_py_expr_constant`, `int(expr.value.real)`, truncates
+                # the real part of a PVComplex `.value`. `expr.value.real` is a `.real`
+                # attribute read on a `pyconst_val`-typed field -> the real projector
+                # `(pvreal_of expr.value)`; `int(<real>)` is the Why3 `truncate`. So the
+                # whole reads `(truncate (pvreal_of expr.value))` : int, feeding IrNum.
+                if (isinstance(arg_ir, dict)
+                        and arg_ir.get("type") in ("Attribute", "FieldGet")
+                        and (arg_ir.get("attr") or arg_ir.get("field")) == "real"
+                        and self._pyconst_val_field_read(arg_ir.get("object", {})) is not None):
+                    _ow = self._expr_to_whyml(arg_ir.get("object", {}),
+                                              local_refs or set(), invariant_ctx, subst)
+                    return f"(real_trunc (pvreal_of {_ow}))"
                 # typed-ir §18: `int(<str>)` (e.g. `int(ghost_type[-1])`) is a genuine
                 # str→int conversion — an abstract `str_to_int` — not the int-identity.
                 # Fires only for a string arg → byte-identical (an int arg is identity).
@@ -4399,6 +4538,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _pred:
                 _av = self._expr_to_whyml(_a0, set(), getattr(self, "_in_spec", False), None)
                 return f"({_pred} {_av})"
+        # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): a
+        # `_py_expr_constant`-style INPUT-side value-type test `isinstance(expr.value,
+        # bool/str/int)` — where arg0 is a `pyconst_val`-typed record-field read
+        # (`expr.value`, `_pyconst_val_field_read`) and arg1 is a BARE builtin type name
+        # (`bool`/`str`/`int` as a `Var`) — lowers to the matching `pyconst_val` DISCRIMINANT
+        # `(is_pvbool/is_pvstr/is_pvint expr.value)` (preamble.py `_emit_exprir_theory`).
+        # Double-gated on `_pyconst_val_field_read(arg0)` AND the builtin-name allow-list, so
+        # a non-pyconst_val isinstance (or one against a non-builtin) is byte-inert. Faithful:
+        # on every REAL `ast.Constant` node the abstraction map sends a Python bool/str/int
+        # `.value` to PVBool/PVStr/PVInt, and `is_pv*` decides exactly that variant (the
+        # Phase2c_PyConstVal.v/PyConstVal.lean certificate's `is_pv*`↔isinstance agreement).
+        _PV_BUILTIN_DISCRIM = {"bool": "is_pvbool", "str": "is_pvstr", "int": "is_pvint",
+                               "bytes": "is_pvbytes", "complex": "is_pvcomplex"}
+        if (isinstance(_a1, dict) and _a1.get("type") == "Var"
+                and _a1.get("name") in _PV_BUILTIN_DISCRIM
+                and self._pyconst_val_field_read(_a0) is not None):
+            _av = self._expr_to_whyml(_a0, set(), getattr(self, "_in_spec", False), None)
+            return f"({_PV_BUILTIN_DISCRIM[_a1['name']]} {_av})"
         t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
         t_tag = self._tag_of_type(t_name)
         if not t_tag:
@@ -7592,6 +7749,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # TODO: handle `{k1: v1, k2: v2}` by chaining Map.set.
             return "(const (None: option int))"
         if isinstance(node, ListCompExpr):
+            # pyconst_val bytes content-comprehension (self-tcb-reduction M5, B-bucket):
+            # `[{"type":"Number","value":b} for b in expr.value]` — the bytes-literal branch
+            # of `_py_expr_constant` — iterates a `pyconst_val`-typed `.value` field (a
+            # PVBytes byte sequence) building one `IrNum b` per byte. Lowers to
+            # `(bytes_content_comp (pvbytes_of expr.value))` : irlist, the per-byte content
+            # law (preamble.py `bytes_content_comp` val: `irnth i result = IrNum (Seq.get s
+            # i)` + exact length). NON-FACADE: a real content law over the real byte payload,
+            # not an opaque length-only stub. Tried FIRST (its pyconst_val source matches no
+            # other comprehension path). Corpus-inert: only a pyconst_val source triggers it.
+            _pv_bytes = self._pyconst_bytes_comp(node, local_refs, invariant_ctx, subst)
+            if _pv_bytes is not None:
+                return _pv_bytes
             # cleared-array.md S1–S4: FIRST try the CONTENT-faithful path for a
             # simple, sound element shape (identity / pure-int arithmetic over the
             # loop target, over an `array int` source). Emits a per-instance

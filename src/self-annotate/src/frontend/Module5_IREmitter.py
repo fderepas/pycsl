@@ -715,12 +715,48 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return {"type": "None"}
         return {"type": "Var", "name": expr.id}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): `expr` is a
+    # pure_ast Constant node, cross-file (ir_resolve.py `_resolve_pure_ast_param_records`)
+    # retyped from the opaque `Any`->int fallback to the structurally-harvested `Constant`
+    # record whose `value` field is the NEW `pyconst_val` discriminated union (the missing
+    # value-type-discrimination named in the resolver's historical "_py_expr_constant
+    # blocked" note). Verbatim body port of the LIVE `_py_expr_constant`
+    # (Module5_IREmitter.py:992). Each INPUT-side value-type test lowers to a `pyconst_val`
+    # discriminant: `expr.value is None`->`is_pvnone`, `isinstance(expr.value, bool/str/
+    # bytes/complex)`->`is_pvbool/is_pvstr/is_pvbytes/is_pvcomplex`, `expr.value is ...`
+    # (Module5-collapsed to `== 0`)->`is_pvellipsis`; each value read projects via the total
+    # `pv*_of` accessors (`pvstr_of`/`pvint_of`/`pvbool_of`-as-int/`pvreal_of`+`real_trunc`);
+    # the bytes comprehension builds `IrListN (bytes_content_comp (pvbytes_of expr.value))`
+    # (module6_whyml/expressions.py `_handle_isinstance`/the `is None` handler/`_pyconst_bytes_comp`
+    # + preamble.py `_emit_exprir_theory`). Co-landed with the axiom-free Rocq+Lean
+    # certificate (Phase2c_PyConstVal.v / PyConstVal.lean).
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_constant(self, expr: ast.Constant) -> int:
-        return {}
+    def _py_expr_constant(self, expr: ast.Constant) -> Dict[str, Any]:
+        if expr.value is None:
+            return {"type": "None"}
+        if isinstance(expr.value, bool):
+            return {"type": "Bool", "value": expr.value}
+        if isinstance(expr.value, str):
+            return {"type": "String", "value": expr.value}
+        if isinstance(expr.value, bytes):
+            # Per missing-bytes-struct-feature.md Phase 1: bytes
+            # literals lower to ArrayLit of int (one element per
+            # byte, 0..255). This lets the existing array-int
+            # emission path absorb them, and b'\x00' * N composes
+            # cleanly with the BinOp [default] * size → Array.make
+            # handler in expressions.py.
+            return {
+                "type": "ArrayLit",
+                "elts": [{"type": "Number", "value": b}
+                         for b in expr.value],
+            }
+        if expr.value is ...:
+            return {"type": "Number", "value": 0}
+        if isinstance(expr.value, complex):
+            return {"type": "Number", "value": int(expr.value.real)}
+        return {"type": "Number", "value": expr.value}
 
     # non-list _py_expr_* batch (tier 1): `expr` is a pure_ast UnaryOp node,
     # cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from
