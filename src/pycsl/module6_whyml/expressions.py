@@ -1645,6 +1645,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "Continue": ("SContinue", []),
         "Return":   ("SReturn", [("value", "opt")]),
         "Expr":     ("SExpr", [("value", "expr")]),
+        # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the compound
+        # statements carry their nested statement body/orelse LISTS. The `"expr"`
+        # child (test/iter) lowers to a bare emit_ir; the `"stmtlist"` child
+        # (body/orelse) is the `self._py_stmts_to_ir(node.body)` sub-list — a
+        # `seq stmt_ir` (the trusted dispatcher's return) materialized to the pure
+        # `stmt_list` an SWhile/SIf/SFor ctor carries via `(seq_to_sl <seq>)`.
+        # NON-facade: `seq_to_sl` of a real (dispatcher-produced) seq, never a
+        # literal SLNil. `_process_for`'s While-shaped body drops target/line/
+        # invariants/variants (SFor carries iter + body only), the SWhile/SIf
+        # precedent of keeping just the emitter-model-relevant children.
+        "While":    ("SWhile", [("test", "expr"), ("body", "stmtlist")]),
+        "If":       ("SIf", [("test", "expr"), ("body", "stmtlist"),
+                             ("orelse", "stmtlist")]),
+        "For":      ("SFor", [("iter", "expr"), ("body", "stmtlist")]),
     }
 
     def _is_stmt_ir_expr(self, ir: Any) -> bool:
@@ -1714,10 +1728,49 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if child_kind == "opt":
                 args.append(self._slice_bound_to_iropt_ir(
                     fields[f], local_refs, invariant_ctx, subst))
+            elif child_kind == "stmtlist":
+                # SUB-BODY recursion (C-bucket): the sub-statement list
+                # `self._py_stmts_to_ir(node.body)` is a `seq stmt_ir` (the trusted
+                # dispatcher's return); materialize it to the pure `stmt_list` the
+                # ctor carries via `(seq_to_sl <seq>)`. NON-facade: a real
+                # materialization of the dispatcher's output, never a literal SLNil.
+                inner = self._expr_to_whyml(
+                    fields[f], local_refs, invariant_ctx, subst)
+                args.append(f"(seq_to_sl {inner})")
             else:
                 args.append(self._expr_to_whyml(
                     fields[f], local_refs, invariant_ctx, subst))
         return f"({cname} {' '.join(args)})"
+
+    # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the COMPOUND
+    # statement kinds whose `_process_*` handler RETURNS a `{"stmt": K, ...}`
+    # dict — routed through `_lower_stmt_ir_node` to their SWhile/SIf/SFor ctor.
+    # The nullary/return/expr kinds are NOT here (they lower at the `.append`
+    # site, never as a standalone construction), so a plain `{"stmt":"Pass"}`
+    # elsewhere is untouched.
+    _STMT_IR_COMPOUND_KINDS = frozenset({"While", "If", "For"})
+
+    def _lower_stmt_ir_construction(self, expr: Dict[str, Any], local_refs: Set[str],
+                                    invariant_ctx: bool,
+                                    subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """SUB-BODY recursion (C-bucket): lower a COMPOUND statement-node dict
+        construction `{"stmt": "While"/"If"/"For", ...}` (a `_process_*` return
+        dict) to its `stmt_ir` constructor via `_lower_stmt_ir_node`. Returns None
+        (→ the caller's next dict handler) for any other dict. Gated on
+        @mutable_state (the emitter model) so it is corpus-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return None
+        skind = None
+        for k, v in zip(expr.get("keys", []) or [], expr.get("values", []) or []):
+            if (isinstance(k, dict) and k.get("type") == "String"
+                    and k.get("value") == "stmt"
+                    and isinstance(v, dict) and v.get("type") == "String"):
+                skind = v.get("value")
+                break
+        if skind not in self._STMT_IR_COMPOUND_KINDS:
+            return None
+        return self._lower_stmt_ir_node(expr, local_refs, invariant_ctx, subst)
 
     def _lower_irnode_construction(self, expr: Dict[str, Any], local_refs: Set[str],
                                    invariant_ctx: bool,
@@ -7829,6 +7882,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                     invariant_ctx, subst)
             if td_lit is not None:
                 return td_lit
+            # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): a COMPOUND
+            # statement-node construction `{"stmt": "While"/"If"/"For", ...}`
+            # (the `_process_while`/`_process_if`/`_process_for` RETURN dict)
+            # lowers to its `stmt_ir` constructor `(SWhile <test> (seq_to_sl
+            # <body>))` — the sub-body list materialized to `stmt_list`. Only the
+            # compound kinds are hooked here (nullary/return/expr appends still
+            # lower at the `.append` site); gated on @mutable_state (emitter model)
+            # so every other dict literal (and the whole corpus) is byte-identical.
+            stmt_node = self._lower_stmt_ir_construction(
+                expr, local_refs, invariant_ctx, subst)
+            if stmt_node is not None:
+                return stmt_node
             # typed-ir-for-b-ceiling.md B-C1: an inline IR-node construction
             # `{"type": "Var", "name": e}` lowers to the typed `exprir` constructor
             # `(EVar <e>)`, not a heterogeneous map — so it unifies with a real ExprIR

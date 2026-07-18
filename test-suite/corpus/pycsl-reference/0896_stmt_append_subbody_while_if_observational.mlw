@@ -1,0 +1,161 @@
+module WallStmtSubBodyObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+
+  (* stmt-list-append-mutation wall (C-bucket), SUB-BODY increment: OBSERVATIONAL
+     non-vacuity for the _process_while/_process_if -> SWhile/SIf conversion — the
+     FIRST stmt_ir ctors carrying a NESTED statement-body LIST. emit_ir is OPAQUE
+     (the drivers observe the SWhile/SIf tag and the sl_len of the materialized
+     sub-body, not any emit_ir internal); `disp` models the recursive dispatcher
+     self._py_expr_to_ir. The stmt_ir/stmt_list ADT, size_stmt/size_slist, sl_len,
+     seq_to_sl and the bridge lemma seq_to_sl_len below are VERBATIM the PyCSL tool's
+     emitted output (module6_whyml/preamble.py::_emit_exprir_theory gated on
+     _uses_stmt_ir; grep-confirmed from the emitted Module5_IREmitter.mlw). The
+     process_while/process_if bodies are VERBATIM the tool's emitted
+     pycsltojsonemitter___process_while / ___process_if bodies (the SWhile/SIf ctor
+     with (seq_to_sl <body>) sub-lists via expressions.py::_lower_stmt_ir_node's
+     "stmtlist" child); emit_while/emit_if are the _py_stmt_while/_py_stmt_if append
+     bodies (Seq.snoc on the ref itself, statements.py append-of-call path). *)
+  type emit_ir
+
+  (* ---- VERBATIM tool-emitted: iropt_ir is the emit_ir ADT's monomorphic option
+     sibling; SReturn carries it. Kept so the stmt_ir sum is the tool's exact type. ---- *)
+  type iropt_ir = IrONone | IrOSome emit_ir
+
+  (* ---- VERBATIM tool-emitted mutual-cons stmt_ir/stmt_list block (SUB-BODY increment):
+     SWhile carries test + body, SIf test + body + orelse, SFor iter + body; the body
+     list is the bespoke monomorphic cons `stmt_list`. TAG-PRESERVING stmt_kind_of. ---- *)
+  type stmt_ir = SPass | SBreak | SContinue | SReturn iropt_ir | SExpr emit_ir
+    | SWhile emit_ir stmt_list | SIf emit_ir stmt_list stmt_list | SFor emit_ir stmt_list
+  with stmt_list = SLNil | SLCons stmt_ir stmt_list
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"
+    | SReturn _ -> "Return" | SExpr _ -> "Expr"    | SWhile _ _ -> "While" | SIf _ _ _ -> "If" | SFor _ _ -> "For"
+    end
+
+  (* ---- VERBATIM tool-emitted mutual size measure. ---- *)
+  let rec function size_stmt (s: stmt_ir) : int
+    ensures { result >= 1 }
+    variant { s }
+  = match s with
+    | SWhile _ b -> 1 + size_slist b
+    | SIf _ b o -> 1 + size_slist b + size_slist o
+    | SFor _ b -> 1 + size_slist b
+    | _ -> 1
+    end
+  with function size_slist (l: stmt_list) : int
+    ensures { result >= 0 }
+    variant { l }
+  = match l with SLNil -> 0 | SLCons h t -> size_stmt h + size_slist t end
+
+  (* ---- VERBATIM tool-emitted sl_len (the observable). ---- *)
+  let rec function sl_len (l: stmt_list) : int
+    ensures { result >= 0 }
+    variant { l }
+  = match l with SLNil -> 0 | SLCons _ t -> 1 + sl_len t end
+
+  (* ---- VERBATIM tool-emitted seq_to_sl + the bridge lemma seq_to_sl_len. ---- *)
+  let rec function seq_to_sl_from (s: seq stmt_ir) (i: int) : stmt_list
+    requires { 0 <= i <= Seq.length s }
+    variant  { Seq.length s - i }
+  = if i >= Seq.length s then SLNil
+    else SLCons (Seq.get s i) (seq_to_sl_from s (i + 1))
+  let function seq_to_sl (s: seq stmt_ir) : stmt_list = seq_to_sl_from s 0
+
+  let rec lemma seq_to_sl_from_len (s: seq stmt_ir) (i: int)
+    requires { 0 <= i <= Seq.length s }
+    ensures  { sl_len (seq_to_sl_from s i) = Seq.length s - i }
+    variant  { Seq.length s - i }
+  = if i >= Seq.length s then () else seq_to_sl_from_len s (i + 1)
+  lemma seq_to_sl_len : forall s: seq stmt_ir. sl_len (seq_to_sl s) = Seq.length s
+
+  (* `disp` models self._py_expr_to_ir on the loop/branch TEST (an emit_ir -> emit_ir
+     val). Abstract; a `function` so it is deterministic. *)
+  val function disp (e: emit_ir) : emit_ir
+
+  (* Sub-body projectors — read the materialized stmt_list a compound node carries
+     (the observable read-back the tag-erasure pre-feature made impossible). *)
+  let function while_body_of (s: stmt_ir) : stmt_list =
+    match s with SWhile _ b -> b | _ -> SLNil end
+  let function if_body_of (s: stmt_ir) : stmt_list =
+    match s with SIf _ b _ -> b | _ -> SLNil end
+  let function if_orelse_of (s: stmt_ir) : stmt_list =
+    match s with SIf _ _ o -> o | _ -> SLNil end
+
+  (* ---- process_while: VERBATIM shape of the tool's emitted
+     pycsltojsonemitter___process_while — SWhile (disp test) (seq_to_sl body). `body`
+     models the trusted self._py_stmts_to_ir(node.body) : seq stmt_ir. ---- *)
+  let function process_while (test: emit_ir) (body: seq stmt_ir) : stmt_ir =
+    SWhile (disp test) (seq_to_sl body)
+
+  (* ---- process_if: VERBATIM shape — SIf (disp test) (seq_to_sl body) (seq_to_sl orelse). ---- *)
+  let function process_if (test: emit_ir) (body: seq stmt_ir) (orelse: seq stmt_ir) : stmt_ir =
+    SIf (disp test) (seq_to_sl body) (seq_to_sl orelse)
+
+  (* ---- emit_while / emit_if: VERBATIM _py_stmt_while / _py_stmt_if bodies — Seq.snoc
+     the process_* node onto the ref (seq stmt_ir) param itself, real writes {ir_stmts}. ---- *)
+  let emit_while (test: emit_ir) (body: seq stmt_ir) (ir_stmts: ref (seq stmt_ir)) : unit
+    ensures { !ir_stmts = Seq.snoc (old !ir_stmts) (process_while test body) }
+    writes  { ir_stmts }
+  = ir_stmts := Seq.snoc !ir_stmts (process_while test body)
+
+  let emit_if (test: emit_ir) (body: seq stmt_ir) (orelse: seq stmt_ir)
+              (ir_stmts: ref (seq stmt_ir)) : unit
+    ensures { !ir_stmts = Seq.snoc (old !ir_stmts) (process_if test body orelse) }
+    writes  { ir_stmts }
+  = ir_stmts := Seq.snoc !ir_stmts (process_if test body orelse)
+
+  (* OBSERVATIONAL non-vacuity (SWhile): a caller starts from a fresh ir_stmts, appends
+     a while whose sub-body has 2 nodes (SPass, SBreak), and READS BACK the SWhile node:
+     the RIGHT tag AND a materialized sub-body of length EXACTLY 2 (the bridge lemma
+     pins sl_len (seq_to_sl body) = Seq.length body = 2 — a REAL cons chain, NOT SLNil). *)
+  let driver_while (test: emit_ir) : unit =
+    let body = Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SBreak in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_while test body ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "While" };
+    assert { sl_len (while_body_of (Seq.get !ir_stmts 0)) = 2 }
+
+  (* OBSERVATIONAL non-vacuity (SIf): body has 1 node, orelse is EMPTY — proving BOTH
+     sub-lists are observed independently (body length 1, orelse length 0 = SLNil). *)
+  let driver_if (test: emit_ir) : unit =
+    let body = Seq.snoc (Seq.empty: seq stmt_ir) SContinue in
+    let orelse = (Seq.empty: seq stmt_ir) in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_if test body orelse ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "If" };
+    assert { sl_len (if_body_of (Seq.get !ir_stmts 0)) = 1 };
+    assert { sl_len (if_orelse_of (Seq.get !ir_stmts 0)) = 0 }
+
+  (* Positive non-vacuity: a 2-node-body While and a 0-node-body While are PROVABLY
+     DISTINCT (their sub-bodies differ in length), and the While node is <> a wrong
+     ctor. If Valid, the sub-body length is genuinely observed, not vacuous. *)
+  let driver_refute (test: emit_ir) : unit =
+    let a = ref (Seq.empty: seq stmt_ir) in
+    let b = ref (Seq.empty: seq stmt_ir) in
+    emit_while test (Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SBreak) a;
+    emit_while test (Seq.empty: seq stmt_ir) b;
+    assert { sl_len (while_body_of (Seq.get !a 0)) = 2 };
+    assert { sl_len (while_body_of (Seq.get !b 0)) = 0 };
+    assert { Seq.get !a 0 <> Seq.get !b 0 };
+    assert { Seq.get !a 0 <> SBreak }
+
+  (* EVIL TWIN 1 (wrong sub-body count): asserting the 2-node-body While has a 3-node
+     sub-body. Must stay UNPROVEN (else the sub-body length is vacuously arbitrary). *)
+  let driver_evil_count (test: emit_ir) : unit =
+    let body = Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SBreak in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_while test body ir_stmts;
+    assert { sl_len (while_body_of (Seq.get !ir_stmts 0)) = 3 }
+
+  (* EVIL TWIN 2 (wrong tag): asserting the While node has tag "If". Must stay UNPROVEN
+     (else the compound tag is vacuous). *)
+  let driver_evil_tag (test: emit_ir) : unit =
+    let body = Seq.snoc (Seq.empty: seq stmt_ir) SPass in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_while test body ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "If" }
+end

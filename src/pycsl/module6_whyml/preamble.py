@@ -3926,18 +3926,95 @@ class PreambleEmissionMixin:
                 " carries the OPTIONAL return value as `iropt_ir` (`IrONone` for a bare"
                 " `return`, `IrOSome e` for `return e`) — faithful to `ast.Return.value`"
                 " being `option emit_ir` (the ternary `disp(stmt.value) if stmt.value else"
-                " None`). Both are one-directional references to the emit_ir ADT above (and"
-                " its `iropt_ir` sibling) — NOT mutual recursion, so no shared `size`"
-                " obligation. `stmt_kind_of` is the TAG-PRESERVING discriminant (the honest"
-                " node tag, never erased to 0). *)",
+                " None`). The nullary/expr ctors are one-directional references to the"
+                " emit_ir ADT above (and its `iropt_ir` sibling) — NOT mutual recursion"
+                " WITH emit_ir, so no shared `size` obligation with it. *)",
+                "  (* SUB-BODY recursion (self-tcb-reduction M5, C-bucket, this increment):"
+                " the compound statements carry their nested statement body/orelse LISTS."
+                " SWhile carries the loop TEST (emit_ir) + BODY; SIf carries the TEST +"
+                " BODY + ORELSE; SFor carries the ITER (emit_ir) + BODY. The body list is a"
+                " bespoke MONOMORPHIC cons-list `stmt_list = SLNil | SLCons stmt_ir"
+                " stmt_list` — MUTUALLY recursive WITH stmt_ir (the `irlist` precedent)."
+                " The literal `SWhile emit_ir (seq stmt_ir)` is Why3 TYPE-REJECTED (an"
+                " abstract `seq` in a ctor arg is non-strictly-positive); `list stmt_ir`"
+                " drags the polymorphic `list.List` axioms into scope and EXPLODES the"
+                " emit_ir `size_*_dec` lemmas (the measured 27-34M-step blow-up). The"
+                " bespoke `stmt_list` is strictly positive and keeps them fast. This"
+                " mutual block is STILL one-directional w.r.t. emit_ir (stmt_ir/stmt_list"
+                " reference emit_ir for expr children; emit_ir never mentions either), and"
+                " is declared AFTER emit_ir's `size`/`size_*_dec` lemmas so nothing"
+                " perturbs them. `stmt_kind_of` is the TAG-PRESERVING discriminant (the"
+                " honest node tag, never erased to 0). Co-landed with the axiom-free"
+                " Rocq+Lean certificate (Phase2d_StmtIR.v / StmtIR.lean) extended for the"
+                " mutual `size_stmt`/`size_slist` measure. *)",
                 "  type stmt_ir = SPass | SBreak | SContinue"
-                " | SReturn iropt_ir | SExpr emit_ir",
+                " | SReturn iropt_ir | SExpr emit_ir"
+                " | SWhile emit_ir stmt_list"
+                " | SIf emit_ir stmt_list stmt_list"
+                " | SFor emit_ir stmt_list"
+                "  with stmt_list = SLNil | SLCons stmt_ir stmt_list",
                 "  let function stmt_kind_of (s: stmt_ir) : string =",
                 "    match s with",
                 "    | SPass -> \"Pass\" | SBreak -> \"Break\""
                 " | SContinue -> \"Continue\"",
-                "    | SReturn _ -> \"Return\" | SExpr _ -> \"Expr\"",
+                "    | SReturn _ -> \"Return\" | SExpr _ -> \"Expr\""
+                "    | SWhile _ _ -> \"While\" | SIf _ _ _ -> \"If\""
+                " | SFor _ _ -> \"For\"",
                 "    end",
+                "",
+                "  (* The MUTUAL well-founded size measure over stmt_ir/stmt_list — the"
+                " WhyML twin of the certificate's `size_stmt`/`size_slist`. size_stmt"
+                " descends into the sub-body list (size_slist), which descends into each"
+                " element (size_stmt), the mutual induction. Every node has size >= 1;"
+                " a list has size >= 0. Does NOT descend into the FOREIGN emit_ir expr"
+                " children (one-directional), so emit_ir's own `size` is untouched. *)",
+                "  let rec function size_stmt (s: stmt_ir) : int",
+                "    ensures { result >= 1 }",
+                "    variant { s }",
+                "  = match s with",
+                "    | SWhile _ b -> 1 + size_slist b",
+                "    | SIf _ b o -> 1 + size_slist b + size_slist o",
+                "    | SFor _ b -> 1 + size_slist b",
+                "    | _ -> 1",
+                "    end",
+                "  with function size_slist (l: stmt_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with SLNil -> 0"
+                " | SLCons h t -> size_stmt h + size_slist t end",
+                "",
+                "  (* sl_len : the LENGTH of a stmt_list — the observable the non-vacuity"
+                " fixture proves (`sl_len body = <right count>`). *)",
+                "  let rec function sl_len (l: stmt_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with SLNil -> 0 | SLCons _ t -> 1 + sl_len t end",
+                "",
+                "  (* seq_to_sl : materialize a runtime `seq stmt_ir` (what the mutable-ref"
+                " append convention grows, and what the trusted `_py_stmts_to_ir` sub-body"
+                " dispatcher yields) into the pure `stmt_list` an SWhile/SIf/SFor ctor"
+                " carries. Termination is Why3-INTRINSIC (`variant { Seq.length s - i }`"
+                " over the index cursor); no certificate clause needed. The bridge lemma"
+                " `seq_to_sl_len` pins the length: `sl_len (seq_to_sl s) = Seq.length s` —"
+                " so a body of k runtime nodes yields a stmt_list of length k (NON-facade:"
+                " an empty body is SLNil of length 0, a k-node body is a real k-long cons"
+                " chain). Proven by the recursive lemma `seq_to_sl_from_len` (the recursion"
+                " IS the induction), instantiated at i=0. *)",
+                "  let rec function seq_to_sl_from (s: seq stmt_ir) (i: int) : stmt_list",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then SLNil",
+                "    else SLCons (Seq.get s i) (seq_to_sl_from s (i + 1))",
+                "  let function seq_to_sl (s: seq stmt_ir) : stmt_list ="
+                " seq_to_sl_from s 0",
+                "",
+                "  let rec lemma seq_to_sl_from_len (s: seq stmt_ir) (i: int)",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    ensures  { sl_len (seq_to_sl_from s i) = Seq.length s - i }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then () else seq_to_sl_from_len s (i + 1)",
+                "  lemma seq_to_sl_len : forall s: seq stmt_ir."
+                " sl_len (seq_to_sl s) = Seq.length s",
                 "",
             ]) if self._uses_stmt_ir() else []),
         ]

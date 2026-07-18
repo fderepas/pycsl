@@ -1193,9 +1193,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # `_coerce_to_int` erasure to `0`. Keyed on the param being a stmt-seq-mut
                 # param → corpus-inert.
                 if arr_name in getattr(self, "_stmt_seq_mut_params", set()):
-                    node_arg = self._lower_stmt_ir_node(
-                        val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
-                        else val["args"][0], local_refs)
+                    raw_arg = (val["args"][0].to_dict()
+                               if hasattr(val["args"][0], "to_dict")
+                               else val["args"][0])
+                    # SUB-BODY recursion (C-bucket): the appended element is EITHER a
+                    # `{"stmt": K}` dict LITERAL (`_py_stmt_pass/return/...` — lowered
+                    # to its ctor by `_lower_stmt_ir_node`) OR a stmt_ir-VALUED
+                    # expression, e.g. `self._process_while(stmt)` (the compound
+                    # `_py_stmt_while/for/if` handlers) — a real `stmt_ir` value the
+                    # dispatcher returns, lowered via `_expr_to_whyml`. Both snoc onto
+                    # the ref itself.
+                    if isinstance(raw_arg, dict) and raw_arg.get("type") == "DictLit":
+                        node_arg = self._lower_stmt_ir_node(raw_arg, local_refs)
+                    else:
+                        node_arg = self._expr_to_whyml(val["args"][0], local_refs)
                     return f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {node_arg}"
                 arg = self._expr_to_whyml(val["args"][0], local_refs)
                 arg = self._coerce_to_int(arg)

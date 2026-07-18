@@ -354,6 +354,23 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # `return e` -> `IrOSome (py_expr_to_ir e)`). Feeds the mutable-ref stmt-append
     # convention (`ir_stmts := Seq.snoc !ir_stmts (SReturn <opt>)`).
     "Return": [("value", "OptExprIR")],
+    # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the COMPOUND statement
+    # nodes whose `_process_*` handler builds an SWhile/SIf/SFor. Field NAMES/order
+    # match `_NODE_SPEC` exactly (the harvest cross-check is name-only). `test`/`iter`
+    # → "ExprIR" (`self._py_expr_to_ir(node.test)` → emit_ir). `body` (and If's
+    # `orelse`) → "StmtIRList", the FIRST opaque statement-list field: it expands to
+    # `{"type":"list","value_type":"int"}` → `array int`, matching the trusted
+    # `_py_stmts_to_ir(stmts: array int) : seq stmt_ir` dispatcher's param — the
+    # sub-body list `self._py_stmts_to_ir(node.body)` then materializes to `stmt_list`
+    # via `(seq_to_sl <seq>)` at the ctor arg (expressions.py `_lower_stmt_ir_node`
+    # "stmtlist" child). Fields the ctor DROPS (While/For's `orelse`, For's `target`/
+    # `type_comment`) are tagged opaque "int" — their dict values are never lowered
+    # (SWhile = test+body; SFor = iter+body; SIf = test+body+orelse). @mutable_state-
+    # gated end-to-end → corpus byte-inert.
+    "While": [("test", "ExprIR"), ("body", "StmtIRList"), ("orelse", "int")],
+    "If": [("test", "ExprIR"), ("body", "StmtIRList"), ("orelse", "StmtIRList")],
+    "For": [("target", "int"), ("iter", "ExprIR"), ("body", "StmtIRList"),
+            ("orelse", "int"), ("type_comment", "int")],
     # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): Constant's
     # 2 fields (`value`, `kind`) match `_NODE_SPEC['Constant'] = ('expr',
     # ('value','kind'), None)` in order. `value` tagged "PyConstVal" — the FIRST
@@ -471,6 +488,16 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
                 if ftype == "ExprIRList":
                     fields.append({"name": fname, "type": "list",
                                    "value_type": "emit_ir", "mutable": True})
+                elif ftype == "StmtIRList":
+                    # SUB-BODY recursion (C-bucket): an opaque statement-list field
+                    # (While/If/For's `body`, If's `orelse`) — the raw `List[ast.stmt]`
+                    # the trusted `_py_stmts_to_ir` dispatcher consumes. Expands to a
+                    # `{"type":"list","value_type":"int"}` field → `array int` (the
+                    # ExprIRList precedent with value_type "int"), matching the
+                    # dispatcher's `array int` param; collapses to `int` off
+                    # @mutable_state (corpus byte-inert).
+                    fields.append({"name": fname, "type": "list",
+                                   "value_type": "int", "mutable": True})
                 elif ftype == "OptExprIR":
                     # optional-field ext (monomorphic-option ADTs): an
                     # `Optional[ExprIR]` pure_ast field (Slice.lower/upper/step,

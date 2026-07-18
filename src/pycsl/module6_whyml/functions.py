@@ -875,6 +875,43 @@ class FunctionEmissionMixin:
             return "(" + ", ".join(slots) + ")"
         return return_type
 
+    # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the COMPOUND
+    # statement kinds a `_process_*` handler returns (`{"stmt": K}` → SWhile/
+    # SIf/SFor). Nullary/return/expr kinds are NOT here (they never head a
+    # `_process_*` return; they append at the `.append` site).
+    _COMPOUND_STMT_RETURN_KINDS = frozenset({"While", "If", "For"})
+
+    def _returns_stmt_ir(self, body_stmts: List[Dict[str, Any]]) -> bool:
+        """SUB-BODY recursion (C-bucket): True if the function RETURNS a constructed
+        COMPOUND statement node — a `return {"stmt": "While"/"If"/"For", ...}` dict
+        literal (the `_process_while`/`_process_if`/`_process_for` return). Drives
+        the `stmt_ir` return-type override so `_py_stmt_*`'s
+        `ir_stmts.append(self._process_*(stmt))` snocs a real `stmt_ir` value.
+        @mutable_state-gated by the caller → False (inert) for the corpus."""
+        found = [False]
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Return":
+                    v = n.get("value")
+                    if isinstance(v, dict) and v.get("type") == "DictLit":
+                        for k, vv in zip(v.get("keys", []) or [],
+                                         v.get("values", []) or []):
+                            if (isinstance(k, dict) and k.get("type") == "String"
+                                    and k.get("value") == "stmt"
+                                    and isinstance(vv, dict)
+                                    and vv.get("type") == "String"
+                                    and vv.get("value")
+                                    in self._COMPOUND_STMT_RETURN_KINDS):
+                                found[0] = True
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        rec(body_stmts)
+        return found[0]
+
     def _returns_emit_ir(self, body_stmts: List[Dict[str, Any]]) -> bool:
         """True if the function returns a constructed `emit_ir` node — a `return <local>` whose
         local's first assignment is an inline `{"type": K}` IR construction (or another emit_ir
@@ -1270,6 +1307,20 @@ class FunctionEmissionMixin:
         return_type = IRScanner.find_return_type(body_stmts)
         return_type = self._refine_tuple_return_type(func, body_stmts, return_type)
         ann = func.get("return_annotation")
+        # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): two statement-IR
+        # return-type overrides in the emitter model. (1) The trusted sub-body
+        # dispatcher `_py_stmts_to_ir` — its result feeds `seq_to_sl` at an
+        # SWhile/SIf/SFor ctor arg, so its LOGICAL return type is `seq stmt_ir`,
+        # not the `array int` its `-> List[int]` annotation implies. (2) A
+        # `_process_while`/`_process_if`/`_process_for` handler RETURNS a compound
+        # `{"stmt": While/If/For, ...}` node, so its return type is the `stmt_ir`
+        # sum. Both @mutable_state-gated → byte-identical for the corpus.
+        if (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            if func.get("name") == "_py_stmts_to_ir":
+                return "seq stmt_ir"
+            if self._returns_stmt_ir(body_stmts):
+                return "stmt_ir"
         # dict-literal emit_ir construction: a method that RETURNS a constructed IR node
         # (`node = {"type":"Var",…}; … return node`) is `emit_ir`, not the `map int (option int)`
         # its `-> Dict[str, Any]` annotation would otherwise imply (the Python type of an IR-node
@@ -1885,7 +1936,29 @@ class FunctionEmissionMixin:
         int`, even when `foo` returns a list (→ `array int`) or a tuple,
         producing downstream type mismatches at the call site."""
         result: Dict[str, str] = {}
+        # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): this class is the
+        # emitter mirror iff some handler RETURNS a compound `{"stmt": While/If/For}`
+        # node — the corpus-inert signal that keys the stmt_ir self-call retypes
+        # below (no corpus function builds such a node).
+        _emits_stmt_ir = any(
+            self._returns_stmt_ir(f.get("body", [])) for f in functions)
         for func in functions:
+            # SUB-BODY recursion (C-bucket): the self-call return-type SIBLINGS of
+            # the `_compute_return_type` overrides (the emit_ir precedent at the
+            # `ann in (...) -> emit_ir` branch below). A `_process_*` handler that
+            # RETURNS a compound stmt node abstracts as `stmt_ir`; the trusted
+            # sub-body dispatcher `_py_stmts_to_ir` (whose result feeds `seq_to_sl`)
+            # abstracts as `seq stmt_ir` — so a `self.<m>(...)` call site sees the
+            # right type instead of the `int`/`array int` its shape/annotation implies.
+            if _emits_stmt_ir:
+                if self._returns_stmt_ir(func.get("body", [])):
+                    result[func["name"]] = "stmt_ir"
+                    continue
+                # `func["name"]` is the class-prefixed IR name
+                # (`<cls>___py_stmts_to_ir`), so match the un-prefixed tail.
+                if str(func.get("name", "")).endswith("_py_stmts_to_ir"):
+                    result[func["name"]] = "seq stmt_ir"
+                    continue
             ret = IRScanner.find_return_type(func["body"])
             # body-gate gap-3: refine a homogeneous `(int, int, …)` tuple into per-slot
             # types so this map (consulted by `_call_return_whyml_type` for unpack-target
@@ -2879,7 +2952,28 @@ class FunctionEmissionMixin:
                 return True
         return False
 
-    def _stmt_seq_append_params(self, func: Dict[str, Any]) -> Set[str]:
+    def _is_stmt_ir_append_arg(self, arg: Any,
+                               stmt_ir_returning: Optional[Set[str]]) -> bool:
+        """SUB-BODY recursion (C-bucket): is `arg` a stmt_ir-VALUED append element?
+        EITHER a `{"stmt": K}` node LITERAL (`_py_stmt_pass/return/...`) OR a CALL to
+        a `_process_*` handler that RETURNS a compound stmt node (`self._process_while(
+        stmt)` in `_py_stmt_while/for/if`). The latter keeps the receiving `ir_stmts`
+        param a `ref (seq stmt_ir)` even though the appended value is a call, not a
+        literal. Corpus-inert: `stmt_ir_returning` is empty unless the file emits an
+        SWhile/SIf/SFor."""
+        if self._is_stmt_ir_node(arg):
+            return True
+        if (stmt_ir_returning and isinstance(arg, dict)
+                and arg.get("type") == "Call"):
+            callee = arg.get("func", "") or ""
+            tail = callee[len("self."):] if callee.startswith("self.") else callee
+            return bool(tail) and any(
+                rn == tail or rn.endswith("_" + tail) or rn.endswith(tail)
+                for rn in stmt_ir_returning)
+        return False
+
+    def _stmt_seq_append_params(self, func: Dict[str, Any],
+                                stmt_ir_returning: Optional[Set[str]] = None) -> Set[str]:
         """stmt-list-append-mutation wall (C-bucket): the DIRECT seed — list params
         that are `.append`-ed a statement-IR node (`p.append({"stmt": K, …})`) in this
         function's own body. These become caller-visible mutable `ref (seq stmt_ir)`
@@ -2900,8 +2994,9 @@ class FunctionEmissionMixin:
                     if isinstance(val, dict) and val.get("type") == "Call":
                         fn = val.get("func", "")
                         args = val.get("args", []) or []
-                        if (isinstance(fn, str) and fn.endswith(".append")
-                                and args and self._is_stmt_ir_node(args[0])):
+                        if (isinstance(fn, str) and fn.endswith(".append") and args
+                                and self._is_stmt_ir_append_arg(
+                                    args[0], stmt_ir_returning)):
                             recv = fn.rsplit(".", 1)[0]
                             if recv in params:
                                 mutated.add(recv)
@@ -2928,11 +3023,17 @@ class FunctionEmissionMixin:
         stmt_ir)`)."""
         by_name: Dict[str, Set[str]] = {}
         formals: Dict[str, List[str]] = {}
+        # SUB-BODY recursion (C-bucket): the names of handlers that RETURN a compound
+        # stmt node — so a `p.append(self._process_*(stmt))` keeps `p` a stmt-seq-mut
+        # param (the appended value is a stmt_ir-valued call, not a dict literal).
+        stmt_ir_returning = {
+            f.get("name") for f in functions
+            if self._returns_stmt_ir(f.get("body", []))}
         for func in functions:
             nm = func.get("name")
             if nm is None:
                 continue
-            by_name[nm] = self._stmt_seq_append_params(func)
+            by_name[nm] = self._stmt_seq_append_params(func, stmt_ir_returning)
             formals[nm] = list(func.get("formal_params", []) or [])
         changed = True
         while changed:

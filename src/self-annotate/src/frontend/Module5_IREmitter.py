@@ -1032,13 +1032,29 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_return(self, stmt: ast.Return, ir_stmts: List[int]) -> None:
         ir_stmts.append({"stmt": "Return", "value": self._py_expr_to_ir(stmt.value) if stmt.value else None})
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
+    # caller-visible mutable `ref (seq stmt_ir)` param; `.append(self._process_while(
+    # stmt))` snocs the `stmt_ir` value the (trusted) `_process_while` returns —
+    # an `SWhile (py_expr_to_ir stmt.test) (seq_to_sl (py_stmts_to_ir stmt.body))`
+    # (module6_whyml/statements.py append-of-call path + expressions.py
+    # `_lower_stmt_ir_construction`) — onto the ref ITSELF, tag-preserving (SWhile,
+    # never erased to 0), with a REAL `stmt_list` sub-body (seq_to_sl of the
+    # dispatcher's seq, never SLNil-erased). Verbatim body port of the LIVE
+    # `_py_stmt_while`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_while(self, stmt: ast.While, ir_stmts: List[int]) -> None:
-        pass
+        ir_stmts.append(self._process_while(stmt))
 
+    # SUB-BODY recursion (C-bucket): SKIPPED this increment. Coupled to
+    # `_process_for`, whose live body BUILDS the node dict incrementally
+    # (`d = {...}; if isinstance(node.target, ast.Tuple): d["tuple_targets"] = ...;
+    # return d`) rather than returning a dict LITERAL — so the `_returns_stmt_ir`
+    # recognizer (which keys on `return {"stmt": K}`) does not fire, and
+    # `_process_for` stays `\trusted` (map-returning), so `_py_stmt_for`'s
+    # append-of-call cannot snoc a `stmt_ir`. A second increment (build-up-dict
+    # → SFor recognition, plus the target/tuple_targets shape) will convert it.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1046,12 +1062,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_for(self, stmt: ast.For, ir_stmts: List[int]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SUB-BODY recursion (C-bucket): sibling of `_py_stmt_while` — snocs the
+    # `SIf (py_expr_to_ir stmt.test) (seq_to_sl (py_stmts_to_ir stmt.body))
+    # (seq_to_sl (py_stmts_to_ir stmt.orelse))` value `_process_if` returns onto
+    # the `ref (seq stmt_ir)` param. Verbatim body port of the LIVE `_py_stmt_if`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_if(self, stmt: ast.If, ir_stmts: List[int]) -> None:
-        pass
+        ir_stmts.append(self._process_if(stmt))
 
     # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): a NULLARY sibling
     # of `_py_stmt_pass` — `ir_stmts` is a caller-visible mutable `ref (seq stmt_ir)` param;
@@ -1148,12 +1167,31 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_match(self, stmt: Any, ir_stmts: List[int]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): RETURNS a constructed
+    # compound `{"stmt": "While", ...}` node, recognized (module6_whyml/functions.py
+    # `_returns_stmt_ir`) as `stmt_ir`-typed and lowered (expressions.py
+    # `_lower_stmt_ir_construction`) to `SWhile (py_expr_to_ir node.test)
+    # (seq_to_sl (py_stmts_to_ir node.body))`. The `test` child → emit_ir (While.test
+    # `_PURE_AST_FIELD_TABLE` "ExprIR"); the `body` sub-list → `seq stmt_ir` (the
+    # trusted `_py_stmts_to_ir` dispatcher, retyped) materialized to `stmt_list` via
+    # `seq_to_sl`. The `line`/`invariants`/`variants` keys are DROPPED (SWhile carries
+    # test+body only), so their dict values (`getattr`/`_csl_list_to_ir`) are never
+    # lowered. Verbatim body port of the LIVE `_process_while`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _process_while(self, node: ast.While) -> int:
-        return {}
+        return {
+            "stmt": "While",
+            # §4.4 statement-level span (refactor.md B4a) — the loop's source line, so
+            # the core can report IR-level loop-invariant errors with the same
+            # "while loop at line N" context Module4 produced. Module6 ignores it.
+            "line": getattr(node, "lineno", 0),
+            "test": self._py_expr_to_ir(node.test),
+            "invariants": self._csl_list_to_ir(getattr(node, 'csl_invariants', [])),
+            "variants": self._csl_list_to_ir(getattr(node, 'csl_variants', [])),
+            "body": self._py_stmts_to_ir(node.body)
+        }
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1162,12 +1200,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _process_for(self, node: ast.For) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): RETURNS a constructed
+    # compound `{"stmt": "If", ...}` node, lowered to `SIf (py_expr_to_ir node.test)
+    # (seq_to_sl (py_stmts_to_ir node.body)) (seq_to_sl (py_stmts_to_ir node.orelse))`
+    # — BOTH the body AND the orelse sub-lists materialized to `stmt_list`. Verbatim
+    # body port of the LIVE `_process_if`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _process_if(self, node: ast.If) -> int:
-        return {}
+        return {
+            "stmt": "If",
+            "test": self._py_expr_to_ir(node.test),
+            "body": self._py_stmts_to_ir(node.body),
+            "orelse": self._py_stmts_to_ir(node.orelse)
+        }
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
