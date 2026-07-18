@@ -354,6 +354,37 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # `return e` -> `IrOSome (py_expr_to_ir e)`). Feeds the mutable-ref stmt-append
     # convention (`ir_stmts := Seq.snoc !ir_stmts (SReturn <opt>)`).
     "Return": [("value", "OptExprIR")],
+    # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): the Expr
+    # statement wrapper. `_NODE_SPEC['Expr'] = ('stmt', ('value',), None)`; its single
+    # (mandatory, non-optional) field `value` is tagged "ExprIR" -> `emit_ir` (the
+    # already-lowered expr child). This types `_py_stmt_expr(self, stmt: ast.Expr, …)`'s
+    # `stmt` param as the `Expr` record, so the body's `self._py_expr_to_ir(stmt.value)`
+    # reads `stmt.value : emit_ir` and the docstring-skip guard `isinstance(stmt.value,
+    # ast.Constant) and isinstance(stmt.value.value, str)` collapses to the emit_ir
+    # discriminant `(is_str stmt.value)` (module6_whyml/expressions.py
+    # `_recognize_str_constant_guard`) — a string-literal Constant lowers to exactly
+    # IrStr, so the two input-side isinstance tests agree with `is_str` on every real
+    # node. Feeds the mutable-ref stmt-append convention (`ir_stmts := Seq.snoc !ir_stmts
+    # (SExpr (py_expr_to_ir stmt.value))`), with the SExpr-suppressing early `return`
+    # on the docstring branch lowered via `Return_void`.
+    "Expr": [("value", "ExprIR")],
+    # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): the
+    # AnnAssign (`x: T = v`) statement. `_NODE_SPEC['AnnAssign'] = ('stmt', ('target',
+    # 'annotation', 'value', 'simple'), None)`; `value` is optional
+    # (`_OPTIONAL_FIELDS['AnnAssign'] = ('value',)`), tagged "OptExprIR" -> `option
+    # emit_ir` (the Return precedent). `target` tagged "ExprIR" -> `emit_ir` (a Name
+    # node); the `annotation`/`simple` fields the live body never reads are tagged
+    # opaque "int" (carried for record totality only, like For's dropped `target`/
+    # `type_comment`). This types `_py_stmt_annassign`'s `stmt` param as the `AnnAssign`
+    # record, so the body's guard `isinstance(stmt.target, ast.Name) and stmt.value is
+    # not None` lowers to `(is_var stmt.target) && (is-Some stmt.value)` and the append
+    # `{"stmt":"Assign","target":stmt.target.id,"value":self._py_expr_to_ir(stmt.value)}`
+    # to `SAssign (name_of stmt.target) (py_expr_to_ir <unwrapped value>)` — the new
+    # `SAssign string emit_ir` ctor. `stmt.target.id` -> `name_of` (the `.id` leaf
+    # projection); the option value is unwrapped under the is-Some guard by
+    # `_lower_stmt_ir_node`'s "str"/"expr"-with-opt-unwrap child kinds.
+    "AnnAssign": [("target", "ExprIR"), ("annotation", "int"),
+                  ("value", "OptExprIR"), ("simple", "int")],
     # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the COMPOUND statement
     # nodes whose `_process_*` handler builds an SWhile/SIf/SFor. Field NAMES/order
     # match `_NODE_SPEC` exactly (the harvest cross-check is name-only). `test`/`iter`

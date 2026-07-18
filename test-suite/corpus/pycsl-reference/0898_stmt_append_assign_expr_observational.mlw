@@ -1,0 +1,142 @@
+module WallStmtAssignExprObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+  use option.Option
+
+  (* SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket), STEP-2b:
+     OBSERVATIONAL non-vacuity for the _py_stmt_expr and _py_stmt_annassign conversions —
+     the FIRST stmt_ir ctor carrying a STRING leaf (SAssign's target name) beside an emit_ir
+     value, and the str-Constant docstring-skip recognizer.
+
+     emit_ir is given a MINIMAL faithful subset here (IrVar / IrStr / IrOther + is_var /
+     is_str / name_of) — exactly the discriminants/projectors the two handler bodies use;
+     the real preamble emit_ir is a superset on which is_var/is_str/name_of agree with these
+     on IrVar/IrStr nodes. `disp` models the recursive dispatcher self._py_expr_to_ir (an
+     emit_ir -> emit_ir val). The stmt_ir block + the emit_expr / emit_annassign bodies below
+     are VERBATIM the PyCSL tool's emitted Module5_IREmitter.mlw output
+     (module6_whyml/preamble.py::_emit_exprir_theory gated on _uses_stmt_ir; the guard
+     lowering via expressions.py::_recognize_str_constant_guard + _optexprir_field_read; the
+     append via _lower_stmt_ir_node's "str"/"opt_unwrap" child kinds — grep-confirmed from the
+     emitted pycsltojsonemitter___py_stmt_expr / ___py_stmt_annassign bodies). *)
+
+  (* ---- MINIMAL faithful emit_ir subset + discriminants/projector (real preamble superset
+     agrees on these ctors). ---- *)
+  type emit_ir = IrVar string | IrStr string | IrOther string
+  let function is_var (e: emit_ir) : bool = match e with IrVar _ -> true | _ -> false end
+  let function is_str (e: emit_ir) : bool = match e with IrStr _ -> true | _ -> false end
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar n -> n | _ -> "" end
+
+  (* `disp` models self._py_expr_to_ir applied to the UNWRAPPED sub-node. Abstract; a
+     `function` so it is deterministic (`disp e = disp e`), which the value equality VCs need. *)
+  val function disp (e: emit_ir) : emit_ir
+
+  (* ---- VERBATIM tool-emitted stmt_ir block: SExpr carries one emit_ir child; SAssign
+     carries the TARGET NAME (string leaf) + the RHS VALUE (emit_ir). TAG-PRESERVING. ---- *)
+  type iropt_ir = IrONone | IrOSome emit_ir
+  type stmt_ir = SPass | SBreak | SContinue | SReturn iropt_ir | SExpr emit_ir
+               | SAssign string emit_ir
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"
+    | SReturn _ -> "Return" | SExpr _ -> "Expr" | SAssign _ _ -> "Assign"
+    end
+
+  exception Return_void
+
+  (* ---- emit_expr: signature + body VERBATIM from the tool (real writes { ir_stmts }; the
+     docstring-skip guard `is_str v` -> early Return_void (NO append); else Seq.snoc the SExpr
+     ctor carrying disp v). The `is_str` guard is the str-Constant recognizer's output; had the
+     tool kept the two isinstance_op tests it would be UNPROVABLE (isinstance_op is opaque). ---- *)
+  let emit_expr (v: emit_ir) (ir_stmts: ref (seq stmt_ir)) : unit
+    requires { true }
+    ensures  { is_str v -> !ir_stmts = old !ir_stmts }
+    ensures  { not (is_str v) -> !ir_stmts = Seq.snoc (old !ir_stmts) (SExpr (disp v)) }
+    writes { ir_stmts }
+  =
+    try
+    if is_str v then raise Return_void
+    else ir_stmts := Seq.snoc !ir_stmts (SExpr (disp v))
+    with Return_void -> () end
+
+  (* ---- emit_annassign: signature + body VERBATIM from the tool. The guard `is_var target &&
+     is-Some value` is the FAITHFUL option presence test (a value-less annotation is skipped);
+     the append snocs `SAssign (name_of target) (disp <unwrapped value>)`. `value` models
+     stmt.value : option emit_ir. The `ensures` are ADDED VCs checked against the verbatim body:
+     had the tool collapsed the option guard to `true` or dropped the target/value, they'd be
+     UNPROVABLE. ---- *)
+  let emit_annassign (target: emit_ir) (value: option emit_ir)
+                     (ir_stmts: ref (seq stmt_ir)) : unit
+    requires { true }
+    ensures  { (is_var target /\ (match value with Some _ -> true | None -> false end)) ->
+                 !ir_stmts = Seq.snoc (old !ir_stmts)
+                   (SAssign (name_of target)
+                            (match value with Some _v -> disp _v | None -> IrOther "" end)) }
+    ensures  { not (is_var target /\ (match value with Some _ -> true | None -> false end)) ->
+                 !ir_stmts = old !ir_stmts }
+    writes { ir_stmts }
+  =
+    if is_var target && (match value with Some _ -> true | None -> false end) then
+      ir_stmts := Seq.snoc !ir_stmts
+        (SAssign (name_of target)
+                 (match value with Some _v -> disp _v | None -> IrOther "" end))
+
+  (* OBSERVATIONAL non-vacuity (real Expr): a NON-string expr appends SExpr (disp v) — the
+     RIGHT tag AND the disp payload. *)
+  let driver_expr_real (e: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_expr (IrVar "x") ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 = SExpr (disp (IrVar "x")) };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Expr" }
+
+  (* OBSERVATIONAL non-vacuity (docstring skip): a string-literal Expr appends NOTHING (the
+     str-Constant guard returns early). Distinguishing this from driver_expr_real proves the
+     guard is OBSERVABLE (not collapsed to always-append). *)
+  let driver_expr_docstring () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_expr (IrStr "docstring") ir_stmts;
+    assert { Seq.length !ir_stmts = 0 }
+
+  (* OBSERVATIONAL non-vacuity (real Assign): a Name target + present value appends SAssign
+     with the RIGHT target NAME and the disp value. *)
+  let driver_assign (v: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_annassign (IrVar "y") (Some v) ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 = SAssign "y" (disp v) };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Assign" }
+
+  (* OBSERVATIONAL non-vacuity (value-less annotation skip): a Name target but NO value (the
+     `x: T` shape) appends NOTHING — the is-Some option guard is REAL, not collapsed to true. *)
+  let driver_assign_skip () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_annassign (IrVar "z") None ir_stmts;
+    assert { Seq.length !ir_stmts = 0 }
+
+  (* Positive non-vacuity: the Expr and Assign nodes are PROVABLY DISTINCT (SExpr <> SAssign),
+     the target name is OBSERVABLE (SAssign "y" <> SAssign "w"), and each is <> a wrong ctor.
+     If Valid, the tags/payloads are genuinely observed, not vacuous. *)
+  let driver_refute (v: emit_ir) : unit =
+    let a = ref (Seq.empty: seq stmt_ir) in
+    let b = ref (Seq.empty: seq stmt_ir) in
+    emit_expr (IrVar "x") a;
+    emit_annassign (IrVar "y") (Some v) b;
+    assert { Seq.get !a 0 <> Seq.get !b 0 };
+    assert { Seq.get !b 0 <> SAssign "w" (disp v) };
+    assert { Seq.get !b 0 <> SExpr (disp v) }
+
+  (* EVIL TWIN 1 (docstring must NOT append): asserting the skipped string-Expr produced a
+     node. Must stay UNPROVEN (else the docstring-skip guard is vacuously ignored). *)
+  let driver_evil_docstring () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_expr (IrStr "docstring") ir_stmts;
+    assert { Seq.length !ir_stmts = 1 }
+
+  (* EVIL TWIN 2 (wrong tag): asserting a real Assign produced SExpr. Must stay UNPROVEN. *)
+  let driver_evil_tag (v: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_annassign (IrVar "y") (Some v) ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SExpr (disp v) }
+end

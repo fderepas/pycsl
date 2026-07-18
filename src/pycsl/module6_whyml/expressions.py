@@ -1033,6 +1033,68 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _rv = self._expr_to_whyml(_recv, set(), False, None)
         return f"({_pred} {_rv})"
 
+    def _recognize_str_constant_guard(self, expr: Any) -> Optional[str]:
+        """SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): collapse
+        the `_py_stmt_expr` docstring-skip guard
+
+            isinstance(V, ast.Constant) and isinstance(V.value, str)
+
+        — where `V` is an already-lowered ExprIR child (`stmt.value`) — to the single
+        emit_ir constructor DISCRIMINANT `(is_str V)`. The compound is "V is a
+        string-literal Constant": a string-literal `ast.Constant` node lowers (via
+        `_py_expr_to_ir`/`_py_expr_constant`) to EXACTLY `IrStr`, so on every REAL node the
+        two input-side isinstance tests agree with `is_str` (the same faithfulness law
+        `_KIND_DISCRIMINANT` relies on). `isinstance(V, ast.Constant)` ALONE has no
+        discriminant (a Constant lowers to IrNum/IrStr/IrBool/… by value), so only the
+        WHOLE `and`-compound — pinned by the inner `.value is str` — is collapsible.
+        Returns the WhyML bool term, or None (fall through to the generic `&&` lowering).
+        Triple-gated (op `and` + `_is_emit_ir_expr(V)` + the `ast.Constant`/`str` class
+        names) → corpus-inert."""
+        if not (isinstance(expr, dict) and expr.get("type") == "BinOp"
+                and expr.get("op") == "and"):
+            return None
+        left = expr.get("left")
+        right = expr.get("right")
+        # left: isinstance(V, ast.Constant)
+        if not (isinstance(left, dict) and left.get("type") == "Call"
+                and left.get("func") == "isinstance"):
+            return None
+        largs = left.get("args") or []
+        if len(largs) != 2:
+            return None
+        vexpr, lcls = largs[0], largs[1]
+        if not (isinstance(lcls, dict) and lcls.get("type") == "Attribute"
+                and isinstance(lcls.get("object"), dict)
+                and lcls["object"].get("type") == "Var"
+                and lcls["object"].get("name") == "ast"
+                and lcls.get("attr") == "Constant"):
+            return None
+        if not self._is_emit_ir_expr(vexpr):
+            return None
+        # right: isinstance(V.value, str)
+        if not (isinstance(right, dict) and right.get("type") == "Call"
+                and right.get("func") == "isinstance"):
+            return None
+        rargs = right.get("args") or []
+        if len(rargs) != 2:
+            return None
+        vval, rcls = rargs[0], rargs[1]
+        if not (isinstance(rcls, dict) and rcls.get("type") == "Var"
+                and rcls.get("name") == "str"):
+            return None
+        # `V.value` — the SAME child `V` with a `.value` attribute projection.
+        if not (isinstance(vval, dict) and vval.get("type") == "Attribute"
+                and vval.get("attr") == "value" and vval.get("object") == vexpr):
+            return None
+        _vw = self._expr_to_whyml(vexpr, set(), getattr(self, "_in_spec", False), None)
+        _pred = f"(is_str {_vw})"
+        # Match the generic `and`-binop convention: a bare bool in spec context, the
+        # int-coerced `(if b then 1 else 0)` in body context (Python and/or return int;
+        # the `_to_bool` truthiness wrapper then appends `<> 0`).
+        if getattr(self, "_in_spec", False):
+            return _pred
+        return f"(if {_pred} then 1 else 0)"
+
     def _is_emit_ir_expr(self, ir: Any) -> bool:
         """typed-ir-for-b-ceiling.md B-C2: True if `ir` lowers to the `emit_ir` sum — an
         inline `{"type": K}` construction, an ExprIR-valued record field read
@@ -1139,6 +1201,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         ft = rt.get("field_types", {}).get(ir.get("attr") or ir.get("field"))
         return ir if ft == "PyConstVal" else None
+
+    def _optexprir_field_read(self, ir: Any) -> Optional[Dict[str, Any]]:
+        """SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): if `ir`
+        reads an `OptExprIR`-typed record field (`stmt.value` where `stmt` is an AnnAssign-
+        record param whose harvested `value` field has type "OptExprIR" -> `option emit_ir`,
+        ir_resolve.py `_PURE_AST_FIELD_TABLE`), return `ir` itself; else None. Sibling of
+        `_pyconst_val_field_read`, keyed on the param's record type in
+        `_current_symbol_table` and the field's declared "OptExprIR" tag. This is the
+        discriminant a bare `stmt.value is not None` presence guard reflects on — the
+        FAITHFUL option `is-Some` test (a real match, NOT the emit_ir always-present model),
+        so the guarded append is non-vacuous (a value-less annotation `x: T` is skipped)."""
+        if not (isinstance(ir, dict) and ir.get("type") in ("Attribute", "FieldGet")):
+            return None
+        obj = ir.get("object", {})
+        if not (isinstance(obj, dict) and obj.get("type") == "Var"):
+            return None
+        rec = getattr(self, "_current_symbol_table", {}).get(obj.get("name", ""))
+        rt = getattr(self, "_record_types", {}).get(rec)
+        if not rt:
+            return None
+        _fld = ir.get("attr") or ir.get("field")
+        ft = rt.get("field_types", {}).get(_fld)
+        vt = rt.get("field_value_types", {}).get(_fld)
+        # The harvested OptExprIR field lands as `{"type":"option","value_type":"emit_ir"}`
+        # (ir_resolve.py `_harvest_node_spec_records`) -> field_types "option" +
+        # field_value_types "emit_ir".
+        return ir if (ft == "option" and vt == "emit_ir") else None
 
     @staticmethod
     def _is_number_dictlit(elt: Any) -> bool:
@@ -1645,6 +1734,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "Continue": ("SContinue", []),
         "Return":   ("SReturn", [("value", "opt")]),
         "Expr":     ("SExpr", [("value", "expr")]),
+        # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): the
+        # assignment `{"stmt":"Assign","target":stmt.target.id,"value":self.
+        # _py_expr_to_ir(stmt.value)}` (the `_py_stmt_annassign` append). `target` is a
+        # bare STRING leaf — `stmt.target.id` projects via `name_of` (the "str" child kind
+        # = the default `_expr_to_whyml` lowering). `value` is the RHS emit_ir; in
+        # AnnAssign it is `self._py_expr_to_ir(<OptExprIR field>)` — the append is GUARDED
+        # by `stmt.value is not None`, so the option is Some and the "opt_unwrap" child kind
+        # unwraps it (`match <optfield> with Some _v -> disp _v | None -> IrOther ""`).
+        "Assign":   ("SAssign", [("target", "str"), ("value", "opt_unwrap")]),
         # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the compound
         # statements carry their nested statement body/orelse LISTS. The `"expr"`
         # child (test/iter) lowers to a bare emit_ir; the `"stmtlist"` child
@@ -1727,6 +1825,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f'(SMissingChild_{skind}_{f})'
             if child_kind == "opt":
                 args.append(self._slice_bound_to_iropt_ir(
+                    fields[f], local_refs, invariant_ctx, subst))
+            elif child_kind == "opt_unwrap":
+                # SAssign + str-Constant recognizer (C-bucket): the RHS
+                # `self._py_expr_to_ir(stmt.value)` where `stmt.value : option emit_ir`
+                # (AnnAssign's OptExprIR field). The append is GUARDED by `stmt.value is
+                # not None`, so the option is Some; unwrap it under a match and apply the
+                # dispatcher — `(match <optfield> with Some _v -> disp _v | None -> IrOther
+                # "")` — yielding the bare `emit_ir` the SAssign value child expects (NOT
+                # the iropt_ir of SReturn). NON-facade: the option field is read from the
+                # record and the Some arm applies the real dispatcher `_py_expr_to_ir`.
+                args.append(self._opt_field_disp_unwrap(
                     fields[f], local_refs, invariant_ctx, subst))
             elif child_kind == "stmtlist":
                 # SUB-BODY recursion (C-bucket): the sub-statement list
@@ -1979,6 +2088,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                      invariant_ctx, subst)
         return (f"(match {optfld_w} with Some _v -> IrOSome {disp_w} "
                 f"| None -> IrONone end)")
+
+    def _opt_field_disp_unwrap(self, call: Any, local_refs: Set[str],
+                               invariant_ctx: bool,
+                               subst: Optional[Dict[str, str]]) -> str:
+        """SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): lower the
+        RHS `self._py_expr_to_ir(<OptExprIR field>)` — the SAssign value child, where the
+        argument is an `option emit_ir` record field (`stmt.value`) and the enclosing
+        append is GUARDED by `stmt.value is not None` — to the UNWRAPPED dispatcher
+        application:
+
+            match <optfield> with Some _v -> disp _v | None -> IrOther "" end
+
+        The Some arm applies the recursive dispatcher (`self._py_expr_to_ir`) to the
+        unwrapped sub-node `_v`; the None arm (dead under the is-Some guard, but required
+        for totality) yields the neutral `IrOther ""`. Sibling of `_slice_bound_to_iropt_ir`
+        but producing a BARE `emit_ir` (SAssign's value), not an `iropt_ir`. Fails closed to
+        `IrOther ""` if the shape is not a single-arg dispatcher call."""
+        if not (isinstance(call, dict) and call.get("type") == "Call"):
+            return '(IrOther "")'
+        fn = call.get("func")
+        if not (isinstance(fn, str) and fn.rsplit(".", 1)[-1] in self._IR_DISPATCHERS):
+            return '(IrOther "")'
+        cargs = call.get("args") or []
+        if len(cargs) != 1:
+            return '(IrOther "")'
+        optfld_w = self._expr_to_whyml(cargs[0], local_refs or set(),
+                                       invariant_ctx, subst)
+        disp_call = {"type": "Call", "func": fn,
+                     "args": [{"type": "Var", "name": "_v"}]}
+        disp_w = self._expr_to_whyml(disp_call, local_refs or set(),
+                                     invariant_ctx, subst)
+        return (f"(match {optfld_w} with Some _v -> {disp_w} "
+                f'| None -> IrOther "" end)')
 
     def _lower_sliceN_optfield(self, fields: Dict[str, Any],
                                local_refs: Set[str], invariant_ctx: bool,
@@ -2313,6 +2455,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to_dict() is faithful for its purposes.
         expr = node.to_dict()
         raw_op = expr["op"]
+        # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): the
+        # `_py_stmt_expr` docstring-skip guard `isinstance(v, ast.Constant) and
+        # isinstance(v.value, str)` (v an ExprIR child) collapses to `(is_str v)` — the
+        # WHOLE `and`-compound, since `isinstance(v, ast.Constant)` alone has no
+        # discriminant. Fires before the generic `&&` split (which would fail to lower the
+        # bare Constant isinstance). Corpus-inert (triple-gated).
+        if raw_op == "and":
+            _sc = self._recognize_str_constant_guard(expr)
+            if _sc is not None:
+                return _sc
         # tier3-p1 T3.1.2 (spike LAW 1): `<emit_ir node>.get("type") == "K"` (K a known ADT
         # constructor kind) lowers to the constructor DISCRIMINANT `(is_K node)` — a
         # match-based bool — instead of `str_eq_op (kind_of node) "K"`. This is the ONLY
@@ -2424,6 +2576,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _pv_none is not None:
                 _pvs = self._expr_to_whyml(_pv_none, local_refs, invariant_ctx, subst)
                 _chk = f"(is_pvnone {_pvs})"
+                return _chk if raw_op == "==" else f"(not {_chk})"
+            # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): a bare
+            # `stmt.value is not None` presence guard on an OptExprIR field (`option emit_ir`
+            # — AnnAssign's optional RHS) is the FAITHFUL option `is-Some` test, NOT the
+            # emit_ir always-present model below (which would collapse the guard to `true`
+            # and append even for a value-less annotation `x: T`). `is` lowers to `==`
+            # (Module5 `_py_op_to_str`), so `stmt.value is None` -> is-None and `is not
+            # None` -> is-Some. Both arms reachable -> the guarded append is NON-VACUOUS.
+            _oe_none = self._optexprir_field_read(_nn)
+            if _oe_none is not None:
+                _oes = self._expr_to_whyml(_oe_none, local_refs, invariant_ctx, subst)
+                _chk = f"(match {_oes} with None -> true | Some _ -> false end)"
                 return _chk if raw_op == "==" else f"(not {_chk})"
             if self._is_emit_ir_expr(_nn):
                 return "false" if raw_op == "==" else "true"

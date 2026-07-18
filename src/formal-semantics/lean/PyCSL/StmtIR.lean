@@ -59,6 +59,7 @@ inductive StmtIr (ε : Type) where
   | SContinue
   | SReturn (o : IrOpt ε)
   | SExpr (e : ε)
+  | SAssign (n : String) (e : ε)
   | SWhile (t : ε) (b : StmtList ε)
   | SIf (t : ε) (b : StmtList ε) (el : StmtList ε)
   | SFor (t : ε) (b : StmtList ε)
@@ -78,6 +79,7 @@ def stmtKindOf : StmtIr ε → String
   | .SContinue => "Continue"
   | .SReturn _ => "Return"
   | .SExpr _ => "Expr"
+  | .SAssign _ _ => "Assign"
   | .SWhile _ _ => "While"
   | .SIf _ _ _ => "If"
   | .SFor _ _ => "For"
@@ -90,6 +92,7 @@ def sizeStmt : StmtIr ε → Nat
   | .SContinue => 1
   | .SReturn _ => 1
   | .SExpr _ => 1
+  | .SAssign _ _ => 1
   | .SWhile _ b => 1 + sizeSList b
   | .SIf _ b el => 1 + sizeSList b + sizeSList el
   | .SFor _ b => 1 + sizeSList b
@@ -128,6 +131,7 @@ inductive PyStmt (ε : Type) where
   | PContinue
   | PReturn (o : IrOpt ε)
   | PExpr (e : ε)
+  | PAssign (n : String) (e : ε)
   | PWhile (t : ε) (b : StmtList ε)
   | PIf (t : ε) (b : StmtList ε) (el : StmtList ε)
   | PFor (t : ε) (b : StmtList ε)
@@ -140,6 +144,7 @@ def abs : PyStmt ε → StmtIr ε
   | .PContinue => .SContinue
   | .PReturn o => .SReturn o
   | .PExpr e => .SExpr e
+  | .PAssign n e => .SAssign n e
   | .PWhile t b => .SWhile t b
   | .PIf t b el => .SIf t b el
   | .PFor t b => .SFor t b
@@ -151,6 +156,7 @@ def pyKindOf : PyStmt ε → String
   | .PContinue => "Continue"
   | .PReturn _ => "Return"
   | .PExpr _ => "Expr"
+  | .PAssign _ _ => "Assign"
   | .PWhile _ _ => "While"
   | .PIf _ _ _ => "If"
   | .PFor _ _ => "For"
@@ -171,6 +177,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | SContinue => exact ⟨.PContinue, rfl⟩
   | SReturn o => exact ⟨.PReturn o, rfl⟩
   | SExpr e => exact ⟨.PExpr e, rfl⟩
+  | SAssign n e => exact ⟨.PAssign n e, rfl⟩
   | SWhile t b => exact ⟨.PWhile t b, rfl⟩
   | SIf t b el => exact ⟨.PIf t b el, rfl⟩
   | SFor t b => exact ⟨.PFor t b, rfl⟩
@@ -180,6 +187,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
 -- ===================================================================== --
 
 theorem stmtKindOf_pass : stmtKindOf (ε := ε) .SPass = "Pass" := rfl
+theorem stmtKindOf_assign (n : String) (e : ε) : stmtKindOf (.SAssign n e) = "Assign" := rfl
 theorem stmtKindOf_return (o : IrOpt ε) : stmtKindOf (.SReturn o) = "Return" := rfl
 theorem stmtKindOf_while (t : ε) (b : StmtList ε) : stmtKindOf (.SWhile t b) = "While" := rfl
 theorem stmtKindOf_if (t : ε) (b el : StmtList ε) : stmtKindOf (.SIf t b el) = "If" := rfl
@@ -196,6 +204,11 @@ theorem tag_pass_neq_break : stmtKindOf (ε := ε) .SPass ≠ stmtKindOf (ε := 
   simp only [stmtKindOf]; decide
 theorem tag_return_neq_expr (o : IrOpt ε) (e : ε) : stmtKindOf (.SReturn o) ≠ stmtKindOf (.SExpr e) := by
   simp only [stmtKindOf]; decide
+-- SAssign + str-Constant recognizer increment: the Assign tag is distinct from Expr/Return.
+theorem tag_assign_neq_expr (n : String) (e f : ε) : stmtKindOf (.SAssign n e) ≠ stmtKindOf (.SExpr f) := by
+  simp only [stmtKindOf]; decide
+theorem tag_assign_neq_return (n : String) (e : ε) (o : IrOpt ε) : stmtKindOf (.SAssign n e) ≠ stmtKindOf (.SReturn o) := by
+  simp only [stmtKindOf]; decide
 theorem tag_while_neq_if (t : ε) (b : StmtList ε) (o : ε) (c d : StmtList ε) :
     stmtKindOf (.SWhile t b) ≠ stmtKindOf (.SIf o c d) := by simp only [stmtKindOf]; decide
 theorem tag_while_neq_for (t : ε) (b : StmtList ε) (u : ε) (c : StmtList ε) :
@@ -211,6 +224,14 @@ theorem ctor_pass_neq_break : (StmtIr.SPass : StmtIr ε) ≠ StmtIr.SBreak := by
 theorem sreturn_none_neq_some (e : ε) :
     (StmtIr.SReturn .IrONone : StmtIr ε) ≠ StmtIr.SReturn (.IrOSome e) := by
   intro h; cases h
+
+/-- (c'''') SAssign non-vacuity: the TARGET NAME and the RHS VALUE are BOTH observable. -/
+theorem sassign_target_observable (n m : String) (e : ε) (h : n ≠ m) :
+    (StmtIr.SAssign n e) ≠ StmtIr.SAssign m e := by
+  intro he; cases he; exact h rfl
+theorem sassign_value_observable (n : String) (e f : ε) (h : e ≠ f) :
+    (StmtIr.SAssign n e) ≠ StmtIr.SAssign n f := by
+  intro he; cases he; exact h rfl
 
 /-- (c''') SUB-BODY non-vacuity: an SWhile with an EMPTY sub-body and one with a
     node are DISTINCT nodes (the sub-body is OBSERVABLE), and their sizes differ
@@ -241,6 +262,11 @@ end StmtIRCert
 #print axioms StmtIRCert.stmtKindOf_if
 #print axioms StmtIRCert.stmtKindOf_for
 #print axioms StmtIRCert.kindOf_agree
+#print axioms StmtIRCert.stmtKindOf_assign
+#print axioms StmtIRCert.tag_assign_neq_expr
+#print axioms StmtIRCert.tag_assign_neq_return
+#print axioms StmtIRCert.sassign_target_observable
+#print axioms StmtIRCert.sassign_value_observable
 #print axioms StmtIRCert.tag_pass_neq_break
 #print axioms StmtIRCert.tag_while_neq_if
 #print axioms StmtIRCert.tag_while_neq_for

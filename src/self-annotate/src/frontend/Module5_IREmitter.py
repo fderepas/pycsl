@@ -1001,6 +1001,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _emit_ghost_assign(self, ga) -> int:
         return {}
 
+    # SAssign + str-Constant recognizer (C-bucket): SKIPPED this increment (not a clean
+    # WHOLE-body port). The Name-target branch alone reuses SAssign (`target.id` -> name_of,
+    # `value` -> py_expr_to_ir), and the Attribute/`=='self'` branch's string-eq is available
+    # (`str_eq_op`), BUT the whole handler has FOUR more branches that need infra NOT built
+    # here: (1) a `target.value.id in self._cur_func_symtab` MEMBERSHIP test (record/set
+    # membership) feeding a second FieldAssign; (2) a `raise PyCSLSemanticError(...)` arm
+    # (exception construction); (3) a Subscript branch splitting on `isinstance(slice_node,
+    # ast.Slice)` into NEW ArraySet / ArraySliceSet ctors; (4) a Tuple branch with a
+    # list-comprehension over `target.elts` into a NEW TupleUnpack ctor. Also `target =
+    # stmt.targets[0]` indexes the `targets` LIST. A half-body (Name-only) port is a facade;
+    # deferred until SFieldAssign + the membership/raise/ArraySet/TupleUnpack infra lands.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1085,6 +1096,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_continue(self, stmt: ast.Continue, ir_stmts: List[int]) -> None:
         ir_stmts.append({"stmt": "Continue"})
 
+    # SAssign + str-Constant recognizer (C-bucket): SKIPPED this increment (the msg
+    # option-narrowing is NOT a clean port). `_py_stmt_assert` BUILDS its node incrementally
+    # then appends (`ir_node = {"stmt":"Assert","test":..}; if stmt.msg and isinstance(stmt.
+    # msg, ast.Constant) and isinstance(stmt.msg.value, str): ir_node["msg"] = stmt.msg.value;
+    # ir_stmts.append(ir_node)`) — a build-up-then-APPEND with a CONDITIONAL dict-field-add,
+    # a shape the append convention (single-element snoc of a literal/call) does not model
+    # (the build-up recognizer handles build-up-RETURN, not build-up-append). It also needs a
+    # NEW `SAssert emit_ir (option string)` ctor (test + OPTIONAL msg string), the str-
+    # Constant recognizer reused on `stmt.msg` (now landed), and `stmt.msg.value` -> value_of
+    # (the IrStr string leaf). Deferred until the build-up-append + optional-string-field ctor
+    # machinery lands.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1099,19 +1121,43 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_raise(self, stmt: ast.Raise, ir_stmts: List[int]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
+    # caller-visible mutable `ref (seq stmt_ir)` param; the guard `isinstance(stmt.target,
+    # ast.Name) and stmt.value is not None` lowers to `(is_var stmt.target) && (is-Some
+    # stmt.value)` — the FAITHFUL option presence test on the OptExprIR `value` field (a
+    # value-less annotation `x: T` is skipped, NON-vacuous). The guarded
+    # `.append({"stmt":"Assign","target":stmt.target.id,"value":self._py_expr_to_ir(stmt.
+    # value)})` snocs `SAssign (name_of stmt.target) (match stmt.value with Some _v ->
+    # py_expr_to_ir _v | None -> IrOther "")` onto the ref — the new `SAssign string
+    # emit_ir` ctor, target name projected via `name_of`, RHS via the option-unwrapped
+    # dispatcher, tag-preserving (SAssign, never erased to 0). isinstance_op = 0. Verbatim
+    # body port of the LIVE `_py_stmt_annassign`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_annassign(self, stmt: ast.AnnAssign, ir_stmts: List[int]) -> None:
-        pass
+        if isinstance(stmt.target, ast.Name) and stmt.value is not None:
+            ir_stmts.append({"stmt": "Assign", "target": stmt.target.id,
+                             "value": self._py_expr_to_ir(stmt.value)})
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
+    # caller-visible mutable `ref (seq stmt_ir)` param; the docstring-skip guard
+    # `isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, str)` — "value
+    # is a string literal" — collapses to the emit_ir discriminant `(is_str stmt.value)`
+    # (module6_whyml/expressions.py `_recognize_str_constant_guard`), because a
+    # string-literal Constant lowers to exactly IrStr. On the docstring branch the early
+    # `return` suppresses the append (lowered via `Return_void`); otherwise
+    # `.append({"stmt":"Expr","value":self._py_expr_to_ir(stmt.value)})` snocs `SExpr
+    # (py_expr_to_ir stmt.value)` onto the ref, tag-preserving (SExpr, never erased to 0).
+    # isinstance_op = 0. Verbatim body port of the LIVE `_py_stmt_expr`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_expr(self, stmt: ast.Expr, ir_stmts: List[int]) -> None:
-        pass
+        # Skip bare string-literal expressions (docstrings) — no WhyML equivalent.
+        if isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, str):
+            return
+        ir_stmts.append({"stmt": "Expr", "value": self._py_expr_to_ir(stmt.value)})
 
     # SUB-BODY recursion (C-bucket): SKIPPED this increment (needs a distinct ADT).
     # `_py_stmt_try` builds a Try node with MULTIPLE sub-lists (body/orelse/finalbody

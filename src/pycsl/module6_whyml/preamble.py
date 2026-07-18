@@ -3947,8 +3947,18 @@ class PreambleEmissionMixin:
                 " honest node tag, never erased to 0). Co-landed with the axiom-free"
                 " Rocq+Lean certificate (Phase2d_StmtIR.v / StmtIR.lean) extended for the"
                 " mutual `size_stmt`/`size_slist` measure. *)",
+                "  (* SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket,"
+                " this increment): the ASSIGNMENT statement `x = v` carries the TARGET"
+                " NAME (a bare `string` leaf — `stmt.target.id` projected via `name_of`,"
+                " NOT an emit_ir sub-node) and the RHS VALUE (`emit_ir` — `py_expr_to_ir"
+                " stmt.value`). FLAT (no sub-body list), so it falls in `size_stmt`'s"
+                " `| _ -> 1` catch-all — NO change to the mutual size measure, the"
+                " `size_stmt`/`size_slist` lemmas stay byte-identical. Shared by the"
+                " `Assign` dict-key both `_py_stmt_annassign` (`x: T = v`) and — a later"
+                " increment — `_py_stmt_assign`'s Name-target branch append. *)",
                 "  type stmt_ir = SPass | SBreak | SContinue"
                 " | SReturn iropt_ir | SExpr emit_ir"
+                " | SAssign string emit_ir"
                 " | SWhile emit_ir stmt_list"
                 " | SIf emit_ir stmt_list stmt_list"
                 " | SFor emit_ir stmt_list"
@@ -3958,6 +3968,7 @@ class PreambleEmissionMixin:
                 "    | SPass -> \"Pass\" | SBreak -> \"Break\""
                 " | SContinue -> \"Continue\"",
                 "    | SReturn _ -> \"Return\" | SExpr _ -> \"Expr\""
+                " | SAssign _ _ -> \"Assign\"",
                 "    | SWhile _ _ -> \"While\" | SIf _ _ _ -> \"If\""
                 " | SFor _ _ -> \"For\"",
                 "    end",

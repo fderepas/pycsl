@@ -90,6 +90,7 @@ Inductive stmt_ir : Type :=
   | SContinue
   | SReturn (o : iropt)
   | SExpr (e : emit)
+  | SAssign (n : string) (e : emit)
   | SWhile (t : emit) (b : stmt_list)
   | SIf (t : emit) (b : stmt_list) (el : stmt_list)
   | SFor (t : emit) (b : stmt_list)
@@ -111,6 +112,7 @@ Definition stmt_kind_of (s : stmt_ir) : string :=
   | SContinue   => "Continue"
   | SReturn _   => "Return"
   | SExpr _     => "Expr"
+  | SAssign _ _ => "Assign"
   | SWhile _ _  => "While"
   | SIf _ _ _   => "If"
   | SFor _ _    => "For"
@@ -162,7 +164,8 @@ Fixpoint stmt_ir_eq_dec (x y : stmt_ir) : {x = y} + {x <> y}
 with stmt_list_eq_dec (x y : stmt_list) : {x = y} + {x <> y}.
 Proof.
   - decide equality;
-      (apply emit_eq_dec || apply iropt_eq_dec || apply stmt_list_eq_dec).
+      (apply emit_eq_dec || apply iropt_eq_dec || apply stmt_list_eq_dec
+       || apply string_dec).
   - decide equality; apply stmt_ir_eq_dec.
 Defined.
 
@@ -179,6 +182,7 @@ Inductive pystmt : Type :=
   | PContinue
   | PReturn (o : iropt)
   | PExpr (e : emit)
+  | PAssign (n : string) (e : emit)
   | PWhile (t : emit) (b : stmt_list)
   | PIf (t : emit) (b : stmt_list) (el : stmt_list)
   | PFor (t : emit) (b : stmt_list).
@@ -192,6 +196,7 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PContinue   => SContinue
   | PReturn o   => SReturn o
   | PExpr e     => SExpr e
+  | PAssign n e => SAssign n e
   | PWhile t b  => SWhile t b
   | PIf t b el  => SIf t b el
   | PFor t b    => SFor t b
@@ -205,6 +210,7 @@ Definition py_kind_of (s : pystmt) : string :=
   | PContinue   => "Continue"
   | PReturn _   => "Return"
   | PExpr _     => "Expr"
+  | PAssign _ _ => "Assign"
   | PWhile _ _  => "While"
   | PIf _ _ _   => "If"
   | PFor _ _    => "For"
@@ -225,6 +231,7 @@ Proof.
   - exists PContinue; reflexivity.
   - exists (PReturn o); reflexivity.
   - exists (PExpr e); reflexivity.
+  - exists (PAssign n e); reflexivity.
   - exists (PWhile t b); reflexivity.
   - exists (PIf t b el); reflexivity.
   - exists (PFor t b); reflexivity.
@@ -240,6 +247,7 @@ Theorem stmt_kind_of_break    : stmt_kind_of SBreak = "Break".       Proof. refl
 Theorem stmt_kind_of_continue : stmt_kind_of SContinue = "Continue". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_return   : forall o, stmt_kind_of (SReturn o) = "Return". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_expr     : forall e, stmt_kind_of (SExpr e) = "Expr".     Proof. reflexivity. Qed.
+Theorem stmt_kind_of_assign   : forall n e, stmt_kind_of (SAssign n e) = "Assign". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_while    : forall t b, stmt_kind_of (SWhile t b) = "While". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_if       : forall t b el, stmt_kind_of (SIf t b el) = "If". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_for      : forall t b, stmt_kind_of (SFor t b) = "For".     Proof. reflexivity. Qed.
@@ -262,6 +270,12 @@ Theorem tag_pass_neq_return   : forall o, stmt_kind_of SPass <> stmt_kind_of (SR
 Proof. intro o; simpl; discriminate. Qed.
 Theorem tag_return_neq_expr   : forall o e, stmt_kind_of (SReturn o) <> stmt_kind_of (SExpr e).
 Proof. intros o e; simpl; discriminate. Qed.
+(* SAssign + str-Constant recognizer increment: the Assign tag is distinct from the
+   Expr tag (the two `_py_stmt_expr`/`_py_stmt_annassign` node kinds are NOT collapsed). *)
+Theorem tag_assign_neq_expr   : forall n e f, stmt_kind_of (SAssign n e) <> stmt_kind_of (SExpr f).
+Proof. intros; simpl; discriminate. Qed.
+Theorem tag_assign_neq_return : forall n e o, stmt_kind_of (SAssign n e) <> stmt_kind_of (SReturn o).
+Proof. intros; simpl; discriminate. Qed.
 (* SUB-BODY increment: the compound tags are distinct from each other and from
    the simple ones (While/If/For are provably separate nodes, not a shared 0). *)
 Theorem tag_while_neq_if      : forall t b el o, stmt_kind_of (SWhile t b) <> stmt_kind_of (SIf o el b).
@@ -281,6 +295,14 @@ Proof. discriminate. Qed.
    IrONone) and a value `return e` (SReturn (IrOSome e)) are DISTINCT nodes. *)
 Theorem sreturn_none_neq_some : forall e, SReturn IrONone <> SReturn (IrOSome e).
 Proof. intros e H; discriminate. Qed.
+
+(* (c'''') SAssign non-vacuity: the TARGET NAME and the RHS VALUE are BOTH observable —
+   two SAssign nodes differing in either field are DISTINCT (the injective constructor
+   carries the name string and the emit_ir value faithfully, never a shared 0). *)
+Theorem sassign_target_observable : forall n m e, n <> m -> SAssign n e <> SAssign m e.
+Proof. intros n m e H C; inversion C; contradiction. Qed.
+Theorem sassign_value_observable : forall n e f, e <> f -> SAssign n e <> SAssign n f.
+Proof. intros n e f H C; inversion C; contradiction. Qed.
 
 (* (c''') SUB-BODY non-vacuity: an SWhile whose sub-body is EMPTY (SLNil) and one
    whose sub-body has a node (SLCons ...) are DISTINCT nodes — the sub-body is
@@ -317,6 +339,11 @@ Print Assumptions stmt_kind_of_while.
 Print Assumptions stmt_kind_of_if.
 Print Assumptions stmt_kind_of_for.
 Print Assumptions kind_of_agree.
+Print Assumptions stmt_kind_of_assign.
+Print Assumptions tag_assign_neq_expr.
+Print Assumptions tag_assign_neq_return.
+Print Assumptions sassign_target_observable.
+Print Assumptions sassign_value_observable.
 Print Assumptions tag_pass_neq_break.
 Print Assumptions tag_while_neq_if.
 Print Assumptions tag_while_neq_for.
