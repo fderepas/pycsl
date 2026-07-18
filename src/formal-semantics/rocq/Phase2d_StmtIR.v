@@ -139,6 +139,11 @@ Inductive stmt_ir : Type :=
      the guarded BODY (stmt_list — COMPOUND, mutually recursive), the assume/prove
      invariants (foreign emit). *)
   | SCriticalSection (mtx : string) (b : stmt_list) (ai : emit) (pi : emit)
+  (* _emit_ghost_assign increment: two FLAT ghost-stmt ctors.  SGhostArraySet carries the
+     target NAME (string), the index + value (foreign emit).  SGhostAssign carries the
+     target (string), the value (emit), the op (string), the declared ghost_type (string). *)
+  | SGhostArraySet (tgt : string) (idx : emit) (v : emit)
+  | SGhostAssign (tgt : string) (v : emit) (op : string) (gty : string)
 with stmt_list : Type :=
   | SLNil
   | SLCons (h : stmt_ir) (t : stmt_list)
@@ -188,6 +193,8 @@ Definition stmt_kind_of (s : stmt_ir) : string :=
   | SArraySliceSet _ _ _ _ => "ArraySliceSet"
   | STupleUnpack _ _ => "TupleUnpack"
   | SCriticalSection _ _ _ _ => "CriticalSection"
+  | SGhostArraySet _ _ _ => "GhostArraySet"
+  | SGhostAssign _ _ _ _ => "GhostAssign"
   end.
 
 (* ===================================================================== *)
@@ -347,7 +354,9 @@ Inductive pystmt : Type :=
   | PFieldAssign (base : string) (fld : string) (v : emit)
   | PArraySliceSet (arr : emit) (lo : iropt) (up : iropt) (v : emit)
   | PTupleUnpack (tgts : strl) (v : emit)
-  | PCriticalSection (mtx : string) (b : stmt_list) (ai : emit) (pi : emit).
+  | PCriticalSection (mtx : string) (b : stmt_list) (ai : emit) (pi : emit)
+  | PGhostArraySet (tgt : string) (idx : emit) (v : emit)
+  | PGhostAssign (tgt : string) (v : emit) (op : string) (gty : string).
 
 (* The dict->ctor map (`{"stmt":"Pass"} |-> SPass`, ..., `{"stmt":"While",...}
    |-> SWhile ...`). *)
@@ -373,6 +382,8 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PArraySliceSet a lo up v => SArraySliceSet a lo up v
   | PTupleUnpack t v => STupleUnpack t v
   | PCriticalSection m b ai pi => SCriticalSection m b ai pi
+  | PGhostArraySet t i v => SGhostArraySet t i v
+  | PGhostAssign t v op g => SGhostAssign t v op g
   end.
 
 (* The Python-side tag string of a recognized node (the `"stmt"` value). *)
@@ -398,6 +409,8 @@ Definition py_kind_of (s : pystmt) : string :=
   | PArraySliceSet _ _ _ _ => "ArraySliceSet"
   | PTupleUnpack _ _ => "TupleUnpack"
   | PCriticalSection _ _ _ _ => "CriticalSection"
+  | PGhostArraySet _ _ _ => "GhostArraySet"
+  | PGhostAssign _ _ _ _ => "GhostAssign"
   end.
 
 (* ===================================================================== *)
@@ -430,6 +443,8 @@ Proof.
   - exists (PArraySliceSet arr lo up v); reflexivity.
   - exists (PTupleUnpack tgts v); reflexivity.
   - exists (PCriticalSection mtx b ai pi); reflexivity.
+  - exists (PGhostArraySet tgt idx v); reflexivity.
+  - exists (PGhostAssign tgt v op gty); reflexivity.
 Qed.
 
 (* ===================================================================== *)
@@ -773,6 +788,32 @@ Theorem scritical_size_grows_with_body : forall m ai pi h r,
     < size_stmt (SCriticalSection m (SLCons h r) ai pi).
 Proof. intros; simpl; pose proof (size_stmt_pos h); lia. Qed.
 
+(* ===================================================================== *)
+(* SGhostArraySet / SGhostAssign observability (non-vacuity).  FLAT.       *)
+(* ===================================================================== *)
+
+Theorem stmt_kind_of_ghostarrayset : forall t i v,
+  stmt_kind_of (SGhostArraySet t i v) = "GhostArraySet".
+Proof. reflexivity. Qed.
+Theorem stmt_kind_of_ghostassign : forall t v op g,
+  stmt_kind_of (SGhostAssign t v op g) = "GhostAssign".
+Proof. reflexivity. Qed.
+Theorem tag_ghostarrayset_neq_ghostassign : forall t i v u w op g,
+  stmt_kind_of (SGhostArraySet t i v) <> stmt_kind_of (SGhostAssign u w op g).
+Proof. intros; simpl; discriminate. Qed.
+Theorem sghostarrayset_target_observable : forall t u i v,
+  t <> u -> SGhostArraySet t i v <> SGhostArraySet u i v.
+Proof. intros t u i v H C; inversion C; contradiction. Qed.
+Theorem sghostarrayset_index_observable : forall t i j v,
+  i <> j -> SGhostArraySet t i v <> SGhostArraySet t j v.
+Proof. intros t i j v H C; inversion C; contradiction. Qed.
+Theorem sghostassign_op_observable : forall t v op1 op2 g,
+  op1 <> op2 -> SGhostAssign t v op1 g <> SGhostAssign t v op2 g.
+Proof. intros t v op1 op2 g H C; inversion C; contradiction. Qed.
+Theorem sghostassign_gtype_observable : forall t v op g h,
+  g <> h -> SGhostAssign t v op g <> SGhostAssign t v op h.
+Proof. intros t v op g h H C; inversion C; contradiction. Qed.
+
 End StmtIR.
 
 (* ===================================================================== *)
@@ -893,6 +934,44 @@ Proof. simpl; discriminate. Qed.
 End BoolopFold.
 
 (* ===================================================================== *)
+(* 5d. The CONCRETE lambda param-name compaction — the WhyML twin of        *)
+(*     `lambda_param_names_of` (`[arg.arg for arg in expr.args.args]`).      *)
+(*     Modelled CONCRETELY (project the arg name, rewrap as a var-node) so   *)
+(*     the param list is provable NON-vacuously.                            *)
+(* ===================================================================== *)
+
+Section LambdaParams.
+
+(* A minimal concrete arg/var node: a var carrying its name. *)
+Inductive lnode : Type := LVar (id : string).
+Definition lname (a : lnode) : string := match a with LVar n => n end.
+
+(* lambda_param_names_of : project the name from each arg, rewrap as a var-node —
+   the WhyML `lambda_param_names_of` twin (over the args list). *)
+Fixpoint lparams (l : list lnode) : list lnode :=
+  match l with
+  | nil => nil
+  | a :: t => LVar (lname a) :: lparams t
+  end.
+
+(* OBSERVABILITY (non-vacuity): a 2-param lambda `lambda x, y: ...` yields exactly
+   the param-name list `[x; y]`. *)
+Theorem lparams_observe :
+  lparams (LVar "x" :: LVar "y" :: nil) = LVar "x" :: LVar "y" :: nil.
+Proof. reflexivity. Qed.
+
+Theorem lparams_empty : lparams nil = nil.
+Proof. reflexivity. Qed.
+
+(* EVIL TWIN: the params are `[x; y]`, NOT `[x; z]` — refutable, so the names are
+   genuinely pinned (non-vacuous, not length-only). *)
+Theorem lparams_evil_wrong_name :
+  lparams (LVar "x" :: LVar "y" :: nil) <> LVar "x" :: LVar "z" :: nil.
+Proof. simpl; discriminate. Qed.
+
+End LambdaParams.
+
+(* ===================================================================== *)
 (* 6. VERDICT — assumption audit.  Every result must be `Closed under the  *)
 (*    global context` (NO axiom): the 3-axiom trust ledger is intact.      *)
 (* ===================================================================== *)
@@ -972,6 +1051,16 @@ Print Assumptions scritical_mutex_observable.
 Print Assumptions scritical_assume_observable.
 Print Assumptions scritical_body_empty_neq_nonempty.
 Print Assumptions scritical_size_grows_with_body.
+Print Assumptions stmt_kind_of_ghostarrayset.
+Print Assumptions stmt_kind_of_ghostassign.
+Print Assumptions tag_ghostarrayset_neq_ghostassign.
+Print Assumptions sghostarrayset_target_observable.
+Print Assumptions sghostarrayset_index_observable.
+Print Assumptions sghostassign_op_observable.
+Print Assumptions sghostassign_gtype_observable.
+Print Assumptions lparams_observe.
+Print Assumptions lparams_empty.
+Print Assumptions lparams_evil_wrong_name.
 Print Assumptions size_slist_lt_swhile.
 Print Assumptions size_body_lt_sif.
 Print Assumptions size_orelse_lt_sif.

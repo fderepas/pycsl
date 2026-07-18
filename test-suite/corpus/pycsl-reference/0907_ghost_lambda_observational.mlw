@@ -1,0 +1,114 @@
+module WallGhostLambdaObservation
+  use int.Int
+  use seq.Seq
+
+  (* self-tcb-reduction M5, C-bucket: OBSERVATIONAL non-vacuity for `_emit_ghost_assign`
+     (SGhostArraySet/SGhostAssign) and `_py_expr_lambda` (IrLambda + the CONCRETE param-name
+     compaction). The emit_ir subset, the SGhost* stmt_ir ctors, the IrLambda emit_ir ctor
+     and the `lambda_param_names_of` compaction below are VERBATIM the PyCSL tool's emitted
+     output (module6_whyml/preamble.py::_emit_exprir_theory gated on _uses_stmt_ir; grep-
+     confirmed). `emit_ghost` reproduces the tool's `_emit_ghost_assign` body (the
+     isinstance-on-CSL-class dispatch); `emit_lambda` the `_py_expr_lambda` body. *)
+
+  type emit_ir = IrVar string | IrOther string | IrLambda irlist emit_ir
+  with irlist = ILNil | ILCons emit_ir irlist
+  let function kind_of (e: emit_ir) : string =
+    match e with IrVar _ -> "Var" | IrOther _ -> "Other" | IrLambda _ _ -> "Lambda" end
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar n -> n | _ -> "" end
+  let function lambda_params_of (e: emit_ir) : irlist =
+    match e with IrLambda p _ -> p | _ -> ILNil end
+  let function lambda_body_of (e: emit_ir) : emit_ir =
+    match e with IrLambda _ b -> b | _ -> IrOther "" end
+  let rec function irnth (i: int) (l: irlist) : emit_ir
+    variant { l }
+  = match l with ILNil -> IrOther "" | ILCons h t -> if i <= 0 then h else irnth (i-1) t end
+  let rec function irlen (l: irlist) : int
+    ensures { result >= 0 } variant { l }
+  = match l with ILNil -> 0 | ILCons _ t -> 1 + irlen t end
+
+  (* ---- VERBATIM tool-emitted CONCRETE param-name compaction: project name_of over the
+     args irlist into IrVar param-name nodes. NOT a length-only law. ---- *)
+  function lambda_param_names_of (l: irlist) : irlist =
+    match l with
+    | ILNil -> ILNil
+    | ILCons a t -> ILCons (IrVar (name_of a)) (lambda_param_names_of t)
+    end
+  val function lambda_param_names_prog (l: irlist) : irlist
+    ensures { result = lambda_param_names_of l }
+
+  (* ---- VERBATIM tool-emitted stmt_ir with the SGhost* ctors. ---- *)
+  type stmt_ir = SPass | SBreak
+    | SGhostArraySet string emit_ir emit_ir
+    | SGhostAssign string emit_ir string string
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break"
+    | SGhostArraySet _ _ _ -> "GhostArraySet" | SGhostAssign _ _ _ _ -> "GhostAssign"
+    end
+  let function ghost_target_of (s: stmt_ir) : string =
+    match s with SGhostArraySet t _ _ -> t | SGhostAssign t _ _ _ -> t | _ -> "" end
+  let function ghost_op_of (s: stmt_ir) : string =
+    match s with SGhostAssign _ _ op _ -> op | _ -> "" end
+  let function ghost_gtype_of (s: stmt_ir) : string =
+    match s with SGhostAssign _ _ _ g -> g | _ -> "" end
+
+  val function csl_to_ir (e: emit_ir) : emit_ir   (* trusted _csl_to_ir *)
+
+  (* ---- VERBATIM tool-emitted `_emit_ghost_assign` body: the isinstance-on-CSL-class
+     dispatch -> SGhostArraySet (target, csl_to_ir index, csl_to_ir value) OR SGhostAssign
+     (target, csl_to_ir value, op, ghost_type). ---- *)
+  let function emit_ghost (is_arrayset: bool) (target: string) (index value: emit_ir)
+                          (op gtype: string) : stmt_ir =
+    if is_arrayset then SGhostArraySet target (csl_to_ir index) (csl_to_ir value)
+    else SGhostAssign target (csl_to_ir value) op gtype
+
+  (* ---- VERBATIM tool-emitted `_py_expr_lambda` body: IrLambda (param compaction) body. ---- *)
+  let function emit_lambda (args: irlist) (body: emit_ir) : emit_ir =
+    IrLambda (lambda_param_names_prog args) body
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — both ghost ctors + the lambda compaction.  *)
+  (* ==================================================================== *)
+
+  (* GhostArraySet: `g[i] = v` (declared) -> SGhostArraySet with target/index/value. *)
+  let driver_ghost_arrayset (index value: emit_ir) : unit =
+    let node = emit_ghost true "g" index value "" "" in
+    assert { stmt_kind_of node = "GhostArraySet" };
+    assert { ghost_target_of node = "g" }
+
+  (* GhostAssign: `x += v` with declared_type -> SGhostAssign with target/op/ghost_type. *)
+  let driver_ghost_assign (value: emit_ir) : unit =
+    let node = emit_ghost false "x" (IrOther "") value "+=" "int" in
+    assert { stmt_kind_of node = "GhostAssign" };
+    assert { ghost_target_of node = "x" };
+    assert { ghost_op_of node = "+=" };
+    assert { ghost_gtype_of node = "int" }
+
+  (* Lambda: `lambda x, y: body` -> IrLambda [IrVar "x"; IrVar "y"] body. *)
+  let driver_lambda (body: emit_ir) : unit =
+    let args = ILCons (IrVar "x") (ILCons (IrVar "y") ILNil) in
+    assert { lambda_param_names_prog args
+             = ILCons (IrVar "x") (ILCons (IrVar "y") ILNil) };   (* compaction up-front *)
+    let node = emit_lambda args body in
+    assert { kind_of node = "Lambda" };
+    assert { lambda_body_of node = body };
+    assert { irlen (lambda_params_of node) = 2 };
+    assert { name_of (irnth 0 (lambda_params_of node)) = "x" };
+    assert { name_of (irnth 1 (lambda_params_of node)) = "y" }
+
+  (* EVIL TWIN 1 (ghost wrong tag): a GhostAssign is NOT "GhostArraySet" — UNPROVEN. *)
+  let driver_evil_ghost_tag (value: emit_ir) : unit =
+    assert { stmt_kind_of (emit_ghost false "x" (IrOther "") value "=" "int")
+             = "GhostArraySet" }
+
+  (* EVIL TWIN 2 (lambda wrong param name): the 2nd param is "y", NOT "z" — UNPROVEN. *)
+  let driver_evil_lambda_param (body: emit_ir) : unit =
+    let args = ILCons (IrVar "x") (ILCons (IrVar "y") ILNil) in
+    let node = emit_lambda args body in
+    assert { name_of (irnth 1 (lambda_params_of node)) = "z" }
+
+  (* EVIL TWIN 3 (ghost wrong gtype): the declared ghost_type is "int", NOT "bool" — UNPROVEN. *)
+  let driver_evil_ghost_gtype (value: emit_ir) : unit =
+    assert { ghost_gtype_of (emit_ghost false "x" (IrOther "") value "=" "int") = "bool" }
+end

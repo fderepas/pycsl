@@ -3401,9 +3401,17 @@ class PreambleEmissionMixin:
             " | IrExists string emit_ir iropt_str iropt_ir"
             " | IrSliceN iropt_ir iropt_ir iropt_ir"
             " | IrFunctionVariant emit_ir iropt_str"
-            "  with irlist = ILNil | ILCons emit_ir irlist"
-            "  with iropt_str = IrSNone | IrSSome string"
-            "  with iropt_ir = IrONone | IrOSome emit_ir",
+            # _py_expr_lambda increment (self-tcb-reduction M5, C-bucket): the lambda-expr
+            # node `IrLambda <params irlist> <body>` — inserted INSIDE the emit_ir type
+            # (one implicit-concat string) via `+` so the `with` clauses stay on the same
+            # line. Gated on `_uses_stmt_ir` (only the Module5 mirror's `_py_expr_lambda`
+            # builds it) — every OTHER emit_ir-theory file (incl. corpus files that emit
+            # `type emit_ir`, e.g. 0746) is byte-identical (empty string off-gate). size's
+            # `| _ -> 1` catch-all covers it (flat for the measure).
+            + (" | IrLambda irlist emit_ir" if self._uses_stmt_ir() else "")
+            + "  with irlist = ILNil | ILCons emit_ir irlist"
+            + "  with iropt_str = IrSNone | IrSSome string"
+            + "  with iropt_ir = IrONone | IrOSome emit_ir",
             "",
             "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"
             " emit_ir child (`_py_expr_starred`'s `value` field) — a GENERIC"
@@ -3557,6 +3565,9 @@ class PreambleEmissionMixin:
             "    | IrSliceN _ _ _ -> \"Slice\"",
             "    | IrFunctionVariant _ _ -> \"FunctionVariant\"",
             "    | IrOld _ -> \"Old\" | IrOldField _ _ -> \"OldField\"",
+            # _py_expr_lambda increment: the IrLambda tag (gated WITH the ctor above so
+            # kind_of stays exhaustive in both configurations — corpus byte-inert).
+            *(["    | IrLambda _ _ -> \"Lambda\""] if self._uses_stmt_ir() else []),
             "    | IrOther k -> k",
             "    end",
             "",
@@ -4015,6 +4026,8 @@ class PreambleEmissionMixin:
                 " | SArraySliceSet emit_ir iropt_ir iropt_ir emit_ir"
                 " | STupleUnpack strlist emit_ir"
                 " | SCriticalSection string stmt_list emit_ir emit_ir"
+                " | SGhostArraySet string emit_ir emit_ir"
+                " | SGhostAssign string emit_ir string string"
                 "  with stmt_list = SLNil | SLCons stmt_ir stmt_list"
                 "  with handler_list = HLNil | HLCons except_handler handler_list"
                 "  with except_handler ="
@@ -4040,7 +4053,9 @@ class PreambleEmissionMixin:
                 " | SFieldAssign _ _ _ -> \"FieldAssign\""
                 " | SArraySliceSet _ _ _ _ -> \"ArraySliceSet\""
                 " | STupleUnpack _ _ -> \"TupleUnpack\""
-                " | SCriticalSection _ _ _ _ -> \"CriticalSection\"",
+                " | SCriticalSection _ _ _ _ -> \"CriticalSection\""
+                " | SGhostArraySet _ _ _ -> \"GhostArraySet\""
+                " | SGhostAssign _ _ _ _ -> \"GhostAssign\"",
                 "    end",
                 "",
                 "  (* The MUTUAL well-founded size measure over stmt_ir/stmt_list — the"
@@ -4269,6 +4284,42 @@ class PreambleEmissionMixin:
                 "  val function boolop_val0_ast (s: py_boolop_node) : emit_ir",
                 "  val function boolop_rest_ast (s: py_boolop_node) : irlist",
                 "  val function boolop_dispatch (e: emit_ir) : emit_ir",
+                "  (* _emit_ghost_assign increment (self-tcb-reduction M5, C-bucket): the"
+                " typed AST readers for `_emit_ghost_assign`. `py_ghost_node` models a ghost"
+                " assignment object; `ghost_is_arrayset` the `isinstance(ga,"
+                " GhostArraySetDecl)` CSL-class discriminant (opaque bool, like symtab_mem);"
+                " `ghost_target_ast`/`ghost_op_ast` the target/op strings;"
+                " `ghost_index_ast`/`ghost_value_ast` the raw CSL index/value nodes (fed to"
+                " the trusted `csl_to_ir` = `_csl_to_ir`); `ghost_declared_type_ast` the"
+                " `getattr(ga, 'declared_type', 'int')` default-folded string (like delete's"
+                " getattr / csl_mutex_ast). Gated on `_uses_stmt_ir`. *)",
+                "  type py_ghost_node",
+                "  val function ghost_is_arrayset (g: py_ghost_node) : bool",
+                "  val function ghost_target_ast (g: py_ghost_node) : string",
+                "  val function ghost_op_ast (g: py_ghost_node) : string",
+                "  val function ghost_declared_type_ast (g: py_ghost_node) : string",
+                "  val function ghost_index_ast (g: py_ghost_node) : emit_ir",
+                "  val function ghost_value_ast (g: py_ghost_node) : emit_ir",
+                "  val function csl_to_ir (e: emit_ir) : emit_ir",
+                "  (* _py_expr_lambda increment (self-tcb-reduction M5, C-bucket): the typed"
+                " AST reader for `_py_expr_lambda`. `py_lambda_node` models `ast.Lambda`;"
+                " `lambda_args_ast` reads `expr.args.args` (an irlist of arg name-nodes);"
+                " `lambda_body_ast` reads `expr.body`. `lambda_param_names_of` is the"
+                " CONCRETE `[arg.arg for arg in expr.args.args]` compaction — projecting"
+                " `name_of` over the args irlist into IrVar param-name nodes (NOT an abstract"
+                " length-only law); `lambda_param_names_prog` its program primitive. The"
+                " IrLambda ctor carries the resulting params irlist + the body. *)",
+                "  type py_lambda_node",
+                "  val function lambda_args_ast (s: py_lambda_node) : irlist",
+                "  val function lambda_body_ast (s: py_lambda_node) : emit_ir",
+                "  function lambda_param_names_of (l: irlist) : irlist =",
+                "    match l with",
+                "    | ILNil -> ILNil",
+                "    | ILCons a t -> ILCons (IrVar (name_of a))"
+                " (lambda_param_names_of t)",
+                "    end",
+                "  val function lambda_param_names_prog (l: irlist) : irlist",
+                "    ensures { result = lambda_param_names_of l }",
                 "  let rec function boolop_fold (op: string) (acc: emit_ir) (rest: irlist)"
                 " : emit_ir",
                 "    variant { rest }",

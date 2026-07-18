@@ -1003,12 +1003,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "NamedExpr", "target": target_name,
                 "value": self._py_expr_to_ir(expr.value)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr_lambda increment (self-tcb-reduction M5, C-bucket): a RETURN-value expr
+    # handler. A bespoke Module6 lowering (functions.py `_emit_py_expr_lambda_bespoke`,
+    # keyed on the method name under `_uses_stmt_ir`) emits it FAITHFULLY: `expr` param ->
+    # the typed `py_lambda_node`; the `[arg.arg for arg in expr.args.args]` param-name
+    # projection -> the CONCRETE `lambda_param_names_prog (lambda_args_ast expr)` compaction
+    # (`name_of` over the args irlist -> IrVar param-name nodes, NOT an abstract length-only
+    # law); `expr.body` -> `lambda_body_ast` re-lowered by `_py_expr_to_ir`. Returns the new
+    # gated `IrLambda <params irlist> <body>` emit_ir ctor (gated on `_uses_stmt_ir` so the
+    # corpus emit_ir theory stays byte-identical). isinstance_op = 0. Verbatim body port of
+    # the LIVE `_py_expr_lambda`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_lambda(self, expr: ast.Lambda) -> int:
-        return {}
+        params = [arg.arg for arg in expr.args.args]
+        return {"type": "Lambda", "params": params,
+                "body": self._py_expr_to_ir(expr.body)}
 
     # optional-field ext (monomorphic-option ADTs): `expr` is the harvested pure_ast
     # `Slice` record (ir_resolve.py `_PURE_AST_FIELD_TABLE["Slice"]`), whose 3 ALL-
@@ -1038,12 +1049,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmts_to_ir(self, stmts: List[ast.stmt]) -> List[int]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SGhostArraySet/SGhostAssign increment (self-tcb-reduction M5, C-bucket): a
+    # RETURN-stmt-dict handler. A bespoke Module6 lowering (functions.py
+    # `_emit_emit_ghost_assign_bespoke`, keyed on the method name under `_uses_stmt_ir`)
+    # emits it FAITHFULLY: `ga` param -> the typed `py_ghost_node`; `isinstance(ga,
+    # GhostArraySetDecl)` -> `ghost_is_arrayset ga` (the opaque CSL-class discriminant,
+    # like symtab_mem); `ga.target`/`ga.op` -> string readers; `self._csl_to_ir(ga.index/
+    # value)` -> `csl_to_ir (ghost_index_ast/ghost_value_ast ga)` (`_csl_to_ir` stays
+    # \trusted); `getattr(ga,'declared_type','int')` -> `ghost_declared_type_ast ga` (the
+    # default folded, like delete's getattr). Returns the REAL `SGhostArraySet` (target,
+    # index, value) / `SGhostAssign` (target, value, op, ghost_type) ctor. isinstance_op =
+    # 0. Verbatim body port of the LIVE `_emit_ghost_assign`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _emit_ghost_assign(self, ga) -> int:
-        return {}
+        if isinstance(ga, GhostArraySetDecl):
+            return {"stmt": "GhostArraySet", "target": ga.target,
+                    "index": self._csl_to_ir(ga.index),
+                    "value": self._csl_to_ir(ga.value)}
+        return {"stmt": "GhostAssign", "target": ga.target,
+                "value": self._csl_to_ir(ga.value), "op": ga.op,
+                "ghost_type": getattr(ga, 'declared_type', 'int')}
 
     # SAssign + str-Constant recognizer (C-bucket): SKIPPED this increment (not a clean
     # WHOLE-body port). The Name-target branch alone reuses SAssign (`target.id` -> name_of,

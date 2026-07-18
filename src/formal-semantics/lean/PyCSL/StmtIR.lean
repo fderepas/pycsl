@@ -96,6 +96,8 @@ inductive StmtIr (ε : Type) where
   | STupleUnpack (tgts : StrL) (v : ε)
   -- SCriticalSection increment: mutex name + guarded body (COMPOUND) + invariants.
   | SCriticalSection (mtx : String) (b : StmtList ε) (ai : ε) (pi : ε)
+  | SGhostArraySet (tgt : String) (idx : ε) (v : ε)
+  | SGhostAssign (tgt : String) (v : ε) (op : String) (gty : String)
 inductive StmtList (ε : Type) where
   | SLNil
   | SLCons (h : StmtIr ε) (t : StmtList ε)
@@ -138,6 +140,8 @@ def stmtKindOf : StmtIr ε → String
   | .SArraySliceSet _ _ _ _ => "ArraySliceSet"
   | .STupleUnpack _ _ => "TupleUnpack"
   | .SCriticalSection _ _ _ _ => "CriticalSection"
+  | .SGhostArraySet _ _ _ => "GhostArraySet"
+  | .SGhostAssign _ _ _ _ => "GhostAssign"
 
 /- The MUTUAL well-founded size measure — WhyML `size_stmt`/`size_slist`. -/
 mutual
@@ -162,6 +166,8 @@ def sizeStmt : StmtIr ε → Nat
   | .SArraySliceSet _ _ _ _ => 1
   | .STupleUnpack _ _ => 1
   | .SCriticalSection _ b _ _ => 1 + sizeSList b
+  | .SGhostArraySet _ _ _ => 1
+  | .SGhostAssign _ _ _ _ => 1
 def sizeSList : StmtList ε → Nat
   | .SLNil => 0
   | .SLCons h t => sizeStmt h + sizeSList t
@@ -222,6 +228,8 @@ inductive PyStmt (ε : Type) where
   | PArraySliceSet (arr : ε) (lo : IrOpt ε) (up : IrOpt ε) (v : ε)
   | PTupleUnpack (tgts : StrL) (v : ε)
   | PCriticalSection (mtx : String) (b : StmtList ε) (ai : ε) (pi : ε)
+  | PGhostArraySet (tgt : String) (idx : ε) (v : ε)
+  | PGhostAssign (tgt : String) (v : ε) (op : String) (gty : String)
 
 /-- The dict->ctor map (`{"stmt":"Pass"} ↦ SPass`, ..., `{"stmt":"While"} ↦
     SWhile ...`). -/
@@ -246,6 +254,8 @@ def abs : PyStmt ε → StmtIr ε
   | .PArraySliceSet a lo up v => .SArraySliceSet a lo up v
   | .PTupleUnpack t v => .STupleUnpack t v
   | .PCriticalSection m b ai pi => .SCriticalSection m b ai pi
+  | .PGhostArraySet t i v => .SGhostArraySet t i v
+  | .PGhostAssign t v op g => .SGhostAssign t v op g
 
 /-- The Python-side tag string of a recognized node. -/
 def pyKindOf : PyStmt ε → String
@@ -269,6 +279,8 @@ def pyKindOf : PyStmt ε → String
   | .PArraySliceSet _ _ _ _ => "ArraySliceSet"
   | .PTupleUnpack _ _ => "TupleUnpack"
   | .PCriticalSection _ _ _ _ => "CriticalSection"
+  | .PGhostArraySet _ _ _ => "GhostArraySet"
+  | .PGhostAssign _ _ _ _ => "GhostAssign"
 
 -- ===================================================================== --
 -- 3. (b) `abs` is total + injective + surjective.                        --
@@ -301,6 +313,8 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | SArraySliceSet a lo up v => exact ⟨.PArraySliceSet a lo up v, rfl⟩
   | STupleUnpack t v => exact ⟨.PTupleUnpack t v, rfl⟩
   | SCriticalSection m b ai pi => exact ⟨.PCriticalSection m b ai pi, rfl⟩
+  | SGhostArraySet t i v => exact ⟨.PGhostArraySet t i v, rfl⟩
+  | SGhostAssign t v op g => exact ⟨.PGhostAssign t v op g, rfl⟩
 
 -- ===================================================================== --
 -- 4. (c) `stmtKindOf` EXACT per ctor + AGREES through `abs`.             --
@@ -610,6 +624,30 @@ theorem scritical_size_grows_with_body (m : String) (ai pi : ε)
   simp [sizeStmt, sizeSList]; omega
 
 -- ===================================================================== --
+-- SGhostArraySet / SGhostAssign observability (non-vacuity). FLAT.        --
+-- ===================================================================== --
+
+theorem stmtKindOf_ghostarrayset (t : String) (i v : ε) :
+    stmtKindOf (StmtIr.SGhostArraySet t i v) = "GhostArraySet" := rfl
+theorem stmtKindOf_ghostassign (t : String) (v : ε) (op g : String) :
+    stmtKindOf (StmtIr.SGhostAssign t v op g) = "GhostAssign" := rfl
+theorem tag_ghostarrayset_neq_ghostassign (t : String) (i v : ε) (u : String) (w : ε) (op g : String) :
+    stmtKindOf (StmtIr.SGhostArraySet t i v) ≠ stmtKindOf (StmtIr.SGhostAssign u w op g) := by
+  simp only [stmtKindOf]; decide
+theorem sghostarrayset_target_observable (t u : String) (i v : ε) (h : t ≠ u) :
+    (StmtIr.SGhostArraySet t i v) ≠ StmtIr.SGhostArraySet u i v := by
+  intro he; cases he; exact h rfl
+theorem sghostarrayset_index_observable (t : String) (i j v : ε) (h : i ≠ j) :
+    (StmtIr.SGhostArraySet t i v) ≠ StmtIr.SGhostArraySet t j v := by
+  intro he; cases he; exact h rfl
+theorem sghostassign_op_observable (t : String) (v : ε) (op1 op2 g : String) (h : op1 ≠ op2) :
+    (StmtIr.SGhostAssign t v op1 g) ≠ StmtIr.SGhostAssign t v op2 g := by
+  intro he; cases he; exact h rfl
+theorem sghostassign_gtype_observable (t : String) (v : ε) (op g k : String) (h : g ≠ k) :
+    (StmtIr.SGhostAssign t v op g) ≠ StmtIr.SGhostAssign t v op k := by
+  intro he; cases he; exact h rfl
+
+-- ===================================================================== --
 -- 5b. The CONCRETE Tuple-exc_type compaction — WhyML var_names_of /       --
 --     join_pipe / tuple_exc_type. Modelled concretely so observability    --
 --     is provable NON-vacuously (a length-only law would be vacuous).     --
@@ -664,6 +702,24 @@ theorem bfold_empty : bfold "or" (.BVar "a") [] = .BVar "a" := rfl
 theorem bfold_evil_right_nested :
     bfold "and" (.BVar "a") [.BVar "b", .BVar "c"]
       ≠ .BBinOp "and" (.BVar "a") (.BBinOp "and" (.BVar "b") (.BVar "c")) := by decide
+
+-- ===================================================================== --
+-- 5d. The CONCRETE lambda param-name compaction — WhyML                   --
+--     `lambda_param_names_of` (`[arg.arg for arg in expr.args.args]`).     --
+-- ===================================================================== --
+
+inductive LNode where | LVar (id : String)
+deriving DecidableEq
+def lname : LNode → String | .LVar n => n
+def lparams : List LNode → List LNode
+  | [] => []
+  | a :: t => .LVar (lname a) :: lparams t
+
+theorem lparams_observe :
+    lparams [.LVar "x", .LVar "y"] = [.LVar "x", .LVar "y"] := rfl
+theorem lparams_empty : lparams [] = [] := rfl
+theorem lparams_evil_wrong_name :
+    lparams [.LVar "x", .LVar "y"] ≠ [.LVar "x", .LVar "z"] := by decide
 
 end StmtIRCert
 
@@ -774,3 +830,13 @@ end StmtIRCert
 #print axioms StmtIRCert.scritical_assume_observable
 #print axioms StmtIRCert.scritical_body_empty_neq_nonempty
 #print axioms StmtIRCert.scritical_size_grows_with_body
+#print axioms StmtIRCert.stmtKindOf_ghostarrayset
+#print axioms StmtIRCert.stmtKindOf_ghostassign
+#print axioms StmtIRCert.tag_ghostarrayset_neq_ghostassign
+#print axioms StmtIRCert.sghostarrayset_target_observable
+#print axioms StmtIRCert.sghostarrayset_index_observable
+#print axioms StmtIRCert.sghostassign_op_observable
+#print axioms StmtIRCert.sghostassign_gtype_observable
+#print axioms StmtIRCert.lparams_observe
+#print axioms StmtIRCert.lparams_empty
+#print axioms StmtIRCert.lparams_evil_wrong_name

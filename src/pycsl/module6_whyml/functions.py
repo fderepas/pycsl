@@ -2004,6 +2004,83 @@ class FunctionEmissionMixin:
         ]
         return L
 
+    def _is_py_expr_lambda(self, func: Dict[str, Any]) -> bool:
+        """_py_expr_lambda increment (self-tcb-reduction M5, C-bucket): True iff `func`
+        is the mirror's `_py_expr_lambda` handler and the stmt_ir theory is emitted.
+        Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method"
+                and nm.endswith("_py_expr_lambda")
+                and self._uses_stmt_ir())
+
+    def _emit_py_expr_lambda_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """_py_expr_lambda increment (self-tcb-reduction M5, C-bucket): the FAITHFUL
+        whole-body lowering of `_py_expr_lambda`:
+
+            params = [arg.arg for arg in expr.args.args]
+            return {"type":"Lambda","params":params,"body":self._py_expr_to_ir(expr.body)}
+
+        `expr` : the typed `py_lambda_node`; the `[arg.arg for arg in expr.args.args]`
+        param-name projection -> the CONCRETE `lambda_param_names_prog (lambda_args_ast
+        expr)` compaction (`name_of` over the args irlist, into IrVar param-name nodes,
+        NOT an abstract length-only law); `expr.body` -> `lambda_body_ast` re-lowered.
+        Returns the new gated `IrLambda <params irlist> <body>` emit_ir ctor.
+        isinstance_op = 0. Corpus-inert."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        L = [
+            f"  let {name} (self: {cls}) (expr: py_lambda_node) : emit_ir",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    (IrLambda (lambda_param_names_prog (lambda_args_ast expr))"
+            " (self__py_expr_to_ir_1 (lambda_body_ast expr)))",
+        ]
+        return L
+
+    def _is_emit_ghost_assign(self, func: Dict[str, Any]) -> bool:
+        """SGhostArraySet/SGhostAssign increment (self-tcb-reduction M5, C-bucket): True
+        iff `func` is the mirror's `_emit_ghost_assign` handler and the stmt_ir theory is
+        emitted. Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method"
+                and nm.endswith("_emit_ghost_assign")
+                and self._uses_stmt_ir())
+
+    def _emit_emit_ghost_assign_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """SGhostArraySet/SGhostAssign increment (self-tcb-reduction M5, C-bucket): the
+        FAITHFUL whole-body lowering of `_emit_ghost_assign` (a RETURN-stmt-dict handler):
+
+            if isinstance(ga, GhostArraySetDecl):
+                return {"stmt":"GhostArraySet","target":ga.target,
+                        "index":self._csl_to_ir(ga.index),"value":self._csl_to_ir(ga.value)}
+            return {"stmt":"GhostAssign","target":ga.target,
+                    "value":self._csl_to_ir(ga.value),"op":ga.op,
+                    "ghost_type":getattr(ga,'declared_type','int')}
+
+        `ga` : the typed `py_ghost_node`; `isinstance(ga, GhostArraySetDecl)` ->
+        `ghost_is_arrayset ga` (the opaque CSL-class discriminant, like symtab_mem);
+        `ga.target`/`ga.op` -> the string readers; `self._csl_to_ir(ga.index/value)` ->
+        `csl_to_ir (ghost_index_ast/ghost_value_ast ga)` (the trusted CSL->IR dispatcher);
+        `getattr(ga,'declared_type','int')` -> `ghost_declared_type_ast ga` (the default
+        folded, like delete's getattr). Returns the REAL `SGhostArraySet` /`SGhostAssign`
+        ctor. isinstance_op = 0. `_csl_to_ir` stays \trusted. Corpus-inert."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        L = [
+            f"  let {name} (self: {cls}) (ga: py_ghost_node) : stmt_ir",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    if ghost_is_arrayset ga then",
+            "      SGhostArraySet (ghost_target_ast ga)"
+            " (csl_to_ir (ghost_index_ast ga)) (csl_to_ir (ghost_value_ast ga))",
+            "    else",
+            "      SGhostAssign (ghost_target_ast ga) (csl_to_ir (ghost_value_ast ga))"
+            " (ghost_op_ast ga) (ghost_declared_type_ast ga)",
+        ]
+        return L
+
     def _is_py_expr_compare(self, func: Dict[str, Any]) -> bool:
         """_py_expr_compare increment (self-tcb-reduction M5, C-bucket): True iff `func`
         is the mirror's `_py_expr_compare` handler and the stmt_ir theory is emitted.
@@ -2146,6 +2223,15 @@ class FunctionEmissionMixin:
         # mutex attrs + no-ops the extend). Corpus-inert.
         if self._is_py_stmt_with(func):
             return self._emit_py_stmt_with_bespoke(func)
+        # SGhostArraySet/SGhostAssign increment (self-tcb-reduction M5, C-bucket): the
+        # `_emit_ghost_assign` RETURN-stmt-dict handler (isinstance-on-CSL-class dispatch).
+        # Corpus-inert.
+        if self._is_emit_ghost_assign(func):
+            return self._emit_emit_ghost_assign_bespoke(func)
+        # _py_expr_lambda increment (self-tcb-reduction M5, C-bucket): the lambda-expr
+        # handler (param-name compaction + body -> the gated IrLambda ctor). Corpus-inert.
+        if self._is_py_expr_lambda(func):
+            return self._emit_py_expr_lambda_bespoke(func)
         # _py_expr_compare increment (self-tcb-reduction M5, C-bucket): the ast-LIST-HEAD
         # expr handler (`expr.ops[0]`/`expr.comparators[0]`) -> IrBinOp. Corpus-inert.
         if self._is_py_expr_compare(func):
