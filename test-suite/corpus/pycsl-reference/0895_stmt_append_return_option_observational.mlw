@@ -1,0 +1,98 @@
+module WallStmtReturnObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+  use option.Option
+
+  (* stmt-list-append-mutation wall (C-bucket), STEP-2b: OBSERVATIONAL non-vacuity for the
+     _py_stmt_return conversion — the FIRST stmt_ir ctor carrying an OPTIONAL emit_ir child.
+     emit_ir is OPAQUE here (the drivers observe the SReturn tag and its iropt_ir OPTION
+     tag, not any emit_ir internal); `disp` models the recursive dispatcher
+     self._py_expr_to_ir (an emit_ir -> emit_ir val). The iropt_ir / stmt_ir blocks and the
+     emit_return body below are VERBATIM the PyCSL tool's emitted output
+     (module6_whyml/preamble.py::_emit_exprir_theory gated on _uses_stmt_ir; the append
+     lowering in statements.py routed through expressions.py::_lower_stmt_ir_node's "opt"
+     child kind + _slice_bound_to_iropt_ir — grep-confirmed from the emitted
+     Module5_IREmitter.mlw pycsltojsonemitter___py_stmt_return body). *)
+  type emit_ir
+
+  (* ---- VERBATIM tool-emitted: iropt_ir is the emit_ir ADT's monomorphic option sibling
+     (preamble.py _emit_exprir_theory). ---- *)
+  type iropt_ir = IrONone | IrOSome emit_ir
+
+  (* ---- VERBATIM tool-emitted stmt_ir block: SReturn now carries iropt_ir (the OPTIONAL
+     return value), SExpr the mandatory emit_ir child. TAG-PRESERVING stmt_kind_of. ---- *)
+  type stmt_ir = SPass | SBreak | SContinue | SReturn iropt_ir | SExpr emit_ir
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"
+    | SReturn _ -> "Return" | SExpr _ -> "Expr"
+    end
+
+  (* `disp` models self._py_expr_to_ir applied to the UNWRAPPED sub-node (`self__py_expr_to
+     _ir_1 _v` in the tool's body). Abstract (emit_ir opaque); a `function` so it is
+     deterministic (`disp e = disp e`), which the value-return equality VC below needs. *)
+  val function disp (e: emit_ir) : emit_ir
+
+  (* ---- emit_return: signature + body VERBATIM from the tool (real writes { ir_stmts },
+     Seq.snoc on the ref itself, the SReturn ctor carrying the iropt_ir built from the
+     option field by the SHARED _slice_bound_to_iropt_ir ternary lowering). `value` models
+     stmt.py_return_value : option emit_ir. The `ensures` is ADDED and is a VC CHECKED
+     against the tool's verbatim body: had the tool erased the node to integer-0 or dropped
+     the option, it would be UNPROVABLE. ---- *)
+  let emit_return (value: option emit_ir) (ir_stmts: ref (seq stmt_ir)) : unit
+    requires { true }
+    ensures  { !ir_stmts = Seq.snoc (old !ir_stmts)
+                 (SReturn (match value with Some _v -> IrOSome (disp _v) | None -> IrONone end)) }
+    writes { ir_stmts }
+  =
+    ir_stmts := Seq.snoc !ir_stmts
+      (SReturn (match value with Some _v -> IrOSome (disp _v) | None -> IrONone end))
+
+  (* OBSERVATIONAL non-vacuity (value-Return / IrOSome): a caller starts from a fresh
+     ir_stmts, appends `return e`, and READS BACK the SReturn node carrying `IrOSome (disp
+     e)` — the RIGHT tag AND the present-option payload. *)
+  let driver_value (e: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_return (Some e) ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 = SReturn (IrOSome (disp e)) };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Return" }
+
+  (* OBSERVATIONAL non-vacuity (bare return / IrONone): a bare `return` appends SReturn
+     IrONone — the RIGHT tag AND the absent-option payload. Distinguishing this from
+     driver_value proves the option is OBSERVABLE (not collapsed). *)
+  let driver_bare () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_return None ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 = SReturn IrONone };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Return" }
+
+  (* Positive non-vacuity: the value-Return and the bare-Return nodes are PROVABLY DISTINCT
+     (SReturn (IrOSome (disp e)) <> SReturn IrONone — the option tag is not erased), and
+     the value-Return is <> a wrong ctor (SBreak). If Valid, the option distinction and the
+     tag are genuinely observed, not vacuous. *)
+  let driver_refute (e: emit_ir) : unit =
+    let a = ref (Seq.empty: seq stmt_ir) in
+    let b = ref (Seq.empty: seq stmt_ir) in
+    emit_return (Some e) a;
+    emit_return None b;
+    assert { Seq.get !a 0 <> Seq.get !b 0 };
+    assert { Seq.get !a 0 <> SBreak };
+    assert { Seq.get !a 0 <> SReturn IrONone }
+
+  (* EVIL TWIN 1 (wrong option): asserting a value-Return produced the BARE node. Must stay
+     UNPROVEN (else the option is vacuously collapsed). *)
+  let driver_evil_option (e: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_return (Some e) ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SReturn IrONone }
+
+  (* EVIL TWIN 2 (wrong tag): asserting a value-Return produced SExpr. Must stay UNPROVEN
+     (else the tag is vacuous). *)
+  let driver_evil_tag (e: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_return (Some e) ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SExpr e }
+end

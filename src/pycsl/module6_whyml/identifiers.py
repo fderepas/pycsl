@@ -48,6 +48,12 @@ WHYML_RESERVED: Set[str] = {
     # so a Python function/var named `partial` (e.g. functools.partial) must be
     # mangled or `let partial (…)` is a syntax error.
     "partial", "fun", "as", "scope", "coinductive", "inductive",
+    # `return` is a WhyML keyword. No Python IDENTIFIER can ever be literally
+    # `return` (it is a Python keyword too), so this is corpus-inert — it only
+    # bites the stmt-list-append-mutation wall's `ast.Return` record, whose type
+    # name lowercases to `return` and must mangle to `py_return` (the `assert` ->
+    # `py_assert` precedent) or `type return = …` is a syntax error.
+    "return",
 }
 
 

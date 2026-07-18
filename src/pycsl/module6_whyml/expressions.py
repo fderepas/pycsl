@@ -1633,15 +1633,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return rt.get("field_key_types", {}).get(field, "int")
 
     # stmt-list-append-mutation wall (C-bucket): the `{"stmt": K, …}` statement-node
-    # kinds this lowers to `stmt_ir` constructors, and the payload field each reads. A
-    # nullary node (Pass/Break/Continue) is a bare ctor; SReturn/SExpr carry one emit_ir
-    # expr child (`value`). TAG-PRESERVING — never erased to `0` (fable Oracle 3).
+    # kinds this lowers to `stmt_ir` constructors, and the payload field each reads
+    # (as `(field, child-kind)`). A nullary node (Pass/Break/Continue) has no payload;
+    # SExpr carries one MANDATORY emit_ir expr child (`"expr"`); SReturn carries the
+    # OPTIONAL return value (`"opt"` → `iropt_ir`), faithful to `ast.Return.value` being
+    # `option emit_ir` (the `disp(stmt.value) if stmt.value else None` ternary).
+    # TAG-PRESERVING — never erased to `0` (fable Oracle 3).
     _STMT_IR_CTORS = {
         "Pass":     ("SPass", []),
         "Break":    ("SBreak", []),
         "Continue": ("SContinue", []),
-        "Return":   ("SReturn", ["value"]),
-        "Expr":     ("SExpr", ["value"]),
+        "Return":   ("SReturn", [("value", "opt")]),
+        "Expr":     ("SExpr", [("value", "expr")]),
     }
 
     def _is_stmt_ir_expr(self, ir: Any) -> bool:
@@ -1681,11 +1684,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             invariant_ctx: bool = False,
                             subst: Optional[Dict[str, str]] = None) -> str:
         """stmt-list-append-mutation wall (C-bucket): lower a statement-node dict literal
-        `{"stmt": "Pass"}` / `{"stmt": "Return", "value": <emit_ir>}` to its `stmt_ir`
-        constructor (`SPass` / `(SReturn <child>)`). The tag is PRESERVED by the
-        constructor choice — the honest node identity the pre-feature `_coerce_to_int`
-        erased to `0`. Only reached for a `{"stmt":K}` append to a stmt-seq-mut param, so
-        it is corpus-inert by construction."""
+        `{"stmt": "Pass"}` / `{"stmt": "Return", "value": <ternary>}` to its `stmt_ir`
+        constructor (`SPass` / `(SReturn <iropt_ir>)` / `(SExpr <emit_ir>)`). The tag is
+        PRESERVED by the constructor choice — the honest node identity the pre-feature
+        `_coerce_to_int` erased to `0`. A `"opt"` child (SReturn's optional `value`) is
+        lowered through `_slice_bound_to_iropt_ir` — the shared `disp(x) if x else None`
+        ternary recognizer — to a real `iropt_ir` (`IrOSome`/`IrONone`); an `"expr"` child
+        (SExpr's mandatory `value`) through `_expr_to_whyml` to a bare `emit_ir`. Only
+        reached for a `{"stmt":K}` append to a stmt-seq-mut param, so it is corpus-inert by
+        construction."""
         fields: Dict[str, Any] = {}
         for k, v in zip(node.get("keys", []) or [], node.get("values", []) or []):
             if isinstance(k, dict) and k.get("type") == "String":
@@ -1701,10 +1708,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not payload:
             return cname
         args = []
-        for f in payload:
+        for f, child_kind in payload:
             if f not in fields:
                 return f'(SMissingChild_{skind}_{f})'
-            args.append(self._expr_to_whyml(fields[f], local_refs, invariant_ctx, subst))
+            if child_kind == "opt":
+                args.append(self._slice_bound_to_iropt_ir(
+                    fields[f], local_refs, invariant_ctx, subst))
+            else:
+                args.append(self._expr_to_whyml(
+                    fields[f], local_refs, invariant_ctx, subst))
         return f"({cname} {' '.join(args)})"
 
     def _lower_irnode_construction(self, expr: Dict[str, Any], local_refs: Set[str],

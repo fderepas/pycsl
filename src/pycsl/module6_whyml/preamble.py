@@ -3922,12 +3922,16 @@ class PreambleEmissionMixin:
             # .v/.lean headers).
             *(([
                 "  (* stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket):"
-                " the statement-IR sum. SReturn/SExpr carry one emit_ir expr child (a"
-                " one-directional reference to the emit_ir ADT above — NOT mutual"
-                " recursion, so no shared `size` obligation). `stmt_kind_of` is the"
-                " TAG-PRESERVING discriminant (the honest node tag, never erased to 0). *)",
+                " the statement-IR sum. SExpr carries one emit_ir expr child; SReturn"
+                " carries the OPTIONAL return value as `iropt_ir` (`IrONone` for a bare"
+                " `return`, `IrOSome e` for `return e`) — faithful to `ast.Return.value`"
+                " being `option emit_ir` (the ternary `disp(stmt.value) if stmt.value else"
+                " None`). Both are one-directional references to the emit_ir ADT above (and"
+                " its `iropt_ir` sibling) — NOT mutual recursion, so no shared `size`"
+                " obligation. `stmt_kind_of` is the TAG-PRESERVING discriminant (the honest"
+                " node tag, never erased to 0). *)",
                 "  type stmt_ir = SPass | SBreak | SContinue"
-                " | SReturn emit_ir | SExpr emit_ir",
+                " | SReturn iropt_ir | SExpr emit_ir",
                 "  let function stmt_kind_of (s: stmt_ir) : string =",
                 "    match s with",
                 "    | SPass -> \"Pass\" | SBreak -> \"Break\""

@@ -1015,20 +1015,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_augassign(self, stmt: ast.AugAssign, ir_stmts: List[int]) -> None:
         pass
 
-    # stmt-list-append-mutation wall (C-bucket): the SReturn emit_ir-CHILD path is BUILT +
-    # certified (Phase2d_StmtIR.v/StmtIR.lean; `_STMT_IR_CTORS["Return"]`, expressions.py
-    # `_lower_stmt_ir_node`) and independently proven (a `{"stmt":"Return","value":<emit_ir>}`
-    # append lowers to `Seq.snoc !ir_stmts (SReturn <child>)`). This handler STAYS trusted
-    # for now: the verbatim body reads `stmt.value` on the `ast.Return` param, which needs
-    # STATEMENT-node param resolution (a `Return` entry in the resolver's field table + the
-    # OPTIONAL-`value` field machinery) — a STEP-2 infra increment, not a wall-model gap. Its
-    # `ir_stmts` still models the SOUND mutable-ref convention once that lands.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
+    # caller-visible mutable `ref (seq stmt_ir)` param (the None-returning + `#@ assigns
+    # ir_stmts` convention); `.append({"stmt":"Return","value":<opt>})` lowers to
+    # `ir_stmts := Seq.snoc !ir_stmts (SReturn <iropt_ir>)` on the ref ITSELF, tag-preserving
+    # (SReturn, never erased to 0). The OPTIONAL `value` — the `disp(stmt.value) if
+    # stmt.value else None` ternary over `stmt.value : option emit_ir` — lowers via the
+    # shared `_slice_bound_to_iropt_ir` recognizer to `IrOSome (py_expr_to_ir stmt.value)` /
+    # `IrONone`. Enabled by the STATEMENT-node param resolution: the `Return` entry in
+    # `_PURE_AST_FIELD_TABLE` (ir_resolve.py) types the `ast.Return` param as the `Return`
+    # record with `value : option emit_ir`, and `SReturn` is retyped `SReturn iropt_ir`
+    # (preamble.py stmt_ir theory). Verbatim body port of the LIVE `_py_stmt_return`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_return(self, stmt: ast.Return, ir_stmts: List[int]) -> None:
-        pass
+        ir_stmts.append({"stmt": "Return", "value": self._py_expr_to_ir(stmt.value) if stmt.value else None})
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

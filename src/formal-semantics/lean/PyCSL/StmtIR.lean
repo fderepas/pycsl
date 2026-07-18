@@ -36,13 +36,21 @@ namespace StmtIRCert
 -- 1. The statement-IR ADT — mirrors the WhyML `type stmt_ir`.            --
 -- ===================================================================== --
 
+/-- The monomorphic option sibling of the emit_ir ADT — mirrors the WhyML
+    `iropt_ir = IrONone | IrOSome emit_ir`. `SReturn` carries it (the OPTIONAL
+    return value); it references only the FOREIGN `ε`, never `StmtIr`. -/
+inductive IrOpt (ε : Type) where
+  | IrONone
+  | IrOSome (e : ε)
+  deriving DecidableEq
+
 /-- `ε` abstracts the WhyML emit_ir expr-child type: a FOREIGN type variable, so
     `StmtIr` provably carries no `StmtIr` sub-term (no mutual recursion). -/
 inductive StmtIr (ε : Type) where
   | SPass
   | SBreak
   | SContinue
-  | SReturn (e : ε)
+  | SReturn (o : IrOpt ε)
   | SExpr (e : ε)
   deriving DecidableEq
 
@@ -74,7 +82,7 @@ inductive PyStmt (ε : Type) where
   | PPass
   | PBreak
   | PContinue
-  | PReturn (e : ε)
+  | PReturn (o : IrOpt ε)
   | PExpr (e : ε)
 
 /-- The dict->ctor map (`{"stmt":"Pass"} ↦ SPass`, ...). -/
@@ -82,7 +90,7 @@ def abs : PyStmt ε → StmtIr ε
   | .PPass => .SPass
   | .PBreak => .SBreak
   | .PContinue => .SContinue
-  | .PReturn e => .SReturn e
+  | .PReturn o => .SReturn o
   | .PExpr e => .SExpr e
 
 /-- The Python-side tag string of a recognized node. -/
@@ -107,7 +115,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | SPass => exact ⟨.PPass, rfl⟩
   | SBreak => exact ⟨.PBreak, rfl⟩
   | SContinue => exact ⟨.PContinue, rfl⟩
-  | SReturn e => exact ⟨.PReturn e, rfl⟩
+  | SReturn o => exact ⟨.PReturn o, rfl⟩
   | SExpr e => exact ⟨.PExpr e, rfl⟩
 
 -- ===================================================================== --
@@ -117,7 +125,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
 theorem stmtKindOf_pass : stmtKindOf (ε := ε) .SPass = "Pass" := rfl
 theorem stmtKindOf_break : stmtKindOf (ε := ε) .SBreak = "Break" := rfl
 theorem stmtKindOf_continue : stmtKindOf (ε := ε) .SContinue = "Continue" := rfl
-theorem stmtKindOf_return (e : ε) : stmtKindOf (.SReturn e) = "Return" := rfl
+theorem stmtKindOf_return (o : IrOpt ε) : stmtKindOf (.SReturn o) = "Return" := rfl
 theorem stmtKindOf_expr (e : ε) : stmtKindOf (.SExpr e) = "Expr" := rfl
 
 theorem kindOf_agree (s : PyStmt ε) : stmtKindOf (abs s) = pyKindOf s := by
@@ -133,13 +141,22 @@ theorem tag_pass_neq_continue : stmtKindOf (ε := ε) .SPass ≠ stmtKindOf (ε 
   simp only [stmtKindOf]; decide
 theorem tag_break_neq_continue : stmtKindOf (ε := ε) .SBreak ≠ stmtKindOf (ε := ε) .SContinue := by
   simp only [stmtKindOf]; decide
-theorem tag_pass_neq_return (e : ε) : stmtKindOf (ε := ε) .SPass ≠ stmtKindOf (.SReturn e) := by
+theorem tag_pass_neq_return (o : IrOpt ε) : stmtKindOf (ε := ε) .SPass ≠ stmtKindOf (.SReturn o) := by
   simp only [stmtKindOf]; decide
-theorem tag_return_neq_expr (e1 e2 : ε) : stmtKindOf (.SReturn e1) ≠ stmtKindOf (.SExpr e2) := by
+theorem tag_return_neq_expr (o : IrOpt ε) (e : ε) : stmtKindOf (.SReturn o) ≠ stmtKindOf (.SExpr e) := by
   simp only [stmtKindOf]; decide
 
 /-- The constructors themselves are distinct (no erasure to a common value). -/
 theorem ctor_pass_neq_break : (StmtIr.SPass : StmtIr ε) ≠ StmtIr.SBreak := by
+  intro h; cases h
+
+/-- (c'') The OPTIONAL return value is OBSERVABLE — a bare `return`
+    (`SReturn IrONone`) and a value `return e` (`SReturn (IrOSome e)`) are
+    DISTINCT nodes. Certifies the `SReturn iropt_ir` retype carries the option
+    honestly (the 0895 fixture's driver_refute / driver_evil_option), not a
+    collapsed/erased child. -/
+theorem sreturn_none_neq_some (e : ε) :
+    (StmtIr.SReturn .IrONone : StmtIr ε) ≠ StmtIr.SReturn (.IrOSome e) := by
   intro h; cases h
 
 end StmtIRCert
@@ -158,3 +175,4 @@ end StmtIRCert
 #print axioms StmtIRCert.tag_pass_neq_break
 #print axioms StmtIRCert.tag_return_neq_expr
 #print axioms StmtIRCert.ctor_pass_neq_break
+#print axioms StmtIRCert.sreturn_none_neq_some

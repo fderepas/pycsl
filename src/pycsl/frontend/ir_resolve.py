@@ -339,6 +339,21 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # earlier "Slice blocked" note below (an Optional-ExprIR field tag NOW
     # exists, and IrSliceN keeps all three bounds).
     "Slice": [("lower", "OptExprIR"), ("upper", "OptExprIR"), ("step", "OptExprIR")],
+    # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): the FIRST
+    # STATEMENT node in this structural-import path (base `'stmt'`, not `'expr'` —
+    # the harvest cross-checks field NAMES only, so a stmt node records identically).
+    # `_NODE_SPEC['Return'] = ('stmt', ('value',), None)`; its single field `value`
+    # is optional (`_OPTIONAL_FIELDS['Return'] = ('value',)`), tagged "OptExprIR" ->
+    # `option emit_ir` (the Slice precedent). This is the STATEMENT-node param-
+    # resolution enabler: `_py_stmt_return(self, stmt: ast.Return, …)` now types its
+    # `stmt` param as the `Return` record, so the body's `self._py_expr_to_ir(stmt.value)
+    # if stmt.value else None` ternary reads `stmt.value : option emit_ir` and lowers
+    # (module6_whyml/expressions.py `_slice_bound_to_iropt_ir`, routed from
+    # `_lower_stmt_ir_node`'s `"opt"` child kind) to `iropt_ir` — the OPTIONAL return
+    # value carried by the retyped `SReturn iropt_ir` ctor (a bare `return` -> `IrONone`,
+    # `return e` -> `IrOSome (py_expr_to_ir e)`). Feeds the mutable-ref stmt-append
+    # convention (`ir_stmts := Seq.snoc !ir_stmts (SReturn <opt>)`).
+    "Return": [("value", "OptExprIR")],
     # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): Constant's
     # 2 fields (`value`, `kind`) match `_NODE_SPEC['Constant'] = ('expr',
     # ('value','kind'), None)` in order. `value` tagged "PyConstVal" — the FIRST

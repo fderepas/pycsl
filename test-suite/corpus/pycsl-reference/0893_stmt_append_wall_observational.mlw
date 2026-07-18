@@ -10,8 +10,14 @@ module WallStmtIrObservation
      _uses_stmt_ir, and the append lowering in statements.py). *)
   type emit_ir
 
+  (* iropt_ir is the emit_ir ADT's monomorphic option sibling (preamble.py
+     _emit_exprir_theory). SReturn now carries it (the OPTIONAL return value), so it is in
+     scope for the verbatim stmt_ir block below even though this SPass-only driver never
+     builds one. VERBATIM tool-emitted. *)
+  type iropt_ir = IrONone | IrOSome emit_ir
+
   (* ---- VERBATIM tool-emitted stmt_ir block (preamble.py _uses_stmt_ir gate) ---- *)
-  type stmt_ir = SPass | SBreak | SContinue | SReturn emit_ir | SExpr emit_ir
+  type stmt_ir = SPass | SBreak | SContinue | SReturn iropt_ir | SExpr emit_ir
   let function stmt_kind_of (s: stmt_ir) : string =
     match s with
     | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"

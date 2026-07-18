@@ -20,12 +20,17 @@
          INJECTIVE on the recognized key-set (SPass, SBreak, ... are provably
          DISTINCT — the honest node identity the pre-feature integer-0 erasure
          destroyed, fable Oracle 3);
-     (d) NO MUTUAL RECURSION: the expr children (`SReturn e` / `SExpr e`) carry
-         the FOREIGN emit_ir type `emit` (a Section variable here), which never
+     (d) NO MUTUAL RECURSION: the expr children (`SExpr e` carries the FOREIGN
+         emit_ir type `emit`; `SReturn o` carries `iropt` = the option sibling
+         `IrONone | IrOSome emit`), where `emit` (a Section variable here) never
          mentions `stmt_ir` — so `stmt_ir` adds NO constructor to emit_ir's own
          size induction, and its own `size` recursion does not descend into
          `emit`.  This is the one-directional-reference property the WhyML block
          needs (stmt_ir references emit_ir; emit_ir does not reference stmt_ir).
+         SReturn's OPTIONAL child mirrors `ast.Return.value : option emit_ir`
+         retyped `SReturn iropt_ir` (a bare `return` -> `IrONone`, `return e` ->
+         `IrOSome (disp e)`); `disp` is abstracted (the option carries `emit`
+         directly), so the certified content is the OPTION STRUCTURE itself.
 
    The mutable-ref append convention itself (`ir_stmts : ref (seq stmt_ir)` with
    a real `writes { ir_stmts }` frame) needs NO certificate clause here: it is a
@@ -56,11 +61,18 @@ Variable emit_eq_dec : forall a b : emit, {a = b} + {a <> b}.
 (* 1. The statement-IR ADT — mirrors the WhyML `type stmt_ir`.            *)
 (* ===================================================================== *)
 
+(* The monomorphic option sibling of the emit_ir ADT — mirrors the WhyML
+   `iropt_ir = IrONone | IrOSome emit_ir`.  SReturn carries it (the OPTIONAL
+   return value); it references only the FOREIGN `emit`, never `stmt_ir`. *)
+Inductive iropt : Type :=
+  | IrONone
+  | IrOSome (e : emit).
+
 Inductive stmt_ir : Type :=
   | SPass
   | SBreak
   | SContinue
-  | SReturn (e : emit)
+  | SReturn (o : iropt)
   | SExpr (e : emit).
 
 (* The tag discriminant — verbatim image of the WhyML `stmt_kind_of`. *)
@@ -82,8 +94,11 @@ Theorem size_pos : forall s, size s = 1.
 Proof. intros []; reflexivity. Qed.
 
 (* Decidable equality, given decidable equality on the child type. *)
-Definition stmt_ir_eq_dec : forall x y : stmt_ir, {x = y} + {x <> y}.
+Definition iropt_eq_dec : forall x y : iropt, {x = y} + {x <> y}.
 Proof. decide equality; apply emit_eq_dec. Defined.
+
+Definition stmt_ir_eq_dec : forall x y : stmt_ir, {x = y} + {x <> y}.
+Proof. decide equality; (apply emit_eq_dec || apply iropt_eq_dec). Defined.
 
 (* ===================================================================== *)
 (* 2. The recognized `{"stmt": K}` world + its dict->ctor abstraction.    *)
@@ -96,7 +111,7 @@ Inductive pystmt : Type :=
   | PPass
   | PBreak
   | PContinue
-  | PReturn (e : emit)
+  | PReturn (o : iropt)
   | PExpr (e : emit).
 
 (* The dict->ctor map (`{"stmt":"Pass"} |-> SPass`, ...). *)
@@ -105,7 +120,7 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PPass      => SPass
   | PBreak     => SBreak
   | PContinue  => SContinue
-  | PReturn e  => SReturn e
+  | PReturn o  => SReturn o
   | PExpr e    => SExpr e
   end.
 
@@ -132,7 +147,7 @@ Proof.
   - exists PPass; reflexivity.
   - exists PBreak; reflexivity.
   - exists PContinue; reflexivity.
-  - exists (PReturn e); reflexivity.
+  - exists (PReturn o); reflexivity.
   - exists (PExpr e); reflexivity.
 Qed.
 
@@ -144,7 +159,7 @@ Qed.
 Theorem stmt_kind_of_pass     : stmt_kind_of SPass = "Pass".         Proof. reflexivity. Qed.
 Theorem stmt_kind_of_break    : stmt_kind_of SBreak = "Break".       Proof. reflexivity. Qed.
 Theorem stmt_kind_of_continue : stmt_kind_of SContinue = "Continue". Proof. reflexivity. Qed.
-Theorem stmt_kind_of_return   : forall e, stmt_kind_of (SReturn e) = "Return". Proof. reflexivity. Qed.
+Theorem stmt_kind_of_return   : forall o, stmt_kind_of (SReturn o) = "Return". Proof. reflexivity. Qed.
 Theorem stmt_kind_of_expr     : forall e, stmt_kind_of (SExpr e) = "Expr".     Proof. reflexivity. Qed.
 
 Theorem kind_of_agree : forall s, stmt_kind_of (abs s) = py_kind_of s.
@@ -162,14 +177,22 @@ Theorem tag_pass_neq_continue : stmt_kind_of SPass <> stmt_kind_of SContinue.
 Proof. simpl; discriminate. Qed.
 Theorem tag_break_neq_continue: stmt_kind_of SBreak <> stmt_kind_of SContinue.
 Proof. simpl; discriminate. Qed.
-Theorem tag_pass_neq_return   : forall e, stmt_kind_of SPass <> stmt_kind_of (SReturn e).
-Proof. intro e; simpl; discriminate. Qed.
-Theorem tag_return_neq_expr   : forall e1 e2, stmt_kind_of (SReturn e1) <> stmt_kind_of (SExpr e2).
-Proof. intros e1 e2; simpl; discriminate. Qed.
+Theorem tag_pass_neq_return   : forall o, stmt_kind_of SPass <> stmt_kind_of (SReturn o).
+Proof. intro o; simpl; discriminate. Qed.
+Theorem tag_return_neq_expr   : forall o e, stmt_kind_of (SReturn o) <> stmt_kind_of (SExpr e).
+Proof. intros o e; simpl; discriminate. Qed.
 
 (* The constructors themselves are distinct (no erasure to a common value). *)
 Theorem ctor_pass_neq_break : SPass <> SBreak.
 Proof. discriminate. Qed.
+
+(* (c'') The OPTIONAL return value is OBSERVABLE — a bare `return` (SReturn
+   IrONone) and a value `return e` (SReturn (IrOSome e)) are DISTINCT nodes.
+   Certifies the `SReturn iropt_ir` retype carries the option honestly (the
+   0895 observational fixture's driver_refute / driver_evil_option), not a
+   collapsed/erased child. *)
+Theorem sreturn_none_neq_some : forall e, SReturn IrONone <> SReturn (IrOSome e).
+Proof. intros e H; discriminate. Qed.
 
 End StmtIR.
 
@@ -179,6 +202,7 @@ End StmtIR.
 (* ===================================================================== *)
 
 Print Assumptions size_pos.
+Print Assumptions iropt_eq_dec.
 Print Assumptions stmt_ir_eq_dec.
 Print Assumptions abs_injective.
 Print Assumptions abs_surjective.
@@ -194,3 +218,4 @@ Print Assumptions tag_break_neq_continue.
 Print Assumptions tag_pass_neq_return.
 Print Assumptions tag_return_neq_expr.
 Print Assumptions ctor_pass_neq_break.
+Print Assumptions sreturn_none_neq_some.

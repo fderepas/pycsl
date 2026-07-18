@@ -12,8 +12,13 @@ module WallStmtIrBreakContinueObservation
      lowering in statements.py — grep-confirmed from the emitted Module5_IREmitter.mlw). *)
   type emit_ir
 
+  (* iropt_ir is the emit_ir ADT's monomorphic option sibling (preamble.py
+     _emit_exprir_theory); SReturn now carries it. VERBATIM tool-emitted (in scope for the
+     stmt_ir block below even though these nullary drivers never build one). *)
+  type iropt_ir = IrONone | IrOSome emit_ir
+
   (* ---- VERBATIM tool-emitted stmt_ir block (preamble.py _uses_stmt_ir gate) ---- *)
-  type stmt_ir = SPass | SBreak | SContinue | SReturn emit_ir | SExpr emit_ir
+  type stmt_ir = SPass | SBreak | SContinue | SReturn iropt_ir | SExpr emit_ir
   let function stmt_kind_of (s: stmt_ir) : string =
     match s with
     | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"
