@@ -17,8 +17,8 @@ inertness + observational fixtures 0893-0899, NOT the monolith).
 ## CONVERTED (14): _py_stmt_pass/break/continue/return/while/if/for + _process_while/_process_if/_process_for + _py_stmt_annassign/expr/assert + _py_expr_subscript. stmt_ir ctors: SPass/SBreak/SContinue/SReturn(iropt)/SExpr/SAssign/SAssert + SWhile/SIf/SFor(recursive stmt_list).
 
 ## REMAINING stmt handlers — DEEP INTERDEPENDENT FRONTIER (each needs MULTIPLE builds; none sufficient alone). NOT cheap; a deliberate multi-build campaign (authorize-first).
-- **`_py_stmt_augassign`** — BOUNDED (no leave-trusted wall): needs string-eq (`=='self'`) + SArraySet ctor + synthetic-BinOp value node + SAugAssign/SFieldAugAssign ctors. The most-reachable remaining; `_py_op_to_str` stays trusted-but-called (like binop, NOT a blocker). **Best next single build.**
-- **`_py_stmt_assign`** — string-eq + SArraySet + **ast-list-walker** (Tuple `.elts`) + symtab-membership + `raise`. Multi-wall.
+- **`_py_stmt_augassign`** — DONE (commit 0c75dc40, 1061→1060): built `str_eq_op`(==self), SAugAssign/SFieldAugAssign/SArraySet ctors, `avalue_of` unified projector, output-side subscript rewrite. These are REUSABLE for assign below.
+- **`_py_stmt_assign`** — now needs ONLY: SFieldAssign ctor (trivial, SFieldAugAssign clone) + `stmt.targets[0]` AST-list-HEAD access + **ast-list-walker** (Tuple `.elts` comprehension) + **symtab-membership** (`target.value.id in self._cur_func_symtab` — instance-state dict `in`) + **`raise PyCSLSemanticError`** (exception construction). str_eq_op/SArraySet now done. Still 3 distinct walls (list-head, ast-list-walker, symtab, raise).
 - **`_py_stmt_delete`** — **ast-list-walker** (`for tgt in stmt.targets`) + getattr-heterogeneous-target + append-in-loop.
 - **`_py_stmt_try`** — SExceptHandler ADT + loop-building-record-list + **ast-list-walker** (`h.type.elts` isinstance-filter + join).
 - **`_py_stmt_with`** — WEAVE-INJECTED attrs (`csl_critical_mutex`, not in pure_ast `_NODE_SPEC`) + `_get_mutex_invariant_ir` stateful dep + `Seq.(++)` concat (extend) + SCriticalSection. Lowest priority (weave-attr boundary).
