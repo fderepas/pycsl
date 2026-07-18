@@ -107,15 +107,30 @@ Inductive stmt_ir : Type :=
   | SWhile (t : emit) (b : stmt_list)
   | SIf (t : emit) (b : stmt_list) (el : stmt_list)
   | SFor (t : emit) (b : stmt_list)
+  (* STry increment: FOUR children — body / handlers / orelse / finalbody.  The
+     handler list is `handler_list`, a bespoke monomorphic cons over the
+     `except_handler` record, MUTUALLY recursive WITH stmt_ir/stmt_list (the
+     record's `eh_body` is a `stmt_list`, so the whole cycle is one mutual block —
+     a `seq except_handler` field would break strict positivity). *)
+  | STry (b : stmt_list) (hs : handler_list) (oe : stmt_list) (fb : stmt_list)
 with stmt_list : Type :=
   | SLNil
-  | SLCons (h : stmt_ir) (t : stmt_list).
+  | SLCons (h : stmt_ir) (t : stmt_list)
+with handler_list : Type :=
+  | HLNil
+  | HLCons (h : except_handler) (t : handler_list)
+with except_handler : Type :=
+  | MkEH (eh_exc_type : ioptstr) (eh_name : ioptstr) (eh_body : stmt_list).
 
 (* The mutual induction principle — the well-foundedness witness the measure
-   below is proven over. *)
+   below is proven over.  4-way: stmt_ir / stmt_list / handler_list /
+   except_handler. *)
 Scheme stmt_ir_mut := Induction for stmt_ir Sort Prop
-with stmt_list_mut := Induction for stmt_list Sort Prop.
-Combined Scheme stmt_ir_stmt_list_mutind from stmt_ir_mut, stmt_list_mut.
+with stmt_list_mut := Induction for stmt_list Sort Prop
+with handler_list_mut := Induction for handler_list Sort Prop
+with except_handler_mut := Induction for except_handler Sort Prop.
+Combined Scheme stmt_ir_stmt_list_mutind from stmt_ir_mut, stmt_list_mut,
+  handler_list_mut, except_handler_mut.
 
 (* The tag discriminant — verbatim image of the WhyML `stmt_kind_of`. *)
 Definition stmt_kind_of (s : stmt_ir) : string :=
@@ -133,6 +148,7 @@ Definition stmt_kind_of (s : stmt_ir) : string :=
   | SWhile _ _  => "While"
   | SIf _ _ _   => "If"
   | SFor _ _    => "For"
+  | STry _ _ _ _ => "Try"
   end.
 
 (* ===================================================================== *)
@@ -144,17 +160,54 @@ Fixpoint size_stmt (s : stmt_ir) : nat :=
   | SWhile _ b  => 1 + size_slist b
   | SIf _ b el  => 1 + size_slist b + size_slist el
   | SFor _ b    => 1 + size_slist b
+  | STry b hs oe fb => 1 + size_slist b + size_hlist hs
+                        + size_slist oe + size_slist fb
   | _           => 1
   end
 with size_slist (l : stmt_list) : nat :=
   match l with
   | SLNil       => 0
   | SLCons h t  => size_stmt h + size_slist t
+  end
+with size_hlist (l : handler_list) : nat :=
+  match l with
+  | HLNil       => 0
+  | HLCons h t  => size_handler h + size_hlist t
+  end
+with size_handler (h : except_handler) : nat :=
+  match h with
+  | MkEH _ _ b  => 1 + size_slist b
   end.
 
 (* Every node has size >= 1; a list has size >= 0 (trivial for nat). *)
 Theorem size_stmt_pos : forall s, size_stmt s >= 1.
 Proof. intros s; destruct s; simpl; lia. Qed.
+
+(* STry sub-bodies are STRICTLY smaller than the STry node — the 4-way mutual
+   well-foundedness witnesses (a recursive walker over STry terminates). *)
+Theorem size_try_body_lt : forall b hs oe fb,
+  size_slist b < size_stmt (STry b hs oe fb).
+Proof. intros; simpl; lia. Qed.
+Theorem size_try_handlers_lt : forall b hs oe fb,
+  size_hlist hs < size_stmt (STry b hs oe fb).
+Proof. intros; simpl; lia. Qed.
+Theorem size_try_orelse_lt : forall b hs oe fb,
+  size_slist oe < size_stmt (STry b hs oe fb).
+Proof. intros; simpl; lia. Qed.
+Theorem size_try_final_lt : forall b hs oe fb,
+  size_slist fb < size_stmt (STry b hs oe fb).
+Proof. intros; simpl; lia. Qed.
+(* A handler / its tail is no larger than the handler_list that contains it, and
+   a handler's body is strictly smaller than the handler. *)
+Theorem size_handler_le_hlcons : forall h t,
+  size_handler h <= size_hlist (HLCons h t).
+Proof. intros; simpl; lia. Qed.
+Theorem size_hltail_le_hlcons : forall h t,
+  size_hlist t <= size_hlist (HLCons h t).
+Proof. intros; simpl; lia. Qed.
+Theorem size_ehbody_lt_handler : forall x n b,
+  size_slist b < size_handler (MkEH x n b).
+Proof. intros; simpl; lia. Qed.
 
 (* Well-foundedness witnesses: a sub-body is STRICTLY smaller than the compound
    node that carries it — so a recursive walker over stmt_ir terminates. *)
@@ -181,12 +234,16 @@ Definition ioptstr_eq_dec : forall x y : ioptstr, {x = y} + {x <> y}.
 Proof. decide equality; apply string_dec. Defined.
 
 Fixpoint stmt_ir_eq_dec (x y : stmt_ir) : {x = y} + {x <> y}
-with stmt_list_eq_dec (x y : stmt_list) : {x = y} + {x <> y}.
+with stmt_list_eq_dec (x y : stmt_list) : {x = y} + {x <> y}
+with handler_list_eq_dec (x y : handler_list) : {x = y} + {x <> y}
+with except_handler_eq_dec (x y : except_handler) : {x = y} + {x <> y}.
 Proof.
   - decide equality;
       (apply emit_eq_dec || apply iropt_eq_dec || apply ioptstr_eq_dec
-       || apply stmt_list_eq_dec || apply string_dec).
+       || apply stmt_list_eq_dec || apply handler_list_eq_dec || apply string_dec).
   - decide equality; apply stmt_ir_eq_dec.
+  - decide equality; apply except_handler_eq_dec.
+  - decide equality; (apply ioptstr_eq_dec || apply stmt_list_eq_dec).
 Defined.
 
 (* ===================================================================== *)
@@ -209,7 +266,8 @@ Inductive pystmt : Type :=
   | PArraySet (a : emit) (i : emit) (v : emit)
   | PWhile (t : emit) (b : stmt_list)
   | PIf (t : emit) (b : stmt_list) (el : stmt_list)
-  | PFor (t : emit) (b : stmt_list).
+  | PFor (t : emit) (b : stmt_list)
+  | PTry (b : stmt_list) (hs : handler_list) (oe : stmt_list) (fb : stmt_list).
 
 (* The dict->ctor map (`{"stmt":"Pass"} |-> SPass`, ..., `{"stmt":"While",...}
    |-> SWhile ...`). *)
@@ -228,6 +286,7 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PWhile t b  => SWhile t b
   | PIf t b el  => SIf t b el
   | PFor t b    => SFor t b
+  | PTry b hs oe fb => STry b hs oe fb
   end.
 
 (* The Python-side tag string of a recognized node (the `"stmt"` value). *)
@@ -246,6 +305,7 @@ Definition py_kind_of (s : pystmt) : string :=
   | PWhile _ _  => "While"
   | PIf _ _ _   => "If"
   | PFor _ _    => "For"
+  | PTry _ _ _ _ => "Try"
   end.
 
 (* ===================================================================== *)
@@ -271,6 +331,7 @@ Proof.
   - exists (PWhile t b); reflexivity.
   - exists (PIf t b el); reflexivity.
   - exists (PFor t b); reflexivity.
+  - exists (PTry b hs oe fb); reflexivity.
 Qed.
 
 (* ===================================================================== *)
@@ -405,7 +466,131 @@ Theorem swhile_size_grows_with_body :
   forall t h r, size_stmt (SWhile t SLNil) < size_stmt (SWhile t (SLCons h r)).
 Proof. intros t h r; simpl; pose proof (size_stmt_pos h); lia. Qed.
 
+(* ===================================================================== *)
+(* STry + except_handler + handler_list observability (non-vacuity).       *)
+(* ===================================================================== *)
+
+(* Tag: STry projects "Try", distinct from every sibling compound tag. *)
+Theorem stmt_kind_of_try : forall b hs oe fb, stmt_kind_of (STry b hs oe fb) = "Try".
+Proof. reflexivity. Qed.
+Theorem tag_try_neq_while : forall b hs oe fb t c,
+  stmt_kind_of (STry b hs oe fb) <> stmt_kind_of (SWhile t c).
+Proof. intros; simpl; discriminate. Qed.
+Theorem tag_try_neq_if : forall b hs oe fb t c d,
+  stmt_kind_of (STry b hs oe fb) <> stmt_kind_of (SIf t c d).
+Proof. intros; simpl; discriminate. Qed.
+
+(* The four STry children are INDEPENDENTLY observable: change any one and the
+   node differs (never collapsed to a shared 0 — the fixture's evil twins). *)
+Theorem stry_body_observable : forall b c hs oe fb,
+  b <> c -> STry b hs oe fb <> STry c hs oe fb.
+Proof. intros b c hs oe fb H C; inversion C; contradiction. Qed.
+Theorem stry_handlers_observable : forall b hs ks oe fb,
+  hs <> ks -> STry b hs oe fb <> STry b ks oe fb.
+Proof. intros b hs ks oe fb H C; inversion C; contradiction. Qed.
+Theorem stry_orelse_observable : forall b hs oe pe fb,
+  oe <> pe -> STry b hs oe fb <> STry b hs pe fb.
+Proof. intros b hs oe pe fb H C; inversion C; contradiction. Qed.
+Theorem stry_final_observable : forall b hs oe fb gb,
+  fb <> gb -> STry b hs oe fb <> STry b hs oe gb.
+Proof. intros b hs oe fb gb H C; inversion C; contradiction. Qed.
+
+(* An EMPTY handler_list (HLNil) and a NON-empty one (HLCons) yield DISTINCT STry
+   nodes — the handler list is observable, not HLNil-erased (the fixture's
+   empty-list evil twin).  Their sizes differ too. *)
+Theorem stry_handlers_empty_neq_nonempty : forall b oe fb h r,
+  STry b HLNil oe fb <> STry b (HLCons h r) oe fb.
+Proof. intros; discriminate. Qed.
+Theorem size_handler_pos : forall h, size_handler h >= 1.
+Proof. intros h; destruct h; simpl; lia. Qed.
+Theorem stry_size_grows_with_handlers : forall b oe fb h r,
+  size_stmt (STry b HLNil oe fb) < size_stmt (STry b (HLCons h r) oe fb).
+Proof. intros; simpl; pose proof (size_handler_pos h); lia. Qed.
+
+(* The except_handler record's three slots are observable. *)
+Theorem eh_exc_type_observable : forall x y n b,
+  x <> y -> MkEH x n b <> MkEH y n b.
+Proof. intros x y n b H C; inversion C; contradiction. Qed.
+Theorem eh_name_observable : forall x n m b,
+  n <> m -> MkEH x n b <> MkEH x m b.
+Proof. intros x n m b H C; inversion C; contradiction. Qed.
+Theorem eh_body_observable : forall x n b c,
+  b <> c -> MkEH x n b <> MkEH x n c.
+Proof. intros x n b c H C; inversion C; contradiction. Qed.
+Theorem eh_exc_none_neq_some : forall s n b,
+  MkEH ISNone n b <> MkEH (ISSome s) n b.
+Proof. intros; discriminate. Qed.
+
 End StmtIR.
+
+(* ===================================================================== *)
+(* 5b. The CONCRETE compaction of a Tuple exc_type — the WhyML twin of      *)
+(*     `var_names_of` / `join_pipe` / `tuple_exc_type`                      *)
+(*     (`"|".join(n.id for n in h.type.elts if isinstance(n, ast.Name))`).  *)
+(*     Modelled CONCRETELY (a tiny `cemit` node type with `is_varc`/`namec`) *)
+(*     so observability is provable NON-vacuously: the fable's warning is    *)
+(*     that a LENGTH-ONLY abstract law is vacuous; this proves the EXACT     *)
+(*     projected string, and an evil-twin wrong string is refutable.         *)
+(* ===================================================================== *)
+
+Section Compaction.
+
+(* A minimal concrete emit-node: a Name-var carrying its id, or "other". *)
+Inductive cemit : Type := CVar (id : string) | COther.
+Definition is_varc (e : cemit) : bool := match e with CVar _ => true | _ => false end.
+Definition namec (e : cemit) : string := match e with CVar n => n | _ => "" end.
+
+(* The MkTuple elts payload — the WhyML monomorphic `irlist`. *)
+Definition cirlist := list cemit.
+
+(* strlist = the WhyML `strlist = SLNilS | SLConsS string strlist`. *)
+Inductive strlist : Type := SLNilS | SLConsS (h : string) (t : strlist).
+
+(* var_names_of : filter `is_varc` + project `namec` over the elts. *)
+Fixpoint var_names_of (l : cirlist) : strlist :=
+  match l with
+  | nil => SLNilS
+  | e :: rest => if is_varc e then SLConsS (namec e) (var_names_of rest)
+                 else var_names_of rest
+  end.
+
+(* join_pipe : "|".join — separator BETWEEN names. *)
+Fixpoint join_pipe (l : strlist) : string :=
+  match l with
+  | SLNilS => ""
+  | SLConsS h t =>
+      match t with
+      | SLNilS => h
+      | SLConsS _ _ => h ++ "|" ++ join_pipe t
+      end
+  end.
+
+Definition tuple_exc_type (l : cirlist) : string := join_pipe (var_names_of l).
+
+(* OBSERVABILITY (non-vacuity): a mixed elts list [CVar "A"; COther; CVar "B"]
+   drops the non-Name and joins to EXACTLY "A|B".  A LENGTH-ONLY law could not
+   prove this. *)
+Theorem compaction_observe :
+  tuple_exc_type (CVar "A" :: COther :: CVar "B" :: nil) = "A|B".
+Proof. reflexivity. Qed.
+
+(* Single Name: the "|".join of one element is that element (no separator). *)
+Theorem compaction_single :
+  tuple_exc_type (CVar "X" :: nil) = "X".
+Proof. reflexivity. Qed.
+
+(* EVIL TWIN: the compaction is NOT the wrong string — refutable, so the string
+   is genuinely pinned (non-vacuous). *)
+Theorem compaction_evil_twin :
+  tuple_exc_type (CVar "A" :: COther :: CVar "B" :: nil) <> "A|C".
+Proof. discriminate. Qed.
+
+(* The filter drops non-Name elements: a list of only non-Names compacts to "". *)
+Theorem compaction_drops_nonvar :
+  tuple_exc_type (COther :: COther :: nil) = "".
+Proof. reflexivity. Qed.
+
+End Compaction.
 
 (* ===================================================================== *)
 (* 6. VERDICT — assumption audit.  Every result must be `Closed under the  *)
@@ -413,6 +598,32 @@ End StmtIR.
 (* ===================================================================== *)
 
 Print Assumptions size_stmt_pos.
+Print Assumptions size_try_body_lt.
+Print Assumptions size_try_handlers_lt.
+Print Assumptions size_try_orelse_lt.
+Print Assumptions size_try_final_lt.
+Print Assumptions size_handler_le_hlcons.
+Print Assumptions size_hltail_le_hlcons.
+Print Assumptions size_ehbody_lt_handler.
+Print Assumptions handler_list_eq_dec.
+Print Assumptions except_handler_eq_dec.
+Print Assumptions stmt_kind_of_try.
+Print Assumptions tag_try_neq_while.
+Print Assumptions tag_try_neq_if.
+Print Assumptions stry_body_observable.
+Print Assumptions stry_handlers_observable.
+Print Assumptions stry_orelse_observable.
+Print Assumptions stry_final_observable.
+Print Assumptions stry_handlers_empty_neq_nonempty.
+Print Assumptions stry_size_grows_with_handlers.
+Print Assumptions eh_exc_type_observable.
+Print Assumptions eh_name_observable.
+Print Assumptions eh_body_observable.
+Print Assumptions eh_exc_none_neq_some.
+Print Assumptions compaction_observe.
+Print Assumptions compaction_single.
+Print Assumptions compaction_evil_twin.
+Print Assumptions compaction_drops_nonvar.
 Print Assumptions size_slist_lt_swhile.
 Print Assumptions size_body_lt_sif.
 Print Assumptions size_orelse_lt_sif.

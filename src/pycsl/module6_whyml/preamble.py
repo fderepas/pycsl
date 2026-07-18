@@ -4003,7 +4003,11 @@ class PreambleEmissionMixin:
                 " | SWhile emit_ir stmt_list"
                 " | SIf emit_ir stmt_list stmt_list"
                 " | SFor emit_ir stmt_list"
-                "  with stmt_list = SLNil | SLCons stmt_ir stmt_list",
+                " | STry stmt_list handler_list stmt_list stmt_list"
+                "  with stmt_list = SLNil | SLCons stmt_ir stmt_list"
+                "  with handler_list = HLNil | HLCons except_handler handler_list"
+                "  with except_handler ="
+                " { eh_exc_type: iropt_str; eh_name: iropt_str; eh_body: stmt_list }",
                 "  let function stmt_kind_of (s: stmt_ir) : string =",
                 "    match s with",
                 "    | SPass -> \"Pass\" | SBreak -> \"Break\""
@@ -4015,7 +4019,8 @@ class PreambleEmissionMixin:
                 " | SFieldAugAssign _ _ _ -> \"FieldAugAssign\""
                 " | SArraySet _ _ _ -> \"ArraySet\"",
                 "    | SWhile _ _ -> \"While\" | SIf _ _ _ -> \"If\""
-                " | SFor _ _ -> \"For\"",
+                " | SFor _ _ -> \"For\""
+                " | STry _ _ _ _ -> \"Try\"",
                 "    end",
                 "",
                 "  (* The MUTUAL well-founded size measure over stmt_ir/stmt_list — the"
@@ -4031,6 +4036,8 @@ class PreambleEmissionMixin:
                 "    | SWhile _ b -> 1 + size_slist b",
                 "    | SIf _ b o -> 1 + size_slist b + size_slist o",
                 "    | SFor _ b -> 1 + size_slist b",
+                "    | STry b hs oe fb -> 1 + size_slist b + size_hlist hs"
+                " + size_slist oe + size_slist fb",
                 "    | _ -> 1",
                 "    end",
                 "  with function size_slist (l: stmt_list) : int",
@@ -4038,6 +4045,15 @@ class PreambleEmissionMixin:
                 "    variant { l }",
                 "  = match l with SLNil -> 0"
                 " | SLCons h t -> size_stmt h + size_slist t end",
+                "  with function size_hlist (l: handler_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with HLNil -> 0"
+                " | HLCons h t -> size_handler h + size_hlist t end",
+                "  with function size_handler (h: except_handler) : int",
+                "    ensures { result >= 0 }",
+                "    variant { h }",
+                "  = 1 + size_slist h.eh_body",
                 "",
                 "  (* sl_len : the LENGTH of a stmt_list — the observable the non-vacuity"
                 " fixture proves (`sl_len body = <right count>`). *)",
@@ -4071,6 +4087,112 @@ class PreambleEmissionMixin:
                 "  = if i >= Seq.length s then () else seq_to_sl_from_len s (i + 1)",
                 "  lemma seq_to_sl_len : forall s: seq stmt_ir."
                 " sl_len (seq_to_sl s) = Seq.length s",
+                "",
+                "  (* STry + except_handler + handler_list increment (self-tcb-reduction"
+                " M5, C-bucket): the TRY statement `try: <body> except <T> as <n>:"
+                " <hbody> ... else: <orelse> finally: <finalbody>`. STry carries FOUR"
+                " children: the body/orelse/finalbody sub-lists (each a `stmt_list` via"
+                " `seq_to_sl`) and the HANDLER list — a `handler_list = HLNil | HLCons"
+                " except_handler handler_list`, MUTUALLY recursive WITH stmt_ir/stmt_list"
+                " (the `except_handler` record's `eh_body` field is a `stmt_list`, so the"
+                " STry->handler_list->except_handler->stmt_list->stmt_ir cycle forces ONE"
+                " mutual `with` block — a `seq except_handler` field is Why3 TYPE-REJECTED"
+                " (abstract seq in a ctor arg is non-strictly-positive), the bespoke cons"
+                " `handler_list` is strictly positive). except_handler = { eh_exc_type:"
+                " iropt_str (the `\"|\".join` compaction of the caught exception TYPE names,"
+                " `IrSNone` for a bare `except:`); eh_name: iropt_str (the `as <n>` bind,"
+                " `IrSNone` if absent); eh_body: stmt_list (the handler body sub-list) }."
+                " The 4-way mutual size measure (size_stmt/size_slist/size_hlist/"
+                " size_handler) is declared above; the STry ctor's `_ -> 1` sibling covers"
+                " nothing (STry has its own arm). Co-landed with the axiom-free Rocq+Lean"
+                " certificate (Phase2d_StmtIR.v / StmtIR.lean) extended for STry +"
+                " except_handler + handler_list + the compaction correctness. *)",
+                "  (* hl_len : the LENGTH of a handler_list — the observable the"
+                " non-vacuity fixture proves (`hl_len handlers = <right count>`). *)",
+                "  let rec function hl_len (l: handler_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with HLNil -> 0 | HLCons _ t -> 1 + hl_len t end",
+                "",
+                "  (* seq_to_hl : materialize a runtime `seq except_handler` (what the"
+                " `handlers = []; for h in stmt.handlers: handlers.append(<rec>)` accumulator"
+                " loop grows) into the pure `handler_list` the STry ctor carries. Termination"
+                " is Why3-INTRINSIC (`variant { Seq.length s - i }`); the bridge lemma"
+                " `seq_to_hl_len` pins `hl_len (seq_to_hl s) = Seq.length s` — a k-handler"
+                " loop yields a real k-long cons chain (NON-facade: empty = HLNil length 0). *)",
+                "  let rec function seq_to_hl_from (s: seq except_handler) (i: int)"
+                " : handler_list",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then HLNil",
+                "    else HLCons (Seq.get s i) (seq_to_hl_from s (i + 1))",
+                "  let function seq_to_hl (s: seq except_handler) : handler_list ="
+                " seq_to_hl_from s 0",
+                "  let rec lemma seq_to_hl_from_len (s: seq except_handler) (i: int)",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    ensures  { hl_len (seq_to_hl_from s i) = Seq.length s - i }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then () else seq_to_hl_from_len s (i + 1)",
+                "  lemma seq_to_hl_len : forall s: seq except_handler."
+                " hl_len (seq_to_hl s) = Seq.length s",
+                "",
+                "  (* The CONCRETE compaction of a Tuple exc_type `\"|\".join(n.id for n in"
+                " h.type.elts if isinstance(n, ast.Name))`: `var_names_of` filters `is_var`"
+                " + projects `name_of` over the MkTuple `elts` irlist; `join_pipe` inserts"
+                " \"|\" BETWEEN the resulting names. NOT a length-only abstract law (the"
+                " fable's vacuity trap) — a total structural recursion over the ALREADY-"
+                " concrete `is_var`/`name_of` projectors. `pipe_join` is the program-level"
+                " primitive the emitter emits (concat is logic-only in Why3), pinned by"
+                " ensures to the EXACT concrete logic compaction `tuple_exc_type`. *)",
+                "  (* the variadic-tuple discriminant + elts projector: `isinstance(h.type,"
+                " ast.Tuple)` on the caught-exception type lowers to `is_mktuple` (the"
+                " IrMkTupleN variadic ctor), `h.type.elts` to `elts_of` (its irlist"
+                " payload). Gated on `_uses_stmt_ir` — only the mirror's `_py_stmt_try`"
+                " compaction needs them, so the emit_ir theory of every OTHER file (and the"
+                " whole corpus) stays byte-identical. *)",
+                "  let function is_mktuple (e: emit_ir) : bool =",
+                "    match e with IrMkTupleN _ -> true | _ -> false end",
+                "  let function elts_of (e: emit_ir) : irlist =",
+                "    match e with IrMkTupleN l -> l | _ -> ILNil end",
+                "  type strlist = SLNilS | SLConsS string strlist",
+                "  function var_names_of (l: irlist) : strlist =",
+                "    match l with",
+                "    | ILNil -> SLNilS",
+                "    | ILCons e rest -> if is_var e then SLConsS (name_of e)"
+                " (var_names_of rest) else var_names_of rest",
+                "    end",
+                "  function join_pipe (l: strlist) : string =",
+                "    match l with",
+                "    | SLNilS -> \"\"",
+                "    | SLConsS h t -> match t with"
+                " | SLNilS -> h"
+                " | SLConsS _ _ -> concat h (concat \"|\" (join_pipe t)) end",
+                "    end",
+                "  function tuple_exc_type (l: irlist) : string ="
+                " join_pipe (var_names_of l)",
+                "  val function pipe_join (l: irlist) : string",
+                "    ensures { result = tuple_exc_type l }",
+                "",
+                "  (* The TYPED AST-input readers for `_py_stmt_try`: `py_try_node` models"
+                " `ast.Try` (its `stmt` param), `ast_excepthandler` models an `ast."
+                " ExceptHandler` element of `stmt.handlers`. These are OPAQUE deterministic"
+                " AST projectors — the typed analogue of the trusted `iter_get`/`get_body`"
+                " AST readers and the `self._py_stmts_to_ir` dispatcher (the Python AST is"
+                " the untrusted INPUT; fidelity is about the OUTPUT STry/except_handler/"
+                " compaction construction, which is concrete below). `eh_type_ast` returns"
+                " the caught-exception type as an `iropt_ir` (`IrONone` = bare `except:`,"
+                " `IrOSome t` = `except T`/`except (T1,T2)`); `eh_name_ast` the `as <n>`"
+                " bind as `iropt_str`; the body readers return `array int` (the trusted"
+                " `_py_stmts_to_ir` dispatcher's param type). Gated on `_uses_stmt_ir`. *)",
+                "  type py_try_node",
+                "  type ast_excepthandler",
+                "  val function try_body_ast (s: py_try_node) : array int",
+                "  val function try_handlers_ast (s: py_try_node) : seq ast_excepthandler",
+                "  val function try_orelse_ast (s: py_try_node) : array int",
+                "  val function try_finalbody_ast (s: py_try_node) : array int",
+                "  val function eh_type_ast (h: ast_excepthandler) : iropt_ir",
+                "  val function eh_name_ast (h: ast_excepthandler) : iropt_str",
+                "  val function eh_body_ast (h: ast_excepthandler) : array int",
                 "",
             ]) if self._uses_stmt_ir() else []),
         ]

@@ -1706,9 +1706,95 @@ class FunctionEmissionMixin:
         lowered = [s for s in lowered if s and s.strip() and s.strip() != "true"]
         return lowered or ["true"]
 
+    def _is_py_stmt_try(self, func: Dict[str, Any]) -> bool:
+        """STry + except_handler + handler_list increment (self-tcb-reduction M5,
+        C-bucket): True iff `func` is the Module5 mirror's `_py_stmt_try` handler and
+        the stmt_ir theory (STry ctor + AST readers + compaction) is emitted. Keyed on
+        the method name + `_uses_stmt_ir()` → no corpus program has a `_py_stmt_try`
+        method, so this is corpus-inert (byte-identical everywhere else)."""
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method"
+                and (nm.endswith("__py_stmt_try") or nm.endswith("_py_stmt_try"))
+                and not nm.endswith("py_stmt_try_x")  # defensive
+                and self._uses_stmt_ir())
+
+    def _emit_py_stmt_try_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """STry + except_handler + handler_list increment (self-tcb-reduction M5,
+        C-bucket): emit the FAITHFUL whole-body lowering of `_py_stmt_try`:
+
+            body_ir = self._py_stmts_to_ir(stmt.body)
+            handlers = []
+            for h in stmt.handlers:
+                exc_type = None
+                if h.type and isinstance(h.type, ast.Name):  exc_type = h.type.id
+                elif h.type and isinstance(h.type, ast.Tuple):
+                    exc_type = "|".join(n.id for n in h.type.elts
+                                        if isinstance(n, ast.Name))
+                handlers.append({"exc_type": exc_type, "name": h.name,
+                                 "body": self._py_stmts_to_ir(h.body)})
+            ir_stmts.append({"stmt":"Try","body":body_ir,"handlers":handlers,
+                             "orelse":..., "finalbody":...})
+
+        The `stmt` param is the typed `py_try_node`; `stmt.handlers` a `seq
+        ast_excepthandler` read via `try_handlers_ast`. The accumulator `handlers` is a
+        REAL `ref (seq except_handler)` grown by `Seq.snoc` of a REAL record (NOT the
+        `Seq.snoc 0` erasure). The isinstance dispatch on the option `h.type` matches
+        `eh_type_ast h : iropt_ir` then `is_var`/`is_mktuple` (NOT `isinstance_op`);
+        `h.type.id -> name_of`, `h.name -> eh_name_ast : iropt_str`, and the Tuple
+        `"|".join(...)` -> the CONCRETE `pipe_join (elts_of t)` compaction (NOT a
+        length-only law). The Try node is the REAL `STry` ctor with a REAL `handler_list`
+        (`seq_to_hl !handlers`, NOT HLNil-erased) + the three `stmt_list` sub-bodies.
+        Bespoke because `_py_stmt_try`/`_py_stmt_match` are the only stmt handlers whose
+        body is a `for x in stmt.<ast-list-field>: acc.append({rec})` accumulator loop —
+        a construct the generic statement lowering int-erases end-to-end. Corpus-inert
+        (fires only for this named mirror method under `_uses_stmt_ir`)."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        disp = "self__py_stmts_to_ir_1"
+        L = [
+            f"  let {name} (self: {cls}) (stmt: py_try_node)"
+            f" (ir_stmts: ref (seq stmt_ir)) : unit",
+            "    requires { true }",
+            "    ensures  { true }",
+            "    writes { ir_stmts }",
+            "  =",
+            "    let hs = try_handlers_ast stmt in",
+            "    let handlers = ref (Seq.empty: seq except_handler) in",
+            "    let _i = ref 0 in",
+            "    while !_i < Seq.length hs do",
+            "      invariant { 0 <= !_i <= Seq.length hs }",
+            "      variant { Seq.length hs - !_i }",
+            "      let h = Seq.get hs !_i in",
+            "      let exc_type = (match eh_type_ast h with",
+            "        | IrONone -> IrSNone",
+            "        | IrOSome t -> if is_var t then IrSSome (name_of t)",
+            "          else (if is_mktuple t then IrSSome (pipe_join (elts_of t))",
+            "                else IrSNone)",
+            "        end) in",
+            "      handlers := Seq.snoc !handlers",
+            "        { eh_exc_type = exc_type;",
+            "          eh_name = eh_name_ast h;",
+            f"          eh_body = seq_to_sl ({disp} (eh_body_ast h)) }};",
+            "      _i := !_i + 1",
+            "    done;",
+            "    ir_stmts := Seq.snoc !ir_stmts",
+            f"      (STry (seq_to_sl ({disp} (try_body_ast stmt)))",
+            "            (seq_to_hl !handlers)",
+            f"            (seq_to_sl ({disp} (try_orelse_ast stmt)))",
+            f"            (seq_to_sl ({disp} (try_finalbody_ast stmt))))",
+        ]
+        return L
+
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
+        # STry + except_handler + handler_list increment (self-tcb-reduction M5,
+        # C-bucket): the `_py_stmt_try` accumulator-loop handler is emitted by a bespoke
+        # lowering (the generic statement lowering int-erases the `for h in
+        # stmt.handlers: handlers.append({rec})` record-list-building loop end-to-end).
+        # Corpus-inert (fires only for the named mirror method under `_uses_stmt_ir`).
+        if self._is_py_stmt_try(func):
+            return self._emit_py_stmt_try_bespoke(func)
         # bigger-build.md Phase 1: if the body is the A-unit generic-fold
         # catamorphism (recognizer, fail-closed), emit the type-derived
         # walk/walk_dict/walk_list group over the L1 `pyval`/`pydict` datatype

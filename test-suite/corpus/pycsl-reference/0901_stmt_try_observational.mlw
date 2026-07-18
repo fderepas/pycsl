@@ -1,0 +1,196 @@
+module WallStmtTryObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+  use string.String
+
+  (* stmt-list-append-mutation wall (C-bucket), STry + except_handler + handler_list
+     increment: OBSERVATIONAL non-vacuity for the `_py_stmt_try` conversion — the FIRST
+     stmt_ir ctor carrying (a) a nested HANDLER-RECORD list and (b) a concrete string
+     COMPACTION. emit_ir is OPAQUE except for the `is_var`/`name_of`/`is_mktuple`/`elts_of`
+     projectors + the `IrMkTupleN`/`IrVar` ctors the compaction reads. The stmt_ir/STry/
+     stmt_list/handler_list/except_handler ADT, size measure, sl_len/hl_len, seq_to_sl/
+     seq_to_hl and the bridge lemmas below are VERBATIM the PyCSL tool's emitted output
+     (module6_whyml/preamble.py::_emit_exprir_theory gated on _uses_stmt_ir; grep-confirmed
+     from the emitted Module5_IREmitter.mlw). `process_try`/`emit_handler`/`emit_try` are
+     the VERBATIM shape of the tool's emitted `_py_stmt_try` body (functions.py::
+     _emit_py_stmt_try_bespoke): a `ref (seq except_handler)` accumulator grown by Seq.snoc
+     of a REAL `{ eh_exc_type; eh_name; eh_body }` record, materialized `seq_to_hl` into a
+     REAL STry (NOT HLNil/0-erased); the Tuple exc_type via the CONCRETE `pipe_join`
+     compaction (NOT a length-only law). *)
+
+  (* ---- VERBATIM tool-emitted: the emit_ir subset the compaction reads (IrVar/IrMkTupleN
+     + the monomorphic irlist), plus is_var/name_of/is_mktuple/elts_of. ---- *)
+  type emit_ir = IrVar string | IrOther string | IrMkTupleN irlist
+  with irlist = ILNil | ILCons emit_ir irlist
+  let function is_var (e: emit_ir) : bool =
+    match e with IrVar _ -> true | _ -> false end
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar n -> n | _ -> "" end
+  let function is_mktuple (e: emit_ir) : bool =
+    match e with IrMkTupleN _ -> true | _ -> false end
+  let function elts_of (e: emit_ir) : irlist =
+    match e with IrMkTupleN l -> l | _ -> ILNil end
+
+  type iropt_str = IrSNone | IrSSome string
+  type iropt_ir = IrONone | IrOSome emit_ir
+
+  (* ---- VERBATIM tool-emitted mutual block: stmt_ir + STry + stmt_list + handler_list +
+     except_handler. TAG-PRESERVING stmt_kind_of. ---- *)
+  type stmt_ir = SPass | SBreak | SExpr emit_ir
+    | STry stmt_list handler_list stmt_list stmt_list
+  with stmt_list = SLNil | SLCons stmt_ir stmt_list
+  with handler_list = HLNil | HLCons except_handler handler_list
+  with except_handler =
+    { eh_exc_type: iropt_str; eh_name: iropt_str; eh_body: stmt_list }
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SExpr _ -> "Expr"
+    | STry _ _ _ _ -> "Try"
+    end
+
+  (* ---- VERBATIM tool-emitted lengths + materializations + bridge lemmas. ---- *)
+  let rec function sl_len (l: stmt_list) : int
+    ensures { result >= 0 } variant { l }
+  = match l with SLNil -> 0 | SLCons _ t -> 1 + sl_len t end
+  let rec function seq_to_sl_from (s: seq stmt_ir) (i: int) : stmt_list
+    requires { 0 <= i <= Seq.length s } variant { Seq.length s - i }
+  = if i >= Seq.length s then SLNil
+    else SLCons (Seq.get s i) (seq_to_sl_from s (i + 1))
+  let function seq_to_sl (s: seq stmt_ir) : stmt_list = seq_to_sl_from s 0
+  let rec lemma seq_to_sl_from_len (s: seq stmt_ir) (i: int)
+    requires { 0 <= i <= Seq.length s }
+    ensures  { sl_len (seq_to_sl_from s i) = Seq.length s - i }
+    variant  { Seq.length s - i }
+  = if i >= Seq.length s then () else seq_to_sl_from_len s (i + 1)
+  lemma seq_to_sl_len : forall s: seq stmt_ir. sl_len (seq_to_sl s) = Seq.length s
+
+  let rec function hl_len (l: handler_list) : int
+    ensures { result >= 0 } variant { l }
+  = match l with HLNil -> 0 | HLCons _ t -> 1 + hl_len t end
+  let rec function seq_to_hl_from (s: seq except_handler) (i: int) : handler_list
+    requires { 0 <= i <= Seq.length s } variant { Seq.length s - i }
+  = if i >= Seq.length s then HLNil
+    else HLCons (Seq.get s i) (seq_to_hl_from s (i + 1))
+  let function seq_to_hl (s: seq except_handler) : handler_list = seq_to_hl_from s 0
+  let rec lemma seq_to_hl_from_len (s: seq except_handler) (i: int)
+    requires { 0 <= i <= Seq.length s }
+    ensures  { hl_len (seq_to_hl_from s i) = Seq.length s - i }
+    variant  { Seq.length s - i }
+  = if i >= Seq.length s then () else seq_to_hl_from_len s (i + 1)
+  lemma seq_to_hl_len : forall s: seq except_handler. hl_len (seq_to_hl s) = Seq.length s
+
+  (* ---- VERBATIM tool-emitted CONCRETE compaction (var_names_of / join_pipe /
+     tuple_exc_type / pipe_join). NOT a length-only law. ---- *)
+  type strlist = SLNilS | SLConsS string strlist
+  function var_names_of (l: irlist) : strlist =
+    match l with
+    | ILNil -> SLNilS
+    | ILCons e rest -> if is_var e then SLConsS (name_of e) (var_names_of rest)
+                       else var_names_of rest
+    end
+  function join_pipe (l: strlist) : string =
+    match l with
+    | SLNilS -> ""
+    | SLConsS h t -> match t with
+                     | SLNilS -> h
+                     | SLConsS _ _ -> concat h (concat "|" (join_pipe t)) end
+    end
+  function tuple_exc_type (l: irlist) : string = join_pipe (var_names_of l)
+  val function pipe_join (l: irlist) : string
+    ensures { result = tuple_exc_type l }
+
+  (* read-back projectors *)
+  let function try_handlers_of (s: stmt_ir) : handler_list =
+    match s with STry _ hs _ _ -> hs | _ -> HLNil end
+  let function try_final_of (s: stmt_ir) : stmt_list =
+    match s with STry _ _ _ fb -> fb | _ -> SLNil end
+  let rec function hl_nth (i: int) (l: handler_list) : except_handler
+    variant { l }
+  = match l with
+    | HLNil -> { eh_exc_type = IrSNone; eh_name = IrSNone; eh_body = SLNil }
+    | HLCons h t -> if i <= 0 then h else hl_nth (i - 1) t
+    end
+
+  (* ---- VERBATIM tool-emitted `_py_stmt_try` construction shape: the loop body's
+     record append + the STry snoc. `emit_handler` mirrors `handlers.append({rec})`
+     (REAL record, REAL Seq.snoc, NOT `Seq.snoc 0`); `process_try`/`emit_try` mirror the
+     final `ir_stmts.append({"stmt":"Try",...})` (REAL STry + seq_to_hl, NOT HLNil). ---- *)
+  let emit_handler (exc: iropt_str) (nm: iropt_str) (body: seq stmt_ir)
+                   (handlers: ref (seq except_handler)) : unit
+    ensures { !handlers = Seq.snoc (old !handlers)
+                { eh_exc_type = exc; eh_name = nm; eh_body = seq_to_sl body } }
+    writes  { handlers }
+  = handlers := Seq.snoc !handlers
+      { eh_exc_type = exc; eh_name = nm; eh_body = seq_to_sl body }
+
+  let function process_try (body: seq stmt_ir) (handlers: seq except_handler)
+                  (orelse: seq stmt_ir) (finalbody: seq stmt_ir) : stmt_ir =
+    STry (seq_to_sl body) (seq_to_hl handlers) (seq_to_sl orelse) (seq_to_sl finalbody)
+  let emit_try (body: seq stmt_ir) (handlers: seq except_handler)
+               (orelse: seq stmt_ir) (finalbody: seq stmt_ir)
+               (ir_stmts: ref (seq stmt_ir)) : unit
+    ensures { !ir_stmts = Seq.snoc (old !ir_stmts)
+                (process_try body handlers orelse finalbody) }
+    writes  { ir_stmts }
+  = ir_stmts := Seq.snoc !ir_stmts (process_try body handlers orelse finalbody)
+
+  (* ====================================================================
+     OBSERVATIONAL non-vacuity: a driver appends a Try with a handler whose
+     exc_type is the compaction of a 2-Name Tuple `(A, B)` (-> "A|B"), an
+     `as e` bind, and a 1-stmt handler body; reads back handler 0 and proves
+     the EXACT exc_type string, eh_name, tag, and the hl_len/sl_len lengths.
+     ==================================================================== *)
+  let driver_observe () : unit =
+    (* the Tuple exc_type `except (A, B)`: elts irlist [IrVar "A"; IrVar "B"]. *)
+    let elts = ILCons (IrVar "A") (ILCons (IrVar "B") ILNil) in
+    let exc = IrSSome (pipe_join elts) in
+    assert { exc = IrSSome "A|B" };            (* the concrete compaction *)
+    let hbody = Seq.snoc (Seq.empty: seq stmt_ir) SPass in
+    let handlers = ref (Seq.empty: seq except_handler) in
+    emit_handler exc (IrSSome "e") hbody handlers;     (* `except (A,B) as e: pass` *)
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_try (Seq.empty: seq stmt_ir) !handlers
+             (Seq.empty: seq stmt_ir) (Seq.empty: seq stmt_ir) ir_stmts;
+    let node = Seq.get !ir_stmts 0 in
+    assert { stmt_kind_of node = "Try" };
+    assert { hl_len (try_handlers_of node) = 1 };
+    let h0 = hl_nth 0 (try_handlers_of node) in
+    assert { h0.eh_exc_type = IrSSome "A|B" };
+    assert { h0.eh_name = IrSSome "e" };
+    assert { sl_len h0.eh_body = 1 }
+
+  (* Positive: mixed elts (A, 5, B) drop the non-Name and still join to "A|B" — the
+     filter is observed. *)
+  let driver_hetero () : unit =
+    let elts = ILCons (IrVar "A") (ILCons (IrOther "n") (ILCons (IrVar "B") ILNil)) in
+    assert { pipe_join elts = "A|B" }
+
+  (* EVIL TWIN 1 (wrong exc_type string): the read-back handler's exc_type is NOT
+     "A|Z" — must stay UNPROVEN (else the string is vacuously arbitrary). *)
+  let driver_evil_exc () : unit =
+    let elts = ILCons (IrVar "A") (ILCons (IrVar "B") ILNil) in
+    let handlers = ref (Seq.empty: seq except_handler) in
+    emit_handler (IrSSome (pipe_join elts)) IrSNone (Seq.empty: seq stmt_ir) handlers;
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_try (Seq.empty: seq stmt_ir) !handlers
+             (Seq.empty: seq stmt_ir) (Seq.empty: seq stmt_ir) ir_stmts;
+    let h0 = hl_nth 0 (try_handlers_of (Seq.get !ir_stmts 0)) in
+    assert { h0.eh_exc_type = IrSSome "A|Z" }
+
+  (* EVIL TWIN 2 (wrong tag): the Try node's tag is NOT "If" — must stay UNPROVEN. *)
+  let driver_evil_tag () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_try (Seq.empty: seq stmt_ir) (Seq.empty: seq except_handler)
+             (Seq.empty: seq stmt_ir) (Seq.empty: seq stmt_ir) ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "If" }
+
+  (* EVIL TWIN 3 (empty handler-list claimed non-empty): a Try built with NO handlers
+     has hl_len 0, NOT 1 — must stay UNPROVEN (else the handler list is HLNil-erased-
+     but-claimed-populated). *)
+  let driver_evil_empty () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_try (Seq.empty: seq stmt_ir) (Seq.empty: seq except_handler)
+             (Seq.empty: seq stmt_ir) (Seq.empty: seq stmt_ir) ir_stmts;
+    assert { hl_len (try_handlers_of (Seq.get !ir_stmts 0)) = 1 }
+end

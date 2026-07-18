@@ -1241,12 +1241,52 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # beyond stmt_list, whose `exc_type` is computed via isinstance-over-AST +
     # `"|".join(...)` over `h.type.elts` (the pure_ast AST-node boundary). A later
     # increment adds an SExceptHandler record + the handler-list build loop, then STry.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # STry + except_handler + handler_list increment (self-tcb-reduction M5, C-bucket):
+    # `ir_stmts` is a caller-visible mutable `ref (seq stmt_ir)` param. This is the
+    # record-list-building-loop handler: `handlers = []; for h in stmt.handlers:
+    # handlers.append({rec}); ir_stmts.append({"stmt":"Try",...,"handlers":handlers,...})`.
+    # A bespoke Module6 lowering (functions.py `_emit_py_stmt_try_bespoke`, keyed on the
+    # method name under `_uses_stmt_ir`) emits it FAITHFULLY (the generic statement
+    # lowering int-erases the accumulator loop end-to-end — the pre-feature facade was
+    # `isinstance_op 0 0`x2, `Seq.snoc !handlers 0`, `join_1 0`, `SUnmodelledStmt_Try`):
+    #   - `stmt` param -> the typed `py_try_node`; `stmt.handlers` -> `seq
+    #     ast_excepthandler` (the `try_handlers_ast` AST reader). The accumulator
+    #     `handlers` -> a REAL `ref (seq except_handler)` grown by `Seq.snoc` of a REAL
+    #     `{ eh_exc_type; eh_name; eh_body }` record (NOT `Seq.snoc 0`).
+    #   - `h.type and isinstance(h.type, ast.Name/Tuple)` on the option `h.type` ->
+    #     `match eh_type_ast h with IrOSome t -> is_var t / is_mktuple t` (isinstance_op
+    #     = 0); `h.type.id` -> `name_of t`; `h.name` -> `eh_name_ast h : iropt_str`.
+    #   - the Tuple `"|".join(n.id for n in h.type.elts if isinstance(n, ast.Name))` ->
+    #     the CONCRETE `pipe_join (elts_of t)` compaction (`var_names_of` filters `is_var`
+    #     + projects `name_of` over the elts irlist, `join_pipe` inserts "|"), NOT a
+    #     length-only abstract law (the fable's vacuity trap — GATE 0 proved observable).
+    #   - the Try node -> the REAL `STry (seq_to_sl body) (seq_to_hl handlers)
+    #     (seq_to_sl orelse) (seq_to_sl finalbody)` ctor with a REAL `handler_list`
+    #     (NOT HLNil-erased). Co-landed with the axiom-free Rocq+Lean certificate.
+    # Verbatim body port of the LIVE `_py_stmt_try`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_try(self, stmt: ast.Try, ir_stmts: List[int]) -> None:
-        pass
+        body_ir = self._py_stmts_to_ir(stmt.body)
+        handlers = []
+        for h in stmt.handlers:
+            exc_type = None
+            if h.type and isinstance(h.type, ast.Name):
+                exc_type = h.type.id
+            elif h.type and isinstance(h.type, ast.Tuple):
+                exc_type = "|".join(
+                    n.id for n in h.type.elts if isinstance(n, ast.Name))
+            handlers.append({
+                "exc_type": exc_type,
+                "name": h.name,
+                "body": self._py_stmts_to_ir(h.body)
+            })
+        ir_stmts.append({
+            "stmt": "Try", "body": body_ir, "handlers": handlers,
+            "orelse": self._py_stmts_to_ir(stmt.orelse),
+            "finalbody": self._py_stmts_to_ir(stmt.finalbody)
+        })
 
     # SUB-BODY recursion (C-bucket): SKIPPED this increment (not a clean whole-body
     # port). `_py_stmt_with`'s live body is NOT a plain sub-body append: (1) the mutex

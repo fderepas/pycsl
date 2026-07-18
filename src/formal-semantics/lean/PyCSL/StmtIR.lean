@@ -75,12 +75,21 @@ inductive StmtIr (ε : Type) where
   | SWhile (t : ε) (b : StmtList ε)
   | SIf (t : ε) (b : StmtList ε) (el : StmtList ε)
   | SFor (t : ε) (b : StmtList ε)
+  -- STry increment: body / handlers / orelse / finalbody. The handler list is a
+  -- bespoke monomorphic cons over the `ExceptHandler` record, MUTUALLY recursive
+  -- WITH StmtIr/StmtList (the record's `ehBody` is a `StmtList`).
+  | STry (b : StmtList ε) (hs : HandlerList ε) (oe : StmtList ε) (fb : StmtList ε)
 inductive StmtList (ε : Type) where
   | SLNil
   | SLCons (h : StmtIr ε) (t : StmtList ε)
+inductive HandlerList (ε : Type) where
+  | HLNil
+  | HLCons (h : ExceptHandler ε) (t : HandlerList ε)
+inductive ExceptHandler (ε : Type) where
+  | MkEH (ehExcType : IrOptStr) (ehName : IrOptStr) (ehBody : StmtList ε)
 end
 
-deriving instance DecidableEq for StmtIr, StmtList
+deriving instance DecidableEq for StmtIr, StmtList, HandlerList, ExceptHandler
 
 variable {ε : Type}
 
@@ -99,6 +108,7 @@ def stmtKindOf : StmtIr ε → String
   | .SWhile _ _ => "While"
   | .SIf _ _ _ => "If"
   | .SFor _ _ => "For"
+  | .STry _ _ _ _ => "Try"
 
 /- The MUTUAL well-founded size measure — WhyML `size_stmt`/`size_slist`. -/
 mutual
@@ -116,9 +126,15 @@ def sizeStmt : StmtIr ε → Nat
   | .SWhile _ b => 1 + sizeSList b
   | .SIf _ b el => 1 + sizeSList b + sizeSList el
   | .SFor _ b => 1 + sizeSList b
+  | .STry b hs oe fb => 1 + sizeSList b + sizeHList hs + sizeSList oe + sizeSList fb
 def sizeSList : StmtList ε → Nat
   | .SLNil => 0
   | .SLCons h t => sizeStmt h + sizeSList t
+def sizeHList : HandlerList ε → Nat
+  | .HLNil => 0
+  | .HLCons h t => sizeHandler h + sizeHList t
+def sizeHandler : ExceptHandler ε → Nat
+  | .MkEH _ _ b => 1 + sizeSList b
 end
 
 theorem sizeStmt_pos (s : StmtIr ε) : sizeStmt s ≥ 1 := by
@@ -159,6 +175,7 @@ inductive PyStmt (ε : Type) where
   | PWhile (t : ε) (b : StmtList ε)
   | PIf (t : ε) (b : StmtList ε) (el : StmtList ε)
   | PFor (t : ε) (b : StmtList ε)
+  | PTry (b : StmtList ε) (hs : HandlerList ε) (oe : StmtList ε) (fb : StmtList ε)
 
 /-- The dict->ctor map (`{"stmt":"Pass"} ↦ SPass`, ..., `{"stmt":"While"} ↦
     SWhile ...`). -/
@@ -176,6 +193,7 @@ def abs : PyStmt ε → StmtIr ε
   | .PWhile t b => .SWhile t b
   | .PIf t b el => .SIf t b el
   | .PFor t b => .SFor t b
+  | .PTry b hs oe fb => .STry b hs oe fb
 
 /-- The Python-side tag string of a recognized node. -/
 def pyKindOf : PyStmt ε → String
@@ -192,6 +210,7 @@ def pyKindOf : PyStmt ε → String
   | .PWhile _ _ => "While"
   | .PIf _ _ _ => "If"
   | .PFor _ _ => "For"
+  | .PTry _ _ _ _ => "Try"
 
 -- ===================================================================== --
 -- 3. (b) `abs` is total + injective + surjective.                        --
@@ -217,6 +236,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | SWhile t b => exact ⟨.PWhile t b, rfl⟩
   | SIf t b el => exact ⟨.PIf t b el, rfl⟩
   | SFor t b => exact ⟨.PFor t b, rfl⟩
+  | STry b hs oe fb => exact ⟨.PTry b hs oe fb, rfl⟩
 
 -- ===================================================================== --
 -- 4. (c) `stmtKindOf` EXACT per ctor + AGREES through `abs`.             --
@@ -339,6 +359,95 @@ theorem swhile_size_grows_with_body (t : ε) (h : StmtIr ε) (r : StmtList ε) :
   have := sizeStmt_pos h
   simp [sizeStmt, sizeSList]; omega
 
+-- ===================================================================== --
+-- STry + ExceptHandler + HandlerList observability (non-vacuity).        --
+-- ===================================================================== --
+
+theorem sizeHandler_pos (h : ExceptHandler ε) : sizeHandler h ≥ 1 := by
+  cases h <;> simp [sizeHandler] <;> omega
+theorem sizeTry_handlers_lt (b : StmtList ε) (hs : HandlerList ε) (oe fb : StmtList ε) :
+    sizeHList hs < sizeStmt (StmtIr.STry b hs oe fb) := by
+  simp [sizeStmt]; omega
+theorem sizeTry_body_lt (b : StmtList ε) (hs : HandlerList ε) (oe fb : StmtList ε) :
+    sizeSList b < sizeStmt (StmtIr.STry b hs oe fb) := by
+  simp [sizeStmt]; omega
+theorem sizeEhBody_lt_handler (x n : IrOptStr) (b : StmtList ε) :
+    sizeSList b < sizeHandler (ExceptHandler.MkEH x n b) := by
+  simp only [sizeHandler]; omega
+
+theorem stmtKindOf_try (b : StmtList ε) (hs : HandlerList ε) (oe fb : StmtList ε) :
+    stmtKindOf (StmtIr.STry b hs oe fb) = "Try" := rfl
+theorem tag_try_neq_while (b : StmtList ε) (hs : HandlerList ε) (oe fb : StmtList ε)
+    (t : ε) (c : StmtList ε) :
+    stmtKindOf (StmtIr.STry b hs oe fb) ≠ stmtKindOf (StmtIr.SWhile t c) := by
+  simp only [stmtKindOf]; decide
+
+/-- The four STry children + the handler-list are INDEPENDENTLY observable. -/
+theorem stry_handlers_observable (b : StmtList ε) (hs ks : HandlerList ε)
+    (oe fb : StmtList ε) (h : hs ≠ ks) :
+    (StmtIr.STry b hs oe fb) ≠ StmtIr.STry b ks oe fb := by
+  intro he; cases he; exact h rfl
+theorem stry_body_observable (b c : StmtList ε) (hs : HandlerList ε)
+    (oe fb : StmtList ε) (h : b ≠ c) :
+    (StmtIr.STry b hs oe fb) ≠ StmtIr.STry c hs oe fb := by
+  intro he; cases he; exact h rfl
+theorem stry_handlers_empty_neq_nonempty (b oe fb : StmtList ε)
+    (h : ExceptHandler ε) (r : HandlerList ε) :
+    (StmtIr.STry b .HLNil oe fb) ≠ StmtIr.STry b (.HLCons h r) oe fb := by
+  intro he; cases he
+theorem stry_size_grows_with_handlers (b oe fb : StmtList ε)
+    (h : ExceptHandler ε) (r : HandlerList ε) :
+    sizeStmt (StmtIr.STry b .HLNil oe fb)
+      < sizeStmt (StmtIr.STry b (.HLCons h r) oe fb) := by
+  have := sizeHandler_pos h
+  simp [sizeStmt, sizeHList]; omega
+
+/-- The ExceptHandler record's three slots are observable. -/
+theorem eh_exc_type_observable (x y n : IrOptStr) (b : StmtList ε) (h : x ≠ y) :
+    (ExceptHandler.MkEH x n b) ≠ (ExceptHandler.MkEH (ε := ε) y n b) := by
+  intro he; cases he; exact h rfl
+theorem eh_name_observable (x n m : IrOptStr) (b : StmtList ε) (h : n ≠ m) :
+    (ExceptHandler.MkEH x n b) ≠ (ExceptHandler.MkEH (ε := ε) x m b) := by
+  intro he; cases he; exact h rfl
+theorem eh_body_observable (x n : IrOptStr) (b c : StmtList ε) (h : b ≠ c) :
+    (ExceptHandler.MkEH x n b) ≠ ExceptHandler.MkEH x n c := by
+  intro he; cases he; exact h rfl
+theorem eh_exc_none_neq_some (s : String) (n : IrOptStr) (b : StmtList ε) :
+    (ExceptHandler.MkEH .ISNone n b) ≠ (ExceptHandler.MkEH (ε := ε) (.ISSome s) n b) := by
+  intro he; cases he
+
+-- ===================================================================== --
+-- 5b. The CONCRETE Tuple-exc_type compaction — WhyML var_names_of /       --
+--     join_pipe / tuple_exc_type. Modelled concretely so observability    --
+--     is provable NON-vacuously (a length-only law would be vacuous).     --
+-- ===================================================================== --
+
+inductive CEmit where | CVar (id : String) | COther
+def isVarc : CEmit → Bool | .CVar _ => true | .COther => false
+def namec : CEmit → String | .CVar n => n | .COther => ""
+
+inductive StrList where | SLNilS | SLConsS (h : String) (t : StrList)
+
+def varNamesOf : List CEmit → StrList
+  | [] => .SLNilS
+  | e :: rest => if isVarc e then .SLConsS (namec e) (varNamesOf rest)
+                 else varNamesOf rest
+
+def joinPipe : StrList → String
+  | .SLNilS => ""
+  | .SLConsS h t => match t with
+                    | .SLNilS => h
+                    | .SLConsS _ _ => h ++ "|" ++ joinPipe t
+
+def tupleExcType (l : List CEmit) : String := joinPipe (varNamesOf l)
+
+theorem compaction_observe :
+    tupleExcType [.CVar "A", .COther, .CVar "B"] = "A|B" := rfl
+theorem compaction_single : tupleExcType [.CVar "X"] = "X" := rfl
+theorem compaction_evil_twin :
+    tupleExcType [.CVar "A", .COther, .CVar "B"] ≠ "A|C" := by decide
+theorem compaction_drops_nonvar : tupleExcType [.COther, .COther] = "" := rfl
+
 end StmtIRCert
 
 -- ===================================================================== --
@@ -390,3 +499,21 @@ end StmtIRCert
 #print axioms StmtIRCert.sreturn_none_neq_some
 #print axioms StmtIRCert.swhile_empty_neq_nonempty
 #print axioms StmtIRCert.swhile_size_grows_with_body
+#print axioms StmtIRCert.sizeHandler_pos
+#print axioms StmtIRCert.sizeTry_handlers_lt
+#print axioms StmtIRCert.sizeTry_body_lt
+#print axioms StmtIRCert.sizeEhBody_lt_handler
+#print axioms StmtIRCert.stmtKindOf_try
+#print axioms StmtIRCert.tag_try_neq_while
+#print axioms StmtIRCert.stry_handlers_observable
+#print axioms StmtIRCert.stry_body_observable
+#print axioms StmtIRCert.stry_handlers_empty_neq_nonempty
+#print axioms StmtIRCert.stry_size_grows_with_handlers
+#print axioms StmtIRCert.eh_exc_type_observable
+#print axioms StmtIRCert.eh_name_observable
+#print axioms StmtIRCert.eh_body_observable
+#print axioms StmtIRCert.eh_exc_none_neq_some
+#print axioms StmtIRCert.compaction_observe
+#print axioms StmtIRCert.compaction_single
+#print axioms StmtIRCert.compaction_evil_twin
+#print axioms StmtIRCert.compaction_drops_nonvar
