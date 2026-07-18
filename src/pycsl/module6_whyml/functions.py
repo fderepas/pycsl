@@ -1913,9 +1913,106 @@ class FunctionEmissionMixin:
         ]
         return L
 
+    def _is_py_stmt_assign(self, func: Dict[str, Any]) -> bool:
+        """SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction M5,
+        C-bucket): True iff `func` is the mirror's `_py_stmt_assign` handler and the
+        stmt_ir theory is emitted. Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method"
+                and nm.endswith("_py_stmt_assign")
+                and self._uses_stmt_ir())
+
+    def _emit_py_stmt_assign_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction M5,
+        C-bucket): the FAITHFUL whole-body lowering of `_py_stmt_assign` (the biggest
+        remaining stmt handler, 5 target-shape branches). `stmt` : the typed
+        `py_assign_node`; `target = stmt.targets[0]` -> `assign_target0_ast stmt` (the
+        HEAD target); `value = self._py_expr_to_ir(stmt.value)` -> `assign_value_ast stmt`.
+
+        Branches (isinstance on the emit_ir target -> ADT discriminants, isinstance_op=0):
+          - Name (`is_var target`) -> SAssign (name_of target) value.
+          - self-Attribute (`is_attribute target` && `is_var (avalue_of target)` &&
+            `str_eq_op (name_of (avalue_of target)) "self"`) -> SFieldAssign "self"
+            (name_of target) value.
+          - symtab-Attribute (... && `symtab_mem (name_of (avalue_of target))`, the opaque
+            `target.value.id in self._cur_func_symtab` membership) -> SFieldAssign
+            (name_of (avalue_of target)) (name_of target) value.
+          - non-Name-Attribute (`not (is_var (avalue_of target))`) -> `raise
+            PyCSLSemanticError` (the out-of-scope diagnostic; the f-string message +
+            `type().__name__` reflection + kwargs are dropped — a raise takes only the
+            exc NAME, and the raise path does not reach `ensures`).
+          - else (Name base not in symtab, module-global) -> no-op.
+          - Subscript (`is_sub target`): slice (`is_slice (sindex_of target)`) ->
+            SArraySliceSet (disp (svalue_of target)) <lower iropt_ir> <upper iropt_ir>
+            value (lower defaults to IrNum 0 when absent, upper stays IrONone — the
+            sliceN_lower_of/sliceN_upper_of optional bounds); else -> SArraySet (disp
+            (svalue_of target)) (disp (sindex_of target)) value.
+          - Tuple (`is_mktuple target`) -> STupleUnpack (var_names_prog (elts_of target))
+            value — the CONCRETE `[elt.id for elt in target.elts if isinstance(elt,
+            ast.Name)]` compaction (`var_names_of` filter+project), NOT the abstract
+            length-only law (the fable vacuity trap).
+        Corpus-inert (fires only for this named mirror method under `_uses_stmt_ir`)."""
+        # str_eq_op — the `target.value.id == 'self'` guard's string equality (the same
+        # abstract op the normal string-comparison lowering registers).
+        self._add_abstract_op(
+            "val str_eq_op (a b: string) : bool\n"
+            "    ensures { result <-> a = b }")
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        d = "self__py_expr_to_ir_1"
+        L = [
+            f"  let {name} (self: {cls}) (stmt: py_assign_node)"
+            f" (ir_stmts: ref (seq stmt_ir)) : unit",
+            "    requires { true }",
+            "    ensures  { true }",
+            "    raises { PyCSLSemanticError }",
+            "    writes { ir_stmts }",
+            "  =",
+            "    let target = assign_target0_ast stmt in",
+            "    let value = assign_value_ast stmt in",
+            "    if is_var target then",
+            "      ir_stmts := Seq.snoc !ir_stmts (SAssign (name_of target) value)",
+            "    else if is_attribute target then",
+            "      (if is_var (avalue_of target)"
+            " && str_eq_op (name_of (avalue_of target)) \"self\" then",
+            "         ir_stmts := Seq.snoc !ir_stmts"
+            " (SFieldAssign \"self\" (name_of target) value)",
+            "       else if is_var (avalue_of target)"
+            " && symtab_mem (name_of (avalue_of target)) then",
+            "         ir_stmts := Seq.snoc !ir_stmts"
+            " (SFieldAssign (name_of (avalue_of target)) (name_of target) value)",
+            "       else if not (is_var (avalue_of target)) then",
+            "         raise PyCSLSemanticError",
+            "       else ())",
+            "    else if is_sub target then",
+            "      (if is_slice (sindex_of target) then",
+            "         (let lower = (match sliceN_lower_of (sindex_of target) with",
+            f"                       | IrOSome lo -> IrOSome ({d} lo)",
+            "                       | IrONone -> IrOSome (IrNum 0) end) in",
+            "          let upper = (match sliceN_upper_of (sindex_of target) with",
+            f"                       | IrOSome up -> IrOSome ({d} up)",
+            "                       | IrONone -> IrONone end) in",
+            "          ir_stmts := Seq.snoc !ir_stmts"
+            f" (SArraySliceSet ({d} (svalue_of target)) lower upper value))",
+            "       else",
+            "         ir_stmts := Seq.snoc !ir_stmts"
+            f" (SArraySet ({d} (svalue_of target)) ({d} (sindex_of target)) value))",
+            "    else if is_mktuple target then",
+            "      ir_stmts := Seq.snoc !ir_stmts"
+            " (STupleUnpack (var_names_prog (elts_of target)) value)",
+            "    else ()",
+        ]
+        return L
+
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
+        # SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction M5,
+        # C-bucket): the `_py_stmt_assign` 5-branch handler — bespoke (the generic
+        # lowering int-erases the target dispatch, the symtab membership, and the Tuple
+        # compaction). Corpus-inert.
+        if self._is_py_stmt_assign(func):
+            return self._emit_py_stmt_assign_bespoke(func)
         # STry + except_handler + handler_list increment (self-tcb-reduction M5,
         # C-bucket): the `_py_stmt_try` accumulator-loop handler is emitted by a bespoke
         # lowering (the generic statement lowering int-erases the `for h in

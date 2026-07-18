@@ -1,0 +1,235 @@
+module WallStmtAssignObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+
+  (* stmt-list-append-mutation wall (C-bucket), SFieldAssign/SArraySliceSet/STupleUnpack
+     increment: OBSERVATIONAL non-vacuity for the `_py_stmt_assign` conversion — the 5
+     target-shape branches. The read-back is a direct `Seq.get !ir_stmts i` (shallow). The
+     emit_ir subset, the stmt_ir ADT, stmt_kind_of and the CONCRETE `var_names_of`
+     compaction below are VERBATIM the PyCSL tool's emitted output (module6_whyml/
+     preamble.py::_emit_exprir_theory gated on _uses_stmt_ir; grep-confirmed). `emit_assign`
+     reproduces VERBATIM the tool's emitted `_py_stmt_assign` body (functions.py::
+     _emit_py_stmt_assign_bespoke): the is_var/is_attribute/is_sub/is_mktuple target
+     dispatch, `str_eq_op ... "self"`, the opaque `symtab_mem` membership, the CONCRETE
+     `var_names_prog` (NOT the length-only law), the raise, snoc'd onto the ref. `disp`
+     models the trusted self._py_expr_to_ir. *)
+
+  type emit_ir = IrVar string | IrOther string | IrNum int
+               | IrAttr emit_ir string | IrSub emit_ir emit_ir
+               | IrMkTupleN irlist | IrSliceN iropt_ir iropt_ir iropt_ir
+  with irlist = ILNil | ILCons emit_ir irlist
+  with iropt_ir = IrONone | IrOSome emit_ir
+
+  let function is_var (e: emit_ir) : bool =
+    match e with IrVar _ -> true | _ -> false end
+  let function is_attribute (e: emit_ir) : bool =
+    match e with IrAttr _ _ -> true | _ -> false end
+  let function is_sub (e: emit_ir) : bool =
+    match e with IrSub _ _ -> true | _ -> false end
+  let function is_slice (e: emit_ir) : bool =
+    match e with IrSliceN _ _ _ -> true | _ -> false end
+  let function is_mktuple (e: emit_ir) : bool =
+    match e with IrMkTupleN _ -> true | _ -> false end
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar n -> n | IrAttr _ a -> a | _ -> "" end
+  let function avalue_of (e: emit_ir) : emit_ir =
+    match e with IrAttr o _ -> o | IrSub v _ -> v | _ -> IrOther "" end
+  let function svalue_of (e: emit_ir) : emit_ir =
+    match e with IrSub v _ -> v | _ -> IrOther "" end
+  let function sindex_of (e: emit_ir) : emit_ir =
+    match e with IrSub _ i -> i | _ -> IrOther "" end
+  let function elts_of (e: emit_ir) : irlist =
+    match e with IrMkTupleN l -> l | _ -> ILNil end
+  let function sliceN_lower_of (e: emit_ir) : iropt_ir =
+    match e with IrSliceN lo _ _ -> lo | _ -> IrONone end
+  let function sliceN_upper_of (e: emit_ir) : iropt_ir =
+    match e with IrSliceN _ up _ -> up | _ -> IrONone end
+  val function disp (e: emit_ir) : emit_ir
+  val str_eq_op (a b: string) : bool ensures { result <-> a = b }
+  val function symtab_mem (key: string) : bool   (* opaque `x in self._cur_func_symtab` *)
+
+  type iropt_str = IrSNone | IrSSome string
+  type strlist = SLNilS | SLConsS string strlist
+  (* CONCRETE compaction: `[elt.id for elt in target.elts if isinstance(elt, ast.Name)]`. *)
+  function var_names_of (l: irlist) : strlist =
+    match l with
+    | ILNil -> SLNilS
+    | ILCons e rest -> if is_var e then SLConsS (name_of e) (var_names_of rest)
+                       else var_names_of rest
+    end
+  val function var_names_prog (l: irlist) : strlist
+    ensures { result = var_names_of l }
+
+  exception PyCSLSemanticError
+
+  (* ---- VERBATIM tool-emitted stmt_ir with the _py_stmt_assign ctors. ---- *)
+  type stmt_ir = SPass | SBreak | SAssign string emit_ir
+    | SFieldAssign string string emit_ir
+    | SArraySet emit_ir emit_ir emit_ir
+    | SArraySliceSet emit_ir iropt_ir iropt_ir emit_ir
+    | STupleUnpack strlist emit_ir
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SAssign _ _ -> "Assign"
+    | SFieldAssign _ _ _ -> "FieldAssign" | SArraySet _ _ _ -> "ArraySet"
+    | SArraySliceSet _ _ _ _ -> "ArraySliceSet" | STupleUnpack _ _ -> "TupleUnpack"
+    end
+  (* read-back projectors (concrete defaults — no `any`). *)
+  let function assign_name_of (s: stmt_ir) : string =
+    match s with SAssign n _ -> n | _ -> "" end
+  let function field_base_of (s: stmt_ir) : string =
+    match s with SFieldAssign b _ _ -> b | _ -> "" end
+  let function field_name_of (s: stmt_ir) : string =
+    match s with SFieldAssign _ f _ -> f | _ -> "" end
+  let function slice_lower_of (s: stmt_ir) : iropt_ir =
+    match s with SArraySliceSet _ lo _ _ -> lo | _ -> IrONone end
+  let function slice_upper_of (s: stmt_ir) : iropt_ir =
+    match s with SArraySliceSet _ _ up _ -> up | _ -> IrONone end
+  let function tuple_tgts_of (s: stmt_ir) : strlist =
+    match s with STupleUnpack t _ -> t | _ -> SLNilS end
+
+  (* ---- VERBATIM tool-emitted `_py_stmt_assign` body: the 5-branch target dispatch,
+     snoc onto the ref ITSELF (real writes {ir_stmts}), the raise on a non-Name base. ---- *)
+  let emit_assign (target value: emit_ir) (ir_stmts: ref (seq stmt_ir)) : unit
+    raises { PyCSLSemanticError }
+    writes { ir_stmts }
+    ensures { !ir_stmts =
+      (if is_var target then Seq.snoc (old !ir_stmts) (SAssign (name_of target) value)
+       else if is_attribute target then
+         (if is_var (avalue_of target) && name_of (avalue_of target) = "self"
+          then Seq.snoc (old !ir_stmts) (SFieldAssign "self" (name_of target) value)
+          else if is_var (avalue_of target) && symtab_mem (name_of (avalue_of target))
+          then Seq.snoc (old !ir_stmts)
+                 (SFieldAssign (name_of (avalue_of target)) (name_of target) value)
+          else old !ir_stmts)
+       else if is_sub target then
+         (if is_slice (sindex_of target)
+          then Seq.snoc (old !ir_stmts) (SArraySliceSet (disp (svalue_of target))
+                 (match sliceN_lower_of (sindex_of target) with
+                  | IrOSome lo -> IrOSome (disp lo) | IrONone -> IrOSome (IrNum 0) end)
+                 (match sliceN_upper_of (sindex_of target) with
+                  | IrOSome up -> IrOSome (disp up) | IrONone -> IrONone end)
+                 value)
+          else Seq.snoc (old !ir_stmts)
+                 (SArraySet (disp (svalue_of target)) (disp (sindex_of target)) value))
+       else if is_mktuple target then
+         Seq.snoc (old !ir_stmts) (STupleUnpack (var_names_prog (elts_of target)) value)
+       else old !ir_stmts) }
+  = if is_var target then
+      ir_stmts := Seq.snoc !ir_stmts (SAssign (name_of target) value)
+    else if is_attribute target then
+      (if is_var (avalue_of target) && str_eq_op (name_of (avalue_of target)) "self" then
+         ir_stmts := Seq.snoc !ir_stmts (SFieldAssign "self" (name_of target) value)
+       else if is_var (avalue_of target) && symtab_mem (name_of (avalue_of target)) then
+         ir_stmts := Seq.snoc !ir_stmts
+           (SFieldAssign (name_of (avalue_of target)) (name_of target) value)
+       else if not (is_var (avalue_of target)) then
+         raise PyCSLSemanticError
+       else ())
+    else if is_sub target then
+      (if is_slice (sindex_of target) then
+         (let lower = (match sliceN_lower_of (sindex_of target) with
+                       | IrOSome lo -> IrOSome (disp lo) | IrONone -> IrOSome (IrNum 0) end) in
+          let upper = (match sliceN_upper_of (sindex_of target) with
+                       | IrOSome up -> IrOSome (disp up) | IrONone -> IrONone end) in
+          ir_stmts := Seq.snoc !ir_stmts (SArraySliceSet (disp (svalue_of target)) lower upper value))
+       else
+         ir_stmts := Seq.snoc !ir_stmts (SArraySet (disp (svalue_of target)) (disp (sindex_of target)) value))
+    else if is_mktuple target then
+      ir_stmts := Seq.snoc !ir_stmts (STupleUnpack (var_names_prog (elts_of target)) value)
+    else ()
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — one driver per appending branch.          *)
+  (* ==================================================================== *)
+
+  (* Name -> SAssign. *)
+  let driver_name (value: emit_ir) : unit
+    raises { PyCSLSemanticError }
+  = let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assign (IrVar "x") value ir_stmts;
+    let n = Seq.get !ir_stmts 0 in
+    assert { stmt_kind_of n = "Assign" };
+    assert { assign_name_of n = "x" }
+
+  (* self-Attribute -> SFieldAssign "self" f. *)
+  let driver_self_field (value: emit_ir) : unit
+    raises { PyCSLSemanticError }
+  = let target = IrAttr (IrVar "self") "count" in   (* self.count = ... *)
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assign target value ir_stmts;
+    let n = Seq.get !ir_stmts 0 in
+    assert { stmt_kind_of n = "FieldAssign" };
+    assert { field_base_of n = "self" };
+    assert { field_name_of n = "count" }
+
+  (* symtab-Attribute (base "p" in symtab) -> SFieldAssign "p" f. Guarded so it is
+     observed only when the opaque membership holds. *)
+  let driver_symtab_field (value: emit_ir) : unit
+    raises { PyCSLSemanticError }
+  = if symtab_mem "p" && not (str_eq_op "p" "self") then begin
+      let target = IrAttr (IrVar "p") "x" in          (* p.x = ..., p in symtab *)
+      let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+      emit_assign target value ir_stmts;
+      let n = Seq.get !ir_stmts 0 in
+      assert { stmt_kind_of n = "FieldAssign" };
+      assert { field_base_of n = "p" }
+    end
+
+  (* Subscript index -> SArraySet. *)
+  let driver_arrayset (value: emit_ir) : unit
+    raises { PyCSLSemanticError }
+  = let target = IrSub (IrVar "a") (IrVar "i") in     (* a[i] = ... *)
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assign target value ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "ArraySet" }
+
+  (* Subscript slice `a[lo:]` (upper absent) -> SArraySliceSet, lower Some, upper None. *)
+  let driver_arrayslice (value: emit_ir) : unit
+    raises { PyCSLSemanticError }
+  = let sl = IrSliceN (IrOSome (IrVar "lo")) IrONone IrONone in
+    let target = IrSub (IrVar "a") sl in              (* a[lo:] = ... *)
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assign target value ir_stmts;
+    let n = Seq.get !ir_stmts 0 in
+    assert { stmt_kind_of n = "ArraySliceSet" };
+    assert { slice_lower_of n = IrOSome (disp (IrVar "lo")) };   (* lower present *)
+    assert { slice_upper_of n = IrONone }                        (* upper absent *)
+
+  (* Tuple -> STupleUnpack with the CONCRETE compaction of Name elts ([a ; b], the
+     non-Name IrNum dropped). *)
+  let driver_tuple (value: emit_ir) : unit
+    raises { PyCSLSemanticError }
+  = let elts = ILCons (IrVar "a") (ILCons (IrNum 5) (ILCons (IrVar "b") ILNil)) in
+    assert { var_names_prog elts = SLConsS "a" (SLConsS "b" SLNilS) };  (* compaction up-front *)
+    let target = IrMkTupleN elts in                   (* (a, 5, b) = ... *)
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assign target value ir_stmts;
+    let n = Seq.get !ir_stmts 0 in
+    assert { stmt_kind_of n = "TupleUnpack" };
+    assert { tuple_tgts_of n = SLConsS "a" (SLConsS "b" SLNilS) }
+
+  (* EVIL TWIN 1 (wrong tag): the self.count field-store is NOT an "Assign" — UNPROVEN. *)
+  let driver_evil_tag (value: emit_ir) : unit
+    raises { PyCSLSemanticError }
+  = let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assign (IrAttr (IrVar "self") "count") value ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Assign" }
+
+  (* EVIL TWIN 2 (wrong compaction): the Tuple targets are NOT [a ; c] — UNPROVEN. *)
+  let driver_evil_tuple (value: emit_ir) : unit
+    raises { PyCSLSemanticError }
+  = let elts = ILCons (IrVar "a") (ILCons (IrVar "b") ILNil) in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assign (IrMkTupleN elts) value ir_stmts;
+    assert { tuple_tgts_of (Seq.get !ir_stmts 0) = SLConsS "a" (SLConsS "c" SLNilS) }
+
+  (* EVIL TWIN 3 (wrong slice-bound option): the `a[lo:]` upper is NOT Some — UNPROVEN. *)
+  let driver_evil_slice (value: emit_ir) : unit
+    raises { PyCSLSemanticError }
+  = let sl = IrSliceN (IrOSome (IrVar "lo")) IrONone IrONone in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_assign (IrSub (IrVar "a") sl) value ir_stmts;
+    assert { slice_upper_of (Seq.get !ir_stmts 0) = IrOSome (disp (IrVar "hi")) }
+end

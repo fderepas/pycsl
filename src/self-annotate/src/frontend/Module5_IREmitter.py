@@ -1031,12 +1031,72 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # list-comprehension over `target.elts` into a NEW TupleUnpack ctor. Also `target =
     # stmt.targets[0]` indexes the `targets` LIST. A half-body (Name-only) port is a facade;
     # deferred until SFieldAssign + the membership/raise/ArraySet/TupleUnpack infra lands.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction M5, C-bucket):
+    # the biggest stmt handler — 5 target-shape branches. `ir_stmts` is a caller-visible
+    # mutable `ref (seq stmt_ir)` param. A bespoke Module6 lowering (functions.py
+    # `_emit_py_stmt_assign_bespoke`, keyed on the method name under `_uses_stmt_ir`) emits
+    # it FAITHFULLY (the generic lowering int-erases the target dispatch, the symtab
+    # membership, and the Tuple compaction):
+    #   - `stmt` param -> the typed `py_assign_node`; `target = stmt.targets[0]` ->
+    #     `assign_target0_ast stmt` (HEAD); `self._py_expr_to_ir(stmt.value)` ->
+    #     `assign_value_ast stmt`.
+    #   - Name (`is_var target`) -> SAssign; self-Attribute (`is_var (avalue_of target)` &&
+    #     `str_eq_op (name_of (avalue_of target)) "self"`) -> SFieldAssign "self"; symtab-
+    #     Attribute (... && `symtab_mem (name_of (avalue_of target))`, the opaque
+    #     `target.value.id in self._cur_func_symtab` membership) -> SFieldAssign named-base;
+    #     non-Name-Attribute (`not (is_var (avalue_of target))`) -> `raise PyCSLSemanticError`
+    #     (the f-string message + `type().__name__` + kwargs are DROPPED — a raise takes only
+    #     the exc NAME, and the raise path does not reach `ensures`); else -> no-op.
+    #   - Subscript: slice (`is_slice (sindex_of target)`) -> SArraySliceSet with the
+    #     sliceN_lower_of/sliceN_upper_of OPTIONAL bounds (lower defaults to IrNum 0); else
+    #     -> SArraySet. The dead py<3.9 `ast.Index` unwrap is DROPPED.
+    #   - Tuple (`is_mktuple target`) -> STupleUnpack (var_names_prog (elts_of target)) — the
+    #     CONCRETE `[elt.id for elt in target.elts if isinstance(elt, ast.Name)]` compaction
+    #     (`var_names_of` filter+project), NOT the abstract length-only law (the fable vacuity
+    #     trap). isinstance_op = 0. Verbatim body port of the LIVE `_py_stmt_assign`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_assign(self, stmt: ast.Assign, ir_stmts: List[int]) -> None:
-        pass
+        target = stmt.targets[0]
+        if isinstance(target, ast.Name):
+            ir_stmts.append({"stmt": "Assign", "target": target.id, "value": self._py_expr_to_ir(stmt.value)})
+        elif isinstance(target, ast.Attribute):
+            if isinstance(target.value, ast.Name) and target.value.id == 'self':
+                ir_stmts.append({"stmt": "FieldAssign", "object": "self", "field": target.attr,
+                                 "value": self._py_expr_to_ir(stmt.value)})
+            elif (isinstance(target.value, ast.Name)
+                  and target.value.id in self._cur_func_symtab):
+                ir_stmts.append({"stmt": "FieldAssign", "object": target.value.id,
+                                 "field": target.attr,
+                                 "value": self._py_expr_to_ir(stmt.value)})
+            elif not (isinstance(target.value, ast.Name)):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"in-place field mutation `<{type(target.value).__name__} base>.{target.attr} = ...` "
+                    f"is out of scope: rebuild the element.",
+                    stage="ir-emit",
+                    code="PYCSL-WHYML-PARAM-COLLECTION-MUT",
+                )
+        elif isinstance(target, ast.Subscript):
+            array_ir = self._py_expr_to_ir(target.value)
+            slice_node = target.slice
+            if isinstance(slice_node, ast.Slice):
+                lower_ir = (self._py_expr_to_ir(slice_node.lower)
+                            if slice_node.lower else {"type": "Number", "value": 0})
+                upper_ir = (self._py_expr_to_ir(slice_node.upper)
+                            if slice_node.upper else None)
+                ir_stmts.append({"stmt": "ArraySliceSet", "array": array_ir,
+                                 "lower": lower_ir, "upper": upper_ir,
+                                 "value": self._py_expr_to_ir(stmt.value)})
+            else:
+                index_ir = self._py_expr_to_ir(slice_node)
+                ir_stmts.append({"stmt": "ArraySet", "array": array_ir,
+                                 "index": index_ir, "value": self._py_expr_to_ir(stmt.value)})
+        elif isinstance(target, ast.Tuple):
+            targets = [elt.id for elt in target.elts if isinstance(elt, ast.Name)]
+            ir_stmts.append({"stmt": "TupleUnpack", "targets": targets,
+                             "value": self._py_expr_to_ir(stmt.value)})
 
     # SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5, C-bucket):
     # `ir_stmts` is a caller-visible mutable `ref (seq stmt_ir)` param; the `stmt` param is

@@ -50,6 +50,12 @@ inductive IrOpt (ε : Type) where
 /-- The monomorphic option-STRING sibling — mirrors the WhyML `iropt_str = IrSNone
     | IrSSome string`. `SAssert` carries it (the OPTIONAL assert-message string); it
     references NO type variable, so it never mentions `StmtIr`. -/
+/- StrL — the monomorphic string cons; STupleUnpack's targets compaction. -/
+inductive StrL where
+  | TgtNil
+  | TgtCons (s : String) (t : StrL)
+deriving DecidableEq
+
 inductive IrOptStr where
   | ISNone
   | ISSome (s : String)
@@ -84,6 +90,10 @@ inductive StmtIr (ε : Type) where
   | SMatch (subj : ε) (cs : MatchCaseList ε)
   -- SDelSubscript increment: `del d[k]` — array + index (FLAT, no sub-body).
   | SDelSubscript (arr : ε) (idx : ε)
+  -- _py_stmt_assign increment: three FLAT ctors.
+  | SFieldAssign (base : String) (fld : String) (v : ε)
+  | SArraySliceSet (arr : ε) (lo : IrOpt ε) (up : IrOpt ε) (v : ε)
+  | STupleUnpack (tgts : StrL) (v : ε)
 inductive StmtList (ε : Type) where
   | SLNil
   | SLCons (h : StmtIr ε) (t : StmtList ε)
@@ -122,6 +132,9 @@ def stmtKindOf : StmtIr ε → String
   | .STry _ _ _ _ => "Try"
   | .SMatch _ _ => "Match"
   | .SDelSubscript _ _ => "DelSubscript"
+  | .SFieldAssign _ _ _ => "FieldAssign"
+  | .SArraySliceSet _ _ _ _ => "ArraySliceSet"
+  | .STupleUnpack _ _ => "TupleUnpack"
 
 /- The MUTUAL well-founded size measure — WhyML `size_stmt`/`size_slist`. -/
 mutual
@@ -142,6 +155,9 @@ def sizeStmt : StmtIr ε → Nat
   | .STry b hs oe fb => 1 + sizeSList b + sizeHList hs + sizeSList oe + sizeSList fb
   | .SMatch _ cs => 1 + sizeMCList cs
   | .SDelSubscript _ _ => 1
+  | .SFieldAssign _ _ _ => 1
+  | .SArraySliceSet _ _ _ _ => 1
+  | .STupleUnpack _ _ => 1
 def sizeSList : StmtList ε → Nat
   | .SLNil => 0
   | .SLCons h t => sizeStmt h + sizeSList t
@@ -198,6 +214,9 @@ inductive PyStmt (ε : Type) where
   | PTry (b : StmtList ε) (hs : HandlerList ε) (oe : StmtList ε) (fb : StmtList ε)
   | PMatch (subj : ε) (cs : MatchCaseList ε)
   | PDelSubscript (arr : ε) (idx : ε)
+  | PFieldAssign (base : String) (fld : String) (v : ε)
+  | PArraySliceSet (arr : ε) (lo : IrOpt ε) (up : IrOpt ε) (v : ε)
+  | PTupleUnpack (tgts : StrL) (v : ε)
 
 /-- The dict->ctor map (`{"stmt":"Pass"} ↦ SPass`, ..., `{"stmt":"While"} ↦
     SWhile ...`). -/
@@ -218,6 +237,9 @@ def abs : PyStmt ε → StmtIr ε
   | .PTry b hs oe fb => .STry b hs oe fb
   | .PMatch subj cs => .SMatch subj cs
   | .PDelSubscript a i => .SDelSubscript a i
+  | .PFieldAssign b f v => .SFieldAssign b f v
+  | .PArraySliceSet a lo up v => .SArraySliceSet a lo up v
+  | .PTupleUnpack t v => .STupleUnpack t v
 
 /-- The Python-side tag string of a recognized node. -/
 def pyKindOf : PyStmt ε → String
@@ -237,6 +259,9 @@ def pyKindOf : PyStmt ε → String
   | .PTry _ _ _ _ => "Try"
   | .PMatch _ _ => "Match"
   | .PDelSubscript _ _ => "DelSubscript"
+  | .PFieldAssign _ _ _ => "FieldAssign"
+  | .PArraySliceSet _ _ _ _ => "ArraySliceSet"
+  | .PTupleUnpack _ _ => "TupleUnpack"
 
 -- ===================================================================== --
 -- 3. (b) `abs` is total + injective + surjective.                        --
@@ -265,6 +290,9 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | STry b hs oe fb => exact ⟨.PTry b hs oe fb, rfl⟩
   | SMatch subj cs => exact ⟨.PMatch subj cs, rfl⟩
   | SDelSubscript a i => exact ⟨.PDelSubscript a i, rfl⟩
+  | SFieldAssign b f v => exact ⟨.PFieldAssign b f v, rfl⟩
+  | SArraySliceSet a lo up v => exact ⟨.PArraySliceSet a lo up v, rfl⟩
+  | STupleUnpack t v => exact ⟨.PTupleUnpack t v, rfl⟩
 
 -- ===================================================================== --
 -- 4. (c) `stmtKindOf` EXACT per ctor + AGREES through `abs`.             --
@@ -510,6 +538,43 @@ theorem sdelsub_index_observable (a i j : ε) (h : i ≠ j) :
   intro he; cases he; exact h rfl
 
 -- ===================================================================== --
+-- _py_stmt_assign ctors observability (non-vacuity). All FLAT — size 1.   --
+-- ===================================================================== --
+
+theorem stmtKindOf_fieldassign (b f : String) (v : ε) :
+    stmtKindOf (StmtIr.SFieldAssign b f v) = "FieldAssign" := rfl
+theorem stmtKindOf_arrayslice (a : ε) (lo up : IrOpt ε) (v : ε) :
+    stmtKindOf (StmtIr.SArraySliceSet a lo up v) = "ArraySliceSet" := rfl
+theorem stmtKindOf_tupleunpack (t : StrL) (v : ε) :
+    stmtKindOf (StmtIr.STupleUnpack t v) = "TupleUnpack" := rfl
+theorem tag_fieldassign_neq_assign (b f : String) (v : ε) (n : String) (e : ε) :
+    stmtKindOf (StmtIr.SFieldAssign b f v) ≠ stmtKindOf (StmtIr.SAssign n e) := by
+  simp only [stmtKindOf]; decide
+theorem size_fieldassign_flat (b f : String) (v : ε) :
+    sizeStmt (StmtIr.SFieldAssign b f v) = 1 := rfl
+theorem sfieldassign_base_observable (b c f : String) (v : ε) (h : b ≠ c) :
+    (StmtIr.SFieldAssign b f v) ≠ StmtIr.SFieldAssign c f v := by
+  intro he; cases he; exact h rfl
+theorem sfieldassign_field_observable (b f g : String) (v : ε) (h : f ≠ g) :
+    (StmtIr.SFieldAssign b f v) ≠ StmtIr.SFieldAssign b g v := by
+  intro he; cases he; exact h rfl
+theorem sfieldassign_value_observable (b f : String) (v w : ε) (h : v ≠ w) :
+    (StmtIr.SFieldAssign b f v) ≠ StmtIr.SFieldAssign b f w := by
+  intro he; cases he; exact h rfl
+theorem sarrayslice_lower_none_neq_some (a : ε) (e : ε) (up : IrOpt ε) (v : ε) :
+    (StmtIr.SArraySliceSet a .IrONone up v) ≠ StmtIr.SArraySliceSet a (.IrOSome e) up v := by
+  intro he; cases he
+theorem sarrayslice_upper_none_neq_some (a : ε) (lo : IrOpt ε) (e v : ε) :
+    (StmtIr.SArraySliceSet a lo .IrONone v) ≠ StmtIr.SArraySliceSet a lo (.IrOSome e) v := by
+  intro he; cases he
+theorem stupleunpack_targets_observable (t u : StrL) (v : ε) (h : t ≠ u) :
+    (StmtIr.STupleUnpack t v) ≠ StmtIr.STupleUnpack u v := by
+  intro he; cases he; exact h rfl
+theorem stupleunpack_empty_neq_nonempty (s : String) (r : StrL) (v : ε) :
+    (StmtIr.STupleUnpack .TgtNil v) ≠ StmtIr.STupleUnpack (.TgtCons s r) v := by
+  intro he; cases he
+
+-- ===================================================================== --
 -- 5b. The CONCRETE Tuple-exc_type compaction — WhyML var_names_of /       --
 --     join_pipe / tuple_exc_type. Modelled concretely so observability    --
 --     is provable NON-vacuously (a length-only law would be vacuous).     --
@@ -628,3 +693,15 @@ end StmtIRCert
 #print axioms StmtIRCert.size_delsubscript_flat
 #print axioms StmtIRCert.sdelsub_array_observable
 #print axioms StmtIRCert.sdelsub_index_observable
+#print axioms StmtIRCert.stmtKindOf_fieldassign
+#print axioms StmtIRCert.stmtKindOf_arrayslice
+#print axioms StmtIRCert.stmtKindOf_tupleunpack
+#print axioms StmtIRCert.tag_fieldassign_neq_assign
+#print axioms StmtIRCert.size_fieldassign_flat
+#print axioms StmtIRCert.sfieldassign_base_observable
+#print axioms StmtIRCert.sfieldassign_field_observable
+#print axioms StmtIRCert.sfieldassign_value_observable
+#print axioms StmtIRCert.sarrayslice_lower_none_neq_some
+#print axioms StmtIRCert.sarrayslice_upper_none_neq_some
+#print axioms StmtIRCert.stupleunpack_targets_observable
+#print axioms StmtIRCert.stupleunpack_empty_neq_nonempty

@@ -89,6 +89,13 @@ Inductive ioptstr : Type :=
   | ISNone
   | ISSome (s : string).
 
+(* strl — the monomorphic string cons; STupleUnpack's `targets` compaction (`[elt.id
+   for elt in target.elts if isinstance(elt, ast.Name)]`).  References NO type variable,
+   so it never mentions stmt_ir. *)
+Inductive strl : Type :=
+  | TgtNil
+  | TgtCons (s : string) (t : strl).
+
 (* The MUTUAL block: stmt_ir and its sub-body list stmt_list.  The compound
    nodes carry `stmt_list` bodies (SWhile: test+body; SIf: test+body+orelse;
    SFor: iter+body); `stmt_list` is the bespoke monomorphic cons.  SAssert carries
@@ -120,6 +127,14 @@ Inductive stmt_ir : Type :=
   (* SDelSubscript increment: a subscript-delete `del d[k]` — array + index, both
      FOREIGN emit children (FLAT, no sub-body list). *)
   | SDelSubscript (arr : emit) (idx : emit)
+  (* _py_stmt_assign increment: three FLAT ctors.  SFieldAssign carries the base NAME
+     (string, `"self"` or `target.value.id`), the FIELD name (string), the RHS (emit).
+     SArraySliceSet carries the ARRAY (emit), the OPTIONAL lower/upper bounds (iropt),
+     the RHS (emit).  STupleUnpack carries the compaction of Name targets (`strl`, a
+     bespoke string cons) + the RHS (emit). *)
+  | SFieldAssign (base : string) (fld : string) (v : emit)
+  | SArraySliceSet (arr : emit) (lo : iropt) (up : iropt) (v : emit)
+  | STupleUnpack (tgts : strl) (v : emit)
 with stmt_list : Type :=
   | SLNil
   | SLCons (h : stmt_ir) (t : stmt_list)
@@ -165,6 +180,9 @@ Definition stmt_kind_of (s : stmt_ir) : string :=
   | STry _ _ _ _ => "Try"
   | SMatch _ _  => "Match"
   | SDelSubscript _ _ => "DelSubscript"
+  | SFieldAssign _ _ _ => "FieldAssign"
+  | SArraySliceSet _ _ _ _ => "ArraySliceSet"
+  | STupleUnpack _ _ => "TupleUnpack"
   end.
 
 (* ===================================================================== *)
@@ -275,6 +293,9 @@ Proof. decide equality; apply emit_eq_dec. Defined.
 Definition ioptstr_eq_dec : forall x y : ioptstr, {x = y} + {x <> y}.
 Proof. decide equality; apply string_dec. Defined.
 
+Definition strl_eq_dec : forall x y : strl, {x = y} + {x <> y}.
+Proof. decide equality; apply string_dec. Defined.
+
 Fixpoint stmt_ir_eq_dec (x y : stmt_ir) : {x = y} + {x <> y}
 with stmt_list_eq_dec (x y : stmt_list) : {x = y} + {x <> y}
 with handler_list_eq_dec (x y : handler_list) : {x = y} + {x <> y}
@@ -285,7 +306,7 @@ Proof.
   - decide equality;
       (apply emit_eq_dec || apply iropt_eq_dec || apply ioptstr_eq_dec
        || apply stmt_list_eq_dec || apply handler_list_eq_dec
-       || apply match_case_list_eq_dec || apply string_dec).
+       || apply match_case_list_eq_dec || apply strl_eq_dec || apply string_dec).
   - decide equality; apply stmt_ir_eq_dec.
   - decide equality; apply except_handler_eq_dec.
   - decide equality; (apply ioptstr_eq_dec || apply stmt_list_eq_dec).
@@ -316,7 +337,10 @@ Inductive pystmt : Type :=
   | PFor (t : emit) (b : stmt_list)
   | PTry (b : stmt_list) (hs : handler_list) (oe : stmt_list) (fb : stmt_list)
   | PMatch (subj : emit) (cs : match_case_list)
-  | PDelSubscript (arr : emit) (idx : emit).
+  | PDelSubscript (arr : emit) (idx : emit)
+  | PFieldAssign (base : string) (fld : string) (v : emit)
+  | PArraySliceSet (arr : emit) (lo : iropt) (up : iropt) (v : emit)
+  | PTupleUnpack (tgts : strl) (v : emit).
 
 (* The dict->ctor map (`{"stmt":"Pass"} |-> SPass`, ..., `{"stmt":"While",...}
    |-> SWhile ...`). *)
@@ -338,6 +362,9 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PTry b hs oe fb => STry b hs oe fb
   | PMatch subj cs => SMatch subj cs
   | PDelSubscript a i => SDelSubscript a i
+  | PFieldAssign b f v => SFieldAssign b f v
+  | PArraySliceSet a lo up v => SArraySliceSet a lo up v
+  | PTupleUnpack t v => STupleUnpack t v
   end.
 
 (* The Python-side tag string of a recognized node (the `"stmt"` value). *)
@@ -359,6 +386,9 @@ Definition py_kind_of (s : pystmt) : string :=
   | PTry _ _ _ _ => "Try"
   | PMatch _ _  => "Match"
   | PDelSubscript _ _ => "DelSubscript"
+  | PFieldAssign _ _ _ => "FieldAssign"
+  | PArraySliceSet _ _ _ _ => "ArraySliceSet"
+  | PTupleUnpack _ _ => "TupleUnpack"
   end.
 
 (* ===================================================================== *)
@@ -387,6 +417,9 @@ Proof.
   - exists (PTry b hs oe fb); reflexivity.
   - exists (PMatch subj cs); reflexivity.
   - exists (PDelSubscript arr idx); reflexivity.
+  - exists (PFieldAssign base fld v); reflexivity.
+  - exists (PArraySliceSet arr lo up v); reflexivity.
+  - exists (PTupleUnpack tgts v); reflexivity.
 Qed.
 
 (* ===================================================================== *)
@@ -645,6 +678,64 @@ Theorem sdelsub_index_observable : forall a i j,
   i <> j -> SDelSubscript a i <> SDelSubscript a j.
 Proof. intros a i j H C; inversion C; contradiction. Qed.
 
+(* ===================================================================== *)
+(* _py_stmt_assign ctors observability (non-vacuity).  All FLAT — size 1.  *)
+(* ===================================================================== *)
+
+Theorem stmt_kind_of_fieldassign : forall b f v,
+  stmt_kind_of (SFieldAssign b f v) = "FieldAssign".
+Proof. reflexivity. Qed.
+Theorem stmt_kind_of_arrayslice : forall a lo up v,
+  stmt_kind_of (SArraySliceSet a lo up v) = "ArraySliceSet".
+Proof. reflexivity. Qed.
+Theorem stmt_kind_of_tupleunpack : forall t v,
+  stmt_kind_of (STupleUnpack t v) = "TupleUnpack".
+Proof. reflexivity. Qed.
+Theorem tag_fieldassign_neq_assign : forall b f v n e,
+  stmt_kind_of (SFieldAssign b f v) <> stmt_kind_of (SAssign n e).
+Proof. intros; simpl; discriminate. Qed.
+Theorem tag_arrayslice_neq_arrayset : forall a lo up v ar i vv,
+  stmt_kind_of (SArraySliceSet a lo up v) <> stmt_kind_of (SArraySet ar i vv).
+Proof. intros; simpl; discriminate. Qed.
+Theorem size_assign_ctors_flat : forall b f v a lo up w t x,
+  size_stmt (SFieldAssign b f v) = 1
+  /\ size_stmt (SArraySliceSet a lo up w) = 1
+  /\ size_stmt (STupleUnpack t x) = 1.
+Proof. intros; repeat split; reflexivity. Qed.
+
+(* SFieldAssign: base / field / value each observable; the self-base vs a named base
+   is distinguished (the self-Attribute vs symtab-Attribute branches). *)
+Theorem sfieldassign_base_observable : forall b c f v,
+  b <> c -> SFieldAssign b f v <> SFieldAssign c f v.
+Proof. intros b c f v H C; inversion C; contradiction. Qed.
+Theorem sfieldassign_field_observable : forall b f g v,
+  f <> g -> SFieldAssign b f v <> SFieldAssign b g v.
+Proof. intros b f g v H C; inversion C; contradiction. Qed.
+Theorem sfieldassign_value_observable : forall b f v w,
+  v <> w -> SFieldAssign b f v <> SFieldAssign b f w.
+Proof. intros b f v w H C; inversion C; contradiction. Qed.
+
+(* SArraySliceSet: the OPTIONAL lower/upper bounds distinguish None from Some (the
+   `a[:hi]` / `a[lo:]` / `a[lo:hi]` shapes). *)
+Theorem sarrayslice_lower_none_neq_some : forall a e up v,
+  SArraySliceSet a IrONone up v <> SArraySliceSet a (IrOSome e) up v.
+Proof. intros; discriminate. Qed.
+Theorem sarrayslice_upper_none_neq_some : forall a lo e v,
+  SArraySliceSet a lo IrONone v <> SArraySliceSet a lo (IrOSome e) v.
+Proof. intros; discriminate. Qed.
+Theorem sarrayslice_array_observable : forall a b lo up v,
+  a <> b -> SArraySliceSet a lo up v <> SArraySliceSet b lo up v.
+Proof. intros a b lo up v H C; inversion C; contradiction. Qed.
+
+(* STupleUnpack: the targets compaction is observable — an EMPTY name-list (all elts
+   filtered) differs from a non-empty one (a real Name target survived). *)
+Theorem stupleunpack_targets_observable : forall t u v,
+  t <> u -> STupleUnpack t v <> STupleUnpack u v.
+Proof. intros t u v H C; inversion C; contradiction. Qed.
+Theorem stupleunpack_empty_neq_nonempty : forall s r v,
+  STupleUnpack TgtNil v <> STupleUnpack (TgtCons s r) v.
+Proof. intros; discriminate. Qed.
+
 End StmtIR.
 
 (* ===================================================================== *)
@@ -771,6 +862,21 @@ Print Assumptions tag_delsubscript_neq_match.
 Print Assumptions size_delsubscript_flat.
 Print Assumptions sdelsub_array_observable.
 Print Assumptions sdelsub_index_observable.
+Print Assumptions strl_eq_dec.
+Print Assumptions stmt_kind_of_fieldassign.
+Print Assumptions stmt_kind_of_arrayslice.
+Print Assumptions stmt_kind_of_tupleunpack.
+Print Assumptions tag_fieldassign_neq_assign.
+Print Assumptions tag_arrayslice_neq_arrayset.
+Print Assumptions size_assign_ctors_flat.
+Print Assumptions sfieldassign_base_observable.
+Print Assumptions sfieldassign_field_observable.
+Print Assumptions sfieldassign_value_observable.
+Print Assumptions sarrayslice_lower_none_neq_some.
+Print Assumptions sarrayslice_upper_none_neq_some.
+Print Assumptions sarrayslice_array_observable.
+Print Assumptions stupleunpack_targets_observable.
+Print Assumptions stupleunpack_empty_neq_nonempty.
 Print Assumptions size_slist_lt_swhile.
 Print Assumptions size_body_lt_sif.
 Print Assumptions size_orelse_lt_sif.

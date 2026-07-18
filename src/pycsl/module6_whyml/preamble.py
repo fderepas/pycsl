@@ -3993,6 +3993,11 @@ class PreambleEmissionMixin:
                 " INDEX, and the desugared `(c[k]) op v` BinOp VALUE (all emit_ir). All three"
                 " are FLAT (no sub-body list), so they fall in `size_stmt`'s `| _ -> 1`"
                 " catch-all — NO change to the mutual size measure. *)",
+                "  (* strlist — the monomorphic cons of names; STupleUnpack's targets field"
+                " (`[elt.id for elt in target.elts if isinstance(elt, ast.Name)]`), the"
+                " concrete compaction over the MkTuple elts (declared before stmt_ir since"
+                " STupleUnpack carries it). *)",
+                "  type strlist = SLNilS | SLConsS string strlist",
                 "  type stmt_ir = SPass | SBreak | SContinue"
                 " | SReturn iropt_ir | SExpr emit_ir"
                 " | SAssign string emit_ir"
@@ -4006,6 +4011,9 @@ class PreambleEmissionMixin:
                 " | STry stmt_list handler_list stmt_list stmt_list"
                 " | SMatch emit_ir match_case_list"
                 " | SDelSubscript emit_ir emit_ir"
+                " | SFieldAssign string string emit_ir"
+                " | SArraySliceSet emit_ir iropt_ir iropt_ir emit_ir"
+                " | STupleUnpack strlist emit_ir"
                 "  with stmt_list = SLNil | SLCons stmt_ir stmt_list"
                 "  with handler_list = HLNil | HLCons except_handler handler_list"
                 "  with except_handler ="
@@ -4027,7 +4035,10 @@ class PreambleEmissionMixin:
                 " | SFor _ _ -> \"For\""
                 " | STry _ _ _ _ -> \"Try\""
                 " | SMatch _ _ -> \"Match\""
-                " | SDelSubscript _ _ -> \"DelSubscript\"",
+                " | SDelSubscript _ _ -> \"DelSubscript\""
+                " | SFieldAssign _ _ _ -> \"FieldAssign\""
+                " | SArraySliceSet _ _ _ _ -> \"ArraySliceSet\""
+                " | STupleUnpack _ _ -> \"TupleUnpack\"",
                 "    end",
                 "",
                 "  (* The MUTUAL well-founded size measure over stmt_ir/stmt_list — the"
@@ -4212,6 +4223,26 @@ class PreambleEmissionMixin:
                 "  type py_delete_node",
                 "  val function del_targets_ast (s: py_delete_node) : seq emit_ir",
                 "",
+                "  (* SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction"
+                " M5, C-bucket): the typed AST reader for `_py_stmt_assign`. `py_assign_node`"
+                " models `ast.Assign`; `assign_target0_ast` reads `stmt.targets[0]` (the"
+                " HEAD target, an emit_ir — Name/Attribute/Subscript/Tuple); `assign_value_ast`"
+                " reads `stmt.value` (the RHS emit_ir). `symtab_mem` models the instance-state"
+                " membership `target.value.id in self._cur_func_symtab` as an opaque"
+                " name-keyed predicate (the symtab is runtime state; the membership RESULT is"
+                " a sound abstract bool, deciding the named-base FieldAssign vs the module-"
+                " global no-op). `sliceN_lower_of`/`sliceN_upper_of` project the IrSliceN"
+                " OPTIONAL bounds (iropt_ir) for the `a[lo:hi] = v` ArraySliceSet branch."
+                " Gated on `_uses_stmt_ir`. *)",
+                "  type py_assign_node",
+                "  val function assign_target0_ast (s: py_assign_node) : emit_ir",
+                "  val function assign_value_ast (s: py_assign_node) : emit_ir",
+                "  val function symtab_mem (key: string) : bool",
+                "  let function sliceN_lower_of (e: emit_ir) : iropt_ir =",
+                "    match e with IrSliceN lo _ _ -> lo | _ -> IrONone end",
+                "  let function sliceN_upper_of (e: emit_ir) : iropt_ir =",
+                "    match e with IrSliceN _ up _ -> up | _ -> IrONone end",
+                "",
                 "  (* The CONCRETE compaction of a Tuple exc_type `\"|\".join(n.id for n in"
                 " h.type.elts if isinstance(n, ast.Name))`: `var_names_of` filters `is_var`"
                 " + projects `name_of` over the MkTuple `elts` irlist; `join_pipe` inserts"
@@ -4230,7 +4261,6 @@ class PreambleEmissionMixin:
                 "    match e with IrMkTupleN _ -> true | _ -> false end",
                 "  let function elts_of (e: emit_ir) : irlist =",
                 "    match e with IrMkTupleN l -> l | _ -> ILNil end",
-                "  type strlist = SLNilS | SLConsS string strlist",
                 "  function var_names_of (l: irlist) : strlist =",
                 "    match l with",
                 "    | ILNil -> SLNilS",
@@ -4248,6 +4278,13 @@ class PreambleEmissionMixin:
                 " join_pipe (var_names_of l)",
                 "  val function pipe_join (l: irlist) : string",
                 "    ensures { result = tuple_exc_type l }",
+                "  (* STupleUnpack: the program-level primitive for `[elt.id for elt in"
+                " target.elts if isinstance(elt, ast.Name)]` — the CONCRETE `var_names_of`"
+                " strlist (filter is_var + project name_of), NOT the abstract length-only"
+                " `list_content_comp_N` law (the fable's vacuity trap). Pinned by ensures to"
+                " the concrete logic compaction. *)",
+                "  val function var_names_prog (l: irlist) : strlist",
+                "    ensures { result = var_names_of l }",
                 "",
                 "  (* The TYPED AST-input readers for `_py_stmt_try`: `py_try_node` models"
                 " `ast.Try` (its `stmt` param), `ast_excepthandler` models an `ast."
