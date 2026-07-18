@@ -1,0 +1,147 @@
+module WallStmtSubBodyForObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+
+  (* stmt-list-append-mutation wall (C-bucket), SUB-BODY increment: OBSERVATIONAL
+     non-vacuity for the _process_for -> SFor conversion via the BUILD-UP-DICT
+     recognizer (module6_whyml/functions.py _recognize_stmtir_builder). _process_for
+     BUILDS its node dict INCREMENTALLY (`target = ..; d = {"stmt":"For",..}; if
+     isinstance(node.target, ast.Tuple): d["tuple_targets"] = ..; return d`) rather
+     than as a dict LITERAL; the recognizer folds the prelude assign + the
+     conditional-add into a single Return of the base construction dict, which lowers
+     to SFor (drops target/tuple_targets — the pure_ast AST-node children — keeping the
+     iter + real seq_to_sl body, the SWhile/SIf precedent). The stmt_ir/stmt_list ADT,
+     size_stmt/size_slist, sl_len, seq_to_sl and the bridge lemma seq_to_sl_len below
+     are VERBATIM the PyCSL tool's emitted output (module6_whyml/preamble.py::
+     _emit_exprir_theory gated on _uses_stmt_ir; grep-confirmed from the emitted
+     Module5_IREmitter.mlw, where SFor is a PRE-EXISTING certified ctor). process_for is
+     VERBATIM the tool's emitted pycsltojsonemitter___process_for body (SFor (disp iter)
+     (seq_to_sl body)); emit_for is the _py_stmt_for append body (Seq.snoc on the ref
+     itself, statements.py append-of-call path). No new ctor, no new axiom. *)
+  type emit_ir
+
+  (* ---- VERBATIM tool-emitted: iropt_ir is the emit_ir ADT's monomorphic option
+     sibling; SReturn carries it. Kept so the stmt_ir sum is the tool's exact type. ---- *)
+  type iropt_ir = IrONone | IrOSome emit_ir
+
+  (* ---- VERBATIM tool-emitted mutual-cons stmt_ir/stmt_list block: SFor carries iter +
+     body; the body list is the bespoke monomorphic cons `stmt_list`. TAG-PRESERVING. ---- *)
+  type stmt_ir = SPass | SBreak | SContinue | SReturn iropt_ir | SExpr emit_ir
+    | SWhile emit_ir stmt_list | SIf emit_ir stmt_list stmt_list | SFor emit_ir stmt_list
+  with stmt_list = SLNil | SLCons stmt_ir stmt_list
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"
+    | SReturn _ -> "Return" | SExpr _ -> "Expr"    | SWhile _ _ -> "While" | SIf _ _ _ -> "If" | SFor _ _ -> "For"
+    end
+
+  (* ---- VERBATIM tool-emitted mutual size measure. ---- *)
+  let rec function size_stmt (s: stmt_ir) : int
+    ensures { result >= 1 }
+    variant { s }
+  = match s with
+    | SWhile _ b -> 1 + size_slist b
+    | SIf _ b o -> 1 + size_slist b + size_slist o
+    | SFor _ b -> 1 + size_slist b
+    | _ -> 1
+    end
+  with function size_slist (l: stmt_list) : int
+    ensures { result >= 0 }
+    variant { l }
+  = match l with SLNil -> 0 | SLCons h t -> size_stmt h + size_slist t end
+
+  (* ---- VERBATIM tool-emitted sl_len (the observable). ---- *)
+  let rec function sl_len (l: stmt_list) : int
+    ensures { result >= 0 }
+    variant { l }
+  = match l with SLNil -> 0 | SLCons _ t -> 1 + sl_len t end
+
+  (* ---- VERBATIM tool-emitted seq_to_sl + the bridge lemma seq_to_sl_len. ---- *)
+  let rec function seq_to_sl_from (s: seq stmt_ir) (i: int) : stmt_list
+    requires { 0 <= i <= Seq.length s }
+    variant  { Seq.length s - i }
+  = if i >= Seq.length s then SLNil
+    else SLCons (Seq.get s i) (seq_to_sl_from s (i + 1))
+  let function seq_to_sl (s: seq stmt_ir) : stmt_list = seq_to_sl_from s 0
+
+  let rec lemma seq_to_sl_from_len (s: seq stmt_ir) (i: int)
+    requires { 0 <= i <= Seq.length s }
+    ensures  { sl_len (seq_to_sl_from s i) = Seq.length s - i }
+    variant  { Seq.length s - i }
+  = if i >= Seq.length s then () else seq_to_sl_from_len s (i + 1)
+  lemma seq_to_sl_len : forall s: seq stmt_ir. sl_len (seq_to_sl s) = Seq.length s
+
+  (* `disp` models self._py_expr_to_ir on the loop ITER (an emit_ir -> emit_ir val).
+     Abstract; a `function` so it is deterministic. *)
+  val function disp (e: emit_ir) : emit_ir
+
+  (* Sub-body projector — reads the materialized stmt_list an SFor carries (the
+     observable read-back the tag-erasure pre-feature made impossible). *)
+  let function for_body_of (s: stmt_ir) : stmt_list =
+    match s with SFor _ b -> b | _ -> SLNil end
+
+  (* ---- process_for: VERBATIM shape of the tool's emitted pycsltojsonemitter___process_for
+     (after the build-up-dict recognizer folds the prelude + conditional-add) — SFor
+     (disp iter) (seq_to_sl body). `body` models the trusted self._py_stmts_to_ir(node.body)
+     : seq stmt_ir. The target/tuple_targets fields are DROPPED (never lowered). ---- *)
+  let function process_for (iter: emit_ir) (body: seq stmt_ir) : stmt_ir =
+    SFor (disp iter) (seq_to_sl body)
+
+  (* ---- emit_for: VERBATIM _py_stmt_for body — Seq.snoc the process_for node onto the
+     ref (seq stmt_ir) param itself, real writes {ir_stmts}. ---- *)
+  let emit_for (iter: emit_ir) (body: seq stmt_ir) (ir_stmts: ref (seq stmt_ir)) : unit
+    ensures { !ir_stmts = Seq.snoc (old !ir_stmts) (process_for iter body) }
+    writes  { ir_stmts }
+  = ir_stmts := Seq.snoc !ir_stmts (process_for iter body)
+
+  (* OBSERVATIONAL non-vacuity (SFor, non-empty body): a caller starts from a fresh
+     ir_stmts, appends a For whose sub-body has 3 nodes (SPass, SContinue, SBreak), and
+     READS BACK the SFor node: the RIGHT tag AND a materialized sub-body of length
+     EXACTLY 3 (the bridge lemma pins sl_len (seq_to_sl body) = Seq.length body = 3 — a
+     REAL cons chain, NOT SLNil). *)
+  let driver_for (iter: emit_ir) : unit =
+    let body = Seq.snoc (Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SContinue) SBreak in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_for iter body ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "For" };
+    assert { sl_len (for_body_of (Seq.get !ir_stmts 0)) = 3 }
+
+  (* OBSERVATIONAL non-vacuity (SFor, empty body): the sub-body is EMPTY (SLNil, length
+     0) — proving the empty case is a real SLNil, not an arbitrary value. *)
+  let driver_for_empty (iter: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_for iter (Seq.empty: seq stmt_ir) ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "For" };
+    assert { sl_len (for_body_of (Seq.get !ir_stmts 0)) = 0 }
+
+  (* Positive non-vacuity: a 3-node-body For and a 0-node-body For are PROVABLY DISTINCT
+     (their sub-bodies differ in length), and the For node is <> a wrong ctor. If Valid,
+     the sub-body length is genuinely observed, not vacuous. *)
+  let driver_refute (iter: emit_ir) : unit =
+    let a = ref (Seq.empty: seq stmt_ir) in
+    let b = ref (Seq.empty: seq stmt_ir) in
+    emit_for iter (Seq.snoc (Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SContinue) SBreak) a;
+    emit_for iter (Seq.empty: seq stmt_ir) b;
+    assert { sl_len (for_body_of (Seq.get !a 0)) = 3 };
+    assert { sl_len (for_body_of (Seq.get !b 0)) = 0 };
+    assert { Seq.get !a 0 <> Seq.get !b 0 };
+    assert { Seq.get !a 0 <> SPass }
+
+  (* EVIL TWIN 1 (wrong sub-body count): asserting the 3-node-body For has a 2-node
+     sub-body. Must stay UNPROVEN (else the sub-body length is vacuously arbitrary). *)
+  let driver_evil_count (iter: emit_ir) : unit =
+    let body = Seq.snoc (Seq.snoc (Seq.snoc (Seq.empty: seq stmt_ir) SPass) SContinue) SBreak in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_for iter body ir_stmts;
+    assert { sl_len (for_body_of (Seq.get !ir_stmts 0)) = 2 }
+
+  (* EVIL TWIN 2 (wrong tag): asserting the For node has tag "While". Must stay UNPROVEN
+     (else the compound tag is vacuous). *)
+  let driver_evil_tag (iter: emit_ir) : unit =
+    let body = Seq.snoc (Seq.empty: seq stmt_ir) SPass in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_for iter body ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "While" }
+end

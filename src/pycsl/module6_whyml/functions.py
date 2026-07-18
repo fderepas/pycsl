@@ -881,29 +881,47 @@ class FunctionEmissionMixin:
     # `_process_*` return; they append at the `.append` site).
     _COMPOUND_STMT_RETURN_KINDS = frozenset({"While", "If", "For"})
 
+    @staticmethod
+    def _compound_stmt_dict_kind(v: Any) -> Optional[str]:
+        """The compound statement kind K (While/If/For) if `v` is a `{"stmt": K, ...}`
+        DictLit with a STRING `stmt` value in `_COMPOUND_STMT_RETURN_KINDS`, else None."""
+        if not (isinstance(v, dict) and v.get("type") == "DictLit"):
+            return None
+        for k, vv in zip(v.get("keys", []) or [], v.get("values", []) or []):
+            if (isinstance(k, dict) and k.get("type") == "String"
+                    and k.get("value") == "stmt"
+                    and isinstance(vv, dict) and vv.get("type") == "String"
+                    and vv.get("value") in FunctionEmissionMixin._COMPOUND_STMT_RETURN_KINDS):
+                return vv.get("value")
+        return None
+
     def _returns_stmt_ir(self, body_stmts: List[Dict[str, Any]]) -> bool:
         """SUB-BODY recursion (C-bucket): True if the function RETURNS a constructed
-        COMPOUND statement node — a `return {"stmt": "While"/"If"/"For", ...}` dict
-        literal (the `_process_while`/`_process_if`/`_process_for` return). Drives
-        the `stmt_ir` return-type override so `_py_stmt_*`'s
-        `ir_stmts.append(self._process_*(stmt))` snocs a real `stmt_ir` value.
-        @mutable_state-gated by the caller → False (inert) for the corpus."""
+        COMPOUND statement node — either a `return {"stmt": "While"/"If"/"For", ...}`
+        dict LITERAL (the `_process_while`/`_process_if` return) OR a `return <local>`
+        whose local is BOUND to such a compound dict-literal (the `_process_for`
+        BUILD-UP shape `d = {"stmt":"For",..}; ..; return d`, recognized by
+        `_recognize_stmtir_builder`). Drives the `stmt_ir` return-type override so
+        `_py_stmt_*`'s `ir_stmts.append(self._process_*(stmt))` snocs a real `stmt_ir`
+        value. @mutable_state-gated by the caller → False (inert) for the corpus."""
+        # Top-level locals bound to a compound `{"stmt":K}` dict-literal (the build-up
+        # local's binding). Only same-level assigns feed the same-level `return <local>`.
+        compound_locals = {
+            st.get("target") for st in body_stmts
+            if (isinstance(st, dict) and st.get("stmt") == "Assign"
+                and isinstance(st.get("target"), str)
+                and self._compound_stmt_dict_kind(st.get("value")) is not None)}
         found = [False]
 
         def rec(n: Any) -> None:
             if isinstance(n, dict):
                 if n.get("stmt") == "Return":
                     v = n.get("value")
-                    if isinstance(v, dict) and v.get("type") == "DictLit":
-                        for k, vv in zip(v.get("keys", []) or [],
-                                         v.get("values", []) or []):
-                            if (isinstance(k, dict) and k.get("type") == "String"
-                                    and k.get("value") == "stmt"
-                                    and isinstance(vv, dict)
-                                    and vv.get("type") == "String"
-                                    and vv.get("value")
-                                    in self._COMPOUND_STMT_RETURN_KINDS):
-                                found[0] = True
+                    if self._compound_stmt_dict_kind(v) is not None:
+                        found[0] = True
+                    elif (isinstance(v, dict) and v.get("type") == "Var"
+                          and v.get("name") in compound_locals):
+                        found[0] = True
                 for x in n.values():
                     rec(x)
             elif isinstance(n, list):
@@ -1052,6 +1070,106 @@ class FunctionEmissionMixin:
             merged_values.append(aset.get("value"))
         new_dlit = {"type": "DictLit", "keys": merged_keys, "values": merged_values}
         return [{"stmt": "Return", "value": new_dlit}]
+
+    def _recognize_stmtir_builder(
+            self, func: Dict[str, Any],
+            body_stmts: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+        """SUB-BODY recursion (self-tcb-reduction M5, C-bucket) BUILD-UP-DICT recognizer:
+        recognize a COMPOUND statement handler that BUILDS its node dict INCREMENTALLY
+        rather than returning a dict LITERAL — the `_process_for` shape
+
+            target = <prelude>                                   (0..n leading Assign's)
+            d = {"stmt": "For", "iter": .., "body": .., ...}
+            if <guard>: d["tuple_targets"] = <V>                 (0..n conditional-adds)
+            return d
+
+        and REWRITE it to a single `Return` of the base construction dict, so the normal
+        `_returns_stmt_ir` / `_lower_stmt_ir_construction` path emits `(SFor <iter>
+        (seq_to_sl <body>))`. The SFor ctor reads only iter+body (`_STMT_IR_CTORS["For"]`);
+        the DROPPED fields (target/line/invariants/variants/lineno/allow_iteration_mutation
+        and the conditionally-added tuple_targets) are the same emitter-model-irrelevant
+        children SWhile/SIf already drop (line/invariants/variants/orelse) — never lowered,
+        so their AST-node-typed values (isinstance/attribute reads over `node.target`, the
+        pure_ast boundary) are never emitted. TAG-PRESERVING (SFor, never erased): the node,
+        its "For" tag and its real seq_to_sl sub-body are all carried. Fail-closed: None on
+        any mismatch (a leading non-Assign, a conditional-add that is not an `if C: d[F]=V`,
+        a ctor-payload field that references a dropped prelude local, or a kind not in
+        `_STMT_IR_COMPOUND_KINDS`) → the body keeps its normal lowering. @mutable_state-gated
+        (the emitter model) → corpus byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return None
+        if len(body_stmts) < 2:
+            return None
+        last = body_stmts[-1]
+        if last.get("stmt") != "Return":
+            return None
+        rv = last.get("value")
+        if not (isinstance(rv, dict) and rv.get("type") == "Var"):
+            return None
+        dname = rv.get("name")
+        # Locate the `d = {DictLit stmt:<compound>}` assignment (need not be first — a
+        # `_process_for`-shaped handler assigns a prelude local before it).
+        d_idx = None
+        dlit = None
+        for i, st in enumerate(body_stmts[:-1]):
+            if (st.get("stmt") == "Assign" and st.get("target") == dname
+                    and isinstance(st.get("value"), dict)
+                    and st["value"].get("type") == "DictLit"):
+                d_idx = i
+                dlit = st["value"]
+        if dlit is None:
+            return None
+        base: Dict[str, Any] = {}
+        for k, v in zip(dlit.get("keys", []) or [], dlit.get("values", []) or []):
+            if not (isinstance(k, dict) and k.get("type") == "String"):
+                return None
+            base[k.get("value")] = v
+        kind_ir = base.get("stmt")
+        if not (isinstance(kind_ir, dict) and kind_ir.get("type") == "String"):
+            return None
+        if kind_ir.get("value") not in self._STMT_IR_COMPOUND_KINDS:
+            return None
+        # Prelude (before the d-assign): Assign-only locals, DROPPED. Sound iff the ctor's
+        # kept payload fields (iter/body) do not reference a dropped local.
+        dropped_locals: Set[str] = set()
+        for st in body_stmts[:d_idx]:
+            if st.get("stmt") != "Assign":
+                return None
+            tgt = st.get("target")
+            if isinstance(tgt, str):
+                dropped_locals.add(tgt)
+        cname_payload = self._STMT_IR_CTORS.get(kind_ir.get("value"))
+        kept_fields = [f for f, _ck in (cname_payload[1] if cname_payload else [])]
+
+        def _refs_dropped(n: Any) -> bool:
+            if isinstance(n, dict):
+                if (n.get("type") == "Var" and n.get("name") in dropped_locals):
+                    return True
+                return any(_refs_dropped(x) for x in n.values())
+            if isinstance(n, list):
+                return any(_refs_dropped(x) for x in n)
+            return False
+        for f in kept_fields:
+            if f in base and _refs_dropped(base[f]):
+                return None
+        # Conditional-adds (between the d-assign and the return): each an `if <guard>:
+        # d[F] = V` (single ArraySet on d, no else) — the DROPPED optional fields. Verify
+        # the shape and drop them (the added field is not in the SFor ctor payload).
+        for st in body_stmts[d_idx + 1:-1]:
+            if st.get("stmt") != "If" or st.get("orelse"):
+                return None
+            ifbody = st.get("body") or []
+            if len(ifbody) != 1:
+                return None
+            aset = ifbody[0]
+            if aset.get("stmt") != "ArraySet":
+                return None
+            arr = aset.get("array")
+            if not (isinstance(arr, dict) and arr.get("type") == "Var"
+                    and arr.get("name") == dname):
+                return None
+        return [{"stmt": "Return", "value": dlit}]
 
     @staticmethod
     def _is_slice_optfield_ternary(rhs: Any) -> bool:
@@ -1601,6 +1719,15 @@ class FunctionEmissionMixin:
         _optb = self._recognize_optfield_builder(func, body_stmts)
         if _optb is not None:
             body_stmts = _optb
+        # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): rewrite a BUILD-UP-DICT
+        # compound handler (`_process_for`: `target=..; d={"stmt":"For",..}; if C:
+        # d["tuple_targets"]=..; return d`) to a single `Return` of the base construction
+        # dict, so `_returns_stmt_ir`/`_lower_stmt_ir_construction` emit `(SFor <iter>
+        # (seq_to_sl <body>))`. Fail-closed (None → unchanged); @mutable_state-gated →
+        # corpus byte-inert.
+        _sib = self._recognize_stmtir_builder(func, body_stmts)
+        if _sib is not None:
+            body_stmts = _sib
         # optional-field ext (monomorphic-option ADTs): rewrite the
         # `_py_expr_slice` 3-ternary-bound body to a single `Return` of the
         # `{"type":"SliceN",...}` construction (ternaries inlined), so the normal

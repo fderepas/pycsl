@@ -1047,20 +1047,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_while(self, stmt: ast.While, ir_stmts: List[int]) -> None:
         ir_stmts.append(self._process_while(stmt))
 
-    # SUB-BODY recursion (C-bucket): SKIPPED this increment. Coupled to
-    # `_process_for`, whose live body BUILDS the node dict incrementally
-    # (`d = {...}; if isinstance(node.target, ast.Tuple): d["tuple_targets"] = ...;
-    # return d`) rather than returning a dict LITERAL — so the `_returns_stmt_ir`
-    # recognizer (which keys on `return {"stmt": K}`) does not fire, and
-    # `_process_for` stays `\trusted` (map-returning), so `_py_stmt_for`'s
-    # append-of-call cannot snoc a `stmt_ir`. A second increment (build-up-dict
-    # → SFor recognition, plus the target/tuple_targets shape) will convert it.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): sibling of
+    # `_py_stmt_while` — `ir_stmts` is a caller-visible mutable `ref (seq stmt_ir)`
+    # param; `.append(self._process_for(stmt))` snocs the `SFor (py_expr_to_ir
+    # stmt.iter) (seq_to_sl (py_stmts_to_ir stmt.body))` value the now-converted
+    # `_process_for` returns (recognized `stmt_ir`-valued via the build-up-dict
+    # recognizer's `_returns_stmt_ir`) onto the ref ITSELF, tag-preserving (SFor,
+    # never erased to 0), with a REAL `stmt_list` sub-body (seq_to_sl of the
+    # dispatcher's seq, never SLNil-erased). Verbatim body port of the LIVE
+    # `_py_stmt_for`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_for(self, stmt: ast.For, ir_stmts: List[int]) -> None:
-        pass
+        ir_stmts.append(self._process_for(stmt))
 
     # SUB-BODY recursion (C-bucket): sibling of `_py_stmt_while` — snocs the
     # `SIf (py_expr_to_ir stmt.test) (seq_to_sl (py_stmts_to_ir stmt.body))
@@ -1113,6 +1113,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_expr(self, stmt: ast.Expr, ir_stmts: List[int]) -> None:
         pass
 
+    # SUB-BODY recursion (C-bucket): SKIPPED this increment (needs a distinct ADT).
+    # `_py_stmt_try` builds a Try node with MULTIPLE sub-lists (body/orelse/finalbody
+    # each lower via the mutual-cons stmt_list) BUT ALSO a `handlers` LIST-OF-RECORDS
+    # built by a `for h in stmt.handlers: handlers.append({"exc_type":..,"name":..,
+    # "body":..})` loop — a handler ADT (exc_type string, name string, body stmt_list)
+    # beyond stmt_list, whose `exc_type` is computed via isinstance-over-AST +
+    # `"|".join(...)` over `h.type.elts` (the pure_ast AST-node boundary). A later
+    # increment adds an SExceptHandler record + the handler-list build loop, then STry.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1120,6 +1128,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_try(self, stmt: ast.Try, ir_stmts: List[int]) -> None:
         pass
 
+    # SUB-BODY recursion (C-bucket): SKIPPED this increment (not a clean whole-body
+    # port). `_py_stmt_with`'s live body is NOT a plain sub-body append: (1) the mutex
+    # is a `getattr(stmt, 'csl_critical_mutex', None) or getattr(stmt, 'csl_acquires',
+    # None)` getattr-or chain (the pure_ast AST-attribute boundary); (2) the else branch
+    # is `ir_stmts.extend(body_ir)` — a SEQ-CONCAT of the whole sub-body onto the ref, a
+    # NEW mutation shape distinct from the single-element snoc convention; (3) the mutex
+    # arm appends a 5-field CriticalSection node (mutex string, body sublist,
+    # assume/prove_invariant emit_ir from `_get_mutex_invariant_ir`) — a new
+    # SCriticalSection ctor. A later increment (extend-append lowering + SCriticalSection).
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1193,12 +1210,51 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "body": self._py_stmts_to_ir(node.body)
         }
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): BUILDS its node dict
+    # INCREMENTALLY (`target = ..; d = {"stmt":"For",..}; if isinstance(node.target,
+    # ast.Tuple): d["tuple_targets"] = ..; return d`) rather than returning a dict
+    # LITERAL. The BUILD-UP-DICT recognizer (module6_whyml/functions.py
+    # `_recognize_stmtir_builder`) rewrites this to a single `Return` of the base
+    # construction dict, so `_returns_stmt_ir` types the return `stmt_ir` and
+    # `_lower_stmt_ir_construction` emits `SFor (py_expr_to_ir node.iter)
+    # (seq_to_sl (py_stmts_to_ir node.body))` — the `iter` child → emit_ir (For.iter
+    # `_PURE_AST_FIELD_TABLE` "ExprIR"); the `body` sub-list → `seq stmt_ir` (the
+    # trusted `_py_stmts_to_ir` dispatcher, retyped) materialized to `stmt_list` via
+    # `seq_to_sl`. The DROPPED fields — the `target` string (its `node.target.id`
+    # /`isinstance(node.target, ast.Name)` prelude, the pure_ast AST-node boundary),
+    # line/invariants/variants/lineno/allow_iteration_mutation, and the conditionally
+    # added `tuple_targets` (its `isinstance(node.target, ast.Tuple)` guard + list-comp
+    # over `node.target.elts`) — are never lowered (SFor = iter+body, the SWhile/SIf
+    # precedent of keeping just the emitter-model-relevant children). SFor is ALREADY
+    # in the certified stmt_ir ADT (Phase2d_StmtIR.v / StmtIR.lean) and the theory — no
+    # new ctor. Verbatim body port of the LIVE `_process_for`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _process_for(self, node: ast.For) -> int:
-        return {}
+        target = node.target.id if isinstance(node.target, ast.Name) else "_for_target"
+        d: Dict[str, Any] = {
+            "stmt": "For",
+            "line": getattr(node, "lineno", 0),  # §4.4 statement-level span (refactor.md B4a)
+            "target": target,
+            "iter": self._py_expr_to_ir(node.iter),
+            "invariants": self._csl_list_to_ir(getattr(node, 'csl_invariants', [])),
+            "variants": self._csl_list_to_ir(getattr(node, 'csl_variants', [])),
+            "body": self._py_stmts_to_ir(node.body),
+            # UB-7.1 opt-in (#@ allow_iteration_mutation). Module 4
+            # consults this when running `find_iteration_mutations`.
+            "allow_iteration_mutation": bool(getattr(node, 'csl_allow_iteration_mutation', False)),
+            "lineno": getattr(node, "lineno", 0),
+        }
+        # W2 char-iteration: a tuple loop target (`for i, ch in enumerate(s)`)
+        # binds several names at once; keep them so Module6 can bind both the
+        # index and the element (the single `target` collapses them to
+        # `_for_target`, losing `i`/`ch`). Emitted ONLY for a tuple target, so a
+        # plain `for x in …` dict stays byte-identical (the key is absent).
+        if isinstance(node.target, ast.Tuple):
+            d["tuple_targets"] = [
+                e.id if isinstance(e, ast.Name) else "_" for e in node.target.elts]
+        return d
 
     # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): RETURNS a constructed
     # compound `{"stmt": "If", ...}` node, lowered to `SIf (py_expr_to_ir node.test)
