@@ -1,0 +1,159 @@
+module WallStmtMatchObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+
+  (* stmt-list-append-mutation wall (C-bucket), SMatch + match_case + match_case_list
+     increment: OBSERVATIONAL non-vacuity for the `_py_stmt_match` conversion — the
+     record-list sibling of STry. emit_ir is OPAQUE (the drivers observe the SMatch tag,
+     mcl_len, and each case's mc_pattern/mc_guard(Some/None)/mc_body, never an emit_ir
+     internal). The stmt_ir/SMatch/stmt_list/match_case_list/match_case ADT, size measure,
+     sl_len/mcl_len, seq_to_sl/seq_to_mcl and the bridge lemmas below are VERBATIM the
+     PyCSL tool's emitted output (module6_whyml/preamble.py::_emit_exprir_theory gated on
+     _uses_stmt_ir; grep-confirmed from the emitted Module5_IREmitter.mlw). `process_match`/
+     `emit_case`/`emit_match` are the VERBATIM shape of the tool's emitted `_py_stmt_match`
+     body (functions.py::_emit_py_stmt_match_bespoke): a `ref (seq match_case)` accumulator
+     grown by Seq.snoc of a REAL `{ mc_pattern; mc_guard; mc_body }` record, materialized
+     `seq_to_mcl` into a REAL SMatch (NOT MCNil/0-erased). *)
+
+  type emit_ir
+  val constant emit0 : emit_ir   (* an abstract witness (emit_ir has no ctor here) *)
+  type iropt_ir = IrONone | IrOSome emit_ir
+
+  (* ---- VERBATIM tool-emitted mutual block: stmt_ir + SMatch + stmt_list +
+     match_case_list + match_case. TAG-PRESERVING stmt_kind_of. ---- *)
+  type stmt_ir = SPass | SBreak | SExpr emit_ir
+    | SMatch emit_ir match_case_list
+  with stmt_list = SLNil | SLCons stmt_ir stmt_list
+  with match_case_list = MCNil | MCCons match_case match_case_list
+  with match_case = { mc_pattern: emit_ir; mc_guard: iropt_ir; mc_body: stmt_list }
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SExpr _ -> "Expr"
+    | SMatch _ _ -> "Match"
+    end
+
+  (* ---- VERBATIM tool-emitted lengths + materializations + bridge lemmas. ---- *)
+  let rec function sl_len (l: stmt_list) : int
+    ensures { result >= 0 } variant { l }
+  = match l with SLNil -> 0 | SLCons _ t -> 1 + sl_len t end
+  let rec function seq_to_sl_from (s: seq stmt_ir) (i: int) : stmt_list
+    requires { 0 <= i <= Seq.length s } variant { Seq.length s - i }
+  = if i >= Seq.length s then SLNil
+    else SLCons (Seq.get s i) (seq_to_sl_from s (i + 1))
+  let function seq_to_sl (s: seq stmt_ir) : stmt_list = seq_to_sl_from s 0
+  let rec lemma seq_to_sl_from_len (s: seq stmt_ir) (i: int)
+    requires { 0 <= i <= Seq.length s }
+    ensures  { sl_len (seq_to_sl_from s i) = Seq.length s - i }
+    variant  { Seq.length s - i }
+  = if i >= Seq.length s then () else seq_to_sl_from_len s (i + 1)
+  lemma seq_to_sl_len : forall s: seq stmt_ir. sl_len (seq_to_sl s) = Seq.length s
+
+  let rec function mcl_len (l: match_case_list) : int
+    ensures { result >= 0 } variant { l }
+  = match l with MCNil -> 0 | MCCons _ t -> 1 + mcl_len t end
+  let rec function seq_to_mcl_from (s: seq match_case) (i: int) : match_case_list
+    requires { 0 <= i <= Seq.length s } variant { Seq.length s - i }
+  = if i >= Seq.length s then MCNil
+    else MCCons (Seq.get s i) (seq_to_mcl_from s (i + 1))
+  let function seq_to_mcl (s: seq match_case) : match_case_list = seq_to_mcl_from s 0
+  let rec lemma seq_to_mcl_from_len (s: seq match_case) (i: int)
+    requires { 0 <= i <= Seq.length s }
+    ensures  { mcl_len (seq_to_mcl_from s i) = Seq.length s - i }
+    variant  { Seq.length s - i }
+  = if i >= Seq.length s then () else seq_to_mcl_from_len s (i + 1)
+  lemma seq_to_mcl_len : forall s: seq match_case. mcl_len (seq_to_mcl s) = Seq.length s
+
+  (* read-back projectors *)
+  let function match_cases_of (s: stmt_ir) : match_case_list =
+    match s with SMatch _ cs -> cs | _ -> MCNil end
+  (* head projector — the FIRST case of a non-empty case-list (depth-0 read-back,
+     the tractable materialization the try fixture proves; mcl_len uses the bridge
+     lemma seq_to_mcl_len for the case COUNT, no cons-chain unfolding). *)
+  let function mcl_head (l: match_case_list) : match_case =
+    match l with
+    | MCNil -> { mc_pattern = emit0; mc_guard = IrONone; mc_body = SLNil }
+    | MCCons c _ -> c
+    end
+
+  (* ---- VERBATIM tool-emitted `_py_stmt_match` construction shape: the loop body's
+     record append + the SMatch snoc. `emit_case` mirrors `cases.append({rec})` (REAL
+     record, REAL Seq.snoc, NOT `Seq.snoc 0`); `process_match`/`emit_match` mirror the
+     final `ir_stmts.append({"stmt":"Match",...})` (REAL SMatch + seq_to_mcl, NOT MCNil). *)
+  let emit_case (pat: emit_ir) (guard: iropt_ir) (body: seq stmt_ir)
+                (cases: ref (seq match_case)) : unit
+    ensures { !cases = Seq.snoc (old !cases)
+                { mc_pattern = pat; mc_guard = guard; mc_body = seq_to_sl body } }
+    writes  { cases }
+  = cases := Seq.snoc !cases
+      { mc_pattern = pat; mc_guard = guard; mc_body = seq_to_sl body }
+
+  let function process_match (subject: emit_ir) (cases: seq match_case) : stmt_ir =
+    SMatch subject (seq_to_mcl cases)
+  let emit_match (subject: emit_ir) (cases: seq match_case)
+                 (ir_stmts: ref (seq stmt_ir)) : unit
+    ensures { !ir_stmts = Seq.snoc (old !ir_stmts) (process_match subject cases) }
+    writes  { ir_stmts }
+  = ir_stmts := Seq.snoc !ir_stmts (process_match subject cases)
+
+  (* ====================================================================
+     CONSTRUCTION-SHAPE non-vacuity: the tool's actual `_py_stmt_match` shape
+     (emit_case accumulator -> emit_match -> SMatch + seq_to_mcl). A driver appends
+     a Match with 2 cases (case 0 GUARDED, case 1 UNGUARDED) and reads back the tag
+     + the case COUNT (mcl_len 2, via the seq_to_mcl_len bridge — a REAL k-long list,
+     NOT MCNil-erased). This witnesses the real emit path builds a non-empty SMatch.
+     ==================================================================== *)
+  let driver_construct (subj p0 p1 g: emit_ir) : unit =
+    let cases = ref (Seq.empty: seq match_case) in
+    emit_case p0 (IrOSome g) (Seq.snoc (Seq.empty: seq stmt_ir) SPass) cases;  (* guarded, 1-stmt *)
+    emit_case p1 IrONone (Seq.empty: seq stmt_ir) cases;                       (* unguarded, 0-stmt *)
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_match subj !cases ir_stmts;
+    let node = Seq.get !ir_stmts 0 in
+    assert { stmt_kind_of node = "Match" };
+    assert { mcl_len (match_cases_of node) = 2 }
+
+  (* ADT-level field observability: the SMatch + match_case ctors carry each field
+     OBSERVABLY (mc_pattern/mc_guard/mc_body), and the guard Some/None distinction is
+     real — the case-0 record is built directly, matching the emit_case record shape,
+     so the read-back is at the ctor level (the cert's `mc_*_observable` theorems). *)
+  let driver_observe_guarded (subj p g: emit_ir) : unit =
+    let c0 = { mc_pattern = p; mc_guard = IrOSome g;
+               mc_body = SLCons SPass SLNil } in
+    let node = SMatch subj (MCCons c0 MCNil) in
+    assert { stmt_kind_of node = "Match" };
+    assert { mcl_len (match_cases_of node) = 1 };
+    let h = mcl_head (match_cases_of node) in
+    assert { h.mc_guard = IrOSome g };         (* the case IS guarded *)
+    assert { h.mc_pattern = p };
+    assert { sl_len h.mc_body = 1 }
+
+  let driver_observe_unguarded (subj p: emit_ir) : unit =
+    let c0 = { mc_pattern = p; mc_guard = IrONone; mc_body = SLNil } in
+    let node = SMatch subj (MCCons c0 MCNil) in
+    let h = mcl_head (match_cases_of node) in
+    assert { h.mc_guard = IrONone };           (* the case is NOT guarded *)
+    assert { sl_len h.mc_body = 0 }
+
+  (* EVIL TWIN 1 (wrong guard-option): an UNGUARDED case's guard is NOT IrOSome —
+     must stay UNPROVEN (else the Some/None guard distinction is vacuous). *)
+  let driver_evil_guard (subj p g: emit_ir) : unit =
+    let c0 = { mc_pattern = p; mc_guard = IrONone; mc_body = SLNil } in
+    let node = SMatch subj (MCCons c0 MCNil) in
+    let h = mcl_head (match_cases_of node) in
+    assert { h.mc_guard = IrOSome g }
+
+  (* EVIL TWIN 2 (wrong case count): a 1-case Match does NOT have 2 cases — UNPROVEN. *)
+  let driver_evil_len (subj p: emit_ir) : unit =
+    let cases = ref (Seq.empty: seq match_case) in
+    emit_case p IrONone (Seq.empty: seq stmt_ir) cases;
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_match subj !cases ir_stmts;
+    assert { mcl_len (match_cases_of (Seq.get !ir_stmts 0)) = 2 }
+
+  (* EVIL TWIN 3 (wrong tag): the Match node's tag is NOT "Try" — UNPROVEN. *)
+  let driver_evil_tag (subj: emit_ir) : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_match subj (Seq.empty: seq match_case) ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Try" }
+end

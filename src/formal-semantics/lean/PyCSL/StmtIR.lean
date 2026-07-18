@@ -79,6 +79,9 @@ inductive StmtIr (ε : Type) where
   -- bespoke monomorphic cons over the `ExceptHandler` record, MUTUALLY recursive
   -- WITH StmtIr/StmtList (the record's `ehBody` is a `StmtList`).
   | STry (b : StmtList ε) (hs : HandlerList ε) (oe : StmtList ε) (fb : StmtList ε)
+  -- SMatch increment: subject + case list. MatchCaseList is a bespoke cons over the
+  -- MatchCase record (its `mcBody` is a StmtList — same mutual cycle).
+  | SMatch (subj : ε) (cs : MatchCaseList ε)
 inductive StmtList (ε : Type) where
   | SLNil
   | SLCons (h : StmtIr ε) (t : StmtList ε)
@@ -87,9 +90,15 @@ inductive HandlerList (ε : Type) where
   | HLCons (h : ExceptHandler ε) (t : HandlerList ε)
 inductive ExceptHandler (ε : Type) where
   | MkEH (ehExcType : IrOptStr) (ehName : IrOptStr) (ehBody : StmtList ε)
+inductive MatchCaseList (ε : Type) where
+  | MCNil
+  | MCCons (c : MatchCase ε) (t : MatchCaseList ε)
+inductive MatchCase (ε : Type) where
+  | MkMC (mcPattern : ε) (mcGuard : IrOpt ε) (mcBody : StmtList ε)
 end
 
-deriving instance DecidableEq for StmtIr, StmtList, HandlerList, ExceptHandler
+deriving instance DecidableEq for StmtIr, StmtList, HandlerList, ExceptHandler,
+  MatchCaseList, MatchCase
 
 variable {ε : Type}
 
@@ -109,6 +118,7 @@ def stmtKindOf : StmtIr ε → String
   | .SIf _ _ _ => "If"
   | .SFor _ _ => "For"
   | .STry _ _ _ _ => "Try"
+  | .SMatch _ _ => "Match"
 
 /- The MUTUAL well-founded size measure — WhyML `size_stmt`/`size_slist`. -/
 mutual
@@ -127,6 +137,7 @@ def sizeStmt : StmtIr ε → Nat
   | .SIf _ b el => 1 + sizeSList b + sizeSList el
   | .SFor _ b => 1 + sizeSList b
   | .STry b hs oe fb => 1 + sizeSList b + sizeHList hs + sizeSList oe + sizeSList fb
+  | .SMatch _ cs => 1 + sizeMCList cs
 def sizeSList : StmtList ε → Nat
   | .SLNil => 0
   | .SLCons h t => sizeStmt h + sizeSList t
@@ -135,6 +146,11 @@ def sizeHList : HandlerList ε → Nat
   | .HLCons h t => sizeHandler h + sizeHList t
 def sizeHandler : ExceptHandler ε → Nat
   | .MkEH _ _ b => 1 + sizeSList b
+def sizeMCList : MatchCaseList ε → Nat
+  | .MCNil => 0
+  | .MCCons c t => sizeMCase c + sizeMCList t
+def sizeMCase : MatchCase ε → Nat
+  | .MkMC _ _ b => 1 + sizeSList b
 end
 
 theorem sizeStmt_pos (s : StmtIr ε) : sizeStmt s ≥ 1 := by
@@ -176,6 +192,7 @@ inductive PyStmt (ε : Type) where
   | PIf (t : ε) (b : StmtList ε) (el : StmtList ε)
   | PFor (t : ε) (b : StmtList ε)
   | PTry (b : StmtList ε) (hs : HandlerList ε) (oe : StmtList ε) (fb : StmtList ε)
+  | PMatch (subj : ε) (cs : MatchCaseList ε)
 
 /-- The dict->ctor map (`{"stmt":"Pass"} ↦ SPass`, ..., `{"stmt":"While"} ↦
     SWhile ...`). -/
@@ -194,6 +211,7 @@ def abs : PyStmt ε → StmtIr ε
   | .PIf t b el => .SIf t b el
   | .PFor t b => .SFor t b
   | .PTry b hs oe fb => .STry b hs oe fb
+  | .PMatch subj cs => .SMatch subj cs
 
 /-- The Python-side tag string of a recognized node. -/
 def pyKindOf : PyStmt ε → String
@@ -211,6 +229,7 @@ def pyKindOf : PyStmt ε → String
   | .PIf _ _ _ => "If"
   | .PFor _ _ => "For"
   | .PTry _ _ _ _ => "Try"
+  | .PMatch _ _ => "Match"
 
 -- ===================================================================== --
 -- 3. (b) `abs` is total + injective + surjective.                        --
@@ -237,6 +256,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | SIf t b el => exact ⟨.PIf t b el, rfl⟩
   | SFor t b => exact ⟨.PFor t b, rfl⟩
   | STry b hs oe fb => exact ⟨.PTry b hs oe fb, rfl⟩
+  | SMatch subj cs => exact ⟨.PMatch subj cs, rfl⟩
 
 -- ===================================================================== --
 -- 4. (c) `stmtKindOf` EXACT per ctor + AGREES through `abs`.             --
@@ -417,6 +437,53 @@ theorem eh_exc_none_neq_some (s : String) (n : IrOptStr) (b : StmtList ε) :
   intro he; cases he
 
 -- ===================================================================== --
+-- SMatch + MatchCase + MatchCaseList observability (non-vacuity).         --
+-- ===================================================================== --
+
+theorem sizeMCase_pos (c : MatchCase ε) : sizeMCase c ≥ 1 := by
+  cases c <;> simp [sizeMCase] <;> omega
+theorem sizeMatch_cases_lt (s : ε) (cs : MatchCaseList ε) :
+    sizeMCList cs < sizeStmt (StmtIr.SMatch s cs) := by
+  simp only [sizeStmt]; omega
+theorem sizeMCBody_lt_mcase (p : ε) (g : IrOpt ε) (b : StmtList ε) :
+    sizeSList b < sizeMCase (MatchCase.MkMC p g b) := by
+  simp only [sizeMCase]; omega
+
+theorem stmtKindOf_match (s : ε) (cs : MatchCaseList ε) :
+    stmtKindOf (StmtIr.SMatch s cs) = "Match" := rfl
+theorem tag_match_neq_try (s : ε) (cs : MatchCaseList ε)
+    (b : StmtList ε) (hs : HandlerList ε) (oe fb : StmtList ε) :
+    stmtKindOf (StmtIr.SMatch s cs) ≠ stmtKindOf (StmtIr.STry b hs oe fb) := by
+  simp only [stmtKindOf]; decide
+
+theorem smatch_subject_observable (s u : ε) (cs : MatchCaseList ε) (h : s ≠ u) :
+    (StmtIr.SMatch s cs) ≠ StmtIr.SMatch u cs := by
+  intro he; cases he; exact h rfl
+theorem smatch_cases_observable (s : ε) (cs ds : MatchCaseList ε) (h : cs ≠ ds) :
+    (StmtIr.SMatch s cs) ≠ StmtIr.SMatch s ds := by
+  intro he; cases he; exact h rfl
+theorem smatch_cases_empty_neq_nonempty (s : ε) (c : MatchCase ε) (r : MatchCaseList ε) :
+    (StmtIr.SMatch s .MCNil) ≠ StmtIr.SMatch s (.MCCons c r) := by
+  intro he; cases he
+theorem smatch_size_grows_with_cases (s : ε) (c : MatchCase ε) (r : MatchCaseList ε) :
+    sizeStmt (StmtIr.SMatch s .MCNil) < sizeStmt (StmtIr.SMatch s (.MCCons c r)) := by
+  have := sizeMCase_pos c
+  simp [sizeStmt, sizeMCList]; omega
+
+theorem mc_pattern_observable (p q : ε) (g : IrOpt ε) (b : StmtList ε) (h : p ≠ q) :
+    (MatchCase.MkMC p g b) ≠ MatchCase.MkMC q g b := by
+  intro he; cases he; exact h rfl
+theorem mc_guard_observable (p : ε) (g k : IrOpt ε) (b : StmtList ε) (h : g ≠ k) :
+    (MatchCase.MkMC p g b) ≠ MatchCase.MkMC p k b := by
+  intro he; cases he; exact h rfl
+theorem mc_body_observable (p : ε) (g : IrOpt ε) (b c : StmtList ε) (h : b ≠ c) :
+    (MatchCase.MkMC p g b) ≠ MatchCase.MkMC p g c := by
+  intro he; cases he; exact h rfl
+theorem mc_guard_none_neq_some (p : ε) (e : ε) (b : StmtList ε) :
+    (MatchCase.MkMC p .IrONone b) ≠ MatchCase.MkMC p (.IrOSome e) b := by
+  intro he; cases he
+
+-- ===================================================================== --
 -- 5b. The CONCRETE Tuple-exc_type compaction — WhyML var_names_of /       --
 --     join_pipe / tuple_exc_type. Modelled concretely so observability    --
 --     is provable NON-vacuously (a length-only law would be vacuous).     --
@@ -517,3 +584,16 @@ end StmtIRCert
 #print axioms StmtIRCert.compaction_single
 #print axioms StmtIRCert.compaction_evil_twin
 #print axioms StmtIRCert.compaction_drops_nonvar
+#print axioms StmtIRCert.sizeMCase_pos
+#print axioms StmtIRCert.sizeMatch_cases_lt
+#print axioms StmtIRCert.sizeMCBody_lt_mcase
+#print axioms StmtIRCert.stmtKindOf_match
+#print axioms StmtIRCert.tag_match_neq_try
+#print axioms StmtIRCert.smatch_subject_observable
+#print axioms StmtIRCert.smatch_cases_observable
+#print axioms StmtIRCert.smatch_cases_empty_neq_nonempty
+#print axioms StmtIRCert.smatch_size_grows_with_cases
+#print axioms StmtIRCert.mc_pattern_observable
+#print axioms StmtIRCert.mc_guard_observable
+#print axioms StmtIRCert.mc_body_observable
+#print axioms StmtIRCert.mc_guard_none_neq_some

@@ -113,6 +113,10 @@ Inductive stmt_ir : Type :=
      record's `eh_body` is a `stmt_list`, so the whole cycle is one mutual block —
      a `seq except_handler` field would break strict positivity). *)
   | STry (b : stmt_list) (hs : handler_list) (oe : stmt_list) (fb : stmt_list)
+  (* SMatch increment: SUBJECT (foreign emit) + the CASE list.  match_case_list is a
+     bespoke monomorphic cons over the `match_case` record, MUTUALLY recursive WITH
+     stmt_ir/stmt_list (the record's `mc_body` is a `stmt_list`). *)
+  | SMatch (subj : emit) (cs : match_case_list)
 with stmt_list : Type :=
   | SLNil
   | SLCons (h : stmt_ir) (t : stmt_list)
@@ -120,7 +124,12 @@ with handler_list : Type :=
   | HLNil
   | HLCons (h : except_handler) (t : handler_list)
 with except_handler : Type :=
-  | MkEH (eh_exc_type : ioptstr) (eh_name : ioptstr) (eh_body : stmt_list).
+  | MkEH (eh_exc_type : ioptstr) (eh_name : ioptstr) (eh_body : stmt_list)
+with match_case_list : Type :=
+  | MCNil
+  | MCCons (c : match_case) (t : match_case_list)
+with match_case : Type :=
+  | MkMC (mc_pattern : emit) (mc_guard : iropt) (mc_body : stmt_list).
 
 (* The mutual induction principle — the well-foundedness witness the measure
    below is proven over.  4-way: stmt_ir / stmt_list / handler_list /
@@ -128,9 +137,11 @@ with except_handler : Type :=
 Scheme stmt_ir_mut := Induction for stmt_ir Sort Prop
 with stmt_list_mut := Induction for stmt_list Sort Prop
 with handler_list_mut := Induction for handler_list Sort Prop
-with except_handler_mut := Induction for except_handler Sort Prop.
+with except_handler_mut := Induction for except_handler Sort Prop
+with match_case_list_mut := Induction for match_case_list Sort Prop
+with match_case_mut := Induction for match_case Sort Prop.
 Combined Scheme stmt_ir_stmt_list_mutind from stmt_ir_mut, stmt_list_mut,
-  handler_list_mut, except_handler_mut.
+  handler_list_mut, except_handler_mut, match_case_list_mut, match_case_mut.
 
 (* The tag discriminant — verbatim image of the WhyML `stmt_kind_of`. *)
 Definition stmt_kind_of (s : stmt_ir) : string :=
@@ -149,6 +160,7 @@ Definition stmt_kind_of (s : stmt_ir) : string :=
   | SIf _ _ _   => "If"
   | SFor _ _    => "For"
   | STry _ _ _ _ => "Try"
+  | SMatch _ _  => "Match"
   end.
 
 (* ===================================================================== *)
@@ -162,6 +174,7 @@ Fixpoint size_stmt (s : stmt_ir) : nat :=
   | SFor _ b    => 1 + size_slist b
   | STry b hs oe fb => 1 + size_slist b + size_hlist hs
                         + size_slist oe + size_slist fb
+  | SMatch _ cs => 1 + size_mclist cs
   | _           => 1
   end
 with size_slist (l : stmt_list) : nat :=
@@ -177,6 +190,15 @@ with size_hlist (l : handler_list) : nat :=
 with size_handler (h : except_handler) : nat :=
   match h with
   | MkEH _ _ b  => 1 + size_slist b
+  end
+with size_mclist (l : match_case_list) : nat :=
+  match l with
+  | MCNil       => 0
+  | MCCons c t  => size_mcase c + size_mclist t
+  end
+with size_mcase (c : match_case) : nat :=
+  match c with
+  | MkMC _ _ b  => 1 + size_slist b
   end.
 
 (* Every node has size >= 1; a list has size >= 0 (trivial for nat). *)
@@ -208,6 +230,22 @@ Proof. intros; simpl; lia. Qed.
 Theorem size_ehbody_lt_handler : forall x n b,
   size_slist b < size_handler (MkEH x n b).
 Proof. intros; simpl; lia. Qed.
+(* SMatch: the case-list is strictly smaller than the SMatch node; a case / its
+   tail is no larger than the case-list; a case's body is smaller than the case. *)
+Theorem size_match_cases_lt : forall s cs,
+  size_mclist cs < size_stmt (SMatch s cs).
+Proof. intros; simpl; lia. Qed.
+Theorem size_mcase_le_mccons : forall c t,
+  size_mcase c <= size_mclist (MCCons c t).
+Proof. intros; simpl; lia. Qed.
+Theorem size_mctail_le_mccons : forall c t,
+  size_mclist t <= size_mclist (MCCons c t).
+Proof. intros; simpl; lia. Qed.
+Theorem size_mcbody_lt_mcase : forall p g b,
+  size_slist b < size_mcase (MkMC p g b).
+Proof. intros; simpl; lia. Qed.
+Theorem size_mcase_pos : forall c, size_mcase c >= 1.
+Proof. intros c; destruct c; simpl; lia. Qed.
 
 (* Well-foundedness witnesses: a sub-body is STRICTLY smaller than the compound
    node that carries it — so a recursive walker over stmt_ir terminates. *)
@@ -236,14 +274,19 @@ Proof. decide equality; apply string_dec. Defined.
 Fixpoint stmt_ir_eq_dec (x y : stmt_ir) : {x = y} + {x <> y}
 with stmt_list_eq_dec (x y : stmt_list) : {x = y} + {x <> y}
 with handler_list_eq_dec (x y : handler_list) : {x = y} + {x <> y}
-with except_handler_eq_dec (x y : except_handler) : {x = y} + {x <> y}.
+with except_handler_eq_dec (x y : except_handler) : {x = y} + {x <> y}
+with match_case_list_eq_dec (x y : match_case_list) : {x = y} + {x <> y}
+with match_case_eq_dec (x y : match_case) : {x = y} + {x <> y}.
 Proof.
   - decide equality;
       (apply emit_eq_dec || apply iropt_eq_dec || apply ioptstr_eq_dec
-       || apply stmt_list_eq_dec || apply handler_list_eq_dec || apply string_dec).
+       || apply stmt_list_eq_dec || apply handler_list_eq_dec
+       || apply match_case_list_eq_dec || apply string_dec).
   - decide equality; apply stmt_ir_eq_dec.
   - decide equality; apply except_handler_eq_dec.
   - decide equality; (apply ioptstr_eq_dec || apply stmt_list_eq_dec).
+  - decide equality; apply match_case_eq_dec.
+  - decide equality; (apply emit_eq_dec || apply iropt_eq_dec || apply stmt_list_eq_dec).
 Defined.
 
 (* ===================================================================== *)
@@ -267,7 +310,8 @@ Inductive pystmt : Type :=
   | PWhile (t : emit) (b : stmt_list)
   | PIf (t : emit) (b : stmt_list) (el : stmt_list)
   | PFor (t : emit) (b : stmt_list)
-  | PTry (b : stmt_list) (hs : handler_list) (oe : stmt_list) (fb : stmt_list).
+  | PTry (b : stmt_list) (hs : handler_list) (oe : stmt_list) (fb : stmt_list)
+  | PMatch (subj : emit) (cs : match_case_list).
 
 (* The dict->ctor map (`{"stmt":"Pass"} |-> SPass`, ..., `{"stmt":"While",...}
    |-> SWhile ...`). *)
@@ -287,6 +331,7 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PIf t b el  => SIf t b el
   | PFor t b    => SFor t b
   | PTry b hs oe fb => STry b hs oe fb
+  | PMatch subj cs => SMatch subj cs
   end.
 
 (* The Python-side tag string of a recognized node (the `"stmt"` value). *)
@@ -306,6 +351,7 @@ Definition py_kind_of (s : pystmt) : string :=
   | PIf _ _ _   => "If"
   | PFor _ _    => "For"
   | PTry _ _ _ _ => "Try"
+  | PMatch _ _  => "Match"
   end.
 
 (* ===================================================================== *)
@@ -332,6 +378,7 @@ Proof.
   - exists (PIf t b el); reflexivity.
   - exists (PFor t b); reflexivity.
   - exists (PTry b hs oe fb); reflexivity.
+  - exists (PMatch subj cs); reflexivity.
 Qed.
 
 (* ===================================================================== *)
@@ -521,6 +568,51 @@ Theorem eh_exc_none_neq_some : forall s n b,
   MkEH ISNone n b <> MkEH (ISSome s) n b.
 Proof. intros; discriminate. Qed.
 
+(* ===================================================================== *)
+(* SMatch + match_case + match_case_list observability (non-vacuity).       *)
+(* ===================================================================== *)
+
+Theorem stmt_kind_of_match : forall s cs, stmt_kind_of (SMatch s cs) = "Match".
+Proof. reflexivity. Qed.
+Theorem tag_match_neq_try : forall s cs b hs oe fb,
+  stmt_kind_of (SMatch s cs) <> stmt_kind_of (STry b hs oe fb).
+Proof. intros; simpl; discriminate. Qed.
+Theorem tag_match_neq_if : forall s cs t b el,
+  stmt_kind_of (SMatch s cs) <> stmt_kind_of (SIf t b el).
+Proof. intros; simpl; discriminate. Qed.
+
+(* The SMatch subject + case-list are INDEPENDENTLY observable. *)
+Theorem smatch_subject_observable : forall s u cs,
+  s <> u -> SMatch s cs <> SMatch u cs.
+Proof. intros s u cs H C; inversion C; contradiction. Qed.
+Theorem smatch_cases_observable : forall s cs ds,
+  cs <> ds -> SMatch s cs <> SMatch s ds.
+Proof. intros s cs ds H C; inversion C; contradiction. Qed.
+
+(* An EMPTY case-list (MCNil) and a NON-empty one yield DISTINCT SMatch nodes —
+   the case list is observable, not MCNil-erased.  Sizes differ too. *)
+Theorem smatch_cases_empty_neq_nonempty : forall s c r,
+  SMatch s MCNil <> SMatch s (MCCons c r).
+Proof. intros; discriminate. Qed.
+Theorem smatch_size_grows_with_cases : forall s c r,
+  size_stmt (SMatch s MCNil) < size_stmt (SMatch s (MCCons c r)).
+Proof. intros; simpl; pose proof (size_mcase_pos c); lia. Qed.
+
+(* The match_case record's three slots are observable — the guard's None/Some is
+   distinguished (the fixture's guarded-vs-unguarded case). *)
+Theorem mc_pattern_observable : forall p q g b,
+  p <> q -> MkMC p g b <> MkMC q g b.
+Proof. intros p q g b H C; inversion C; contradiction. Qed.
+Theorem mc_guard_observable : forall p g h b,
+  g <> h -> MkMC p g b <> MkMC p h b.
+Proof. intros p g h b H C; inversion C; contradiction. Qed.
+Theorem mc_body_observable : forall p g b c,
+  b <> c -> MkMC p g b <> MkMC p g c.
+Proof. intros p g b c H C; inversion C; contradiction. Qed.
+Theorem mc_guard_none_neq_some : forall p e b,
+  MkMC p IrONone b <> MkMC p (IrOSome e) b.
+Proof. intros; discriminate. Qed.
+
 End StmtIR.
 
 (* ===================================================================== *)
@@ -624,6 +716,23 @@ Print Assumptions compaction_observe.
 Print Assumptions compaction_single.
 Print Assumptions compaction_evil_twin.
 Print Assumptions compaction_drops_nonvar.
+Print Assumptions size_match_cases_lt.
+Print Assumptions size_mcase_le_mccons.
+Print Assumptions size_mctail_le_mccons.
+Print Assumptions size_mcbody_lt_mcase.
+Print Assumptions match_case_list_eq_dec.
+Print Assumptions match_case_eq_dec.
+Print Assumptions stmt_kind_of_match.
+Print Assumptions tag_match_neq_try.
+Print Assumptions tag_match_neq_if.
+Print Assumptions smatch_subject_observable.
+Print Assumptions smatch_cases_observable.
+Print Assumptions smatch_cases_empty_neq_nonempty.
+Print Assumptions smatch_size_grows_with_cases.
+Print Assumptions mc_pattern_observable.
+Print Assumptions mc_guard_observable.
+Print Assumptions mc_body_observable.
+Print Assumptions mc_guard_none_neq_some.
 Print Assumptions size_slist_lt_swhile.
 Print Assumptions size_body_lt_sif.
 Print Assumptions size_orelse_lt_sif.

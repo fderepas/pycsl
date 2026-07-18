@@ -4004,10 +4004,14 @@ class PreambleEmissionMixin:
                 " | SIf emit_ir stmt_list stmt_list"
                 " | SFor emit_ir stmt_list"
                 " | STry stmt_list handler_list stmt_list stmt_list"
+                " | SMatch emit_ir match_case_list"
                 "  with stmt_list = SLNil | SLCons stmt_ir stmt_list"
                 "  with handler_list = HLNil | HLCons except_handler handler_list"
                 "  with except_handler ="
-                " { eh_exc_type: iropt_str; eh_name: iropt_str; eh_body: stmt_list }",
+                " { eh_exc_type: iropt_str; eh_name: iropt_str; eh_body: stmt_list }"
+                "  with match_case_list = MCNil | MCCons match_case match_case_list"
+                "  with match_case ="
+                " { mc_pattern: emit_ir; mc_guard: iropt_ir; mc_body: stmt_list }",
                 "  let function stmt_kind_of (s: stmt_ir) : string =",
                 "    match s with",
                 "    | SPass -> \"Pass\" | SBreak -> \"Break\""
@@ -4020,7 +4024,8 @@ class PreambleEmissionMixin:
                 " | SArraySet _ _ _ -> \"ArraySet\"",
                 "    | SWhile _ _ -> \"While\" | SIf _ _ _ -> \"If\""
                 " | SFor _ _ -> \"For\""
-                " | STry _ _ _ _ -> \"Try\"",
+                " | STry _ _ _ _ -> \"Try\""
+                " | SMatch _ _ -> \"Match\"",
                 "    end",
                 "",
                 "  (* The MUTUAL well-founded size measure over stmt_ir/stmt_list — the"
@@ -4038,6 +4043,7 @@ class PreambleEmissionMixin:
                 "    | SFor _ b -> 1 + size_slist b",
                 "    | STry b hs oe fb -> 1 + size_slist b + size_hlist hs"
                 " + size_slist oe + size_slist fb",
+                "    | SMatch _ cs -> 1 + size_mclist cs",
                 "    | _ -> 1",
                 "    end",
                 "  with function size_slist (l: stmt_list) : int",
@@ -4054,6 +4060,15 @@ class PreambleEmissionMixin:
                 "    ensures { result >= 0 }",
                 "    variant { h }",
                 "  = 1 + size_slist h.eh_body",
+                "  with function size_mclist (l: match_case_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with MCNil -> 0"
+                " | MCCons c t -> size_mcase c + size_mclist t end",
+                "  with function size_mcase (c: match_case) : int",
+                "    ensures { result >= 0 }",
+                "    variant { c }",
+                "  = 1 + size_slist c.mc_body",
                 "",
                 "  (* sl_len : the LENGTH of a stmt_list — the observable the non-vacuity"
                 " fixture proves (`sl_len body = <right count>`). *)",
@@ -4135,6 +4150,56 @@ class PreambleEmissionMixin:
                 "  = if i >= Seq.length s then () else seq_to_hl_from_len s (i + 1)",
                 "  lemma seq_to_hl_len : forall s: seq except_handler."
                 " hl_len (seq_to_hl s) = Seq.length s",
+                "",
+                "  (* SMatch + match_case + match_case_list increment (self-tcb-reduction"
+                " M5, C-bucket): the MATCH statement `match <subject>: case <p> [if <g>]:"
+                " <body> ...`. SMatch carries the SUBJECT (emit_ir) + the CASE list — a"
+                " `match_case_list = MCNil | MCCons match_case match_case_list`, MUTUALLY"
+                " recursive WITH stmt_ir/stmt_list (the `match_case` record's `mc_body` is a"
+                " `stmt_list`, the same SMatch->match_case_list->match_case->stmt_list->"
+                " stmt_ir cycle as STry/handler_list). match_case = { mc_pattern: emit_ir"
+                " (`_match_pattern_to_ir(case.pattern)`, the trusted pattern dispatcher's"
+                " emit_ir); mc_guard: iropt_ir (the `disp(case.guard) if case.guard else"
+                " None` optional guard); mc_body: stmt_list (the case body sub-list) }."
+                " The `size_mclist`/`size_mcase` measures are in the mutual block above. *)",
+                "  let rec function mcl_len (l: match_case_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with MCNil -> 0 | MCCons _ t -> 1 + mcl_len t end",
+                "",
+                "  let rec function seq_to_mcl_from (s: seq match_case) (i: int)"
+                " : match_case_list",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then MCNil",
+                "    else MCCons (Seq.get s i) (seq_to_mcl_from s (i + 1))",
+                "  let function seq_to_mcl (s: seq match_case) : match_case_list ="
+                " seq_to_mcl_from s 0",
+                "  let rec lemma seq_to_mcl_from_len (s: seq match_case) (i: int)",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    ensures  { mcl_len (seq_to_mcl_from s i) = Seq.length s - i }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then () else seq_to_mcl_from_len s (i + 1)",
+                "  lemma seq_to_mcl_len : forall s: seq match_case."
+                " mcl_len (seq_to_mcl s) = Seq.length s",
+                "",
+                "  (* The TYPED AST-input readers for `_py_stmt_match`: `py_match_node` models"
+                " `ast.Match` (its `stmt` param), `ast_match_case` an `ast.match_case`"
+                " element of `stmt.cases`. Opaque deterministic AST projectors (the typed"
+                " analogue of iter_get/get_body + the `_match_pattern_to_ir`/`_py_stmts_to_ir`"
+                " trusted dispatchers). `mc_pattern_ir` is the pattern lowered to emit_ir"
+                " (`_match_pattern_to_ir(case.pattern)`, folded — the trusted pattern"
+                " dispatcher yields a real emit_ir, NOT int-erased); `mc_guard_ast` the raw"
+                " OPTIONAL guard as `iropt_ir` (`IrONone` = no guard, `IrOSome g` = `if g`);"
+                " `mc_body_ast` the case body as `array int` (the `_py_stmts_to_ir`"
+                " dispatcher's param type). Gated on `_uses_stmt_ir`. *)",
+                "  type py_match_node",
+                "  type ast_match_case",
+                "  val function match_subject_ast (s: py_match_node) : emit_ir",
+                "  val function match_cases_ast (s: py_match_node) : seq ast_match_case",
+                "  val function mc_pattern_ir (c: ast_match_case) : emit_ir",
+                "  val function mc_guard_ast (c: ast_match_case) : iropt_ir",
+                "  val function mc_body_ast (c: ast_match_case) : array int",
                 "",
                 "  (* The CONCRETE compaction of a Tuple exc_type `\"|\".join(n.id for n in"
                 " h.type.elts if isinstance(n, ast.Name))`: `var_names_of` filters `is_var`"

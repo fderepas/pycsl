@@ -1337,12 +1337,40 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_delete(self, stmt: ast.Delete, ir_stmts: List[int]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SMatch + match_case + match_case_list increment (self-tcb-reduction M5, C-bucket):
+    # `ir_stmts` is a caller-visible mutable `ref (seq stmt_ir)` param. Sibling of
+    # `_py_stmt_try` — the record-list-building-loop handler `cases = []; for case in
+    # stmt.cases: cases.append({rec}); ir_stmts.append({"stmt":"Match",...})`. A bespoke
+    # Module6 lowering (functions.py `_emit_py_stmt_match_bespoke`, keyed on the method
+    # name under `_uses_stmt_ir`) emits it FAITHFULLY (the generic statement lowering
+    # int-erases the accumulator loop):
+    #   - `stmt` param -> the typed `py_match_node`; `stmt.cases` -> `seq ast_match_case`
+    #     (the `match_cases_ast` AST reader). The accumulator `cases` -> a REAL `ref (seq
+    #     match_case)` grown by `Seq.snoc` of a REAL `{ mc_pattern; mc_guard; mc_body }`
+    #     record (NOT `Seq.snoc 0`).
+    #   - `pattern_ir = self._match_pattern_to_ir(case.pattern)` -> `mc_pattern_ir _c` : a
+    #     REAL emit_ir (the trusted pattern dispatcher, folded — NOT int-erased).
+    #   - `guard_ir = self._py_expr_to_ir(case.guard) if case.guard else None` -> `match
+    #     mc_guard_ast _c with IrONone -> IrONone | IrOSome g -> IrOSome (py_expr_to_ir g)`
+    #     — the faithful optional guard (`iropt_ir`).
+    #   - `body_ir = self._py_stmts_to_ir(case.body)` -> `seq_to_sl (py_stmts_to_ir
+    #     (mc_body_ast _c))` (stmt_list).
+    #   - the Match node -> the REAL `SMatch (py_expr_to_ir stmt.subject) (seq_to_mcl
+    #     cases)` ctor with a REAL `match_case_list` (NOT MCNil-erased). isinstance_op = 0.
+    # `_match_pattern_to_ir` stays \trusted (an opaque pattern dispatcher). Verbatim body
+    # port of the LIVE `_py_stmt_match`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_match(self, stmt: Any, ir_stmts: List[int]) -> None:
-        pass
+        subject_ir = self._py_expr_to_ir(stmt.subject)
+        cases = []
+        for case in stmt.cases:
+            pattern_ir = self._match_pattern_to_ir(case.pattern)
+            guard_ir = self._py_expr_to_ir(case.guard) if case.guard else None
+            body_ir = self._py_stmts_to_ir(case.body)
+            cases.append({"pattern": pattern_ir, "guard": guard_ir, "body": body_ir})
+        ir_stmts.append({"stmt": "Match", "subject": subject_ir, "cases": cases})
 
     # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): RETURNS a constructed
     # compound `{"stmt": "While", ...}` node, recognized (module6_whyml/functions.py

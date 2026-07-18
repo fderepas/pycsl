@@ -1785,6 +1785,70 @@ class FunctionEmissionMixin:
         ]
         return L
 
+    def _is_py_stmt_match(self, func: Dict[str, Any]) -> bool:
+        """SMatch + match_case + match_case_list increment (self-tcb-reduction M5,
+        C-bucket): True iff `func` is the mirror's `_py_stmt_match` handler and the
+        stmt_ir theory is emitted. Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method"
+                and nm.endswith("_py_stmt_match")
+                and self._uses_stmt_ir())
+
+    def _emit_py_stmt_match_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """SMatch + match_case + match_case_list increment (self-tcb-reduction M5,
+        C-bucket): the FAITHFUL whole-body lowering of `_py_stmt_match`:
+
+            subject_ir = self._py_expr_to_ir(stmt.subject)
+            cases = []
+            for case in stmt.cases:
+                pattern_ir = self._match_pattern_to_ir(case.pattern)
+                guard_ir = self._py_expr_to_ir(case.guard) if case.guard else None
+                body_ir = self._py_stmts_to_ir(case.body)
+                cases.append({"pattern": pattern_ir, "guard": guard_ir, "body": body_ir})
+            ir_stmts.append({"stmt":"Match","subject":subject_ir,"cases":cases})
+
+        Sibling of `_emit_py_stmt_try_bespoke`: `stmt` : the typed `py_match_node`;
+        `stmt.cases` : `seq ast_match_case`; the accumulator `cases` : a REAL `ref
+        (seq match_case)` grown by `Seq.snoc` of a REAL `{ mc_pattern; mc_guard;
+        mc_body }` record (NOT `Seq.snoc 0`). `mc_pattern` is a REAL emit_ir (the
+        `_match_pattern_to_ir` pattern dispatcher, folded into `mc_pattern_ir`, NOT
+        int-erased); `mc_guard` the `disp(case.guard) if case.guard else None` optional
+        (`match mc_guard_ast case with IrONone -> IrONone | IrOSome g -> IrOSome
+        (disp g)`); `mc_body` the case body sub-list (`seq_to_sl`). The Match node ->
+        a REAL `SMatch (disp stmt.subject) (seq_to_mcl cases)` (NOT MCNil-erased).
+        Corpus-inert (fires only for this named mirror method under `_uses_stmt_ir`)."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        disp_e = "self__py_expr_to_ir_1"
+        disp_s = "self__py_stmts_to_ir_1"
+        L = [
+            f"  let {name} (self: {cls}) (stmt: py_match_node)"
+            f" (ir_stmts: ref (seq stmt_ir)) : unit",
+            "    requires { true }",
+            "    ensures  { true }",
+            "    writes { ir_stmts }",
+            "  =",
+            "    let cs = match_cases_ast stmt in",
+            "    let cases = ref (Seq.empty: seq match_case) in",
+            "    let _i = ref 0 in",
+            "    while !_i < Seq.length cs do",
+            "      invariant { 0 <= !_i <= Seq.length cs }",
+            "      variant { Seq.length cs - !_i }",
+            "      let _c = Seq.get cs !_i in",
+            "      cases := Seq.snoc !cases",
+            "        { mc_pattern = mc_pattern_ir _c;",
+            "          mc_guard = (match mc_guard_ast _c with",
+            "                      | IrONone -> IrONone",
+            f"                      | IrOSome g -> IrOSome ({disp_e} g)",
+            "                      end);",
+            f"          mc_body = seq_to_sl ({disp_s} (mc_body_ast _c)) }};",
+            "      _i := !_i + 1",
+            "    done;",
+            "    ir_stmts := Seq.snoc !ir_stmts",
+            f"      (SMatch ({disp_e} (match_subject_ast stmt)) (seq_to_mcl !cases))",
+        ]
+        return L
+
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
@@ -1795,6 +1859,11 @@ class FunctionEmissionMixin:
         # Corpus-inert (fires only for the named mirror method under `_uses_stmt_ir`).
         if self._is_py_stmt_try(func):
             return self._emit_py_stmt_try_bespoke(func)
+        # SMatch + match_case + match_case_list increment (self-tcb-reduction M5,
+        # C-bucket): the `_py_stmt_match` accumulator-loop handler — sibling of the try
+        # bespoke, same record-list-emission capability. Corpus-inert.
+        if self._is_py_stmt_match(func):
+            return self._emit_py_stmt_match_bespoke(func)
         # bigger-build.md Phase 1: if the body is the A-unit generic-fold
         # catamorphism (recognizer, fail-closed), emit the type-derived
         # walk/walk_dict/walk_list group over the L1 `pyval`/`pydict` datatype
