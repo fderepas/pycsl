@@ -1,0 +1,75 @@
+module WallStmtIrBreakContinueObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+
+  (* STEP-2a non-vacuity fixture (nullary sibling of 0893, for the _py_stmt_break /
+     _py_stmt_continue conversions).  emit_ir is OPAQUE here: the drivers append/read only
+     the NULLARY statement nodes SBreak / SContinue, which carry no emit_ir child, so the
+     full emit_ir ADT theory is unnecessary for these VCs.  The stmt_ir block + the
+     emit_break / emit_continue bodies below are VERBATIM the PyCSL tool's emitted output
+     (module6_whyml/preamble.py::_emit_exprir_theory gated on _uses_stmt_ir, and the append
+     lowering in statements.py — grep-confirmed from the emitted Module5_IREmitter.mlw). *)
+  type emit_ir
+
+  (* ---- VERBATIM tool-emitted stmt_ir block (preamble.py _uses_stmt_ir gate) ---- *)
+  type stmt_ir = SPass | SBreak | SContinue | SReturn emit_ir | SExpr emit_ir
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"
+    | SReturn _ -> "Return" | SExpr _ -> "Expr"
+    end
+
+  (* ---- emit_break / emit_continue: signature + body VERBATIM from the tool (real
+     writes { ir_stmts }, Seq.snoc on the ref itself).  The `ensures` is ADDED and is a VC
+     CHECKED against the tool's verbatim body: had the tool emitted the WALL (a `snapshot`
+     local copy or an integer-0 erasure) these ensures would be UNPROVABLE.  Distinct
+     constructors (SBreak <> SContinue <> SPass) refute the wall-model that made distinct
+     handlers identical. ---- *)
+  let emit_break (ir_stmts: ref (seq stmt_ir)) : unit
+    requires { true }
+    ensures  { !ir_stmts = Seq.snoc (old !ir_stmts) SBreak }
+    writes { ir_stmts }
+  =
+    ir_stmts := Seq.snoc !ir_stmts SBreak
+
+  let emit_continue (ir_stmts: ref (seq stmt_ir)) : unit
+    requires { true }
+    ensures  { !ir_stmts = Seq.snoc (old !ir_stmts) SContinue }
+    writes { ir_stmts }
+  =
+    ir_stmts := Seq.snoc !ir_stmts SContinue
+
+  (* OBSERVATIONAL non-vacuity: a CALLER starts from a fresh ir_stmts, appends BOTH nodes
+     via the handlers, and READS BACK each — proving each slot holds the RIGHT ctor.  The
+     caller-visible writes frame is what makes this provable (the pre-feature snapshot-local
+     model left it Unknown), AND that the two handlers emit DISTINCT tags (not collapsed). *)
+  let driver () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_break ir_stmts;
+    emit_continue ir_stmts;
+    assert { Seq.length !ir_stmts = 2 };
+    assert { Seq.get !ir_stmts 0 = SBreak };
+    assert { Seq.get !ir_stmts 1 = SContinue };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Break" };
+    assert { stmt_kind_of (Seq.get !ir_stmts 1) = "Continue" };
+    (* the two handlers are NOT the same node (refutes the wall's identical-handler collapse) *)
+    assert { Seq.get !ir_stmts 0 <> Seq.get !ir_stmts 1 }
+
+  (* EVIL TWIN: the WRONG-tag assertions.  Must stay UNPROVEN (else the model is vacuous). *)
+  let driver_evil () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_break ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SContinue }
+
+  (* Positive non-vacuity: the WRONG tags are PROVABLY FALSE (SBreak <> SContinue,
+     SContinue <> SPass — distinct constructors, no erasure).  If these are Valid, the
+     driver_evil assertion above is genuinely unprovable, not merely slow. *)
+  let driver_refute () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_break ir_stmts;
+    emit_continue ir_stmts;
+    assert { Seq.get !ir_stmts 0 <> SContinue };
+    assert { Seq.get !ir_stmts 1 <> SPass };
+    assert { Seq.get !ir_stmts 1 <> SBreak }
+end

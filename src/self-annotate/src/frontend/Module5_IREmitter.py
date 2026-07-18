@@ -1051,12 +1051,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_if(self, stmt: ast.If, ir_stmts: List[int]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): a NULLARY sibling
+    # of `_py_stmt_pass` — `ir_stmts` is a caller-visible mutable `ref (seq stmt_ir)` param;
+    # `.append({"stmt":"Continue"})` lowers to `ir_stmts := Seq.snoc !ir_stmts SContinue` on
+    # the ref ITSELF, tag-preserving (SContinue, never erased to 0). SContinue is ALREADY in
+    # the certified stmt_ir ADT (Phase2d_StmtIR.v / StmtIR.lean) and `_STMT_IR_CTORS` — no
+    # new ctor, no field-table entry (Continue has no fields). Verbatim body port of the
+    # LIVE `_py_stmt_continue`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_continue(self, stmt: ast.Continue, ir_stmts: List[int]) -> None:
-        pass
+        ir_stmts.append({"stmt": "Continue"})
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1113,12 +1119,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_pass(self, stmt: ast.Pass, ir_stmts: List[int]) -> None:
         ir_stmts.append({"stmt": "Pass"})
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): a NULLARY sibling
+    # of `_py_stmt_pass` — `ir_stmts` is a caller-visible mutable `ref (seq stmt_ir)` param
+    # (the None-returning + `#@ assigns ir_stmts` convention); `.append({"stmt":"Break"})`
+    # lowers to `ir_stmts := Seq.snoc !ir_stmts SBreak` on the ref ITSELF, tag-preserving
+    # (SBreak, never erased to 0). SBreak is ALREADY in the certified stmt_ir ADT
+    # (Phase2d_StmtIR.v / StmtIR.lean) and `_STMT_IR_CTORS` — no new ctor, no field-table
+    # entry (Break has no fields). Verbatim body port of the LIVE `_py_stmt_break`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_break(self, stmt: ast.Break, ir_stmts: List[int]) -> None:
-        pass
+        ir_stmts.append({"stmt": "Break"})
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
