@@ -641,6 +641,30 @@ theorem compaction_evil_twin :
     tupleExcType [.CVar "A", .COther, .CVar "B"] ≠ "A|C" := by decide
 theorem compaction_drops_nonvar : tupleExcType [.COther, .COther] = "" := rfl
 
+-- ===================================================================== --
+-- 5c. The CONCRETE boolop LEFT-FOLD — the WhyML `boolop_fold` twin.       --
+--     A left-nested BBinOp tree, provable NON-vacuously.                  --
+-- ===================================================================== --
+
+inductive BExpr where
+  | BVar (id : String)
+  | BBinOp (op : String) (l : BExpr) (r : BExpr)
+deriving DecidableEq
+
+def bfold (op : String) (acc : BExpr) : List BExpr → BExpr
+  | [] => acc
+  | v :: tl => bfold op (.BBinOp op acc v) tl
+
+theorem bfold_observe :
+    bfold "and" (.BVar "a") [.BVar "b", .BVar "c"]
+      = .BBinOp "and" (.BBinOp "and" (.BVar "a") (.BVar "b")) (.BVar "c") := rfl
+theorem bfold_single :
+    bfold "and" (.BVar "a") [.BVar "b"] = .BBinOp "and" (.BVar "a") (.BVar "b") := rfl
+theorem bfold_empty : bfold "or" (.BVar "a") [] = .BVar "a" := rfl
+theorem bfold_evil_right_nested :
+    bfold "and" (.BVar "a") [.BVar "b", .BVar "c"]
+      ≠ .BBinOp "and" (.BVar "a") (.BBinOp "and" (.BVar "b") (.BVar "c")) := by decide
+
 end StmtIRCert
 
 -- ===================================================================== --
@@ -710,6 +734,10 @@ end StmtIRCert
 #print axioms StmtIRCert.compaction_single
 #print axioms StmtIRCert.compaction_evil_twin
 #print axioms StmtIRCert.compaction_drops_nonvar
+#print axioms StmtIRCert.bfold_observe
+#print axioms StmtIRCert.bfold_single
+#print axioms StmtIRCert.bfold_empty
+#print axioms StmtIRCert.bfold_evil_right_nested
 #print axioms StmtIRCert.sizeMCase_pos
 #print axioms StmtIRCert.sizeMatch_cases_lt
 #print axioms StmtIRCert.sizeMCBody_lt_mcase

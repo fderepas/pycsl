@@ -4242,6 +4242,42 @@ class PreambleEmissionMixin:
                 "  val function csl_mutex_ast (s: py_with_node) : iropt_str",
                 "  val function mutex_invariant_ir (mutex: string) : emit_ir",
                 "",
+                "  (* _py_expr_compare increment (self-tcb-reduction M5, C-bucket): the"
+                " typed AST readers for `_py_expr_compare`. `py_compare_node` models"
+                " `ast.Compare`; `compare_left_ast` reads `expr.left`, `compare_op0_ast`"
+                " the FIRST comparison operator `expr.ops[0]` (an int cmpop, fed to the"
+                " trusted `py_op_to_str`), `compare_comp0_ast` the FIRST comparator"
+                " `expr.comparators[0]` (emit_ir) — the ast-LIST-HEAD projections (the same"
+                " opaque head-reader shape as `_py_stmt_assign`'s `stmt.targets[0]`). Gated"
+                " on `_uses_stmt_ir`. Reuses the certified IrBinOp ctor (no new ctor). *)",
+                "  type py_compare_node",
+                "  val function compare_left_ast (s: py_compare_node) : emit_ir",
+                "  val function compare_op0_ast (s: py_compare_node) : int",
+                "  val function compare_comp0_ast (s: py_compare_node) : emit_ir",
+                "",
+                "  (* _py_expr_boolop increment (self-tcb-reduction M5, C-bucket): the"
+                " LEFT-FOLD `result = disp(values[0]); for v in values[1:]: result ="
+                " {BinOp, op, left=result, right=disp(v)}`. `boolop_fold` is the CONCRETE"
+                " recursive fold over the `values[1:]` irlist (each element re-lowered by"
+                " the trusted `dispatch` = _py_expr_to_ir, then folded into a left-nested"
+                " IrBinOp tree) — NOT an abstract length-only law (the fable vacuity trap)."
+                " `boolop_is_and` is the `isinstance(expr.op, ast.And)` And/Or discriminant;"
+                " `boolop_val0_ast` reads `values[0]`, `boolop_rest_ast` reads `values[1:]`"
+                " (irlist). Gated on `_uses_stmt_ir`. Reuses the certified IrBinOp ctor. *)",
+                "  type py_boolop_node",
+                "  val function boolop_is_and (s: py_boolop_node) : bool",
+                "  val function boolop_val0_ast (s: py_boolop_node) : emit_ir",
+                "  val function boolop_rest_ast (s: py_boolop_node) : irlist",
+                "  val function boolop_dispatch (e: emit_ir) : emit_ir",
+                "  let rec function boolop_fold (op: string) (acc: emit_ir) (rest: irlist)"
+                " : emit_ir",
+                "    variant { rest }",
+                "  = match rest with",
+                "    | ILNil -> acc",
+                "    | ILCons v tl -> boolop_fold op"
+                " (IrBinOp op acc (boolop_dispatch v)) tl",
+                "    end",
+                "",
                 "  (* SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction"
                 " M5, C-bucket): the typed AST reader for `_py_stmt_assign`. `py_assign_node`"
                 " models `ast.Assign`; `assign_target0_ast` reads `stmt.targets[0]` (the"

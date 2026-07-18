@@ -1,0 +1,88 @@
+module WallExprCompareBoolopObservation
+  use int.Int
+  use seq.Seq
+
+  (* ast child-list capability (self-tcb-reduction M5, C-bucket): OBSERVATIONAL non-vacuity
+     for the `_py_expr_compare` (ast-LIST-HEAD) and `_py_expr_boolop` (LEFT-FOLD) expr
+     handlers. Both reuse the certified IrBinOp ctor. The emit_ir subset (IrBinOp/IrVar +
+     kind_of/binop projectors), the irlist and the CONCRETE `boolop_fold` below are VERBATIM
+     the PyCSL tool's emitted output (module6_whyml/preamble.py::_emit_exprir_theory gated on
+     _uses_stmt_ir; grep-confirmed). `emit_compare` reproduces the tool's `_py_expr_compare`
+     body (the ast-list-HEAD `ops[0]`/`comparators[0]` opaque head readers -> IrBinOp);
+     `emit_boolop` reproduces the `_py_expr_boolop` body (the `values[1:]` LEFT-FOLD via
+     boolop_fold). `disp` models the trusted _py_expr_to_ir; `op_of` the trusted
+     _py_op_to_str. *)
+
+  type emit_ir = IrVar string | IrOther string | IrBinOp string emit_ir emit_ir
+  with irlist = ILNil | ILCons emit_ir irlist
+  let function kind_of (e: emit_ir) : string =
+    match e with IrVar _ -> "Var" | IrOther _ -> "Other" | IrBinOp _ _ _ -> "BinOp" end
+  let function binop_op_of (e: emit_ir) : string =
+    match e with IrBinOp op _ _ -> op | _ -> "" end
+  let function binop_left_of (e: emit_ir) : emit_ir =
+    match e with IrBinOp _ l _ -> l | _ -> IrOther "" end
+  let function binop_right_of (e: emit_ir) : emit_ir =
+    match e with IrBinOp _ _ r -> r | _ -> IrOther "" end
+  val function disp (e: emit_ir) : emit_ir           (* trusted _py_expr_to_ir *)
+  val function op_of (op: int) : string              (* trusted _py_op_to_str *)
+
+  (* ---- VERBATIM tool-emitted CONCRETE boolop LEFT-FOLD (boolop_fold): fold `values[1:]`
+     into a left-nested IrBinOp tree, re-lowering each operand. NOT a length-only law. ---- *)
+  let rec function boolop_fold (op: string) (acc: emit_ir) (rest: irlist) : emit_ir
+    variant { rest }
+  = match rest with
+    | ILNil -> acc
+    | ILCons v tl -> boolop_fold op (IrBinOp op acc (disp v)) tl
+    end
+
+  (* ---- VERBATIM tool-emitted `_py_expr_compare` body: IrBinOp of the op-string (of the
+     ast-LIST-HEAD `ops[0]`), the left, and the first comparator `comparators[0]`. ---- *)
+  let function emit_compare (op0: int) (left comp0: emit_ir) : emit_ir =
+    IrBinOp (op_of op0) (disp left) (disp comp0)
+
+  (* ---- VERBATIM tool-emitted `_py_expr_boolop` body: the LEFT-FOLD. ---- *)
+  let function emit_boolop (is_and: bool) (val0: emit_ir) (rest: irlist) : emit_ir =
+    boolop_fold (if is_and then "and" else "or") (disp val0) rest
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — compare (1 op) + boolop (3-element fold).  *)
+  (* ==================================================================== *)
+
+  (* `a < b` -> IrBinOp (op_of ops[0]) (disp a) (disp b). *)
+  let driver_compare (op0: int) (left comp0: emit_ir) : unit =
+    let node = emit_compare op0 left comp0 in
+    assert { kind_of node = "BinOp" };
+    assert { binop_op_of node = op_of op0 };
+    assert { binop_left_of node = disp left };
+    assert { binop_right_of node = disp comp0 }
+
+  (* `a and b and c` (3 values) -> LEFT-nested ((a and b) and c). *)
+  let driver_boolop () : unit =
+    let va = IrVar "a" in let vb = IrVar "b" in let vc = IrVar "c" in
+    let rest = ILCons vb (ILCons vc ILNil) in       (* values[1:] = [b, c] *)
+    let node = emit_boolop true va rest in
+    (* node = IrBinOp "and" (IrBinOp "and" (disp a) (disp b)) (disp c) *)
+    assert { kind_of node = "BinOp" };
+    assert { binop_op_of node = "and" };
+    assert { binop_right_of node = disp vc };                    (* outermost right = disp c *)
+    assert { kind_of (binop_left_of node) = "BinOp" };           (* left is itself a BinOp *)
+    assert { binop_left_of (binop_left_of node) = disp va };     (* ((disp a) and (disp b)) *)
+    assert { binop_right_of (binop_left_of node) = disp vb }
+
+  (* EVIL TWIN 1 (compare wrong tag): the compare node is NOT "Var" — UNPROVEN. *)
+  let driver_evil_compare_tag (op0: int) (left comp0: emit_ir) : unit =
+    assert { kind_of (emit_compare op0 left comp0) = "Var" }
+
+  (* EVIL TWIN 2 (boolop wrong nesting): the fold is LEFT-nested, so the outermost RIGHT
+     is `disp c`, NOT `disp b` — must stay UNPROVEN (else the fold shape is vacuous). *)
+  let driver_evil_boolop_nest () : unit =
+    let va = IrVar "a" in let vb = IrVar "b" in let vc = IrVar "c" in
+    let node = emit_boolop true va (ILCons vb (ILCons vc ILNil)) in
+    assert { binop_right_of node = disp vb }
+
+  (* EVIL TWIN 3 (boolop wrong op): an `and`-fold is NOT an "or" node — UNPROVEN. *)
+  let driver_evil_boolop_op () : unit =
+    let va = IrVar "a" in let vb = IrVar "b" in
+    let node = emit_boolop true va (ILCons vb ILNil) in
+    assert { binop_op_of node = "or" }
+end

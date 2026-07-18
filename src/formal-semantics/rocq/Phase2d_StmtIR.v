@@ -845,6 +845,54 @@ Proof. reflexivity. Qed.
 End Compaction.
 
 (* ===================================================================== *)
+(* 5c. The CONCRETE boolop LEFT-FOLD — the WhyML twin of `boolop_fold`      *)
+(*     (`result = disp(v0); for v in values[1:]: result = BinOp op result   *)
+(*     (disp v)`).  Modelled CONCRETELY (a tiny `bexpr` with an IrBinOp2    *)
+(*     ctor) so the left-nested tree is provable NON-vacuously: a length-   *)
+(*     only law could not distinguish the fold's SHAPE.                     *)
+(* ===================================================================== *)
+
+Section BoolopFold.
+
+(* A minimal concrete emit-node: a leaf var, or a binary op node (op + two kids). *)
+Inductive bexpr : Type :=
+  | BVar (id : string)
+  | BBinOp (op : string) (l : bexpr) (r : bexpr).
+
+(* boolop_fold : left-fold `values[1:]` into a left-nested BBinOp tree, applying the
+   (here identity) dispatcher to each operand — the WhyML `boolop_fold` twin. *)
+Fixpoint bfold (op : string) (acc : bexpr) (rest : list bexpr) : bexpr :=
+  match rest with
+  | nil => acc
+  | v :: tl => bfold op (BBinOp op acc v) tl
+  end.
+
+(* OBSERVABILITY (non-vacuity): a 3-operand `a and b and c` folds to the LEFT-nested
+   tree `((a and b) and c)` — NOT the right-nested `(a and (b and c))`. *)
+Theorem bfold_observe :
+  bfold "and" (BVar "a") (BVar "b" :: BVar "c" :: nil)
+    = BBinOp "and" (BBinOp "and" (BVar "a") (BVar "b")) (BVar "c").
+Proof. reflexivity. Qed.
+
+(* Single operand: `a and b` -> `(a and b)`. *)
+Theorem bfold_single :
+  bfold "and" (BVar "a") (BVar "b" :: nil) = BBinOp "and" (BVar "a") (BVar "b").
+Proof. reflexivity. Qed.
+
+(* Empty tail: `a` (a degenerate 1-value BoolOp) folds to just `a`. *)
+Theorem bfold_empty : bfold "or" (BVar "a") nil = BVar "a".
+Proof. reflexivity. Qed.
+
+(* EVIL TWIN: the fold is LEFT-nested, NOT right-nested — refutable, so the tree
+   SHAPE is genuinely pinned (non-vacuous). *)
+Theorem bfold_evil_right_nested :
+  bfold "and" (BVar "a") (BVar "b" :: BVar "c" :: nil)
+    <> BBinOp "and" (BVar "a") (BBinOp "and" (BVar "b") (BVar "c")).
+Proof. simpl; discriminate. Qed.
+
+End BoolopFold.
+
+(* ===================================================================== *)
 (* 6. VERDICT — assumption audit.  Every result must be `Closed under the  *)
 (*    global context` (NO axiom): the 3-axiom trust ledger is intact.      *)
 (* ===================================================================== *)
@@ -876,6 +924,10 @@ Print Assumptions compaction_observe.
 Print Assumptions compaction_single.
 Print Assumptions compaction_evil_twin.
 Print Assumptions compaction_drops_nonvar.
+Print Assumptions bfold_observe.
+Print Assumptions bfold_single.
+Print Assumptions bfold_empty.
+Print Assumptions bfold_evil_right_nested.
 Print Assumptions size_match_cases_lt.
 Print Assumptions size_mcase_le_mccons.
 Print Assumptions size_mctail_le_mccons.

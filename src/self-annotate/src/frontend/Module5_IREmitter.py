@@ -782,19 +782,44 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "BinOp", "op": self._py_op_to_str(expr.op),
                 "left": self._py_expr_to_ir(expr.left), "right": self._py_expr_to_ir(expr.right)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr_compare increment (self-tcb-reduction M5, C-bucket): a RETURN-value expr
+    # handler. A bespoke Module6 lowering (functions.py `_emit_py_expr_compare_bespoke`,
+    # keyed on the method name under `_uses_stmt_ir`) emits it FAITHFULLY as the certified
+    # `IrBinOp` ctor. `expr` param -> the typed `py_compare_node`; the ast-LIST-HEAD
+    # accesses `expr.ops[0]` / `expr.comparators[0]` -> the opaque head readers
+    # `compare_op0_ast` / `compare_comp0_ast` (the same shape as `_py_stmt_assign`'s
+    # `stmt.targets[0]`); `expr.left` -> `compare_left_ast`. The op -> `py_op_to_str
+    # (compare_op0_ast expr)` (`_py_op_to_str` stays \trusted), left/right ->
+    # `_py_expr_to_ir`. No new ctor (reuses the certified IrBinOp). isinstance_op = 0.
+    # Verbatim body port of the LIVE `_py_expr_compare`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_compare(self, expr: ast.Compare) -> int:
-        return {}
+        return {"type": "BinOp", "op": self._py_op_to_str(expr.ops[0]),
+                "left": self._py_expr_to_ir(expr.left),
+                "right": self._py_expr_to_ir(expr.comparators[0])}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _py_expr_boolop increment (self-tcb-reduction M5, C-bucket): a RETURN-value expr
+    # handler with a LEFT-FOLD. A bespoke Module6 lowering (functions.py
+    # `_emit_py_expr_boolop_bespoke`, keyed on the method name under `_uses_stmt_ir`) emits
+    # it FAITHFULLY: `isinstance(expr.op, ast.And)` -> `boolop_is_and expr`; `expr.values[0]`
+    # -> `boolop_val0_ast`; the `for operand in expr.values[1:]: result = {BinOp,...}` LEFT-
+    # FOLD -> the CONCRETE recursive `boolop_fold` over the `expr.values[1:]` irlist
+    # (`boolop_rest_ast`), each operand re-lowered by the dispatcher and folded into a
+    # left-nested certified IrBinOp tree — NOT an abstract length-only law (the fable vacuity
+    # trap). No new ctor (reuses IrBinOp). isinstance_op = 0. Verbatim body port of the LIVE
+    # `_py_expr_boolop`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_boolop(self, expr: ast.BoolOp) -> int:
-        return {}
+        op_str = "and" if isinstance(expr.op, ast.And) else "or"
+        result = self._py_expr_to_ir(expr.values[0])
+        for operand in expr.values[1:]:
+            result = {"type": "BinOp", "op": op_str, "left": result,
+                      "right": self._py_expr_to_ir(operand)}
+        return result
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

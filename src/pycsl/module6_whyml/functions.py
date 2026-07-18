@@ -2004,6 +2004,83 @@ class FunctionEmissionMixin:
         ]
         return L
 
+    def _is_py_expr_compare(self, func: Dict[str, Any]) -> bool:
+        """_py_expr_compare increment (self-tcb-reduction M5, C-bucket): True iff `func`
+        is the mirror's `_py_expr_compare` handler and the stmt_ir theory is emitted.
+        Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method"
+                and nm.endswith("_py_expr_compare")
+                and self._uses_stmt_ir())
+
+    def _emit_py_expr_compare_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """_py_expr_compare increment (self-tcb-reduction M5, C-bucket): the FAITHFUL
+        whole-body lowering of `_py_expr_compare`:
+
+            return {"type":"BinOp","op":self._py_op_to_str(expr.ops[0]),
+                    "left":self._py_expr_to_ir(expr.left),
+                    "right":self._py_expr_to_ir(expr.comparators[0])}
+
+        A RETURN-value expr handler (unlike the stmt handlers which append). `expr` : the
+        typed `py_compare_node`; the ast-LIST-HEAD accesses `expr.ops[0]` /
+        `expr.comparators[0]` -> the opaque head readers `compare_op0_ast` /
+        `compare_comp0_ast` (the same shape as `_py_stmt_assign`'s `stmt.targets[0]`);
+        `expr.left` -> `compare_left_ast`. Returns the REAL certified `IrBinOp` ctor with
+        the op string (`py_op_to_str (compare_op0_ast expr)`), the left, and the first
+        comparator (both `_py_expr_to_ir`-lowered). No new ctor (reuses IrBinOp),
+        isinstance_op = 0. Corpus-inert."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        L = [
+            f"  let {name} (self: {cls}) (expr: py_compare_node) : emit_ir",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    (IrBinOp (self__py_op_to_str_1 (compare_op0_ast expr))"
+            " (self__py_expr_to_ir_1 (compare_left_ast expr))"
+            " (self__py_expr_to_ir_1 (compare_comp0_ast expr)))",
+        ]
+        return L
+
+    def _is_py_expr_boolop(self, func: Dict[str, Any]) -> bool:
+        """_py_expr_boolop increment (self-tcb-reduction M5, C-bucket): True iff `func`
+        is the mirror's `_py_expr_boolop` handler and the stmt_ir theory is emitted.
+        Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method"
+                and nm.endswith("_py_expr_boolop")
+                and self._uses_stmt_ir())
+
+    def _emit_py_expr_boolop_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """_py_expr_boolop increment (self-tcb-reduction M5, C-bucket): the FAITHFUL
+        whole-body lowering of `_py_expr_boolop`:
+
+            op_str = "and" if isinstance(expr.op, ast.And) else "or"
+            result = self._py_expr_to_ir(expr.values[0])
+            for operand in expr.values[1:]:
+                result = {"type":"BinOp","op":op_str,"left":result,
+                          "right":self._py_expr_to_ir(operand)}
+            return result
+
+        The LEFT-FOLD over `expr.values[1:]` -> the CONCRETE recursive `boolop_fold`
+        (each operand re-lowered by the dispatcher, folded into a left-nested IrBinOp
+        tree), NOT an abstract length-only law. `isinstance(expr.op, ast.And)` ->
+        `boolop_is_and expr`; `expr.values[0]` -> `boolop_val0_ast`; `expr.values[1:]`
+        -> `boolop_rest_ast` (irlist). Reuses the certified IrBinOp ctor, isinstance_op =
+        0. Corpus-inert."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        L = [
+            f"  let {name} (self: {cls}) (expr: py_boolop_node) : emit_ir",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    let op_str = (if boolop_is_and expr then \"and\" else \"or\") in",
+            "    boolop_fold op_str (boolop_dispatch (boolop_val0_ast expr))"
+            " (boolop_rest_ast expr)",
+        ]
+        return L
+
     def _is_py_stmt_with(self, func: Dict[str, Any]) -> bool:
         """SCriticalSection increment (self-tcb-reduction M5, C-bucket): True iff `func`
         is the mirror's `_py_stmt_with` handler and the stmt_ir theory is emitted.
@@ -2069,6 +2146,14 @@ class FunctionEmissionMixin:
         # mutex attrs + no-ops the extend). Corpus-inert.
         if self._is_py_stmt_with(func):
             return self._emit_py_stmt_with_bespoke(func)
+        # _py_expr_compare increment (self-tcb-reduction M5, C-bucket): the ast-LIST-HEAD
+        # expr handler (`expr.ops[0]`/`expr.comparators[0]`) -> IrBinOp. Corpus-inert.
+        if self._is_py_expr_compare(func):
+            return self._emit_py_expr_compare_bespoke(func)
+        # _py_expr_boolop increment (self-tcb-reduction M5, C-bucket): the LEFT-FOLD expr
+        # handler (`values[1:]` fold -> left-nested IrBinOp via boolop_fold). Corpus-inert.
+        if self._is_py_expr_boolop(func):
+            return self._emit_py_expr_boolop_bespoke(func)
         # SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction M5,
         # C-bucket): the `_py_stmt_assign` 5-branch handler — bespoke (the generic
         # lowering int-erases the target dispatch, the symtab membership, and the Tuple
