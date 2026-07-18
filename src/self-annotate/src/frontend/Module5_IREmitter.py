@@ -1330,12 +1330,41 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_break(self, stmt: ast.Break, ir_stmts: List[int]) -> None:
         ir_stmts.append({"stmt": "Break"})
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SDelSubscript increment (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
+    # caller-visible mutable `ref (seq stmt_ir)` param. The LOOP-APPEND-TO-OUTER handler
+    # `for tgt in stmt.targets: ir_stmts.append(<node(tgt)>)` — unlike try/match (a LOCAL
+    # record-list accumulator), it `Seq.snoc`s DIRECTLY onto `ir_stmts` per element. A
+    # bespoke Module6 lowering (functions.py `_emit_py_stmt_delete_bespoke`, keyed on the
+    # method name under `_uses_stmt_ir`) emits it FAITHFULLY as a real `for i in
+    # 0..Seq.length targets` loop (writes { ir_stmts }, invariant 0<=i<=len, variant
+    # len-i):
+    #   - `stmt` param -> the typed `py_delete_node`; `stmt.targets` -> `seq emit_ir`
+    #     (the `del_targets_ast` AST reader).
+    #   - `getattr(tgt, "slice", None)` -> `.slice` exists exactly on a Subscript, so the
+    #     getattr-with-default folds into `is_sub tgt` (`slice_node = if is_sub tgt then
+    #     IrOSome (sindex_of tgt) else IrONone`). The dead py<3.9 `ast.Index` unwrap is
+    #     DROPPED (byte-identical on 3.9+, like augassign/subscript).
+    #   - `isinstance(tgt, ast.Subscript)` -> `is_sub tgt`; `not isinstance(slice_node,
+    #     ast.Slice)` -> `not (is_slice (sindex_of tgt))` (under the is_sub conjunct).
+    #     isinstance_op = 0.
+    #   - the subscript-delete appends a REAL `SDelSubscript (py_expr_to_ir (svalue_of
+    #     tgt)) (py_expr_to_ir (sindex_of tgt))` (IrSub array + index projectors); every
+    #     other target appends `SPass`.
+    # Verbatim body port of the LIVE `_py_stmt_delete` (dead ast.Index branch dropped).
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_delete(self, stmt: ast.Delete, ir_stmts: List[int]) -> None:
-        pass
+        for tgt in stmt.targets:
+            slice_node = getattr(tgt, "slice", None)
+            if isinstance(tgt, ast.Subscript) and not isinstance(slice_node, ast.Slice):
+                ir_stmts.append({
+                    "stmt": "DelSubscript",
+                    "array": self._py_expr_to_ir(tgt.value),
+                    "index": self._py_expr_to_ir(slice_node),
+                })
+            else:
+                ir_stmts.append({"stmt": "Pass"})
 
     # SMatch + match_case + match_case_list increment (self-tcb-reduction M5, C-bucket):
     # `ir_stmts` is a caller-visible mutable `ref (seq stmt_ir)` param. Sibling of

@@ -82,6 +82,8 @@ inductive StmtIr (ε : Type) where
   -- SMatch increment: subject + case list. MatchCaseList is a bespoke cons over the
   -- MatchCase record (its `mcBody` is a StmtList — same mutual cycle).
   | SMatch (subj : ε) (cs : MatchCaseList ε)
+  -- SDelSubscript increment: `del d[k]` — array + index (FLAT, no sub-body).
+  | SDelSubscript (arr : ε) (idx : ε)
 inductive StmtList (ε : Type) where
   | SLNil
   | SLCons (h : StmtIr ε) (t : StmtList ε)
@@ -119,6 +121,7 @@ def stmtKindOf : StmtIr ε → String
   | .SFor _ _ => "For"
   | .STry _ _ _ _ => "Try"
   | .SMatch _ _ => "Match"
+  | .SDelSubscript _ _ => "DelSubscript"
 
 /- The MUTUAL well-founded size measure — WhyML `size_stmt`/`size_slist`. -/
 mutual
@@ -138,6 +141,7 @@ def sizeStmt : StmtIr ε → Nat
   | .SFor _ b => 1 + sizeSList b
   | .STry b hs oe fb => 1 + sizeSList b + sizeHList hs + sizeSList oe + sizeSList fb
   | .SMatch _ cs => 1 + sizeMCList cs
+  | .SDelSubscript _ _ => 1
 def sizeSList : StmtList ε → Nat
   | .SLNil => 0
   | .SLCons h t => sizeStmt h + sizeSList t
@@ -193,6 +197,7 @@ inductive PyStmt (ε : Type) where
   | PFor (t : ε) (b : StmtList ε)
   | PTry (b : StmtList ε) (hs : HandlerList ε) (oe : StmtList ε) (fb : StmtList ε)
   | PMatch (subj : ε) (cs : MatchCaseList ε)
+  | PDelSubscript (arr : ε) (idx : ε)
 
 /-- The dict->ctor map (`{"stmt":"Pass"} ↦ SPass`, ..., `{"stmt":"While"} ↦
     SWhile ...`). -/
@@ -212,6 +217,7 @@ def abs : PyStmt ε → StmtIr ε
   | .PFor t b => .SFor t b
   | .PTry b hs oe fb => .STry b hs oe fb
   | .PMatch subj cs => .SMatch subj cs
+  | .PDelSubscript a i => .SDelSubscript a i
 
 /-- The Python-side tag string of a recognized node. -/
 def pyKindOf : PyStmt ε → String
@@ -230,6 +236,7 @@ def pyKindOf : PyStmt ε → String
   | .PFor _ _ => "For"
   | .PTry _ _ _ _ => "Try"
   | .PMatch _ _ => "Match"
+  | .PDelSubscript _ _ => "DelSubscript"
 
 -- ===================================================================== --
 -- 3. (b) `abs` is total + injective + surjective.                        --
@@ -257,6 +264,7 @@ theorem abs_surjective : ∀ v : StmtIr ε, ∃ s, abs s = v := by
   | SFor t b => exact ⟨.PFor t b, rfl⟩
   | STry b hs oe fb => exact ⟨.PTry b hs oe fb, rfl⟩
   | SMatch subj cs => exact ⟨.PMatch subj cs, rfl⟩
+  | SDelSubscript a i => exact ⟨.PDelSubscript a i, rfl⟩
 
 -- ===================================================================== --
 -- 4. (c) `stmtKindOf` EXACT per ctor + AGREES through `abs`.             --
@@ -484,6 +492,24 @@ theorem mc_guard_none_neq_some (p : ε) (e : ε) (b : StmtList ε) :
   intro he; cases he
 
 -- ===================================================================== --
+-- SDelSubscript observability (non-vacuity). FLAT node — size 1.          --
+-- ===================================================================== --
+
+theorem stmtKindOf_delsubscript (a i : ε) :
+    stmtKindOf (StmtIr.SDelSubscript a i) = "DelSubscript" := rfl
+theorem tag_delsubscript_neq_pass (a i : ε) :
+    stmtKindOf (StmtIr.SDelSubscript a i) ≠ stmtKindOf (ε := ε) .SPass := by
+  simp only [stmtKindOf]; decide
+theorem size_delsubscript_flat (a i : ε) :
+    sizeStmt (StmtIr.SDelSubscript a i) = 1 := rfl
+theorem sdelsub_array_observable (a b i : ε) (h : a ≠ b) :
+    (StmtIr.SDelSubscript a i) ≠ StmtIr.SDelSubscript b i := by
+  intro he; cases he; exact h rfl
+theorem sdelsub_index_observable (a i j : ε) (h : i ≠ j) :
+    (StmtIr.SDelSubscript a i) ≠ StmtIr.SDelSubscript a j := by
+  intro he; cases he; exact h rfl
+
+-- ===================================================================== --
 -- 5b. The CONCRETE Tuple-exc_type compaction — WhyML var_names_of /       --
 --     join_pipe / tuple_exc_type. Modelled concretely so observability    --
 --     is provable NON-vacuously (a length-only law would be vacuous).     --
@@ -597,3 +623,8 @@ end StmtIRCert
 #print axioms StmtIRCert.mc_guard_observable
 #print axioms StmtIRCert.mc_body_observable
 #print axioms StmtIRCert.mc_guard_none_neq_some
+#print axioms StmtIRCert.stmtKindOf_delsubscript
+#print axioms StmtIRCert.tag_delsubscript_neq_pass
+#print axioms StmtIRCert.size_delsubscript_flat
+#print axioms StmtIRCert.sdelsub_array_observable
+#print axioms StmtIRCert.sdelsub_index_observable

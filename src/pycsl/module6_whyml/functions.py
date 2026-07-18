@@ -1849,6 +1849,70 @@ class FunctionEmissionMixin:
         ]
         return L
 
+    def _is_py_stmt_delete(self, func: Dict[str, Any]) -> bool:
+        """SDelSubscript increment (self-tcb-reduction M5, C-bucket): True iff `func` is
+        the mirror's `_py_stmt_delete` handler and the stmt_ir theory is emitted.
+        Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method"
+                and nm.endswith("_py_stmt_delete")
+                and self._uses_stmt_ir())
+
+    def _emit_py_stmt_delete_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """SDelSubscript increment (self-tcb-reduction M5, C-bucket): the FAITHFUL
+        whole-body lowering of `_py_stmt_delete`:
+
+            for tgt in stmt.targets:
+                slice_node = getattr(tgt, "slice", None)
+                # (the py<3.9 `ast.Index` unwrap is DEAD on 3.9+/3.14 — dropped, like
+                #  augassign/subscript; byte-diff-0)
+                if isinstance(tgt, ast.Subscript) and not isinstance(slice_node, ast.Slice):
+                    ir_stmts.append({"stmt":"DelSubscript","array":self._py_expr_to_ir(
+                        tgt.value),"index":self._py_expr_to_ir(slice_node)})
+                else:
+                    ir_stmts.append({"stmt":"Pass"})
+
+        CRUX-1 (loop-append-to-OUTER): unlike try/match (which accumulate a LOCAL
+        record-list then append once), this loop `Seq.snoc`s DIRECTLY onto the
+        caller-visible `ir_stmts` ref per element — a real `for i in 0..Seq.length
+        targets` loop with a `writes { ir_stmts }` frame, invariant `0 <= i <= len`,
+        variant `len - i`. CRUX-2 (`getattr(tgt,"slice",None)`): `.slice` exists exactly
+        when `tgt` is a Subscript (IrSub), so the getattr-with-default folds into the
+        `is_sub tgt` guard — `slice_node = if is_sub tgt then IrOSome (sindex_of tgt)
+        else IrONone`, and `not isinstance(slice_node, ast.Slice)` reduces (under the
+        `is_sub tgt` conjunct) to `not (is_slice (sindex_of tgt))`. `isinstance(tgt,
+        ast.Subscript)` -> `is_sub tgt`; `isinstance(_, ast.Slice)` -> `is_slice` — NO
+        isinstance_op. `tgt.value` -> `svalue_of tgt` (IrSub array), `slice_node` ->
+        `sindex_of tgt` (IrSub index), both re-lowered by the trusted `_py_expr_to_ir`.
+        The subscript-delete appends a REAL `SDelSubscript` (array, index); every other
+        target appends `SPass`. Corpus-inert (fires only for this named mirror method
+        under `_uses_stmt_ir`)."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        disp_e = "self__py_expr_to_ir_1"
+        L = [
+            f"  let {name} (self: {cls}) (stmt: py_delete_node)"
+            f" (ir_stmts: ref (seq stmt_ir)) : unit",
+            "    requires { true }",
+            "    ensures  { true }",
+            "    writes { ir_stmts }",
+            "  =",
+            "    let ts = del_targets_ast stmt in",
+            "    let _i = ref 0 in",
+            "    while !_i < Seq.length ts do",
+            "      invariant { 0 <= !_i <= Seq.length ts }",
+            "      variant { Seq.length ts - !_i }",
+            "      let tgt = Seq.get ts !_i in",
+            "      (if is_sub tgt && not (is_slice (sindex_of tgt)) then",
+            f"         ir_stmts := Seq.snoc !ir_stmts (SDelSubscript"
+            f" ({disp_e} (svalue_of tgt)) ({disp_e} (sindex_of tgt)))",
+            "       else",
+            "         ir_stmts := Seq.snoc !ir_stmts SPass);",
+            "      _i := !_i + 1",
+            "    done",
+        ]
+        return L
+
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
@@ -1859,6 +1923,10 @@ class FunctionEmissionMixin:
         # Corpus-inert (fires only for the named mirror method under `_uses_stmt_ir`).
         if self._is_py_stmt_try(func):
             return self._emit_py_stmt_try_bespoke(func)
+        # SDelSubscript increment (self-tcb-reduction M5, C-bucket): the `_py_stmt_delete`
+        # loop-append-to-OUTER handler (per-element Seq.snoc onto ir_stmts) — bespoke.
+        if self._is_py_stmt_delete(func):
+            return self._emit_py_stmt_delete_bespoke(func)
         # SMatch + match_case + match_case_list increment (self-tcb-reduction M5,
         # C-bucket): the `_py_stmt_match` accumulator-loop handler — sibling of the try
         # bespoke, same record-list-emission capability. Corpus-inert.

@@ -4005,6 +4005,7 @@ class PreambleEmissionMixin:
                 " | SFor emit_ir stmt_list"
                 " | STry stmt_list handler_list stmt_list stmt_list"
                 " | SMatch emit_ir match_case_list"
+                " | SDelSubscript emit_ir emit_ir"
                 "  with stmt_list = SLNil | SLCons stmt_ir stmt_list"
                 "  with handler_list = HLNil | HLCons except_handler handler_list"
                 "  with except_handler ="
@@ -4025,7 +4026,8 @@ class PreambleEmissionMixin:
                 "    | SWhile _ _ -> \"While\" | SIf _ _ _ -> \"If\""
                 " | SFor _ _ -> \"For\""
                 " | STry _ _ _ _ -> \"Try\""
-                " | SMatch _ _ -> \"Match\"",
+                " | SMatch _ _ -> \"Match\""
+                " | SDelSubscript _ _ -> \"DelSubscript\"",
                 "    end",
                 "",
                 "  (* The MUTUAL well-founded size measure over stmt_ir/stmt_list — the"
@@ -4200,6 +4202,15 @@ class PreambleEmissionMixin:
                 "  val function mc_pattern_ir (c: ast_match_case) : emit_ir",
                 "  val function mc_guard_ast (c: ast_match_case) : iropt_ir",
                 "  val function mc_body_ast (c: ast_match_case) : array int",
+                "",
+                "  (* SDelSubscript increment (self-tcb-reduction M5, C-bucket): the typed"
+                " AST reader for `_py_stmt_delete`. `py_delete_node` models `ast.Delete`"
+                " (its `stmt` param); `del_targets_ast` reads `stmt.targets` as a `seq"
+                " emit_ir` — each target already the emit_ir of a `_py_expr_to_ir`-lowered"
+                " del target (a Subscript -> IrSub, a Name -> IrVar). Opaque deterministic"
+                " AST reader (the typed analogue of iter_get). Gated on `_uses_stmt_ir`. *)",
+                "  type py_delete_node",
+                "  val function del_targets_ast (s: py_delete_node) : seq emit_ir",
                 "",
                 "  (* The CONCRETE compaction of a Tuple exc_type `\"|\".join(n.id for n in"
                 " h.type.elts if isinstance(n, ast.Name))`: `var_names_of` filters `is_var`"

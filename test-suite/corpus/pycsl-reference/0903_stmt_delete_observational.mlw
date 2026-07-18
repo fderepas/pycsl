@@ -1,0 +1,111 @@
+module WallStmtDeleteObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+
+  (* stmt-list-append-mutation wall (C-bucket), SDelSubscript increment: OBSERVATIONAL
+     non-vacuity for the `_py_stmt_delete` conversion — the LOOP-APPEND-TO-OUTER handler
+     (`for tgt in stmt.targets: ir_stmts.append(<node(tgt)>)` snocs DIRECTLY onto the
+     caller-visible `ir_stmts`, per element, unlike try/match's local accumulator). The
+     read-back is a direct `Seq.get !ir_stmts i` (shallow — no seq_to_* materialization).
+     The emit_ir subset (IrVar/IrSub/IrSlice + is_sub/is_slice/svalue_of/sindex_of), the
+     stmt_ir/SDelSubscript ADT, stmt_kind_of and sl_len below are VERBATIM the PyCSL tool's
+     emitted output (module6_whyml/preamble.py::_emit_exprir_theory gated on _uses_stmt_ir;
+     grep-confirmed from the emitted Module5_IREmitter.mlw). `emit_del_target` is the
+     VERBATIM shape of ONE loop iteration of the tool's emitted `_py_stmt_delete` body
+     (functions.py::_emit_py_stmt_delete_bespoke): the getattr-default folded into `is_sub`,
+     `not isinstance(slice_node, ast.Slice)` -> `not (is_slice (sindex_of tgt))`, a REAL
+     SDelSubscript (svalue_of/sindex_of, re-lowered by the trusted `disp`) or SPass, snoc'd
+     onto the ref. `disp` models the trusted `self._py_expr_to_ir`. *)
+
+  (* ---- VERBATIM tool-emitted: the emit_ir subset the delete handler reads. ---- *)
+  type emit_ir = IrVar string | IrOther string
+               | IrSub emit_ir emit_ir | IrSlice emit_ir emit_ir
+  let function is_sub (e: emit_ir) : bool =
+    match e with IrSub _ _ -> true | _ -> false end
+  let function is_slice (e: emit_ir) : bool =
+    match e with IrSlice _ _ -> true | _ -> false end
+  let function svalue_of (e: emit_ir) : emit_ir =
+    match e with IrSub v _ -> v | _ -> IrOther "" end
+  let function sindex_of (e: emit_ir) : emit_ir =
+    match e with IrSub _ i -> i | _ -> IrOther "" end
+  (* the trusted self._py_expr_to_ir (an emit_ir -> emit_ir val); a `function` so it is
+     deterministic (disp x is a fixed value), but abstract (no equational content). *)
+  val function disp (e: emit_ir) : emit_ir
+
+  (* ---- VERBATIM tool-emitted stmt_ir with the flat SDelSubscript ctor. ---- *)
+  type stmt_ir = SPass | SBreak | SExpr emit_ir | SDelSubscript emit_ir emit_ir
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SExpr _ -> "Expr"
+    | SDelSubscript _ _ -> "DelSubscript"
+    end
+  (* SDelSubscript payload projectors (concrete defaults — no `any`). *)
+  let function del_array_of (s: stmt_ir) : emit_ir =
+    match s with SDelSubscript a _ -> a | _ -> IrOther "" end
+  let function del_index_of (s: stmt_ir) : emit_ir =
+    match s with SDelSubscript _ i -> i | _ -> IrOther "" end
+
+  (* ---- VERBATIM tool-emitted ONE loop iteration of `_py_stmt_delete`: the getattr-
+     default folded into is_sub, the output-side is_slice discriminant, snoc onto the
+     ref ITSELF (real writes {ir_stmts}). A subscript-delete (is_sub && not slice-index)
+     snocs a REAL SDelSubscript; every other target snocs SPass. ---- *)
+  let emit_del_target (tgt: emit_ir) (ir_stmts: ref (seq stmt_ir)) : unit
+    ensures { !ir_stmts =
+      (if is_sub tgt && not (is_slice (sindex_of tgt))
+       then Seq.snoc (old !ir_stmts)
+              (SDelSubscript (disp (svalue_of tgt)) (disp (sindex_of tgt)))
+       else Seq.snoc (old !ir_stmts) SPass) }
+    writes { ir_stmts }
+  = if is_sub tgt && not (is_slice (sindex_of tgt)) then
+      ir_stmts := Seq.snoc !ir_stmts
+        (SDelSubscript (disp (svalue_of tgt)) (disp (sindex_of tgt)))
+    else
+      ir_stmts := Seq.snoc !ir_stmts SPass
+
+  (* ====================================================================
+     OBSERVATIONAL non-vacuity: a Delete with 2 targets — a `d[k]` SUBSCRIPT
+     (-> SDelSubscript with array=disp d, index=disp k) and a `del x` NAME
+     (-> SPass). The driver reads back BOTH appended nodes directly.
+     ==================================================================== *)
+  let driver_observe () : unit =
+    let subscript = IrSub (IrVar "d") (IrVar "k") in   (* d[k] *)
+    let name = IrVar "x" in                            (* x *)
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_del_target subscript ir_stmts;   (* -> SDelSubscript (disp d) (disp k) *)
+    emit_del_target name ir_stmts;        (* -> SPass *)
+    assert { Seq.length !ir_stmts = 2 };
+    let n0 = Seq.get !ir_stmts 0 in
+    let n1 = Seq.get !ir_stmts 1 in
+    assert { stmt_kind_of n0 = "DelSubscript" };
+    assert { del_array_of n0 = disp (IrVar "d") };
+    assert { del_index_of n0 = disp (IrVar "k") };
+    assert { stmt_kind_of n1 = "Pass" }
+
+  (* A slice-delete `del d[i:j]` (is_sub but the index IS a Slice) is a no-op -> SPass. *)
+  let driver_slice_is_pass () : unit =
+    let slice_del = IrSub (IrVar "d") (IrSlice (IrVar "i") (IrVar "j")) in
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_del_target slice_del ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Pass" }
+
+  (* EVIL TWIN 1 (wrong tag): the `del x` name target's node is NOT "DelSubscript" —
+     must stay UNPROVEN (else the tag is vacuous). *)
+  let driver_evil_tag () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_del_target (IrVar "x") ir_stmts;
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "DelSubscript" }
+
+  (* EVIL TWIN 2 (wrong count): appending 1 target does NOT grow ir_stmts by 2 — UNPROVEN. *)
+  let driver_evil_count () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_del_target (IrSub (IrVar "d") (IrVar "k")) ir_stmts;
+    assert { Seq.length !ir_stmts = 2 }
+
+  (* EVIL TWIN 3 (wrong index): the DelSubscript's index is NOT disp of a different key —
+     must stay UNPROVEN (else the index projection is vacuous). *)
+  let driver_evil_index () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_del_target (IrSub (IrVar "d") (IrVar "k")) ir_stmts;
+    assert { del_index_of (Seq.get !ir_stmts 0) = disp (IrVar "z") }
+end

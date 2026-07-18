@@ -117,6 +117,9 @@ Inductive stmt_ir : Type :=
      bespoke monomorphic cons over the `match_case` record, MUTUALLY recursive WITH
      stmt_ir/stmt_list (the record's `mc_body` is a `stmt_list`). *)
   | SMatch (subj : emit) (cs : match_case_list)
+  (* SDelSubscript increment: a subscript-delete `del d[k]` — array + index, both
+     FOREIGN emit children (FLAT, no sub-body list). *)
+  | SDelSubscript (arr : emit) (idx : emit)
 with stmt_list : Type :=
   | SLNil
   | SLCons (h : stmt_ir) (t : stmt_list)
@@ -161,6 +164,7 @@ Definition stmt_kind_of (s : stmt_ir) : string :=
   | SFor _ _    => "For"
   | STry _ _ _ _ => "Try"
   | SMatch _ _  => "Match"
+  | SDelSubscript _ _ => "DelSubscript"
   end.
 
 (* ===================================================================== *)
@@ -311,7 +315,8 @@ Inductive pystmt : Type :=
   | PIf (t : emit) (b : stmt_list) (el : stmt_list)
   | PFor (t : emit) (b : stmt_list)
   | PTry (b : stmt_list) (hs : handler_list) (oe : stmt_list) (fb : stmt_list)
-  | PMatch (subj : emit) (cs : match_case_list).
+  | PMatch (subj : emit) (cs : match_case_list)
+  | PDelSubscript (arr : emit) (idx : emit).
 
 (* The dict->ctor map (`{"stmt":"Pass"} |-> SPass`, ..., `{"stmt":"While",...}
    |-> SWhile ...`). *)
@@ -332,6 +337,7 @@ Definition abs (s : pystmt) : stmt_ir :=
   | PFor t b    => SFor t b
   | PTry b hs oe fb => STry b hs oe fb
   | PMatch subj cs => SMatch subj cs
+  | PDelSubscript a i => SDelSubscript a i
   end.
 
 (* The Python-side tag string of a recognized node (the `"stmt"` value). *)
@@ -352,6 +358,7 @@ Definition py_kind_of (s : pystmt) : string :=
   | PFor _ _    => "For"
   | PTry _ _ _ _ => "Try"
   | PMatch _ _  => "Match"
+  | PDelSubscript _ _ => "DelSubscript"
   end.
 
 (* ===================================================================== *)
@@ -379,6 +386,7 @@ Proof.
   - exists (PFor t b); reflexivity.
   - exists (PTry b hs oe fb); reflexivity.
   - exists (PMatch subj cs); reflexivity.
+  - exists (PDelSubscript arr idx); reflexivity.
 Qed.
 
 (* ===================================================================== *)
@@ -613,6 +621,30 @@ Theorem mc_guard_none_neq_some : forall p e b,
   MkMC p IrONone b <> MkMC p (IrOSome e) b.
 Proof. intros; discriminate. Qed.
 
+(* ===================================================================== *)
+(* SDelSubscript observability (non-vacuity).  FLAT node — size 1.         *)
+(* ===================================================================== *)
+
+Theorem stmt_kind_of_delsubscript : forall a i,
+  stmt_kind_of (SDelSubscript a i) = "DelSubscript".
+Proof. reflexivity. Qed.
+Theorem tag_delsubscript_neq_pass : forall a i,
+  stmt_kind_of (SDelSubscript a i) <> stmt_kind_of SPass.
+Proof. intros; simpl; discriminate. Qed.
+Theorem tag_delsubscript_neq_match : forall a i s cs,
+  stmt_kind_of (SDelSubscript a i) <> stmt_kind_of (SMatch s cs).
+Proof. intros; simpl; discriminate. Qed.
+Theorem size_delsubscript_flat : forall a i, size_stmt (SDelSubscript a i) = 1.
+Proof. reflexivity. Qed.
+(* Both the ARRAY and the INDEX are observable — change either and the node differs
+   (never collapsed to a shared 0). *)
+Theorem sdelsub_array_observable : forall a b i,
+  a <> b -> SDelSubscript a i <> SDelSubscript b i.
+Proof. intros a b i H C; inversion C; contradiction. Qed.
+Theorem sdelsub_index_observable : forall a i j,
+  i <> j -> SDelSubscript a i <> SDelSubscript a j.
+Proof. intros a i j H C; inversion C; contradiction. Qed.
+
 End StmtIR.
 
 (* ===================================================================== *)
@@ -733,6 +765,12 @@ Print Assumptions mc_pattern_observable.
 Print Assumptions mc_guard_observable.
 Print Assumptions mc_body_observable.
 Print Assumptions mc_guard_none_neq_some.
+Print Assumptions stmt_kind_of_delsubscript.
+Print Assumptions tag_delsubscript_neq_pass.
+Print Assumptions tag_delsubscript_neq_match.
+Print Assumptions size_delsubscript_flat.
+Print Assumptions sdelsub_array_observable.
+Print Assumptions sdelsub_index_observable.
 Print Assumptions size_slist_lt_swhile.
 Print Assumptions size_body_lt_sif.
 Print Assumptions size_orelse_lt_sif.
