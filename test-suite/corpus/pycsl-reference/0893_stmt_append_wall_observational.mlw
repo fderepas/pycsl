@@ -1,0 +1,56 @@
+module WallStmtIrObservation
+  use int.Int
+  use seq.Seq
+  use ref.Ref
+
+  (* emit_ir is OPAQUE here: the observational drivers append/read only the NULLARY
+     statement node SPass, which carries no emit_ir child, so the full emit_ir ADT theory
+     is unnecessary for this VC.  The stmt_ir block + emit_pass body below are VERBATIM the
+     PyCSL tool's emitted output (module6_whyml/preamble.py::_emit_exprir_theory gated on
+     _uses_stmt_ir, and the append lowering in statements.py). *)
+  type emit_ir
+
+  (* ---- VERBATIM tool-emitted stmt_ir block (preamble.py _uses_stmt_ir gate) ---- *)
+  type stmt_ir = SPass | SBreak | SContinue | SReturn emit_ir | SExpr emit_ir
+  let function stmt_kind_of (s: stmt_ir) : string =
+    match s with
+    | SPass -> "Pass" | SBreak -> "Break" | SContinue -> "Continue"
+    | SReturn _ -> "Return" | SExpr _ -> "Expr"
+    end
+
+  (* ---- emit_pass: signature + body VERBATIM from the tool (real writes { ir_stmts },
+     Seq.snoc on the ref itself).  The `ensures` is ADDED and is a VC CHECKED against the
+     tool's verbatim body: if the tool had emitted the WALL (a `snapshot` local copy or an
+     integer-0 erasure) this ensures would be UNPROVABLE.  Proving it Valid certifies the
+     tool emits the SOUND in-place append. ---- *)
+  let emit_pass (ir_stmts: ref (seq stmt_ir)) : unit
+    requires { true }
+    ensures  { !ir_stmts = Seq.snoc (old !ir_stmts) SPass }
+    writes { ir_stmts }
+  =
+    ir_stmts := Seq.snoc !ir_stmts SPass
+
+  (* OBSERVATIONAL non-vacuity: a CALLER starts from a fresh ir_stmts, calls emit_pass, and
+     READS BACK the appended node.  The caller-visible write (writes frame + ensures) is what
+     makes this provable — the pre-feature snapshot-local model left it Unknown. *)
+  let driver () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_pass ir_stmts;
+    assert { Seq.length !ir_stmts = 1 };
+    assert { Seq.get !ir_stmts 0 = SPass };
+    assert { stmt_kind_of (Seq.get !ir_stmts 0) = "Pass" }
+
+  (* EVIL TWIN: the WRONG-tag assertion.  Must stay UNPROVEN (else the model is vacuous). *)
+  let driver_evil () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_pass ir_stmts;
+    assert { Seq.get !ir_stmts 0 = SBreak }
+
+  (* Positive non-vacuity: the WRONG tag is PROVABLY FALSE (SPass <> SBreak — distinct
+     constructors, no erasure). If this is Valid, the driver_evil assertion above is
+     genuinely unprovable, not merely slow. *)
+  let driver_refute () : unit =
+    let ir_stmts = ref (Seq.empty: seq stmt_ir) in
+    emit_pass ir_stmts;
+    assert { Seq.get !ir_stmts 0 <> SBreak }
+end

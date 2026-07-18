@@ -1632,6 +1632,81 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         return rt.get("field_key_types", {}).get(field, "int")
 
+    # stmt-list-append-mutation wall (C-bucket): the `{"stmt": K, …}` statement-node
+    # kinds this lowers to `stmt_ir` constructors, and the payload field each reads. A
+    # nullary node (Pass/Break/Continue) is a bare ctor; SReturn/SExpr carry one emit_ir
+    # expr child (`value`). TAG-PRESERVING — never erased to `0` (fable Oracle 3).
+    _STMT_IR_CTORS = {
+        "Pass":     ("SPass", []),
+        "Break":    ("SBreak", []),
+        "Continue": ("SContinue", []),
+        "Return":   ("SReturn", ["value"]),
+        "Expr":     ("SExpr", ["value"]),
+    }
+
+    def _is_stmt_ir_expr(self, ir: Any) -> bool:
+        """stmt-list-append-mutation wall (C-bucket): True iff `ir` is a stmt_ir-VALUED
+        expression — a subscript `p[i]` of a `ref (seq stmt_ir)` param (the element read
+        `Seq.get !p i : stmt_ir`). The load-bearing read-back shape for the non-vacuity
+        gate; corpus-inert (no corpus program has a stmt-seq-mut param)."""
+        if not isinstance(ir, dict):
+            return False
+        if ir.get("type") == "Subscript":
+            v = ir.get("value")
+            return (isinstance(v, dict) and v.get("type") == "Var"
+                    and v.get("name") in getattr(self, "_stmt_seq_mut_params", set()))
+        return False
+
+    def _stmt_ir_kind_reflection(self, expr: Dict[str, Any], local_refs: Set[str],
+                                 invariant_ctx: bool,
+                                 subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """stmt-list-append-mutation wall (C-bucket): lower `<stmt_ir>.get("stmt")` to
+        `(stmt_kind_of <base>)` — the statement node's tag, the honest read-back the
+        pre-feature integer-`0` erasure (fable Oracle 3) made impossible. Fires only when
+        the receiver is a subscript of a stmt-seq-mut param → corpus-inert."""
+        fn = expr.get("func", "")
+        if fn != "get":
+            return None
+        args = expr.get("args") or []
+        if not (args and isinstance(args[0], dict) and args[0].get("type") == "String"
+                and args[0].get("value") == "stmt"):
+            return None
+        recv = expr.get("receiver")
+        if not self._is_stmt_ir_expr(recv):
+            return None
+        base = self._expr_to_whyml(recv, local_refs, invariant_ctx, subst)
+        return f"(stmt_kind_of {base})"
+
+    def _lower_stmt_ir_node(self, node: Dict[str, Any], local_refs: Set[str],
+                            invariant_ctx: bool = False,
+                            subst: Optional[Dict[str, str]] = None) -> str:
+        """stmt-list-append-mutation wall (C-bucket): lower a statement-node dict literal
+        `{"stmt": "Pass"}` / `{"stmt": "Return", "value": <emit_ir>}` to its `stmt_ir`
+        constructor (`SPass` / `(SReturn <child>)`). The tag is PRESERVED by the
+        constructor choice — the honest node identity the pre-feature `_coerce_to_int`
+        erased to `0`. Only reached for a `{"stmt":K}` append to a stmt-seq-mut param, so
+        it is corpus-inert by construction."""
+        fields: Dict[str, Any] = {}
+        for k, v in zip(node.get("keys", []) or [], node.get("values", []) or []):
+            if isinstance(k, dict) and k.get("type") == "String":
+                fields[k.get("value")] = v
+        skind_ir = fields.get("stmt")
+        skind = skind_ir.get("value") if isinstance(skind_ir, dict) else None
+        ctor = self._STMT_IR_CTORS.get(skind)
+        if ctor is None:
+            # Fail CLOSED, loudly: an unmodelled statement kind must surface as a Why3
+            # typecheck error, never be silently mislabelled to a wrong tag.
+            return f'(SUnmodelledStmt_{skind})'
+        cname, payload = ctor
+        if not payload:
+            return cname
+        args = []
+        for f in payload:
+            if f not in fields:
+                return f'(SMissingChild_{skind}_{f})'
+            args.append(self._expr_to_whyml(fields[f], local_refs, invariant_ctx, subst))
+        return f"({cname} {' '.join(args)})"
+
     def _lower_irnode_construction(self, expr: Dict[str, Any], local_refs: Set[str],
                                    invariant_ctx: bool,
                                    subst: Optional[Dict[str, str]]) -> Optional[str]:
@@ -3582,6 +3657,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         func_name = expr["func"]
+        # stmt-list-append-mutation wall (C-bucket): `<stmt_ir>.get("stmt")` reflects the
+        # statement node's TAG via `stmt_kind_of` — the read-back that OBSERVES the
+        # appended node's identity (the non-vacuity gate). Fires only for a subscript of a
+        # `ref (seq stmt_ir)` param → corpus-inert.
+        _skr = self._stmt_ir_kind_reflection(expr, local_refs, invariant_ctx, subst)
+        if _skr is not None:
+            return _skr
         # G1 (09-2223 pure-classifier increment): `<record-var>.get("<field>"[, default])`
         # on a record-typed param/local reads the NATIVE record field, not the opaque
         # `<recv>_get_N <int-hash>` abstract op that drops the read (a vacuous/unfaithful

@@ -10,6 +10,7 @@ Phase2_State.v
 Phase2b_RecordVal.v
 Phase2c_PyValDict.v
 Phase2c_PyConstVal.v
+Phase2d_StmtIR.v
 Phase7_MemModel.v
 Phase3_SOS.v
 Phase3b_DesugarDef.v

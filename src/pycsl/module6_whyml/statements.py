@@ -1186,6 +1186,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if func.endswith(".append") and self._value_semantic:
                 arr_name = func.rsplit(".", 1)[0].replace(".", "_")
                 safe_arr = whyml_ident(arr_name)
+                # stmt-list-append-mutation wall (C-bucket): appending a statement-IR node
+                # `{"stmt": K, …}` to a caller-visible `ref (seq stmt_ir)` param grows the
+                # seq on the ref ITSELF (`p := Seq.snoc !p <ctor>`), preserving the node
+                # TAG via the stmt_ir constructor (SPass / SReturn …) — NOT the pre-feature
+                # `_coerce_to_int` erasure to `0`. Keyed on the param being a stmt-seq-mut
+                # param → corpus-inert.
+                if arr_name in getattr(self, "_stmt_seq_mut_params", set()):
+                    node_arg = self._lower_stmt_ir_node(
+                        val["args"][0].to_dict() if hasattr(val["args"][0], "to_dict")
+                        else val["args"][0], local_refs)
+                    return f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {node_arg}"
                 arg = self._expr_to_whyml(val["args"][0], local_refs)
                 arg = self._coerce_to_int(arg)
                 if arr_name in getattr(self, "_seq_locals", set()):
@@ -2434,6 +2445,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # immutable growable `seq int` model for the body (concat/len/read via P3,
             # `return a` materialises back via P4).
             if var in self._seq_locals and var in self._formal_params:
+                # stmt-list-append-mutation wall (C-bucket): a `ref (seq stmt_ir)` param IS
+                # already the caller-visible ref — do NOT shadow it with a `snapshot` local
+                # copy (that was the wall: the append became invisible to the caller). The
+                # param's own ref is written directly (`p := Seq.snoc !p v`).
+                if var in getattr(self, "_stmt_seq_mut_params", set()):
+                    continue
                 self._add_abstract_op(
                     "val snapshot (a: array int) : seq int\n"
                     "    ensures { Seq.length result = Array.length a }\n"
@@ -2473,6 +2490,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # absent from `local_refs`). `len(tgt)` resolves via `Seq.length !tgt`
             # (already handled), so the `_len` counter is unnecessary and omitted.
             if tgt in self._seq_locals and tgt in self._formal_params:
+                # stmt-list-append-mutation wall (C-bucket): the `ref (seq stmt_ir)` param
+                # is already the caller-visible ref — no `snapshot` shadow (see the
+                # pre_decl loop above).
+                if tgt in getattr(self, "_stmt_seq_mut_params", set()):
+                    continue
                 self._add_abstract_op(
                     "val snapshot (a: array int) : seq int\n"
                     "    ensures { Seq.length result = Array.length a }\n"

@@ -23,6 +23,14 @@ class FunctionEmissionMixin:
             return f"({safe}: {_ck[arg]})"
         if arg in ref_params:
             return f"({safe}: ref {int_type})"
+        # stmt-list-append-mutation wall (C-bucket): a list param that is `.append`-ed a
+        # `{"stmt":K}` statement node (fixpoint incl. transitive forwarding) is a
+        # caller-visible mutable `ref (seq stmt_ir)` — passed BY REFERENCE, so the append
+        # escapes to the caller (the SOUND model; the fable oracle's `push`). NOT the
+        # by-value `array int` + `snapshot`-local shadow (invisible to the caller). Keyed
+        # on the stmt-seq-mut set → corpus-inert (byte-identical everywhere else).
+        if arg in getattr(self, "_stmt_seq_mut_params", set()):
+            return f"({safe}: ref (seq stmt_ir))"
         if arg in array2d_params:
             return f"({safe}: matrix {int_type})"
         symtype = symbol_table.get(arg)
@@ -369,6 +377,20 @@ class FunctionEmissionMixin:
             # writes; also bypasses `_reject_param_collection_mutation`, which is gated
             # on `var not in _dict_locals`).
             self._dict_locals |= self._mutated_collection_params
+        # stmt-list-append-mutation wall (C-bucket): a list param appended a `{"stmt":K}`
+        # node (fixpoint incl. transitive forwarding) is a caller-visible mutable
+        # `ref (seq stmt_ir)` param with a `writes {p}` frame — the SOUND in-place-append
+        # model (fable oracle's `push`), NOT the pre-feature `let p = ref (snapshot p)`
+        # LOCAL-copy shadow (which was invisible to the caller). Promoted to `_seq_locals`
+        # + `local_refs` so `!p` deref, `Seq.snoc`, `Seq.length !p`, `Seq.get !p i` all
+        # resolve exactly as for a seq LOCAL; the snapshot-shadow path in `_emit_body_code`
+        # is SKIPPED for these (the param IS the ref). Empty for every non-stmt-append
+        # program → byte-identical.
+        self._stmt_seq_mut_params: Set[str] = set(
+            getattr(self, "_func_stmt_seq_mut_params", {}).get(func.get("name"), set()))
+        if self._stmt_seq_mut_params:
+            self._seq_locals |= self._stmt_seq_mut_params
+            local_refs |= self._stmt_seq_mut_params
         return local_refs, ghost_vars
 
     def _has_dynamic_exec(self, func: Dict[str, Any]) -> bool:
@@ -1751,6 +1773,16 @@ class FunctionEmissionMixin:
                 _ordered = [whyml_ident(p) for p in self._formal_params if p in _mcp]
                 if _ordered:
                     lines.append(f"    writes {{ {', '.join(_ordered)} }}")
+            # stmt-list-append-mutation wall (C-bucket): a `ref (seq stmt_ir)` param
+            # appended in the body carries a real `writes {p}` frame so Why3 accepts (and
+            # CHECKS) the caller-visible in-place append — the frame the pre-feature
+            # `assigns ir_stmts` lowered to `writes { }` (empty; fable Oracle 3). Empty set
+            # → no clause → byte-identical.
+            _ssp = getattr(self, "_stmt_seq_mut_params", set())
+            if _ssp:
+                _ord2 = [whyml_ident(p) for p in self._formal_params if p in _ssp]
+                if _ord2:
+                    lines.append(f"    writes {{ {', '.join(_ord2)} }}")
 
         if emit_as_val:
             lines.append("")
@@ -2811,6 +2843,103 @@ class FunctionEmissionMixin:
             for func in functions:
                 nm = func.get("name")
                 if nm is None or func.get("kind") == "method":
+                    continue
+                params = set(func.get("formal_params", []) or [])
+                calls: List[tuple] = []
+                self._collect_calls(func.get("body", []) or [], calls)
+                for callee, args in calls:
+                    callee_mut = by_name.get(callee)
+                    if not callee_mut:
+                        continue
+                    cf = formals.get(callee, [])
+                    for i, a in enumerate(args):
+                        if i >= len(cf):
+                            break
+                        if cf[i] not in callee_mut:
+                            continue
+                        if (isinstance(a, dict) and a.get("type") == "Var"
+                                and a.get("name") in params
+                                and a["name"] not in by_name[nm]):
+                            by_name[nm].add(a["name"])
+                            changed = True
+        return by_name
+
+    @staticmethod
+    def _is_stmt_ir_node(arg: Any) -> bool:
+        """stmt-list-append-mutation wall (C-bucket): is `arg` a statement-IR node
+        literal — a `DictLit` with a STRING-literal `"stmt"` key? That is the exact
+        shape the `_py_stmt_*` handlers append (`{"stmt": "Pass"}`, `{"stmt": "Return",
+        …}`) and NOTHING in the corpus produces it, so it is the sound discriminator of
+        the mutable-ref stmt-append convention."""
+        if not (isinstance(arg, dict) and arg.get("type") == "DictLit"):
+            return False
+        for k in arg.get("keys", []) or []:
+            if (isinstance(k, dict) and k.get("type") == "String"
+                    and k.get("value") == "stmt"):
+                return True
+        return False
+
+    def _stmt_seq_append_params(self, func: Dict[str, Any]) -> Set[str]:
+        """stmt-list-append-mutation wall (C-bucket): the DIRECT seed — list params
+        that are `.append`-ed a statement-IR node (`p.append({"stmt": K, …})`) in this
+        function's own body. These become caller-visible mutable `ref (seq stmt_ir)`
+        params with a real `writes {p}` frame (the sound in-place-append model; the fable
+        oracle's `push`). Methods are INCLUDED (unlike the ref-map WL-05b seed): the
+        `_py_stmt_*` handlers are methods, and the convention threads their param type
+        consistently through the abstract-op call map (`_build_method_param_types_map`
+        consults the same `_func_stmt_seq_mut_params`)."""
+        params = set(func.get("formal_params", []) or [])
+        mutated: Set[str] = set()
+
+        def walk(stmts: List[Dict[str, Any]]) -> None:
+            for st in stmts:
+                if not isinstance(st, dict):
+                    continue
+                if st.get("stmt") in ("Expr", "ExprStmt"):
+                    val = st.get("value", {})
+                    if isinstance(val, dict) and val.get("type") == "Call":
+                        fn = val.get("func", "")
+                        args = val.get("args", []) or []
+                        if (isinstance(fn, str) and fn.endswith(".append")
+                                and args and self._is_stmt_ir_node(args[0])):
+                            recv = fn.rsplit(".", 1)[0]
+                            if recv in params:
+                                mutated.add(recv)
+                for key in ("body", "orelse", "finalbody"):
+                    sub = st.get(key)
+                    if isinstance(sub, list):
+                        walk(sub)
+                for hk in ("handlers", "cases"):
+                    for h in (st.get(hk) or []):
+                        if isinstance(h, dict):
+                            walk(h.get("body", []) or [])
+        walk(func.get("body", []) or [])
+        return mutated
+
+    def _build_func_stmt_seq_mut_params(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, Set[str]]:
+        """stmt-list-append-mutation wall (C-bucket): module-level map func-name → set of
+        list params modelled as a caller-visible mutable `ref (seq stmt_ir)`. FIXPOINT
+        (the WL-05b `_build_func_mutated_collection_params` precedent): seed with directly
+        stmt-appended params, then propagate — if A forwards its param `p` (a bare `Var`)
+        into a position callee B treats as a stmt-seq-mut param, `p` is stmt-seq-mut in A
+        too (Python's by-reference escape is transitive). Keeps a `driver(ir_stmts)` that
+        forwards its param into `emit_pass(ir_stmts)` SOUND (both sides `ref (seq
+        stmt_ir)`)."""
+        by_name: Dict[str, Set[str]] = {}
+        formals: Dict[str, List[str]] = {}
+        for func in functions:
+            nm = func.get("name")
+            if nm is None:
+                continue
+            by_name[nm] = self._stmt_seq_append_params(func)
+            formals[nm] = list(func.get("formal_params", []) or [])
+        changed = True
+        while changed:
+            changed = False
+            for func in functions:
+                nm = func.get("name")
+                if nm is None:
                     continue
                 params = set(func.get("formal_params", []) or [])
                 calls: List[tuple] = []

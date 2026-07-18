@@ -1015,6 +1015,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_augassign(self, stmt: ast.AugAssign, ir_stmts: List[int]) -> None:
         pass
 
+    # stmt-list-append-mutation wall (C-bucket): the SReturn emit_ir-CHILD path is BUILT +
+    # certified (Phase2d_StmtIR.v/StmtIR.lean; `_STMT_IR_CTORS["Return"]`, expressions.py
+    # `_lower_stmt_ir_node`) and independently proven (a `{"stmt":"Return","value":<emit_ir>}`
+    # append lowers to `Seq.snoc !ir_stmts (SReturn <child>)`). This handler STAYS trusted
+    # for now: the verbatim body reads `stmt.value` on the `ast.Return` param, which needs
+    # STATEMENT-node param resolution (a `Return` entry in the resolver's field table + the
+    # OPTIONAL-`value` field machinery) — a STEP-2 infra increment, not a wall-model gap. Its
+    # `ir_stmts` still models the SOUND mutable-ref convention once that lands.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1092,12 +1100,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_with(self, stmt: ast.With, ir_stmts: List[int]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
+    # caller-visible mutable `ref (seq stmt_ir)` param (the None-returning + `#@ assigns
+    # ir_stmts` convention); `.append({"stmt":"Pass"})` lowers to `ir_stmts := Seq.snoc
+    # !ir_stmts SPass` on the ref ITSELF — the SOUND in-place append (fable BREAKABLE
+    # verdict), tag-preserving (SPass, never erased to 0). Verbatim body port of the LIVE
+    # `_py_stmt_pass` (Module5_IREmitter.py:1434). Co-landed with the axiom-free Rocq+Lean
+    # certificate (Phase2d_StmtIR.v / StmtIR.lean).
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_pass(self, stmt: ast.Pass, ir_stmts: List[int]) -> None:
-        pass
+        ir_stmts.append({"stmt": "Pass"})
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

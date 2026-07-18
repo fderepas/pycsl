@@ -137,6 +137,9 @@ class Module6_WhyMLTranspiler(
         # wrong-lowering-to-fix.md §WL-05b: func-name -> caller-visible mutable
         # `ref (map …)` dict/set param names (fixpoint). Empty default → byte-identical.
         self._func_mutated_collection_params: Dict[str, Set[str]] = {}
+        # stmt-list-append-mutation wall (C-bucket): func-name -> caller-visible mutable
+        # `ref (seq stmt_ir)` list param names (fixpoint). Empty default → byte-identical.
+        self._func_stmt_seq_mut_params: Dict[str, Set[str]] = {}
         # 10-1732-gap (Gaps 2/3): callee return-annotation + by-name param WhyML types.
         self._module_method_return_annotations: Dict[str, str] = {}
         self._module_method_param_whyml_types: Dict[str, Dict[str, str]] = {}
@@ -516,7 +519,9 @@ class Module6_WhyMLTranspiler(
         # the record types — an ExprIR-valued field names `emit_ir`, so the ADT must be
         # in scope first. Gated on a @mutable_state class OR (tier3-p1) an IR-node-typed
         # param/local; corpus has neither → byte-identical.
-        if getattr(self, "_mutable_state_classes", None) or getattr(self, "_uses_ir_node_param", False):
+        if (getattr(self, "_mutable_state_classes", None)
+                or getattr(self, "_uses_ir_node_param", False)
+                or self._uses_stmt_ir()):
             # theory-tailoring: emit the MINIMAL emit_ir surface for opaque-use
             # emitter mirrors, gated by an EXPLICIT class-name ALLOW-LIST
             # (`_TAILOR_OPAQUE_MIRROR_CLASSES`). These mirrors pass emit_ir
@@ -635,6 +640,12 @@ class Module6_WhyMLTranspiler(
         # read-only-collection program -> byte-identical.
         self._func_mutated_collection_params = \
             self._build_func_mutated_collection_params(funcs_for_maps)
+        # stmt-list-append-mutation wall (C-bucket): func-name -> list params modelled as
+        # a caller-visible mutable `ref (seq stmt_ir)` (fixpoint over direct stmt-append +
+        # transitive param forwarding). Empty for every program with no `{"stmt":K}`
+        # append -> byte-identical.
+        self._func_stmt_seq_mut_params = \
+            self._build_func_stmt_seq_mut_params(funcs_for_maps)
         # 1111-spec R7: formal-param order + positional defaults, for call-site
         # default fill of cross-module / module-function calls.
         self._module_method_formal_params = {
@@ -755,6 +766,9 @@ class Module6_WhyMLTranspiler(
         # read-only-collection program -> byte-identical.
         self._func_mutated_collection_params = \
             self._build_func_mutated_collection_params(funcs_for_maps)
+        # stmt-list-append-mutation wall (C-bucket): see the parallel setup above.
+        self._func_stmt_seq_mut_params = \
+            self._build_func_stmt_seq_mut_params(funcs_for_maps)
         self._module_method_formal_params = {
             f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
         self._module_method_param_defaults = {

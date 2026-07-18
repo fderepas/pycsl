@@ -3901,7 +3901,59 @@ class PreambleEmissionMixin:
                 " irnth i result = IrNum (Seq.get s i) }",
                 "",
             ]) if self._uses_pyconst_val() else []),
+            # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): the
+            # STATEMENT-IR sum an `_py_stmt_*` handler appends to its `ir_stmts` list.
+            # STANDALONE + MONOMORPHIC: DISJOINT from the emit_ir mutual-recursion block
+            # above (no `with`, no shared `size` induction) — it REFERENCES emit_ir for a
+            # statement's expr children (SReturn/SExpr) but emit_ir does NOT reference
+            # stmt_ir, so the recursion is one-directional and stmt_ir adds NO constructor
+            # to emit_ir's soundness/size induction. TAG-PRESERVING: `stmt_kind_of`
+            # projects the node tag (SPass -> "Pass", SBreak -> "Break", …) — the honest
+            # discriminant that KILLS the pre-feature `.append({"stmt":K})` -> integer-`0`
+            # erasure (fable Oracle 3). Emitted ONLY where a `{"stmt":K}` node is actually
+            # appended (`_uses_stmt_ir`; only the Module5 mirror + the wall reference
+            # drivers) — every other full-theory mirror + the whole corpus is inert
+            # (byte-identical). Co-landed with the axiom-free Rocq+Lean certificate
+            # (src/formal-semantics/rocq/Phase2d_StmtIR.v + lean/PyCSL/StmtIR.lean): stmt_ir
+            # is a well-founded inductive (size measure + decidable eq), the dict->ctor map
+            # is total+injective on the recognized key-set, and the emit_ir child
+            # introduces no mutual recursion. The mutable-ref append convention itself is a
+            # Why3-intrinsic `writes` VC (no certificate clause needed — recorded in the
+            # .v/.lean headers).
+            *(([
+                "  (* stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket):"
+                " the statement-IR sum. SReturn/SExpr carry one emit_ir expr child (a"
+                " one-directional reference to the emit_ir ADT above — NOT mutual"
+                " recursion, so no shared `size` obligation). `stmt_kind_of` is the"
+                " TAG-PRESERVING discriminant (the honest node tag, never erased to 0). *)",
+                "  type stmt_ir = SPass | SBreak | SContinue"
+                " | SReturn emit_ir | SExpr emit_ir",
+                "  let function stmt_kind_of (s: stmt_ir) : string =",
+                "    match s with",
+                "    | SPass -> \"Pass\" | SBreak -> \"Break\""
+                " | SContinue -> \"Continue\"",
+                "    | SReturn _ -> \"Return\" | SExpr _ -> \"Expr\"",
+                "    end",
+                "",
+            ]) if self._uses_stmt_ir() else []),
         ]
+
+    def _uses_stmt_ir(self) -> bool:
+        """stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): True iff some
+        function in this file appends a statement-IR node — a `<list>.append({"stmt": K})`
+        with a STRING-literal `"stmt"` kind — to a list parameter. That syntactic shape is
+        the sole discriminator of the mutable-ref stmt-append convention; only the Module5
+        mirror's `_py_stmt_*` handlers (and the wall reference drivers) produce it, so the
+        stmt_ir theory block + the `ref (seq stmt_ir)` param typing stay OUT of every other
+        mirror's SMT context and the whole corpus (byte-identical). Cached."""
+        cached = getattr(self, "_uses_stmt_ir_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._stmt_seq_append_params(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_stmt_ir_cache = result
+        return result
 
     def _uses_pyconst_val(self) -> bool:
         """pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): True iff this
