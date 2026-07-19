@@ -33,8 +33,20 @@ see `config/skills/self-tcb-reduction/emit-ir-conversion-lessons.md` §9-§10).
   (the mandatory cross-file re-prove for a shared-tool change). Fidelity VERBATIM. This unblocks the whole class of
   string-returning `.id`/`.attr`-readers. P3 (sub-dispatcher retype) not needed for this walker.
 
+## ANNOTATION-WALKER SUB-CAMPAIGN COMPLETE (increments 1-9, 1041→1035, −6 walkers)
+Converted: `_callable_type_tag`, `_typeddict_field_type`, `_m5_get_dict_key_type`, `_normalize_final_annotation`,
+`_m5_get_dict_value_type`, `_union_arm_tag`. 9 BANKED REUSABLE PRIMITIVES: `_is_emit_ir_expr` string-leaf fix;
+scoped `.slice`→sindex_of; P3 sub-dispatcher ExprIR-retype; IrMkTupleN element access (is_mktuple/irlen/irnth/
+elts_of); isinstance-on-emit_ir-ref-local deref; synthesized-variant early-return exception (`Return_<variant>`);
+generalized string-return wrapping; tuple-unpack-from-IrMkTupleN; `is_none`-conjunction recognizer. All: fidelity
+verbatim, corpus byte-diff 0 (or gated-inert), consumers re-prove, ledger 3, no facade. PROVEN BOUNDARIES (not
+assumed): pyconst_val per-kind value discrimination (`_classify_literal_value` — emit_ir arm carries no pyconst_val,
+`is_none` covers only None); `.lower()`/`.strip()` string-method leaves; stateful `program_ir`-mutating giants
+(`_normalize_union/literal_annotation`, `_collect_*`); variant-to-variant delegation (`_m5_get_field_key_type`).
+NEXT candidate: `str_lower` (abstract val, str_of_int-analog) for the `.lower()`-walled leaves — measure-before-build.
+
 ## Order of work (measure-before-build each)
-1. ~~CENSUS + PROBE~~ DONE. ~~Increment 1 (string-leaf-attr fix + _callable_type_tag)~~ LANDED.
+1. ~~CENSUS + PROBE~~ DONE. ~~Increments 1-9 (annotation-walker sub-campaign)~~ COMPLETE (1041→1035).
 2. If feasible, build the primitive + convert the cluster incrementally (whole-file-proof-gated, byte-diff
    characterized — the annotation path MAY be corpus-affecting: verify by sweep, re-prove changed files).
 3. Then the Module6 emitter reflection (isinstance-on-value/typeof/getattr).
