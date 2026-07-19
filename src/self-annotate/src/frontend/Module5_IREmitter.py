@@ -1945,12 +1945,47 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _encode_callable_annotation(self, annotation: ast.Subscript) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 1 (P3 annotation-walker + _is_emit_ir_expr string-leaf
+    # fix): the census's cleanest only-P3 walker — a single `isinstance(node, ast.Name)` ->
+    # `node.id` (name_of) discriminant, else a `raise`. `node` retyped `ast.expr` -> `"ExprIR"`
+    # (T1.a) so it lowers `emit_ir`; the two `isinstance(node, ast.Name/Subscript)` tests lower
+    # via the isinstance-on-emit_ir recognizer to `(is_var node)` / `(is_sub node)`; `node.id`
+    # via `name_of` (a STRING leaf — so `tag`/the return type are `string`, `Return_str`, NOT
+    # emit_ir; needed the `_is_emit_ir_expr` string-leaf exclusion). The three `raise
+    # PyCSLSemanticError(f"...{type(node).__name__}...", stage=, code=)` arms lower to a real
+    # Why3 `raise` (f-string/`type().__name__`/kwargs DROPPED; raise path never reaches
+    # `ensures`). No `.value`/`.slice` read -> no P1. isinstance_op = 0. Verbatim body port of
+    # the LIVE `_callable_type_tag`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _callable_type_tag(self, node: ast.expr) -> str:
-        return ""
+    def _callable_type_tag(self, node: "ExprIR") -> str:
+        from errors import PyCSLSemanticError
+        if isinstance(node, ast.Name):
+            tag = node.id
+            if tag == "Any":
+                raise PyCSLSemanticError(
+                    "Callable arg/return type `Any` is refused — GT1: Any "
+                    "never instantiates a function-type obligation (the "
+                    "consistency relation is deliberately unsound).",
+                    stage="ir-emit", code="PYCSL-TY3-GT1",
+                )
+            # Primitive scalar OR a bare class name (record/variant) — Module 6
+            # resolves the class name against the known record/variant types.
+            return tag
+        if isinstance(node, ast.Subscript):
+            raise PyCSLSemanticError(
+                "A nested generic/Callable arg or return type is not "
+                "interpreted (C5 sound scope limit, stricter than S1). "
+                "Callable arg/return types must be bare primitive or class "
+                "names in this delivery.",
+                stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
+            )
+        raise PyCSLSemanticError(
+            f"Callable arg/return type must be a bare Name (got "
+            f"{type(node).__name__}) — C5 sound scope limit.",
+            stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
+        )
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

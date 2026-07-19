@@ -1148,7 +1148,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # an emit_ir node, e.g. `body_stmts[-1].value`) is itself an emit_ir sub-node.
             # self-tcb-reduction T1.a: EXCLUDE node-LIST attrs (`.elts`/`.parts`/…) — those are
             # `array emit_ir` (`args_of`), NOT a scalar node, so they are collected as array locals.
-            if ((ir.get("attr") or ir.get("field")) not in ("elts", "parts", "args", "captures")
+            # value-model campaign: EXCLUDE STRING-LEAF attrs (`_EMIT_IR_STR_ATTRS`: `.id`/`.var`/
+            # `.kind`/`.op`/`.name`/`.func`/…) — those route to a `string` projector (name_of/kind_of/
+            # op_of/func_of), NOT an emit_ir sub-node projector, so `x = node.id` types `string` (a
+            # str-returning `.id`-reader must NOT be a `_returns_emit_ir` local). Symmetric with
+            # `_is_string_expr`'s `(attr in _EMIT_IR_STR_ATTRS)` string-leaf check at its Attribute
+            # branch — the two recognizers now agree on what `<emit_ir>.<str-attr>` is.
+            _at = ir.get("attr") or ir.get("field")
+            if (_at not in ("elts", "parts", "args", "captures")
+                    and _at not in _EMIT_IR_STR_ATTRS
                     and isinstance(obj, dict) and self._is_emit_ir_expr(obj)
                     and getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set())):
