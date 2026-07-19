@@ -1,0 +1,89 @@
+module WallBaseRecognizerObservation
+  use int.Int
+  use seq.Seq
+  use string.String
+
+  (* self-tcb-reduction M5, C-bucket: OBSERVATIONAL non-vacuity for the base bool-recognizers
+     (`_is_typeddict_class`/`_is_namedtuple_class`/`_is_protocol_class` -> `bases_has_name`
+     existence fold) and `_is_final_annotation` (fixed-shape). No new ctor (reuses the
+     emit_ir discriminants). The emit_ir subset, `bases_has_name` and `is_final_ann` below
+     are VERBATIM the PyCSL tool's emitted output (module6_whyml/preamble.py::
+     _emit_exprir_theory gated on _uses_stmt_ir; grep-confirmed). *)
+
+  type emit_ir = IrVar string | IrOther string
+               | IrAttr emit_ir string | IrSub emit_ir emit_ir
+  with irlist = ILNil | ILCons emit_ir irlist
+  let function is_var (e: emit_ir) : bool =
+    match e with IrVar _ -> true | _ -> false end
+  let function is_attribute (e: emit_ir) : bool =
+    match e with IrAttr _ _ -> true | _ -> false end
+  let function is_sub (e: emit_ir) : bool =
+    match e with IrSub _ _ -> true | _ -> false end
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar n -> n | IrAttr _ a -> a | _ -> "" end
+  let function svalue_of (e: emit_ir) : emit_ir =
+    match e with IrSub v _ -> v | _ -> IrOther "" end
+
+  (* ---- VERBATIM tool-emitted CONCRETE existence fold: a base matches iff it is a
+     Name/Attribute whose head name (name_of) equals the target. NOT length-only. ---- *)
+  function bases_has_name (target: string) (l: irlist) : bool =
+    match l with
+    | ILNil -> false
+    | ILCons b t -> if (is_var b || is_attribute b) && (name_of b = target)
+                    then true else bases_has_name target t
+    end
+  val function bases_has_name_prog (target: string) (l: irlist) : bool
+    ensures { result = bases_has_name target l }
+
+  (* ---- VERBATIM tool-emitted `_is_final_annotation` fixed-shape discriminant. ---- *)
+  function is_final_ann (ann: emit_ir) : bool =
+    (is_var ann && name_of ann = "Final")
+    || (is_sub ann && is_var (svalue_of ann) && name_of (svalue_of ann) = "Final")
+  val function is_final_ann_prog (ann: emit_ir) : bool
+    ensures { result = is_final_ann ann }
+
+  (* ---- the recognizer bodies (VERBATIM). ---- *)
+  let function is_typeddict_class (bases: irlist) : bool = bases_has_name_prog "TypedDict" bases
+  let function is_final_annotation (ann: emit_ir) : bool = is_final_ann_prog ann
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — both branches of each recognizer.          *)
+  (* ==================================================================== *)
+
+  (* `class X(A, TypedDict)` -> True (a matching base is present). *)
+  let driver_typeddict_true () : unit =
+    let bases = ILCons (IrVar "A") (ILCons (IrVar "TypedDict") ILNil) in
+    assert { is_typeddict_class bases = true }
+
+  (* `class X(A)` (no TypedDict base) -> False. *)
+  let driver_typeddict_false () : unit =
+    let bases = ILCons (IrVar "A") ILNil in
+    assert { is_typeddict_class bases = false }
+
+  (* dotted `typing.TypedDict` base (IrAttr .TypedDict) -> True (name_of covers b.attr). *)
+  let driver_typeddict_dotted () : unit =
+    let bases = ILCons (IrAttr (IrVar "typing") "TypedDict") ILNil in
+    assert { is_typeddict_class bases = true }
+
+  (* bare `Final` annotation -> True. *)
+  let driver_final_bare () : unit =
+    assert { is_final_annotation (IrVar "Final") = true }
+
+  (* `Final[T]` (IrSub of Name "Final") -> True. *)
+  let driver_final_subscript () : unit =
+    assert { is_final_annotation (IrSub (IrVar "Final") (IrVar "int")) = true }
+
+  (* a non-Final annotation `List` -> False. *)
+  let driver_final_false () : unit =
+    assert { is_final_annotation (IrVar "List") = false }
+
+  (* EVIL TWIN 1 (typeddict wrong base): `class X(A)` is NOT a TypedDict — must stay
+     UNPROVEN (else the recognizer is vacuously True). *)
+  let driver_evil_typeddict () : unit =
+    let bases = ILCons (IrVar "A") ILNil in
+    assert { is_typeddict_class bases = true }
+
+  (* EVIL TWIN 2 (final false-positive): a `List` annotation is NOT Final — UNPROVEN. *)
+  let driver_evil_final () : unit =
+    assert { is_final_annotation (IrVar "List") = true }
+end

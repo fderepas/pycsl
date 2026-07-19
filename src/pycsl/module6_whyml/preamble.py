@@ -4375,6 +4375,37 @@ class PreambleEmissionMixin:
                 "  val function dictcomp_key_ast (s: py_dictcomp_node) : emit_ir",
                 "  val function dictcomp_value_ast (s: py_dictcomp_node) : emit_ir",
                 "  val function dictcomp_gens_ir (s: py_dictcomp_node) : emit_ir",
+                "  (* base bool-recognizers (self-tcb-reduction M5, C-bucket): the"
+                " `_is_typeddict_class`/`_is_namedtuple_class`/`_is_protocol_class` existence"
+                " test `for b in node.bases: if isinstance(b, ast.Name/Attribute) and b.id/"
+                " b.attr == <Base>: return True; return False`. `bases_has_name` is the"
+                " CONCRETE recursive `any` fold over the bases irlist — a base MATCHES iff it"
+                " is a Name/Attribute whose head name (`name_of`, which returns IrVar's name"
+                " AND IrAttr's attr) equals the target — NOT an abstract length-only law."
+                " `class_bases_ast` reads `node.bases`. Reuses the existing is_var/"
+                " is_attribute/name_of discriminants (no new ctor). Gated on `_uses_stmt_ir`. *)",
+                "  type py_classdef_node",
+                "  val function class_bases_ast (n: py_classdef_node) : irlist",
+                "  function bases_has_name (target: string) (l: irlist) : bool =",
+                "    match l with",
+                "    | ILNil -> false",
+                "    | ILCons b t -> if (is_var b || is_attribute b)"
+                " && (name_of b = target) then true else bases_has_name target t",
+                "    end",
+                "  val function bases_has_name_prog (target: string) (l: irlist) : bool",
+                "    ensures { result = bases_has_name target l }",
+                "  (* _is_final_annotation bool-recognizer (self-tcb-reduction M5, C-bucket):"
+                " the FIXED-SHAPE test `isinstance(ann, ast.Name) and ann.id == \"Final\"` OR"
+                " `isinstance(ann, ast.Subscript) and isinstance(ann.value, ast.Name) and"
+                " ann.value.id == \"Final\"`. `is_final_ann` is the CONCRETE discriminant"
+                " chain (is_var/name_of for the bare `Final`; is_sub/svalue_of/is_var/"
+                " name_of for `Final[T]`). No child-list. Reuses existing discriminants. *)",
+                "  function is_final_ann (ann: emit_ir) : bool =",
+                "    (is_var ann && name_of ann = \"Final\")"
+                " || (is_sub ann && is_var (svalue_of ann)"
+                " && name_of (svalue_of ann) = \"Final\")",
+                "  val function is_final_ann_prog (ann: emit_ir) : bool",
+                "    ensures { result = is_final_ann ann }",
                 "  let rec function boolop_fold (op: string) (acc: emit_ir) (rest: irlist)"
                 " : emit_ir",
                 "    variant { rest }",

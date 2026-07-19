@@ -1690,12 +1690,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _mixin_field_type(type_str: str) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # base bool-recognizer increment (self-tcb-reduction M5, C-bucket): the
+    # `class X(TypedDict)` existence test over node.bases -> the CONCRETE
+    # `bases_has_name "TypedDict" (class_bases_ast node)` fold (is_var/is_attribute +
+    # name_of, no length-only law). isinstance_op = 0, assigns nothing. Verbatim
+    # body port of the LIVE `_is_typeddict_class`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _is_typeddict_class(node: ast.ClassDef) -> bool:
+        for b in node.bases:
+            if isinstance(b, ast.Name) and b.id == "TypedDict":
+                return True
+            if isinstance(b, ast.Attribute) and b.attr == "TypedDict":
+                return True
         return False
 
     _GENERIC_BASE_NAMES = {'Generic'}
@@ -1749,12 +1758,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _synthesize_typeddict_functional(self, node: ast.Module) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # base bool-recognizer increment (self-tcb-reduction M5, C-bucket): the
+    # `class X(NamedTuple)` existence test over node.bases -> the CONCRETE
+    # `bases_has_name "NamedTuple" (class_bases_ast node)` fold (is_var/is_attribute +
+    # name_of, no length-only law). isinstance_op = 0, assigns nothing. Verbatim
+    # body port of the LIVE `_is_namedtuple_class`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _is_namedtuple_class(node: ast.ClassDef) -> bool:
+        for b in node.bases:
+            if isinstance(b, ast.Name) and b.id == "NamedTuple":
+                return True
+            if isinstance(b, ast.Attribute) and b.attr == "NamedTuple":
+                return True
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1771,11 +1789,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _synthesize_namedtuple_functional(self, node: ast.Module) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # base bool-recognizer increment (self-tcb-reduction M5, C-bucket): the
+    # `class X(Protocol)` existence test over node.bases -> the CONCRETE
+    # `bases_has_name "Protocol" (class_bases_ast node)` fold (is_var/is_attribute +
+    # name_of, no length-only law). isinstance_op = 0, assigns nothing. Verbatim
+    # body port of the LIVE `_is_protocol_class`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _is_protocol_class(self, node: ast.ClassDef) -> bool:
+        for b in node.bases:
+            if isinstance(b, ast.Name) and b.id == "Protocol":
+                return True
+            if isinstance(b, ast.Attribute) and b.attr == "Protocol":
+                return True
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1858,13 +1885,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _normalize_union_annotation(self, ann_expr: ast.expr, scope_name: str) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # _is_final_annotation bool-recognizer increment (self-tcb-reduction M5, C-bucket):
+    # the fixed-shape `Final`/`Final[T]` test -> the CONCRETE `is_final_ann_prog ann_expr`
+    # discriminant chain (is_var/name_of for bare `Final`; is_sub/svalue_of/is_var/name_of
+    # for `Final[T]`). No child-list, no new ctor. isinstance_op = 0, assigns nothing.
+    # Verbatim body port of the LIVE `_is_final_annotation`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _is_final_annotation(ann_expr: ast.expr) -> bool:
-        return False
+        if isinstance(ann_expr, ast.Name) and ann_expr.id == "Final":
+            return True
+        return (isinstance(ann_expr, ast.Subscript)
+                and isinstance(ann_expr.value, ast.Name)
+                and ann_expr.value.id == "Final")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

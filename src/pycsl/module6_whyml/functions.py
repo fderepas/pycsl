@@ -2053,6 +2053,75 @@ class FunctionEmissionMixin:
             f"    {body_expr}",
         ]
 
+    # base bool-recognizers (self-tcb-reduction M5, C-bucket): the class-base existence
+    # recognizers, keyed on method name -> the target base string. Corpus-inert.
+    _BASE_RECOGNIZERS = {
+        "_is_typeddict_class": "TypedDict",
+        "_is_namedtuple_class": "NamedTuple",
+        "_is_protocol_class": "Protocol",
+    }
+
+    def _base_recognizer_target(self, func: Dict[str, Any]) -> Optional[str]:
+        """base bool-recognizers: the target base name iff `func` is one of the three
+        class-base recognizers and the stmt_ir theory is emitted; else None. Corpus-inert
+        (no corpus program has these methods)."""
+        if not self._uses_stmt_ir():
+            return None
+        nm = str(func.get("name", ""))
+        for tail, target in self._BASE_RECOGNIZERS.items():
+            if nm.endswith(tail):
+                return target
+        return None
+
+    def _emit_base_recognizer_bespoke(self, func: Dict[str, Any],
+                                      target: str) -> List[str]:
+        """base bool-recognizers: emit the FAITHFUL whole-body lowering of
+        `_is_typeddict_class`/`_is_namedtuple_class`/`_is_protocol_class`:
+
+            for b in node.bases:
+                if isinstance(b, ast.Name) and b.id == "<Base>": return True
+                if isinstance(b, ast.Attribute) and b.attr == "<Base>": return True
+            return False
+
+        -> `bases_has_name "<Base>" (class_bases_ast node)` — the CONCRETE existence fold
+        over the bases irlist (a base matches iff it is a Name/Attribute whose head name
+        equals the target; `name_of` covers both `b.id` and `b.attr`). isinstance_op = 0,
+        `assigns \nothing` (pure bool). Two are @staticmethod (no self param); one carries
+        self. Corpus-inert."""
+        name = whyml_ident(func["name"])
+        # @staticmethod recognizers take no self; the self one prepends `(self: <cls>)`.
+        is_static = (func.get("is_static") or func.get("staticmethod")
+                     or not func.get("self_type"))
+        self_part = ("" if is_static
+                     else f"(self: {whyml_ident(func['self_type'].lower())}) ")
+        return [
+            f"  let {name} {self_part}(node: py_classdef_node) : bool",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            f"    bases_has_name_prog \"{target}\" (class_bases_ast node)",
+        ]
+
+    def _is_final_annotation(self, func: Dict[str, Any]) -> bool:
+        """_is_final_annotation bool-recognizer (self-tcb-reduction M5, C-bucket):
+        corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (nm.endswith("_is_final_annotation") and self._uses_stmt_ir())
+
+    def _emit_is_final_annotation_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """_is_final_annotation bool-recognizer: `is_final_ann_prog ann_expr` — the
+        CONCRETE fixed-shape Final/Final[T] discriminant chain. isinstance_op = 0,
+        `assigns \nothing`. @staticmethod (the tool still gives it self). Corpus-inert."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        return [
+            f"  let {name} (self: {cls}) (ann_expr: emit_ir) : bool",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    is_final_ann_prog ann_expr",
+        ]
+
     def _is_py_expr_dict(self, func: Dict[str, Any]) -> bool:
         nm = str(func.get("name", ""))
         return (func.get("kind") == "method" and nm.endswith("_py_expr_dict")
@@ -2304,6 +2373,14 @@ class FunctionEmissionMixin:
         # handler (param-name compaction + body -> the gated IrLambda ctor). Corpus-inert.
         if self._is_py_expr_lambda(func):
             return self._emit_py_expr_lambda_bespoke(func)
+        # base bool-recognizers (self-tcb-reduction M5, C-bucket): the class-base existence
+        # recognizers (TypedDict/NamedTuple/Protocol) -> the concrete bases_has_name fold.
+        _brt = self._base_recognizer_target(func)
+        if _brt is not None:
+            return self._emit_base_recognizer_bespoke(func, _brt)
+        # _is_final_annotation bool-recognizer -> is_final_ann_prog. Corpus-inert.
+        if self._is_final_annotation(func):
+            return self._emit_is_final_annotation_bespoke(func)
         # dict/comprehension increments (gated-emit_ir-ctor): IrDictLit (dual compaction) /
         # IrListComp / IrSetComp / IrDictComp (fixed-child + trusted generators). Corpus-inert.
         if self._is_py_expr_dict(func):

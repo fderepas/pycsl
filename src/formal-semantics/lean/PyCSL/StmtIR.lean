@@ -744,6 +744,27 @@ theorem dvals_observe :
 theorem dkeys_none_preserved : dkeys [.DNone] = [.DNone] := rfl
 theorem dkeys_evil_none_neq_var : dkeys [.DNone] ≠ [.DVar "a"] := by decide
 
+-- ===================================================================== --
+-- 5f. The CONCRETE base bool-recognizer existence fold — WhyML            --
+--     `bases_has_name`. Modelled concretely so existence is non-vacuous.  --
+-- ===================================================================== --
+
+inductive BNode where | BName (id : String) | BOther
+deriving DecidableEq
+def bhead : BNode → String | .BName n => n | .BOther => ""
+def bIsName : BNode → Bool | .BName _ => true | .BOther => false
+def bhas (target : String) : List BNode → Bool
+  | [] => false
+  | b :: t => if (bIsName b && (bhead b == target)) then true else bhas target t
+
+theorem bhas_observe :
+    bhas "TypedDict" [.BName "A", .BName "TypedDict"] = true := rfl
+theorem bhas_absent :
+    bhas "TypedDict" [.BName "A", .BOther] = false := rfl
+theorem bhas_empty : bhas "TypedDict" [] = false := rfl
+theorem bhas_evil_wrong_base :
+    bhas "TypedDict" [.BName "A"] ≠ true := by decide
+
 end StmtIRCert
 
 -- ===================================================================== --
@@ -867,3 +888,7 @@ end StmtIRCert
 #print axioms StmtIRCert.dvals_observe
 #print axioms StmtIRCert.dkeys_none_preserved
 #print axioms StmtIRCert.dkeys_evil_none_neq_var
+#print axioms StmtIRCert.bhas_observe
+#print axioms StmtIRCert.bhas_absent
+#print axioms StmtIRCert.bhas_empty
+#print axioms StmtIRCert.bhas_evil_wrong_base

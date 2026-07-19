@@ -1022,6 +1022,50 @@ Proof. simpl; discriminate. Qed.
 End DictLit.
 
 (* ===================================================================== *)
+(* 5f. The CONCRETE base bool-recognizer existence fold — the WhyML twin    *)
+(*     of `bases_has_name` (`for b in bases: if is_Name/Attr && head==t:     *)
+(*     return True`).  Modelled CONCRETELY (a tiny node with a head name)    *)
+(*     so the existence is provable NON-vacuously (not length-only).         *)
+(* ===================================================================== *)
+
+Section BaseRecognizer.
+
+(* A minimal concrete base node: a Name/Attribute carrying its head name, or other. *)
+Inductive bnode : Type := BName (id : string) | BOther.
+Definition bhead (e : bnode) : string := match e with BName n => n | _ => "" end.
+Definition is_name (e : bnode) : bool := match e with BName _ => true | _ => false end.
+
+(* bases_has_name : the `any` existence fold — a base matches iff it is a Name whose
+   head equals the target. *)
+Fixpoint bhas (target : string) (l : list bnode) : bool :=
+  match l with
+  | nil => false
+  | b :: t => if andb (is_name b) (String.eqb (bhead b) target)
+              then true else bhas target t
+  end.
+
+(* OBSERVABILITY (non-vacuity): `class X(A, TypedDict)` (a bases list containing a
+   matching base) is recognized TRUE. *)
+Theorem bhas_observe :
+  bhas "TypedDict" (BName "A" :: BName "TypedDict" :: nil) = true.
+Proof. reflexivity. Qed.
+
+(* A class WITHOUT the base is recognized FALSE (the other branch). *)
+Theorem bhas_absent :
+  bhas "TypedDict" (BName "A" :: BOther :: nil) = false.
+Proof. reflexivity. Qed.
+Theorem bhas_empty : bhas "TypedDict" nil = false.
+Proof. reflexivity. Qed.
+
+(* EVIL TWIN: a class whose only base is `A` is NOT a TypedDict — refutable, so the
+   recognizer is genuinely pinned (non-vacuous, not length-only-True). *)
+Theorem bhas_evil_wrong_base :
+  bhas "TypedDict" (BName "A" :: nil) <> true.
+Proof. simpl; discriminate. Qed.
+
+End BaseRecognizer.
+
+(* ===================================================================== *)
 (* 6. VERDICT — assumption audit.  Every result must be `Closed under the  *)
 (*    global context` (NO axiom): the 3-axiom trust ledger is intact.      *)
 (* ===================================================================== *)
@@ -1115,6 +1159,10 @@ Print Assumptions dkeys_observe.
 Print Assumptions dvals_observe.
 Print Assumptions dkeys_none_preserved.
 Print Assumptions dkeys_evil_none_neq_var.
+Print Assumptions bhas_observe.
+Print Assumptions bhas_absent.
+Print Assumptions bhas_empty.
+Print Assumptions bhas_evil_wrong_base.
 Print Assumptions size_slist_lt_swhile.
 Print Assumptions size_body_lt_sif.
 Print Assumptions size_orelse_lt_sif.
