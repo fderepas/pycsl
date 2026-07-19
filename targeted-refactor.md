@@ -155,6 +155,18 @@ dependency). If on inspection it has an awkward cross-method dependency, fall ba
 
 If the POC lands, the pattern is validated and Tiers A→D proceed one method per byte-diff-gated increment.
 
+### POC OUTCOME (2026-07-19, ran on `_collect_final_registry` — the §2b revised POC)
+- **Gate 1 byte-diff-0: EMPTY across all 767 corpus files** → the state-threading refactor (`-> None` mutating
+  `self._final_registry` → `-> List[...]` returning a local `registry`; caller absorbs `self._final_registry = ...`)
+  is provably behavior-preserving. **The refactor pattern is VALIDATED.**
+- **Gate 2 conversion: AST-WALL (§2c confirmed with hard evidence).** The refactored-but-pure mirror still won't
+  un-trust: whole-file proof FAILS with `unbound ast_walk_1` (Module5.mlw:1174); the `.mlw` shows `module_node`→opaque
+  `int`, iteration via `iter_get (get_body module_node)`, every `isinstance` collapsed to vacuous `isinstance_op 0 0`,
+  and `ast.walk(cstmt)` as an opaque `ast_walk_1` iterable inside a logic `variant`. A vacuous facade — NOT shipped.
+- **CONCLUSION: the refactor is byte-diff-0-clean but count-inert until the statement/definition-node AST modeling
+  (§2c) lands. §4's "count drops" criterion is superseded by §2c: AST modeling is the true gating prerequisite.**
+  POC reverted (its value was the measurement; a 5-line redo when the method finally converts). Count held 1031.
+
 ## 5. Gate (per refactored method) — the fidelity oracle SHIFTS
 
 Because the LIVE emitter changes, the fidelity check is against the **refactored** live body (still verbatim: mirror
