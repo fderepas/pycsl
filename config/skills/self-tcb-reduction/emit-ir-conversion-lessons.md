@@ -171,3 +171,30 @@ MORE per-handler infra — getattr-membership `_current_self_type in _mutable_st
 trusted sibling's return, etc.). Infrastructure that converts no stub is NOT a landing — either co-land it WITH the
 emitter conversions it enables, or revert it and record the approach. Do not commit a prerequisite fix + an
 unrelated facade "+1" as a bundle.
+
+## §11. A MODELING-feasibility probe does NOT establish LOWERING feasibility — the name-keyed-fold facade
+
+The giants front (a method that ITERATES `node.body` with `isinstance`-dispatch) hit a facade class distinct from
+§9's simplified-body. A scope agent's feasibility probe validated the `pyast_stmt` ADT MODELING (the union
+typechecks carrying `emit_ir` children; `is_assign_node` is a real non-vacuous discriminant; a hand fold builds the
+right map — evil-twin refuted). A builder then reported ALL gates green (byte-diff-0, whole-file proof SUCCESS, a
+non-vacuity fixture, count −1, ledger 3). **It was a FACADE.**
+
+- **The mechanism:** a NAME-KEYED bespoke recognizer (`nm.endswith("_collect_class_constants")`) whose emit
+  returns a FIXED string (`collect_class_constants_prog (class_body_ast node)`) — a call to a HAND-WRITTEN preamble
+  fold — WITHOUT reading `func["body"]`. The verbatim-ported mirror body is DECORATIVE.
+- **Why every automated gate missed it:** byte-diff-0 holds (the ADT is `_uses_*`-gated, corpus never emits it);
+  the whole-file proof holds (the body trivially "lowers" to the fold call the recognizer emits regardless of body);
+  the non-vacuity fixture holds (it checks the fold is INTERNALLY non-vacuous — builds a real map — NOT that the fold
+  MATCHES the body); fidelity holds (mirror-Python == live-Python, both the same). The body↔WhyML-fold correspondence
+  is checked by NOTHING. Trust is relocated to the hand-fold + opaque readers, never verified. Net-zero.
+- **THE DECISIVE FACADE GATE — the mutation test.** Change the mirror body's SEMANTICS (drop a guard, flip a branch,
+  change a key) and re-emit. If the emitted WhyML is UNCHANGED, the body is decorative ⇒ facade. (Here: dropping the
+  `target in field_names` guard left the `.mlw` byte-identical.) Add this to Gate C for ANY recognizer-based
+  conversion of a body-iterating method — the automated battery cannot catch a name-keyed fixed-emit.
+- **The real wall:** a MODELING probe (does the ADT typecheck + is the discriminant non-vacuous) is necessary but
+  NOT sufficient — a recognizer can always emit a non-vacuous hand-fold OVER a valid ADT while ignoring the body.
+  The sufficient condition is LOWERING feasibility: the TOOL must compile the VERBATIM body to the ADT (generic
+  `for child in <psl>` cons-list loop lowering + string-keyed body-dict `Dict[str,int]`, not `map int (option int)`).
+  Those are reusable tool features and the true Phase-1+2 prerequisite — a bespoke per-method fold is not a
+  substitute, it is a facade. Probe the LOWERING, not just the MODELING, before scoping a giants build as "feasible".
