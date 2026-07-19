@@ -3654,6 +3654,18 @@ class PreambleEmissionMixin:
             "    match e with IrTuple _ _ -> true | _ -> false end",
             "  let function is_fieldget (e: emit_ir) : bool =",
             "    match e with IrFieldGet _ _ -> true | _ -> false end",
+            *(([
+                "  (* value-model campaign incr8: the None-literal DISCRIMINANT, HOISTED here from"
+                " the `_py_expr_dict` dict-literal block below (both gated on `_uses_stmt_ir`) so"
+                " the `isinstance(x, ast.Constant) and x.value is None` -> `is_none x` recognizer"
+                " (expressions.py `_recognize_none_constant_guard`) can use it. A `None` literal"
+                " `ast.Constant` lowers (via `_py_expr_constant`) to EXACTLY `IrNone`, so `is_none"
+                " e` <-> \"e is a None literal\" — faithful, definitional `let function`, NO axiom."
+                " Same `_uses_stmt_ir` gate as its former dict-block home, so a plain-emit_ir"
+                " corpus file (no stmt_ir) stays byte-identical. *)",
+                "  let function is_none (e: emit_ir) : bool =",
+                "    match e with IrNone -> true | _ -> false end",
+            ]) if self._uses_stmt_ir() else []),
             "",
             "  (* output-side slice-discrimination (self-tcb-reduction M5, _py_expr_subscript):"
             " the Slice-kind constructor DISCRIMINANT. `_py_expr_subscript` rewrites its"
@@ -4372,9 +4384,8 @@ class PreambleEmissionMixin:
                 " CONCRETE keys map WITH the None-guard (`if is_none k then IrNone else disp"
                 " k`), `dict_values_of` the plain values map — NOT abstract length-only"
                 " laws. `dict_dispatch` models the trusted `_py_expr_to_ir`. The IrDictLit"
-                " ctor carries the two compacted irlists. *)",
-                "  let function is_none (e: emit_ir) : bool =",
-                "    match e with IrNone -> true | _ -> false end",
+                " ctor carries the two compacted irlists. (`is_none` is HOISTED to the"
+                " unconditional discriminant block above — incr8.) *)",
                 "  val function dict_dispatch (e: emit_ir) : emit_ir",
                 "  function dict_keys_of (l: irlist) : irlist =",
                 "    match l with",

@@ -1884,12 +1884,44 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return False
 
     _UNION_ARM_TAGS = {'int', 'bool', 'str', 'bytes', 'float', 'list', 'dict', 'set'}
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 8 (is_none-conjunction recognizer + banked string-return
+    # wrapping): `elt` retyped `"ExprIR"`; `isinstance(elt, ast.Constant) and elt.value is None`
+    # -> `(is_none elt)` (the faithful IrNone discriminant — a None literal lowers to IrNone;
+    # the authorized alternative to the impossible pyconst_val narrowing). `isinstance(elt,
+    # ast.Name)` -> `is_var`, `elt.id` -> `name_of`; the `int/bool`->`"int"` else `elt.id`
+    # ternary and every `name_of`/literal return wrapped in the Optional[str] variant string-arm
+    # by primitive #1; `isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name)` ->
+    # `is_sub` / `is_var (svalue_of elt)`, `elt.value.id` -> `name_of (svalue_of elt)`. Early
+    # returns via `Return_<variant>`. isinstance_op = 0. Verbatim body port of the LIVE method.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _union_arm_tag(self, elt: ast.expr) -> Optional[str]:
-        return None
+    def _union_arm_tag(self, elt: "ExprIR") -> Optional[str]:
+        if isinstance(elt, ast.Constant) and elt.value is None:
+            return "None"
+        if isinstance(elt, ast.Name):
+            if elt.id == "None":
+                return "None"
+            if elt.id == "Any":
+                return "Any"
+            if elt.id in ("int", "bool", "float", "str", "bytes",
+                          "list", "dict", "set", "frozenset", "tuple", "bytearray"):
+                return "int" if elt.id in ("int", "bool") else elt.id
+            return "Any"
+        if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
+            head = elt.value.id
+            if head in ("List", "list"):
+                return "list"
+            if head in ("Dict", "dict"):
+                return "dict"
+            if head in ("Set", "set", "FrozenSet", "frozenset"):
+                return "set"
+            if head in ("Tuple", "tuple"):
+                return "list"
+            if head in ("Bytes", "bytes", "ByteArray", "bytearray"):
+                return "list"
+            return "Any"
+        return "Any"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

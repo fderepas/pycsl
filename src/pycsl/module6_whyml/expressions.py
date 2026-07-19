@@ -1145,6 +1145,60 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return _pred
         return f"(if {_pred} then 1 else 0)"
 
+    def _recognize_none_constant_guard(self, expr: Any) -> Optional[str]:
+        """value-model campaign incr8: collapse the compound
+
+            isinstance(x, ast.Constant) and x.value is None
+
+        — where `x` is an already-lowered ExprIR arm — to the single emit_ir constructor
+        DISCRIMINANT `(is_none x)`. SYMMETRIC to `_recognize_str_constant_guard` (which handles
+        the `.value is str` sibling): a `None`-literal `ast.Constant` lowers (via
+        `_py_expr_constant`) to EXACTLY `{"type":"None"}` = `IrNone`, so on every REAL node the
+        compound agrees with `is_none x` (the faithful match dispatch). `isinstance(x,
+        ast.Constant)` ALONE has no discriminant (a Constant lowers to IrNum/IrStr/IrNone/… by
+        value), so only the WHOLE `and`-compound — pinned by the inner `x.value is None` — is
+        collapsible; this is the FAITHFUL alternative to the (impossible) pyconst_val narrowing,
+        since the emit_ir arm carries no pyconst_val. Triple-gated (op `and` +
+        `_is_emit_ir_expr(x)` + the `ast.Constant` class + the `.value is None` shape) →
+        corpus-inert. Returns the WhyML bool term, or None (fall through to the generic `&&`)."""
+        if not (isinstance(expr, dict) and expr.get("type") == "BinOp"
+                and expr.get("op") == "and"):
+            return None
+        left = expr.get("left")
+        right = expr.get("right")
+        # left: isinstance(x, ast.Constant)
+        if not (isinstance(left, dict) and left.get("type") == "Call"
+                and left.get("func") == "isinstance"):
+            return None
+        largs = left.get("args") or []
+        if len(largs) != 2:
+            return None
+        vexpr, lcls = largs[0], largs[1]
+        if not (isinstance(lcls, dict) and lcls.get("type") == "Attribute"
+                and isinstance(lcls.get("object"), dict)
+                and lcls["object"].get("type") == "Var"
+                and lcls["object"].get("name") == "ast"
+                and lcls.get("attr") == "Constant"):
+            return None
+        if not self._is_emit_ir_expr(vexpr):
+            return None
+        # right: `x.value is None` — a BinOp (`is`/`==`) whose left is `x.value` (the SAME arm
+        # `x` with a `.value` projection) and whose right is the `None` literal.
+        if not (isinstance(right, dict) and right.get("type") == "BinOp"
+                and right.get("op") in ("is", "==")):
+            return None
+        rl, rr = right.get("left"), right.get("right")
+        if not (isinstance(rr, dict) and rr.get("type") == "None"):
+            return None
+        if not (isinstance(rl, dict) and rl.get("type") == "Attribute"
+                and rl.get("attr") == "value" and rl.get("object") == vexpr):
+            return None
+        _vw = self._expr_to_whyml(vexpr, set(), getattr(self, "_in_spec", False), None)
+        _pred = f"(is_none {_vw})"
+        if getattr(self, "_in_spec", False):
+            return _pred
+        return f"(if {_pred} then 1 else 0)"
+
     def _is_emit_ir_expr(self, ir: Any) -> bool:
         """typed-ir-for-b-ceiling.md B-C2: True if `ir` lowers to the `emit_ir` sum — an
         inline `{"type": K}` construction, an ExprIR-valued record field read
@@ -2591,6 +2645,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _sc = self._recognize_str_constant_guard(expr)
             if _sc is not None:
                 return _sc
+            # value-model campaign incr8: the None sibling — `isinstance(x, ast.Constant) and
+            # x.value is None` collapses to `(is_none x)` (the faithful IrNone discriminant, the
+            # authorized alternative to the impossible pyconst_val narrowing). Same triple-gated
+            # corpus-inert shape as the str guard.
+            _nc = self._recognize_none_constant_guard(expr)
+            if _nc is not None:
+                return _nc
         # tier3-p1 T3.1.2 (spike LAW 1): `<emit_ir node>.get("type") == "K"` (K a known ADT
         # constructor kind) lowers to the constructor DISCRIMINANT `(is_K node)` — a
         # match-based bool — instead of `str_eq_op (kind_of node) "K"`. This is the ONLY
