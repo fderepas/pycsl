@@ -2036,12 +2036,48 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _m5_get_type_name(self, annotation: ast.expr, scope_name: str='', param_name: str='') -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 7 (primitive #1 string-return wrapping + #2 tuple-unpack-
+    # from-elts + banked IrMkTupleN access / ref-local deref / variant-return-exc): `Dict[str, V]`
+    # -> value tag. `annotation` retyped `"ExprIR"`; outer `Dict[K,V]` matched via is_sub /
+    # svalue_of / name_of / is_mktuple / irlen(elts_of) ; `v = annotation.slice.elts[1]` ->
+    # `irnth 1 (elts_of (sindex_of annotation))` (the REAL second element = the VALUE type).
+    # Nested `Dict[_, W]`: `_ki, vi = v.slice.elts` -> `_ki = irnth 0 (elts_of (sindex_of !v))`,
+    # `vi = irnth 1 (...)` (primitive #2, NOT opaque args_of); `vw` string-ternary + f-string
+    # `f"map int (option {vw})"` -> str_concat; the `List[T]` branch string-ternary return.
+    # Every non-literal string return (`f"..."`, ternary) wrapped in the variant string-arm by
+    # primitive #1; early returns via Return_<variant>. isinstance_op=0. Verbatim body port.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _m5_get_dict_value_type(annotation: ast.expr) -> Optional[str]:
+    def _m5_get_dict_value_type(annotation: "ExprIR") -> Optional[str]:
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Dict", "dict")
+                and isinstance(annotation.slice, ast.Tuple)
+                and len(annotation.slice.elts) == 2):
+            v = annotation.slice.elts[1]
+            if isinstance(v, ast.Name) and v.id == "str":
+                return "string"
+            if (isinstance(v, ast.Subscript)
+                    and isinstance(v.value, ast.Name)
+                    and v.value.id in ("Dict", "dict")
+                    and isinstance(v.slice, ast.Tuple)
+                    and len(v.slice.elts) == 2):
+                _ki, vi = v.slice.elts
+                vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
+                # nested-map.md: the INNER map is int-keyed (str keys hashed via `str_hash_op`),
+                # matching the model's uniform `dict[str,_] ~ map int (option _)` convention, so
+                # membership/subscript on the inner map hash the key the same way as the outer.
+                return f"map int (option {vw})"
+            if (isinstance(v, ast.Subscript)
+                    and isinstance(v.value, ast.Name)
+                    and v.value.id in ("List", "list")
+                    and isinstance(v.slice, ast.Name)):
+                # nested-map.md / #15: `Dict[str, List[T]]` — the value is a `seq T` (a list
+                # lowers to `seq`), so the field is `map int (option (seq T))`. `List[str]`→`seq
+                # string` (was unhandled → flattened to int); `List[int]`→`seq int` (unchanged).
+                return "seq string" if v.slice.id == "str" else "seq int"
         return None
 
     # value-model campaign increment 5 (combined: primitive-a IrMkTupleN + P1 + primitive-b/c):

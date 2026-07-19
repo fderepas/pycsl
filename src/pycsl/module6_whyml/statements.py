@@ -513,8 +513,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             idx = self._expr_to_whyml(val_ir.get("index", {}), local_refs)
             val_whyml = f"({sg_fn} {self._coerce_to_int(inner)} {self._coerce_to_int(idx)})"
         tmp_names = [f"_tu_{t}" for t in safe_targets]
-        pattern = ", ".join(tmp_names)
-        lines = [f"{indent}let ({pattern}) = {val_whyml} in"]
+        _mt_recv = self._mktuple_elts_recv_ir(val_ir)
+        if _mt_recv is not None:
+            # value-model campaign incr7 (primitive #2): `_a, _b = <emit_ir>.elts` in a dict
+            # walker → per-index `irnth i (elts_of recv)` (the MODELLED IrMkTupleN element),
+            # NOT the opaque `args_of` tuple-destructure the generic path emits. Each `_tu_<t>`
+            # binds the i-th tuple element (an emit_ir node).
+            _recv_w = self._expr_to_whyml(_mt_recv, local_refs)
+            lines = [f"{indent}let {tmp_names[i]} = (irnth {i} (elts_of {_recv_w})) in"
+                     for i in range(len(tmp_names))]
+        else:
+            pattern = ", ".join(tmp_names)
+            lines = [f"{indent}let ({pattern}) = {val_whyml} in"]
         n_tu = len(tmp_names)
         i_tu = 0
         while i_tu < n_tu:
@@ -1945,6 +1955,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         for _i, _tg in enumerate(node.get("targets", [])):
                             if _i < len(_slots) and _slots[_i] == "emit_ir":
                                 tuple_emit.add(_tg)
+                # value-model campaign incr7 (primitive #2): a tuple-unpack from a TYPED
+                # `<emit_ir>.elts` read (`_ki, vi = v.slice.elts` in a dict walker) — each target
+                # is an IrMkTupleN element (`irnth i (elts_of recv)`), so it is an emit_ir local.
+                if (node.get("stmt") == "TupleUnpack"
+                        and self._mktuple_elts_recv_ir(node.get("value")) is not None):
+                    for _tg in node.get("targets", []):
+                        tuple_emit.add(_tg)
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):

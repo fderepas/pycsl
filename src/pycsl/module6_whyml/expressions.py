@@ -285,6 +285,7 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
     "_normalize_final_annotation": {"slice": "sindex_of"},
     "_m5_get_dict_key_type": {"slice": "sindex_of"},
+    "_m5_get_dict_value_type": {"slice": "sindex_of"},
 })
 # value-model campaign increment 5 (primitive a — faithful IrMkTupleN element access): a
 # `Dict[K,V]` annotation slice lowers to an **`IrMkTupleN`** (the variadic tuple carrying the

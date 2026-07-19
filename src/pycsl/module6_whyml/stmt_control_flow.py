@@ -1056,6 +1056,17 @@ class ControlFlowStmtMixin:
                 # Only the string case is added; int/other calls are unperturbed.
                 if self._resolve_dotted_signature(func)[0] == "string":
                     return "string"
+        # value-model campaign incr7 (primitive #1 — generalized string-return wrapping): ANY
+        # string-typed return VALUE (a `name_of` attribute read `return elt.id`, a string
+        # ternary `return "a" if c else elt.id`, an f-string / string concat) wraps into the
+        # Optional-variant string-arm (`Arm_N_0 <val>`), mirroring the literal/String case and
+        # the incr5 string-CALL case. Reuses `_is_string_expr` (the emitter's string-typedness
+        # oracle). Reached ONLY for a union-returning function (via `_maybe_inject_union_return`)
+        # and only wraps when a matching string arm exists, so non-union / non-string returns
+        # (and every corpus function) are unperturbed. Placed last so the explicit int/Var/Call
+        # cases above still win (e.g. a `+` string-concat is FString/handled there, not here).
+        if self._is_string_expr(val_ir):
+            return "string"
         return None
 
     def _union_arm_whyml_type(self, tag: str) -> str:
