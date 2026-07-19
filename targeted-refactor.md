@@ -57,7 +57,60 @@ Two recurring sub-patterns:
 - **Accumulator threading.** `program_ir["functions"].append(x)` inside a walk → the method **returns the list** it
   built; the caller does the single `program_ir["functions"] = [...]`.
 
-## 3. Target set + ordering (easy → hard)
+## 2b. CENSUS CORRECTION (2026-07, read-only classification of all 24 candidates)
+
+**Only ~9 of the 24 "giants" are genuine REFACTOR targets. ~11 are ALREADY PURE** (they return their result and
+mutate nothing — they only *read* `self.*`), blocked solely by a **collection-accumulator loop** → they are
+TRANSCRIPTION targets, not refactor targets. 4 are true orchestrator giants (both). Do the transcription track FIRST
+(it needs no `self.*` code motion and un-trusts more methods faster), the refactor track SECOND.
+
+- **PURE-NOW (11, transcription — a NEW `loop-building-a-DICT/LIST` primitive):** `_build_function_symbol_table`
+  (the flagship — builds 3 maps, returns a 7-tuple, mutates nothing), `_collect_typevar_registry`,
+  `_collect_class_constants` (dict); `_collect_type_params`, `_collect_union_arms`, `_synthesize_overload_guard`,
+  `_build_overload_param_guard` (list); `_collect_class_fields` (both); `_field_type_from_annotation_inst`,
+  `_m5_get_type_name` (try/except recognizer-dispatch, no loop); `generate_json` (trivial). ONE primitive pair
+  (loop-building-a-dict + its list twin, off the banked `loop-over-irlist` skeleton) converts 7 of these with ZERO
+  code motion.
+- **MUTATES (9, refactor — category (a) return-the-value unless noted):** `_collect_final_registry` (POC — single
+  accumulator, no counter, no cross-method read, has a pure sibling `_collect_typevar_registry` to mirror),
+  `_emit_typeddict_record`, `_emit_namedtuple_record`, `_synthesize_typeddict_functional`,
+  `_synthesize_namedtuple_functional`, `_synthesize_tuple_records` (append to program_ir, (a)); `_normalize_literal_
+  annotation` (cross-method accumulator `self._cur_literal_*` read by `_build_function_ir`, (b)); `_populate_protocol_
+  conformance` (append + cross-method `self._protocols` read, (a)+(b)); `_normalize_union_annotation` (append +
+  `self._fresh_var_counter` — category (c), the HARD one).
+- **BOTH/GIANT (4, last):** `_build_function_ir`, `visit_Module`, `visit_ClassDef`, `visit_FunctionDef` — need the new
+  primitive AND state-threading; tractable only after both tracks are proven.
+
+**Revised POC = `_collect_final_registry`** (not `_build_function_symbol_table`, which is PURE-NOW transcription): it
+appends to `self._final_registry` and returns `None` for no reason, has a single accumulator consumed immediately at
+the plumb site (visit_Module ~353), and an identical *pure* sibling (`_collect_typevar_registry`) to copy — the
+cleanest 3-line "return-the-value, caller absorbs" demonstrator.
+
+## 2c. MEASUREMENT CORRECTION (emission probe refuted §2b's "collection-loop" premise)
+
+An emission probe (converting `_collect_class_constants` and reading the `.mlw`) proved the collection accumulator is
+**not** the blocker — `map_update_some` (map) and `Seq.snoc` (seq) already build real collections in a real
+`while`+invariant+variant. **The real blocker is that the ITERABLE and its ELEMENTS are un-modeled opaque AST nodes:**
+`node.body` (ClassDef body) lowers to opaque `get_body`/`iter_get`; each `child` is an opaque `int`;
+`isinstance(child, ast.Assign)` → `isinstance_op` (×5+); `child.targets[0].id` → `get_id(subscript_get(get_targets …))`;
+`target in field_names` → `contains_check`. The map is populated with **opaque keys/values from an opaque iteration** —
+a vacuous facade. **0 of the 7 PURE-NOW targets convert with a collection primitive.**
+
+**Corrected prerequisite for the ENTIRE giants front (both PURE-NOW collectors AND MUTATES refactor targets):**
+**statement/definition-node AST modeling**, extending the expr-node modeling to:
+- child-list readers `class_body_ast` (ClassDef `.body`), `func_args_ast` (FunctionDef `.args.args`), `type_params_ast`
+  (paralleling the existing `class_bases_ast`);
+- typed statement/arg element-field readers (`.targets`/`.value`/`.annotation`/`.arg` on the iterated child);
+- a reflection-handling decision for `type(x).__name__` / `getattr(tp,"name"/"bound")` (a genuine value-model wall,
+  same class as the confirmed boundaries in `emit-ir-conversion-lessons.md` §3).
+
+**Consequence for the refactor track:** the return-the-value refactor makes a MUTATES method pure, but its mirror
+still can't be verified until this AST modeling lands (it iterates `ClassDef`/`FunctionDef` bodies too). So the
+refactor is NECESSARY-BUT-NOT-SUFFICIENT — **the statement/definition AST modeling is the gating prerequisite for the
+whole front.** This is a substantial multi-reader build (per node type), NOT a lowering primitive — an authorize-first
+multi-session effort. The POC ordering below still holds, but AST modeling comes first.
+
+## 3. Target set + ordering (easy → hard) — [superseded by §2b/§2c; the tiers below apply WITHIN the MUTATES set, AFTER the AST-modeling prerequisite]
 
 Do them in this order; each tier is a prerequisite-free batch, and later tiers get easier as callers become pure.
 
