@@ -278,6 +278,21 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
     "_typeddict_field_type": {"slice": "sindex_of"},
 })
+# value-model campaign increment 5 (combined): P1-scoped `.slice`->sindex_of for the two
+# converted Optional[str] annotation walkers. `_normalize_final_annotation`'s `Final[T].slice`
+# and `_m5_get_dict_key_type`'s `Dict[K,V].slice` both read the type ARGUMENT (sindex_of),
+# NOT the `.value` head. SCOPED via `_current_emitting_func` -> corpus/consumer-inert.
+_EMIT_IR_HANDLER_ATTR_PROJ.update({
+    "_normalize_final_annotation": {"slice": "sindex_of"},
+    "_m5_get_dict_key_type": {"slice": "sindex_of"},
+})
+# value-model campaign increment 5 (primitive a — faithful IrMkTupleN element access): a
+# `Dict[K,V]` annotation slice lowers to an **`IrMkTupleN`** (the variadic tuple carrying the
+# MODELLED `elts_of` irlist), NOT the binary `IrTuple`. So the typed `.elts` reads route to the
+# modelled irlist: `is_mktuple` / `irlen (elts_of x)` / `irnth i (elts_of x)` (NOT `is_tuple`/
+# `elt{i}_of`/opaque `args_of`, which are dead/vacuous on an IrMkTupleN). SCOPED to these
+# handlers via `_current_emitting_func` -> corpus- and consumer-inert.
+_MKTUPLE_ELTS_HANDLERS = ("_m5_get_dict_key_type", "_m5_get_dict_value_type")
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -1186,6 +1201,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return True
             if self._emit_ir_args_recv_ir(ir.get("value", {}), "elts") is not None:
                 return True
+            # value-model campaign incr5: a TYPED `<emit_ir>.elts[i]` element (the dict-type
+            # walkers' IrMkTupleN irlist path) is an emit_ir sub-node (`irnth i (elts_of recv)`).
+            if self._mktuple_elts_recv_ir(ir.get("value", {})) is not None:
+                return True
             # self-ir-schema.md IR2 / seq-model-pivot.md SQ3: an element of an `array emit_ir`
             # OR `seq emit_ir` local (`body_stmts[-1]`) is an emit_ir node.
             _vv = ir.get("value", {})
@@ -1411,6 +1430,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if node is None:
             return None
         return node if self._is_emit_ir_expr(node) else None
+
+    def _mktuple_elts_recv_ir(self, arg_ir):
+        """value-model campaign incr5: if `arg_ir` is a TYPED `<emit_ir>.elts` read AND we
+        are emitting one of the dict-type walkers (`_MKTUPLE_ELTS_HANDLERS`), return the
+        receiver emit_ir node — so `<recv>.elts[i]` lowers to `irnth i (elts_of recv)` and
+        `len(<recv>.elts)` to `irlen (elts_of recv)`, the MODELLED IrMkTupleN irlist path
+        (not the opaque `args_of`, and not `elt{i}_of` which projects only binary IrTuple ->
+        `IrOther ""`). None otherwise. Scoped via `_current_emitting_func` (endswith match)
+        so every corpus program and other-mirror handler emits byte-identically."""
+        _cef = getattr(self, "_current_emitting_func", None) or ""
+        if not any(_cef == h or _cef.endswith("__" + h) for h in _MKTUPLE_ELTS_HANDLERS):
+            return None
+        if not (isinstance(arg_ir, dict) and arg_ir.get("type") == "Attribute"
+                and arg_ir.get("attr") == "elts"):
+            return None
+        recv = arg_ir.get("object", {})
+        return recv if self._is_emit_ir_expr(recv) else None
 
     def _str_method_recv_and_tail(self, expr):
         """faithful-string-op.md §4: for a string-method call `recv.tail(args)`, return
@@ -4115,6 +4151,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to a sum of `Array.length` BEFORE lowering the inner args, so the
         # opaque `chain_*`/`list_new` abstract ops are never emitted.
         if func_name == "len" and len(expr.get("args", [])) == 1:
+            # value-model campaign incr5: `len(<emit_ir>.elts)` in a dict-type walker →
+            # `irlen (elts_of recv)` (the MODELLED IrMkTupleN element count, not the opaque
+            # `iter_length (args_of …)`). Checked before the generic iter-len fallback.
+            _mt = self._mktuple_elts_recv_ir(expr["args"][0])
+            if _mt is not None:
+                return (f"(irlen (elts_of "
+                        f"{self._expr_to_whyml(_mt, local_refs or set(), invariant_ctx, subst)}))")
             # B-C5: `len(<emit_ir>.get("args"))` → `nargs_of` (Call arity).
             _ar = self._emit_ir_args_recv_ir(expr["args"][0])
             if _ar is not None:
@@ -4478,7 +4521,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # 07-1839 P4: faithful metatype resolution — `subtag (\typeof x) T` (decided
             # from Γ's τ; base types via the subtag relation; symbolic at the `Any` tail).
             # Supersedes the old opaque `isinstance_check`.
-            return self._handle_isinstance(expr)
+            return self._handle_isinstance(expr, local_refs)
         if func_name == "getattr" and 2 <= len(expr.get("args", [])) <= 3:
             # `getattr(obj, name[, default])` — attribute access on an arbitrary object.
             # Sound lowering (additive; previously fell through to an opaque `getattr_N`
@@ -4905,11 +4948,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return ctor_name
         return None
 
-    def _handle_isinstance(self, expr: Dict[str, Any]) -> str:
+    def _handle_isinstance(self, expr: Dict[str, Any], local_refs: Optional[Set[str]] = None) -> str:
         """`isinstance(x, T)` → `subtag (\\typeof x) T` (decision: \\subtag, not ==, so a
         base type like `object` decides true and a leaf≠leaf decides false). Decided when
         x has a concrete τ; symbolic at the `Any` tail; fully uninterpreted if T is an
-        unknown type."""
+        unknown type.
+
+        value-model campaign incr5 (primitive b): `local_refs` is threaded from the call site
+        so `isinstance(<x>, ast.<Node>)` where `<x>` is an emit_ir REF LOCAL (`k = ann.slice
+        .elts[0]`) lowers to `is_var !k` (dereferenced), not the ill-typed `is_var k`. For a
+        PARAM/attribute arg (not in `local_refs`) the emission is byte-identical to the prior
+        `set()` — only a ref-local arg (the new dict-walker case) changes."""
+        local_refs = local_refs or set()
         args_ir = expr.get("args", [])
         # isinstance-on-emit_ir batch (self-tcb-reduction M5): `isinstance(<emit_ir
         # child>, ast.<Node>)` — an input-side type test on an already-lowered ExprIR
@@ -4931,8 +4981,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and self._is_emit_ir_expr(_a0)):
             _kind = self._AST_CLASS_TO_IR_KIND.get(_a1.get("attr"))
             _pred = self._KIND_DISCRIMINANT.get(_kind) if _kind else None
+            # value-model campaign incr5 (primitive a): in a dict-type walker, `isinstance
+            # (<slice>, ast.Tuple)` tests the VARIADIC `IrMkTupleN` slice → `is_mktuple` (the
+            # global default `is_tuple` matches only binary `IrTuple`, so it is dead-false on a
+            # `Dict[K,V]` slice). Scoped via `_current_emitting_func` → byte-inert elsewhere.
+            if _kind == "MkTuple":
+                _cef = getattr(self, "_current_emitting_func", None) or ""
+                if any(_cef == h or _cef.endswith("__" + h) for h in _MKTUPLE_ELTS_HANDLERS):
+                    _pred = "is_mktuple"
             if _pred:
-                _av = self._expr_to_whyml(_a0, set(), getattr(self, "_in_spec", False), None)
+                _av = self._expr_to_whyml(_a0, local_refs, getattr(self, "_in_spec", False), None)
                 return f"({_pred} {_av})"
         # isinstance-on-CSL-class recognizer (self-tcb-reduction M5): the SIBLING form
         # where the second arg is a BARE `Var` naming a *CSL* AST class
@@ -4948,7 +5006,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _kind = self._CSL_CLASS_TO_IR_KIND.get(_a1.get("name"))
             _pred = self._KIND_DISCRIMINANT.get(_kind) if _kind else None
             if _pred:
-                _av = self._expr_to_whyml(_a0, set(), getattr(self, "_in_spec", False), None)
+                _av = self._expr_to_whyml(_a0, local_refs, getattr(self, "_in_spec", False), None)
                 return f"({_pred} {_av})"
         # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): a
         # `_py_expr_constant`-style INPUT-side value-type test `isinstance(expr.value,
@@ -5794,6 +5852,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _elt = self._emit_ir_args_recv_ir(expr.get("value", {}), "elts")
         if _elt is not None and index in ("0", "1"):
             return (f"(elt{index}_of {self._expr_to_whyml(_elt, local_refs or set(), invariant_ctx, subst)})")
+        # value-model campaign incr5: a TYPED `<emit_ir>.elts[i]` read in a dict-type walker →
+        # `irnth i (elts_of recv)` (the MODELLED IrMkTupleN element — a REAL node, unlike
+        # `elt{i}_of` which projects binary IrTuple → `IrOther ""` on an IrMkTupleN).
+        _mt = self._mktuple_elts_recv_ir(expr.get("value", {}))
+        if _mt is not None:
+            return (f"(irnth {index} (elts_of "
+                    f"{self._expr_to_whyml(_mt, local_refs or set(), invariant_ctx, subst)}))")
         # §26: subscript-form emit_ir projection `<emit_ir>["value"/"name"/"type"/…]` →
         # the projection (mirrors the `.get` B-C3 routing), for `arr["value"]["name"]`.
         _kidx = expr.get("index", {})

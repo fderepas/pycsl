@@ -1921,11 +1921,33 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 and isinstance(ann_expr.value, ast.Name)
                 and ann_expr.value.id == "Final")
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 5 (combined: P1 + P3 + primitive-b call-wrap + primitive-c
+    # variant-return-exc): `Final[T]`/bare `Final` (PEP 591) -> inner tag τ(T). `ann_expr`
+    # retyped `"ExprIR"`; `isinstance(ann_expr, ast.Name)`->`is_var`, `.id`->`name_of`;
+    # `isinstance(ast.Subscript)`->`is_sub`, `.value`->`svalue_of` (Final head), `.value.id`->
+    # `name_of`. FIDELITY-CRITICAL: `ann_expr.slice`->`sindex_of` (SCOPED P1, the type arg T),
+    # NOT svalue_of(=Final). Trusted `_m5_get_type_name_legacy` (param `"ExprIR"`, P3) resolves
+    # τ(T); its string call-result is wrapped into the Optional[str] variant string-arm
+    # (`Arm_N_0 (call)`) by primitive-b, and the early returns travel through the dedicated
+    # `Return_<variant>` exception (primitive-c). isinstance_op=0. Verbatim body port.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _normalize_final_annotation(self, ann_expr: ast.expr) -> Optional[str]:
+    def _normalize_final_annotation(self, ann_expr: "ExprIR") -> Optional[str]:
+        if isinstance(ann_expr, ast.Name) and ann_expr.id == "Final":
+            # Bare `Final` — no inner type. Return the opaque `Any` tag (sound:
+            # the name carries the write-restriction but no type refinement).
+            return "Any"
+        if (isinstance(ann_expr, ast.Subscript)
+                and isinstance(ann_expr.value, ast.Name)
+                and ann_expr.value.id == "Final"):
+            # `Final[T]` — the type is τ(T) (F3: Final does not narrow). Resolve
+            # the inner type via the legacy tag resolver (so `Final[int]` → "int",
+            # `Final[str]` → "str", `Final[MyClass]` → "myclass"). A nested
+            # `Final[Final[int]]` resolves the inner `Final[int]` via this same
+            # path → "Any" (the inner Final's bare-name fallback is not reached
+            # because the inner is a Subscript, handled above → returns τ(int)).
+            return self._m5_get_type_name_legacy(ann_expr.slice)
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1954,7 +1976,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _m5_get_type_name_legacy(self, annotation: ast.expr) -> str:
+    def _m5_get_type_name_legacy(self, annotation: "ExprIR") -> str:
         return ""
 
     _CALLABLE_SCALAR_TAGS = frozenset({'int', 'bool', 'str', 'float'})
@@ -2022,12 +2044,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _m5_get_dict_value_type(annotation: ast.expr) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 5 (combined: primitive-a IrMkTupleN + P1 + primitive-b/c):
+    # `Dict[str, V]` -> key tag "string". `annotation` retyped `"ExprIR"`; `isinstance(ast.
+    # Subscript)`->`is_sub`, `.value`->`svalue_of`, `.value.id`->`name_of`; `.slice`->`sindex_of`
+    # (SCOPED P1). `isinstance(annotation.slice, ast.Tuple)`->`is_mktuple` (VARIADIC IrMkTupleN,
+    # NOT dead binary is_tuple); `len(annotation.slice.elts)`->`irlen (elts_of (sindex_of
+    # annotation))`; `annotation.slice.elts[0]`->`irnth 0 (elts_of (sindex_of annotation))` (the
+    # REAL first element = the KEY type). `isinstance(k, ast.Name)`->`is_var !k` (primitive-b
+    # ref-local deref), `k.id`->`name_of !k`. Early returns travel through `Return_<variant>`
+    # (primitive-c). isinstance_op=0. Verbatim body port of the LIVE `_m5_get_dict_key_type`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _m5_get_dict_key_type(annotation: ast.expr) -> Optional[str]:
+    def _m5_get_dict_key_type(annotation: "ExprIR") -> Optional[str]:
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Dict", "dict")
+                and isinstance(annotation.slice, ast.Tuple)
+                and len(annotation.slice.elts) == 2):
+            k = annotation.slice.elts[0]
+            if isinstance(k, ast.Name) and k.id == "str":
+                return "string"
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate

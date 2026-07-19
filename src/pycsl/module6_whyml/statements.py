@@ -1556,6 +1556,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # node payload straight back (immutable — no materialize needed), the same
             # shape as the Return_str arm just above.
             return f"    try\n{body_code}\n    with Return_emit_ir r -> r end"
+        if return_type.startswith("_union_"):
+            # value-model campaign incr5 (primitive c): a synthesized-union (`Optional[X]`)
+            # return with an early/in-loop return is caught by its dedicated
+            # `Return_<variant>` exception (declared in preamble.py; raised by
+            # `_handle_return_stmt`). The payload is the already-injected variant value
+            # (`Arm_N_0 <v>` / `Arm_N_None`), handed straight back — parallel to Return_str.
+            return f"    try\n{body_code}\n    with Return_{return_type} r -> r end"
         return f"    try\n{body_code}\n    with Return r -> r end"
 
     def _collect_string_elem_read_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:

@@ -1047,6 +1047,15 @@ class ControlFlowStmtMixin:
                     return "int"
                 if func in ("str",):
                     return "string"
+                # value-model campaign incr5 (Optional-return-of-CALL wrapping): a string-
+                # returning METHOD call (`self._m5_get_type_name_legacy(...)`) resolves to
+                # "string" via the callee's declared signature, so `return self._m(...)` from
+                # an Optional[str] function wraps into the variant's string-arm ctor (`Arm_N_0
+                # <call>`), like a string LITERAL — previously it fell through to None
+                # (unwrapped) and Why3 rejected the bare string against the `_union_*` variant.
+                # Only the string case is added; int/other calls are unperturbed.
+                if self._resolve_dotted_signature(func)[0] == "string":
+                    return "string"
         return None
 
     def _union_arm_whyml_type(self, tag: str) -> str:
@@ -1163,6 +1172,13 @@ class ControlFlowStmtMixin:
                 # `val` is already the lowered emit_ir constructor expression (e.g. `(IrAttr
                 # ... ...)`) — no int coercion, mirroring the Return_str arm above.
                 return f"{indent}raise (Return_emit_ir {val})"
+            if func_ret.startswith("_union_"):
+                # value-model campaign incr5 (primitive c): a synthesized-union (`Optional[X]`)
+                # early/in-loop return raises its dedicated `Return_<variant>` exception
+                # (caught by `_wrap_body_with_return_catch`). `val` is already the injected
+                # variant value (`_maybe_inject_union_return` wrapped it as `Arm_N_0 <v>` /
+                # `Arm_N_None`) — no int coercion, mirroring the Return_str/Return_emit_ir arms.
+                return f"{indent}raise (Return_{func_ret} {val})"
             # Array-returning functions with early returns CANNOT use the
             # straightforward `raise (Return arr)` shape — Why3 forbids
             # `array int` in exception payloads (mutable types), and the

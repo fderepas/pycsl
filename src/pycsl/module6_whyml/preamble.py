@@ -1806,6 +1806,11 @@ class PreambleEmissionMixin:
         needs_return_str = False
         needs_return_emit_ir = False
         tuple_return_arities: Set[int] = set()
+        # value-model campaign incr5 (primitive c): synthesized-union (`Optional[X]`) return
+        # types that need a dedicated `Return_<variant>` exception — a function returning a
+        # `_union_*` variant WITH an early/in-loop return can't carry the variant through the
+        # generic `exception Return int`. Parallel to needs_return_str/needs_return_emit_ir.
+        union_return_types: Set[str] = set()
         n = len(functions)
         i = 0
         while i < n:
@@ -1840,6 +1845,17 @@ class PreambleEmissionMixin:
                     # find_return_type reports `int` for a string body.) Structured so a
                     # later `Return_<T>` generalization (real/record) slots in here.
                     needs_return_str = True
+                elif isinstance(ann, str) and ann.startswith("_union_"):
+                    # value-model campaign incr5 (primitive c): the function's return
+                    # annotation resolves to a synthesized `_union_*` variant (an `Optional[X]`
+                    # normalized by Module5). With an early/in-loop return the value travels
+                    # through a dedicated `exception Return_<variant> <variant>` (declared
+                    # below), NOT the generic `Return int`. The trusted union stubs have no
+                    # early return (they hit this loop only via `has_ret`), so ONLY genuinely
+                    # body-verified union walkers register — corpus-inert (a corpus Optional[X]
+                    # function with an early return currently fails the `Return int` clash, so
+                    # none is in a passing baseline).
+                    union_return_types.add(ann)
                 elif IRScanner.returns_emit_ir_literal(func["body"]):
                     # Return_emit_ir infra: an emit_ir-returning function (a recursive
                     # `_csl_*`-style dispatcher building a `{"type": K}` IR-node literal)
@@ -2041,6 +2057,7 @@ class PreambleEmissionMixin:
             "needs_return_void": needs_return_void,
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
+            "union_return_types": union_return_types,
             "needs_string": needs_string,
             "needs_char": needs_char,
             "needs_real": needs_real,
@@ -2240,12 +2257,30 @@ class PreambleEmissionMixin:
             parts = ", ".join(["int"] * arity)
             out.append("")
             out.append(f"  exception Return_{arity} ({parts})")
+        # NOTE (value-model incr5, primitive c): the `Return_<variant>` exceptions are NOT
+        # declared here — they reference synthesized `_union_*` types that are emitted LATER by
+        # `_emit_type_decls`, so they are emitted just AFTER it (see `_emit_union_return_exceptions`,
+        # called from the transpiler right after `out += type_lines`).
         # Sanitize each user-exception name; collapse Python local-alias
         # imports (`from X import Y as _Y`) by deduping via set after
         # leading-underscore strip. See `safe_exc_name` in identifiers.py.
         sanitized_exc = sorted({safe_exc_name(n) for n in needs["user_exceptions"]})
         for exc in sanitized_exc:
             out.append(f"  exception {exc}")
+        return out
+
+    def _emit_union_return_exceptions(self, needs: Dict[str, Any]) -> List[str]:
+        """value-model campaign incr5 (primitive c): emit the `Return_<variant>` exceptions for
+        synthesized-union (`Optional[X]`) return types that early-return. Emitted AFTER
+        `_emit_type_decls` (the `_union_*` types must be in scope), so it is called from the
+        transpiler right after the type declarations — NOT in `_emit_preamble_exceptions`. The
+        name `Return_<type>` is kept identical in `_wrap_body_with_return_catch` (catch) and
+        `_handle_return_stmt` (raise). Empty for a module with no early-returning union walker
+        → byte-identical."""
+        out: List[str] = []
+        for ut in sorted(needs.get("union_return_types", set())):
+            out.append("")
+            out.append(f"  exception Return_{ut} {ut}")
         return out
 
     def _emit_preamble_helpers(self, needs: Dict[str, Any]) -> List[str]:
