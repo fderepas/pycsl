@@ -45,6 +45,20 @@ assumed): pyconst_val per-kind value discrimination (`_classify_literal_value` �
 (`_normalize_union/literal_annotation`, `_collect_*`); variant-to-variant delegation (`_m5_get_field_key_type`).
 NEXT candidate: `str_lower` (abstract val, str_of_int-analog) for the `.lower()`-walled leaves — measure-before-build.
 
+## GIANTS FRONT MEASURED (increment 10 loop-over-irlist LANDED 496c27e9 1032→1031; increment 11 BOUNDARY)
+The annotation-walker frontier is EXHAUSTED. Turned to the 24 "stateful giants." A read-only census claimed
+~11 are PURE-NOW (return-a-collection, blocked only by a collection-accumulator loop). **An emission probe REFUTED
+that** (`getting-better`/`targeted-refactor.md` §2c): the accumulator (`map_update_some`/`Seq.snoc`) already exists;
+the real blocker is that the ITERABLE (`node.body` ClassDef, `node.args.args` FunctionDef, `node.type_params`) and its
+ELEMENTS (statements/args) are **un-modeled opaque AST nodes** — `isinstance(child, ast.Assign)`→`isinstance_op`,
+`child.targets[0].id`→opaque `get_id/subscript_get`. **0 of 7 targets convert with a collection primitive.**
+**Gating prerequisite for the WHOLE giants front (collectors PURE-NOW *and* the MUTATES refactor set):**
+statement/definition-node AST modeling — `class_body_ast`/`func_args_ast`/`type_params_ast` child-list readers +
+typed statement/arg element-field readers (`.targets`/`.value`/`.annotation`) + a `type(x).__name__` reflection
+decision. A substantial multi-reader build (authorize-first), NOT a lowering primitive. The refactor (return-the-value)
+is necessary-but-not-sufficient: a mutating method made pure still can't verify until this AST modeling lands.
+**Reachable autonomous transcription frontier is EXHAUSTED at 1031.**
+
 ## Order of work (measure-before-build each)
 1. ~~CENSUS + PROBE~~ DONE. ~~Increments 1-9 (annotation-walker sub-campaign)~~ COMPLETE (1041→1035).
 2. If feasible, build the primitive + convert the cluster incrementally (whole-file-proof-gated, byte-diff
