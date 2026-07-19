@@ -90,6 +90,17 @@ class ControlFlowStmtMixin:
         (default "0"; for `range(start, stop)`, the `start` expression).
         """
         self._for_idx_init = "0"
+        # value-model campaign incr10 (loop-over-irlist): `for elt in <emit_ir>.elts` in an
+        # annotation resolver iterates the MODELLED IrMkTupleN irlist — bound `irlen (elts_of
+        # recv)`, element `irnth !idx (elts_of recv)` (a real emit_ir per iteration), NOT the
+        # opaque `iter_length`/`iter_get` fallback. Scoped via `_mktuple_elts_recv_ir` (the
+        # dict/legacy resolvers) → corpus-inert. The element type is registered emit_ir by
+        # `_handle_for_stmt` so the body's `isinstance(elt, …)`/`elt.id` lower faithfully.
+        _mt_recv = self._mktuple_elts_recv_ir(iter_ir)
+        if _mt_recv is not None:
+            _recv_w = self._expr_to_whyml(_mt_recv, local_refs)
+            return (f"(irlen (elts_of {_recv_w}))",
+                    f"(irnth !{idx} (elts_of {_recv_w}))", False)
         is_range = (iter_ir.get("type") == "Call" and
                     iter_ir.get("func") == "range")
         if is_range and len(iter_ir.get("args", [])) == 1:
@@ -265,8 +276,26 @@ class ControlFlowStmtMixin:
 
         body_local = local_refs | {target} | extra_locals
         body_declared = declared_refs.copy() | {target} | extra_locals
+        # value-model campaign incr10 (loop-over-irlist): when iterating a `<emit_ir>.elts`
+        # IrMkTupleN irlist, the target `elt` binds a real `irnth`-projected emit_ir NODE, so
+        # register it `ExprIR` in the symbol table for the loop body's duration → its
+        # `isinstance(elt, …)`/`elt.id`/`elt.value` reads lower faithfully (is_var/name_of/…),
+        # not the opaque int path. Restored after the body. Scoped to the mktuple iterables.
+        _saved_symtype = _MISSING = object()
+        if self._mktuple_elts_recv_ir(iter_ir) is not None:
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_symtype = _st.get(target, _MISSING)
+                _st[target] = "ExprIR"
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
+        if _saved_symtype is not _MISSING or self._mktuple_elts_recv_ir(iter_ir) is not None:
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                if _saved_symtype is _MISSING:
+                    _st.pop(target, None)
+                else:
+                    _st[target] = _saved_symtype
         if not inner_body:
             inner_body = f"{inner_indent}()"
         if saved_str_locals is not None:

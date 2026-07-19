@@ -1667,13 +1667,61 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _collect_2d_params(self, body_ir: List[int], param_names: int) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 10 (loop-over-irlist + banked primitives): field-annotation
+    # -> IR tag. Same shape as `_m5_get_type_name_legacy` — is_var/name_of, Subscript head via
+    # svalue_of/name_of, `.slice`->sindex_of, `Union` arm loop `for elt in inner.elts` over the
+    # IrMkTupleN irlist, `elt.value.id.lower()`->`str_lower_op (name_of (svalue_of elt))`. Returns
+    # str. isinstance_op=0. Verbatim body port of the LIVE `_field_type_from_annotation`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _field_type_from_annotation(annotation: Optional[ast.expr]) -> str:
-        return ""
+    def _field_type_from_annotation(annotation: "ExprIR") -> str:
+        if annotation is None:
+            return "int"
+        if isinstance(annotation, ast.Name):
+            name = annotation.id
+            # Bare collection annotations on a field (`self.x: list`).
+            # Mirrors the RHS-shape inference for plain assignments so an
+            # annotated `array int` field resolves to "list" (→ `array int`
+            # in the WhyML record), not the int default.
+            if name in ("list", "tuple", "bytearray", "bytes"):
+                return "list"
+            if name == "dict":
+                return "dict"
+            if name in ("set", "frozenset"):
+                return "set"
+            if name == "str":
+                # 07-2333-rev2 TP-3 (Gap 6): a `str` field is a faithful Why3 `string`
+                # (the WhyML record emitter maps the "str" tag to `string`), not int.
+                return "str"
+            if name == "float":
+                # wrong-lowering-to-fix.md §WL-03b: a `float`-annotated record FIELD
+                # (`@dataclass P: f: float`, `self.f: float`, NamedTuple `f: float`)
+                # is the faithful Why3 `real` (τ(float)=real, no-more-int Stage D) —
+                # NOT the unsound int collapse that truncated `p.f == 2.5` to `2`.
+                # The record emitter maps this "real" tag to a `real` field.
+                return "real"
+            if name in ("int", "bool"):
+                return "int"
+            # Unrecognised plain name — treat as int (e.g. user types).
+            return "int"
+        if isinstance(annotation, ast.Subscript) and isinstance(annotation.value, ast.Name):
+            head = annotation.value.id
+            if head == "Optional":
+                inner = annotation.slice
+                if isinstance(inner, ast.Subscript) and isinstance(inner.value, ast.Name):
+                    return inner.value.id.lower()
+                return "int"
+            if head == "Union":
+                inner = annotation.slice
+                if isinstance(inner, ast.Tuple):
+                    for elt in inner.elts:
+                        if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
+                            return elt.value.id.lower()
+                return "int"
+            return head.lower()
+        return "int"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -2007,19 +2055,60 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _classify_literal_value(elt: ast.expr) -> int:
         return ([], {})
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 10 (loop-over-irlist + banked primitives): `annotation`
+    # emit_ir; `isinstance(annotation, ast.Name)`->`is_var`, `annotation.id`->`name_of`;
+    # Subscript head via svalue_of/name_of; `.slice`->`sindex_of` (P1). The `Union` arm loop
+    # `for elt in inner.elts` iterates the IrMkTupleN irlist (`for !idx = 0..irlen(elts_of
+    # inner); elt = irnth !idx (elts_of inner)`); `isinstance(elt, ast.Constant) and elt.value
+    # is None: continue`->`is_none elt`; `elt.id`->`name_of elt`; `elt.value.id.lower()`->
+    # `str_lower_op (name_of (svalue_of elt))`; early `return`s via Return_str. `Callable`->the
+    # trusted `_encode_callable_annotation` (P3-retyped). isinstance_op=0. Verbatim body port.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _m5_get_type_name_legacy(self, annotation: "ExprIR") -> str:
-        return ""
+        if isinstance(annotation, ast.Name):
+            return annotation.id
+        if isinstance(annotation, ast.Subscript) and isinstance(annotation.value, ast.Name):
+            head = annotation.value.id
+            if head == "Optional":
+                inner = annotation.slice
+                if isinstance(inner, ast.Name):
+                    return inner.id
+                if isinstance(inner, ast.Subscript) and isinstance(inner.value, ast.Name):
+                    return inner.value.id.lower()
+                return "Any"
+            if head == "Union":
+                inner = annotation.slice
+                if isinstance(inner, ast.Tuple):
+                    for elt in inner.elts:
+                        if isinstance(elt, ast.Constant) and elt.value is None:
+                            continue
+                        if isinstance(elt, ast.Name) and elt.id != "None":
+                            return elt.id
+                        if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
+                            return elt.value.id.lower()
+                return "Any"
+            if head == "Callable":
+                # typing-engagement ty3 / 34-1700-typing-spec-10: `Callable[[A1,
+                # ..., An], R]` (PEP 484) on a parameter is a function-type
+                # obligation (C1). The arg-list + return type are encoded into
+                # the existing symbol_table value as "callable:<a1>,...-><r>"
+                # (a new tag VALUE, NOT a new IR field → no IR_VERSION bump).
+                # Module 6's _param_type_str parses this into a curried WhyML
+                # arrow type; the call site `f(a1, ..., an)` already lowers to
+                # WhyML application. Triggers ONLY on head == "Callable" →
+                # byte-identical for every non-Callable driver.
+                return self._encode_callable_annotation(annotation)
+            return head.lower()
+        return "Any"
 
     _CALLABLE_SCALAR_TAGS = frozenset({'int', 'bool', 'str', 'float'})
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _encode_callable_annotation(self, annotation: ast.Subscript) -> str:
+    def _encode_callable_annotation(self, annotation: "ExprIR") -> str:
         return ""
 
     # value-model campaign increment 1 (P3 annotation-walker + _is_emit_ir_expr string-leaf

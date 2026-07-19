@@ -294,13 +294,21 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
     "_m5_get_dict_key_type": {"slice": "sindex_of"},
     "_m5_get_dict_value_type": {"slice": "sindex_of"},
 })
+# value-model campaign increment 10 (loop-over-irlist): the two legacy leaf resolvers read
+# `inner = annotation.slice` (the `Union[...].slice` type-arg tuple) then `for elt in inner.elts`.
+# `.slice`->sindex_of (P1) so `inner` is the tuple; `inner.elts`-> the IrMkTupleN irlist loop.
+_EMIT_IR_HANDLER_ATTR_PROJ.update({
+    "_m5_get_type_name_legacy": {"slice": "sindex_of"},
+    "_field_type_from_annotation": {"slice": "sindex_of"},
+})
 # value-model campaign increment 5 (primitive a — faithful IrMkTupleN element access): a
 # `Dict[K,V]` annotation slice lowers to an **`IrMkTupleN`** (the variadic tuple carrying the
 # MODELLED `elts_of` irlist), NOT the binary `IrTuple`. So the typed `.elts` reads route to the
 # modelled irlist: `is_mktuple` / `irlen (elts_of x)` / `irnth i (elts_of x)` (NOT `is_tuple`/
 # `elt{i}_of`/opaque `args_of`, which are dead/vacuous on an IrMkTupleN). SCOPED to these
 # handlers via `_current_emitting_func` -> corpus- and consumer-inert.
-_MKTUPLE_ELTS_HANDLERS = ("_m5_get_dict_key_type", "_m5_get_dict_value_type")
+_MKTUPLE_ELTS_HANDLERS = ("_m5_get_dict_key_type", "_m5_get_dict_value_type",
+                          "_m5_get_type_name_legacy", "_field_type_from_annotation")
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -1090,7 +1098,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _rv = self._expr_to_whyml(_recv, set(), False, None)
         return f"({_pred} {_rv})"
 
-    def _recognize_str_constant_guard(self, expr: Any) -> Optional[str]:
+    def _recognize_str_constant_guard(self, expr: Any, local_refs: Optional[Set[str]] = None) -> Optional[str]:
         """SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): collapse
         the `_py_stmt_expr` docstring-skip guard
 
@@ -1143,7 +1151,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not (isinstance(vval, dict) and vval.get("type") == "Attribute"
                 and vval.get("attr") == "value" and vval.get("object") == vexpr):
             return None
-        _vw = self._expr_to_whyml(vexpr, set(), getattr(self, "_in_spec", False), None)
+        _vw = self._expr_to_whyml(vexpr, local_refs or set(), getattr(self, "_in_spec", False), None)
         _pred = f"(is_str {_vw})"
         # Match the generic `and`-binop convention: a bare bool in spec context, the
         # int-coerced `(if b then 1 else 0)` in body context (Python and/or return int;
@@ -1152,7 +1160,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return _pred
         return f"(if {_pred} then 1 else 0)"
 
-    def _recognize_none_constant_guard(self, expr: Any) -> Optional[str]:
+    def _recognize_none_constant_guard(self, expr: Any, local_refs: Optional[Set[str]] = None) -> Optional[str]:
         """value-model campaign incr8: collapse the compound
 
             isinstance(x, ast.Constant) and x.value is None
@@ -1200,7 +1208,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not (isinstance(rl, dict) and rl.get("type") == "Attribute"
                 and rl.get("attr") == "value" and rl.get("object") == vexpr):
             return None
-        _vw = self._expr_to_whyml(vexpr, set(), getattr(self, "_in_spec", False), None)
+        _vw = self._expr_to_whyml(vexpr, local_refs or set(), getattr(self, "_in_spec", False), None)
         _pred = f"(is_none {_vw})"
         if getattr(self, "_in_spec", False):
             return _pred
@@ -1532,13 +1540,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # corpus receiver is an emit_ir var) and inert for handlers that read a str-leaf on a
             # SPECIFIC record (not a base ExprIR var).
             _rparts = recv.split(".")
-            if len(_rparts) == 2 and _rparts[1] in _EMIT_IR_STR_ATTRS:
+            # value-model campaign incr10: generalize to an N-part chain
+            # (`elt.value.id.lower()`, `inner.value.id.lower()`) — the FIRST part is the emit_ir
+            # var, the LAST is the string-leaf attr, the MIDDLE parts (`.value`) are emit_ir
+            # sub-node projections. Reconstruct the whole nested Attribute IR so `.lower()`
+            # reaches `str_lower_op (name_of (svalue_of …))`, not a vacuous opaque op.
+            if len(_rparts) >= 2 and _rparts[-1] in _EMIT_IR_STR_ATTRS:
                 _v = _rparts[0]
                 if getattr(self, "_current_symbol_table", {}).get(_v) in (
                         "ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
-                    return ({"type": "Attribute",
-                             "object": {"type": "Var", "name": _v},
-                             "attr": _rparts[1]}, tail)
+                    _node = {"type": "Var", "name": _v}
+                    for _a in _rparts[1:]:
+                        _node = {"type": "Attribute", "object": _node, "attr": _a}
+                    return (_node, tail)
         return None, None
 
     def _split_call_recv_sep(self, call_ir):
@@ -2665,14 +2679,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # discriminant. Fires before the generic `&&` split (which would fail to lower the
         # bare Constant isinstance). Corpus-inert (triple-gated).
         if raw_op == "and":
-            _sc = self._recognize_str_constant_guard(expr)
+            _sc = self._recognize_str_constant_guard(expr, local_refs)
             if _sc is not None:
                 return _sc
             # value-model campaign incr8: the None sibling — `isinstance(x, ast.Constant) and
             # x.value is None` collapses to `(is_none x)` (the faithful IrNone discriminant, the
             # authorized alternative to the impossible pyconst_val narrowing). Same triple-gated
             # corpus-inert shape as the str guard.
-            _nc = self._recognize_none_constant_guard(expr)
+            _nc = self._recognize_none_constant_guard(expr, local_refs)
             if _nc is not None:
                 return _nc
         # tier3-p1 T3.1.2 (spike LAW 1): `<emit_ir node>.get("type") == "K"` (K a known ADT
