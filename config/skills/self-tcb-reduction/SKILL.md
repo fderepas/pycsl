@@ -201,6 +201,14 @@ OPEN gaps, and the efficiency rules — see **`leaf-conversion-recognizers.md`**
 Empirical from the 1273→1266 bottom-up-DAG campaign; the DAG strategy itself is in repo-root
 `giant-recursion.md`.
 
+For the **emit_ir / AST-lowering conversion campaign** (2026-07, ~1176→1043: the entire Module5 AST→IR
+lowering surface + the list-append-mutation wall-break) — the whole-file-proof-not-`--fun` gate, the
+gated-emit_ir-ctor pattern, the "test boundaries by building / opaque abstract readers" doctrine, the
+CONCRETE-compaction anti-vacuity rule (+ observational evil-twin fixtures), the mutable-ref append
+convention, recursive-ADT encoding (mutual-cons, not `seq`/`list`), and the confirmed genuine
+boundaries — see **`emit-ir-conversion-lessons.md`** (next to this file). HEED IT before any Module5/
+emit_ir work; it overrides optimism about "walls" and about `--fun`.
+
 ## 10. Hard-won lessons (2026-07 tier-1/2/3 campaign — HEED THESE; they OVERRIDE optimism)
 
 Plan of record: **`triage-ranked-tcb.md`** (this file is the loop procedure + the `self-tcb-reduction.md`
