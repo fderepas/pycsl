@@ -91,13 +91,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _to_bool(self, whyml_str: str, ir_expr: "ExprIR") -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # str(<int>) value-model increment (self-tcb-reduction M6, C-bucket): now that
+    # `str(<int>)` lowers to the faithful `str_of_int : int -> string` (expressions.py
+    # value-model fix), this `-> str` helper ports body-faithfully: a quoted-literal arg
+    # is rendered to its `str(stable_hash(...))` decimal string, else returned unchanged.
+    # isinstance_op = 0, assigns nothing. Verbatim body port of the LIVE `_coerce_str_arg`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _coerce_str_arg(whyml_str: str) -> str:
-        return ""
+        if whyml_str.startswith('"') and whyml_str.endswith('"'):
+            return str(stable_hash(whyml_str))
+        return whyml_str
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -255,12 +261,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return (self._is_float_expr(ir.get("left", {}))
                     and self._is_float_expr(ir.get("right", {})))
         return False
-    #@ \trusted reviewer: pycsl-self-annotate
+    # str(<int>) value-model increment (self-tcb-reduction M6, C-bucket): now that
+    # `str(<int>)` lowers to `str_of_int : int -> string`, a quoted-literal string operand
+    # hashes to its decimal `str(stable_hash(...))`; a non-literal goes through the
+    # uninterpreted `str_hash_op`. isinstance_op = 0. Verbatim body port of the LIVE
+    # `_str_operand_to_int`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _str_operand_to_int(self, whyml_str: str) -> str:
-        return ""
+        s = whyml_str.strip()
+        if s.startswith('"') and s.endswith('"'):
+            return str(stable_hash(whyml_str))
+        self._add_abstract_op("val str_hash_op (s: string) : int")
+        return f"(str_hash_op {whyml_str})"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

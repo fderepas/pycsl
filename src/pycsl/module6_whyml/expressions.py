@@ -4749,6 +4749,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "val str_repr_op (s: string) : string\n"
                     "    ensures { String.length result >= 2 }")
                 return f"(str_repr_op {args[0]})"
+            # str(<int>) value-model (self-tcb-reduction M6, fable-adjudicated
+            # CHEAP-BREAKABLE): a `str()` of a NON-string arg (an int — the string arg is
+            # the identity above) renders the int to its decimal string. Emit the FAITHFUL
+            # `str_of_int : int -> string` (an ABSTRACT uninterpreted `val`, no `ensures`
+            # → NOT a new axiom, ledger stays 3) instead of the int-erased `str_conv :
+            # int -> int` — so the `str(stable_hash(...))` emitter string-helpers (which
+            # return the decimal in a `-> str` slot) typecheck. Corpus-byte-diff-0:
+            # `str_conv`/`str_of_int` are emitter-only (0 hits across all 767 corpus .mlw,
+            # fable-confirmed). `format/bool/int/abs` keep the generic `*_conv` int model.
+            if func_name == "str":
+                self._add_abstract_op("val str_of_int (x: int) : string")
+                return f"(str_of_int {args[0]})"
             wf = whyml_ident(func_name)
             self._add_abstract_op(f"val {wf}_conv (x: int) : int")
             return f"({wf}_conv {args[0]})"

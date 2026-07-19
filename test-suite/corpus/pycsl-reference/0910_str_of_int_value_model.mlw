@@ -1,0 +1,31 @@
+module StrOfIntValueModel
+  use int.Int
+  use string.String
+
+  (* str(<int>) value-model (self-tcb-reduction M6, fable-adjudicated CHEAP-BREAKABLE):
+     the faithful `str_of_int : int -> string` replaces the int-erased `str_conv : int ->
+     int`. VERBATIM the PyCSL tool's emitted signature (module6_whyml/expressions.py, the
+     `func_name == "str"` arm) — an ABSTRACT uninterpreted `val` (NO `ensures` -> NOT an
+     axiom, ledger stays 3). Non-vacuity is TYPE-level: the result is genuinely STRING-
+     valued (it flows into a string slot — String.length / concat), which the int-erased
+     `str_conv : int -> int` could NOT do (the very typecheck wall the fix breaks:
+     `_coerce_str_arg`/`_str_operand_to_int` return `str(stable_hash(...))` into a `-> str`
+     slot). *)
+  val str_of_int (x: int) : string
+
+  (* the result feeds real string operations: bind it to a string local and reason with
+     String.length / concat (a hard typecheck error if str_of_int returned int, as the
+     pre-fix str_conv did). The concat length law length(s ++ "!") = length s + 1 holds
+     ONLY because s is a genuine string. *)
+  let driver_string_slot (n: int) : unit =
+    let s = str_of_int n in
+    assert { String.length s >= 0 };
+    assert { String.length (concat s "!") = String.length s + 1 }
+
+  (* EVIL TWIN: str_of_int's result is an opaque abstract string — `s = ""` is NOT
+     provable (nothing pins it to the empty string; it is genuinely string-valued and
+     unconstrained, not a degenerate constant). Must stay UNPROVEN. *)
+  let driver_evil_empty (n: int) : unit =
+    let s = str_of_int n in
+    assert { s = "" }
+end
