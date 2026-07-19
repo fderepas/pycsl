@@ -261,3 +261,24 @@ non-vacuity fixture, count 1031→1030, ledger 3). **On supervision it was a FAC
 - **Corrected verdict:** the flat `pyast_stmt` ADT is feasible, but Phase 1+2 as scoped (a clean gated conversion) is
   BLOCKED on the generic psl-loop + string-dict lowering build — materially larger than "ADT + wiring." The bespoke
   shortcut is the ONLY thing that "converts" without it, and it is a facade. Count held 1031.
+
+## 8. LOWERING FEASIBILITY — PROVEN, no Why3 wall (2026-07-19); the true 7-piece build + the novel piece #5
+
+A second probe built the emission shape §3 left open — the **program `while`-loop** (not the pure fold): `while !idx <
+psl_len (class_body_ast node)` over a `psl` cons-list (`psl_nth`), `Optional` locals, `is_assign_node`/`is_annassign_
+node` dispatch, `ps_field_mem` guard, `map_update_some` on a `map string (option int)` local, arithmetic termination
+variant. Why3 1.8.2: **`collect'vc` → Valid** (Z3 0.02s), **`psl_nth'vc`/`psl_len_nonneg` → Valid** via axiom-free
+`induction_ty_lex`, and `collect'vc` discharges WITHOUT the induction lemma (the `psl_len - idx` variant under the loop
+guard suffices). `scratchpad/probe_class_constants_prog.mlw`. **VERDICT: the ADT + program-while lowering are sound,
+axiom-free, ledger 3 — NO soundness/modeling wall.** The wall is purely the multi-file tool WIRING.
+
+**The faithful conversion = 7 interlocking `_uses_pyast_stmt`-gated tool builds** (each byte-diff-risky, ~5 files + cert):
+(1) `pyast_stmt`+`psl` theory in preamble.py; (2) `node.body`→`class_body_ast` + `ast.ClassDef` param retype
+(ir_resolve.py); (3) `for child in <psl>` loop-classify in stmt_control_flow.py `_classify_iterable` (extend the
+`loop-over-irlist` precedent to `psl`); (4) isinstance stmt-kind + `_AST_CLASS_TO_STMT_KIND` + projector lowerings
+(expressions.py `_handle_isinstance`); (5) **NOVEL, no precedent: `Optional`-typed MUTABLE program locals** (`x:
+Optional[str]=None; x=…; if x is None`) — today the tool models `option` ONLY as pure-fold return types, never as
+None-init mutable locals with branch-assignment + `is None` guard in a `while`; its own hot-path (local decl/assign)
+byte-diff risk; (6) `_const_int_value`→opaque `ps_const_int`; (7) `Phase2e` Rocq+Lean axiom-free cert (`PS*` prefix).
+**Sequence #5 FIRST (verify in isolation)** — it is the sole piece with no reusable pattern and the highest byte-diff
+risk. Yield of the whole build: ~3 giants. Count held 1031 (no facade, no infra-only landing).
