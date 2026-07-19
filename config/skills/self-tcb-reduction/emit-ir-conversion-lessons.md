@@ -143,3 +143,31 @@ authorize-first", not a cheap-drain — don't grind it silently.
   shows as a byte-level signature diff — the structural `self-annotate-mirror-check.sh` stays green.
 - Count via the precise marker: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l`
   (a `wc -l` on a broader grep over-counts — reconcile discrepancies with THIS).
+
+## 9. FIDELITY IS A DISTINCT ORACLE — a simplified body passes proof + byte-diff-0 + mirror-check yet is a FACADE
+
+A build converted the trusted module-level `whyml_string_literal` (identifiers.py) using the SIMPLIFIED body of
+the sibling `_whyml_string_literal` METHOD (`'"' + value.replace("\\","\\\\").replace('"','\\"') + '"'`), whereas
+the LIVE module-level FUNCTION body is a full escaping loop (`_WHYML_STR_ESCAPES` + printable-ASCII passthrough +
+`\xHH` UTF-8 encoding). The facade PASSED the whole-file Why3 proof (a simpler body still discharges the
+type-safety-only contract), PASSED corpus byte-diff-0 (the function is emitter-only), AND PASSED the structural
+`self-annotate-mirror-check.sh` (which checks presence/signature sync, not body-verbatim). It was caught ONLY by
+reading the LIVE body and diffing: **mirror body ≠ live body**. LESSON: the three L-planes (proof / byte-diff /
+sync) do NOT catch a wrong-but-simpler body — FIDELITY (mirror body verbatim-identical to the live emitter method,
+modulo `#@`) is a SEPARATE, load-bearing oracle. For EVERY conversion, diff the ported mirror body against the LIVE
+`src/pycsl/…` body before accepting; beware "reuse the accepted body of a SIMILAR-NAMED already-proven sibling"
+(method-vs-module-function, mixin-vs-mixin) — that is the facade signature. (This also re-confirms the cross-mixin
+FACADE-STUB hazard: a `\trusted` stub whose real body lives in another file.)
+
+## 10. AUTHORIZED-BUILD DISCIPLINE — infrastructure without a conversion is not a landing; fable can mis-predict corpus-impact
+
+The B1/B2 Module6 value-model fix (kind_of→string bound-local typing; a `_get_default_is_string` recognizer that
+disambiguates a bare-Var `.get("value")` → the string leaf `value_of` when a string-literal default is passed, else
+the sub-node `svalue_of`) turned out **corpus-byte-diff-0** (the fable review predicted corpus-affecting/load-bearing,
+but the actual sweep showed 0 files differ — corpus programs use the ExprIR path but not those exact sub-patterns).
+So: (a) VERIFY corpus-impact by the actual sweep, don't trust a fable's corpus-inertness PREDICTION either way; and
+(b) B1/B2 alone converted NO named-field emitter (`_expr_to_whyml_string_ctx`, `_handle_ifexpr_expr`, … each need
+MORE per-handler infra — getattr-membership `_current_self_type in _mutable_state_classes`, tuple-unpack of a
+trusted sibling's return, etc.). Infrastructure that converts no stub is NOT a landing — either co-land it WITH the
+emitter conversions it enables, or revert it and record the approach. Do not commit a prerequisite fix + an
+unrelated facade "+1" as a bundle.
