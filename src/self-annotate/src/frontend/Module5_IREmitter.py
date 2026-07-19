@@ -1679,7 +1679,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _field_type_from_annotation_inst(self, annotation: Optional[ast.expr], scope_name: str='') -> str:
+    def _field_type_from_annotation_inst(self, annotation: "ExprIR", scope_name: str='') -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1737,18 +1737,38 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _emit_typeddict_record(self, node: ast.ClassDef) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 2 (P1 `.slice`->sindex_of + P3): resolves a TypedDict
+    # field annotation to its tag. `annotation` retyped `ast.expr`->`"ExprIR"` (emit_ir);
+    # the `isinstance(annotation, ast.Subscript)` tests -> `(is_sub annotation)`; `annotation
+    # .value` -> `(svalue_of annotation)` (the Subscript head), `.id` -> `name_of`; `annotation
+    # .slice` -> `(sindex_of annotation)` (the type ARG T, via the SCOPED P1 entry — NOT the
+    # svalue_of default). The two sub-dispatchers `_field_type_from_annotation_inst` /
+    # `_wrap_optional` stay \trusted, params retyped `"ExprIR"` (P3) so passing the emit_ir
+    # `annotation`/`annotation.slice` typechecks. Returns str. No P2 (no `.elts` read).
+    # isinstance_op = 0. Verbatim body port of the LIVE `_typeddict_field_type`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _typeddict_field_type(self, annotation: ast.expr, scope_name: str, total: bool) -> str:
-        return ""
+    def _typeddict_field_type(self, annotation: "ExprIR", scope_name: str,
+                               total: bool) -> str:
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id == "Required"):
+            return self._field_type_from_annotation_inst(annotation.slice,
+                                                         scope_name)
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id == "NotRequired"):
+            return self._wrap_optional(annotation.slice, scope_name)
+        if not total:
+            return self._wrap_optional(annotation, scope_name)
+        return self._field_type_from_annotation_inst(annotation, scope_name)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _wrap_optional(self, inner: ast.expr, scope_name: str) -> str:
+    def _wrap_optional(self, inner: "ExprIR", scope_name: str) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate

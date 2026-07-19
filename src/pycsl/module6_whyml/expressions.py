@@ -266,6 +266,18 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
     "_py_stmt_augassign": {"value": "avalue_of", "slice": "sindex_of",
                            "attr": "name_of"},
 })
+# value-model campaign increment 2 (P1 — SCOPED `.slice`→sindex_of for the annotation
+# walkers): a type-annotation node's `.slice` is the type ARGUMENT (a Subscript's index
+# child, `sindex_of`), NOT the `.value` head (`svalue_of`, the default). Global `.slice`
+# has no entry, so it defaults to svalue_of — WRONG for `_typeddict_field_type`'s
+# `Required[T].slice`(=T, not Required). SCOPED via `_current_emitting_func` (endswith
+# match, line ~6262) so it fires ONLY inside this named mirror handler — corpus-guaranteed-
+# inert (no corpus program defines it) and it does NOT perturb the existing `.slice`-readers
+# (`_py_expr_subscript`, `_py_stmt_assign`, which pass `.slice` to `_py_expr_to_ir`, an
+# emit_ir-local path).
+_EMIT_IR_HANDLER_ATTR_PROJ.update({
+    "_typeddict_field_type": {"slice": "sindex_of"},
+})
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
