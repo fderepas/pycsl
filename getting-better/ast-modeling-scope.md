@@ -282,3 +282,15 @@ None-init mutable locals with branch-assignment + `is None` guard in a `while`; 
 byte-diff risk; (6) `_const_int_value`→opaque `ps_const_int`; (7) `Phase2e` Rocq+Lean axiom-free cert (`PS*` prefix).
 **Sequence #5 FIRST (verify in isolation)** — it is the sole piece with no reusable pattern and the highest byte-diff
 risk. Yield of the whole build: ~3 giants. Count held 1031 (no facade, no infra-only landing).
+
+### 8a. Item #5 PINPOINTED (isolation probe, 2026-07-19)
+Minimal probe (`scratchpad/opt_local_probe.py`: `r: Optional[str] = None; if x>0: r="pos"; if r is None: return None; return r`)
+→ the tool emits **`let r = ref 0 in`** — it INT-ERASES the `None` initializer of an `Optional[τ]` local (the return-type
+`Optional` union `_union_pick_1 = Arm_1_0 string | Arm_1_None` IS built correctly; only the MUTABLE LOCAL is erased).
+Typecheck fails "string vs int". **The #5 build:** lower `x: Optional[τ] = None` → `let x = ref (Arm_i_None) in` (the
+already-emitted union's None arm), `x = v` → `x := Arm_i_0 v`, `x is None` → the discriminant. All primitives exist
+(union type, `ref`, the reflection-front discriminant pattern). **Byte-diff risk LOW:** 0 corpus files use `Optional[τ]=None`
+mutable locals (only 2 use `Optional` at all, as params). **Generalizes:** 7 emitter files use the Optional-local pattern.
+Per §10, #5 must co-land with a conversion (it converts nothing alone) — either a stub blocked SOLELY by Optional-locals,
+or as part of the giants co-land. STATUS: characterized + ready to build; the giants build is a deliberate multi-session
+effort, thoroughly de-risked (feasibility proven §8, crux pinpointed here).
