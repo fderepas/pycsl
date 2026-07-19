@@ -1682,13 +1682,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _field_type_from_annotation_inst(self, annotation: "ExprIR", scope_name: str='') -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 9 PROBE.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _mixin_field_type(type_str: str) -> str:
-        return ""
+        t = (type_str or "int").strip()
+        if t in ("list", "dict", "set", "frozenset", "tuple", "array", "string"):
+            return "list" if t == "array" else t
+        return "int"
 
     # base bool-recognizer increment (self-tcb-reduction M5, C-bucket): the
     # `class X(TypedDict)` existence test over node.bases -> the CONCRETE
@@ -2208,12 +2211,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _build_overload_param_guard(self, node: ast.FunctionDef) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model campaign increment 9 (str-method receiver reconstruction + `.attr` str-leaf):
+    # `ann` retyped `"ExprIR"`; `isinstance(ann, ast.Name)` -> `is_var`, `isinstance(ann,
+    # ast.Attribute)` -> `is_attribute`; `ann.id.lower()` -> `str_lower_op (name_of ann)` and
+    # `ann.attr.lower()` -> `str_lower_op (name_of ann)` (the dotted string-leaf receiver is
+    # reconstructed to its Attribute IR so `.lower()` reaches the faithful `str_lower_op`, not a
+    # vacuous opaque nullary op). Returns Optional[str] (str result wrapped in the variant string-
+    # arm by primitive #1; None -> the nullary arm; early returns via Return_<variant>).
+    # isinstance_op = 0. Verbatim body port of the LIVE `_overload_type_name`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _overload_type_name(ann: ast.AST) -> Optional[str]:
+    def _overload_type_name(ann: "ExprIR") -> Optional[str]:
+        if isinstance(ann, ast.Name):
+            return ann.id.lower()
+        if isinstance(ann, ast.Attribute):
+            return ann.attr.lower()
         return None
 
 

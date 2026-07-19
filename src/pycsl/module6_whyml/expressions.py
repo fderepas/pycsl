@@ -137,7 +137,14 @@ _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "op_of",
                       # `_py_expr_attribute`) reads the IrVar name string — the same
                       # `name_of` projector `.var`/`.name` already route to (an
                       # IrVar's payload). Only fires when the receiver is emit_ir.
-                      "id": "name_of"}
+                      "id": "name_of",
+                      # value-model campaign incr9: `.attr` on a BASE emit_ir node reads the
+                      # IrAttr attr-name string (`name_of (IrAttr _ a) = a`) — the string-method
+                      # receiver for `<emit_ir>.attr.lower()` (`_overload_type_name`). Byte-safe:
+                      # the converted handlers that read `.attr` do so on a SPECIFIC `ast.Attribute`
+                      # record (`expr.attr` record-field) or via the `bases_has_name` recognizer —
+                      # never on a base `ExprIR` node — so no existing emission is perturbed.
+                      "attr": "name_of"}
 # 2-child-cluster mini-M1 (following the orelse_of precedent verbatim): SUB-NODE-valued
 # attribute reads on a base-`ExprIR` emit_ir node for a 2-child ghost `ir_schema.ExprIR`
 # dataclass (`MapGetExpr(dict, key)`, `HasKeyExpr(dict, key)`, `MapRemoveExpr(dict, key)`,
@@ -1516,6 +1523,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             recv, tail = fn.rsplit(".", 1)
             if "." not in recv:
                 return {"type": "Var", "name": recv}, tail
+            # value-model campaign incr9: a `<emit_ir-var>.<str-leaf-attr>.<method>()` receiver
+            # (`ann.id.lower()`, `ann.attr.lower()` in `_overload_type_name`) — reconstruct the
+            # string-leaf attribute read as its Attribute IR so `.lower()`/`.strip()` reaches the
+            # faithful `str_lower_op`/`str_strip_op` path (else the whole dotted name is a vacuous
+            # opaque nullary op). Gated on the 2-part shape + `<v>` typed `ExprIR` in the symbol
+            # table + `<a>` a recognized `_EMIT_IR_STR_ATTRS` string-leaf → corpus-inert (no
+            # corpus receiver is an emit_ir var) and inert for handlers that read a str-leaf on a
+            # SPECIFIC record (not a base ExprIR var).
+            _rparts = recv.split(".")
+            if len(_rparts) == 2 and _rparts[1] in _EMIT_IR_STR_ATTRS:
+                _v = _rparts[0]
+                if getattr(self, "_current_symbol_table", {}).get(_v) in (
+                        "ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                    return ({"type": "Attribute",
+                             "object": {"type": "Var", "name": _v},
+                             "attr": _rparts[1]}, tail)
         return None, None
 
     def _split_call_recv_sep(self, call_ir):
