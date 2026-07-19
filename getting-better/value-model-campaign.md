@@ -59,6 +59,27 @@ decision. A substantial multi-reader build (authorize-first), NOT a lowering pri
 is necessary-but-not-sufficient: a mutating method made pure still can't verify until this AST modeling lands.
 **Reachable autonomous transcription frontier is EXHAUSTED at 1031.**
 
+## REFLECTION / VALUE-TYPE FRONT MEASURED (2026-07-19, user-authorized) — THIN, both candidates walled
+Census (6 emitter/semantic files) + 2 whole-body probes. Decisive findings:
+- **generic-dict `.values()`/`.items()` walker class = ABSENT** (0 markers, mirror AND live emitter). The 2026-07-13
+  "85 Dict[str,Any] walkers = dominant hard class" note is STALE — not in the current tree.
+- **`type(x).__name__` reflection wall = ABSENT** (0 real sites; the one grep hit is a docstring).
+- 234 `isinstance(x,str)` in the live emitter are dominated by **IR-node/union-field narrowing** (`isinstance(ir.get("func"),str)`,
+  `.get("type")==K`) = the already-handled AST-modeling front, NOT runtime value-type reflection.
+- `pure_ast.py` (262 stubs) = the `_Parser` char-level parser boundary (leave-trusted).
+- **Only ~2-3 genuine value-type-tag→WhyML-type mappers** in `functions.py`. BOTH PROBED, BOTH WALLED:
+  - `_symtype_to_whyml` (Optional[str]→str): **Optional[str]→union int-hash LEAK.** `Optional[str]` lowers to union
+    `Arm_1_0 string | Arm_1_None`; `symtype in ("set",..)`/`== "str"` then emit **int-hash equalities** (`symtype = 1917410062`)
+    → union-vs-int, doesn't even typecheck. A no-more-int SOUNDNESS leak (latent — the leaking methods are all still trusted).
+    FIX = a modelling change: option-unwrap the operand (`match symtype with Some s -> str_eq_op s "set" | None -> false`).
+  - `_callable_tag_to_whyml` (str→str): **core string-compare lowers FAITHFULLY** (`str_eq_op tag "int"` ✓), but the
+    `getattr(self,"_record_types",{})` + `record_types[tag]["whyml_name"]` tail lowers `_record_types` to `ref 0` (int) —
+    an unmodeled **instance-dict-field** (needs `self.f : map string record` + getattr-default + nested subscript + field-proj).
+- POSITIVE precedents: plain-`str` `x in (str-tuple)`/`x == "lit"` → `str_eq_op` faithfully; local-dict-literal `m={..}; m.get(k,d)`
+  already converts (`_union_arm_whyml_type`, verified). The string machinery WORKS; the walls are (a) Optional/union receiver,
+  (b) getattr-self-field-map. Both are modelling changes → FLAGGED (not auto-dispatched), ROI ~1-2 markers each.
+- VERDICT: authorized reflection front is measurement-exhausted for good-ROI wins. Count held at 1031 (probes reverted clean).
+
 ## Order of work (measure-before-build each)
 1. ~~CENSUS + PROBE~~ DONE. ~~Increments 1-9 (annotation-walker sub-campaign)~~ COMPLETE (1041→1035).
 2. If feasible, build the primitive + convert the cluster incrementally (whole-file-proof-gated, byte-diff
