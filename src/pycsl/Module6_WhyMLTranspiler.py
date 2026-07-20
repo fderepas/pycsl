@@ -521,7 +521,8 @@ class Module6_WhyMLTranspiler(
         # param/local; corpus has neither → byte-identical.
         if (getattr(self, "_mutable_state_classes", None)
                 or getattr(self, "_uses_ir_node_param", False)
-                or self._uses_stmt_ir()):
+                or self._uses_stmt_ir()
+                or self._uses_call_kw()):
             # theory-tailoring: emit the MINIMAL emit_ir surface for opaque-use
             # emitter mirrors, gated by an EXPLICIT class-name ALLOW-LIST
             # (`_TAILOR_OPAQUE_MIRROR_CLASSES`). These mirrors pass emit_ir

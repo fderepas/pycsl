@@ -1,0 +1,188 @@
+(* 0919 — emit_ir Call-internals value model (self-tcb-reduction, Tier-5 value-model
+   wall, J1): OBSERVATIONAL non-vacuity for the faithful Call-keyword-node lowering.
+
+   A Python Call `Ctor(x, bound=B)` whose `bound=` keyword's value is an ast.Name /
+   ast.Attribute node lowers to `IrCallKw "Ctor" <keyword_list> <arg0> <arity>`, the
+   keyword carried as a bespoke-cons `keyword_list` (KWNil/KWCons) whose value node is
+   the leaf-string `kwval` (KwName `.id` / KwAttr `.attr`) — the Name/Attribute
+   distinction the bare-string callee COLLAPSES.  The emitter reflects on it with
+   `call_keywords` (call.keywords), iterates the keyword list, and projects
+   `kw.arg` / `kw.value.id` / `kw.value.attr` via `kw_arg_of` / `kw_value_of` /
+   `is_kwname` / `kwname_id` / `kwattr_of`.
+
+   The `type kwval`/`keyword`/`keyword_list`, the `IrCallKw` ctor, and the projectors
+   below are VERBATIM the PyCSL tool's emitted output (preamble.py
+   `_emit_exprir_theory`, gated on `_uses_call_kw`; grep-confirmed against the probe
+   emission).  `extract_bound` is the WhyML logic image of the emitter's
+   `for kw in call.keywords: if kw.arg=="bound": kw.value.id/attr` iteration.  The
+   load-bearing claim: the string VARIABLE `v` projects back FAITHFULLY as `Some v`
+   — no int-hash / int-erasure, and a Name node is NEVER confused with an Attribute
+   (the whole point of the model).  keyword_list is the BESPOKE cons-list, NOT `seq`
+   (Why3-rejected as non-strictly-positive); `kwval` is a LEAF (carries no emit_ir),
+   so keyword_list is standalone (folding it into the `with irlist` mutual block hits
+   a termination-measure wall — the composition-probe finding).
+
+   Proven axiom-free by the fable oracle (getting-better/callinternals-oracle.mlw, Z3
+   Valid) and co-landed with the Rocq/Lean Phase2g_CallKw cert.  The EVIL TWINS pin
+   non-vacuity: a WRONG projected value and a Name/Attribute confusion stay UNPROVEN
+   (Prover: Z3). *)
+
+(* ============================================================= *)
+(* CallKwGoodFaithful — the tool's IrCallKw build + faithful reads.*)
+(* ============================================================= *)
+module CallKwGoodFaithful
+  use int.Int
+  use option.Option
+  use string.String
+
+  (* VERBATIM the tool's emitted standalone keyword-node types. *)
+  type kwval = KwName string | KwAttr string
+  type keyword = { kw_arg: string; kw_value: kwval }
+  type keyword_list = KWNil | KWCons keyword keyword_list
+
+  (* A minimal emit_ir carrying the tool's emitted IrCallKw ctor (func-name,
+     keyword_list, arg0, arity) + the IrOther absent-sentinel. *)
+  type emit_ir =
+    | IrOther string
+    | IrCallKw string keyword_list emit_ir int
+
+  (* VERBATIM the tool's emitted Call-internals projectors. *)
+  let function call_keywords (e: emit_ir) : keyword_list =
+    match e with IrCallKw _ kws _ _ -> kws | _ -> KWNil end
+  let function kw_arg_of (k: keyword) : string = k.kw_arg
+  let function kw_value_of (k: keyword) : kwval = k.kw_value
+  let function is_kwname (v: kwval) : bool =
+    match v with KwName _ -> true | KwAttr _ -> false end
+  let function kwname_id (v: kwval) : string =
+    match v with KwName s -> s | KwAttr s -> s end
+  let function kwattr_of (v: kwval) : string =
+    match v with KwAttr s -> s | KwName s -> s end
+
+  (* The WhyML logic image of `for kw in call.keywords: if kw.arg=="bound":
+     kw.value.id/attr` — structural recursion on the bespoke cons-list, projecting
+     the value node faithfully.  Fully constructive (native string `=`), NO axiom. *)
+  function extract_bound (kws: keyword_list) : option string
+  = match kws with
+    | KWNil -> None
+    | KWCons k rest ->
+        if kw_arg_of k = "bound" then
+          if is_kwname (kw_value_of k) then Some (kwname_id (kw_value_of k))
+          else Some (kwattr_of (kw_value_of k))
+        else extract_bound rest
+    end
+
+  (* The tool's lowered build of `Ctor(x, bound=B)` where B is an ast.Name(id=v):
+       IrCallKw "Ctor" [bound = KwName v] arg0 arity. *)
+  let build_call (v: string) : emit_ir
+    (* NON-VACUOUS: the string VARIABLE v reads back as itself (no int-erasure) *)
+    ensures { extract_bound (call_keywords result) = Some v }
+  = IrCallKw "Ctor"
+      (KWCons { kw_arg = "bound"; kw_value = KwName v } KWNil)
+      (IrOther "x") 1
+
+  (* The Attribute arm — a `bound=` keyword whose value is an ast.Attribute(attr=a)
+     projects `.attr` faithfully. *)
+  let build_call_attr (a: string) : emit_ir
+    ensures { extract_bound (call_keywords result) = Some a }
+  = IrCallKw "Ctor"
+      (KWCons { kw_arg = "bound"; kw_value = KwAttr a } KWNil)
+      (IrOther "x") 1
+
+  (* Real ITERATION: "bound" found AFTER a non-bound head (the for-loop iterates). *)
+  let build_call_iterate (v: string) : emit_ir
+    ensures { extract_bound (call_keywords result) = Some v }
+  = IrCallKw "Ctor"
+      (KWCons { kw_arg = "typ"; kw_value = KwName "int" }
+        (KWCons { kw_arg = "bound"; kw_value = KwName v } KWNil))
+      (IrOther "x") 2
+
+  (* No "bound" keyword ⇒ None (the driver genuinely discriminates on the arg name). *)
+  let build_call_no_bound (v: string) : emit_ir
+    ensures { extract_bound (call_keywords result) = None }
+  = IrCallKw "Ctor"
+      (KWCons { kw_arg = "typ"; kw_value = KwName v } KWNil)
+      (IrOther "x") 1
+
+  (* Concrete DISCRIMINATION: a specific value, distinguishable from a wrong constant. *)
+  let build_call_concrete () : emit_ir
+    ensures { extract_bound (call_keywords result) = Some "aaa" }
+    ensures { extract_bound (call_keywords result) <> Some "bbb" }
+  = IrCallKw "Ctor"
+      (KWCons { kw_arg = "bound"; kw_value = KwName "aaa" } KWNil)
+      (IrOther "x") 1
+end
+
+(* ============================================================= *)
+(* CallKwEvilWrongValue — a WRONG projected value must be UNPROVABLE.*)
+(* ============================================================= *)
+module CallKwEvilWrongValue
+  use int.Int
+  use option.Option
+  use string.String
+
+  type kwval = KwName string | KwAttr string
+  type keyword = { kw_arg: string; kw_value: kwval }
+  type keyword_list = KWNil | KWCons keyword keyword_list
+  type emit_ir = IrOther string | IrCallKw string keyword_list emit_ir int
+
+  let function call_keywords (e: emit_ir) : keyword_list =
+    match e with IrCallKw _ kws _ _ -> kws | _ -> KWNil end
+  let function kw_arg_of (k: keyword) : string = k.kw_arg
+  let function kw_value_of (k: keyword) : kwval = k.kw_value
+  let function is_kwname (v: kwval) : bool =
+    match v with KwName _ -> true | KwAttr _ -> false end
+  let function kwname_id (v: kwval) : string =
+    match v with KwName s -> s | KwAttr s -> s end
+  let function kwattr_of (v: kwval) : string =
+    match v with KwAttr s -> s | KwName s -> s end
+
+  function extract_bound (kws: keyword_list) : option string
+  = match kws with
+    | KWNil -> None
+    | KWCons k rest ->
+        if kw_arg_of k = "bound" then
+          if is_kwname (kw_value_of k) then Some (kwname_id (kw_value_of k))
+          else Some (kwattr_of (kw_value_of k))
+        else extract_bound rest
+    end
+
+  (* EVIL TWIN: claims the extracted value is the WRONG literal "wrong" — must FAIL
+     for a universally-quantified v (else kwval is vacuous / the variable was
+     int-erased). *)
+  let build_evil (v: string) : emit_ir
+    ensures { extract_bound (call_keywords result) = Some "wrong" }
+  = IrCallKw "Ctor"
+      (KWCons { kw_arg = "bound"; kw_value = KwName v } KWNil)
+      (IrOther "x") 1
+end
+
+(* ============================================================= *)
+(* CallKwEvilNameAttrConfusion — collapsing Name into Attribute must FAIL.*)
+(* ============================================================= *)
+module CallKwEvilNameAttrConfusion
+  use int.Int
+  use option.Option
+  use string.String
+
+  type kwval = KwName string | KwAttr string
+  type keyword = { kw_arg: string; kw_value: kwval }
+  type keyword_list = KWNil | KWCons keyword keyword_list
+  type emit_ir = IrOther string | IrCallKw string keyword_list emit_ir int
+
+  let function call_keywords (e: emit_ir) : keyword_list =
+    match e with IrCallKw _ kws _ _ -> kws | _ -> KWNil end
+  let function kw_value_of (k: keyword) : kwval = k.kw_value
+
+  (* The head keyword's value node. *)
+  let function head_value (kws: keyword_list) : kwval =
+    match kws with KWCons k _ -> kw_value_of k | KWNil -> KwName "" end
+
+  (* EVIL TWIN: claims a Name-valued keyword equals an Attribute-valued one — must
+     FAIL (the ast.Name(.id) vs ast.Attribute(.attr) distinction is NEVER collapsed;
+     a bare-string erasure would let this false claim through). *)
+  let build_evil_confuse (v: string) : emit_ir
+    ensures { head_value (call_keywords result) = KwAttr v }
+  = IrCallKw "Ctor"
+      (KWCons { kw_arg = "bound"; kw_value = KwName v } KWNil)
+      (IrOther "x") 1
+end

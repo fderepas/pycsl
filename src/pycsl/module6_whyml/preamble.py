@@ -1796,6 +1796,10 @@ class PreambleEmissionMixin:
                 # the stmt_ir ADT theory (append convention OR the tree-walk
                 # recogniser) declares `array int` body readers → needs Array.
                 or self._uses_stmt_ir()
+                # J1: the Call-internals theory declares `args_of : array emit_ir`
+                # (via the full emit_ir theory it forces) → needs Array. Byte-inert
+                # elsewhere (`_uses_call_kw` False for the whole corpus).
+                or self._uses_call_kw()
             )
         else:
             needs_array = False
@@ -3427,6 +3431,34 @@ class PreambleEmissionMixin:
             " construction (expressions.py `_lower_irnode_construction`) by the value arg's"
             " type — a `real`-typed field read → `IrNumF`, an int literal → `IrNum`. Both"
             " leaves are childless (no size arm; `_ -> 1` catch-all covers them). *)",
+            # J1 Call-internals value model (self-tcb-reduction, callinternals-oracle.mlw
+            # Gate-R CONFIRMED): the keyword-node list + Name/Attribute-distinguishing
+            # `kwval` — the value-model capability the emitter's Call-internals reflection
+            # (`_collect_typevar_registry`-shaped `for kw in call.keywords: if kw.arg==...:
+            # kw.value.id`) needs, which the bare-string callee currently COLLAPSES. Declared
+            # as STANDALONE types BEFORE the emit_ir sum (kwval is a leaf string, carries no
+            # emit_ir → keyword_list is strictly positive and standalone; the composition
+            # probe proved folding it into the `with irlist` block hits a termination-measure
+            # wall). Referenced from the new `IrCallKw` ctor's `keyword_list` field. Gated on
+            # `_uses_call_kw` (a `CallKw`-annotated param/local; no corpus program or other
+            # mirror carries it → the emit_ir theory stays byte-identical everywhere else).
+            *(([
+                "  (* J1 Call-internals value model (self-tcb-reduction,"
+                " callinternals-oracle.mlw Gate-R CONFIRMED, axiom-free Z3-Valid): the"
+                " keyword-node list + Name/Attribute-distinguishing kwval. KwName carries"
+                " an ast.Name node's `.id`; KwAttr carries an ast.Attribute node's `.attr`"
+                " — exactly the distinction the bare-string callee COLLAPSES. Standalone"
+                " types BEFORE the emit_ir sum (kwval is a leaf string — carries no emit_ir"
+                " — so keyword_list is strictly positive and does NOT need the `with irlist`"
+                " mutual block, which the composition probe showed hits a termination-measure"
+                " wall). keyword_list is a BESPOKE cons-list (KWNil/KWCons), NOT `seq`"
+                " (respects the recorded seq non-strict-positivity wall). Gated on"
+                " `_uses_call_kw` → every other emit_ir-theory file byte-identical. *)",
+                "  type kwval = KwName string | KwAttr string",
+                "  type keyword = { kw_arg: string; kw_value: kwval }",
+                "  type keyword_list = KWNil | KWCons keyword keyword_list",
+                "",
+            ]) if self._uses_call_kw() else []),
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrNumF real | IrBoolC int | IrRaw string | IrOther string"
             " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
@@ -3493,6 +3525,14 @@ class PreambleEmissionMixin:
                " | IrSetComp emit_ir emit_ir"
                " | IrDictComp emit_ir emit_ir emit_ir"
                if self._uses_stmt_ir() else "")
+            # J1: the Call-with-keyword-internals ctor — func-name, the standalone
+            # keyword_list (declared above), arg0, arity — PARALLEL to the existing
+            # `IrCall string emit_ir int` (kind_of returns "Call" for both; non-injective
+            # kind_of is sound, the IrCall/IrCallN precedent). size's `_ -> 1` catch-all
+            # covers it (no recursive consumer reflects a keyword list back). Gated WITH
+            # the standalone types on `_uses_call_kw` → byte-inert elsewhere.
+            + (" | IrCallKw string keyword_list emit_ir int"
+               if self._uses_call_kw() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -3657,6 +3697,12 @@ class PreambleEmissionMixin:
                " | IrSetComp _ _ -> \"SetComp\""
                " | IrDictComp _ _ _ -> \"DictComp\""]
               if self._uses_stmt_ir() else []),
+            # J1: IrCallKw's "Call" tag (gated WITH the ctor so kind_of stays exhaustive
+            # in both configs — kind_of has NO wildcard, so the arm is REQUIRED when the
+            # ctor is present and ABSENT when it is not). Shares "Call" with IrCall/IrCallN
+            # (non-injective kind_of is sound — the IrCall/IrCallN precedent).
+            *(["    | IrCallKw _ _ _ _ -> \"Call\""]
+              if self._uses_call_kw() else []),
             "    | IrOther k -> k",
             "    end",
             "",
@@ -3920,6 +3966,30 @@ class PreambleEmissionMixin:
             "  let function arg0_of (e: emit_ir) : emit_ir =",
             "    match e with IrCall _ a _ -> a | _ -> IrOther \"\" end",
             "",
+            # J1: the Call-internals projectors (gated WITH the ctor on `_uses_call_kw`).
+            # `call_keywords` reads an IrCallKw's keyword_list (`call.keywords`); the kwval
+            # discriminant/projector pair (`is_kwname`/`kwname_id`/`is_kwattr`/`kwattr_of`)
+            # reads the Name.id / Attribute.attr faithfully (`kw.value.id` / `kw.value.attr`);
+            # `kw_arg_of`/`kw_value_of` read a keyword record's `.arg`/`.value`. All total
+            # (a non-IrCallKw reads KWNil; a non-Name/Attr reads its sole string arm). NO
+            # axiom — definitional `let function`s, exactly the oracle's shape. *)
+            *(([
+                "  let function call_keywords (e: emit_ir) : keyword_list =",
+                "    match e with IrCallKw _ kws _ _ -> kws | _ -> KWNil end",
+                "",
+                "  let function kw_arg_of (k: keyword) : string = k.kw_arg",
+                "  let function kw_value_of (k: keyword) : kwval = k.kw_value",
+                "",
+                "  let function is_kwname (v: kwval) : bool =",
+                "    match v with KwName _ -> true | KwAttr _ -> false end",
+                "  let function is_kwattr (v: kwval) : bool =",
+                "    match v with KwAttr _ -> true | KwName _ -> false end",
+                "  let function kwname_id (v: kwval) : string =",
+                "    match v with KwName s -> s | KwAttr s -> s end",
+                "  let function kwattr_of (v: kwval) : string =",
+                "    match v with KwAttr s -> s | KwName s -> s end",
+                "",
+            ]) if self._uses_call_kw() else []),
             "  (* resync-campaign.md R1: the args LIST of a reflected Call node — opaque"
             " `array emit_ir` (sound; the ADT carries only arg0/nargs, so content is"
             " unmodelled). Used by the emitter's `val_ir.get(\"args\")`. *)",
@@ -4778,6 +4848,32 @@ class PreambleEmissionMixin:
             str(fn.get("name", "")).endswith("_is_null_byte_lit")
             for fn in self.ir.get("functions", []) or [])
         self._uses_null_byte_num_reader_cache = result
+        return result
+
+    def _uses_call_kw(self) -> bool:
+        """J1 Call-internals value model (self-tcb-reduction, callinternals-oracle.mlw
+        Gate-R CONFIRMED): True iff some function in this file has a param/local annotated
+        with the `CallKw` sentinel type — the receiving context that needs keyword-node
+        inspection (`call.keywords` / `for kw in ...` / `kw.arg` / `kw.value.id`). Only
+        then are the standalone `kwval`/`keyword`/`keyword_list` types + the `IrCallKw`
+        ctor + its projectors emitted into the emit_ir theory, so the certified Call-
+        internals value model stays OUT of every other mirror's SMT context and the whole
+        reference corpus (`CallKw` is a NEW sentinel name; no corpus program or other
+        mirror carries it → byte-identical). The byte-inert gate, mirroring `_uses_pyval`'s
+        `Dict[str, PyVal]` sentinel. Cached."""
+        cached = getattr(self, "_uses_call_kw_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            v == "CallKw"
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("symbol_table", {}) or {}).values()
+        ) or any(
+            v == "CallKw"
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("param_annotations", {}) or {}).values()
+        )
+        self._uses_call_kw_cache = result
         return result
 
     def _uses_pyval(self) -> bool:

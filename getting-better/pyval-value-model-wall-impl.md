@@ -122,3 +122,44 @@ PINNED CHAIN for the pyval count cut on the collectors:
   pyval [DONE, certified] + Optional[str] [DONE] + module-body pyast_stmt dispatch [PROVEN bounded, ~78 lines] +
   emit_ir Call-internals model [DEEP — func-as-typed-node (is_name/id) + keyword-node list ADT + cert] = converge.
 The Call-internals model is the terminal deep build. Spike it (fable oracle) before building.
+
+---
+
+## J1 GATE-S — emit_ir Call-internals value model: **PASS** (infra landed)
+
+**Gate-S emission make-or-break: PASS.** Verified end-to-end against the live tool:
+
+1. **Theory emission + typecheck (refute-cond 1): PASS.** `preamble.py::_emit_exprir_theory`
+   now emits the standalone `kwval`/`keyword`/`keyword_list` types BEFORE the emit_ir sum,
+   the `IrCallKw string keyword_list emit_ir int` ctor, its `kind_of` arm (`"Call"`, shared
+   with IrCall/IrCallN — non-injective, sound), and the projectors (`call_keywords`,
+   `kw_arg_of`/`kw_value_of`, `is_kwname`/`is_kwattr`/`kwname_id`/`kwattr_of`) — all gated on
+   `_uses_call_kw`. A real `pycsl <fixture> --keep-mlw` on a `CallKw`-annotated mirror emits the
+   FULL ~80-ctor emit_ir theory WITH the additions and **Why3 typechecks + the file PROVES**
+   (Verification SUCCESS). The certified iteration form's TYPEABILITY was Gate-R confirmed
+   (`callinternals-oracle.mlw` `extract_bound'vc` Valid + `callinternals-composition-probe.mlw`
+   composes with the real `with irlist` ADT).
+2. **Byte-inert gate (refute-cond 3): PASS.** `_uses_call_kw` fires only on the `CallKw`
+   sentinel annotation (no corpus/mirror carries it). Full 767-file byte-diff sweep = **EMPTY**.
+3. **Iteration-emission typing (refute-cond 2):** the lowered form typechecks (oracle-proven);
+   the emitter-side *recognizer* that produces it from Python source (`Ctor(bound=B)` construction
+   + `for kw in call.keywords` cons-list iteration) is the **J2/J3 conversion consumer** — it has
+   no existing machinery to ride (unlike pyval's dict-literal path), and the task scopes the
+   `_collect_typevar_registry` conversion to the next increment. J1 count UNCHANGED (infra),
+   exactly the I1 precedent ("infra + cert + fixture; NO mirror conversion yet").
+
+**Built:**
+- `preamble.py`: `_uses_call_kw()` gate + the theory additions (standalone types, `IrCallKw`,
+  `kind_of` arm, projectors) + `needs_array` wiring; `Module6_WhyMLTranspiler.py`: theory-emit
+  trigger wired to `_uses_call_kw()`.
+- Cert `rocq/Phase2g_CallKw.v` (18 goals, `Print Assumptions` all "Closed under the global
+  context") + `lean/PyCSL/CallKw.lean` (`#print axioms` only propext/Quot.sound) — **axiom-free,
+  ledger 3**. Model on Phase2f: (a) well-formed bespoke cons-list, (b) `kwlist_size`
+  well-founded + tail strictly shorter, (c) KwName/KwAttr injective + `KwName s <> KwAttr t`
+  (Name/Attribute never collapsed), (d) `extract_bound` faithful (variable projects as `Some v`,
+  evil-twin wrong-value UNprovable).
+- Fixture `test-suite/corpus/pycsl-reference/0919_call_keyword_internals.mlw` (0918 convention,
+  `git add -f`): builds an `IrCallKw` with a `bound=` keyword + extracts via the emitted
+  projectors; 5 GoodFaithful goals Z3-Valid, both evil twins (wrong value; Name/Attribute
+  confusion) non-Valid (non-vacuous). Mutation test: `bound`→`notbound` flips `build_call`
+  Valid→Timeout.
