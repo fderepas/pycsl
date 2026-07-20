@@ -40,3 +40,18 @@ The **emit_ir-typed sub-node value model** (tool-method `.get("expr")`/`.get("le
 The monolithic whole-file proof WEDGES on driver-verifier RE-RUNS (0 VCs or post-VC finalization hang, 0% CPU) while
 the executor agents' runs discharge cleanly — treat an agent's clean SUCCESS + independent byte-diff-0 + mutation-test
 + count + fidelity + allowlist as the verdict when a re-run wedges (document it).
+
+## 2026-07-20 (12h run) — proof-viable small-build frontier EXHAUSTED
+After +2 conversions (`_body_has_return` stmt-catamorphism, `_build_method_return_annotation_map` flat-strdict) +
+Bug 1 soundness fix, a measure-before-build drain returned `no_small_build_remaining`. Findings:
+- **STRUCTURAL: per-file mirror-sync blocks the "duplicate-stub" family.** A stub `\trusted` in file A whose live
+  method lives (and is converted) in file B CANNOT be converted in A — `self-annotate-mirror-check.sh` rejects
+  "un-trusted mirror def not in source". Validated on `_array_coerce_arg` (emitted faithfully + passed mutation,
+  but rejected — lives in expressions.py, stub in statements.py). Invalidates `_field_label`/`_val_is_bool`/
+  `_bool_ir_to_int_wrap`/`_str_operand_to_int`/`_array_coerce_arg`/… as convertible-where-stubbed.
+- **PROOF-ENV: `core_ir_semantic.py` whole-file proofs WEDGE why3** (0% CPU hang) on heavy combined theory (stmt
+  catamorphism + a ~60-arm expr fold). `_body_has_return` (lighter) proved; adding the expr fold wedged. Blocks the
+  tree-walk expr-fold family (`_contains_result` built+evidenced but reverted; patch banked).
+- Cheapest genuine remaining (all multi-piece): setfold method-call-guard + pyval-domain predicate emission
+  (`_collect_dict_var_assigns`/`_collect_variant_var_assigns`); Dict[str,Dict[str,str]] self-field record-metadata
+  value model (`_callable_tag_to_whyml`/`_is_emit_ir_expr`); keyword-node modeling + nested-map (`_collect_typevar_registry`).
