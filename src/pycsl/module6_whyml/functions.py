@@ -1648,7 +1648,13 @@ class FunctionEmissionMixin:
             _rv = self._returned_var_name(body_stmts)
             if _rv is not None and getattr(self, "_dict_key_types", {}).get(_rv) == "string":
                 _nu = getattr(self, "_dict_value_types", {}).get(_rv) or "int"
-                return_type = f"map string (option {_nu})"
+                # A compound value type (`seq string` for `Dict[str, List[str]]`) MUST be
+                # parenthesized inside `option`, else WhyML parses `option seq string` as
+                # the bare 0-arg `seq` ("Type symbol seq expects 1 argument but is applied
+                # to 0"). Mirrors the byte-safe guard in `_emit_dict_map_type`: a scalar
+                # `int` has no space -> no parens -> byte-identical for the corpus.
+                _nu_arg = f"({_nu})" if " " in _nu else _nu
+                return_type = f"map string (option {_nu_arg})"
         elif ann == "str" and return_type == "int":
             return_type = "string"
         elif ann == "float" and return_type == "int":
