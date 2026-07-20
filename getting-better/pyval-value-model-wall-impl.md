@@ -181,3 +181,21 @@ The Call-internals model is the terminal deep build. Spike it (fable oracle) bef
   self-field-list append), _synthesize_typeddict/namedtuple_functional (need multi-positional-arg projection
   call.args[i] [ADT carries only arg0/arity] + arg-substructure iteration + type_decls append),
   _synthesize_tuple_records (isinstance ast.Subscript + type_decls append). Each a follow-on increment.
+
+## CASCADE MAP (2026-07-21) — sibling collectors are CONJUNCTIONS, not bounded follow-ons
+_collect_typevar_registry converted because its ONLY walls were the 4 built capabilities. The siblings each need
+MORE (measured, do-not-understate):
+- _collect_final_registry: R1 (nested `.body` over a pyast_stmt LOCAL — `_pyast_bodyparams_for_tag` matches params
+  only; need stmt_body projector + propagate _pyast_stmt_locals into nested loops) + R2 (`ast.walk(cstmt)`
+  Call-iterator — opaque `ast_walk: pyast_stmt->psl` val + loop recognition) + R3 (self-field `seq pyval`
+  list-append — `find_append_targets` backs appends with `array int`; pyval only does MAP stores today, no
+  list-append precedent). ALL THREE new. ≥3-capability build.
+- _collect_type_params: `type(tp).__name__` reflection + list-of-pyval append.
+- _collect_class_fields: R2 (ast.walk) + more.
+- _synthesize_typeddict/namedtuple_functional: multi-positional-arg projection (`call.args[i]` — IrCall ADT carries
+  only arg0/arity) + arg-substructure iteration + type_decls append.
+- _synthesize_tuple_records: isinstance ast.Subscript + type_decls append.
+RECURRING reusable next-capabilities (broadest leverage): R2 ast.walk-opaque-projector (>=2 collectors), the
+seq-pyval/list-of-heterogeneous-dict append (>=4 collectors, incl. type_decls.append), multi-arg projection (2).
+Each collector = a multi-capability conjunction; NO bounded 1-piece follow-on. Next value-model count cuts require
+a deliberate multi-capability build (build order: seq-pyval-append + ast.walk + nested-body-local, then converge).
