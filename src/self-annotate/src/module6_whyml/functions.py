@@ -20,12 +20,26 @@ class FunctionEmissionMixin:
     def _callable_whyml_arrow(self, symtype: str) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _callable_tag_to_whyml(self, tag: str) -> str:
-        return ""
+        """Map a single Callable arg/return PyCSL tag to its WhyML type."""
+        if tag in ("int", "bool"):
+            return "int"
+        if tag == "str":
+            return "string"
+        if tag == "float":
+            return "real"
+        record_types = getattr(self, "_record_types", {})
+        if tag in record_types:
+            return record_types[tag]["whyml_name"]
+        variant_types = getattr(self, "_variant_types", {})
+        if tag in variant_types:
+            return variant_types[tag]["whyml_name"]
+        # Unknown bare name — sound fallback to `int`; Why3 rejects a mismatched
+        # application rather than admitting an unsound type.
+        return "int"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

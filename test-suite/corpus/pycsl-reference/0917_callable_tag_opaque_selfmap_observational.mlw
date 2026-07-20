@@ -1,0 +1,103 @@
+module CallableTagOpaqueSelfmapObservation
+  use int.Int
+  use bool.Bool
+  use string.String
+
+  (* self-tcb-reduction (opaque-nested-map reader): OBSERVATIONAL non-vacuity for
+     the conversion of `_callable_tag_to_whyml` (module6_whyml/functions.py). The
+     method's literal branches (`tag in ("int","bool")` -> "int", `tag=="str"` ->
+     "string", `tag=="float"` -> "real") already lower faithfully; the tail
+
+        record_types = getattr(self, "_record_types", {})
+        if tag in record_types:
+            return record_types[tag]["whyml_name"]
+        variant_types = getattr(self, "_variant_types", {})
+        if tag in variant_types:
+            return variant_types[tag]["whyml_name"]
+        return "int"
+
+     formerly INT-ERASED (`record_types := ref 0`, `contains_check (str_hash_op
+     tag) !record_types`, `subscript_get (subscript_get 0 tag) <hash> : int`). The
+     conversion models `self._record_types` / `self._variant_types` — instance maps
+     populated by `transpile()`, only READ here — as OPAQUE boundary readers keyed
+     on `tag`:
+        val function record_types_mem        (k: string) : bool
+        val function record_types_whyml_name (k: string) : string
+        val function variant_types_mem        (k: string) : bool
+        val function variant_types_whyml_name (k: string) : string
+     (a `val` per the `symtab_mem`/`csl_mutex_ast` pattern — a boundary reader, NOT
+     an axiom). The membership `tag in record_types` lowers to `record_types_mem
+     tag`; the nested `record_types[tag]["whyml_name"]` to `record_types_whyml_name
+     tag : string`.
+
+     The tool emits these `val`s UNCONSTRAINED. This fixture GROUNDS them as
+     specific total functions so their gating becomes OBSERVABLE — that a `tag` the
+     membership reader ACCEPTS returns the reader's string (NOT the "int" fallback),
+     and that record and variant readers determine DISTINCT results. No new
+     constructor, no new axiom. *)
+
+  (* the tool emits `val str_eq_op (a b: string) : bool` (with `ensures {result <->
+     a = b}`); here grounded as string equality — the literal-branch test. *)
+  function str_eq_op (a b: string) : bool = a = b
+
+  (* the four OPAQUE map readers, GROUNDED so their gating is observable. The tool
+     leaves each an uninterpreted `val function`. Here: `_record_types` holds the
+     single key "Foo" -> "foo_rec"; `_variant_types` holds "Bar" -> "bar_var". A
+     tag in NEITHER map falls through to the sound "int" fallback. *)
+  function record_types_mem (k: string) : bool = str_eq_op k "Foo"
+  function record_types_whyml_name (k: string) : string = "foo_rec"
+  function variant_types_mem (k: string) : bool = str_eq_op k "Bar"
+  function variant_types_whyml_name (k: string) : string = "bar_var"
+
+  (* the VERBATIM body shape the tool emits (if/else cascade; the `raise Return_str`
+     control-flow rendered here as a pure if-then-else — the observable result is
+     identical). *)
+  function callable_tag_to_whyml (tag: string) : string
+  = if orb (str_eq_op tag "int") (str_eq_op tag "bool") then "int"
+    else if str_eq_op tag "str" then "string"
+    else if str_eq_op tag "float" then "real"
+    else if record_types_mem tag then record_types_whyml_name tag
+    else if variant_types_mem tag then variant_types_whyml_name tag
+    else "int"
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — the opaque readers GENUINELY determine    *)
+  (* the result (a different tag -> a different branch).                    *)
+  (* ==================================================================== *)
+
+  (* literal branches lower to real `str_eq_op` content equality. *)
+  let driver_lit_int () : unit =
+    assert { callable_tag_to_whyml "int" = "int" }
+  let driver_lit_bool () : unit =
+    assert { callable_tag_to_whyml "bool" = "int" }
+  let driver_lit_str () : unit =
+    assert { callable_tag_to_whyml "str" = "string" }
+  let driver_lit_float () : unit =
+    assert { callable_tag_to_whyml "float" = "real" }
+
+  (* record membership ACCEPTS "Foo" -> the nested `record_types_whyml_name` read
+     (a REAL string), NOT the "int" fallback. *)
+  let driver_record_accept () : unit =
+    assert { callable_tag_to_whyml "Foo" = "foo_rec" }
+
+  (* variant membership ACCEPTS "Bar" -> `variant_types_whyml_name`. *)
+  let driver_variant_accept () : unit =
+    assert { callable_tag_to_whyml "Bar" = "bar_var" }
+
+  (* a tag in NEITHER map -> the sound "int" fallback (both readers reject). *)
+  let driver_fallback () : unit =
+    assert { callable_tag_to_whyml "Zzz" = "int" }
+
+  (* EVIL TWIN 1 — the record-accepted tag returns the "int" fallback: MUST stay
+     UNPROVEN. If this proved, the nested read would be int-erased / ignored (the
+     old `subscript_get`), never reaching the opaque string reader. *)
+  let driver_evil_record_erased () : unit =
+    assert { callable_tag_to_whyml "Foo" = "int" }
+
+  (* EVIL TWIN 2 — the variant-accepted tag returns the RECORD reader's string:
+     MUST stay UNPROVEN. If this proved, the two readers would be conflated (the
+     membership readers would not genuinely select their own branch). *)
+  let driver_evil_variant_is_record () : unit =
+    assert { callable_tag_to_whyml "Bar" = "foo_rec" }
+
+end

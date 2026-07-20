@@ -301,6 +301,16 @@ class FunctionEmissionMixin:
         # "_current_symbol_table", {})`). A later reference / `X[k]` / `k in X` /
         # `X.get(k)` routes to `self.<field>`. @mutable_state only → byte-identical.
         self._getattr_self_dict_aliases: Dict[str, str] = {}
+        # opaque-nested-map-reader (self-tcb-reduction): `X = getattr(self,
+        # "<field>", {})` where <field> is an OPAQUE (undeclared, non-mutable-
+        # state) instance map populated elsewhere, read ONLY as `k in X` and the
+        # nested `X[k]["<litkey>"]` string projection. Maps the alias local ->
+        # reader base name (`_record_types` -> `record_types`); membership lowers
+        # to the opaque `<base>_mem k : bool`, the nested read to `<base>_<litkey>
+        # k : string`. Distinct from §26: NO mutable-state / declared-field gate;
+        # instead gated on the nested `X[k]["<lit>"]` read shape being present
+        # (corpus-inert — see `_prescan_opaque_selfmap_aliases`).
+        self._opaque_selfmap_aliases: Dict[str, str] = {}
         # no-more-int-3 A1: dict var -> WhyML value type ν (string) for
         # string-valued dicts; consulted by the dict literal / declaration /
         # MapGet-default / MapSet sites to emit `map int (option string)`.

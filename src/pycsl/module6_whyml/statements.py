@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name, stable_hash
 from module6_whyml.ir_scanner import IRScanner
@@ -210,6 +210,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if (vt == "Call" and isinstance(val_ir.get("func"), str)
                 and val_ir["func"].endswith(".to_dict") and not val_ir.get("args")):
             self._todict_aliases[target] = val_ir["func"][:-len(".to_dict")]
+            _rest = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            return _rest if _rest else f"{indent}()"
+        # opaque-nested-map-reader: `<local> = getattr(self, "_field", {})` where
+        # <local> is a registered opaque-selfmap alias — emit NOTHING (the local is
+        # never a real value; `k in <local>` and `<local>[k]["lit"]` route to the
+        # boundary readers). Mirrors the `.to_dict()` alias suppression above.
+        if target in getattr(self, "_opaque_selfmap_aliases", {}):
             _rest = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
             return _rest if _rest else f"{indent}()"
         self._track_collection_metadata(target, val_ir)
@@ -2491,6 +2498,71 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 sub = st.get(key)
                 if isinstance(sub, list): self._prescan_todict_aliases(sub)
 
+    def _opaque_selfmap_getattr_field(self, v: Any) -> Optional[str]:
+        """If `v` is `getattr(self, "<field>", {})` with an EMPTY dict-literal
+        default (the opaque-instance-map defensive read), return `<field>`; else
+        None. Distinct from §26's `_getattr_self_field` in requiring the empty-
+        dict default (the distinguishing shape of an opaque map, not a scalar)."""
+        if not (isinstance(v, dict) and v.get("type") == "Call"
+                and v.get("func") == "getattr"):
+            return None
+        a = v.get("args", [])
+        if not (len(a) == 3 and isinstance(a[0], dict) and a[0].get("name") == "self"
+                and isinstance(a[1], dict) and a[1].get("type") == "String"):
+            return None
+        dflt = a[2]
+        if not (isinstance(dflt, dict) and dflt.get("type") in ("DictLit", "Dict")
+                and not dflt.get("keys") and not dflt.get("items")
+                and not dflt.get("values")):
+            return None
+        return a[1].get("value")
+
+    def _nested_str_subscript_reads(self, node: Any, local: str, out: Set[str]) -> None:
+        """Collect the set of string litkeys `<lit>` for every nested read
+        `<local>[<k>]["<lit>"]` anywhere in an IR subtree — the read shape that
+        distinguishes an opaque nested-map alias (used to gate registration so
+        the recognizer is corpus-inert)."""
+        if isinstance(node, dict):
+            if node.get("type") == "Subscript":
+                idx = node.get("index", {})
+                inner = node.get("value", {})
+                if (isinstance(idx, dict) and idx.get("type") == "String"
+                        and isinstance(inner, dict) and inner.get("type") == "Subscript"
+                        and isinstance(inner.get("value"), dict)
+                        and inner["value"].get("type") == "Var"
+                        and inner["value"].get("name") == local):
+                    out.add(idx.get("value"))
+            for w in node.values():
+                self._nested_str_subscript_reads(w, local, out)
+        elif isinstance(node, list):
+            for w in node:
+                self._nested_str_subscript_reads(w, local, out)
+
+    def _prescan_opaque_selfmap_aliases(self, body_stmts: List[Dict[str, Any]]) -> None:
+        """Register each `<local> = getattr(self, "<field>", {})` whose alias local
+        is later read via the nested `<local>[k]["<lit>"]` string projection as an
+        opaque-instance-map alias (`_opaque_selfmap_aliases[local] = <base>`, base =
+        the field name with leading underscores stripped). Gated on the nested-read
+        shape being PRESENT so no other getattr-empty-dict usage changes emission."""
+        assigns: List[Tuple[str, str]] = []
+        def _walk(stmts):
+            for st in stmts or []:
+                if not isinstance(st, dict): continue
+                if st.get("stmt") in ("assign", "Assign"):
+                    tgt = st.get("target")
+                    fld = self._opaque_selfmap_getattr_field(st.get("value", {}))
+                    if isinstance(tgt, str) and fld:
+                        assigns.append((tgt, fld))
+                for key in ("body", "orelse", "finalbody", "then", "else_body"):
+                    sub = st.get(key)
+                    if isinstance(sub, list): _walk(sub)
+        _walk(body_stmts)
+        for local, fld in assigns:
+            litkeys: Set[str] = set()
+            self._nested_str_subscript_reads(body_stmts, local, litkeys)
+            if litkeys:
+                self._opaque_selfmap_aliases[local] = fld.lstrip("_")
+
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
                          is_method: bool, return_type: str) -> str:
@@ -2520,6 +2592,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `body_<kind>_vars` subtractions (incl. the record-vs-collections 0441
         # dedup, now subsumed by the union).
         self._prescan_todict_aliases(body_stmts)
+        self._opaque_selfmap_aliases = {}
+        self._prescan_opaque_selfmap_aliases(body_stmts)
         typed_local_vars = self._typed_local_vars(body_stmts)
         # var -> class name for record-instance locals (`c = C()`), so method
         # calls `c.method(...)` can resolve the callee contract like `self.`.
@@ -2550,6 +2624,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             and v not in typed_local_vars
             and v not in struct_array_targets
             and v not in struct_pack_targets
+            # opaque-nested-map-reader: alias locals are never a real value (their
+            # getattr assignment is suppressed; reads route to boundary readers) —
+            # so no `ref 0` pre-declaration.
+            and v not in self._opaque_selfmap_aliases
         }
         # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
         # a string local is PRE-DECLARED `ref ""` (not let-bound at first assign), so a

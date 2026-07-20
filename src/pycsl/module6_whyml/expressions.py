@@ -668,6 +668,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and _rt not in ("set", "dict", "frozenset", "list", "str")):
                 _pfm = f"(ps_field_mem {left})"
                 return f"(not {_pfm})" if negate else _pfm
+        # opaque-nested-map-reader: `k in <alias>` where <alias> aliases an opaque
+        # instance map (`getattr(self, "_field", {})`, read via `alias[k]["lit"]`) →
+        # the boundary reader `<base>_mem k : bool` (the honest model of a runtime
+        # membership on an instance map populated ELSEWHERE — not int-hashed against
+        # an int-erased `ref 0`). Registered by `_prescan_opaque_selfmap_aliases`.
+        if rhs.get("type") == "Var":
+            _base = getattr(self, "_opaque_selfmap_aliases", {}).get(rhs.get("name", ""))
+            if _base:
+                self._add_abstract_op(f"val function {_base}_mem (k: string) : bool")
+                _mem = f"({_base}_mem {left})"
+                return f"(not {_mem})" if negate else _mem
         if rhs.get("type") in ("Tuple", "ArrayLit", "SetLit"):
             elts = rhs.get("elts", [])
             if elts:
@@ -6181,10 +6192,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return self._peel_container(_bt)
         return None
 
+    def _opaque_selfmap_nested_read(self, expr: Dict[str, Any], local_refs: Set[str],
+                                     invariant_ctx: bool,
+                                     subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """Lower `<alias>[k]["<lit>"]` (opaque-nested-map read) to the boundary
+        reader `<base>_<lit> <k> : string`, or None if the shape does not match.
+        `<alias>` must be an opaque-selfmap alias local (see
+        `_prescan_opaque_selfmap_aliases`); the outer index a string literal; the
+        inner value the alias Var."""
+        idx = expr.get("index", {})
+        inner = expr.get("value", {})
+        if not (isinstance(idx, dict) and idx.get("type") == "String"
+                and isinstance(inner, dict) and inner.get("type") == "Subscript"):
+            return None
+        inner_val = inner.get("value", {})
+        if not (isinstance(inner_val, dict) and inner_val.get("type") == "Var"):
+            return None
+        base = getattr(self, "_opaque_selfmap_aliases", {}).get(inner_val.get("name", ""))
+        if not base:
+            return None
+        lit = whyml_ident(idx.get("value", ""))
+        key = self._expr_to_whyml(inner.get("index", {}), local_refs, invariant_ctx, subst)
+        self._add_abstract_op(f"val function {base}_{lit} (k: string) : string")
+        return f"({base}_{lit} {key})"
+
     def _handle_subscript(self, node: "ExprIR", local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         value = expr["value"]
+        # opaque-nested-map-reader: `<alias>[k]["<lit>"]` where <alias> aliases an
+        # opaque instance map (`getattr(self, "_field", {})`) → the boundary reader
+        # `<base>_<lit> k : string` (the nested `record_types[tag]["whyml_name"]`
+        # projection, keyed on the OUTER key `k`, returning a REAL string — not the
+        # int-erased `subscript_get (subscript_get 0 tag) <hash>`). The reader
+        # GENUINELY determines the branch value (a different `k` -> a different
+        # opaque string). Registered by `_prescan_opaque_selfmap_aliases`.
+        _osm = self._opaque_selfmap_nested_read(expr, local_refs, invariant_ctx, subst)
+        if _osm is not None:
+            return _osm
         index = self._expr_to_whyml(expr["index"], local_refs, invariant_ctx, subst)
         # B-C5: `<emit_ir>.get("args")[0]` → `arg0_of` (the Call's first arg node).
         _ar0 = self._emit_ir_args_recv_ir(expr.get("value", {}))
