@@ -1791,12 +1791,49 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return names
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # J2/J3 convergence (self-tcb-reduction, pyval count-cut): the module-body TypeVar
+    # registry collector — the FIRST realized pyval count cut. (A) `for stmt in node.body`
+    # over an `ast.Module` param -> `module_body_ast` psl-loop + `is_assign_node` dispatch
+    # (the class-body giant generalized to module bodies); (B) `call = stmt.value` -> the
+    # `stmt_value` emit_ir bridge; (C) `for kw in call.keywords` -> the certified
+    # keyword_list structural fold (call_keywords + kw_arg_of + is_kwname/kwname_id +
+    # is_kwattr/kwattr_of, indexed via kwl_len/kwl_nth); (D) `{"bound": bound}` ->
+    # `Dict[str, PyVal]` (PStr bound). Verbatim body port of the LIVE method (dict
+    # annotations retyped Any->PyVal, an alias). isinstance_op = 0.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_typevar_registry(self, node: ast.Module) -> int:
-        return {}
+    def _collect_typevar_registry(self, node: ast.Module) -> Dict[str, Dict[str, PyVal]]:
+        """Scan module-level assigns for `T = TypeVar("T"[, bound=B])` and return
+        `{name: {"bound": Optional[str]}}`. The legacy PEP 484 spelling; the
+        PEP 695 `class C[T]` form needs no registry (its `type_params` carry the
+        bound directly).
+
+        (`PyVal` is an alias for `Any` — the self-tcb-reduction pyval value-model
+        sentinel that lets the self-annotation mirror lower this heterogeneous
+        `{"bound": Optional[str]}` dict faithfully instead of int-erasing it.)"""
+        registry: Dict[str, Dict[str, PyVal]] = {}
+        for stmt in node.body:
+            if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
+                continue
+            target = stmt.targets[0]
+            if not isinstance(target, ast.Name):
+                continue
+            call = stmt.value
+            if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
+                continue
+            if call.func.id != "TypeVar":
+                continue
+            name = target.id
+            bound = None
+            for kw in call.keywords:
+                if kw.arg == "bound":
+                    if isinstance(kw.value, ast.Name):
+                        bound = kw.value.id
+                    elif isinstance(kw.value, ast.Attribute):
+                        bound = kw.value.attr
+            registry[name] = {"bound": bound}
+        return registry
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

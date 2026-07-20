@@ -3739,7 +3739,9 @@ class PreambleEmissionMixin:
             "  let function is_attribute (e: emit_ir) : bool =",
             "    match e with IrAttr _ _ -> true | _ -> false end",
             "  let function is_call (e: emit_ir) : bool =",
-            "    match e with IrCall _ _ _ -> true | _ -> false end",
+            ("    match e with IrCall _ _ _ -> true | IrCallKw _ _ _ _ -> true"
+             " | _ -> false end" if self._uses_call_kw() else
+             "    match e with IrCall _ _ _ -> true | _ -> false end"),
             "  let function is_tuple (e: emit_ir) : bool =",
             "    match e with IrTuple _ _ -> true | _ -> false end",
             "  let function is_fieldget (e: emit_ir) : bool =",
@@ -3877,6 +3879,11 @@ class PreambleEmissionMixin:
             "    | IrForall _ b _ _ -> 1 + size b",
             "    | IrExists _ b _ _ -> 1 + size b",
             "    | IrFunctionVariant e _ -> 1 + size e",
+            # J2/J3 convergence: IrCallKw's size counts its arg0 child (parallel to
+            # IrCall's `1 + size a`), so the `size_arg0_dec` lemma (`is_call e -> size
+            # (arg0_of e) < size e`) stays VALID now that `is_call` also matches IrCallKw.
+            # Without this arm IrCallKw falls to `| _ -> 1` and the lemma is FALSE.
+            *(["    | IrCallKw _ _ a _ -> 1 + size a"] if self._uses_call_kw() else []),
             "    | _ -> 1",
             "    end",
             "",
@@ -3958,13 +3965,17 @@ class PreambleEmissionMixin:
             "    match e with IrAttr o _ -> o | IrSub v _ -> v | _ -> IrOther \"\" end",
             "",
             "  let function func_of (e: emit_ir) : string =",
-            "    match e with IrCall f _ _ -> f | _ -> \"\" end",
+            ("    match e with IrCall f _ _ -> f | IrCallKw f _ _ _ -> f"
+             " | _ -> \"\" end" if self._uses_call_kw() else
+             "    match e with IrCall f _ _ -> f | _ -> \"\" end"),
             "",
             "  let function nargs_of (e: emit_ir) : int =",
             "    match e with IrCall _ _ n -> n | _ -> 0 end",
             "",
             "  let function arg0_of (e: emit_ir) : emit_ir =",
-            "    match e with IrCall _ a _ -> a | _ -> IrOther \"\" end",
+            ("    match e with IrCall _ a _ -> a | IrCallKw _ _ a _ -> a"
+             " | _ -> IrOther \"\" end" if self._uses_call_kw() else
+             "    match e with IrCall _ a _ -> a | _ -> IrOther \"\" end"),
             "",
             # J1: the Call-internals projectors (gated WITH the ctor on `_uses_call_kw`).
             # `call_keywords` reads an IrCallKw's keyword_list (`call.keywords`); the kwval
@@ -3976,6 +3987,17 @@ class PreambleEmissionMixin:
             *(([
                 "  let function call_keywords (e: emit_ir) : keyword_list =",
                 "    match e with IrCallKw _ kws _ _ -> kws | _ -> KWNil end",
+                "",
+                "  (* J2/J3 convergence: indexed access over the bespoke keyword_list cons"
+                " (the psl_len/psl_nth precedent) so the imperative `for kw in call.keywords`"
+                " loop lowers to the standard index-bounded while. Total + structurally"
+                " terminating (variant { l }); NO axiom. *)",
+                "  let rec function kwl_len (l: keyword_list) : int =",
+                "    match l with KWNil -> 0 | KWCons _ t -> 1 + kwl_len t end",
+                "  let rec function kwl_nth (i: int) (l: keyword_list) : keyword",
+                "    variant { l } =",
+                "    match l with KWNil -> { kw_arg = \"\"; kw_value = KwName \"\" }",
+                "    | KWCons h t -> if i <= 0 then h else kwl_nth (i-1) t end",
                 "",
                 "  let function kw_arg_of (k: keyword) : string = k.kw_arg",
                 "  let function kw_value_of (k: keyword) : kwval = k.kw_value",
@@ -4743,6 +4765,16 @@ class PreambleEmissionMixin:
                 "  val function class_body_ast (n: py_classdef_node) : psl",
                 "  val function ps_const_int (v: emit_ir) : option int",
                 "  val function ps_field_mem (name: string) : bool",
+            ] + ([
+                "  (* J2/J3 convergence (self-tcb-reduction, module-body dispatch): the"
+                " class-body giant generalized to `ast.Module` bodies. `py_module_node` is"
+                " an `ast.Module` param whose `.body` reads the SAME shared `psl` cons-list"
+                " (`_collect_typevar_registry` iterates `for stmt in node.body`). Distinct"
+                " opaque AST-node type from py_classdef_node; reuses the whole pyast_stmt ADT"
+                " + psl loop. Gated WITH the block on `_uses_pyast_stmt`. *)",
+                "  type py_module_node",
+                "  val function module_body_ast (n: py_module_node) : psl",
+            ] if self._uses_pyast_module() else []) + [
                 "",
             ]) if self._uses_pyast_stmt() else []),
         ]
@@ -4758,20 +4790,48 @@ class PreambleEmissionMixin:
         if cached is not None:
             return cached
         result = any(
-            self._pyast_classdef_body_params(fn)
+            self._pyast_classdef_body_params(fn) or self._pyast_module_body_params(fn)
             for fn in self.ir.get("functions", []) or [])
         self._uses_pyast_stmt_cache = result
         return result
+
+    def _uses_pyast_module(self) -> bool:
+        """J2/J3 convergence (self-tcb-reduction, module-body dispatch): True iff some
+        function iterates an `ast.Module` param's `.body` (`for stmt in node.body`). Only
+        then are `type py_module_node` + `val module_body_ast` emitted (with the shared
+        pyast_stmt block). Only the Module5 mirror's `_collect_typevar_registry` produces
+        this shape -> byte-inert everywhere else. Cached."""
+        cached = getattr(self, "_uses_pyast_module_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._pyast_module_body_params(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_pyast_module_cache = result
+        return result
+
+    def _pyast_module_body_params(self, func: Dict[str, Any]) -> Set[str]:
+        """The parameters of `func` that are (a) annotated `ast.Module` AND (b) iterated
+        via `for <x> in <param>.body`. These become `py_module_node` params whose `.body`
+        reads the shared `module_body_ast` psl (module-body dispatch). Parallel to
+        `_pyast_classdef_body_params`; the ONLY difference is the "Module" node tag."""
+        return self._pyast_bodyparams_for_tag(func, "Module")
 
     def _pyast_classdef_body_params(self, func: Dict[str, Any]) -> Set[str]:
         """The parameters of `func` that are (a) annotated `ast.ClassDef` AND (b) iterated
         via `for <x> in <param>.body` somewhere in the body. These become `py_classdef_node`
         params whose `.body` reads the `class_body_ast` psl (generic class-body lowering)."""
+        return self._pyast_bodyparams_for_tag(func, "ClassDef")
+
+    def _pyast_bodyparams_for_tag(self, func: Dict[str, Any], tag: str) -> Set[str]:
+        """Shared helper: params annotated `ast.<tag>` AND iterated via `for <x> in
+        <param>.body`. `tag`="ClassDef" -> py_classdef_node/class_body_ast; "Module" ->
+        py_module_node/module_body_ast."""
         pann = func.get("param_ast_node_types") or {}
-        classdef_params = {
+        tag_params = {
             p for p, a in pann.items()
-            if isinstance(a, str) and a == "ClassDef"}
-        if not classdef_params:
+            if isinstance(a, str) and a == tag}
+        if not tag_params:
             return set()
         found: Set[str] = set()
 
@@ -4787,7 +4847,7 @@ class PreambleEmissionMixin:
                             and it.get("attr") == "body"):
                         obj = it.get("object", {})
                         if (isinstance(obj, dict) and obj.get("type") == "Var"
-                                and obj.get("name") in classdef_params):
+                                and obj.get("name") in tag_params):
                             found.add(obj["name"])
                 for v in st.values():
                     if isinstance(v, list):
@@ -4872,9 +4932,37 @@ class PreambleEmissionMixin:
             v == "CallKw"
             for fn in self.ir.get("functions", []) or []
             for v in (fn.get("param_annotations", {}) or {}).values()
-        )
+        ) or any(
+            # J2/J3 convergence: a `for <kw> in <call>.keywords` loop is the receiving
+            # context that needs the keyword-node model (the `_collect_typevar_registry`
+            # shape). No corpus program iterates `.keywords` -> byte-inert.
+            self._has_keywords_iteration(fn)
+            for fn in self.ir.get("functions", []) or [])
         self._uses_call_kw_cache = result
         return result
+
+    def _has_keywords_iteration(self, func: Dict[str, Any]) -> bool:
+        """J2/J3: True iff `func` iterates `for <x> in <y>.keywords` — the syntactic
+        trigger for the Call-internals keyword model. Byte-inert (no corpus shape)."""
+        found = [False]
+
+        def rec(n: Any) -> None:
+            if found[0]:
+                return
+            if isinstance(n, dict):
+                if n.get("stmt") in ("For", "ForStmt"):
+                    _it = n.get("iter", {})
+                    if (isinstance(_it, dict) and _it.get("type") == "Attribute"
+                            and _it.get("attr") == "keywords"):
+                        found[0] = True
+                        return
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        rec(func.get("body"))
+        return found[0]
 
     def _uses_pyval(self) -> bool:
         """pyval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall):
@@ -4889,8 +4977,12 @@ class PreambleEmissionMixin:
         cached = getattr(self, "_uses_pyval_cache", None)
         if cached is not None:
             return cached
+        # A dict value type is the bare `pyval` sentinel (`Dict[str, PyVal]`) OR a
+        # NESTED pyval map (`Dict[str, Dict[str, PyVal]]` -> `map string (option pyval)`,
+        # J2/J3 convergence). Both need the `pyval` theory. `pyval` is a NEW type name
+        # absent from the corpus -> byte-inert.
         result = any(
-            "pyval" == v
+            isinstance(v, str) and (v == "pyval" or "option pyval" in v)
             for fn in self.ir.get("functions", []) or []
             for v in (fn.get("dict_value_types", {}) or {}).values())
         self._uses_pyval_cache = result

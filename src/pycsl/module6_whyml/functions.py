@@ -21,6 +21,11 @@ class FunctionEmissionMixin:
         # `_current_pyast_classdef_params` (only under `_uses_pyast_stmt`) -> byte-identical.
         if arg in getattr(self, "_current_pyast_classdef_params", set()):
             return f"({safe}: py_classdef_node)"
+        # J2/J3 convergence (module-body dispatch): a param annotated `ast.Module` whose
+        # `.body` is iterated is the opaque `py_module_node` AST node (its `.body` reads
+        # the `module_body_ast` psl). Gated on `_current_pyast_module_params`.
+        if arg in getattr(self, "_current_pyast_module_params", set()):
+            return f"({safe}: py_module_node)"
         # compound-key const-map getter: the key parameter takes the native tuple key
         # type (`(string, option string)`) so `Map.get NAME k` type-checks. Gated on
         # the recognized getter → never fires for a corpus param (byte-identical).
@@ -367,6 +372,12 @@ class FunctionEmissionMixin:
         self._current_pyast_classdef_params: Set[str] = (
             {p for p, a in (func.get("param_ast_node_types") or {}).items()
              if a == "ClassDef"}
+            if self._uses_pyast_stmt() else set())
+        # J2/J3 convergence (module-body dispatch): the params annotated `ast.Module`
+        # (typed `py_module_node`) whose `.body` iterates the module-body psl.
+        self._current_pyast_module_params: Set[str] = (
+            {p for p, a in (func.get("param_ast_node_types") or {}).items()
+             if a == "Module"}
             if self._uses_pyast_stmt() else set())
         self._pyast_stmt_locals: Set[str] = set()
         self._current_array1d_params = set(func.get("array1d_params", []))

@@ -1231,6 +1231,59 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return f"(stmt_targets_len {cw})"
         return None
 
+    def _keyword_var(self, ir: Any) -> Optional[Dict[str, Any]]:
+        """Return `ir` if it is a `keyword`-typed keyword-list loop var (`kw in
+        _keyword_locals`), else None."""
+        if (isinstance(ir, dict) and ir.get("type") == "Var"
+                and ir.get("name") in getattr(self, "_keyword_locals", set())):
+            return ir
+        return None
+
+    def _keyword_value_term(self, ir: Any, local_refs: Set[str],
+                            invariant_ctx: bool = False,
+                            subst: Optional[Dict[str, str]] = None) -> Optional[str]:
+        """If `ir` is `kw.value` over a keyword loop var, return the `kwval` term
+        `(kw_value_of kw)`; else None. The subject the Name/Attribute isinstance +
+        `.id`/`.attr` reads project from."""
+        if (isinstance(ir, dict) and ir.get("type") == "Attribute"
+                and ir.get("attr") == "value"):
+            k = self._keyword_var(ir.get("object", {}))
+            if k is not None:
+                kw = self._expr_to_whyml(k, local_refs, invariant_ctx, subst)
+                return f"(kw_value_of {kw})"
+        return None
+
+    def _keyword_read(self, expr: Any, local_refs: Set[str],
+                      invariant_ctx: bool = False,
+                      subst: Optional[Dict[str, str]] = None) -> Optional[str]:
+        """J2/J3 convergence (Call-internals keyword iteration): lower a READ over a
+        `keyword`-typed loop var `kw` to the certified projector, else None:
+          `kw.arg`        -> `(kw_arg_of kw)`              (string)
+          `kw.value`      -> `(kw_value_of kw)`            (kwval)
+          `kw.value.id`   -> `(kwname_id (kw_value_of kw))`  (string, ast.Name.id)
+          `kw.value.attr` -> `(kwattr_of (kw_value_of kw))` (string, ast.Attribute.attr)
+        Every emit reads the VERBATIM body shape; a body change re-emits."""
+        if not (isinstance(expr, dict) and expr.get("type") == "Attribute"):
+            return None
+        attr = expr.get("attr")
+        obj = expr.get("object", {})
+        # kw.arg
+        k = self._keyword_var(obj)
+        if k is not None and attr == "arg":
+            kw = self._expr_to_whyml(k, local_refs, invariant_ctx, subst)
+            return f"(kw_arg_of {kw})"
+        if k is not None and attr == "value":
+            kw = self._expr_to_whyml(k, local_refs, invariant_ctx, subst)
+            return f"(kw_value_of {kw})"
+        # kw.value.id / kw.value.attr — chained off the kwval subject
+        _kwval = self._keyword_value_term(obj, local_refs, invariant_ctx, subst)
+        if _kwval is not None:
+            if attr == "id":
+                return f"(kwname_id {_kwval})"
+            if attr == "attr":
+                return f"(kwattr_of {_kwval})"
+        return None
+
     def _is_pyast_stmt_emit_ir_read(self, ir: Any) -> bool:
         """True iff `ir` is a `pyast_stmt` projector that yields an `emit_ir` sub-node
         (`child.value`/`child.target`/`child.annotation`/`child.targets[0]`) — so the
@@ -2825,6 +2878,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # symbol table + the record's `field_types`. A non-str/unknown field → False
         # (unchanged opaque path) → byte-identical outside genuine str-field reads.
         if t in ("Attribute", "FieldGet"):
+            # J2/J3 convergence (Call-internals): the string-producing keyword/call reads
+            # `kw.arg`, `kw.value.id`, `kw.value.attr` and `<emit_ir call>.func.id` are
+            # `string`, so `kw.arg == "bound"` / `call.func.id == "TypeVar"` route through
+            # `str_eq_op` (faithful content compare), not the int-hash. Corpus-inert.
+            if t == "Attribute":
+                _attr = ir.get("attr")
+                _o = ir.get("object", {})
+                if (getattr(self, "_keyword_locals", None)
+                        and _attr == "arg" and self._keyword_var(_o) is not None):
+                    return True
+                if (getattr(self, "_keyword_locals", None) and _attr in ("id", "attr")
+                        and isinstance(_o, dict) and _o.get("type") == "Attribute"
+                        and _o.get("attr") == "value"
+                        and self._keyword_var(_o.get("object", {})) is not None):
+                    return True
+                if (_attr == "id" and isinstance(_o, dict)
+                        and _o.get("type") == "Attribute" and _o.get("attr") == "func"
+                        and isinstance(_o.get("object"), dict)
+                        and _o["object"].get("type") == "Var"
+                        and _o["object"].get("name")
+                        in getattr(self, "_emit_ir_local_vars", set())):
+                    return True
             ft = self._field_type_of(ir)
             # self-tcb-reduction T1.a: a STRING-valued emit_ir attr (`.kind`/`.var`/`.op`/…) reads a
             # discriminant/name string, so `inner.kind == "Subscript"` routes through `str_eq_op`.
@@ -5365,6 +5440,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _pred = self._AST_CLASS_TO_STMT_KIND[_a1["attr"]]
             _cv = self._expr_to_whyml(_a0, local_refs, getattr(self, "_in_spec", False), None)
             return f"({_pred} {_cv})"
+        # J2/J3 convergence (Call-internals): `isinstance(kw.value, ast.Name/Attribute)`
+        # over a keyword loop var lowers to the certified kwval discriminant `is_kwname` /
+        # `is_kwattr` applied to `(kw_value_of kw)`. Double-gated on the keyword-value
+        # subject AND the `ast.Name`/`ast.Attribute` second arg -> corpus-inert.
+        if (getattr(self, "_keyword_locals", None)
+                and isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                and isinstance(_a1.get("object"), dict)
+                and _a1["object"].get("type") == "Var"
+                and _a1["object"].get("name") == "ast"
+                and _a1.get("attr") in ("Name", "Attribute")):
+            _kwval = self._keyword_value_term(
+                _a0, local_refs, getattr(self, "_in_spec", False), None)
+            if _kwval is not None:
+                _kwpred = "is_kwname" if _a1["attr"] == "Name" else "is_kwattr"
+                return f"({_kwpred} {_kwval})"
+        # J2/J3 convergence (Call-internals): `isinstance(call.func, ast.Name)` — an
+        # IrCall/IrCallKw callee is ALWAYS a bare Name string in the emit_ir model, so the
+        # test is `is_call call` (true exactly when `call` is a call node). Gated on the
+        # `<emit_ir call>.func` subject AND `ast.Name` -> corpus-inert.
+        if (isinstance(_a0, dict) and _a0.get("type") == "Attribute"
+                and _a0.get("attr") == "func"
+                and isinstance(_a0.get("object"), dict)
+                and _a0["object"].get("type") == "Var"
+                and _a0["object"].get("name") in getattr(self, "_emit_ir_local_vars", set())
+                and isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                and isinstance(_a1.get("object"), dict)
+                and _a1["object"].get("type") == "Var"
+                and _a1["object"].get("name") == "ast"
+                and _a1.get("attr") == "Name"):
+            _cw = self._expr_to_whyml(_a0["object"], local_refs,
+                                      getattr(self, "_in_spec", False), None)
+            return f"(is_call {_cw})"
         if (isinstance(_a0, dict) and isinstance(_a1, dict)
                 and _a1.get("type") == "Attribute"
                 and isinstance(_a1.get("object"), dict)
@@ -8501,6 +8608,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _psr = self._pyast_stmt_read(expr, local_refs, invariant_ctx, subst)
             if _psr is not None:
                 return _psr
+        # J2/J3 convergence (Call-internals keyword iteration): a READ over a `keyword`-
+        # typed loop var lowers to the certified keyword projectors.
+        if getattr(self, "_keyword_locals", None):
+            _kwr = self._keyword_read(expr, local_refs, invariant_ctx, subst)
+            if _kwr is not None:
+                return _kwr
+        # J2/J3 convergence (Call-internals): `<emit_ir call>.func.id` — the emit_ir model
+        # collapses a call's callee to its Name-id STRING (`func_of`), so `.func.id` is
+        # exactly `func_of call` (the trailing `.id` on the id-string is identity). Gated
+        # on the `<emit_ir local>.func.id` chain -> corpus-inert.
+        if (t == "Attribute" and expr.get("attr") == "id"
+                and isinstance(expr.get("object"), dict)
+                and expr["object"].get("type") == "Attribute"
+                and expr["object"].get("attr") == "func"):
+            _co = expr["object"].get("object", {})
+            if (isinstance(_co, dict) and _co.get("type") == "Var"
+                    and _co.get("name") in getattr(self, "_emit_ir_local_vars", set())):
+                _cw = self._expr_to_whyml(_co, local_refs, invariant_ctx, subst)
+                return f"(func_of {_cw})"
 
         # Simple literals and trivial 1-3-line branches — kept inline
         if t == "Number":

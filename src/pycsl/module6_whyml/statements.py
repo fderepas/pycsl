@@ -79,6 +79,27 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             val = f"(if {val} then 1 else 0)"
         return f"{indent}let {safe_target} = ref {val} in\n"
 
+    def _build_pyval_inner_map(self, val_ir: Dict[str, Any], local_refs=None) -> str:
+        """J2/J3 convergence: build the INNER `map string (option pyval)` for a nested
+        dict literal `{"k": v, ...}` stored into a `Dict[str, Dict[str, PyVal]]` — native
+        string keys, `_pyval_wrap`-tagged values, folded over the empty pyval base. The
+        bare-map analogue of `_pyval_wrap`'s `PMap` arm (which wraps the SAME fold as a
+        `pyval`). Corpus-inert (only the pyval mirror stores a nested pyval dict)."""
+        base = "(const (None: option pyval))"
+        keys = val_ir.get("keys", []) or []
+        values = val_ir.get("values", []) or []
+        if not keys:
+            return base
+        self._add_abstract_op(
+            "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+            ": map 'k (option 'v)\n"
+            "    ensures { result = Map.set m k (Some v) }")
+        acc = base
+        for k_ir, v_ir in zip(keys, values):
+            k_low = self._expr_to_whyml(k_ir, local_refs)
+            acc = f"(map_update_some {acc} {k_low} {self._pyval_wrap(v_ir, local_refs)})"
+        return acc
+
     def _build_dict_literal_map(self, val_ir: Dict[str, Any], target: str,
                                 nu: Optional[str], base: str,
                                 local_refs=None) -> str:
@@ -959,7 +980,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # The stored value is coerced per ν (seq-int snapshot /
                     # string|map pass-through / int-coerce). Consolidated in
                     # `_dv_store_value`.
-                    v = self._dv_store_value(nu, val_expr)
+                    # J2/J3 convergence: `registry[name] = {"bound": bound}` — the stored
+                    # value is an INNER heterogeneous dict `map string (option pyval)`; build
+                    # it as the pyval-tagged `map_update_some` fold (native string keys,
+                    # `_pyval_wrap` values), NOT the empty int base `val_expr` computed above.
+                    _sv_ir = stmt.value.to_dict() if hasattr(stmt.value, "to_dict") else None
+                    if (isinstance(nu, str) and nu.strip().endswith("(option pyval)")
+                            and isinstance(_sv_ir, dict) and _sv_ir.get("type") == "DictLit"):
+                        v = self._build_pyval_inner_map(_sv_ir, local_refs)
+                    else:
+                        v = self._dv_store_value(nu, val_expr)
                     if self_field_name is not None:
                         # `self.<field>[k] = v` — record-field assignment.
                         # Why3 syntax: `self.field <- new_value`.
@@ -2060,13 +2090,113 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 st[_tg] = "str"
         return out
 
+    def _collect_keyword_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """J2/J3 convergence (Call-internals): locals whose value is a keyword string read
+        (`<kw>.value.id` / `<kw>.value.attr` where `<kw>` iterates `.keywords`) or the call
+        callee id (`<call>.func.id`). They are `string` locals. Empty for every corpus
+        program -> byte-inert."""
+        kw_loop_vars: Set[str] = set()
+
+        def find_kw_loops(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") in ("For", "ForStmt"):
+                    _it = n.get("iter", {})
+                    if (isinstance(_it, dict) and _it.get("type") == "Attribute"
+                            and _it.get("attr") == "keywords"
+                            and isinstance(n.get("target"), str)):
+                        kw_loop_vars.add(n["target"])
+                for x in n.values():
+                    find_kw_loops(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_kw_loops(x)
+        find_kw_loops(body_stmts)
+        emit_ir_vars = getattr(self, "_emit_ir_local_vars", set())
+
+        def _is_kw_str_read(v: Any) -> bool:
+            if not (isinstance(v, dict) and v.get("type") == "Attribute"):
+                return False
+            _a = v.get("attr")
+            _o = v.get("object", {})
+            # <kw>.value.id / <kw>.value.attr
+            if (_a in ("id", "attr") and isinstance(_o, dict)
+                    and _o.get("type") == "Attribute" and _o.get("attr") == "value"
+                    and isinstance(_o.get("object"), dict)
+                    and _o["object"].get("type") == "Var"
+                    and _o["object"].get("name") in kw_loop_vars):
+                return True
+            # <call>.func.id
+            if (_a == "id" and isinstance(_o, dict) and _o.get("type") == "Attribute"
+                    and _o.get("attr") == "func"
+                    and isinstance(_o.get("object"), dict)
+                    and _o["object"].get("type") == "Var"
+                    and _o["object"].get("name") in emit_ir_vars):
+                return True
+            return False
+
+        out: Set[str] = set()
+
+        def find_assigns(n: Any) -> None:
+            if isinstance(n, dict):
+                if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)
+                        and _is_kw_str_read(n.get("value"))):
+                    out.add(n["target"])
+                for x in n.values():
+                    find_assigns(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_assigns(x)
+        find_assigns(body_stmts)
+        return out - set(self._formal_params)
+
+    def _pyast_body_loop_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """J2/J3 convergence: the loop-target vars of a `for <x> in <p>.body` where `<p>`
+        is a `py_classdef_node`/`py_module_node` param (the class-/module-body giants). At
+        the pre-scan stage `_pyast_stmt_locals` is not yet populated, so this recovers them
+        directly from the For loops over an ast-node param body. Empty for every corpus
+        program -> byte-inert."""
+        _params = (getattr(self, "_current_pyast_classdef_params", set())
+                   | getattr(self, "_current_pyast_module_params", set()))
+        if not _params:
+            return set()
+        found: Set[str] = set()
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") in ("For", "ForStmt"):
+                    _it = n.get("iter", {})
+                    if (isinstance(_it, dict) and _it.get("type") == "Attribute"
+                            and _it.get("attr") == "body"):
+                        _o = _it.get("object", {})
+                        if (isinstance(_o, dict) and _o.get("type") == "Var"
+                                and _o.get("name") in _params
+                                and isinstance(n.get("target"), str)):
+                            found.add(n["target"])
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        rec(body_stmts)
+        return found
+
     def _collect_emit_ir_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """typed-ir-for-b-ceiling.md §19: locals whose FIRST assignment is an `emit_ir`
         value — an ExprIR field read (`assume_inv = stmt.assume_invariant`), an inline
         `{"type": K}` construction, a `d = node.to_dict()` alias, or another emit_ir
         local. They are pre-declared `ref (IrOther "")` (the emit_ir counterpart of the
         R3 `ref ""` string pre-decl), not the integer `ref 0`. @mutable_state only."""
-        if (getattr(self, "_current_self_type", None)
+        # J2/J3 convergence (call/target emit_ir bridge): the targets of a
+        # `for <x> in <module/classdef param>.body` loop are pyast_stmt-typed; a
+        # `call = <x>.value` / `target = <x>.targets[0]` read then projects a REAL
+        # emit_ir (stmt_value / stmt_target0), so `call`/`target` are emit_ir locals
+        # (pre-declared `ref (IrOther "")`, not `ref 0`). This pre-scan runs BEFORE
+        # `_pyast_stmt_locals` is populated during loop emission, so it computes the
+        # body-loop vars directly. Corpus-inert (no corpus program iterates an ast-node
+        # param body). Recognized even outside @mutable_state (the class-body/module-body
+        # giants are not mutable-state classes).
+        _body_loop_vars = self._pyast_body_loop_vars(body_stmts)
+        if (not _body_loop_vars and getattr(self, "_current_self_type", None)
                 not in getattr(self, "_mutable_state_classes", set())):
             return set()
         st = getattr(self, "_current_symbol_table", None)
@@ -2129,6 +2259,26 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return False
             if self._is_emit_ir_expr(v):
                 return True
+            # J2/J3 bridge: `<bodyvar>.value` / `.target` / `.annotation` (Attribute) and
+            # `<bodyvar>.targets[0]` (Subscript) project an emit_ir off a pyast_stmt body-
+            # loop var — the exact `call = stmt.value` / `target = stmt.targets[0]` shape.
+            if v.get("type") == "Attribute" and v.get("attr") in ("value", "target",
+                                                                   "annotation"):
+                _o = v.get("object", {})
+                if (isinstance(_o, dict) and _o.get("type") == "Var"
+                        and _o.get("name") in _body_loop_vars):
+                    return True
+            if v.get("type") in ("Subscript", "SliceAccess"):
+                _val = v.get("value", {})
+                _idx = v.get("index")
+                if (isinstance(_val, dict) and _val.get("type") == "Attribute"
+                        and _val.get("attr") == "targets"
+                        and isinstance(_idx, dict) and _idx.get("type") == "Number"
+                        and _idx.get("value") in (0, 0.0)):
+                    _o = _val.get("object", {})
+                    if (isinstance(_o, dict) and _o.get("type") == "Var"
+                            and _o.get("name") in _body_loop_vars):
+                        return True
             if v.get("type") == "Var" and v.get("name") in known:
                 return True
             _fn = v.get("func")
@@ -2165,6 +2315,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             changed = False
             for tgt, v in firsts:
                 if tgt in out:
+                    continue
+                # J2/J3 convergence: an Optional-union local (`value: Optional[ast.expr]
+                # = None` in `_collect_class_constants`) already lives as its synthesized
+                # `_union_*` ref — never reclassify it emit_ir (the body-loop-var bridge
+                # would otherwise clash a `_union_..._1` value against `emit_ir`).
+                _tt = st.get(tgt) if st is not None else None
+                if isinstance(_tt, str) and _tt.startswith("_union_"):
                     continue
                 if _is_emit_ir_val(v, out):
                     out.add(tgt)
@@ -2353,6 +2510,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         string_vars |= self._collect_field_decode_str_locals(body_stmts)
         # no-more-int emitter L2: locals bound from a `string`-returning call.
         string_vars |= self._collect_str_call_result_locals(body_stmts)
+        # J2/J3 convergence (Call-internals): a local assigned a keyword string read
+        # (`bound = kw.value.id` / `kw.value.attr`) or `call.func.id` is a `string` local
+        # — so its `None` init lowers to `ref ""` and `{"bound": bound}` wraps `PStr bound`
+        # (Optional[str] modelled as string with "" for None; the pyval PStr value tag).
+        string_vars |= self._collect_keyword_str_locals(body_stmts)
         # A reassigned formal string PARAM (`s = s.strip()`) is NOT a fresh typed
         # local: it must follow the int-param entry-shadow path (`let s = ref s in`
         # + `s := …`), never a let-bind at first assign (which would deref `!s`

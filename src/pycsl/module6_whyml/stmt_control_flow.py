@@ -84,17 +84,40 @@ class ControlFlowStmtMixin:
         return code
 
     def _classbody_psl_recv(self, iter_ir: Dict[str, Any]) -> Optional[str]:
-        """self-tcb-reduction giants (generic class-body lowering): if `iter_ir` is
-        `<classdef>.body` where `<classdef>` is a `py_classdef_node`-typed param, return
-        the WhyML receiver term (the node var name); else None. The iterated psl is
-        `class_body_ast <recv>`."""
+        """self-tcb-reduction giants (generic class-/module-body lowering): if `iter_ir`
+        is `<p>.body` where `<p>` is a `py_classdef_node`- OR `py_module_node`-typed param,
+        return the iterated psl TERM (`class_body_ast <recv>` / `module_body_ast <recv>`);
+        else None. J2/J3 generalized the original class-body recognizer to module bodies —
+        both read the SAME shared `psl` cons-list, differing only in the projector."""
         if not (isinstance(iter_ir, dict) and iter_ir.get("type") == "Attribute"
                 and iter_ir.get("attr") == "body"):
             return None
         obj = iter_ir.get("object", {})
+        if not (isinstance(obj, dict) and obj.get("type") == "Var"):
+            return None
+        nm = obj.get("name")
+        if nm in getattr(self, "_current_pyast_classdef_params", set()):
+            return f"(class_body_ast {whyml_ident(nm)})"
+        if nm in getattr(self, "_current_pyast_module_params", set()):
+            return f"(module_body_ast {whyml_ident(nm)})"
+        return None
+
+    def _keyword_iter_recv(self, iter_ir: Dict[str, Any],
+                           local_refs: Set[str]) -> Optional[str]:
+        """J2/J3 convergence (Call-internals keyword iteration): if `iter_ir` is
+        `<call>.keywords` where `<call>` is an emit_ir value (an `_emit_ir_local_vars`
+        local, e.g. `call = stmt.value`), return the WhyML emit_ir receiver term; else
+        None. Gated on `_uses_call_kw` (the whole keyword model). The iterated list is
+        `call_keywords <recv>`."""
+        if not self._uses_call_kw():
+            return None
+        if not (isinstance(iter_ir, dict) and iter_ir.get("type") == "Attribute"
+                and iter_ir.get("attr") == "keywords"):
+            return None
+        obj = iter_ir.get("object", {})
         if (isinstance(obj, dict) and obj.get("type") == "Var"
-                and obj.get("name") in getattr(self, "_current_pyast_classdef_params", set())):
-            return whyml_ident(obj["name"])
+                and obj.get("name") in getattr(self, "_emit_ir_local_vars", set())):
+            return self._expr_to_whyml(obj, local_refs)
         return None
 
     def _classify_iterable(self, iter_ir: Dict[str, Any],
@@ -113,11 +136,20 @@ class ControlFlowStmtMixin:
         # `_pyast_loop_variant_len` so `_handle_for_stmt` emits the arithmetic
         # invariant+variant (this class is not @mutable_state). Scoped via
         # `_current_pyast_classdef_params` -> corpus-inert.
-        _cb = self._classbody_psl_recv(iter_ir)
-        if _cb is not None:
-            _cbw = f"(class_body_ast {_cb})"
+        _cbw = self._classbody_psl_recv(iter_ir)
+        if _cbw is not None:
             self._pyast_loop_variant_len = f"(psl_len {_cbw})"
             return (f"(psl_len {_cbw})", f"(psl_nth !{idx} {_cbw})", False)
+        # J2/J3 convergence (Call-internals keyword iteration): `for kw in <call>.keywords`
+        # over an emit_ir `call` local iterates the certified `keyword_list` — bound
+        # `kwl_len (call_keywords call)`, element `kwl_nth !idx (call_keywords call)` (a real
+        # `keyword` per iteration), NOT the opaque `iter_length`/`iter_get`. Scoped via
+        # `_keyword_iter_recv` (an emit_ir recv whose `.keywords` is read) -> corpus-inert.
+        _kwr = self._keyword_iter_recv(iter_ir, local_refs)
+        if _kwr is not None:
+            _kwl = f"(call_keywords {_kwr})"
+            self._pyast_loop_variant_len = f"(kwl_len {_kwl})"
+            return (f"(kwl_len {_kwl})", f"(kwl_nth !{idx} {_kwl})", False)
         # value-model campaign incr10 (loop-over-irlist): `for elt in <emit_ir>.elts` in an
         # annotation resolver iterates the MODELLED IrMkTupleN irlist — bound `irlen (elts_of
         # recv)`, element `irnth !idx (elts_of recv)` (a real emit_ir per iteration), NOT the
@@ -316,12 +348,25 @@ class ControlFlowStmtMixin:
         # ast.Assign)` / `child.value` / `child.targets[0]` lower to the ADT discriminants
         # and projectors, not the opaque int path. Restored after the body.
         _is_classbody = self._classbody_psl_recv(iter_ir) is not None
+        # J2/J3 convergence: a keyword_list loop binds `kw` to a real `keyword` per
+        # iteration — register it in `_keyword_locals` (+ symbol type "Keyword") so the
+        # body's `kw.arg` / `kw.value` / `isinstance(kw.value, ast.Name)` / `kw.value.id`
+        # lower to the certified keyword projectors, not the opaque int path.
+        _is_kwbody = self._keyword_iter_recv(iter_ir, local_refs) is not None
         if _is_classbody:
             self._pyast_stmt_locals.add(target)
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "PyAstStmt"
+        elif _is_kwbody:
+            if not hasattr(self, "_keyword_locals"):
+                self._keyword_locals = set()
+            self._keyword_locals.add(target)
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_symtype = _st.get(target, _MISSING)
+                _st[target] = "Keyword"
         elif self._mktuple_elts_recv_ir(iter_ir) is not None:
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
@@ -329,7 +374,7 @@ class ControlFlowStmtMixin:
                 _st[target] = "ExprIR"
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
-        if (_saved_symtype is not _MISSING or _is_classbody
+        if (_saved_symtype is not _MISSING or _is_classbody or _is_kwbody
                 or self._mktuple_elts_recv_ir(iter_ir) is not None):
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
@@ -339,6 +384,8 @@ class ControlFlowStmtMixin:
                     _st[target] = _saved_symtype
         if _is_classbody:
             self._pyast_stmt_locals.discard(target)
+        if _is_kwbody:
+            self._keyword_locals.discard(target)
         if not inner_body:
             inner_body = f"{inner_indent}()"
         if saved_str_locals is not None:

@@ -1916,12 +1916,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return names
         return []
 
-    def _collect_typevar_registry(self, node: ast.Module) -> Dict[str, Dict[str, Any]]:
+    def _collect_typevar_registry(self, node: ast.Module) -> Dict[str, Dict[str, PyVal]]:
         """Scan module-level assigns for `T = TypeVar("T"[, bound=B])` and return
         `{name: {"bound": Optional[str]}}`. The legacy PEP 484 spelling; the
         PEP 695 `class C[T]` form needs no registry (its `type_params` carry the
-        bound directly)."""
-        registry: Dict[str, Dict[str, Any]] = {}
+        bound directly).
+
+        (`PyVal` is an alias for `Any` — the self-tcb-reduction pyval value-model
+        sentinel that lets the self-annotation mirror lower this heterogeneous
+        `{"bound": Optional[str]}` dict faithfully instead of int-erasing it.)"""
+        registry: Dict[str, Dict[str, PyVal]] = {}
         for stmt in node.body:
             if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
                 continue
@@ -3824,6 +3828,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     and isinstance(v.slice, ast.Tuple)
                     and len(v.slice.elts) == 2):
                 _ki, vi = v.slice.elts
+                # J2/J3 convergence (self-tcb-reduction): `Dict[str, Dict[str, PyVal]]` —
+                # the INNER heterogeneous dict is `map string (option pyval)` (native
+                # string key, pyval-tagged value), so the outer value type carries the
+                # faithful pyval inner map, NOT the int-erased default. Byte-inert (no
+                # corpus `Dict[str, Dict[str, PyVal]]`).
+                if isinstance(vi, ast.Name) and vi.id == "PyVal":
+                    return "map string (option pyval)"
                 vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
                 # nested-map.md: the INNER map is int-keyed (str keys hashed via `str_hash_op`),
                 # matching the model's uniform `dict[str,_] ~ map int (option _)` convention, so
