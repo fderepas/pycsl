@@ -299,6 +299,23 @@ psl-loop capability does NOT apply** (union_arms is worklist expr-work, not `nod
 a deliberate multi-piece build, escalate only after the cheaper `_collect_typevar_registry` (which DOES reuse
 the psl-loop — it iterates `node.body`).
 
+### 8d. `_collect_typevar_registry` = VALUE-MODEL LOWERING WALL (2026-07-20 driver run) — modeling proves, lowering refutes
+Gate-S spike (measure-before-build): the nested return `Dict[str, Dict[str, Any]]` (`registry[name] = {"bound":
+bound}`) MODELING proves — hand `.mlw` (`scratchpad/gateS_nestedmap.mlw` outer `map string (option inner)` / inner
+`map string (option (option string))`, and `gateS_record.mlw` record inner) both Valid axiom-free with the evil-twin
+refuted. **But the TOOL LOWERING refutes** (`scratchpad/tv_probe.mlw`/`tv_flat.mlw`), three defects:
+1. **[SOUNDNESS] dict-literal with a VARIABLE value is DROPPED** — `d: Dict[str,Any] = {"bound": bound}` emits
+   `ref (const (None: option int))` = an EMPTY map; the `"bound": bound` entry is never constructed, `bound` unused.
+   The returned registry would be EMPTY (facade-grade). If any VERIFIED method builds `{"k": var}` this is a latent
+   wrong-semantics lowering (byte-diff-0 would not catch it — consistent-but-wrong). WORTH A TARGETED AUDIT.
+2. **`Any` int-erased** — `Dict[str, Any]` → `map string (option int)`, inner `Dict[str,Any]` → `map int (option int)`
+   (inner KEY `str` and VALUE both collapsed to int); storing `Optional[str]` would be a union-vs-int error. no-more-int leak.
+3. **type-printer paren bug** — nested return prints `map string (option map int (option int))` (missing parens around
+   the inner `(map int (option int))`) → doesn't typecheck (`map expects 2 arguments, applied to 0`). A small isolated fix.
+**Faithful conversion needs a value-model build:** faithful `Dict[str,τ]`/`Dict[str,Any]` inner typing (no int-erase) +
+variable-valued dict-literal construction + the paren fix. Companion wall to §8c. Per §11 the green modeling spike is
+necessary-but-not-sufficient — building now would force a facade or the unauthorized value-model build. STOPPED, count 1030.
+
 ### 8a. Item #5 PINPOINTED (isolation probe, 2026-07-19)
 Minimal probe (`scratchpad/opt_local_probe.py`: `r: Optional[str] = None; if x>0: r="pos"; if r is None: return None; return r`)
 → the tool emits **`let r = ref 0 in`** — it INT-ERASES the `None` initializer of an `Optional[τ]` local (the return-type
