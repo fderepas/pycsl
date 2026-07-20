@@ -78,3 +78,20 @@ The make-or-break emission spike REFINED the plan decisively:
 - **Re-planned build order:** (b) stmt_ir param-typing [foundational] → (a) read-only gating → (c) recogniser/refactor
   → convert `_body_has_return` [proven] → R2 discriminant-exists follow-ons (`_body_has_diverging_construct`
   While/For/CriticalSection, `_contains_result` type=="Result" via emit_ir). Yield ~3-4 (raise-family deferred to SRaise).
+
+## R2 DRAIN OUTCOME (2026-07-20) — both DEFERRED, T2 PROVEN FEASIBLE (not a wall)
+The banked `recognize_stmt_has` is a STMT-body catamorphism (sl/hl/mcl descents); every stmt_ir ctor's expr
+payload is `_`-ignored. Both R2 targets need EXPR-tree machinery it lacks.
+- **`_body_has_diverging_construct` DEFERRED**: stmt multiway (While/For/CriticalSection) is trivial (already in
+  `_STMT_COMPOUND`), but the `type=="Call"` test needs a COUPLED stmt↔expr mutual existence fold (a Call sits in
+  any stmt's expr payload). Multi-piece; T2's proven `expr_has_call` unblocks the expr half.
+- **`_contains_result` DEFERRED but PROVEN FEASIBLE**: make-or-break spike (`scratchpad/spike-t2-min.mlw`) — a
+  full ~60-arm `expr_has_result : emit_ir -> bool` fold over the real emit_ir + irlist/iropt_ir mutuals with a
+  **STRUCTURAL variant `{ e }`** — is **Valid on Z3** (0.74s, 2.5M steps; Alt-Ergo times out but pycsl proof is
+  best-of-N, Z3 wins), non-vacuous, axiom-free. STRUCTURAL works here (unlike stmt_has) because emit_ir's mutuals
+  are PLAIN-INDUCTIVE (pattern-bound descent), NO record-field-projection wall. The BUILD is the deferral reason:
+  needs a NEW generic-`isinstance(dict)/type-test/.values()` descent recogniser (neither `recognize_stmt_has` nor
+  `recognize_bool_existence` matches), the ~60-arm `emit_expr_has_group` (written+proven in the spike), an
+  `"ExprIR"→emit_ir` param-typing gate, and a live `_contains_result` explicit-loop refactor.
+**NEXT ESCALATION = the T2 emit_ir expr-tree existence fold** (Gate-S already PROVEN): converts `_contains_result`,
+then unblocks `_body_has_diverging_construct`'s Call half. Frontier-map "emit_ir existence fold = wall" → FEASIBLE.
