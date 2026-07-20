@@ -1,0 +1,215 @@
+module WallStmtSetFoldCtorMembershipObservation
+  use int.Int
+  use bool.Bool
+  use list.List
+  use option.Option
+  use string.String
+  use map.Map
+  use map.Const
+
+  (* self-tcb-reduction (ctor-membership extension): OBSERVATIONAL non-vacuity
+     for the G-set-accumulate stmt-tree Set[str] fold recognizer extended to
+     accept (a) a `getattr(self,"<field>",{})` self-dict bind + no-op early-exit
+     PREFIX, and (b) a SELF-DICT MEMBERSHIP guard expressed as a boolean local
+     `is_ctor` bound to a disjunction of `(val.get("<tag>")=="<T>" and
+     val.get("<key>") in <field>)` clauses (converts `_collect_variant_var_assigns`
+       (`ctors = getattr(self,"_constructors",{}); found=set()
+         if not ctors: return found
+         for s in stmts:
+            if s.get("stmt")=="Assign":
+                val=s.get("value",{})
+                if isinstance(val,dict):
+                    is_ctor = ((val.get("type")=="Call" and val.get("func") in ctors)
+                            or (val.get("type")=="Var"  and val.get("name") in ctors))
+                    if is_ctor:
+                        tgt=s.get("target",""); if tgt: found.add(tgt)
+            for k in ("body","orelse"): if k in s: found |= self(s[k])
+            if s.get("stmt")=="Try": for h in s.get("handlers",[]): found |= self(h.get("body",[]))
+        return found`)).
+
+     The `pyval`/`pydict`/`irkey`/`pv_size` theory and the reader/`pre`/walk group
+     below are VERBATIM the PyCSL tool's emitted output (preamble.py's pydict
+     theory + the `set_add`/`set_union` `map string bool` algebra, and
+     generic_fold.py::`emit_stmt_setfold_group` with a `kind="ctor_membership"`
+     add-arm), modulo the per-method name mangling (short names here). Two grounds
+     make the gating OBSERVABLE (both are the FAITHFUL model of a `val` the tool
+     leaves unconstrained):
+       * `pystr_eq` -> string equality (`=`), the tag-eq payload test;
+       * `mem_constructors` -> a CONCRETE membership (true iff the read field-name
+         string is "Some") — the opaque predicate is uninterpreted in the tool (a
+         boundary reader, NOT an axiom); grounding it as a specific total function
+         is what lets us OBSERVE that it genuinely gates set membership on the
+         interned func/name payload string, NOT int-erased.
+     No new constructor, no new axiom. *)
+
+  type irkey = K_type | K_left | K_right | K_op | K_z
+             | K_value | K_target | K_body | K_orelse | K_func | K_name
+             | K_dyn string
+
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  (* the tool emits `val pystr_eq (a b: string) : bool` (unconstrained); the
+     fixture grounds it as string equality — the faithful model of the guard. *)
+  function pystr_eq (a b: string) : bool = a = b
+
+  (* the tool emits `val set_add (m: map string bool) (e: string) : map string bool`
+     with `ensures { result = Map.set m e true }`, and
+     `let function set_union (a b) = fun k -> orb (Map.get a k) (Map.get b k)`. *)
+  function set_add (m: map string bool) (e: string) : map string bool
+    = Map.set m e true
+  function set_union (a b: map string bool) : map string bool
+    = fun (k: string) -> orb (Map.get a k) (Map.get b k)
+
+  function pv_size (v: pyval) : int
+  = match v with
+    | PInt _ | PStr _ | PBool _ | PNone -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict d  -> 1 + size_dict d
+    end
+  with size_list (l: list pyval) : int
+  = match l with Nil -> 0 | Cons h t -> 1 + pv_size h + size_list t end
+  with size_dict (d: pydict) : int
+  = match d with DNil -> 0 | DCons _ v rest -> 1 + pv_size v + size_dict rest end
+
+  (* ---- the OPAQUE self-dict membership, GROUNDED so its gating is observable.
+     The tool emits `val function mem_constructors (k: string) : bool` (a boundary
+     reader, no axiom). Here it is a specific total function: true iff the read
+     field-name string is "Some". A func/name NOT in the constructor set must not
+     put its stmt's target into the set. *)
+  function mem_constructors (k: string) : bool = pystr_eq k "Some"
+
+  (* ---- VERBATIM tool-emitted reader/fold group (modulo name mangling). ---- *)
+  function get_stmt (d: pydict) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons (K_dyn s) v rest -> if pystr_eq s "stmt" then Some v else get_stmt rest
+    | DCons _ _ rest -> get_stmt rest
+    end
+  function get_value (d: pydict) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons K_value v _ -> Some v
+    | DCons _ _ rest -> get_value rest
+    end
+  function get_type (d: pydict) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons K_type v _ -> Some v
+    | DCons _ _ rest -> get_type rest
+    end
+  function get_func (d: pydict) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons K_func v _ -> Some v
+    | DCons _ _ rest -> get_func rest
+    end
+  function get_name (d: pydict) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons K_name v _ -> Some v
+    | DCons _ _ rest -> get_name rest
+    end
+  function get_target (d: pydict) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons K_target v _ -> Some v
+    | DCons _ _ rest -> get_target rest
+    end
+
+  (* is_ctor disjunction: (type=="Call" && mem(func)) || (type=="Var" && mem(name)) *)
+  function pre (d: pydict) : map string bool
+  = match get_stmt d with
+    | Some (PStr tg0) ->
+        if pystr_eq tg0 "Assign" then
+          (match get_value d with
+           | Some (PDict vd) ->
+               if orb (andb (match get_type vd with Some (PStr ct0) -> pystr_eq ct0 "Call" | _ -> false end)
+                            (match get_func vd with Some (PStr mn0) -> mem_constructors mn0 | _ -> false end))
+                      (andb (match get_type vd with Some (PStr ct1) -> pystr_eq ct1 "Var" | _ -> false end)
+                            (match get_name vd with Some (PStr mn1) -> mem_constructors mn1 | _ -> false end))
+               then
+                 (match get_target d with
+                  | Some (PStr t) -> set_add (const false) t
+                  | _ -> const false end)
+               else const false
+           | _ -> const false end)
+        else const false
+    | _ -> const false end
+  function bld (stmts: list pyval) : map string bool
+  = match stmts with
+    | Nil -> const false
+    | Cons h t -> set_union (bld_val h) (bld t)
+    end
+  with bld_val (v: pyval) : map string bool
+  = match v with
+    | PDict d -> set_union (pre d) (bld_dict d)
+    | PList xs -> bld xs
+    | _ -> const false
+    end
+  with bld_dict (d: pydict) : map string bool
+  = match d with
+    | DNil -> const false
+    | DCons _ v rest -> set_union (bld_val v) (bld_dict rest)
+    end
+
+  (* an Assign whose value is a Call to a func IN the constructor set ("Some"),
+     target "foo" — the Call disjunct fires. *)
+  function stmt_call_accept () : pyval
+  = PDict (DCons (K_dyn "stmt") (PStr "Assign")
+            (DCons K_value (PDict (DCons K_type (PStr "Call") (DCons K_func (PStr "Some") DNil)))
+              (DCons K_target (PStr "foo") DNil)))
+
+  (* an Assign whose value is a Var whose name IS a nullary ctor ("Some"),
+     target "baz" — the Var disjunct fires. *)
+  function stmt_var_accept () : pyval
+  = PDict (DCons (K_dyn "stmt") (PStr "Assign")
+            (DCons K_value (PDict (DCons K_type (PStr "Var") (DCons K_name (PStr "Some") DNil)))
+              (DCons K_target (PStr "baz") DNil)))
+
+  (* the stmt-pydict of an Assign whose value is a Call to a func NOT in the
+     constructor set ("Other"), target "bar" — both disjuncts reject. Given at
+     the pydict level so the reject drivers can apply `pre` DIRECTLY (one level),
+     making the negative "absent" direction — which hinges only on the literal
+     disequality "Other" <> "Some" — tractable without the full `bld` descent. *)
+  function reject_d () : pydict
+  = DCons (K_dyn "stmt") (PStr "Assign")
+      (DCons K_value (PDict (DCons K_type (PStr "Call") (DCons K_func (PStr "Other") DNil)))
+        (DCons K_target (PStr "bar") DNil))
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — the membership GENUINELY GATES the set.    *)
+  (* ==================================================================== *)
+
+  (* Call disjunct: func in ctor set -> target IS a member (real `set_add name`). *)
+  let driver_call_accept () : unit =
+    assert { Map.get (bld (Cons (stmt_call_accept ()) Nil)) "foo" = true }
+
+  (* Var disjunct: name in ctor set -> target IS a member. *)
+  let driver_var_accept () : unit =
+    assert { Map.get (bld (Cons (stmt_var_accept ()) Nil)) "baz" = true }
+
+  (* func NOT in ctor set -> target ABSENT (membership fired false -> const false,
+     no spurious entry, no int-placeholder). Applied via `pre` directly. *)
+  let driver_reject () : unit =
+    assert { Map.get (pre (reject_d ())) "bar" = false }
+
+  (* EVIL TWIN 1 — the accepted target is NOT gated in: MUST stay UNPROVEN
+     (if this proved, the fold would be vacuous / not really adding "foo"). *)
+  let driver_evil_accept () : unit =
+    assert { Map.get (bld (Cons (stmt_call_accept ()) Nil)) "foo" = false }
+
+  (* EVIL TWIN 2 — the rejected target is spuriously in the set: MUST stay
+     UNPROVEN (if this proved, the membership would not be gating the set). *)
+  let driver_evil_reject () : unit =
+    assert { Map.get (pre (reject_d ())) "bar" = true }
+
+end

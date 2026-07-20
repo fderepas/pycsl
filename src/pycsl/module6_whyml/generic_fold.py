@@ -3464,6 +3464,200 @@ def _match_stmt_trywalk_arm(stmt: Any, stmtv: str, acc: str, fname: str,
     return tag
 
 
+# ---- G-set-accumulate CTOR-MEMBERSHIP add-arm (`_collect_variant_var_assigns`)
+#
+# A third add-arm shape whose guard is a self-dict MEMBERSHIP over an interned
+# field-name payload, expressed as a boolean local `is_ctor` bound to a
+# DISJUNCTION of `(<val>.get("<tagkey>")=="<TAG>" and <val>.get("<memkey>") in
+# <ctorsvar>)` clauses, where `<ctorsvar>` is a local bound in the method PREFIX
+# to `getattr(self, "<field>", {})` (the self dict). The membership lowers to an
+# OPAQUE `val function <field>_mem (k: string) : bool` over the read field-name
+# string — a legitimate boundary reader (the `symtab_mem`/`_pred` opaque
+# pattern), NOT an axiom, and NOT int-erased: the fold still reads the interned
+# `<memkey>` payload string and gates the `set_add name` on the opaque
+# membership predicate. Under `ensures True` the tag-eq is a pure boolean gate on
+# WHICH names are added (the same insight-C scope-cut doctrine as every other
+# shape here); the added name is the interned `stmt.get("<addkey>")` string, read
+# faithfully into `SCons name`. Fail-closed exactly as the other arms.
+
+
+def _flatten_or(node: Any) -> List[Any]:
+    """Left-associatively flatten an `or`-tree into its disjunct list."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        return _flatten_or(node.get("left")) + _flatten_or(node.get("right"))
+    return [node]
+
+
+def _match_getattr_bind(stmt: Any) -> Optional[tuple]:
+    """`<lv> = getattr(self, "<field>"[, default])` -> (lv, field) or None.
+    The self-dict field bind whose local aliases a `self.<field>` dict."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    lv = stmt.get("target")
+    if not isinstance(lv, str):
+        return None
+    val = stmt.get("value", {})
+    if not (isinstance(val, dict) and val.get("type") == "Call"
+            and val.get("func") == "getattr"):
+        return None
+    args = val.get("args", [])
+    if len(args) < 2 or not _is_var(args[0], "self"):
+        return None
+    field = _is_string(args[1])
+    if field is None:
+        return None
+    return (lv, field)
+
+
+def _match_setinit(stmt: Any) -> Optional[str]:
+    """`<acc> = set()` -> acc or None (the fresh returned-set accumulator)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    acc = stmt.get("target")
+    if not isinstance(acc, str):
+        return None
+    iv = stmt.get("value")
+    if not (isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    return acc
+
+
+def _match_early_exit(stmt: Any, acc: str) -> bool:
+    """`if <test>: return <acc>` (no else) — the no-op guard-return prefix that
+    returns the STILL-EMPTY accumulator early. Recognised + SKIPPED: at prefix
+    position `acc` is provably the empty `set()` (the loop is the only mutator),
+    so dropping it yields a model that folds over the full domain (a superset)
+    — sound under the `ensures True` type-safety-only contract, the same
+    insight-C scope-cut doctrine as every other shape here. Fail-closed: the
+    body MUST be exactly `return <acc>` (any other early-return value rejects)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"):
+        return False
+    if stmt.get("orelse"):
+        return False
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return False
+    r = body[0]
+    return (isinstance(r, dict) and r.get("stmt") == "Return"
+            and _is_var(r.get("value"), acc))
+
+
+def _match_field_selfmem_guard(node: Any, valv: str,
+                               ctors_fields: Dict[str, str]) -> Optional[tuple]:
+    """`<valv>.get("<memkey>") in <ctorsvar>` -> (memkey, field) or None, where
+    `<ctorsvar>` is a getattr-bound self-dict local (in `ctors_fields`)."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "in"):
+        return None
+    key = _match_get_call(node.get("left", {}), valv)
+    if key is None:
+        return None
+    right = node.get("right", {})
+    if not (_is_var(right) and right.get("name") in ctors_fields):
+        return None
+    return (key, ctors_fields[right.get("name")])
+
+
+def _match_ctor_clause(node: Any, valv: str,
+                       ctors_fields: Dict[str, str]) -> Optional[tuple]:
+    """`<valv>.get("<tagkey>")=="<TAG>" and <valv>.get("<memkey>") in <ctorsvar>`
+    -> (tag_key, tag_val, mem_key, field) or None (fail-closed)."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "and"):
+        return None
+    eq = _match_field_eq_guard(node.get("left", {}), valv)
+    if eq is None:
+        return None
+    mem = _match_field_selfmem_guard(node.get("right", {}), valv, ctors_fields)
+    if mem is None:
+        return None
+    return (eq[0], eq[1], mem[0], mem[1])
+
+
+def _match_ctor_disjunction(node: Any, valv: str,
+                            ctors_fields: Dict[str, str]) -> Optional[List[tuple]]:
+    """A non-empty `or`-tree of ctor clauses (`_match_ctor_clause`) or None."""
+    clauses: List[tuple] = []
+    for d in _flatten_or(node):
+        c = _match_ctor_clause(d, valv, ctors_fields)
+        if c is None:
+            return None
+        clauses.append(c)
+    return clauses or None
+
+
+def _match_stmt_ctor_membership_arm(stmt: Any, stmtv: str, acc: str,
+                                    ctors_fields: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    """Optional CTOR-MEMBERSHIP add-arm:
+        if <stmt>.get("stmt") == "<TAG>":
+            <val> = <stmt>.get("value", {})
+            if isinstance(<val>, dict):
+                <ctorvar> = (<clause> or <clause> or ...)   # ctor disjunction
+                if <ctorvar>:
+                    <tgt> = <stmt>.get("<addkey>", "")
+                    if <tgt>: <acc>.add(<tgt>)
+    Returns {kind:"ctor_membership", outer_tag, val_local, clauses, add_key} or
+    None (fail-closed). Requires `ctors_fields` non-empty (a getattr self-dict
+    bind must be in scope) — so a method without the prefix never matches."""
+    if not ctors_fields:
+        return None
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer_tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
+    if outer_tag is None:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    asg = body[0]
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    valv = asg.get("target")
+    if not isinstance(valv, str):
+        return None
+    if _match_get_call(asg.get("value", {}), stmtv) != "value":
+        return None
+    inner = body[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"
+            and not inner.get("orelse")):
+        return None
+    it = inner.get("test", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "isinstance" and len(it.get("args", [])) == 2
+            and _is_var(it["args"][0], valv) and _is_var(it["args"][1], "dict")):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 2:
+        return None
+    cas = ibody[0]
+    if not (isinstance(cas, dict) and cas.get("stmt") == "Assign"):
+        return None
+    ctorvar = cas.get("target")
+    if not isinstance(ctorvar, str):
+        return None
+    clauses = _match_ctor_disjunction(cas.get("value", {}), valv, ctors_fields)
+    if clauses is None:
+        return None
+    addif = ibody[1]
+    if not (isinstance(addif, dict) and addif.get("stmt") == "If"
+            and not addif.get("orelse") and _is_var(addif.get("test"), ctorvar)):
+        return None
+    add_key = _match_stmt_arm_add_body(addif.get("body", []), stmtv, acc)
+    if add_key is None:
+        return None
+    return {"kind": "ctor_membership", "outer_tag": outer_tag,
+            "val_local": valv, "clauses": clauses, "add_key": add_key}
+
+
+def _selfmem_whyml_name(n: str, field: str) -> str:
+    """WhyML-safe opaque self-dict membership predicate name for `field`."""
+    return f"{n}__mem_" + "".join(c if c.isalnum() else "_" for c in field)
+
+
 def recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Fail-closed match of the G-set-accumulate-multiway statement-tree
     Set[str] fold (see the module note above). Returns
@@ -3492,17 +3686,33 @@ def _recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     fname = func["name"]
 
     body = func.get("body", [])
-    if len(body) != 3:
+    if len(body) < 3:
         return None
-    init, loop, ret = body
-    if not (isinstance(init, dict) and init.get("stmt") == "Assign"):
+    # The tail is always `<loop>; return <acc>`; the head is a bounded PREFIX of
+    # {the `<acc> = set()` init, optional `getattr(self,"<field>",{})` self-dict
+    # binds, optional no-op early-exit guard-returns} in any order (init before
+    # any early-exit). A method with NO prefix beyond the init reduces EXACTLY to
+    # the historical 3-statement shape (byte-additive for every existing
+    # consumer). See the ctor-membership module note above.
+    loop, ret = body[-2], body[-1]
+    prefix = body[:-2]
+    acc: Optional[str] = None
+    ctors_fields: Dict[str, str] = {}
+    for st in prefix:
+        si = _match_setinit(st)
+        if si is not None:
+            if acc is not None:
+                return None
+            acc = si
+            continue
+        ga = _match_getattr_bind(st)
+        if ga is not None:
+            ctors_fields[ga[0]] = ga[1]
+            continue
+        if acc is not None and _match_early_exit(st, acc):
+            continue
         return None
-    acc = init.get("target")
-    if not isinstance(acc, str) or acc == subj or acc in extra:
-        return None
-    iv = init.get("value")
-    if not (isinstance(iv, dict) and iv.get("type") == "Call"
-            and iv.get("func") == "set" and not iv.get("args")):
+    if acc is None or acc == subj or acc in extra:
         return None
     if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
             and _is_var(ret.get("value"), acc)):
@@ -3533,6 +3743,8 @@ def _recognize_stmt_setfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         maybe_pre = _match_chain_add_arm(lbody[0], stmtv, acc)
     if maybe_pre is None:
         maybe_pre = _match_stmt_direct_add_arm(lbody[0], stmtv, acc)
+    if maybe_pre is None:
+        maybe_pre = _match_stmt_ctor_membership_arm(lbody[0], stmtv, acc, ctors_fields)
     if maybe_pre is not None:
         pre = maybe_pre
         idx = 1
@@ -3651,6 +3863,53 @@ def emit_stmt_setfold_group(func: Dict[str, Any], desc: Dict[str, Any],
         out.append(f"{indent} | _ -> const false end)")
         for cl in reversed(closers):
             out.append(cl)
+        out.append("        else const false")
+        out.append("    | _ -> const false end")
+    elif pre is not None and pre.get("kind") == "ctor_membership":
+        # `_collect_variant_var_assigns` shape: a self-dict MEMBERSHIP guard over
+        # an interned field-name payload. Each disjunct `(<val>.get("<tagkey>")==
+        # "<TAG>" and <val>.get("<memkey>") in <self.field>)` lowers to a
+        # tag-eq `pystr_eq` gate conjoined with the OPAQUE `<field>_mem` membership
+        # predicate applied to the READ field-name string — a boundary reader
+        # (like `symtab_mem`), NOT an axiom, NOT int-erased. `is_ctor` is the
+        # disjunction; when true the interned `stmt.get("<addkey>")` string is
+        # added (`set_add name`).
+        _emit_reader("stmt")
+        _emit_reader("value")
+        for (tk, _tv, mk, _field) in pre["clauses"]:
+            _emit_reader(tk)
+            _emit_reader(mk)
+        _emit_reader(pre["add_key"])
+        stmtr = reader_names["stmt"]
+        valr = reader_names["value"]
+        addr = reader_names[pre["add_key"]]
+        seen_fields: set = set()
+        for (_tk, _tv, _mk, field) in pre["clauses"]:
+            memfn = _selfmem_whyml_name(n, field)
+            if memfn not in seen_fields:
+                seen_fields.add(memfn)
+                _pred_decls.append(f"  val function {memfn} (k: string) : bool")
+        clause_exprs: List[str] = []
+        for i, (tk, tv, mk, field) in enumerate(pre["clauses"]):
+            tagr = reader_names[tk]
+            memr = reader_names[mk]
+            memfn = _selfmem_whyml_name(n, field)
+            clause_exprs.append(
+                f'((match {tagr} vd with Some (PStr ct{i}) -> pystr_eq ct{i} "{tv}" | _ -> false end)'
+                f" && (match {memr} vd with Some (PStr mn{i}) -> {memfn} mn{i} | _ -> false end))")
+        is_ctor = " || ".join(clause_exprs)
+        out.append(f"  let {n}__pre (d: pydict){extra_sig} : map string bool")
+        out.append(f"  = match {stmtr} d with")
+        out.append("    | Some (PStr tg0) ->")
+        out.append(f'        if pystr_eq tg0 "{pre["outer_tag"]}" then')
+        out.append(f"          (match {valr} d with")
+        out.append("           | Some (PDict vd) ->")
+        out.append(f"               if {is_ctor} then")
+        out.append(f"                 (match {addr} d with")
+        out.append("                  | Some (PStr t) -> set_add (const false) t")
+        out.append("                  | _ -> const false end)")
+        out.append("               else const false")
+        out.append("           | _ -> const false end)")
         out.append("        else const false")
         out.append("    | _ -> const false end")
     elif pre is not None:
