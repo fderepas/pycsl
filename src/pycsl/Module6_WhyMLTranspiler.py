@@ -564,7 +564,7 @@ class Module6_WhyMLTranspiler(
         # value-model campaign incr5 (primitive c): declare `Return_<variant>` exceptions HERE —
         # after the synthesized `_union_*` types are in scope — for early-returning Optional[X]
         # walkers. Empty (byte-identical) for modules with none.
-        out += self._emit_union_return_exceptions(needs)
+        out += self._emit_union_return_exceptions(needs, declared_types)
         out += self._emit_module_const_compound_maps()
 
         # inductive.md: `#@ inductive` predicates emit AFTER datatypes (their rules
@@ -829,7 +829,7 @@ class Module6_WhyMLTranspiler(
         # value-model campaign incr5 (primitive c): declare `Return_<variant>` exceptions HERE —
         # after the synthesized `_union_*` types are in scope — for early-returning Optional[X]
         # walkers. Empty (byte-identical) for modules with none.
-        out += self._emit_union_return_exceptions(needs)
+        out += self._emit_union_return_exceptions(needs, declared_types)
         out += self._emit_module_const_compound_maps()
         self._inductive_preds = (
             {ind["name"] for ind in self.ir.get("inductive_decls", [])}

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import whyml_ident, safe_mutex_name, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
@@ -2284,16 +2284,34 @@ class PreambleEmissionMixin:
             out.append(f"  exception {exc}")
         return out
 
-    def _emit_union_return_exceptions(self, needs: Dict[str, Any]) -> List[str]:
+    def _emit_union_return_exceptions(self, needs: Dict[str, Any],
+                                      declared_types: Optional[Set[str]] = None) -> List[str]:
         """value-model campaign incr5 (primitive c): emit the `Return_<variant>` exceptions for
         synthesized-union (`Optional[X]`) return types that early-return. Emitted AFTER
         `_emit_type_decls` (the `_union_*` types must be in scope), so it is called from the
         transpiler right after the type declarations — NOT in `_emit_preamble_exceptions`. The
         name `Return_<type>` is kept identical in `_wrap_body_with_return_catch` (catch) and
         `_handle_return_stmt` (raise). Empty for a module with no early-returning union walker
-        → byte-identical."""
+        → byte-identical.
+
+        A `union_return_types` entry names a synthesized `_union_*` type that MUST be in scope
+        (declared by `_emit_type_decls`). When an IMPORTED trusted-stub function has an
+        `Optional[X]` return annotation AND an early/in-loop return in its body, the scan
+        (`preamble._collect_needs`) records its `_union_*` return type — but that type's
+        `type_decl` was synthesized in the SOURCE module's IR and is NOT merged into the
+        emitting module's `type_decls`, so it is never declared here. The stub itself emits as
+        an abstract `val` with NO body, so no `raise Return_<ut>` / catch references the
+        exception; emitting `exception Return_<ut> <ut>` for such an undeclared `ut` dangles an
+        unbound type symbol and fails L3-tc for the WHOLE file. Skip any `ut` not in
+        `declared_types` (the set `_emit_type_decls` actually declared). BYTE-INERT: a file that
+        currently PASSES L3-tc cannot contain an undeclared `ut` in `union_return_types` (it
+        would already fail on the unbound symbol), so no passing corpus emission changes; a
+        genuinely body-verified local union walker has its `_union_*` type declared, so its
+        `Return_<ut>` is still emitted unchanged."""
         out: List[str] = []
         for ut in sorted(needs.get("union_return_types", set())):
+            if declared_types is not None and ut not in declared_types:
+                continue
             out.append("")
             out.append(f"  exception Return_{ut} {ut}")
         return out
