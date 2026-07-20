@@ -101,3 +101,24 @@ input-statement-dispatch wall, or is homogeneous. NO clean pyval-primary-wall st
 => Pyval is a REAL, certified, validated capability (banked) but converts 0 stubs ALONE. Banking a pyval count
 cut requires FIRST breaking the INPUT-SIDE STATEMENT-DISPATCH wall (`node.body`/`stmts_of` opaque array int ->
 typed pyast_stmt-dispatchable, extending ce71e3ab's class-body machinery). That is the NEXT wall (I3-pre).
+
+## I3-pre OUTCOME (2026-07-20) — input-dispatch wall REFINE; the pyval count-cut chain FULLY PINNED
+Module-body pyast_stmt dispatch PASSES (bounded, ~78 lines, reuses ce71e3ab pyast_stmt ADT + psl cons-list, NO new
+ADT/cert, byte-inert): `_collect_typevar_registry` lowered to REAL typed dispatch — `node: ast.Module`->`py_module_node`,
+`for stmt in node.body`->`psl_nth (module_body_ast node)` (arithmetic variant), `isinstance(stmt,ast.Assign)`->
+`is_assign_node`, `call=stmt.value`->`stmt_value` (emit_ir projector). But it converts 0 stubs ALONE -> REVERTED
+(non-vacuity; would leave count flat).
+TRUE PREREQUISITE = the emit_ir CALL-INTERNALS value model (shared by ALL 5 module-body collectors:
+_collect_typevar_registry, _synthesize_typeddict_functional, _synthesize_namedtuple_functional,
+_synthesize_tuple_records, _collect_final_registry — all recognize `Name = Ctor(...)`):
+  1. `call` emit_ir-local bridge — BUILDABLE (pre-scan enhancement: _collect_emit_ir_result_locals must see
+     `call = stmt.value` is emit_ir before _pyast_stmt_locals populates).
+  2. `isinstance(call.func, ast.Name)` + `call.func.id != "TypeVar"` — DEEP: emit_ir stores Call callee as a bare
+     string `func_of : emit_ir -> string`, discarding the ast.Name/ast.Attribute NODE distinction. No `call.func`
+     sub-node projector.
+  3. `for kw in call.keywords` — DEEP: NO keyword-node model in emit_ir at all (no keywords_of, no keyword-node
+     type, no .arg/.value projectors).
+PINNED CHAIN for the pyval count cut on the collectors:
+  pyval [DONE, certified] + Optional[str] [DONE] + module-body pyast_stmt dispatch [PROVEN bounded, ~78 lines] +
+  emit_ir Call-internals model [DEEP — func-as-typed-node (is_name/id) + keyword-node list ADT + cert] = converge.
+The Call-internals model is the terminal deep build. Spike it (fable oracle) before building.
