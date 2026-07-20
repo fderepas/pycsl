@@ -286,7 +286,6 @@ class Module6_WhyMLTranspiler(
         except Exception:
             return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
