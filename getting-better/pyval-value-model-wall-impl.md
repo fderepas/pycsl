@@ -163,3 +163,21 @@ The Call-internals model is the terminal deep build. Spike it (fable oracle) bef
   projectors; 5 GoodFaithful goals Z3-Valid, both evil twins (wrong value; Name/Attribute
   confusion) non-Valid (non-vacuous). Mutation test: `bound`→`notbound` flips `build_call`
   Valid→Timeout.
+
+## J1 + J2/J3 OUTCOME (2026-07-21) — WALL BROKEN, first value-model count cut LANDED
+- J1 (commit 27f898a0): emit_ir Call-internals model (kwval leaf + bespoke keyword_list + IrCallKw ctor +
+  projectors call_keywords/kw_arg_of/kw_value_of/is_kwname/kwname_id/is_kwattr/kwattr_of) + Phase2g cert
+  (axiom-free) + fixture 0919. Emission PASS, byte-diff 0, ledger 3. Infra (count unchanged).
+- J2/J3 (commit b5bef284): CONVERTED `_collect_typevar_registry` — the CONVERGENCE of pyval + Optional[str] +
+  module-body pyast_stmt dispatch + Call-internals. Count 1018->1017. FIRST realized count cut through the
+  heterogeneous Dict[str,Any] value-model wall. Real lowering: is_assign_node / func_of "TypeVar" / keyword_list
+  fold (kwl_len/kwl_nth, kw_arg_of "bound", is_kwname/kwname_id/is_kwattr/kwattr_of) / pyval nested store
+  (map string (option (map string (option pyval))), PStr !bound). ZERO int-erasure. --fun SUCCESS (whole-file
+  wedges on heavy Module5 -> --fun authoritative per ENV note: 234 VCs Valid). byte-diff 0 (twice). ledger 3.
+  mirror-check 52/52 verbatim. mutation test PASS (not a facade). Sub-fix: IrCallKw size arm + arg0_of so
+  size_arg0_dec lemma stays Valid.
+- Banked reusable capabilities (module-body dispatch A + call/target bridge B) for the OTHER 4 collectors:
+  _collect_final_registry (CLOSEST — needs pyast_stmt->psl body projector for nested `for cstmt in stmt.body` +
+  self-field-list append), _synthesize_typeddict/namedtuple_functional (need multi-positional-arg projection
+  call.args[i] [ADT carries only arg0/arity] + arg-substructure iteration + type_decls append),
+  _synthesize_tuple_records (isinstance ast.Subscript + type_decls append). Each a follow-on increment.
