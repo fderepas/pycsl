@@ -13,6 +13,8 @@ dict-literal case; the slice case affects 3 real corpus programs' fidelity but t
 consistently-wrong, not falsely-green).
 
 ## Bug 1 — variable-valued dict-literal construction DROPPED (empty map)
+**FIXED 2026-07-20 (commit 805e9330)** — `_emit_first_assign`+`_build_dict_literal_map` now construct the real map; corrected corpus 0751; mirror-neutral; M1-sanctioned. The hard-reject proposal below is superseded.
+
 `d: Dict[str,τ] = {"k": var}` (a str-literal key with a VARIABLE value) emits `ref (const (None: option int))`
 — an EMPTY map; the `"k": var` entry is never constructed and `var` is unused. A method returning it returns an
 empty map. **Confirmed a false-theorem generator** (fable review, full SMT run): a FALSE postcondition
