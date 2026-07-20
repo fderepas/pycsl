@@ -83,3 +83,21 @@ I1 (theory+emitter+readers+cert+fixture) is the foundation (the risky coupling u
 I3+ is the cascade (the giants + collectors — the bulk of the yield). Multi-session; this run targets I1 + I2 +
 as much of I3 as fits. Refutation exit at Gate S if EMISSION walls (the model is proven; the tool's emission is
 the residual risk).
+
+## I2 OUTCOME (2026-07-20) — pyval PAYOFF VALIDATED on real code; count cut GATED on the input-dispatch wall
+Step 1 (KEY): a faithful witness of `_collect_typevar_registry`'s inner `{"bound": bound}` (bound: str), inner
+annotated `Dict[str, PyVal]`, emitted through the LIVE tool:
+- BEFORE (`Dict[str, Any]`): `map_update_some (const (None: option int)) "bound" bound` -> `map string (option
+  int)`; the string `bound` forced into `option int` = HARD TYPE ERROR (int-erasure).
+- AFTER (`Dict[str, PyVal]`): `map_update_some (const (None: option pyval)) "bound" (PStr bound)` -> `map string
+  (option pyval)`, **L3-tc ✓**. String carried faithfully as `PStr bound`. Pyval fixes erasures (2)+(3). VALIDATED.
+Step 2 (REFINE): full `_collect_typevar_registry` conversion is walled by a NON-pyval residual — the `for stmt in
+node.body:` loop reads the module body via `stmts_of : emit_ir -> array int` (preamble.py:3930, OPAQUE), so the
+input-side `isinstance(stmt, ast.Assign/Call/Name)` statement-dispatch is unmodellable. The pyval dict build lives
+INSIDE that loop -> can't emit for the real fn until the input-dispatch wall breaks. SAME wall keeping
+`_py_stmts_to_ir` (Module5_IREmitter.py:1070) trusted. Optional[str]-bound + TypeVar-detection are secondary
+behind it. FALLBACK survey: every heterogeneous-dict build in the emitter is gated behind the SAME `node.body`
+input-statement-dispatch wall, or is homogeneous. NO clean pyval-primary-wall stub exists.
+=> Pyval is a REAL, certified, validated capability (banked) but converts 0 stubs ALONE. Banking a pyval count
+cut requires FIRST breaking the INPUT-SIDE STATEMENT-DISPATCH wall (`node.body`/`stmts_of` opaque array int ->
+typed pyast_stmt-dispatchable, extending ce71e3ab's class-body machinery). That is the NEXT wall (I3-pre).
