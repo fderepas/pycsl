@@ -53,6 +53,31 @@ Fidelity ∧ whole-file Why3 proof SUCCESS ∧ byte-diff-0 (gated on `_uses_pyva
 ∧ ledger==3 (`Print Assumptions`/`#print axioms` on Phase2f) ∧ count strictly down ∧ non-vacuity (MUTATION TEST;
 real pyval constructors, no int-hash/int-erasure). The cert co-lands in the SAME commit as the capability (§5).
 
+## GATE-S OUTCOME — EMISSION **PASS** (2026-07-20); I1 LANDED
+
+Gate S re-proved the oracle (Z3: 4 faithful reads Valid, evil twin Unknown, `size_pos` times out
+as expected — it is the cert-only mutual-induction lemma) and then EMITTED the theory + a
+heterogeneous dict build/read from a `.py` probe (`Dict[str, PyVal]` gate). Result: **PASS** — the
+tool emits the certified strictly-positive bespoke variant + the faithful `map_update_some` build
+(`… "ctor" (PStr arm_ctor) … "captures" (PArr (PCons (PStr "x") PNil))`) + the `Map.get` read, and it
+**TYPECHECKS (L3-tc ✓)**. One emission bug found+fixed (the abstract-val insert point splits a
+multi-line `type … | arm` — the `pyval` type is now emitted with INLINE arms so the block lands after
+the whole mutual group). Mutation test faithful (`["x"]`→`7` flips `PArr (PCons …)`→`PInt 7`).
+
+I1 built (all gated on `_uses_pyval`, corpus byte-diff-0 over 767 files):
+- (a) `preamble.py::_emit_pyval_theory` + `_uses_pyval` + the `use` block.
+- (b) `statements.py::_build_dict_literal_map` pyval branch + `expressions.py::_pyval_wrap` (per-value
+  faithful tag: str→PStr, int→PInt, list→PArr cons, nested-dict→PMap, IR-node→PNode).
+- (c) readers: `_dv_empty_default`/`_dv_missing_default` pyval + `_collect_pyval_read_locals` (a
+  `v = d[k]` local is a pyval ref, not `ref 0`).
+- (d) cert `rocq/Phase2f_PyVal.v` (25 goals, `Print Assumptions` all "Closed under the global
+  context") + `lean/PyCSL/PyVal.lean` (`#print axioms`: only kernel propext/Quot.sound). Ledger 3.
+- (e) fixture `test-suite/corpus/pycsl-reference/0918_pyval_heterogeneous_dict.mlw` — Z3: GoodFaithful
+  Valid, both evil twins Unknown (non-vacuous). Fidelity mirror-check 52/52.
+
+Next increment: **I2** (the make-or-break CONVERSION of `_render_match_pattern`) — count unchanged by
+I1 (infra only), as expected.
+
 ## Honest costed scope
 I1 (theory+emitter+readers+cert+fixture) is the foundation (the risky coupling unit). I2 is the first count cut.
 I3+ is the cascade (the giants + collectors — the bulk of the yield). Multi-session; this run targets I1 + I2 +

@@ -595,6 +595,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         int dict (the caller keeps the `(const (None: option int))` it has)."""
         if nu == "string":
             return "(const (None: option string))"
+        if nu == "pyval":
+            # pyval-value-model-wall: a `Dict[str, PyVal]` heterogeneous dict is
+            # `map string (option pyval)`; the empty base is the everywhere-None map.
+            return "(const (None: option pyval))"
         if nu == "seq int":
             return "(const (None: option (seq int)))"
         if nu and nu.startswith("map "):
@@ -606,6 +610,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         dead under `#@ no_exception KeyError`, the ambient default otherwise)."""
         if nu == "string":
             return '""'
+        if nu == "pyval":
+            # pyval-value-model-wall: the missing-key default for a `Dict[str, PyVal]`
+            # read — a `pyval` sentinel (proven dead under `#@ no_exception KeyError`).
+            return "(PInt 0)"
         if nu and nu.startswith("seq "):
             # #15: `Dict[str, List[T]]` value (`seq string`/`seq int`) -> the empty seq default.
             return f"(Seq.empty: {nu})"
@@ -627,6 +635,42 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if nu == "string" or (nu and nu.startswith("map ")):
             return val_expr
         return self._coerce_to_int(val_expr)
+
+    def _pyval_wrap(self, v_ir: Dict[str, Any], local_refs=None) -> str:
+        """pyval-value-model-wall (self-tcb-reduction, Tier-5): wrap a heterogeneous
+        dict-literal VALUE into its FAITHFUL `pyval` constructor, tagged by IR kind —
+        the make-or-break value tagging that keeps a string a string (no int-erasure).
+        str-lit / str-var -> `PStr`; int -> `PInt`; list -> `PArr` over the bespoke
+        `pyval_list` cons; nested dict -> `PMap` (a `map string (option pyval)` Map.set
+        chain); an IR-node construction -> `PNode`. Recursive: list elements and nested
+        map values are themselves wrapped, so the whole heterogeneous value tree lowers
+        faithfully. Emitted only under the `_uses_pyval` gate (a `Dict[str, PyVal]`)."""
+        if isinstance(v_ir, dict):
+            t = v_ir.get("type")
+            if t == "ArrayLit":
+                acc = "PNil"
+                for e in reversed(v_ir.get("elts", []) or []):
+                    acc = f"(PCons {self._pyval_wrap(e, local_refs)} {acc})"
+                return f"(PArr {acc})"
+            if t == "DictLit":
+                self._add_abstract_op(
+                    "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+                    ": map 'k (option 'v)\n"
+                    "    ensures { result = Map.set m k (Some v) }")
+                acc = "(const (None: option pyval))"
+                for k_ir, ve_ir in zip(v_ir.get("keys", []) or [],
+                                       v_ir.get("values", []) or []):
+                    k_low = self._expr_to_whyml(k_ir, local_refs)
+                    acc = (f"(map_update_some {acc} {k_low} "
+                           f"{self._pyval_wrap(ve_ir, local_refs)})")
+                return f"(PMap {acc})"
+            # an IR-node construction (`{"type": "Var", …}`) carries an emit_ir node.
+            if self._is_emit_ir_expr(v_ir):
+                return f"(PNode {self._expr_to_whyml(v_ir, local_refs)})"
+        low = self._expr_to_whyml(v_ir, local_refs)
+        if self._is_string_expr(v_ir):
+            return f"(PStr {low})"
+        return f"(PInt {self._coerce_to_int(low)})"
 
     def _match_pattern_cond(self, pat: Dict[str, Any], subject: str, local_refs: Set[str]) -> str:
         """Generate a WhyML boolean condition for a match pattern."""

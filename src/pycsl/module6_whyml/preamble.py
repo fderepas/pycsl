@@ -2232,6 +2232,17 @@ class PreambleEmissionMixin:
                        "  use map.Map", "  use map.Const", "  use bool.Bool"):
                 if _u not in out:
                     out.append(_u)
+        if self._uses_pyval():
+            # pyval-value-model-wall (self-tcb-reduction, heterogeneous value model):
+            # the `pyval` sum + the `map string (option pyval)` heterogeneous dict need
+            # map.Map/map.Const (the empty base + Map.set/Map.get) and option.Option
+            # (the `option pyval` codomain) and string.String (the PStr carrier + the
+            # native string keys). Idempotent guarded appends — a corpus file never sets
+            # `_uses_pyval` (no `Dict[str, PyVal]` annotation) → byte-identical there.
+            for _u in ("  use map.Map", "  use map.Const", "  use option.Option",
+                       "  use string.String"):
+                if _u not in out:
+                    out.append(_u)
         return out
 
     def _emit_preamble_exceptions(self, needs: Dict[str, Any]) -> List[str]:
@@ -4768,6 +4779,65 @@ class PreambleEmissionMixin:
             for fn in self.ir.get("functions", []) or [])
         self._uses_null_byte_num_reader_cache = result
         return result
+
+    def _uses_pyval(self) -> bool:
+        """pyval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall):
+        True iff some function in this file has a dict typed `Dict[str, PyVal]` — its
+        `dict_value_types` carries the `"pyval"` sentinel (set by Module5
+        `_m5_get_dict_value_type` on a `Dict[str, PyVal]` annotation). Only then is the
+        `pyval` sum + `map string (option pyval)` theory emitted, so the certified
+        heterogeneous value variant stays OUT of every other mirror's SMT context and the
+        whole reference corpus (no `Dict[str, PyVal]` annotation there → byte-identical).
+        The value carrier `PyVal` is a NEW sentinel type name; this is the byte-inert gate
+        (the `_uses_pyconst_val`/`_uses_pyast_stmt` precedent). Cached."""
+        cached = getattr(self, "_uses_pyval_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            "pyval" == v
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("dict_value_types", {}) or {}).values())
+        self._uses_pyval_cache = result
+        return result
+
+    def _emit_pyval_theory(self) -> List[str]:
+        """pyval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall):
+        the CERTIFIED faithful value variant for a heterogeneous `Dict[str, Any]`
+        (`_render_match_pattern`-shaped) — proven axiom-free by the fable oracle
+        (`getting-better/pyval-oracle.mlw`, Z3 Valid) and co-landed with the Rocq/Lean
+        `Phase2f_PyVal` cert. Emit EXACTLY the oracle's shape:
+
+          type pyval = PStr string | PInt int | PArr pyval_list
+                     | PMap (map string (option pyval)) | PNode pyval
+          with pyval_list = PNil | PCons pyval pyval_list
+
+        `PArr` recurses through the BESPOKE `pyval_list` (PNil/PCons), NOT `seq pyval` —
+        Why3 rejects `seq` recursion as a non-strictly-positive occurrence (the hard
+        refinement from Gate R). `PMap (map string (option pyval))` is accepted (pyval
+        sits in the positive arrow codomain). Structural mutual recursion, NO `variant`
+        clause (the `irlist`/`stmt_list` fold precedent — Why3 emits no termination VC).
+        `size`/`size_pos` are the cert-side measure ONLY (no frontier fold needs them);
+        they are NOT emitted here (kept out of every VC's SMT context). Gated on
+        `_uses_pyval` → corpus + every other mirror byte-identical."""
+        return [
+            "  (* pyval heterogeneous value model (self-tcb-reduction, Tier-5"
+            " value-model wall): the faithful value carrier for a heterogeneous"
+            " Python `Dict[str, Any]` — PStr/PInt/PArr/PMap/PNode. Proven axiom-free by"
+            " the fable oracle (getting-better/pyval-oracle.mlw, Z3 Valid); co-landed with"
+            " the Rocq/Lean Phase2f_PyVal cert. PArr recurses through the BESPOKE"
+            " `pyval_list` (PNil/PCons), NOT `seq pyval` (Why3 rejects `seq` recursion as"
+            " non-strictly-positive). PMap `map string (option pyval)` is accepted (pyval"
+            " in the positive arrow codomain). Structural mutual recursion, NO `variant`"
+            " clause. `map string (option pyval)` is the heterogeneous dict type; reads"
+            " are `Map.get`. Gated on `_uses_pyval` -> corpus byte-identical. Arms are"
+            " inline (single `type`/`with` line) so the abstract-val insert point"
+            " (`_find_abstract_val_insert_idx`, which skips `with`/`invariant`/`by` but"
+            " NOT `|` arm lines) lands AFTER the whole mutual group, not mid-declaration. *)",
+            "  type pyval = PStr string | PInt int | PArr pyval_list"
+            " | PMap (map string (option pyval)) | PNode pyval",
+            "  with pyval_list = PNil | PCons pyval pyval_list",
+            "",
+        ]
 
     def _uses_pyconst_val(self) -> bool:
         """pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): True iff this

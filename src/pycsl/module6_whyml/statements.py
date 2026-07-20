@@ -117,8 +117,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 k_str = f"(str_hash_op {k_low})"
             else:
                 k_str = self._coerce_to_int(k_low)
-            v_low = self._expr_to_whyml(v_ir, local_refs)
-            v_str = self._dv_store_value(nu, v_low)
+            if nu == "pyval":
+                # pyval-value-model-wall: each heterogeneous value is FAITHFULLY tagged
+                # into its `pyval` constructor (str→PStr, int→PInt, list→PArr, …) — no
+                # int-erasure. Key is the native string (κ = string for `Dict[str, PyVal]`).
+                v_str = self._pyval_wrap(v_ir, local_refs)
+            else:
+                v_low = self._expr_to_whyml(v_ir, local_refs)
+                v_str = self._dv_store_value(nu, v_low)
             acc = f"(map_update_some {acc} {k_str} {v_str})"
         return acc
 
@@ -2172,6 +2178,43 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 st[_tg] = "ExprIR"
         return out
 
+    def _collect_pyval_read_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """pyval-value-model-wall (self-tcb-reduction, Tier-5): locals whose first
+        assignment is a subscript READ of a `Dict[str, PyVal]` (pyval-valued) dict —
+        `v = d[k]`. The read lowers to `Map.get` projecting an `option pyval` (arm
+        projection to a `pyval`), so `v` must be a `pyval`-typed ref, let-bound at its
+        first assignment — never the integer `ref 0` pre-declaration (which would fail
+        L3 typecheck: `pyval` vs `int`). Marks them "pyval" in the symbol table and
+        returns the set (unioned into `_typed_local_vars`). Byte-inert: only a
+        `Dict[str, PyVal]`-annotated dict (absent from the corpus) feeds this."""
+        dvt = getattr(self, "_dict_value_types", {}) or {}
+        if "pyval" not in dvt.values():
+            return set()
+        out: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    v = node.get("value", {})
+                    if isinstance(v, dict) and v.get("type") == "Subscript":
+                        base = v.get("value", {})
+                        if (isinstance(base, dict) and base.get("type") == "Var"
+                                and dvt.get(base.get("name")) == "pyval"):
+                            out.add(node["target"])
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(body_stmts)
+        st = getattr(self, "_current_symbol_table", None)
+        if st is not None:
+            for v in out:
+                if st.get(v) in (None, "Any"):
+                    st[v] = "pyval"
+        return out
+
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
         record, or variant — and so must be EXCLUDED from the integer `ref 0`
@@ -2340,8 +2383,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             and name not in set(self._formal_params)
         }
         self._optional_union_locals = _union_locals
+        # pyval-value-model-wall: locals bound from a `Dict[str, PyVal]` subscript read
+        # are pyval-typed refs (let-bound at first assign, not `ref 0`). Byte-inert.
+        pyval_read_vars = self._collect_pyval_read_locals(body_stmts) - set(self._formal_params)
+        self._pyval_local_vars = pyval_read_vars
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
                 | set(tuple_vars) | string_vars | seq_local_vars | _union_locals
+                | pyval_read_vars
                 | getattr(self, "_emit_ir_local_vars", set()))
 
     def _collect_array_elem_types(self, body_stmts: List[Dict[str, Any]]) -> Dict[str, str]:

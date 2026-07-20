@@ -559,6 +559,14 @@ class Module6_WhyMLTranspiler(
                 out.append("")
                 out.append("  exception Return_emit_ir emit_ir")
 
+        # pyval-value-model-wall (self-tcb-reduction, Tier-5 heterogeneous value model):
+        # emit the certified `pyval` sum + `pyval_list` BEFORE the record types — a
+        # `Dict[str, PyVal]` field/local names `pyval`, so the ADT must be in scope first.
+        # Gated on `_uses_pyval` (a `Dict[str, PyVal]` annotation is present); the corpus
+        # has none → byte-identical there. Co-landed with the Phase2f_PyVal cert.
+        if self._uses_pyval():
+            out += self._emit_pyval_theory()
+
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
         # value-model campaign incr5 (primitive c): declare `Return_<variant>` exceptions HERE —

@@ -3808,6 +3808,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             v = annotation.slice.elts[1]
             if isinstance(v, ast.Name) and v.id == "str":
                 return "string"
+            # pyval-value-model-wall (self-tcb-reduction, heterogeneous value model):
+            # `Dict[str, PyVal]` is the faithful heterogeneous Python-value dict — the
+            # value carrier is the `pyval` sum (PStr/PInt/PArr/PMap/PNode), so the dict
+            # lowers to `map string (option pyval)` and each value is tagged by its IR
+            # kind (Module6 `_build_dict_literal_map` pyval branch). `PyVal` is a NEW
+            # sentinel value-type name absent from the whole corpus, so this is
+            # byte-inert (no existing `Dict[str, X]` annotation is affected). See
+            # getting-better/pyval-value-model-wall-impl.md.
+            if isinstance(v, ast.Name) and v.id == "PyVal":
+                return "pyval"
             if (isinstance(v, ast.Subscript)
                     and isinstance(v.value, ast.Name)
                     and v.value.id in ("Dict", "dict")
