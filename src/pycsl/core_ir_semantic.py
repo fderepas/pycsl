@@ -1637,6 +1637,27 @@ def _union_c8_recognized_guard(test: Any) -> bool:
         for side in (test.get("left"), test.get("right")):
             if isinstance(side, dict) and side.get("type") == "None":
                 return True
+        # no-more-int leak fix: a string-literal equality on a Union-typed variable
+        # (`symtype == "str"`) IS a recognized narrowing guard — its lowering option-
+        # unwraps the union's `str` Some-arm and compares the carrier with `str_eq_op`
+        # (see module6_whyml/expressions.py `_optional_str_union_ctor`). Recognized when
+        # one side is a Var and the other a String literal.
+        sides = (test.get("left"), test.get("right"))
+        has_var = any(isinstance(s, dict) and s.get("type") == "Var" for s in sides)
+        has_str = any(isinstance(s, dict) and s.get("type") == "String" for s in sides)
+        if has_var and has_str:
+            return True
+    if test.get("type") == "BinOp" and test.get("op") in ("in", "not in"):
+        # `symtype in ("set","dict",...)` — string-literal membership on a Union var is
+        # likewise a recognized guard (same option-unwrap lowering, disjunction form).
+        left = test.get("left")
+        right = test.get("right")
+        if (isinstance(left, dict) and left.get("type") == "Var"
+                and isinstance(right, dict) and right.get("type") in ("Tuple", "ArrayLit", "SetLit")
+                and all(isinstance(e, dict) and e.get("type") == "String"
+                        for e in (right.get("elts") or []))
+                and (right.get("elts") or [])):
+            return True
     if test.get("type") == "Call":
         func = test.get("func")
         if isinstance(func, str) and func == "isinstance":

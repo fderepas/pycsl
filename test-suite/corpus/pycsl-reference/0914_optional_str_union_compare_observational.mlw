@@ -1,0 +1,72 @@
+module OptionalStrUnionCompareObservation
+  use int.Int
+  use string.String
+
+  (* no-more-int leak fix — OBSERVATIONAL non-vacuity for the Optional[str]-PARAM
+     string-comparison lowering (module6_whyml/expressions.py `_optional_str_union_ctor`
+     + `_emit_membership` / `_handle_binop`). An `Optional[str]` parameter lowers to a
+     synthesized union `_union_* = Arm_i_0 string | Arm_i_None`; a string comparison on it
+     (`symtype == "str"`, `symtype in ("set","dict",...)`) previously INT-HASHED the literal
+     against the raw union (`symtype = 1917410062`) — a union-vs-int TYPE ERROR. The fix
+     option-unwraps: `(match symtype with Arm_i_0 s -> str_eq_op s "str" | _ -> false end)`.
+
+     The union type, the abstract `str_eq_op` (`ensures result <-> a = b`), and the `match`
+     structure below are VERBATIM the PyCSL tool's emitted output (grep-confirmed against the
+     probe emission). The load-bearing claim: `str_eq_op` after the option-unwrap is a
+     FAITHFUL string content compare — it distinguishes "str" from "int" and rejects the None
+     arm — so the guard is NON-vacuous (the earlier int-hash could not even type-check). The
+     EVIL TWINS pin this: a "int"-carrying arm and a None arm claimed true stay UNPROVEN. *)
+
+  (* union of Optional[str]: Some-arm carries a string, None-arm is nullary — VERBATIM the
+     tool's `type _union_symtype_to_whyml_0 = Arm_0_0 string | Arm_0_None`. *)
+  type optstr = Arm_0_0 string | Arm_0_None
+
+  (* abstract str_eq_op VERBATIM (tool): content equality bridged to logical `=`. *)
+  val str_eq_op (a: string) (b: string) : bool
+    ensures { result <-> (a = b) }
+
+  (* the `symtype == "str"` guard lowered VERBATIM (tool): option-unwrap the union,
+     compare the carrier with str_eq_op, else false on the None arm. Modeled as a predicate
+     over the union value (the `bool` guard is TRUE iff the match yields str_eq_op = True). *)
+  predicate guard_eq_str (symtype: optstr) =
+    match symtype with Arm_0_0 s -> (s = "str") | Arm_0_None -> false end
+
+  (* the `symtype in ("set","dict","frozenset")` guard lowered VERBATIM (disjunction form). *)
+  predicate guard_in_coll (symtype: optstr) =
+    match symtype with
+      Arm_0_0 s -> (s = "set") \/ (s = "dict") \/ (s = "frozenset")
+    | Arm_0_None -> false end
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — each discriminant of the lowered guard.    *)
+  (* ==================================================================== *)
+
+  (* symtype = "str"  -> guard True. *)
+  goal g_true_eq : guard_eq_str (Arm_0_0 "str")
+
+  (* symtype = None   -> guard False (None arm). *)
+  goal g_false_none : not (guard_eq_str Arm_0_None)
+
+  (* symtype = "int"  -> guard False (faithful content compare rejects it). *)
+  goal g_false_other : not (guard_eq_str (Arm_0_0 "int"))
+
+  (* membership: "dict" is in the collection -> True. *)
+  goal g_true_in : guard_in_coll (Arm_0_0 "dict")
+
+  (* membership: "str" is NOT in ("set","dict","frozenset") -> False. *)
+  goal g_false_in : not (guard_in_coll (Arm_0_0 "str"))
+
+  (* membership on None arm -> False. *)
+  goal g_false_in_none : not (guard_in_coll Arm_0_None)
+
+  (* EVIL TWIN 1 (content false-positive): "int" is NOT "str" — this goal is FALSE and must
+     FAIL (else str_eq_op is vacuous and cannot tell "str" from "int"). *)
+  goal g_evil_other : guard_eq_str (Arm_0_0 "int")
+
+  (* EVIL TWIN 2 (None false-positive): the None arm can never match a string literal —
+     FALSE, must FAIL (else the option-unwrap collapsed the None arm). *)
+  goal g_evil_none : guard_eq_str Arm_0_None
+
+  (* EVIL TWIN 3 (membership false-positive): "str" is NOT in the collection — must FAIL. *)
+  goal g_evil_in : guard_in_coll (Arm_0_0 "str")
+end

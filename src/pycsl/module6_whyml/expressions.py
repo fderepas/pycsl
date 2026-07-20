@@ -671,6 +671,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if rhs.get("type") in ("Tuple", "ArrayLit", "SetLit"):
             elts = rhs.get("elts", [])
             if elts:
+                # no-more-int leak fix: `sym in ("set","dict",...)` where `sym` is an
+                # `Optional[str]` PARAM (a `_union_*` with a single `str` Some-arm) must
+                # option-unwrap the union before comparing — an int-hash of the literals
+                # against the raw union is a union-vs-int type error. Emit
+                # `(match sym with Arm_i_0 s -> (str_eq_op s "set" || …) | _ -> false)`.
+                # Gated on every collection element being a String literal (a genuine
+                # Optional[str] narrowing) → corpus-inert (no corpus program compares an
+                # Optional[str] param to a literal tuple).
+                _lir0 = expr.get("left")
+                _some = self._optional_str_union_ctor(_lir0)
+                if (not self._in_spec and _some
+                        and all(isinstance(e, dict) and e.get("type") == "String" for e in elts)):
+                    self._add_abstract_op(
+                        "val str_eq_op (a: string) (b: string) : bool\n"
+                        "    ensures { result <-> (a = b) }")
+                    _checks = []
+                    for elt in elts:
+                        elt_w = self._expr_to_whyml(elt, local_refs, invariant_ctx, subst)
+                        _checks.append(f"(str_eq_op _s {elt_w})")
+                    _disj = f"({' || '.join(_checks)})"
+                    _inner = f"(match {left} with {_some} _s -> {_disj} | _ -> false end)"
+                    return f"(not {_inner})" if negate else _inner
                 # str-list-elements: `name in ('.', '..')` with a STRING `name` is a
                 # disjunction of string equalities — route each to `str_eq_op` (content
                 # equality) instead of the int-hash compare, so the operands stay `string`
@@ -3072,6 +3094,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # usable, so bridge through `val str_eq_op : bool` (tied by `ensures` to `=`). Must
         # precede the int-coercion of `=`/`<>` below, which is only for the int-hash model.
         if raw_op in ("==", "!=") and not self._in_spec:
+            # no-more-int leak fix: `sym == "str"` where `sym` is an `Optional[str]` PARAM
+            # (a `_union_*` with a single `str` Some-arm) compared to a String literal must
+            # option-unwrap the union — an int-hash of the literal against the raw union is
+            # a union-vs-int type error. Emit
+            # `(match sym with Arm_i_0 s -> str_eq_op s "str" | _ -> false)`. Gated on the
+            # OTHER side being a String literal → corpus-inert.
+            _lu = self._optional_str_union_ctor(expr.get("left"))
+            _ru = self._optional_str_union_ctor(expr.get("right"))
+            if _lu and expr.get("right", {}).get("type") == "String":
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _inner = f"(match {left} with {_lu} _s -> (str_eq_op _s {right}) | _ -> false end)"
+                return _inner if raw_op == "==" else f"(not {_inner})"
+            if _ru and expr.get("left", {}).get("type") == "String":
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _inner = f"(match {right} with {_ru} _s -> (str_eq_op _s {left}) | _ -> false end)"
+                return _inner if raw_op == "==" else f"(not {_inner})"
             ls = self._is_string_expr(expr["left"])
             rs = self._is_string_expr(expr["right"])
             if ls and rs:
@@ -5193,6 +5235,42 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if ctor.get("arity") == 0 and "None" in ctor_name:
                 return ctor_name
         return None
+
+    def _optional_str_union_ctor(self, x_ir: Any) -> Optional[str]:
+        """no-more-int leak fix — if `x_ir` is a Var whose symbol-table type is a
+        synthesized `_union_*` variant with EXACTLY ONE payload-carrying arm and that
+        arm carries a `str` (i.e. the lowering of an `Optional[str]` parameter), return
+        the Some-arm constructor name (e.g. `Arm_0_0`). Else None.
+
+        A string comparison (`x == "s"` / `x in ("a","b")`) on such an operand must NOT
+        int-hash the literals against the union (a union-vs-int type error); instead the
+        caller option-unwraps: `(match x with Arm_0_0 s -> str_eq_op s "s" | _ -> false)`.
+        Scoped to a NON-`_optional_union_locals` var (a param passed by value / an
+        un-projected union) — a mutable Optional LOCAL is already carrier-projected on read
+        by `_union_local_read_projection`, so its emitted operand is a `string`, not the raw
+        union, and must not be re-matched here."""
+        if not isinstance(x_ir, dict) or x_ir.get("type") != "Var":
+            return None
+        name = x_ir.get("name")
+        if name in getattr(self, "_optional_union_locals", set()):
+            return None
+        symtype = getattr(self, "_current_symbol_table", {}).get(name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        some_ctor: Optional[str] = None
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            payload = ctor.get("payload", [])
+            if not payload:
+                continue  # nullary None arm
+            if len(payload) != 1 or payload[0] != "str":
+                return None  # not a pure Optional[str] union
+            if some_ctor is not None:
+                return None  # more than one carrying arm — not Optional[str]
+            some_ctor = ctor_name
+        return some_ctor
 
     def _handle_isinstance(self, expr: Dict[str, Any], local_refs: Optional[Set[str]] = None) -> str:
         """`isinstance(x, T)` → `subtag (\\typeof x) T` (decision: \\subtag, not ==, so a

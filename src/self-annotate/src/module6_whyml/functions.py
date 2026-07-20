@@ -233,13 +233,29 @@ class FunctionEmissionMixin:
     def _build_method_result_frame_ensures_map(self, functions: List[int]) -> Dict[str, List[int]]:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _symtype_to_whyml(symtype: Optional[str]) -> str:
-        return ""
+        """Convert a Module5 symbol-table type tag to the WhyML type used
+        in abstract val parameter declarations. Defaults to `int`."""
+        if symtype in ("set", "dict", "frozenset"):
+            return "map int (option int)"
+        if symtype in ("list", "tuple", "bytes", "bytearray"):
+            # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
+            return "array int"
+        if symtype == "str":
+            return "string"
+        if symtype == "float":
+            return "real"  # no-more-int Stage D
+        # typed-ir-for-b-ceiling.md B-C2: an `ExprIR`/`StmtIR`/`IRNode`-annotated
+        # param or field is the typed IR-node sum `exprir` (§2.1), so an inline
+        # `{"type": K}` construction and a real IR field unify at a sibling that takes
+        # both. Only present in a @mutable_state mirror → byte-identical for the corpus.
+        if symtype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "exprir"):
+            return "emit_ir"
+        return "int"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
