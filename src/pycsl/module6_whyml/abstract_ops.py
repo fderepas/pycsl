@@ -148,6 +148,42 @@ class AbstractOpsMixin:
             new_idx += 1
         return new_idx
 
+    # self-tcb-reduction M5 (stmt_ir bespoke campaign): the converted expr/stmt
+    # handlers (functions.py `_emit_py_expr_compare_bespoke`, `_emit_py_stmt_*_bespoke`,
+    # `_emit_py_expr_{lambda,listcomp,setcomp,dictcomp}_bespoke`) emit RAW `self__<disp>_1`
+    # dispatcher references (the trusted recursive dispatch `self._py_expr_to_ir`
+    # / `self._py_stmts_to_ir` / `self._py_op_to_str`). In a STANDALONE emit of the
+    # emitter class, some non-stub method body ALSO calls one of those `self.<m>(...)`
+    # through the regular `_handle_dotted_call` lowering, which registers the abstract
+    # `val self__<m>_1` via `_add_abstract_op`. But when the emitter class is IMPORTED
+    # (frontend/__init__.py, frontend/ir_resolve.py — its methods become bodyless
+    # stubs), that trigger never fires, leaving the bespoke references UNBOUND
+    # (`unbound function or predicate symbol 'self__py_expr_to_ir_1'`). This is the SAME
+    # class of bug as the undeclared-union skip: a cross-emission symbol referenced but
+    # not declared. Signatures match the standalone-emitted decls exactly (the pyast_ir
+    # ADT `emit_ir` / `stmt_ir` types), so registering here is dedup-byte-identical in
+    # standalone and corpus-inert (no corpus program builds stmt_ir nodes — `_uses_stmt_ir`
+    # is false — so these symbols never appear in `out`).
+    _SELF_DISPATCH_VAL_DECLS = {
+        "self__py_expr_to_ir_1": "val self__py_expr_to_ir_1 (x0: emit_ir) : emit_ir",
+        "self__py_op_to_str_1": "val self__py_op_to_str_1 (x0: int) : string",
+        "self__py_stmts_to_ir_1": "val self__py_stmts_to_ir_1 (x0: array int) : seq stmt_ir",
+    }
+
+    def _register_referenced_self_dispatch_vals(self, out: List[str]) -> None:
+        """Register the abstract `val` for any stmt_ir-bespoke `self__<disp>_1`
+        dispatcher referenced in the emitted body but not yet declared (the
+        imported-emitter unbound-symbol fix). No-op unless a bespoke handler emitted
+        one of these symbols — so every non-emitter file is byte-identical."""
+        joined = None
+        for sym, decl in self._SELF_DISPATCH_VAL_DECLS.items():
+            if sym in self._abstract_ops:
+                continue
+            if joined is None:
+                joined = "\n".join(out)
+            if re.search(r"\b" + re.escape(sym) + r"\b", joined):
+                self._add_abstract_op(decl)
+
     def _insert_abstract_val_block(self, out: List[str]) -> None:
         """Insert the abstract-val block (collected during transpilation)
         at the position selected by `_find_abstract_val_insert_idx`.
@@ -158,6 +194,7 @@ class AbstractOpsMixin:
         `struct_pack_<id>` / `struct_unpack_<id>` symbols would be
         declared twice — Why3 rejects with "Symbol X already defined".
         """
+        self._register_referenced_self_dispatch_vals(out)
         if not self._abstract_ops:
             return
 
