@@ -95,3 +95,20 @@ payload is `_`-ignored. Both R2 targets need EXPR-tree machinery it lacks.
   `"ExprIR"→emit_ir` param-typing gate, and a live `_contains_result` explicit-loop refactor.
 **NEXT ESCALATION = the T2 emit_ir expr-tree existence fold** (Gate-S already PROVEN): converts `_contains_result`,
 then unblocks `_body_has_diverging_construct`'s Call half. Frontier-map "emit_ir existence fold = wall" → FEASIBLE.
+
+## T2 BUILD OUTCOME (2026-07-20) — BUILT + strongly-evidenced, but REVERTED on a whole-file PROOF-ENV WEDGE
+`_contains_result` was built end-to-end (emit_expr_has_group ~60-arm expr_has_result fold + recognize_expr_has +
+live↔mirror closure→flat refactor; banked patch `scratchpad/contains-result-build.patch` + fixture `0915`). Gates
+that PASSED (independently re-verified): L3-tc typecheck SUCCESS; MUTATION TEST body-dependent (IrResult arm 4→3 on
+discriminant flip); byte-diff-0 EMPTY; fidelity mirror-check green + live↔mirror byte-identical; consumer mirrors
+typecheck; count 1025; allowlist clean; the fold's termination Z3-proven at FULL emit_ir scale (the R2 spike).
+**BLOCKER: the whole-file Why3 proof HARD-WEDGES.** `core_ir_semantic.py` now carries BOTH the committed stmt
+catamorphism (`_body_has_return`) AND the new ~60-arm expr fold; the combined theory hangs why3 at **0% CPU (idle,
+persistent)** — not OOM-killed, not compute-bound — surviving why3server kills + clean solo relaunches. `--fun
+_contains_result` launches were disrupted by the pkill exit-144 artifact. Cannot distinguish env-resource/deadlock
+from a genuine full-context E-matching wall. Per the driver (whole-file Why3 REQUIRED; no unproven commit; no dirty
+tree) → REVERTED. **The expr_has fold is FEASIBLE standalone (spike) but the FULL-CONTEXT proof is the wall** — a
+core_ir_semantic proof-SCALING limit (the smaller `_body_has_return` catamorphism proved; adding the expr fold on
+top wedges). Retry needs a proof-capable environment OR a lighter fold. `_body_has_diverging_construct` (needs the
+same expr fold for its Call test) is likewise blocked. **Tree-walk wall net: +1 (_body_has_return); expr-fold
+follow-ons blocked on the proof env.**
