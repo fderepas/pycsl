@@ -2473,6 +2473,7 @@ class FunctionEmissionMixin:
             recognize_stmt_setfold, emit_stmt_setfold_group,
             recognize_substmap, emit_substmap_group,
             recognize_bool_existence, emit_bool_existence_group,
+            recognize_stmt_has, emit_stmt_has_group,
             recognize_bool_multiway, emit_bool_multiway_group,
             recognize_bool_lastelem, recognize_bool_earlyreturn,
             recognize_frt, emit_frt_group,
@@ -2489,6 +2490,17 @@ class FunctionEmissionMixin:
         _be = recognize_bool_existence(func)
         if _be is not None:
             return emit_bool_existence_group(func, _be, whyml_ident)
+        # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,
+        # TYPED counterpart — the `_body_has_return`-shaped stmt_ir tree-walk
+        # existence fold, emitted as the certified stmt_ir catamorphism (verbatim
+        # from the full-M5-scale-proven standalone.mlw, LEXICOGRAPHIC variant) over
+        # the certified stmt_ir ADT instead of the dynamic `pyval` fold. The tag(s)
+        # drive the true-arm(s) (mutation-sensitive, non-facade). Same fail-closed
+        # discipline. 4-descent-arm shape, so `recognize_bool_existence` (2-3 arms)
+        # never matches it; ordered here for clarity.
+        _sh = recognize_stmt_has(func)
+        if _sh is not None:
+            return emit_stmt_has_group(func, _sh, whyml_ident)
         # ir-traversal-residual A-bool MULTIWAY: the `stype = stmt.get("stmt")`
         # dispatch sibling of the above (`has_direct_return`/`has_in_loop_
         # return`-shaped) -- a genuine multiway `if stype == "<TAG>"`/`elif`

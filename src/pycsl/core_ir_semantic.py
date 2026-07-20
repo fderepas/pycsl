@@ -766,27 +766,32 @@ def _body_has_raise(body) -> bool:
     return found[0]
 
 
-def _body_has_return(body) -> bool:
+def _body_has_return(body: list) -> bool:
     """True iff the IR body contains a ``Return`` statement (anywhere, at any depth).
     A ``Return`` (with or without a value) is a NORMAL-EXIT path — the very thing a
-    ``NoReturn`` function must not have."""
-    found = [False]
+    ``NoReturn`` function must not have.
 
-    def walk(node):
-        if found[0]:
-            return
-        if isinstance(node, dict):
-            if node.get("stmt") == "Return":
-                found[0] = True
-                return
-            for v in node.values():
-                walk(v)
-        elif isinstance(node, list):
-            for x in node:
-                walk(x)
-
-    walk(body)
-    return found[0]
+    Flat direct-recursive statement-tree existence walk (self-tcb-reduction
+    tree-walk-wall): descends every statement-body child list — ``body``/
+    ``orelse``/``finalbody`` (While/For/If/Try/With), each ``handlers`` entry's
+    body (Try), and each ``cases`` entry's body (Match) — which are the only IR
+    positions a ``Return`` statement can occur. Verbatim-identical to the
+    self-annotation mirror, where it lowers to the certified stmt_ir
+    ``sl_has_return`` catamorphism (byte-diff-0, both provers, axiom-free)."""
+    for stmt in body:
+        if stmt.get("stmt") == "Return":
+            return True
+        for key in ("body", "orelse", "finalbody"):
+            sub = stmt.get(key)
+            if isinstance(sub, list) and _body_has_return(sub):
+                return True
+        for h in stmt.get("handlers", []):
+            if _body_has_return(h.get("body", [])):
+                return True
+        for c in stmt.get("cases", []):
+            if _body_has_return(c.get("body", [])):
+                return True
+    return False
 
 
 def _check_noreturn(func) -> None:

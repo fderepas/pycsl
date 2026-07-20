@@ -1793,6 +1793,9 @@ class PreambleEmissionMixin:
                 # the corpus → byte-identical.
                 or bool(getattr(self, "_mutable_state_classes", None))
                 or bool(getattr(self, "_uses_ir_node_param", False))
+                # the stmt_ir ADT theory (append convention OR the tree-walk
+                # recogniser) declares `array int` body readers → needs Array.
+                or self._uses_stmt_ir()
             )
         else:
             needs_array = False
@@ -1925,7 +1928,8 @@ class PreambleEmissionMixin:
           or needs_return_seq \
           or bool(getattr(self, "_mutable_state_classes", None)) \
           or any(t.startswith("seq ") for f in functions
-                 for t in f.get("param_list_nested_elem", {}).values())
+                 for t in f.get("param_list_nested_elem", {}).values()) \
+          or self._uses_stmt_ir()
         # ^ nested-list.md S2: a `List[List[τ]]` param is `array (seq τ)` → `use seq.Seq`.
         # ^ seq-model-pivot.md SQ1: a @mutable_state module may promote a REASSIGNED list-elem
         #   local to `seq` (decided during emission, after this import scan), so `use seq.Seq`
@@ -4707,8 +4711,28 @@ class PreambleEmissionMixin:
             return cached
         result = any(
             self._stmt_seq_append_params(fn)
-            for fn in self.ir.get("functions", []) or [])
+            for fn in self.ir.get("functions", []) or []) \
+            or self._uses_stmt_return_recogniser()
         self._uses_stmt_ir_cache = result
+        return result
+
+    def _uses_stmt_return_recogniser(self) -> bool:
+        """tree-walk-wall-impl.md (self-tcb-reduction, GATE-S): True iff some
+        function in this file is a `_body_has_return`-shaped stmt_ir tree-walk
+        existence fold (`recognize_stmt_has`). It READS a statement tree (no
+        `.append`), so `_uses_stmt_ir`'s append-shape probe misses it — this fires
+        the SAME certified stmt_ir ADT + `size_*` theory emission the recogniser's
+        `stmt_has`/`sl_has`/`hl_has`/`mcl_has` group references. Corpus-inert: only
+        the Module5/core_ir_semantic mirror's NoReturn walkers have this shape, so
+        every corpus program stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_stmt_return_recogniser_cache", None)
+        if cached is not None:
+            return cached
+        from module6_whyml.generic_fold import recognize_stmt_has
+        result = any(
+            recognize_stmt_has(fn) is not None
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_stmt_return_recogniser_cache = result
         return result
 
     def _uses_null_byte_num_reader(self) -> bool:

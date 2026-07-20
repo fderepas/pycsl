@@ -1,0 +1,131 @@
+module WallStmtHasReturnObservation
+  use int.Int
+  use bool.Bool
+
+  (* self-tcb-reduction tree-walk-wall: OBSERVATIONAL non-vacuity for
+     `_body_has_return`. The stmt_ir ADT + `size_*` measures + the
+     `_body_has_return__stmt_has`/`__sl_has`/`__hl_has`/`__mcl_has` catamorphism
+     (LEXICOGRAPHIC `variant { size_stmt s, 0 }` / `{ size_slist l, 1 }` / ...)
+     below are VERBATIM the PyCSL tool's emitted output (module6_whyml/
+     preamble.py::_emit_exprir_theory gated on `_uses_stmt_ir`, and
+     generic_fold.py::emit_stmt_has_group; grep-confirmed). The driver constructs
+     concrete statement trees and proves that a `Return` — INCLUDING one buried
+     inside an except-handler body (the `__hl_has h.eh_body` descent) — IS found,
+     while the EVIL TWIN (same shape, no Return) is NOT. A facade (an `SReturn`
+     arm collapsed to a constant, or a length-only law) would prove both. *)
+
+  (* ---- minimal emit_ir/iropt subset sufficient for the stmt_ir ctors ---- *)
+  type emit_ir = IrOther string | IrPair emit_ir emit_ir
+  type iropt_ir = IrONone | IrOSome emit_ir
+  type iropt_str = IrSNone | IrSSome string
+  type strlist = SLNilS | SLConsS string strlist
+
+  (* ---- VERBATIM tool-emitted stmt_ir statement ADT ---- *)
+  type stmt_ir = SPass | SBreak | SContinue
+     | SReturn iropt_ir | SExpr emit_ir
+     | SAssign string emit_ir
+     | SAssert emit_ir iropt_str
+     | SAugAssign string string emit_ir
+     | SFieldAugAssign string string emit_ir
+     | SArraySet emit_ir emit_ir emit_ir
+     | SWhile emit_ir stmt_list
+     | SIf emit_ir stmt_list stmt_list
+     | SFor emit_ir stmt_list
+     | STry stmt_list handler_list stmt_list stmt_list
+     | SMatch emit_ir match_case_list
+     | SDelSubscript emit_ir emit_ir
+     | SFieldAssign string string emit_ir
+     | SArraySliceSet emit_ir iropt_ir iropt_ir emit_ir
+     | STupleUnpack strlist emit_ir
+     | SCriticalSection string stmt_list emit_ir emit_ir
+     | SGhostArraySet string emit_ir emit_ir
+     | SGhostAssign string emit_ir string string
+  with stmt_list = SLNil | SLCons stmt_ir stmt_list
+  with handler_list = HLNil | HLCons except_handler handler_list
+  with except_handler =
+   { eh_exc_type: iropt_str; eh_name: iropt_str; eh_body: stmt_list }
+  with match_case_list = MCNil | MCCons match_case match_case_list
+  with match_case =
+   { mc_pattern: emit_ir; mc_guard: iropt_ir; mc_body: stmt_list }
+
+  (* ---- VERBATIM tool-emitted mutual size measure ---- *)
+  let rec function size_stmt (s: stmt_ir) : int
+    ensures { result >= 1 } variant { s }
+  = match s with
+    | SWhile _ b -> 1 + size_slist b
+    | SIf _ b o -> 1 + size_slist b + size_slist o
+    | SFor _ b -> 1 + size_slist b
+    | STry b hs oe fb -> 1 + size_slist b + size_hlist hs + size_slist oe + size_slist fb
+    | SMatch _ cs -> 1 + size_mclist cs
+    | SCriticalSection _ b _ _ -> 1 + size_slist b
+    | _ -> 1
+    end
+  with function size_slist (l: stmt_list) : int
+    ensures { result >= 0 } variant { l }
+  = match l with SLNil -> 0 | SLCons h t -> size_stmt h + size_slist t end
+  with function size_hlist (l: handler_list) : int
+    ensures { result >= 0 } variant { l }
+  = match l with HLNil -> 0 | HLCons h t -> size_handler h + size_hlist t end
+  with function size_handler (h: except_handler) : int
+    ensures { result >= 0 } variant { h }
+  = 1 + size_slist h.eh_body
+  with function size_mclist (l: match_case_list) : int
+    ensures { result >= 0 } variant { l }
+  = match l with MCNil -> 0 | MCCons c t -> size_mcase c + size_mclist t end
+  with function size_mcase (c: match_case) : int
+    ensures { result >= 0 } variant { c }
+  = 1 + size_slist c.mc_body
+
+  (* ---- VERBATIM tool-emitted recogniser (emit_stmt_has_group) ---- *)
+  let rec function _body_has_return__stmt_has (s: stmt_ir) : bool
+    variant { size_stmt s, 0 }
+  = match s with
+    | SReturn _ -> true
+    | SWhile _ b -> _body_has_return__sl_has b
+    | SIf _ b o -> _body_has_return__sl_has b || _body_has_return__sl_has o
+    | SFor _ b -> _body_has_return__sl_has b
+    | STry b hs oe fb -> _body_has_return__sl_has b || _body_has_return__hl_has hs || _body_has_return__sl_has oe || _body_has_return__sl_has fb
+    | SMatch _ cs -> _body_has_return__mcl_has cs
+    | SCriticalSection _ b _ _ -> _body_has_return__sl_has b
+    | _ -> false
+    end
+  with function _body_has_return__sl_has (l: stmt_list) : bool
+    variant { size_slist l, 1 }
+  = match l with SLNil -> false | SLCons h t -> _body_has_return__stmt_has h || _body_has_return__sl_has t end
+  with function _body_has_return__hl_has (l: handler_list) : bool
+    variant { size_hlist l, 1 }
+  = match l with HLNil -> false | HLCons h t -> _body_has_return__sl_has h.eh_body || _body_has_return__hl_has t end
+  with function _body_has_return__mcl_has (l: match_case_list) : bool
+    variant { size_mclist l, 1 }
+  = match l with MCNil -> false | MCCons c t -> _body_has_return__sl_has c.mc_body || _body_has_return__mcl_has t end
+
+  let function _body_has_return (body: stmt_list) : bool = _body_has_return__sl_has body
+
+  (* ---- concrete trees ---- *)
+  (* a Return buried inside an except-handler body (the `__hl_has` descent) *)
+  constant h_ret : except_handler =
+    { eh_exc_type = IrSNone; eh_name = IrSNone;
+      eh_body = SLCons (SReturn IrONone) SLNil }
+  constant h_noret : except_handler =
+    { eh_exc_type = IrSNone; eh_name = IrSNone;
+      eh_body = SLCons SPass SLNil }
+  (* try: pass except: return   /   try: pass except: pass *)
+  constant body_ret : stmt_list =
+    SLCons (STry (SLCons SPass SLNil) (HLCons h_ret HLNil) SLNil SLNil) SLNil
+  constant body_noret : stmt_list =
+    SLCons (STry (SLCons SPass SLNil) (HLCons h_noret HLNil) SLNil SLNil) SLNil
+  (* a plain no-Return body *)
+  constant body_plain : stmt_list =
+    SLCons SPass (SLCons SBreak SLNil)
+
+  (* R (non-vacuity): a Return nested in an except-handler IS found *)
+  goal driver_ret_in_handler   : _body_has_return body_ret = True
+  (* a handler with no Return is NOT found (both handler-descent arms live) *)
+  goal driver_noret_in_handler : _body_has_return body_noret = False
+  (* a plain body with no Return is NOT found *)
+  goal driver_plain            : _body_has_return body_plain = False
+
+  (* EVIL TWIN: claiming the no-Return handler body DOES return MUST stay
+     unproven (refutes the facade — a collapsed SReturn arm would prove it) *)
+  goal driver_evil : _body_has_return body_noret = True
+end

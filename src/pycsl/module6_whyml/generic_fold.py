@@ -4904,3 +4904,178 @@ def emit_void_generic_descend_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append("  = match xs with Nil -> ()")
     out.append(f"    | Cons h t -> {n} h{ctx_args}; {n}__l t{ctx_args} end")
     return out
+
+
+# =========================================================================
+# stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
+#
+# tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,
+# TYPED counterpart of `recognize_bool_existence` (which folds over the
+# dynamic `pyval` ADT). This recognises the `_body_has_return`-shaped
+# statement-tree existence walk — a flat direct-recursive
+#   `for stmt in body:
+#        if stmt.get("stmt") == "<TAG>": return True
+#        <descend into stmt's statement-body child lists via self-recursion>
+#    return False`
+# — and emits the CERTIFIED stmt_ir catamorphism `stmt_has`/`sl_has`/`hl_has`/
+# `mcl_has` (verbatim from the full-M5-scale-proven scratchpad/standalone.mlw,
+# with the LEXICOGRAPHIC `variant { size_stmt s, 0 }` / `{ size_slist l, 1 }`
+# / `{ size_hlist l, 1 }` / `{ size_mclist l, 1 }` — the STRUCTURAL variant
+# TIMED OUT on the record-field-projection descents at full scale). The
+# recognised discriminant TAG(s) drive which stmt_ir constructor arm(s) return
+# `true` (the mutation-sensitive, non-facade signal): "Return" -> SReturn,
+# "While" -> SWhile, ... — every other compound constructor STRUCTURALLY
+# OR-descends its statement-body children. The body param is typed `stmt_list`
+# and the whole function lowers to `<n>__sl_has body`.
+#
+# NOT a name-keyed facade: the emitted true-arm(s) are DERIVED from the tag
+# literal read out of the body's `stmt.get("stmt") == "<TAG>"` test, so
+# changing the discriminant in the source moves (or removes) the true-arm and
+# the emitted .mlw changes (the emission mutation test).
+
+# leaf (body-less) stmt_ir constructors, by discriminant tag -> match pattern.
+_STMT_LEAF_TAG_CTOR = {
+    "Pass": "SPass", "Break": "SBreak", "Continue": "SContinue",
+    "Return": "SReturn _", "Expr": "SExpr _", "Assign": "SAssign _ _",
+    "Assert": "SAssert _ _", "AugAssign": "SAugAssign _ _ _",
+    "FieldAugAssign": "SFieldAugAssign _ _ _", "ArraySet": "SArraySet _ _ _",
+    "DelSubscript": "SDelSubscript _ _", "FieldAssign": "SFieldAssign _ _ _",
+    "ArraySliceSet": "SArraySliceSet _ _ _ _", "TupleUnpack": "STupleUnpack _ _",
+    "GhostArraySet": "SGhostArraySet _ _ _", "GhostAssign": "SGhostAssign _ _ _ _",
+}
+
+# compound (statement-body-carrying) stmt_ir constructors: (match pattern, tag,
+# [(list-kind, bound-var), ...]) — the descent OR-folds each child list with the
+# recogniser sibling for that list kind (sl=stmt_list, hl=handler_list,
+# mcl=match_case_list). handler_list/match_case_list descend the record's body
+# field (h.eh_body / c.mc_body).
+_STMT_COMPOUND = [
+    ("SWhile _ b", "While", [("sl", "b")]),
+    ("SIf _ b o", "If", [("sl", "b"), ("sl", "o")]),
+    ("SFor _ b", "For", [("sl", "b")]),
+    ("STry b hs oe fb", "Try",
+     [("sl", "b"), ("hl", "hs"), ("sl", "oe"), ("sl", "fb")]),
+    ("SMatch _ cs", "Match", [("mcl", "cs")]),
+    ("SCriticalSection _ b _ _", "CriticalSection", [("sl", "b")]),
+]
+
+
+def _collect_stmt_selfcalls(node: Any, self_name: str, out: List[Any]) -> None:
+    """Collect every Call node whose `func` is the bare self name (confirms the
+    walk is a genuine self-recursive tree descent, not a flat one-level scan)."""
+    if isinstance(node, dict):
+        if node.get("type") == "Call" and node.get("func") == self_name:
+            out.append(node)
+        for v in node.values():
+            _collect_stmt_selfcalls(v, self_name, out)
+    elif isinstance(node, list):
+        for x in node:
+            _collect_stmt_selfcalls(x, self_name, out)
+
+
+def recognize_stmt_has(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_body_has_return`-shaped stmt_ir tree-walk
+    existence fold. Returns {subject, tags, self_name} or None. Never raises."""
+    try:
+        return _recognize_stmt_has(func)
+    except Exception:
+        return None
+
+
+def _recognize_stmt_has(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {}) or {}
+    if pa.get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 2:
+        return None
+    loop, tail = body
+    # tail: `return False`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # loop: `for stmt in <subj>: <arms>`
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), subj)):
+        return None
+    stmtv = loop.get("target")
+    if not isinstance(stmtv, str):
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) < 2:
+        return None
+    self_name = func.get("name")
+    self_calls: List[Any] = []
+    _collect_stmt_selfcalls(lbody, self_name, self_calls)
+    if not self_calls:
+        return None
+    # collect every `if <stmt>.get("stmt") == "<TAG>": return True` discriminant
+    tags: List[str] = []
+    for a in lbody:
+        if not (isinstance(a, dict) and a.get("stmt") == "If"
+                and not a.get("orelse")):
+            continue
+        tg = _match_stmt_tag_test(a.get("test", {}), stmtv)
+        if (tg is not None and len(a.get("body", [])) == 1
+                and _is_bool_true_return(a["body"][0])):
+            tags.append(tg)
+    if not tags:
+        return None
+    _known = set(_STMT_LEAF_TAG_CTOR) | {c[1] for c in _STMT_COMPOUND}
+    for t in tags:
+        if t not in _known:
+            return None
+    return {"subject": subj, "tags": tags, "self_name": self_name}
+
+
+def emit_stmt_has_group(func: Dict[str, Any], desc: Dict[str, Any],
+                        whyml_ident) -> List[str]:
+    """Emit the certified stmt_ir existence catamorphism for a recognised walk.
+
+    The `stmt_has`/`sl_has`/`hl_has`/`mcl_has` mutual group is verbatim from the
+    full-M5-scale-proven scratchpad/standalone.mlw (LEXICOGRAPHIC variant); only
+    the true-arm(s) vary with the recognised discriminant tag(s). The whole
+    `_body_has_return` lowers to `<n>__sl_has body` over a `stmt_list` param."""
+    n = whyml_ident(func["name"])
+    tags = set(desc["tags"])
+    arms: List[str] = []
+    for tag in desc["tags"]:
+        if tag in _STMT_LEAF_TAG_CTOR:
+            arms.append(f"    | {_STMT_LEAF_TAG_CTOR[tag]} -> true")
+    for pat, tag, children in _STMT_COMPOUND:
+        if tag in tags:
+            arms.append(f"    | {pat} -> true")
+        else:
+            rhs = " || ".join(f"{n}__{k}_has {v}" for k, v in children)
+            arms.append(f"    | {pat} -> {rhs}")
+    arms.append("    | _ -> false")
+    out: List[str] = []
+    out.append(f"  let rec function {n}__stmt_has (s: stmt_ir) : bool")
+    out.append("    variant { size_stmt s, 0 }")
+    out.append("  = match s with")
+    out.extend(arms)
+    out.append("    end")
+    out.append(f"  with function {n}__sl_has (l: stmt_list) : bool")
+    out.append("    variant { size_slist l, 1 }")
+    out.append(f"  = match l with SLNil -> false"
+               f" | SLCons h t -> {n}__stmt_has h || {n}__sl_has t end")
+    out.append(f"  with function {n}__hl_has (l: handler_list) : bool")
+    out.append("    variant { size_hlist l, 1 }")
+    out.append(f"  = match l with HLNil -> false"
+               f" | HLCons h t -> {n}__sl_has h.eh_body || {n}__hl_has t end")
+    out.append(f"  with function {n}__mcl_has (l: match_case_list) : bool")
+    out.append("    variant { size_mclist l, 1 }")
+    out.append(f"  = match l with MCNil -> false"
+               f" | MCCons c t -> {n}__sl_has c.mc_body || {n}__mcl_has t end")
+    out.append(f"  let function {n} (body: stmt_list) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__sl_has body")
+    return out
