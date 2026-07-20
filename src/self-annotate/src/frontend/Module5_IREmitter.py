@@ -1766,12 +1766,29 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _collect_type_params(self, node) -> List[int]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model-return-wall R1 (faithful `List[str]` RETURN): dispatch on the
+    # `Generic[...]` slice — `isinstance(slice_node, ast.Name)` -> `is_var slice_node`,
+    # `.id` -> `name_of`, `ast.Tuple` -> `is_tuple`, `slice_node.elts` -> `elts_of`,
+    # projecting `name_of elt` into a REAL `seq string` returned as `array string`. The
+    # early returns of list LITERALS (`return [slice_node.id]` / `return []`) carry the
+    # string seq through the `Return_seq_str (seq string)` exception (its DECLARATION now
+    # fires on the type-driven `return_value_type == "string"` signal — the printer fix in
+    # module6_whyml/preamble.py). isinstance_op=0. Verbatim body port of the LIVE
+    # `_extract_generic_arg_names`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _extract_generic_arg_names(slice_node) -> List[str]:
+    def _extract_generic_arg_names(slice_node: "ExprIR") -> List[str]:
+        """Extract the TypeVar names from `Generic[T]` / `Generic[T, U]` slice."""
+        if isinstance(slice_node, ast.Name):
+            return [slice_node.id]
+        if isinstance(slice_node, ast.Tuple):
+            names = []
+            for elt in slice_node.elts:
+                if isinstance(elt, ast.Name):
+                    names.append(elt.id)
+            return names
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate

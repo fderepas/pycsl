@@ -308,7 +308,15 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 # `elt{i}_of`/opaque `args_of`, which are dead/vacuous on an IrMkTupleN). SCOPED to these
 # handlers via `_current_emitting_func` -> corpus- and consumer-inert.
 _MKTUPLE_ELTS_HANDLERS = ("_m5_get_dict_key_type", "_m5_get_dict_value_type",
-                          "_m5_get_type_name_legacy", "_field_type_from_annotation")
+                          "_m5_get_type_name_legacy", "_field_type_from_annotation",
+                          # value-model-return-wall R1: `_extract_generic_arg_names`'s
+                          # `Generic[T, U]` slice is the SAME variadic `IrMkTupleN` as a
+                          # `Dict[K,V]` slice, so `isinstance(slice_node, ast.Tuple)` must
+                          # lower to `is_mktuple` (the default `is_tuple` is dead-false on it)
+                          # and `slice_node.elts` to the modelled `elts_of` irlist (real
+                          # emit_ir elements → `name_of elt`). Same shape-checked lowering,
+                          # name-scoped for corpus byte-inertness.
+                          "_extract_generic_arg_names")
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin

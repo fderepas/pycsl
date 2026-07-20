@@ -1,0 +1,70 @@
+module ListStrReturnSeqStrValueModel
+  use int.Int
+  use seq.Seq
+  use array.Array
+  use string.String
+
+  (* value-model-return-wall R1 (fable-pinpointed, self-tcb-reduction M6): a `-> List[str]`
+     function with EARLY list-literal returns (`return [name_of node]` / `return []`, the shape
+     of `_extract_generic_arg_names`) carries its STRING-element list through the
+     `Return_seq_str (Seq.seq string)` exception, and the catch materialises it to
+     `array string` via the pre-existing `materialize_str` bridge. VERBATIM the tool's emitted
+     shape after the fix: the exception DECLARATION printer now emits `Return_seq_str
+     (Seq.seq string)` whenever the function's `return_value_type == "string"` (the type-driven
+     `-> List[str]` signal, module6_whyml/preamble.py `_scan_preamble_needs`) — previously it
+     emitted only the int-typed `Return_seq (Seq.seq int)`, leaving the raise-site symbol
+     `Return_seq_str` UNBOUND (a hard L3-tc wall).
+
+     Non-vacuity is at the STRING type: the returned element is a GENUINE string (`name_of elt`,
+     a real Seq element), which the int-erased `Return_seq (Seq.seq int)` + `get_id`/int-hash
+     lowering the fix replaces could NOT carry — `seq int` into a `seq string` slot is a hard
+     typecheck error, and the element would be an int hash, never the name. materialize_str is
+     an ABSTRACT specified `val` (its `ensures` is a definitional bridge law, NOT a new axiom —
+     ledger stays 3). *)
+  exception Return_seq_str (Seq.seq string)
+
+  val materialize_str (s: Seq.seq string) : array string
+    ensures { Array.length result = Seq.length s }
+    ensures { forall i. 0 <= i < Seq.length s -> result[i] = Seq.get s i }
+
+  (* the `is_var` arm: `return [name_of slice_node]` — a single REAL string carried through
+     Return_seq_str, caught and materialised to `array string`. The postcondition is the
+     value-model claim proved at the function boundary: the returned array's sole element is
+     the GENUINE input string `nm` (not an int hash). *)
+  let names_single (nm: string) : array string
+    ensures { Array.length result = 1 }
+    ensures { result[0] = nm }
+  =
+    let sq = Seq.cons nm Seq.empty in
+    assert { Seq.length sq = 1 };
+    assert { Seq.get sq 0 = nm };
+    try raise (Return_seq_str sq)
+    with Return_seq_str s -> materialize_str s end
+
+  (* the fall-through arm: `return []` — the polymorphic empty seq materialises to an
+     empty `array string`. *)
+  let names_empty () : array string
+    ensures { Array.length result = 0 }
+  =
+    try raise (Return_seq_str Seq.empty)
+    with Return_seq_str s -> materialize_str s end
+
+  (* FAITHFUL observable consequence: the returned element is the genuine `nm`. Provable ONLY
+     because the seq element stays a real string end-to-end — impossible under the int-erased
+     evil twin (`Return_seq (Seq.seq int)` + `get_id`): `r[0] = nm` would not even typecheck
+     (int vs string). *)
+  let driver_faithful (nm: string) : unit =
+    let r = names_single nm in
+    assert { r[0] = nm }
+
+  let driver_empty () : unit =
+    let r = names_empty () in
+    assert { Array.length r = 0 }
+
+  (* EVIL TWIN: the returned element is the genuine `nm`, NOT some unrelated constant — so
+     `r[0] = "other"` is NOT provable (`nm` is unconstrained and genuinely string-valued, not
+     a degenerate hash-collapsed constant). Must stay UNPROVEN. *)
+  let driver_evil (nm: string) : unit =
+    let r = names_single nm in
+    assert { r[0] = "other" }
+end

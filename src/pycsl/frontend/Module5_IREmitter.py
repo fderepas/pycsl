@@ -1904,7 +1904,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return out
 
     @staticmethod
-    def _extract_generic_arg_names(slice_node) -> List[str]:
+    def _extract_generic_arg_names(slice_node: "ExprIR") -> List[str]:
         """Extract the TypeVar names from `Generic[T]` / `Generic[T, U]` slice."""
         if isinstance(slice_node, ast.Name):
             return [slice_node.id]

@@ -1834,7 +1834,18 @@ class PreambleEmissionMixin:
                     needs_return_seq = True
                     # str-list-elements: a list whose returned seq local carries STRING
                     # elements travels through the parallel `Return_seq_str (seq string)`.
-                    if self._func_returns_string_seq(func):
+                    # The type-driven signal `return_value_type == "string"` (the `-> List[str]`
+                    # annotation, item34.md CF5) ALSO fires it: it is authoritative for the
+                    # `array string` return type in `_compute_return_type` — and hence for the
+                    # raise site's `Return_seq_str` (func_ret == "array string") — even when the
+                    # body returns a list LITERAL (`return [x]` / `return []`) whose elements are
+                    # not a seq-local Var and so are invisible to `_func_returns_string_seq`.
+                    # ADDITIVE (keeps the always-on `needs_return_seq`): the extra int-typed
+                    # `Return_seq` decl is unused-but-harmless, and any corpus function this newly
+                    # fires for currently FAILS L3-tc (unbound `Return_seq_str`), so it cannot be
+                    # in a passing baseline — byte-diff-0 preserved.
+                    if (self._func_returns_string_seq(func)
+                            or func.get("return_value_type") == "string"):
                         needs_return_seq_str = True
                 elif ret_type == "string" or ann == "str":
                     # 10-1732-gap Gap 1: a faithful `string`-returning function with an
