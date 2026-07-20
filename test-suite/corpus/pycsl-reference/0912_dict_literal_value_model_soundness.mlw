@@ -1,0 +1,51 @@
+(* 0912 — value-model-return-wall R3 evil-twin: variable-valued dict-literal construction.
+   Refutes faithfulness-bugs-found.md Bug 1 (the dict-literal DROP soundness bug).
+   The FIXED lowering of `d: Dict[str,str] = {"k": v}` builds
+     (map_update_some (const (None: option string)) "k" v)  -- a REAL 1-entry map.
+   GoodFaithful.build_good : Valid   -- NON-VACUOUS: Map.get result "k" = Some v.
+   EvilWrongValue          : NOT Valid -- a WRONG value (Some w, w!=v) is unprovable.
+   EvilEmptyMapRefute      : NOT Valid -- the OLD drop-bug's empty-map claim (= None)
+                                          is unprovable now (an empty map WOULD prove it).
+   Emission is body-dependent (mutation-tested): the key/value in the map_update_some
+   fold reflect the literal's actual (key, value) pairs. *)
+
+module GoodFaithful
+  use map.Map
+  use map.Const
+  use option.Option
+  use string.String
+
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+
+  (* The FIXED lowering of `d: Dict[str,str] = {"k": v}` *)
+  let build_good (v: string) : map string (option string)
+    ensures { Map.get result "k" = Some v }   (* NON-VACUOUS: the entry is really there *)
+  = map_update_some (const (None: option string)) "k" v
+end
+
+module EvilWrongValue
+  use map.Map
+  use map.Const
+  use option.Option
+  use string.String
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+  (* EVIL TWIN: claims a WRONG value at the key — must be UNPROVABLE *)
+  let build_evil_value (v: string) (w: string) : map string (option string)
+    ensures { Map.get result "k" = Some w }   (* w != v : must FAIL *)
+  = map_update_some (const (None: option string)) "k" v
+end
+
+module EvilEmptyMapRefute
+  use map.Map
+  use map.Const
+  use option.Option
+  use string.String
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+  (* THE OLD DROP-BUG's false theorem: the map is EMPTY. Must be UNPROVABLE now. *)
+  let build_evil_empty (v: string) : map string (option string)
+    ensures { Map.get result "k" = None }   (* the empty-map claim: must FAIL *)
+  = map_update_some (const (None: option string)) "k" v
+end

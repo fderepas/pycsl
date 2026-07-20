@@ -32,7 +32,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # needed: each typed `StmtIR` subclass routes directly to its handler.
 
     def _emit_first_assign(self, kind: str, indent: str, safe_target: str, target: str,
-                           val: str, val_ir: Dict[str, Any]) -> str:
+                           val: str, val_ir: Dict[str, Any],
+                           local_refs=None) -> str:
         """Emit the `let X = …` line for a first declaration of `target`,
         updating the locals-tracking sets as a side effect."""
         if kind == "record":
@@ -49,9 +50,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # The dict's value type ν drives the empty-map literal (string /
             # seq-int snapshot / nested-map / int-default). Consolidated in
             # `_dv_empty_default`; None ⇒ keep the caller's int-default `val`.
-            _empty = self._dv_empty_default(self._dict_value_types.get(target))
+            nu = self._dict_value_types.get(target)
+            _empty = self._dv_empty_default(nu)
             if _empty:
                 val = _empty
+            # value-model-return-wall R3 (SOUNDNESS): a variable-valued dict LITERAL
+            # `d = {"k": var}` must CONSTRUCT the real map — fold `map_update_some`
+            # over the (key, value) pairs onto the empty base — not silently drop the
+            # entries and declare an empty map (the latent false-theorem bug: an empty
+            # map satisfies any `\result[k] == …` vacuously). `val` here is the empty
+            # base (`(const (None: option ν))`); `_build_dict_literal_map` returns it
+            # unchanged for an empty `{}` literal (byte-identical) and the folded map
+            # for a non-empty one.
+            val = self._build_dict_literal_map(val_ir, target, nu, val, local_refs)
             return f"{indent}let {safe_target} = ref {val} in\n"
         if kind == "bounded_int":
             return f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
@@ -67,6 +78,49 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if self._val_is_bool(val_ir):
             val = f"(if {val} then 1 else 0)"
         return f"{indent}let {safe_target} = ref {val} in\n"
+
+    def _build_dict_literal_map(self, val_ir: Dict[str, Any], target: str,
+                                nu: Optional[str], base: str,
+                                local_refs=None) -> str:
+        """value-model-return-wall R3 (SOUNDNESS FIX): construct the real map for a
+        variable-valued dict literal `{"k0": v0, "k1": v1, …}` by folding the
+        polymorphic `map_update_some` over the (key, value) pairs onto `base` (the
+        empty `(const (None: option ν))` map).
+
+        Returns `base` unchanged when `val_ir` is not a non-empty `DictLit`
+        (byte-identical: an empty `{}` keeps the empty base, and a non-DictLit RHS
+        is untouched). Each key is lowered per the dict's κ (native string key for a
+        `Dict[str, _]`, `str_hash_op` for a string key into an int-keyed dict, else
+        int-coerced) and each value per ν via `_dv_store_value` — the SAME
+        key/value discipline as the proven `d[k] = v` subscript-store path
+        (statements.py `map_update_some` branch), so the literal and the store agree.
+        This supersedes the former silent empty-map drop (the latent false-theorem
+        bug: an empty map vacuously satisfies any `\\result[k] == …`)."""
+        if not (isinstance(val_ir, dict) and val_ir.get("type") == "DictLit"):
+            return base
+        keys = val_ir.get("keys", [])
+        values = val_ir.get("values", [])
+        if not keys:
+            return base
+        kappa = self._dict_key_types.get(target)
+        self._add_abstract_op(
+            "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+            ": map 'k (option 'v)\n"
+            "    ensures { result = Map.set m k (Some v) }")
+        acc = base
+        for k_ir, v_ir in zip(keys, values):
+            k_low = self._expr_to_whyml(k_ir, local_refs)
+            if kappa == "string":
+                k_str = k_low
+            elif not self._in_spec and self._is_string_expr(k_ir):
+                self._add_abstract_op("val str_hash_op (s: string) : int")
+                k_str = f"(str_hash_op {k_low})"
+            else:
+                k_str = self._coerce_to_int(k_low)
+            v_low = self._expr_to_whyml(v_ir, local_refs)
+            v_str = self._dv_store_value(nu, v_low)
+            acc = f"(map_update_some {acc} {k_str} {v_str})"
+        return acc
 
     # --- tool-feature-5: Optional-typed MUTABLE program locals -----------------
     # A local declared `x: Optional[τ] = None` monomorphizes (Module5) to a
@@ -230,7 +284,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if target not in declared_refs:
             declared_refs.add(target)
             kind = self._first_assign_kind(val, val_ir)
-            code = self._emit_first_assign(kind, indent, safe_target, target, val, val_ir)
+            code = self._emit_first_assign(kind, indent, safe_target, target, val,
+                                           val_ir, local_refs)
             rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
             if not rest_code:
                 rest_code = f"{indent}()"
