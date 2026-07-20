@@ -55,3 +55,20 @@ Bug 1 soundness fix, a measure-before-build drain returned `no_small_build_remai
 - Cheapest genuine remaining (all multi-piece): setfold method-call-guard + pyval-domain predicate emission
   (`_collect_dict_var_assigns`/`_collect_variant_var_assigns`); Dict[str,Dict[str,str]] self-field record-metadata
   value model (`_callable_tag_to_whyml`/`_is_emit_ir_expr`); keyword-node modeling + nested-map (`_collect_typevar_registry`).
+
+## 2026-07-20 (12h run) — SINGLE-BUILD frontier EXHAUSTED after +5 conversions
+Landed this run (1027→1022): `_body_has_return` (stmt catamorphism), `_build_method_return_annotation_map`
+(flat-strdict), `_collect_dict_var_assigns` (setfold method-call-guard), `_collect_variant_var_assigns` (setfold
+ctor-membership+prefix), `_callable_tag_to_whyml` (opaque-selfmap 2-level reader) + Bug 1 soundness fix. Then the
+reader/recogniser veins EXHAUSTED:
+- opaque-selfmap reader's clean frontier is done — the only remaining consumers (`_is_emit_ir_expr`,
+  `_handle_subscript`) are GIANTS behind the emit-ir helper cascade (`_emit_ir_args_recv_ir`/`_mktuple_elts_recv_ir`/
+  `_is_pyast_stmt_emit_ir_read` + `_EMIT_IR_*` constants, all absent from the mirror) — a NET-MARKER-POSITIVE
+  giants-front build (port would ADD ≥3 stubs to remove 1), NOT a single-reader win. And their 3-level read is a
+  `.get()` chain with a computed key (no bound-alias subscript to match).
+- setfold clean shapes done; remaining Set[str] collectors have heavy self-dict-of-dict / nested-def closures.
+**Remaining reachable = deliberate MULTI-SESSION builds only:** (a) the emit-ir helper substrate + giants front
+(net-positive per giant_conversion_net_positive, but a 77-helper-DAG multi-session build); (b) core_ir_semantic
+proof-env resolution (why3 wedge; unblocks the tree-walk expr-fold family, `_contains_result` patch banked);
+(c) keyword-node modeling + nested-Dict[str,Dict] return (`_collect_typevar_registry`); (d) `List[emit_ir]`
+returns + worklist termination (`_collect_union_arms`). No clean single-build +1 remains.
