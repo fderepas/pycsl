@@ -34,5 +34,6 @@ import PyCSL.RecordVal         -- Tier-3 Phase 3: record-valued Val7 (nested pat
 import PyCSL.PyValDict         -- Wall-plan v2 Phase 1: pyval/pydict/irkey/doc concrete-map cert, axiom-free
 import PyCSL.PyConstVal      -- self-tcb-reduction M5: pyconst_val value-variant ADT cert, axiom-free
 import PyCSL.StmtIR          -- self-tcb-reduction M5: stmt_ir statement-IR ADT cert (C-bucket wall), axiom-free
+import PyCSL.PyAstStmt          -- self-tcb-reduction giants: pyast_stmt INPUT-ast ADT cert, axiom-free
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus

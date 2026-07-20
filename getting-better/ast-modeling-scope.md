@@ -294,3 +294,16 @@ mutable locals (only 2 use `Optional` at all, as params). **Generalizes:** 7 emi
 Per §10, #5 must co-land with a conversion (it converts nothing alone) — either a stub blocked SOLELY by Optional-locals,
 or as part of the giants co-land. STATUS: characterized + ready to build; the giants build is a deliberate multi-session
 effort, thoroughly de-risked (feasibility proven §8, crux pinpointed here).
+
+### 8b. Item #5 BUILT + VALIDATED (2026-07-20, UNCOMMITTED working set; patch: scratchpad/piece5-optional-locals.patch)
+The generic Optional-mutable-local lowering is built (4 LIVE tool files, +162 lines): `x: Optional[τ]=None` → `let x =
+ref (Arm_i_None : _union_*) in` (shared nominal union via a new `_union_synth_cache` + `dedup` threading so a local and
+the `-> Optional[τ]` return share ONE type), `x = v` → `x := Arm_i_0 v`, `x is None` → `match !x with Arm_i_None -> true
+| _ -> false`. **GENERIC** (type-driven, no hardcoded names). **VALIDATED (independently re-verified):** isolation probe
+PROVES (SUCCESS); **MUTATION TEST body-dependent** (`x>0`→`x>5`, `"pos"`→`"neg"` both track into the `.mlw` — NOT a
+facade); **corpus byte-diff 0**; **fidelity** mirror-check 52/52; **NO REGRESSION** — mirror-emission sweep shows ONLY
+`frontend/__init__.py` + `ir_resolve.py` change, and both fail with the IDENTICAL pre-existing `unbound
+_union__array_init_size_5` typecheck error at HEAD *and* with #5 (an orthogonal Optional-return import-injection bug that
+predates this work — flagged for separate fix). Converts NO stub alone (giants prerequisite). Remaining giants pieces:
+1 (ADT), 2 (class_body_ast+ClassDef retype), 3 (psl loop-classify), 4 (isinstance stmt-kind+projectors), 6 (ps_const_int),
+7 (Phase2e cert) — build on top of #5, co-land with `_collect_class_constants` + mutation-test.

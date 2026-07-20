@@ -68,6 +68,58 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             val = f"(if {val} then 1 else 0)"
         return f"{indent}let {safe_target} = ref {val} in\n"
 
+    # --- tool-feature-5: Optional-typed MUTABLE program locals -----------------
+    # A local declared `x: Optional[τ] = None` monomorphizes (Module5) to a
+    # synthesized per-function union `_union_<fn>_<idx> = Arm_<idx>_0 τ |
+    # Arm_<idx>_None` and lives as a `ref _union_<fn>_<idx>`. The three sites the
+    # generic lowering must handle — decl/assign `x = v`, `x is None` guard, and a
+    # union-context read `x` — all reuse this per-function union (NOT a parallel
+    # type). GENERIC: keyed only on the local's declared Optional[τ] type and its
+    # `None` init, never on any method/local name.
+
+    def _union_local_symtype(self, name: str) -> Optional[str]:
+        """The synthesized `_union_*` type of a mutable Optional LOCAL `name`
+        (symbol-table τ starts with `_union_`, and `name` is not a formal
+        parameter — a union PARAM keeps its own value/spec lowering). Else None."""
+        if not isinstance(name, str):
+            return None
+        t = getattr(self, "_current_symbol_table", {}).get(name)
+        if (isinstance(t, str) and t.startswith("_union_")
+                and name not in set(self._formal_params)):
+            return t
+        return None
+
+    def _union_ctors(self, symtype: str) -> "tuple":
+        """(none_ctor, [some_ctor, ...]) for a synthesized union `symtype` —
+        the nullary `Arm_*_None` and the payload-carrying `Arm_*_i` arms."""
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None, []
+        none_ctor = None
+        some_ctors: List[str] = []
+        for cn, c in vinfo.get("constructors", {}).items():
+            if c.get("arity") == 0 and "None" in cn:
+                none_ctor = cn
+            else:
+                some_ctors.append(cn)
+        return none_ctor, some_ctors
+
+    def _union_wrap_rhs(self, symtype: str, val: str,
+                        val_ir: Dict[str, Any]) -> Optional[str]:
+        """Lift a plain RHS into the matching union arm ctor for an assignment to
+        an Optional local: `None` → the nullary None-arm; a τ value → the single
+        `Some`-arm `(Arm_i_0 v)`. Returns None for a multi-arm union with a
+        non-None value (out of scope — Optional[τ] has exactly one Some-arm) so
+        the caller falls back to the ordinary path."""
+        none_ctor, some_ctors = self._union_ctors(symtype)
+        if none_ctor is None:
+            return None
+        if val_ir.get("type") == "None":
+            return none_ctor
+        if len(some_ctors) == 1:
+            return f"({some_ctors[0]} {val})"
+        return None
+
     def _emit_array_local_reassign(self, target: str, safe_target: str, indent: str,
                                     val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
         """Reassigning an array-local (declared via `let arr = (Array.make
@@ -136,6 +188,32 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
             val = '(IrOther "")'
+
+        # tool-feature-5: Optional MUTABLE local (`x: Optional[τ] = None; x = v`).
+        # The local is a `ref _union_*`; wrap the RHS in the matching arm ctor
+        # (None → the nullary None-arm, a τ value → the single Some-arm) so both
+        # the first `let x = ref (Arm_i_None : _union) in` declaration and every
+        # later `x := (Arm_i_0 v)` reassignment type-check against the union ref.
+        # Reuses the SAME per-function union Module5 already synthesized for the
+        # type (shared with the `-> Optional[τ]` return via the Module5 dedup).
+        _ult = self._union_local_symtype(target)
+        if _ult is not None:
+            _wrapped = self._union_wrap_rhs(_ult, val, val_ir)
+            if _wrapped is not None:
+                if target not in declared_refs:
+                    declared_refs.add(target)
+                    _wn = self._variant_types[_ult]["whyml_name"]
+                    code = f"{indent}let {safe_target} = ref ({_wrapped} : {_wn}) in\n"
+                    rest_code = self._stmts_to_whyml(
+                        rest, local_refs, declared_refs, indent, in_loop)
+                    if not rest_code:
+                        rest_code = f"{indent}()"
+                    return code + rest_code
+                code = f"{indent}{safe_target} := {_wrapped}"
+                if rest:
+                    code += ";\n" + self._stmts_to_whyml(
+                        rest, local_refs, declared_refs, indent, in_loop)
+                return code
 
         # Assignment to a module-level shared variable (always a ref, never re-declared)
         if target in self._shared_var_names:
@@ -2181,8 +2259,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `seq int … expected int` leak). Params are not in pre_decl_vars, so unioning the
         # full set is safe.
         seq_local_vars = getattr(self, "_seq_locals", set()) - set(self._formal_params)
+        # tool-feature-5: a mutable Optional local (`x: Optional[τ] = None`) carries a
+        # synthesized `_union_*` type, NOT int — exclude it from the integer `ref 0`
+        # pre-declaration so its first assign (`x = None`) let-binds `ref (Arm_i_None :
+        # _union)` (the union ref) instead of `ref 0` + a type-clashing `:=`. Byte-inert:
+        # no corpus program has an Optional-typed mutable local (only Optional params).
+        _union_locals = {
+            name for name, ty in getattr(self, "_current_symbol_table", {}).items()
+            if isinstance(ty, str) and ty.startswith("_union_")
+            and name not in set(self._formal_params)
+        }
+        self._optional_union_locals = _union_locals
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
-                | set(tuple_vars) | string_vars | seq_local_vars
+                | set(tuple_vars) | string_vars | seq_local_vars | _union_locals
                 | getattr(self, "_emit_ir_local_vars", set()))
 
     def _collect_array_elem_types(self, body_stmts: List[Dict[str, Any]]) -> Dict[str, str]:

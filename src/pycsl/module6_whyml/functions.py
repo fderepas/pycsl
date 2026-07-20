@@ -15,6 +15,12 @@ class FunctionEmissionMixin:
                         int_type: str) -> str:
         """Return the WhyML parameter type string for a standalone function argument."""
         safe = whyml_ident(arg)
+        # self-tcb-reduction giants (generic class-body lowering): a param annotated
+        # `ast.ClassDef` whose `.body` is iterated is the opaque `py_classdef_node` AST
+        # node (its `.body` reads the `class_body_ast` psl). Gated on the per-function
+        # `_current_pyast_classdef_params` (only under `_uses_pyast_stmt`) -> byte-identical.
+        if arg in getattr(self, "_current_pyast_classdef_params", set()):
+            return f"({safe}: py_classdef_node)"
         # compound-key const-map getter: the key parameter takes the native tuple key
         # type (`(string, option string)`) so `Map.get NAME k` type-checks. Gated on
         # the recognized getter → never fires for a corpus param (byte-identical).
@@ -343,6 +349,16 @@ class FunctionEmissionMixin:
         # emitted param order hash-seed-dependent (a source of proof flakiness,
         # e.g. `gcd (a) (b)` vs `(b) (a)`). Source order is deterministic.
         self._formal_params: List[str] = list(func.get("formal_params", []))
+        # self-tcb-reduction giants (generic class-body lowering): the params annotated
+        # `ast.ClassDef` (typed `py_classdef_node`) whose `.body` iterates the class-body
+        # psl. Gated on `_uses_pyast_stmt` so a non-target file leaves these empty
+        # (byte-identical). `_pyast_stmt_locals` accumulates the per-iteration `child`
+        # loop targets (typed `pyast_stmt`) for the projector/isinstance lowerings.
+        self._current_pyast_classdef_params: Set[str] = (
+            {p for p, a in (func.get("param_ast_node_types") or {}).items()
+             if a == "ClassDef"}
+            if self._uses_pyast_stmt() else set())
+        self._pyast_stmt_locals: Set[str] = set()
         self._current_array1d_params = set(func.get("array1d_params", []))
         self._array2d_params = set(func.get("array2d_params", []))
         # 07-1839 P3: definite-assignment sets for `\in_scope` (three-valued).
@@ -723,7 +739,10 @@ class FunctionEmissionMixin:
         m = {"int": "int", "bool": "int", "str": "string", "float": "real",
              "list": "array int", "bytes": "array int", "bytearray": "array int",
              "dict": "map int (option int)", "set": "map int (option int)",
-             "frozenset": "map int (option int)", "tuple": "array int"}
+             "frozenset": "map int (option int)", "tuple": "array int",
+             # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
+             # carries the already-lowered emit_ir sub-node.
+             "emit_ir": "emit_ir"}
         return m.get(tag, "int")
 
     def _returns_string_seq(self, body_stmts: List[Dict[str, Any]]) -> bool:
@@ -1530,6 +1549,18 @@ class FunctionEmissionMixin:
             "elem_whyml": meta["elem_whyml"],
         }
 
+    def _returned_var_name(self, body_stmts: List[Dict[str, Any]]) -> Optional[str]:
+        """The name of the variable in the LAST top-level `return <Var>` of `body_stmts`,
+        else None. Used to resolve a string-keyed dict return to the returned local's
+        faithful `map string (option ν)` type."""
+        _last: Optional[str] = None
+        for st in body_stmts or []:
+            if isinstance(st, dict) and st.get("stmt") == "Return":
+                v = st.get("value")
+                if isinstance(v, dict) and v.get("type") == "Var":
+                    _last = v.get("name")
+        return _last
+
     def _compute_return_type(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]]) -> str:
         """Compute the WhyML return type for one function, applying the
         `List[T] → array int`, `Set[T]`/`Dict[K, V]` → `map int (option int)`,
@@ -1599,6 +1630,15 @@ class FunctionEmissionMixin:
                 return_type = f"array {self._record_types[func['return_value_type']]['whyml_name']}"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
+            # self-tcb-reduction giants (generic class-body lowering): a `-> Dict[str, int]`
+            # return whose returned dict LOCAL is string-keyed (`constants[target] = iv`,
+            # target a string) is the faithful `map string (option int)` — matching the
+            # `map_update_some`-built body local (κ=string, ν=int), not the fixed
+            # int-keyed default. Gated on a returned string-keyed dict local -> byte-safe.
+            _rv = self._returned_var_name(body_stmts)
+            if _rv is not None and getattr(self, "_dict_key_types", {}).get(_rv) == "string":
+                _nu = getattr(self, "_dict_value_types", {}).get(_rv) or "int"
+                return_type = f"map string (option {_nu})"
         elif ann == "str" and return_type == "int":
             return_type = "string"
         elif ann == "float" and return_type == "int":

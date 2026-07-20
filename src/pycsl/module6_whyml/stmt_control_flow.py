@@ -83,6 +83,20 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    def _classbody_psl_recv(self, iter_ir: Dict[str, Any]) -> Optional[str]:
+        """self-tcb-reduction giants (generic class-body lowering): if `iter_ir` is
+        `<classdef>.body` where `<classdef>` is a `py_classdef_node`-typed param, return
+        the WhyML receiver term (the node var name); else None. The iterated psl is
+        `class_body_ast <recv>`."""
+        if not (isinstance(iter_ir, dict) and iter_ir.get("type") == "Attribute"
+                and iter_ir.get("attr") == "body"):
+            return None
+        obj = iter_ir.get("object", {})
+        if (isinstance(obj, dict) and obj.get("type") == "Var"
+                and obj.get("name") in getattr(self, "_current_pyast_classdef_params", set())):
+            return whyml_ident(obj["name"])
+        return None
+
     def _classify_iterable(self, iter_ir: Dict[str, Any],
                             local_refs: Set[str], idx: str) -> Tuple[str, str, bool]:
         """Classify a For loop's iterable. Returns (len_expr, elem_expr, is_range).
@@ -90,6 +104,20 @@ class ControlFlowStmtMixin:
         (default "0"; for `range(start, stop)`, the `start` expression).
         """
         self._for_idx_init = "0"
+        self._pyast_loop_variant_len = None
+        # self-tcb-reduction giants (generic class-body lowering): `for child in
+        # <classdef>.body` over a `py_classdef_node` param iterates the MODELLED
+        # `class_body_ast node` psl cons-list — bound `psl_len (class_body_ast node)`,
+        # element `psl_nth !idx (class_body_ast node)` (a real `pyast_stmt` per iteration),
+        # NOT the opaque `iter_length`/`iter_get`/`get_body` int fallback. Sets
+        # `_pyast_loop_variant_len` so `_handle_for_stmt` emits the arithmetic
+        # invariant+variant (this class is not @mutable_state). Scoped via
+        # `_current_pyast_classdef_params` -> corpus-inert.
+        _cb = self._classbody_psl_recv(iter_ir)
+        if _cb is not None:
+            _cbw = f"(class_body_ast {_cb})"
+            self._pyast_loop_variant_len = f"(psl_len {_cbw})"
+            return (f"(psl_len {_cbw})", f"(psl_nth !{idx} {_cbw})", False)
         # value-model campaign incr10 (loop-over-irlist): `for elt in <emit_ir>.elts` in an
         # annotation resolver iterates the MODELLED IrMkTupleN irlist — bound `irlen (elts_of
         # recv)`, element `irnth !idx (elts_of recv)` (a real emit_ir per iteration), NOT the
@@ -282,20 +310,35 @@ class ControlFlowStmtMixin:
         # `isinstance(elt, …)`/`elt.id`/`elt.value` reads lower faithfully (is_var/name_of/…),
         # not the opaque int path. Restored after the body. Scoped to the mktuple iterables.
         _saved_symtype = _MISSING = object()
-        if self._mktuple_elts_recv_ir(iter_ir) is not None:
+        # self-tcb-reduction giants: a class-body psl loop binds `child` to a real
+        # `pyast_stmt` per iteration — register it in `_pyast_stmt_locals` (and symbol
+        # table type "PyAstStmt") for the body's duration so the body's `isinstance(child,
+        # ast.Assign)` / `child.value` / `child.targets[0]` lower to the ADT discriminants
+        # and projectors, not the opaque int path. Restored after the body.
+        _is_classbody = self._classbody_psl_recv(iter_ir) is not None
+        if _is_classbody:
+            self._pyast_stmt_locals.add(target)
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_symtype = _st.get(target, _MISSING)
+                _st[target] = "PyAstStmt"
+        elif self._mktuple_elts_recv_ir(iter_ir) is not None:
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "ExprIR"
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
-        if _saved_symtype is not _MISSING or self._mktuple_elts_recv_ir(iter_ir) is not None:
+        if (_saved_symtype is not _MISSING or _is_classbody
+                or self._mktuple_elts_recv_ir(iter_ir) is not None):
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
                 if _saved_symtype is _MISSING:
                     _st.pop(target, None)
                 else:
                     _st[target] = _saved_symtype
+        if _is_classbody:
+            self._pyast_stmt_locals.discard(target)
         if not inner_body:
             inner_body = f"{inner_indent}()"
         if saved_str_locals is not None:
@@ -325,7 +368,16 @@ class ControlFlowStmtMixin:
         # multiple `variant` clauses) — and its `str_length_op` variant term would
         # be illegal in a logic clause anyway.
         _str_char = str_ci is not None
-        if (getattr(self, "_current_self_type", None)
+        # self-tcb-reduction giants: the class-body psl loop carries an ARITHMETIC
+        # termination variant `psl_len (class_body_ast node) - !idx` (a pure LOGIC
+        # function, legal in a variant term) + the `0 <= !idx` invariant. This class
+        # is not @mutable_state, so without this the loop would have no variant.
+        # Gated on `_pyast_loop_variant_len` (set only for the psl loop) -> inert elsewhere.
+        _psl_len = getattr(self, "_pyast_loop_variant_len", None)
+        if _psl_len is not None and not _str_char:
+            while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
+            while_parts.append(f"{inner_indent}variant {{ {_psl_len} - !{idx} }}")
+        elif (getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())
                 and not _str_char):
             while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
@@ -675,6 +727,15 @@ class ControlFlowStmtMixin:
         var_name = var_node.get("name")
         symtype = getattr(self, "_current_symbol_table", {}).get(var_name)
         if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        # tool-feature-5: a MUTABLE Optional local (`x: Optional[τ] = None`) is a
+        # `ref _union_*`. The value-narrowing match here (which SHADOWS `x` with the
+        # projected carrier) is for immutable union PARAMS — it is both ill-typed
+        # (`match x` vs the ref `match !x`) and unsound (narrowing a reassignable ref)
+        # for a mutable local. Fall through to the ordinary `if` lowering, whose test
+        # lowers to the match-boolean discriminant `(match !x with Arm_i_None -> true |
+        # _ -> false)` (expressions.py) with `x` staying a ref in both branches.
+        if var_name in getattr(self, "_optional_union_locals", set()):
             return None
         vinfo = getattr(self, "_variant_types", {}).get(symtype)
         if not vinfo:
@@ -1103,7 +1164,10 @@ class ControlFlowStmtMixin:
         m = {"int": "int", "bool": "int", "str": "string", "float": "real",
              "list": "array int", "bytes": "array int", "bytearray": "array int",
              "dict": "map int (option int)", "set": "map int (option int)",
-             "frozenset": "map int (option int)", "tuple": "array int"}
+             "frozenset": "map int (option int)", "tuple": "array int",
+             # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
+             # carries the already-lowered emit_ir sub-node.
+             "emit_ir": "emit_ir"}
         return m.get(tag, "int")
 
     def _handle_return_stmt(

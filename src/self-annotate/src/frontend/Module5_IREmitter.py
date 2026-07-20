@@ -1910,15 +1910,38 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _const_int_value(value: ast.expr) -> int:
+    def _const_int_value(value: "ExprIR") -> int:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_class_constants(self, node: ast.ClassDef, field_names: int) -> int:
-        return {}
+    def _collect_class_constants(self, node: ast.ClassDef,
+                                 field_names: int) -> Dict[str, int]:
+        """Collect class-body integer constants (`CAP = 64`, `O_EXCL = 128`).
+
+        Only top-level `Name = <int literal>` / `Name: T = <int literal>`
+        assignments in the class body are taken; names already used as
+        instance fields (from __init__) are skipped. These let `self.CONST`
+        lower to its literal in Module 6 instead of an opaque getattr.
+        """
+        constants: Dict[str, int] = {}
+        for child in node.body:
+            target: Optional[str] = None
+            value: Optional[ast.expr] = None
+            if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                    and isinstance(child.targets[0], ast.Name)):
+                target = child.targets[0].id
+                value = child.value
+            elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+                target = child.target.id
+                value = child.value
+            if target is None or value is None or target in field_names:
+                continue
+            iv = self._const_int_value(value)
+            if iv is not None:
+                constants[target] = iv
+        return constants
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1959,6 +1982,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                           "list", "dict", "set", "frozenset", "tuple", "bytearray"):
                 return "int" if elt.id in ("int", "bool") else elt.id
             return "Any"
+        # self-tcb-reduction giants (generic class-body lowering): an `ast.<expr-node>`
+        # arm (`Optional[ast.expr]` — the `value` local of `_collect_class_constants`)
+        # carries the already-lowered emit_ir sub-node, so the synthesized Optional union
+        # arm is `Arm_i_0 emit_ir`. Byte-safe: no corpus program annotates a Union arm
+        # with an `ast.<Node>` type. Gated below by the `emit_ir` -> `emit_ir` _VPAY entry
+        # (module6). Only `ast.expr`/`ast.stmt`/`ast.AST` — the emit_ir-modelled AST bases.
+        if (isinstance(elt, ast.Attribute) and isinstance(elt.value, ast.Name)
+                and elt.value.id == "ast"
+                and elt.attr in ("expr", "stmt", "AST")):
+            return "emit_ir"
         if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
             head = elt.value.id
             if head in ("List", "list"):

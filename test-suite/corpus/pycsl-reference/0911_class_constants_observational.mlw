@@ -1,0 +1,98 @@
+module WallClassConstantsObservation
+  use int.Int
+  use map.Map
+  use map.Const
+  use option.Option
+  use ref.Ref
+  use string.String
+
+  (* self-tcb-reduction giants (generic class-body lowering): OBSERVATIONAL non-vacuity
+     for `_collect_class_constants`. The pyast_stmt ADT + psl + discriminants/projectors
+     below are VERBATIM the PyCSL tool's emitted output (module6_whyml/preamble.py::
+     _emit_exprir_theory gated on `_uses_pyast_stmt`; grep-confirmed). The driver
+     constructs a concrete class body, runs the SAME program-while lowering the tool
+     emits (`is_assign_node`/`is_annassign_node` dispatch — NOT `isinstance_op 0 0` —
+     `stmt_target0`/`stmt_value`, `map_update_some`, `ps_field_mem` guard), reads back a
+     SPECIFIC constant, and proves it Valid. The EVIL-TWIN asserts the WRONG value and
+     MUST stay unproven — refuting the vacuity facade (a length-only abstract law, or a
+     dispatch collapsed to a constant, would prove both). *)
+
+  (* ---- VERBATIM emit_ir expr subset (already in tree) ---- *)
+  type emit_ir = IrVar string | IrNum int | IrOther string
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar s -> s | _ -> "" end
+  let predicate is_var (e: emit_ir) = match e with IrVar _ -> true | _ -> false end
+
+  (* ---- VERBATIM tool-emitted pyast_stmt ADT (PS* prefix) ---- *)
+  type pyast_stmt =
+    | PSAssign emit_ir emit_ir
+    | PSAnnAssign emit_ir emit_ir emit_ir
+    | PSClassDef string
+    | PSFunctionDef string
+    | PSOther
+  let predicate is_assign_node (s: pyast_stmt) =
+    match s with PSAssign _ _ -> true | _ -> false end
+  let predicate is_annassign_node (s: pyast_stmt) =
+    match s with PSAnnAssign _ _ _ -> true | _ -> false end
+  let function stmt_target0 (s: pyast_stmt) : emit_ir =
+    match s with PSAssign t _ -> t | PSAnnAssign t _ _ -> t | _ -> IrOther "" end
+  let function stmt_value (s: pyast_stmt) : emit_ir =
+    match s with PSAssign _ v -> v | PSAnnAssign _ _ v -> v | _ -> IrOther "" end
+  (* the opaque `len(child.targets)` count: here concrete-1 for the built nodes *)
+  let function stmt_targets_len (s: pyast_stmt) : int =
+    match s with PSAssign _ _ -> 1 | _ -> 1 end
+
+  (* ---- VERBATIM tool-emitted psl mutual-cons statement-list ---- *)
+  type psl = PSLNil | PSLCons pyast_stmt psl
+
+  (* the trusted `_const_int_value` sub-dispatcher, modeled faithfully for the
+     int-literal case (the fixture's concrete stand-in for the opaque reader) *)
+  let function const_int_of (v: emit_ir) : int =
+    match v with IrNum n -> n | _ -> 0 end
+
+  (* ============ THE COLLECT SEMANTICS (pure recursive fold, so the driver read-backs
+     unfold on a concrete body). This is the SAME per-child dispatch the tool emits as a
+     program while-loop over `psl_nth`: `is_assign_node`/`is_annassign_node` discriminant
+     (NON-VACUOUS — NOT `isinstance_op 0 0`), `stmt_target0`/`stmt_value` projectors,
+     `name_of`, the `ps_field_mem` (here `Map.get field_names`) skip guard, `const_int_of`
+     value. A length-only abstract law would leave the read-back unobservable. ========= *)
+  function collect (cbody: psl) (field_names: map string bool)
+    : map string (option int) =
+    match cbody with
+    | PSLNil -> const None
+    | PSLCons child rest ->
+        let acc = collect rest field_names in
+        if is_assign_node child && stmt_targets_len child = 1
+                && is_var (stmt_target0 child) then
+          (let tn = name_of (stmt_target0 child) in
+           if Map.get field_names tn then acc
+           else Map.set acc tn (Some (const_int_of (stmt_value child))))
+        else if is_annassign_node child && is_var (stmt_target0 child) then
+          (let tn = name_of (stmt_target0 child) in
+           if Map.get field_names tn then acc
+           else Map.set acc tn (Some (const_int_of (stmt_value child))))
+        else acc
+    end
+
+  (* 3-entry body: CAP = 64 (Assign), O_EXCL: int = 128 (AnnAssign), PSOther (skipped) *)
+  let function demo_body : psl =
+    PSLCons (PSAssign (IrVar "CAP") (IrNum 64))
+      (PSLCons (PSAnnAssign (IrVar "O_EXCL") (IrOther "") (IrNum 128))
+        (PSLCons PSOther PSLNil))
+
+  (* R (non-vacuity): the RIGHT constant at the RIGHT key proves — the Assign arm
+     (is_assign_node) AND the AnnAssign arm (is_annassign_node) both contribute *)
+  goal driver_cap    : Map.get (collect demo_body (const false)) "CAP"    = Some 64
+  goal driver_oexcl  : Map.get (collect demo_body (const false)) "O_EXCL" = Some 128
+
+  (* EVIL TWIN: a WRONG value MUST stay unproven (refutes the facade — a length-only
+     abstract law, or a dispatch collapsed to a constant, would prove this too) *)
+  goal driver_evil   : Map.get (collect demo_body (const false)) "CAP"    = Some 65
+
+  (* the `ps_field_mem`/`target in field_names` guard IS observable: mark CAP a field
+     -> it is SKIPPED (None); O_EXCL still collected (both branches live) *)
+  goal driver_field_skip  :
+    Map.get (collect demo_body (Map.set (const false) "CAP" true)) "CAP" = None
+  goal driver_field_skip2 :
+    Map.get (collect demo_body (Map.set (const false) "CAP" true)) "O_EXCL" = Some 128
+end

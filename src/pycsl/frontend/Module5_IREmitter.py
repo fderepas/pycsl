@@ -2924,6 +2924,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                           "list", "dict", "set", "frozenset", "tuple", "bytearray"):
                 return "int" if elt.id in ("int", "bool") else elt.id
             return "Any"
+        # self-tcb-reduction giants (generic class-body lowering): an `ast.<expr-node>`
+        # arm (`Optional[ast.expr]` — the `value` local of `_collect_class_constants`)
+        # carries the already-lowered emit_ir sub-node, so the synthesized Optional union
+        # arm is `Arm_i_0 emit_ir`. Byte-safe: no corpus program annotates a Union arm
+        # with an `ast.<Node>` type. Gated below by the `emit_ir` -> `emit_ir` _VPAY entry
+        # (module6). Only `ast.expr`/`ast.stmt`/`ast.AST` — the emit_ir-modelled AST bases.
+        if (isinstance(elt, ast.Attribute) and isinstance(elt.value, ast.Name)
+                and elt.value.id == "ast"
+                and elt.attr in ("expr", "stmt", "AST")):
+            return "emit_ir"
         if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
             head = elt.value.id
             if head in ("List", "list"):
@@ -3018,14 +3028,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return None
 
     def _normalize_union_annotation(self, ann_expr: ast.expr,
-                                    scope_name: str) -> str:
+                                    scope_name: str, dedup: bool = False) -> str:
         """Recognize `Union`/`Optional`/`|` annotations and synthesize a per-site
         variant `type_decl`. Returns the variant name (registered in
         `symbol_table` and `program_ir["type_decls"]`), OR the existing IR tag
         for non-Union annotations (byte-identical fallback).
 
         `scope_name` is the enclosing function/method name used for deterministic
-        per-site mangling (`_union_<func>_<idx>`)."""
+        per-site mangling (`_union_<func>_<idx>`).
+
+        `dedup` (tool-feature-5): when True, STRUCTURALLY-identical Union sites in
+        the same scope share ONE synthesized type (via `_union_synth_cache`). Set
+        ONLY at the function LOCAL-declaration and RETURN-annotation seams, so a
+        mutable `x: Optional[τ] = None` local and the `-> Optional[τ]` return share
+        a type (Why3 sum types are nominal — else `return x` type-clashes). Left
+        False (per-site fresh variant, byte-identical) for FIELD/param annotations,
+        so record fields with several identical `Optional[τ]` slots keep distinct
+        per-site types exactly as before."""
         arms_ast = self._collect_union_arms(ann_expr)
         if arms_ast is None:
             return self._m5_get_type_name_legacy(ann_expr)
@@ -3055,9 +3074,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if not lowered and not none_present:
             # All arms were Any — refuse to synthesize a universal sink.
             return "int"
+        safe_scope = "".join(c if c.isalnum() else "_" for c in scope_name) or "anon"
+        # tool-feature-5 (Optional MUTABLE local): de-duplicate STRUCTURALLY-identical
+        # Union/Optional sites WITHIN one scope so a mutable local `x: Optional[τ] = None`
+        # and the enclosing function's `-> Optional[τ]` return share ONE synthesized union
+        # type. Why3 sum types are NOMINAL, so without this the local's `_union_f_0` and the
+        # return's `_union_f_1` are distinct types and `return x` (`!x : _union_f_0` vs the
+        # `_union_f_1` return type) fails to type-check. Key = (scope, ordered arm tags,
+        # None-arm present, Any-dropped). Only at the local-decl/return seams (`dedup=True`),
+        # so record fields keep distinct per-site types (byte-identical).
+        _sig = (safe_scope, tuple(tag for tag, _ in lowered), none_present, any_dropped)
+        _cache = getattr(self, "_union_synth_cache", None)
+        if _cache is None:
+            _cache = self._union_synth_cache = {}
+        if dedup and _sig in _cache:
+            return _cache[_sig]
         idx = self._fresh_var_counter
         self._fresh_var_counter += 1
-        safe_scope = "".join(c if c.isalnum() else "_" for c in scope_name) or "anon"
         variant_name = f"_union_{safe_scope}_{idx}"
         # Build the variant constructors: one per arm tag + a nullary Arm_None.
         # Constructor names are mangled per-variant (`Arm_<idx>_<i>`) so they
@@ -3082,6 +3115,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "type": variant_name, "arity": c["arity"]}
         if any_dropped:
             self.program_ir.setdefault("union_gt1_sites", []).append(variant_name)
+        if dedup:
+            _cache[_sig] = variant_name
         return variant_name
 
     # --- Final normalization (typing-engagement ty1 / 27-0000-typing-spec-3) ---
@@ -3462,7 +3497,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _m5_get_type_name(self, annotation: ast.expr,
                           scope_name: str = "",
-                          param_name: str = "") -> str:
+                          param_name: str = "",
+                          dedup: bool = False) -> str:
         """Public entry: try Final normalization first (resolving the inner type
         tag `τ(T)` — F3, no narrowing), then Literal normalization (synthesizing
         a ground `requires` clause), then Union normalization (synthesizing a
@@ -3536,7 +3572,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             pass
         if scope_name:
             try:
-                return self._normalize_union_annotation(annotation, scope_name)
+                return self._normalize_union_annotation(annotation, scope_name, dedup=dedup)
             except Exception:
                 # Never let a Union-recognition bug perturb a non-Union driver:
                 # fall back to the legacy path (byte-identical) on any error.
@@ -3938,7 +3974,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if isinstance(child, ast.Assign):
                 for target in child.targets:
                     if isinstance(target, ast.Name) and target.id not in shared:
-                        scope[target.id] = "Any"
+                        # tool-feature-5 (Optional MUTABLE local): a reassignment
+                        # `x = v` of a local that was ALREADY declared with a synthesized
+                        # Optional/Union type by its `x: Optional[τ] = None` AnnAssign
+                        # (processed FIRST by BFS `ast.walk` since the declaration is
+                        # shallower than the branch-local reassignment) must NOT clobber
+                        # that union type back to `Any`. Byte-inert: only a local that is
+                        # both union-declared AND plain-reassigned is affected — no corpus
+                        # program has an Optional-typed mutable local.
+                        if not str(scope.get(target.id, "")).startswith("_union_"):
+                            scope[target.id] = "Any"
                         # WL-06b (faithful bytes value content): a local bound to a
                         # `bytes` LITERAL (`b = b"abc"`) is the τ-blessed `bytes=int†`
                         # array-int buffer AND is IMMUTABLE. Classify it as "bytes" so
@@ -3977,8 +4022,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             dict_key_types.setdefault(target.id, "string")
             elif isinstance(child, ast.AnnAssign):
                 if isinstance(child.target, ast.Name) and child.target.id not in shared:
+                    # tool-feature-5: `dedup=True` at the LOCAL-declaration seam so a
+                    # mutable `x: Optional[τ] = None` shares the enclosing function's
+                    # `-> Optional[τ]` return union (nominal identity for `return x`).
                     scope[child.target.id] = (
-                        self._m5_get_type_name(child.annotation, _scope_name)
+                        self._m5_get_type_name(child.annotation, _scope_name, dedup=True)
                         if child.annotation else "Any"
                     )
                     if child.annotation is not None:
@@ -4118,8 +4166,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return_annotation = str(node.returns.value)
             elif isinstance(node.returns, ast.BinOp) and isinstance(node.returns.op, ast.BitOr):
                 # PEP 604 `X | Y` return — route through Union normalization.
+                # tool-feature-5 `dedup=True`: share the union with a mutable
+                # `x: Optional[τ] = None` local of the SAME type (see local seam).
                 return_annotation = self._normalize_union_annotation(
-                    node.returns, node.name)
+                    node.returns, node.name, dedup=True)
             elif isinstance(node.returns, ast.Subscript):
                 # Parametric annotations like `List[str]`, `Tuple[int, int]`,
                 # `Dict[str, Any]`, `Optional[int]`. Capture the head identifier
@@ -4139,8 +4189,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         # `Optional[T]` / `Union[...]` return — synthesize a
                         # per-site variant (typing-engagement ty1), so the
                         # return type is a real sum type, not a collapsed int.
+                        # tool-feature-5 `dedup=True`: share the union with a mutable
+                        # `x: Optional[τ] = None` local of the SAME type.
                         return_annotation = self._normalize_union_annotation(
-                            node.returns, node.name)
+                            node.returns, node.name, dedup=True)
                     else:
                         return_annotation = head.lower()
                         # item34.md CF5: capture a `List[str]`/`List[int]` return's ELEMENT
@@ -4227,10 +4279,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 acts_ir.append({"kind": "complete", "names": list(_a.names)})
             elif isinstance(_a, Disjoint):
                 acts_ir.append({"kind": "disjoint", "names": list(_a.names)})
+        # self-tcb-reduction giants (generic class-body lowering): preserve the RAW
+        # `ast.<Node>` annotation of a param (`node: ast.ClassDef`), which the type
+        # resolver otherwise collapses to `int`. Module6's `_uses_pyast_stmt` /
+        # `py_classdef_node` param-typing read this to lower `node.body` faithfully.
+        # Empty for every non-`ast.<Node>`-annotated param -> byte-identical.
+        _past_node_types: Dict[str, str] = {}
+        for _arg in list(getattr(node.args, "posonlyargs", []) or []) + list(node.args.args):
+            _ann = getattr(_arg, "annotation", None)
+            if (isinstance(_ann, ast.Attribute) and isinstance(_ann.value, ast.Name)
+                    and _ann.value.id == "ast"):
+                _past_node_types[_arg.arg] = _ann.attr
         return {
             "name": func_name,
             "symbol_table": symbol_table,
             "param_annotations": _pann,
+            "param_ast_node_types": _past_node_types,
             "param_list_elem_types": dict(_plet),
             # nested-list.md S2: outer-list element type for a `List[<container>]`
             # param (`seq ..`/`map ..`). Empty for flat lists → byte-identical.

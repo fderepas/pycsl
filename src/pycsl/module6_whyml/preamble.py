@@ -4546,7 +4546,126 @@ class PreambleEmissionMixin:
                 "  val function eh_body_ast (h: ast_excepthandler) : array int",
                 "",
             ]) if self._uses_stmt_ir() else []),
+            *(([
+                "",
+                "  (* pyast_stmt ADT (self-tcb-reduction giants, generic class-body lowering):"
+                " the INPUT-side raw `ast.stmt` union a class-body iterator"
+                " (`_collect_class_constants`) isinstance-dispatches over. `PS*` prefix"
+                " (disjoint from the OUTPUT stmt_ir's SAssign). Carries emit_ir children (the"
+                " already-lowered target/value/annotation exprs). `stmt_node_kind_of` +"
+                " `is_K` discriminants + faithfulness lemmas (is_K <-> kind = \"K\") model the"
+                " isinstance dispatch faithfully. Projectors `stmt_target0`/`stmt_value`/"
+                " `stmt_annotation`/`def_name` read the children; `stmt_targets_len` the"
+                " opaque `len(child.targets)` count. `psl` is the mutual-cons statement-list"
+                " `node.body` iterates (the irlist precedent). `class_body_ast` reads the"
+                " class-body psl; `ps_const_int` models the trusted `_const_int_value`;"
+                " `ps_field_mem` the `target in field_names` membership. Gated on"
+                " `_uses_pyast_stmt` -> corpus + every other mirror byte-identical. *)",
+            ] + (["  type py_classdef_node"] if not self._uses_stmt_ir() else []) + [
+                "  type pyast_stmt =",
+                "    | PSAssign emit_ir emit_ir",
+                "    | PSAnnAssign emit_ir emit_ir emit_ir",
+                "    | PSClassDef string",
+                "    | PSFunctionDef string",
+                "    | PSOther",
+                "  let function stmt_node_kind_of (s: pyast_stmt) : string =",
+                "    match s with",
+                "    | PSAssign _ _ -> \"Assign\"",
+                "    | PSAnnAssign _ _ _ -> \"AnnAssign\"",
+                "    | PSClassDef _ -> \"ClassDef\"",
+                "    | PSFunctionDef _ -> \"FunctionDef\"",
+                "    | PSOther -> \"Other\"",
+                "    end",
+                "  let predicate is_assign_node (s: pyast_stmt) ="
+                " match s with PSAssign _ _ -> true | _ -> false end",
+                "  let predicate is_annassign_node (s: pyast_stmt) ="
+                " match s with PSAnnAssign _ _ _ -> true | _ -> false end",
+                "  let predicate is_classdef_node (s: pyast_stmt) ="
+                " match s with PSClassDef _ -> true | _ -> false end",
+                "  let predicate is_functiondef_node (s: pyast_stmt) ="
+                " match s with PSFunctionDef _ -> true | _ -> false end",
+                "  lemma is_assign_faithful : forall s: pyast_stmt."
+                " is_assign_node s <-> stmt_node_kind_of s = \"Assign\"",
+                "  lemma is_annassign_faithful : forall s: pyast_stmt."
+                " is_annassign_node s <-> stmt_node_kind_of s = \"AnnAssign\"",
+                "  lemma is_classdef_faithful : forall s: pyast_stmt."
+                " is_classdef_node s <-> stmt_node_kind_of s = \"ClassDef\"",
+                "  lemma is_functiondef_faithful : forall s: pyast_stmt."
+                " is_functiondef_node s <-> stmt_node_kind_of s = \"FunctionDef\"",
+                "  let function stmt_target0 (s: pyast_stmt) : emit_ir =",
+                "    match s with PSAssign t _ -> t | PSAnnAssign t _ _ -> t"
+                " | _ -> IrOther \"\" end",
+                "  let function stmt_value (s: pyast_stmt) : emit_ir =",
+                "    match s with PSAssign _ v -> v | PSAnnAssign _ _ v -> v"
+                " | _ -> IrOther \"\" end",
+                "  let function stmt_annotation (s: pyast_stmt) : emit_ir =",
+                "    match s with PSAnnAssign _ a _ -> a | _ -> IrOther \"\" end",
+                "  let function def_name (s: pyast_stmt) : string =",
+                "    match s with PSClassDef n -> n | PSFunctionDef n -> n | _ -> \"\" end",
+                "  val function stmt_targets_len (s: pyast_stmt) : int",
+                "  type psl = PSLNil | PSLCons pyast_stmt psl",
+                "  let rec function psl_len (l: psl) : int ="
+                " match l with PSLNil -> 0 | PSLCons _ t -> 1 + psl_len t end",
+                "  let rec function psl_nth (i: int) (l: psl) : pyast_stmt",
+                "    variant { l } =",
+                "    match l with PSLNil -> PSOther"
+                " | PSLCons h t -> if i <= 0 then h else psl_nth (i-1) t end",
+                "  val function class_body_ast (n: py_classdef_node) : psl",
+                "  val function ps_const_int (v: emit_ir) : option int",
+                "  val function ps_field_mem (name: string) : bool",
+                "",
+            ]) if self._uses_pyast_stmt() else []),
         ]
+
+    def _uses_pyast_stmt(self) -> bool:
+        """pyast_stmt ADT (self-tcb-reduction giants): True iff some function in this file
+        iterates a class-body — `for <x> in <p>.body` where `<p>` is a parameter annotated
+        `ast.ClassDef` — the shape the generic class-body lowering handles (piece 2/3). Only
+        the Module5 mirror's `_collect_class_constants` produces it, so the pyast_stmt theory
+        + psl loop stay OUT of every other mirror's SMT context and the whole corpus
+        (byte-identical). Cached."""
+        cached = getattr(self, "_uses_pyast_stmt_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._pyast_classdef_body_params(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_pyast_stmt_cache = result
+        return result
+
+    def _pyast_classdef_body_params(self, func: Dict[str, Any]) -> Set[str]:
+        """The parameters of `func` that are (a) annotated `ast.ClassDef` AND (b) iterated
+        via `for <x> in <param>.body` somewhere in the body. These become `py_classdef_node`
+        params whose `.body` reads the `class_body_ast` psl (generic class-body lowering)."""
+        pann = func.get("param_ast_node_types") or {}
+        classdef_params = {
+            p for p, a in pann.items()
+            if isinstance(a, str) and a == "ClassDef"}
+        if not classdef_params:
+            return set()
+        found: Set[str] = set()
+
+        def walk(stmts: Any) -> None:
+            if not isinstance(stmts, list):
+                return
+            for st in stmts:
+                if not isinstance(st, dict):
+                    continue
+                if st.get("stmt") in ("For", "ForStmt"):
+                    it = st.get("iter", {})
+                    if (isinstance(it, dict) and it.get("type") == "Attribute"
+                            and it.get("attr") == "body"):
+                        obj = it.get("object", {})
+                        if (isinstance(obj, dict) and obj.get("type") == "Var"
+                                and obj.get("name") in classdef_params):
+                            found.add(obj["name"])
+                for v in st.values():
+                    if isinstance(v, list):
+                        walk(v)
+                    elif isinstance(v, dict):
+                        walk(v.get("body")) if isinstance(v.get("body"), list) else None
+        walk(func.get("body"))
+        return found
 
     def _uses_stmt_ir(self) -> bool:
         """stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): True iff some
@@ -4698,7 +4817,10 @@ class PreambleEmissionMixin:
             self._ambiguous_fields |= (_rec_fields & self._reserved_exprir_symbols())
         n = len(type_decls)
         i = 0
-        _VPAY = {"int": "int", "bool": "int", "str": "string", "float": "real"}
+        _VPAY = {"int": "int", "bool": "int", "str": "string", "float": "real",
+                 # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
+                 # carries the already-lowered emit_ir sub-node (`Arm_i_0 emit_ir`).
+                 "emit_ir": "emit_ir"}
         # no-more-int-3 A5a: declared `#@ datatype` names, so a constructor
         # payload that NAMES a datatype (a self-reference `Node(Tree, Tree)` or
         # another variant) resolves to that variant's Why3 type instead of the

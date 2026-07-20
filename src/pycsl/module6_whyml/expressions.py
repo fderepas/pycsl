@@ -646,6 +646,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         generic abstract `contains_check`."""
         negate = op == "not in"
         rhs = expr.get("right", {})
+        # self-tcb-reduction giants (generic class-body lowering): `target in field_names`
+        # — membership against the opaque `field_names` param (a `Set[str]`, int-modelled,
+        # NOT a tracked dict/set local) — lowers to the abstract `ps_field_mem <target>`
+        # predicate (the honest model of a runtime set membership, deciding the
+        # skip-if-already-a-field branch). Gated on `_pyast_stmt_locals` (only set inside
+        # the class-body giant's emission) + `field_names` being a plain opaque param ->
+        # corpus-inert. `<target>` is already the carrier-projected string.
+        if getattr(self, "_pyast_stmt_locals", None) and rhs.get("type") == "Var":
+            _rn = rhs.get("name", "")
+            _rt = self._current_symbol_table.get(_rn)
+            if (_rn in self._formal_params and _rn not in self._dict_locals
+                    and _rt not in ("set", "dict", "frozenset", "list", "str")):
+                _pfm = f"(ps_field_mem {left})"
+                return f"(not {_pfm})" if negate else _pfm
         if rhs.get("type") in ("Tuple", "ArrayLit", "SetLit"):
             elts = rhs.get("elts", [])
             if elts:
@@ -1054,6 +1068,103 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "CSLFieldAccess": "FieldGet",
     }
 
+    # self-tcb-reduction giants (generic class-body lowering): map a Python AST
+    # STATEMENT class name (`ast.Assign`) to the `pyast_stmt` ADT discriminant an
+    # `isinstance(child, ast.<K>)` test lowers to (`is_assign_node child`, …), where
+    # `child` is a `pyast_stmt`-typed class-body loop var. Faithful: on every real class
+    # body child, `stmt_node_kind_of` = "K" iff `is_K_node` (the ADT faithfulness
+    # lemmas). Gated on `child in _pyast_stmt_locals` -> corpus-inert.
+    _AST_CLASS_TO_STMT_KIND = {
+        "Assign": "is_assign_node", "AnnAssign": "is_annassign_node",
+        "ClassDef": "is_classdef_node", "FunctionDef": "is_functiondef_node",
+    }
+
+    def _pyast_stmt_child_var(self, ir: Any) -> Optional[Dict[str, Any]]:
+        """Return the `ir` if it is a `pyast_stmt`-typed class-body loop var
+        (`child in _pyast_stmt_locals`), else None."""
+        if (isinstance(ir, dict) and ir.get("type") == "Var"
+                and ir.get("name") in getattr(self, "_pyast_stmt_locals", set())):
+            return ir
+        return None
+
+    def _pyast_stmt_read(self, expr: Any, local_refs: Set[str],
+                         invariant_ctx: bool = False,
+                         subst: Optional[Dict[str, str]] = None) -> Optional[str]:
+        """self-tcb-reduction giants (generic class-body lowering): lower a READ over a
+        `pyast_stmt`-typed class-body loop var `child` to the ADT projector, else None:
+          `child.value`            -> `(stmt_value child)`      (emit_ir)
+          `child.target`           -> `(stmt_target0 child)`    (emit_ir, AnnAssign)
+          `child.annotation`       -> `(stmt_annotation child)` (emit_ir)
+          `child.name`             -> `(def_name child)`        (string)
+          `child.targets[0]`       -> `(stmt_target0 child)`    (emit_ir)
+          `len(child.targets)`     -> `(stmt_targets_len child)`(int)
+          `child.targets[0].id` / `child.target.id`
+                                   -> `(name_of (stmt_target0 child))`  (string, chained)
+        Every emit reads the VERBATIM body shape (no name-key); a body change re-emits."""
+        if not isinstance(expr, dict):
+            return None
+        t = expr.get("type")
+        if t == "Attribute":
+            obj = expr.get("object", {})
+            attr = expr.get("attr")
+            c = self._pyast_stmt_child_var(obj)
+            if c is not None:
+                cw = self._expr_to_whyml(c, local_refs, invariant_ctx, subst)
+                if attr == "value":
+                    return f"(stmt_value {cw})"
+                if attr == "target":
+                    return f"(stmt_target0 {cw})"
+                if attr == "annotation":
+                    return f"(stmt_annotation {cw})"
+                if attr == "name":
+                    return f"(def_name {cw})"
+            # chained: `<emit_ir stmt-projector>.id` -> `(name_of <proj>)`
+            inner = self._pyast_stmt_read(obj, local_refs, invariant_ctx, subst)
+            if inner is not None and attr in _EMIT_IR_STR_ATTRS:
+                return f"({_EMIT_IR_STR_ATTRS[attr]} {inner})"
+            return None
+        if t in ("Subscript", "SliceAccess"):
+            val = expr.get("value", {})
+            _sl = expr.get("index")
+            _is0 = (isinstance(_sl, dict) and _sl.get("type") == "Number"
+                    and _sl.get("value") in (0, 0.0))
+            if (isinstance(val, dict) and val.get("type") == "Attribute"
+                    and val.get("attr") == "targets" and _is0):
+                c = self._pyast_stmt_child_var(val.get("object", {}))
+                if c is not None:
+                    cw = self._expr_to_whyml(c, local_refs, invariant_ctx, subst)
+                    return f"(stmt_target0 {cw})"
+            return None
+        if t == "Call" and expr.get("func") == "len":
+            cargs = expr.get("args") or []
+            if (len(cargs) == 1 and isinstance(cargs[0], dict)
+                    and cargs[0].get("type") == "Attribute"
+                    and cargs[0].get("attr") == "targets"):
+                c = self._pyast_stmt_child_var(cargs[0].get("object", {}))
+                if c is not None:
+                    cw = self._expr_to_whyml(c, local_refs, invariant_ctx, subst)
+                    return f"(stmt_targets_len {cw})"
+        return None
+
+    def _is_pyast_stmt_emit_ir_read(self, ir: Any) -> bool:
+        """True iff `ir` is a `pyast_stmt` projector that yields an `emit_ir` sub-node
+        (`child.value`/`child.target`/`child.annotation`/`child.targets[0]`) — so the
+        emit_ir isinstance/`.id` machinery treats it as an emit_ir expression."""
+        if not isinstance(ir, dict):
+            return False
+        t = ir.get("type")
+        if t == "Attribute" and ir.get("attr") in ("value", "target", "annotation"):
+            return self._pyast_stmt_child_var(ir.get("object", {})) is not None
+        if t in ("Subscript", "SliceAccess"):
+            val = ir.get("value", {})
+            _sl = ir.get("index")
+            _is0 = (isinstance(_sl, dict) and _sl.get("type") == "Number"
+                    and _sl.get("value") in (0, 0.0))
+            return bool(isinstance(val, dict) and val.get("type") == "Attribute"
+                        and val.get("attr") == "targets" and _is0
+                        and self._pyast_stmt_child_var(val.get("object", {})) is not None)
+        return False
+
     def _emit_ir_receiver_of_type_get(self, ir: Any) -> Optional[Dict[str, Any]]:
         """If `ir` is a reflection of a node's discriminant — `<recv>.get("type")` (Call
         with a bare `.get` func / a `receiver` sub-node) or the `.type`/`.kind` attribute
@@ -1222,6 +1333,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not isinstance(ir, dict):
             return False
         t = ir.get("type")
+        # self-tcb-reduction giants: a `pyast_stmt` emit_ir-yielding projector
+        # (`child.value`/`child.target`/`child.targets[0]`) IS an emit_ir sub-node.
+        if self._is_pyast_stmt_emit_ir_read(ir):
+            return True
         if t == "DictLit":
             for k in ir.get("keys", []):
                 if isinstance(k, dict) and k.get("type") == "String" and k.get("value") == "type":
@@ -2766,6 +2881,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     else expr["left"]
                 var_str = self._expr_to_whyml(var_side, local_refs,
                                               invariant_ctx, subst)
+                # tool-feature-5: for a MUTABLE Optional local (`x: Optional[τ] = None`,
+                # a `ref _union_*`) the `is None` guard sits in a PROGRAM `if`, where
+                # `(!x = Arm_i_None)` is ill-typed (Why3 has no derived `=` on the
+                # algebraic type as a program bool). Emit the match-boolean discriminant
+                # instead — valid in both program and logic context. Gated on the local
+                # being a recognized Optional-union local, so union PARAMS (whose `is
+                # None` in specs keeps the `=` form) are byte-identical.
+                _vname = var_side.get("name") if isinstance(var_side, dict) else None
+                if _vname in getattr(self, "_optional_union_locals", set()):
+                    # The guard must inspect the RAW `ref _union_*` (`!x`), NOT the
+                    # carrier-projecting read (giants read-projection) — `_expr_to_whyml`
+                    # projects a union-local value read, which would strip the ctor the
+                    # match discriminates on. Deref directly here.
+                    _raw = f"!{whyml_ident(_vname)}"
+                    chk = (f"(match {_raw} with {union_ctor} -> true "
+                           f"| _ -> false end)")
+                    return chk if raw_op == "==" else f"(not {chk})"
                 chk = f"({var_str} = {union_ctor})"
                 return chk if raw_op == "==" else f"(not {chk})"
             # typed-ir-for-b-ceiling.md B-C2: `x is None` on an `emit_ir`-typed operand
@@ -5072,6 +5204,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # relies on for `.get("type") == "K"`).
         _a0 = args_ir[0] if args_ir else None
         _a1 = args_ir[1] if len(args_ir) > 1 else None
+        # self-tcb-reduction giants (generic class-body lowering): `isinstance(child,
+        # ast.<K>)` where `child` is a `pyast_stmt`-typed class-body loop var lowers to
+        # the ADT discriminant `(is_K_node child)`. Gated on `child in _pyast_stmt_locals`
+        # AND the `ast.<K>` stmt-class second arg -> corpus-inert.
+        if (self._pyast_stmt_child_var(_a0) is not None
+                and isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                and isinstance(_a1.get("object"), dict)
+                and _a1["object"].get("type") == "Var"
+                and _a1["object"].get("name") == "ast"
+                and _a1.get("attr") in self._AST_CLASS_TO_STMT_KIND):
+            _pred = self._AST_CLASS_TO_STMT_KIND[_a1["attr"]]
+            _cv = self._expr_to_whyml(_a0, local_refs, getattr(self, "_in_spec", False), None)
+            return f"({_pred} {_cv})"
         if (isinstance(_a0, dict) and isinstance(_a1, dict)
                 and _a1.get("type") == "Attribute"
                 and isinstance(_a1.get("object"), dict)
@@ -6478,6 +6623,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _n = {"type": "Attribute", "object": _n, "attr": _p}
         return self._expr_to_whyml(_n, local_refs, False, subst)
 
+    def _union_local_read_projection(self, name: str) -> Optional[str]:
+        """tool-feature-5 (giants read-projection): the carrier-projecting read of a
+        mutable Optional-union local `name` (a `ref _union_*`): `(match !name with
+        Arm_i_0 _v -> _v | _ -> <sentinel>)`, where the sentinel is the Some-arm carrier
+        type's zero. None if `name` is not a single-Some-arm Optional union."""
+        symtype = getattr(self, "_current_symbol_table", {}).get(name)
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        some_ctor = None
+        some_pay = "int"
+        for cn, c in vinfo.get("constructors", {}).items():
+            if c.get("arity") == 1:
+                if some_ctor is not None:
+                    return None   # multi-Some union — out of scope
+                some_ctor = cn
+                _pay = c.get("payload") or []
+                some_pay = _pay[0] if _pay else "int"
+        if some_ctor is None:
+            return None
+        _sentinel = {"str": '""', "string": '""', "emit_ir": '(IrOther "")',
+                     "real": "0.0", "float": "0.0"}.get(some_pay, "0")
+        return (f"(match !{whyml_ident(name)} with {some_ctor} _v -> _v "
+                f"| _ -> {_sentinel} end)")
+
     def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
                          subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature
@@ -6502,6 +6672,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return whyml_ident(name)
         if name in self._record_locals:
             return whyml_ident(name)
+        if name in getattr(self, "_optional_union_locals", set()):
+            # tool-feature-5 (giants read-projection): a VALUE read of a mutable
+            # Optional-union local `x` (a `ref _union_*`) projects the carrier of its
+            # Some-arm (`match !x with Arm_i_0 _v -> _v | _ -> <sentinel>`) so `x` used as
+            # its underlying τ (a string key, an emit_ir arg) type-checks. The `is None`
+            # guard uses the RAW `!x` (handled in `_handle_binop`); the assignment TARGET
+            # is not a read; so only value reads project. Sentinel picks the carrier's
+            # zero (string "", emit_ir `IrOther ""`, real 0.0, else 0).
+            _proj = self._union_local_read_projection(name)
+            if _proj is not None:
+                return _proj
         if name in local_refs:
             return f"!{whyml_ident(name)}"
         # wrong-lowering-to-fix.md §WL-05b: an inner-mutated dict/set PARAM is a
@@ -8115,6 +8296,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # --- legacy dict body (un-converted kinds) ---
         expr = node.to_dict()
         t = expr["type"]
+
+        # self-tcb-reduction giants (generic class-body lowering): a READ over a
+        # `pyast_stmt`-typed class-body loop var lowers to the ADT projector chain.
+        # Gated on `child in _pyast_stmt_locals` -> inert for every other expression.
+        if getattr(self, "_pyast_stmt_locals", None):
+            _psr = self._pyast_stmt_read(expr, local_refs, invariant_ctx, subst)
+            if _psr is not None:
+                return _psr
 
         # Simple literals and trivial 1-3-line branches — kept inline
         if t == "Number":
