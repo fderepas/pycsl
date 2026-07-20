@@ -52,12 +52,16 @@ _BLOCK_HDRS = (('act', _ACT_HDR), ('happy', _HAPPY_HDR), ('inductive', _INDUCTIV
 def _match_block_hdr(line: str):
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _indent_width(body: str) -> int:
-    return 0
+    lead = body[: len(body) - len(body.lstrip())]
+    if "\t" in lead:
+        raise PyCSLParseError(
+            "tabs are not allowed in `act` block indentation; use 4 spaces",
+            stage="Module1")
+    return len(lead)
 
 class Module1_Ingestor:
     'Ingests source code and extracts `#@` annotations as PyCSLContracts.'

@@ -1870,13 +1870,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if (t in ("Attribute", "FieldGet") and _ms_str and self._is_string_expr(v)):
                 return True
             # a SLICE of a STRING (`var[len("self."):]` prefix strip) is a substring -> string.
-            # The base may be a string local recognized EARLIER in this same fixpoint (`var =
-            # node.var`), so consult the accumulating `out` set too, not just `_is_string_expr`.
+            # A slice whose base is a GENUINELY string-typed value (a `str` param/symbol, e.g.
+            # `_indent_width`'s `lead = body[:n]`) is a string local regardless of @mutable_state
+            # — the slice lowers to `str_sub_op` (string), so `len(lead)` must route to
+            # `str_length_op` and `"\t" in lead` to the string-contains path (else `len` wrongly
+            # emits `Array.length` on a string). Keyed on `_is_string_expr(base)`, which is only
+            # True for a declared-string base → corpus-byte-inert.
+            if (t in ("Subscript", "SliceAccess")
+                    and self._is_string_expr(v.get("value", {}))):
+                return True
+            # The base may instead be a string local recognized EARLIER in this same fixpoint
+            # (`var = node.var`), so consult the accumulating `out` set too. @mutable_state.
             if (t in ("Subscript", "SliceAccess") and _ms_str
-                    and (self._is_string_expr(v.get("value", {}))
-                         or (isinstance(v.get("value"), dict)
-                             and v["value"].get("type") == "Var"
-                             and v["value"].get("name") in out))):
+                    and isinstance(v.get("value"), dict)
+                    and v["value"].get("type") == "Var"
+                    and v["value"].get("name") in out):
                 return True
             if (t in ("Subscript", "SliceAccess")
                     and self._split_call_recv_sep(v.get("value", {})) is not None):
