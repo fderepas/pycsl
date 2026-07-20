@@ -60,12 +60,22 @@ def _scan_node_for_subscript_calls(node: Any, generic_names: int) -> List[int]:
 def _type_str(node: Any) -> Optional[str]:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _sanitize_type_name(name: str) -> Optional[str]:
-    return None
+    """Normalize a concrete type name to one of the PyCSL primitive tags or a
+    user class name. Returns None for Any/unrecognized."""
+    if not name:
+        return None
+    if name == "Any":
+        return "Any"  # caught by GT1 in the caller
+    # PyCSL primitive tags.
+    if name in ("int", "bool", "str", "bytes", "float", "list", "dict", "set"):
+        # bool is modeled as int in PyCSL; keep the source name for clarity,
+        # the substitution maps both to WhyML int.
+        return name
+    return name
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
