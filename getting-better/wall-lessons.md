@@ -87,3 +87,31 @@ User-authorized the giants substrate build for `_is_emit_ir_expr`. Spike-by-buil
 heterogeneous `Dict[str,Any]`/`pyval` value model + its certificate.** That is a dedicated multi-session RESEARCH
 build (no-more-int "long-term EXTREME RIGOR"), not a driver-loop single/multi-piece build. Leaving these giants
 `\trusted` is an ASSUMPTION, not a soundness hole. FRONTIER AT RESEARCH-GRADE FLOOR for the driver loop.
+
+## 2026-07-20 (10h run) — the MASKED-WHOLE-FILE-BLOCKER vein (NEW; +4 conv + 4 byte-inert emitter fixes)
+KEY DISCOVERY: the prior run's `no_cheap_remaining` was MASKING cheap stubs. A stub can be trivial yet
+ungateable because ANOTHER stub's emitted signature breaks the WHOLE FILE's whole-file proof (the gate is
+whole-file, §10.10). The prior loop only PROBED conversions; it never FIXED the emitter, so it couldn't see
+past the blocker. Fixing the byte-inert emitter bug unblocks the file's gate -> its cheap stubs convert.
+Detect: sweep `for f in mirror/*.py; do pycsl $f --no-proof | grep -q 'L3-tc ✓' || echo FAIL; done`.
+FIVE emitter bugs found; FOUR fixed byte-inert (corpus diff 0, ledger 3), each unblocking a file/class:
+1. `option (seq string)` un-parenthesized (functions.py _compute_return_type) -> `option (seq τ)` parens guard
+   (mirrors _emit_dict_map_type). Unblocked Module6_WhyMLTranspiler.py -> +1 (_wrap_with_no_exception_assert).
+2. undeclared-union `Return_` exception (preamble.py _emit_union_return_exceptions): an IMPORTED trusted-stub
+   fn's synthesized `_union_*` type_decl isn't merged into the emitting module -> dangling unbound type. FIX:
+   skip Return_ for unions not in declared_types. Unblocked audit_proof/pycsl/__init__ typecheck.
+3. string-faithful lowering was gated behind @mutable_state; un-gate on declared-`string` return (ternary
+   _handle_ifexpr_expr) + genuinely-string slice base (_collect_str_call_result_locals) -> +2 (BoolLit.pp,
+   _indent_width) +1 sibling (_sanitize_type_name). Highest-leverage: a real no-more-int capability.
+4. `self__py_expr_to_ir_1` unbound (abstract_ops.py): stmt_ir-bespoke handlers emit raw dispatcher refs that
+   only get an abstract `val` when a non-stub method calls them; in an IMPORTED emitter class all methods are
+   bodyless -> unbound. FIX: _register_referenced_self_dispatch_vals scans out + registers the missing vals.
+   Unblocked ir_resolve/frontend.__init__ typecheck (but those stubs are dependency-stub-walled / proof-times-out).
+VEIN NOW EXHAUSTED for cheap wins: unblocked files' remaining stubs are all value-model-walled (@property
+vacuous, Set[str]-membership int-hash, heterogeneous-dict, collection option-int, whole-file-proof-timeout).
+LESSON: masked blockers CHAIN (fix one -> next surfaces) and BOTTOM OUT at the value model. But the vein is
+REAL and was invisible to the probe-only base loop — always sweep whole-file-typecheck FIRST at a claimed floor.
+The 5th blocker (stmt_control_flow `{"pattern":str,"ctor":var,"captures":[list]}`) = the heterogeneous
+Dict[str,Any] value-model wall = CERTIFIED-BOUNDARY (research build, now escalated: pyval-value-model-wall.md).
+Also: Set[str]/frozenset membership int-hashes the string (str_hash_op) — a SEPARATE collection value-model
+wall from the ternary/slice/len string capability; candidates are in the ledger file (off-limits) or compound-blocked.
