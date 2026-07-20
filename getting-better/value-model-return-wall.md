@@ -79,3 +79,16 @@ byte-diff-0-gated, axiom-free increment? Or does the return-value model have a d
 variant-arm-payload representation is load-bearing elsewhere and cannot carry a seq)? An oracle run (a hand
 `.mlw` emitting the faithful `List[str]` return + a `pycsl --fun` on a minimal `List[str]`-returning function)
 should CONFIRM or REFUTE before any emitter edit.
+
+## 8. Post-R1 follow-on survey (2026-07-20 driver run) — `no_cheap_liststr`
+R1's `Return_seq_str` capability uniquely fit `_extract_generic_arg_names`. Every other `List[str]`-returning
+`\trusted` stub carries a DISTINCT second blocker (none cheap):
+- `_split_tuple_type` (types.py:568) — return ALREADY lowers (`array string` via `_split_comp_array_string`);
+  ONLY 3 intermediate string ops wall it: `str.startswith`/`str.endswith` (bool string ops, not in
+  `_STR_VALUE_METHODS`) + string slice `inner[1:-1]`. **The cleanest next conversion** (fix the string ops → it converts).
+- ~25 module6 WhyML-text emitters (`_emit_preamble_*`/`_emit_contracts`/`_emit_function`/…) — `out.append("<literal>")`
+  hits the **string-LITERAL int-hash** (`_coerce_str_arg`/`stable_hash`, expressions.py:473 — the fable-flagged leak);
+  biggest class BUT each also reads dict fields off `needs`/`ir`, so the literal-hash fix alone converts NONE.
+- `_collect_2d_params` (Set[str]+sorted+recursive dict-walk); `_coerce_dotted_args` (zip+f-string+coercion chain);
+  Module1_Ingestor `_normalize_leading`/`_fold_blocks` (str.strip/regex substrate); from_sexp `_walk_*` (raw Python tuples).
+NEXT ESCALATION: faithful `str.startswith`/`str.endswith` + string slice → converts `_split_tuple_type` (spike the slice first).
