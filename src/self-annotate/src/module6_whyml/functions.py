@@ -286,11 +286,16 @@ class FunctionEmissionMixin:
     def _build_method_param_whyml_types_by_name(self, functions: List[int]) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_method_return_annotation_map(self, functions: List[int]) -> int:
-        return {}
+    def _build_method_return_annotation_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, str]:
+        result: Dict[str, str] = {}
+        for func in functions:
+            ann = func.get("return_annotation")
+            if ann:
+                result[func["name"]] = ann
+        return result
 
 

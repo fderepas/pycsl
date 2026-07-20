@@ -1,0 +1,133 @@
+module WallFlatStrDictFoldObservation
+  use int.Int
+  use list.List
+  use option.Option
+  use string.String
+
+  (* self-tcb-reduction census §3 (flat twin): OBSERVATIONAL non-vacuity for the
+     FLAT string-value dict collector recognizer that converts
+     `_build_method_return_annotation_map`
+       (`out={}; for f in fs: v=f.get("return_annotation"); if v: out[f["name"]]=v`).
+     The `pyval`/`pydict`/`irkey`/`sdict`/`slookup`/`sappend`/`pv_size` theory and the
+     `<n>__get_K_name` / `<n>__get_dyn_return_annotation` / `<n>__pre` / walk group
+     below are VERBATIM the PyCSL tool's emitted output (module6_whyml/preamble.py::
+     `_sdict_theory_lines`/`_pydict_theory_lines`, and generic_fold.py::
+     `emit_dictfold_group` on a `value.kind == "str1"` / `tag is None` recognition;
+     grep-confirmed against the emitted .mlw), modulo the per-method name mangling
+     (short names here) and `pystr_eq` strengthened to string equality (the tool
+     leaves it an unconstrained `val`; equality is the faithful model of the guard
+     `pystr_eq s "return_annotation"` and is what makes a specific read-back
+     observable). No new constructor, no new axiom. *)
+
+  type irkey = K_type | K_left | K_right | K_op | K_z
+             | K_value | K_target | K_body | K_orelse | K_func | K_name
+             | K_dyn string
+
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  type sdict = SNil | SCons string pyval sdict
+
+  (* the tool emits `val pystr_eq (a b: string) : bool` (unconstrained); the fixture
+     grounds it as string equality — the faithful model of the guard, which is what
+     makes a specific read-back observable. *)
+  function pystr_eq (a b: string) : bool = a = b
+
+  function slookup (k: string) (s: sdict) : option pyval
+  = match s with
+    | SNil -> None
+    | SCons k' v rest -> if pystr_eq k k' then Some v else slookup k rest
+    end
+
+  function sappend (a b: sdict) : sdict
+  = match a with
+    | SNil -> b
+    | SCons k v rest -> SCons k v (sappend rest b)
+    end
+
+  function pv_size (v: pyval) : int
+  = match v with
+    | PInt _ | PStr _ | PBool _ | PNone -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict d  -> 1 + size_dict d
+    end
+  with size_list (l: list pyval) : int
+  = match l with Nil -> 0 | Cons h t -> 1 + pv_size h + size_list t end
+  with size_dict (d: pydict) : int
+  = match d with DNil -> 0 | DCons _ v rest -> 1 + pv_size v + size_dict rest end
+
+  (* ---- VERBATIM tool-emitted fold group (modulo name mangling). ---- *)
+  function get_name (d: pydict) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons K_name v _ -> Some v
+    | DCons _ _ rest -> get_name rest
+    end
+  function get_ann (d: pydict) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons (K_dyn s) v rest -> if pystr_eq s "return_annotation" then Some v else get_ann rest
+    | DCons _ _ rest -> get_ann rest
+    end
+  function pre (d: pydict) : sdict
+  = match get_name d with
+    | Some (PStr k) ->
+        (match get_ann d with
+         | Some (PStr v) -> SCons k (PStr v) SNil
+         | _ -> SNil end)
+    | _ -> SNil end
+  function bld (fs: list pyval) : sdict
+  = match fs with
+    | Nil -> SNil
+    | Cons h t -> sappend (bld_val h) (bld t)
+    end
+  with bld_val (v: pyval) : sdict
+  = match v with
+    | PDict d -> sappend (pre d) (bld_dict d)
+    | PList xs -> bld xs
+    | _ -> SNil
+    end
+  with bld_dict (d: pydict) : sdict
+  = match d with
+    | DNil -> SNil
+    | DCons _ v rest -> sappend (bld_val v) (bld_dict rest)
+    end
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — the built sdict carries the RIGHT string    *)
+  (* value at the RIGHT string key (real reads, not int-erased).            *)
+  (* ==================================================================== *)
+
+  (* a func with `name="foo"`, `return_annotation="str"` -> result maps "foo"->"str". *)
+  let driver_present () : unit =
+    let f = PDict (DCons K_name (PStr "foo")
+                    (DCons (K_dyn "return_annotation") (PStr "str") DNil)) in
+    assert { slookup "foo" (bld (Cons f Nil)) = Some (PStr "str") }
+
+  (* a func with NO return_annotation -> its name is ABSENT from the result
+     (the `if v:` guard fired false — no int-placeholder, no spurious entry). *)
+  let driver_absent () : unit =
+    let f = PDict (DCons K_name (PStr "bar") DNil) in
+    assert { slookup "bar" (bld (Cons f Nil)) = None }
+
+  (* EVIL TWIN 1 — wrong VALUE: "foo" does NOT map to "int". MUST stay UNPROVEN. *)
+  let driver_evil_value () : unit =
+    let f = PDict (DCons K_name (PStr "foo")
+                    (DCons (K_dyn "return_annotation") (PStr "str") DNil)) in
+    assert { slookup "foo" (bld (Cons f Nil)) = Some (PStr "int") }
+
+  (* EVIL TWIN 2 — spurious entry: a func WITHOUT return_annotation must NOT
+     inject its name. `slookup "bar" = Some (PStr "bar")` MUST stay UNPROVEN. *)
+  let driver_evil_absent () : unit =
+    let f = PDict (DCons K_name (PStr "bar") DNil) in
+    assert { slookup "bar" (bld (Cons f Nil)) = Some (PStr "bar") }
+
+end

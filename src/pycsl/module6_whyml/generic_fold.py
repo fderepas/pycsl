@@ -4260,6 +4260,21 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
 #     comprehension + set-cardinality the contract does not need), modelled as a
 #     placeholder `PInt 0` — a value-refinement `ensures True` makes irrelevant.
 #
+# FLAT TWIN (`_recognize_flat_strdictfold` / `value.kind == "str1"`, `tag is None`):
+# a NON-recursive collector `out={}; for x in <list>: v = x.get("<vkey>"); if v:
+# out[x["<kkey>"]] = v; return out` — no `.update(self(…))` merge, no stmt-tag
+# guard, the KEY is an inline subscript `x["<kkey>"]` and the VALUE a NO-DEFAULT
+# `.get` (string). Discriminated from the recursive fold by that inline-subscript
+# key. The value is read FAITHFULLY (`get_<vkey>` -> `Some (PStr v)` -> `SCons k
+# (PStr v)`); the `if v:` truthiness is modelled by the `Some (PStr v)` arm (the
+# empty-string refinement is a value fact `ensures True` does not need). The
+# emitted catamorphism still visits ALL children — a SUPERSET of the source's
+# single-level `for x in <list>` scan, sound under type-safety-only exactly as
+# above. Only the str-typed value dict is taken (`dict_value_types[acc]=="string"`),
+# tying the emitted `PStr` to the inferred value type. Gated by `needs_sdict`
+# (`recognize_dictfold` covers both twins), so corpus emission stays byte-identical.
+# (`_build_method_return_annotation_map`; observational fixture 0912.)
+#
 # Fail-closed exactly as the other folds: a miss keeps the method `\trusted`; a
 # template bug yields an unprovable instance (the full-file re-proof is loud),
 # never a false proof. Verified inert on the reference corpus (byte-diff 0); a
@@ -4292,6 +4307,45 @@ def _match_acc_update_self(stmt: Any, acc: str, fname: str) -> bool:
     inner = args[0]
     return (isinstance(inner, dict) and inner.get("type") == "Call"
             and _call_is_self(inner.get("func"), fname))
+
+
+def _recognize_flat_strdictfold(
+        func: Dict[str, Any], subj: str, acc: str, x: str, key_key: str,
+        aset: Dict[str, Any], lbody: List[Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the FLAT string-value dict collector (census §3 flat
+    twin): `out={}; for x in <listparam>: v = x.get("<vkey>"); if v: out[x["<kkey>"]]
+    = v; return out`. No self-merge, no stmt-tag guard, no threaded set; the value
+    is read by a NO-DEFAULT `.get` (string), the key by an inline subscript."""
+    # no threaded set — the sole formal must be the subject list.
+    if [p for p in func.get("formal_params", []) if p != subj]:
+        return None
+    # value must be a str-typed dict AND read via a `if <vloc>:`-guarded local.
+    if (func.get("dict_value_types") or {}).get(acc) != "string":
+        return None
+    vexpr = aset.get("value", {})
+    if not _is_var(vexpr):
+        return None
+    vloc = vexpr["name"]
+    # `<vloc> = <x>.get("<vkey>")` — NO-DEFAULT get, somewhere in the loop body.
+    vkey = None
+    for s in _iter_dict_nodes(lbody):
+        if s.get("stmt") == "Assign" and s.get("target") == vloc:
+            vkey = _match_get_call(s.get("value", {}), x)
+            break
+    if vkey is None:
+        return None
+    # the insert MUST be guarded by `if <vloc>:` (truthiness of the read value),
+    # no orelse — a different guard/direction fails closed (stays \trusted).
+    guarded = any(
+        s.get("stmt") == "If" and not s.get("orelse")
+        and _is_var(s.get("test"), vloc)
+        and any(a is aset for a in _iter_dict_nodes(s.get("body", [])))
+        for s in _iter_dict_nodes(lbody))
+    if not guarded:
+        return None
+    return {"subject": subj, "extra_params": [], "acc": acc,
+            "guard_key": None, "tag": None, "key_key": key_key,
+            "value": {"kind": "str1", "value_key": vkey}, "flat": True}
 
 
 def recognize_dictfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -4354,17 +4408,28 @@ def _recognize_dictfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
     lbody = loop.get("body", [])
 
-    # ≥1 self-recursion merge `<acc>.update(self(…))`.
-    if not any(_match_acc_update_self(s, acc, func["name"])
-               for s in _iter_dict_nodes(lbody)):
-        return None
-
     # exactly one ArraySet on <acc> (the runtime-keyed insert).
     sets = [s for s in _iter_dict_nodes(lbody)
             if s.get("stmt") == "ArraySet" and _is_var(s.get("array"), acc)]
     if len(sets) != 1:
         return None
     aset = sets[0]
+
+    # ---- FLAT string-value collector (census §3, flat twin): the shape
+    #      `<acc>[<x>["<kkey>"]] = <vloc>` under a `if <vloc>:` truthiness guard,
+    #      with `<vloc> = <x>.get("<vkey>")` (NO-DEFAULT get, string value). No
+    #      self-merge, no stmt-tag guard, no threaded set. The inline-subscript
+    #      KEY (`<x>["<kkey>"]`, not a pre-assigned `.get` local) discriminates
+    #      it from the recursive dict-fold below.
+    #      (`_build_method_return_annotation_map`.) ----
+    _ik = _match_subscript_str(aset.get("index", {}), x)
+    if _ik is not None:
+        return _recognize_flat_strdictfold(func, subj, acc, x, _ik, aset, lbody)
+
+    # ≥1 self-recursion merge `<acc>.update(self(…))`.
+    if not any(_match_acc_update_self(s, acc, func["name"])
+               for s in _iter_dict_nodes(lbody)):
+        return None
 
     # KEY: `<acc>[<kv>] = …` where `<kv> = <x>.get("<key_key>"[, def])`.
     idx = aset.get("index", {})
@@ -4463,9 +4528,11 @@ def emit_dictfold_group(func: Dict[str, Any], df: Dict[str, Any],
     out: List[str] = []
 
     # ---- spine readers (dedup by key) ----
-    needed = [gkey, kkey]
+    needed = ([kkey] if gkey is None else [gkey, kkey])
     if value["kind"] == "str2":
         needed += [value["child_key"], value["field_key"]]
+    elif value["kind"] == "str1":
+        needed += [value["value_key"]]
     seen: set = set()
     for key in needed:
         if key in seen:
@@ -4473,31 +4540,44 @@ def emit_dictfold_group(func: Dict[str, Any], df: Dict[str, Any],
         seen.add(key)
         out += _pv_reader_lines(n, key)
 
-    gsuf = _reader_suffix(gkey)
     ksuf = _reader_suffix(kkey)
 
     # ---- the per-node pre-action: guarded runtime-keyed insert ----
     out.append(f"  let {n}__pre (d: pydict){extra_sig} : sdict")
-    out.append(f"  = match {n}__get_{gsuf} d with")
-    out.append("    | Some (PStr s) ->")
-    out.append(f'        if pystr_eq s "{tag}" then')
-    out.append(f"          (match {n}__get_{ksuf} d with")
-    out.append("           | Some (PStr k) ->")
-    if value["kind"] == "str2":
-        csuf = _reader_suffix(value["child_key"])
-        fsuf = _reader_suffix(value["field_key"])
-        setp = whyml_ident(value["set_param"])
-        out.append(f"               (match {n}__get_{csuf} d with")
-        out.append("                | Some (PDict vd) ->")
-        out.append(f"                    (match {n}__get_{fsuf} vd with")
-        out.append(f"                     | Some (PStr fn) -> if Map.get {setp} fn then SCons k (PStr fn) SNil else SNil")
-        out.append("                     | _ -> SNil end)")
-        out.append("                | _ -> SNil end)")
+    if tag is None:
+        # FLAT string-value collector: no stmt-tag guard. Insert `SCons k (PStr v)`
+        # iff the KEY reads `Some (PStr k)` AND the no-default `.get` value reads
+        # `Some (PStr v)` (the `if v:` truthiness gate; empty-string refinement is
+        # a value fact the `ensures True` contract does not need).
+        vsuf = _reader_suffix(value["value_key"])
+        out.append(f"  = match {n}__get_{ksuf} d with")
+        out.append("    | Some (PStr k) ->")
+        out.append(f"        (match {n}__get_{vsuf} d with")
+        out.append("         | Some (PStr v) -> SCons k (PStr v) SNil")
+        out.append("         | _ -> SNil end)")
+        out.append("    | _ -> SNil end")
     else:
-        out.append("               SCons k (PInt 0) SNil")
-    out.append("           | _ -> SNil end)")
-    out.append("        else SNil")
-    out.append("    | _ -> SNil end")
+        gsuf = _reader_suffix(gkey)
+        out.append(f"  = match {n}__get_{gsuf} d with")
+        out.append("    | Some (PStr s) ->")
+        out.append(f'        if pystr_eq s "{tag}" then')
+        out.append(f"          (match {n}__get_{ksuf} d with")
+        out.append("           | Some (PStr k) ->")
+        if value["kind"] == "str2":
+            csuf = _reader_suffix(value["child_key"])
+            fsuf = _reader_suffix(value["field_key"])
+            setp = whyml_ident(value["set_param"])
+            out.append(f"               (match {n}__get_{csuf} d with")
+            out.append("                | Some (PDict vd) ->")
+            out.append(f"                    (match {n}__get_{fsuf} vd with")
+            out.append(f"                     | Some (PStr fn) -> if Map.get {setp} fn then SCons k (PStr fn) SNil else SNil")
+            out.append("                     | _ -> SNil end)")
+            out.append("                | _ -> SNil end)")
+        else:
+            out.append("               SCons k (PInt 0) SNil")
+        out.append("           | _ -> SNil end)")
+        out.append("        else SNil")
+        out.append("    | _ -> SNil end")
 
     # ---- the returned-sdict walk / build_val / build_dict group ----
     out.append(f"  let rec {n} ({subj}: list pyval){extra_sig} : sdict")
