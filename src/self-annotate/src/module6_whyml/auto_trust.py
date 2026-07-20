@@ -85,12 +85,14 @@ class AutoTrustMixin:
     def _should_auto_trust_set_op(self, body_stmts: List[int], func_trusted: bool) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _should_auto_trust_array_return(self, func: int, body_stmts: List[int], return_type: str, func_trusted: bool) -> bool:
-        return False
+    def _should_auto_trust_array_return(self, func: int, body_stmts: List[Dict[str, Any]], return_type: str, func_trusted: bool) -> bool:
+        if func_trusted or return_type != "array int":
+            return False
+        return (IRScanner.has_early_return(body_stmts)
+                or IRScanner.has_in_loop_return(body_stmts))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
