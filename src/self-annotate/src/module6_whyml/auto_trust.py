@@ -78,12 +78,14 @@ class AutoTrustMixin:
     def _has_set_op_on_map(self, obj: Any, map_locals: int=None) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _should_auto_trust_set_op(self, body_stmts: List[int], func_trusted: bool) -> bool:
-        return False
+        if func_trusted:
+            return False
+        map_locals = self._collect_map_typed_locals(body_stmts)
+        return self._has_set_op_on_map(body_stmts, map_locals)
 
     #@ requires True
     #@ ensures True
