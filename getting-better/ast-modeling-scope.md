@@ -283,6 +283,22 @@ byte-diff risk; (6) `_const_int_value`→opaque `ps_const_int`; (7) `Phase2e` Ro
 **Sequence #5 FIRST (verify in isolation)** — it is the sole piece with no reusable pattern and the highest byte-diff
 risk. Yield of the whole build: ~3 giants. Count held 1031 (no facade, no infra-only landing).
 
+### 8c. `_collect_union_arms` = DEFERRED WALL (2026-07-20 driver run) — NOT expr-only-cheap
+Attempted as the next cheap conversion; the port + emit found the REAL first blocker (measure-before-build):
+`List[emit_ir]`/`Optional[List[emit_ir]]` RETURN is int-erased (`Arm_3_0 int`, so `args_of : array emit_ir`
+fails to typecheck) — **the value model has no `List[emit_ir]` return type.** Beyond that, the whole body
+lowers to opaque `int` facades (`stack_pop_0()`/`arms_reverse_0()`/`ast_Constant_0()` read nothing;
+`node.left`→opaque `get_left` NOT `left_of`; `isinstance(x,ast.BinOp)`→VACUOUS `isinstance_op 0 0`, NOT the
+existing `is_binop`; `while stack:` no invariant/variant). **REFUTES §1a/§1b "✓" marks** for `is_binop`,
+`left_of`/`right_of` (the projectors exist in preamble but the emitter does not ROUTE this body to them).
+The 5-piece build it needs: (1) `List[emit_ir]` return value model; (2) `ast.Constant(None)`→real `IrNone`
+ctor; (3) mutable `emit_ir` worklist locals with faithful `.pop()`/`.append()`/`.reverse()`; (4) `is_binop`
+wiring for the BinOp-`|` isinstance; (5) a `while`-worklist loop with a tree-size-SUM termination variant
+(novel — the banked psl-loop's trivial length variant does NOT cover a worklist flatten). **The ce71e3ab
+psl-loop capability does NOT apply** (union_arms is worklist expr-work, not `node.body` iteration). Deferred:
+a deliberate multi-piece build, escalate only after the cheaper `_collect_typevar_registry` (which DOES reuse
+the psl-loop — it iterates `node.body`).
+
 ### 8a. Item #5 PINPOINTED (isolation probe, 2026-07-19)
 Minimal probe (`scratchpad/opt_local_probe.py`: `r: Optional[str] = None; if x>0: r="pos"; if r is None: return None; return r`)
 → the tool emits **`let r = ref 0 in`** — it INT-ERASES the `None` initializer of an `Optional[τ]` local (the return-type
