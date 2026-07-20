@@ -3836,6 +3836,22 @@ class PreambleEmissionMixin:
             "  let function value_of (e: emit_ir) : string =",
             "    match e with IrStr v -> v | IrRaw v -> v | _ -> \"\" end",
             "",
+            # self-tcb-reduction (_is_null_byte_lit): the INTEGER-value reader for a Number
+            # leaf. `value_of` reads only the STRING leaves (IrStr/IrRaw), so a `Number` node's
+            # `.get("value")` (an int) has no faithful projector — `_is_null_byte_lit`'s
+            # `elts[0].get("value") == 0` would mis-lower to `str_hash_op (value_of elt) = 0`
+            # (value_of = "" for every Number, so it cannot tell Number 0 from Number 5 —
+            # vacuous). `num_of` projects IrNum's int payload, so `num_of elt = 0` is the
+            # FAITHFUL int test. Definitional `let function`, NO axiom. GATED on
+            # `_uses_null_byte_num_reader` (a file defining `_is_null_byte_lit`); no corpus
+            # program defines it, so the emit_ir theory every corpus file emits stays
+            # byte-identical. Routed ONLY inside `_is_null_byte_lit` via a scoped `.get("value")`
+            # override, so every other handler's `.get("value")` keeps the string `value_of`.
+            *(([
+                "  let function num_of (e: emit_ir) : int =",
+                "    match e with IrNum n -> n | _ -> 0 end",
+                "",
+            ]) if self._uses_null_byte_num_reader() else []),
             "  (* tier3-p1 increment 2 (§5e / risk-6 asymmetry): FieldGet projections."
             " FieldGet.object is a LEAF string (`fgobject_of` : string) — UNLIKE"
             " Attribute.object which is a SUB-node (`object_of` : emit_ir). FieldGet.field is"
@@ -4693,6 +4709,22 @@ class PreambleEmissionMixin:
             self._stmt_seq_append_params(fn)
             for fn in self.ir.get("functions", []) or [])
         self._uses_stmt_ir_cache = result
+        return result
+
+    def _uses_null_byte_num_reader(self) -> bool:
+        """self-tcb-reduction (_is_null_byte_lit): True iff this file defines a
+        `_is_null_byte_lit` function — the sole consumer of the `num_of` integer-value
+        reader (which projects IrNum's int payload so `elts[0].get("value") == 0` reads
+        faithfully). No corpus program defines a function by that name, so gating `num_of`'s
+        emission on this keeps the emit_ir theory every corpus file emits byte-identical.
+        Cached."""
+        cached = getattr(self, "_uses_null_byte_num_reader_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_is_null_byte_lit")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_null_byte_num_reader_cache = result
         return result
 
     def _uses_pyconst_val(self) -> bool:

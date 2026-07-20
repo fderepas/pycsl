@@ -1,0 +1,58 @@
+module WallNullByteLitObservation
+  use int.Int
+  use string.String
+
+  (* self-tcb-reduction (_is_null_byte_lit): OBSERVATIONAL non-vacuity for the byte-literal
+     recognizer `_is_null_byte_lit` (module6_whyml/expressions.py), which returns True iff
+     `ir` is an `ArrayLit` of a single `Number 0` (the `b'\x00'` lowering). The emit_ir subset,
+     `kind_of` and the NEW `num_of` reader below are VERBATIM the PyCSL tool's emitted output
+     (module6_whyml/preamble.py::_emit_exprir_theory: `kind_of` arms `IrNum _ -> "Number"` /
+     `IrListN _ -> "ArrayLit"`; `num_of` gated on `_uses_null_byte_num_reader` = `match e with
+     IrNum n -> n | _ -> 0`). grep-confirmed.
+
+     The recognizer's element list is the tool's `args_of ir` (an opaque `array emit_ir`); its
+     length and first element are the only observed pieces, modeled here as `n` (Array.length)
+     and `e0` (elts[0]). The load-bearing claim: `num_of` is a FAITHFUL int projector — it
+     distinguishes `Number 0` from `Number 7` — so the value test `elts[0].get("value") == 0` is
+     NON-vacuous (the earlier `str_hash_op (value_of elt)` lowering, "" for every Number, could
+     not). The EVIL TWINS pin this: a `Number 7` element and a non-ArrayLit head stay UNPROVEN. *)
+
+  type emit_ir = IrNum int | IrStrK | IrListN | IrOther string
+  function kind_of (e: emit_ir) : string =
+    match e with IrNum _ -> "Number" | IrListN -> "ArrayLit"
+               | IrStrK -> "String" | IrOther k -> k end
+  function num_of (e: emit_ir) : int =
+    match e with IrNum n -> n | _ -> 0 end
+
+  (* recognizer body VERBATIM (tool): kind_of ir = "ArrayLit" /\ length = 1 /\
+     kind_of elts[0] = "Number" /\ num_of elts[0] = 0. `n` = length (args_of ir),
+     `e0` = (args_of ir)[0]. *)
+  predicate null_byte (ir: emit_ir) (n: int) (e0: emit_ir) =
+    kind_of ir = "ArrayLit" /\ n = 1 /\ kind_of e0 = "Number" /\ num_of e0 = 0
+
+  (* ==================================================================== *)
+  (* OBSERVATIONAL non-vacuity — each discriminant of the recognizer.      *)
+  (* ==================================================================== *)
+
+  (* b'\x00' = ArrayLit, one element, Number 0 -> True. *)
+  goal g_true : null_byte IrListN 1 (IrNum 0)
+
+  (* wrong head kind (String, not ArrayLit) -> False. *)
+  goal g_false_kind : not (null_byte IrStrK 1 (IrNum 0))
+
+  (* two elements (length != 1) -> False. *)
+  goal g_false_len : not (null_byte IrListN 2 (IrNum 0))
+
+  (* single element but wrong kind (not Number) -> False. *)
+  goal g_false_inner : not (null_byte IrListN 1 (IrOther "X"))
+
+  (* single Number but value 7 (not 0) -> False. This is the num_of non-vacuity. *)
+  goal g_false_value : not (null_byte IrListN 1 (IrNum 7))
+
+  (* EVIL TWIN 1 (value false-positive): ArrayLit[Number 7] is NOT b'\x00' — this goal is
+     FALSE and must FAIL (else `num_of` is vacuous and cannot tell 0 from 7). *)
+  goal g_evil_value : null_byte IrListN 1 (IrNum 7)
+
+  (* EVIL TWIN 2 (kind false-positive): a String head is NOT an ArrayLit — FALSE, must FAIL. *)
+  goal g_evil_kind : null_byte IrStrK 1 (IrNum 0)
+end

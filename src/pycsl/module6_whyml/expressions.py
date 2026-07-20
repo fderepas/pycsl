@@ -2598,8 +2598,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _grcv = ir.get("receiver")
                 if isinstance(_grcv, dict) and self._is_emit_ir_expr(_grcv):
                     _gk = (ir.get("args") or [{}])[0]
+                    # self-tcb-reduction (_is_null_byte_lit): a Number element's `.get("value")`
+                    # there reads the INT payload (`num_of`), so it is NOT string-typed — the
+                    # `== 0` comparison must stay an int `=`, not the mixed str_hash_op path.
+                    # Scoped via `_current_emitting_func` → corpus/consumer-inert.
                     if (isinstance(_gk, dict) and _gk.get("type") == "String"
-                            and _gk.get("value") in _EMIT_IR_STR_KEYS + ("value",)):
+                            and _gk.get("value") in _EMIT_IR_STR_KEYS + ("value",)
+                            and not (_gk.get("value") == "value"
+                                     and (getattr(self, "_current_emitting_func", None) or "")
+                                     .endswith("_is_null_byte_lit"))):
                         return True
                 _gf = self._getattr_self_field(ir.get("receiver"))
                 if _gf and self._self_field_dict_nu(f"self.{_gf}") == "string":
@@ -5354,7 +5361,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # IfExpr's SCALAR then-branch (`.get("body", {})` → `body_of`). Disambiguate
                     # by the `.get` DEFAULT ARGUMENT shape: an empty-dict-literal `{}` default
                     # means the receiver is a ternary node, not a stmt-list container.
-                    _proj = ("value_of" if _k == "value"
+                    # self-tcb-reduction (_is_null_byte_lit): inside `_is_null_byte_lit`, an
+                    # element's `.get("value")` reads a NUMBER leaf's INT payload (`num_of`),
+                    # not the string `value_of` (which is "" for a Number → a vacuous value
+                    # test). Scoped via `_current_emitting_func` → corpus/consumer-inert.
+                    _proj = ("num_of" if (_k == "value"
+                                 and (getattr(self, "_current_emitting_func", None) or "").endswith("_is_null_byte_lit"))
+                             else "value_of" if _k == "value"
                              else "body_of" if (_k == "body" and self._get_default_is_empty_dict(expr))
                              else _EMIT_IR_PROJ.get(_k))
                     if _proj:

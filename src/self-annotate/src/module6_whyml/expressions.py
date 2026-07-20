@@ -377,13 +377,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _emit_contract_logic_symbol(self, func_name: str, expr: int, args: List[str]) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _is_null_byte_lit(ir: int) -> bool:
-        return False
+    def _is_null_byte_lit(ir: "ExprIR") -> bool:
+        """True iff `ir` is the byte literal `b'\\x00'` — represented in the IR as an
+        `ArrayLit` of a single `Number 0` (the bytes literal lowering)."""
+        if ir.get("type") != "ArrayLit":
+            return False
+        elts = ir.get("elts", [])
+        return (len(elts) == 1
+                and elts[0].get("type") == "Number"
+                and elts[0].get("value") == 0)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
