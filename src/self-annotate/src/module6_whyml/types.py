@@ -335,11 +335,29 @@ class TypeInferenceMixin:
     def _collect_variant_var_assigns(self, stmts: List[int]) -> int:
         return set()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_dict_var_assigns(self, stmts: List[int]) -> int:
-        return set()
+    def _collect_dict_var_assigns(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Post-pass for body-dict / body-set local detection: variables
+        whose RHS yields a `map int (option int)` value (via map-typed
+        param Var, IfExpr branches, BinOp `|`/`&`/`-` between map-typed
+        sides, etc.). Used to exclude them from the integer `ref 0`
+        pre-declaration path."""
+        found: Set[str] = set()
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                if isinstance(val, dict) and self._rhs_yields_map(val):
+                    tgt = s.get("target", "")
+                    if tgt:
+                        found.add(tgt)
+            for k in ("body", "orelse"):
+                if k in s:
+                    found |= self._collect_dict_var_assigns(s[k])
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found |= self._collect_dict_var_assigns(h.get("body", []))
+        return found
 
 

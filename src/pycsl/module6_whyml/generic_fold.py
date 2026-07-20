@@ -2761,6 +2761,84 @@ def _match_field_in_guard(node: Any, valv: str, extra: List[str]) -> Optional[tu
     return (key, right.get("name"))
 
 
+def _match_self_pred_guard(node: Any, valv: str) -> Optional[str]:
+    """`self.<pred>(<valv>)` — an instance-method BOOLEAN guard over the
+    isinstance-narrowed value local (`self._rhs_yields_map(val)`). Returns the
+    predicate method tail (e.g. `"_rhs_yields_map"`) or None. The predicate is
+    modelled as an OPAQUE trusted bool over the value pyval — a legitimate
+    opaque-reader boundary (like `symtab_mem`/`csl_mutex_ast`), NOT an axiom —
+    so only the SHAPE (a self-method applied to exactly the narrowed local) is
+    validated, fail-closed. A sibling call with an extra arg, a non-`self`
+    receiver, or a different argument rejects."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"):
+        return None
+    f = node.get("func")
+    if not isinstance(f, str) or not f.startswith("self."):
+        return None
+    args = node.get("args", [])
+    if len(args) != 1 or not _is_var(args[0], valv):
+        return None
+    meth = f[len("self."):]
+    return meth or None
+
+
+def _pred_whyml_name(n: str, meth: str) -> str:
+    """WhyML-safe opaque-predicate name for a `self.<meth>` guard, per method
+    group `n` (so distinct methods never collide)."""
+    return f"{n}__pred_" + "".join(c if c.isalnum() else "_" for c in meth)
+
+
+def _match_direct_add_expr(stmt: Any, acc: str, stmtv: str) -> Optional[str]:
+    """`<acc>.add(<stmtv>.get("<key>"[, default]))` as an ExprStmt -> key."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return None
+    call = stmt.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1):
+        return None
+    return _match_get_call(call["args"][0], stmtv)
+
+
+def _match_stmt_arm_add_body(ibody: List[Any], stmtv: str, acc: str) -> Optional[str]:
+    """The add-arm inner body -> the literal add-key, for EITHER:
+      * direct    `[<acc>.add(<stmtv>.get("<key>"))]` (len 1), OR
+      * indirect  `[<tgt> = <stmtv>.get("<key>"[, def]); if <tgt>: <acc>.add(<tgt>)]`
+        (len 2) — a bind + truthiness-guard + add-of-local. Under `ensures True`
+        the `if <tgt>:` truthiness guard is subsumed by the emission's
+        `option`-match (an absent/empty key reads `None` -> `const false`
+        regardless), so only the SHAPE is validated and the bound local's
+        literal-key PROVENANCE (`<stmtv>.get("<key>")`) becomes the emitted add
+        source. Fail-closed."""
+    if len(ibody) == 1:
+        return _match_direct_add_expr(ibody[0], acc, stmtv)
+    if len(ibody) == 2:
+        asg, addif = ibody
+        if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+            return None
+        tgt = asg.get("target")
+        if not isinstance(tgt, str):
+            return None
+        key = _match_get_call(asg.get("value", {}), stmtv)
+        if key is None:
+            return None
+        if not (isinstance(addif, dict) and addif.get("stmt") == "If"
+                and not addif.get("orelse") and _is_var(addif.get("test"), tgt)):
+            return None
+        ab = addif.get("body", [])
+        if len(ab) != 1:
+            return None
+        a0 = ab[0]
+        if not (isinstance(a0, dict) and a0.get("stmt") == "Expr"):
+            return None
+        cv = a0.get("value", {})
+        if not (isinstance(cv, dict) and cv.get("type") == "Call"
+                and cv.get("func") == f"{acc}.add" and len(cv.get("args", [])) == 1
+                and _is_var(cv["args"][0], tgt)):
+            return None
+        return key
+    return None
+
+
 def _match_stmt_add_arm(stmt: Any, stmtv: str, acc: str,
                         extra: List[str]) -> Optional[Dict[str, Any]]:
     """Optional add-arm:
@@ -2769,9 +2847,14 @@ def _match_stmt_add_arm(stmt: Any, stmtv: str, acc: str,
             if isinstance(<val>, dict) and <guards>:
                 <acc>.add(<stmt>.get("<addkey>"[, default]))
     `<guards>` is a conjunction of one-or-more `<val>.get(k)==lit` (eq) /
-    `<val>.get(k) in <extra_set_param>` (in) tests, in any mix. Returns
-    {outer_tag, val_local, guards: [(kind, key, lit_or_param)], add_key} or
-    None (fail-closed)."""
+    `<val>.get(k) in <extra_set_param>` (in) tests, AND/OR an opaque
+    self-predicate `self.<pred>(<val>)` (`pred_guarded`, see
+    `_match_self_pred_guard`), in any mix. The add body is the direct
+    `<acc>.add(<stmt>.get(...))` OR the indirect
+    `<tgt> = <stmt>.get(...); if <tgt>: <acc>.add(<tgt>)` shape
+    (`_match_stmt_arm_add_body`). Returns
+    {outer_tag, val_local, guards: [(kind, key, lit_or_param)], add_key,
+    preds?: [meth]} or None (fail-closed)."""
     if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
         return None
     if stmt.get("orelse"):
@@ -2796,6 +2879,7 @@ def _match_stmt_add_arm(stmt: Any, stmtv: str, acc: str,
     conjuncts = _flatten_and(inner.get("test", {}))
     saw_isinstance = False
     guards: List[tuple] = []
+    preds: List[str] = []
     for c in conjuncts:
         if (isinstance(c, dict) and c.get("type") == "Call" and c.get("func") == "isinstance"
                 and len(c.get("args", [])) == 2 and _is_var(c["args"][0], valv)
@@ -2812,24 +2896,21 @@ def _match_stmt_add_arm(stmt: Any, stmtv: str, acc: str,
         if mem is not None:
             guards.append(("in", mem[0], mem[1]))
             continue
+        pred = _match_self_pred_guard(c, valv)
+        if pred is not None:
+            preds.append(pred)
+            continue
         return None
-    if not saw_isinstance or not guards:
+    if not saw_isinstance or not (guards or preds):
         return None
-    ibody = inner.get("body", [])
-    if len(ibody) != 1:
-        return None
-    add = ibody[0]
-    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
-        return None
-    call = add.get("value", {})
-    if not (isinstance(call, dict) and call.get("type") == "Call"
-            and call.get("func") == f"{acc}.add" and len(call.get("args", [])) == 1):
-        return None
-    add_key = _match_get_call(call["args"][0], stmtv)
+    add_key = _match_stmt_arm_add_body(inner.get("body", []), stmtv, acc)
     if add_key is None:
         return None
-    return {"kind": "value_guarded", "outer_tag": outer_tag, "val_local": valv,
+    desc = {"kind": "value_guarded", "outer_tag": outer_tag, "val_local": valv,
             "guards": guards, "add_key": add_key}
+    if preds:
+        desc["preds"] = preds
+    return desc
 
 
 # ---- G-set-accumulate-simple: the CHAIN add-arm (`find_append_targets`) -----
@@ -3115,11 +3196,16 @@ def _match_elif_chain(node: Any, stmtv: str, acc: str, fname: str,
 
 def _match_stmt_union_call(node: Any, acc: str, fname: str, extra: List[str]) -> Optional[List[Any]]:
     """`<self>(<arg0>[, extra...])` as a Call value -> its args list, or None
-    (does not check `arg0`'s own shape — the caller does)."""
+    (does not check `arg0`'s own shape — the caller does). `<self>` resolves to
+    this same function via `_call_is_self`: the module-level bare name, the
+    class-qualified static call, OR the instance-method `self.<meth>`
+    self-recursion (the emitted name is `<class>__<meth>`). The `self.` arm lets
+    an INSTANCE-method stmt-fold (`_collect_dict_var_assigns`) match, where the
+    prior bare-`_canon_call` equality only covered `@staticmethod` folds."""
     if not (isinstance(node, dict) and node.get("type") == "Call"):
         return None
     cf = node.get("func")
-    if not isinstance(cf, str) or _canon_call(cf) != fname:
+    if not isinstance(cf, str) or not _call_is_self(cf, fname):
         return None
     args = node.get("args", [])
     if len(args) != 1 + len(extra):
@@ -3201,20 +3287,27 @@ def _match_echo_arm(stmt: Any, stmtv: str, acc: str, fname: str,
         if <stmt>.get("stmt") == "For": <acc> |= self(<stmt>.get("body", [])[, extra...])
         if <stmt>.get("stmt") == "Match":
             for c in <stmt>.get("cases", []): <acc> |= self(c.get("body", [])[, extra...])
-    Returns the matched tag or None."""
+        if <stmt>.get("stmt") == "Try":
+            for h in <stmt>.get("handlers", []): <acc> |= self(h.get("body", [])[, extra...])
+    Returns the matched tag or None. The `Try`/handlers walk is redundant with
+    the general full-subtree `n__d`/`n__v` OR-walk (which already descends into
+    the `handlers` list and each handler's `body`), so it is validated as SHAPE
+    ONLY and contributes nothing to emission — exactly like the `Match`/cases
+    arm."""
     if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
         return None
     tag = _match_stmt_tag_test(stmt.get("test", {}), stmtv)
     if tag is None:
         return None
     body = stmt.get("body", [])
-    if tag == "Match":
+    if tag in ("Match", "Try"):
+        elem_key = "cases" if tag == "Match" else "handlers"
         if len(body) != 1:
             return None
         loop = body[0]
         if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
             return None
-        if _match_get_call(loop.get("iter", {}), stmtv) != "cases":
+        if _match_get_call(loop.get("iter", {}), stmtv) != elem_key:
             return None
         cvar = loop.get("target")
         lb = loop.get("body", [])
@@ -3486,6 +3579,11 @@ def emit_stmt_setfold_group(func: Dict[str, Any], desc: Dict[str, Any],
     _te = list(top_ensures or ["true"])
 
     reader_names: Dict[str, str] = {}
+    # Opaque self-predicate declarations (`val function ... : bool`), prepended
+    # to the group so they precede their use. Empty unless the add-arm carries a
+    # `self.<pred>(val)` guard — keeps the emission byte-additive for every
+    # existing (non-predicate) consumer.
+    _pred_decls: List[str] = []
 
     def _emit_reader(key: str) -> str:
         if key in reader_names:
@@ -3573,6 +3671,16 @@ def emit_stmt_setfold_group(func: Dict[str, Any], desc: Dict[str, Any],
         out.append("           | Some (PDict vd) ->")
         indent = "               "
         closers: List[str] = []
+        # Opaque self-predicate guards (`self._rhs_yields_map(val)`): an
+        # uninterpreted bool over the isinstance-narrowed value pyval — a
+        # boundary reader (like `symtab_mem`), NOT an axiom. It genuinely GATES
+        # membership: a value the predicate rejects contributes `const false`.
+        for meth in pre.get("preds", []):
+            predfn = _pred_whyml_name(n, meth)
+            _pred_decls.append(f"  val function {predfn} (v: pyval) : bool")
+            out.append(f"{indent}if {predfn} (PDict vd) then")
+            closers.append(f"{indent}else const false")
+            indent += "  "
         for i, (kind, gk, gv) in enumerate(pre["guards"]):
             gname = reader_names[gk]
             gpat = f"gv{i}"
@@ -3612,7 +3720,7 @@ def emit_stmt_setfold_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append("    requires { true } ensures { true } variant { size_dict d }")
     out.append("  = match d with DNil -> const false")
     out.append(f"    | DCons _ v rest -> set_union ({n}__v v{extra_args}) ({n}__d rest{extra_args}) end")
-    return out
+    return _pred_decls + out
 
 
 def recognize_frt(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
