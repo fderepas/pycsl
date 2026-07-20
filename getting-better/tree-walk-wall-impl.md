@@ -1,0 +1,80 @@
+# tree-walk-wall-impl.md — implementation plan (spike-first, refutation-exit)
+
+Synthesized from `tree-walk-wall.md` + `tree-walk-wall-response.md` (Gate R CONFIRMED with refinements).
+
+## Design (refined per the fable review)
+- **Per-discriminant recursive match recognizer**, NOT a string-keyed generic fold (Why3 program-string-eq gap):
+  emit `stmt_has_raise : stmt_ir -> bool` (recursive), `match s with SRaise _ -> true | <compound> -> <∨ over
+  stmt sub-children> | _ -> false`.
+- **Inline constructor recursion**, NOT an `ir_children : node -> list node` (ill-typed for heterogeneous
+  children): the recogniser matches each stmt_ir constructor and ∨-recurses into its stmt_list children
+  (SWhile/SIf/SFor/STry/SMatch/SCriticalSection bodies) via a sibling `sl_has_raise : stmt_list -> bool`.
+- **STRUCTURAL variant `variant { s }` / `variant { l }`** (the emitter's native idiom, preamble.py ~3738 —
+  recurses on pattern-bound sub-terms, discharges natively) — NOT the single-component `variant { size s }`
+  (Spike A proved it FAILS: certified `size_slist (SLCons h SLNil) = size_stmt h`, non-strict list→head).
+- **Param retype**: the walker's untyped `body`/`node` param typed `stmt_ir` (`"StmtIR"` ann, as ce71e3ab
+  retyped to pyast_stmt). `_body_has_raise` needs NO expr descent (Raise is a stmt discriminant only) — simplest.
+- Lowerings: `node.get("stmt")=="Raise"` → the `SRaise`/`stmt_kind_of` discriminant; `for v in node.values():
+  walk(v)` → the recursive `stmt_has_raise`/`sl_has_raise` descent; `found[0]`/`return bool` → the ∨ result.
+
+## Gate S — MAKE-OR-BREAK SPIKE FIRST (emission-level; the modeling is already fable-proven)
+The fable proved the MODELING (Spike B/C). The impl make-or-break is whether the TOOL emits a provable
+recogniser for the REAL `_body_has_raise` verbatim body:
+1. Add the minimal `stmt_has_raise`/`sl_has_raise` recursive recogniser to the emitter (gated on a `_uses_*`
+   signal), retype `_body_has_raise`'s `body` param to `"StmtIR"`, port the verbatim body, emit `--keep-mlw`.
+2. Inspect: does `for v in node.values()` lower to the recursive descent (NOT opaque `iter_get`/`isinstance_op
+   0 0`)? Does the emitted recursive fold carry a STRUCTURAL `variant`?
+3. Prove (whole-file or `--fun _body_has_raise`): 
+   - PASS (discharges, non-vacuous — an evil-twin body without Raise must not prove `found`) → build the full
+     recogniser + convert + R2 follow-ons.
+   - REFUTE (the recursion won't lower, or the structural variant won't discharge at full core_ir_semantic
+     theory scale, or it forces an axiom) → CERTIFIED-BOUNDARY: record + stop, do NOT grind.
+   - REFINE (a different blocker, e.g. the `body` is a stmt_list not a single stmt) → re-plan the residual.
+
+## Build (only if Gate S PASSES) — ONE recogniser, then parameterize
+- **T1: `_body_has_raise`** (the make-or-break) — convert end-to-end, all gates.
+- **T2 (R2 same-fold cluster): `_body_has_return`** (SReturn discriminant), **`_body_has_diverging_construct`**
+  (stmt_kind ∈ {While,For,CriticalSection} OR an expr `Call` — needs a shallow expr-descent too), **`_contains_
+  result`** (type=="Result" — an EXPR-tree walk, `emit_ir` structural variant). Each = the SAME recursive
+  recogniser parameterized by a different discriminant predicate. The recogniser must accept the discriminant
+  GENERICALLY (a per-stub discriminant set), lowered per-discriminant (match recognizers, not a string param).
+- **Defer**: `_lemma_returns_value` (depth-2 Return-value arg-read), `_lemma_calls_trusted` (string result +
+  first-hit traversal order + trusted-set param — REFUTED as same-fold), `_union_c8_test_references_union_var`.
+
+## Gate battery (per converted stub — driver-verifier FRESH)
+Mutation test (change the discriminant tag / a branch → emitted `.mlw` changes) ∧ whole-file Why3 proof (if it
+wedges on re-run with all-VCs-Valid, agent's clean SUCCESS is the verdict) ∧ byte-diff-0 (recogniser gated on
+`_uses_*`, corpus-inert) ∧ fidelity (mirror==live verbatim) ∧ count strictly down ∧ ledger 3 (the recursive
+recogniser is a NEW operation over the EXISTING certified stmt_ir/emit_ir ADT — likely a cert EXTENSION, a
+`stmt_has`-terminates lemma; verify axiom-free, `Print Assumptions`/`#print axioms`).
+
+## Honest costed scope
+The recogniser (recursive match + structural variant, per-discriminant) is the build; ~4 conversions
+(`_body_has_raise` + 3 R2). The `_body_has_diverging_construct`/`_contains_result` expr-descent + the deferred
+value-reading walkers are follow-on scope. Yield: ~4 stubs from one recogniser — highest on the frontier.
+
+## GATE-S OUTCOME (2026-07-20, driver run) — REFINE: modeling PROVEN at full scale, emission gated on 3 builds
+The make-or-break emission spike REFINED the plan decisively:
+- **T1 correction: `_body_has_raise` is DEAD** — the certified stmt_ir ADT has NO `SRaise` ctor (`_py_stmt_raise`
+  is the sole unconverted `_py_stmt_*` handler; mirror stub = `pass`). A `stmt_has_raise` recogniser is vacuously
+  `false` (facade; fails the mutation test). REQUIRES `_py_stmt_raise`+`SRaise`+Phase2d extension first → deferred.
+  **New T1 = `_body_has_return`** (`SReturn` EXISTS → faithful, non-vacuous).
+- **VARIANT correction: the mandated STRUCTURAL variant `{s}`/`{l}` FAILS at full scale** — the `handler_list`/
+  `match_case` RECORD-FIELD-PROJECTION descents (`sl_has_return h.eh_body`) timed out at 44-55M steps (Why3's
+  structural order can't relate a record-field projection to the inductive order; the fable miniature lacked these
+  record mutuals). **USE the LEXICOGRAPHIC variant `variant { size_stmt s, 0 }` / `{ size_slist l, 1 }` / `{
+  size_hlist l, 1 }` / `{ size_mclist l, 1 }`** (fable Spike B). PROVEN Valid at full M5 scale, both provers,
+  axiom-free, non-vacuous. Banked: `scratchpad/standalone.mlw` (`stmt_has_return`+`sl_/hl_/mcl_has_return`).
+- **The CONVERSION is gated behind 3 emitter builds (impl under-scoped these):**
+  (a) a **read-only gating signal** — `_uses_stmt_ir` requires a `.append({"stmt":K})` shape; the semantic-checker
+      walkers only READ `node.get("stmt")` → the stmt_ir theory + recogniser is never emitted into
+      `core_ir_semantic.py`. Need a `_uses_*` detector for a `.values()`-tree-walk over stmt_ir.
+  (b) a **`"StmtIR"`→stmt_ir param-typing** mechanism — currently `"StmtIR"`/`"ExprIR"`/`"IRNode"` ALL map to
+      `emit_ir` (the EXPR ADT, functions.py:153); the walker's `body` param must type as the STATEMENT tree
+      (parallel to ce71e3ab's `_current_pyast_classdef_params` for pyast_stmt).
+  (c) a **closure-walker recogniser** — the live body is a nested `def walk(node)` + `found=[False]` cell with
+      `for v in node.values()`; existing recognizers match FLAT `for x in xs` shapes. Either a new recogniser OR a
+      behavior-preserving refactor of live+mirror `_body_has_return` to a flat direct-recursive form.
+- **Re-planned build order:** (b) stmt_ir param-typing [foundational] → (a) read-only gating → (c) recogniser/refactor
+  → convert `_body_has_return` [proven] → R2 discriminant-exists follow-ons (`_body_has_diverging_construct`
+  While/For/CriticalSection, `_contains_result` type=="Result" via emit_ir). Yield ~3-4 (raise-family deferred to SRaise).
