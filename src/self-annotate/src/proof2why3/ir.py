@@ -34,12 +34,11 @@ class IntLit:
 @dataclass(frozen=True)
 class BoolLit:
     value: bool
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return "true" if self.value else "false"
 
 
 @dataclass(frozen=True)

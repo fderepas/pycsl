@@ -7138,11 +7138,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # string. @mutable_state-gated → the corpus int model is byte-identical.
         _ms = (getattr(self, "_current_self_type", None)
                in getattr(self, "_mutable_state_classes", set()))
+        # faithful-string-ternary (self-tcb-reduction): a `<str> if c else <str>` ternary in
+        # a `-> str` function (`_func_return_type == "string"`) is ALSO a string expression
+        # even outside a @mutable_state class — e.g. `BoolLit.pp`'s `"true" if self.value
+        # else "false"`. Without this the string-literal arms fall to `_coerce_to_int` and
+        # int-hash (`416353405`/`124643047`), a `string`-vs-`int` type clash at the return
+        # slot. Keyed on the SAME declared-string signal that lowers the return slot to
+        # `string`, so a string arm is well-typed exactly where it fires; corpus-byte-inert
+        # (no non-@mutable_state `-> str` corpus function currently returns such a ternary).
+        _str_ctx = _ms or (getattr(self, "_func_return_type", None) == "string")
         _b_str = self._is_string_expr(_bd)
         _o_str = self._is_string_expr(_od)
         _b_none = _bd.get("type") == "None"
         _o_none = _od.get("type") == "None"
-        if _ms and (_b_str or _o_str) and (_b_str or _b_none) and (_o_str or _o_none):
+        if _str_ctx and (_b_str or _o_str) and (_b_str or _b_none) and (_o_str or _o_none):
             if _b_none: body = '""'
             if _o_none: orelse = '""'
             return f"(if {test} then {body} else {orelse})"
