@@ -51,3 +51,68 @@ TEST; real SetApp.add/mem, NO str_hash_op/contains_check/int-hash facade; NO non
 The Set[str] recogniser (a + b + fixture) is the shared infra increment. The `_collect_class_fields` conversion is
 the follow-on (const-reflection + 5 helpers). Refutation exit at Gate S if the SetApp emission walls (the model is
 proven; the tool's executable-set emission is the residual risk).
+
+## GATE-S OUTCOME — §_collect_class_fields R7 (2026-07-21, FINAL convergence attempt)
+
+**R7 SPIKE = PASS (BOUNDED).** Tuple-return pyval-seq promotion is a faithful, bounded
+tuple-position extension — NOT a from-scratch tuple-value subsystem. Emit evidence
+(`scratchpad/r7spike/tup.py`, `-> Tuple[List[Dict[str,PyVal]], Dict[str,int]]`):
+- return type emits `(seq pyval, map string (option int))` (NOT `(array int, map int (option int))`);
+- `fields.append({"name":"x"})` lowers to
+  `fields := Seq.snoc !fields (PMap (map_update_some (const (None: option pyval)) "name" (PStr "x")))`
+  — a REAL pyval carrier, NOT `Seq.snoc !fields 0` / `array int`;
+- `field_defaults["y"]=3` → `map_update_some !field_defaults "y" 3` (native string key);
+- L3-tc ✓ and **proves** (Alt-Ergo→Z3, "All contracts formally proven").
+
+R7 build (4 byte-inert pieces, corpus-absent gates): Module5 `local_list_elem_types`
+capture (`List[Dict[str,PyVal]]` local → seq elem "pyval") + `_detect_seq_promotion`
+pyval marking; Module6 `_reset_function_state` promotes any `seq pyval` local to
+`_pyval_seq_locals`; `_infer_tuple_slot_type` types a pyval-seq slot `seq pyval` and a
+string-keyed dict slot `map string (option ν)`; `_uses_pyval` fires on a `seq pyval` local.
+
+**R6 = BUILT (BOUNDED).** The emit_ir ADT already carries `IrListN/IrSetN/IrDictLit`
+(kind_of "ArrayLit"/"SetLit"/"DictLit"); only the discriminants were missing. Added
+`is_listn`/`is_setn`/`is_dictlit` (definitional over existing ctors, NO axiom) +
+`_AST_CLASS_TO_IR_KIND` {Dict/Set/List} + `_KIND_DISCRIMINANT` {DictLit/SetLit/ArrayLit}.
+emit_ir theory is @mutable_state-gated → corpus byte-identical.
+
+**R8 = TRIVIAL.** Mirror `_array_init_size` param `rhs: ast.expr` → `"ExprIR"` (1 line).
+
+**R1 = MAPPED BOUNDED (not built).** `for target in stmt.targets` re-derives mechanically
+by cloning the existing `_pyast_walk_recv`/`ast_walk` `_classify_iterable` branch:
+`val function targets_of (s: pyast_stmt): irlist` + `_pyast_targets_recv` recognizing a
+`<pyast_stmt local>.targets` Attribute → loop via `irlen`/`irnth` (the `bases_of` precedent).
+No axiom.
+
+**CONVERSION = R7-CERTIFIED-BOUNDARY (NOT converted; reverted clean).** The full verbatim
+body port requires the `@dataclass` branch (`not fields and _is_dataclass_decorated(node)`),
+which calls **two reflection-heavy helpers that WALL L3-tc**:
+`_m5_get_option_field_inner` and `_cf6_is_cases_list_of_dict`. Both use the
+`type(x).__name__` / `getattr(x, attr, default)` idiom (+ `_m5_get_option_field_inner`'s
+`(class_name, field_name) not in _M5_OPTION_FIELD_ALLOWLIST` frozenset-**tuple**-membership).
+The emitter has NO faithful generic lowering for `type(<emit_ir>).__name__` or
+`getattr(<emit_ir>, <str>, <default>)`: it INT-ERASES them —
+`type(annotation).__name__` → `get___name__ (py_type_1 annotation)` (opaque int hash),
+`getattr(annotation, "slice", None)` → `0` — and the resulting mix of an int-typed
+`py_type_1` guard against the `emit_ir`-typed `annotation` fails typecheck:
+
+```
+File "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 921:
+This expression has type PyCSL_Program.emit_ir, but is expected to have type int
+  (in pycsltojsonemitter___cf6_is_cases_list_of_dict — `get___name__ (py_type_1 annotation)`)
+```
+
+So the task's premise "port the 5 helpers verbatim (they type-check fine)" is REFUTED for
+these two. Converting them needs EITHER a new generic `type(emit_ir).__name__` +
+`getattr(emit_ir, str, default)` reflection subsystem (from-scratch, session-scale) OR a
+LIVE-tool refactor of both helpers to the `isinstance`-style the emitter already lowers
+(a separate byte-diff-0-gated refactor project). Count could NOT go down this increment
+(the two helpers can only be added as trusted stubs, which would raise the count).
+
+**Disposition:** R6+R7+R8 are PROVEN/BUILT but have no completed co-target conversion this
+increment → dead infra → REVERTED ALL src edits clean (corpus byte-diff 0 preserved,
+count unchanged at 1013). Precedent: K1/K4/L3 "capability BUILT+Gate-S PROVEN, NO bounded
+co-target → reverted". **The residual wall is NOT R7 (bounded, proven) — it is the
+`type()/getattr` reflection helpers in the dataclass branch.** Next attempt must FIRST land
+the two-helper front (live isinstance-refactor OR reflection subsystem), THEN co-land
+R1+R6+R7+R8 + body port.
