@@ -1,0 +1,68 @@
+(* Gate R oracle for set-value-model-wall.md §7.
+   Model an emitter-local Set[str] as a Why3 finite set of strings. *)
+
+(* -------- Plane A: the LOGIC goals (what the VCs reduce to) -------- *)
+(* set.Fset over string : membership / dedup crux, over string VARIABLES. *)
+module SetStrLogic
+  use string.String
+  use set.Fset
+
+  (* x is in {x} : Valid *)
+  goal mem_after_add:
+    forall x: string. mem x (add x empty)
+
+  (* a DIFFERENT string is not in {x} -- the dedup crux, over VARIABLES : Valid *)
+  goal not_mem_other:
+    forall x y: string. x <> y -> not (mem y (add x empty))
+
+  (* build s = {"a","b"}, membership reads back faithfully : Valid *)
+  goal dedup_sequence:
+    let s = add "a" (add "b" empty) in
+    mem "a" s /\ mem "b" s /\ not (mem "c" s)
+
+  (* EVIL TWIN: universally-false membership must NOT prove (non-vacuity) *)
+  goal evil_twin_must_fail:
+    forall x y: string. mem y (add x empty)
+end
+
+(* -------- Plane B: an EXECUTABLE program-level string set --------
+   set.SetApp cloned with elt := string, eq := String equality.
+   This is what backs the real control flow `if name not in field_names_seen`,
+   because Fset.mem is a logic predicate (not a program bool). *)
+module StrSetApp
+  use string.String
+  (* program-level string equality: a decidable primitive the emitter must supply
+     (Python `s1 == s2`); NOT a project ledger axiom -- it is total & computable. *)
+  val eq_str (x y: string) : bool ensures { result <-> x = y }
+  clone export set.SetApp with type elt = string, val eq = eq_str, axiom .
+end
+
+(* Executable driver modelling
+     field_names_seen = set()
+     for name in [...]:
+        if name not in field_names_seen:
+            field_names_seen.add(name); fields.append(...)
+   proved with a program-level bool membership test. *)
+module DedupDriver
+  use string.String
+  use StrSetApp
+  use set.Fset
+  use ref.Ref
+
+  let dedup_driver () =
+    let s = ref (empty ()) in
+    (* add "b" (absent) -> inserted *)
+    (if not (mem "b" !s) then s := add "b" !s);
+    (* add "a" (absent) -> inserted *)
+    (if not (mem "a" !s) then s := add "a" !s);
+    assert { Fset.mem "a" !s };
+    assert { Fset.mem "b" !s };
+    assert { not (Fset.mem "c" !s) };
+    (* dedup: "a" already present -> the guard is false, nothing added *)
+    (if not (mem "a" !s) then s := add "a" !s);
+    assert { Fset.mem "a" !s };
+    (* fresh "d" absent -> inserted *)
+    (if not (mem "d" !s) then s := add "d" !s);
+    assert { Fset.mem "d" !s };
+    !s
+end
