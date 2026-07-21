@@ -259,12 +259,13 @@ class _Parser:
         t = self.cur()
         return t.type == _tokenize.NAME and t.string in vals and t.string in _keyword.kwlist
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def accept_op(self, val):
-        pass
+    #@ assigns self.i
+    def accept_op(self, val: str) -> Optional[_Tok]:
+        if self.at_op(val):
+            return self.advance()
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -273,12 +274,13 @@ class _Parser:
     def expect_op(self, val):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def accept_kw(self, val):
-        pass
+    #@ assigns self.i
+    def accept_kw(self, val: str) -> Optional[_Tok]:
+        if self.at_kw(val):
+            return self.advance()
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
