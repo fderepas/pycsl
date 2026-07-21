@@ -1,0 +1,162 @@
+(* 0920 — seq-pyval self-field append (self-tcb-reduction, Tier-5 value-model
+   wall; K1, Bug 3 fix): OBSERVATIONAL non-vacuity for the faithful growable
+   `seq pyval` self-field append.
+
+   A `@mutable_state` class with a `_final: List[Dict[str, PyVal]]` field lowers
+   the field to `mutable _final: seq pyval` and lowers `self._final.append(entry)`
+   to a REAL record write-back `self._final <- Seq.snoc self._final (<pyval-wrap
+   entry>)` — NOT the int-erased `array int` field + `Array.make 1024 0`
+   shadow-local facade (Bug 3, which wrote a throwaway 1024-cell local and left
+   the field untouched).
+
+   The `type pyval` variant, the abstract `map_update_some`, the `seq pyval`
+   record field, and the `registry__record` write-back below are VERBATIM the
+   PyCSL tool's emitted output (Module5 `_m5_get_list_elem_type` pyval-elem branch
+   -> field value_type "pyval"; preamble.py `_emit_type_decls` list branch ->
+   `seq pyval`; statements.py `_handle_expr_stmt` append site -> `self.f <-
+   Seq.snoc self.f (<_pyval_wrap x>)`; grep-confirmed against the probe emission
+   `scratchpad/sfa_probe.py --keep-mlw`).  The load-bearing claim: the appended
+   dict's string VARIABLE `name` projects back FAITHFULLY at the seq tail as
+   `PStr name` — no int-hash / int-erasure (the whole point of the no-more-int
+   value model), AND the field itself is grown (the tail exists, the shadow-local
+   facade did not grow it).
+
+   Proven axiom-free by the fable oracle (getting-better/setenv_faithful.mlw, Z3
+   Valid) and reusing the Phase2f_PyVal (`seq pyval` element soundness) cert; no
+   new axiom (ledger stays 3).  The two GOOD goals (`registry__record'vc`,
+   `test_record_readback'vc`) are Z3 Valid.  The EVIL TWINS pin non-vacuity: a
+   WRONG tail value (name int-erased to the wrong literal) and a NO-OP write-back
+   (the Bug-3 shadow-local facade, field unchanged) stay UNPROVEN — both Z3 AND
+   Alt-Ergo time out without ever returning Valid (the seq-extensional / map-select
+   disequality is the same solver-hard refutation class 0918 records for the value
+   read; the load-bearing fact is that neither evil goal is ever Valid). *)
+
+(* ============================================================= *)
+(* GoodFaithful — the tool's `seq pyval` field + faithful write-back. *)
+(* ============================================================= *)
+module SeqPyValFieldGoodFaithful
+  use int.Int
+  use seq.Seq
+  use map.Map
+  use map.Const
+  use option.Option
+  use string.String
+
+  (* VERBATIM the tool's `_emit_pyval_theory`. *)
+  type pyval = PStr string | PInt int | PArr pyval_list
+             | PMap (map string (option pyval)) | PNode pyval
+  with pyval_list = PNil | PCons pyval pyval_list
+
+  (* VERBATIM the tool's abstract dict-update op. *)
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+
+  (* VERBATIM the tool's lowered record: `List[Dict[str, PyVal]]` field ->
+     `mutable _final: seq pyval`. *)
+  type registry = { mutable _final: seq pyval }
+
+  (* The faithful heterogeneous entry `{"pattern": "Constructor", "name": name}`
+     as the tool's `_pyval_wrap` builds it — each value tagged into `pyval`.
+     Written with the LOGIC `Map.set`/`Some` (a logic `function` cannot call the
+     program `val map_update_some`); its `ensures result = Map.set m k (Some v)`
+     makes the emitted `map_update_some` chain equal this term in the VC. *)
+  function entry_pyval (name: string) : pyval =
+    PMap (Map.set
+           (Map.set (const (None: option pyval)) "pattern" (Some (PStr "Constructor")))
+           "name" (Some (PStr name)))
+
+  (* VERBATIM the tool's emitted `registry__record`: the REAL field write-back.
+     The added `ensures` PROVE the effect is real + faithful (non-vacuous):
+       - the field is grown by exactly the tagged entry (snoc at the tail);
+       - the string VARIABLE `name` reads back as `PStr name` at the tail
+         (no int-erasure). *)
+  let registry__record (self: registry) (name: string) : unit
+    writes { self._final }
+    ensures { self._final = Seq.snoc (old self._final) (entry_pyval name) }
+    ensures { Seq.get self._final (Seq.length (old self._final)) = entry_pyval name }
+    ensures { Seq.length self._final = Seq.length (old self._final) + 1 }
+  =
+    self._final <- Seq.snoc self._final
+      (PMap (map_update_some
+              (map_update_some (const (None: option pyval)) "pattern" (PStr "Constructor"))
+              "name" (PStr name)))
+
+  (* Append-then-read-back driver: record then observe the tail is the faithful
+     entry.  Mirrors a formal test that appends and reads it back. *)
+  let test_record_readback (self: registry) : unit
+  =
+    let ghost old_final = self._final in
+    let k0 = Seq.length self._final in
+    registry__record self "Foo";
+    assert { self._final = Seq.snoc old_final (entry_pyval "Foo") };
+    assert { k0 = Seq.length old_final };
+    assert { Seq.get self._final k0 = entry_pyval "Foo" };
+    (* the tagged string variable is a real PStr at the tail (no int-erasure) *)
+    assert { match Seq.get self._final k0 with
+             | PMap m -> Map.get m "name" = Some (PStr "Foo")
+             | _ -> false end }
+end
+
+(* ============================================================= *)
+(* EvilWrongTail — a WRONG tail value must be UNPROVABLE.          *)
+(* ============================================================= *)
+module SeqPyValFieldEvilWrongTail
+  use int.Int
+  use seq.Seq
+  use map.Map
+  use map.Const
+  use option.Option
+  use string.String
+
+  type pyval = PStr string | PInt int | PArr pyval_list
+             | PMap (map string (option pyval)) | PNode pyval
+  with pyval_list = PNil | PCons pyval pyval_list
+
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+
+  type registry = { mutable _final: seq pyval }
+
+  (* EVIL TWIN: claims the tail carries the WRONG name literal "wrong" — must FAIL
+     (else `PStr name` is vacuous / the variable was int-erased). *)
+  let registry__record_evil (self: registry) (name: string) : unit
+    writes { self._final }
+    ensures { Seq.get self._final (Seq.length (old self._final))
+              = PMap (Map.set
+                       (Map.set (const (None: option pyval)) "pattern" (Some (PStr "Constructor")))
+                       "name" (Some (PStr "wrong"))) }
+  =
+    self._final <- Seq.snoc self._final
+      (PMap (map_update_some
+              (map_update_some (const (None: option pyval)) "pattern" (PStr "Constructor"))
+              "name" (PStr name)))
+end
+
+(* ============================================================= *)
+(* EvilNoOp — the Bug-3 shadow-local facade (field unchanged) must FAIL. *)
+(* ============================================================= *)
+module SeqPyValFieldEvilNoOp
+  use int.Int
+  use seq.Seq
+  use map.Map
+  use map.Const
+  use option.Option
+  use string.String
+
+  type pyval = PStr string | PInt int | PArr pyval_list
+             | PMap (map string (option pyval)) | PNode pyval
+  with pyval_list = PNil | PCons pyval pyval_list
+
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+
+  type registry = { mutable _final: seq pyval }
+
+  (* EVIL TWIN: the Bug-3 facade — the body does NOT grow the field (models the
+     `Array.make 1024 0` shadow-local that left `self._final` untouched).  The
+     grown-tail postcondition must FAIL (a no-op cannot have grown the seq). *)
+  let registry__record_noop (self: registry) (name: string) : unit
+    ensures { Seq.length self._final = Seq.length (old self._final) + 1 }
+  =
+    ()
+end

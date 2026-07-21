@@ -3628,6 +3628,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (the emit_ir IR-node sum), so a `body_stmts[-1]` read is an emit_ir node.
             if _en in ("StmtIR", "ExprIR", "IRNode", "ContractExprIR"):
                 return "emit_ir"
+            # K1 (seq-pyval self-field append, self-tcb-reduction Tier-5): a
+            # `List[PyVal]` / `List[Dict[str, PyVal]]` element is the faithful
+            # heterogeneous value carrier `pyval`, so the field lowers to `seq pyval`
+            # (Module6 `_emit_type_decls` list branch) and `.append` writes back
+            # `self.f <- Seq.snoc self.f (<pyval-wrap x>)` (statements.py append site),
+            # NOT the int-erased `array int` + shadow-local facade. `PyVal` is a NEW
+            # sentinel absent from the whole corpus -> byte-inert.
+            if _en == "PyVal":
+                return "pyval"
+            if PyCSLToJSONEmitter._m5_get_dict_value_type(sl) == "pyval":
+                return "pyval"
         return None
 
     @staticmethod

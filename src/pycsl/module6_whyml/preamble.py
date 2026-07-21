@@ -4985,6 +4985,14 @@ class PreambleEmissionMixin:
             isinstance(v, str) and (v == "pyval" or "option pyval" in v)
             for fn in self.ir.get("functions", []) or []
             for v in (fn.get("dict_value_types", {}) or {}).values())
+        # K1 (seq-pyval self-field append): a `List[PyVal]`/`List[Dict[str, PyVal]]`
+        # record field (value_type == "pyval") lowers to `seq pyval` and so ALSO needs
+        # the `pyval` theory in scope — fire the gate even when no function-local
+        # `Dict[str, PyVal]` annotation is present. Corpus has no such field -> byte-inert.
+        result = result or any(
+            f.get("value_type") == "pyval"
+            for td in self.ir.get("type_decls", []) or []
+            for f in td.get("fields", []) or [])
         self._uses_pyval_cache = result
         return result
 
@@ -5126,6 +5134,12 @@ class PreambleEmissionMixin:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []
         declared_types: Set[str] = set()
+        # K1 (seq-pyval self-field append): the `seq pyval` self-fields + their
+        # mangled append-target names (`self__field`), populated by the list-field
+        # branch below and consumed at the statements.py append site + shadow-local
+        # loop. Empty for the corpus (no `List[Dict[str, PyVal]]` field) -> byte-inert.
+        self._pyval_seq_fields = set()
+        self._pyval_seq_append_targets = set()
         # WhyML record field labels are global within a scope, so a field name
         # used by more than one record (e.g. an inherited field present in both
         # `base` and `sub`) collides. Qualify only those ambiguous names as
@@ -5362,7 +5376,26 @@ class PreambleEmissionMixin:
                         # IR-node-typed param (`_uses_ir_node_param`) — the Module5 mirror
                         # imports its IR records via the latter, not @mutable_state. Both
                         # gates are False for the corpus → `array int`, byte-identical.
-                        if (f.get("value_type") in ("string", "emit_ir")
+                        if (f.get("value_type") == "pyval"
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            # K1 (seq-pyval self-field append, self-tcb-reduction Tier-5):
+                            # a `List[PyVal]` / `List[Dict[str, PyVal]]` field is the
+                            # faithful growable `seq pyval` (the fable-proven
+                            # `getting-better/setenv_faithful.mlw` shape, element carrier
+                            # `pyval`), so `self.f.append(x)` writes back a REAL
+                            # `self.f <- Seq.snoc self.f (<pyval-wrap x>)` instead of the
+                            # int-erased `array int` + `Array.make 1024 0` shadow-local
+                            # facade (Bug 3). Record the field + its mangled append-target
+                            # name so the statements.py append site + shadow-local loop
+                            # gate to the write-back. Gated on `_mutable_state`/IR-node
+                            # param AND the `pyval` element sentinel (absent from the
+                            # corpus) -> byte-identical for every other mirror + corpus.
+                            ftype = "seq pyval"
+                            self._pyval_seq_fields.add(f["name"])
+                            self._pyval_seq_append_targets.add(
+                                ("self." + f["name"]).replace(".", "_"))
+                        elif (f.get("value_type") in ("string", "emit_ir")
                                 and (getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):
                             ftype = f"array {f.get('value_type')}"

@@ -1394,16 +1394,40 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     else:
                         node_arg = self._expr_to_whyml(val["args"][0], local_refs)
                     return f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {node_arg}"
-                arg = self._expr_to_whyml(val["args"][0], local_refs)
-                arg = self._coerce_to_int(arg)
-                if arr_name in getattr(self, "_seq_locals", set()):
-                    # return-arr.md follow-on: `.append()` on a seq-promoted local grows the
-                    # immutable seq via Seq.snoc (so `len` = Seq.length tracks the logical
-                    # length), instead of the array-local `arr[!len] <- v; len += 1`.
-                    code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
+                if arr_name in getattr(self, "_pyval_seq_append_targets", set()):
+                    # K1 (seq-pyval self-field append, self-tcb-reduction Tier-5, Bug 3
+                    # fix): `self._field.append(x)` where `_field` is a `seq pyval`
+                    # self-field is a REAL faithful field write-back
+                    # `self.<field> <- Seq.snoc self.<field> (<pyval-wrap x>)` — the
+                    # fable-proven `getting-better/setenv_faithful.mlw` shape, axiom-free
+                    # (`seq.Seq`/`snoc` intrinsic) — NOT the int-erased `Array.make 1024 0`
+                    # shadow-local facade. `arr_name` is `self__field`; recover the field
+                    # from the un-mangled call prefix (`self._field.append`). The appended
+                    # value is tagged into its faithful `pyval` carrier by `_pyval_wrap`
+                    # (a dict -> `PMap (map_update_some …)`, str-lit/var -> `PStr`, …).
+                    # Gated on the `_pyval_seq_append_targets` set (populated only for a
+                    # `List[Dict[str, PyVal]]`/`List[PyVal]` field) -> corpus byte-inert.
+                    obj_field = func.rsplit(".", 1)[0]           # "self._field"
+                    field = obj_field.split(".", 1)[1]           # "_field"
+                    safe_field = self._field_label(
+                        getattr(self, "_current_self_type", None), field)
+                    raw_arg = (val["args"][0].to_dict()
+                               if hasattr(val["args"][0], "to_dict")
+                               else val["args"][0])
+                    code = (f"{indent}self.{safe_field} <- "
+                            f"Seq.snoc self.{safe_field} "
+                            f"{self._pyval_wrap(raw_arg, local_refs)}")
                 else:
-                    len_ref = f"{safe_arr}_len"
-                    code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
+                    arg = self._expr_to_whyml(val["args"][0], local_refs)
+                    arg = self._coerce_to_int(arg)
+                    if arr_name in getattr(self, "_seq_locals", set()):
+                        # return-arr.md follow-on: `.append()` on a seq-promoted local grows
+                        # the immutable seq via Seq.snoc (so `len` = Seq.length tracks the
+                        # logical length), instead of the array-local `arr[!len] <- v; len += 1`.
+                        code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
+                    else:
+                        len_ref = f"{safe_arr}_len"
+                        code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
             elif (func.endswith((".add", ".discard", ".remove"))
                   and self._value_semantic):
                 # Body-level set/dict method calls. Sets and dicts share
@@ -2955,6 +2979,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
         for tgt in sorted(append_targets):
             safe_tgt = whyml_ident(tgt)
+            # K1 (seq-pyval self-field append): a `seq pyval` self-field target grows
+            # via the REAL record write-back `self.<field> <- Seq.snoc self.<field> …`
+            # (emitted at the `_handle_expr_stmt` append site), so it needs NEITHER the
+            # `Array.make 1024 0` shadow-local NOR the `_len` counter — skip both.
+            # Empty set for the corpus -> byte-inert.
+            if tgt in getattr(self, "_pyval_seq_append_targets", set()):
+                continue
             # growable-list: a `.append`-ed PARAM that is seq-promoted is bound as a
             # `ref seq` (consistent with the `Seq.snoc !tgt v` the body emits at
             # `_handle_expr_stmt`), NOT the `Array.make 1024 0` + `_len` array-counter
