@@ -863,12 +863,11 @@ class _ContractParser:
     def at_bs(self, *vals):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def at_eof(self):
-        pass
+    def at_eof(self) -> bool:
+        return self.cur().type == 'EOF'
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
