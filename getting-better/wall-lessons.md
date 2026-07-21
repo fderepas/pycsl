@@ -160,3 +160,41 @@ candidates: (1) the @mutable_state stateful-MIRROR retrofit (unblocks the parser
 lines/file, risky, parser payoff capped ~3 by varargs); (2) the recursive `.values()`/`_walk_dicts` dict-generic
 tree-walker model (the frontier-exhaustion-map's "85 Dict[str,Any] walkers" dominant hard class — potentially
 high-count); (3) accept the plateau (extensive infra banked for a future co-land). Count 1013 held.
+
+## 2026-07-21/22 (run #4) — the plateau was a SURVEY ARTIFACT; W8 token-cursor opened
+### (a) TWO SELF-INFLICTED REGRESSIONS + a new MANDATORY gate
+Run #3's shared-lowering commits (Tier-5 `pyval` ADT, Set[str]/StrSet) passed corpus byte-diff-0, their own
+fixtures, AND mirror-check — while BREAKING TWO MIRROR FILES: (A) `ir_resolve.py` "Symbol PStr is already defined"
+(the Tier-5 `pyval` collided with the older pydict generic-fold `pyval`; fixed by renaming Tier-5 → `hval`/`H*` —
+and the fix had to include the internal `"pyval"` value-type SENTINEL, not just literal emission sites); (B)
+`stmt_control_flow.py` — two CONVERTED bodies type-broken (StrSet in an int slot; nested heterogeneous dict not
+pyval-gated). 41 stubs were gated behind them.
+=> **MANDATORY GATE (new): any change to SHARED EMITTER LOWERING must re-run the MIRROR-WIDE L3-tc sweep**
+(`for f in mirror/*.py: pycsl $f --no-proof | grep -q 'L3-tc ✓' || FAIL`) before committing. Corpus byte-diff covers
+the CORPUS; mirror-check compares BODIES not emissions; a fixture only exercises the new path. The MIRROR files are
+where shared-lowering changes bite. Also: **re-pin the byte-diff baseline after any M1 sanctioned reset** — it went
+stale TWICE this run (after capability (i) changed 8 corpus files) and produced spurious diffs both times.
+
+### (b) THE PLATEAU WAS A SURVEY ARTIFACT (count hygiene + the real vein)
+Ledger: raw grep 1013 → 964 real function stubs (49 are docstring mentions) → **929 PORTABLE** (35 are cross-mixin
+PHANTOM forward-decls whose real body lives at a sibling mixin). Census over the 929: **439 (47%) hit NO known wall**,
+and **292 of those sit in THREE files behind ONE shared W8 token-cursor gate** (pure_ast 202, Module2_Parser 76,
+proof2why3/parser 14). Runs #1-#3 concentrated on Module5_IREmitter + a pure_ast sub-slice and concluded
+"session-scale everywhere" — that verdict was drawn from the wrong sample.
+
+### (c) ROUND-2's W8 BOUNDARY WAS MIS-DIAGNOSED (the +283-line blast radius)
+Round 2 CERTIFIED-BOUNDARY'd the token cursor because a record-typed self-field required `@mutable_state`, which
+"cost +283 mlw lines". MEASURED in round 3: the record field and the emit_ir ADT theory are **fully separable** —
+the +283 was the THEORY dragged in by the COARSE `@mutable_state` gate disjunct. Deferring the theory when only the
+coarse disjunct fires (splice it back iff the emitted text references a symbol the theory declares — anti-drift,
+conservative-safe) gives **−277 lines (303 → 26)** on the probe. Capability (i) landed (85679c71, fixture 0926) as a
+clean M1 reset (8 corpus files × exactly −277/+0, all re-proved). LESSON: a "blast radius" attributed to a FEATURE
+may belong to its GATE — measure the delta with the gate split before declaring the boundary.
+
+### (d) CARVE-OUT to the fixed contract shape: PARTIAL methods take a precondition
+The fixed shape is `requires True / ensures True / assigns <frame>`. `proof2why3/parser._Parser.take` steps `self.pos`
+UNGUARDED (it genuinely raises IndexError past the end), so `requires True` is UNPROVABLE and the stronger class
+invariant `pos < len(toks)` would be a LIE. Faithful conversion used `#@ requires self.pos < \length(self.toks)` —
+the method's REAL domain. CARVE-OUT (not a licence to weaken): a precondition is permitted ONLY when it states the
+method's genuine partiality; it must never be a convenience narrowing to dodge an unproved goal, and the class
+invariant must not be strengthened beyond what the live code actually maintains.
