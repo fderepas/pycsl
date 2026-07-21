@@ -1938,6 +1938,7 @@ class PreambleEmissionMixin:
           or any(t.startswith("seq ") for f in functions
                  for t in f.get("param_list_nested_elem", {}).values()) \
           or any(f.get("vararg_str_param") for f in functions) \
+          or bool(getattr(self, "_module_str_list_constants", None)) \
           or self._uses_stmt_ir()
         # ^ W8 (ii): a `*vals: str` vararg param is a `seq string` -> `use seq.Seq`.
         #   Module5 records it only for a str-ANNOTATED vararg, so no corpus function

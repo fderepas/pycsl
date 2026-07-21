@@ -83,6 +83,15 @@ class Module6_WhyMLTranspiler(
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in `_handle_var_expr` (body and contract).
         self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})
+        # W8 (ii): `<alias>.<CONST>` -> concrete int, for the CPython `tokenize`/`token`
+        # kind codes, read from the real module at emission (see Module5). Empty for
+        # every program that does not import them.
+        self._token_kind_constants: Dict[str, int] = self.ir.get(
+            "token_kind_constants", {})
+        # W8 (ii, companion): `<alias>.<attr>` -> its actual list-of-str contents, for
+        # the CPython `keyword` tables. Empty for every program that does not import it.
+        self._module_str_list_constants: Dict[str, List[str]] = self.ir.get(
+            "module_str_list_constants", {})
         # module-const-dict-get: module-level constant str->str dict literals
         # (`OP_MAP = {"==":"=", ...}`) → recognized at `NAME.get(k, default)` in
         # `_lower_dict_get_call` as a chained string if-then-else. Empty for every

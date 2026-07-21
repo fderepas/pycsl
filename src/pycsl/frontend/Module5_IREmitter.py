@@ -173,6 +173,65 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if imports_ir:
             self.program_ir["imports"] = imports_ir
 
+        # W8 (ii, token-kind concreteness): `import tokenize as _tokenize` +
+        # `t.type == _tokenize.OP`. Without this the kind constant lowers to the opaque
+        # `(get_OP _tokenize)` — an UNCONSTRAINED int with no relation to any other kind
+        # constant, so nothing about token-kind disjointness is expressible and the
+        # comparison carries no content. Resolve `<alias>.<CONST>` to the CONCRETE
+        # integer instead.
+        #
+        # FAITHFULNESS: the value is read from the very `tokenize`/`token` module the
+        # annotated code imports at runtime — NOT a hardcoded table — so the emitted
+        # literal is by construction the exact int the live comparison performs, on this
+        # interpreter, with no version drift and no axiom.
+        #
+        # SCOPE: restricted to the two CPython token-code modules and to int-valued
+        # ALL-CAPS attributes. No corpus or `pycsl_lib` file imports either module, so
+        # this map is empty everywhere except the `pure_ast` mirror -> byte-inert.
+        _tok_kinds: Dict[str, int] = {}
+        for _lo, _orig, _mod, _lvl, _is_mod in imports_ir:
+            if not _is_mod or _mod not in ("tokenize", "token"):
+                continue
+            try:
+                _m = __import__(_mod)
+            except ImportError:                                  # pragma: no cover
+                continue
+            for _an in dir(_m):
+                if not (_an.isupper() and _an.isidentifier()):
+                    continue
+                _av = getattr(_m, _an, None)
+                if type(_av) is int:
+                    _tok_kinds[f"{_lo}.{_an}"] = _av
+        if _tok_kinds:
+            self.program_ir["token_kind_constants"] = _tok_kinds
+
+        # W8 (ii, companion): `import keyword as _keyword` + `t.string in _keyword.kwlist`
+        # — the Python KEYWORD TABLE. Without this the membership collapsed to
+        # `contains_check (str_hash_op t.string) (get_kwlist _keyword)`: an int-HASH of
+        # the needle against an opaque getter, with no `ensures` anywhere — the exact
+        # facade shape this campaign rejects. Resolve the table to its ACTUAL contents so
+        # the membership is the same real `seq_mem_str` the vararg path uses.
+        # FAITHFULNESS: read from the very `keyword` module the annotated code imports,
+        # so the emitted table IS the interpreter's keyword set. Restricted to `keyword`
+        # and to list-of-`str` attributes; no corpus or `pycsl_lib` file imports it.
+        _mod_str_lists: Dict[str, List[str]] = {}
+        for _lo, _orig, _mod, _lvl, _is_mod in imports_ir:
+            if not _is_mod or _mod != "keyword":
+                continue
+            try:
+                _m = __import__(_mod)
+            except ImportError:                                  # pragma: no cover
+                continue
+            for _an in dir(_m):
+                if _an.startswith("_"):
+                    continue
+                _av = getattr(_m, _an, None)
+                if (isinstance(_av, list) and _av
+                        and all(type(_x) is str for _x in _av)):
+                    _mod_str_lists[f"{_lo}.{_an}"] = list(_av)
+        if _mod_str_lists:
+            self.program_ir["module_str_list_constants"] = _mod_str_lists
+
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in Module 6 (body and contract).
         module_consts = collect_module_constants(node)

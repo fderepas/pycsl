@@ -733,6 +733,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # beyond its definition. In SPEC context the existential is emitted inline (a
         # program `val` is illegal in a formula). Gated on `_vararg_str_param` -> fires
         # for no corpus / pycsl_lib function.
+        # W8 (ii, companion): `x in <alias>.<attr>` where the attribute is a resolved
+        # module STRING-LIST constant (`_keyword.kwlist`) is a REAL membership over the
+        # actual table — the same `seq_mem_str` as the vararg path, applied to a literal
+        # `Seq.cons` chain of the table's contents. Replaces
+        # `contains_check (str_hash_op x) (get_kwlist _keyword)`, which hashed the needle
+        # and tested it against an opaque getter with no `ensures` at all. Gated on the
+        # Module5-resolved map -> fires for no corpus / pycsl_lib program.
+        _msl = getattr(self, "_module_str_list_constants", None)
+        if _msl and not self._in_spec and rhs.get("type") in ("Attribute", "FieldGet"):
+            _mo = rhs.get("object")
+            _ma = rhs.get("attr") or rhs.get("field")
+            _mname = (_mo.get("name") if isinstance(_mo, dict)
+                      and _mo.get("type") == "Var" else _mo if isinstance(_mo, str)
+                      else None)
+            _mkey = "{}.{}".format(_mname, _ma) if (_mname and _ma) else None
+            if _mkey in _msl:
+                self._add_abstract_op(
+                    "val seq_mem_str (x: string) (v: seq string) : bool\n"
+                    "    ensures { result <-> (exists _mi: int. 0 <= _mi < Seq.length v\n"
+                    "      /\\ Seq.get v _mi = x) }")
+                _chain = "(Seq.empty: seq string)"
+                for _e in reversed(_msl[_mkey]):
+                    _chain = f"(Seq.cons {whyml_string_literal(_e)} {_chain})"
+                _lcall = f"(seq_mem_str {left} {_chain})"
+                return f"(not {_lcall})" if negate else _lcall
         _vap = getattr(self, "_vararg_str_param", None)
         if _vap is not None and rhs.get("type") == "Var" and rhs.get("name") == _vap:
             _vseq = whyml_ident(_vap)
@@ -7226,6 +7251,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # result. The WhyML result is the record value; emit `result.<field_label>`.
         if isinstance(obj_ir, dict) and obj_ir.get("type") == "Result":
             return f"result.{self._field_label(getattr(self, '_func_return_type', None), attr)}"
+        # W8 (ii, token-kind concreteness): `_tokenize.OP` -> the CONCRETE int (55), read
+        # from the real `tokenize`/`token` module at emission time (Module5 builds the
+        # map). Replaces the opaque `(get_OP _tokenize)`, an unconstrained int that made
+        # every kind comparison contentless and kind-disjointness inexpressible. Empty map
+        # for every program that does not import those modules -> byte-inert.
+        _tkc = getattr(self, "_token_kind_constants", None)
+        if _tkc and isinstance(obj_ir, dict) and obj_ir.get("type") == "Var":
+            _tkkey = "{}.{}".format(obj_ir.get("name"), attr)
+            if _tkkey in _tkc:
+                return "({})".format(_tkc[_tkkey])
         # W8 capability (vi) — PROJECTION OFF A SIBLING METHOD CALL. `self.cur().py_type`:
         # the base is a `self.<m>(...)` Call whose declared return type is a RECORD, so it
         # lowers (above) to the CONCRETE `(<class>__<m> self)`. The field read is then a

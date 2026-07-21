@@ -233,26 +233,26 @@ class _Parser:
             self.i += 1
         return t
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def at_op(self, *vals):
-        pass
+    def at_op(self, *vals: str) -> bool:
+        t = self.cur()
+        return t.type == _tokenize.OP and t.string in vals
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def at_name(self, *vals):
-        pass
+    def at_name(self, *vals: str) -> bool:
+        t = self.cur()
+        return t.type == _tokenize.NAME and (not vals or t.string in vals)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def at_kw(self, *vals):
-        pass
+    def at_kw(self, *vals: str) -> bool:
+        t = self.cur()
+        return t.type == _tokenize.NAME and t.string in vals and t.string in _keyword.kwlist
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
