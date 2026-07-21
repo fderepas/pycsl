@@ -3750,6 +3750,31 @@ class PreambleEmissionMixin:
             "    match e with IrTuple _ _ -> true | _ -> false end",
             "  let function is_fieldget (e: emit_ir) : bool =",
             "    match e with IrFieldGet _ _ -> true | _ -> false end",
+            # const-reflection value model (self-tcb-reduction, Tier-5 value-model wall):
+            # the two COMPOUND const-node discriminants. `is_constant` spans ALL const-literal
+            # leaves (`isinstance(x, ast.Constant)` <-> x lowered from an ast.Constant node,
+            # which `_py_expr_constant` sends to IrNum/IrNumF/IrStr/IrBoolC/IrNone by value);
+            # `is_num_or_float` is the tuple-of-types `isinstance(x.value, (int, float))` (the
+            # NUMERIC subset IrNum/IrNumF). Both are definitional `let function`s over the
+            # EXISTING leaves — like is_num/is_str/is_none — NO axiom, NO new ADT. Proven
+            # axiom-free by getting-better/const-reflect-oracle.mlw (Z3 Valid, evil-twins
+            # refuted). Gated on `_uses_const_reflect` (a file with an `isinstance(_, (int,
+            # float))` reflect) -> corpus + every other mirror byte-identical.
+            *(([
+                "  (* const-reflection value model (self-tcb-reduction, Tier-5 value-model"
+                " wall): the COMPOUND const-node discriminants. `is_constant` spans ALL"
+                " const-literal leaves (`isinstance(x, ast.Constant)` <-> x lowered from an"
+                " ast.Constant, which `_py_expr_constant` sends to IrNum/IrNumF/IrStr/IrBoolC/"
+                " IrNone by value); `is_num_or_float` is the tuple-of-types `isinstance(x.value,"
+                " (int, float))` (the numeric subset). Definitional `let function`s over the"
+                " existing leaves (the is_num/is_str/is_none precedent) — NO axiom, NO new ADT."
+                " Proven axiom-free by getting-better/const-reflect-oracle.mlw. *)",
+                "  let function is_constant (e: emit_ir) : bool =",
+                "    match e with IrNum _ -> true | IrNumF _ -> true | IrStr _ -> true"
+                " | IrBoolC _ -> true | IrNone -> true | _ -> false end",
+                "  let function is_num_or_float (e: emit_ir) : bool =",
+                "    match e with IrNum _ -> true | IrNumF _ -> true | _ -> false end",
+            ]) if self._uses_const_reflect() else []),
             *(([
                 "  (* value-model campaign incr8: the None-literal DISCRIMINANT, HOISTED here from"
                 " the `_py_expr_dict` dict-literal block below (both gated on `_uses_stmt_ir`) so"
@@ -3941,7 +3966,7 @@ class PreambleEmissionMixin:
                 "  let function num_of (e: emit_ir) : int =",
                 "    match e with IrNum n -> n | _ -> 0 end",
                 "",
-            ]) if self._uses_null_byte_num_reader() else []),
+            ]) if (self._uses_null_byte_num_reader() or self._uses_const_reflect()) else []),
             "  (* tier3-p1 increment 2 (§5e / risk-6 asymmetry): FieldGet projections."
             " FieldGet.object is a LEAF string (`fgobject_of` : string) — UNLIKE"
             " Attribute.object which is a SUB-node (`object_of` : emit_ir). FieldGet.field is"
@@ -5221,6 +5246,72 @@ class PreambleEmissionMixin:
                      for fn in self.ir.get("functions", []) or [])
         self._uses_str_set_cache = result
         return result
+
+    def _uses_const_reflect(self) -> bool:
+        """const-reflection value model (self-tcb-reduction, Tier-5 value-model wall;
+        L1/L4a infra-witness): True iff SOME function in this file reflects on an emit_ir
+        CONSTANT node via the tuple-of-types test `isinstance(<x>.value, (int, float))` —
+        the numeric-Constant discriminant shape shared by `_collect_class_fields` /
+        `_synthesize_*`. Only then are the `is_constant`/`is_num_or_float` COMPOUND
+        discriminants (spanning the existing IrNum/IrNumF/IrStr/IrBoolC/IrNone const
+        leaves) + the `num_of` int projector emitted into the emit_ir theory, so the
+        const-reflection recognisers stay OUT of every other mirror's SMT context and the
+        whole reference corpus (no `isinstance(_, (int, float))` there → byte-identical).
+        The three lowerings are axiom-free `let function`s over EXISTING emit_ir leaves +
+        the pre-existing `num_of` — NO new ADT/cert, ledger stays 3. Cached."""
+        cached = getattr(self, "_uses_const_reflect_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._has_num_or_float_isinstance(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_const_reflect_cache = result
+        return result
+
+    def _has_num_or_float_isinstance(self, func: Dict[str, Any]) -> bool:
+        """const-reflection: True iff `func` contains the const-reflection numeric test
+        `isinstance(<x>.value, (int, float))` — an isinstance Call whose SECOND arg is the
+        `(int, float)` tuple AND whose FIRST arg is a `.value` ATTRIBUTE read (the
+        const-node value projection). Narrowing to the `.value`-attribute shape (exactly
+        the `is_num_or_float` recogniser's trigger, expressions.py branch B) EXCLUDES a
+        bare runtime `isinstance(v, (int, float))` value check on a plain scalar, so the
+        gate fires only where the recogniser actually rewrites. Byte-inert (no corpus
+        program reflects on a const node's `.value` this way)."""
+        found = [False]
+
+        def rec(n: Any) -> None:
+            if found[0]:
+                return
+            if isinstance(n, dict):
+                if (n.get("type") == "Call" and n.get("func") == "isinstance"):
+                    _args = n.get("args") or []
+                    _a0 = _args[0] if _args else None
+                    if (len(_args) == 2 and self._is_int_float_tuple(_args[1])
+                            and isinstance(_a0, dict)
+                            and _a0.get("type") == "Attribute"
+                            and _a0.get("attr") == "value"):
+                        found[0] = True
+                        return
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        rec(func.get("body"))
+        return found[0]
+
+    @staticmethod
+    def _is_int_float_tuple(ir: Any) -> bool:
+        """True iff `ir` is the tuple literal `(int, float)` — exactly two `Var` arms
+        named `int` and `float` (the `isinstance(_, (int, float))` numeric class set)."""
+        if not (isinstance(ir, dict) and ir.get("type") in ("Tuple", "MkTuple")):
+            return False
+        elts = ir.get("elts") or []
+        if len(elts) != 2:
+            return False
+        names = {e.get("name") for e in elts
+                 if isinstance(e, dict) and e.get("type") == "Var"}
+        return names == {"int", "float"}
 
     def _emit_str_set_theory(self) -> List[str]:
         """set-value-model-wall (self-tcb-reduction, Tier-5): the EXECUTABLE

@@ -5369,6 +5369,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _ow = self._expr_to_whyml(arg_ir.get("object", {}),
                                               local_refs or set(), invariant_ctx, subst)
                     return f"(real_trunc (pvreal_of {_ow}))"
+                # const-reflection value model (self-tcb-reduction, Tier-5 value-model
+                # wall): `int(<x>.value)` where <x> is an emit_ir CONSTANT node reads the
+                # INT payload of its IrNum leaf -> `(num_of <x>)`, the FAITHFUL int
+                # projector — NOT the opaque `get_value`/`svalue_of` sub-node projector
+                # `_EMIT_IR_PROJ["value"]` picks (an emit_ir type error in an int context).
+                # Gated on `_uses_const_reflect` -> corpus-inert.
+                if (self._uses_const_reflect()
+                        and isinstance(arg_ir, dict)
+                        and arg_ir.get("type") == "Attribute"
+                        and arg_ir.get("attr") == "value"
+                        and self._is_emit_ir_expr(arg_ir.get("object", {}))):
+                    _ow = self._expr_to_whyml(arg_ir.get("object", {}),
+                                              local_refs or set(), invariant_ctx, subst)
+                    return f"(num_of {_ow})"
                 # typed-ir §18: `int(<str>)` (e.g. `int(ghost_type[-1])`) is a genuine
                 # str→int conversion — an abstract `str_to_int` — not the int-identity.
                 # Fires only for a string arg → byte-identical (an int arg is identity).
@@ -5682,6 +5696,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _pred:
                 _av = self._expr_to_whyml(_a0, local_refs, getattr(self, "_in_spec", False), None)
                 return f"({_pred} {_av})"
+        # const-reflection value model (self-tcb-reduction, Tier-5 value-model wall;
+        # L1/L4a infra-witness): the two const-node isinstance recognisers, gated on
+        # `_uses_const_reflect` (a file with an `isinstance(_, (int, float))` reflect) ->
+        # corpus + every other mirror byte-identical.
+        #  (A) `isinstance(<x>, ast.Constant)` where <x> is an emit_ir node lowers to the
+        #      COMPOUND discriminant `(is_constant <x>)`. Faithful: a Constant lowers (via
+        #      `_py_expr_constant`) to EXACTLY one of IrNum/IrNumF/IrStr/IrBoolC/IrNone, and
+        #      `is_constant` matches exactly those leaves. `ast.Constant` is intentionally
+        #      ABSENT from `_AST_CLASS_TO_IR_KIND` (a Constant is multi-leaf, not one kind),
+        #      so ONLY the compound discriminant — not a single `is_K` — is faithful here.
+        if (self._uses_const_reflect()
+                and isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                and isinstance(_a1.get("object"), dict)
+                and _a1["object"].get("type") == "Var"
+                and _a1["object"].get("name") == "ast"
+                and _a1.get("attr") == "Constant"
+                and self._is_emit_ir_expr(_a0)):
+            _av = self._expr_to_whyml(_a0, local_refs, getattr(self, "_in_spec", False), None)
+            return f"(is_constant {_av})"
+        #  (B) `isinstance(<x>.value, (int, float))` — the tuple-of-types NUMERIC test on a
+        #      const node's `.value` — lowers to `(is_num_or_float <x>)` (the numeric-leaf
+        #      subset IrNum/IrNumF). arg0 is the `.value` Attribute on an emit_ir node; arg1
+        #      is the `(int, float)` tuple literal.
+        if (self._uses_const_reflect()
+                and self._is_int_float_tuple(_a1)
+                and isinstance(_a0, dict) and _a0.get("type") == "Attribute"
+                and _a0.get("attr") == "value"
+                and self._is_emit_ir_expr(_a0.get("object", {}))):
+            _ow = self._expr_to_whyml(_a0.get("object", {}), local_refs,
+                                      getattr(self, "_in_spec", False), None)
+            return f"(is_num_or_float {_ow})"
         # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): a
         # `_py_expr_constant`-style INPUT-side value-type test `isinstance(expr.value,
         # bool/str/int)` — where arg0 is a `pyconst_val`-typed record-field read

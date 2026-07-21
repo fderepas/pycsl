@@ -1,0 +1,54 @@
+module ConstReflectOracle
+  use int.Int
+
+  (* Minimal slice of the emit_ir ADT: the constant leaves + a couple of non-const
+     nodes, exactly as in core_ir_semantic.mlw. *)
+  type emit_ir =
+    | IrVar string
+    | IrStr string
+    | IrNum int
+    | IrNumF real
+    | IrBoolC int
+    | IrNone
+    | IrSub emit_ir emit_ir
+
+  (* is_constant : the COMPOUND discriminant spanning ALL const-literal leaves.
+     `isinstance(x, ast.Constant)` <-> x lowered from an ast.Constant node. *)
+  let function is_constant (e: emit_ir) : bool =
+    match e with
+    | IrNum _ -> true | IrNumF _ -> true | IrStr _ -> true
+    | IrBoolC _ -> true | IrNone -> true | _ -> false end
+
+  (* is_num_or_float : the tuple-of-types `isinstance(x.value, (int, float))`. *)
+  let function is_num_or_float (e: emit_ir) : bool =
+    match e with IrNum _ -> true | IrNumF _ -> true | _ -> false end
+
+  (* num_of : the existing int projector (already in expressions.mlw). *)
+  let function num_of (e: emit_ir) : int =
+    match e with IrNum n -> n | _ -> 0 end
+
+  (* Driver: a numeric Constant is recognised and projected faithfully. *)
+  let test_num () : unit =
+    let e = IrNum 42 in
+    assert { is_constant e };
+    assert { is_num_or_float e };
+    assert { num_of e = 42 }
+
+  (* Evil twin: a string Constant IS a constant but NOT numeric. Non-vacuity. *)
+  let test_str_twin () : unit =
+    let e = IrStr "hello" in
+    assert { is_constant e };
+    assert { not (is_num_or_float e) }
+
+  (* Float Constant: recognised, numeric-or-float true. *)
+  let test_float () : unit =
+    let e = IrNumF 3.0 in
+    assert { is_constant e };
+    assert { is_num_or_float e }
+
+  (* Anti-vacuity guard: a non-constant node (Subscript) is NOT a constant. *)
+  let test_noncon () : unit =
+    let e = IrSub (IrVar "a") (IrNum 0) in
+    assert { not (is_constant e) };
+    assert { not (is_num_or_float e) }
+end

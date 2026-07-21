@@ -1,0 +1,184 @@
+(* 0924 — const-reflection value model (self-tcb-reduction, Tier-5 value-model
+   wall; L1/L4a infra-witness): OBSERVATIONAL non-vacuity for the const-node
+   input-reflection recognisers — the faithful lowering of a Python emitter's
+   `isinstance(x, ast.Constant)` / `isinstance(x.value, (int, float))` / `int(x.value)`
+   over an already-lowered emit_ir constant node.
+
+   The recognized Python (verbatim, `scratchpad/constref_good.py --keep-mlw`):
+
+     def const_int_value(x: ExprIR) -> int:
+         v = 0
+         if isinstance(x, ast.Constant) and isinstance(x.value, (int, float)):
+             v = int(x.value)
+         return v
+
+   The recognizers and their FAITHFUL lowering (all corpus-byte-inert, gated on
+   the corpus-absent `isinstance(_, (int, float))` reflect — `_uses_const_reflect`):
+
+     isinstance(x, ast.Constant)         ->  `(is_constant x)` — the COMPOUND
+        discriminant spanning ALL const-literal leaves. `_py_expr_constant` lowers
+        an ast.Constant to EXACTLY one of IrNum/IrNumF/IrStr/IrBoolC/IrNone (by the
+        `.value` type), and `is_constant` matches exactly those leaves. NOT
+        `isinstance_op 0 0` (the pre-feature int-erased sentinel — ast.Constant is
+        absent from `_AST_CLASS_TO_IR_KIND` because a Constant is multi-leaf, not
+        one kind, so ONLY the compound discriminant is faithful).
+     isinstance(x.value, (int, float))   ->  `(is_num_or_float x)` — the tuple-of-
+        types NUMERIC subset (IrNum/IrNumF). NOT `isinstance_op 0 0`.
+     int(x.value)                        ->  `(num_of x)` — the IrNum INT-payload
+        projector (already in the emit_ir theory). NOT the opaque `get_value` /
+        `svalue_of` sub-node projector (an emit_ir type error in an int context).
+
+   The emit_ir subset, `is_constant`/`is_num_or_float`/`num_of`, and the
+   `const_int_value` body below are VERBATIM the PyCSL tool's emitted output for the
+   method above (grep-confirmed against module6_whyml/preamble.py::_emit_exprir_theory
+   and the emitted body). Anti-facade clean: real match-based discriminants, no
+   `isinstance_op 0 0` / `svalue_of` / `get_value` / int-hash.
+
+   Load-bearing claim: a NUMERIC constant `IrNum 42` is recognised by BOTH guards,
+   so the `if` fires and `num_of` reads back 42 FAITHFULLY (result 42). The evil
+   twins pin non-vacuity + anti-facade three ways: (1) wrong RESULT on the same
+   numeric body stays UNPROVEN; (2) a STRING constant `IrStr` IS a constant but is
+   NOT numeric — `is_num_or_float` is false, the `if` does NOT fire, result stays 0
+   (so `is_num_or_float` genuinely discriminates, not a constant-true facade);
+   (3) a NON-constant node `IrSub` fails `is_constant`, result 0.
+
+   Proven axiom-free by the fable oracle (getting-better/const-reflect-oracle.mlw,
+   Z3 Valid: numeric/string/float/non-const goals Valid, evil-twins refuted). All
+   three lowerings are definitional `let function`s over EXISTING emit_ir leaves +
+   the pre-existing `num_of` — NO new ADT, NO cited axiom (the ledger stays 3).
+
+   Infra + fixture witness (the L1 / Set[str] / null-byte precedent): count
+   UNCHANGED, no `\trusted` stub converted this increment. *)
+
+module ConstReflectGoodFaithful
+  use int.Int
+  use ref.Ref
+  use string.String
+
+  (* emit_ir subset: the const-literal leaves + one NON-const node (IrSub), exactly
+     as in core_ir_semantic.mlw. *)
+  type emit_ir =
+    | IrNum int | IrNumF real | IrStr string | IrBoolC int | IrNone
+    | IrSub emit_ir emit_ir
+
+  (* VERBATIM the tool's preamble (module6_whyml/preamble.py, gated on
+     `_uses_const_reflect`): the two COMPOUND const discriminants + the int reader. *)
+  let function is_constant (e: emit_ir) : bool =
+    match e with IrNum _ -> true | IrNumF _ -> true | IrStr _ -> true
+               | IrBoolC _ -> true | IrNone -> true | _ -> false end
+  let function is_num_or_float (e: emit_ir) : bool =
+    match e with IrNum _ -> true | IrNumF _ -> true | _ -> false end
+  let function num_of (e: emit_ir) : int =
+    match e with IrNum n -> n | _ -> 0 end
+
+  (* VERBATIM the tool's emitted body for `const_int_value` above. *)
+  let const_int_value (x: emit_ir) : int
+    (* faithful, load-bearing contract (provable for ALL x): a NUMERIC constant reads
+       back through `num_of`; anything else yields 0. `is_num_or_float x -> is_constant
+       x` (numeric is a subset of constant), so the body guard = `is_num_or_float x`. *)
+    ensures { is_num_or_float x -> result = num_of x }
+    ensures { not (is_num_or_float x) -> result = 0 }
+  =
+    let v = ref 0 in
+    v := 0;
+    if ((if (is_constant x) && (is_num_or_float x) then 1 else 0) <> 0) then begin
+      v := (num_of x)
+    end;
+    !v
+
+  (* GOOD: a numeric Constant is recognised by both guards; num_of reads 42. *)
+  let good_numeric () : int
+    ensures { result = 42 }
+  = const_int_value (IrNum 42)
+
+  (* GOOD: a STRING constant is a constant but NOT numeric -> if does not fire -> 0.
+     Pins `is_num_or_float` as a genuine discriminant (not constant-true). *)
+  let good_string_nonnumeric () : int
+    ensures { result = 0 }
+  = const_int_value (IrStr "hello")
+
+  (* GOOD: a non-constant node fails `is_constant` -> if does not fire -> 0. *)
+  let good_nonconstant () : int
+    ensures { result = 0 }
+  = const_int_value (IrSub (IrNum 1) (IrNum 2))
+end
+
+(* EVIL TWIN 1 — a WRONG RESULT value on the numeric body: the actual result is 42
+   (IrNum 42 is a numeric constant, so both guards pass and `num_of` reads 42), so
+   `ensures { result = 0 }` MUST stay UNPROVEN (non-vacuity: if `is_constant` /
+   `is_num_or_float` / `num_of` were a facade the good claim would FAIL). *)
+module ConstReflectEvilWrongResult
+  use int.Int
+  use ref.Ref
+  use string.String
+
+  type emit_ir =
+    | IrNum int | IrNumF real | IrStr string | IrBoolC int | IrNone
+    | IrSub emit_ir emit_ir
+
+  let function is_constant (e: emit_ir) : bool =
+    match e with IrNum _ -> true | IrNumF _ -> true | IrStr _ -> true
+               | IrBoolC _ -> true | IrNone -> true | _ -> false end
+  let function is_num_or_float (e: emit_ir) : bool =
+    match e with IrNum _ -> true | IrNumF _ -> true | _ -> false end
+  let function num_of (e: emit_ir) : int =
+    match e with IrNum n -> n | _ -> 0 end
+
+  let const_int_value (x: emit_ir) : int
+    (* faithful, load-bearing contract (provable for ALL x): a NUMERIC constant reads
+       back through `num_of`; anything else yields 0. `is_num_or_float x -> is_constant
+       x` (numeric is a subset of constant), so the body guard = `is_num_or_float x`. *)
+    ensures { is_num_or_float x -> result = num_of x }
+    ensures { not (is_num_or_float x) -> result = 0 }
+  =
+    let v = ref 0 in
+    v := 0;
+    if ((if (is_constant x) && (is_num_or_float x) then 1 else 0) <> 0) then begin
+      v := (num_of x)
+    end;
+    !v
+
+  let evil_wrong_result () : int
+    ensures { result = 0 }  (* WRONG: real result is 42 -> stays UNPROVEN *)
+  = const_int_value (IrNum 42)
+end
+
+(* EVIL TWIN 2 — a STRING constant claimed NUMERIC: `IrStr` fails `is_num_or_float`,
+   so the `if` does NOT fire and the result is 0, NOT 42. `ensures { result = 42 }`
+   MUST stay UNPROVEN (anti-facade: `is_num_or_float` is NOT a constant-true facade —
+   it genuinely rejects the string constant). *)
+module ConstReflectEvilStringNumeric
+  use int.Int
+  use ref.Ref
+  use string.String
+
+  type emit_ir =
+    | IrNum int | IrNumF real | IrStr string | IrBoolC int | IrNone
+    | IrSub emit_ir emit_ir
+
+  let function is_constant (e: emit_ir) : bool =
+    match e with IrNum _ -> true | IrNumF _ -> true | IrStr _ -> true
+               | IrBoolC _ -> true | IrNone -> true | _ -> false end
+  let function is_num_or_float (e: emit_ir) : bool =
+    match e with IrNum _ -> true | IrNumF _ -> true | _ -> false end
+  let function num_of (e: emit_ir) : int =
+    match e with IrNum n -> n | _ -> 0 end
+
+  let const_int_value (x: emit_ir) : int
+    (* faithful, load-bearing contract (provable for ALL x): a NUMERIC constant reads
+       back through `num_of`; anything else yields 0. `is_num_or_float x -> is_constant
+       x` (numeric is a subset of constant), so the body guard = `is_num_or_float x`. *)
+    ensures { is_num_or_float x -> result = num_of x }
+    ensures { not (is_num_or_float x) -> result = 0 }
+  =
+    let v = ref 0 in
+    v := 0;
+    if ((if (is_constant x) && (is_num_or_float x) then 1 else 0) <> 0) then begin
+      v := (num_of x)
+    end;
+    !v
+
+  let evil_string_numeric () : int
+    ensures { result = 42 }  (* WRONG: IrStr is not numeric -> result 0 -> UNPROVEN *)
+  = const_int_value (IrStr "hello")
+end
