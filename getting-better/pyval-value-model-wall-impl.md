@@ -199,3 +199,42 @@ RECURRING reusable next-capabilities (broadest leverage): R2 ast.walk-opaque-pro
 seq-pyval/list-of-heterogeneous-dict append (>=4 collectors, incl. type_decls.append), multi-arg projection (2).
 Each collector = a multi-capability conjunction; NO bounded 1-piece follow-on. Next value-model count cuts require
 a deliberate multi-capability build (build order: seq-pyval-append + ast.walk + nested-body-local, then converge).
+
+## R3 SEQ-PYVAL SELF-FIELD APPEND (2026-07-21) — MODELING **PASS**, EMISSION **CERTIFIED-BOUNDARY** (terminal wall)
+Gate S spiked R3 (the novel piece) MODELING-first (`scratchpad-r3-spike.mlw`, reverted after): a mutable record
+field `final_registry : seq pyval`, `append` lowered to `self.final_registry <- snoc (old self.final_registry)
+entry`, PMap 4-key dict as the entry. **Z3 result: all Valid, axiom-free** — `append_final'vc` (frame+effect),
+`test_append_consequence'vc` (last elem = the PMap; `class` read-back = `Some (PStr cls)`), `test_two_appends'vc`
+(sequential compose), `read_class_faithful`/`read_kind_literal` (heterogeneous read-back); evil twin
+`evil_append_noop` (length-unchanged claim) Timeout=NOT Valid (non-vacuous). `use seq.Seq`+`snoc`; `seq pyval`
+typechecks fine (pyval is a fully-defined concrete type; `seq` over it is positive OUTSIDE the recursive variant,
+distinct from the `PArr (seq pyval)` positivity issue INSIDE it). NO `axiom`, NO abstract `val`. Reuses Phase2f.
+=> R3 MODELING is a proven, durable, axiom-free capability (banked; NOT emitted this run).
+
+**But R3 EMISSION is the terminal wall — two disjoint blockers, measured against the LIVE tool:**
+1. **The existing self-field-list append is a FACADE (fresh-local shadow + int-erasure).** Emitting proc
+   (`src/pycsl_lib/proc/__init__.py`, the only self-field `.append` precedent) shows `setenv`'s
+   `self._env_keys.append(key)` lowering (proc `__init__.mlw`): the field is typed `mutable _env_keys: array int`
+   (INT-ERASED; strings compared via `str_hash_op`), and the append emits `let self__env_keys = Array.make 1024 0`
+   — a FRESH LOCAL that SHADOWS the field — then `self__env_keys[len] <- key`. The real `self._env_keys` field is
+   NEVER written back (only `self._env_count <- +1` touches the record). So even the HOMOGENEOUS case does not
+   faithfully mutate the field; the heterogeneous `seq pyval` case has NO machinery at all. Faithful self-field
+   seq-pyval append = a from-scratch emission subsystem (rework `find_append_targets` + statements.py:~2981 to emit
+   `self.f <- snoc self.f (PMap …)` on the RECORD field, typed `seq pyval`, routed through pyval not
+   `Array.make 1024 0`/`str_hash_op`).
+2. **The IREmitter mirror is DELIBERATELY FIELDLESS.** `PyCSLToJSONEmitter.__init__` is `pass`
+   (`\trusted`, `assigns \nothing`); `_final_registry` is not a modeled field; the `@mutable_state` decorator on
+   the mirror is an explicit "fieldless mixin, no dummy field" shim used only for `node.attr` emit_ir reads (see
+   the class header comment). To assign `self._final_registry` a method needs `assigns self._final_registry` on a
+   STATEFUL record with that mutable field + a class invariant (the proc/UnixInodeFileSystem shape). Retrofitting
+   the fieldless 60-stub mirror to stateful changes `self`'s modeling across every method — invasive, no precedent,
+   high byte-diff risk — far beyond the scoped "3 residual pieces."
+VERDICT: per Gate-S refutation policy — R3 EMISSION is the terminal wall, so R1 (`stmt_body` nested-body-local
+projector) and R2 (`ast_walk` opaque projector) were NOT built/ground (both are moot: even fully built, the
+converged `_collect_final_registry` still cannot faithfully emit its `self._final_registry.append(dict)` sink).
+REVERTED to clean; count unchanged (1015). Banked: the R3 MODELING cert (seq-pyval append, axiom-free) stays
+available for a future session that FIRST builds the faithful self-field-list-mutation emission subsystem (unblocks
+_collect_final_registry, _collect_type_params, _collect_class_fields, and the 3 `type_decls.append` synthesizers —
+the >=4-collector leverage node). Build order for that session: (a) faithful self-field seq-append emission
+(replace the shadow-local facade), (b) mirror-stateful retrofit OR a return-value refactor that avoids the
+self-field sink, THEN R1+R2+converge.
