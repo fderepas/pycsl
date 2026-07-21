@@ -1275,6 +1275,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             self._add_abstract_op(
                 "val map_union (a b: map int (option int)) : map int (option int)")
             code = f"{indent}{safe_target} := (map_union !{safe_target} {val})"
+        elif raw_op == "|" and target in getattr(self, "_str_set_locals", set()):
+            # set-value-model-wall (self-tcb-reduction, Tier-5): `s |= t` where `s` is
+            # an emitter-local `Set[str]` (`_str_set_locals`: annotated `Set[str]` AND
+            # `= set()`-initialized) is the FAITHFUL set UNION over the executable
+            # `set.SetApp[string]` clone — `s := StrSet.union !s <t>` — matching the
+            # `StrSet.empty`/`StrSet.add`/`StrSet.mem` ops the same local already uses.
+            # Without this arm the local fell through to the integer `bit_or` and the
+            # emitted body type-errored (`StrSet.set` in an `int` slot) — the
+            # `_handle_try_stmt` regression. `union` is a plain `SetApp` val (no new
+            # axiom, ledger stays 3). Gated on `_str_set_locals`, which is empty for
+            # every corpus function -> byte-identical.
+            code = f"{indent}{safe_target} := (StrSet.union !{safe_target} {val})"
         elif raw_op in bitwise_ops:
             op_fn = bitwise_ops[raw_op]
             self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")

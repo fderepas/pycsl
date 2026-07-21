@@ -554,9 +554,17 @@ class ControlFlowStmtMixin:
                         bind_name = f"_u_{arm_ctor}"
                     # Rewrite the pattern to the variant constructor with the
                     # bound carrier. The carrier is positional.
-                    new_pat = {"pattern": "Constructor", "ctor": arm_ctor,
-                               "captures": [{"pattern": "Capture",
-                                             "name": bind_name}]}
+                    # self-tcb-reduction Tier-5: the rewritten pattern is a
+                    # HETEROGENEOUS `Dict[str, Any]` (two string values + a list of
+                    # nested dicts), so it is annotated with the `PyVal` (~Any)
+                    # sentinel and lowers to the faithful `map string (option hval)`
+                    # with `HStr`/`HArr`/`HMap`-tagged values — never the int-erased
+                    # `map string (option int)` (which int-hashes "Constructor" and
+                    # type-rejects the string `arm_ctor`).
+                    new_pat: Dict[str, PyVal] = {
+                        "pattern": "Constructor", "ctor": arm_ctor,
+                        "captures": [{"pattern": "Capture",
+                                      "name": bind_name}]}
                     c["pattern"] = new_pat
         # sum-types: a constructor-pattern match over a `#@ datatype` lowers to a real Why3
         # `match … with` (so Why3 checks exhaustiveness), not the value-pattern if-chain.

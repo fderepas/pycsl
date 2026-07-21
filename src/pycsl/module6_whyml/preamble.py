@@ -5338,7 +5338,9 @@ class PreambleEmissionMixin:
         NOT a project axiom — its refinement VC discharges (Valid).
 
         A `set()` lowers to `StrSet.empty ()` (`ref StrSet.set`, NOT `ref 0`),
-        `s.add(x)` to `s := StrSet.add x !s`, and `x in s`/`x not in s` to a
+        `s.add(x)` to `s := StrSet.add x !s`, `s |= t` to `s := StrSet.union !s t`
+        (statements.py `_handle_augassign_stmt`; `union` is a plain `SetApp` val, no
+        new axiom), and `x in s`/`x not in s` to a
         PROGRAM BOOL `StrSet.mem`/`not (StrSet.mem …)` guard. CRITICAL: NO
         set-non-membership assert/ensures is ever emitted (`assert { not (Fset.mem
         …) }` times out through the abstract set layer — see

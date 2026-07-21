@@ -29,6 +29,11 @@
                   `x not in seen` -> `not (StrSet.mem x !seen)` (not exercised here
                   — it would need a set-non-membership fact, which times out through
                   the abstract set layer; see set-value-model-wall-response.md §4).
+     a |= b     : `a |= b` (set UNION) -> `a := (StrSet.union !a !b)` — the faithful
+                  `set.SetApp` union, NOT the integer `bit_or !a !b` the AugAssign
+                  ladder used to fall through to (which type-CLASHED `StrSet.set`
+                  against `int` and broke the whole file's L3 typecheck). Exercised by
+                  the `StrSetUnionGoodFaithful` module below.
 
    The `scope StrSet` clone, the `contains_added` body, and the evil twin below
    are VERBATIM the PyCSL tool's emitted output for the method above (Gate-S
@@ -112,6 +117,95 @@ module StrSetLocalEvilWrongResult
     seen := StrSet.add y !seen;
     r := 0;
     if (StrSet.mem x !seen) then begin
+      r := 1
+    end;
+    !r
+end
+
+(* ---------------------------------------------------------------------------
+   UNION arm (`a |= b`) — the second emitted `Set[str]` op. Recognized Python
+   (verbatim, `scratchpad/strset_union.py --keep-mlw`):
+
+     def union_grows(x: str, y: str) -> int:   #@ ensures \result == 1
+         a: Set[str] = set()
+         b: Set[str] = set()
+         a.add(x)
+         b.add(y)
+         a |= b
+         r = 0
+         if y in a:
+             r = 1
+         return r
+
+   Load-bearing claim: `y`, added only to `b`, is READABLE in `a` after the union —
+   so the union genuinely TRANSFERS elements (it is not the int `bit_or` fallthrough,
+   nor a no-op facade). `union` is a plain `set.SetApp` val (`ensures result = union
+   s1 s2`) — NO new axiom, the ledger stays 3. The bodies below are VERBATIM the
+   PyCSL tool's emitted output (Gate-S anti-facade clean: no bit_or / str_hash_op /
+   int-erase). *)
+module StrSetUnionGoodFaithful
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use map.Map
+  use map.Const
+  use option.Option
+
+  scope StrSet
+    use string.String
+    val eq_str (x y: string) : bool ensures { result <-> x = y }
+    clone export set.SetApp with type elt = string, val eq = eq_str, axiom .
+  end
+
+  let union_grows (x: string) (y: string) : int
+    requires { true }
+    ensures  { (result = 1) }
+  =
+    let r = ref 0 in
+    let a = ref (StrSet.empty ()) in
+    let b = ref (StrSet.empty ()) in
+    a := StrSet.add x !a;
+    b := StrSet.add y !b;
+    a := (StrSet.union !a !b);
+    r := 0;
+    if (StrSet.mem y !a) then begin
+      r := 1
+    end;
+    !r
+end
+
+(* EVIL TWIN — a WRONG RESULT value on the byte-identical union body: the actual
+   result is 1 (the union transferred `y` into `a`, so the guard fires), so
+   `ensures { result = 0 }` MUST stay UNPROVEN. Non-vacuity / anti-facade seal for
+   the union arm. *)
+module StrSetUnionEvilWrongResult
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use map.Map
+  use map.Const
+  use option.Option
+
+  scope StrSet
+    use string.String
+    val eq_str (x y: string) : bool ensures { result <-> x = y }
+    clone export set.SetApp with type elt = string, val eq = eq_str, axiom .
+  end
+
+  let union_grows_evil (x: string) (y: string) : int
+    requires { true }
+    ensures  { (result = 0) }
+  =
+    let r = ref 0 in
+    let a = ref (StrSet.empty ()) in
+    let b = ref (StrSet.empty ()) in
+    a := StrSet.add x !a;
+    b := StrSet.add y !b;
+    a := (StrSet.union !a !b);
+    r := 0;
+    if (StrSet.mem y !a) then begin
       r := 1
     end;
     !r
