@@ -70,3 +70,48 @@ pipeline — not required for the gated, byte-inert build).
 NEXT shared leverage node = LOCAL/RETURN-POSITION seq-pyval (unblocks the append-to-local piece of _collect_class_
 fields + the synthesize_* collectors' type_decls.append). But each collector remains a CONJUNCTION (reflection /
 multi-arg / Set[str]) — must co-land the capability with a converging target (no dead infra).
+
+## K4 OUTCOME (2026-07-21) — CAPABILITY BUILT + Gate-S PROVEN, but NO BOUNDED CO-TARGET → REVERTED (dead infra)
+- **Gate S SPIKE: PASS.** Built the LOCAL/RETURN-POSITION seq-pyval capability (the K1 analogue for locals):
+  - Module5 already captures `return_value_type == "pyval"` for a `-> List[Dict[str, PyVal]]`/`-> List[PyVal]`
+    return (via `_m5_get_list_elem_type`, K1's dict-value-type branch). The local annotation itself is LOST
+    (`fields: List[Dict[str,PyVal]] = []` → IR `Assign target=fields value=ArrayLit[]`, no local_var_types), so the
+    RETURN annotation is the byte-inert gate signal.
+  - 4 edits: (1) functions.py `_compute_return_type` — `return_value_type == "pyval"` → return type `seq pyval`;
+    (2) functions.py `_emit_function` — `_pyval_seq_locals = {_returned_var_name}` when the fn returns pyval;
+    (3) statements.py append site — `local.append({dict})` on a `_pyval_seq_locals` local → `local := Seq.snoc
+    !local (<_pyval_wrap dict>)` (real pyval write-back, NOT `Seq.snoc !local 0`); (4) stmt_control_flow return
+    site — `return local` emits `!local` directly (no `materialize` seq→array int bridge); (5) preamble.py
+    `_uses_pyval` fires on a pyval return so `type pyval` is in scope.
+  - EMISSION VERIFIED on scratchpad/k4_probe.py: `let collector__build (…) : seq pyval = let fields = ref Seq.empty
+    in fields := Seq.snoc !fields (PMap (map_update_some (map_update_some (const (None: option pyval)) "pattern"
+    (PStr "Constructor")) "name" (PStr name))); !fields` — string var `name` projects faithfully as `PStr name`,
+    return is `seq pyval` (no int-erasure, no materialize). TYPECHECKS (L3-tc ✓).
+  - SPIKE ORACLE (scratchpad/k4_spike.mlw, verbatim the emitted shape + build→read-back driver + 2 evil twins):
+    GOOD `collector__build'vc` + `test_build_readback'vc` **Valid** (Z3 0.05/0.06s; Alt-Ergo Valid too) — the tail
+    reads back `PStr nm` faithfully. EvilWrongTail (wrong tail literal) and EvilNoOp (empty-seq facade) **never
+    Valid** (both provers Timeout) — non-vacuous. Axiom-free (reuses Phase2f_PyVal + intrinsic seq.Seq/snoc), ledger 3.
+- **NON-VACUITY: NO CONVERTING CO-TARGET within bounded reach → REVERTED ALL (dead infra).** Exhaustive scan of the
+  LIVE emitter: the ONLY methods that build a genuine heterogeneous `List[Dict[str, PyVal]]` and RETURN it are the
+  two collectors K3 already refuted, and both are exactly the task-excluded cases (read directly from source, not
+  predicted):
+  - `_collect_type_params` (M5:1871): `out.append({"name": name, "bound": bound, "kind": kind}); return out` — a
+    DIRECT-return pyval list (K4 handles the return/append), BUT the dict values come from `type(tp).__name__`
+    (TYPE-NAME REFLECTION over unmodeled PEP-695 type_param nodes) + `getattr(tp, name/bound)` + `isinstance(bnode,
+    ast.Name/Attribute)` + the legacy `Generic[T]` branch (`node.bases`, `_extract_generic_arg_names`, registry
+    lookup). A REFLECTION wall — explicitly out of scope.
+  - `_collect_class_fields` (M5:2481): `fields.append({"name":str,"type":str,"mutable":bool})` returned in a TUPLE
+    `(fields, field_defaults)`. Even granting K4's tuple-return carriage, the residual is STILL isinstance+`int()`
+    constant reflection + a `Set[str]` local with `.add`/`in` + the `ast.walk(__init__)` — a 3+-piece conjunction.
+  - Every OTHER `-> List[Dict[str, Any]]` builder (`_csl_list_to_ir`, `_comprehension_generators_to_ir`,
+    `_py_stmts_to_ir`, `_synthesize_overload_guard`) appends IR-NODE dicts (`{"type"/"stmt": …}` = emit_ir), NOT
+    heterogeneous pyval dicts — handled by the emit_ir machinery, not pyval. The `_synthesize_*` methods build a
+    pyval-list LOCAL but STORE it into `program_ir["type_decls"].append({…, "fields": fields})` (return None) behind
+    a TypedDict/NamedTuple AST-walk + program_ir-mutation wall — multi-piece.
+- **VERDICT: local/return-position seq-pyval is a genuine, proven, byte-inert capability with NO bounded conversion
+  co-target.** The pyval-list builders are all ≥2-more-capability conjunctions rooted in AST/type REFLECTION
+  (type().__name__, isinstance+int(), TypedDict/NamedTuple walking) — the same reflection floor the
+  frontier-exhaustion map records. Reverted all 4 emitter edits (git checkout, src clean = HEAD), no fixture added,
+  count stays 1014, ledger 3. Do NOT rebuild K4 alone; it needs a reflection-modeling capability co-built first
+  (authorize a multi-piece build), or a NEW mirror method authored to return a clean pyval list (contrived, not a
+  real TCB cut).
