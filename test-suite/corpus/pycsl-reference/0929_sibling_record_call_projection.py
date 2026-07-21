@@ -41,6 +41,13 @@ the `string` field, so a hash-collapsed comparison cannot pass either.
 `kind` / `at_eof` are the wave shapes this unlocks: a single-value predicate that
 projects an int / a string field off `self.cur()`.
 
+LOCAL-BOUND VARIANT. `local_kind` / `local_agrees` pin the OTHER half of the live shape:
+`t = self.cur()` binds the sibling call's result to a LOCAL, which is therefore
+record-typed. Before the fix it was pre-declared as the integer `ref 0` and the
+projection off it fell back to `(get_py_type !t)`. It now pre-declares the element
+record's default literal and projects natively as `(!t).py_type`. `local_agrees` is that
+path's own falsifiable anti-facade control.
+
 BOUNDS: every array read is discharged by the class invariant
 `0 <= self.i < \length(self.toks)` — no `#@ no_exception`, no requires-side narrowing.
 No new axiom (record + array are Why3 stdlib); no abstract val for the token kind — the
@@ -112,6 +119,22 @@ class Parser:
             return 1
         return 0
 
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def local_kind(self) -> int:
+        t = self.cur()
+        return t.py_type
+
+    #@ requires True
+    #@ ensures \result == 1
+    #@ assigns \nothing
+    def local_agrees(self) -> int:
+        t = self.cur()
+        if t.py_type == self.toks[self.i].py_type:
+            return 1
+        return 0
+
 
 if __name__ == "__main__":
     p = Parser([Tok(55, "+"), Tok(1, "x")])
@@ -120,3 +143,5 @@ if __name__ == "__main__":
     assert p.at_op() == 1
     assert p.sibling_agrees() == 1
     assert p.texts_agree() == 1
+    assert p.local_kind() == 55
+    assert p.local_agrees() == 1

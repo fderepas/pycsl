@@ -2444,6 +2444,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 fld = base.get("field")
                                 if obj == "self" and fld in raf:
                                     out[tgt] = raf[fld]
+                        # W8 capability (vi): a local bound to a SAME-CLASS sibling
+                        # call with a RECORD return (`t = self.cur()`, the opening
+                        # line of every parser predicate) is record-typed too — the
+                        # call lowers to the concrete `(<class>__cur self)`, so the
+                        # integer `ref 0` pre-decl mistypes it and the projection
+                        # `t.py_type` falls back to the opaque `(get_py_type !t)`.
+                        elif (isinstance(val, dict) and val.get("type") == "Call"
+                                and isinstance(val.get("func"), str)
+                                and val["func"].startswith("self.")):
+                            _crt = self._resolve_dotted_signature(val["func"])[0]
+                            for _rc, _ri in getattr(
+                                    self, "_record_types", {}).items():
+                                if _ri.get("whyml_name") == _crt:
+                                    out[tgt] = _rc
+                                    break
                 for v in node.values():
                     rec(v)
             elif isinstance(node, list):
