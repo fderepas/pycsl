@@ -452,15 +452,15 @@ class FunctionEmissionMixin:
             self._seq_locals |= self._stmt_seq_mut_params
             local_refs |= self._stmt_seq_mut_params
         # K4/#6 (local/return-position seq-pyval, self-tcb-reduction Tier-5): when the
-        # function returns `seq pyval` (`-> List[Dict[str, PyVal]]` / `-> List[PyVal]`,
-        # `return_value_type == "pyval"`), promote the RETURNED list local to
+        # function returns `seq hval` (`-> List[Dict[str, PyVal]]` / `-> List[PyVal]`,
+        # `return_value_type == "hval"`), promote the RETURNED list local to
         # `_pyval_seq_locals` so its `.append({...})` snocs a real `<pyval-wrap x>` (not
         # `Seq.snoc !x 0`) and the `return x` is `!x` (no `materialize` seq int -> array
         # int bridge). The var is already in `_seq_locals` (Module5 `seq_promoted_vars`);
         # this subset marks it as the pyval-carrying one. Gated on the corpus-absent
         # `pyval` return sentinel -> byte-inert.
         self._pyval_seq_locals: Set[str] = set()
-        if func.get("return_value_type") == "pyval":
+        if func.get("return_value_type") == "hval":
             _rv = self._returned_var_name(body_stmts)
             if _rv is not None:
                 self._pyval_seq_locals.add(_rv)
@@ -492,8 +492,8 @@ class FunctionEmissionMixin:
     def _prescan_pyval_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): fixpoint over the body
         collecting locals whose value is a heterogeneous `pyval`. Seeds:
-          - `t = <recv>.get(k[, {}])` where <recv> is a `map string (option pyval)`
-            self-field (value_type "pyval") -> `t` is pyval (unwrapped `Some v_ -> v_`);
+          - `t = <recv>.get(k[, {}])` where <recv> is a `map string (option hval)`
+            self-field (value_type "hval") -> `t` is hval (unwrapped `Some v_ -> v_`);
           - `t = <pyval-local>.get(k[, {}])` -> `t` is pyval;
           - `t = <pyval-producing> or {}` / `or []` -> `t` is pyval;
           - `t = <pyval-local>` (alias) -> `t` is pyval.
@@ -516,8 +516,8 @@ class FunctionEmissionMixin:
                     recv = fn[:-len(".get")]
                     if recv in pyval:
                         return True
-                    # a `map string (option pyval)` self-field receiver.
-                    if self._self_field_dict_nu(recv) == "pyval":
+                    # a `map string (option hval)` self-field receiver.
+                    if self._self_field_dict_nu(recv) == "hval":
                         return True
                 return False
             # alias of a pyval local.
@@ -1780,15 +1780,15 @@ class FunctionEmissionMixin:
                 return_type = f"array {self._record_types[func['return_value_type']]['whyml_name']}"
             # K4/#6 (local/return-position seq-pyval, self-tcb-reduction Tier-5): a
             # `-> List[Dict[str, PyVal]]` / `-> List[PyVal]` return is the faithful
-            # growable `seq pyval` (the K1 self-field analogue for a RETURNED local) —
+            # growable `seq hval` (the K1 self-field analogue for a RETURNED local) —
             # so a `fields.append({...}); return fields` builds+returns real `pyval`
             # entries instead of the int-erased `array int` + `materialize` (seq int ->
             # array int) bridge that drops the value carrier. `_emit_function` promotes
             # the returned local to `_pyval_seq_locals` so its append is a real
             # `Seq.snoc !fields (<pyval-wrap x>)` and the return is `!fields` (no
             # materialize). `pyval` is a corpus-absent sentinel -> byte-inert.
-            elif func.get("return_value_type") == "pyval":
-                return_type = "seq pyval"
+            elif func.get("return_value_type") == "hval":
+                return_type = "seq hval"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
             # self-tcb-reduction giants (generic class-body lowering): a `-> Dict[str, int]`
@@ -1812,7 +1812,7 @@ class FunctionEmissionMixin:
             # returns the faithful heterogeneous `pyval` carrier, not the int-erased
             # `_union_*`/`int` its opaque body would otherwise imply. `PyVal` is a
             # corpus-absent annotation sentinel -> byte-inert.
-            return_type = "pyval"
+            return_type = "hval"
         elif ann == "str" and return_type == "int":
             return_type = "string"
         elif ann == "float" and return_type == "int":

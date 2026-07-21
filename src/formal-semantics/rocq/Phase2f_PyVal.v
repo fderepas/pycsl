@@ -1,38 +1,38 @@
-(* Phase2f_PyVal.v — axiom-free certificate for the `pyval` heterogeneous value
+(* Phase2f_PyVal.v — axiom-free certificate for the `hval` heterogeneous value
    model (self-tcb-reduction, Tier-5 value-model wall).
 
    CO-LANDING COUPLING (the tier-3 rule, cf. Phase2c_PyConstVal.v /
-   Phase2d_StmtIR.v / Phase2e_PyAstStmt.v): the WhyML `pyval` theory promoted into
+   Phase2d_StmtIR.v / Phase2e_PyAstStmt.v): the WhyML `hval` theory promoted into
    the emitter preamble (`module6_whyml/preamble.py::_emit_pyval_theory`, gated on
    `_uses_pyval`) is a NEW value shape — the faithful carrier for a heterogeneous
-   Python `Dict[str, Any]` (PStr / PInt / PArr / PMap / PNode) — so it lands with a
-   proof, not a trusted assumption.  The build (`_build_dict_literal_map` pyval
-   branch) tags each dict value into its `pyval` constructor and the read
+   Python `Dict[str, Any]` (HStr / HInt / HArr / HMap / HNode) — so it lands with a
+   proof, not a trusted assumption.  The build (`_build_dict_literal_map` hval
+   branch) tags each dict value into its `hval` constructor and the read
    (`_dv_missing_default` / `Map.get`) projects it back; this file certifies,
    against pure inductive datatypes with NO axiom, exactly what the emitter relies
    on:
 
-     (a) `pyval` is a well-formed inductive: `PArr` recurses through the BESPOKE
-         `pyval_list` (PNil / PCons), NOT `seq` — the strictly-positive shape Why3
-         accepts (the `seq pyval` recursion is Why3-rejected); `PMap` carries a
-         `string -> option pyval` map, with `pyval` in the POSITIVE arrow codomain
+     (a) `hval` is a well-formed inductive: `HArr` recurses through the BESPOKE
+         `hval_list` (HNil / HCons), NOT `seq` — the strictly-positive shape Why3
+         accepts (the `seq hval` recursion is Why3-rejected); `HMap` carries a
+         `string -> option hval` map, with `hval` in the POSITIVE arrow codomain
          (Coq, like Why3, accepts the occurrence).  No `variant` clause — the mutual
          structural recursion is inferred;
      (b) the LOAD-BEARING measure `size` / `list_size` (the WhyML cert-side measure)
          is well-founded: `size v >= 1` (the WhyML `size_pos` lemma that SMT alone
          cannot discharge — it needs mutual structural induction; here it is proven),
          `list_size l >= 0`, and the tail of a cons is STRICTLY shorter — so any
-         fold over `pyval_list` terminates (no infinite descent);
-     (c) the value carriers are OBSERVABLE and DISTINCT — `PStr` is injective, and a
-         string value is NEVER erased to an int (`PStr s <> PInt n`): the
+         fold over `hval_list` terminates (no infinite descent);
+     (c) the value carriers are OBSERVABLE and DISTINCT — `HStr` is injective, and a
+         string value is NEVER erased to an int (`HStr s <> HInt n`): the
          no-more-int faithfulness the whole value model exists to protect;
      (d) the make-or-break heterogeneous DICT read is faithful: modelling the WhyML
-         `map string (option pyval)` as `string -> option pyval` with `Map.get` /
-         `Map.set`, the string VARIABLE arm reads back FAITHFULLY as `PStr arm_ctor`
+         `map string (option hval)` as `string -> option hval` with `Map.get` /
+         `Map.set`, the string VARIABLE arm reads back FAITHFULLY as `HStr arm_ctor`
          (the oracle's `read_variable_faithful`), a distinct key is untouched, and
          the EVIL TWIN — a WRONG value read — is provably UNprovable (non-vacuity).
 
-   `pyval` has NO decidable equality (the `PMap` functional field makes value
+   `hval` has NO decidable equality (the `HMap` functional field makes value
    equality undecidable) — an honest boundary; the emitter never needs it (reads are
    `Map.get` key-projections, compared by Leibniz `=` in the WhyML goals), so it is
    deliberately not claimed.  `size` / `size_pos` are CERT-ONLY (no frontier fold
@@ -53,86 +53,86 @@ Local Open Scope Z_scope.
 
 (* ===================================================================== *)
 (* 1. The heterogeneous value ADT — mirrors the WhyML                     *)
-(*      type pyval = PStr string | PInt int | PArr pyval_list             *)
-(*                 | PMap (map string (option pyval)) | PNode pyval        *)
-(*      with pyval_list = PNil | PCons pyval pyval_list.                   *)
+(*      type hval = HStr string | HInt int | HArr hval_list             *)
+(*                 | HMap (map string (option hval)) | HNode hval        *)
+(*      with hval_list = HNil | HCons hval hval_list.                   *)
 (* ===================================================================== *)
 
-Inductive pyval : Type :=
-  | PStr  (s : string)
-  | PInt  (n : Z)
-  | PArr  (l : pyval_list)
-  | PMap  (m : string -> option pyval)
-  | PNode (v : pyval)
-with pyval_list : Type :=
-  | PNil
-  | PCons (h : pyval) (t : pyval_list).
+Inductive hval : Type :=
+  | HStr  (s : string)
+  | HInt  (n : Z)
+  | HArr  (l : hval_list)
+  | HMap  (m : string -> option hval)
+  | HNode (v : hval)
+with hval_list : Type :=
+  | HNil
+  | HCons (h : hval) (t : hval_list).
 
 (* size / list_size — verbatim image of the WhyML cert-side measure (mutually
-   recursive, NO variant clause).  PMap's map has an INFINITE domain, so `size`
+   recursive, NO variant clause).  HMap's map has an INFINITE domain, so `size`
    counts the node only (documented deferral, exactly as the WhyML). *)
-Fixpoint size (v : pyval) : Z :=
+Fixpoint size (v : hval) : Z :=
   match v with
-  | PStr _  => 1
-  | PInt _  => 1
-  | PArr l  => 1 + list_size l
-  | PMap _  => 1
-  | PNode n => 1 + size n
+  | HStr _  => 1
+  | HInt _  => 1
+  | HArr l  => 1 + list_size l
+  | HMap _  => 1
+  | HNode n => 1 + size n
   end
-with list_size (l : pyval_list) : Z :=
+with list_size (l : hval_list) : Z :=
   match l with
-  | PNil      => 0
-  | PCons h t => size h + list_size t
+  | HNil      => 0
+  | HCons h t => size h + list_size t
   end.
 
 (* The MUTUAL induction principle (Coq's auto-generated `pyval_ind` is weak /
    non-mutual — this is the analogue of Why3's `induction_ty_lex`). *)
-Scheme pyval_mut := Induction for pyval Sort Prop
-with pyval_list_mut := Induction for pyval_list Sort Prop.
+Scheme pyval_mut := Induction for hval Sort Prop
+with pyval_list_mut := Induction for hval_list Sort Prop.
 
 (* ===================================================================== *)
 (* 2. (b) Well-foundedness: `size v >= 1` (the WhyML `size_pos`) + its     *)
 (*    companion `list_size l >= 0`, by MUTUAL structural induction.        *)
 (* ===================================================================== *)
 
-Theorem size_pos : forall v : pyval, size v >= 1.
+Theorem size_pos : forall v : hval, size v >= 1.
 Proof.
   apply (pyval_mut (fun v => size v >= 1) (fun l => list_size l >= 0));
     intros; cbn [size list_size] in *; lia.
 Qed.
 
-Theorem list_size_nonneg : forall l : pyval_list, list_size l >= 0.
+Theorem list_size_nonneg : forall l : hval_list, list_size l >= 0.
 Proof.
   apply (pyval_list_mut (fun v => size v >= 1) (fun l => list_size l >= 0));
     intros; cbn [size list_size] in *; lia.
 Qed.
 
 (* size is EXACT on each constructor (the measure is honest, not degenerate). *)
-Theorem size_pstr  : forall s, size (PStr s) = 1.
+Theorem size_pstr  : forall s, size (HStr s) = 1.
 Proof. reflexivity. Qed.
-Theorem size_pint  : forall n, size (PInt n) = 1.
+Theorem size_pint  : forall n, size (HInt n) = 1.
 Proof. reflexivity. Qed.
-Theorem size_pmap  : forall m, size (PMap m) = 1.
+Theorem size_pmap  : forall m, size (HMap m) = 1.
 Proof. reflexivity. Qed.
-Theorem size_parr  : forall l, size (PArr l) = 1 + list_size l.
+Theorem size_parr  : forall l, size (HArr l) = 1 + list_size l.
 Proof. reflexivity. Qed.
-Theorem size_pnode : forall n, size (PNode n) = 1 + size n.
+Theorem size_pnode : forall n, size (HNode n) = 1 + size n.
 Proof. reflexivity. Qed.
 
-Theorem list_size_nil  : list_size PNil = 0.
+Theorem list_size_nil  : list_size HNil = 0.
 Proof. reflexivity. Qed.
-Theorem list_size_cons : forall h t, list_size (PCons h t) = size h + list_size t.
+Theorem list_size_cons : forall h t, list_size (HCons h t) = size h + list_size t.
 Proof. reflexivity. Qed.
 
 (* The TAIL of a cons is STRICTLY shorter — the termination witness for any
-   structural fold over `pyval_list` (the WhyML has no `variant` clause because
+   structural fold over `hval_list` (the WhyML has no `variant` clause because
    Why3 infers exactly this descent). *)
-Theorem list_tail_size_lt : forall h t, list_size t < list_size (PCons h t).
+Theorem list_tail_size_lt : forall h t, list_size t < list_size (HCons h t).
 Proof. intros h t; cbn [list_size]; pose proof (size_pos h); lia. Qed.
 
 (* A non-empty list is DISTINCT from the empty one (a captured list is
-   OBSERVABLE, not PNil-erased). *)
-Theorem list_empty_neq_cons : forall h t, PNil <> PCons h t.
+   OBSERVABLE, not HNil-erased). *)
+Theorem list_empty_neq_cons : forall h t, HNil <> HCons h t.
 Proof. intros h t C; discriminate. Qed.
 
 (* ===================================================================== *)
@@ -140,36 +140,36 @@ Proof. intros h t C; discriminate. Qed.
 (*    faithfulness: a string stays a string, never erased to an int.       *)
 (* ===================================================================== *)
 
-Theorem pstr_inj : forall a b, PStr a = PStr b -> a = b.
+Theorem pstr_inj : forall a b, HStr a = HStr b -> a = b.
 Proof. intros a b H; inversion H; reflexivity. Qed.
-Theorem pstr_neq : forall a b, a <> b -> PStr a <> PStr b.
+Theorem pstr_neq : forall a b, a <> b -> HStr a <> HStr b.
 Proof. intros a b H C; inversion C; contradiction. Qed.
-Theorem pint_inj : forall a b, PInt a = PInt b -> a = b.
+Theorem pint_inj : forall a b, HInt a = HInt b -> a = b.
 Proof. intros a b H; inversion H; reflexivity. Qed.
 
-(* THE make-or-break distinctness: a PStr value is NEVER a PInt value — the
+(* THE make-or-break distinctness: a HStr value is NEVER a HInt value — the
    string is not int-hashed / int-erased (the whole point of the model). *)
-Theorem pstr_neq_pint  : forall s n, PStr s <> PInt n.
+Theorem pstr_neq_pint  : forall s n, HStr s <> HInt n.
 Proof. intros s n C; discriminate. Qed.
-Theorem pstr_neq_parr  : forall s l, PStr s <> PArr l.
+Theorem pstr_neq_parr  : forall s l, HStr s <> HArr l.
 Proof. intros s l C; discriminate. Qed.
-Theorem parr_neq_pnode : forall l v, PArr l <> PNode v.
+Theorem parr_neq_pnode : forall l v, HArr l <> HNode v.
 Proof. intros l v C; discriminate. Qed.
-(* PArr carries the captured list observably (distinct lists → distinct values). *)
-Theorem parr_inj : forall a b, PArr a = PArr b -> a = b.
+(* HArr carries the captured list observably (distinct lists → distinct values). *)
+Theorem parr_inj : forall a b, HArr a = HArr b -> a = b.
 Proof. intros a b H; inversion H; reflexivity. Qed.
 
 (* ===================================================================== *)
 (* 4. (d) The heterogeneous DICT read is faithful — the make-or-break.     *)
-(*    Model the WhyML `map string (option pyval)` (= `string -> option v`) *)
+(*    Model the WhyML `map string (option hval)` (= `string -> option v`) *)
 (*    with `Map.get` / `Map.set`.  Pointwise laws — NO functional           *)
 (*    extensionality, so still axiom-free.                                  *)
 (* ===================================================================== *)
 
-Definition pmap := string -> option pyval.
+Definition pmap := string -> option hval.
 Definition empty_map : pmap := fun _ => None.
-Definition map_get (m : pmap) (k : string) : option pyval := m k.
-Definition map_set (m : pmap) (k : string) (v : option pyval) : pmap :=
+Definition map_get (m : pmap) (k : string) : option hval := m k.
+Definition map_set (m : pmap) (k : string) (v : option hval) : pmap :=
   fun k' => if string_dec k k' then v else m k'.
 
 Theorem read_same_key : forall m k v, map_get (map_set m k v) k = v.
@@ -188,16 +188,16 @@ Qed.
 (* The oracle's `read_variable_faithful`: build the
    {"pattern": "Constructor", "ctor": arm_ctor, "captures": ["x"]} dict and read
    "ctor" — the string VARIABLE arm_ctor projects back FAITHFULLY as
-   `Some (PStr arm_ctor)`, with NO int-erasure. *)
+   `Some (HStr arm_ctor)`, with NO int-erasure. *)
 Definition build (arm_ctor : string) : pmap :=
   map_set
     (map_set
-      (map_set empty_map "pattern" (Some (PStr "Constructor")))
-                         "ctor"    (Some (PStr arm_ctor)))
-                         "captures" (Some (PArr (PCons (PStr "x") PNil))).
+      (map_set empty_map "pattern" (Some (HStr "Constructor")))
+                         "ctor"    (Some (HStr arm_ctor)))
+                         "captures" (Some (HArr (HCons (HStr "x") HNil))).
 
 Theorem read_variable_faithful : forall arm_ctor : string,
-  map_get (build arm_ctor) "ctor" = Some (PStr arm_ctor).
+  map_get (build arm_ctor) "ctor" = Some (HStr arm_ctor).
 Proof.
   intros arm_ctor; unfold build, map_get, map_set, empty_map.
   destruct (string_dec "captures" "ctor") as [E|_]; [discriminate E|].
@@ -205,7 +205,7 @@ Proof.
 Qed.
 
 Theorem read_literal_faithful : forall arm_ctor : string,
-  map_get (build arm_ctor) "pattern" = Some (PStr "Constructor").
+  map_get (build arm_ctor) "pattern" = Some (HStr "Constructor").
 Proof.
   intros arm_ctor; unfold build, map_get, map_set, empty_map.
   destruct (string_dec "captures" "pattern") as [E|_]; [discriminate E|].
@@ -214,19 +214,19 @@ Proof.
 Qed.
 
 Theorem read_list_faithful : forall arm_ctor : string,
-  map_get (build arm_ctor) "captures" = Some (PArr (PCons (PStr "x") PNil)).
+  map_get (build arm_ctor) "captures" = Some (HArr (HCons (HStr "x") HNil)).
 Proof.
   intros arm_ctor; unfold build, map_get, map_set, empty_map.
   destruct (string_dec "captures" "captures") as [_|N]; [reflexivity | now contradiction N].
 Qed.
 
 (* EVIL TWIN (non-vacuity): a WRONG value read is provably UNprovable — when
-   arm_ctor <> "wrong", the "ctor" read is NOT `Some (PStr "wrong")`.  This is
+   arm_ctor <> "wrong", the "ctor" read is NOT `Some (HStr "wrong")`.  This is
    what makes the model non-vacuous (an int-erased / empty-map lowering would let
    this false theorem through). *)
 Theorem read_evil_wrong_value : forall arm_ctor : string,
   arm_ctor <> "wrong" ->
-  map_get (build arm_ctor) "ctor" <> Some (PStr "wrong").
+  map_get (build arm_ctor) "ctor" <> Some (HStr "wrong").
 Proof.
   intros arm_ctor H C.
   rewrite read_variable_faithful in C.

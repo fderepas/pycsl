@@ -2241,10 +2241,10 @@ class PreambleEmissionMixin:
                 if _u not in out:
                     out.append(_u)
         if self._uses_pyval():
-            # pyval-value-model-wall (self-tcb-reduction, heterogeneous value model):
-            # the `pyval` sum + the `map string (option pyval)` heterogeneous dict need
+            # hval-value-model-wall (self-tcb-reduction, heterogeneous value model):
+            # the `hval` sum + the `map string (option hval)` heterogeneous dict need
             # map.Map/map.Const (the empty base + Map.set/Map.get) and option.Option
-            # (the `option pyval` codomain) and string.String (the PStr carrier + the
+            # (the `option hval` codomain) and string.String (the HStr carrier + the
             # native string keys). Idempotent guarded appends — a corpus file never sets
             # `_uses_pyval` (no `Dict[str, PyVal]` annotation) → byte-identical there.
             for _u in ("  use map.Map", "  use map.Const", "  use option.Option",
@@ -5110,9 +5110,9 @@ class PreambleEmissionMixin:
     def _uses_pyval(self) -> bool:
         """pyval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall):
         True iff some function in this file has a dict typed `Dict[str, PyVal]` — its
-        `dict_value_types` carries the `"pyval"` sentinel (set by Module5
+        `dict_value_types` carries the `"hval"` sentinel (set by Module5
         `_m5_get_dict_value_type` on a `Dict[str, PyVal]` annotation). Only then is the
-        `pyval` sum + `map string (option pyval)` theory emitted, so the certified
+        `hval` sum + `map string (option hval)` theory emitted, so the certified
         heterogeneous value variant stays OUT of every other mirror's SMT context and the
         whole reference corpus (no `Dict[str, PyVal]` annotation there → byte-identical).
         The value carrier `PyVal` is a NEW sentinel type name; this is the byte-inert gate
@@ -5120,70 +5120,81 @@ class PreambleEmissionMixin:
         cached = getattr(self, "_uses_pyval_cache", None)
         if cached is not None:
             return cached
-        # A dict value type is the bare `pyval` sentinel (`Dict[str, PyVal]`) OR a
-        # NESTED pyval map (`Dict[str, Dict[str, PyVal]]` -> `map string (option pyval)`,
-        # J2/J3 convergence). Both need the `pyval` theory. `pyval` is a NEW type name
+        # A dict value type is the bare `hval` sentinel (`Dict[str, PyVal]`) OR a
+        # NESTED hval map (`Dict[str, Dict[str, PyVal]]` -> `map string (option hval)`,
+        # J2/J3 convergence). Both need the `hval` theory. `hval` is a NEW type name
         # absent from the corpus -> byte-inert.
         result = any(
-            isinstance(v, str) and (v == "pyval" or "option pyval" in v)
+            isinstance(v, str) and (v == "hval" or "option hval" in v)
             for fn in self.ir.get("functions", []) or []
             for v in (fn.get("dict_value_types", {}) or {}).values())
         # K1 (seq-pyval self-field append): a `List[PyVal]`/`List[Dict[str, PyVal]]`
-        # record field (value_type == "pyval") lowers to `seq pyval` and so ALSO needs
-        # the `pyval` theory in scope — fire the gate even when no function-local
+        # record field (value_type == "hval") lowers to `seq hval` and so ALSO needs
+        # the `hval` theory in scope — fire the gate even when no function-local
         # `Dict[str, PyVal]` annotation is present. Corpus has no such field -> byte-inert.
         result = result or any(
-            f.get("value_type") == "pyval"
+            f.get("value_type") == "hval"
             for td in self.ir.get("type_decls", []) or []
             for f in td.get("fields", []) or [])
         # K4/#6 (local/return-position seq-pyval + scalar pyval return): a function that
-        # RETURNS `seq pyval` (`-> List[Dict[str, PyVal]]`, return_value_type "pyval") or
-        # a scalar `pyval` (`-> PyVal`, return_annotation "PyVal") needs the `pyval`
+        # RETURNS `seq hval` (`-> List[Dict[str, PyVal]]`, return_value_type "hval") or
+        # a scalar `hval` (`-> PyVal`, return_annotation "PyVal") needs the `hval`
         # theory in scope even when no pyval FIELD is present. Corpus has neither
         # annotation -> byte-inert.
         result = result or any(
-            fn.get("return_value_type") == "pyval"
+            fn.get("return_value_type") == "hval"
             or fn.get("return_annotation") == "PyVal"
             for fn in self.ir.get("functions", []) or [])
         self._uses_pyval_cache = result
         return result
 
     def _emit_pyval_theory(self) -> List[str]:
-        """pyval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall):
+        """hval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall):
         the CERTIFIED faithful value variant for a heterogeneous `Dict[str, Any]`
         (`_render_match_pattern`-shaped) — proven axiom-free by the fable oracle
         (`getting-better/pyval-oracle.mlw`, Z3 Valid) and co-landed with the Rocq/Lean
-        `Phase2f_PyVal` cert. Emit EXACTLY the oracle's shape:
+        `Phase2f_PyVal` cert. Emit EXACTLY the oracle's shape (renamed carrier):
 
-          type pyval = PStr string | PInt int | PArr pyval_list
-                     | PMap (map string (option pyval)) | PNode pyval
-          with pyval_list = PNil | PCons pyval pyval_list
+          type hval = HStr string | HInt int | HArr hval_list
+                    | HMap (map string (option hval)) | HNode hval
+          with hval_list = HNil | HCons hval hval_list
 
-        `PArr` recurses through the BESPOKE `pyval_list` (PNil/PCons), NOT `seq pyval` —
+        NAME COLLISION (fixed here): the OLDER D1/R-A generic-fold value model
+        (`_pydict_theory_lines`) also declares `type pyval` with `PInt|PStr|PBool|PNone|
+        PList|PDict`. A file that needs BOTH gates (the first is `frontend/ir_resolve.py`,
+        which imports Module3_Weaver AND Module5_IREmitter) emitted two clashing
+        declarations — `Symbol PStr is already defined in the current scope`. The two
+        types are NOT mergeable (the generic-fold `pv_size`/`size_pos` measure pack
+        cannot extend over `HMap`'s map codomain), so this Tier-5 family carries the
+        DISJOINT `h*` names and both theories now coexist in one scope.
+
+        `HArr` recurses through the BESPOKE `hval_list` (HNil/HCons), NOT `seq hval` —
         Why3 rejects `seq` recursion as a non-strictly-positive occurrence (the hard
-        refinement from Gate R). `PMap (map string (option pyval))` is accepted (pyval
+        refinement from Gate R). `HMap (map string (option hval))` is accepted (hval
         sits in the positive arrow codomain). Structural mutual recursion, NO `variant`
         clause (the `irlist`/`stmt_list` fold precedent — Why3 emits no termination VC).
         `size`/`size_pos` are the cert-side measure ONLY (no frontier fold needs them);
         they are NOT emitted here (kept out of every VC's SMT context). Gated on
         `_uses_pyval` → corpus + every other mirror byte-identical."""
         return [
-            "  (* pyval heterogeneous value model (self-tcb-reduction, Tier-5"
+            "  (* hval heterogeneous value model (self-tcb-reduction, Tier-5"
             " value-model wall): the faithful value carrier for a heterogeneous"
-            " Python `Dict[str, Any]` — PStr/PInt/PArr/PMap/PNode. Proven axiom-free by"
+            " Python `Dict[str, Any]` — HStr/HInt/HArr/HMap/HNode. Proven axiom-free by"
             " the fable oracle (getting-better/pyval-oracle.mlw, Z3 Valid); co-landed with"
-            " the Rocq/Lean Phase2f_PyVal cert. PArr recurses through the BESPOKE"
-            " `pyval_list` (PNil/PCons), NOT `seq pyval` (Why3 rejects `seq` recursion as"
-            " non-strictly-positive). PMap `map string (option pyval)` is accepted (pyval"
+            " the Rocq/Lean Phase2f_PyVal cert. The `h*` names are DISJOINT from the older"
+            " D1/R-A generic-fold `pyval`/`PStr` family (_pydict_theory_lines) so both"
+            " value models can coexist in one scope. HArr recurses through the BESPOKE"
+            " `hval_list` (HNil/HCons), NOT `seq hval` (Why3 rejects `seq` recursion as"
+            " non-strictly-positive). HMap `map string (option hval)` is accepted (hval"
             " in the positive arrow codomain). Structural mutual recursion, NO `variant`"
-            " clause. `map string (option pyval)` is the heterogeneous dict type; reads"
+            " clause. `map string (option hval)` is the heterogeneous dict type; reads"
             " are `Map.get`. Gated on `_uses_pyval` -> corpus byte-identical. Arms are"
             " inline (single `type`/`with` line) so the abstract-val insert point"
             " (`_find_abstract_val_insert_idx`, which skips `with`/`invariant`/`by` but"
             " NOT `|` arm lines) lands AFTER the whole mutual group, not mid-declaration. *)",
-            "  type pyval = PStr string | PInt int | PArr pyval_list"
-            " | PMap (map string (option pyval)) | PNode pyval",
-            "  with pyval_list = PNil | PCons pyval pyval_list",
+            "  type hval = HStr string | HInt int | HArr hval_list"
+            " | HMap (map string (option hval)) | HNode hval",
+            "  with hval_list = HNil | HCons hval hval_list",
             "",
         ]
 
@@ -5478,7 +5489,7 @@ class PreambleEmissionMixin:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []
         declared_types: Set[str] = set()
-        # K1 (seq-pyval self-field append): the `seq pyval` self-fields + their
+        # K1 (seq-hval self-field append): the `seq hval` self-fields + their
         # mangled append-target names (`self__field`), populated by the list-field
         # branch below and consumed at the statements.py append site + shadow-local
         # loop. Empty for the corpus (no `List[Dict[str, PyVal]]` field) -> byte-inert.
@@ -5708,16 +5719,16 @@ class PreambleEmissionMixin:
                         _kt = "string" if f.get("key_type") == "string" else "int"
                         if _vt == "string":
                             ftype = f"map {_kt} (option string)"
-                        elif _vt == "pyval":
+                        elif _vt == "hval":
                             # K6 (map-pyval self-field read, self-tcb-reduction Tier-5): a
                             # `Dict[str, PyVal]` self-field is the faithful heterogeneous
-                            # `map {_kt} (option pyval)` — so `self.f.get(k)` reads a real
-                            # `option pyval` (`Some v_ -> v_ | None -> (PInt 0)`) instead of
+                            # `map {_kt} (option hval)` — so `self.f.get(k)` reads a real
+                            # `option hval` (`Some v_ -> v_ | None -> (HInt 0)`) instead of
                             # the int-erased `map int (option int)` facade. The `pyval`
                             # theory is already pulled in by the `_uses_pyval` gate (it fires
-                            # on any type_decl field value_type == "pyval"), so NO new cert
+                            # on any type_decl field value_type == "hval"), so NO new cert
                             # (ledger 3). `PyVal` is a corpus-absent sentinel -> byte-inert.
-                            ftype = f"map {_kt} (option pyval)"
+                            ftype = f"map {_kt} (option hval)"
                         elif isinstance(_vt, str) and _vt.startswith(("map ", "seq ", "array ")):
                             # nested-map.md: a NESTED collection value (`Dict[str, Dict[str,int]]`
                             # → value_type `map int (option int)`; `Dict[str, List[int]]` → `seq int`)
@@ -5739,12 +5750,12 @@ class PreambleEmissionMixin:
                         # IR-node-typed param (`_uses_ir_node_param`) — the Module5 mirror
                         # imports its IR records via the latter, not @mutable_state. Both
                         # gates are False for the corpus → `array int`, byte-identical.
-                        if (f.get("value_type") == "pyval"
+                        if (f.get("value_type") == "hval"
                                 and (getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):
                             # K1 (seq-pyval self-field append, self-tcb-reduction Tier-5):
                             # a `List[PyVal]` / `List[Dict[str, PyVal]]` field is the
-                            # faithful growable `seq pyval` (the fable-proven
+                            # faithful growable `seq hval` (the fable-proven
                             # `getting-better/setenv_faithful.mlw` shape, element carrier
                             # `pyval`), so `self.f.append(x)` writes back a REAL
                             # `self.f <- Seq.snoc self.f (<pyval-wrap x>)` instead of the
@@ -5754,7 +5765,7 @@ class PreambleEmissionMixin:
                             # gate to the write-back. Gated on `_mutable_state`/IR-node
                             # param AND the `pyval` element sentinel (absent from the
                             # corpus) -> byte-identical for every other mirror + corpus.
-                            ftype = "seq pyval"
+                            ftype = "seq hval"
                             self._pyval_seq_fields.add(f["name"])
                             self._pyval_seq_append_targets.add(
                                 ("self." + f["name"]).replace(".", "_"))

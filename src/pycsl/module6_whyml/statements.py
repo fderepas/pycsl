@@ -80,12 +80,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         return f"{indent}let {safe_target} = ref {val} in\n"
 
     def _build_pyval_inner_map(self, val_ir: Dict[str, Any], local_refs=None) -> str:
-        """J2/J3 convergence: build the INNER `map string (option pyval)` for a nested
+        """J2/J3 convergence: build the INNER `map string (option hval)` for a nested
         dict literal `{"k": v, ...}` stored into a `Dict[str, Dict[str, PyVal]]` — native
-        string keys, `_pyval_wrap`-tagged values, folded over the empty pyval base. The
-        bare-map analogue of `_pyval_wrap`'s `PMap` arm (which wraps the SAME fold as a
-        `pyval`). Corpus-inert (only the pyval mirror stores a nested pyval dict)."""
-        base = "(const (None: option pyval))"
+        string keys, `_pyval_wrap`-tagged values, folded over the empty hval base. The
+        bare-map analogue of `_pyval_wrap`'s `HMap` arm (which wraps the SAME fold as an
+        `hval`). Corpus-inert (only the hval mirror stores a nested hval dict)."""
+        base = "(const (None: option hval))"
         keys = val_ir.get("keys", []) or []
         values = val_ir.get("values", []) or []
         if not keys:
@@ -138,9 +138,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 k_str = f"(str_hash_op {k_low})"
             else:
                 k_str = self._coerce_to_int(k_low)
-            if nu == "pyval":
-                # pyval-value-model-wall: each heterogeneous value is FAITHFULLY tagged
-                # into its `pyval` constructor (str→PStr, int→PInt, list→PArr, …) — no
+            if nu == "hval":
+                # hval-value-model-wall: each heterogeneous value is FAITHFULLY tagged
+                # into its `hval` constructor (str→HStr, int→HInt, list→HArr, …) — no
                 # int-erasure. Key is the native string (κ = string for `Dict[str, PyVal]`).
                 v_str = self._pyval_wrap(v_ir, local_refs)
             else:
@@ -1028,11 +1028,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # string|map pass-through / int-coerce). Consolidated in
                     # `_dv_store_value`.
                     # J2/J3 convergence: `registry[name] = {"bound": bound}` — the stored
-                    # value is an INNER heterogeneous dict `map string (option pyval)`; build
+                    # value is an INNER heterogeneous dict `map string (option hval)`; build
                     # it as the pyval-tagged `map_update_some` fold (native string keys,
                     # `_pyval_wrap` values), NOT the empty int base `val_expr` computed above.
                     _sv_ir = stmt.value.to_dict() if hasattr(stmt.value, "to_dict") else None
-                    if (isinstance(nu, str) and nu.strip().endswith("(option pyval)")
+                    if (isinstance(nu, str) and nu.strip().endswith("(option hval)")
                             and isinstance(_sv_ir, dict) and _sv_ir.get("type") == "DictLit"):
                         v = self._build_pyval_inner_map(_sv_ir, local_refs)
                     else:
@@ -1443,7 +1443,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     return f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {node_arg}"
                 if arr_name in getattr(self, "_pyval_seq_append_targets", set()):
                     # K1 (seq-pyval self-field append, self-tcb-reduction Tier-5, Bug 3
-                    # fix): `self._field.append(x)` where `_field` is a `seq pyval`
+                    # fix): `self._field.append(x)` where `_field` is a `seq hval`
                     # self-field is a REAL faithful field write-back
                     # `self.<field> <- Seq.snoc self.<field> (<pyval-wrap x>)` — the
                     # fable-proven `getting-better/setenv_faithful.mlw` shape, axiom-free
@@ -1467,11 +1467,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 elif arr_name in getattr(self, "_pyval_seq_locals", set()):
                     # K4 (local/return-position seq-pyval, self-tcb-reduction Tier-5): a
                     # `List[Dict[str, PyVal]]`/`List[PyVal]` LOCAL that is appended to and
-                    # RETURNED grows a real `seq pyval` ref — `fields := Seq.snoc !fields
+                    # RETURNED grows a real `seq hval` ref — `fields := Seq.snoc !fields
                     # (<pyval-wrap x>)` — tagging the appended dict/str/... into its
                     # faithful `pyval` carrier (the K1 self-field analogue for a local),
                     # NOT the int-erased `Seq.snoc !fields 0`. Gated on `_pyval_seq_locals`
-                    # (populated only when the fn returns `seq pyval`) -> byte-inert.
+                    # (populated only when the fn returns `seq hval`) -> byte-inert.
                     raw_arg = (val["args"][0].to_dict()
                                if hasattr(val["args"][0], "to_dict")
                                else val["args"][0])
@@ -2584,14 +2584,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _collect_pyval_read_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """pyval-value-model-wall (self-tcb-reduction, Tier-5): locals whose first
         assignment is a subscript READ of a `Dict[str, PyVal]` (pyval-valued) dict —
-        `v = d[k]`. The read lowers to `Map.get` projecting an `option pyval` (arm
-        projection to a `pyval`), so `v` must be a `pyval`-typed ref, let-bound at its
+        `v = d[k]`. The read lowers to `Map.get` projecting an `option hval` (arm
+        projection to an `hval`), so `v` must be an `hval`-typed ref, let-bound at its
         first assignment — never the integer `ref 0` pre-declaration (which would fail
-        L3 typecheck: `pyval` vs `int`). Marks them "pyval" in the symbol table and
+        L3 typecheck: `hval` vs `int`). Marks them "hval" in the symbol table and
         returns the set (unioned into `_typed_local_vars`). Byte-inert: only a
         `Dict[str, PyVal]`-annotated dict (absent from the corpus) feeds this."""
         dvt = getattr(self, "_dict_value_types", {}) or {}
-        if "pyval" not in dvt.values():
+        if "hval" not in dvt.values():
             return set()
         out: Set[str] = set()
 
@@ -2602,7 +2602,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if isinstance(v, dict) and v.get("type") == "Subscript":
                         base = v.get("value", {})
                         if (isinstance(base, dict) and base.get("type") == "Var"
-                                and dvt.get(base.get("name")) == "pyval"):
+                                and dvt.get(base.get("name")) == "hval"):
                             out.add(node["target"])
                 for x in node.values():
                     rec(x)
@@ -2615,7 +2615,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if st is not None:
             for v in out:
                 if st.get(v) in (None, "Any"):
-                    st[v] = "pyval"
+                    st[v] = "hval"
         return out
 
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
@@ -2801,8 +2801,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             and name not in set(self._formal_params)
         }
         self._optional_union_locals = _union_locals
-        # pyval-value-model-wall: locals bound from a `Dict[str, PyVal]` subscript read
-        # are pyval-typed refs (let-bound at first assign, not `ref 0`). Byte-inert.
+        # hval-value-model-wall: locals bound from a `Dict[str, PyVal]` subscript read
+        # are hval-typed refs (let-bound at first assign, not `ref 0`). Byte-inert.
         pyval_read_vars = self._collect_pyval_read_locals(body_stmts) - set(self._formal_params)
         self._pyval_local_vars = pyval_read_vars
         # 7a (self-tcb-reduction L4b): a tparam_list-alias local is never a real value (its
@@ -3221,7 +3221,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
         for tgt in sorted(append_targets):
             safe_tgt = whyml_ident(tgt)
-            # K1 (seq-pyval self-field append): a `seq pyval` self-field target grows
+            # K1 (seq-hval self-field append): a `seq hval` self-field target grows
             # via the REAL record write-back `self.<field> <- Seq.snoc self.<field> …`
             # (emitted at the `_handle_expr_stmt` append site), so it needs NEITHER the
             # `Array.make 1024 0` shadow-local NOR the `_len` counter — skip both.

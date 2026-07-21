@@ -1,6 +1,6 @@
-(* 0922 — pyval value-model READ/WRITE recognizers (self-tcb-reduction, Tier-5
-   value-model wall; L4a): OBSERVATIONAL non-vacuity for the SHARED pyval
-   read/write recognizers — the pyval half of every Module5 collector.
+(* 0922 — hval value-model READ/WRITE recognizers (self-tcb-reduction, Tier-5
+   value-model wall; L4a): OBSERVATIONAL non-vacuity for the SHARED hval
+   read/write recognizers — the hval half of every Module5 collector.
 
    ONE @mutable_state class exercises ALL FIVE recognizers at once:
 
@@ -18,25 +18,25 @@
    The recognizers and their FAITHFUL lowering (all corpus-byte-inert, gated on
    the corpus-absent `PyVal` sentinel):
 
-     K4  local/return seq-pyval : `fields: List[Dict[str,PyVal]]` -> `seq pyval`
-         ref; `fields.append({dict})` -> `fields := Seq.snoc !fields (<pyval-wrap>)`
+     K4  local/return seq-hval : `fields: List[Dict[str,PyVal]]` -> `seq hval`
+         ref; `fields.append({dict})` -> `fields := Seq.snoc !fields (<hval-wrap>)`
          (NOT `Seq.snoc !fields 0` / shadow `array int`); `return fields` -> `!fields`
          (NOT the `materialize` seq int -> array int bridge).
-     K6  map-pyval self-field read : `Dict[str, PyVal]` field -> `map string
-         (option pyval)`; `self.program_ir.get(k)` -> `match Map.get self.program_ir
-         k with Some v_ -> v_ | None -> (PInt 0)` (native string key, NO str_hash_op;
+     K6  map-hval self-field read : `Dict[str, PyVal]` field -> `map string
+         (option hval)`; `self.program_ir.get(k)` -> `match Map.get self.program_ir
+         k with Some v_ -> v_ | None -> (HInt 0)` (native string key, NO str_hash_op;
          NOT `map int (option int)`).
-     #5  `<pyval> or {}` default : `match <pyval> with PMap m_or -> <pyval> | _ ->
-         (PMap (const None))` (NOT a boolean int `if ... then 1 else 0`).
-     K7  pyval-chained `.get` : `registry.get(nm, {})` on a pyval LOCAL -> `match
-         registry with PMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None
-         -> (PMap (const None))) | _ -> (PMap (const None))` (NOT an opaque
+     #5  `<hval> or {}` default : `match <hval> with HMap m_or -> <hval> | _ ->
+         (HMap (const None))` (NOT a boolean int `if ... then 1 else 0`).
+     K7  hval-chained `.get` : `registry.get(nm, {})` on a hval LOCAL -> `match
+         registry with HMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None
+         -> (HMap (const None))) | _ -> (HMap (const None))` (NOT an opaque
          `registry_get_2 nm 0`).
-     #6  `-> PyVal` / `-> List[Dict[str,PyVal]]` return typing : `pyval` / `seq pyval`
+     #6  `-> PyVal` / `-> List[Dict[str,PyVal]]` return typing : `hval` / `seq hval`
          return (the K4 carriage).
 
-   The `type pyval` variant, the abstract `map_update_some`, the `collector` record
-   (`map string (option pyval)` field), the `collector__build` write-back, and the
+   The `type hval` variant, the abstract `map_update_some`, the `collector` record
+   (`map string (option hval)` field), the `collector__build` write-back, and the
    `collector__lookup` READ CHAIN below are VERBATIM the PyCSL tool's emitted output
    for the class above (`scratchpad/l4a_probe.py --keep-mlw`, grep-confirmed; Gate-S
    anti-facade clean: no isinstance_op / str_hash_op / Array.make 1024 / materialize
@@ -46,16 +46,16 @@
    the evil twins fail on a WRONG VALUE, not on an empty contract.
 
    Load-bearing claims: the appended dict's string VARIABLE `name` projects back
-   FAITHFULLY at the seq tail as `PStr name` (K4, no int-erasure, seq WAS grown); the
-   nested `program_ir` read chain projects back the EXACT inner `pyval` (K6 self-field
+   FAITHFULLY at the seq tail as `HStr name` (K4, no int-erasure, seq WAS grown); the
+   nested `program_ir` read chain projects back the EXACT inner `hval` (K6 self-field
    read + #5 or-default keep + K7 chained `.get` unwrap), NOT an opaque int.
 
-   Proven axiom-free by reusing the Phase2f_PyVal cert (`seq pyval` / `map string
-   (option pyval)` element soundness) + Why3-intrinsic seq.Seq/snoc + map.Map; NO new
+   Proven axiom-free by reusing the Phase2f_PyVal cert (`seq hval` / `map string
+   (option hval)` element soundness) + Why3-intrinsic seq.Seq/snoc + map.Map; NO new
    axiom (ledger stays 3). The GOOD goals are Z3 Valid; the EVIL TWINS (wrong build
    tail, no-op build, wrong chained read-back, absent-key read) stay UNPROVEN.
 
-   Infra + fixture witness (the L1 / pyval-I1 precedent): count UNCHANGED, no
+   Infra + fixture witness (the L1 / hval-I1 precedent): count UNCHANGED, no
    `\trusted` stub converted this increment. *)
 
 (* ============================================================= *)
@@ -71,54 +71,54 @@ module PyValValueModelOpsGoodFaithful
   use string.String
 
   (* VERBATIM the tool's `_emit_pyval_theory` (Phase2f_PyVal). *)
-  type pyval = PStr string | PInt int | PArr pyval_list
-             | PMap (map string (option pyval)) | PNode pyval
-  with pyval_list = PNil | PCons pyval pyval_list
+  type hval = HStr string | HInt int | HArr hval_list
+             | HMap (map string (option hval)) | HNode hval
+  with hval_list = HNil | HCons hval hval_list
 
   (* VERBATIM the tool's abstract dict-update op. *)
   val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
     ensures { result = Map.set m k (Some v) }
 
   (* VERBATIM the tool's lowered record: `Dict[str, PyVal]` field (K6) ->
-     `mutable program_ir: map string (option pyval)`. *)
-  type collector = { mutable program_ir: map string (option pyval) }
+     `mutable program_ir: map string (option hval)`. *)
+  type collector = { mutable program_ir: map string (option hval) }
 
   (* The faithful heterogeneous build entry `{"pattern": "Constructor", "name":
-     name}` as the tool's `_pyval_wrap` builds it — each value tagged into `pyval`.
+     name}` as the tool's `_pyval_wrap` builds it — each value tagged into `hval`.
      Written with the LOGIC `Map.set`/`Some`; the `map_update_some` ensures makes the
      emitted chain equal this term in the VC. *)
-  function entry_pyval (name: string) : pyval =
-    PMap (Map.set
-           (Map.set (const (None: option pyval)) "pattern" (Some (PStr "Constructor")))
-           "name" (Some (PStr name)))
+  function entry_pyval (name: string) : hval =
+    HMap (Map.set
+           (Map.set (const (None: option hval)) "pattern" (Some (HStr "Constructor")))
+           "name" (Some (HStr name)))
 
   (* ---- K4 + #6: VERBATIM the tool's emitted `collector__build` body; the
      STRENGTHENED `ensures` (0920 pattern) PROVE the write-back is real + faithful
      (non-vacuous): the returned seq is exactly the tagged entry snoc'd onto empty,
-     and the string VARIABLE `name` reads back as `PStr name` at the tail. ---- *)
-  let collector__build (self: collector) (name: string) : seq pyval
+     and the string VARIABLE `name` reads back as `HStr name` at the tail. ---- *)
+  let collector__build (self: collector) (name: string) : seq hval
     ensures { result = Seq.snoc Seq.empty (entry_pyval name) }
     ensures { Seq.length result = 1 }
     ensures { Seq.get result 0 = entry_pyval name }
   =
     let fields_len = ref 0 in
     let fields = ref Seq.empty in
-    fields := Seq.snoc !fields (PMap (map_update_some (map_update_some (const (None: option pyval)) "pattern" (PStr "Constructor")) "name" (PStr name)));
+    fields := Seq.snoc !fields (HMap (map_update_some (map_update_some (const (None: option hval)) "pattern" (HStr "Constructor")) "name" (HStr name)));
     !fields
 
   (* ---- K6 + #5 + K7 + #6: VERBATIM the tool's emitted `collector__lookup` (the
      `ensures { true }` the tool emits; its faithfulness is pinned by the inline
      drivers below, NOT this trivial contract — kept so the exact emitted read chain
      type-checks as a program). ---- *)
-  let collector__lookup (self: collector) (nm: string) : pyval
+  let collector__lookup (self: collector) (nm: string) : hval
     ensures { true }
   =
-    let registry = (match (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (PInt 0) end) with PMap m_or -> (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (PInt 0) end) | _ -> (PMap (const (None: option pyval))) end) in
-    let info = (match registry with PMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None -> (PMap (const (None: option pyval))) end) | _ -> (PMap (const (None: option pyval))) end) in
+    let registry = (match (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (HInt 0) end) with HMap m_or -> (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (HInt 0) end) | _ -> (HMap (const (None: option hval))) end) in
+    let info = (match registry with HMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None -> (HMap (const (None: option hval))) end) | _ -> (HMap (const (None: option hval))) end) in
     info
 
   (* K4 build-then-read-back driver: build for a SYMBOLIC name, observe the returned
-     seq's tail is the faithful entry (the string var is a real PStr — no int-erasure;
+     seq's tail is the faithful entry (the string var is a real HStr — no int-erasure;
      the seq WAS grown — no shadow-local facade). Uses build's strengthened ensures. *)
   let test_build_readback (self: collector) (nm: string) : unit
   =
@@ -126,31 +126,31 @@ module PyValValueModelOpsGoodFaithful
     assert { Seq.length r = 1 };
     assert { Seq.get r 0 = entry_pyval nm };
     assert { match Seq.get r 0 with
-             | PMap m -> Map.get m "name" = Some (PStr nm)
+             | HMap m -> Map.get m "name" = Some (HStr nm)
              | _ -> false end }
 
   (* K6 + #5 + K7 read-back driver: over a KNOWN nested program_ir
-       program_ir = { "typevar_registry" -> { nm -> { "bound" -> PStr "int" } } }
+       program_ir = { "typevar_registry" -> { nm -> { "bound" -> HStr "int" } } }
      run the VERBATIM emitted read chain INLINE and observe it projects back the
-     EXACT inner `pyval` (self-field read + or-default keep + chained `.get` unwrap),
+     EXACT inner `hval` (self-field read + or-default keep + chained `.get` unwrap),
      NOT an opaque int.  The chain expressions are byte-for-byte the tool's emission
      for `registry`/`info`. *)
   let test_lookup_readback (nm: string) : unit
   =
-    let inner : pyval =
-      PMap (map_update_some (const (None: option pyval)) "bound" (PStr "int")) in
-    let reg : pyval =
-      PMap (map_update_some (const (None: option pyval)) nm inner) in
+    let inner : hval =
+      HMap (map_update_some (const (None: option hval)) "bound" (HStr "int")) in
+    let reg : hval =
+      HMap (map_update_some (const (None: option hval)) nm inner) in
     let self = { program_ir =
-      map_update_some (const (None: option pyval)) "typevar_registry" reg } in
+      map_update_some (const (None: option hval)) "typevar_registry" reg } in
     (* --- verbatim emitted `registry` (K6 self-field read + #5 or-default) --- *)
-    let registry = (match (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (PInt 0) end) with PMap m_or -> (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (PInt 0) end) | _ -> (PMap (const (None: option pyval))) end) in
+    let registry = (match (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (HInt 0) end) with HMap m_or -> (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (HInt 0) end) | _ -> (HMap (const (None: option hval))) end) in
     assert { registry = reg };
-    (* --- verbatim emitted `info` (K7 chained `.get` on a pyval local) --- *)
-    let info = (match registry with PMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None -> (PMap (const (None: option pyval))) end) | _ -> (PMap (const (None: option pyval))) end) in
+    (* --- verbatim emitted `info` (K7 chained `.get` on a hval local) --- *)
+    let info = (match registry with HMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None -> (HMap (const (None: option hval))) end) | _ -> (HMap (const (None: option hval))) end) in
     assert { info = inner };
     assert { match info with
-             | PMap m -> Map.get m "bound" = Some (PStr "int")
+             | HMap m -> Map.get m "bound" = Some (HStr "int")
              | _ -> false end }
 end
 
@@ -166,24 +166,24 @@ module PyValValueModelOpsEvilBuildWrongTail
   use option.Option
   use string.String
 
-  type pyval = PStr string | PInt int | PArr pyval_list
-             | PMap (map string (option pyval)) | PNode pyval
-  with pyval_list = PNil | PCons pyval pyval_list
+  type hval = HStr string | HInt int | HArr hval_list
+             | HMap (map string (option hval)) | HNode hval
+  with hval_list = HNil | HCons hval hval_list
 
   val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
     ensures { result = Map.set m k (Some v) }
 
   (* EVIL TWIN: the verbatim faithful body, but the ensures claims the tail carries
-     the WRONG name literal "wrong" — must FAIL (else `PStr name` is vacuous / the
+     the WRONG name literal "wrong" — must FAIL (else `HStr name` is vacuous / the
      variable was int-erased). *)
-  let collector__build_evil (name: string) : seq pyval
+  let collector__build_evil (name: string) : seq hval
     ensures { Seq.get result 0
-              = PMap (Map.set
-                       (Map.set (const (None: option pyval)) "pattern" (Some (PStr "Constructor")))
-                       "name" (Some (PStr "wrong"))) }
+              = HMap (Map.set
+                       (Map.set (const (None: option hval)) "pattern" (Some (HStr "Constructor")))
+                       "name" (Some (HStr "wrong"))) }
   =
     let fields = ref Seq.empty in
-    fields := Seq.snoc !fields (PMap (map_update_some (map_update_some (const (None: option pyval)) "pattern" (PStr "Constructor")) "name" (PStr name)));
+    fields := Seq.snoc !fields (HMap (map_update_some (map_update_some (const (None: option hval)) "pattern" (HStr "Constructor")) "name" (HStr name)));
     !fields
 end
 
@@ -199,13 +199,13 @@ module PyValValueModelOpsEvilBuildNoOp
   use option.Option
   use string.String
 
-  type pyval = PStr string | PInt int | PArr pyval_list
-             | PMap (map string (option pyval)) | PNode pyval
-  with pyval_list = PNil | PCons pyval pyval_list
+  type hval = HStr string | HInt int | HArr hval_list
+             | HMap (map string (option hval)) | HNode hval
+  with hval_list = HNil | HCons hval hval_list
 
   (* EVIL TWIN: the facade that never grows the local (models the append being
      dropped / the seq left empty).  The grown-length postcondition must FAIL. *)
-  let collector__build_noop (name: string) : seq pyval
+  let collector__build_noop (name: string) : seq hval
     ensures { Seq.length result = 1 }
   =
     let fields = ref Seq.empty in
@@ -224,29 +224,29 @@ module PyValValueModelOpsEvilLookupWrongInner
   use option.Option
   use string.String
 
-  type pyval = PStr string | PInt int | PArr pyval_list
-             | PMap (map string (option pyval)) | PNode pyval
-  with pyval_list = PNil | PCons pyval pyval_list
+  type hval = HStr string | HInt int | HArr hval_list
+             | HMap (map string (option hval)) | HNode hval
+  with hval_list = HNil | HCons hval hval_list
 
   val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
     ensures { result = Map.set m k (Some v) }
 
-  type collector = { mutable program_ir: map string (option pyval) }
+  type collector = { mutable program_ir: map string (option hval) }
 
-  (* EVIL TWIN: the chain stored `PStr "int"` at "bound", but the read-back claims
-     `PStr "float"` — must FAIL (else the chained `.get` int-erased the value). The
+  (* EVIL TWIN: the chain stored `HStr "int"` at "bound", but the read-back claims
+     `HStr "float"` — must FAIL (else the chained `.get` int-erased the value). The
      `registry`/`info` expressions are byte-for-byte the tool's emission. *)
   let test_lookup_evil (nm: string) : unit
   =
-    let inner : pyval =
-      PMap (map_update_some (const (None: option pyval)) "bound" (PStr "int")) in
-    let reg : pyval =
-      PMap (map_update_some (const (None: option pyval)) nm inner) in
+    let inner : hval =
+      HMap (map_update_some (const (None: option hval)) "bound" (HStr "int")) in
+    let reg : hval =
+      HMap (map_update_some (const (None: option hval)) nm inner) in
     let self = { program_ir =
-      map_update_some (const (None: option pyval)) "typevar_registry" reg } in
-    let registry = (match (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (PInt 0) end) with PMap m_or -> (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (PInt 0) end) | _ -> (PMap (const (None: option pyval))) end) in
-    let info = (match registry with PMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None -> (PMap (const (None: option pyval))) end) | _ -> (PMap (const (None: option pyval))) end) in
-    assert { info = PMap (Map.set (const (None: option pyval)) "bound" (Some (PStr "float"))) }
+      map_update_some (const (None: option hval)) "typevar_registry" reg } in
+    let registry = (match (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (HInt 0) end) with HMap m_or -> (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (HInt 0) end) | _ -> (HMap (const (None: option hval))) end) in
+    let info = (match registry with HMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None -> (HMap (const (None: option hval))) end) | _ -> (HMap (const (None: option hval))) end) in
+    assert { info = HMap (Map.set (const (None: option hval)) "bound" (Some (HStr "float"))) }
 end
 
 (* ============================================================= *)
@@ -262,22 +262,22 @@ module PyValValueModelOpsEvilLookupAbsent
   use option.Option
   use string.String
 
-  type pyval = PStr string | PInt int | PArr pyval_list
-             | PMap (map string (option pyval)) | PNode pyval
-  with pyval_list = PNil | PCons pyval pyval_list
+  type hval = HStr string | HInt int | HArr hval_list
+             | HMap (map string (option hval)) | HNode hval
+  with hval_list = HNil | HCons hval hval_list
 
   val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
     ensures { result = Map.set m k (Some v) }
 
-  type collector = { mutable program_ir: map string (option pyval) }
+  type collector = { mutable program_ir: map string (option hval) }
 
   (* EVIL TWIN: an EMPTY program_ir (no "typevar_registry") makes `or {}` (#5) default
-     to the empty PMap, so the chain yields `PMap (const None)`.  Claiming a NON-empty
-     inner (`PStr "int"` at "bound") must FAIL. *)
+     to the empty HMap, so the chain yields `HMap (const None)`.  Claiming a NON-empty
+     inner (`HStr "int"` at "bound") must FAIL. *)
   let test_lookup_absent_evil (nm: string) : unit
   =
-    let self = { program_ir = (const (None: option pyval)) } in
-    let registry = (match (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (PInt 0) end) with PMap m_or -> (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (PInt 0) end) | _ -> (PMap (const (None: option pyval))) end) in
-    let info = (match registry with PMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None -> (PMap (const (None: option pyval))) end) | _ -> (PMap (const (None: option pyval))) end) in
-    assert { info = PMap (Map.set (const (None: option pyval)) "bound" (Some (PStr "int"))) }
+    let self = { program_ir = (const (None: option hval)) } in
+    let registry = (match (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (HInt 0) end) with HMap m_or -> (match Map.get self.program_ir "typevar_registry" with | Some v_ -> v_ | None -> (HInt 0) end) | _ -> (HMap (const (None: option hval))) end) in
+    let info = (match registry with HMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None -> (HMap (const (None: option hval))) end) | _ -> (HMap (const (None: option hval))) end) in
+    assert { info = HMap (Map.set (const (None: option hval)) "bound" (Some (HStr "int"))) }
 end

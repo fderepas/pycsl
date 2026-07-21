@@ -1,19 +1,19 @@
-(* 0918 — pyval heterogeneous value model (self-tcb-reduction, Tier-5 value-model
+(* 0918 — hval heterogeneous value model (self-tcb-reduction, Tier-5 value-model
    wall): OBSERVATIONAL non-vacuity for the faithful heterogeneous `Dict[str, Any]`
    lowering.  A `d: Dict[str, PyVal] = {"pattern": "Constructor", "ctor": arm_ctor,
-   "captures": ["x"]}` builds a `map string (option pyval)` via a `map_update_some`
-   chain, each value TAGGED into its faithful `pyval` constructor (str-lit/str-var ->
-   `PStr`, list -> `PArr` cons), and `d[k]` reads it back with `Map.get`.
+   "captures": ["x"]}` builds a `map string (option hval)` via a `map_update_some`
+   chain, each value TAGGED into its faithful `hval` constructor (str-lit/str-var ->
+   `HStr`, list -> `HArr` cons), and `d[k]` reads it back with `Map.get`.
 
-   The `type pyval` variant, the abstract `map_update_some`
+   The `type hval` variant, the abstract `map_update_some`
    (`ensures result = Map.set m k (Some v)`), and the build chain below are VERBATIM
    the PyCSL tool's emitted output (preamble.py `_emit_pyval_theory` +
-   statements.py `_build_dict_literal_map` pyval branch + expressions.py
+   statements.py `_build_dict_literal_map` hval branch + expressions.py
    `_pyval_wrap`; grep-confirmed against the probe emission).  The load-bearing
    claim: the string VARIABLE `arm_ctor` projects back FAITHFULLY as
-   `Some (PStr arm_ctor)` — no int-hash / int-erasure (the whole point of the
-   no-more-int value model).  PArr recurses through the BESPOKE `pyval_list`
-   (PNil/PCons), NOT `seq pyval` (Why3-rejected as non-strictly-positive).
+   `Some (HStr arm_ctor)` — no int-hash / int-erasure (the whole point of the
+   no-more-int value model).  HArr recurses through the BESPOKE `hval_list`
+   (HNil/HCons), NOT `seq hval` (Why3-rejected as non-strictly-positive).
 
    Proven axiom-free by the fable oracle (getting-better/pyval-oracle.mlw, Z3 Valid)
    and co-landed with the Rocq/Lean Phase2f_PyVal cert.  The EVIL TWINS pin
@@ -32,8 +32,8 @@ module PyValGoodFaithful
   use string.String
 
   (* VERBATIM the tool's `_emit_pyval_theory`. *)
-  type pyval = PStr string | PInt int | PArr pyval_list | PMap (map string (option pyval)) | PNode pyval
-  with pyval_list = PNil | PCons pyval pyval_list
+  type hval = HStr string | HInt int | HArr hval_list | HMap (map string (option hval)) | HNode hval
+  with hval_list = HNil | HCons hval hval_list
 
   (* VERBATIM the tool's abstract dict-update op. *)
   val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
@@ -42,19 +42,19 @@ module PyValGoodFaithful
   (* VERBATIM the tool's lowered build of
        {"pattern": "Constructor", "ctor": arm_ctor, "captures": ["x"]}
      — each value faithfully tagged, then read back with Map.get. *)
-  let build_pyval (arm_ctor: string) : map string (option pyval)
+  let build_pyval (arm_ctor: string) : map string (option hval)
     (* NON-VACUOUS: the string VARIABLE reads back as itself (no int-erasure) *)
-    ensures { Map.get result "ctor" = Some (PStr arm_ctor) }
-    ensures { Map.get result "pattern" = Some (PStr "Constructor") }
-    ensures { Map.get result "captures" = Some (PArr (PCons (PStr "x") PNil)) }
+    ensures { Map.get result "ctor" = Some (HStr arm_ctor) }
+    ensures { Map.get result "pattern" = Some (HStr "Constructor") }
+    ensures { Map.get result "captures" = Some (HArr (HCons (HStr "x") HNil)) }
     (* distinct keys stay distinct values (when the variable differs from the literal) *)
     ensures { arm_ctor <> "Constructor" ->
               Map.get result "ctor" <> Map.get result "pattern" }
   = map_update_some
       (map_update_some
-        (map_update_some (const (None: option pyval)) "pattern" (PStr "Constructor"))
-                         "ctor"     (PStr arm_ctor))
-                         "captures" (PArr (PCons (PStr "x") PNil))
+        (map_update_some (const (None: option hval)) "pattern" (HStr "Constructor"))
+                         "ctor"     (HStr arm_ctor))
+                         "captures" (HArr (HCons (HStr "x") HNil))
 end
 
 (* ============================================================= *)
@@ -67,17 +67,17 @@ module PyValEvilWrongValue
   use option.Option
   use string.String
 
-  type pyval = PStr string | PInt int | PArr pyval_list | PMap (map string (option pyval)) | PNode pyval
-  with pyval_list = PNil | PCons pyval pyval_list
+  type hval = HStr string | HInt int | HArr hval_list | HMap (map string (option hval)) | HNode hval
+  with hval_list = HNil | HCons hval hval_list
 
   val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
     ensures { result = Map.set m k (Some v) }
 
   (* EVIL TWIN: claims "ctor" carries the WRONG literal "wrong" — must FAIL
-     (else `PStr` is vacuous / the variable was int-erased). *)
-  let build_evil (arm_ctor: string) : map string (option pyval)
-    ensures { Map.get result "ctor" = Some (PStr "wrong") }
-  = map_update_some (const (None: option pyval)) "ctor" (PStr arm_ctor)
+     (else `HStr` is vacuous / the variable was int-erased). *)
+  let build_evil (arm_ctor: string) : map string (option hval)
+    ensures { Map.get result "ctor" = Some (HStr "wrong") }
+  = map_update_some (const (None: option hval)) "ctor" (HStr arm_ctor)
 end
 
 (* ============================================================= *)
@@ -90,15 +90,15 @@ module PyValEvilEmptyRefute
   use option.Option
   use string.String
 
-  type pyval = PStr string | PInt int | PArr pyval_list | PMap (map string (option pyval)) | PNode pyval
-  with pyval_list = PNil | PCons pyval pyval_list
+  type hval = HStr string | HInt int | HArr hval_list | HMap (map string (option hval)) | HNode hval
+  with hval_list = HNil | HCons hval hval_list
 
   val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
     ensures { result = Map.set m k (Some v) }
 
   (* EVIL TWIN: claims the set key reads back None (the empty-map drop bug) —
      must FAIL (a real 1-entry map reads Some, not None). *)
-  let build_evil_empty (arm_ctor: string) : map string (option pyval)
+  let build_evil_empty (arm_ctor: string) : map string (option hval)
     ensures { Map.get result "ctor" = None }
-  = map_update_some (const (None: option pyval)) "ctor" (PStr arm_ctor)
+  = map_update_some (const (None: option hval)) "ctor" (HStr arm_ctor)
 end

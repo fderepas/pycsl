@@ -1417,8 +1417,8 @@ class ControlFlowStmtMixin:
         elif (val_ir.get("type") == "Var"
               and val_ir.get("name") in getattr(self, "_pyval_seq_locals", set())):
             # K4 (local/return-position seq-pyval, self-tcb-reduction Tier-5): the
-            # function's declared return is `seq pyval`, so a `return fields` where
-            # `fields` is the `seq pyval` local returns the seq DIRECTLY (`!fields`) —
+            # function's declared return is `seq hval`, so a `return fields` where
+            # `fields` is the `seq hval` local returns the seq DIRECTLY (`!fields`) —
             # NOT the `materialize` (seq int -> array int) bridge, which drops the pyval
             # carrier. Gated on `_pyval_seq_locals` -> byte-inert.
             val = f"!{whyml_ident(val_ir['name'])}"

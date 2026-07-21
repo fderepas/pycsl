@@ -1,30 +1,30 @@
 /-
-  PyVal.lean — axiom-free certificate for the `pyval` heterogeneous value model
+  PyVal.lean — axiom-free certificate for the `hval` heterogeneous value model
   (self-tcb-reduction, Tier-5 value-model wall).  The Lean twin of
   `rocq/Phase2f_PyVal.v`.
 
   CO-LANDING COUPLING (the tier-3 rule, cf. PyConstVal.lean / PyAstStmt.lean): the
-  WhyML `pyval` theory promoted into the emitter preamble
+  WhyML `hval` theory promoted into the emitter preamble
   (`module6_whyml/preamble.py::_emit_pyval_theory`, gated on `_uses_pyval`) is a NEW
   value shape — the faithful carrier for a heterogeneous Python `Dict[str, Any]`
-  (PStr / PInt / PArr / PMap / PNode) — so it lands with a proof, not a trusted
+  (HStr / HInt / HArr / HMap / HNode) — so it lands with a proof, not a trusted
   assumption.  Certified here, against pure inductive datatypes with NO axiom:
 
-    (a) `PyVal` is a well-formed (mutual) inductive: `PArr` recurses through the
-        BESPOKE `PyValList` (PNil / PCons), NOT a `Seq` (the Why3-rejected shape);
-        `PMap` carries `String → Option PyVal` with `PyVal` in the POSITIVE arrow
+    (a) `HVal` is a well-formed (mutual) inductive: `HArr` recurses through the
+        BESPOKE `HValList` (HNil / HCons), NOT a `Seq` (the Why3-rejected shape);
+        `HMap` carries `String → Option HVal` with `HVal` in the POSITIVE arrow
         codomain (Lean's positivity checker accepts it, exactly as Why3 does);
     (b) the LOAD-BEARING measure `size` / `listSize` is well-founded — `size v ≥ 1`
         (the WhyML `size_pos`, needing MUTUAL structural induction; proven here),
         `listSize l ≥ 0`, and the tail of a cons is STRICTLY shorter;
     (c) the value carriers are OBSERVABLE + DISTINCT — a string value is NEVER
-        erased to an int (`PStr s ≠ PInt n`): the no-more-int faithfulness;
+        erased to an int (`HStr s ≠ HInt n`): the no-more-int faithfulness;
     (d) the make-or-break heterogeneous DICT read is faithful — modelling the WhyML
-        `map string (option pyval)` as `String → Option PyVal`, the string VARIABLE
-        arm reads back as `PStr arm_ctor` and the EVIL TWIN (a wrong value) is
+        `map string (option hval)` as `String → Option HVal`, the string VARIABLE
+        arm reads back as `HStr arm_ctor` and the EVIL TWIN (a wrong value) is
         provably UNprovable (non-vacuity).
 
-  `PyVal` has no decidable equality (the `PMap` functional field) — the emitter
+  `HVal` has no decidable equality (the `HMap` functional field) — the emitter
   never needs it (reads are `Map.get` key-projections) — so it is not claimed.
 
   Verdict decided by `#print axioms` at the bottom: only the standard Lean kernel
@@ -36,33 +36,33 @@
 namespace PyValCert
 
 -- ===================================================================== --
--- 1. The heterogeneous value ADT — mirrors the WhyML `type pyval`.       --
+-- 1. The heterogeneous value ADT — mirrors the WhyML `type hval`.       --
 -- ===================================================================== --
 
 mutual
-inductive PyVal where
-  | PStr  (s : String)
-  | PInt  (n : Int)
-  | PArr  (l : PyValList)
-  | PMap  (m : String → Option PyVal)
-  | PNode (v : PyVal)
-inductive PyValList where
-  | PNil
-  | PCons (h : PyVal) (t : PyValList)
+inductive HVal where
+  | HStr  (s : String)
+  | HInt  (n : Int)
+  | HArr  (l : HValList)
+  | HMap  (m : String → Option HVal)
+  | HNode (v : HVal)
+inductive HValList where
+  | HNil
+  | HCons (h : HVal) (t : HValList)
 end
 
--- size / listSize — verbatim image of the WhyML cert-side measure.  PMap's map
+-- size / listSize — verbatim image of the WhyML cert-side measure.  HMap's map
 -- has an INFINITE domain, so `size` counts the node only (documented deferral).
 mutual
-def size : PyVal → Int
-  | .PStr _  => 1
-  | .PInt _  => 1
-  | .PArr l  => 1 + listSize l
-  | .PMap _  => 1
-  | .PNode n => 1 + size n
-def listSize : PyValList → Int
-  | .PNil      => 0
-  | .PCons h t => size h + listSize t
+def size : HVal → Int
+  | .HStr _  => 1
+  | .HInt _  => 1
+  | .HArr l  => 1 + listSize l
+  | .HMap _  => 1
+  | .HNode n => 1 + size n
+def listSize : HValList → Int
+  | .HNil      => 0
+  | .HCons h t => size h + listSize t
 end
 
 -- ===================================================================== --
@@ -71,32 +71,32 @@ end
 -- ===================================================================== --
 
 mutual
-theorem size_pos : ∀ v : PyVal, size v ≥ 1
-  | .PStr _  => by simp [size]
-  | .PInt _  => by simp [size]
-  | .PArr l  => by have h := listSize_nonneg l; simp [size]; omega
-  | .PMap _  => by simp [size]
-  | .PNode n => by have h := size_pos n; simp [size]; omega
-theorem listSize_nonneg : ∀ l : PyValList, listSize l ≥ 0
-  | .PNil      => by simp [listSize]
-  | .PCons h t => by
+theorem size_pos : ∀ v : HVal, size v ≥ 1
+  | .HStr _  => by simp [size]
+  | .HInt _  => by simp [size]
+  | .HArr l  => by have h := listSize_nonneg l; simp [size]; omega
+  | .HMap _  => by simp [size]
+  | .HNode n => by have h := size_pos n; simp [size]; omega
+theorem listSize_nonneg : ∀ l : HValList, listSize l ≥ 0
+  | .HNil      => by simp [listSize]
+  | .HCons h t => by
       have h1 := size_pos h; have h2 := listSize_nonneg t; simp [listSize]; omega
 end
 
-theorem size_pstr  (s : String) : size (.PStr s) = 1 := by simp [size]
-theorem size_pint  (n : Int)    : size (.PInt n) = 1 := by simp [size]
-theorem size_pmap  (m : String → Option PyVal) : size (.PMap m) = 1 := by simp [size]
-theorem size_parr  (l : PyValList) : size (.PArr l) = 1 + listSize l := by simp [size]
-theorem size_pnode (n : PyVal) : size (.PNode n) = 1 + size n := by simp [size]
+theorem size_pstr  (s : String) : size (.HStr s) = 1 := by simp [size]
+theorem size_pint  (n : Int)    : size (.HInt n) = 1 := by simp [size]
+theorem size_pmap  (m : String → Option HVal) : size (.HMap m) = 1 := by simp [size]
+theorem size_parr  (l : HValList) : size (.HArr l) = 1 + listSize l := by simp [size]
+theorem size_pnode (n : HVal) : size (.HNode n) = 1 + size n := by simp [size]
 
-theorem listSize_nil  : listSize .PNil = 0 := by simp [listSize]
-theorem listSize_cons (h : PyVal) (t : PyValList) :
-    listSize (.PCons h t) = size h + listSize t := by simp [listSize]
+theorem listSize_nil  : listSize .HNil = 0 := by simp [listSize]
+theorem listSize_cons (h : HVal) (t : HValList) :
+    listSize (.HCons h t) = size h + listSize t := by simp [listSize]
 
 -- The TAIL of a cons is STRICTLY shorter — the termination witness for any
--- structural fold over `PyValList` (the WhyML has no `variant` clause).
-theorem list_tail_size_lt (h : PyVal) (t : PyValList) :
-    listSize t < listSize (.PCons h t) := by
+-- structural fold over `HValList` (the WhyML has no `variant` clause).
+theorem list_tail_size_lt (h : HVal) (t : HValList) :
+    listSize t < listSize (.HCons h t) := by
   have := size_pos h; simp [listSize]; omega
 
 -- ===================================================================== --
@@ -104,68 +104,68 @@ theorem list_tail_size_lt (h : PyVal) (t : PyValList) :
 --    faithfulness: a string stays a string, never erased to an int.       --
 -- ===================================================================== --
 
-theorem pstr_inj (a b : String) : PyVal.PStr a = PyVal.PStr b → a = b := by
+theorem pstr_inj (a b : String) : HVal.HStr a = HVal.HStr b → a = b := by
   intro h; injection h
-theorem pstr_neq (a b : String) : a ≠ b → PyVal.PStr a ≠ PyVal.PStr b := by
+theorem pstr_neq (a b : String) : a ≠ b → HVal.HStr a ≠ HVal.HStr b := by
   intro h c; injection c with h'; exact h h'
-theorem pint_inj (a b : Int) : PyVal.PInt a = PyVal.PInt b → a = b := by
+theorem pint_inj (a b : Int) : HVal.HInt a = HVal.HInt b → a = b := by
   intro h; injection h
 
--- THE make-or-break distinctness: a PStr value is NEVER a PInt value.
-theorem pstr_neq_pint (s : String) (n : Int) : PyVal.PStr s ≠ PyVal.PInt n := by
+-- THE make-or-break distinctness: a HStr value is NEVER a HInt value.
+theorem pstr_neq_pint (s : String) (n : Int) : HVal.HStr s ≠ HVal.HInt n := by
   intro c; injection c
-theorem pstr_neq_parr (s : String) (l : PyValList) : PyVal.PStr s ≠ PyVal.PArr l := by
+theorem pstr_neq_parr (s : String) (l : HValList) : HVal.HStr s ≠ HVal.HArr l := by
   intro c; injection c
-theorem parr_neq_pnode (l : PyValList) (v : PyVal) : PyVal.PArr l ≠ PyVal.PNode v := by
+theorem parr_neq_pnode (l : HValList) (v : HVal) : HVal.HArr l ≠ HVal.HNode v := by
   intro c; injection c
-theorem parr_inj (a b : PyValList) : PyVal.PArr a = PyVal.PArr b → a = b := by
+theorem parr_inj (a b : HValList) : HVal.HArr a = HVal.HArr b → a = b := by
   intro h; injection h
 
 -- ===================================================================== --
 -- 4. (d) The heterogeneous DICT read is faithful — the make-or-break.     --
 -- ===================================================================== --
 
-def emptyMap : String → Option PyVal := fun _ => none
-def mapGet (m : String → Option PyVal) (k : String) : Option PyVal := m k
-def mapSet (m : String → Option PyVal) (k : String) (v : Option PyVal) :
-    String → Option PyVal :=
+def emptyMap : String → Option HVal := fun _ => none
+def mapGet (m : String → Option HVal) (k : String) : Option HVal := m k
+def mapSet (m : String → Option HVal) (k : String) (v : Option HVal) :
+    String → Option HVal :=
   fun k' => if k = k' then v else m k'
 
-theorem read_same_key (m : String → Option PyVal) (k : String) (v : Option PyVal) :
+theorem read_same_key (m : String → Option HVal) (k : String) (v : Option HVal) :
     mapGet (mapSet m k v) k = v := by
   simp [mapGet, mapSet]
 
-theorem read_other_key (m : String → Option PyVal) (k k' : String) (v : Option PyVal) :
+theorem read_other_key (m : String → Option HVal) (k k' : String) (v : Option HVal) :
     k ≠ k' → mapGet (mapSet m k v) k' = mapGet m k' := by
   intro h; simp [mapGet, mapSet, h]
 
 -- The oracle's `read_variable_faithful`: build the
 -- {"pattern": "Constructor", "ctor": arm_ctor, "captures": ["x"]} dict and read
 -- "ctor" — the string VARIABLE arm_ctor projects back FAITHFULLY.
-def build (arm_ctor : String) : String → Option PyVal :=
+def build (arm_ctor : String) : String → Option HVal :=
   mapSet
     (mapSet
-      (mapSet emptyMap "pattern" (some (.PStr "Constructor")))
-                       "ctor"    (some (.PStr arm_ctor)))
-                       "captures" (some (.PArr (.PCons (.PStr "x") .PNil)))
+      (mapSet emptyMap "pattern" (some (.HStr "Constructor")))
+                       "ctor"    (some (.HStr arm_ctor)))
+                       "captures" (some (.HArr (.HCons (.HStr "x") .HNil)))
 
 theorem read_variable_faithful (arm_ctor : String) :
-    mapGet (build arm_ctor) "ctor" = some (PyVal.PStr arm_ctor) := by
+    mapGet (build arm_ctor) "ctor" = some (HVal.HStr arm_ctor) := by
   simp [build, mapGet, mapSet]
 
 theorem read_literal_faithful (arm_ctor : String) :
-    mapGet (build arm_ctor) "pattern" = some (PyVal.PStr "Constructor") := by
+    mapGet (build arm_ctor) "pattern" = some (HVal.HStr "Constructor") := by
   simp [build, mapGet, mapSet]
 
 theorem read_list_faithful (arm_ctor : String) :
     mapGet (build arm_ctor) "captures"
-      = some (PyVal.PArr (.PCons (.PStr "x") .PNil)) := by
+      = some (HVal.HArr (.HCons (.HStr "x") .HNil)) := by
   simp [build, mapGet, mapSet]
 
 -- EVIL TWIN (non-vacuity): a WRONG value read is provably UNprovable.
 theorem read_evil_wrong_value (arm_ctor : String) :
     arm_ctor ≠ "wrong" →
-    mapGet (build arm_ctor) "ctor" ≠ some (PyVal.PStr "wrong") := by
+    mapGet (build arm_ctor) "ctor" ≠ some (HVal.HStr "wrong") := by
   intro h c
   rw [read_variable_faithful] at c
   apply h

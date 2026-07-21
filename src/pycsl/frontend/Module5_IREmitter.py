@@ -84,7 +84,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # so byte-identical for Final-free modules). Consumed by
         # `core_ir_semantic._check_final` (a static write-site check, NOT a VC).
         # self-tcb-reduction Tier-5 (K2): typed `List[Dict[str, PyVal]]` (PyVal ~ Any) so
-        # the self-annotation mirror models it as a faithful `seq pyval` self-field (K1),
+        # the self-annotation mirror models it as a faithful `seq hval` self-field (K1),
         # letting `_collect_final_registry`'s `.append` lower to a real record write-back.
         # `from __future__ import annotations` keeps this a string annotation at runtime
         # (PyVal need not be a runtime name); behaviour on real modules is unchanged.
@@ -2536,12 +2536,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                       "mutable": True}
                             # K2 (seq-pyval self-field append, self-tcb-reduction Tier-5):
                             # carry a `self.<f>: List[Dict[str, PyVal]]` / `List[PyVal]`
-                            # __init__-declared field's element value_type ("pyval") so the
-                            # record field lowers to `seq pyval` (K1 field branch) instead of
+                            # __init__-declared field's element value_type ("hval") so the
+                            # record field lowers to `seq hval` (K1 field branch) instead of
                             # the int-erased `array int`. Parallels the @dataclass class-body
                             # path (`_m5_get_dict_value_type` then `_m5_get_list_elem_type`).
                             # `PyVal` is a NEW element sentinel absent from the corpus, and the
-                            # downstream `seq pyval`/`array string`/`array emit_ir` branches are
+                            # downstream `seq hval`/`array string`/`array emit_ir` branches are
                             # @mutable_state/IR-node gated (both False for the corpus) -> the
                             # 767-file reference corpus emits byte-identically.
                             _vt_i = (self._m5_get_dict_value_type(stmt.annotation)
@@ -2567,7 +2567,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             # `Dict[str, PyVal]` field lowered to `map int (option ...)`
                             # and `self.f.get(k)` int-HASHED the key (`str_hash_op`), a
                             # WhyML type error against the native-string store. With κ the
-                            # field is `map string (option pyval)`, native key. `PyVal` is a
+                            # field is `map string (option hval)`, native key. `PyVal` is a
                             # corpus-absent sentinel and the pyval field branch is
                             # @mutable_state-gated -> corpus byte-identical.
                             _kt_i = self._m5_get_field_key_type(stmt.annotation)
@@ -3729,15 +3729,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return "emit_ir"
             # K1 (seq-pyval self-field append, self-tcb-reduction Tier-5): a
             # `List[PyVal]` / `List[Dict[str, PyVal]]` element is the faithful
-            # heterogeneous value carrier `pyval`, so the field lowers to `seq pyval`
+            # heterogeneous value carrier `hval`, so the field lowers to `seq hval`
             # (Module6 `_emit_type_decls` list branch) and `.append` writes back
             # `self.f <- Seq.snoc self.f (<pyval-wrap x>)` (statements.py append site),
             # NOT the int-erased `array int` + shadow-local facade. `PyVal` is a NEW
             # sentinel absent from the whole corpus -> byte-inert.
             if _en == "PyVal":
-                return "pyval"
-            if PyCSLToJSONEmitter._m5_get_dict_value_type(sl) == "pyval":
-                return "pyval"
+                return "hval"
+            if PyCSLToJSONEmitter._m5_get_dict_value_type(sl) == "hval":
+                return "hval"
         return None
 
     @staticmethod
@@ -3924,14 +3924,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return "string"
             # pyval-value-model-wall (self-tcb-reduction, heterogeneous value model):
             # `Dict[str, PyVal]` is the faithful heterogeneous Python-value dict — the
-            # value carrier is the `pyval` sum (PStr/PInt/PArr/PMap/PNode), so the dict
-            # lowers to `map string (option pyval)` and each value is tagged by its IR
-            # kind (Module6 `_build_dict_literal_map` pyval branch). `PyVal` is a NEW
+            # value carrier is the `hval` sum (HStr/HInt/HArr/HMap/HNode), so the dict
+            # lowers to `map string (option hval)` and each value is tagged by its IR
+            # kind (Module6 `_build_dict_literal_map` hval branch). `PyVal` is a NEW
             # sentinel value-type name absent from the whole corpus, so this is
             # byte-inert (no existing `Dict[str, X]` annotation is affected). See
             # getting-better/pyval-value-model-wall-impl.md.
             if isinstance(v, ast.Name) and v.id == "PyVal":
-                return "pyval"
+                return "hval"
             if (isinstance(v, ast.Subscript)
                     and isinstance(v.value, ast.Name)
                     and v.value.id in ("Dict", "dict")
@@ -3939,12 +3939,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     and len(v.slice.elts) == 2):
                 _ki, vi = v.slice.elts
                 # J2/J3 convergence (self-tcb-reduction): `Dict[str, Dict[str, PyVal]]` —
-                # the INNER heterogeneous dict is `map string (option pyval)` (native
-                # string key, pyval-tagged value), so the outer value type carries the
-                # faithful pyval inner map, NOT the int-erased default. Byte-inert (no
+                # the INNER heterogeneous dict is `map string (option hval)` (native
+                # string key, hval-tagged value), so the outer value type carries the
+                # faithful hval inner map, NOT the int-erased default. Byte-inert (no
                 # corpus `Dict[str, Dict[str, PyVal]]`).
                 if isinstance(vi, ast.Name) and vi.id == "PyVal":
-                    return "map string (option pyval)"
+                    return "map string (option hval)"
                 vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
                 # nested-map.md: the INNER map is int-keyed (str keys hashed via `str_hash_op`),
                 # matching the model's uniform `dict[str,_] ~ map int (option _)` convention, so

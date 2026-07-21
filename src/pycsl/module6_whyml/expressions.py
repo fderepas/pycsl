@@ -601,10 +601,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         int dict (the caller keeps the `(const (None: option int))` it has)."""
         if nu == "string":
             return "(const (None: option string))"
-        if nu == "pyval":
-            # pyval-value-model-wall: a `Dict[str, PyVal]` heterogeneous dict is
-            # `map string (option pyval)`; the empty base is the everywhere-None map.
-            return "(const (None: option pyval))"
+        if nu == "hval":
+            # hval-value-model-wall: a `Dict[str, PyVal]` heterogeneous dict is
+            # `map string (option hval)`; the empty base is the everywhere-None map.
+            return "(const (None: option hval))"
         if nu == "seq int":
             return "(const (None: option (seq int)))"
         if nu and nu.startswith("map "):
@@ -616,10 +616,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         dead under `#@ no_exception KeyError`, the ambient default otherwise)."""
         if nu == "string":
             return '""'
-        if nu == "pyval":
-            # pyval-value-model-wall: the missing-key default for a `Dict[str, PyVal]`
-            # read — a `pyval` sentinel (proven dead under `#@ no_exception KeyError`).
-            return "(PInt 0)"
+        if nu == "hval":
+            # hval-value-model-wall: the missing-key default for a `Dict[str, PyVal]`
+            # read — an `hval` sentinel (proven dead under `#@ no_exception KeyError`).
+            return "(HInt 0)"
         if nu and nu.startswith("seq "):
             # #15: `Dict[str, List[T]]` value (`seq string`/`seq int`) -> the empty seq default.
             return f"(Seq.empty: {nu})"
@@ -643,45 +643,45 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return self._coerce_to_int(val_expr)
 
     def _pyval_wrap(self, v_ir: Dict[str, Any], local_refs=None) -> str:
-        """pyval-value-model-wall (self-tcb-reduction, Tier-5): wrap a heterogeneous
-        dict-literal VALUE into its FAITHFUL `pyval` constructor, tagged by IR kind —
+        """hval-value-model-wall (self-tcb-reduction, Tier-5): wrap a heterogeneous
+        dict-literal VALUE into its FAITHFUL `hval` constructor, tagged by IR kind —
         the make-or-break value tagging that keeps a string a string (no int-erasure).
-        str-lit / str-var -> `PStr`; int -> `PInt`; list -> `PArr` over the bespoke
-        `pyval_list` cons; nested dict -> `PMap` (a `map string (option pyval)` Map.set
-        chain); an IR-node construction -> `PNode`. Recursive: list elements and nested
+        str-lit / str-var -> `HStr`; int -> `HInt`; list -> `HArr` over the bespoke
+        `hval_list` cons; nested dict -> `HMap` (a `map string (option hval)` Map.set
+        chain); an IR-node construction -> `HNode`. Recursive: list elements and nested
         map values are themselves wrapped, so the whole heterogeneous value tree lowers
         faithfully. Emitted only under the `_uses_pyval` gate (a `Dict[str, PyVal]`)."""
         if isinstance(v_ir, dict):
             t = v_ir.get("type")
             if t == "ArrayLit":
-                acc = "PNil"
+                acc = "HNil"
                 for e in reversed(v_ir.get("elts", []) or []):
-                    acc = f"(PCons {self._pyval_wrap(e, local_refs)} {acc})"
-                return f"(PArr {acc})"
+                    acc = f"(HCons {self._pyval_wrap(e, local_refs)} {acc})"
+                return f"(HArr {acc})"
             if t == "DictLit":
                 self._add_abstract_op(
                     "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
                     ": map 'k (option 'v)\n"
                     "    ensures { result = Map.set m k (Some v) }")
-                acc = "(const (None: option pyval))"
+                acc = "(const (None: option hval))"
                 for k_ir, ve_ir in zip(v_ir.get("keys", []) or [],
                                        v_ir.get("values", []) or []):
                     k_low = self._expr_to_whyml(k_ir, local_refs)
                     acc = (f"(map_update_some {acc} {k_low} "
                            f"{self._pyval_wrap(ve_ir, local_refs)})")
-                return f"(PMap {acc})"
+                return f"(HMap {acc})"
             # an IR-node construction (`{"type": "Var", …}`) carries an emit_ir node.
             if self._is_emit_ir_expr(v_ir):
-                return f"(PNode {self._expr_to_whyml(v_ir, local_refs)})"
-            # a value that is ITSELF a `pyval` — a pyval local or a chained pyval `.get`
+                return f"(HNode {self._expr_to_whyml(v_ir, local_refs)})"
+            # a value that is ITSELF an `hval` — an hval local or a chained hval `.get`
             # (`{"bound": info.get("bound")}`) — embeds DIRECTLY (already tagged), NOT
-            # re-wrapped as `PStr`/`PInt`. Gated on `_expr_is_pyval` -> corpus byte-inert.
+            # re-wrapped as `HStr`/`HInt`. Gated on `_expr_is_pyval` -> corpus byte-inert.
             if self._expr_is_pyval(v_ir):
                 return self._expr_to_whyml(v_ir, local_refs)
         low = self._expr_to_whyml(v_ir, local_refs)
         if self._is_string_expr(v_ir):
-            return f"(PStr {low})"
-        return f"(PInt {self._coerce_to_int(low)})"
+            return f"(HStr {low})"
+        return f"(HInt {self._coerce_to_int(low)})"
 
     def _match_pattern_cond(self, pat: Dict[str, Any], subject: str, local_refs: Set[str]) -> str:
         """Generate a WhyML boolean condition for a match pattern."""
@@ -5785,8 +5785,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _expr_is_pyval(self, e: Dict[str, Any]) -> bool:
         """K7/#5 (self-tcb-reduction Tier-5): True iff `e` produces a heterogeneous
-        `pyval` — a `_pyval_locals` Var, a `.get` on a `map string (option pyval)`
-        self-field, or a `.get` on a pyval local. The value-typing predicate the
+        `hval` — a `_pyval_locals` Var, a `.get` on a `map string (option hval)`
+        self-field, or a `.get` on an hval local. The value-typing predicate the
         `or`-default recognizer reuses to stay off int-erasure."""
         if not isinstance(e, dict):
             return False
@@ -5799,7 +5799,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 recv = fn[:-len(".get")]
                 if recv in getattr(self, "_pyval_locals", set()):
                     return True
-                if self._self_field_dict_nu(recv) == "pyval":
+                if self._self_field_dict_nu(recv) == "hval":
                     return True
         return False
 
@@ -5822,8 +5822,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not _empty_default:
             return None
         _lw = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
-        _empty = "(PMap (const (None: option pyval)))"
-        return (f"(match {_lw} with PMap m_or -> {_lw} "
+        _empty = "(HMap (const (None: option hval)))"
+        return (f"(match {_lw} with HMap m_or -> {_lw} "
                 f"| _ -> {_empty} end)")
 
     def _lower_dict_get_call(self, expr: Dict[str, Any], args: List[str],
@@ -5915,27 +5915,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to a REAL `PMap` match-projection over the heterogeneous carrier —
         #   (match <recv> with PMap m_k7 -> Map.get m_k7 <k> | _ -> None)
         # — NOT the opaque `registry_get_2 nm 0` facade. A 2-arg call with an empty-dict
-        # `{}` default UNWRAPS the `option pyval` to `pyval` (the map-valued default
-        # `PMap (const None)`); a 1-arg leaf call keeps the `option pyval`. κ=string (the
-        # `map string (option pyval)` key), so the literal/Var key is read RAW (no
+        # `{}` default UNWRAPS the `option hval` to `hval` (the map-valued default
+        # `HMap (const None)`); a 1-arg leaf call keeps the `option hval`. κ=string (the
+        # `map string (option hval)` key), so the literal/Var key is read RAW (no
         # str_hash_op). Gated on `_pyval_locals` (populated only when a pyval self-field
         # feeds a `.get` chain) -> corpus byte-inert.
         if recv in getattr(self, "_pyval_locals", set()):
             _k = args[0]
-            _empty = "(PMap (const (None: option pyval)))"
+            _empty = "(HMap (const (None: option hval)))"
             if len(args) == 2:
-                # `.get(k, {})` -> unwrap the option-pyval to a pyval.
-                return (f"(match {recv} with PMap m_k7 -> "
+                # `.get(k, {})` -> unwrap the option-hval to an hval.
+                return (f"(match {recv} with HMap m_k7 -> "
                         f"(match Map.get m_k7 {_k} with Some v_ -> v_ "
                         f"| None -> {_empty} end) | _ -> {_empty} end)")
             # `.get(k)` (leaf, no default) -> unwrap the option-pyval to a `pyval`, the
             # absent key defaulting to the `PInt 0` None-sentinel (consistent with the
             # K6 self-field `.get`; Python `dict.get(k)` returns None on a missing key).
-            # A `pyval` value (not `option pyval`) so the read composes uniformly — e.g.
+            # An `hval` value (not `option hval`) so the read composes uniformly — e.g.
             # `{"bound": info.get("bound")}` embeds it via `_pyval_wrap`.
-            return (f"(match {recv} with PMap m_k7 -> "
+            return (f"(match {recv} with HMap m_k7 -> "
                     f"(match Map.get m_k7 {_k} with Some v_ -> v_ "
-                    f"| None -> (PInt 0) end) | _ -> (PInt 0) end)")
+                    f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
         # §26: `X.get(k)` where X aliases a self dict-field → `self.<field>.get(k)`.
         _alias = self._alias_self_field(recv)
         if _alias:
