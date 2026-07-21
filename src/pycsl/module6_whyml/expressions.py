@@ -6849,6 +6849,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val function {base}_{lit} (k: string) : string")
         return f"({base}_{lit} {key})"
 
+    @staticmethod
+    def _negative_literal_index(index_ir: object) -> Optional[int]:
+        """W8 (iv): `k > 0` iff `index_ir` is the negative integer literal `-k`.
+
+        The Module-5 IR keeps a source `-1` as `UnaryOp('-', Number(1))`; a folded
+        `Number(-1)` is accepted too. Anything else (a variable, an expression, `0`,
+        a float) returns None and the caller keeps its existing lowering.
+        """
+        if not isinstance(index_ir, dict):
+            return None
+        val = None
+        if (index_ir.get("type") == "UnaryOp" and index_ir.get("op") == "-"
+                and isinstance(index_ir.get("expr"), dict)
+                and index_ir["expr"].get("type") == "Number"):
+            val = index_ir["expr"].get("value")
+        elif index_ir.get("type") == "Number":
+            raw = index_ir.get("value")
+            if isinstance(raw, int) and not isinstance(raw, bool) and raw < 0:
+                val = -raw
+        if isinstance(val, int) and not isinstance(val, bool) and val > 0:
+            return val
+        return None
+
     def _handle_subscript(self, node: "ExprIR", local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
@@ -7173,9 +7196,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # arity2.md (2b): parenthesise a ref-bound array deref (`!x`)
                 # before subscripting, else `!x[i]` parses as `!(x[i])`.
                 arr_e = f"({value_str})" if value_str.startswith("!") else value_str
+                length_expr = f"(Array.length {arr_e})"
+                # W8 capability (iv): a NEGATIVE LITERAL index `a[-k]` is Python's
+                # from-the-end read, i.e. `a[len(a) - k]`. Emitting the literal `-k`
+                # was BOTH unfaithful (it is not element `-k` of anything) and
+                # unprovable (a negative index can never discharge the array-bounds
+                # VC). Only a syntactically-negative INTEGER LITERAL is rewritten —
+                # a negative *value* in a variable is not statically recognisable and
+                # keeps the old lowering (a documented residual, and the honest one:
+                # a general run-time negative-index model needs a conditional read).
+                _negk = self._negative_literal_index(expr.get("index", {}))
+                if _negk is not None:
+                    index = f"({length_expr} - {_negk})"
                 inner = f"{arr_e}[{index}]"
                 # no_exception IndexError → assert in_bounds before the read.
-                length_expr = f"(Array.length {arr_e})"
                 return self._wrap_with_no_exception_assert(
                     ("subscript", "read"), [length_expr, index], inner)
             elif is_dict:
