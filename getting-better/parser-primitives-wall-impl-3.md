@@ -244,3 +244,103 @@ covers `pure_ast.error`/`unsupported`. Faithful exception-payload construction i
 **(ii) varargs-membership** is the big one (9 primitives across the two parsers, plus the `accept_*`/`expect_*`
 that call them), then (iv)/(v) for the three `peek`s. Faithful raise-payload construction is a separate,
 later capability — do NOT convert `_err`/`error`/`unsupported` before it.
+
+---
+
+## W8 RUN — (vii) FIXED, (ii) BUILT, 7 CONVERSIONS (count 1007 → 1000)
+
+### (vii) tail-return `bool` → `int` — FIXED (commit `3079a72a`)
+`_handle_return_stmt`'s TAIL (non-raise) return never applied the bool→int coercion the early/in-loop
+`raise (Return …)` path applies, so `def f(x: int) -> bool: return x == 55` emitted `let f … : int = (x = 55)`
+and failed L3-tc, while the SAME function written with an early return lowered correctly.
+
+Fix: apply the identical normalization at the tail position, gated on `_func_return_type == "int"`.
+**IDEMPOTENCE GUARD (not predicted by the brief):** exposure was NOT zero — corpus **0477-0480** differ.
+The string relational lowerings (`str_lt_op`/`str_le_op`) already emit the int form themselves, so re-wrapping
+gave `(if (if … then 1 else 0) then 1 else 0)` (ill-typed AND a 4-file byte-diff). Values already shaped
+`(if … then 1 else 0)` are skipped. With the guard: **corpus byte-diff 0 on all 774 files** — no M1 reset needed.
+
+Fixture **0930**, two-sided per predicate (`x == 55 ==> \result == 1` AND `x != 55 ==> \result == 0`), mutation
+test pass. **`Module2_Parser._ContractParser.at_eof` CONVERTED** the same hour (commit `b239e9bd`), emitting
+`(if (str_eq_op (let _rec_ = (_contractparser__cur self) in _rec_.py_type) "EOF") then 1 else 0)`.
+
+ADJACENT GAP recorded, NOT fixed: a `-> bool` function's postcondition cannot compare `\result` to a bool TERM
+(`\result == (x == 55)` → `result = (x = 55)`, int vs bool) — the CONTRACT side has no matching coercion. The
+implication shape is the workaround. Separate capability.
+
+### (ii) varargs-membership — BUILT, SPIKE VERDICT **FAITHFUL** (commit `0b72b5c6`)
+Before: `*vals` was DROPPED from the signature and every read fell to `val constant vals : int`, so
+`t.string in vals` emitted `contains_check (str_hash_op t.string) vals` — an int-hash against a constant with
+NO relation to the arguments, and `contains_check` has no `ensures` at all. **Total facade.**
+
+After, a `str`-ANNOTATED vararg (`*vals: str`) is a real trailing `seq string` parameter (Why3's IMMUTABLE
+sequence — matches Python's immutable tuple; a Why3 `array` is mutable and cannot be a pure parameter):
+
+| shape | lowering |
+|---|---|
+| `x in vals` (body) | `(seq_mem_str x vals)` |
+| `x in vals` (spec) | `exists i. 0 <= i < Seq.length vals /\ Seq.get vals i = x` (a program `val` is illegal in a formula) |
+| `not vals` | `(not (Seq.length vals > 0))` |
+| `len(vals)` | `(Seq.length vals)` |
+| `f(a, "+", "-")` | `(f a (Seq.cons "+" (Seq.cons "-" (Seq.empty: seq string))))` |
+
+`seq_mem_str` is a `val` **DEFINED by its `ensures`** (the same existential) — the established
+`str_contains_op`/`str_eq_op` shape, **not an axiom**. Membership is not decidable in Why3's string model so it
+cannot be a `function`; nothing is assumed beyond the definition. **Ledger stays 3.**
+
+Touched: Module5 (record the annotated vararg; keep `x in vals` an `in` BinOp rather than the ARRAY-positional
+`exists … Array.length …` desugaring, which would leave `Array.length`/`subscript_get` unbound on a `seq`),
+`core_ir_semantic` (vararg in contract scope), Module6 (param type, membership, truthiness, `len`, call-site
+packing on BOTH the module-function and the `self.<m>(…)` path, `_build_method_param_types_map` so
+`_coerce_dotted_args` does not truncate the packed argument away).
+
+Fixture **0931**, three independent falsifiable controls (body / call-site packing / empty-tail).
+**MUTATION TEST PASS: changing `call_hit`'s needle from `"+"` to `"*"` turns the goal Unknown** — the model
+tracks the caller's literals, which the old facade provably could not.
+
+### (ii) companion — CONCRETE token kinds + keyword table (commit `498429b8`)
+Two further opaque reads blocked the real `pure_ast` predicates:
+* `t.type == _tokenize.OP` → `(get_OP _tokenize)`: an unconstrained int applied to an unconstrained constant,
+  neither with an `ensures`. `get_OP _tokenize` and `get_NAME _tokenize` were **not provably distinct**, so
+  token-kind disjointness was inexpressible. Now the literal **55** (`NAME` 1, `NUMBER` 2, `STRING` 3).
+* `t.string in _keyword.kwlist` → `contains_check (str_hash_op …) (get_kwlist _keyword)`. Now a real
+  `seq_mem_str` over the table's ACTUAL 35 members.
+
+FAITHFULNESS: nothing is hardcoded — Module5 imports the real `tokenize`/`token`/`keyword` module and reads the
+attribute, so the emitted literal IS the value the program computes at runtime on this interpreter. No version
+drift, no table to maintain, no axiom. The folds REMOVE two abstract vals. Scope: those three modules only; no
+corpus/`pycsl_lib` file imports any of them → byte-inert. Fixture **0932**.
+
+### CONVERTED (7 total, count 1007 → 1000)
+| file | primitives | emitted evidence |
+|---|---|---|
+| `Module2_Parser._ContractParser` | `at_eof` | `str_eq_op … "EOF"` off the concrete `cur` |
+| `pure_ast._Parser` | `at_op`, `at_name`, `at_kw` | `py_type = (55)/(1)` + `seq_mem_str` + real kwlist chain |
+| `Module2_Parser._ContractParser` | `at_op`, `at_name`, `at_bs` | `str_eq_op … "OP"/"NAME"/"BSNAME"` + `seq_mem_str` |
+
+Whole-file proof SUCCESS on both mirrors (foreground); mirror-wide L3-tc sweep **0 failures before AND after**;
+corpus byte-diff **0** on all 774 baseline files; fidelity **52/52**; ledger **3**.
+
+### THE CASCADE — PROBED AND REVERTED, both blockers CONFIRMED EMPIRICALLY
+| primitive | verdict | first_blocker |
+|---|---|---|
+| `Module2._ContractParser.accept_op` | REVERT | **(v)** `Optional[<record>]`: `raise (Return__union_accept_op_9 (_contractparser__advance self))` passes a bare `_tok` where the arm constructor belongs — the union synthesizer emits no `Arm_9_0` record arm. L3-tc ✗ |
+| `pure_ast._Parser.accept_kw` | REVERT | **(v)**, byte-for-byte the same shape (`Return__union_accept_kw_0 (_parser__advance self)`) |
+| `Module2._ContractParser.expect_op` | REVERT | **payload facade + raise-model break**: `let _ = (self__err_1 …) in ()` — `_err` RAISES in Python but is modelled as a value-returning no-op, so the model FALLS THROUGH to `(_contractparser__advance self)` on the failure path. Control flow diverges from the source. Compounded by `self_at_op_1 … : int` with `ensures true` (the guard is unconstrained at the call site) |
+| `pure_ast._Parser.expect_kw` / `expect_op` | REVERT | identical (`self_error_1`, then falls through to `advance`) |
+
+`accept_*`/`expect_*` were listed in the brief as "the cascade that calls them"; the measurement says the
+varargs capability was NOT their blocker. It is now removed from their path, but each is held by a DIFFERENT,
+already-catalogued wall. Note one useful sub-result: annotating the mirror parameter `val: str` DOES type the
+callee correctly (`py_val: string`) — the `py_val: int` seen on the first probe was only a missing annotation,
+not a capability gap.
+
+### Honest remaining list for these three files
+* `pure_ast.accept_op`, `accept_kw` / `Module2.accept_op` — **(v)** `Optional[<record>]` union record arm.
+* `pure_ast.expect_op`, `expect_kw` / `Module2.expect_op`, `expect_name`, `expect_bs` — faithful raise-payload
+  construction AND a raising model for `_err`/`error` (a no-op stub changes control flow). Also wants a
+  concrete sibling lowering for a NON-record-returning same-class call, so the `at_*` guard is not an
+  `ensures true` stub.
+* the three `peek`s — **(iv)** negative-index array read (`pure_ast`, `Module2`), **(v)** (`proof2why3`).
+* `_err` / `error` / `unsupported` — CERTIFIED FACADE, unchanged (Gate C reject).
+* `proof2why3/parser.py` has NO varargs predicates; `_Unparser.write(self, *text)` is a different shape (deferred).
