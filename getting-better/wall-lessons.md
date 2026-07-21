@@ -141,3 +141,22 @@ via the self-field-append subsystem (K1) + the tparam reflection-node ADT (L1) +
    FIX (K1): gate the faithful `self.<f> <- Seq.snoc (old self.<f>) (pyval)` write-back on the seq-pyval field case →
    byte-inert (homogeneous array-int corpus appends unchanged). The M1 blast fear was UNFOUNDED (the facade was in no
    green corpus proof — fable-verified).
+
+## 2026-07-21 (10h run #3) — value-model capability PLATEAU (3 infra, 0 conversions)
+Run #3 built THREE committed value-model capabilities (all byte-inert, axiom-free, fixture-witnessed, count-neutral)
+but converted ZERO stubs — the frontier is session-scale everywhere:
+- Set[str] value model (f375baa9, set.SetApp executable + Fset spec, fixture 0923).
+- const-reflection (f3888a7f, is_constant/is_num_or_float/num_of over existing emit_ir leaves, fixture 0924).
+- List[RecordType] class-field emission (614fd814, `self.f: List[<rec>]`→`array <rec>`, fixture 0925).
+Both redirect targets bottomed out at SESSION-SCALE emitter retrofits:
+- pure_ast parser primitives (highest-count file, 262 stubs): CERTIFIED-BOUNDARY — converting even `cur` needs
+  `@mutable_state` on the mirror `_Parser` = a +283-line stateful-mirror retrofit (flips the global emit_ir-theory
+  gate + file-wide field-qualification); field-projecting primitives additionally wall on `*vals` varargs-membership.
+- _collect_class_fields: tuple-return-pyval (R7, proven bounded) + annotation-reflection helpers (type().__name__/
+  getattr on emit_ir annotation nodes) + frozenset-tuple membership — receding conjunction.
+LESSON: the value-model capability-building has out-run its conversion consumers. The remaining ~1013 stubs are
+dominated by stubs needing SESSION-SCALE emitter subsystems, NOT incremental recognizers. The highest-count unlock
+candidates: (1) the @mutable_state stateful-MIRROR retrofit (unblocks the parser + stateful-class stubs, but +283
+lines/file, risky, parser payoff capped ~3 by varargs); (2) the recursive `.values()`/`_walk_dicts` dict-generic
+tree-walker model (the frontier-exhaustion-map's "85 Dict[str,Any] walkers" dominant hard class — potentially
+high-count); (3) accept the plateau (extensive infra banked for a future co-land). Count 1013 held.
