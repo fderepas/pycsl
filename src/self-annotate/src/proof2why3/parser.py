@@ -68,11 +68,18 @@ class _Parser:
         self.toks: List[Token] = tokens
         self.pos: int = 0
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    # `offset >= 0` is a genuine PARTIALITY boundary, read off the live body: the read
+    # `self.toks[idx]` is guarded ONLY from above (`idx < len(self.toks)`), so a negative
+    # `offset` makes `idx` negative and Python silently reads from the END of the list —
+    # a different token than "the one `offset` ahead". Every live call site in this file
+    # passes the default `0`. Not a convenience narrowing.
+    #@ requires offset >= 0
     #@ ensures True
     #@ assigns \nothing
-    def peek(self, offset: int=0) -> Optional[Token]:
+    def peek(self, offset: int = 0) -> Optional[Token]:
+        idx = self.pos + offset
+        if idx < len(self.toks):
+            return self.toks[idx]
         return None
 
     #@ requires self.pos < \length(self.toks)
