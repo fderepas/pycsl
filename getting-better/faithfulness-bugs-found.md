@@ -51,3 +51,15 @@ standalone soundness hardening (byte-diff-inert, zero corpus uses) if authorized
 Canonical `\trusted` stub count = **1029** via `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py'
 | wc -l` (the annotation form). The broad `grep -F '\trusted'` = 1058 OVER-counts by ~29 PROSE-COMMENT mentions
 of the word (`# … stays \trusted …`); it is NOT the stub count.
+
+## Bug 3 — self-field `.append` is a shadow-local facade (never writes back)
+**Found 2026-07-21 (pyval cascade R3 spike).** `self._field.append(x)` lowers to a FRESH local
+`let self__field = Array.make 1024 0` that SHADOWS the field, then `self__field[len] <- x` — the real
+`self._field` is NEVER written back (evidence: `src/pycsl_lib/proc/__init__.mlw:133,150,154`, `setenv`'s
+`_env_keys`). So a method's self-field-append EFFECT is unmodeled (the post-state field is unchanged in the model).
+LATENT (the affected methods — proc setenv etc. — are `\trusted`, so not a live soundness hole), but it BLOCKS
+converting any collector that appends to a self-field (`_collect_final_registry` etc.). The faithful fix = a
+self-field seq-append emission subsystem (write-back to the field) + for the heterogeneous case a `seq pyval` field
+(the R3 MODELING cert is PROVEN axiom-free + banked, ready to co-land). This is the ≥4-collector leverage node +
+the pyval cascade's terminal prerequisite. Related: [[pyval_value_model_built]]; build order in
+`getting-better/pyval-value-model-wall-impl.md`.
