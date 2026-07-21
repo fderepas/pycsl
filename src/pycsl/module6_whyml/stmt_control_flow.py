@@ -1546,4 +1546,28 @@ class ControlFlowStmtMixin:
                 val = self._bool_ir_to_int_wrap(val, val_ir)
             val = self._coerce_to_int(val)
             return f"{indent}raise (Return {val})"
+        # W8 (vii): TAIL-return bool→int coercion. A `-> bool` Python function lowers to
+        # a WhyML `int`-returning `let` (Python `bool` is modelled as `int` throughout —
+        # `bool` params, `bool` fields and the early/in-loop `raise (Return …)` path above
+        # all coerce). The tail (non-raise) return was the ONE position that did not, so
+        # `def f(x: int) -> bool: return x == 55` emitted `let f (x: int) : int = (x = 55)`
+        # and failed L3 type-check. Applies the SAME normalization as the raise path
+        # (literal True/False → 1/0, bool-source IR → `if … then 1 else 0`) and only when
+        # the function's WhyML return type is `int`, so unit/string/array/record/union
+        # returns are untouched. Byte-inert on the corpus: no corpus or pycsl_lib function
+        # declares `-> bool`, and an int-returning function whose tail value is a bool-source
+        # expression was ill-typed WhyML before this (it could not have been emitting).
+        # IDEMPOTENCE GUARD: some Compare lowerings (the string relational ops
+        # `str_lt_op`/`str_le_op`, corpus 0477-0480) already emit the int form
+        # `(if … then 1 else 0)`; re-wrapping would produce `(if (if … then 1 else 0)
+        # then 1 else 0)` (ill-typed AND a corpus byte-diff). Skip when the lowered
+        # value is already an int-coerced conditional.
+        if (self._func_return_type == "int"
+                and not (val.startswith("(if ") and val.endswith(" then 1 else 0)"))):
+            if val == "true":
+                val = "1"
+            elif val == "false":
+                val = "0"
+            else:
+                val = self._bool_ir_to_int_wrap(val, val_ir)
         return f"{indent}{val}"
