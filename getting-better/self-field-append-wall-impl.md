@@ -115,3 +115,39 @@ multi-arg / Set[str]) — must co-land the capability with a converging target (
   count stays 1014, ledger 3. Do NOT rebuild K4 alone; it needs a reflection-modeling capability co-built first
   (authorize a multi-piece build), or a NEW mirror method authored to return a clean pyval list (contrived, not a
   real TCB cut).
+
+## §K5 — `_collect_type_params` — Gate-S CONFIRM (tparam-node ADT models the reflection), but REFINE (legacy `Generic[T]` branch walls on opaque `self.program_ir` generic-dict) → REVERTED (2026-07-21)
+
+- **Gate S SPIKE: PASS (K3's `type(tp).__name__` reflection-wall verdict REFUTED for the node-kind case).** Hand oracle
+  `scratchpad/k5_spike.mlw` proves a minimal `tparam` ADT models the PEP-695 reflection FAITHFULLY + AXIOM-FREE:
+  - `type tparam = TPTypeVar string emit_ir | TPParamSpec string | TPTypeVarTuple string` (name; bound sub-node is a
+    BOUNDED `emit_ir` child, TypeVar only — NOT an unbounded new carrier); `tp_kind_of`/`tp_name`/`tp_bound_node`
+    DEFINITIONAL projectors; `is_typevar/paramspec/typevartuple <-> tp_kind_of = "K"` faithfulness lemmas.
+    `type(tp).__name__` → `tp_kind_of` is a NODE-KIND DISCRIMINANT (the pyast_stmt/emit_ir precedent), NOT reflection.
+  - Bound isinstance dispatch reuses the EXISTING `is_var`/`is_attribute`/`name_of` (bnode.id / bnode.attr both →
+    `name_of`), producing `option string` carried in the K4 3-key pyval entry `{"name","bound","kind"}`.
+  - ORACLE: `TParamGoodFaithful` — ALL VCs **Valid** (Z3, 0.01-0.03s): concrete `TPTypeVar "T" (IrVar "int")` →
+    kind="TypeVar", name="T", bound=PStr "int", entry reads back faithfully; `TPParamSpec "P"` → bound=PNone,
+    kind="ParamSpec"; attribute bound `mod.Base` → PStr "Base". Evil twins `TParamEvilWrongKind` (ParamSpec-as-TypeVar),
+    `TParamEvilWrongBound` (int-erased "wrong" bound), `TParamEvilDropped` (empty-seq facade) all **Unknown / not Valid**
+    (non-vacuous). Axiom-free (ADT + definitional projectors + intrinsic seq/map + the reused `map_update_some`;
+    `type_params_of` would be an opaque `val function` like `class_body_ast` — NO new cert, ledger stays 3).
+- **REFINE (do not grind): the legacy `Generic[T]` branch is a DISTINCT, HARDER wall — opaque `self.program_ir`
+  generic-dict, NOT the tparam ADT.** The method is all-or-nothing (whole body ported+proven), and its second half —
+  `if not out and isinstance(node, ast.ClassDef): for b in node.bases: ... registry = self.program_ir.get("typevar_
+  registry") or {}; info = registry.get(nm, {}); out.append({"bound": info.get("bound"), ...})` — depends on
+  `self.program_ir` (the mirror's FIRST program_ir read; `_collect_type_params` is stubbed so no prior read exists).
+  PROBE `scratchpad/k5_legacy_probe.py` (the 3-statement registry lookup, tool-emitted, NOT predicted): the tool
+  INT-ERASES the whole chain — `type probe = int`, `let registry = ref 0`, abstract `val self_program_ir_get_1 (x0:int)
+  : int` / `val registry_get_2 (x0 x1:int):int` / `val info_get_1 (x0:int):int`, and **L3-tc FAILS** (`info_get_1` : int
+  returned where `option string` expected). This is the `Dict[str,Any]` generic-dict + opaque-self-state value model
+  (the census's "85 Dict[str,Any] value-typing, likely harder than the ADT" class), NOT reflection. An opaque fused
+  `registry_bound_lookup : string -> option string` reader would be a bespoke recognizer for this exact 3-statement
+  idiom (Gate C facade reject); faithfully each statement lowers independently (registry:map, info:map, return:option),
+  which is the full generic-dict/self-state build.
+- **VERDICT: Gate S CONFIRMS the tparam-node ADT (the reflection is modellable — K5's core question answered YES), but
+  the tparam ADT ALONE cannot convert `_collect_type_params`; the legacy branch adds a generic-dict/self-state
+  conjunction that is a separate multi-session authorize-first build.** Building the tparam ADT now = DEAD INFRA
+  (non-vacuity rule → REVERT). Made NO src edits (spike + probe are scratchpad-only); `_collect_type_params` stays the
+  `\trusted` stub, count unchanged, ledger 3. NEXT: `_collect_type_params` converts once the generic-dict/self-state
+  program_ir value model lands (co-build the tparam ADT WITH it); the tparam ADT + K4 append are proven-ready to reuse.
