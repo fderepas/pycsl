@@ -3187,6 +3187,19 @@ class FunctionEmissionMixin:
                 # calling `self._csl_to_ir(node.left)`) is abstracted here, not there, so
                 # this map needs the SAME recognition or the self-call site sees `int`.
                 ret = "emit_ir"
+            elif ret == "int" and ann in getattr(self, "_record_types", {}) \
+                    and getattr(self, "_record_array_fields", None):
+                # W8 capability (vi): a method DECLARED `-> <RecordClass>` (the token
+                # cursor's `def cur(self) -> _Tok`) returns the real record type, not the
+                # erased `int`. Without this the `self.cur()` call site abstracts as
+                # `val self_cur_0 () : int` and every projection off it (`self.cur().kind`)
+                # falls through to an opaque `get_kind : int -> int` getter — an int-erasing
+                # facade with no link to the receiver.
+                # GATE (low blast radius, the (i)/(iii) gate): `_record_array_fields` is
+                # non-empty only for a `@mutable_state` class carrying a `List[<record>]`
+                # field, i.e. exactly the parser-cursor shape. `_record_types` is populated
+                # by `_emit_type_decls`, which runs before this map is built.
+                ret = self._record_types[ann]["whyml_name"]
             result[func["name"]] = ret
         return result
 

@@ -198,6 +198,20 @@ class Module6_WhyMLTranspiler(
             return "store"
         raise ValueError(f"No heap variable in Hoare model")
 
+    def _record_return_sibling_methods(self) -> Set[str]:
+        """W8 capability (vi): the IR names of methods whose resolved WhyML return type is
+        a declared RECORD. A `self.<m>(...)` call to one of these lowers to the CONCRETE
+        sibling application `(<class>__<m> self)` (expressions._handle_dotted_call), so the
+        callee needs a callee-before-caller SCC ordering edge exactly like an opt-in
+        `#@ sibling_concrete` callee. Gated by `_record_array_fields` (the parser-cursor
+        low-blast-radius gate) → empty, hence ordering-inert, for every other module."""
+        if not getattr(self, "_record_array_fields", None):
+            return set()
+        rec_names = {ri["whyml_name"]
+                     for ri in getattr(self, "_record_types", {}).values()}
+        return {name for name, rt in self._module_method_return_types.items()
+                if rt in rec_names}
+
     def _build_callee_no_exception_summary(self, functions: List[Dict[str, Any]]) -> None:
         """Populate the module-wide callee summary maps (workplan PR 4).
         Indexed by the IR function name (e.g. "divide_256")."""
@@ -776,7 +790,8 @@ class Module6_WhyMLTranspiler(
             self._module_method_return_types[pf["name"]] = pf["_mixin_ret_whyml"]
         self._build_callee_no_exception_summary(functions)
 
-        sorted_functions, scc_info = sort_functions_by_scc(functions)
+        sorted_functions, scc_info = sort_functions_by_scc(
+            functions, self._record_return_sibling_methods())
         self._emitted_logic_funcs = set()
         self._late_content_ops = []
         for func in sorted_functions:
@@ -1033,7 +1048,8 @@ class Module6_WhyMLTranspiler(
         self._late_content_ops = []
         # Partition the SORTED function list (preserve emission order) into the main
         # (untagged) set + one list per group.
-        sorted_functions, scc_info = sort_functions_by_scc(functions)
+        sorted_functions, scc_info = sort_functions_by_scc(
+            functions, self._record_return_sibling_methods())
         group_funcs: Dict[str, List[Dict[str, Any]]] = {g: [] for g in groups}
         main_funcs: List[Dict[str, Any]] = []
         for func in sorted_functions:

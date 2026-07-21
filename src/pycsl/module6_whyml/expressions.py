@@ -3073,6 +3073,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if t == "Attribute":
                 _attr = ir.get("attr")
                 _o = ir.get("object", {})
+                # W8 capability (vi): `self.cur().string` projects a `str` field off a
+                # RECORD-returning sibling call, so the comparison must route through
+                # `str_eq_op` (faithful content compare) rather than collapsing the
+                # projection to the legacy int hash. Same `_record_array_fields` gate as
+                # the emission branch in `_handle_attribute_expr` → byte-inert elsewhere.
+                if (isinstance(_o, dict) and _o.get("type") == "Call"
+                        and isinstance(_o.get("func"), str)
+                        and _o["func"].startswith("self.")
+                        and getattr(self, "_record_array_fields", None)):
+                    _crt = self._resolve_dotted_signature(_o["func"])[0]
+                    for _rc, _ri in getattr(self, "_record_types", {}).items():
+                        if _ri.get("whyml_name") == _crt:
+                            if _ri.get("field_types", {}).get(_attr) in ("str", "string"):
+                                return True
+                            break
                 # K2 convergence (self-tcb-reduction): `<pyast_stmt local>.name` projects
                 # to `def_name` — the ClassDef/FunctionDef NAME, a `string` — so
                 # `cstmt.name == "__init__"` routes through `str_eq_op` (faithful content
@@ -4117,6 +4132,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     or ident in getattr(self, "_array_locals", set())):
                 param_types[i] = "array int"
         coerced = self._coerce_dotted_args(args, param_types)
+        # W8 capability (vi): a call to a SAME-CLASS sibling method whose declared return
+        # type is a RECORD lowers to the CONCRETE sibling application
+        # `(<class>__<m> self args)`, not to a receiver-less abstract `val self_<m>_0 () :
+        # <rec>`. The abstract route would be a FACADE: the stub has NO link to the
+        # receiver, so `self.cur().kind` could not be related to `self.toks[self.i].kind`
+        # and every projection off it degenerated to an opaque int getter. The concrete
+        # application is SOUND because the callee is a same-file VERIFIED method (it is in
+        # `_module_func_names`, i.e. its body and contract are emitted and proved here), so
+        # the caller sees its real contract AND the class type-invariant guarantee.
+        # Ordering (callee before caller) comes from `scc.find_self_method_calls`, which is
+        # given the same record-return set. Gated by `_record_array_fields` (the (i)/(iii)
+        # low-blast-radius gate) → corpus byte-identical.
+        if (func_name.startswith("self.") and self._current_self_type
+                and getattr(self, "_record_array_fields", None)
+                and ret_type in {_ri["whyml_name"]
+                                 for _ri in getattr(self, "_record_types", {}).values()}):
+            _concrete = whyml_ident(
+                f"{self._current_self_type}__{func_name[len('self.'):]}")
+            if _concrete in getattr(self, "_module_func_names", set()):
+                return f"({_concrete} {' '.join(['self'] + coerced)})".rstrip()
         # A2c: a self-FIELD-referencing callee ensure (`\result == self.x`) is
         # bound by giving the abstract op a leading receiver parameter
         # `(self: <class>)` and passing the receiver record, so `self.x` in the
@@ -7118,6 +7153,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # result. The WhyML result is the record value; emit `result.<field_label>`.
         if isinstance(obj_ir, dict) and obj_ir.get("type") == "Result":
             return f"result.{self._field_label(getattr(self, '_func_return_type', None), attr)}"
+        # W8 capability (vi) — PROJECTION OFF A SIBLING METHOD CALL. `self.cur().py_type`:
+        # the base is a `self.<m>(...)` Call whose declared return type is a RECORD, so it
+        # lowers (above) to the CONCRETE `(<class>__<m> self)`. The field read is then a
+        # NATIVE record projection over that value, not the opaque `(get_py_type …)` getter
+        # — which mistypes against `tok` and fails L3-tc. Same `_record_array_fields` gate
+        # as (iii), so absent (hence byte-inert) everywhere else.
+        if (isinstance(obj_ir, dict) and obj_ir.get("type") == "Call"
+                and isinstance(obj_ir.get("func"), str)
+                and obj_ir["func"].startswith("self.")
+                and getattr(self, "_record_array_fields", None)):
+            _crt = self._resolve_dotted_signature(obj_ir["func"])[0]
+            if _crt in {_ri["whyml_name"]
+                        for _ri in getattr(self, "_record_types", {}).values()}:
+                _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+                return (f"(let _rec_ = {_os} in "
+                        f"_rec_.{self._field_label(_crt, attr)})")
         # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): `a[i].field` on a
         # flat `List[<record>]` param (`a : array <record>`, registered in
         # `_record_array_params`) is a NATIVE record projection over the array read —

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Set, Tuple, TypedDict
+from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
 
 
 class LogicSymbolView(TypedDict):
@@ -120,15 +120,23 @@ def emits_as_logic_symbol(func: LogicSymbolView) -> bool:
 
 
 def sort_functions_by_scc(
-    functions: List[Dict[str, Any]]
+    functions: List[Dict[str, Any]],
+    extra_concrete: Optional[Set[str]] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, tuple]]:
-    """Return functions in SCC-topological order and a scc_info dict."""
+    """Return functions in SCC-topological order and a scc_info dict.
+
+    `extra_concrete` (W8 capability (vi)) names further callees that are concrete-called
+    from a sibling — the RECORD-returning same-class methods, which lower to
+    `(<class>__<m> self)` rather than an abstract val — so they get the same
+    callee-before-caller ordering edges. Empty by default → identical ordering."""
     func_names_set = {func["name"] for func in functions}
     func_by_name = {func["name"]: func for func in functions}
     # allocator-frame plan §2.7: only `#@ sibling_concrete` callees are concrete-called
     # from siblings, so only they need callee-before-caller ordering edges.
     sibling_concrete_set = {func["name"] for func in functions
                             if func.get("sibling_concrete")}
+    if extra_concrete:
+        sibling_concrete_set |= (set(extra_concrete) & func_names_set)
     # scc.md: the only targets a contract reference may edge to are logic symbols.
     logic_symbols = {f["name"] for f in functions if emits_as_logic_symbol(f)}
     call_graph: Dict[str, Set[str]] = {}
