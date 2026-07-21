@@ -2544,6 +2544,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                      or self._m5_get_list_elem_type(stmt.annotation))
                             if _vt_i is not None:
                                 _fld_i["value_type"] = _vt_i
+                            # K6 (map-pyval self-field read, self-tcb-reduction Tier-5):
+                            # record the field's KEY type κ for an `__init__`-declared
+                            # `self.<f>: Dict[str, ν]` dict field (only the @dataclass
+                            # class-body path did — line ~2599). Without it a
+                            # `Dict[str, PyVal]` field lowered to `map int (option ...)`
+                            # and `self.f.get(k)` int-HASHED the key (`str_hash_op`), a
+                            # WhyML type error against the native-string store. With κ the
+                            # field is `map string (option pyval)`, native key. `PyVal` is a
+                            # corpus-absent sentinel and the pyval field branch is
+                            # @mutable_state-gated -> corpus byte-identical.
+                            _kt_i = self._m5_get_field_key_type(stmt.annotation)
+                            if _kt_i:
+                                _fld_i["key_type"] = _kt_i
                             fields.append(_fld_i)
                             field_names_seen.add(stmt.target.attr)
                             if (stmt.value and isinstance(stmt.value, ast.Constant) and

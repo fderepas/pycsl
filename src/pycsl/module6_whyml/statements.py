@@ -315,6 +315,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return self._handle_seq_assign(
                 stmt, rest, local_refs, declared_refs, indent, in_loop)
 
+        # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a `pyval`-valued chain
+        # local (`registry = self.f.get(k) or {}`; `info = registry.get(k, {})`) is
+        # `let`-bound IMMUTABLE (single-assignment SSA chain) — NOT the int/string `ref`
+        # hoist that would int-erase it and route its `.get` to an opaque `registry_get_2`.
+        # `val` already carries the faithful pyval lowering (the `_lower_dict_get_call`
+        # PMap arm / the `_recognize_pyval_or_default` projection). Gated on
+        # `_pyval_locals` -> corpus byte-inert.
+        if (target in getattr(self, "_pyval_locals", set())
+                and target not in declared_refs):
+            declared_refs.add(target)
+            code = f"{indent}let {safe_target} = {val} in\n"
+            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            if not rest_code:
+                rest_code = f"{indent}()"
+            return code + rest_code
+
         if target not in declared_refs:
             declared_refs.add(target)
             kind = self._first_assign_kind(val, val_ir)
@@ -1416,6 +1432,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                else val["args"][0])
                     code = (f"{indent}self.{safe_field} <- "
                             f"Seq.snoc self.{safe_field} "
+                            f"{self._pyval_wrap(raw_arg, local_refs)}")
+                elif arr_name in getattr(self, "_pyval_seq_locals", set()):
+                    # K4 (local/return-position seq-pyval, self-tcb-reduction Tier-5): a
+                    # `List[Dict[str, PyVal]]`/`List[PyVal]` LOCAL that is appended to and
+                    # RETURNED grows a real `seq pyval` ref — `fields := Seq.snoc !fields
+                    # (<pyval-wrap x>)` — tagging the appended dict/str/... into its
+                    # faithful `pyval` carrier (the K1 self-field analogue for a local),
+                    # NOT the int-erased `Seq.snoc !fields 0`. Gated on `_pyval_seq_locals`
+                    # (populated only when the fn returns `seq pyval`) -> byte-inert.
+                    raw_arg = (val["args"][0].to_dict()
+                               if hasattr(val["args"][0], "to_dict")
+                               else val["args"][0])
+                    code = (f"{indent}{safe_arr} := Seq.snoc !{safe_arr} "
                             f"{self._pyval_wrap(raw_arg, local_refs)}")
                 else:
                     arg = self._expr_to_whyml(val["args"][0], local_refs)
@@ -2981,6 +3010,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # getattr assignment is suppressed; reads route to boundary readers) —
             # so no `ref 0` pre-declaration.
             and v not in self._opaque_selfmap_aliases
+            # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a pyval chain local
+            # is `let`-bound immutable at its assignment (single-assignment SSA), never
+            # an int `ref 0` pre-decl (which would int-erase it). Gated -> byte-inert.
+            and v not in getattr(self, "_pyval_locals", set())
         }
         # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
         # a string local is PRE-DECLARED `ref ""` (not let-bound at first assign), so a

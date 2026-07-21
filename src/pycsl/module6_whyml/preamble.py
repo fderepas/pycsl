@@ -5103,6 +5103,15 @@ class PreambleEmissionMixin:
             f.get("value_type") == "pyval"
             for td in self.ir.get("type_decls", []) or []
             for f in td.get("fields", []) or [])
+        # K4/#6 (local/return-position seq-pyval + scalar pyval return): a function that
+        # RETURNS `seq pyval` (`-> List[Dict[str, PyVal]]`, return_value_type "pyval") or
+        # a scalar `pyval` (`-> PyVal`, return_annotation "PyVal") needs the `pyval`
+        # theory in scope even when no pyval FIELD is present. Corpus has neither
+        # annotation -> byte-inert.
+        result = result or any(
+            fn.get("return_value_type") == "pyval"
+            or fn.get("return_annotation") == "PyVal"
+            for fn in self.ir.get("functions", []) or [])
         self._uses_pyval_cache = result
         return result
 
@@ -5465,6 +5474,16 @@ class PreambleEmissionMixin:
                         _kt = "string" if f.get("key_type") == "string" else "int"
                         if _vt == "string":
                             ftype = f"map {_kt} (option string)"
+                        elif _vt == "pyval":
+                            # K6 (map-pyval self-field read, self-tcb-reduction Tier-5): a
+                            # `Dict[str, PyVal]` self-field is the faithful heterogeneous
+                            # `map {_kt} (option pyval)` — so `self.f.get(k)` reads a real
+                            # `option pyval` (`Some v_ -> v_ | None -> (PInt 0)`) instead of
+                            # the int-erased `map int (option int)` facade. The `pyval`
+                            # theory is already pulled in by the `_uses_pyval` gate (it fires
+                            # on any type_decl field value_type == "pyval"), so NO new cert
+                            # (ledger 3). `PyVal` is a corpus-absent sentinel -> byte-inert.
+                            ftype = f"map {_kt} (option pyval)"
                         elif isinstance(_vt, str) and _vt.startswith(("map ", "seq ", "array ")):
                             # nested-map.md: a NESTED collection value (`Dict[str, Dict[str,int]]`
                             # → value_type `map int (option int)`; `Dict[str, List[int]]` → `seq int`)

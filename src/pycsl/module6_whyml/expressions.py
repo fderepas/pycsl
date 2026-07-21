@@ -3021,6 +3021,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to_dict() is faithful for its purposes.
         expr = node.to_dict()
         raw_op = expr["op"]
+        # #5 (pyval `or {}` / `or []` default, self-tcb-reduction Tier-5): `<pyval> or {}`
+        # (the legacy `registry = self.f.get(k) or {}` default) lowers to a FAITHFUL
+        # keep-if-map-else-empty projection over the heterogeneous carrier —
+        #   (match <pyval> with PMap m_or -> <pyval> | _ -> PMap (const None))
+        # — NOT the int-erased boolean `if (not (str_eq_op ...)) || ... then 1 else 0`
+        # facade. The left operand is a `pyval` (a `.get` on a pyval self-field/local),
+        # the right is an empty dict/list literal. Gated on the left being pyval-producing
+        # (`_binop_left_is_pyval`) -> corpus byte-inert.
+        if raw_op == "or" and not self._in_spec:
+            _pd = self._recognize_pyval_or_default(expr, local_refs, invariant_ctx, subst)
+            if _pd is not None:
+                return _pd
         # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): the
         # `_py_stmt_expr` docstring-skip guard `isinstance(v, ast.Constant) and
         # isinstance(v.value, str)` (v an ExprIR child) collapses to `(is_str v)` — the
@@ -5630,6 +5642,49 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return (isinstance(_default, dict) and _default.get("type") == "DictLit"
                 and not _default.get("keys"))
 
+    def _expr_is_pyval(self, e: Dict[str, Any]) -> bool:
+        """K7/#5 (self-tcb-reduction Tier-5): True iff `e` produces a heterogeneous
+        `pyval` — a `_pyval_locals` Var, a `.get` on a `map string (option pyval)`
+        self-field, or a `.get` on a pyval local. The value-typing predicate the
+        `or`-default recognizer reuses to stay off int-erasure."""
+        if not isinstance(e, dict):
+            return False
+        t = e.get("type")
+        if t == "Var":
+            return e.get("name") in getattr(self, "_pyval_locals", set())
+        if t == "Call":
+            fn = e.get("func", "")
+            if isinstance(fn, str) and fn.endswith(".get"):
+                recv = fn[:-len(".get")]
+                if recv in getattr(self, "_pyval_locals", set()):
+                    return True
+                if self._self_field_dict_nu(recv) == "pyval":
+                    return True
+        return False
+
+    def _recognize_pyval_or_default(self, expr: Dict[str, Any],
+                                    local_refs: Optional[Set[str]],
+                                    invariant_ctx: bool,
+                                    subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """#5 (pyval `or {}` / `or []` default, self-tcb-reduction Tier-5): recognize
+        `<pyval> or {}` / `<pyval> or []` and lower it to the faithful
+        keep-if-map-else-empty projection over the `pyval` carrier. Returns None (falls
+        through to the generic boolean-`or` lowering) unless the left is pyval-producing
+        and the right is an empty dict/list literal -> corpus byte-inert."""
+        left = expr.get("left") or {}
+        right = expr.get("right") or {}
+        if not self._expr_is_pyval(left):
+            return None
+        _empty_default = (isinstance(right, dict)
+                          and right.get("type") in ("DictLit", "ArrayLit")
+                          and not right.get("keys") and not right.get("elts"))
+        if not _empty_default:
+            return None
+        _lw = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
+        _empty = "(PMap (const (None: option pyval)))"
+        return (f"(match {_lw} with PMap m_or -> {_lw} "
+                f"| _ -> {_empty} end)")
+
     def _lower_dict_get_call(self, expr: Dict[str, Any], args: List[str],
                               func_name: str, local_refs: Optional[Set[str]],
                               invariant_ctx: bool,
@@ -5714,6 +5769,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         if len(args) not in (1, 2):
             return None
+        # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): `.get` on a `pyval` LOCAL
+        # (a chained read `registry = self.f.get(..); info = registry.get(k, {})`) lowers
+        # to a REAL `PMap` match-projection over the heterogeneous carrier —
+        #   (match <recv> with PMap m_k7 -> Map.get m_k7 <k> | _ -> None)
+        # — NOT the opaque `registry_get_2 nm 0` facade. A 2-arg call with an empty-dict
+        # `{}` default UNWRAPS the `option pyval` to `pyval` (the map-valued default
+        # `PMap (const None)`); a 1-arg leaf call keeps the `option pyval`. κ=string (the
+        # `map string (option pyval)` key), so the literal/Var key is read RAW (no
+        # str_hash_op). Gated on `_pyval_locals` (populated only when a pyval self-field
+        # feeds a `.get` chain) -> corpus byte-inert.
+        if recv in getattr(self, "_pyval_locals", set()):
+            _k = args[0]
+            _empty = "(PMap (const (None: option pyval)))"
+            if len(args) == 2:
+                # `.get(k, {})` -> unwrap the option-pyval to a pyval.
+                return (f"(match {recv} with PMap m_k7 -> "
+                        f"(match Map.get m_k7 {_k} with Some v_ -> v_ "
+                        f"| None -> {_empty} end) | _ -> {_empty} end)")
+            # `.get(k)` (leaf, no default) -> `option pyval`.
+            return (f"(match {recv} with PMap m_k7 -> Map.get m_k7 {_k} "
+                    f"| _ -> None end)")
         # §26: `X.get(k)` where X aliases a self dict-field → `self.<field>.get(k)`.
         _alias = self._alias_self_field(recv)
         if _alias:
@@ -7056,6 +7132,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _proj = self._union_local_read_projection(name)
             if _proj is not None:
                 return _proj
+        # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a pyval chain local is
+        # `let`-bound IMMUTABLE (single-assignment), so a read is the BARE name — never
+        # the `!x` deref (which would type-clash: it is not a ref). Comes before the
+        # `local_refs` deref so `return info` emits `info`, not `!info`. Gated -> inert.
+        if name in getattr(self, "_pyval_locals", set()):
+            return whyml_ident(name)
         if name in local_refs:
             return f"!{whyml_ident(name)}"
         # wrong-lowering-to-fix.md §WL-05b: an inner-mutated dict/set PARAM is a

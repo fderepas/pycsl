@@ -444,7 +444,87 @@ class FunctionEmissionMixin:
         if self._stmt_seq_mut_params:
             self._seq_locals |= self._stmt_seq_mut_params
             local_refs |= self._stmt_seq_mut_params
+        # K4/#6 (local/return-position seq-pyval, self-tcb-reduction Tier-5): when the
+        # function returns `seq pyval` (`-> List[Dict[str, PyVal]]` / `-> List[PyVal]`,
+        # `return_value_type == "pyval"`), promote the RETURNED list local to
+        # `_pyval_seq_locals` so its `.append({...})` snocs a real `<pyval-wrap x>` (not
+        # `Seq.snoc !x 0`) and the `return x` is `!x` (no `materialize` seq int -> array
+        # int bridge). The var is already in `_seq_locals` (Module5 `seq_promoted_vars`);
+        # this subset marks it as the pyval-carrying one. Gated on the corpus-absent
+        # `pyval` return sentinel -> byte-inert.
+        self._pyval_seq_locals: Set[str] = set()
+        if func.get("return_value_type") == "pyval":
+            _rv = self._returned_var_name(body_stmts)
+            if _rv is not None:
+                self._pyval_seq_locals.add(_rv)
+        # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): the set of body locals
+        # that RECEIVE a heterogeneous `pyval` value — a `.get` on a `map string (option
+        # pyval)` self-field, a `.get` on another pyval local, an `x or {}` / `x or []`
+        # default over a pyval, or an alias of a pyval local. Computed by a fixpoint over
+        # the body (`_prescan_pyval_locals`). A pyval local is `let`-bound immutable
+        # (not the int/string `ref` hoist), and its `.get(k)` lowers to the real
+        # `match x with PMap m -> Map.get m k | _ -> ...` projection. Gated on a pyval
+        # self-field being present -> corpus byte-inert.
+        # `_self_field_dict_nu` (used by the prescan seed) reads `_current_self_type`,
+        # which `_build_param_list` only sets AFTER this method returns — so seed it here
+        # from `func` (harmlessly re-set to the same value there) so a
+        # `self.<pyval-field>.get` seed resolves.
+        if func.get("kind") == "method" and func.get("self_type"):
+            self._current_self_type = whyml_ident(func["self_type"].lower())
+        else:
+            self._current_self_type = None
+        self._pyval_locals: Set[str] = self._prescan_pyval_locals(body_stmts)
         return local_refs, ghost_vars
+
+    def _prescan_pyval_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): fixpoint over the body
+        collecting locals whose value is a heterogeneous `pyval`. Seeds:
+          - `t = <recv>.get(k[, {}])` where <recv> is a `map string (option pyval)`
+            self-field (value_type "pyval") -> `t` is pyval (unwrapped `Some v_ -> v_`);
+          - `t = <pyval-local>.get(k[, {}])` -> `t` is pyval;
+          - `t = <pyval-producing> or {}` / `or []` -> `t` is pyval;
+          - `t = <pyval-local>` (alias) -> `t` is pyval.
+        Iterated to a fixpoint so a chain `registry = self.f.get(..); info =
+        registry.get(..); bound = info.get(..)` all resolve. Returns the empty set for
+        every function with no pyval self-field / pyval `.get` -> byte-inert."""
+        pyval: Set[str] = set()
+
+        def _rhs_is_pyval(v: Dict[str, Any]) -> bool:
+            if not isinstance(v, dict):
+                return False
+            vt = v.get("type")
+            # `x or {}` / `x or []`: the BinOp "or" left operand carries the value.
+            if vt == "BinOp" and v.get("op") == "or":
+                return _rhs_is_pyval(v.get("left") or {})
+            # a `.get(...)` call on a pyval receiver (self-field or pyval local).
+            if vt == "Call":
+                fn = v.get("func", "")
+                if isinstance(fn, str) and fn.endswith(".get"):
+                    recv = fn[:-len(".get")]
+                    if recv in pyval:
+                        return True
+                    # a `map string (option pyval)` self-field receiver.
+                    if self._self_field_dict_nu(recv) == "pyval":
+                        return True
+                return False
+            # alias of a pyval local.
+            if vt == "Var":
+                return v.get("name") in pyval
+            return False
+
+        changed = True
+        while changed:
+            changed = False
+            for st in body_stmts:
+                if not isinstance(st, dict) or st.get("stmt") != "Assign":
+                    continue
+                tgt = st.get("target")
+                if not isinstance(tgt, str) or tgt in pyval:
+                    continue
+                if _rhs_is_pyval(st.get("value") or {}):
+                    pyval.add(tgt)
+                    changed = True
+        return pyval
 
     def _has_dynamic_exec(self, func: Dict[str, Any]) -> bool:
         """07-1839 P5a: does the body contain an `exec(...)` call? `exec` is the one parser-
@@ -1665,6 +1745,17 @@ class FunctionEmissionMixin:
             # `\result[i].field` projects the faithful field.
             elif func.get("return_value_type") in self._record_types:
                 return_type = f"array {self._record_types[func['return_value_type']]['whyml_name']}"
+            # K4/#6 (local/return-position seq-pyval, self-tcb-reduction Tier-5): a
+            # `-> List[Dict[str, PyVal]]` / `-> List[PyVal]` return is the faithful
+            # growable `seq pyval` (the K1 self-field analogue for a RETURNED local) —
+            # so a `fields.append({...}); return fields` builds+returns real `pyval`
+            # entries instead of the int-erased `array int` + `materialize` (seq int ->
+            # array int) bridge that drops the value carrier. `_emit_function` promotes
+            # the returned local to `_pyval_seq_locals` so its append is a real
+            # `Seq.snoc !fields (<pyval-wrap x>)` and the return is `!fields` (no
+            # materialize). `pyval` is a corpus-absent sentinel -> byte-inert.
+            elif func.get("return_value_type") == "pyval":
+                return_type = "seq pyval"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
             # self-tcb-reduction giants (generic class-body lowering): a `-> Dict[str, int]`
@@ -1682,6 +1773,13 @@ class FunctionEmissionMixin:
                 # `int` has no space -> no parens -> byte-identical for the corpus.
                 _nu_arg = f"({_nu})" if " " in _nu else _nu
                 return_type = f"map string (option {_nu_arg})"
+        elif ann == "PyVal" and return_type in ("int", "unit"):
+            # K7/#6 (scalar pyval return, self-tcb-reduction Tier-5): a `-> PyVal`
+            # method (`return info` where `info` is a `pyval` chained-`.get` local)
+            # returns the faithful heterogeneous `pyval` carrier, not the int-erased
+            # `_union_*`/`int` its opaque body would otherwise imply. `PyVal` is a
+            # corpus-absent annotation sentinel -> byte-inert.
+            return_type = "pyval"
         elif ann == "str" and return_type == "int":
             return_type = "string"
         elif ann == "float" and return_type == "int":
