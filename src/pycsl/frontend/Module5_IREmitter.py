@@ -2546,6 +2546,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             # 767-file reference corpus emits byte-identically.
                             _vt_i = (self._m5_get_dict_value_type(stmt.annotation)
                                      or self._m5_get_list_elem_type(stmt.annotation))
+                            # parser-primitives-wall-impl-2.md Gate S: a
+                            # `self.<f>: List[<record>]` __init__-declared field carries
+                            # its element RECORD name as value_type, so the record field
+                            # lowers to `array <record>` (Module6 list branch, gated on
+                            # @mutable_state / IR-node param) instead of the element-erased
+                            # `array int`. The element record is pinned PURE via the
+                            # AST-walk `list_element_record_types` pre-scan (visit_Module).
+                            # No corpus record field is `List[<record>]`, and the Module6
+                            # branch is @mutable_state-gated -> byte-inert for the 767-file
+                            # reference corpus.
+                            if _vt_i is None:
+                                _vt_i = self._m5_get_list_record_elem(stmt.annotation)
                             if _vt_i is not None:
                                 _fld_i["value_type"] = _vt_i
                             # K6 (map-pyval self-field read, self-tcb-reduction Tier-5):

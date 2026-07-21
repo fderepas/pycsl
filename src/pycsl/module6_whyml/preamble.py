@@ -5449,6 +5449,31 @@ class PreambleEmissionMixin:
             "",
         ]
 
+    def _record_default_literal(self, record_name: str) -> str:
+        """parser-primitives-wall-impl-2.md Gate S: a default WhyML record-literal for
+        `record_name` (an already-declared record in `_record_types`), used as the
+        ELEMENT witness of an `array <record>` field's `by` clause. Each field takes a
+        type-appropriate zero (int→0, str→"", real→0.0, array→empty, map→empty), so the
+        literal type-checks against the pure element record. Field labels are qualified
+        the same way the record decl qualifies them (`_field_label`)."""
+        rec = self._record_types[record_name]
+        parts: List[str] = []
+        for fld in rec["fields"]:
+            ft = rec["field_types"].get(fld, "int")
+            label = self._field_label(rec["whyml_name"], fld)
+            if ft in ("str", "string"):
+                v = '""'
+            elif ft in ("real", "float"):
+                v = "0.0"
+            elif ft in ("list", "tuple") or ft.startswith("array "):
+                v = "(Array.make 0 0)"
+            elif ft in ("dict", "set", "frozenset") or ft.startswith("map "):
+                v = "(const (None: option int))"
+            else:
+                v = str(rec.get("defaults", {}).get(fld, 0))
+            parts.append(f"{label} = {v}")
+        return "{ " + "; ".join(parts) + " }"
+
     def _emit_type_decls(self, type_decls: List[Dict[str, Any]]) -> Tuple[List[str], Set[str]]:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []
@@ -5737,6 +5762,21 @@ class PreambleEmissionMixin:
                                 and (getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):
                             ftype = f"array {f.get('value_type')}"
+                        elif (f.get("value_type") in self._record_types
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            # parser-primitives-wall-impl-2.md Gate S: a
+                            # `List[<record>]` field (value_type = the element record's
+                            # class name, e.g. `_Tok`) is the faithful `array <record>`
+                            # — was the element-erased `array int`, which made a
+                            # record-returning field read (`self.toks[self.i] : _Tok`)
+                            # mistype as int. The element record is emitted PURE
+                            # (Why3 forbids a mutable element inside `array`;
+                            # `list_element_record_types` pins it, dropping `mutable`).
+                            # Same @mutable_state/IR-node gate as the string/emit_ir
+                            # element branch above -> byte-inert for the corpus (no
+                            # corpus record has a `List[<record>]` field).
+                            ftype = f"array {self._record_types[f['value_type']]['whyml_name']}"
                         else:
                             ftype = "array int"
                     elif ftype == "option":
@@ -5862,9 +5902,23 @@ class PreambleEmissionMixin:
                                 witness_vals = combo
                                 break
                             ic += 1
+                    # parser-primitives-wall-impl-2.md Gate S: an `array <record>`
+                    # field (`List[<record>]`, value_type = the element record name)
+                    # needs a record-LITERAL witness element, not the int `0` — else
+                    # `Array.make N 0` mistypes against `array <record>`. Build a
+                    # default record literal from the element record's field defaults.
+                    array_elem_witnesses: Dict[str, str] = {}
+                    for _f in td["fields"]:
+                        _vt = _f.get("value_type")
+                        if (_f.get("type") in ("list", "tuple")
+                                and _vt in self._record_types
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            array_elem_witnesses[_f["name"]] = \
+                                self._record_default_literal(_vt)
                     # Qualify ambiguous field names in the witness too.
                     _q = lambda fn: self._field_label(type_name, fn)
-                    out.append(f"    by {{ {self._build_witness_str([_q(fn) for fn in field_names], {_q(fn): v for fn, v in witness_vals.items()}, {_q(fn): t for fn, t in field_types.items()}, {_q(fn): l for fn, l in array_lengths.items()})} }}")
+                    out.append(f"    by {{ {self._build_witness_str([_q(fn) for fn in field_names], {_q(fn): v for fn, v in witness_vals.items()}, {_q(fn): t for fn, t in field_types.items()}, {_q(fn): l for fn, l in array_lengths.items()}, {_q(fn): w for fn, w in array_elem_witnesses.items()})} }}")
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes
                 # whose `__hash__` and `__eq__` are both defined.

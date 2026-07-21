@@ -22,21 +22,28 @@ class AutoTrustMixin:
     @staticmethod
     def _build_witness_str(field_names: List[str], vals: Dict[str, Any],
                            field_types: Optional[Dict[str, str]] = None,
-                           array_lengths: Optional[Dict[str, int]] = None) -> str:
+                           array_lengths: Optional[Dict[str, int]] = None,
+                           array_elem_witnesses: Optional[Dict[str, str]] = None) -> str:
         """Build a WhyML record literal witness string.
 
         Array-typed fields (`array int`) cannot take an int witness; they
         get `Array.make N 0`, where N is the length pinned by a class
         invariant `\\length(self.f) == N` (defaulting to 0 — an empty
-        array — when no length invariant constrains the field)."""
+        array — when no length invariant constrains the field). A
+        `List[<record>]` field (`array <record>`, parser-primitives-wall-impl-2.md
+        Gate S) instead gets `Array.make N <record-literal>` from
+        `array_elem_witnesses` — the int `0` element would mistype against the
+        record element."""
         field_types = field_types or {}
         array_lengths = array_lengths or {}
+        array_elem_witnesses = array_elem_witnesses or {}
         parts: List[str] = []
         for fn in field_names:
             ft = field_types.get(fn, "int")
             if ft in ("list", "tuple", "bytes", "bytearray") or ft.startswith("array "):
                 n = array_lengths.get(fn, 0)
-                parts.append(f"{fn} = (Array.make {n} 0)")
+                elem = array_elem_witnesses.get(fn, "0")
+                parts.append(f"{fn} = (Array.make {n} {elem})")
             elif ft in ("dict", "set", "frozenset") or ft.startswith("map "):
                 # Empty map witness (all keys → None); `const` is from
                 # map.Const, matching the empty-dict idiom in expressions.py.
