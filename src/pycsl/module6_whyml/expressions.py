@@ -3603,6 +3603,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # count); `len(a[i])` = `a.columns` (the rectangular per-row length). Emit the
         # Matrix record projections directly from the base name — the lowered `args[0]`
         # for `a[i]` is a matrix (rows aren't first-class), so it is NOT used here.
+        # W8/W1: `len(self.<f>)` where `<f>` is an `array <record>` self-field (the
+        # token cursor's `len(self.toks)`) is the ARRAY length — the opaque
+        # `iter_length : int -> int` fallback mistypes against `array <record>`.
+        # `_record_array_fields` is populated only for a `List[<record>]` record field
+        # (@mutable_state / IR-node gated) → absent elsewhere, byte-inert.
+        _raf = getattr(self, "_record_array_fields", None)
+        if _raf and atype in ("FieldGet", "Attribute"):
+            _fn = arg_ir.get("field") or arg_ir.get("attr")
+            _ob = arg_ir.get("object")
+            if isinstance(_ob, dict):
+                _ob = _ob.get("name")
+            if _fn in _raf and _ob == "self":
+                return f"(Array.length {args[0]})"
         _a2d = getattr(self, "_array2d_params", set())
         if atype == "Var" and arg_ir.get("name") in _a2d:
             return f"({arg_ir['name']}.rows)"

@@ -105,6 +105,16 @@ import tokenize as _tokenize
 import io as _io
 import keyword as _keyword
 import unicodedata as _unicodedata
+from typing import List, Tuple
+
+
+# Mirror-only infra shim (see bin/self-annotate-mirror-check.sh MIRROR_ONLY): marks the
+# token-cursor `_Parser` as a stateful record so its `toks`/`i` fields lower to
+# `mutable toks: array tok` / `mutable i: int`.
+def mutable_state(cls):
+    return cls
+
+
 _g = globals()
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -125,7 +135,10 @@ class _Tok:
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, t):
-        pass
+        self.type: int = t.type
+        self.string: str = t.string
+        self.start: Tuple[int, int] = t.start
+        self.end: Tuple[int, int] = t.end
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -178,13 +191,18 @@ _AUG = {'+=': 'Add', '-=': 'Sub', '*=': 'Mult', '/=': 'Div', '//=': 'FloorDiv', 
 def _is_aug(tok):
     pass
 
+#@ class invariant 0 <= self.i
+#@ class invariant self.i < \length(self.toks)
+#@ class invariant \length(self.toks) >= 1
+@mutable_state
 class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, toks, filename='<unknown>', source=''):
-        pass
+        self.toks: List[_Tok] = toks
+        self.i: int = 0
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -200,19 +218,20 @@ class _Parser:
     def peek(self, k=0):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def cur(self):
-        pass
+    def cur(self) -> _Tok:
+        return self.toks[self.i]
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def advance(self):
-        pass
+    #@ assigns self.i
+    def advance(self) -> _Tok:
+        t = self.toks[self.i]
+        if self.i < len(self.toks) - 1:
+            self.i += 1
+        return t
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

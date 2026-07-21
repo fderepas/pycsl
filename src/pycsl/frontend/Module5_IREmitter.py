@@ -308,7 +308,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     # projects the faithful field). Recognized here (pre-`generic_visit`,
                     # so source order between the using function and the class is
                     # irrelevant, mirroring the dataclass/NamedTuple pre-scan).
-                    or self._m5_is_plain_positional_record_class(_c)):
+                    or self._m5_is_plain_positional_record_class(_c)
+                    # W8/W1: a plain class whose `__init__` DECLARES every field with a
+                    # type annotation is already emitted as a record type_decl by
+                    # `_collect_class_fields`; recognize it here too so a `List[<it>]`
+                    # element keeps the record (the mirror `_Tok` token shape).
+                    or self._m5_is_annotated_field_record_class(_c)):
                 self._m5_record_class_names.add(_c.name)
         _list_elem_recs: Set[str] = set()
         for _child in ast.walk(node):
@@ -2703,6 +2708,50 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if not (isinstance(rhs, ast.Name) and rhs.id in pos_params):
                 return False
             saw_field = True
+        return saw_field
+
+    @staticmethod
+    def _m5_is_annotated_field_record_class(node: ast.ClassDef) -> bool:
+        """W8/W1 (parser-primitives): True if `node` is a PLAIN class whose `__init__`
+        declares EVERY `self.<field>` with an explicit type annotation
+        (`self.type: int = t.type`). `_collect_class_fields` already emits exactly such
+        a class as a record `type_decl` with those declared field types — this predicate
+        only brings the `_m5_record_class_names` PRE-SCAN (which runs before any class is
+        visited, so it cannot consult `type_decls`) into agreement with that emission, so
+        a `List[<such class>]` element resolves to `array <record>` (WL-04b) instead of
+        collapsing to `array int`.
+
+        Fail-closed exactly like `_m5_is_plain_positional_record_class`: rejects a
+        `@dataclass`/`NamedTuple` (owned by their own predicates), a `@mutable_state`
+        class (a stateful record must never sit at an `array` element position — Why3
+        forbids a mutable element inside `array`), a class with no `__init__`, and any
+        class with even ONE UNANNOTATED `self.<attr> = ...` assignment (its field type
+        would be the inferred coarse tag, so the record is not fully declared)."""
+        if not isinstance(node, ast.ClassDef):
+            return False
+        if (PyCSLToJSONEmitter._is_dataclass_decorated(node)
+                or PyCSLToJSONEmitter._is_namedtuple_class(node)
+                or PyCSLToJSONEmitter._is_mutable_state_decorated(node)):
+            return False
+        init = next((s for s in node.body
+                     if isinstance(s, ast.FunctionDef) and s.name == "__init__"),
+                    None)
+        if init is None:
+            return False
+        saw_field = False
+        for stmt in ast.walk(init):
+            if isinstance(stmt, ast.Assign):
+                for tgt in stmt.targets:
+                    if (isinstance(tgt, ast.Attribute)
+                            and isinstance(tgt.value, ast.Name)
+                            and tgt.value.id == "self"):
+                        return False          # unannotated field → fail closed
+            elif isinstance(stmt, ast.AnnAssign):
+                tgt = stmt.target
+                if (isinstance(tgt, ast.Attribute)
+                        and isinstance(tgt.value, ast.Name)
+                        and tgt.value.id == "self"):
+                    saw_field = True
         return saw_field
 
     @staticmethod

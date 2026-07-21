@@ -2416,6 +2416,43 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         rec(body_stmts)
         return found
 
+    def _collect_record_field_elem_locals(
+            self, body_stmts: List[Dict[str, Any]]) -> Dict[str, str]:
+        """W8/W1: map local name -> element RECORD name for every local whose FIRST
+        assignment reads an element of an `array <record>` self-field
+        (`t = self.toks[self.i]`). Such a local is record-typed, so it must be
+        pre-declared with the element record's default literal rather than `ref 0`.
+        `_record_array_fields` (field -> record) is populated by `_emit_type_decls`
+        only for a `List[<record>]` record field, so this returns {} everywhere else."""
+        raf = getattr(self, "_record_array_fields", None) or {}
+        out: Dict[str, str] = {}
+        seen: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    tgt = node["target"]
+                    val = node.get("value", {})
+                    if tgt not in seen:
+                        seen.add(tgt)
+                        if isinstance(val, dict) and val.get("type") == "Subscript":
+                            base = val.get("value", {})
+                            if isinstance(base, dict) and base.get("type") == "FieldGet":
+                                obj = base.get("object")
+                                if isinstance(obj, dict):
+                                    obj = obj.get("name")
+                                fld = base.get("field")
+                                if obj == "self" and fld in raf:
+                                    out[tgt] = raf[fld]
+                for v in node.values():
+                    rec(v)
+            elif isinstance(node, list):
+                for v in node:
+                    rec(v)
+
+        rec(body_stmts)
+        return out
+
     def _collect_emit_ir_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """typed-ir-for-b-ceiling.md §19: locals whose FIRST assignment is an `emit_ir`
         value — an ExprIR field read (`assume_inv = stmt.assume_invariant`), an inline
@@ -3149,6 +3186,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 and v not in _str_predecl}
             pre_decl_vars |= _emit_ir_predecl
 
+        # W8/W1: a local bound to an element of an `array <record>` self-field
+        # (`t = self.toks[self.i]`, the token cursor's `advance`) is RECORD-typed, so
+        # the integer `ref 0` pre-decl mistypes it. Pre-declare it with the element
+        # record's default literal — the record counterpart of the `ref ""` / `ref
+        # (IrOther "")` pre-decls above. `_record_array_fields` is non-empty only for a
+        # `List[<record>]` record field, so this is inert everywhere else.
+        _rec_predecl: Dict[str, str] = {}
+        if getattr(self, "_record_array_fields", None):
+            for _v, _rec in self._collect_record_field_elem_locals(body_stmts).items():
+                if (_v in local_refs and _v not in ghost_vars
+                        and _v not in ref_params and _v not in self._formal_params
+                        and _v not in struct_array_targets
+                        and _v not in struct_pack_targets
+                        and _v not in _str_predecl and _v not in _emit_ir_predecl):
+                    _rec_predecl[_v] = _rec
+            pre_decl_vars |= set(_rec_predecl)
+
         if is_method:
             initial_declared = {whyml_ident(v) for v in pre_decl_vars}
         else:
@@ -3215,6 +3269,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 init = '""'
             elif var in _emit_ir_predecl:
                 init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
+            elif var in _rec_predecl:
+                # W8/W1: record-element local pre-decl (see above).
+                init = self._record_default_literal(_rec_predecl[var])
             else:
                 init = safe_var if var in self._formal_params else pfx
             body_code = f"    let {safe_var} = ref {init} in\n{body_code}"

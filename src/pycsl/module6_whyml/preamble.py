@@ -5462,7 +5462,7 @@ class PreambleEmissionMixin:
             "",
         ]
 
-    def _record_default_literal(self, record_name: str) -> str:
+    def _record_default_literal(self, record_name: str, _seen=None) -> str:
         """parser-primitives-wall-impl-2.md Gate S: a default WhyML record-literal for
         `record_name` (an already-declared record in `_record_types`), used as the
         ELEMENT witness of an `array <record>` field's `by` clause. Each field takes a
@@ -5470,11 +5470,20 @@ class PreambleEmissionMixin:
         literal type-checks against the pure element record. Field labels are qualified
         the same way the record decl qualifies them (`_field_label`)."""
         rec = self._record_types[record_name]
+        # W8/W1: a record-typed FIELD (the token `start`/`end` `Tuple[int, int]` slots,
+        # which synthesize their own `pytuple_int_int` record) needs a NESTED record
+        # literal, not the scalar `0` — otherwise the `by` witness of an
+        # `array <record>` field does not type-check. `_seen` breaks a (self-)recursive
+        # record chain: such a field falls back to the pre-existing scalar default.
+        _seen = set(_seen or ())
+        _seen.add(record_name)
         parts: List[str] = []
         for fld in rec["fields"]:
             ft = rec["field_types"].get(fld, "int")
             label = self._field_label(rec["whyml_name"], fld)
-            if ft in ("str", "string"):
+            if ft in getattr(self, "_record_types", {}) and ft not in _seen:
+                v = self._record_default_literal(ft, _seen)
+            elif ft in ("str", "string"):
                 v = '""'
             elif ft in ("real", "float"):
                 v = "0.0"
@@ -5508,6 +5517,28 @@ class PreambleEmissionMixin:
                 for _f in _td["fields"]:
                     _field_counts[_f["name"]] = _field_counts.get(_f["name"], 0) + 1
         self._ambiguous_fields = {fn for fn, c in _field_counts.items() if c > 1}
+        # W8/W1: purity of a `List[<record>]` element is TRANSITIVE. A pinned element
+        # record whose own field is itself a record (the token's `Tuple[int, int]`
+        # `start`/`end` slots → the synthesized `pytuple_int_int`) stays MUTABLE, which
+        # re-infects the element record ("instantiates pure type variable 'a with a
+        # mutable type"). Close `_list_element_record_types` under record-typed fields
+        # so the whole reachable record subtree is emitted pure. Empty in ⇒ empty out,
+        # so a module with no `List[<record>]` element is untouched.
+        _lert = set(getattr(self, "_list_element_record_types", set()))
+        if _lert:
+            _rec_names = {_td["name"] for _td in type_decls
+                          if _td.get("kind") == "record"}
+            _by_name = {_td["name"]: _td for _td in type_decls
+                        if _td.get("kind") == "record"}
+            _work = list(_lert)
+            while _work:
+                _cur = _work.pop()
+                for _f in _by_name.get(_cur, {}).get("fields", []):
+                    _ft = _f.get("type")
+                    if _ft in _rec_names and _ft not in _lert:
+                        _lert.add(_ft)
+                        _work.append(_ft)
+            self._list_element_record_types = _lert
         # typed-ir-for-b-ceiling.md §18: a record field whose name ALSO names a local
         # var in some method collides in Why3 — `stmt.ghost_type` resolves to the local
         # `ghost_type` ref ("ref int … cannot be applied"), not the field. Qualify those
@@ -5929,6 +5960,14 @@ class PreambleEmissionMixin:
                                      or getattr(self, "_uses_ir_node_param", False))):
                             array_elem_witnesses[_f["name"]] = \
                                 self._record_default_literal(_vt)
+                            # W8/W1: remember `field -> element record` so a local
+                            # bound to `self.<field>[i]` (the token cursor's
+                            # `t = self.toks[self.i]`) pre-declares a record ref
+                            # instead of the int `ref 0`, and `len(self.<field>)`
+                            # lowers to `Array.length`.
+                            if not hasattr(self, "_record_array_fields"):
+                                self._record_array_fields = {}
+                            self._record_array_fields[_f["name"]] = _vt
                     # Qualify ambiguous field names in the witness too.
                     _q = lambda fn: self._field_label(type_name, fn)
                     out.append(f"    by {{ {self._build_witness_str([_q(fn) for fn in field_names], {_q(fn): v for fn, v in witness_vals.items()}, {_q(fn): t for fn, t in field_types.items()}, {_q(fn): l for fn, l in array_lengths.items()}, {_q(fn): w for fn, w in array_elem_witnesses.items()})} }}")
