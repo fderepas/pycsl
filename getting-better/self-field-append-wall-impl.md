@@ -186,3 +186,63 @@ multi-arg / Set[str]) — must co-land the capability with a converging target (
   count unchanged **1014**, ledger 3. BANKED proven-ready for the co-build: the map-pyval field-READ branch (§K6, 1
   line), the tparam-node ADT (§K5), the K4 local/return seq-pyval (§K4). NEXT (authorize-first): build the
   pyval-as-map chained-`.get` projection, then co-land ALL four with `_collect_type_params`.
+
+## §K7 — pyval-chained-`.get` make-or-break EMISSION-PASSES (real PMap projection tool-BUILT), but `_collect_type_params` does NOT converge: piece #1 (tparam ADT) is a from-scratch TOOL build (K5 was hand-oracle only), + 2 emergent pieces → REVERTED clean (byte-diff 0), REFINE (2026-07-21)
+
+- **Gate S (the NEW make-or-break piece — pyval-chained-`.get`): MODELING + EMISSION BOTH PASS.**
+  - **Modeling oracle** `scratchpad/k7_spike.mlw` (the preamble.py:5043 `PMap (map string (option pyval))` ADT): the
+    chained projection `registry = (match Map.get program_ir "tvr" with Some v_ -> v_ | None -> PInt 0);
+    info = (match registry with PMap m -> (match Map.get m "T" with Some v_ -> v_ | None -> PMap empty end) | _ -> ...);
+    bound = (match info with PMap m -> Map.get m "bound" | _ -> None)` — the GOOD `test_chained_readback'vc` is **Valid**
+    (Z3 0.06s); evil twins `test_evil_wrong_bound` + `test_evil_absent` **Timeout / not Valid** (non-vacuous). The
+    option-pyval-of-option-pyval nesting DISCHARGES; the PMap match-projection typechecks. K7's core question = YES.
+  - **Tool EMISSION (the make-or-break the whole session hinged on): BUILT + VERIFIED** on `scratchpad/k7_emit2.py`
+    (`@mutable_state` class, `self.program_ir: Dict[str, PyVal]` field, `registry = self.program_ir.get("tvr");
+    info = registry.get(nm, {}); return {"bound": info.get("bound"), "name": nm}`). After pieces #3+#4 (below) the tool
+    emits the **REAL PMap projection, NOT int-erasure**:
+    `let registry = (match Map.get self.program_ir "typevar_registry" with Some v_ -> v_ | None -> (PInt 0) end) in`
+    `let info = (match registry with PMap m_k7 -> (match Map.get m_k7 nm with Some v_ -> v_ | None -> (PMap (const (None: option pyval))) end) | _ -> (PMap (const (None: option pyval))) end) in`
+    — a genuine `Map.get`/`PMap`-match chain over `pyval` locals (κ=string native key), the exact shape the oracle proved.
+    The pyval local typing propagates through the `.get` chain (registry→info) as required.
+- **Pieces BUILT this session to reach the emission PASS (all additive, corpus byte-diff 0, now reverted):**
+  - **#3 map-pyval field READ + κ:** the 1-line `preamble.py` branch `elif _vt == "pyval": ftype = f"map {_kt} (option
+    pyval)"` (§K6) — but that ALONE int-hashed the key (`map int`, `str_hash_op "typevar_registry"`, a WhyML type
+    error). A SECOND edit was required: `Module5_IREmitter._collect_class_fields` records `key_type` for an
+    `__init__`-declared `self.<f>: Dict[str,ν]` AnnAssign field (only the `@dataclass` class-body path did; the
+    `__init__` path dropped κ). With both: `type probe = { mutable program_ir: map string (option pyval) }`, native key.
+  - **#4 pyval-chained-`.get` (the NEW piece): BUILT.** (a) `_pyval_locals` set + `_prescan_pyval_locals` (fixpoint over
+    the body, `registry`→`info` dependency) marks the chain locals; (b) `_emit_body_code` excludes them from the
+    int/string `ref` hoist and `_handle_assign_stmt` `let`-binds them as immutable pyval; (c) `_lower_dict_get_call`
+    branch: `.get` on a `_pyval_locals` recv → `match <recv> with PMap m_k7 -> Map.get m_k7 k | _ -> None` (2-arg default
+    `{}` unwraps `option pyval`→`pyval`, 1-arg leaf stays `option pyval`); (d) `_pyval_wrap` unwraps a bare-`.get`
+    `option pyval` dict-value to `pyval` (`Some v -> v | None -> PNone`).
+- **WHY IT DOES NOT CONVERGE — piece #1 (tparam ADT) is a FROM-SCRATCH TOOL build, not a re-apply; K5 was a HAND ORACLE
+  only.** `_collect_type_params` is all-or-nothing (whole body ported+proven) and its FIRST branch is the PEP-695
+  `type_params` loop. PROBE `scratchpad/k7_tparam_probe.py` (tool-emitted, NOT predicted) shows the tool FULLY
+  int-erases it, exactly the anti-facade FORBIDDEN shapes:
+  - `type(tp).__name__` → opaque `kind := (get___name__ (py_type_1 !tp))` (int), NOT a `tp_kind_of` discriminant;
+  - `isinstance(bnode, ast.Name)` → **`if (isinstance_op 0 0)`** — the exact `isinstance_op 0 0` facade the Gate-6
+    anti-facade battery forbids;
+  - `getattr(tp, "name"/"bound")` → `name := 0; bnode := 0` (int-erased); `out.append({...})` → `Seq.snoc !out 0` (shadow).
+  Building piece #1 = a NEW `tparam` ADT (`TPTypeVar/TPParamSpec/TPTypeVarTuple`) + an opaque `type_params_of : emit_ir ->
+  seq tparam` reader + `tp_kind_of`/`tp_name`/`tp_bound_node` projectors + Module5 recognition of the 3 reflections +
+  Module6 lowering (+ possibly a Phase2h cert). That is a from-scratch reflection-ADT build on the scale of the
+  `pyast_stmt` ADT session — NOT the plan's "re-derive a proven 1-line branch." K5 proved the MODELING (hand oracle); the
+  TOOL side was never built.
+- **Plus 2 emergent pieces (beyond the plan's five):** (#5) `<pyval> or {}` — the legacy branch's `registry = self.program_ir.get(...) or {}` — lowers to a BOOLEAN int (`if (not (str_eq_op ...)) || ... then 1 else 0`), NOT a pyval;
+  a faithful `match x with PMap m -> x | _ -> PMap empty` lowering is needed (and risks a Gate-C truthiness-facade
+  review). (#6) the `-> PyVal` / return-`Dict[str,PyVal]` return typing int-erases (`: int`, `(const (None: option int))`)
+  — the K4 seq-pyval RETURN carriage (§K4) must co-land. Also the mirror has NO `program_ir` field (§K6's fixture did) —
+  a K2-style `__init__` AnnAssign must be added to the mirror.
+- **VERDICT: Gate S's make-or-break piece (pyval-chained-`.get`) is a genuine EMISSION PASS — the tool now provably emits
+  the real `match … with PMap m -> Map.get m k | _ -> None` projection (k7_emit2.mlw), it typechecks, and the shape
+  proves non-vacuously (k7_spike.mlw). But `_collect_type_params` CANNOT converge this session: its PEP-695 branch needs
+  the tparam-node ADT built FROM SCRATCH in the tool (a separate authorize-first build), plus `or {}`-on-pyval and the
+  `-> PyVal` return.** Per non-vacuity (co-land ALL pieces with the CONVERSION or REVERT — no dead infra) and "do not
+  grind," ALL src edits (5 files: preamble.py, live Module5, functions.py, expressions.py, statements.py) were REVERTED;
+  `_collect_type_params` stays `\trusted`, **count unchanged 1014**, ledger 3, corpus byte-diff **0/767 vs baseline** (the
+  revert is behaviorally exact). BANKED proven-ready for the co-build (pieces #3+#4 are demonstrated-emitting, byte-inert):
+  the map-pyval field READ + κ recording (#3, 2 edits), the pyval-chained-`.get` machinery (#4, `_pyval_locals` +
+  prescan + `_lower_dict_get_call` PMap arm + `_pyval_wrap` option unwrap). NEXT (authorize-first, MULTI-SESSION): build
+  the **tparam reflection ADT in the tool** (the true wall — spike it like the pyast_stmt ADT), then co-land ALL of
+  #1–#6 with `_collect_type_params` in ONE conversion.
