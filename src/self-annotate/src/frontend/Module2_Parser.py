@@ -826,12 +826,17 @@ class _ContractParser:
     def cur(self) -> _Tok:
         return self.toks[self.i]
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    # `k >= 0` is a genuine PARTIALITY boundary, read off the live body: the in-range
+    # read `self.toks[j]` is guarded ONLY from above (`j < len(self.toks)`), so a
+    # negative `k` makes `j` negative and Python silently reads from the END of the
+    # list — a different token than "the one `k` ahead". The live call site passes the
+    # default `1`. Not a convenience narrowing.
+    #@ requires k >= 0
     #@ ensures True
     #@ assigns \nothing
-    def peek(self, k=1):
-        pass
+    def peek(self, k=1) -> _Tok:
+        j = self.i + k
+        return self.toks[j] if j < len(self.toks) else self.toks[-1]
 
     #@ requires True
     #@ ensures True
