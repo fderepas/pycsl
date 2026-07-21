@@ -100,3 +100,55 @@ fidelity 52/52 ∧ whole-file proof (or `--fun` + wedge-note on the big files) �
 failures** ∧ corpus byte-diff 0 vs the FRESH baseline (768 files; the old pinned one was stale) ∧ ledger==3 (concrete
 int token kinds, no abstract-val token, no new axiom) ∧ count strictly DOWN ∧ MUTATION TEST + ANTI-FACADE (real
 record projector / Seq.get / str_eq_op; no isinstance_op 0 0 / int-hash / opaque getter / shadow-local).
+
+## §CAPABILITY (iii) — **BUILT, Gate S PASS, but it CONVERTS NOTHING TODAY** (W8 run #5)
+
+### Gate S verdict: PASS (both halves), fixture `0928_self_field_array_projection.py`
+The self-field array read now takes the SAME `_rec_` projector as a param array read, in two shapes:
+- **DIRECT** — `self.toks[self.i].py_type` → `(let _rec_ = self.toks[self.i] in _rec_.py_type)`; `.string` →
+  `_rec_.string : string`. (`_handle_attribute_expr`: a `Subscript` base that is a `FieldGet`/`Attribute` on `self`
+  naming a field in `_record_array_fields`.)
+- **LOCAL-BOUND** — `t = self.toks[self.i]` … `t.py_type` → `(!t).py_type`. (New `_record_field_elem_locals`,
+  published by the 0927 record-ref pre-decl scan; consumed in the `Var` arm of `_handle_attribute_expr`.)
+- **STRING TYPING** — a `str` field so projected is registered string-typed (`_record_elem_field_py_type` feeding
+  `_is_string_expr`), so `<proj> == "EOF"` routes to the faithful `str_eq_op` (`ensures result <-> a = b`), NOT the
+  int-hash / int-coercion. Without it the compare failed L3-tc (`has type string, but is expected to have type int`).
+
+Gates: **mirror-wide L3-tc sweep 0 failures before AND after**; **corpus byte-diff 0** on all 771 baseline files
+(baseline dir lacks `0927` — it predates that commit; worth re-pinning); fidelity **52/52**; ledger **3**
+(allowlist untouched, `grep -c axiom` on the fixture = 0); token kind is the **concrete int literal 55**;
+**MUTATION TEST pass** (`55`→`1` and `self.i`→`self.i + 0` both change the emitted `.mlw`);
+**NON-VACUITY pass** (`direct_matches_local` / `texts_match` read the SAME element once through each path and
+`ensures \result == 1`; the evil twin `\result == 0` is **Unknown**). Count **1007, UNCHANGED** — no conversion.
+
+### Why the payoff is ZERO — the round-3 unlock list was measured on the WRONG shape
+A read-only census of the whole live tree (`grep -rn 'self\.[a-z_]*\[[^]]*\]\.[a-z_]'`) finds **exactly ONE**
+occurrence of the direct shape: `Module2_Parser._ContractParser._grab_reviewer_id` (a `_re.match` scanner — out of
+reach for unrelated reasons). Every predicate the plan listed goes through **`self.cur()`**, not `self.toks[...]`:
+- `pure_ast._Parser` has **no** `at_eof`/`at_bs`. Its only non-varargs primitives are `cur`/`advance` (converted in
+  W1), `peek` (deferred (iv)/(v)), `error`/`unsupported` (raise), and `accept_*`/`expect_*` — which all CALL the
+  varargs `at_op`/`at_kw`, so they are (ii)-gated, not (iii)-gated.
+- `Module2_Parser._ContractParser.at_eof` is `return self.cur().type == "EOF"`; `at_bs`/`at_op`/`at_name` are
+  `t = self.cur()` then `t.type == …` — all varargs except `at_eof`.
+- `proof2why3/parser._Parser` has only `take` (converted) and `peek`/`expect` (Optional, deferred).
+
+### TWO NEW CERTIFIED BOUNDARIES found while probing (both blocking the `at_*` family, neither is (iii))
+- **(vi) record-returning SELF-METHOD call.** `self.cur().py_type` emits `(get_py_type (self_cur_0 ()))` — i.e. the
+  self-method call is abstracted to `val self_cur_0 () : int`, which **drops the receiver entirely** and mistypes the
+  record return. Two sub-gaps: `_resolve_dotted_signature` does not map a `-> <record class>` return to the record's
+  WhyML type, and the concrete lowering `(parser__cur self)` exists only behind the opt-in `#@ sibling_concrete`
+  marker (`expressions.py` ~line 4103) which additionally requires a `field_spec`. Until this lands, ANY primitive
+  written against `self.cur()` (i.e. essentially all of them) stays trusted, and a `-> <record>` abstract val would
+  be a FACADE (no link to the receiver) — a Gate C reject, not a shortcut.
+- **(vii) tail-return `bool`→`int` coercion (a live emitter BUG, pre-existing and independent).**
+  `def f(x: int) -> bool: return x == 55` emits `let f (x: int) : int = (x = 55)` and **fails L3-tc**
+  (`This expression has type bool, but is expected to have type int`). `_bool_ir_to_int_wrap` is applied ONLY on the
+  early/in-loop `raise (Return …)` path (`stmt_control_flow.py:1546`); the TAIL return (`return f"{indent}{val}"`)
+  never wraps. A one-line fix at that site (gated on an `int` declared return) is the obvious repair, but it moves
+  no count on its own — every candidate it would unblock is also (vi)-gated. NOT taken in this run: it is a shared
+  lowering change with its own byte-diff exposure and zero standalone payoff.
+
+### Revised build order for W8
+(iii) DONE. **(vi) is now the true gate** for the `at_*`/`accept_*`/`expect_*` family — it must land BEFORE (ii)
+varargs-membership is worth building, because every varargs predicate's first statement is `t = self.cur()`.
+Then (vii) for the `-> bool` predicates, then (ii), then (iv)/(v) for the three `peek`s.
