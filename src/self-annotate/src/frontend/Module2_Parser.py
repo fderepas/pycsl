@@ -842,26 +842,26 @@ class _ContractParser:
             self.i += 1
         return t
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def at_op(self, *vals):
-        pass
+    def at_op(self, *vals: str) -> bool:
+        t = self.cur()
+        return t.type == 'OP' and (not vals or t.string in vals)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def at_name(self, *vals):
-        pass
+    def at_name(self, *vals: str) -> bool:
+        t = self.cur()
+        return t.type == 'NAME' and (not vals or t.string in vals)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def at_bs(self, *vals):
-        pass
+    def at_bs(self, *vals: str) -> bool:
+        t = self.cur()
+        return t.type == 'BSNAME' and (not vals or t.string in vals)
 
     #@ requires True
     #@ ensures True
