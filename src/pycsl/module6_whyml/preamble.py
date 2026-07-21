@@ -4765,6 +4765,17 @@ class PreambleEmissionMixin:
                 "  val function class_body_ast (n: py_classdef_node) : psl",
                 "  val function ps_const_int (v: emit_ir) : option int",
                 "  val function ps_field_mem (name: string) : bool",
+                "  (* K2 convergence (self-tcb-reduction, nested-body + ast.walk dispatch):"
+                " `stmt_body` reads the `.body` psl of a `pyast_stmt` LOCAL (the outer"
+                " module-body loop var `stmt`, a ClassDef whose class body a nested"
+                " `for cstmt in stmt.body` iterates); `ast_walk` is the faithful"
+                " over-approximation of `ast.walk(<pyast_stmt local>)` — the recursive"
+                " descendant enumeration as an opaque psl (consistent with `class_body_ast`"
+                " opacity; the loop only isinstance-dispatches + reads projectors over each"
+                " element, so an abstract psl is sound). Both are opaque `val function`s —"
+                " NO new axiom. Gated WITH the block on `_uses_pyast_stmt`. *)",
+                "  val function stmt_body (s: pyast_stmt) : psl",
+                "  val function ast_walk (s: pyast_stmt) : psl",
             ] + ([
                 "  (* J2/J3 convergence (self-tcb-reduction, module-body dispatch): the"
                 " class-body giant generalized to `ast.Module` bodies. `py_module_node` is"

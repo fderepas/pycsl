@@ -2885,6 +2885,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if t == "Attribute":
                 _attr = ir.get("attr")
                 _o = ir.get("object", {})
+                # K2 convergence (self-tcb-reduction): `<pyast_stmt local>.name` projects
+                # to `def_name` — the ClassDef/FunctionDef NAME, a `string` — so
+                # `cstmt.name == "__init__"` routes through `str_eq_op` (faithful content
+                # compare, not the int-hash) and a `"class": stmt.name` dict value wraps as
+                # `PStr`, not `PInt`. `.target`/`.value`/`.annotation` project to emit_ir
+                # (handled below via `_is_emit_ir_expr`), so ONLY `.name` is string here.
+                if (_attr == "name"
+                        and self._pyast_stmt_child_var(_o) is not None):
+                    return True
                 if (getattr(self, "_keyword_locals", None)
                         and _attr == "arg" and self._keyword_var(_o) is not None):
                     return True

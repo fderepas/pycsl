@@ -100,6 +100,36 @@ class ControlFlowStmtMixin:
             return f"(class_body_ast {whyml_ident(nm)})"
         if nm in getattr(self, "_current_pyast_module_params", set()):
             return f"(module_body_ast {whyml_ident(nm)})"
+        # K2 convergence (self-tcb-reduction, R1 nested-body dispatch): `<x>.body`
+        # where `<x>` is a `pyast_stmt` LOCAL (an outer class-/module-body loop var,
+        # e.g. `for cstmt in stmt.body` inside `for stmt in module_node.body`) reads
+        # the local's `.body` psl via the `stmt_body` projector. The local is bound as
+        # a `ref` by the enclosing loop, so its receiver term is `!<ident>`. Scoped via
+        # `_pyast_stmt_locals` (populated only inside a class-/module-body loop) ->
+        # corpus + every non-emitter mirror byte-identical.
+        if nm in getattr(self, "_pyast_stmt_locals", set()):
+            return f"(stmt_body !{whyml_ident(nm)})"
+        return None
+
+    def _pyast_walk_recv(self, iter_ir: Dict[str, Any]) -> Optional[str]:
+        """K2 convergence (self-tcb-reduction, R2 ast.walk dispatch): if `iter_ir` is
+        `ast.walk(<x>)` where `<x>` is a `pyast_stmt` LOCAL (an enclosing class-/module-
+        body loop var), return the iterated psl TERM `(ast_walk !<x>)`; else None.
+        `ast.walk` recursively enumerates a node's descendants — modelled as the opaque
+        `ast_walk` psl (a faithful over-approximation; the loop only isinstance-dispatches
+        + reads projectors over each element). Scoped via `_pyast_stmt_locals` ->
+        corpus + every non-emitter mirror byte-identical."""
+        if not (isinstance(iter_ir, dict) and iter_ir.get("type") == "Call"):
+            return None
+        if iter_ir.get("func") not in ("ast.walk", "walk"):
+            return None
+        args = iter_ir.get("args") or []
+        if len(args) != 1:
+            return None
+        a0 = args[0]
+        if (isinstance(a0, dict) and a0.get("type") == "Var"
+                and a0.get("name") in getattr(self, "_pyast_stmt_locals", set())):
+            return f"(ast_walk !{whyml_ident(a0['name'])})"
         return None
 
     def _keyword_iter_recv(self, iter_ir: Dict[str, Any],
@@ -140,6 +170,16 @@ class ControlFlowStmtMixin:
         if _cbw is not None:
             self._pyast_loop_variant_len = f"(psl_len {_cbw})"
             return (f"(psl_len {_cbw})", f"(psl_nth !{idx} {_cbw})", False)
+        # K2 convergence (self-tcb-reduction, R2 ast.walk dispatch): `for sub in
+        # ast.walk(<pyast_stmt local>)` iterates the opaque `ast_walk` psl — bound
+        # `psl_len (ast_walk !cstmt)`, element `psl_nth !idx (ast_walk !cstmt)` (a real
+        # `pyast_stmt` per iteration), NOT the opaque `iter_length`/`iter_get` int
+        # fallback. Sets `_pyast_loop_variant_len` (arithmetic termination variant, this
+        # class is not @mutable_state). Scoped via `_pyast_walk_recv` -> corpus-inert.
+        _awr = self._pyast_walk_recv(iter_ir)
+        if _awr is not None:
+            self._pyast_loop_variant_len = f"(psl_len {_awr})"
+            return (f"(psl_len {_awr})", f"(psl_nth !{idx} {_awr})", False)
         # J2/J3 convergence (Call-internals keyword iteration): `for kw in <call>.keywords`
         # over an emit_ir `call` local iterates the certified `keyword_list` — bound
         # `kwl_len (call_keywords call)`, element `kwl_nth !idx (call_keywords call)` (a real
@@ -347,7 +387,13 @@ class ControlFlowStmtMixin:
         # table type "PyAstStmt") for the body's duration so the body's `isinstance(child,
         # ast.Assign)` / `child.value` / `child.targets[0]` lower to the ADT discriminants
         # and projectors, not the opaque int path. Restored after the body.
-        _is_classbody = self._classbody_psl_recv(iter_ir) is not None
+        # K2 convergence (self-tcb-reduction): a `for sub in ast.walk(<pyast_stmt local>)`
+        # loop ALSO binds `sub` to a real `pyast_stmt` per iteration, so it registers the
+        # loop var in `_pyast_stmt_locals` exactly like a `.body` psl loop (so the body's
+        # `isinstance(sub, ast.AnnAssign)` / `sub.target` / `sub.annotation` reads lower to
+        # the ADT discriminants + projectors, not the opaque int path).
+        _is_classbody = (self._classbody_psl_recv(iter_ir) is not None
+                         or self._pyast_walk_recv(iter_ir) is not None)
         # J2/J3 convergence: a keyword_list loop binds `kw` to a real `keyword` per
         # iteration — register it in `_keyword_locals` (+ symbol type "Keyword") so the
         # body's `kw.arg` / `kw.value` / `isinstance(kw.value, ast.Name)` / `kw.value.id`

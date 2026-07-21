@@ -83,7 +83,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # write). Plumbed into `program_ir["final_registry"]` (omitted when empty,
         # so byte-identical for Final-free modules). Consumed by
         # `core_ir_semantic._check_final` (a static write-site check, NOT a VC).
-        self._final_registry: List[Dict[str, Any]] = []
+        # self-tcb-reduction Tier-5 (K2): typed `List[Dict[str, PyVal]]` (PyVal ~ Any) so
+        # the self-annotation mirror models it as a faithful `seq pyval` self-field (K1),
+        # letting `_collect_final_registry`'s `.append` lower to a real record write-back.
+        # `from __future__ import annotations` keeps this a string annotation at runtime
+        # (PyVal need not be a runtime name); behaviour on real modules is unchanged.
+        self._final_registry: List[Dict[str, PyVal]] = []
         # refactor.md B-final wedge: the set of module-level shared-variable names
         # (from `csl_shared_decls`). Module5 now builds the function symbol_table
         # itself (see `_build_function_symbol_table`), and — like Module4's
@@ -2523,7 +2528,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 stmt.target.attr not in field_names_seen):
                             ftype = self._field_type_from_annotation_inst(
                                 stmt.annotation, node.name)
-                            fields.append({"name": stmt.target.attr, "type": ftype, "mutable": True})
+                            _fld_i = {"name": stmt.target.attr, "type": ftype,
+                                      "mutable": True}
+                            # K2 (seq-pyval self-field append, self-tcb-reduction Tier-5):
+                            # carry a `self.<f>: List[Dict[str, PyVal]]` / `List[PyVal]`
+                            # __init__-declared field's element value_type ("pyval") so the
+                            # record field lowers to `seq pyval` (K1 field branch) instead of
+                            # the int-erased `array int`. Parallels the @dataclass class-body
+                            # path (`_m5_get_dict_value_type` then `_m5_get_list_elem_type`).
+                            # `PyVal` is a NEW element sentinel absent from the corpus, and the
+                            # downstream `seq pyval`/`array string`/`array emit_ir` branches are
+                            # @mutable_state/IR-node gated (both False for the corpus) -> the
+                            # 767-file reference corpus emits byte-identically.
+                            _vt_i = (self._m5_get_dict_value_type(stmt.annotation)
+                                     or self._m5_get_list_elem_type(stmt.annotation))
+                            if _vt_i is not None:
+                                _fld_i["value_type"] = _vt_i
+                            fields.append(_fld_i)
                             field_names_seen.add(stmt.target.attr)
                             if (stmt.value and isinstance(stmt.value, ast.Constant) and
                                     isinstance(stmt.value.value, (int, float))):

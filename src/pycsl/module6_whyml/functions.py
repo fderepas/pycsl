@@ -4171,6 +4171,19 @@ class FunctionEmissionMixin:
                                 or next((v for k, v in _rt.items() if k.lower() == str(symtype).lower()), None))
                         if _rec: _wt = _rec.get("whyml_name", str(symtype).lower())
                     param_types.append(_wt)
+            # K2 (self-tcb-reduction): the `_is_final_annotation` bool-recognizer is
+            # emitted by a BESPOKE handler (`_emit_is_final_annotation_bespoke`) whose
+            # signature is hardcoded `(ann_expr: emit_ir) : bool` — but its param
+            # `ann_expr: ast.expr` resolves to symtype `Any` (→ `int`) through the generic
+            # path above, so the ABSTRACT self-call stub (`self__is_final_annotation_1`)
+            # a sibling method emits would take `int` and REJECT an `emit_ir` argument
+            # (`stmt.annotation` → `stmt_annotation !stmt`). Align the stub's param type
+            # with the real bespoke signature so `self._is_final_annotation(stmt.annotation)`
+            # type-checks. Gated on the bespoke predicate (`_uses_stmt_ir` mirror only) ->
+            # corpus + every non-emitter mirror byte-identical. The stub RETURN stays `int`
+            # (the boolean call-site wraps it `(… <> 0)`); only the param is corrected.
+            if self._is_final_annotation(func):
+                param_types = ["emit_ir"]
             result[func["name"]] = param_types
         return result
 
