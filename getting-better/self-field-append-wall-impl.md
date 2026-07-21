@@ -151,3 +151,38 @@ multi-arg / Set[str]) — must co-land the capability with a converging target (
   (non-vacuity rule → REVERT). Made NO src edits (spike + probe are scratchpad-only); `_collect_type_params` stays the
   `\trusted` stub, count unchanged, ledger 3. NEXT: `_collect_type_params` converts once the generic-dict/self-state
   program_ir value model lands (co-build the tparam ADT WITH it); the tparam ADT + K4 append are proven-ready to reuse.
+
+## §K6 — `_collect_type_params` map-pyval self-field cascade — Gate-S map-pyval READ PASS, but legacy-branch CHAINED pyval-`.get` is a residual 4th piece → REVERTED (2026-07-21)
+
+- **Gate S (NEW piece: map-pyval self-field READ): PASS — real `Map.get self.program_ir "k" : option pyval`, NOT
+  int-erasure.** Spike `scratchpad/k6_spike.py` (`@mutable_state @dataclass` class, `program_ir: Dict[str, PyVal]`
+  field, method reads `self.program_ir.get("typevar_registry")`). The field-value-type "pyval" was NOT honored by the
+  RECORD FIELD emitter — a `Dict[str, PyVal]` dict field fell through to `map string (option int)` (int-erased facade,
+  L3-tc FAIL: `.get` default `(PInt 0)` : pyval vs field `option int`). The FIX is a single byte-inert branch in
+  `module6_whyml/preamble.py` (record dict-field type map, alongside the existing `_vt == "string"` / nested
+  `map/seq/array` branches): `elif _vt == "pyval": ftype = f"map {_kt} (option pyval)"`. After it, emit is FAITHFUL:
+  field `mutable program_ir: map string (option pyval)`, read `(match Map.get self.program_ir "typevar_registry"
+  with | Some v_ -> v_ | None -> (PInt 0) end)` — a REAL `Map.get` projecting `option pyval`. The pyval theory is
+  already pulled in by the existing `_uses_pyval` gate (fires on ANY type_decl field `value_type == "pyval"`, preamble
+  §5003), so NO new cert, ledger stays 3. κ=string via the existing `field_key_types` path (native string key, no
+  str_hash_op). K5's REFUTE conditions (won't type / fieldless-mirror / class-invariant / byte-gate) ALL fail to hold:
+  the field types, the mirror carries it via an `__init__` AnnAssign (the K1/K2 `_collect_class_fields` static scan —
+  the mirror is NOT fieldless), and "pyval" is a corpus-absent sentinel (byte-inert).
+- **REFINE — the residual 4th piece: CHAINED `.get` on a pyval VALUE (`registry.get(nm)`, `info.get("bound")`).** The
+  legacy `Generic[T]` branch does `registry = self.program_ir.get("typevar_registry") or {}; info = registry.get(nm,
+  {}); out.append({"bound": info.get("bound"), ...})`. `registry`/`info` are `pyval`s (the PMap arm). Probe
+  `scratchpad/k6_residual.py` (tool-emitted, NOT predicted): the chained `.get` on a pyval local INT-ERASES — the local
+  is typed `ref ""` (string, NOT pyval), `registry.get(nm)` emits an OPAQUE `val registry_get_1 (…)` (NOT a
+  `match registry with PMap m -> Map.get m nm | _ -> None`), `info.get("bound")` an opaque `info_get_str`, and L3-tc
+  FAILS. Converting this needs the "pyval-as-map chained projection" capability — (a) type a local receiving a
+  pyval-typed `.get` as `pyval`, (b) lower `.get` on a `pyval` local to a PMap match-projection (likely needing a
+  class-invariant that the value IS a PMap). This is the multi-statement generic-dict/self-state build K5 already
+  scoped as authorize-first, NOT a leaf spike.
+- **VERDICT: Gate S PASSES on its narrow question (the map-pyval self-field READ is modellable + typechecks — the 1-line
+  preamble branch is proven-ready), but `_collect_type_params` is ALL-OR-NOTHING (whole body ported+proven) and its
+  legacy branch inescapably contains the chained pyval-`.get` 4th piece.** So the CONVERSION does NOT converge with
+  pieces #1 (tparam ADT, K5) + #2 (K4 append) + #3 (map-pyval field READ) alone. Per non-vacuity (no dead infra) the
+  1-line preamble branch was REVERTED (spikes scratchpad-only, no mirror edit); `_collect_type_params` stays `\trusted`,
+  count unchanged **1014**, ledger 3. BANKED proven-ready for the co-build: the map-pyval field-READ branch (§K6, 1
+  line), the tparam-node ADT (§K5), the K4 local/return seq-pyval (§K4). NEXT (authorize-first): build the
+  pyval-as-map chained-`.get` projection, then co-land ALL four with `_collect_type_params`.
