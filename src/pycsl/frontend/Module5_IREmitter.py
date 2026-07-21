@@ -3949,6 +3949,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return None
 
     @staticmethod
+    def _m5_get_set_elem_type(annotation: ast.expr) -> Optional[str]:
+        """set-value-model-wall (self-tcb-reduction, Tier-5 value-model wall): the
+        faithful WhyML element type of a `Set[str]`/`set[str]`/`FrozenSet[str]`
+        annotation → `"string"`; None for every other set (`Set[int]`, a bare
+        `set`, `Set[<record>]`, …) so those stay byte-identical. Only the string
+        element is recognized here — the executable `set.SetApp[string]` value
+        model (`scope StrSet` in preamble.py) is the sole consumer. GATED so
+        tightly (str element only) that the corpus's `Set[int]` locals (0823/0833)
+        and the `Set[str]` *field*/`= None` local (0775) are untouched — the
+        `_prescan_str_set_locals` recogniser additionally requires a `= set()`
+        initializer, which 0775 (`= None`) lacks."""
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Set", "set", "FrozenSet", "frozenset")):
+            inner = annotation.slice
+            if type(inner).__name__ == "Index":  # <3.9 AST compat
+                inner = getattr(inner, "value", inner)
+            if isinstance(inner, ast.Name) and inner.id == "str":
+                return "string"
+        return None
+
+    @staticmethod
     def _m5_get_dict_key_type(annotation: ast.expr) -> Optional[str]:
         """Port of Module4._get_dict_key_type. See that method for the rules."""
         if (isinstance(annotation, ast.Subscript)
@@ -3993,6 +4015,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         scope: Dict[str, str] = {}
         dict_value_types: Dict[str, str] = {}
         dict_key_types: Dict[str, str] = {}
+        # set-value-model-wall (self-tcb-reduction, Tier-5): local/param name ->
+        # WhyML set element type ("string" for `Set[str]`). Drives the executable
+        # `set.SetApp[string]` value model (empty/add/mem). Empty for every corpus
+        # function (no `Set[str] = set()` local) -> byte-inert.
+        set_value_types: Dict[str, str] = {}
         shared = self._shared_var_names
         _scope_name = node.name
 
@@ -4155,6 +4182,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         kappa = self._m5_get_dict_key_type(child.annotation)
                         if kappa is not None:
                             dict_key_types[child.target.id] = kappa
+                        # set-value-model-wall: a `Set[str]` local element type.
+                        sve = self._m5_get_set_elem_type(child.annotation)
+                        if sve is not None:
+                            set_value_types[child.target.id] = sve
             elif isinstance(child, ast.For):
                 if isinstance(child.target, ast.Name) and child.target.id not in shared:
                     scope[child.target.id] = "Any"
@@ -4241,7 +4272,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
         return (scope, dict_value_types, dict_key_types, param_annotations,
                 param_list_elem_types, param_list_nested_elem,
-                param_list_flat_elem)
+                param_list_flat_elem, set_value_types)
 
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
@@ -4258,7 +4289,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # refactor.md B-final wedge: Module5 computes the scope itself rather than
         # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
         (_sym, _dvt, _dkt, _pann, _plet, _plne,
-         _plfe) = self._build_function_symbol_table(node)
+         _plfe, _svt) = self._build_function_symbol_table(node)
         symbol_table = {k: v for k, v in _sym.items() if k != 'self'}
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
@@ -4430,6 +4461,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # have no entry and keep the `map int (option int)` path.
             "dict_value_types": dict(_dvt),
             "dict_key_types": dict(_dkt),
+            # set-value-model-wall (self-tcb-reduction, Tier-5): set local -> WhyML
+            # element type ("string" for `Set[str]`). Empty for the whole corpus
+            # (no `Set[str]` local) -> byte-inert.
+            "set_value_types": dict(_svt),
             "formal_params": formal_params,
             "return_annotation": return_annotation,
             "return_value_type": return_value_type,

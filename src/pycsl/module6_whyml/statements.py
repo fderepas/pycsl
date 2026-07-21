@@ -323,6 +323,29 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return self._handle_seq_assign(
                 stmt, rest, local_refs, declared_refs, indent, in_loop)
 
+        # set-value-model-wall (self-tcb-reduction, Tier-5): an emitter-local
+        # `Set[str]` value (annotated `Set[str]` + `= set()`) is a `ref StrSet.set`
+        # over the executable `set.SetApp[string]` clone. `set()` -> `StrSet.empty ()`
+        # (NOT the int-erased `ref (const (None: option int))` / `ref 0`). Its `.add`
+        # rebinds the ref (`s := StrSet.add x !s`, handled in `_handle_set_add_expr`)
+        # and `in`/`not in` reads a program-bool `StrSet.mem` guard. Gated on
+        # `_str_set_locals` -> corpus byte-inert.
+        if target in getattr(self, "_str_set_locals", set()):
+            safe = whyml_ident(target)
+            if target not in declared_refs:
+                declared_refs.add(target)
+                local_refs.add(target)   # set locals are refs -> reads deref `!s`
+                rest_code = self._stmts_to_whyml(
+                    rest, local_refs, declared_refs, indent, in_loop)
+                if not rest_code:
+                    rest_code = f"{indent}()"
+                return f"{indent}let {safe} = ref (StrSet.empty ()) in\n{rest_code}"
+            code = f"{indent}{safe} := StrSet.empty ()"
+            if rest:
+                code += ";\n" + self._stmts_to_whyml(
+                    rest, local_refs, declared_refs, indent, in_loop)
+            return code
+
         # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a `pyval`-valued chain
         # local (`registry = self.f.get(k) or {}`; `info = registry.get(k, {})`) is
         # `let`-bound IMMUTABLE (single-assignment SSA chain) — NOT the int/string `ref`
@@ -1474,6 +1497,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # rejects direct `:= Map.set ...` on non-ghost refs.
                 method = func.rsplit(".", 1)[1]
                 obj_name = func.rsplit(".", 1)[0]
+                # set-value-model-wall (self-tcb-reduction, Tier-5): a `.add`/`.discard`/
+                # `.remove` on an emitter-local `Set[str]` value rebinds the ref over the
+                # executable `set.SetApp[string]` clone — `s := StrSet.add x !s` /
+                # `s := StrSet.remove x !s` — passing the RAW native string element
+                # (matching the `StrSet.mem` membership read, NO `str_hash_op`/int-erase).
+                # Gated on `_str_set_locals` -> corpus byte-inert.
+                if obj_name in getattr(self, "_str_set_locals", set()):
+                    safe_obj = whyml_ident(obj_name)
+                    arg_ir = (val.get("args") or [{}])[0]
+                    arg = self._expr_to_whyml(arg_ir, local_refs)
+                    _sop = "add" if method == "add" else "remove"
+                    code = f"{indent}{safe_obj} := StrSet.{_sop} {arg} !{safe_obj}"
+                    if rest:
+                        code += ";\n" + self._stmts_to_whyml(
+                            rest, local_refs, declared_refs, indent, in_loop)
+                    return code
                 # M.7 (mutable-self-plan.md): `self.<setfield>.add(x)` on a
                 # @mutable_state class is a REAL write to the record's mutable map
                 # field (`self.f <- map_update_some self.f k 0`), so the method's
@@ -2774,6 +2813,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
                 | set(tuple_vars) | string_vars | seq_local_vars | _union_locals
                 | pyval_read_vars | tparam_alias_vars
+                | getattr(self, "_str_set_locals", set())
                 | getattr(self, "_emit_ir_local_vars", set()))
 
     def _collect_array_elem_types(self, body_stmts: List[Dict[str, Any]]) -> Dict[str, str]:

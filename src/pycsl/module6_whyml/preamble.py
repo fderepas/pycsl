@@ -5162,6 +5162,107 @@ class PreambleEmissionMixin:
             "",
         ]
 
+    @staticmethod
+    def _str_set_locals_of(func: Dict[str, Any]) -> Set[str]:
+        """set-value-model-wall (self-tcb-reduction, Tier-5): the set of body locals
+        of `func` that are an EMITTER-LOCAL `Set[str]` value — a local annotated
+        `Set[str]` (`set_value_types[v] == "string"`) AND initialized with a bare
+        `set()` call (`v = set()`) somewhere in the body. BOTH conditions are
+        required so the corpus stays byte-identical: 0775's `s: Set[str] = None`
+        (no `= set()`) and 0823/0833's `Set[int]` (element not "string") never
+        qualify. Returns the empty set for every corpus function -> byte-inert.
+
+        These locals lower to the executable `set.SetApp[string]` clone (`scope
+        StrSet` in the preamble): `set()` -> `StrSet.empty ()`, `.add(x)` ->
+        `StrSet.add x !s`, `x in s`/`x not in s` -> `StrSet.mem`/`not StrSet.mem`
+        (a program bool guard). NO set-non-membership proof obligation is ever
+        emitted (that times out — see set-value-model-wall-response.md §4)."""
+        svt = func.get("set_value_types", {}) or {}
+        candidates = {v for v, t in svt.items() if t == "string"}
+        if not candidates:
+            return set()
+        found: Set[str] = set()
+
+        def _is_empty_set_call(v: Any) -> bool:
+            return (isinstance(v, dict) and v.get("type") == "Call"
+                    and v.get("func") == "set" and not v.get("args"))
+
+        def _walk(node: Any) -> None:
+            if isinstance(node, dict):
+                if (node.get("stmt") == "Assign"
+                        and node.get("target") in candidates
+                        and _is_empty_set_call(node.get("value"))):
+                    found.add(node["target"])
+                for _k in ("body", "orelse", "finalbody", "handlers"):
+                    _v = node.get(_k)
+                    if isinstance(_v, list):
+                        _walk(_v)
+            elif isinstance(node, list):
+                for _s in node:
+                    _walk(_s)
+
+        _walk(func.get("body", []))
+        return found
+
+    def _uses_str_set(self) -> bool:
+        """set-value-model-wall (self-tcb-reduction, Tier-5 value-model wall): True
+        iff SOME function in this file has an emitter-local `Set[str]` value (an
+        annotated `Set[str]` local initialized `= set()`; see `_str_set_locals_of`).
+        Only then is the executable `set.SetApp[string]` clone (`scope StrSet`,
+        `_emit_str_set_theory`) emitted, so the set theory stays OUT of every other
+        mirror's SMT context and the whole reference corpus (no `Set[str] = set()`
+        local there -> byte-identical). The `set.SetApp`/`set.Fset` theories are
+        trusted Why3 stdlib and the string-eq `val` is a decidable primitive — NO
+        project axiom is added (the ledger stays 3)."""
+        cached = getattr(self, "_uses_str_set_cache", None)
+        if cached is not None:
+            return cached
+        result = any(self._str_set_locals_of(fn)
+                     for fn in self.ir.get("functions", []) or [])
+        self._uses_str_set_cache = result
+        return result
+
+    def _emit_str_set_theory(self) -> List[str]:
+        """set-value-model-wall (self-tcb-reduction, Tier-5): the EXECUTABLE
+        emitter-local `Set[str]` value model — a `set.SetApp` clone over `string`,
+        emitted as a nested `scope StrSet` so its `empty`/`add`/`mem`/`set` symbols
+        do NOT collide with `list.Mem.mem`/`list.Append` in the flat program module.
+
+        Proven axiom-free by the fable oracle (getting-better/set-oracle.mlw, Z3
+        Valid: mem/dedup goals Valid, evil-twin non-vacuous, `eq'refn'vc` Valid).
+        `set.SetApp`/`set.Fset` are trusted Why3 stdlib (their axioms are NOT
+        PyCSL `_AXIOM_REGISTRY` entries — the ledger stays 3). `eq_str` is a
+        DECIDABLE program-level string equality primitive (Python `s1 == s2`),
+        NOT a project axiom — its refinement VC discharges (Valid).
+
+        A `set()` lowers to `StrSet.empty ()` (`ref StrSet.set`, NOT `ref 0`),
+        `s.add(x)` to `s := StrSet.add x !s`, and `x in s`/`x not in s` to a
+        PROGRAM BOOL `StrSet.mem`/`not (StrSet.mem …)` guard. CRITICAL: NO
+        set-non-membership assert/ensures is ever emitted (`assert { not (Fset.mem
+        …) }` times out through the abstract set layer — see
+        set-value-model-wall-response.md §4); the fixed type-safety + frame
+        contract shape (`ensures True`) carries no such obligation. Gated on
+        `_uses_str_set` -> corpus + every other mirror byte-identical."""
+        return [
+            "  (* set-value-model-wall (self-tcb-reduction, Tier-5 value-model wall):"
+            " the EXECUTABLE emitter-local `Set[str]` value model — a `set.SetApp`"
+            " clone over `string`. Nested `scope` so `empty`/`add`/`mem`/`set` do"
+            " NOT collide with list.Mem/list.Append in the flat program module."
+            " Proven axiom-free by getting-better/set-oracle.mlw (Z3 Valid). `eq_str`"
+            " is a decidable program string-equality PRIMITIVE (Python `==`), NOT a"
+            " project axiom — its refinement VC discharges. `set.SetApp`/`set.Fset`"
+            " are trusted Why3 stdlib (NOT `_AXIOM_REGISTRY` entries) — the ledger"
+            " stays 3. `set()`->`StrSet.empty ()`, `.add`->`StrSet.add`,"
+            " `in`/`not in`->a PROGRAM BOOL `StrSet.mem`/`not StrSet.mem` guard; NO"
+            " set-non-membership proof obligation is ever emitted (it times out). *)",
+            "  scope StrSet",
+            "    use string.String",
+            "    val eq_str (x y: string) : bool ensures { result <-> x = y }",
+            "    clone export set.SetApp with type elt = string, val eq = eq_str, axiom .",
+            "  end",
+            "",
+        ]
+
     def _uses_pyconst_val(self) -> bool:
         """pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): True iff this
         file actually harvested a Constant record — a `pyconst_val`-typed field is present in

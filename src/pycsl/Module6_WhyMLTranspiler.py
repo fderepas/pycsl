@@ -576,6 +576,14 @@ class Module6_WhyMLTranspiler(
         if self._uses_pyval():
             out += self._emit_pyval_theory()
 
+        # set-value-model-wall (self-tcb-reduction, Tier-5 value-model wall): the
+        # executable emitter-local `Set[str]` value model — a `set.SetApp[string]`
+        # clone in a nested `scope StrSet`. Emitted BEFORE the record types (a
+        # `Set[str]` local names `StrSet.set`). Gated on `_uses_str_set` (a
+        # `Set[str] = set()` local is present); the corpus has none -> byte-identical.
+        if self._uses_str_set():
+            out += self._emit_str_set_theory()
+
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
         # value-model campaign incr5 (primitive c): declare `Return_<variant>` exceptions HERE —

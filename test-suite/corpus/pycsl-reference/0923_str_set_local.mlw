@@ -1,0 +1,118 @@
+(* 0923 — emitter-local Set[str] value model (self-tcb-reduction, Tier-5
+   value-model wall; L1/L4a infra-witness): OBSERVATIONAL non-vacuity for the
+   EXECUTABLE `Set[str]` value model — the faithful lowering of a Python
+   emitter-local set of strings.
+
+   The recognized Python (verbatim, `scratchpad/strset_good.py --keep-mlw`):
+
+     def contains_added(x: str, y: str) -> int:   #@ ensures \result == 1
+         seen: Set[str] = set()
+         seen.add(x)
+         seen.add(y)
+         r = 0
+         if x in seen:
+             r = 1
+         return r
+
+   The recognizers and their FAITHFUL lowering (all corpus-byte-inert, gated on
+   the corpus-absent `Set[str] = set()` local — `_uses_str_set`):
+
+     set()      : `seen: Set[str] = set()`  ->  `let seen = ref (StrSet.empty ())`
+                  — a `ref StrSet.set` over the executable `set.SetApp[string]`
+                  clone, NOT the int-erased `ref (const (None: option int))` /
+                  `ref 0` (the pre-feature baseline, which type-CLASHED a string
+                  key against a `map int`).
+     .add(x)    : `seen.add(x)`  ->  `seen := StrSet.add x !seen` — the raw NATIVE
+                  string element (NO `str_hash_op` / int-erase); the ref rebinds.
+     x in seen  : `if x in seen:`  ->  `if (StrSet.mem x !seen)` — a PROGRAM BOOL
+                  membership guard (NOT `contains_check (str_hash_op x)` int-hash).
+                  `x not in seen` -> `not (StrSet.mem x !seen)` (not exercised here
+                  — it would need a set-non-membership fact, which times out through
+                  the abstract set layer; see set-value-model-wall-response.md §4).
+
+   The `scope StrSet` clone, the `contains_added` body, and the evil twin below
+   are VERBATIM the PyCSL tool's emitted output for the method above (Gate-S
+   anti-facade clean: no str_hash_op / contains_check / map_update_some / int-hash
+   / shadow-local `ref 0`). NO set-non-membership assert/ensures is emitted
+   anywhere (the fixed `ensures \result == 1` type-safety claim carries none).
+
+   Load-bearing claim: the string VARIABLE `x` added at `.add(x)` reads back
+   FAITHFULLY at the membership guard `x in seen` (the set WAS genuinely grown —
+   the good `\result == 1` PROVES *because* the add populated the set and `mem`
+   read it true). The GOOD goal is Z3 Valid; the EVIL TWIN (wrong RESULT value —
+   `\result == 0` on the SAME body) stays UNPROVEN (non-vacuity + anti-facade: if
+   `.add`/`mem` were a no-op facade the good claim would FAIL, and the wrong-result
+   twin proves the good is not vacuously true).
+
+   Proven axiom-free by the fable oracle (getting-better/set-oracle.mlw, Z3 Valid:
+   mem/dedup goals Valid, evil-twin non-vacuous, `eq'refn'vc` Valid). `set.SetApp`/
+   `set.Fset` are trusted Why3 stdlib (their axioms are NOT PyCSL `_AXIOM_REGISTRY`
+   entries); the string-eq `val eq_str` is a DECIDABLE program-level primitive
+   (Python `==`), NOT a project axiom — its refinement VC `eq'refn'vc` discharges.
+   NO new axiom (the ledger stays 3).
+
+   Infra + fixture witness (the L1 / pyval-I1 precedent): count UNCHANGED, no
+   `\trusted` stub converted this increment. *)
+
+module StrSetLocalGoodFaithful
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use map.Map
+  use map.Const
+  use option.Option
+
+  scope StrSet
+    use string.String
+    val eq_str (x y: string) : bool ensures { result <-> x = y }
+    clone export set.SetApp with type elt = string, val eq = eq_str, axiom .
+  end
+
+  let contains_added (x: string) (y: string) : int
+    ensures  { (result = 1) } (* linear *)
+  =
+    let r = ref 0 in
+    let seen = ref (StrSet.empty ()) in
+    seen := StrSet.add x !seen;
+    seen := StrSet.add y !seen;
+    r := 0;
+    if (StrSet.mem x !seen) then begin
+      r := 1
+    end;
+    !r
+end
+
+(* EVIL TWIN — a WRONG RESULT value on the byte-identical body: the actual result
+   is 1 (x was added, so `mem x !seen` is true and the `if` sets r := 1), so
+   `ensures { result = 0 }` MUST stay UNPROVEN. This is the non-vacuity /
+   anti-facade seal: it does NOT assert set non-membership (that times out) — it
+   pins the good claim as a genuine consequence of the faithful add+mem. *)
+module StrSetLocalEvilWrongResult
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use map.Map
+  use map.Const
+  use option.Option
+
+  scope StrSet
+    use string.String
+    val eq_str (x y: string) : bool ensures { result <-> x = y }
+    clone export set.SetApp with type elt = string, val eq = eq_str, axiom .
+  end
+
+  let contains_added_evil (x: string) (y: string) : int
+    ensures  { (result = 0) } (* linear *)
+  =
+    let r = ref 0 in
+    let seen = ref (StrSet.empty ()) in
+    seen := StrSet.add x !seen;
+    seen := StrSet.add y !seen;
+    r := 0;
+    if (StrSet.mem x !seen) then begin
+      r := 1
+    end;
+    !r
+end

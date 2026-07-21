@@ -481,6 +481,12 @@ class FunctionEmissionMixin:
         else:
             self._current_self_type = None
         self._pyval_locals: Set[str] = self._prescan_pyval_locals(body_stmts)
+        # set-value-model-wall (self-tcb-reduction, Tier-5): the locals of THIS
+        # function that are an emitter-local `Set[str]` value (annotated `Set[str]`
+        # + `= set()` init). Their `= set()` lowers to `ref (StrSet.empty ())`,
+        # `.add(x)` to `s := StrSet.add x !s`, and `in`/`not in` to a program-bool
+        # `StrSet.mem` guard. Empty for every corpus function -> byte-inert.
+        self._str_set_locals: Set[str] = self._str_set_locals_of(func)
         return local_refs, ghost_vars
 
     def _prescan_pyval_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:

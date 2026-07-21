@@ -709,6 +709,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         generic abstract `contains_check`."""
         negate = op == "not in"
         rhs = expr.get("right", {})
+        # set-value-model-wall (self-tcb-reduction, Tier-5): `x in s` / `x not in s`
+        # where `s` is an emitter-local `Set[str]` value reads a PROGRAM BOOL over the
+        # executable `set.SetApp[string]` clone — `StrSet.mem x !s` / `not (StrSet.mem
+        # x !s)` — the faithful membership guard (NOT `contains_check (str_hash_op x)`
+        # int-hash). `x` (`left`) is the raw native string element. NO set-non-membership
+        # proof obligation is emitted (the guard is a bool, not an assert). Gated on
+        # `_str_set_locals` -> corpus byte-inert.
+        if (not self._in_spec and rhs.get("type") == "Var"
+                and rhs.get("name") in getattr(self, "_str_set_locals", set())):
+            safe_set = whyml_ident(rhs["name"])
+            _mem = f"(StrSet.mem {left} !{safe_set})"
+            return f"(not {_mem})" if negate else _mem
         # 7b (self-tcb-reduction L4b): `<x> in self.<CONST>` where `self.<CONST>` is a
         # class-body STRING-SET constant (`_GENERIC_BASE_NAMES = {"Generic"}`) lowers to a
         # FAITHFUL `str_eq_op` disjunction over the ACTUAL members — NOT a `contains_check`
