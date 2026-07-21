@@ -4860,6 +4860,14 @@ class PreambleEmissionMixin:
                 " | TPCons h t -> if i <= 0 then h else tpl_nth (i-1) t end",
                 "  type py_tparam_node",
                 "  val function type_params_of (n: py_tparam_node) : tparam_list",
+                # 7b (self-tcb-reduction L4b): `_collect_type_params`'s legacy `Generic[T]`
+                # branch reflects on the SAME node as a ClassDef — `isinstance(node,
+                # ast.ClassDef)` and `for b in node.bases`. `is_classdef_of` is the opaque
+                # runtime-kind bool (the `symtab_mem` precedent, NO isinstance_op 0 0);
+                # `bases_of` reads `node.bases` as an emit_ir `irlist` (the `class_bases_ast`
+                # precedent, NO get_bases int fallback). Opaque vals -> NO new axiom.
+                "  val function is_classdef_of (n: py_tparam_node) : bool",
+                "  val function bases_of (n: py_tparam_node) : irlist",
                 "",
             ]) if self._uses_tparam() else []),
         ]
@@ -5437,6 +5445,15 @@ class PreambleEmissionMixin:
                 consts = td.get("constants", {})
                 if consts:
                     self._class_constants[type_name] = dict(consts)
+                # 7b (self-tcb-reduction L4b): class-body string-SET constants
+                # (`_GENERIC_BASE_NAMES = {"Generic"}`) — a `<x> in self.<CONST>`
+                # membership lowers to a faithful `str_eq_op` disjunction over these.
+                _ssc = td.get("str_set_constants", {})
+                if _ssc:
+                    if not hasattr(self, "_class_str_set_constants"):
+                        self._class_str_set_constants = {}
+                    self._class_str_set_constants[type_name] = {
+                        k: list(v) for k, v in _ssc.items()}
                 field_strs = []
                 fields = td["fields"]
                 nf = len(fields)

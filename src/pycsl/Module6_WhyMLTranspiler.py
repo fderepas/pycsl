@@ -68,6 +68,10 @@ class Module6_WhyMLTranspiler(
         self._variant_types: Dict[str, Any] = {}
         self._constructors: Dict[str, Any] = {}
         self._class_constants: Dict[str, Dict[str, int]] = {}  # class_name_lower → {CONST: int literal}
+        # 7b (self-tcb-reduction L4b): class_name → {CONST: [str-member, ...]} for class-body
+        # string-SET constants (`_GENERIC_BASE_NAMES = {"Generic"}`); feeds the faithful
+        # `<x> in self.<CONST>` -> `str_eq_op` disjunction membership.
+        self._class_str_set_constants: Dict[str, Dict[str, List[str]]] = {}
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in `_handle_var_expr` (body and contract).
         self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})

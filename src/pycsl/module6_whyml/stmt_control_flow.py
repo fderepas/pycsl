@@ -116,7 +116,16 @@ class ControlFlowStmtMixin:
         `iter_ir` is `<node>.type_params` where `<node>` is a `py_tparam_node`-typed param,
         return the iterated tparam_list TERM `(type_params_of <node>)`; else None. The
         `class_body_ast`/`.body` precedent — a modelled cons-list, not the opaque int
-        fallback. Scoped via `_current_tparam_node_params` -> corpus-inert."""
+        fallback. Scoped via `_current_tparam_node_params` -> corpus-inert.
+
+        7a (self-tcb-reduction L4b): ALSO recognizes `for tp in <tparams>` where
+        `<tparams>` is a LOCAL bound from `getattr(<node>,"type_params",None) or []` (the
+        live `_collect_type_params` indirection) — a pure ALIAS for `(type_params_of
+        <node>)` (an AST node always HAS a `.type_params` list, so the `or []` default is
+        semantically inert). Scoped via `_tparam_list_aliases` -> corpus-inert."""
+        if (isinstance(iter_ir, dict) and iter_ir.get("type") == "Var"
+                and iter_ir.get("name") in getattr(self, "_tparam_list_aliases", {})):
+            return self._tparam_list_aliases[iter_ir["name"]]
         if not (isinstance(iter_ir, dict) and iter_ir.get("type") == "Attribute"
                 and iter_ir.get("attr") == "type_params"):
             return None
@@ -126,6 +135,69 @@ class ControlFlowStmtMixin:
         nm = obj.get("name")
         if nm in getattr(self, "_current_tparam_node_params", set()):
             return f"(type_params_of {whyml_ident(nm)})"
+        return None
+
+    def _tparam_bases_recv(self, iter_ir: Dict[str, Any]) -> Optional[str]:
+        """7b (self-tcb-reduction L4b): if `iter_ir` is `<node>.bases` where `<node>` is a
+        `py_tparam_node` param, return the node WhyML ident (so `for b in node.bases` reads
+        `bases_of <node>`); else None. Scoped via `_current_tparam_node_params` ->
+        corpus-inert."""
+        if not (isinstance(iter_ir, dict) and iter_ir.get("type") == "Attribute"
+                and iter_ir.get("attr") == "bases"):
+            return None
+        obj = iter_ir.get("object", {})
+        if (isinstance(obj, dict) and obj.get("type") == "Var"
+                and obj.get("name") in getattr(self, "_current_tparam_node_params", set())):
+            return whyml_ident(obj["name"])
+        return None
+
+    def _prescan_tparam_list_aliases(self, body_stmts: List[Dict[str, Any]]) -> Dict[str, str]:
+        """7a (self-tcb-reduction L4b): collect locals bound from `getattr(<node>,
+        "type_params", None) or []` where `<node>` is a `py_tparam_node`-typed param.
+        Each such local is a pure ALIAS for the tparam_list TERM `(type_params_of
+        <node>)` — the assignment emits NOTHING and `for tp in <local>` iterates the
+        modelled list. Returns {} for every function with no such binding (byte-inert).
+        Recurses into nested blocks (the binding may sit in a branch)."""
+        tp_params = getattr(self, "_current_tparam_node_params", set())
+        aliases: Dict[str, str] = {}
+        if not tp_params:
+            return aliases
+
+        def _visit(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    v = node.get("value")
+                    term = self._getattr_type_params_or_default(v, tp_params)
+                    if term is not None:
+                        aliases[node["target"]] = term
+                for _k in ("body", "orelse", "finalbody", "handlers"):
+                    _c = node.get(_k)
+                    if isinstance(_c, list):
+                        _visit(_c)
+            elif isinstance(node, list):
+                for _s in node:
+                    _visit(_s)
+
+        _visit(body_stmts)
+        return aliases
+
+    def _getattr_type_params_or_default(self, v: Any,
+                                        tp_params: Set[str]) -> Optional[str]:
+        """7a: if `v` is `getattr(<node>,"type_params",None) or []` (or the bare
+        `getattr(<node>,"type_params",None)`) where node in tp_params, return the term
+        `(type_params_of <node>)`; else None."""
+        if not isinstance(v, dict):
+            return None
+        # peel an `or []` / `or {}` default (semantically inert for a real node list).
+        if v.get("type") == "BinOp" and v.get("op") == "or":
+            return self._getattr_type_params_or_default(v.get("left"), tp_params)
+        if v.get("type") == "Call" and v.get("func") == "getattr":
+            a = v.get("args") or []
+            if (len(a) >= 2 and isinstance(a[0], dict) and a[0].get("type") == "Var"
+                    and a[0].get("name") in tp_params
+                    and isinstance(a[1], dict) and a[1].get("type") == "String"
+                    and a[1].get("value") == "type_params"):
+                return f"(type_params_of {whyml_ident(a[0]['name'])})"
         return None
 
     def _pyast_walk_recv(self, iter_ir: Dict[str, Any]) -> Optional[str]:
@@ -208,6 +280,17 @@ class ControlFlowStmtMixin:
         if _tpr is not None:
             self._pyast_loop_variant_len = f"(tpl_len {_tpr})"
             return (f"(tpl_len {_tpr})", f"(tpl_nth !{idx} {_tpr})", False)
+        # 7b (self-tcb-reduction L4b): `for b in <node>.bases` over a `py_tparam_node` param
+        # iterates the MODELLED `bases_of node` emit_ir irlist — bound `irlen (bases_of
+        # node)`, element `irnth !idx (bases_of node)` (a real emit_ir base per iteration, so
+        # the body's `isinstance(b, ast.Subscript)`/`b.value`/`b.slice` reflect faithfully),
+        # NOT the opaque `iter_length`/`iter_get`/`get_bases` int fallback. Scoped via
+        # `_tparam_bases_recv` -> corpus-inert.
+        _tbr = self._tparam_bases_recv(iter_ir)
+        if _tbr is not None:
+            self._pyast_loop_variant_len = f"(irlen (bases_of {_tbr}))"
+            return (f"(irlen (bases_of {_tbr}))",
+                    f"(irnth !{idx} (bases_of {_tbr}))", False)
         # J2/J3 convergence (Call-internals keyword iteration): `for kw in <call>.keywords`
         # over an emit_ir `call` local iterates the certified `keyword_list` — bound
         # `kwl_len (call_keywords call)`, element `kwl_nth !idx (call_keywords call)` (a real
@@ -457,11 +540,22 @@ class ControlFlowStmtMixin:
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "ExprIR"
+        # 7b (self-tcb-reduction L4b): `for b in <node>.bases` binds `b` to a real emit_ir
+        # base per iteration — register it symbol-type "ExprIR" so the body's
+        # `isinstance(b, ast.Subscript)` / `b.value` / `b.value.id` / `b.slice` lower via
+        # the emit_ir machinery (is_sub / svalue_of / name_of / sindex_of), not the opaque
+        # int path.
+        elif self._tparam_bases_recv(iter_ir) is not None:
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_symtype = _st.get(target, _MISSING)
+                _st[target] = "ExprIR"
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
         if (_saved_symtype is not _MISSING or _is_classbody or _is_kwbody
                 or _is_tparambody
-                or self._mktuple_elts_recv_ir(iter_ir) is not None):
+                or self._mktuple_elts_recv_ir(iter_ir) is not None
+                or self._tparam_bases_recv(iter_ir) is not None):
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
                 if _saved_symtype is _MISSING:

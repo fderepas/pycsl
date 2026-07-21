@@ -396,6 +396,13 @@ class FunctionEmissionMixin:
              if a == "TParamNode"}
             if self._uses_tparam() else set())
         self._tparam_locals: Set[str] = set()
+        # 7a (self-tcb-reduction L4b): locals bound from `getattr(<node>,"type_params",
+        # None) or []` — pure aliases for `(type_params_of <node>)` (the assignment emits
+        # nothing; `for tp in <local>` iterates the modelled tparam_list). Empty for every
+        # function with no such binding -> byte-inert.
+        self._tparam_list_aliases: Dict[str, str] = (
+            self._prescan_tparam_list_aliases(body_stmts)
+            if self._uses_tparam() else {})
         self._current_array1d_params = set(func.get("array1d_params", []))
         self._array2d_params = set(func.get("array2d_params", []))
         # 07-1839 P3: definite-assignment sets for `\in_scope` (three-valued).
@@ -512,12 +519,32 @@ class FunctionEmissionMixin:
                 return v.get("name") in pyval
             return False
 
+        # 7c (self-tcb-reduction L4b): a pyval-producing assignment can be NESTED inside
+        # an If/For/While/Try/With body (e.g. `_collect_type_params`'s legacy branch
+        # `registry = self.program_ir.get(..) or {}; info = registry.get(nm, {})` sits
+        # two loops deep). Gather every Assign in the statement subtree so the fixpoint
+        # resolves the chain regardless of nesting depth (byte-inert: a corpus function
+        # with no pyval self-field / pyval `.get` still yields the empty set).
+        assigns: List[Dict[str, Any]] = []
+
+        def _gather_assigns(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign":
+                    assigns.append(node)
+                for _k in ("body", "orelse", "finalbody", "handlers"):
+                    _v = node.get(_k)
+                    if isinstance(_v, list):
+                        _gather_assigns(_v)
+            elif isinstance(node, list):
+                for _s in node:
+                    _gather_assigns(_s)
+
+        _gather_assigns(body_stmts)
+
         changed = True
         while changed:
             changed = False
-            for st in body_stmts:
-                if not isinstance(st, dict) or st.get("stmt") != "Assign":
-                    continue
+            for st in assigns:
                 tgt = st.get("target")
                 if not isinstance(tgt, str) or tgt in pyval:
                     continue

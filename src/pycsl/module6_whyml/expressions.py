@@ -301,6 +301,12 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
     "_m5_get_type_name_legacy": {"slice": "sindex_of"},
     "_field_type_from_annotation": {"slice": "sindex_of"},
 })
+# 7b (self-tcb-reduction L4b): `_collect_type_params`'s legacy `Generic[T]` branch reads
+# `b.slice` (the Subscript type-arg, `sindex_of`) off a `for b in node.bases` emit_ir loop
+# var — NOT the `.value` head. SCOPED via `_current_emitting_func` -> corpus-inert.
+_EMIT_IR_HANDLER_ATTR_PROJ.update({
+    "_collect_type_params": {"slice": "sindex_of"},
+})
 # value-model campaign increment 5 (primitive a — faithful IrMkTupleN element access): a
 # `Dict[K,V]` annotation slice lowers to an **`IrMkTupleN`** (the variadic tuple carrying the
 # MODELLED `elts_of` irlist), NOT the binary `IrTuple`. So the typed `.elts` reads route to the
@@ -667,6 +673,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # an IR-node construction (`{"type": "Var", …}`) carries an emit_ir node.
             if self._is_emit_ir_expr(v_ir):
                 return f"(PNode {self._expr_to_whyml(v_ir, local_refs)})"
+            # a value that is ITSELF a `pyval` — a pyval local or a chained pyval `.get`
+            # (`{"bound": info.get("bound")}`) — embeds DIRECTLY (already tagged), NOT
+            # re-wrapped as `PStr`/`PInt`. Gated on `_expr_is_pyval` -> corpus byte-inert.
+            if self._expr_is_pyval(v_ir):
+                return self._expr_to_whyml(v_ir, local_refs)
         low = self._expr_to_whyml(v_ir, local_refs)
         if self._is_string_expr(v_ir):
             return f"(PStr {low})"
@@ -698,6 +709,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         generic abstract `contains_check`."""
         negate = op == "not in"
         rhs = expr.get("right", {})
+        # 7b (self-tcb-reduction L4b): `<x> in self.<CONST>` where `self.<CONST>` is a
+        # class-body STRING-SET constant (`_GENERIC_BASE_NAMES = {"Generic"}`) lowers to a
+        # FAITHFUL `str_eq_op` disjunction over the ACTUAL members — NOT a `contains_check`
+        # of the set's int-hashed NAME (a facade invariant under the set's contents). A
+        # mutation of the members (`{"Generic"}`->`{"Protocol"}`) flips the emitted literal.
+        # Gated on the constant being recorded for the current class -> corpus-inert.
+        _ssc_attr = None
+        if (rhs.get("type") == "FieldGet" and rhs.get("object") == "self"):
+            _ssc_attr = rhs.get("field")
+        elif (rhs.get("type") == "Attribute" and isinstance(rhs.get("object"), dict)
+                and rhs["object"].get("type") == "Var"
+                and rhs["object"].get("name") == "self"):
+            _ssc_attr = rhs.get("attr")
+        if not self._in_spec and _ssc_attr is not None:
+            _ssc = getattr(self, "_class_str_set_constants", {}).get(
+                getattr(self, "_current_self_type", None), {})
+            _members = _ssc.get(_ssc_attr)
+            if _members:
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _checks = [f"(str_eq_op {left} {whyml_string_literal(m)})"
+                           for m in _members]
+                _disj = f"({' || '.join(_checks)})"
+                return f"(not {_disj})" if negate else _disj
         # self-tcb-reduction giants (generic class-body lowering): `target in field_names`
         # — membership against the opaque `field_names` param (a `Set[str]`, int-modelled,
         # NOT a tracked dict/set local) — lowers to the abstract `ps_field_mem <target>`
@@ -1274,15 +1310,50 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return f"(tp_name {cw})"
                 if expr.get("attr") == "bound":
                     return f"(tp_bound {cw})"
+        # 7a (self-tcb-reduction L4b): the LIVE `_collect_type_params` reads the tparam
+        # via `getattr(tp, "name", None)` / `getattr(tp, "bound", None)` (the defensive
+        # Call form), not the bare attribute. Lower the same certified projectors.
+        _tpg = self._tparam_getattr_read(expr)
+        if _tpg is not None:
+            c, _field = _tpg
+            cw = self._expr_to_whyml(c, local_refs, invariant_ctx, subst)
+            if _field == "name":
+                return f"(tp_name {cw})"
+            if _field == "bound":
+                return f"(tp_bound {cw})"
+        return None
+
+    def _tparam_getattr_read(self, expr: Any):
+        """7a: if `expr` is `getattr(<tp>, "name"|"bound", <default>)` over a `tparam`
+        loop var `tp`, return `(<tp-ir>, "name"|"bound")`; else None. The Call form the
+        live `_collect_type_params` uses. Scoped via `_tparam_local_var` -> corpus-inert."""
+        if not (isinstance(expr, dict) and expr.get("type") == "Call"
+                and expr.get("func") == "getattr"):
+            return None
+        a = expr.get("args") or []
+        if len(a) < 2:
+            return None
+        c = self._tparam_local_var(a[0])
+        if c is None:
+            return None
+        if not (isinstance(a[1], dict) and a[1].get("type") == "String"):
+            return None
+        field = a[1].get("value")
+        if field in ("name", "bound"):
+            return (c, field)
         return None
 
     def _is_tparam_bound_read(self, ir: Any) -> bool:
         """L1: True iff `ir` is `tp.bound` over a `tparam` loop var — a `tp_bound`
         projector that yields an `emit_ir` sub-node, so the emit_ir isinstance/`.id`/
         `.attr` machinery treats it as an emit_ir expression."""
-        return (isinstance(ir, dict) and ir.get("type") == "Attribute"
+        if (isinstance(ir, dict) and ir.get("type") == "Attribute"
                 and ir.get("attr") == "bound"
-                and self._tparam_local_var(ir.get("object", {})) is not None)
+                and self._tparam_local_var(ir.get("object", {})) is not None):
+            return True
+        # 7a: the getattr Call form `getattr(tp, "bound", None)`.
+        _tpg = self._tparam_getattr_read(ir)
+        return _tpg is not None and _tpg[1] == "bound"
 
     def _keyword_var(self, ir: Any) -> Optional[Dict[str, Any]]:
         """Return `ir` if it is a `keyword`-typed keyword-list loop var (`kw in
@@ -5519,6 +5590,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _pred = self._AST_CLASS_TO_STMT_KIND[_a1["attr"]]
             _cv = self._expr_to_whyml(_a0, local_refs, getattr(self, "_in_spec", False), None)
             return f"({_pred} {_cv})"
+        # 7b (self-tcb-reduction L4b): `isinstance(node, ast.ClassDef)` where `node` is a
+        # `py_tparam_node` PARAM (the legacy `Generic[T]` branch guard) lowers to the opaque
+        # runtime-kind bool `(is_classdef_of node)` — NOT `isinstance_op 0 0`. Gated on `node
+        # in _current_tparam_node_params` AND `ast.ClassDef` -> corpus-inert.
+        if (isinstance(_a0, dict) and _a0.get("type") == "Var"
+                and _a0.get("name") in getattr(self, "_current_tparam_node_params", set())
+                and isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                and isinstance(_a1.get("object"), dict)
+                and _a1["object"].get("type") == "Var"
+                and _a1["object"].get("name") == "ast"
+                and _a1.get("attr") == "ClassDef"):
+            _nv = self._expr_to_whyml(_a0, local_refs, getattr(self, "_in_spec", False), None)
+            return f"(is_classdef_of {_nv})"
         # J2/J3 convergence (Call-internals): `isinstance(kw.value, ast.Name/Attribute)`
         # over a keyword loop var lowers to the certified kwval discriminant `is_kwname` /
         # `is_kwattr` applied to `(kw_value_of kw)`. Double-gated on the keyword-value
@@ -5787,9 +5871,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return (f"(match {recv} with PMap m_k7 -> "
                         f"(match Map.get m_k7 {_k} with Some v_ -> v_ "
                         f"| None -> {_empty} end) | _ -> {_empty} end)")
-            # `.get(k)` (leaf, no default) -> `option pyval`.
-            return (f"(match {recv} with PMap m_k7 -> Map.get m_k7 {_k} "
-                    f"| _ -> None end)")
+            # `.get(k)` (leaf, no default) -> unwrap the option-pyval to a `pyval`, the
+            # absent key defaulting to the `PInt 0` None-sentinel (consistent with the
+            # K6 self-field `.get`; Python `dict.get(k)` returns None on a missing key).
+            # A `pyval` value (not `option pyval`) so the read composes uniformly — e.g.
+            # `{"bound": info.get("bound")}` embeds it via `_pyval_wrap`.
+            return (f"(match {recv} with PMap m_k7 -> "
+                    f"(match Map.get m_k7 {_k} with Some v_ -> v_ "
+                    f"| None -> (PInt 0) end) | _ -> (PInt 0) end)")
         # §26: `X.get(k)` where X aliases a self dict-field → `self.<field>.get(k)`.
         _alias = self._alias_self_field(recv)
         if _alias:

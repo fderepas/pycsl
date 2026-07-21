@@ -1868,15 +1868,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     _GENERIC_BASE_NAMES = {"Generic"}
 
-    def _collect_type_params(self, node) -> List[Dict[str, Any]]:
+    def _collect_type_params(self, node: TParamNode) -> List[Dict[str, PyVal]]:
         """Return the IR `type_params` list for a generic ClassDef/FunctionDef, or
         `[]` if it is not generic. Each entry is `{"name": str, "bound": Optional[str],
         "kind": str}` where kind is "TypeVar" (the only interpreted kind —
         ParamSpec/TypeVarTuple are schema-only and loud-fail in the monomorphization
         pass, GT3). The PEP 695 `type_params` attribute is the primary source; the
-        legacy `Generic[T]` base / `TypeVar("T", bound=B)` call is recognized too."""
+        legacy `Generic[T]` base / `TypeVar("T", bound=B)` call is recognized too.
+
+        (`PyVal` is an alias for `Any` — the self-tcb-reduction pyval value-model
+        sentinel; the `{"name","bound","kind"}` entries are heterogeneous Python
+        dicts, lowered faithfully as `pyval` in the self-annotation mirror.)"""
         tparams = getattr(node, "type_params", None) or []
-        out: List[Dict[str, Any]] = []
+        out: List[Dict[str, PyVal]] = []
         for tp in tparams:
             kind = type(tp).__name__  # TypeVar / ParamSpec / TypeVarTuple
             name = getattr(tp, "name", None)
@@ -2770,6 +2774,47 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 constants[target] = iv
         return constants
 
+    def _collect_class_str_set_constants(self, node: ast.ClassDef,
+                                         field_names: Set[str]) -> Dict[str, List[str]]:
+        """7b (self-tcb-reduction L4b): collect class-body STRING-SET constants
+        (`_GENERIC_BASE_NAMES = {"Generic"}`) — a top-level `Name = {<str-lit>, ...}`
+        (or `frozenset({...})`) assignment whose elements are all string literals.
+        Returns `{name: [member, ...]}` in source order. These let a `<x> in
+        self.<CONST>` membership lower to a FAITHFUL `str_eq_op` disjunction over the
+        ACTUAL members (Module 6), not an int-hash of the set's NAME (a facade that is
+        invariant under the set's contents). Names already used as instance fields are
+        skipped."""
+        out: Dict[str, List[str]] = {}
+        for child in node.body:
+            target: Optional[str] = None
+            value: Optional[ast.expr] = None
+            if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                    and isinstance(child.targets[0], ast.Name)):
+                target = child.targets[0].id
+                value = child.value
+            elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+                target = child.target.id
+                value = child.value
+            if target is None or value is None or target in field_names:
+                continue
+            # `frozenset({...})` unwraps to the inner set literal.
+            if (isinstance(value, ast.Call) and isinstance(value.func, ast.Name)
+                    and value.func.id in ("frozenset", "set") and len(value.args) == 1):
+                value = value.args[0]
+            if not isinstance(value, ast.Set):
+                continue
+            members: List[str] = []
+            ok = True
+            for elt in value.elts:
+                if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                    members.append(elt.value)
+                else:
+                    ok = False
+                    break
+            if ok and members:
+                out[target] = members
+        return out
+
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Collect fields from __init__, extract class invariants, record base
         classes, and emit a type_decl record.
@@ -2881,6 +2926,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                    for inv in getattr(node, 'csl_class_invariants', [])]
             field_witness = {f["name"]: field_defaults.get(f["name"], 0) for f in fields}
             constants = self._collect_class_constants(node, {f["name"] for f in fields})
+            str_set_constants = self._collect_class_str_set_constants(
+                node, {f["name"] for f in fields})
             init_params, init_body = self._collect_init_construction(node)
             init_ensures = self._collect_init_ensures(node)
             self.program_ir["type_decls"].append({
@@ -2891,6 +2938,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "has_hash": has_hash, "has_eq": has_eq,
                 "is_unhashable": has_eq and not has_hash,
                 "constants": constants, "bases": bases,
+                # 7b (self-tcb-reduction L4b): class-body string-set constants, so a
+                # `<x> in self.<CONST>` membership lowers to a faithful `str_eq_op`
+                # disjunction. Emitted only when non-empty (additive) → byte-identical
+                # for every class without such a constant.
+                **({"str_set_constants": str_set_constants}
+                   if str_set_constants else {}),
                 "init_params": init_params, "init_body": init_body,
                 "init_ensures": init_ensures,
                 "is_mixin": is_mixin, "compose_from": compose_from,

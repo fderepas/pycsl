@@ -28,6 +28,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # trusted-stub body is scanned by Module5 `_collect_class_fields` (a static AST
         # walk) for the field TYPE only; the stub stays a trusted `val` (body unverified).
         self._final_registry: List[Dict[str, PyVal]] = []
+        # L4b (self-tcb-reduction): the central program IR dict, typed as a pyval map
+        # so `_collect_type_params`'s legacy-branch `self.program_ir.get("typevar_registry")`
+        # lowers to the faithful `Map.get self.program_ir "typevar_registry"` (K6 map-pyval
+        # self-field read), NOT an int-hash facade. Field TYPE only (stub body unverified).
+        self.program_ir: Dict[str, PyVal] = {}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1764,12 +1769,53 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return False
 
     _GENERIC_BASE_NAMES = {'Generic'}
-    #@ \trusted reviewer: pycsl-self-annotate
+    # L4b FINAL convergence (self-tcb-reduction, tparam-collector): the whole
+    # `_collect_type_params` body ported VERBATIM. Two branches, two value models:
+    # (7a) the PEP-695 tparam branch — `getattr(node,"type_params",None) or []` ->
+    # the `tparam_list` local (default `[]`), `for tp in tparams` -> `tpl_nth`
+    # (`type_params_of node`), `tp` a TParam loop var so L1's reflection fires
+    # (`type(tp).__name__`->tp_kind_of, `tp.name`->tp_name, `tp.bound`->tp_bound;
+    # bnode is emit_ir -> is_var/name_of, is_attribute/attr); (7b) the legacy
+    # `Generic[T]` ClassDef-bases branch — `isinstance(node,ast.ClassDef)`->
+    # is_classdef_of, `for b in node.bases`->irnth/irlen (bases_of node), the
+    # Subscript reflection -> is_sub/svalue_of/name_of/sindex_of, and
+    # `b.value.id in self._GENERIC_BASE_NAMES` -> the faithful class-str-set-constant
+    # membership `str_eq_op (name_of (svalue_of b)) "Generic"`. The pyval VALUE model
+    # (L4a): `out: List[Dict[str,PyVal]]` -> `seq pyval`, `out.append({...})` ->
+    # Seq.snoc (K4), the `{"name","bound","kind"}` entry -> pyval map; the legacy
+    # reads `self.program_ir.get("typevar_registry")` -> Map.get (K6), `or {}` -> empty
+    # PMap (#5), `registry.get(nm,{})`/`info.get("bound")` -> PMap-match (K7).
+    # isinstance_op=0, get___name__=0, get_bases=0, no int-hash. `PyVal`~Any sentinel.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_type_params(self, node) -> List[int]:
-        return []
+    def _collect_type_params(self, node: TParamNode) -> List[Dict[str, PyVal]]:
+        tparams = getattr(node, "type_params", None) or []
+        out: List[Dict[str, PyVal]] = []
+        for tp in tparams:
+            kind = type(tp).__name__  # TypeVar / ParamSpec / TypeVarTuple
+            name = getattr(tp, "name", None)
+            bound = None
+            bnode = getattr(tp, "bound", None)
+            if isinstance(bnode, ast.Name):
+                bound = bnode.id
+            elif isinstance(bnode, ast.Attribute):
+                bound = bnode.attr
+            out.append({"name": name, "bound": bound, "kind": kind})
+        if not out and isinstance(node, ast.ClassDef):
+            for b in node.bases:
+                if (isinstance(b, ast.Subscript)
+                        and isinstance(b.value, ast.Name)
+                        and b.value.id in self._GENERIC_BASE_NAMES):
+                    names = self._extract_generic_arg_names(b.slice)
+                    registry = self.program_ir.get("typevar_registry") or {}
+                    for nm in names:
+                        info = registry.get(nm, {})
+                        out.append({"name": nm,
+                                    "bound": info.get("bound"),
+                                    "kind": "TypeVar"})
+                    break
+        return out
 
     # value-model-return-wall R1 (faithful `List[str]` RETURN): dispatch on the
     # `Generic[...]` slice — `isinstance(slice_node, ast.Name)` -> `is_var slice_node`,

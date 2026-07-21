@@ -246,6 +246,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if target in getattr(self, "_opaque_selfmap_aliases", {}):
             _rest = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
             return _rest if _rest else f"{indent}()"
+        # 7a (self-tcb-reduction L4b): `tparams = getattr(<node>,"type_params",None) or []`
+        # binds a pure tparam_list ALIAS (`_tparam_iter_recv` resolves `for tp in tparams`
+        # to `(type_params_of node)`) — emit NOTHING, exactly like the `.to_dict()` /
+        # opaque-selfmap alias suppression above. Byte-inert (`_tparam_list_aliases` empty
+        # outside the tparam collector).
+        if target in getattr(self, "_tparam_list_aliases", {}):
+            _rest = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            return _rest if _rest else f"{indent}()"
         self._track_collection_metadata(target, val_ir)
 
         # str-list-elements: a `.decode()` RHS bound to a STRING-typed local lowers to a
@@ -2211,6 +2219,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         tp_loop_vars = self._tparam_body_loop_vars(body_stmts)
         if not tp_loop_vars:
             return set()
+
+        def _tp_getattr_field(v: Any):
+            """7a: `getattr(<tp>, "name"|"bound", …)` over a tparam loop var → the field
+            name; else None. The Call form the live `_collect_type_params` uses."""
+            if not (isinstance(v, dict) and v.get("type") == "Call"
+                    and v.get("func") == "getattr"):
+                return None
+            _a = v.get("args") or []
+            if (len(_a) >= 2 and isinstance(_a[0], dict) and _a[0].get("type") == "Var"
+                    and _a[0].get("name") in tp_loop_vars
+                    and isinstance(_a[1], dict) and _a[1].get("type") == "String"):
+                return _a[1].get("value")
+            return None
+
         # the bound sub-node locals: `<bnode> = <tp>.bound`
         bound_vars: Set[str] = set()
 
@@ -2224,6 +2246,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             and _v["object"].get("type") == "Var"
                             and _v["object"].get("name") in tp_loop_vars):
                         bound_vars.add(n["target"])
+                    # 7a: `bnode = getattr(tp, "bound", None)` (the live Call form).
+                    elif _tp_getattr_field(_v) == "bound":
+                        bound_vars.add(n["target"])
                 for x in n.values():
                     find_bounds(x)
             elif isinstance(n, list):
@@ -2232,6 +2257,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         find_bounds(body_stmts)
 
         def _is_tp_str_read(v: Any) -> bool:
+            # 7a: `getattr(tp, "name", None)` (the live Call form) is a string read.
+            if _tp_getattr_field(v) == "name":
+                return True
             if not (isinstance(v, dict) and v.get("type") == "Attribute"):
                 return False
             _a = v.get("attr")
@@ -2310,6 +2338,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return set()
         found: Set[str] = set()
 
+        _aliases = getattr(self, "_tparam_list_aliases", {})
+
         def rec(n: Any) -> None:
             if isinstance(n, dict):
                 if n.get("stmt") in ("For", "ForStmt"):
@@ -2321,6 +2351,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 and _o.get("name") in _params
                                 and isinstance(n.get("target"), str)):
                             found.add(n["target"])
+                    # 7a: `for tp in <tparams>` where <tparams> is a getattr-or-default
+                    # tparam_list alias local (the live indirection).
+                    elif (isinstance(_it, dict) and _it.get("type") == "Var"
+                            and _it.get("name") in _aliases
+                            and isinstance(n.get("target"), str)):
+                        found.add(n["target"])
                 for x in n.values():
                     rec(x)
             elif isinstance(n, list):
@@ -2428,6 +2464,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _o = v.get("object", {})
                 if (isinstance(_o, dict) and _o.get("type") == "Var"
                         and _o.get("name") in _tparam_loop_vars):
+                    return True
+            # 7a: `bnode = getattr(tp, "bound", None)` (the live Call form) projects the
+            # emit_ir bound sub-node just like `tp.bound`.
+            if (v.get("type") == "Call" and v.get("func") == "getattr"):
+                _ga = v.get("args") or []
+                if (len(_ga) >= 2 and isinstance(_ga[0], dict)
+                        and _ga[0].get("type") == "Var"
+                        and _ga[0].get("name") in _tparam_loop_vars
+                        and isinstance(_ga[1], dict) and _ga[1].get("type") == "String"
+                        and _ga[1].get("value") == "bound"):
                     return True
             if v.get("type") in ("Subscript", "SliceAccess"):
                 _val = v.get("value", {})
@@ -2628,6 +2674,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if (_f.startswith("IRScanner.find_") or _f.startswith("IRScanner.collect_")
                             or _f.endswith(".split") or _f == "sorted"):
                         return True
+                    # 7b (self-tcb-reduction L4b): a `self.<m>(...)` whose declared return
+                    # resolves to `array string`/`seq string` (e.g. `names =
+                    # self._extract_generic_arg_names(b.slice)`) yields a seq-string local —
+                    # so its declaration (`ref (seq string)`) and its `for nm in names`
+                    # iteration are uniformly seq (not a `ref 0` int + array-op mismatch).
+                    if self._call_returns_string_collection(_f):
+                        return True
                     if _f in ("set", "frozenset", "list") and v.get("args"):
                         return _is_seq_src(v["args"][0])
                 if (_t == "BinOp" and v.get("op") == "+"
@@ -2713,9 +2766,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # are pyval-typed refs (let-bound at first assign, not `ref 0`). Byte-inert.
         pyval_read_vars = self._collect_pyval_read_locals(body_stmts) - set(self._formal_params)
         self._pyval_local_vars = pyval_read_vars
+        # 7a (self-tcb-reduction L4b): a tparam_list-alias local is never a real value (its
+        # assignment emits nothing; iteration resolves to `type_params_of node`) — exclude
+        # it from the `ref 0` pre-declaration so no dead `let tparams = ref 0` is emitted.
+        tparam_alias_vars = (set(getattr(self, "_tparam_list_aliases", {}))
+                             - set(self._formal_params))
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
                 | set(tuple_vars) | string_vars | seq_local_vars | _union_locals
-                | pyval_read_vars
+                | pyval_read_vars | tparam_alias_vars
                 | getattr(self, "_emit_ir_local_vars", set()))
 
     def _collect_array_elem_types(self, body_stmts: List[Dict[str, Any]]) -> Dict[str, str]:
