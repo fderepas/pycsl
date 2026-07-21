@@ -3202,6 +3202,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         and _v not in _str_predecl and _v not in _emit_ir_predecl):
                     _rec_predecl[_v] = _rec
             pre_decl_vars |= set(_rec_predecl)
+        # W8 capability (iii): publish the map so `t.<field>` on such a local
+        # projects natively (`(!t).<label>`) instead of falling through to the
+        # opaque `(get_<field> !t)` getter, which mistypes against the record.
+        self._record_field_elem_locals = dict(_rec_predecl)
 
         if is_method:
             initial_declared = {whyml_ident(v) for v in pre_decl_vars}

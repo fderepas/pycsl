@@ -2799,10 +2799,53 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             node = {"type": "Attribute", "object": node, "attr": p}
         return {"type": "Attribute", "object": node, "attr": field}
 
+    def _record_elem_field_py_type(self, ir: Dict[str, Any]) -> Optional[str]:
+        """W8 capability (iii): the DECLARED python type of a field projected off an
+        element of an `array <record>` SELF-FIELD — either directly
+        (`self.toks[self.i].string`) or through the record-typed local bound to such a
+        read (`t = self.toks[self.i]` … `t.string`). Returns None for every other
+        expression. `_record_array_fields` / `_record_field_elem_locals` are populated
+        only inside a class with a `List[<record>]` field, so this is None (hence
+        byte-inert) everywhere else."""
+        if not isinstance(ir, dict) or ir.get("type") not in ("Attribute", "FieldGet"):
+            return None
+        attr = ir.get("attr") or ir.get("field")
+        if not attr:
+            return None
+        base = ir.get("object")
+        if not isinstance(base, dict):
+            base = ir.get("value")
+        if not isinstance(base, dict):
+            return None
+        ecls = None
+        if base.get("type") == "Var":
+            ecls = (getattr(self, "_record_field_elem_locals", None)
+                    or {}).get(base.get("name", ""))
+        elif base.get("type") == "Subscript":
+            _bv = base.get("value")
+            if isinstance(_bv, dict) and _bv.get("type") in ("FieldGet", "Attribute"):
+                _ob = _bv.get("object") or _bv.get("value")
+                if isinstance(_ob, dict):
+                    _ob = _ob.get("name")
+                if _ob == "self":
+                    ecls = (getattr(self, "_record_array_fields", None)
+                            or {}).get(_bv.get("field") or _bv.get("attr"))
+        if ecls is None:
+            return None
+        return getattr(self, "_record_types", {}).get(ecls, {}).get(
+            "field_types", {}).get(attr)
+
     def _is_string_expr(self, ir: Dict[str, Any]) -> bool:
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
         t = ir.get("type")
+        # W8 capability (iii): a `str` field projected off an `array <record>` SELF-FIELD
+        # element (`self.toks[self.i].string`, or `t.string` on the record-typed local
+        # bound to such a read) is STRING-typed. Without this the projection keeps the
+        # default int typing and a `== "EOF"` comparison coerces it to int (L3-tc:
+        # `This expression has type string, but is expected to have type int`).
+        if self._record_elem_field_py_type(ir) == "str":
+            return True
         # resync-campaign.md R2: a ternary whose BOTH arms are string-typed is string (the
         # emitter's `(if _poly then "<decl A>" else "<decl B>") + "…ensures…"` concat). Both
         # arms must be string; @mutable_state (the emitter's string decls).
@@ -7093,6 +7136,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _wn is not None:
                     _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
                     return f"(let _rec_ = {_os} in _rec_.{self._field_label(_wn, attr)})"
+            # W8 capability (iii) — SELF-FIELD array-read PROJECTION. `self.toks[self.i]
+            # .py_type` reads an element of an `array <record>` SELF-FIELD and projects a
+            # field off it. Before this, only the PARAM/LOCAL record-array shapes above
+            # reached the `_rec_` projector; a self-field base fell through to the opaque
+            # `(get_<attr> …)` getter, which mistypes (`… has type tok, but is expected to
+            # have type int`) and fails L3-tc. `_record_array_fields` (field -> element
+            # record CLASS) is populated by `_emit_type_decls` only for a `List[<record>]`
+            # record field, so this is absent — hence byte-inert — everywhere else.
+            if (isinstance(_bv, dict)
+                    and _bv.get("type") in ("FieldGet", "Attribute")):
+                _raf = getattr(self, "_record_array_fields", None) or {}
+                _ob = _bv.get("object") or _bv.get("value")
+                if isinstance(_ob, dict):
+                    _ob = _ob.get("name")
+                _fn = _bv.get("field") or _bv.get("attr")
+                _ecls = _raf.get(_fn) if _ob == "self" else None
+                if _ecls is not None:
+                    _wn = getattr(self, "_record_types", {}).get(_ecls, {}).get(
+                        "whyml_name")
+                    if _wn is not None:
+                        _os = self._expr_to_whyml(obj_ir, local_refs,
+                                                  invariant_ctx, subst)
+                        return (f"(let _rec_ = {_os} in "
+                                f"_rec_.{self._field_label(_wn, attr)})")
             # WL-04c: `\result[i].field` on a `-> List[<record>]` return (`_func_return_type
             # == "array <record>"`) — `\result[i]` is a native `Array.get` (widened in
             # `_handle_subscript` L0) and `.field` a native record projection over it.
@@ -7130,6 +7197,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(get_{attr} {obj_ir})"
         if obj_ir.get("type") == "Var":
             var_name = obj_ir.get("name", "")
+            # W8 capability (iii), LOCAL-BOUND variant: `t = self.toks[self.i]` then
+            # `t.py_type`. Such a local is pre-declared as a record REF (see
+            # `_collect_record_field_elem_locals`), so the projection is `(!t).<label>`.
+            # Without it the read falls through to the opaque `(get_py_type !t)` getter
+            # and fails L3-tc (`… has type tok, but is expected to have type int`).
+            # `_record_field_elem_locals` is non-empty only inside a method of a class
+            # with a `List[<record>]` field → byte-inert everywhere else.
+            _rfe = getattr(self, "_record_field_elem_locals", None) or {}
+            _ecls = _rfe.get(var_name)
+            if _ecls is not None:
+                _wn = getattr(self, "_record_types", {}).get(_ecls, {}).get("whyml_name")
+                if _wn is not None:
+                    return (f"(!{whyml_ident(var_name)})."
+                            f"{self._field_label(_wn, attr)}")
             if var_name in self._record_locals:
                 # B1.4 (b1-plan.md §10): an AMBIGUOUS field (shared by >1 record —
                 # e.g. `target`/`value` across the imported Stmt dataclasses) is
