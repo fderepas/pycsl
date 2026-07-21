@@ -51,3 +51,22 @@ banks R1/R2 (reusable for _collect_class_fields, _collect_type_params). Then the
 multi-arg projection + type_decls.append — a follow-on). Refutation exit at Gate S if the fieldless-mirror retrofit
 walls. Corpus repair of proc argv / iomod fileio int-erasure is OPTIONAL (only to OBSERVE the effect on a green
 pipeline — not required for the gated, byte-inert build).
+
+## K1 + K2 + K3 OUTCOME (2026-07-21)
+- K1 (commit 9eede7d7): faithful seq-pyval SELF-FIELD append emission (Bug 3 fix, gated on List[Dict[str,PyVal]]
+  self-field, byte-inert, axiom-free reuse Phase2f). Fixture 0920. Real `self.<f> <- Seq.snoc … (pyval)` write-back.
+- K2 (commit 2abd3b29): CONVERTED `_collect_final_registry` (count 1015→1014) — K1 self-field-append + R1 nested-body
+  projector (`stmt_body: pyast_stmt->psl`) + R2 ast.walk projector (`ast_walk: pyast_stmt->psl`) + `.name` string-
+  typing. --fun SUCCESS (whole-file wedges), byte-diff 0, ledger 3, mutation+anti-facade PASS.
+- K3: BOTH REFUTE (measured, reverted clean):
+  - `_collect_class_fields`: its `fields: List[Dict[str,PyVal]]` is a LOCAL returned in a tuple; pyval-seq is gated to
+    SELF-FIELDS (K1) + @dataclass class-body fields only → a local/return-position List[Dict[str,PyVal]] INT-ERASES to
+    `array int` (append = shadow-local facade). MISSING = LOCAL/RETURN-POSITION seq-pyval capability (append-to-local
+    write-back + tuple-return carriage — the K1 analogue for locals). STACKED residuals behind it: isinstance+int()
+    constant reflection, Set[str] local with .add/in, 5 mirror-absent helpers (_m5_get_list_elem_type,
+    _is_dataclass_decorated, _m5_get_option_field_inner, _cf6_is_cases_list_of_dict, _m5_get_field_key_type).
+  - `_collect_type_params`: `type(tp).__name__` TYPE-NAME REFLECTION over unmodeled PEP-695 type_params nodes — a
+    SEPARATE wall (functions.py:2009 drops type().__name__). Not ground.
+NEXT shared leverage node = LOCAL/RETURN-POSITION seq-pyval (unblocks the append-to-local piece of _collect_class_
+fields + the synthesize_* collectors' type_decls.append). But each collector remains a CONJUNCTION (reflection /
+multi-arg / Set[str]) — must co-land the capability with a converging target (no dead infra).
