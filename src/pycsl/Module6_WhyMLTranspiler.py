@@ -158,6 +158,8 @@ class Module6_WhyMLTranspiler(
         # 1111-spec R7: per-function formal-param order + positional defaults.
         self._module_method_formal_params: Dict[str, List[str]] = {}
         self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
+        # W8 (ii): callee-name -> its `*vals: str` vararg param name.
+        self._module_method_vararg_str: Dict[str, str] = {}
         self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_field_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
@@ -727,6 +729,14 @@ class Module6_WhyMLTranspiler(
             f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
         self._module_method_param_defaults = {
             f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        # W8 capability (ii): callee-name -> the name of its `*vals: str` vararg param
+        # (always the LAST entry of `formal_params`). Consulted at call sites so the
+        # trailing positional arguments are PACKED into a `seq string` instead of
+        # tripping the fixed-arity check. Empty for every corpus / pycsl_lib program
+        # (no str-annotated vararg) -> byte-identical.
+        self._module_method_vararg_str = {
+            f["name"]: f["vararg_str_param"] for f in funcs_for_maps
+            if f.get("vararg_str_param")}
         # 10-1732-gap (Gap 3): by-name {param → WhyML type} for call-site default fill,
         # so an omitted `None`-defaulted non-int param is filled at its faithful zero
         # (`""`/`0.0`) instead of int `0`. Built from the SAME `funcs_for_maps` (incl.
@@ -902,6 +912,14 @@ class Module6_WhyMLTranspiler(
             f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
         self._module_method_param_defaults = {
             f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        # W8 capability (ii): callee-name -> the name of its `*vals: str` vararg param
+        # (always the LAST entry of `formal_params`). Consulted at call sites so the
+        # trailing positional arguments are PACKED into a `seq string` instead of
+        # tripping the fixed-arity check. Empty for every corpus / pycsl_lib program
+        # (no str-annotated vararg) -> byte-identical.
+        self._module_method_vararg_str = {
+            f["name"]: f["vararg_str_param"] for f in funcs_for_maps
+            if f.get("vararg_str_param")}
         self._module_method_param_whyml_types = \
             self._build_method_param_whyml_types_by_name(funcs_for_maps)
         self._module_method_return_annotations = \

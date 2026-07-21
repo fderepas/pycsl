@@ -417,6 +417,14 @@ def _check_contract_scope(func, module_constants) -> None:
     same context strings. Variable extraction mirrors Module 4's ``extract_variables``
     via ``_ir_free_vars`` (binders, ``\\result`` and ``self`` fields excluded)."""
     symtab = func.get("symbol_table") or {}
+    # W8 capability (ii): a `*vals: str` vararg is a real parameter (lowered to a
+    # `seq string`), so it is legitimately in scope in the function's contracts —
+    # `#@ requires x in vals`. Module 4 never records a vararg in `symbol_table`,
+    # so add it here for the scope check only. Absent for every function without a
+    # str-annotated vararg.
+    _va_name = func.get("vararg_str_param")
+    if _va_name and _va_name not in symtab:
+        symtab = {**symtab, _va_name: "tuple"}
     fname = func.get("name", "<anonymous>")
     fctx = f"function '{fname}'"
     contracts = func.get("contracts") or {}

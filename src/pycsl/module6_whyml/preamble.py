@@ -1937,7 +1937,11 @@ class PreambleEmissionMixin:
           or bool(getattr(self, "_mutable_state_classes", None)) \
           or any(t.startswith("seq ") for f in functions
                  for t in f.get("param_list_nested_elem", {}).values()) \
+          or any(f.get("vararg_str_param") for f in functions) \
           or self._uses_stmt_ir()
+        # ^ W8 (ii): a `*vals: str` vararg param is a `seq string` -> `use seq.Seq`.
+        #   Module5 records it only for a str-ANNOTATED vararg, so no corpus function
+        #   triggers it (byte-identical).
         # ^ nested-list.md S2: a `List[List[τ]]` param is `array (seq τ)` → `use seq.Seq`.
         # ^ seq-model-pivot.md SQ1: a @mutable_state module may promote a REASSIGNED list-elem
         #   local to `seq` (decided during emission, after this import scan), so `use seq.Seq`

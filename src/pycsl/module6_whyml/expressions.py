@@ -367,6 +367,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Other expressions (int) need `<> 0` coercion."""
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
+        # W8 capability (ii): truthiness of the `*vals: str` vararg param is Python
+        # tuple truthiness — NON-EMPTINESS of the argument sequence. `not vals` is
+        # exactly "no explicit values were passed", the guard the `at_name`/`at_bs`
+        # predicates use to accept ANY token of the kind. The default int `<> 0`
+        # coercion is a type error here (`seq string` vs `int`) and semantically
+        # meaningless. Gated on `_vararg_str_param`.
+        if (t == "Var" and ir_expr.get("name")
+                and ir_expr.get("name") == getattr(self, "_vararg_str_param", None)):
+            return f"(Seq.length {whyml_ident(ir_expr['name'])} > 0)"
         # self-tcb-reduction T1.a: `if subst:` on a dict/set param (an `Optional[Dict]` modeled as
         # `map` — None ≡ empty) is the present-guard before `name in subst`; a sound over-approx
         # for the type-safety+frame contract is `true` (the `in` does the real check). @mutable_state.
@@ -713,6 +722,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         generic abstract `contains_check`."""
         negate = op == "not in"
         rhs = expr.get("right", {})
+        # W8 capability (ii) — varargs-membership. `x in vals` where `vals` is the
+        # `*vals: str` vararg parameter (a `seq string`) is a REAL membership test over
+        # the actual argument sequence, NOT the opaque `contains_check (str_hash_op x)
+        # vals` int-hash against an unconstrained constant. `seq_mem_str`'s `ensures`
+        # DEFINES it as the existential `exists i. 0 <= i < length v /\ v[i] = x` — the
+        # same shape as the already-established `str_contains_op` (a `val` fully pinned
+        # by its postcondition, not an axiom): membership is not decidable in Why3's
+        # string model, so it cannot be a `function`, but nothing about it is assumed
+        # beyond its definition. In SPEC context the existential is emitted inline (a
+        # program `val` is illegal in a formula). Gated on `_vararg_str_param` -> fires
+        # for no corpus / pycsl_lib function.
+        _vap = getattr(self, "_vararg_str_param", None)
+        if _vap is not None and rhs.get("type") == "Var" and rhs.get("name") == _vap:
+            _vseq = whyml_ident(_vap)
+            if self._in_spec:
+                _form = (f"(exists _mi: int. 0 <= _mi < Seq.length {_vseq} "
+                         f"/\\ Seq.get {_vseq} _mi = {left})")
+                return f"(not {_form})" if negate else _form
+            self._add_abstract_op(
+                "val seq_mem_str (x: string) (v: seq string) : bool\n"
+                "    ensures { result <-> (exists _mi: int. 0 <= _mi < Seq.length v\n"
+                "      /\\ Seq.get v _mi = x) }")
+            _mcall = f"(seq_mem_str {left} {_vseq})"
+            return f"(not {_mcall})" if negate else _mcall
         # set-value-model-wall (self-tcb-reduction, Tier-5): `x in s` / `x not in s`
         # where `s` is an emitter-local `Set[str]` value reads a PROGRAM BOOL over the
         # executable `set.SetApp[string]` clone — `StrSet.mem x !s` / `not (StrSet.mem
@@ -3682,6 +3715,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (isinstance(_mb, dict) and _mb.get("type") == "Var"
                     and _mb.get("name") in _a2d):
                 return f"({_mb['name']}.columns)"
+        # W8 capability (ii): `len(vals)` on the `*vals: str` vararg param is the
+        # length of the `seq string` argument sequence — `Seq.length`, not the opaque
+        # `iter_length : int -> int` (which would also mistype). Gated on
+        # `_vararg_str_param`.
+        if (atype == "Var" and arg_ir.get("name")
+                and arg_ir.get("name") == getattr(self, "_vararg_str_param", None)):
+            return f"(Seq.length {whyml_ident(arg_ir['name'])})"
         # §B′: len(d[k]) where d is a seq-valued dict (`Dict[_, List[int]]`) — the
         # read is a `seq int`, so its length is `Seq.length`.
         if atype == "Subscript":
@@ -4081,6 +4121,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     c_param_types.append("int")
                 c_coerced = self._coerce_dotted_args(args, c_param_types[:len(args)])
                 return f"({concrete} {' '.join(['self'] + c_coerced)})".rstrip()
+        # W8 capability (ii) — VARARG PACKING on a same-class `self.<m>(...)` call.
+        # Same rule as the module-function call site: when the callee's last formal is a
+        # `*vals: str` vararg, the trailing positional arguments are packed into the
+        # `seq string` the callee declares. Without it the arity/type of the emitted
+        # application disagrees with the callee's real signature (`"+" 154401638` against
+        # `(vals: seq string)`) and the file fails L3-tc. Gated on the callee having a
+        # str-annotated vararg -> byte-identical for every corpus program.
+        if func_name.startswith("self.") and self._current_self_type:
+            _vk = whyml_ident(f"{self._current_self_type}__{func_name[len('self.'):]}")
+            _van = getattr(self, "_module_method_vararg_str", {}).get(_vk)
+            _vfp = getattr(self, "_module_method_formal_params", {}).get(_vk, [])
+            if _van and _vfp and _vfp[-1] == _van:
+                _vfixed = len(_vfp) - 1
+                _vpacked = "(Seq.empty: seq string)"
+                for _vt in reversed(args[_vfixed:]):
+                    _vpacked = f"(Seq.cons {_vt} {_vpacked})"
+                args = args[:_vfixed] + [_vpacked]
         safe_name = whyml_ident(func_name.replace(".", "_"))
         n = len(args)
         arity_name = f"{safe_name}_{n}"
@@ -4994,6 +5051,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # is total — never a partial application. A missing param with no default is a
         # hard error, not a silent partial application.
         formal_params = self._module_method_formal_params.get(func_name, [])
+        # W8 capability (ii) — VARARG CALL-SITE PACKING. When the callee's last formal
+        # is a `*vals: str` vararg, the call is VARIADIC: every trailing positional
+        # argument is packed into the `seq string` the callee receives, so
+        # `at_op("+", "-")` -> `(Seq.cons "+" (Seq.cons "-" (Seq.empty: seq string)))`
+        # and `at_name()` -> the empty seq. This is what makes the membership
+        # `seq_mem_str t.string vals` MEAN what Python means: the callee's `vals` is
+        # provably the caller's literal list, so a caller-side mutation of the literals
+        # changes the goal. Without it the fixed-arity check rejects the call outright.
+        _va_name = getattr(self, "_module_method_vararg_str", {}).get(func_name)
+        if _va_name and formal_params and formal_params[-1] == _va_name:
+            _fixed = len(formal_params) - 1
+            _tail = args[_fixed:]
+            _packed = "(Seq.empty: seq string)"
+            for _t in reversed(_tail):
+                _packed = f"(Seq.cons {_t} {_packed})"
+            args = args[:_fixed] + [_packed]
         if formal_params and len(args) < len(formal_params):
             defaults = self._module_method_param_defaults.get(func_name, {})
             for nm in formal_params[len(args):]:

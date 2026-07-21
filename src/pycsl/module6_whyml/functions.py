@@ -15,6 +15,13 @@ class FunctionEmissionMixin:
                         int_type: str) -> str:
         """Return the WhyML parameter type string for a standalone function argument."""
         safe = whyml_ident(arg)
+        # W8 capability (ii) — varargs-membership. A `*vals: str` vararg is the IMMUTABLE
+        # `seq string` of the extra positional arguments. `seq` (not `array`) because the
+        # tuple Python builds is immutable, and because a Why3 `array` is mutable and
+        # therefore cannot be a pure parameter here. Gated on the Module5-recorded
+        # `vararg_str_param` (str-annotated varargs only) -> byte-identical elsewhere.
+        if arg == getattr(self, "_vararg_str_param", None):
+            return f"({safe}: seq string)"
         # self-tcb-reduction giants (generic class-body lowering): a param annotated
         # `ast.ClassDef` whose `.body` is iterated is the opaque `py_classdef_node` AST
         # node (its `.body` reads the `class_body_ast` psl). Gated on the per-function
@@ -257,6 +264,15 @@ class FunctionEmissionMixin:
         # `k` takes the native tuple key type. Recognized here so `_compute_return_type`
         # and `_param_type_str` (both called downstream in `_emit_function`) can consult
         # it. None for every other function → byte-identical.
+        # W8 capability (ii): the `*vals: str` vararg parameter of this function, or
+        # None. Module5 only records a STRING-annotated vararg, so this is None for
+        # every corpus / pycsl_lib function -> byte-identical.
+        self._vararg_str_param = func.get("vararg_str_param")
+        if self._vararg_str_param:
+            # It is a real parameter, so a bare read of it must resolve to the
+            # parameter name — NOT fall through to the opaque `val constant vals : int`
+            # that the drop-the-vararg behaviour produced.
+            self._current_params.add(self._vararg_str_param)
         self._compound_map_getter = self._recognize_compound_map_getter(func, body_stmts)
         self._compound_key_params: Dict[str, str] = {}
         if self._compound_map_getter is not None:
@@ -4344,6 +4360,13 @@ class FunctionEmissionMixin:
             # (the boolean call-site wraps it `(… <> 0)`); only the param is corrected.
             if self._is_final_annotation(func):
                 param_types = ["emit_ir"]
+            # W8 capability (ii): the `*vals: str` vararg is a real trailing parameter
+            # of type `seq string`, but it is NOT in `symbol_table` (Module4 never sees
+            # a vararg), so the loop above misses it. Append it so the call-site
+            # coercion (`_coerce_dotted_args` zips args against this list) does not
+            # TRUNCATE the packed sequence argument away. Always last.
+            if func.get("vararg_str_param"):
+                param_types = param_types + ["seq string"]
             result[func["name"]] = param_types
         return result
 

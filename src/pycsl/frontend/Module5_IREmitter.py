@@ -744,6 +744,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # uses `string.String` and imports it). Desugaring it to the positional array
         # `exists … Array.length …` would use the wrong theory and leave `Array.length`
         # unbound. Defer to Module6 (as set/dict already do) by keeping the `in` BinOp.
+        # W8 (ii): the `*vals: str` vararg is a `seq string`, not an `array` — defer
+        # `x in vals` to Module6 (same rule as set/dict/str above) so it lowers to the
+        # SEQ existential / `seq_mem_str`, not the array-positional desugaring.
+        if _coll_nm is not None and _coll_nm == getattr(self, "_cur_func_vararg_str", None):
+            return {"type": "BinOp", "op": "in",
+                    "left": self._csl_to_ir(node.element),
+                    "right": self._csl_to_ir(node.collection)}
         if _coll_nm is not None and self._cur_func_symtab.get(_coll_nm) in (
                 "set", "dict", "frozenset", "str"):
             return {"type": "BinOp", "op": "in",
@@ -4355,6 +4362,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
         self._cur_func_symtab = symbol_table
+        # W8 capability (ii): this function's `*vals: str` vararg name (or None),
+        # computed here (BEFORE contract desugaring) so `_csl_in` can keep `x in vals`
+        # as an `in` BinOp for Module6's faithful `seq string` lowering instead of
+        # desugaring it to the ARRAY-positional `exists … Array.length …` (which would
+        # leave `Array.length`/`subscript_get` unbound against a `seq`). Reused below
+        # for the IR field. None for every function without a str-annotated vararg.
+        self._cur_func_vararg_str = None
+        _va0 = getattr(node.args, "vararg", None)
+        if _va0 is not None:
+            _vann0 = getattr(_va0, "annotation", None)
+            if isinstance(_vann0, ast.Name) and _vann0.id == "str":
+                self._cur_func_vararg_str = _va0.arg
         # STEP 1 (B-final): surface name for the \proj-index guard in `_csl_proj`.
         self._cur_func_name = f"function '{node.name}'"
         return_annotation = None
@@ -4450,6 +4469,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `let X = ref X in` (formal params) vs `let X = ref 0 in`
         # (other locals).
         formal_params = [a.arg for a in node.args.args if a.arg != 'self']
+        # W8 capability (ii) — varargs-membership. A `*vals: str` parameter (a
+        # STRING-annotated vararg) is a real, faithfully-modelled parameter: the tuple
+        # of extra positional arguments, lowered by Module6 to an immutable
+        # `seq string`. Without this the vararg was DROPPED from the signature entirely
+        # and every read of it fell back to an unconstrained module-level
+        # `val constant vals : int` — so `t.string in vals` became
+        # `contains_check (str_hash_op t.string) vals`, an opaque int-hash over a
+        # value with no relation to the actual arguments (a total facade).
+        # Gated on the `: str` annotation: an UNANNOTATED `*args` keeps the legacy
+        # drop, so every corpus and `pycsl_lib` function is byte-identical.
+        _vararg_str: Optional[str] = getattr(self, "_cur_func_vararg_str", None)
+        if _vararg_str:
+            formal_params.append(_vararg_str)
         # 1111-spec R7: positional default values (param name -> default IR), so a
         # cross-module call passing fewer args than the callee arity can fill the
         # missing trailing params from these defaults at the call site.
@@ -4527,6 +4559,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (no `Set[str]` local) -> byte-inert.
             "set_value_types": dict(_svt),
             "formal_params": formal_params,
+            # W8 (ii): name of the `*vals: str` vararg parameter (`seq string`), or
+            # absent. Omitted for every function without a str-annotated vararg.
+            **({"vararg_str_param": _vararg_str} if _vararg_str else {}),
             "return_annotation": return_annotation,
             "return_value_type": return_value_type,
             # typing-engagement ty1 / 28-0000-typing-spec-4: `-> NoReturn` (PEP
