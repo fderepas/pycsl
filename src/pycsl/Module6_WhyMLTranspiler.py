@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict, List, Optional, Set
 
 from module6_whyml.identifiers import whyml_ident
@@ -12,6 +13,13 @@ from module6_whyml.expressions import ExpressionEmissionMixin
 from module6_whyml.statements import StatementEmissionMixin
 from module6_whyml.preamble import PreambleEmissionMixin
 from module6_whyml.functions import FunctionEmissionMixin
+
+
+# parser-primitives-wall-impl-3.md capability (i): the internal sentinel that parks
+# the emit_ir ADT theory's position while the rest of the file is emitted. It NEVER
+# survives `transpile` (`_resolve_deferred_exprir_theory` either replaces it with the
+# theory or deletes it).
+_EXPRIR_THEORY_SLOT = "(*__pycsl_exprir_theory_slot__*)"
 
 
 class Module6_WhyMLTranspiler(
@@ -554,9 +562,9 @@ class Module6_WhyMLTranspiler(
             # it is deliberately excluded from the allow-list.
             _TAILOR_OPAQUE_MIRROR_CLASSES = {"StatementEmissionMixin"}
             if set(self.ir.get("mutable_state_class_names", [])) & _TAILOR_OPAQUE_MIRROR_CLASSES:
-                out += self._emit_minimal_emit_ir_theory()
+                _exprir_theory = self._emit_minimal_emit_ir_theory()
             else:
-                out += self._emit_exprir_theory()
+                _exprir_theory = self._emit_exprir_theory()
             # Return_emit_ir infra: an emit_ir-returning function's early-return catch
             # (`_wrap_body_with_return_catch`) needs this exception — it must be declared
             # AFTER the `emit_ir` ADT (just emitted above) since it carries an `emit_ir`
@@ -565,8 +573,32 @@ class Module6_WhyMLTranspiler(
             # corpus (no emit_ir-returning function has an early/in-loop return there yet)
             # → inert.
             if needs.get("needs_return_emit_ir"):
-                out.append("")
-                out.append("  exception Return_emit_ir emit_ir")
+                _exprir_theory = list(_exprir_theory) + [
+                    "", "  exception Return_emit_ir emit_ir"]
+            # parser-primitives-wall-impl-3.md capability (i) — LOW-BLAST-RADIUS
+            # record-element class-field gate. `_mutable_state_classes` is the COARSE
+            # disjunct above: it fires for ANY @mutable_state class, including one whose
+            # state is plain records/arrays/ints (a `_Parser`-shaped token cursor) and
+            # that never names an emit_ir symbol. Emitting the ~277-line ADT theory there
+            # is what made `@mutable_state` unaffordable on a big mirror file (round 2's
+            # measured +283 lines / CERTIFIED-BOUNDARY). The four NARROW disjuncts
+            # (IR-node param, stmt_ir, call_kw, tparam) are positive evidence of real
+            # emit_ir use, so they emit eagerly and are untouched. When ONLY the coarse
+            # disjunct fires we DEFER: park a sentinel, emit the rest of the file, and
+            # splice the theory back in iff the emitted text actually references a symbol
+            # the theory declares (`_resolve_deferred_exprir_theory`). Any reference —
+            # including one inside a comment — re-inserts, so the decision is
+            # conservative in the safe direction and every file that uses emit_ir stays
+            # BYTE-IDENTICAL. Only a @mutable_state class with zero emit_ir contact loses
+            # the theory (and it could not have used it anyway).
+            if (getattr(self, "_uses_ir_node_param", False)
+                    or self._uses_stmt_ir()
+                    or self._uses_call_kw()
+                    or self._uses_tparam()):
+                out += _exprir_theory
+            else:
+                self._exprir_deferred = (_EXPRIR_THEORY_SLOT, list(_exprir_theory))
+                out.append(_EXPRIR_THEORY_SLOT)
 
         # pyval-value-model-wall (self-tcb-reduction, Tier-5 heterogeneous value model):
         # emit the certified `hval` sum + `hval_list` BEFORE the record types — a
@@ -756,7 +788,60 @@ class Module6_WhyMLTranspiler(
         out.append("end")
         self._insert_abstract_val_block(out)
         self._insert_late_content_ops(out)
+        self._resolve_deferred_exprir_theory(out)
         return "\n".join(out)
+
+    # ------------------------------------------------------------------
+    # parser-primitives-wall-impl-3.md capability (i)
+    # ------------------------------------------------------------------
+    def _exprir_theory_symbols(self, theory_lines: List[str]) -> Set[str]:
+        """Every top-level WhyML name the emit_ir theory DECLARES: type names,
+        `with`-group members, constructors, `let (rec) function` / `val` / `lemma`
+        / `exception` names, and the inline record field labels. Derived from the
+        theory's OWN emitted text (same discipline as
+        `_reserved_exprir_symbols`), so it can never drift out of sync."""
+        text = "\n".join(theory_lines)
+        names: Set[str] = set()
+        names.update(re.findall(r"^\s*type\s+(\w+)", text, re.M))
+        names.update(re.findall(r"\bwith\s+(\w+)\s*=", text))
+        names.update(re.findall(r"\blet\s+(?:rec\s+)?function\s+(\w+)", text))
+        names.update(re.findall(r"\bval\s+(\w+)", text))
+        names.update(re.findall(r"\blemma\s+(\w+)", text))
+        names.update(re.findall(r"\bexception\s+(\w+)", text))
+        # Constructors of the sum types (`IrVar`, `ILCons`, `INum`, …): the
+        # capitalized identifiers on a `type`/`with` declaration line.
+        for line in theory_lines:
+            if re.match(r"^\s*(type|with)\s+\w+", line):
+                names.update(re.findall(r"\b([A-Z]\w*)\b", line))
+        # inline record types declared within the theory (`sharedvar`) — their
+        # field labels share the module namespace too.
+        for rec_body in re.findall(r"\{([^{}]*)\}", text):
+            names.update(re.findall(r"(\w+)\s*:", rec_body))
+        names.discard("")
+        return names
+
+    def _resolve_deferred_exprir_theory(self, out: List[str]) -> None:
+        """Splice the deferred emit_ir theory into its parked slot iff the rest of
+        the emitted file references a symbol the theory declares; otherwise drop
+        the slot. See the deferral comment in `transpile`. No-op (and no sentinel
+        in `out`) whenever the theory was emitted eagerly or not at all."""
+        info = getattr(self, "_exprir_deferred", None)
+        if not info:
+            return
+        marker, theory = info
+        self._exprir_deferred = None
+        try:
+            idx = out.index(marker)
+        except ValueError:      # pragma: no cover - defensive
+            return
+        rest = "\n".join(out[idx + 1:])
+        names = self._exprir_theory_symbols(theory)
+        used = bool(names) and bool(re.search(
+            r"\b(?:" + "|".join(re.escape(n) for n in sorted(names)) + r")\b", rest))
+        if used:
+            out[idx:idx + 1] = theory
+        else:
+            del out[idx]
 
     # ------------------------------------------------------------------
     # module-emission.md — OPT-IN axiom isolation via separate Why3 modules
