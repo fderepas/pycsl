@@ -480,11 +480,26 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _pattern_has_constructor(self, pat: "ExprIR") -> bool:
+        """True if `pat` is a constructor pattern, or an `Or` whose alternatives
+        include one — the signal to use Why3's native `match` (A5c)."""
+        p = pat.get("pattern")
+        if p == "Constructor":
+            return True
+        if p == "Or":
+            alts = pat.get("alternatives", [])
+            n_alt = len(alts)
+            i_alt = 0
+            #@ loop invariant 0 <= i_alt and i_alt <= n_alt
+            #@ loop variant n_alt - i_alt
+            while i_alt < n_alt:
+                if self._pattern_has_constructor(alts[i_alt]):
+                    return True
+                i_alt = i_alt + 1
+            return False
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate

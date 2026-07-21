@@ -500,7 +500,7 @@ class TypeInferenceMixin:
                         _ga = val.get("args") or []
                         if (_ga and isinstance(_ga[0], dict)
                                 and _ga[0].get("type") == "String"
-                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts")):
+                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts", "alternatives")):
                             found.add(tgt)
                 # list-comprehension-lowering.md L1: a local first-assigned a list
                 # comprehension is an array local (its element-typed array from
@@ -522,7 +522,7 @@ class TypeInferenceMixin:
                         _ga = _vv.get("args") or []
                         if (_ga and isinstance(_ga[0], dict)
                                 and _ga[0].get("type") == "String"
-                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts")):
+                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts", "alternatives")):
                             found.add(tgt)
                 elif isinstance(val, dict) and val.get("type") == "Var" and tgt:
                     var_assigns[tgt] = val.get("name", "")
@@ -545,7 +545,7 @@ class TypeInferenceMixin:
                         found.add(tgt)
                     # self-tcb-reduction T1.a: `elts = node.elts` — a node-LIST attr on an emit_ir
                     # node is an `array emit_ir` local (`args_of`). @mutable_state.
-                    elif _fld in ("elts", "parts", "args", "captures") and isinstance(
+                    elif _fld in ("elts", "parts", "args", "captures", "alternatives") and isinstance(
                             val.get("object") or val.get("value"), dict) and self._is_emit_ir_expr(
                             val.get("object") or val.get("value")):
                         found.add(tgt)

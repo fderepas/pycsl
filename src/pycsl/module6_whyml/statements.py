@@ -2890,13 +2890,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if _fn.endswith(".get"):
                     _ga = v.get("args") or []
                     if (_ga and isinstance(_ga[0], dict) and _ga[0].get("type") == "String"
-                            and _ga[0].get("value") in ("captures", "args", "parts", "elts")
+                            and _ga[0].get("value") in ("captures", "args", "parts", "elts", "alternatives")
                             and self._is_emit_ir_expr(
                                 {"type": "Var", "name": _fn[:-len(".get")]})):
                         return "emit_ir"
             # self-tcb-reduction T1.a: `node.elts`/`node.parts` (a node-list attr) → emit_ir elem.
             if t in ("Attribute", "FieldGet") and (v.get("attr") or v.get("field")) in (
-                    "elts", "parts", "args", "captures"):
+                    "elts", "parts", "args", "captures", "alternatives"):
                 _o = v.get("object") or v.get("value")
                 if isinstance(_o, dict) and self._is_emit_ir_expr(_o):
                     return "emit_ir"

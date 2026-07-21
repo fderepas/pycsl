@@ -99,6 +99,10 @@ _EMIT_IR_PROJ = {
     # `captures` is a reflected node list (`args_of`); `body` is an OPAQUE stmt-list
     # (`stmts_of : → array int`); `guard` is a single node (`svalue_of`).
     "pattern": "kind_of", "ctor": "name_of", "captures": "args_of",
+    # `alternatives` (an `Or` match-pattern's alternative sub-pattern LIST) joins the
+    # node-list family on the same footing as `captures` — reflected `array emit_ir`,
+    # no theory change. Reference lock: corpus 0893 (positive) / 0894 (negative twin).
+    "alternatives": "args_of",
     "body": "stmts_of", "guard": "svalue_of", "parts": "args_of", "elts": "args_of",
     "lower": "svalue_of", "upper": "svalue_of",   # 07-03-refactor R4: SliceExpr bound sub-nodes
     # tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections — `op` is the operator
@@ -1646,7 +1650,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `_is_string_expr`'s `(attr in _EMIT_IR_STR_ATTRS)` string-leaf check at its Attribute
             # branch — the two recognizers now agree on what `<emit_ir>.<str-attr>` is.
             _at = ir.get("attr") or ir.get("field")
-            if (_at not in ("elts", "parts", "args", "captures")
+            if (_at not in ("elts", "parts", "args", "captures", "alternatives")
                     and _at not in _EMIT_IR_STR_ATTRS
                     and isinstance(obj, dict) and self._is_emit_ir_expr(obj)
                     and getattr(self, "_current_self_type", None)
@@ -7164,7 +7168,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"({_EMIT_IR_STR_ATTRS[attr]} {_os})"
             # self-tcb-reduction T1.a: a node-LIST attr (`node.elts`/`node.parts`/…) → the args
             # list (`args_of`, an `array emit_ir`), so `for elt in node.elts` iterates it.
-            if attr in ("elts", "parts", "args", "captures"):
+            if attr in ("elts", "parts", "args", "captures", "alternatives"):
                 return f"(args_of {_os})"
             # ghost-handler-wall Q2: a position-SWAPPING attr (`elem`/`set`/`list`/`index`)
             # is disambiguated by the ENCLOSING HANDLER, since a single global name entry
@@ -8209,7 +8213,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             attr = src_ir.get("attr") or src_ir.get("field")
             obj = src_ir.get("object") or src_ir.get("value") or {}
             # emit_ir node-list attr → `(args_of <emit_ir>)` : `array emit_ir`
-            if attr in ("elts", "parts", "args", "captures") and self._is_emit_ir_expr(obj):
+            if attr in ("elts", "parts", "args", "captures", "alternatives") and self._is_emit_ir_expr(obj):
                 return True
             # record `List[ExprIR]` field → `array emit_ir`
             rt = self._record_of_receiver(obj)
