@@ -5578,6 +5578,13 @@ class PreambleEmissionMixin:
         # (`type tree = Leaf | Node tree tree`); Why3 handles the self-reference.
         _variant_names = {td["name"] for td in type_decls
                           if td.get("kind") == "variant"}
+        # W8 capability (v): a constructor payload naming a declared RECORD type
+        # (`Optional[_Tok]` -> `Arm_i_0 tok | Arm_i_None`) resolves to that
+        # record's Why3 type, exactly as a payload naming another VARIANT
+        # resolves to the variant's. Without it the payload fell to the `int`
+        # default and every `return <record>` mistyped against the arm.
+        _record_payload_types = {td["name"]: whyml_ident(td["name"].lower())
+                                 for td in type_decls if td.get("kind") == "record"}
 
         def _fmt_variant(vtd: Dict[str, Any]) -> str:
             """Register a variant's WhyML mapping + constructors and return its
@@ -5601,7 +5608,8 @@ class PreambleEmissionMixin:
                 pay = " ".join(
                     _tpvar[t] if t in _tpvar
                     else _VPAY[t] if t in _VPAY
-                    else (t.lower() if t in _variant_names else "int")
+                    else t.lower() if t in _variant_names
+                    else _record_payload_types.get(t, "int")
                     for t in c.get("payload", []))
                 self._constructors[c["name"]] = {
                     "type": vtd["name"], "whyml_type": tn,

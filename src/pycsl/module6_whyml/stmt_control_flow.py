@@ -1344,6 +1344,14 @@ class ControlFlowStmtMixin:
         """Infer the WhyML type of a return value IR node for Union injection."""
         if not isinstance(val_ir, dict):
             return None
+        # W8 capability (v): a RECORD-VALUED return (`return self.toks[idx]` /
+        # `return self.advance()` / a record-typed local) resolves to the record's
+        # Why3 type, so it is injected into the Optional variant's RECORD arm.
+        # Gated on the `List[<record>]`-field machinery -> None (byte-inert)
+        # everywhere else, so it may run first without perturbing any other shape.
+        _rec = self._record_valued_expr_whyml_type(val_ir)
+        if _rec is not None:
+            return _rec
         t = val_ir.get("type")
         if t in ("Number", "BinOp") or t == "UnaryOp":
             return "int"
@@ -1397,7 +1405,65 @@ class ControlFlowStmtMixin:
              # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
              # carries the already-lowered emit_ir sub-node.
              "emit_ir": "emit_ir"}
-        return m.get(tag, "int")
+        if tag in m:
+            return m[tag]
+        # W8 capability (v): a RECORD-class arm tag (`Optional[_Tok]` -> the arm
+        # tag `_Tok`) resolves to that record's Why3 type, so the return-value
+        # injection below can match a record-valued `return` against the arm.
+        _rt = getattr(self, "_record_types", {}).get(tag)
+        if _rt and _rt.get("whyml_name"):
+            return _rt["whyml_name"]
+        return "int"
+
+    def _record_valued_expr_whyml_type(self, val_ir: Any) -> Optional[str]:
+        """W8 capability (v): the Why3 record type of a RECORD-VALUED expression,
+        for the three shapes the token cursor returns from an `Optional[<record>]`
+        method; None for everything else.
+
+        * `self.<field>[i]`  — an element of an `array <record>` self-field
+          (`return self.toks[idx]`, proof2why3 `peek`);
+        * `self.<m>(...)`    — a same-class sibling call DECLARED `-> <RecordClass>`
+          (`return self.advance()`, `accept_op`/`accept_kw`);
+        * `t`                — a local bound to either of the above.
+
+        All three are gated on `_record_array_fields` / `_record_field_elem_locals`
+        / a record-valued entry in `_module_method_return_types`, which are
+        populated only inside a class carrying a `List[<record>]` field — so this
+        is None (hence byte-inert) everywhere else.
+        """
+        if not isinstance(val_ir, dict):
+            return None
+        _recs = getattr(self, "_record_types", {}) or {}
+        _wns = {v.get("whyml_name") for v in _recs.values() if isinstance(v, dict)}
+        t = val_ir.get("type")
+        if t == "Subscript":
+            _b = val_ir.get("value")
+            if isinstance(_b, dict) and _b.get("type") in ("FieldGet", "Attribute"):
+                _o = _b.get("object") or _b.get("value")
+                if isinstance(_o, dict):
+                    _o = _o.get("name")
+                if _o == "self":
+                    _ecls = (getattr(self, "_record_array_fields", None) or {}).get(
+                        _b.get("field") or _b.get("attr"))
+                    if _ecls and _ecls in _recs:
+                        return _recs[_ecls]["whyml_name"]
+            return None
+        if t == "Var":
+            _ecls = (getattr(self, "_record_field_elem_locals", None) or {}).get(
+                val_ir.get("name", ""))
+            if _ecls and _ecls in _recs:
+                return _recs[_ecls]["whyml_name"]
+            return None
+        if t == "Call":
+            _f = val_ir.get("func", "")
+            if isinstance(_f, str) and _f.startswith("self."):
+                _cls = getattr(self, "_current_self_type", None)
+                _key = f"{_cls}__{_f[len('self.'):]}" if _cls else _f[len("self."):]
+                _rt = getattr(self, "_module_method_return_types", {}).get(_key)
+                if _rt in _wns:
+                    return _rt
+            return None
+        return None
 
     def _handle_return_stmt(
         self,

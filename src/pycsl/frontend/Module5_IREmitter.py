@@ -3141,6 +3141,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if elt.id in ("int", "bool", "float", "str", "bytes",
                           "list", "dict", "set", "frozenset", "tuple", "bytearray"):
                 return "int" if elt.id in ("int", "bool") else elt.id
+            # W8 capability (v): a DECLARED RECORD CLASS arm (`Optional[_Tok]`)
+            # is a REAL arm carrying that record, not an `Any` to be dropped.
+            # Dropping it collapsed the synthesized variant to the vacuous
+            # `Arm_<i>_None`-only type, so `return <record>` could not be
+            # injected into any constructor and the file failed L3-tc. The tag
+            # is the class name; Module6's `_fmt_variant` resolves it to the
+            # record's WhyML type (the same resolution it already does for a
+            # payload naming another VARIANT). Gated on the record registry, so
+            # a non-record class arm still degrades to `Any` exactly as before.
+            #
+            # The gate is the EMITTED `record` type_decl set — deliberately
+            # narrower than `_m5_declared_record_names()` (which also carries the
+            # pre-`generic_visit` class pre-scan). A class in the pre-scan but
+            # WITHOUT a record type_decl has no Why3 record type, so Module6 would
+            # silently resolve its payload to the `int` default: an int-ERASED arm,
+            # i.e. exactly the kind of facade this capability exists to remove.
+            # Matching Module6's `_record_payload_types` domain byte-for-byte means
+            # an arm is emitted iff it can be typed faithfully; otherwise the class
+            # falls back to `Any` (dropped, GT1) as before.
+            if any(td.get("kind") == "record" and td.get("name") == elt.id
+                   for td in self.program_ir.get("type_decls", [])):
+                return elt.id
             return "Any"
         # self-tcb-reduction giants (generic class-body lowering): an `ast.<expr-node>`
         # arm (`Optional[ast.expr]` — the `value` local of `_collect_class_constants`)
