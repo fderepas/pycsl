@@ -765,6 +765,13 @@ import re as _re
 class _ContractSyntaxError(Exception):
     'Internal syntax error raised by `_ContractParser`; converted to\n    `PyCSLParseError` at the `Module2_Parser` boundary.'
 
+# Mirror-only infra shim (see bin/self-annotate-mirror-check.sh MIRROR_ONLY): marks the
+# token-cursor `_ContractParser` as a stateful record so its `toks`/`i` fields lower to
+# `mutable toks: array _tok` / `mutable i: int`.
+def mutable_state(cls):
+    return cls
+
+
 class _Tok:
     __slots__ = ('type', 'string', 'start')
     #@ \trusted reviewer: pycsl-self-annotate
@@ -772,7 +779,9 @@ class _Tok:
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, type_, string, start):
-        pass
+        self.type: str = type_
+        self.string: str = string
+        self.start: int = start
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -796,6 +805,10 @@ _EQ_OPS = ('==', '!=')
 _COMP_OPS = ('>', '<', '>=', '<=')
 _ADD_OPS = ('+', '-')
 _MUL_OPS = ('*', '//', '/', '%')
+#@ class invariant 0 <= self.i
+#@ class invariant self.i < \length(self.toks)
+#@ class invariant \length(self.toks) >= 1
+@mutable_state
 class _ContractParser:
     'Recursive-descent parser over `_Tok` producing `CSLNode` trees.\n\n    One method per grammar rule; each builds the SAME `CSLNode` the\n    corresponding `PyCSLTransformer` method built. Dispatch is on the leading\n    keyword / backslash-name of the contract.\n    '
     #@ \trusted reviewer: pycsl-self-annotate
@@ -803,14 +816,15 @@ class _ContractParser:
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, source: str):
-        pass
+        toks, raw = _lex_contract(source)
+        self.toks: List[_Tok] = toks
+        self.i: int = 0
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def cur(self):
-        pass
+    def cur(self) -> _Tok:
+        return self.toks[self.i]
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -819,12 +833,14 @@ class _ContractParser:
     def peek(self, k=1):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def advance(self):
-        pass
+    #@ assigns self.i
+    def advance(self) -> _Tok:
+        t = self.toks[self.i]
+        if self.i < len(self.toks) - 1:
+            self.i += 1
+        return t
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

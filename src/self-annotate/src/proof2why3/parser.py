@@ -46,13 +46,27 @@ _COMPARISON_OPS = {'=', '>=', '<=', '>', '<', '<>', '!=', '=='}
 _ARITH_ADD_OPS = {'+', '-'}
 _ARITH_MUL_OPS = {'*'}
 _KNOWN_FN_HEADS = {'gcd', 'mod', 'add', 'mul', 'sub', 'DecidableEq', 'bit_and', 'struct_pack_i1a1', 'struct_unpack_i1a1', 'struct_pack_i2', 'struct_unpack_i2', 'struct_pack_i18', 'struct_unpack_i18'}
+# Mirror-only infra shim (see bin/self-annotate-mirror-check.sh MIRROR_ONLY): marks the
+# token-cursor `_Parser` as a stateful record so its `toks`/`pos` fields lower to
+# `mutable toks: array token` / `mutable pos: int`.
+def mutable_state(cls):
+    return cls
+
+
+# NOTE the invariant is `0 <= self.pos` ONLY. Unlike the two frontend cursors, the live
+# `take` steps `self.pos` UNGUARDED, so `self.pos < \length(self.toks)` is genuinely NOT
+# an invariant of this class — the bound is `take`'s PRECONDITION instead (the live
+# method is partial: it raises IndexError past the end).
+#@ class invariant 0 <= self.pos
+@mutable_state
 class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, tokens: List[Token]) -> None:
-        pass
+        self.toks: List[Token] = tokens
+        self.pos: int = 0
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -61,12 +75,13 @@ class _Parser:
     def peek(self, offset: int=0) -> Optional[Token]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    #@ requires self.pos < \length(self.toks)
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def take(self) -> Token:
-        return None
+        t = self.toks[self.pos]
+        self.pos += 1
+        return t
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
