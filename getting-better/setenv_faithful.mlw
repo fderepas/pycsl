@@ -1,0 +1,52 @@
+module ProcFaithful
+  use int.Int
+  use seq.Seq
+  use string.String
+
+  (* Faithful model of proc.ProcessState with seq-typed env fields,
+     replacing the current int-erased `array int` + shadow-local facade.
+     _env_keys/_env_vals are growable seqs; the append is a real
+     `self._env_keys <- snoc (old self._env_keys) key` field write-back. *)
+  type processstate = {
+    mutable _env_keys: seq string;
+    mutable _env_vals: seq string;
+    mutable _env_count: int;
+  }
+    invariant { _env_count >= 0 }
+    by { _env_keys = empty; _env_vals = empty; _env_count = 0 }
+
+  (* setenv's REAL corpus contract: assigns _env_keys, _env_vals, _env_count.
+     No ensures in the source. Here we model the append-not-found path with a
+     FAITHFUL write-back, and ADD an observational postcondition (evil-twin
+     non-vacuity check) that the appended key/value are really at the tail. *)
+  let processstate__setenv_faithful (self: processstate) (key: string) (value: string) : unit
+    writes { self._env_keys, self._env_vals, self._env_count }
+    (* frame-only contract as in the source discharges trivially; the added
+       ensures below PROVE the effect is real (non-vacuous). *)
+    ensures { self._env_keys = snoc (old self._env_keys) key }
+    ensures { self._env_vals = snoc (old self._env_vals) value }
+    ensures { Seq.get self._env_keys (Seq.length (old self._env_keys)) = key }
+  =
+    self._env_keys <- snoc self._env_keys key;
+    self._env_vals <- snoc self._env_vals value;
+    self._env_count <- self._env_count + 1
+
+  (* Sequential-compose / read-back driver: setenv then observe the tail.
+     Mirrors a formal test that appends and reads it back. *)
+  let test_setenv_readback (self: processstate) : unit
+  =
+    let ghost old_keys = self._env_keys in
+    let k0 = Seq.length self._env_keys in
+    processstate__setenv_faithful self "PATH" "/bin";
+    assert { self._env_keys = snoc old_keys "PATH" };
+    assert { k0 = Seq.length old_keys };
+    assert { Seq.get self._env_keys k0 = "PATH" }
+
+  (* Evil-twin: a WRONG write-back (snoc the value into the keys) must NOT
+     discharge the key-tail postcondition — guards against vacuity. *)
+  let processstate__setenv_evil (self: processstate) (key: string) (value: string) : unit
+    writes { self._env_keys }
+    ensures { self._env_keys = snoc (old self._env_keys) key }
+  =
+    self._env_keys <- snoc self._env_keys value
+end
