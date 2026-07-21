@@ -344,3 +344,105 @@ not a capability gap.
 * the three `peek`s — **(iv)** negative-index array read (`pure_ast`, `Module2`), **(v)** (`proof2why3`).
 * `_err` / `error` / `unsupported` — CERTIFIED FACADE, unchanged (Gate C reject).
 * `proof2why3/parser.py` has NO varargs predicates; `_Unparser.write(self, *text)` is a different shape (deferred).
+
+---
+
+## W8 RUN #8 — (v) + (iv) BOTH BUILT (Gate S PASS ×2), 6 CONVERSIONS (count 1000 → 994)
+
+### (iv) faithful negative literal array index — **Gate S PASS**, commit `edbc597d`
+BEFORE (measured on the `_Parser`-shaped probe): `self.toks[-1]` → `self.toks[(- 1)]`. Wrong twice —
+WhyML arrays have no from-the-end convention, so `a[-1]` denoted nothing the program reads; and the
+bounds VC `0 <= i < Array.length a` can NEVER discharge for a negative `i`, so every such read was a
+permanently red goal, invisible inside a `\trusted` stub.
+
+AFTER: `self.toks[((Array.length self.toks) - 1)]` — `Sub-goal index in array bounds … Valid`, discharged
+from the class invariant `\length(self.toks) >= 1`, exactly as predicted.
+
+Scope is deliberately narrow: only a syntactically negative INTEGER LITERAL (`UnaryOp('-', Number(k))`
+or a folded negative `Number`). A negative value in a VARIABLE is not statically detectable and keeps the
+old lowering — a general run-time negative-index model needs a conditional read and is a separate
+capability. **Nothing is assumed about run-time negative variables.**
+
+Gates: **corpus byte-diff 0 on all 774 baseline files** (zero exposure — no corpus program does a negative
+literal read on an array-typed base); **mirror-wide L3-tc sweep 52/52 before AND after**; **mirror emission
+byte-diff 0 over all 52 files** (fully inert until a conversion uses it); ledger **3**. Fixture **0934**,
+all VCs Valid incl. both bounds sub-goals, three evil twins (`tail` → cell `-2`; `off_by_one_differs` → 0;
+`last_agrees` → 0) all **Unknown**, MUTATION TEST pass.
+
+### (v) `Optional[<record>]` return union arm — **Gate S PASS**, commit `70cbf16c`
+BEFORE: `type _union_peek_0 = Arm_0_None` — the record arm was dropped as an unrecognised `Any` (GT1),
+so `return self.toks[idx]` had nowhere to be injected and the file failed L3-tc outright
+(`This expression has type tok, but is expected to have type _union_peek_0`).
+
+AFTER: `type _union_peek_1 = Arm_1_0 tok | Arm_1_None`, with
+`raise (Return__union_peek_1 (Arm_1_0 self.toks[!idx]))` and
+`raise (Return__union_accept_op_0 (Arm_0_0 (parser__advance self)))`.
+
+Three seams: Module5 `_union_arm_tag` (record-class arm), Module6 `_fmt_variant` (payload → record type),
+Module6 `_infer_return_value_type`/`_union_arm_whyml_type` (record-valued return → the record arm, for the
+three live shapes: self-field array element, same-class sibling call declared `-> <record>`, record local).
+
+**The gate that mattered:** the arm is emitted iff the class has an EMITTED `record` type_decl — deliberately
+narrower than `_m5_declared_record_names()` (which also carries the pre-`generic_visit` class pre-scan).
+Measured: without that narrowing the mirror grew a bogus **`Arm_3_0 int`** arm for `HappyProperty`, i.e. a
+NEW int-erasure facade. Such a class still degrades to `Any` exactly as before.
+
+Gates: **corpus byte-diff 0 on all 774 baseline files**; **mirror-wide L3-tc sweep 52/52 before AND after**;
+**mirror emission diff = exactly 3 files**, each `+1` real record arm on a previously VACUOUS
+`Arm_*_None`-only variant (`ir_schema` ContractsIR, `struct_format` StructFormat, `proof2why3/parser` Token)
+— the repair itself, and **all three re-proved whole-file SUCCESS**. Ledger **3**. Fixture **0933**,
+all VCs Valid; arms typed PER record class (`tok` vs `node`); the test cannot pass vacuously because with the
+old lowering the file does not TYPE-CHECK; NON-VACUITY via `accept_op`'s two-sided frame control with the
+evil twin `self.i > \old(self.i)` **unproven**, and `peek`'s bounds goal which stops discharging when
+`requires offset >= 0` is dropped; MUTATION TEST pass on both shapes.
+
+### CONVERTED (6, count 1000 → 994)
+| file | primitives | capability | emitted evidence |
+|---|---|---|---|
+| `proof2why3/parser._Parser` | `peek` | (v) | `Arm_0_0 self.toks[!idx]` / `Arm_0_None`, `type _union_peek_0 = Arm_0_0 token \| Arm_0_None` |
+| `pure_ast._Parser` | `peek` | (iv) | `if (!j < Array.length self.toks) then self.toks[!j] else self.toks[(Array.length self.toks - 1)]` |
+| `Module2._ContractParser` | `peek` | (iv) | identical shape |
+| `pure_ast._Parser` | `accept_op`, `accept_kw` | (v) | `Arm_i_0 (_parser__advance self)` / `Arm_i_None`, vararg `Seq.cons py_val (Seq.empty: seq string)` |
+| `Module2._ContractParser` | `accept_op` | (v) | `Arm_9_0 (_contractparser__advance self)` / `Arm_9_None` |
+
+(`Module2._ContractParser` has **no** `accept_kw` — census-checked, the brief's list assumed one.)
+
+Whole-file proof SUCCESS on all three mirrors (foreground); mirror-wide L3-tc sweep **0 failures before AND
+after** every batch; corpus byte-diff **0**; ledger **3**; mirror-sync bodies **byte-identical to live**
+(the only deltas are the added `-> _Tok` / `-> Optional[_Tok]` / `val: str` annotations, the same shape the
+already-converted `cur`/`advance` carry; the p2w `peek` conversion also removed a stub-generator artifact
+`int=0` → `int = 0`, so that method is now byte-exact and the divergence count returned to its baseline).
+
+### PRECONDITIONS USED — all genuine partiality, all justified from the live body
+`peek`'s `#@ requires offset >= 0` / `#@ requires k >= 0` (×3). The in-range read is guarded ONLY from
+above (`idx < len(self.toks)`), so a negative offset makes the index negative and Python **silently reads
+from the END of the list** — a different token than the one `offset` ahead. Census of live call sites: all
+15 p2w sites pass the default `0`; every `pure_ast` site passes `1` or the default `0`; the single
+`Module2` site passes the default `1`. **No class invariant was strengthened** anywhere (note p2w's
+standing comment that `self.pos < \length(self.toks)` is deliberately NOT an invariant of that class).
+
+### HONEST RESIDUAL on `accept_*` (recorded, not papered over)
+The GUARD `self.at_op(val)` is still a receiver-less abstract `val self_at_op_1 (x0: seq string) : int`
+with `ensures true`. The model may therefore take either branch — a sound over-approximation here, since
+the postcondition is `True` and the real VC content (class-invariant preservation + the `assigns self.i`
+frame) is proven. It is **NOT** the `expect_*` failure mode: `at_op` returns a value and does not raise, so
+no control flow is lost, and the argument IS faithfully packed (mutation of the literal changes the `.mlw`).
+The concrete sibling lowering for a NON-record-returning same-class call remains the separate capability.
+
+### ADJACENT GAPS found while probing (each its own capability; none taken)
+* **Contract-side `None`.** `\result != None` on a union return lowers `None` to the int `0` →
+  `result <> 0`, mistyped against the variant. Same family as the earlier `-> bool` contract-coercion gap.
+* **`Optional[<record>]` mutable LOCAL.** `t: Optional[Tok] = None; t = self.toks[self.i]` is still
+  pre-declared `ref 0`; the local-decl seam routes through `_optional_record_arm` (`option:<R>`) and never
+  reaches the variant path, so `t is None` compares an int and `t.py_type` falls to `get_py_type`.
+* **CALLER of an Optional-returning sibling.** `t = self.peek(0)` abstracts to a receiver-less
+  `val self_peek_1 : int` — the concrete sibling lowering does not yet cover a UNION return. Harmless
+  today: every caller of the converted primitives is still a `\trusted` stub.
+
+### Honest remaining list for these three files (unchanged where not noted)
+* `pure_ast.expect_op`, `expect_kw` / `Module2.expect_op`, `expect_name`, `expect_bs` — faithful
+  raise-payload construction AND a RAISING model for `_err`/`error` (a no-op stub changes control flow),
+  plus the concrete non-record sibling lowering so the `at_*` guard is not an `ensures true` stub.
+* `_err` / `error` / `unsupported` — CERTIFIED FACADE (Gate C reject), unchanged.
+* `proof2why3._Parser.expect` — uses `peek`, so it now needs the Optional-CALLER unwrap above.
+* `_ContractParser._try` — higher-order function-value boundary, unchanged.
