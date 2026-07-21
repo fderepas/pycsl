@@ -111,6 +111,23 @@ class ControlFlowStmtMixin:
             return f"(stmt_body !{whyml_ident(nm)})"
         return None
 
+    def _tparam_iter_recv(self, iter_ir: Dict[str, Any]) -> Optional[str]:
+        """L1 tparam reflection-node ADT (self-tcb-reduction, collector-family unlock): if
+        `iter_ir` is `<node>.type_params` where `<node>` is a `py_tparam_node`-typed param,
+        return the iterated tparam_list TERM `(type_params_of <node>)`; else None. The
+        `class_body_ast`/`.body` precedent — a modelled cons-list, not the opaque int
+        fallback. Scoped via `_current_tparam_node_params` -> corpus-inert."""
+        if not (isinstance(iter_ir, dict) and iter_ir.get("type") == "Attribute"
+                and iter_ir.get("attr") == "type_params"):
+            return None
+        obj = iter_ir.get("object", {})
+        if not (isinstance(obj, dict) and obj.get("type") == "Var"):
+            return None
+        nm = obj.get("name")
+        if nm in getattr(self, "_current_tparam_node_params", set()):
+            return f"(type_params_of {whyml_ident(nm)})"
+        return None
+
     def _pyast_walk_recv(self, iter_ir: Dict[str, Any]) -> Optional[str]:
         """K2 convergence (self-tcb-reduction, R2 ast.walk dispatch): if `iter_ir` is
         `ast.walk(<x>)` where `<x>` is a `pyast_stmt` LOCAL (an enclosing class-/module-
@@ -180,6 +197,17 @@ class ControlFlowStmtMixin:
         if _awr is not None:
             self._pyast_loop_variant_len = f"(psl_len {_awr})"
             return (f"(psl_len {_awr})", f"(psl_nth !{idx} {_awr})", False)
+        # L1 tparam reflection-node ADT: `for tp in <node>.type_params` over a
+        # `py_tparam_node` param iterates the MODELLED `type_params_of node` tparam_list —
+        # bound `tpl_len (type_params_of node)`, element `tpl_nth !idx (type_params_of
+        # node)` (a real `tparam` per iteration), NOT the opaque `iter_length`/`iter_get`
+        # int fallback. Sets `_pyast_loop_variant_len` (arithmetic termination variant;
+        # this mirror class is not @mutable_state). Scoped via `_tparam_iter_recv` ->
+        # corpus-inert.
+        _tpr = self._tparam_iter_recv(iter_ir)
+        if _tpr is not None:
+            self._pyast_loop_variant_len = f"(tpl_len {_tpr})"
+            return (f"(tpl_len {_tpr})", f"(tpl_nth !{idx} {_tpr})", False)
         # J2/J3 convergence (Call-internals keyword iteration): `for kw in <call>.keywords`
         # over an emit_ir `call` local iterates the certified `keyword_list` — bound
         # `kwl_len (call_keywords call)`, element `kwl_nth !idx (call_keywords call)` (a real
@@ -399,12 +427,23 @@ class ControlFlowStmtMixin:
         # body's `kw.arg` / `kw.value` / `isinstance(kw.value, ast.Name)` / `kw.value.id`
         # lower to the certified keyword projectors, not the opaque int path.
         _is_kwbody = self._keyword_iter_recv(iter_ir, local_refs) is not None
+        # L1 tparam reflection-node ADT: a tparam_list loop binds `tp` to a real `tparam`
+        # per iteration — register it in `_tparam_locals` (+ symbol type "TParam") so the
+        # body's `type(tp).__name__` / `tp.name` / `tp.bound` lower to the certified tparam
+        # projectors, not the opaque int path.
+        _is_tparambody = self._tparam_iter_recv(iter_ir) is not None
         if _is_classbody:
             self._pyast_stmt_locals.add(target)
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "PyAstStmt"
+        elif _is_tparambody:
+            self._tparam_locals.add(target)
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_symtype = _st.get(target, _MISSING)
+                _st[target] = "TParam"
         elif _is_kwbody:
             if not hasattr(self, "_keyword_locals"):
                 self._keyword_locals = set()
@@ -421,6 +460,7 @@ class ControlFlowStmtMixin:
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
         if (_saved_symtype is not _MISSING or _is_classbody or _is_kwbody
+                or _is_tparambody
                 or self._mktuple_elts_recv_ir(iter_ir) is not None):
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
@@ -430,6 +470,8 @@ class ControlFlowStmtMixin:
                     _st[target] = _saved_symtype
         if _is_classbody:
             self._pyast_stmt_locals.discard(target)
+        if _is_tparambody:
+            self._tparam_locals.discard(target)
         if _is_kwbody:
             self._keyword_locals.discard(target)
         if not inner_body:

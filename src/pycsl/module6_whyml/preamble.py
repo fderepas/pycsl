@@ -1800,6 +1800,10 @@ class PreambleEmissionMixin:
                 # (via the full emit_ir theory it forces) → needs Array. Byte-inert
                 # elsewhere (`_uses_call_kw` False for the whole corpus).
                 or self._uses_call_kw()
+                # L1: the tparam theory forces the full emit_ir theory (`args_of :
+                # array emit_ir`) → needs Array. Byte-inert (`_uses_tparam` False
+                # for the whole corpus).
+                or self._uses_tparam()
             )
         else:
             needs_array = False
@@ -4788,7 +4792,102 @@ class PreambleEmissionMixin:
             ] if self._uses_pyast_module() else []) + [
                 "",
             ]) if self._uses_pyast_stmt() else []),
+            # L1 tparam reflection-node ADT (self-tcb-reduction, collector-family
+            # unlock; getting-better/self-field-append-wall-impl.md §K5/§L1, K5 hand-
+            # oracle scratchpad/k5_spike.mlw Z3-Valid + axiom-free). Models the PEP-695
+            # `type_params` reflection the mirror's `_collect_type_params` dispatches
+            # over: `type(tp).__name__` -> `tp_kind_of` (a NODE-KIND DISCRIMINANT, the
+            # pyast_stmt/emit_ir precedent — NOT the dropped generic reflection);
+            # `getattr(tp,"name")` -> `tp_name`; `getattr(tp,"bound")` -> `tp_bound`
+            # (an emit_ir child, TypeVar only); the bound `isinstance`/`.id`/`.attr`
+            # dispatch REUSES the existing emit_ir `is_var`/`is_attribute`/`name_of`
+            # (K5-confirmed). `tparam_list` is a BESPOKE cons-list (TPNil/TPCons — NOT
+            # seq, respecting the recorded seq non-strict-positivity wall);
+            # `type_params_of` is an opaque `val function` (the `class_body_ast`
+            # precedent, no new axiom). Gated on `_uses_tparam` (a `TParamNode`-annotated
+            # param — a NEW sentinel name; no corpus program or other mirror carries it
+            # -> the emit_ir theory stays byte-identical everywhere else). Axiom-free
+            # (ADT + definitional projectors + the faithfulness lemmas; reuses the
+            # emit_ir discriminants) -> ledger stays 3.
+            *(([
+                "",
+                "  (* L1 tparam reflection-node ADT (self-tcb-reduction, collector-family"
+                " unlock): the PEP-695 `type_params` node union `_collect_type_params`"
+                " isinstance/type-name-dispatches over. `TP*` prefix (disjoint). TPTypeVar"
+                " carries the bound sub-node as an emit_ir child (TypeVar only);"
+                " ParamSpec/TypeVarTuple are bound-less. `tp_kind_of` maps"
+                " `type(tp).__name__` to the kind discriminant (\"TypeVar\"/\"ParamSpec\"/"
+                " \"TypeVarTuple\"); `tp_name` = `getattr(tp,\"name\")`; `tp_bound` ="
+                " `getattr(tp,\"bound\")` (emit_ir); `is_K`<->`tp_kind_of=\"K\"`"
+                " faithfulness lemmas model the reflection faithfully. The bound"
+                " isinstance/`.id`/`.attr` dispatch reuses the existing emit_ir"
+                " is_var/is_attribute/name_of. `tparam_list` is the bespoke cons-list"
+                " `type_params_of` (an opaque val, class_body_ast precedent) yields."
+                " Gated on `_uses_tparam` -> corpus + every other mirror byte-identical. *)",
+                "  type tparam =",
+                "    | TPTypeVar string emit_ir",
+                "    | TPParamSpec string",
+                "    | TPTypeVarTuple string",
+                "  let function tp_kind_of (tp: tparam) : string =",
+                "    match tp with",
+                "    | TPTypeVar _ _ -> \"TypeVar\"",
+                "    | TPParamSpec _ -> \"ParamSpec\"",
+                "    | TPTypeVarTuple _ -> \"TypeVarTuple\"",
+                "    end",
+                "  let function tp_name (tp: tparam) : string =",
+                "    match tp with TPTypeVar n _ -> n | TPParamSpec n -> n"
+                " | TPTypeVarTuple n -> n end",
+                "  let function tp_bound (tp: tparam) : emit_ir =",
+                "    match tp with TPTypeVar _ b -> b | _ -> IrOther \"\" end",
+                "  let predicate is_typevar (tp: tparam) ="
+                " match tp with TPTypeVar _ _ -> true | _ -> false end",
+                "  let predicate is_paramspec (tp: tparam) ="
+                " match tp with TPParamSpec _ -> true | _ -> false end",
+                "  let predicate is_typevartuple (tp: tparam) ="
+                " match tp with TPTypeVarTuple _ -> true | _ -> false end",
+                "  lemma is_typevar_faithful : forall tp: tparam."
+                " is_typevar tp <-> tp_kind_of tp = \"TypeVar\"",
+                "  lemma is_paramspec_faithful : forall tp: tparam."
+                " is_paramspec tp <-> tp_kind_of tp = \"ParamSpec\"",
+                "  lemma is_typevartuple_faithful : forall tp: tparam."
+                " is_typevartuple tp <-> tp_kind_of tp = \"TypeVarTuple\"",
+                "  type tparam_list = TPNil | TPCons tparam tparam_list",
+                "  let rec function tpl_len (l: tparam_list) : int ="
+                " match l with TPNil -> 0 | TPCons _ t -> 1 + tpl_len t end",
+                "  let rec function tpl_nth (i: int) (l: tparam_list) : tparam",
+                "    variant { l } =",
+                "    match l with TPNil -> TPParamSpec \"\""
+                " | TPCons h t -> if i <= 0 then h else tpl_nth (i-1) t end",
+                "  type py_tparam_node",
+                "  val function type_params_of (n: py_tparam_node) : tparam_list",
+                "",
+            ]) if self._uses_tparam() else []),
         ]
+
+    def _uses_tparam(self) -> bool:
+        """L1 tparam reflection-node ADT (self-tcb-reduction, collector-family unlock):
+        True iff some function in this file has a param/local annotated with the
+        `TParamNode` sentinel type — the node whose `.type_params` the PEP-695 reflection
+        loop iterates (`for tp in <node>.type_params`). Only then are the `tparam` ADT +
+        `tparam_list` + `tp_kind_of`/`tp_name`/`tp_bound` projectors + `type_params_of`
+        emitted into the emit_ir theory, so the certified tparam value model stays OUT of
+        every other mirror's SMT context and the whole reference corpus (`TParamNode` is a
+        NEW sentinel name; no corpus program or other mirror carries it -> byte-identical).
+        The byte-inert gate, mirroring `_uses_call_kw`'s `CallKw` sentinel. Cached."""
+        cached = getattr(self, "_uses_tparam_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            v == "TParamNode"
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("symbol_table", {}) or {}).values()
+        ) or any(
+            v == "TParamNode"
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("param_annotations", {}) or {}).values()
+        )
+        self._uses_tparam_cache = result
+        return result
 
     def _uses_pyast_stmt(self) -> bool:
         """pyast_stmt ADT (self-tcb-reduction giants): True iff some function in this file

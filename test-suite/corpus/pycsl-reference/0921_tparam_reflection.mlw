@@ -1,0 +1,175 @@
+(* 0921 — tparam PEP-695 reflection-node value model (self-tcb-reduction, Tier-5
+   value-model wall, L1): OBSERVATIONAL non-vacuity for the faithful
+   type-parameter reflection lowering (the collector-family unlock).
+
+   A Python `_collect_type_params` loop `for tp in node.type_params:
+   kind = type(tp).__name__; name = tp.name; bnode = tp.bound;
+   if isinstance(bnode, ast.Name): b = bnode.id
+   elif isinstance(bnode, ast.Attribute): b = bnode.attr` lowers to a REAL
+   projection over a `tparam` node ADT: `type(tp).__name__` -> `tp_kind_of tp`
+   (a NODE-KIND DISCRIMINANT — "TypeVar"/"ParamSpec"/"TypeVarTuple", NOT the
+   dropped generic reflection); `tp.name` -> `tp_name tp`; `tp.bound` ->
+   `tp_bound tp` (an emit_ir sub-node, TypeVar only); the bound isinstance/
+   `.id`/`.attr` REUSE the existing emit_ir `is_var`/`is_attribute`/`name_of`.
+   The `.type_params` list is the bespoke cons-list `tparam_list` (TPNil/TPCons)
+   that `type_params_of` yields; the loop iterates it via `tpl_len`/`tpl_nth`.
+
+   The `type tparam`/`tparam_list`, `tp_kind_of`/`tp_name`/`tp_bound`, the
+   `is_K` faithfulness lemmas, and `type_params_of` below are VERBATIM the
+   PyCSL tool's emitted output (preamble.py `_emit_exprir_theory`, gated on
+   `_uses_tparam`; grep-confirmed against the probe emission).  `entry_of` is the
+   WhyML logic image of the emitter's per-tp 3-key entry
+   `{"name": name, "bound": b, "kind": kind}`.  The load-bearing claim: the kind
+   string projects back FAITHFULLY (`type(tp).__name__` = tp_kind_of), the name
+   projects faithfully, and a Name bound node is NEVER confused with an Attribute
+   bound node — no int-hash / int-erasure (the K7 anti-facade `isinstance_op 0 0`
+   / `get___name__` / `getattr`->0 shapes are ALL absent from the emission).
+
+   Proven axiom-free by the hand oracle (scratchpad/k5_spike.mlw, Z3 Valid) and
+   co-landed with the Rocq/Lean Phase2h_TParam cert (33 Rocq goals `Closed under
+   the global context`; the Lean twin depends only on standard kernel axioms).
+   The EVIL TWINS pin non-vacuity: a WRONG projected kind/bound and a
+   Name/Attribute confusion stay UNPROVEN (Prover: Z3). *)
+
+(* ============================================================= *)
+(* TParamGoodFaithful — the tool's tparam ADT + faithful reads.  *)
+(* ============================================================= *)
+module TParamGoodFaithful
+  use int.Int
+  use option.Option
+  use map.Map
+  use map.Const
+  use string.String
+
+  (* VERBATIM the tool's emitted emit_ir bound-child surface (the minimal slice
+     the bound isinstance/name_of dispatch touches). *)
+  type emit_ir = IrVar string | IrAttr emit_ir string | IrOther string
+  let function is_var (e: emit_ir) : bool =
+    match e with IrVar _ -> true | _ -> false end
+  let function is_attribute (e: emit_ir) : bool =
+    match e with IrAttr _ _ -> true | _ -> false end
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar n -> n | IrAttr _ a -> a | IrOther _ -> "" end
+
+  (* VERBATIM the tool's emitted tparam theory (preamble.py, gated _uses_tparam). *)
+  type tparam =
+    | TPTypeVar string emit_ir
+    | TPParamSpec string
+    | TPTypeVarTuple string
+  let function tp_kind_of (tp: tparam) : string =
+    match tp with
+    | TPTypeVar _ _ -> "TypeVar"
+    | TPParamSpec _ -> "ParamSpec"
+    | TPTypeVarTuple _ -> "TypeVarTuple"
+    end
+  let function tp_name (tp: tparam) : string =
+    match tp with TPTypeVar n _ -> n | TPParamSpec n -> n | TPTypeVarTuple n -> n end
+  let function tp_bound (tp: tparam) : emit_ir =
+    match tp with TPTypeVar _ b -> b | _ -> IrOther "" end
+  let predicate is_typevar (tp: tparam) = match tp with TPTypeVar _ _ -> true | _ -> false end
+  let predicate is_paramspec (tp: tparam) = match tp with TPParamSpec _ -> true | _ -> false end
+  let predicate is_typevartuple (tp: tparam) = match tp with TPTypeVarTuple _ -> true | _ -> false end
+  lemma is_typevar_faithful : forall tp: tparam. is_typevar tp <-> tp_kind_of tp = "TypeVar"
+  lemma is_paramspec_faithful : forall tp: tparam. is_paramspec tp <-> tp_kind_of tp = "ParamSpec"
+  lemma is_typevartuple_faithful : forall tp: tparam. is_typevartuple tp <-> tp_kind_of tp = "TypeVarTuple"
+  type tparam_list = TPNil | TPCons tparam tparam_list
+  let rec function tpl_len (l: tparam_list) : int = match l with TPNil -> 0 | TPCons _ t -> 1 + tpl_len t end
+  let rec function tpl_nth (i: int) (l: tparam_list) : tparam
+    variant { l } =
+    match l with TPNil -> TPParamSpec "" | TPCons h t -> if i <= 0 then h else tpl_nth (i-1) t end
+
+  (* the per-tp 3-key entry {"name","bound","kind"} the emitter's loop body builds:
+       kind  = type(tp).__name__  -> tp_kind_of tp
+       name  = tp.name            -> tp_name tp
+       bnode = tp.bound           -> tp_bound tp
+       if isinstance(bnode, ast.Name): b = bnode.id    -> is_var / name_of
+       elif isinstance(bnode, ast.Attribute): b = bnode.attr -> is_attribute / name_of *)
+  type pyval = PStr string | PNone
+  function bound_str (tp: tparam) : option pyval =
+    let bnode = tp_bound tp in
+    if is_var bnode then Some (PStr (name_of bnode))
+    else if is_attribute bnode then Some (PStr (name_of bnode))
+    else None
+  function entry_of (tp: tparam) : map string (option pyval) =
+    let m0 = const (None: option pyval) in
+    let m1 = m0["name" <- Some (PStr (tp_name tp))] in
+    let m2 = m1["kind" <- Some (PStr (tp_kind_of tp))] in
+    m2["bound" <- bound_str tp]
+
+  (* GOOD: a concrete PEP-695 type_params list reads back faithfully. *)
+  let test_good_faithful () =
+    (* `class C[T: int]` — a bounded TypeVar with a bare-Name bound. *)
+    let tv = TPTypeVar "T" (IrVar "int") in
+    assert { tp_kind_of tv = "TypeVar" };
+    assert { tp_name tv = "T" };
+    assert { (entry_of tv)["kind"] = Some (PStr "TypeVar") };
+    assert { (entry_of tv)["name"] = Some (PStr "T") };
+    assert { (entry_of tv)["bound"] = Some (PStr "int") };
+    (* `[**P]` — a ParamSpec, bound-less. *)
+    let ps = TPParamSpec "P" in
+    assert { tp_kind_of ps = "ParamSpec" };
+    assert { (entry_of ps)["bound"] = None };
+    (* `class C[U: mod.Base]` — a TypeVar with an ast.Attribute bound (`.attr`). *)
+    let attr_tv = TPTypeVar "U" (IrAttr (IrVar "mod") "Base") in
+    assert { is_attribute (tp_bound attr_tv) };
+    assert { (entry_of attr_tv)["bound"] = Some (PStr "Base") };
+    (* the list is iterated via tpl_len / tpl_nth. *)
+    let l = TPCons tv (TPCons ps (TPCons attr_tv TPNil)) in
+    assert { tpl_len l = 3 };
+    assert { tp_kind_of (tpl_nth 0 l) = "TypeVar" };
+    assert { tp_kind_of (tpl_nth 1 l) = "ParamSpec" };
+    assert { tp_name (tpl_nth 2 l) = "U" }
+end
+
+(* ============================================================= *)
+(* Evil twins — non-vacuity (each stays UNPROVEN under Z3).       *)
+(* ============================================================= *)
+module TParamEvilWrongKind
+  use string.String
+  type emit_ir = IrVar string | IrAttr emit_ir string | IrOther string
+  type tparam = TPTypeVar string emit_ir | TPParamSpec string | TPTypeVarTuple string
+  let function tp_kind_of (tp: tparam) : string =
+    match tp with TPTypeVar _ _ -> "TypeVar" | TPParamSpec _ -> "ParamSpec"
+    | TPTypeVarTuple _ -> "TypeVarTuple" end
+  (* A ParamSpec is NEVER a TypeVar — the kind reflection is faithful. *)
+  let test_evil_wrong_kind () =
+    let ps = TPParamSpec "P" in
+    assert { tp_kind_of ps = "TypeVar" }
+end
+
+module TParamEvilBoundConfusion
+  use string.String
+  type emit_ir = IrVar string | IrAttr emit_ir string | IrOther string
+  let function is_var (e: emit_ir) : bool = match e with IrVar _ -> true | _ -> false end
+  type tparam = TPTypeVar string emit_ir | TPParamSpec string | TPTypeVarTuple string
+  let function tp_bound (tp: tparam) : emit_ir =
+    match tp with TPTypeVar _ b -> b | _ -> IrOther "" end
+  (* An ast.Attribute bound node is NEVER an ast.Name — the isinstance dispatch
+     distinguishes them (the whole point of reusing is_var/is_attribute). *)
+  let test_evil_bound_confusion () =
+    let attr_tv = TPTypeVar "U" (IrAttr (IrVar "mod") "Base") in
+    assert { is_var (tp_bound attr_tv) }
+end
+
+module TParamEvilWrongBound
+  use int.Int
+  use option.Option
+  use map.Map
+  use map.Const
+  use string.String
+  type emit_ir = IrVar string | IrAttr emit_ir string | IrOther string
+  let function is_var (e: emit_ir) : bool = match e with IrVar _ -> true | _ -> false end
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar n -> n | IrAttr _ a -> a | IrOther _ -> "" end
+  type tparam = TPTypeVar string emit_ir | TPParamSpec string | TPTypeVarTuple string
+  type pyval = PStr string | PNone
+  let function tp_bound (tp: tparam) : emit_ir =
+    match tp with TPTypeVar _ b -> b | _ -> IrOther "" end
+  function bound_str (tp: tparam) : option pyval =
+    let bnode = tp_bound tp in
+    if is_var bnode then Some (PStr (name_of bnode)) else None
+  (* The projected bound is the REAL node name, not an arbitrary "wrong" string. *)
+  let test_evil_wrong_bound () =
+    let tv = TPTypeVar "T" (IrVar "int") in
+    assert { bound_str tv = Some (PStr "wrong") }
+end

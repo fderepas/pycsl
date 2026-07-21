@@ -522,7 +522,11 @@ class Module6_WhyMLTranspiler(
         if (getattr(self, "_mutable_state_classes", None)
                 or getattr(self, "_uses_ir_node_param", False)
                 or self._uses_stmt_ir()
-                or self._uses_call_kw()):
+                or self._uses_call_kw()
+                # L1: the tparam theory references emit_ir (the bound child) + reuses
+                # is_var/is_attribute/name_of → needs the full emit_ir theory. Gated on
+                # `_uses_tparam` (TParamNode sentinel) → byte-inert elsewhere.
+                or self._uses_tparam()):
             # theory-tailoring: emit the MINIMAL emit_ir surface for opaque-use
             # emitter mirrors, gated by an EXPLICIT class-name ALLOW-LIST
             # (`_TAILOR_OPAQUE_MIRROR_CLASSES`). These mirrors pass emit_ir

@@ -1231,6 +1231,59 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return f"(stmt_targets_len {cw})"
         return None
 
+    def _tparam_local_var(self, ir: Any) -> Optional[Dict[str, Any]]:
+        """L1 tparam reflection-node ADT: return `ir` if it is a `tparam`-typed
+        type_params loop var (`tp in _tparam_locals`), else None."""
+        if (isinstance(ir, dict) and ir.get("type") == "Var"
+                and ir.get("name") in getattr(self, "_tparam_locals", set())):
+            return ir
+        return None
+
+    def _tparam_read(self, expr: Any, local_refs: Set[str],
+                     invariant_ctx: bool = False,
+                     subst: Optional[Dict[str, str]] = None) -> Optional[str]:
+        """L1 tparam reflection-node ADT (self-tcb-reduction, collector-family unlock):
+        lower a READ over a `tparam`-typed type_params loop var `tp` to the certified
+        projector, else None:
+          `type(tp).__name__` -> `(tp_kind_of tp)`   (string, the kind discriminant)
+          `tp.name`           -> `(tp_name tp)`       (string)
+          `tp.bound`          -> `(tp_bound tp)`      (emit_ir sub-node)
+        The bound sub-node's `isinstance`/`.id`/`.attr` dispatch reuses the existing
+        emit_ir machinery (`_is_emit_ir_expr`(`tp.bound`) is True). Every emit reads the
+        VERBATIM body shape; a body change re-emits."""
+        if not isinstance(expr, dict):
+            return None
+        t = expr.get("type")
+        # type(tp).__name__ -> tp_kind_of tp
+        if t == "Attribute" and expr.get("attr") == "__name__":
+            _inner = expr.get("object", {})
+            if (isinstance(_inner, dict) and _inner.get("type") == "Call"
+                    and _inner.get("func") == "type"):
+                _cargs = _inner.get("args") or []
+                if len(_cargs) == 1:
+                    c = self._tparam_local_var(_cargs[0])
+                    if c is not None:
+                        cw = self._expr_to_whyml(c, local_refs, invariant_ctx, subst)
+                        return f"(tp_kind_of {cw})"
+        # tp.name -> tp_name tp ; tp.bound -> tp_bound tp
+        if t == "Attribute":
+            c = self._tparam_local_var(expr.get("object", {}))
+            if c is not None:
+                cw = self._expr_to_whyml(c, local_refs, invariant_ctx, subst)
+                if expr.get("attr") == "name":
+                    return f"(tp_name {cw})"
+                if expr.get("attr") == "bound":
+                    return f"(tp_bound {cw})"
+        return None
+
+    def _is_tparam_bound_read(self, ir: Any) -> bool:
+        """L1: True iff `ir` is `tp.bound` over a `tparam` loop var — a `tp_bound`
+        projector that yields an `emit_ir` sub-node, so the emit_ir isinstance/`.id`/
+        `.attr` machinery treats it as an emit_ir expression."""
+        return (isinstance(ir, dict) and ir.get("type") == "Attribute"
+                and ir.get("attr") == "bound"
+                and self._tparam_local_var(ir.get("object", {})) is not None)
+
     def _keyword_var(self, ir: Any) -> Optional[Dict[str, Any]]:
         """Return `ir` if it is a `keyword`-typed keyword-list loop var (`kw in
         _keyword_locals`), else None."""
@@ -1474,6 +1527,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # self-tcb-reduction giants: a `pyast_stmt` emit_ir-yielding projector
         # (`child.value`/`child.target`/`child.targets[0]`) IS an emit_ir sub-node.
         if self._is_pyast_stmt_emit_ir_read(ir):
+            return True
+        # L1 tparam reflection-node ADT: `tp.bound` (a `tp_bound` projector over a tparam
+        # loop var) IS an emit_ir sub-node, so its isinstance/`.id`/`.attr` reuse the
+        # emit_ir machinery.
+        if self._is_tparam_bound_read(ir):
             return True
         if t == "DictLit":
             for k in ir.get("keys", []):
@@ -6863,9 +6921,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # an emit_ir node, e.g. `body_stmts[-1].value`) is an opaque emit_ir SUB-NODE —
         # `svalue_of` returns `IrOther ""` for a non-IrSub node (sound; content unmodeled),
         # so `… is not None` type-checks (always-present, §B-C4). @mutable_state-gated.
+        # L1 tparam reflection-node ADT: in a tparam-collector function (not @mutable_state),
+        # the bound sub-node `bnode = tp.bound` is a genuine emit_ir LOCAL whose `.id`/`.attr`
+        # must still project via `name_of` (the isinstance already dispatches is_var/
+        # is_attribute). Extend the @mutable_state gate to the emit_ir-local case, scoped to a
+        # tparam-collector function (`_current_tparam_node_params` non-empty) -> corpus-inert
+        # AND inert for every non-tparam mirror.
+        _in_tparam_fn = bool(getattr(self, "_current_tparam_node_params", None))
         if (self._is_emit_ir_expr(obj_ir)
-                and getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())):
+                and (getattr(self, "_current_self_type", None)
+                     in getattr(self, "_mutable_state_classes", set())
+                     or (_in_tparam_fn and isinstance(obj_ir, dict)
+                         and obj_ir.get("type") == "Var"
+                         and obj_ir.get("name")
+                         in getattr(self, "_emit_ir_local_vars", set())))):
             _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
             # self-tcb-reduction T1.a: `<emit_ir>.kind` is the DISCRIMINANT (`kind_of`, a string),
             # not a sub-node — so `inner.kind == "Subscript"` routes through `str_eq_op`.
@@ -8617,6 +8686,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _psr = self._pyast_stmt_read(expr, local_refs, invariant_ctx, subst)
             if _psr is not None:
                 return _psr
+        # L1 tparam reflection-node ADT: a READ over a `tparam`-typed type_params loop var
+        # lowers to the certified tparam projector chain. Gated on `tp in _tparam_locals`
+        # -> inert for every other expression.
+        if getattr(self, "_tparam_locals", None):
+            _tpr = self._tparam_read(expr, local_refs, invariant_ctx, subst)
+            if _tpr is not None:
+                return _tpr
         # J2/J3 convergence (Call-internals keyword iteration): a READ over a `keyword`-
         # typed loop var lowers to the certified keyword projectors.
         if getattr(self, "_keyword_locals", None):

@@ -37,5 +37,6 @@ import PyCSL.StmtIR          -- self-tcb-reduction M5: stmt_ir statement-IR ADT 
 import PyCSL.PyAstStmt          -- self-tcb-reduction giants: pyast_stmt INPUT-ast ADT cert, axiom-free
 import PyCSL.PyVal              -- self-tcb-reduction Tier-5: pyval heterogeneous value model cert, axiom-free
 import PyCSL.CallKw             -- self-tcb-reduction Tier-5 J1: emit_ir Call-internals value model cert, axiom-free
+import PyCSL.TParam             -- self-tcb-reduction L1: tparam PEP-695 reflection-node value model cert, axiom-free
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus

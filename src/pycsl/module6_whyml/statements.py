@@ -2173,6 +2173,73 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         find_assigns(body_stmts)
         return out - set(self._formal_params)
 
+    def _collect_tparam_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """L1 tparam reflection-node ADT: locals whose value is a tparam string read —
+        `type(<tp>).__name__` (`tp_kind_of`), `<tp>.name` (`tp_name`), or `<bnode>.id`/
+        `<bnode>.attr` where `<bnode> = <tp>.bound` is the emit_ir bound sub-node
+        (`name_of`). They are `string` locals (pre-declared `ref ""`, not `ref 0`). Empty
+        for every corpus program -> byte-inert."""
+        tp_loop_vars = self._tparam_body_loop_vars(body_stmts)
+        if not tp_loop_vars:
+            return set()
+        # the bound sub-node locals: `<bnode> = <tp>.bound`
+        bound_vars: Set[str] = set()
+
+        def find_bounds(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    _v = n.get("value", {})
+                    if (isinstance(_v, dict) and _v.get("type") == "Attribute"
+                            and _v.get("attr") == "bound"
+                            and isinstance(_v.get("object"), dict)
+                            and _v["object"].get("type") == "Var"
+                            and _v["object"].get("name") in tp_loop_vars):
+                        bound_vars.add(n["target"])
+                for x in n.values():
+                    find_bounds(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_bounds(x)
+        find_bounds(body_stmts)
+
+        def _is_tp_str_read(v: Any) -> bool:
+            if not (isinstance(v, dict) and v.get("type") == "Attribute"):
+                return False
+            _a = v.get("attr")
+            _o = v.get("object", {})
+            # type(<tp>).__name__
+            if (_a == "__name__" and isinstance(_o, dict) and _o.get("type") == "Call"
+                    and _o.get("func") == "type"):
+                _ca = _o.get("args") or []
+                if (len(_ca) == 1 and isinstance(_ca[0], dict)
+                        and _ca[0].get("type") == "Var"
+                        and _ca[0].get("name") in tp_loop_vars):
+                    return True
+            # <tp>.name
+            if (_a == "name" and isinstance(_o, dict) and _o.get("type") == "Var"
+                    and _o.get("name") in tp_loop_vars):
+                return True
+            # <bnode>.id / <bnode>.attr  (bnode = tp.bound, an emit_ir sub-node)
+            if (_a in ("id", "attr") and isinstance(_o, dict)
+                    and _o.get("type") == "Var" and _o.get("name") in bound_vars):
+                return True
+            return False
+
+        out: Set[str] = set()
+
+        def find_assigns(n: Any) -> None:
+            if isinstance(n, dict):
+                if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)
+                        and _is_tp_str_read(n.get("value"))):
+                    out.add(n["target"])
+                for x in n.values():
+                    find_assigns(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_assigns(x)
+        find_assigns(body_stmts)
+        return out - set(self._formal_params)
+
     def _pyast_body_loop_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """J2/J3 convergence: the loop-target vars of a `for <x> in <p>.body` where `<p>`
         is a `py_classdef_node`/`py_module_node` param (the class-/module-body giants). At
@@ -2204,6 +2271,35 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         rec(body_stmts)
         return found
 
+    def _tparam_body_loop_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """L1 tparam reflection-node ADT: the loop-target vars of a `for <tp> in
+        <node>.type_params` where `<node>` is a `py_tparam_node` param. Used only to keep
+        the emit_ir-local collector running for the tparam giants (so `bnode = tp.bound` is
+        typed emit_ir). Empty for every corpus program -> byte-inert."""
+        _params = getattr(self, "_current_tparam_node_params", set())
+        if not _params:
+            return set()
+        found: Set[str] = set()
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") in ("For", "ForStmt"):
+                    _it = n.get("iter", {})
+                    if (isinstance(_it, dict) and _it.get("type") == "Attribute"
+                            and _it.get("attr") == "type_params"):
+                        _o = _it.get("object", {})
+                        if (isinstance(_o, dict) and _o.get("type") == "Var"
+                                and _o.get("name") in _params
+                                and isinstance(n.get("target"), str)):
+                            found.add(n["target"])
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        rec(body_stmts)
+        return found
+
     def _collect_emit_ir_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """typed-ir-for-b-ceiling.md §19: locals whose FIRST assignment is an `emit_ir`
         value — an ExprIR field read (`assume_inv = stmt.assume_invariant`), an inline
@@ -2220,7 +2316,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # param body). Recognized even outside @mutable_state (the class-body/module-body
         # giants are not mutable-state classes).
         _body_loop_vars = self._pyast_body_loop_vars(body_stmts)
-        if (not _body_loop_vars and getattr(self, "_current_self_type", None)
+        # L1 tparam: keep the collector running for the tparam giants too (so `bnode =
+        # tp.bound` is typed emit_ir via `_is_emit_ir_expr(tp.bound)`).
+        _tparam_loop_vars = self._tparam_body_loop_vars(body_stmts)
+        if (not _body_loop_vars and not _tparam_loop_vars
+                and getattr(self, "_current_self_type", None)
                 not in getattr(self, "_mutable_state_classes", set())):
             return set()
         st = getattr(self, "_current_symbol_table", None)
@@ -2291,6 +2391,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _o = v.get("object", {})
                 if (isinstance(_o, dict) and _o.get("type") == "Var"
                         and _o.get("name") in _body_loop_vars):
+                    return True
+            # L1 tparam bridge: `tp.bound` over a pre-scanned tparam loop var projects an
+            # emit_ir sub-node (`tp_bound`), so `bnode = tp.bound` is an emit_ir local. At
+            # pre-scan `_tparam_locals` is not yet populated, so use `_tparam_loop_vars`.
+            if v.get("type") == "Attribute" and v.get("attr") == "bound":
+                _o = v.get("object", {})
+                if (isinstance(_o, dict) and _o.get("type") == "Var"
+                        and _o.get("name") in _tparam_loop_vars):
                     return True
             if v.get("type") in ("Subscript", "SliceAccess"):
                 _val = v.get("value", {})
@@ -2539,6 +2647,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # — so its `None` init lowers to `ref ""` and `{"bound": bound}` wraps `PStr bound`
         # (Optional[str] modelled as string with "" for None; the pyval PStr value tag).
         string_vars |= self._collect_keyword_str_locals(body_stmts)
+        # L1 tparam reflection-node ADT: locals from a tparam string read
+        # (`type(tp).__name__` / `tp.name` / `bnode.id`/`.attr`) are `string` locals.
+        string_vars |= self._collect_tparam_str_locals(body_stmts)
         # A reassigned formal string PARAM (`s = s.strip()`) is NOT a fresh typed
         # local: it must follow the int-param entry-shadow path (`let s = ref s in`
         # + `s := …`), never a let-bind at first assign (which would deref `!s`

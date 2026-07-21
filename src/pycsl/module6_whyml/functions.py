@@ -26,6 +26,12 @@ class FunctionEmissionMixin:
         # the `module_body_ast` psl). Gated on `_current_pyast_module_params`.
         if arg in getattr(self, "_current_pyast_module_params", set()):
             return f"({safe}: py_module_node)"
+        # L1 tparam reflection-node ADT: a param annotated `TParamNode` whose `.type_params`
+        # is iterated is the opaque `py_tparam_node` AST node (its `.type_params` reads the
+        # `type_params_of` tparam_list). Gated on `_current_tparam_node_params` (only under
+        # `_uses_tparam`) -> byte-identical elsewhere.
+        if arg in getattr(self, "_current_tparam_node_params", set()):
+            return f"({safe}: py_tparam_node)"
         # compound-key const-map getter: the key parameter takes the native tuple key
         # type (`(string, option string)`) so `Map.get NAME k` type-checks. Gated on
         # the recognized getter → never fires for a corpus param (byte-identical).
@@ -380,6 +386,16 @@ class FunctionEmissionMixin:
              if a == "Module"}
             if self._uses_pyast_stmt() else set())
         self._pyast_stmt_locals: Set[str] = set()
+        # L1 tparam reflection-node ADT (self-tcb-reduction, collector-family unlock): the
+        # params annotated `TParamNode` (typed `py_tparam_node`) whose `.type_params`
+        # iterates the tparam_list. Gated on `_uses_tparam` so a non-target file leaves
+        # these empty (byte-identical). `_tparam_locals` accumulates the per-iteration `tp`
+        # loop targets (typed `tparam`) for the projector/isinstance lowerings.
+        self._current_tparam_node_params: Set[str] = (
+            {p for p, a in (func.get("param_annotations") or {}).items()
+             if a == "TParamNode"}
+            if self._uses_tparam() else set())
+        self._tparam_locals: Set[str] = set()
         self._current_array1d_params = set(func.get("array1d_params", []))
         self._array2d_params = set(func.get("array2d_params", []))
         # 07-1839 P3: definite-assignment sets for `\in_scope` (three-valued).
