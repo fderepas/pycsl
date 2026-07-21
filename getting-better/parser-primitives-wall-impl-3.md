@@ -152,3 +152,95 @@ reach for unrelated reasons). Every predicate the plan listed goes through **`se
 (iii) DONE. **(vi) is now the true gate** for the `at_*`/`accept_*`/`expect_*` family — it must land BEFORE (ii)
 varargs-membership is worth building, because every varargs predicate's first statement is `t = self.cur()`.
 Then (vii) for the `-> bool` predicates, then (ii), then (iv)/(v) for the three `peek`s.
+
+## §CAPABILITY (vi) — **BUILT, Gate S PASS (both halves), 0 conversions** (W8 run #6)
+
+Commits `5de7bec4` (call + projection) and `a0db955c` (record-typed local), fixture
+`0929_sibling_record_call_projection.py` (`git add -f`).
+
+### Gate S verdict: **PASS**, with the exact emit evidence
+BEFORE — `self.cur().py_type` in `Module2_Parser._ContractParser`:
+```
+val get_py_type (x: int) : int
+val self_cur_0 () : int
+… (get_py_type (self_cur_0 ()))
+```
+receiver-less, int-erased, and `.string == "EOF"` collapsed to the int hash `1961088098`.
+
+AFTER — the CONCRETE sibling application, the real `_rec_` projector, and `str_eq_op`:
+```
+let parser__cur (self: parser) : tok
+  ensures { (result = (self.toks[self.i])) } = self.toks[self.i]
+let parser__kind (self: parser) : int = (let _rec_ = (parser__cur self) in _rec_.py_type)
+let parser__at_eof … = if (str_eq_op (let _rec_ = (parser__cur self) in _rec_.string) "EOF") …
+let parser__local_kind … = let t = ref { py_type = 0; string = "" } in
+                           t := (parser__cur self); (!t).py_type
+```
+No `self_cur_0`, no `get_py_type`, no `str_hash_op`, no `isinstance_op 0 0`.
+
+Three defects fixed, all behind the (i)/(iii) `_record_array_fields` gate:
+1. `_build_method_return_type_map` (`functions.py`) — a `-> <RecordClass>` annotation now resolves to the
+   record's WhyML type instead of the erased `int`. This alone was an L3-tc failure at every consumer.
+2. `_handle_dotted_call` (`expressions.py`) — a same-class sibling call with a record return lowers to
+   `(<class>__<m> self args)`. SOUND, not assumed: the callee is a same-file VERIFIED method (`cur` was
+   converted in W1), so its contract AND the class type invariant reach the call site.
+   `sort_functions_by_scc` gains the matching callee-before-caller edges (`extra_concrete`).
+   This is exactly the "honour the existing concrete-sibling lowering" shape the plan allowed — the
+   opt-in `#@ sibling_concrete` marker and the `field_spec` requirement are bypassed, not re-implemented.
+3. `_handle_attribute_expr` + `_is_string_expr` (projection off the call) and
+   `_collect_record_field_elem_locals` (`statements.py`, the `t = self.cur()` local) — native record
+   projection, `str` fields through `str_eq_op`.
+
+Gates: **mirror-wide L3-tc sweep 0 failures before AND after**; **corpus byte-diff 0** over all 773 baseline
+files (774th is the new fixture — the baseline needs a RE-PIN to include `0929`); **mirror emission byte-diff
+0 over all 52 files** (the capability is fully inert until a conversion uses it); fidelity 52/52 (no mirror
+`.py` touched); ledger **3** (allowlist untouched, no new axiom, no abstract-val token — the compared kind is
+the concrete int literal `55`); **MUTATION TEST + NON-VACUITY pass** — `sibling_agrees` / `texts_agree` /
+`local_agrees` each read the SAME cell once through the sibling call and once through the direct array read
+and assert `\result == 1`; the evil twin `\result == 0` is **unproven (Timeout, 18M steps)**, and the goal is
+discharged ONLY because `cur`'s real `ensures \result == self.toks[self.i]` reaches the caller through the
+concrete application. Count **UNCHANGED** — no conversion.
+
+### Why the payoff is again ZERO — the residual wave is jointly blocked
+The gate `_record_array_fields` is non-empty in EXACTLY three mirror files (census:
+`grep -rn 'self\.[a-z_]*: List\[_\?[A-Z]'` → `Module2_Parser` `toks`, `pure_ast` `toks`, `proof2why3/parser`
+`toks`; the only other hit, `Module5_IREmitter._final_registry`, is `List[Dict[str, PyVal]]`, not a record).
+Within those three, every remaining primitive:
+
+| primitive | live body | blocker |
+|---|---|---|
+| `Module2_Parser._ContractParser.at_eof` | `return self.cur().type == "EOF"` | **(vii) ONLY** |
+| `_ContractParser.at_op/at_name/at_bs` | `t = self.cur(); t.type == … and t.string in vals` | (ii) varargs |
+| `_ContractParser.accept_op/expect_op/expect_name/expect_bs` | call `at_*` | (ii) (+ (v) for `accept_*`) |
+| `_ContractParser._err` | `raise _ContractSyntaxError(f"… {t.type} {t.string!r}")` | **FACADE, Gate C reject** |
+| `_ContractParser._try` | `fn()` higher-order + try/except | function-value boundary |
+| `pure_ast._Parser.at_op/at_name/at_kw` | `t = self.cur(); …` | (ii) varargs |
+| `pure_ast._Parser.accept_*/expect_*` | call `at_*` | (ii) |
+| `pure_ast._Parser.peek` | `self.toks[j] if j < len else self.toks[-1]` | (iv) negative index |
+| `pure_ast._Parser.error/unsupported` | `raise SyntaxError(msg, (…, t.start[0], …))` | facade risk (same as `_err`) |
+| `proof2why3._Parser.peek` | `return None` branch | (v) `Optional[record]` |
+| `proof2why3._Parser.expect` | uses `peek` | (v) |
+
+**(vii) evidence, reconfirmed standalone and independent of (vi)**: `def f(x: int) -> bool: return x == 55`
+emits `let f (x: int) : int = (x = 55)` → `This expression has type bool, but is expected to have type int`.
+With `at_eof` converted, that is the file's **single remaining error**:
+```
+let _contractparser__at_eof (self: _contractparser) : int
+  = (str_eq_op (let _rec_ = (_contractparser__cur self) in _rec_.py_type) "EOF")
+File "…Module2_Parser.mlw", line 876: This expression has type bool, but is expected to have type int
+```
+i.e. (vi) discharges `at_eof` COMPLETELY apart from (vii). Not fixed here (out of scope per the run brief),
+and not worked around (the mirror body must byte-match live). Probe REVERTED.
+
+**`_err` PROBED-AND-REVERTED — CERTIFIED FACADE.** It type-checks and proves, but the emitted body is
+`let t = ref {…} in t := (_contractparser__cur self); raise ContractSyntaxError`: the f-string message is
+DROPPED entirely, `msg` is erased to `int`, and `t` is dead. **MUTATION TEST FAILS** — rewriting the f-string
+to `f"MUTATED {t.string} zz {t.type}"` produces a BYTE-IDENTICAL `.mlw`. Gate C reject; the same verdict
+covers `pure_ast.error`/`unsupported`. Faithful exception-payload construction is its own capability.
+
+### Revised build order for W8 (after (vi))
+(i)/(iii)/(vi) DONE and mutually composable. The next single-capability step that MOVES THE COUNT is
+**(vii)** — it lands `at_eof` immediately (1 conversion, the only (vii)-sole-blocked primitive). After that
+**(ii) varargs-membership** is the big one (9 primitives across the two parsers, plus the `accept_*`/`expect_*`
+that call them), then (iv)/(v) for the three `peek`s. Faithful raise-payload construction is a separate,
+later capability — do NOT convert `_err`/`error`/`unsupported` before it.
