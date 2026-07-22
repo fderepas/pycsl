@@ -507,3 +507,22 @@ worktree; the real run then emitted 782 vs 782, diff 0.
 **LESSON: a diff of 0 is meaningless without the population count. `byte-diff-sweep.sh` prints
 `emitted N` — READ IT, and assert N matches the corpus size, on BOTH sides. Any gate whose pass
 condition is "no differences found" must separately prove it looked at something.**
+
+#### (j') the full body-fidelity census, once the gate worked
+With `check-self-annotate-sync.sh` repaired, the mirror admits a COMPLETE census (not a sample):
+
+| | count |
+|---|---|
+| un-`\trusted` mirror functions WITH a live counterpart — actually gated | **336** |
+| …of which byte-faithful to live after the re-ports | **331** |
+| …of which still divergent (enumerated in the `374279ac` commit message) | **5** |
+| un-`\trusted` mirror functions with NO live counterpart — SKIPPED by the gate | **10** |
+| `\trusted` stubs with no live counterpart (deliberately relocated across mixins) | 35 |
+
+The 10 ungated ones were the real thing to check — an un-`\trusted` mirror body with no live
+counterpart is not drift but FABRICATION, a proof over code the emitter does not contain. All 10
+are the same documented one-line infra shim (`def mutable_state(cls): return cls`). So there is no
+fabrication, and body-fidelity holds for **331 of 336** converted methods.
+**LESSON: when a gate skips a case "by design", COUNT the skips and look at them — `if name not in
+live: continue` is where a fabricated body would have hidden, and the census is what turns "skipped
+by design" from an assumption into a checked fact.**
