@@ -151,3 +151,40 @@ for `any_1`/`all_1`, and that stands. But `list_comp` appears in **1 corpus file
 - **Step 3 (recursive-predicate falsifier) NOT YET RUN.** It only becomes answerable once R2a
   lands and a genexp body actually reaches Module 6. Until then, whether the IRScanner family is
   reachable at all is OPEN, and R2 must not be described as fixing it.
+
+---
+
+## §R2b OUTCOME — **BUILT for the simple-predicate sub-class; Gate S step 3 ANSWERED (IRScanner is out of reach)**
+
+Commit `82e02ad4`. Count 981 -> 981, ledger 3, corpus diff = exactly the 2 new fixtures.
+
+**What works.** `any(P(x) for x in it)` / `all(...)` now emit the reviewer's bounded fold with a
+full **iff** postcondition (response condition 3), as a pure `let function` (condition 4), the
+predicate lowered through the emitter's existing `subst` binder channel. Fixtures 0936 (positive,
+PROVES a real statement about the input) and 0937 (evil twin, MUST NOT prove — and does not).
+Both the genexp and the bracketed list-comp form share one spec-hashed definition.
+
+**Gate S step 3 — the recursive-predicate falsifier — is now ANSWERED, and it REFUTES the
+IRScanner half of R2.** Instrumenting every bail path and running it over the whole mirror
+accounts for all 21 remaining `any_1 (Array.make 1 0)` sites:
+
+| sites | reason | reachable? |
+|---|---|---|
+| **18** (all of IRScanner) | `predicate-needed-op: iRScanner_uses_string_1` — the predicate is a **recursive self-call** | **NO** — needs `let rec function … with …` mutual recursion + a termination variant; the fold is a standalone `let function` in the abstract-ops block and cannot reference the function being defined |
+| 1 (`_handle_fieldassign_stmt`) | `stripped.startswith(p)` over a list of **strings** | plausibly — needs a parameterized element type (the fold hardcodes `a: array int`) |
+| 1 (Module5_IREmitter) | `predicate-lost-binder: elt_type=BinOp` | unknown — the binder does not survive lowering |
+
+So **R2 does not de-vacuify the 8 fully-erased IRScanner predicates**, exactly as this plan's
+"honest costed scope" warned it might not. Their `obj: Any` int-erasure (R3) was never the only
+blocker — the recursion is a second, independent one. The vacuity ledger stays at **12**.
+
+### Remaining, in dependency order (each still spike-gated)
+- **R2d — mutual-recursion folds.** The only route to the IRScanner 18. Emit the fold INSIDE the
+  recursive group (`let rec function f … with _any_fold_f …`) with a shared `variant`. This is a
+  materially larger emitter change than R2a/R2b and must be spiked before it is authorized.
+- **R2e — parameterized element type** (`array string`, `array <record>`): unlocks the
+  `startswith` site and is a prerequisite for any string-predicate fold.
+- **R2c — contract-grammar genexp** (response condition 5): `#@ assert all(x >= 0 for x in a)`
+  still does not PARSE. Untouched by R2a/R2b; the spec plane remains unrepaired.
+- **R3** — unchanged and still gated behind response condition 7 (assoc-list `hval` proving its
+  evil twin with the map arm present).
