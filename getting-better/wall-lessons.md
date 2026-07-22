@@ -410,3 +410,22 @@ With that, the EOF-sentinel invariant becomes stateable, `at_op`'s postcondition
 `\result ==> self.i < \length(self.toks) - 1`, and the loop variant `\length(self.toks) - self.i` discharges — at
 which point the ~8 loop-carrying precedence levels convert on the capability landed here. Do NOT attempt the
 declaration-node half (~28 stubs) — it needs a CSLNode declaration ADT that does not exist.
+
+### (f) run #5 — a TRUSTED stub's FALSE frame silently licenses unsound proofs
+Converting the `Module2_Parser` precedence chain exposed five still-`\trusted` siblings (`_parse_impl_rhs`,
+`_parse_or_rhs`, `_parse_and_rhs`, `_parse_membership`, `_parse_unary`) declaring `#@ assigns \nothing` while their
+LIVE bodies call `advance` (which mutates `self.i`). The converted `while self.at_op(...)` loops would then have
+proven TERMINATION off a FALSE premise. Fixed to `assigns self.i` + `ensures self.i >= \old(self.i)`.
+VERIFIED SOUND (driver): the sole backtracking site `_try` (`saved = self.i; … except: self.i = saved`) has exactly
+ONE call site (`self._try(self._parse_assigns_region)`), outside the chain — and the reset is `_try`'s own effect,
+not the callee's, so per-method monotonicity holds. `_try` itself must NOT carry a monotone `ensures`.
+**LESSON: a trusted stub's contract is an ASSUMPTION — an over-tight `assigns` is not "conservative", it is FALSE,
+and every caller's proof inherits the lie. When converting a caller, re-read each trusted callee's frame against its
+LIVE body before trusting the resulting proof.** (This is a distinct failure mode from the facade family: the body is
+real, the proof is real, but the premise is fabricated.)
+
+### (g) run #5 — two SMT/lowering facts worth remembering
+- **Alt-Ergo cannot prove string disequality** (`"OP" <> "EOF"`); Z3 can. Best-of-N hides this, but a goal that
+  needs string distinctness will look "hard" if Alt-Ergo is tried alone.
+- **A Python `bool` lowers to `int`**, so the guard yields `o <> 0` and an `ensures \result == True ==> …` is
+  VACUOUSLY USELESS. Write `\result != False ==> …` instead.
