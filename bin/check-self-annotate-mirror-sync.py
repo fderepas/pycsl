@@ -152,9 +152,55 @@ def methods(path):
     return out
 
 
+def class_constants(path):
+    """{Class.NAME: (value_source, key_set)} for UPPER_CASE class-level constants.
+
+    Function bodies are not the only thing the mirror can drift on. `_PY_EXPR_HANDLERS`,
+    `_CSL_HANDLERS` and — far more importantly — `_AXIOM_REGISTRY` / `_AXIOM_FUNCTIONS` are
+    class-level DICTS, and a body-only diff cannot see them at all. That matters because the
+    axiom registry is the cited-proof mechanism: a mirror carrying an axiom the live tool does
+    not have would be proving under assumptions the real emitter never makes, and nothing in
+    the battery would notice.
+
+    `key_set` is extracted textually (`KEY: 'handler'`) as well as by literal evaluation, so
+    tables keyed by class objects (`CSLBinOp: '_csl_binop'`) are still comparable.
+    """
+    out = {}
+    try:
+        tree = ast.parse(open(path).read())
+    except SyntaxError:
+        return out
+
+    def _walk(node, prefix):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef):
+                for stmt in child.body:
+                    name = None
+                    if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 \
+                            and isinstance(stmt.targets[0], ast.Name):
+                        name = stmt.targets[0].id
+                    elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name) \
+                            and stmt.value is not None:
+                        name = stmt.target.id
+                    if not name or not name.isupper():
+                        continue
+                    val = stmt.value
+                    keys = set()
+                    if isinstance(val, ast.Dict):
+                        keys = {ast.unparse(k) for k in val.keys if k is not None}
+                    elif isinstance(val, (ast.Set, ast.List, ast.Tuple)):
+                        keys = {ast.unparse(e) for e in val.elts}
+                    out[f"{prefix}{child.name}.{name}"] = (ast.unparse(val), keys)
+                _walk(child, prefix + child.name + ".")
+
+    _walk(tree, "")
+    return out
+
+
 def main():
     diverged = 0
     checked = 0
+    const_checked = 0
     for root, _dirs, files in os.walk(MIRROR_ROOT):
         for fn in sorted(files):
             if not fn.endswith(".py"):
@@ -188,10 +234,36 @@ def main():
                     diverged = 1
                 else:
                     checked += 1
+            # --- class-level constants -------------------------------------------------
+            # The mirror is a documented SUBSET of live, so a key present in live and absent
+            # from the mirror is EXPECTED and not drift. What is never acceptable is the other
+            # direction: a key the MIRROR has and live does not, or a shared key whose VALUE
+            # differs. For `_AXIOM_REGISTRY` that asymmetry is the whole point — the mirror
+            # proving with an axiom the live tool lacks is exactly the smuggled-axiom failure
+            # the ledger exists to prevent, and it would otherwise be invisible.
+            mc, lc = class_constants(mpath), class_constants(lpath)
+            for cname, (mval, mkeys) in mc.items():
+                if cname not in lc:
+                    continue
+                lval, lkeys = lc[cname]
+                extra = mkeys - lkeys
+                if extra:
+                    print(f"DIVERGED CONST: {rel}::{cname} — key(s) in the MIRROR but NOT in "
+                          f"live (the mirror must be a SUBSET): {sorted(extra)}")
+                    diverged = 1
+                elif not mkeys and not lkeys and mval != lval:
+                    print(f"DIVERGED CONST: {rel}::{cname} — scalar value differs:")
+                    print(f"  live  : {lval[:200]}")
+                    print(f"  mirror: {mval[:200]}")
+                    diverged = 1
+                else:
+                    const_checked += 1
+
     if diverged == 0:
         print(f"OK: all {checked} un-trusted self-annotate mirror functions (self-methods, "
               f"module-level helpers, and pycsl.py driver functions) are verbatim copies of "
-              f"the live source")
+              f"the live source; {const_checked} class-level constants are subsets of live "
+              f"(no mirror-only key, no differing value)")
     sys.exit(diverged)
 
 
