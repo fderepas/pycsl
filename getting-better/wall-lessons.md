@@ -429,3 +429,40 @@ real, the proof is real, but the premise is fabricated.)
   needs string distinctness will look "hard" if Alt-Ergo is tried alone.
 - **A Python `bool` lowers to `int`**, so the guard yields `o <> 0` and an `ensures \result == True ==> …` is
   VACUOUSLY USELESS. Write `\result != False ==> …` instead.
+
+### (h) run #5 — the out-param frame family collapses from 54 to 1 under measurement
+The (f) audit flagged **54 "out-parameter mutation" stubs** (`assigns \nothing` while the live body mutates a
+collection PARAMETER) but declined to judge them — it had not established PyCSL's by-reference semantics for
+collection params. Four emit probes settle it, and the answer is **type-dependent**:
+- **Dict param → BY REFERENCE.** Emits `d: ref (map string (option int))` with `writes { d }` derived from the
+  declared `#@ assigns`. A *converted body* that writes it under `assigns \nothing` is **FAIL-CLOSED** — Why3
+  rejects with *"This function has side effects, it cannot be used as pure"*. A *trusted stub* is not (no body is
+  seen), so there the false frame is a real premise defect.
+- **List param + subscript store** (`acc[0] = 7`) → `acc: array int`, same fail-closed behaviour.
+- **List param + `.append`** → **NOT by reference**: lowered to a local copy `let acc = ref (snapshot acc)`. The
+  caller's list is unchanged, so `assigns \nothing` is **TRUE OF THE MODEL**. No false premise — but the model
+  DIVERGES from Python, where `list.append` on a parameter mutates the caller's list. Recorded below as a
+  faithfulness bug; note the failure is *incompleteness* (the caller cannot prove the effect), not unsoundness.
+Census under that measure (trusted ∧ `assigns \nothing` ∧ Dict-typed param ∧ live body mutates it): **9 candidates,
+8 read-only, 1 real** — `_extract_happy_properties` (`contracts_map[line] = kept`), fixed in `99fe2e75`.
+**LESSON: before mass-fixing a flagged family, probe the LOWERING for each type in it. "Mutates a param" is not one
+defect class — it is three, with different verdicts, and only the by-reference one is a soundness defect.**
+
+**Open faithfulness bug (live tool, affects all users, not just the mirror):** `param.append(x)` silently
+snapshot-copies the parameter, so a caller can never observe the append. Either lower list params by reference
+(matching dicts) or reject `.append` on a parameter — the current silent copy is a semantics divergence of exactly
+the kind the no-more-int / faithful-semantics doctrine forbids.
+
+### (i) run #5 — `check-self-annotate-sync.sh` is a PERMANENTLY-RED gate and carries no information
+The driver's `L` fidelity plane names TWO gates. `bin/self-annotate-mirror-check.sh` is green (52/52) and is the one
+the campaign has actually gated on. `bin/check-self-annotate-sync.sh` reports **115 DIVERGED** today — and **81 at
+`70b0748f`, this run's starting commit**, so it has been red for many sessions. Its output is dominated by
+differences the mirror introduces BY DESIGN or by normalization, not by drift:
+- mirror-added type annotations (`def cur(self):` vs `def cur(self) -> _Tok:`) — required for lowering;
+- quote-style normalization (`"OP"` vs `'OP'`) — it compares `ast.unparse` output against raw source;
+- docstrings the mirror omits (27 of 115);
+- and its `\trusted` detection is broken — it reports a `pass`-bodied trusted stub as an "un-trusted mirror body".
+**LESSON: a gate that is always red is not a conservative gate, it is a DISABLED one — it can never fire a new
+signal, and every actor learns to skip it. Fix it (normalize both sides, honour `\trusted`) or retire it from the
+`L` plane explicitly; do not leave it in the battery as decoration.** Same structural defect as (f): something
+stated as a constraint that in fact constrains nothing.
