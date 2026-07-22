@@ -526,3 +526,44 @@ fabrication, and body-fidelity holds for **331 of 336** converted methods.
 **LESSON: when a gate skips a case "by design", COUNT the skips and look at them — `if name not in
 live: continue` is where a fabricated body would have hidden, and the census is what turns "skipped
 by design" from an assumption into a checked fact.**
+
+### (l) run #6 — the MUTATION TEST cannot see int-hash erasure; a body can pass it and still be vacuous
+The campaign's anti-facade gate (Gate C) is: perturb a discriminant in the body, and the emitted
+`.mlw` must change. `IRScanner.uses_string` PASSES that test and is nevertheless a total facade:
+
+```python
+def uses_string(obj):                    let irscanner__uses_string (obj: int) : int =
+    if isinstance(obj, dict):              if ((typeof_op 315) = 4) then
+        if obj.get("type") == "String":      if ((obj_get_1 1342639453) = 1153884070) then
+            return True                         raise (Return 1)
+        return any(IRScanner.uses_string(v)  else raise (Return (if (any_1 (Array.make 1 0))…
+                   for v in obj.values())
+```
+`typeof_op 315` and `obj_get_1 1342639453` are applied to HASH CONSTANTS, not to `obj`; `"String"`
+is the int `1153884070`; `any(genexp)` is `any_1 (Array.make 1 0)` where `val any_1 (a: array int)
+: bool` is UNCONSTRAINED and its argument is fabricated. **`obj` does not appear in the body at
+all.** The mutation test passes precisely BECAUSE of the erasure — changing `"String"` changes its
+hash, so the output moves while the body still computes nothing.
+
+**The gate that does catch it is structural: a body that never references a parameter cannot
+compute anything about it.** Implemented as `bin/check-emitted-vacuity.py`, cross-checked against
+the LIVE body so the many methods that legitimately ignore an argument (`_csl_nil(node)` returns a
+constant literal) are not reported — only "live uses it, emitted does not". Verdict today: **8
+fully-erased + 4 partially-erased VERIFIED functions**; all 8 fully-erased are IRScanner's
+generic-`Any`-tree predicates (`uses_string`, `uses_sum`, `_check`, …).
+
+This intersects lesson §10.3 (generic-`Any` tree walkers are not modellable) with an unwelcome
+twist: they were **converted anyway** and booked as verified. Note also that unconstrained-oracle
+erasure is SOUND-but-vacuous, not unsound — an arbitrary `bool` guard forces the verifier to prove
+both branches — so nothing false was ever derived. What was lost is CONTENT: the proofs say
+nothing about what these nine functions compute.
+
+**LESSON: an anti-facade test that watches the OUTPUT of the emitter can be satisfied by erasure
+itself. Test the STRUCTURE instead — does the emitted body read its inputs? Any future
+"non-vacuity" gate should ask what the proof CONSTRAINS, not merely whether the artifact moved.**
+
+Two false-positive classes cost real time while building the probe, both generalizable: reading a
+body from the line AFTER the signature misreports every ONE-LINE definition (76 bogus hits), and
+matching a parameter name without blanking STRING LITERALS makes `{"stmt": "Break"}` look like a
+use of the `stmt` parameter (3 bogus hits). **Validate a new probe against known-good cases before
+believing its headline number** — the first two runs of this one said 118 and 76.
