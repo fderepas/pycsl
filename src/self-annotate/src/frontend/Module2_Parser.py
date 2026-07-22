@@ -1295,40 +1295,78 @@ class _ContractParser:
     def _parse_and_rhs(self) -> "ExprIR":
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_implication(self):
-        pass
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_implication(self) -> "ExprIR":
+        left = self._parse_logical_or()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('==>', '<==>'):
+            op = self.advance().string
+            right = self._parse_impl_rhs()
+            left = BinOp(left, op, right)
+        return left
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_logical_or(self):
-        pass
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_logical_or(self) -> "ExprIR":
+        left = self._parse_logical_and()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_name('or'):
+            self.advance()
+            right = self._parse_or_rhs()
+            left = BinOp(left, 'or', right)
+        return left
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_logical_and(self):
-        pass
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_logical_and(self) -> "ExprIR":
+        left = self._parse_equality()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_name('and'):
+            self.advance()
+            right = self._parse_and_rhs()
+            left = BinOp(left, 'and', right)
+        return left
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_equality(self):
-        pass
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_equality(self) -> "ExprIR":
+        left = self._parse_comparison()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('==', '!='):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_comparison())
+        return left
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_comparison(self):
-        pass
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_comparison(self) -> "ExprIR":
+        left = self._parse_membership()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('>', '<', '>=', '<='):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_membership())
+        return left
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
