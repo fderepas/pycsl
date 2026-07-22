@@ -253,3 +253,90 @@ A bare `dict` parameter emits `map string (option int)` when the function is a t
 `map int (option int)` when it is a defined `let`. Un-trusting ANY function that calls a `dict`-taking trusted val
 therefore ill-types AT THE CALL SITE. Worked around per-stub by annotating `Dict[str, PyVal]` (faithful — the why3
 `--json` records are string-keyed); the emitter-side key-type disagreement should be fixed at source.
+
+---
+
+## CERTIFIED-BOUNDARY — § self-dropping reflection (`isinstance_op 0 0` / `typeof_op <const>`)
+
+**Verdict: REFUTED as a single wall.** Probed 2026-07-21/22, spike-first, ALL CHANGES REVERTED, tree clean, count
+unchanged at **988**. The `isinstance_op 0 0` emission is a shared *symptom* with **at least four disjoint roots**;
+the highest-multiplicity root turned out to be **already solved**, and the one root that was genuinely missing has
+**zero convertible consumers** because every consumer is blocked further downstream.
+
+### Gate-S measurement (why the fallback fires)
+`_handle_isinstance` (module6_whyml/expressions.py) tries ~8 recognizers, every one of which is gated on the tested
+VALUE being recognized as a modelled node — for a `Var` that means `_is_emit_ir_expr` finding the symbol-table type
+in `("ExprIR","StmtIR","IRNode","ContractExprIR")`. When no recognizer fires it emits the constant
+`val isinstance_op (x: int) (t: int) : bool` applied to `0 0`.
+Measured emission for `exec_splice._is_constant_exec` (live body ported into the mirror):
+```
+let function _is_constant_exec (call: int) : int =
+  ... (isinstance_op 0 0) && (isinstance_op 0 0) ... && ((get_id (get_func call)) = 935962043)
+      ... && ((iter_length 0) = 1) ... && (isinstance_op 0 0) ... && ((typeof_op 0) = 1)
+```
+So the root is the **VALUE typing, not the class map**: `Name`/`Attribute`/`Subscript`/`Call`/`Tuple`/`Slice` are
+ALREADY in `_AST_CLASS_TO_IR_KIND` with live `_KIND_DISCRIMINANT` entries. `iter_length 0` and `typeof_op 0` are
+sibling self-droppers on the same root.
+
+### The four disjoint roots behind the "9 short stubs"
+| # | stub | root | first_blocker |
+|---|---|---|---|
+| 1 | `Module3_Weaver._target_dotted_path` | raw-expr param typing (`ast.AST`) | **unresolved class-qualified static self-recursion** |
+| 2 | `exec_splice._is_constant_exec` / `_contains_exec` | `object` annotation — never reaches `param_ast_node_types` (only `ast.<X>` is captured) | annotation root + `getattr()` forms |
+| 3 | `exec_splice.splice_constant_exec` | `NodeTransformer().visit(tree)` | opaque single-call delegate = **banned facade** |
+| 4 | `Module3_Weaver.visit_With` / `_attach_loop_contracts` | **CSL-contract-class** dispatch (`isinstance(c, CriticalSection/Acquires/Releases/LoopInvariant)`) over a heterogeneous `CSLNode` list — NOT ast at all | needs a CSLNode variant ADT |
+| 5 | `module_collect._module_const_int`, `Module5._is_decode_call` | `Any` annotation / IR-dict `.get("type")` | value-model roots, already charted |
+
+### The root that IS already solved (this is the key negative result)
+The campaign long ago committed to the abstraction map **α: raw pure_ast expr → `emit_ir`** — `ir_resolve.py`
+`_PURE_AST_FIELD_TABLE` types a raw expr CHILD (`expr.value` of a raw `ast.Attribute`) as `"ExprIR"`, and the
+`IrOther` catch-all makes α total. The existing mechanism for applying α to a *parameter* is to **retype the mirror
+param to the string forward-ref `"ExprIR"`** — **37 params in `Module5_IREmitter.py` already do this**, and in that
+file an `ast.expr` param ALREADY types `emit_ir` via the emitter-mirror path.
+A census of every live function with an `ast.expr`/`ast.AST` param isinstance-dispatched against a modelled class
+found **23 functions, all but one in `Module5_IREmitter.py`** — i.e. exactly where the mechanism already applies.
+**19 of the 23 are already converted; the 4 that are not are blocked by unrelated roots** (`_array_init_size`:
+BinOp/Mult/List; `_collect_union_arms`: node-LIST return + flattening recursion; `_classify_literal_value`:
+`Tuple[str, Any, Dict]` return; `_normalize_literal_annotation`: 15-stmt literal walker).
+
+### What was built, measured, and then reverted
+A minimal, faithful, corpus-inert capability: type an abstract-pure_ast-base param (`ast.expr`/`ast.AST`) as
+`emit_ir` when it is isinstance-dispatched against a modelled class (`_uses_pyast_expr` gate; no reference-corpus
+program performs an isinstance against a pure_ast class, so it is corpus-inert by construction), plus the projector
+coverage (`.id`/`.attr`→`name_of`, `.value`→the pre-existing UNIFIED `avalue_of`, which is the correct projector
+because a raw `.value` is the IrAttr OBJECT child on an Attribute and the IrSub ARRAY child on a Subscript — the
+bare `svalue_of` default would be WRONG on the Attribute branch), plus the emit_ir-theory and
+ambiguous-field-qualification gates.
+It WORKS at the discriminant level — measured before/after on `_target_dotted_path`:
+```
+- if (isinstance_op 0 0) ... (module3_Weaver__target_dotted_path_1 (get_value target)) ... (get_attr target)
++ if (is_sub target)     ... (module3_Weaver__target_dotted_path_1 (avalue_of target)) ... (name_of target)
++ if (is_attribute target) ... if (is_var target) -> Arm_0_0 (name_of target) | Arm_0_None
+```
+Both operands live, real ADT discriminants, real `Optional[str]` union arms. **Byte-diff of the
+`Module5_IREmitter.py` mirror before/after = 0** (confirming the change is inert exactly where the existing
+mechanism already covers).
+**But it converts nothing.** Its only reachable consumer outside the emitter mirrors is `_target_dotted_path`, and
+that hits the next wall:
+
+### NEXT WALL (the real blocker, newly isolated)
+**Class-qualified static-method self-recursion is not resolved.** `Module3_Weaver._target_dotted_path(target.value)`
+inside `Module3_Weaver._target_dotted_path` does NOT bind to the enclosing method; it emits an unconstrained
+abstract `val module3_Weaver__target_dotted_path_1 (x0: int) : int` with **collapsed-int params** — which then
+ill-types against the now-`emit_ir` argument. Fixing it needs (a) call resolution for `<OwnClass>.<staticmethod>`
+self-calls, AND (b) recursive-`let rec` emission with a structural `variant` (the `size` measure exists in the
+emit_ir theory but there is no path to emit it as a program-function variant).
+Gate-C note: leaving it as the abstract `val` would be a textbook facade (the recursion vanishes), so this stub is
+**not convertible** until (a)+(b) land.
+
+### Instruction to the next driver
+Do NOT re-run this probe. The `isinstance_op 0 0` count is NOT a measure of one wall's multiplicity — the ~163
+NODE-CTOR and ~19 `_union_c8_walk` stubs listed against it belong to blocker **B** (class-construction→ADT-ctor)
+and to the heterogeneous IR-dict value model respectively, neither of which the reflection fix touches. The
+remaining raw-expr surface is covered by the `"ExprIR"` retype convention; where that convention is not applied the
+stub is blocked by a *different* root. The genuinely new, well-isolated capability requests from this run are:
+1. class-qualified static-method **self-recursion resolution + `variant` emission** (blocks `_target_dotted_path`,
+   `_collect_union_arms`, and every structural AST recursion);
+2. a **CSLNode contract-class variant ADT** (blocks `visit_With`, `_attach_loop_contracts`, and the Weaver family);
+3. capturing `object`/`Any` param annotations is NOT the answer — it is too broad to gate safely; annotate the LIVE
+   source precisely instead (`ast.expr`), which is a faithful source improvement.
