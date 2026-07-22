@@ -221,3 +221,35 @@ over-approximation — proven content is invariant-preservation + frame; needs c
 contract-side `None` lowers to int 0; `Optional[<record>]` mutable LOCAL still `ref 0`; negative index in a VARIABLE
 keeps the old lowering. NEXT: raise-model/payload capability (unlocks expect_*), then the ~80-100-stub bulk
 (grammar helpers, precedence-climbing binop chains, comma/dot accumulators, keyword→single-clause constructors).
+
+## 2026-07-22 (run #5) — L3-tc PASS IS A WEAK SIGNAL: 91% of typecheck-passers were facades
+A bulk auto-porting probe over **284** `\trusted` stubs (≤5-stmt live bodies, then a ≤12-stmt band) across 48 mirror
+files measured the two-stage yield precisely:
+  **34/284 passed L3-tc — but 31 of those 34 were Gate-C FACADES on inspection of the emitted WhyML.**
+Only 3 survived the anti-facade filter. => **L3-tc (and even a green whole-file proof) is NOT evidence of a real
+conversion.** The MUTATION TEST + emitted-WhyML inspection is the load-bearing gate; without it this drain would have
+banked 31 fake count cuts. Canonical facade shapes seen: the nested visitor `def` VANISHES leaving
+`let found = Array.make 1 0; walk body; found[0]` (a constant); `isinstance_op 0 0`; string keys as int-hash
+(`subscript_get !func_ir 1878939832`); an opaque single-call delegate (`(_check_1 expr)`); record fields silently
+dropped on return (`(const (None: option int))`).
+ALSO BANNED AS VACUOUS (emit no body and no VC at all — a count cut would be fake): `__init__` (absorbed into the
+record type decl), `@property`, dunders (`__enter__`/`__exit__`), and any stub emitted as a bodyless `val`.
+
+### Blocker census after the drain (highest multiplicity first — the next capability queue)
+A. **nested `def`/closure dropped — ~21 stubs** (the inner visitor vanishes ⇒ constant result). Gates the whole
+   `core_ir_semantic` collector family (`_body_has_raise`, `_body_has_diverging_construct`, `_lemma_returns_value`,
+   `_lemma_calls_trusted`) + `canonical.alpha_normalize`. HIGHEST-multiplicity missing capability.
+B. **NODE-CTOR / pure_ast node reflection** — 163 in the 3 parsers + 7 facade-passers and most of a 56-stub
+   `string→int` class outside them. Two measured gaps: class-construction→ADT-ctor lowering (the DICT-literal path
+   `_lower_irnode_construction`/`_IRNODE_CTORS` already works; the CLASS-construction path does not), and the
+   concrete-sibling-call capability being gated on a RECORD return so an ADT-returning sibling degrades to an
+   opaque self-dropping `val`.
+C. raise-model — 40 (every CALLER of `error`/`_err`/`expect_*` inherits fall-through-on-raise).
+D. string keys/attrs int-hashed (5+); E. opaque single-call delegates (5); F. tuple return / heterogeneous list
+   literal (~7); G. os/tempfile/subprocess (~8); H. lambda/yield `_Unparser` (21).
+
+### TOOL BUG found (real, repeatedly hit): bare `dict` param lowers INCONSISTENTLY
+A bare `dict` parameter emits `map string (option int)` when the function is a trusted `val`, but
+`map int (option int)` when it is a defined `let`. Un-trusting ANY function that calls a `dict`-taking trusted val
+therefore ill-types AT THE CALL SITE. Worked around per-stub by annotating `Dict[str, PyVal]` (faithful — the why3
+`--json` records are string-keyed); the emitter-side key-type disagreement should be fixed at source.
