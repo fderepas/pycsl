@@ -23,12 +23,11 @@ class Var:
 @dataclass(frozen=True)
 class IntLit:
     value: int
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return str(self.value)
 
 
 @dataclass(frozen=True)
