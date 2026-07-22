@@ -5217,6 +5217,99 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             "       String.substring s result (String.length sub) = sub) }")
         return f"(str_find_op {r} {p})"
 
+    def _try_emit_any_all_fold(self, func_name, expr, local_refs, invariant_ctx, subst):
+        """genexp-erasure-wall R2b: `any(P(x) for x in it)` / `all(...)` -> a bounded,
+        executable, iff-specified fold. Returns None to fall back to the oracle.
+
+        Before this, BOTH planes lowered these to `val any_1 (a: array int) : bool` — an
+        UNCONSTRAINED oracle applied to a fabricated `Array.make 1 0` — so the iterable and the
+        predicate were both erased and the proof said nothing (wall-lessons (l)). The shape
+        emitted here is the reviewer's `anyfold.mlw`, proven Valid on z3 AND Alt-Ergo with a
+        positive driver and a working evil twin, axiom-free.
+
+        Deliberately NARROW: exactly one generator, no `if` filters, an iterable that lowers to
+        an `array int`, and a predicate that lowers to a boolean usable in BOTH the program body
+        and the logic annotations. Anything else returns None and keeps the old behaviour, so
+        this cannot perturb a shape it does not fully model."""
+        arg_irs = expr.get("args") or []
+        if len(arg_irs) != 1 or not isinstance(arg_irs[0], dict):
+            return None
+        comp = arg_irs[0]
+        if comp.get("type") not in ("GenExp", "ListComp"):
+            return None
+        gens = comp.get("generators") or []
+        if len(gens) != 1 or not isinstance(gens[0], dict):
+            return None
+        gen = gens[0]
+        if gen.get("ifs"):
+            return None                      # filtered comprehension — not modelled here
+        target = gen.get("target")
+        if not isinstance(target, str) or not target or target == "_comp_var":
+            return None
+        arr = self._expr_to_whyml(gen.get("iter") or {}, local_refs, invariant_ctx, subst)
+        if not arr or not arr.strip() or arr.strip() == "0":
+            return None                      # iterable itself erased — nothing to fold over
+        arr = arr.strip()
+        # The predicate, with the bound variable substituted by the element read. `subst` is
+        # exactly the emitter's binder-substitution channel, so the predicate is lowered ONCE
+        # per position rather than pattern-matched.
+        def _pred(elem: str) -> Optional[str]:
+            sub = dict(subst or {})
+            sub[target] = elem
+            try:
+                raw = self._expr_to_whyml(comp.get("elt") or {}, local_refs, invariant_ctx, sub)
+            except Exception:
+                return None
+            if not raw or not raw.strip():
+                return None
+            raw = raw.strip()
+            if elem not in raw:
+                return None                  # bound variable did not survive -> erasure again
+            return raw
+        # The fold is a STANDALONE function over its own parameter `a` — substituting the
+        # caller's array name would capture a variable that is not in scope there.
+        _saved_ops = dict(self._abstract_ops)
+        p_i = _pred("a[_fi]")
+        p_k = _pred("a[_fk]")
+        # `_expr_to_whyml` may register abstract ops as a side effect of lowering the
+        # substituted element (it can read `a[_fi]` as an unknown name). Roll those back and
+        # bail rather than emit a bogus `val constant a[_fi] : int`.
+        if p_i is None or p_k is None:
+            self._abstract_ops.clear()
+            self._abstract_ops.update(_saved_ops)
+            return None
+        # Substituting a compound element expression where a NAME is expected makes the
+        # emitter register it as an unknown constant (`val constant a[_fi] : int`). Drop those
+        # specific artifacts — they are an artifact of the substitution, not of the predicate.
+        # Any OTHER op the predicate genuinely needed is kept; if one appeared we cannot tell
+        # whether it is well-formed inside the generated function, so bail instead.
+        for _k in [k for k in self._abstract_ops if k not in _saved_ops]:
+            if "[" in _k:
+                del self._abstract_ops[_k]
+            else:
+                self._abstract_ops.clear()
+                self._abstract_ops.update(_saved_ops)
+                return None
+        if func_name == "any":
+            spec = "exists _fk. 0 <= _fk < Array.length a /\\ " + p_k
+            inv = "exists _fk. 0 <= _fk < _fi /\\ " + p_k
+            init, upd = "false", f"if {p_i} then _fr := true"
+        else:
+            spec = "forall _fk. 0 <= _fk < Array.length a -> " + p_k
+            inv = "forall _fk. 0 <= _fk < _fi -> " + p_k
+            init, upd = "true", f"if not ({p_i}) then _fr := false"
+        # Name from the SPEC, so two identical folds share one definition.
+        name = f"_{func_name}_fold_{stable_hash(spec) % 100000}"
+        self._add_abstract_op(
+            f"let function {name} (a: array int) : bool\n"
+            f"    ensures {{ result <-> ({spec}) }}\n"
+            f"  = let _fr = ref {init} in\n"
+            f"    for _fi = 0 to Array.length a - 1 do\n"
+            f"      invariant {{ !_fr <-> ({inv}) }}\n"
+            f"      {upd}\n"
+            f"    done; !_fr")
+        return f"({name} {arr})"
+
     def _call_named_builtins(self, expr: Dict[str, Any], args: List[str],
                              func_name: str, local_refs: Optional[Set[str]] = None,
                              invariant_ctx: bool = False,
@@ -5390,6 +5483,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { permut result a }")
             return f"(sorted_1 {self._array_coerce_arg(args[0])})"
         if func_name in ("any", "all") and len(args) == 1:
+            # genexp-erasure-wall R2b: when the argument is a COMPREHENSION whose predicate
+            # we can lower, emit a bounded, iff-specified fold instead of the unconstrained
+            # oracle below. Falls back to the oracle for every shape it cannot handle.
+            _fold = self._try_emit_any_all_fold(
+                func_name, expr, local_refs, invariant_ctx, subst)
+            if _fold is not None:
+                return _fold
             # `any(iterable)` / `all(iterable)` over an array — abstract.
             # Unsupported iterable shapes (generator expressions etc.) get
             # dropped to `0` at the IR level; coerce that to an array
