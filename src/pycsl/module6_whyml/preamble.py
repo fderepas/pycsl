@@ -5476,7 +5476,8 @@ class PreambleEmissionMixin:
             "",
         ]
 
-    def _record_default_literal(self, record_name: str, _seen=None) -> str:
+    def _record_default_literal(self, record_name: str, _seen=None,
+                                _pins=None) -> str:
         """parser-primitives-wall-impl-2.md Gate S: a default WhyML record-literal for
         `record_name` (an already-declared record in `_record_types`), used as the
         ELEMENT witness of an `array <record>` field's `by` clause. Each field takes a
@@ -5498,7 +5499,17 @@ class PreambleEmissionMixin:
             if ft in getattr(self, "_record_types", {}) and ft not in _seen:
                 v = self._record_default_literal(ft, _seen)
             elif ft in ("str", "string"):
-                v = '""'
+                # Contract self-field subscript projection: a class invariant
+                # `self.<f>[i].<sub> == "<lit>"` PINS this element field, so the
+                # `by` witness must carry `<lit>` rather than `""` — otherwise the
+                # (real) invariant has no exhibited inhabitant. `_pins` is empty
+                # for every class without such an invariant -> byte-inert.
+                # The contract names the element field by its WhyML LABEL (the
+                # reserved-word-mangled `py_type` for a Python `type` field), so
+                # match on the label as well as the raw Python name.
+                _pd = _pins or {}
+                _p = _pd.get(fld, _pd.get(label))
+                v = ('"%s"' % _p) if isinstance(_p, str) else '""'
             elif ft in ("real", "float"):
                 v = "0.0"
             elif ft in ("list", "tuple") or ft.startswith("array "):
@@ -5929,6 +5940,24 @@ class PreambleEmissionMixin:
                 out.append(f"  type {type_name} = {{ {'; '.join(field_strs)} }}")
                 class_invs = td.get("class_invariants", [])
                 if class_invs:
+                    # PRE-PASS (contract self-field subscript projection): register
+                    # `field -> element record class` BEFORE the invariants are
+                    # lowered, so a class invariant `self.<f>[i].<sub>` reaches the
+                    # self-field array-read projector (`expressions.py` W8 (iii))
+                    # instead of the unbound `get_<sub>` getter. The witness loop
+                    # below re-registers the SAME entries (idempotent); the gate is
+                    # byte-for-byte the one used there, so this is inert wherever no
+                    # `List[<record>]` field on a `@mutable_state`/IR-node class has a
+                    # class invariant.
+                    for _f in td["fields"]:
+                        _vt0 = _f.get("value_type")
+                        if (_f.get("type") in ("list", "tuple")
+                                and _vt0 in self._record_types
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            if not hasattr(self, "_record_array_fields"):
+                                self._record_array_fields = {}
+                            self._record_array_fields[_f["name"]] = _vt0
                     self._in_spec = True
                     self._emit_record_ctx = type_name
                     # L0′ (challenging-the-plan §4.1): set the self-type so a `self.<field>[i]` access
@@ -5974,6 +6003,9 @@ class PreambleEmissionMixin:
                     # `Array.make N 0` mistypes against `array <record>`. Build a
                     # default record literal from the element record's field defaults.
                     array_elem_witnesses: Dict[str, str] = {}
+                    # Contract self-field subscript projection: `{field: {sub: lit}}`
+                    # pins read off `self.<f>[i].<sub> == "<lit>"` class invariants.
+                    _elem_pins = self._extract_elem_field_pins(class_invs)
                     for _f in td["fields"]:
                         _vt = _f.get("value_type")
                         if (_f.get("type") in ("list", "tuple")
@@ -5981,7 +6013,8 @@ class PreambleEmissionMixin:
                                 and (getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):
                             array_elem_witnesses[_f["name"]] = \
-                                self._record_default_literal(_vt)
+                                self._record_default_literal(
+                                    _vt, None, _elem_pins.get(_f["name"]))
                             # W8/W1: remember `field -> element record` so a local
                             # bound to `self.<field>[i]` (the token cursor's
                             # `t = self.toks[self.i]`) pre-declares a record ref

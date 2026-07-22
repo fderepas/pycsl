@@ -3024,6 +3024,23 @@ choices make this consumable and sound:
   `\result[k] == a[k].x` requires the contract grammar to parse a projection off
   a subscripted element; see the concrete-syntax reference (`SubscriptFieldAccess`
   → `Attribute(Subscript(…), field)`, the SAME IR the body path produces).
+- **Self-field base `self.f[i].sub` (concrete syntax §3.1.4d).** The same
+  production with `self.<field>` as the collection base. Module 5
+  (`_csl_subscript_field`) lowers the dotted base `"self.<field>"` to
+  `Attribute(Subscript(FieldGet(self, field), index), sub)` — byte-for-byte the
+  IR the body path emits for `self.toks[self.i].py_type` — so Module 6's
+  self-field array-read projector (`expressions.py`, `_record_array_fields`)
+  emits the native `(let _rec_ = toks[i] in _rec_.<label>)` instead of the
+  unbound abstract getter `get_<sub>` (an unbound symbol fails the whole file).
+  Two supporting refinements: (a) `_record_array_fields` is registered in a
+  PRE-PASS before class invariants are lowered (`preamble.py`), since the
+  invariant is emitted inside the record declaration, ahead of the witness loop
+  that previously populated it; (b) a class invariant of the shape
+  `self.<f>[<idx>].<sub> == "<literal>"` PINS that element field in the record's
+  `by {}` inhabitance witness (`_extract_elem_field_pins`) — sound because
+  `Array.make N <lit>` makes every element the same literal, so the pin holds at
+  every index. Conflicting pins are dropped rather than guessed, leaving an
+  honestly failing inhabitance goal. Corpus 0900 / 0901.
 
 **Call comprehension (item 1) — the callee must be a logic symbol.** A call
 `g(e, …)` lifts only when `g` is a **module function already emitted as a pure

@@ -677,8 +677,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # Subscript — the SAME IR the body path produces for `a[i].x`, so the
         # abstract getter `get_<field>` denotes one value across the driver's
         # `\result[k] == a[k].x` and the projection-comprehension content law.
-        base = ({"type": "Result"} if node.array == "\\result"
-                else {"type": "Var", "name": node.array})
+        # SELF-FIELD base (`self.<field>[i].<sub>`): the parser carries the base as
+        # the dotted string `"self.<field>"`, which lowers to the SAME `FieldGet`
+        # `_csl_field_subscript` produces for `self.<field>[i]` — so the projection
+        # reaches Module6's self-field array-read projector (`expressions.py` W8
+        # capability (iii)), not the opaque/unbound `subscript_get`.
+        if node.array.startswith("self."):
+            base = {"type": "FieldGet", "object": "self",
+                    "field": node.array[len("self."):]}
+        else:
+            base = ({"type": "Result"} if node.array == "\\result"
+                    else {"type": "Var", "name": node.array})
         return {"type": "Attribute",
                 "object": {"type": "Subscript",
                            "value": base,

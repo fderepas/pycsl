@@ -2006,6 +2006,16 @@ class _ContractParser:
                 self.advance()
                 idx = self._parse_expr()
                 self.expect_op("]")
+                # cleared-array.md S2, SELF-FIELD base: `self.<field>[<idx>].<sub>`
+                # — the same element-projection production as `<name>[i].<field>`
+                # and `\result[i].<field>`, with `self.<field>` as the collection
+                # base instead of a plain name. The base is carried as the dotted
+                # string `"self." + field` (the same convention `\length(self.f)`
+                # already uses for `ArrayLength`).
+                if self.at_op("."):
+                    self.advance()
+                    sub = self.expect_name()
+                    return SubscriptFieldAccess("self." + field, idx, sub)
                 return FieldSubscript(field, idx)
             return FieldAccess("self", field)
         # general CNAME

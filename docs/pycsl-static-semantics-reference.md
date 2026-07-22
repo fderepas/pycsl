@@ -426,7 +426,12 @@ args threaded via `_call_record_constructor`) — NOT the int-coercion collapse.
 (`expressions.py::_expr_to_whyml` `ArrayLitExpr` arm, gated by `_record_ctor_list_elem`) registers the
 local as a record-array local (`_track_collection_metadata` → `_record_array_locals`), so `a[i].field`
 (local) and `\result[i].field` (on a `-> List[R]` return) project the real field via the same
-`(let _rec_ = … in _rec_.<label>)` path as §WL-04b. The element record is emitted PURE (Module5
+`(let _rec_ = … in _rec_.<label>)` path as §WL-04b. The SELF-FIELD base `self.<f>[i].<sub>`
+(concrete syntax §3.1.4d) joins the same path through `_record_array_fields` — the
+`List[<record>]` instance-field register — which is now populated in a PRE-PASS ahead of class-invariant
+lowering, so a CLASS INVARIANT (not only a body) can project an element field. The projection is
+well-typed only where the field really is a `List[<record>]` on a `@mutable_state`/IR-node class;
+anywhere else the register is empty and the read falls back unchanged. The element record is emitted PURE (Module5
 `_m5_list_literal_record_elem` adds it to `list_element_record_types` after `generic_visit`). FAITHFUL
 CONSTRUCTION IS REQUIRED: only a record whose constructor sets EVERY field from a positional param (a
 `NamedTuple`, a recognized `Tuple`, an explicit-`__init__` positional class, and — **since §WL-07** — a

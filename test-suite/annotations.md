@@ -756,6 +756,7 @@ def _pack_uint16_be(v: int) -> list: ...
 | 3b | `self.field[i]` | `FieldSubscript` | Element of an instance ARRAY field (e.g. for region-preservation: `self.disk[i] == \old(self.disk[i])`). Lowers to a subscript of the record field in the hoare model. |
 | 4 | `arr[i]` | `SubscriptAccess` | Array element access |
 | 4c | `arr[i].field` / `\result[i].field` | `SubscriptFieldAccess` | Field PROJECTION off a subscripted element (cleared-array.md S2). Lowers to `Attribute(Subscript(…), field)` — the consumer of a projection-comprehension content law `\result[k] == a[k].x`. |
+| 4d | `self.field[i].sub` | `SubscriptFieldAccess` | Field PROJECTION off an element of an instance ARRAY field — the SELF-FIELD base of §4c (its third base after a `CNAME` and `\result`, not a new operator). Lowers to `Attribute(Subscript(FieldGet(self, field), index), sub)`, the same IR the body path produces for `self.toks[self.i].py_type`, so a `List[<record>]` field projects the real record field instead of the unbound abstract getter `get_<sub>`. Enables the lexer-sentinel class invariant `self.toks[\length(self.toks) - 1].py_type == "EOF"` that a token-cursor `while self.at_op(...)` loop needs for TERMINATION; a `== "<literal>"` invariant of this shape also PINS the record's `by {}` inhabitance witness. Reference corpus: 0900 (positive) / 0901 (negative twin). |
 | 5 | `\result` | `Result` | Return value (only in `ensures`) |
 | 6 | `\old(<expr>)` | `Old` | Value of expression at function entry |
 | 7 | `\at(<expr>, L)` | `At` | Value of expression at label `L` |

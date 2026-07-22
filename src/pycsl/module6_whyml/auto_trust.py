@@ -68,6 +68,69 @@ class AutoTrustMixin:
         return "; ".join(parts)
 
     @staticmethod
+    def _extract_elem_field_pins(invs: List[Any]) -> Dict[str, Dict[str, str]]:
+        """Contract self-field subscript projection: scan class invariants for
+        `self.<f>[<idx>].<sub> == "<literal>"` and return
+        `{f: {sub: "<literal>"}}` — the STRING value the `array <record>` field
+        `f`'s witness ELEMENT must carry for that invariant to hold.
+
+        Sound because the `by` witness builds the array with `Array.make N <lit>`:
+        every element is the SAME literal, so pinning `<sub>` to the required
+        constant satisfies the invariant at every index, whatever `<idx>` is.
+        Conflicting pins on the same `<sub>` are dropped (first wins is unsound),
+        leaving the pre-existing empty-string default and an honestly failing
+        inhabitance goal rather than a bogus witness.
+
+        The matched IR is exactly what `Module5_IREmitter._csl_subscript_field`
+        emits for the `self.`-prefixed base: `Attribute(Subscript(FieldGet(self,
+        f), idx), sub)`. Absent (hence byte-inert) for every contract that does
+        not use the form."""
+        out: Dict[str, Dict[str, str]] = {}
+        conflicts: Dict[str, set] = {}
+
+        def _proj_of(node: Any):
+            if not isinstance(node, dict) or node.get("type") != "Attribute":
+                return None
+            sub = node.get("attr")
+            base = node.get("object")
+            if not isinstance(base, dict) or base.get("type") != "Subscript":
+                return None
+            coll = base.get("value")
+            if (not isinstance(coll, dict) or coll.get("type") != "FieldGet"
+                    or coll.get("object") != "self"):
+                return None
+            if not isinstance(sub, str) or not isinstance(coll.get("field"), str):
+                return None
+            return coll["field"], sub
+
+        def _str_of(node: Any):
+            if isinstance(node, dict) and node.get("type") == "String":
+                v = node.get("value")
+                return v if isinstance(v, str) else None
+            return None
+
+        for inv in invs:
+            if not isinstance(inv, dict) or inv.get("type") != "BinOp":
+                continue
+            if inv.get("op") not in ("==", "="):
+                continue
+            for a, b in ((inv.get("left"), inv.get("right")),
+                         (inv.get("right"), inv.get("left"))):
+                proj = _proj_of(a)
+                lit = _str_of(b)
+                if proj is None or lit is None:
+                    continue
+                fld, sub = proj
+                prev = out.setdefault(fld, {}).get(sub)
+                if prev is not None and prev != lit:
+                    conflicts.setdefault(fld, set()).add(sub)
+                out[fld][sub] = lit
+        for fld, subs in conflicts.items():
+            for sub in subs:
+                out[fld].pop(sub, None)
+        return {f: d for f, d in out.items() if d}
+
+    @staticmethod
     def _extract_array_lengths(invs: List[Any]) -> Dict[str, int]:
         """Scan class invariants for a length constraint on an array field
         and return {field: N}, the length to give that field's witness in
