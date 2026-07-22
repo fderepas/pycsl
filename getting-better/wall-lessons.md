@@ -198,3 +198,26 @@ invariant `pos < len(toks)` would be a LIE. Faithful conversion used `#@ require
 the method's REAL domain. CARVE-OUT (not a licence to weaken): a precondition is permitted ONLY when it states the
 method's genuine partiality; it must never be a convenience narrowing to dodge an unproved goal, and the class
 invariant must not be strengthened beyond what the live code actually maintains.
+
+### (e) run #4 FINAL — W8 token-cursor wall BROKEN: 19 conversions (1013→994), 7 capabilities, ledger held at 3
+The wall run #3 CERTIFIED-BOUNDARY'd at "~3 primitives / +283-line blast radius" yielded 19 conversions once the
+gate/feature confusion was measured away. Capability chain, each spike-gated + fixture-witnessed + byte-diff-0:
+(i) low-blast-radius record-element class field [85679c71, fx 0926] → W1 cur/advance/take [dde9b2c7,e3a5e803, fx 0927]
+→ (iii) self-field array-read projection [826b4f56, fx 0928; 0 conversions, but its census found the true shape]
+→ (vi) concrete same-class sibling call w/ record return [5de7bec4,a0db955c, fx 0929; 0 conversions, found (vii)]
+→ (vii) tail-return bool→int + idempotence guard [3079a72a] → (ii) varargs-membership `seq_mem_str` + CONCRETE token
+kinds [0b72b5c6,498429b8, fx 0930-0932] → (v) Optional[<record>] union arm + (iv) negative literal index
+[edbc597d..c30f4bab, fx 0933-0934].
+BEYOND THE COUNT (tool honesty): 2 abstract vals ELIMINATED (`get_OP` was an unconstrained int making token-kind
+disjointness inexpressible; `kwlist` membership was `contains_check(str_hash_op …)` with NO ensures anywhere);
+3 pre-existing VACUOUS union variants repaired (`Arm_*_None`-only, no record arm: ir_schema, struct_format,
+p2w/parser); 1 pre-existing emitter bug fixed (vii).
+FACADES REFUSED (Gate C, left \trusted): `_err`/`error`/`unsupported` + all `expect_*` — they raise in Python but
+model as value-returning no-ops (the model FALLS THROUGH to advance() on the failure path) and the f-string payload
+is dropped (mutation ⇒ byte-identical .mlw). Needs a faithful raise-model/payload capability. A bogus `Arm_3_0 int`
+arm was also caught pre-landing by re-gating (v) on the emitted record type_decl set.
+RESIDUALS (measured, honest): `accept_*`'s guard `self.at_op(v)` still abstracts to `ensures true` (sound
+over-approximation — proven content is invariant-preservation + frame; needs concrete NON-record sibling lowering);
+contract-side `None` lowers to int 0; `Optional[<record>]` mutable LOCAL still `ref 0`; negative index in a VARIABLE
+keeps the old lowering. NEXT: raise-model/payload capability (unlocks expect_*), then the ~80-100-stub bulk
+(grammar helpers, precedence-climbing binop chains, comma/dot accumulators, keyword→single-clause constructors).
