@@ -78,7 +78,14 @@ class ControlFlowStmtMixin:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    # SOUNDNESS (relocated-stub frame audit): this stub carried NO `assigns` clause at all,
+    # so it was emitted as an effect-FREE `val` — while its live body (which lives in
+    # `statements.py`, a different file, which is why the same-file frame audit did not see
+    # it) writes `self._in_spec` twice around its spec-context expression emission. A missing
+    # frame is not "unspecified", it is the FALSE claim `\nothing`.
     #@ ensures True
+    #@ assigns self._in_spec
     def _stmts_to_whyml(self, rest: List[Dict[str, Any]], local_refs: Set[str],
                         declared_refs: Set[str], indent: str, in_loop: bool) -> str:
         return ""
@@ -306,7 +313,8 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # Inherited from `_stmts_to_whyml` (see its frame note).
+    #@ assigns self._in_spec
     def _handle_try_stmt(self, stmt: TryStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -447,7 +455,9 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # Inherited from `_stmts_to_whyml`, whose frame this audit corrected: the callee writes
+    # `self._in_spec`, so this caller's `\nothing` was false too.
+    #@ assigns self._in_spec
     def _handle_if_stmt(self, stmt: IfStmt, rest: List[Dict[str, Any]],
                         local_refs: Set[str], declared_refs: Set[str],
                         indent: str, in_loop: bool) -> str:
@@ -555,7 +565,9 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
+    # `self._in_spec`, so this caller's `\nothing` was false too.
+    #@ assigns self._in_spec
     def _handle_match_stmt(self, stmt: MatchStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:

@@ -53,8 +53,13 @@ def signatures(path, skip_trusted=False):
         return {("ERROR", str(exc), 0)}
     out = set()
     def is_trusted(node):
+        # The block above a `def` is `#@` contract lines, decorators, blank lines AND plain `#`
+        # comments. Omitting plain `#` stopped the walk at any justification comment sitting
+        # between the `\trusted` marker and the `def` — so the stub was compared as if it were
+        # un-trusted, and a legitimately RELOCATED stub then read as drift. Same defect, same
+        # fix as in check-self-annotate-mirror-sync.py.
         i = node.lineno - 2
-        while i >= 0 and (src[i].strip().startswith("#@")
+        while i >= 0 and (src[i].strip().startswith("#")
                           or src[i].strip().startswith("@")
                           or src[i].strip() == ""):
             if "\\trusted" in src[i]:
