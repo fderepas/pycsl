@@ -21,6 +21,12 @@ class ControlFlowStmtMixin:
     _havoc_counter: int = 0
     _seq_locals: Set[str] = None
     _array_locals: Set[str] = None
+    # SOUNDNESS (frame audit): `_in_spec` is WRITTEN by the ported bodies
+    # (`self._in_spec = True/False` around the invariant/variant emission in
+    # `_handle_while_stmt` / `_handle_for_stmt`) but was undeclared, so no `assigns`
+    # frame could name it. The header note above ("all reads (no writes) → assigns
+    # \nothing") was FALSE for this field. Live: Module6_WhyMLTranspiler.__init__.
+    _in_spec: int = 0
     "Control-flow statement handlers — `while` / `for` / `if` / `try` / `match`\n    / `return` — plus their private helpers (`_classify_iterable`,\n    `_first_assign_value_ir`, `_try_local_decl_kind`).\n\n    Extracted verbatim from `StatementEmissionMixin` (Part B move 3e, mirroring\n    the expressions.py split). `StatementEmissionMixin` inherits this mixin, so\n    the handlers resolve via MRO through the facade's `_STMT_HANDLERS` table and\n    recurse back into the core `self._stmts_to_whyml` / `self._expr_to_whyml`\n    (which stay in `StatementEmissionMixin`)."
 
     # item34.md CF0.3: cross-file recursion-leaf / bridge sibling stubs (defined in the
@@ -72,7 +78,7 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec
     def _handle_while_stmt(self, stmt: WhileStmt, rest: List[Dict[str, Any]],
                             local_refs: Set[str], declared_refs: Set[str],
                             indent: str, in_loop: bool) -> str:
@@ -144,6 +150,20 @@ class ControlFlowStmtMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # KNOWN-FALSE FRAME, BLOCKED (frame audit, HIGH). The live body WRITES
+    # `self._for_idx_init` (`= start` / `= "0"` / the slice-lower expression) and
+    # `_handle_for_stmt` READS it back, so `\nothing` is a lie every caller inherits.
+    # It cannot be corrected here: declaring `assigns self._for_idx_init` makes this
+    # stub state-taking, and the emitted call site then passes `self` to the SELF-LESS
+    # bridge declaration. Both `val`s are emitted for the same method --
+    #   val self__classify_iterable_3 (x0: emit_ir) ...            (bridge, no self)
+    #   val controlflowstmtmixin___classify_iterable (self: ...)   (class-qualified)
+    # -- and the call resolves to the bridge while the self-argument is prepended only
+    # when the frame is non-empty: "This expression has type
+    # controlflowstmtmixin @rho, but is expected to have type emit_ir".
+    # Fixing it is a src/pycsl emitter change (call-site name resolution vs
+    # self-passing), OUT OF SCOPE for a contract-only audit. `_handle_for_stmt`'s own
+    # frame below is therefore also still INCOMPLETE by exactly `_for_idx_init`.
     #@ assigns \nothing
     def _classify_iterable(self, iter_ir: "ExprIR", local_refs: Set[str],
                            idx: str) -> Tuple[str, str, bool]:
@@ -151,7 +171,7 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec
     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
