@@ -367,12 +367,12 @@ class _Parser:
     def _line_ends_with_colon(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _looks_like_type_alias(self):
-        pass
+        nxt = self.peek(1)
+        return nxt.type == _tokenize.NAME and nxt.string not in _keyword.kwlist
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -409,12 +409,11 @@ class _Parser:
     def return_stmt(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _stmt_end(self):
-        pass
+        return self.cur().type in (_tokenize.NEWLINE, _tokenize.ENDMARKER) or self.at_op(";")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -507,12 +506,12 @@ class _Parser:
     def testlist_star_expr(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _testlist_end(self):
-        pass
+        return (self.cur().type in (_tokenize.NEWLINE, _tokenize.ENDMARKER)
+                or self.at_op("=", ":", ")", "]", "}", ";"))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
