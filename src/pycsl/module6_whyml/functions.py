@@ -1849,7 +1849,14 @@ class FunctionEmissionMixin:
         # reachable when `ann` carries one of the 4 recognized IR-node tags — no
         # corpus function outside a @mutable_state mirror uses them (byte-identical).
         elif (ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
-                and return_type == "int"):
+                and return_type in ("int", "unit")):
+            # NODE-CTOR (self-tcb-reduction): `"unit"` covers a still-`\trusted` mirror
+            # stub whose placeholder body is a bare `pass` (find_return_type -> "unit")
+            # rather than `return {}` ("int"). Its DECLARED annotation is the authority
+            # on what it returns, so its `val` must announce `emit_ir` — otherwise a
+            # CONVERTED caller's concrete `(<cls>__<m> self)` call is typed `()` and the
+            # whole chain fails to type-check. Same 4 IR-node tags, which no corpus
+            # program outside a @mutable_state mirror ever uses (byte-identical).
             return_type = "emit_ir"
         if bounded_int and return_type == "int":
             return_type = f"int{bounded_int}"
@@ -3195,7 +3202,8 @@ class FunctionEmissionMixin:
                 # WhyML `string`, not the legacy int hash — so a caller can type a
                 # `s = f(...)` local as string. (MEASUREMENT branch — gated.)
                 ret = "string"
-            elif ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR") and ret == "int":
+            elif (ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
+                    and ret in ("int", "unit")):
                 # self-tcb-reduction spike (csl-ast-as-emit_ir): the `self.<method>(...)`
                 # SELF-CALL abstract-val sibling of `_compute_return_type`'s ann-based
                 # `emit_ir` fallback (line ~2260-2270) — a `trusted` IR-node dispatcher

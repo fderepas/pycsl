@@ -4228,8 +4228,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # low-blast-radius gate) → corpus byte-identical.
         if (func_name.startswith("self.") and self._current_self_type
                 and getattr(self, "_record_array_fields", None)
-                and ret_type in {_ri["whyml_name"]
-                                 for _ri in getattr(self, "_record_types", {}).values()}):
+                and (ret_type in ("emit_ir", "int", "string")
+                     or ret_type in {_ri["whyml_name"]
+                                     for _ri in getattr(self, "_record_types", {}).values()})):
             _concrete = whyml_ident(
                 f"{self._current_self_type}__{func_name[len('self.'):]}")
             if _concrete in getattr(self, "_module_func_names", set()):
@@ -4989,6 +4990,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             for kw in (expr.get("keywords") or [])
             if isinstance(kw, dict) and isinstance(kw.get("arg"), str)
         }
+        # NODE-CTOR (self-tcb-reduction): a CLASS construction of a CSL-AST node
+        # (`BinOp(left, op, right)`) inside the emitter model lowers to the SAME
+        # `emit_ir` ADT constructor the equivalent DICT construction
+        # (`{"type": "BinOp", "op": …, "left": …, "right": …}`,
+        # `_lower_irnode_construction`) already lowers to — `(IrBinOp op left right)`.
+        # Without this the construction is a `binop` RECORD literal that cannot unify
+        # with the `emit_ir`-typed sibling/return positions the recursive-descent
+        # chain threads it through. The ctor payload order comes from the SHARED
+        # `_IRNODE_CTORS` table; the actual args are bound BY NAME off the class's
+        # positional `__init__` params (dataclass field order), so a mismatch between
+        # the class's field order and the ctor's payload order can never silently
+        # mis-bind. Gated on @mutable_state (the emitter model) → corpus byte-identical.
+        adt = self._call_irnode_constructor(args, func_name, kwargs_map)
+        if adt is not None:
+            return adt
         rec = self._call_record_constructor(args, func_name, kwargs_map)
         if rec is not None:
             return rec
@@ -6414,6 +6430,46 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if len(e.get("args", [])) != len(init_params):
                 return None
         return rec_name
+
+    def _call_irnode_constructor(self, args: List[str], func_name: str,
+                                 kwargs_map: Optional[Dict[str, str]] = None
+                                 ) -> Optional[str]:
+        """NODE-CTOR (self-tcb-reduction): `C(a, b, c)` for a CSL-AST node class that the
+        SHARED `_IRNODE_CTORS` table models → the `emit_ir` ADT application
+        `(IrC <payload in ctor order>)`.
+
+        The binding is BY NAME, never by position: the class's positional `__init__`
+        params (`init_params`, captured by Module5 — for a `@dataclass` these ARE the
+        declared fields in order) name the actuals, and `_IRNODE_CTORS[C]`'s payload list
+        names the ctor's argument order. Every payload name must be supplied by a
+        positional param or an explicit keyword, or the lowering DECLINES (returns None →
+        the record-literal fallback), so a partial/renamed/extra-field construction can
+        never silently drop or reorder a child.
+
+        Gated on @mutable_state (the emitter model, `_current_self_type` in
+        `_mutable_state_classes`) exactly like `_lower_irnode_construction`, so no corpus
+        program — none of which declares a @mutable_state class — changes a byte."""
+        if getattr(self, "_current_self_type", None) not in getattr(
+                self, "_mutable_state_classes", set()):
+            return None
+        ctor = self._IRNODE_CTORS.get(func_name)
+        if ctor is None:
+            return None
+        rec_info = getattr(self, "_record_types", {}).get(func_name)
+        if not rec_info:
+            return None
+        init_params = rec_info.get("init_params", [])
+        if len(args) > len(init_params):
+            return None
+        bound: Dict[str, str] = dict(zip(init_params, args))
+        bound.update(kwargs_map or {})
+        cname, payload = ctor
+        # Every ctor payload slot must be bound by the construction — an unbound slot
+        # would mean a DROPPED child, which is exactly the facade this build exists to
+        # avoid. Decline instead.
+        if any(f not in bound for f in payload):
+            return None
+        return f"({cname} {' '.join(bound[f] for f in payload)})"
 
     def _call_record_constructor(self, args: List[str], func_name: str,
                                  kwargs_map: Optional[Dict[str, str]] = None) -> Optional[str]:

@@ -1878,7 +1878,16 @@ class PreambleEmissionMixin:
                     # function with an early return currently fails the `Return int` clash, so
                     # none is in a passing baseline).
                     union_return_types.add(ann)
-                elif IRScanner.returns_emit_ir_literal(func["body"]):
+                elif (IRScanner.returns_emit_ir_literal(func["body"])
+                      or ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")):
+                    # NODE-CTOR (self-tcb-reduction): the SAME need, reached via the
+                    # DECLARED return annotation instead of a dict-literal body shape —
+                    # a recursive-descent method annotated `-> "ExprIR"` whose early
+                    # return carries a CLASS-constructed node (`return UnaryOp(op, …)`,
+                    # lowered to `(IrUnaryOp …)` by `_call_irnode_constructor`). The
+                    # literal-shape scanner cannot see through a class construction, so
+                    # the annotation is the detector here. Same annotation set
+                    # `_compute_return_type` already maps to `emit_ir`.
                     # Return_emit_ir infra: an emit_ir-returning function (a recursive
                     # `_csl_*`-style dispatcher building a `{"type": K}` IR-node literal)
                     # with an early/in-loop return carries the node payload through a

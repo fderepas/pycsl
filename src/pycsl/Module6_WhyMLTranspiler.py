@@ -220,8 +220,12 @@ class Module6_WhyMLTranspiler(
             return set()
         rec_names = {ri["whyml_name"]
                      for ri in getattr(self, "_record_types", {}).values()}
+        # NODE-CTOR spike (self-tcb-reduction): the `emit_ir` ADT return is the SAME
+        # capability one type-class over — a `self.<m>()` sibling returning the IR-node
+        # ADT must bind CONCRETELY too, else it degrades to an UNCONSTRAINED abstract
+        # `val self_<m>_0 (self) : emit_ir` (no ensures) — a facade.
         return {name for name, rt in self._module_method_return_types.items()
-                if rt in rec_names}
+                if rt in rec_names or rt in ("emit_ir", "int", "string")}
 
     def _build_callee_no_exception_summary(self, functions: List[Dict[str, Any]]) -> None:
         """Populate the module-wide callee summary maps (workplan PR 4).

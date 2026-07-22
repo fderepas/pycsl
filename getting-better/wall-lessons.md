@@ -340,3 +340,73 @@ stub is blocked by a *different* root. The genuinely new, well-isolated capabili
 2. a **CSLNode contract-class variant ADT** (blocks `visit_With`, `_attach_loop_contracts`, and the Weaver family);
 3. capturing `object`/`Any` param annotations is NOT the answer — it is too broad to gate safely; annotate the LIVE
    source precisely instead (`ast.expr`), which is a faithful source improvement.
+
+## § NODE-CTOR (blocker B) — run #6, 2026-07-22: capability BUILT, chain conversion CERTIFIED-BOUNDARY
+
+### Census FIRST — the "163 stubs" figure is INFLATED ~3x
+Measured by parsing every `\trusted` stub's LIVE body and asking whether it constructs a node CLASS
+(`ast.walk` over `Call(func=Name)` against the module's own `ClassDef` set):
+
+| file | `\trusted` stubs | actually NODE-CTOR | claimed |
+|---|---|---|---|
+| `frontend/pure_ast.py` | 240 | **6** | 106 |
+| `frontend/Module2_Parser.py` | 75 | **48** | 46 |
+| `proof2why3/parser.py` | 16 | **2** | 11 |
+| **total** | 331 | **56** | 163 |
+
+Of the 48 in `Module2_Parser`, only **20** are the expression chain that can target the `emit_ir` ADT; the other
+~28 build *declaration* nodes (`Requires`/`Ensures`/`LoopInvariant`/…) for which no ADT sum exists at all. Of the
+72 distinct CSL classes those 20 construct, ~10 (`CSLIn`, `CSLNotIn`, `DictView`, `ChainedSubscript`,
+`NestedSubscript`, `GlobalFieldSubscript`, `FieldSubscript`, `SubscriptFieldAccess`, `MkTupleExpr`, `ProjExpr`)
+have **no** `emit_ir` counterpart. Honest reachable set for this blocker: **tens, not 163.**
+
+### Gate S — three gaps measured, all THREE fixed (emit before → after)
+1. **class-construction ≠ ADT ctor.** `BinOp(left, op, right)` → `{ binop_left = …; binop_op = …; binop_right = … }`
+   (a `binop` RECORD literal) → *"has type binop, but is expected to have type emit_ir"*.
+   FIXED by `_call_irnode_constructor` (expressions.py): reuses the SHARED `_IRNODE_CTORS` table, binds the ctor
+   payload **by name** off the class's positional `__init__` params, and DECLINES on any unbound slot.
+   Now → `(IrBinOp !op !left !right)`.
+2. **ADT-returning sibling call was opaque.** `self._parse_factor()` → `val self__parse_factor_0 (self) : emit_ir`
+   with **no `requires`/`ensures` at all**. The concrete-sibling gate was `ret_type in <record types>`.
+   FIXED (2 lines) by widening it to `("emit_ir", "int", "string")` — still under the `_record_array_fields`
+   @mutable_state gate. Now → `(_contractparser___parse_factor self)`, and a SELF-recursive call binds too.
+3. **varargs guard was RECEIVER-LESS.** `self.at_op("*","/")` → `val self_at_op_1 (x0: seq string) : int` — could
+   not see `self`, so the loop guard had no relation whatsoever to the cursor. Same 2-line fix →
+   `(_contractparser__at_op self (Seq.cons "*" …))`, against the real verified definition.
+
+Supporting: `-> "ExprIR"` on a `pass`-bodied `\trusted` stub now yields `emit_ir` rather than `unit`
+(functions.py, both return-type maps); `Return_emit_ir` is declared off the *annotation* as well as the
+dict-literal body shape (preamble.py).
+
+### The chain still does NOT convert — TERMINATION, not node construction
+7 precedence levels (`_parse_implication`…`_parse_factor`) were converted verbatim, reached **L3-tc ✓**, emitted
+genuinely faithful bodies (distinct concrete operator token sets, concrete `at_op`/`advance`/sibling calls, real
+`IrBinOp` nodes) and PASSED a 2-way mutation test — but the whole-file proof went **SUCCESS (139 Valid, 0 unproven)
+→ FAILED**, on exactly three sub-goal classes per method: *termination*, *type invariant*, *postcondition* of the
+`while self.at_op(...)` loop. Reverted; count restored 1017.
+
+**Root cause (certified).** `advance` increments the cursor only while `self.i < len(self.toks) - 1`, so the
+measure `\length(self.toks) - self.i` stops decreasing at the last index. The loop really terminates only because
+`_lex_contract` appends an EOF sentinel (`toks.append(_Tok("EOF", "", n))`) whose kind is never `"OP"`/`"NAME"`.
+Stating that requires
+
+    #@ class invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+
+and **the contract grammar rejects it**: *"unexpected trailing input (got OP '.')"* — a `.field` projection off a
+SELF-FIELD subscript is unparseable. The two sibling forms are asymmetric: `<name>[i].<field>`
+(`SubscriptFieldAccess`) and `\result[i].<field>` both PARSE, but the former then lowers to an **unbound
+`subscript_get`** in a class-invariant context. So neither spelling reaches a usable sentinel invariant.
+
+### Instruction to the next driver
+The node-construction and sibling-binding halves of blocker B are **DONE and banked** (witness fixture
+`0935_class_construction_adt_ctor.py`, proved, mutation-tested). Do NOT re-spike them. The chain is now gated on a
+single, narrow, well-isolated request:
+
+> **`self.<array-of-record field>[idx].<subfield>` in a contract** — parse it (grammar), and lower it in a
+> class-invariant/`ensures` context to the record projection off the array read (the machinery already exists for
+> the `<name>[i].<field>` and `\result[i].<field>` forms; only the self-field form is missing end-to-end).
+
+With that, the EOF-sentinel invariant becomes stateable, `at_op`'s postcondition can carry
+`\result ==> self.i < \length(self.toks) - 1`, and the loop variant `\length(self.toks) - self.i` discharges — at
+which point the ~8 loop-carrying precedence levels convert on the capability landed here. Do NOT attempt the
+declaration-node half (~28 stubs) — it needs a CSLNode declaration ADT that does not exist.
