@@ -118,7 +118,10 @@ class FunctionEmissionMixin:
         m = {"int": "int", "bool": "int", "str": "string", "float": "real",
              "list": "array int", "bytes": "array int", "bytearray": "array int",
              "dict": "map int (option int)", "set": "map int (option int)",
-             "frozenset": "map int (option int)", "tuple": "array int"}
+             "frozenset": "map int (option int)", "tuple": "array int",
+             # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
+             # carries the already-lowered emit_ir sub-node.
+             "emit_ir": "emit_ir"}
         return m.get(tag, "int")
 
     #@ \trusted reviewer: pycsl-self-annotate

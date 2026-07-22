@@ -70,7 +70,28 @@ def _normalize(node):
             and isinstance(body[0].value, ast.Constant)
             and isinstance(body[0].value.value, str)):
         body = body[1:]                      # leading docstring
-    return [ast.unparse(stmt) for stmt in body]
+    return [ast.unparse(_deannotate(stmt)) for stmt in body]
+
+
+class _DropLocalAnnotations(ast.NodeTransformer):
+    """`x: T = v` -> `x = v` for LOCAL variable annotations inside a body.
+
+    Same rationale as parameter annotations: a local annotation is the mirror's modelling layer
+    (`new_pat: Dict[str, PyVal] = {...}`), and PEP 526 does not evaluate annotations on local
+    variables at runtime, so adding one is semantics-preserving. An ANNOTATION-ONLY statement
+    (`x: T` with no value) is a declaration, not an assignment, and is kept — dropping it would
+    hide a real body difference."""
+
+    def visit_AnnAssign(self, node):
+        self.generic_visit(node)
+        if node.value is None:
+            return node
+        return ast.copy_location(
+            ast.Assign(targets=[node.target], value=node.value, type_comment=None), node)
+
+
+def _deannotate(stmt):
+    return ast.fix_missing_locations(_DropLocalAnnotations().visit(stmt))
 
 
 def _signature(node):

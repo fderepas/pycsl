@@ -190,6 +190,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         int dict (the caller keeps the `(const (None: option int))` it has)."""
         if nu == "string":
             return "(const (None: option string))"
+        if nu == "hval":
+            # hval-value-model-wall: a `Dict[str, PyVal]` heterogeneous dict is
+            # `map string (option hval)`; the empty base is the everywhere-None map.
+            return "(const (None: option hval))"
         if nu == "seq int":
             return "(const (None: option (seq int)))"
         if nu and nu.startswith("map "):
@@ -203,6 +207,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         dead under `#@ no_exception KeyError`, the ambient default otherwise)."""
         if nu == "string":
             return '""'
+        if nu == "hval":
+            # hval-value-model-wall: the missing-key default for a `Dict[str, PyVal]`
+            # read — an `hval` sentinel (proven dead under `#@ no_exception KeyError`).
+            return "(HInt 0)"
         if nu and nu.startswith("seq "):
             # #15: `Dict[str, List[T]]` value (`seq string`/`seq int`) -> the empty seq default.
             return f"(Seq.empty: {nu})"
@@ -652,6 +660,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if name in self._lambda_locals:
             return whyml_ident(name)
         if name in self._record_locals:
+            return whyml_ident(name)
+        # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a pyval chain local is
+        # `let`-bound IMMUTABLE (single-assignment), so a read is the BARE name — never
+        # the `!x` deref (which would type-clash: it is not a ref). Comes before the
+        # `local_refs` deref so `return info` emits `info`, not `!info`. Gated -> inert.
+        if name in getattr(self, "_pyval_locals", set()):
             return whyml_ident(name)
         if name in local_refs:
             return f"!{whyml_ident(name)}"
