@@ -94,3 +94,60 @@ Gate S step 2 REFUTE (erasure happens in Module 5) → CERTIFIED-BOUNDARY-AT-M5 
 Gate S step 3 REFUTE (no recursive predicate under the binder) → build R2 for the non-recursive
 sub-class only, and record explicitly that the IRScanner family stays vacuous and gated.
 Either way: record, commit the finding, do NOT grind.
+
+---
+
+## §GATE-S — SPIKE OUTCOME: **REFUTE of this plan's scope (re-plan, cheap), not of R2 itself**
+
+Count unchanged (981), ledger 3, no emitter edit made.
+
+**Step 2 (the falsifier) REFUTES the Module-6-only scope, and the emitter says so in its own
+comment.** `src/pycsl/module6_whyml/expressions.py:5392` reads:
+
+> *"Unsupported iterable shapes (generator expressions etc.) get **dropped to `0` at the IR
+> level**; coerce that to an array placeholder so the abstract val type-checks."*
+
+Confirmed structurally: `grep -c GeneratorExp src/pycsl/frontend/Module5_IREmitter.py` → **0**.
+`ast.GeneratorExp` is absent from `_PY_EXPR_HANDLERS`, so `_py_expr_to_ir` returns the fallback
+`{"type": "UnknownPyExpr"}` and `_array_coerce_arg` renders it `Array.make 1 0`. **The erasure
+happens at IR CONSTRUCTION (Module 5), before Module 6 ever sees a predicate.** Editing the
+Module-6 handler alone could not have worked, and the plan's costed scope was wrong.
+
+**The re-plan is CHEAP, not session-scale** — which is why this is REFUTE-and-re-plan rather than
+CERTIFIED-BOUNDARY. `ast.ListComp`/`SetComp`/`DictComp` ARE handled (`Module5_IREmitter.py:1052-4`,
+`_py_expr_listcomp` at 1210) and preserve `elt` + `generators`. A `GeneratorExp` is structurally
+identical to a `ListComp`, so Module 5 needs one dispatch entry plus a handler modelled on the
+existing one.
+
+**Step 2 also found a SECOND erasure layer the report and the review both missed.** The bracketed
+form `any([x > 10 for x in xs])` DOES reach Module 6 carrying a real `ListComp` IR — and is erased
+there anyway, by a different oracle:
+
+```
+let function g_form (xs: array int) : int = (if (any_1 (Array.make 1 0)) then 1 else 0)   (* genexp   *)
+let function l_form (xs: array int) : int = (if (any_1 (list_comp 0))    then 1 else 0)   (* listcomp *)
+  val list_comp (x: int) : int      (* unconstrained, argument int-erased to 0 *)
+```
+
+So R2 must clear TWO layers: `UnknownPyExpr` in M5 **and** `list_comp` in M6.
+
+**Step 2 also REFUTES the plan's byte-inertness claim in part.** The review verified 0 corpus sites
+for `any_1`/`all_1`, and that stands. But `list_comp` appears in **1 corpus file (`0042.mlw`)**, and
+14 corpus programs contain a list comprehension. So:
+- gating the fold to the `any`/`all` argument position ONLY → still byte-inert (0 corpus sites);
+- touching the GENERAL `ListComp` lowering → **NOT byte-inert**, and needs an M1 sanctioned reset
+  with `0042` re-proving. Do not conflate these two; the second is a separate authorization.
+
+### Re-planned increments (each separately spike-gated)
+- **R2a** — Module 5 `ast.GeneratorExp` handler mirroring `_py_expr_listcomp` (dispatch entry +
+  handler). Makes the predicate and bound variable reach Module 6. Byte-inert (no corpus genexp
+  reaches an emitted site today). Small.
+- **R2b** — Module 6: generate the bounded iff-specified fold for `any`/`all` **when the argument
+  IR is a comprehension**, replacing `any_1`/`all_1` at that position only. Byte-inert by the gate
+  above. Must be a pure `let function` (condition 4) with an iff postcondition (condition 3).
+- **R2c** — contract-grammar genexp support so `#@ assert all(x >= 0 for x in a)` parses
+  (condition 5). Currently `expected ')' (got NAME 'for')`. Independent of R2a/R2b; if it proves
+  to be its own subsystem, ship R2a+R2b and say the spec plane is unfixed — do NOT claim the wall.
+- **Step 3 (recursive-predicate falsifier) NOT YET RUN.** It only becomes answerable once R2a
+  lands and a genexp body actually reaches Module 6. Until then, whether the IRScanner family is
+  reachable at all is OPEN, and R2 must not be described as fixing it.
