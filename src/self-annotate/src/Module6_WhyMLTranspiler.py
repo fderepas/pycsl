@@ -166,7 +166,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises
     def _build_callee_no_exception_summary(self, functions: List[Dict[str, Any]]) -> None:
         """Populate the module-wide callee summary maps (workplan PR 4).
         Indexed by the IR function name (e.g. "divide_256")."""
@@ -425,7 +425,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._all_record_fields, self._axiom_emitted_decls, self._class_inv_axioms_emitted, self._composed_provider_methods, self._current_emit_group, self._declared_types_modular, self._inductive_preds, self._module_func_names, self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises, self._module_method_field_old_ensures, self._module_method_field_param_frame_ensures, self._module_method_field_param_post_ensures, self._module_method_field_param_result_ensures, self._module_method_field_result_ensures, self._module_method_formal_params, self._module_method_param_defaults, self._module_method_param_result_ensures, self._module_method_param_types, self._module_method_param_whyml_types, self._module_method_result_ensures, self._module_method_result_frame_ensures, self._module_method_return_annotations, self._module_method_return_types, self._module_method_writes, self._module_string_seq_funcs, self._shared_op_skip, self._shared_symbol_decls, self._sibling_concrete_methods, self._verify_module_of
     def transpile(self) -> str:
         """Entry point: converts the entire program to a .mlw string."""
         functions = self.ir.get("functions", [])
@@ -663,7 +663,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._composed_provider_methods, self._inductive_preds, self._module_func_names, self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises, self._module_method_field_old_ensures, self._module_method_field_param_frame_ensures, self._module_method_field_param_post_ensures, self._module_method_field_param_result_ensures, self._module_method_field_result_ensures, self._module_method_formal_params, self._module_method_param_defaults, self._module_method_param_result_ensures, self._module_method_param_types, self._module_method_param_whyml_types, self._module_method_result_ensures, self._module_method_result_frame_ensures, self._module_method_return_annotations, self._module_method_return_types, self._module_method_writes, self._module_string_seq_funcs, self._sibling_concrete_methods
     def _compute_shared_module_maps(self, functions: List[Dict[str, Any]]) -> None:
         """Populate the SHARED cross-function lookup state (return-types, contract-
         propagation ensures maps, no_exception summary, …) from the FULL function set
@@ -714,7 +714,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._declared_types_modular, self._inductive_preds
     def _emit_prefunctions_infra(self, functions: List[Dict[str, Any]],
                                  type_decls: List[Dict[str, Any]],
                                  all_bodies: List[Any],
@@ -762,7 +762,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._axiom_emitted_decls, self._class_inv_axioms_emitted
     def _reset_module_accumulators(self) -> None:
         """Reset the per-module emission accumulators so each emitted Why3 `module`
         gets its OWN abstract-val block / axiom-decl set / class-inv-axiom set (the
@@ -804,7 +804,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._axiom_emitted_decls, self._class_inv_axioms_emitted, self._composed_provider_methods, self._current_emit_group, self._declared_types_modular, self._inductive_preds, self._module_func_names, self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises, self._module_method_field_old_ensures, self._module_method_field_param_frame_ensures, self._module_method_field_param_post_ensures, self._module_method_field_param_result_ensures, self._module_method_field_result_ensures, self._module_method_formal_params, self._module_method_param_defaults, self._module_method_param_result_ensures, self._module_method_param_types, self._module_method_param_whyml_types, self._module_method_result_ensures, self._module_method_result_frame_ensures, self._module_method_return_annotations, self._module_method_return_types, self._module_method_writes, self._module_string_seq_funcs, self._shared_op_skip, self._shared_symbol_decls, self._sibling_concrete_methods, self._verify_module_of
     def _transpile_modular(self, functions: List[Dict[str, Any]],
                            type_decls: List[Dict[str, Any]]) -> str:
         """module-emission.md — emit the program as SEVERAL top-level Why3 `module`s so

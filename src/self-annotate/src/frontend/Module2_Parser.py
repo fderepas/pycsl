@@ -894,21 +894,21 @@ class _ContractParser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def expect_op(self, val):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def expect_name(self, val=None):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def expect_bs(self, val):
         pass
 
@@ -921,330 +921,343 @@ class _ContractParser:
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
+    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — the
+    # `except _ContractSyntaxError` path does `self.i = saved`).
+    # HIGHER-ORDER LIMITATION: `_try(fn)` calls `fn()`, so its true frame is
+    # `self.i` UNION whatever `fn` writes. The frame below is exact only because the
+    # live class has a SINGLE `_try` call site — `self._try(self._parse_assigns_region)`
+    # — and `_parse_assigns_region`'s transitive frame is itself `{self.i}` (in the
+    # live `_ContractParser`, only `__init__`, `advance`, `_try` and `_grab_reviewer_id`
+    # write a self field, and all four write only `self.i`; `self.toks` is written
+    # exclusively by `__init__`). It is NOT a frame valid for an arbitrary `fn`; a new
+    # `_try` call site with a wider callee INVALIDATES it.
+    # NO monotonicity `ensures` here: `self.i = saved` can DECREASE `self.i`. `_try` is
+    # precisely the backtracking site the expression chain's monotonicity relies on
+    # being unreachable.
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _try(self, fn):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def parse(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_contract(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_loop(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_class_invariant(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_function_variant(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_trusted(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _grab_reviewer_id(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_ghost(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_raises(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_no_exception(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_assumes(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_proof(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_qualname(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_interface(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_assigns(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_assigns_target(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_assigns_region(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_act_block(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_for_block(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_act_names(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_happy(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_happy_region(self, name):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_happy_targets(self, name):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_opt_except(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_dotted_path(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_dotted_path_list(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_footprint(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_datatype(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_variant_def(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_inductive(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_inductive_rules(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_shared_state(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_touches_field(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_depends_method(self, kind):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_compose_from(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_conforms_to(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_mixin_type(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_mixin_param(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_mixin_params(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_mixin_method_sig(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_shared(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_mutex_expr_str(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_mutex_invariant(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_lock_order(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_expr(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_quantifier(self):
         pass
 
@@ -1425,35 +1438,35 @@ class _ContractParser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_atom(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_atom_primary(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_atom_name(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_atom_bs(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_expr_list(self):
         pass
 

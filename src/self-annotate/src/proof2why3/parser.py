@@ -93,77 +93,77 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def expect(self, kind: str, value: Optional[str]=None) -> Token:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_expr(self) -> Term:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_quant(self) -> Term:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_implication(self) -> Term:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_disjunction(self) -> Term:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_conjunction(self) -> Term:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_comparison(self) -> Term:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_arith_add(self) -> Term:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_arith_mul(self) -> Term:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_atom_application(self) -> Term:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.pos
     def parse_atom(self) -> Term:
         return None
 

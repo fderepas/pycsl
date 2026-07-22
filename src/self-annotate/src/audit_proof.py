@@ -48,7 +48,7 @@ class AuditReport:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.failures, self.passes, self.skips
     def extend(self, other: "AuditReport") -> None:
         self.passes.extend(other.passes)
         self.failures.extend(other.failures)

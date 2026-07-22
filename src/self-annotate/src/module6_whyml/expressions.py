@@ -71,7 +71,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _e(self, ir: Dict, lr: Set[str]) -> str:
         return ""
 
@@ -222,14 +222,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _match_pattern_cond(self, pat: int, subject: str, local_refs: int) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _emit_membership(self, op: str, expr: int, left: str, right: str, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
 
@@ -279,14 +279,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_binop(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _iter_len_expr(self, ir: int, local_refs: int) -> Optional[str]:
         return None
 
@@ -300,7 +300,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_join_call(self, expr: int, args: List[str]) -> str:
         return ""
     #@ \trusted reviewer: pycsl-self-annotate
@@ -320,7 +320,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._current_params, self._current_self_type, self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
         return ""
 
@@ -359,7 +359,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._current_params, self._current_self_type, self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _dotted_ensures_suffix(self, result_ensures: List[int], n: int, param_types: List[str], field_spec: Optional[Any]=None) -> str:
         return ""
 
@@ -415,7 +415,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _recognize_field_decode_idiom(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
         return None
     #@ requires True
@@ -494,21 +494,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._current_params, self._current_self_type, self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_call_expr(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _content_string_method(self, expr: int, args: List[str], func_name: str, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _call_named_builtins(self, expr: int, args: List[str], func_name: str, local_refs: int=None, invariant_ctx: bool=False, subst: int=None) -> Optional[str]:
         return None
 
@@ -551,7 +551,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_isinstance(self, expr: int) -> str:
         return ""
     #@ \trusted reviewer: pycsl-self-annotate
@@ -564,7 +564,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _call_record_constructor(self, args: List[str], func_name: str) -> Optional[str]:
         return None
 
@@ -578,39 +578,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _typeddict_field_access(self, value: int, index_ir: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _typeddict_record_literal(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _namedtuple_positional_access(self, value: int, index_ir: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_subscript(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_attribute_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _var_todict_alias(self, name: str, local_refs: Set[str],
                           subst: Optional[Dict[str, str]]) -> str:
         """If `name` is a `to_dict()` ALIAS (`_todict_aliases[name] == "self.types"`), rebuild the
@@ -628,7 +628,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return self._expr_to_whyml(_n, local_refs, False, subst)
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
                          subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature
@@ -721,14 +721,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._quant_record_binders
     def _push_quant_binder(self, var: Optional[str], binder_type: Optional[str]):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._quant_record_binders, self._quant_scalar_binders
     def _pop_quant_binder(self, var: Optional[str], token) -> None:
         pass
     #@ requires True
@@ -770,7 +770,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"({name} {obj} {hash_field})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _fstring_str_part(self, pp: "ExprIR", local_refs: Set[str],
                           invariant_ctx: bool, subst: Dict[str, str]) -> str:
         """One segment of a MIXED (str/int) f-string in a @mutable_state class: a string
@@ -782,7 +782,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_fstring_expr(self, node: "ExprIR", local_refs: Set[str],
                               invariant_ctx: bool, subst: Dict[str, str]) -> str:
         # re-trusted: _handle_fstring_expr — `getattr(self, "_current_self_type", None) in
@@ -791,7 +791,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return ""
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_unaryop_expr(
         self,
         node: "UnaryOpExpr",
@@ -813,7 +813,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"({op} {e})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_old_expr(
         self,
         node: "OldExpr",
@@ -832,7 +832,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(old {e})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_at_expr(
         self,
         node: "AtExpr",
@@ -891,7 +891,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_ifexpr_expr(
         self,
         node: "IfExprExpr",
@@ -905,7 +905,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return ""
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_named_expr_expr(
         self,
         node: "NamedExprExpr",
@@ -922,7 +922,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(let {target} = ref {v} in !{target})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     #@ requires_method _field_type_of: (self, attr_ir: ExprIR) -> str
     def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR",
                                local_refs: Set[str], invariant_ctx: bool,
@@ -956,7 +956,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_slice_access_expr(
         self,
         node: "ExprIR",
@@ -1088,7 +1088,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(in_scope_op {sum(ord(c) for c in name)})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_valid_expr(
         self,
         node: "ExprIR",
@@ -1103,7 +1103,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(valid !{self._heap_var} {base} {length})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_separated_expr(
         self,
         node: "ExprIR",
@@ -1120,7 +1120,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(separated {b1} {l1} {b2} {l2})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_length2d_expr(
         self,
         node: "ExprIR",
@@ -1136,7 +1136,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_valid2d_expr(
         self,
         node: "ExprIR",
@@ -1152,7 +1152,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_issorted_expr(
         self,
         node: "ExprIR",
@@ -1168,7 +1168,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_arrayeq_expr(
         self,
         node: "ExprIR",
@@ -1191,7 +1191,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_permutation_expr(
         self,
         node: "ExprIR",
@@ -1213,7 +1213,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_sum_node_expr(
         self,
         node: "ExprIR",
@@ -1229,7 +1229,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "0"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_lambda_expr(
         self,
         node: "ExprIR",
@@ -1243,7 +1243,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(fun {param_str} -> {body})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_setlit_expr(
         self,
         node: "ExprIR",
@@ -1278,14 +1278,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _expr_to_whyml(self, expr: "ExprIR", local_refs: Set[str], invariant_ctx: bool=False, subst: Optional[Dict[str, str]]=None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _expr_to_whyml_string_ctx(self, ir: "ExprIR", local_refs: int) -> str:
         return ""
 

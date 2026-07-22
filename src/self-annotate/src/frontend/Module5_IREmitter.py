@@ -41,7 +41,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._final_registry, self._fresh_var_counter, self.program_ir
     def visit_Module(self, node: ast.Module) -> None:
         pass
 
@@ -402,7 +402,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_in(self, node: CSLIn) -> int:
         return {}
 
@@ -1741,7 +1741,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _field_type_from_annotation_inst(self, annotation: "ExprIR", scope_name: str='') -> str:
         return ""
 
@@ -1894,7 +1894,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _emit_typeddict_record(self, node: ast.ClassDef) -> None:
         pass
 
@@ -1909,7 +1909,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # isinstance_op = 0. Verbatim body port of the LIVE `_typeddict_field_type`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _typeddict_field_type(self, annotation: "ExprIR", scope_name: str,
                                total: bool) -> str:
         if (isinstance(annotation, ast.Subscript)
@@ -1928,14 +1928,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _wrap_optional(self, inner: "ExprIR", scope_name: str) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _synthesize_typeddict_functional(self, node: ast.Module) -> None:
         pass
 
@@ -1959,14 +1959,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _emit_namedtuple_record(self, node: ast.ClassDef) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _synthesize_namedtuple_functional(self, node: ast.Module) -> None:
         pass
 
@@ -1989,21 +1989,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._cur_func_symtab, self._fresh_var_counter, self.program_ir
     def _emit_protocol_interface(self, node: ast.ClassDef) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.program_ir
     def _populate_protocol_conformance(self, node: ast.ClassDef) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[int], int]:
         return ([], {})
 
@@ -2056,7 +2056,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._cur_func_symtab, self._fresh_var_counter, self.program_ir
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         pass
 
@@ -2127,7 +2127,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _normalize_union_annotation(self, ann_expr: ast.expr, scope_name: str) -> str:
         return ""
 
@@ -2331,7 +2331,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _m5_get_type_name(self, annotation: ast.expr, scope_name: str='', param_name: str='') -> str:
         return ""
 
@@ -2406,14 +2406,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter, self.program_ir
     def _build_function_symbol_table(self, node: ast.FunctionDef) -> int:
         return ([], {})
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._cur_func_symtab, self._fresh_var_counter, self.program_ir
     def _build_function_ir(self, node: ast.FunctionDef) -> int:
         return {}
 
@@ -2449,7 +2449,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._cur_func_symtab, self._fresh_var_counter, self.program_ir
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         pass
 

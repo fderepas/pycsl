@@ -75,6 +75,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _mutable_state_classes: Set[str] = None
     _current_record_var_classes: Dict[str, str] = None
     _list_element_record_types: Set[str] = None
+    # SOUNDNESS (frame audit): these five are WRITTEN by live bodies mirrored here
+    # (`_record_locals.add` / `_lambda_locals.add` in `_emit_first_assign`,
+    # `_tuple_array_locals.update` in `_typed_local_vars`, `_current_append_targets`
+    # and `_has_early_ret` in `_emit_body_code`) but were undeclared, so no `assigns`
+    # frame could NAME them — the note B4 above ("the frame cannot be stated soundly")
+    # was the symptom. Live counterparts: Module6_WhyMLTranspiler.__init__ (135/145/149),
+    # module6_whyml/functions.py:293, module6_whyml/statements.py:3120.
+    _record_locals: Set[str] = None
+    _lambda_locals: Set[str] = None
+    _tuple_array_locals: Dict[str, int] = None
+    _current_append_targets: Set[str] = None
+    _has_early_ret: int = 0
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -277,7 +289,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._array_locals, self._dict_locals, self._lambda_locals, self._record_locals
     def _emit_first_assign(self, kind: str, indent: str, safe_target: str, target: str,
                            val: str, val_ir: "ExprIR") -> str:
         """Emit the `let X = …` line for a first declaration of `target`,
@@ -334,7 +346,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._decode_to_string, self._todict_aliases
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_assign_stmt(self, stmt: AssignStmt, rest: List[Dict[str, Any]],
                              local_refs: Set[str], declared_refs: Set[str],
                              indent: str, in_loop: bool) -> str:
@@ -405,7 +417,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_seq_assign(self, stmt: AssignStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
@@ -426,7 +438,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _emit_new_ghost_ref(self, safe_target: str, target: str, binding: str,
                              rest: List[Dict[str, Any]], local_refs: Set[str],
                              declared_refs: Set[str], indent: str, in_loop: bool) -> str:
@@ -441,7 +453,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._ghost_string_vars, self._ghost_tuple_vars, self._ghost_array_vars, self._array_locals, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_ghost_assign_stmt(self, stmt: GhostAssignStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
@@ -452,7 +464,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_ghost_array_set_stmt(self, stmt: GhostArraySetStmt, rest: List[Dict[str, Any]],
                                       local_refs: Set[str], declared_refs: Set[str],
                                       indent: str, in_loop: bool) -> str:
@@ -468,7 +480,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._abstract_ops
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_tuple_unpack_stmt(self, stmt: TupleUnpackStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
@@ -479,7 +491,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._slice_set_tmp_counter
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_array_slice_set_stmt(self, stmt: ArraySliceSetStmt, rest: List[Dict[str, Any]],
                                       local_refs: Set[str], declared_refs: Set[str],
                                       indent: str, in_loop: bool) -> str:
@@ -528,7 +540,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._known_collection_sizes
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._known_collection_sizes, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_array_set_stmt(self, stmt: ArraySetStmt, rest: List[Dict[str, Any]],
                                 local_refs: Set[str], declared_refs: Set[str],
                                 indent: str, in_loop: bool) -> str:
@@ -540,7 +552,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._havoc_counter, self._in_spec
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_critical_section_stmt(self, stmt: CriticalSectionStmt, rest: List[Dict[str, Any]],
                                        local_refs: Set[str], declared_refs: Set[str],
                                        indent: str, in_loop: bool) -> str:
@@ -626,7 +638,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_augassign_stmt(
         self,
         stmt: AugAssignStmt,
@@ -643,7 +655,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_fieldassign_stmt(
         self,
         stmt: FieldAssignStmt,
@@ -725,7 +737,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_fieldaugassign_stmt(
         self,
         stmt: FieldAugAssignStmt,
@@ -763,7 +775,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _handle_expr_stmt(
         self,
         stmt: ExprStmt,
@@ -781,7 +793,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
     def _stmts_to_whyml(self, stmts: List[Dict[str, Any]], local_refs: Set[str], declared_refs: Set[str], indent: str, in_loop: bool = False) -> str:
         """Recursively translates imperative statements into WhyML strings.
 
@@ -1120,7 +1132,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._emit_ir_local_vars, self._ghost_tuple_vars, self._inline_array_temps, self._seq_locals, self._string_local_vars, self._tuple_array_locals
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
         record, or variant — and so must be EXCLUDED from the integer `ref 0`
@@ -1194,7 +1206,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._array_locals, self._current_append_targets, self._current_record_var_classes, self._decode_to_string, self._dict_locals, self._emit_ir_local_vars, self._getattr_self_dict_aliases, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._has_early_ret, self._havoc_counter, self._in_spec, self._inline_array_temps, self._lambda_locals, self._record_locals, self._seq_locals, self._slice_set_tmp_counter, self._string_local_vars, self._todict_aliases, self._tuple_array_locals
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
                          is_method: bool, return_type: str) -> str:
