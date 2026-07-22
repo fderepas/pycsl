@@ -9419,7 +9419,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     inner += f" {sets};"
                 return f"({inner} _alit)"
             return "(Array.make 1024 0)"
-        if t == "UnknownPyExpr": return "0"
+        if t in ("UnknownPyExpr", "GenExp"):
+            # genexp-erasure-wall R2a parity: before R2a a generator expression had no Module-5
+            # handler and arrived here as `UnknownPyExpr`, lowering to the scalar `0` (which
+            # `_array_coerce_arg` then turned into a placeholder array). R2a gives it a real IR
+            # node, so it must fall to the SAME scalar here or every existing genexp site
+            # changes shape — e.g. the emitter's own `sum(ord(c) for c in name)` in
+            # `_handle_in_globals_expr` started emitting `sum_1` with no argument at all
+            # (`int -> int`, L3-tc failure, caught by the mirror-wide sweep). The faithful
+            # bounded fold is introduced at the any/all call site (R2b), which intercepts
+            # BEFORE this fallback; everywhere else GenExp stays exactly as inert as it was.
+            return "0"
         if t == "Slice":    return "0"
         if t == "OldField":
             _of_rec = (self._current_self_type if expr['object'] == "self"

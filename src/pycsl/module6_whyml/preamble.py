@@ -3539,6 +3539,7 @@ class PreambleEmissionMixin:
             # `| _ -> 1` catch-all covers it (flat for the measure).
             + (" | IrLambda irlist emit_ir"
                " | IrDictLit irlist irlist"
+               " | IrGenExp emit_ir emit_ir"
                " | IrListComp emit_ir emit_ir"
                " | IrSetComp emit_ir emit_ir"
                " | IrDictComp emit_ir emit_ir emit_ir"
@@ -3711,6 +3712,7 @@ class PreambleEmissionMixin:
             # ctors above so kind_of stays exhaustive in both configurations — byte-inert).
             *(["    | IrLambda _ _ -> \"Lambda\""
                " | IrDictLit _ _ -> \"DictLit\""
+               " | IrGenExp _ _ -> \"GenExp\""
                " | IrListComp _ _ -> \"ListComp\""
                " | IrSetComp _ _ -> \"SetComp\""
                " | IrDictComp _ _ _ -> \"DictComp\""]
@@ -4606,6 +4608,12 @@ class PreambleEmissionMixin:
                 " opaque emit_ir reader, like `_match_pattern_to_ir`). No child-list"
                 " iteration. IrListComp/IrSetComp carry elt + generators; IrDictComp carries"
                 " key + value + generators. *)",
+                "  (* genexp-erasure-wall R2a: a GENERATOR expression had no Module-5 handler,"
+                " so it reached the IR as UnknownPyExpr and its predicate + bound variable were"
+                " destroyed. Same fixed-child shape as listcomp. *)",
+                "  type py_genexp_node",
+                "  val function genexp_elt_ast (s: py_genexp_node) : emit_ir",
+                "  val function genexp_gens_ir (s: py_genexp_node) : emit_ir",
                 "  type py_listcomp_node",
                 "  val function listcomp_elt_ast (s: py_listcomp_node) : emit_ir",
                 "  val function listcomp_gens_ir (s: py_listcomp_node) : emit_ir",

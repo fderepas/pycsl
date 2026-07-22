@@ -1049,6 +1049,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ast.Attribute:  "_py_expr_attribute",
         ast.Dict:       "_py_expr_dict",
         ast.Set:        "_py_expr_set",
+        ast.GeneratorExp: "_py_expr_genexp",
         ast.ListComp:   "_py_expr_listcomp",
         ast.SetComp:    "_py_expr_setcomp",
         ast.DictComp:   "_py_expr_dictcomp",
@@ -1206,6 +1207,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _py_expr_set(self, expr: ast.Set) -> Dict[str, Any]:
         return {"type": "SetLit", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
+
+    def _py_expr_genexp(self, expr: ast.GeneratorExp) -> Dict[str, Any]:
+        # genexp-erasure-wall R2a: a generator expression previously had NO handler, so
+        # `_py_expr_to_ir` returned `{"type": "UnknownPyExpr"}` and the predicate + bound
+        # variable were destroyed at IR construction — which is why `any(p(x) for x in xs)`
+        # bottomed out at the unconstrained `any_1 (Array.make 1 0)` oracle. Structurally a
+        # genexp is a ListComp, so the IR mirrors it; laziness is not observable for the
+        # bounded any/all fold this exists to feed.
+        return {"type": "GenExp", "elt": self._py_expr_to_ir(expr.elt),
+                "generators": self._comprehension_generators_to_ir(expr.generators)}
 
     def _py_expr_listcomp(self, expr: ast.ListComp) -> Dict[str, Any]:
         return {"type": "ListComp", "elt": self._py_expr_to_ir(expr.elt),

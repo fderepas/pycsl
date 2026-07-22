@@ -2390,6 +2390,20 @@ class FunctionEmissionMixin:
             "(IrListComp (self__py_expr_to_ir_1 (listcomp_elt_ast expr))"
             " (listcomp_gens_ir expr))")
 
+    def _is_py_expr_genexp(self, func: Dict[str, Any]) -> bool:
+        nm = str(func.get("name", ""))
+        return (func.get("kind") == "method" and nm.endswith("_py_expr_genexp")
+                and self._uses_stmt_ir())
+
+    def _emit_py_expr_genexp_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """genexp-erasure-wall R2a: sibling of listcomp -> the gated IrGenExp ctor, so the
+        mirror's `_py_expr_genexp` reads its `expr` parameter for real instead of erasing it
+        (bin/check-emitted-vacuity.py flagged the erasing version as a NEW facade)."""
+        return self._expr_bespoke_body(
+            func, "py_genexp_node",
+            "(IrGenExp (self__py_expr_to_ir_1 (genexp_elt_ast expr))"
+            " (genexp_gens_ir expr))")
+
     def _is_py_expr_setcomp(self, func: Dict[str, Any]) -> bool:
         nm = str(func.get("name", ""))
         return (func.get("kind") == "method" and nm.endswith("_py_expr_setcomp")
@@ -2622,6 +2636,8 @@ class FunctionEmissionMixin:
         # IrListComp / IrSetComp / IrDictComp (fixed-child + trusted generators). Corpus-inert.
         if self._is_py_expr_dict(func):
             return self._emit_py_expr_dict_bespoke(func)
+        if self._is_py_expr_genexp(func):
+            return self._emit_py_expr_genexp_bespoke(func)
         if self._is_py_expr_listcomp(func):
             return self._emit_py_expr_listcomp_bespoke(func)
         if self._is_py_expr_setcomp(func):
