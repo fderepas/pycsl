@@ -66,12 +66,13 @@ class _ABC(type):
         pass
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _new(cls, *args, **kwargs):
-    pass
+    if cls in _const_types:
+        return Constant(*args, **kwargs)  # noqa: F821
+    return Constant.__new__(cls, *args, **kwargs)  # noqa: F821
 
 class Num(Constant):
     _fields = ('n',)
@@ -116,12 +117,11 @@ def mutable_state(cls):
 
 
 _g = globals()
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _N(name):
-    pass
+    return _g[name]
 
 class PyCSLSyntaxError(SyntaxError):
     pass
@@ -184,12 +184,11 @@ _BINOP = {'|': ('BitOr', 4), '^': ('BitXor', 5), '&': ('BitAnd', 6), '<<': ('LSh
 _CMP = {'<': 'Lt', '>': 'Gt', '==': 'Eq', '!=': 'NotEq', '<=': 'LtE', '>=': 'GtE', 'in': 'In', 'is': 'Is'}
 _UNARY = {'+': 'UAdd', '-': 'USub', '~': 'Invert'}
 _AUG = {'+=': 'Add', '-=': 'Sub', '*=': 'Mult', '/=': 'Div', '//=': 'FloorDiv', '%=': 'Mod', '@=': 'MatMult', '&=': 'BitAnd', '|=': 'BitOr', '^=': 'BitXor', '<<=': 'LShift', '>>=': 'RShift', '**=': 'Pow'}
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _is_aug(tok):
-    pass
+    return tok.type == _tokenize.OP and tok.string in _AUG
 
 #@ class invariant 0 <= self.i
 #@ class invariant self.i < \length(self.toks)
@@ -1209,12 +1208,12 @@ class _Unparser(NodeVisitor):
     def items_view(self, traverser, items):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def maybe_newline(self):
-        pass
+        if self._source:
+            self.write("\n")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1223,12 +1222,11 @@ class _Unparser(NodeVisitor):
     def fill(self, text=''):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def write(self, *text):
-        pass
+        self._source.extend(text)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1246,13 +1244,14 @@ class _Unparser(NodeVisitor):
     def block(self, *, extra=None):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @_contextmanager
     def delimit(self, start, end):
-        pass
+        self.write(start)
+        yield
+        self.write(end)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1268,12 +1267,11 @@ class _Unparser(NodeVisitor):
     def require_parens(self, precedence, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def get_precedence(self, node):
-        pass
+        return self._precedences.get(node, _Precedence.TEST)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1303,12 +1301,13 @@ class _Unparser(NodeVisitor):
     def traverse(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit(self, node):
-        pass
+        self._source = []
+        self.traverse(node)
+        return "".join(self._source)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1317,12 +1316,16 @@ class _Unparser(NodeVisitor):
     def _write_docstring_and_traverse_body(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Module(self, node):
-        pass
+        self._type_ignores = {
+            ignore.lineno: f"ignore{ignore.tag}"
+            for ignore in node.type_ignores
+        }
+        self._write_docstring_and_traverse_body(node)
+        self._type_ignores.clear()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1331,12 +1334,13 @@ class _Unparser(NodeVisitor):
     def visit_FunctionType(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Expr(self, node):
-        pass
+        self.fill()
+        self.set_precedence(_Precedence.YIELD, node.value)
+        self.traverse(node.value)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1387,26 +1391,23 @@ class _Unparser(NodeVisitor):
     def visit_Return(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Pass(self, node):
-        pass
+        self.fill("pass")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Break(self, node):
-        pass
+        self.fill("break")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Continue(self, node):
-        pass
+        self.fill("continue")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1499,19 +1500,17 @@ class _Unparser(NodeVisitor):
     def visit_ClassDef(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_FunctionDef(self, node):
-        pass
+        self._function_helper(node, "def")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_AsyncFunctionDef(self, node):
-        pass
+        self._function_helper(node, "async def")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1555,19 +1554,17 @@ class _Unparser(NodeVisitor):
     def visit_TypeAlias(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_For(self, node):
-        pass
+        self._for_helper("for ", node)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_AsyncFor(self, node):
-        pass
+        self._for_helper("async for ", node)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1604,12 +1601,14 @@ class _Unparser(NodeVisitor):
     def visit_AsyncWith(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _write_docstring(self, node):
-        pass
+        self.fill()
+        if node.kind == "u":
+            self.write("u")
+        self._write_str_avoiding_backslashes(node.value, quote_types=_MULTI_QUOTES)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1688,12 +1687,16 @@ class _Unparser(NodeVisitor):
     def visit_Dict(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Tuple(self, node):
-        pass
+        with self.delimit_if(
+            "(",
+            ")",
+            len(node.elts) == 0 or self.get_precedence(node) > _Precedence.TUPLE,
+        ):
+            self.items_view(self.traverse, node.elts)
 
     unop = {'Invert': '~', 'Not': 'not', 'UAdd': '+', 'USub': '-'}
     unop_precedence = {'not': _Precedence.NOT, '~': _Precedence.FACTOR, '+': _Precedence.FACTOR, '-': _Precedence.FACTOR}
@@ -1752,19 +1755,19 @@ class _Unparser(NodeVisitor):
     def visit_Subscript(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Starred(self, node):
-        pass
+        self.write("*")
+        self.set_precedence(_Precedence.EXPR, node.value)
+        self.traverse(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Ellipsis(self, node):
-        pass
+        self.write("...")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1773,12 +1776,11 @@ class _Unparser(NodeVisitor):
     def visit_Slice(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Name(self, node):
-        pass
+        self.write(node.id)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1829,12 +1831,14 @@ class _Unparser(NodeVisitor):
     def _str_literal_helper(self, string, *, quote_types=_ALL_QUOTES, escape_special_whitespace=False):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _write_str_avoiding_backslashes(self, string, *, quote_types=_ALL_QUOTES):
-        pass
+        """Write string literal value with a best effort attempt to avoid backslashes."""
+        string, quote_types = self._str_literal_helper(string, quote_types=quote_types)
+        quote_type = quote_types[0]
+        self.write(f"{quote_type}{string}{quote_type}")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1850,26 +1854,23 @@ class _Unparser(NodeVisitor):
     def _write_fstring_inner(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _fstring_JoinedStr(self, node):
-        pass
+        self._write_fstring_inner(node)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _fstring_Constant(self, node):
-        pass
+        self._write_fstring_inner(node)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _fstring_FormattedValue(self, node):
-        pass
+        self.visit_FormattedValue(node)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1892,19 +1893,17 @@ class _Unparser(NodeVisitor):
     def visit_match_case(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_MatchValue(self, node):
-        pass
+        self.traverse(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_MatchSingleton(self, node):
-        pass
+        self._write_constant(node.value)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
