@@ -659,6 +659,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    @staticmethod
+    def _abstract_val_receiver_and_tail(existing: str, arity_fn: str) -> Tuple[str, str]:
+        """Split an already-registered abstract `val <arity_fn> …` declaration into
+        (receiver-binder prefix, trailing-clause tail) so a rewrite of its parameter
+        list can carry both across.
+
+        `_handle_dotted_call` gives a state-taking self-call's abstract op a leading
+        `(self: <class>)` binder (A2c) plus a `writes { self.<f> }` clause (gap7) and
+        `ensures` clauses; the tuple-unpack rewrite rebuilds only the `(xi: τ)` list, so
+        without this both would be lost. Returns `("", "")` when the existing decl has
+        neither (every declaration in the reference corpus) → byte-inert there."""
+        if not existing:
+            return "", ""
+        head = existing.split("\n", 1)
+        tail = "\n" + head[1] if len(head) > 1 else ""
+        import re as _re
+        m = _re.match(r"val\s+" + _re.escape(arity_fn) + r"\s+(\(self:[^)]*\)\s*)", head[0])
+        return (m.group(1) if m else ""), tail
+
     def _handle_tuple_unpack_stmt(self, stmt: TupleUnpackStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
@@ -687,11 +706,27 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if (_crt and _crt.startswith("(")
                             and _crt.count(",") + 1 == len(targets)):
                         tuple_ret = _crt
+                # frame-audit fix (state-taking tuple callee): `_handle_dotted_call`
+                # registers the abstract `val` for a `self.<m>(...)` whose callee declares
+                # a non-empty self-field frame WITH a leading receiver binder
+                # `(self: <class>)` and a `writes { self.<f> }` clause, and emits a call
+                # site that PASSES `self`. The rewrites below rebuild the declaration from
+                # the callee's declared PARAMETER types only, so both the receiver binder
+                # and the `writes` clause were silently dropped — the emitted application
+                # `(self__m_3 self …)` then ill-typed against a receiver-less `val`
+                # ("This expression has type <class> @rho, but is expected to have type
+                # emit_ir"), and the lost `writes` re-introduced the very false frame the
+                # non-empty `assigns` was declared to state. Carry both across the rewrite.
+                _recv_pfx, _decl_tail = self._abstract_val_receiver_and_tail(
+                    self._abstract_ops.get(arity_fn, ""), arity_fn)
                 if nargs == 0:
-                    self._abstract_ops[arity_fn] = f"val {arity_fn} () : {tuple_ret}"
+                    self._abstract_ops[arity_fn] = (
+                        f"val {arity_fn} {_recv_pfx}() : {tuple_ret}{_decl_tail}"
+                        if _recv_pfx else f"val {arity_fn} () : {tuple_ret}{_decl_tail}")
                 elif len(_cpt) == nargs:
                     params = " ".join(f"(x{i}: {_cpt[i]})" for i in range(nargs))
-                    self._abstract_ops[arity_fn] = f"val {arity_fn} {params} : {tuple_ret}"
+                    self._abstract_ops[arity_fn] = (
+                        f"val {arity_fn} {_recv_pfx}{params} : {tuple_ret}{_decl_tail}")
                 else:
                     # Per missing-bytes-struct-feature.md Phase 1:
                     # preserve the param types from the existing
@@ -712,7 +747,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             for i in range(nargs))
                     else:
                         params = " ".join(f"(x{i}: int)" for i in range(nargs))
-                    self._abstract_ops[arity_fn] = f"val {arity_fn} {params} : {tuple_ret}"
+                    self._abstract_ops[arity_fn] = (
+                        f"val {arity_fn} {_recv_pfx}{params} : {tuple_ret}{_decl_tail}")
         elif val_ir.get("type") == "Subscript":
             # `a, b = arr[i]` — the default `subscript_get` returns `int`,
             # which doesn't match the tuple pattern on the LHS. Emit a
