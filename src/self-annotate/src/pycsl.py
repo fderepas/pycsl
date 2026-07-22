@@ -755,15 +755,14 @@ def _json_goal_records(stdout: str) -> "List[dict]":
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _record_answer(rec: dict) -> str:
+def _record_answer(rec: Dict[str, PyVal]) -> str:
     return (rec.get("prover-result") or {}).get("answer", "") or ""
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _record_is_valid(rec: dict) -> bool:
+def _record_is_valid(rec: Dict[str, PyVal]) -> bool:
     """Soundness chokepoint: ONLY a literal 'Valid' answer counts as proven.
     Invalid / Unknown / Timeout / OutOfMemory / Failure / ... are never proven."""
     return _record_answer(rec) == "Valid"
