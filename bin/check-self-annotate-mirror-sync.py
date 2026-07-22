@@ -43,10 +43,46 @@ MIRROR_ROOT = "src/self-annotate/src"
 LIVE_ROOT = "src/pycsl"
 
 
-def _strip(lines):
-    """Drop `#@` annotation lines and blank lines (the only permitted mirror additions)."""
-    return [ln for ln in lines
-            if ln.strip() and not ln.strip().startswith("#@")]
+def _normalize(node):
+    """A comparison form for a function body that is invariant under the mirror's PERMITTED,
+    semantics-preserving additions, and under nothing else.
+
+    Comparing raw source text was the original design and it made this gate USELESS: it fired on
+    every `#@` sibling comment, every omitted docstring, and every quote-style difference, so it
+    reported 81+ divergences for months and every actor learned to ignore it (wall-lessons (i)).
+    A gate that is always red enforces nothing.
+
+    What is permitted, and why each is semantics-preserving:
+      * `#@` contract lines and plain `#` comments — comments; `ast.unparse` drops both.
+      * a docstring the mirror omits — dropped explicitly below. (Only `__doc__` observes it, and
+        nothing in the verification path reads `__doc__`.)
+      * string quote style and whitespace/line-wrapping — `ast.unparse` normalizes both.
+      * TYPE ANNOTATIONS, which are handled by the caller, not here: the mirror's annotations are
+        its modelling layer (`dict` -> `Dict[str, PyVal]`, `ast.expr` -> `"ExprIR"`) and are
+        SUPPOSED to differ. Parameter names, order, `*args`/`**kwargs` and defaults are still
+        compared, so a renamed or dropped parameter is still drift.
+
+    Everything else — any change to a statement, an operator, a literal value, a call — survives
+    normalization and is reported. The mutation test in `--self-test` pins that.
+    """
+    body = list(node.body)
+    if (body and isinstance(body[0], ast.Expr)
+            and isinstance(body[0].value, ast.Constant)
+            and isinstance(body[0].value.value, str)):
+        body = body[1:]                      # leading docstring
+    return [ast.unparse(stmt) for stmt in body]
+
+
+def _signature(node):
+    """Parameter names/order/defaults, WITHOUT annotations (see `_normalize`)."""
+    a = node.args
+    names = ([p.arg for p in getattr(a, "posonlyargs", [])] + [p.arg for p in a.args]
+             + ([f"*{a.vararg.arg}"] if a.vararg else [])
+             + [p.arg for p in a.kwonlyargs]
+             + ([f"**{a.kwarg.arg}"] if a.kwarg else []))
+    defaults = [ast.unparse(d) for d in a.defaults] + \
+               [ast.unparse(d) if d is not None else None for d in a.kw_defaults]
+    return (names, defaults)
 
 
 def methods(path):
@@ -65,9 +101,15 @@ def methods(path):
     out = {}
 
     def _trusted_above(lineno):
+        # The block above a `def` is `#@` contract lines, decorators, blank lines AND plain `#`
+        # comments. Omitting plain `#` from this walk was a real defect: a `\trusted` marker
+        # separated from the `def` by a justification comment (as every frame-correction note in
+        # the run-#5 soundness pass is) stopped being seen, and the stub was then compared as if
+        # it were a claimed-verbatim body. The `#@` parser in `src/pycsl` does NOT have this bug
+        # (verified: the affected stubs still emit as `val`, not `let`) — it was local to here.
         i = lineno - 2
         trusted = False
-        while i >= 0 and (src[i].strip().startswith("#@")
+        while i >= 0 and (src[i].strip().startswith("#")
                           or src[i].strip().startswith("@")
                           or src[i].strip() == ""):
             if "\\trusted" in src[i]:
@@ -79,7 +121,7 @@ def methods(path):
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 qn = prefix + child.name
-                body = _strip(src[child.lineno - 1:child.end_lineno])
+                body = (_signature(child), _normalize(child))
                 out[qn] = (body, _trusted_above(child.lineno))
                 _walk(child, qn + ".")        # nested closures
             elif isinstance(child, ast.ClassDef):
@@ -109,11 +151,17 @@ def main():
                 if name not in lm:
                     continue  # mirror-only function (e.g. the `mutable_state` decorator,
                               # @dataclass modeling infra) — intentional, not drift
-                if mbody != lm[name][0]:
-                    print(f"DIVERGED: {rel}::{name} — un-trusted mirror body != live emitter "
-                          f"body:")
+                (msig, mstmts) = mbody
+                (lsig, lstmts) = lm[name][0]
+                if msig != lsig or mstmts != lstmts:
+                    what = ("signature" if msig != lsig else "body")
+                    print(f"DIVERGED: {rel}::{name} — un-trusted mirror {what} != live emitter "
+                          f"{what}:")
+                    if msig != lsig:
+                        print(f"  live   params: {lsig[0]} defaults {lsig[1]}")
+                        print(f"  mirror params: {msig[0]} defaults {msig[1]}")
                     for dl in list(difflib.unified_diff(
-                            lm[name][0], mbody, "live", "mirror", lineterm=""))[:30]:
+                            lstmts, mstmts, "live", "mirror", lineterm=""))[:30]:
                         print("  " + dl)
                     print("  ---")
                     diverged = 1
