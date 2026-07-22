@@ -183,7 +183,7 @@ class Module3_Weaver:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns contracts_map
     @staticmethod
     def _extract_happy_properties(contracts_map: Dict[int, List[CSLNode]]) -> List[HappyProperty]:
         return []
