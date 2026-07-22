@@ -808,6 +808,14 @@ _MUL_OPS = ('*', '//', '/', '%')
 #@ class invariant 0 <= self.i
 #@ class invariant self.i < \length(self.toks)
 #@ class invariant \length(self.toks) >= 1
+# The lexer's EOF SENTINEL, read straight off `_lex_contract`: its last act is
+# `toks.append(_Tok("EOF", "", n))`, so the final token is ALWAYS EOF. It is the
+# property that makes the cursor's `while self.at_op(...)` loops TERMINATE — the
+# sentinel is not an OP and not a NAME, so a true loop guard forces
+# `self.i < \length(self.toks) - 1`, hence `advance` really increments and the
+# variant `\length(self.toks) - self.i` strictly decreases. Not a narrowing: the
+# live lexer establishes it unconditionally on every path that returns.
+#@ class invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
 @mutable_state
 class _ContractParser:
     'Recursive-descent parser over `_Tok` producing `CSLNode` trees.\n\n    One method per grammar rule; each builds the SAME `CSLNode` the\n    corresponding `PyCSLTransformer` method built. Dispatch is on the leading\n    keyword / backslash-name of the contract.\n    '
@@ -821,7 +829,7 @@ class _ContractParser:
         self.i: int = 0
 
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == self.toks[self.i]
     #@ assigns \nothing
     def cur(self) -> _Tok:
         return self.toks[self.i]
@@ -839,7 +847,8 @@ class _ContractParser:
         return self.toks[j] if j < len(self.toks) else self.toks[-1]
 
     #@ requires True
-    #@ ensures True
+    #@ ensures \old(self.i) < \length(self.toks) - 1 ==> self.i == \old(self.i) + 1
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def advance(self) -> _Tok:
         t = self.toks[self.i]
@@ -848,14 +857,14 @@ class _ContractParser:
         return t
 
     #@ requires True
-    #@ ensures True
+    #@ ensures \result != False ==> self.toks[self.i].py_type == "OP"
     #@ assigns \nothing
     def at_op(self, *vals: str) -> bool:
         t = self.cur()
         return t.type == 'OP' and (not vals or t.string in vals)
 
     #@ requires True
-    #@ ensures True
+    #@ ensures \result != False ==> self.toks[self.i].py_type == "NAME"
     #@ assigns \nothing
     def at_name(self, *vals: str) -> bool:
         t = self.cur()
@@ -1249,23 +1258,41 @@ class _ContractParser:
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_impl_rhs(self):
+    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
+    # calls `advance`). Monotonicity is a real property of the expression chain:
+    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
+    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
+    # from any expression rule. It is what lets the converted precedence methods
+    # prove their loop variant across a sibling call.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_impl_rhs(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_or_rhs(self):
+    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
+    # calls `advance`). Monotonicity is a real property of the expression chain:
+    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
+    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
+    # from any expression rule. It is what lets the converted precedence methods
+    # prove their loop variant across a sibling call.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_or_rhs(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_and_rhs(self):
+    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
+    # calls `advance`). Monotonicity is a real property of the expression chain:
+    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
+    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
+    # from any expression rule. It is what lets the converted precedence methods
+    # prove their loop variant across a sibling call.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_and_rhs(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1305,30 +1332,56 @@ class _ContractParser:
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_membership(self):
+    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
+    # calls `advance`). Monotonicity is a real property of the expression chain:
+    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
+    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
+    # from any expression rule. It is what lets the converted precedence methods
+    # prove their loop variant across a sibling call.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_membership(self) -> "ExprIR":
         pass
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_term(self) -> "ExprIR":
+        left = self._parse_factor()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('+', '-'):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_factor())
+        return left
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_factor(self) -> "ExprIR":
+        left = self._parse_unary()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('*', '//', '/', '%'):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_unary())
+        return left
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_term(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_factor(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_unary(self):
+    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
+    # calls `advance`). Monotonicity is a real property of the expression chain:
+    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
+    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
+    # from any expression rule. It is what lets the converted precedence methods
+    # prove their loop variant across a sibling call.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_unary(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
