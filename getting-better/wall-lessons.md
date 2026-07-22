@@ -466,3 +466,44 @@ differences the mirror introduces BY DESIGN or by normalization, not by drift:
 signal, and every actor learns to skip it. Fix it (normalize both sides, honour `\trusted`) or retire it from the
 `L` plane explicitly; do not leave it in the battery as decoration.** Same structural defect as (f): something
 stated as a constraint that in fact constrains nothing.
+
+### (j) run #5 — the dead gate was hiding 14 REAL drifts; "converted" did not mean "verbatim"
+Repairing `check-self-annotate-sync.sh` (lesson (i), commit `5aeb2279`) dropped it from 115
+divergences to **14 real ones** — and every one is a genuine §10.4 violation: a feature edited a
+VERIFIED emitter method and did not re-port its mirror in the same commit, so the mirror proof has
+been discharging a **stale copy** of the live code. That is the campaign's own first-named dominant
+failure ("mirror drift — a stub that verifies a stale copy"), running undetected for months because
+the only gate that compares BODIES was red, and the gate everyone cited
+(`self-annotate-mirror-check.sh`, green 52/52) compares only `(kind, qualname, n_params)`
+SIGNATURES and cannot see a body change at all.
+
+The 14 sort into four kinds, and only the first is what anyone would have guessed:
+1. **Missing feature branches** (most) — live grew a branch the mirror never got. Five are this
+   run's own `pyval` -> `hval` rename. Fix = port verbatim; free, no count change.
+2. **A missing HELPER** — `_handle_var_expr` needs `_union_local_read_projection`, which does not
+   exist in the mirror at all. Porting faithfully means adding it as a trusted stub: **count +1**.
+   The honest reading is that the count was ALREADY overstated by this method — it was booked as
+   converted while proving a body the emitter does not run.
+3. **A TRUNCATED payload** — `_py_stmt_assign`'s mirror had quietly shortened a multi-line
+   `PyCSLSemanticError` f-string to one clause. Semantically live for anyone reading the error.
+4. **A HAND-REWRITE, not a port** — `_pattern_has_constructor`'s live body is
+   `any(self._pattern_has_constructor(a) for a in pat.get('alternatives', []))`; the mirror is an
+   index-counting `while` loop. Equivalent-looking, but the proof covers a body the emitter never
+   executes. This is a DISTINCT facade family from the ones Gate C catches: the emitted `.mlw`
+   changes under mutation (so it passes the anti-facade test) and the body is real — it is just
+   not the LIVE body.
+**LESSON: "converted" has silently meant three different things — ported, rewritten, and
+truncated. Only the first supports the claim that proving the mirror proves the emitter. A count
+of converted stubs is only as meaningful as the body-fidelity gate behind it, so NEVER let that
+gate stay red; and when re-porting is blocked, record the stub as drifted rather than leaving a
+green proof over a body the tool does not run.**
+
+### (k) run #5 — a byte-diff sweep from a fresh worktree emitted ZERO files and still reported "diff 0"
+`bin/byte-diff-sweep.sh` hard-codes `PY="$ROOT/.venv/bin/python3"`. A detached worktree created for
+a baseline has no `.venv`, so every emit silently failed, the sweep wrote **0 files**, and
+`diff -rq base head` compared two EMPTY directories and returned 0 — a perfect false green for the
+single most important gate on any `src/pycsl` change. Fixed by symlinking the repo `.venv` into the
+worktree; the real run then emitted 782 vs 782, diff 0.
+**LESSON: a diff of 0 is meaningless without the population count. `byte-diff-sweep.sh` prints
+`emitted N` — READ IT, and assert N matches the corpus size, on BOTH sides. Any gate whose pass
+condition is "no differences found" must separately prove it looked at something.**
