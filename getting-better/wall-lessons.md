@@ -567,3 +567,39 @@ body from the line AFTER the signature misreports every ONE-LINE definition (76 
 matching a parameter name without blanking STRING LITERALS makes `{"stmt": "Break"}` look like a
 use of the `stmt` parameter (3 bogus hits). **Validate a new probe against known-good cases before
 believing its headline number** — the first two runs of this one said 118 and 76.
+
+### (m) run #6 — the Rocq certificate build fails IN-REPO but succeeds CLEAN; the artifacts are stale, not the proofs
+Verifying `ledger == 3` the honest way — by BUILDING rather than by asserting it — `make -C
+src/formal-semantics/rocq` **fails**: `Phase3_SOS.v:400: The reference SLambda was not found in the
+current environment`, even though `Phase1_AST.v` defines `SLambda` and `Phase3_SOS.v` imports it.
+No `.v` file was modified, so this reproduces at HEAD.
+
+**My first hypothesis was that the certificates were broken. That was WRONG, and the refutation is
+the point.** Copying `rocq/` to a scratchpad, deleting every build artifact and rebuilding from
+clean: **exit 0, 64/64 `.v` compiled, zero errors.** The proof SOURCES are sound.
+
+What is actually wrong is the committed ARTIFACTS. `.vo`/`.vok`/`.vos`/`.glob` files are TRACKED IN
+GIT, and git does not preserve mtimes — so on checkout a stale `.vo` can appear newer than the `.v`
+it was built from, and `make` silently accepts it and mixes stale with fresh. The dates make the
+mechanism concrete: `Phase3_SOS.v` was last modified **2026-07-01** by `1637e746` ("Phase 8 —
+SLambda closure construction, **both provers**"), while the committed `Phase3_SOS.vo` dates from
+**2026-06-29** — two days EARLIER. That commit changed 19 source files and **zero** `.vo` files.
+
+So the ledger claim was never false, but for a while it was UNCHECKABLE in the repo: anyone running
+the documented `make` got a failure unrelated to their change, which trains exactly the "that gate
+is always broken, skip it" reflex that killed `check-self-annotate-sync.sh` (lesson (i)).
+
+Confirmed unchanged regardless: the project ledger is exactly **3** `Axiom` declarations —
+`why3_implements_wp_w` (Phase6i_Soundness), `alt_ergo_correct` and `trusted_contracts_axiom`
+(Phase5b_Soundness). None is in the failing file or in any Phase2* ADT certificate.
+(Incidental, worth knowing: `Print Assumptions pycsl_soundness_verified` on the clean build reports
+two STDLIB axioms — `propositional_extensionality` and `functional_extensionality_dep` — which are
+classical and pre-existing, not project axioms, but they are assumptions and nobody had written
+them down.)
+
+**LESSON: never commit build artifacts for a proof assistant. Git does not preserve mtimes, so a
+tracked `.vo` is a stale certificate that `make` will trust over its own source — the certificate
+analogue of proving a stale mirror copy (lesson (j)). Gitignore them and rebuild from clean, or the
+"certified" claim rests on a binary nobody can reproduce. And when a build fails, test the CLEAN
+build before concluding the proofs are broken: here the sources were fine and only the artifacts
+were rotten.**
