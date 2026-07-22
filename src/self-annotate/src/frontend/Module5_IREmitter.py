@@ -724,7 +724,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_name(self, expr: ast.Name) -> "ExprIR":
-        if expr.id == "Ellipsis":
+        if expr.id in ("Ellipsis",):
             return {"type": "Number", "value": 0}
         if expr.id == "None":
             return {"type": "None"}
@@ -1162,13 +1162,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 from errors import PyCSLSemanticError
                 raise PyCSLSemanticError(
                     f"in-place field mutation `<{type(target.value).__name__} base>.{target.attr} = ...` "
-                    f"is out of scope: rebuild the element.",
+                    f"is out of scope: a record reached through a subscript/nested base "
+                    f"(e.g. a `List[<record>]` element `a[i].{target.attr}`) is modelled as a "
+                    f"PURE (immutable) record — Why3 forbids a mutable element inside `array`, "
+                    f"so the field store cannot be made caller-visible. Rebuild the element "
+                    f"(`a[i] = Record(...)`) or mutate a local record and store it back.",
                     stage="ir-emit",
                     code="PYCSL-WHYML-PARAM-COLLECTION-MUT",
                 )
         elif isinstance(target, ast.Subscript):
             array_ir = self._py_expr_to_ir(target.value)
             slice_node = target.slice
+            if isinstance(slice_node, ast.Index):
+                slice_node = slice_node.value
             if isinstance(slice_node, ast.Slice):
                 lower_ir = (self._py_expr_to_ir(slice_node.lower)
                             if slice_node.lower else {"type": "Number", "value": 0})
@@ -1522,6 +1528,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _py_stmt_delete(self, stmt: ast.Delete, ir_stmts: List[int]) -> None:
         for tgt in stmt.targets:
             slice_node = getattr(tgt, "slice", None)
+            if isinstance(slice_node, ast.Index):  # py<3.9 wrapper
+                slice_node = slice_node.value
             if isinstance(tgt, ast.Subscript) and not isinstance(slice_node, ast.Slice):
                 ir_stmts.append({
                     "stmt": "DelSubscript",
@@ -2091,6 +2099,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if elt.id in ("int", "bool", "float", "str", "bytes",
                           "list", "dict", "set", "frozenset", "tuple", "bytearray"):
                 return "int" if elt.id in ("int", "bool") else elt.id
+            # The gate is the EMITTED `record` type_decl set — deliberately
+            # narrower than `_m5_declared_record_names()` (which also carries the
+            # pre-`generic_visit` class pre-scan). A class in the pre-scan but
+            # WITHOUT a record type_decl has no Why3 record type, so Module6 would
+            # silently resolve its payload to the `int` default: an int-ERASED arm,
+            # i.e. exactly the kind of facade this capability exists to remove.
+            # Matching Module6's `_record_payload_types` domain byte-for-byte means
+            # an arm is emitted iff it can be typed faithfully; otherwise the class
+            # falls back to `Any` (dropped, GT1) as before.
+            if any(td.get("kind") == "record" and td.get("name") == elt.id
+                   for td in self.program_ir.get("type_decls", [])):
+                return elt.id
             return "Any"
         # self-tcb-reduction giants (generic class-body lowering): an `ast.<expr-node>`
         # arm (`Optional[ast.expr]` — the `value` local of `_collect_class_constants`)
@@ -2358,12 +2378,29 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             v = annotation.slice.elts[1]
             if isinstance(v, ast.Name) and v.id == "str":
                 return "string"
+            # pyval-value-model-wall (self-tcb-reduction, heterogeneous value model):
+            # `Dict[str, PyVal]` is the faithful heterogeneous Python-value dict — the
+            # value carrier is the `hval` sum (HStr/HInt/HArr/HMap/HNode), so the dict
+            # lowers to `map string (option hval)` and each value is tagged by its IR
+            # kind (Module6 `_build_dict_literal_map` hval branch). `PyVal` is a NEW
+            # sentinel value-type name absent from the whole corpus, so this is
+            # byte-inert (no existing `Dict[str, X]` annotation is affected). See
+            # getting-better/pyval-value-model-wall-impl.md.
+            if isinstance(v, ast.Name) and v.id == "PyVal":
+                return "hval"
             if (isinstance(v, ast.Subscript)
                     and isinstance(v.value, ast.Name)
                     and v.value.id in ("Dict", "dict")
                     and isinstance(v.slice, ast.Tuple)
                     and len(v.slice.elts) == 2):
                 _ki, vi = v.slice.elts
+                # J2/J3 convergence (self-tcb-reduction): `Dict[str, Dict[str, PyVal]]` —
+                # the INNER heterogeneous dict is `map string (option hval)` (native
+                # string key, hval-tagged value), so the outer value type carries the
+                # faithful hval inner map, NOT the int-erased default. Byte-inert (no
+                # corpus `Dict[str, Dict[str, PyVal]]`).
+                if isinstance(vi, ast.Name) and vi.id == "PyVal":
+                    return "map string (option hval)"
                 vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
                 # nested-map.md: the INNER map is int-keyed (str keys hashed via `str_hash_op`),
                 # matching the model's uniform `dict[str,_] ~ map int (option _)` convention, so
