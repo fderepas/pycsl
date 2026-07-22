@@ -680,7 +680,6 @@ class _MergeConservationError(Exception):
             f"report a verdict (a dropped goal must never silently pass).")
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
