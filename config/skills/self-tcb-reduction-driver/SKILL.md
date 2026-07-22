@@ -67,6 +67,15 @@ discriminator that implements this: it escalates a wall ONLY after confirming th
    ```
 2. Announce: "Autonomous driver: running until <deadline>. Iterating walls; committing each increment; no
    prompts until the deadline or you interrupt."
+3. **ARM THE HEARTBEAT — do this at setup, before any work.** Without it the run WILL stall (see A.5 for
+   why). Launch with `run_in_background: true`:
+   ```bash
+   sleep 900; NOW=$(date +%s); DL=$(cat getting-better/.driver-deadline 2>/dev/null || echo 0)
+   if [ "$NOW" -lt "$DL" ]; then echo "HEARTBEAT — $(( (DL-NOW)/60 )) min left; resume the driver loop at A.2"
+   else echo "HEARTBEAT — deadline passed; finish per A.3"; fi
+   ```
+   Exactly ONE heartbeat may be in flight at a time (two produce a notification storm). It self-limits: once
+   the deadline passes it says so and A.3 runs instead of re-arming.
 
 ### A.2 The autonomous loop (repeat until the deadline)
 Each iteration, in order, WITHOUT asking the user:
@@ -89,10 +98,21 @@ Each iteration, in order, WITHOUT asking the user:
 4. **Commit EVERY increment immediately** (a conversion, a CERTIFIED-BOUNDARY record, a lesson) so an
    interruption at any point loses nothing. NEVER leave a dirty tree between iterations; revert a
    sprawling/refuted build to clean before committing its finding.
-5. **Gate S-lesson** on any consolidated lesson → `wall-lessons.md`. Next iteration.
+5. **Gate S-lesson** on any consolidated lesson → `wall-lessons.md`.
+6. **BEFORE ENDING THE TURN, CHECK THE WAKE SOURCE — this is what makes the run autonomous.**
+   The turn is about to end. Ask: *is there a pending background task that will notify me?*
+   - **Yes** (a whole-file proof, a sub-agent, a sweep) → that notification resumes the loop. Do not
+     arm a second heartbeat; it would double-fire.
+   - **No** → **RE-ARM THE HEARTBEAT NOW** (the A.1.3 command). A turn that ends with no pending
+     notification ends the RUN, silently, with hours left on the clock.
+   Then go to A.2.1 on the next invocation. Do not write a status summary as a substitute for
+   continuing — narration is not an iteration, and stopping to narrate is the most common way this
+   loop dies.
 
 ### A.3 Finish (deadline reached, or the frontier is at floor)
-- Stop iterating. `rm getting-better/.driver-deadline getting-better/.driver-started`.
+- Stop iterating. **Do NOT re-arm the heartbeat**, and `rm getting-better/.driver-deadline
+  getting-better/.driver-started` (an in-flight heartbeat then reports "deadline passed" and dies, since
+  it reads the deadline file at wake time — so removing the file is also how you kill an early stop).
 - Emit ONE summary: walls RESOLVED this run (BROKEN vs CERTIFIED-BOUNDARY), conversions + count delta,
   lessons banked, and the unpushed-commit count. Do NOT auto-push (the standing rule holds: push only on
   an explicit "push"/"push it") — list what is ready to push.
@@ -105,14 +125,45 @@ Each iteration, in order, WITHOUT asking the user:
   agent claim re-verified by the driver-verifier (§2). A speed-motivated `--fun`-only accept is forbidden.
 - **Cross-turn continuation.** A single turn's context is finite; when it fills before the deadline, the
   harness summarizes and continues — the persisted `.driver-deadline` file is how the next context window
-  knows to keep going and when to stop (re-read it each iteration; do not re-ask the user). If the harness
-  offers `ScheduleWakeup`/`/loop` dynamic pacing, a long idle wait (e.g. a background proof) may reschedule
-  rather than block, but the deadline file remains the single source of truth.
+  knows to keep going and when to stop (re-read it each iteration; do not re-ask the user). The deadline
+  file is the single source of truth for WHEN to stop; the heartbeat (A.1.3 / A.2.6 / A.5) is the
+  mechanism for STAYING ALIVE until then. Both are required — neither substitutes for the other.
 - **Interruptibility.** A user message mid-run is honored immediately (answer it, then resume or stop per
   their instruction). Each increment being committed means an interrupt is always at a clean boundary.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
+
+### A.5 WHY the heartbeat exists (read this before deciding it is ceremony)
+
+**Observed failure, run #6, 2026-07-22.** A 13-hour run was authorized four separate times and stalled
+every time with 8–12 hours still on the clock. The deadline file was correct, the work was not finished,
+and no gate had failed. The user had to retype the command to restart it, repeatedly.
+
+**Root cause — the assistant does not run between turns; it does not exist between them.** A turn begins
+when something invokes the assistant and ends when it stops emitting tool calls. There is no internal
+timer, and `.driver-deadline` is an inert file: it says when to STOP, and nothing about it can WAKE
+anything. So the only things that continue an autonomous run are:
+  1. a **background task completing** (`run_in_background: true`) — its completion notification re-invokes
+     the assistant; this is what produced the long autonomous stretches in run #6 (launch a 40-minute
+     whole-file proof → turn ends → dormant → proof finishes → notification → commit → launch next), and
+  2. a **user message**.
+
+Therefore: **a turn that ends with no pending background task ends the RUN.** Every stall in run #6 was
+exactly that — an increment finished, no proof was in flight, a status summary was written, and the loop
+went dormant with hours remaining. The heartbeat exists solely to guarantee case (1) is never empty.
+
+Two corollaries worth internalizing:
+- **Narration is the main hazard.** Stopping to summarize does not merely cost tokens — it is the act that
+  ends the turn. If nothing is backgrounded when you do it, it ends the run. Prefer chaining the next
+  measurement into the same turn; report when a real increment lands, and only with a wake source pending.
+- **Long proofs are FEATURES here, not obstacles.** A backgrounded 40-minute whole-file proof is both a
+  required gate and a free heartbeat. Launch the proof, keep working on a non-conflicting track in the
+  same turn, and let its notification drive the next iteration.
+
+The heartbeat re-invokes the assistant; it does not make the run unkillable. A turn that dies on an error
+still breaks the chain, and the user can always interrupt (A.4). Cost is real: a self-sustaining loop
+consumes tokens continuously for the whole window, which is what "for 13 hours" authorizes.
 
 ## 0. Deliverable & correctness
 
