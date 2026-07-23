@@ -666,3 +666,22 @@ self-field lives in the emitted BRIDGE NAME as often as in a `self` token, and a
 (a 63% false-positive cliff). The only sound facade signal is INPUT-BLIND: references none of {data params,
 self-state} at once; anything that touches one input is real. Same calibrate-before-believe discipline that
 took the param probe 118 → 76 → 12.**
+
+### (p) run #8 — CHECK THE EXISTING VALUE MODELS BEFORE SCOPING A NEW CERTIFICATE BUILD
+The 18h R2d+R3 run authorized a certificate-touching build (R3: swap the hval HMap carrier from a
+Why3 map to an assoc-list, so `.values()` folds). It was spiked, verified axiom-free, landed — and
+turned out UNNECESSARY. R2d de-vacuified all 8 IRScanner predicates via the PRE-EXISTING Phase2c
+`pydict` catamorphism, whose `pydict = DNil | DCons key val rest` is ALREADY the iterable assoc-list
+R3 rebuilt for the (younger, Phase2f) hval family. Two certified value models existed — the older
+pydict (assoc-list, iterable) and the newer hval (map carrier, non-iterable) — and the wall report,
+the fable reviewer, AND the driver all reasoned only about hval, missing that pydict already solved
+`.values()`. R3 is banked (verified, byte-inert, a legit capability for hval-typed walkers) but was
+avoidable session-scale + certificate work.
+**LESSON: before scoping a NEW value-model/certificate build to unblock a wall, ENUMERATE the value
+models that already exist and are certified, and check whether one already has the shape you need.
+Here `grep` for the existing catamorphisms (`pydict`/`size_dict`, `pyval`/`pv_size`, `stmt_ir`) and a
+spike porting ONE stub onto each would have shown pydict sufficed — before authorizing a certificate
+touch. The fable review does not substitute for this: the reviewer reasoned from the report's hval
+framing and inherited its blind spot. A "what existing capability already does this?" census is a
+distinct, cheap gate that belongs BEFORE the report→review→impl cycle for any build that proposes a
+new certified construct.**
