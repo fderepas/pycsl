@@ -67,6 +67,11 @@ discriminator that implements this: it escalates a wall ONLY after confirming th
    ```
 2. Announce: "Autonomous driver: running until <deadline>. Iterating walls; committing each increment; no
    prompts until the deadline or you interrupt."
+2a. **LOAD THE BACKLOG (§A.6).** Read `getting-better/driver-backlog.md` — the standing, pre-authorized
+    escalation ladder that makes the run self-sustaining across the WHOLE window (no mid-run "which wall?"
+    stops). If it is missing, seed it from the measured walls in the impl docs + `wall-lessons.md`. This is
+    the authorization queue: Phase 2 (A.2.3) escalates through it, and the run stops early ONLY when it is
+    empty (A.3), never merely because cheap work drained.
 3. **ARM THE HEARTBEAT — do this at setup, before any work.** Without it the run WILL stall (see A.5 for
    why). Launch with `run_in_background: true`:
    ```bash
@@ -97,12 +102,25 @@ Each iteration, in order, WITHOUT asking the user:
      corrupting increments (run #7: an ownerless `sweep.py` bounced the count 943→938 and flickered
      `ir.py`/`monomorphize.py`/`parser.py` dirty with `*.py.bak` backups; killed mid-cycle it left ~5 files
      stuck in the ported state, a phantom "−5"). Commit each conversion inside the agent's own turn.
-3. **Phase 2 — Gate W** (only reached when Phase 1 returns `no_cheap_remaining`): pick ONE residual wall
-   (stuck, `cheap_win == false`, not already CERTIFIED-BOUNDARY) and escalate the full cycle (§4 steps 3–8:
-   report → fable review [Gate R] → impl plan [Gate P] → spike [Gate S] → BROKEN build [Gate B/C] or
-   CERTIFIED-BOUNDARY). Commit the outcome. Then **return to Phase 1** — a BROKEN wall may have unlocked new
-   cheap stubs (drain them before the next wall); a CERTIFIED-BOUNDARY wall is recorded so Phase 1 skips it.
-   Do NOT escalate a wall while any cheap stub remains.
+3. **Phase 2 — escalate to the BACKLOG (only reached when Phase 1 returns `no_cheap_remaining`).** Pick the
+   TOP unresolved item from `getting-better/driver-backlog.md` — the standing, user-pre-authorized escalation
+   ladder — and escalate the full cycle (§4 steps 3–8: report → fable review [Gate R] → impl plan [Gate P] →
+   spike [Gate S] → BROKEN build [Gate B/C] or CERTIFIED-BOUNDARY). The backlog is FULL-authority (§A.6): every
+   item, INCLUDING session-scale and certificate-touching builds, is pre-authorized — do NOT stop to ask which
+   wall to pursue or whether to pursue it. Commit the outcome, drop a checkpoint (A.2.6), then **return to
+   Phase 1** and re-drain (a BROKEN wall may unlock cheap follow-ons; a CERTIFIED-BOUNDARY item is marked
+   resolved in the backlog so the next escalation skips it). Do NOT escalate while any cheap stub remains.
+   - **"Bounded work ran out" is NOT a stop condition — escalate to the next backlog item (§A.6).** The old
+     A.3 "stop early at floor" reflex was the bug the user hit repeatedly: it halted a long authorized run the
+     moment CHEAP work drained, forcing a mid-run authorization prompt for the session-scale work that was the
+     whole point of the window. The backlog moves that authorization to run-START (standing), so escalation is
+     automatic. You STOP only at the deadline or a genuinely EMPTY ladder (every item BROKEN/CERTIFIED-BOUNDARY
+     for the current tree).
+   - Per-item discipline is unchanged and non-negotiable: spike-first + refutation-exit (a wall that walls is
+     CERTIFIED-BOUNDARY, recorded with the reopening capability, NOT ground on); **lesson (p) census-FIRST**
+     (enumerate the existing certified value models / recognizers — "does one already do this?" — before
+     scoping any new certified construct; R3 was avoidable because this was skipped); the full driver-verified
+     gate battery; ledger 3; foreground-only sub-agents (lesson n).
 4. **Commit EVERY increment immediately** (a conversion, a CERTIFIED-BOUNDARY record, a lesson) so an
    interruption at any point loses nothing. NEVER leave a dirty tree between iterations; revert a
    sprawling/refuted build to clean before committing its finding.
@@ -122,6 +140,11 @@ Each iteration, in order, WITHOUT asking the user:
    the same increment — the ledger holds the evidence, the skill holds the enforceable rule; a behavioral
    rule that lives only in `wall-lessons.md` does not bind the next run (that is why lesson (n) is also A.2.2
    + A.2.4, and why the heartbeat fix went into A.1/A.2/A.5 rather than the ledger).
+   - **CHECKPOINT, don't STOP, at each backlog transition (§A.6).** When an item resolves (BROKEN or
+     CERTIFIED-BOUNDARY), append ONE line to `getting-better/driver-progress.log` (`<ts-from-args-or-commit>
+     item<N> <BROKEN|BOUNDARY> — <count delta / reopening-capability>`) and mark it in the backlog. This is a
+     DURABLE, NON-BLOCKING breadcrumb the user skims asynchronously and can interrupt on — it REPLACES the
+     mid-run hand-back. Never end the run to report a transition; the run ends only per A.3.
 6. **BEFORE ENDING THE TURN, CHECK THE WAKE SOURCE — this is what makes the run autonomous.**
    The turn is about to end. Ask: *is there a pending background task that will notify me?*
    - **Yes** (a whole-file proof, a sub-agent, a sweep) → that notification resumes the loop. Do not
@@ -132,15 +155,35 @@ Each iteration, in order, WITHOUT asking the user:
    continuing — narration is not an iteration, and stopping to narrate is the most common way this
    loop dies.
 
-### A.3 Finish (deadline reached, or the frontier is at floor)
+### A.3 Finish (deadline reached, or the BACKLOG is genuinely empty)
 - Stop iterating. **Do NOT re-arm the heartbeat**, and `rm getting-better/.driver-deadline
   getting-better/.driver-started` (an in-flight heartbeat then reports "deadline passed" and dies, since
   it reads the deadline file at wake time — so removing the file is also how you kill an early stop).
 - Emit ONE summary: walls RESOLVED this run (BROKEN vs CERTIFIED-BOUNDARY), conversions + count delta,
   lessons banked, and the unpushed-commit count. Do NOT auto-push (the standing rule holds: push only on
   an explicit "push"/"push it") — list what is ready to push.
-- If the frontier reaches its floor (every remaining stub is BROKEN / CERTIFIED-BOUNDARY / below Gate W)
-  BEFORE the deadline, STOP EARLY and say so — do not spin on non-walls to burn the clock.
+- **The ONLY early-stop condition is an EMPTY BACKLOG (§A.6): every item in
+  `getting-better/driver-backlog.md` is BROKEN or CERTIFIED-BOUNDARY for the current tree.** "The cheap/bounded
+  frontier is exhausted" is NOT that — escalate to the next session-scale backlog item instead (A.2.3). Do not
+  stop early to hand back a scope decision the backlog already authorized; that mid-run stop was the failure
+  this design removed. If you genuinely reach an empty backlog before the deadline, STOP and say so, and list
+  for each CERTIFIED-BOUNDARY item the NEW capability that would reopen it (so a backlog edit can re-arm it).
+
+### A.6 The standing backlog — pre-authorized escalation (removes mid-run authorization stops)
+`getting-better/driver-backlog.md` is a user-curated, priority-ordered ladder of walls/directions the loop may
+pursue AUTONOMOUSLY, including session-scale and certificate-touching builds. It exists because the run kept
+stopping mid-window to ask "which wall / may I do the session-scale thing?" — authorization belongs at run
+START (standing), not as an interrupt. Rules:
+- **Full authority (current setting):** auto-pursue every item; the ONLY per-instance gates left are
+  IRREVERSIBLE / OUTWARD actions — `git push`, anything destructive or externally-visible — never the
+  build/verify. (If the user later narrows this, note the carve-out at the top of the backlog file.)
+- **The backlog is the escalation queue for Phase 2** (A.2.3): always take the top UNRESOLVED item. Mark items
+  BROKEN / CERTIFIED-BOUNDARY as they resolve; a boundary records the capability that would reopen it.
+- **Seed + maintain it:** if the file is missing at A.1, create it from the measured walls in the impl docs +
+  `wall-lessons.md`; keep it current as walls resolve and new ones are discovered. It is the single source of
+  truth for "what may I work on without asking."
+- Per-item discipline (spike-first, refutation-exit, lesson-(p) census-first, gate battery, ledger 3,
+  foreground sub-agents) is unchanged — full authority speeds up WHICH walls, never HOW rigorously.
 
 ### A.4 Autonomy discipline (non-negotiable — speed never relaxes rigor)
 - **The gate battery is unchanged.** Autonomous mode runs FASTER by not prompting, never by skipping a
