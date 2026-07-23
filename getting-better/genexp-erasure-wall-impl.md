@@ -316,3 +316,49 @@ KNOWN_ERASURES lost all 3 IRScanner entries (`irscanner___check`, `irscanner__is
 No boundary was recorded — the R2d-outcome prose that predicted 2 residual boundaries was refuted by
 re-measuring against the real Module5 IR. No new axiom/cert/theory (ledger 3); count 943 throughout
 (de-vacuification makes a fake conversion honest, it does not lower the count).
+
+---
+
+## §R2c OUTCOME — **BUILT via the existing certified quantifier; spec plane repaired, count-neutral**
+
+Count unchanged (**942**), ledger 3 (no cert/allowlist/formal-semantics touched), corpus byte-diff = exactly
+the 2 new fixtures. This is a SPEC-PLANE INTEGRITY repair — it does NOT lower the `\trusted` count, and
+count-neutral is the correct outcome (the reviewer's condition 5).
+
+**NOT its own subsystem (the plan's SPLIT contingency did not fire).** STEP-0 census located the contract
+grammar as the hand-written recursive-descent `_ContractParser` (`src/pycsl/frontend/Module2_Parser.py`),
+which replaced the former Lark engine. The genexp arg to `all`/`any` in a `#@` clause is a BOUNDED grammar
+addition wired straight onto the existing quantifier path — NOT a new subsystem:
+- `all(P for x in dom)` desugars to exactly the CSLNode `\forall x in dom; P` builds (`_mk_in`,
+  quantification.md P3); `any(P for x in dom)` to `\exists x in dom; P`.
+- So the IR, the WhyML lowering, and the 3-axiom certificate are **entirely reused** — zero new value
+  model, zero new lowering, zero certificate touch. The emitted `.mlw` is BYTE-IDENTICAL to the
+  hand-written quantifier form (verified: `diff` empty).
+
+**The one-branch change** (`_ContractParser._parse_atom_name`): on a call whose callee name is `all`/`any`,
+parse the first expr; if a `for` follows, consume `for VAR in DOMAIN`, close `)`, and return
+`Forall`/`Exists` via `_mk_in`. A non-genexp `all(arr)`/`any(arr)` (no `for`) keeps the CallExpr path
+(byte-inert).
+
+**STEP-1 SPIKE PASSED (make-or-break):**
+- (a) PARSES — `#@ assert all(x >= 0 for x in a)` no longer `expected ')' (got NAME 'for')`.
+- (b) FAITHFUL — lowers to `forall x. (exists _mem_0. 0<=_mem_0<len(a) /\ a[_mem_0]=x) -> x>=0`; grep 0
+  `all_1`/`any_1` oracle in the emitted `.mlw`. The oracle is GONE from spec position.
+- (c) NON-VACUOUS — the POSITIVE fixture proves (Valid, both provers via the standard battery) and the
+  EVIL TWIN (`all(x>=5 …)` under a precondition giving only `a[i]>=0`) does NOT prove (Unknown). Evil
+  twin, not a mutation test (lesson l).
+
+**Fixtures** (git add -f): `0938_spec_genexp_all_any.py` — positive `all` AND `any` genexp asserts, both
+PROVE; `0939_spec_genexp_evil_twin.py` — `# pycsl-expected: FAIL`, MUST NOT prove (XFAIL). Also repaired
+the PRE-EXISTING red `0937` (R2b's evil twin was missing the `# pycsl-expected: FAIL` marker → the runner
+scored it FAIL; the fix is comment-only, 0937 emission byte-identical) — opportunistic gate hardening.
+
+**GATES (all fresh, driver-verified):** corpus byte-diff 0 over the 784 existing files (base 784 / mine 786
+= +2 new fixtures; 0 existing files differ; detached-HEAD worktree, `.venv` symlinked, population asserted);
+mirror-check 52/52; mirror-wide L3-tc 52/52; **all 52 mirror `.mlw` emission BYTE-IDENTICAL to HEAD** ⇒ the
+whole-file self-annotation proof suite is provably unaffected (identical WhyML input ⇒ identical proof
+result — the sound fast equivalent, since the edited live `_parse_atom_name` is a `\trusted` stub in the
+mirror and no mirror `#@` clause uses genexp); sync drift 5 == HEAD; ledger 3; count 942 unchanged.
+
+**The spec plane of the any/all fold is now repaired.** `#@ assert all(genexp)` / `any(genexp)` is a real,
+provable obligation instead of an unconstrained `val`. R2d/R2e/R3 remain as previously scoped.

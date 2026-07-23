@@ -2041,6 +2041,33 @@ class _ContractParser:
             if self.at_op(")"):
                 self.advance()
                 return CallExpr(name, [])
+            # genexp-erasure-wall R2c: `all`/`any` over a GENERATOR EXPRESSION in a
+            # spec clause (`#@ assert all(x >= 0 for x in a)`) desugars to the
+            # EXISTING bounded quantifier — the same CSLNode `\forall x in dom; P`
+            # / `\exists x in dom; P` builds via `_mk_in` (quantification.md P3).
+            # So the IR, lowering, and certificate are entirely REUSED and the
+            # unconstrained `all_1`/`any_1` oracle never appears in spec position.
+            # `all` -> Forall (`x in dom ==> P`), `any` -> Exists (`x in dom and P`).
+            # A non-genexp `all(arr)`/`any(arr)` (no `for`) keeps the CallExpr path.
+            if name in ("all", "any"):
+                first = self._parse_expr()
+                if self.at_name("for"):
+                    self.advance()
+                    binder = self.expect_name()
+                    if not self.at_name("in"):
+                        self._err("expected 'in' in generator expression")
+                    self.advance()
+                    domain = self._parse_expr()
+                    self.expect_op(")")
+                    is_exists = (name == "any")
+                    cls = Exists if is_exists else Forall
+                    return cls(binder,
+                               self._mk_in(binder, domain, first, is_exists))
+                args = [first]
+                while self.accept_op(","):
+                    args.append(self._parse_expr())
+                self.expect_op(")")
+                return CallExpr(name, args)
             args = self._parse_expr_list()
             self.expect_op(")")
             return CallExpr(name, args)

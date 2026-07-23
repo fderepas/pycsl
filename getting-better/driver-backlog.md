@@ -128,6 +128,29 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    spec plane of the any/all fold. Independent of R2d/R2e. Grammar work in `Module2_Parser.py`; may
    be its own subsystem — SPLIT and record if so.
 
+   **BUILT (2026-07-23, count 942 unchanged — spec-plane integrity, count-neutral by design).**
+   NOT its own subsystem: a genexp arg to `all`/`any` inside a `#@` clause desugars to the ALREADY-
+   CERTIFIED bounded quantifier. `all(P for x in dom)` builds exactly the CSLNode `\forall x in dom; P`
+   builds (via `_mk_in`, quantification.md P3); `any(...)` builds `\exists x in dom; P`. So the IR,
+   lowering, AND 3-axiom certificate are ENTIRELY reused — no new value model, no new lowering path.
+   - Grammar: ONE branch in `_ContractParser._parse_atom_name` (`src/pycsl/frontend/Module2_Parser.py`) —
+     when `name in ("all","any")` and a `for` follows the first expr, parse `for VAR in DOMAIN`, close
+     `)`, emit `Forall`/`Exists` via `_mk_in`. A non-genexp `all(arr)`/`any(arr)` keeps the CallExpr path.
+   - SPIKE (STEP 1) PASSED: `#@ assert all(x >= 0 for x in a)` now (a) PARSES, (b) lowers to a real
+     `forall x. (exists m. 0<=m<len(a) /\ a[m]=x) -> x>=0` — grep 0 `all_1`/`any_1` oracle in the emitted
+     .mlw, (c) proves a POSITIVE fixture and the EVIL TWIN (`all(x>=5 ...)` under `a[i]>=0`) does NOT
+     prove (lesson l). The genexp `.mlw` is BYTE-IDENTICAL to the hand-written `\forall x in a; P`.
+   - Fixtures (git add -f): `0938_spec_genexp_all_any.py` (positive `all`+`any` asserts, PROVE) +
+     `0939_spec_genexp_evil_twin.py` (`# pycsl-expected: FAIL`, MUST NOT prove). Also fixed the
+     PRE-EXISTING red `0937` (R2b's evil twin lacked the `# pycsl-expected: FAIL` marker → spurious FAIL;
+     comment-only, emission byte-identical) — opportunistic gate hardening (item 8).
+   - GATES (all fresh, driver-verified): corpus byte-diff 0 over 784 existing files (base 784 / mine 786
+     = +2 new fixtures, 0 existing differ, detached-HEAD worktree); mirror-check 52/52; L3-tc 52/52;
+     ALL 52 mirror `.mlw` emission BYTE-IDENTICAL to HEAD ⇒ self-annotation proof suite provably
+     unaffected (identical WhyML ⇒ identical proof); sync drift 5 == HEAD; ledger 3 (no cert/allowlist/
+     formal-semantics touched); count 942 unchanged (correct — spec-plane repair does not lower the
+     count). Fell through to item 6.
+
 6. **R2e — string/capture folds** (element-type parameterization + string-predicate lowering +
    closure-capture threading + `startswith`). 4 coordinated capabilities; clears
    `_handle_fieldassign_stmt` + `_union_arm_tag` (~2 sites) + 11 banked. Session-scale.
