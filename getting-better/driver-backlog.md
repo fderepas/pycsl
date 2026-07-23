@@ -188,13 +188,36 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
        dispatch on a non-`type` tag `pattern`). Missing cap: a recognizer for `any(self._pred(a) for a in
        node.get("<field>",[]))` recursive-existence-over-list-field. Committed body stays the (lesson-j)
        while-loop rewrite — flag for re-trust vs recognizer build.
-     - `_union_arm_whyml_type` — **STILL-BLOCKED (V1 dict value-model).** The record-tail read
-       `_record_types[tag]["whyml_name"]` lowers to `subscript_get !_rt <hash>` = int, clashing with the
-       string return. Missing cap: nested `_record_types: Dict[str,Dict[str,str]]` string-field projection.
-     - `_handle_var_expr` (expressions) — **STILL-BLOCKED (V1 dict value-model).** Needs helper
-       `_union_local_read_projection`, whose verbatim body reads nested `_variant_types[st]["constructors"][cn]
-       ["arity"/"payload"]`; mirror models `_variant_types` as flat `Dict[str,str]`, so the helper collapses to
-       an int stub and `_proj` (int) clashes with the string return. Adding it `\trusted` would be a +1 regression.
+     - `_union_arm_whyml_type` — **STILL-BLOCKED, but RE-DIAGNOSED 2026-07-24 (narrower than thought).**
+       The prior "missing cap: nested string-field projection" was WRONG. With the field annotated
+       `_record_types: Dict[str,Dict[str,str]]` AND the intermediate local annotated `_rt: Dict[str,str]`
+       (both mirror-only, sync-gate drops local annotations), BOTH projections lower FAITHFULLY —
+       `_rt := (match Map.get self._record_types tag with Some v_ -> v_ | None -> const None end)` (real
+       outer map get) and `match Map.get !_rt "whyml_name" with Some v_ -> v_ | None -> "" end` (real inner
+       STRING projection, NO int-hash, NO opaque `subscript_get`/`_rt_get_str`). The residual blocker is
+       DIFFERENT and smaller: the verbatim body binds `_rt = getattr(...).get(tag)` in the early-return→
+       if-else ELSE branch, so the emitter HOISTS it as `let _rt = ref 0 in` (int default, statements.py
+       `_emit_body_code` `pfx="0"`), and `_rt := <map string (option string)>` fails L3-tc "expected int".
+       The map/dict typed-local classifiers (`find_array_and_dict_vars`, `_rhs_yields_map`) are RHS-pattern-
+       driven and don't recognize `.get(tag)`, and there is NO symbol-table-driven map-local classifier
+       (unlike `string_vars`/`_union_locals` which DO read `_current_symbol_table`). Since all `_rt` uses are
+       inside the else branch, a let-bind there would typecheck. **Missing cap = a byte-inert emitter
+       recognizer: classify a local whose symtab type is a nested string-map as a typed local (let-bound at
+       first assign / pre-declared `ref (const None)`), the map analogue of the existing `ref ""` string and
+       `ref (IrOther "")` emit_ir pre-decls.** That is a src/pycsl edit (out of this mirror-only task's scope),
+       but bounded and count-moving — a candidate menu-B build. The driver's spike (`d[tag]["whyml_name"]`,
+       direct double-subscript on a plain local) genuinely lowers, but does NOT exercise the verbatim body's
+       hoisted guard-local `_rt` — which is the real wall.
+     - `_handle_var_expr` (expressions) — **STILL-BLOCKED (genuinely heterogeneous, confirmed 2026-07-24).**
+       Needs helper `_union_local_read_projection`, whose verbatim body reads nested
+       `_variant_types[st]["constructors"][cn]["arity"/"payload"]`. Unlike `_union_arm_whyml_type`, this read
+       is genuinely HETEROGENEOUS and NOT annotatable to a faithful map: it iterates `constructors.items()`
+       in a find-loop with mutable accumulators (`some_ctor`, `some_pay`), compares `c.get("arity") == 1`
+       (INT), and indexes `c.get("payload") or []` then `_pay[0]` (LIST → str). No single carrier
+       (`Dict[str,Dict[str,str]]` fails on `arity`/`payload`; a pyval carrier can't do the `.items()` find-loop
+       + list-index in VALUE position). This is squarely the generic-`Any` recognizer wall (§10.3 / lesson q):
+       multiple recognizer features (dict-items find-loop, heterogeneous constructor record, list-payload
+       projection), all emitter-side. Adding the helper `\trusted` would be a +1 regression.
      - `_handle_for_stmt` — **STILL-BLOCKED (missing subsystem).** Verbatim body needs ~12 helpers absent from
        the mirror (`_string_char_iter`, `_classbody_psl_recv`, `_pyast_walk_recv`, `_keyword_iter_recv`,
        `_tparam_iter_recv`, `_mktuple_elts_recv_ir`, `_tparam_bases_recv`, `_add_abstract_op`) + 5 new self-state
