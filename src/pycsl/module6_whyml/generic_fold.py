@@ -5644,12 +5644,48 @@ def _match_type_discriminant(test: Any, subj: str,
     kt = _match_type_tag_test(test, subj)
     if kt is not None and kt[0] == "type":
         return {"kind": "simple", "tag": kt[1]}
-    # COMPOUND / PARAM: flatten the `and`-chain, require exactly one `type==T`
-    # conjunct and exactly one secondary key conjunct (either `k2 in (tags)` or
-    # `k2 == <carried>`) over an interned named key.
     conjs = _flatten_and(test)
     if len(conjs) < 2:
         return None
+    # NESTED: any conjunct is a child-field type projection
+    # `<subj>["<nk>"].get("<sk>") == "<TAG>"` (`uses_array_lit`'s `[0]*n` arm:
+    # `type=="BinOp" and op=="*" and obj["left"].get("type")=="ArrayLit"`).
+    # Collect a general AND-fact list; drop the `isinstance(obj.get("left"),dict)`
+    # guard as a sound over-approximation (the pyval `type_is` on the child already
+    # returns false for a non-PDict child, so the guard is subsumed).
+    if any(_match_nested_type_proj(c, subj) is not None for c in conjs):
+        n_type_tag = None
+        facts: List[Dict[str, Any]] = []
+        for c in conjs:
+            st = _match_type_tag_test(c, subj)
+            if st is not None and st[0] == "type":
+                if n_type_tag is not None:
+                    return None
+                n_type_tag = st[1]
+                continue
+            if st is not None and st[0] in ("func", "op"):
+                facts.append({"t": "keylit", "key": st[0], "tag": st[1]})
+                continue
+            kin = _match_key_in_tuple(c, subj)
+            if kin is not None and kin[0] in ("func", "op"):
+                facts.append({"t": "keyin", "key": kin[0], "tags": kin[1]})
+                continue
+            kep = _match_key_eq_param(c, subj, carried)
+            if kep is not None and kep[0] in ("func", "op"):
+                facts.append({"t": "keyparam", "key": kep[0], "param": kep[1]})
+                continue
+            pr = _match_nested_type_proj(c, subj)
+            if pr is not None:
+                facts.append({"t": "proj", "key": pr[0], "subkey": pr[1],
+                              "tag": pr[2]})
+                continue
+            # droppable extra (the isinstance guard) — insight-C over-approx.
+        if n_type_tag is None or not facts:
+            return None
+        return {"kind": "nested", "type_tag": n_type_tag, "facts": facts}
+    # COMPOUND / PARAM: require exactly one `type==T` conjunct and exactly one
+    # secondary key conjunct (either `k2 in (tags)` or `k2 == <carried>`) over an
+    # interned named key.
     type_tag = None
     key2 = None
     tags: List[str] = []
@@ -5703,6 +5739,35 @@ def _match_key_eq_param(node: Any, subj: str, carried: List[str]
             and right.get("name") in carried):
         return None
     return (key, right["name"])
+
+
+def _match_nested_type_proj(node: Any, subj: str
+                            ) -> Optional[Tuple[str, str, str]]:
+    """`<subj>["<nkey>"].get("<subkey>") == "<TAG>"` -> (nkey, subkey, TAG); None.
+
+    Module5 lowers `obj["left"].get("type")` to a `Call func="get"` whose
+    `receiver` is the `Subscript(<subj>, "<nkey>")` and whose single arg is the
+    string subkey. A child-field type projection (`uses_array_lit`)."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "=="):
+        return None
+    left, right = node.get("left", {}), node.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == "get"):
+        return None
+    recv = left.get("receiver")
+    if not (isinstance(recv, dict) and recv.get("type") == "Subscript"
+            and _is_var(recv.get("value"), subj)):
+        return None
+    nkey = _is_string(recv.get("index"))
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    subkey = _is_string(gargs[0])
+    tag = _is_string(right)
+    if nkey is None or subkey is None or tag is None:
+        return None
+    return (nkey, subkey, tag)
 
 
 def _match_any_selfrecurse_genexp(node: Any, subj: str, self_base: str,
@@ -5806,19 +5871,27 @@ def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             and not if_dict.get("orelse")
             and _match_isinstance(if_dict.get("test", {}), subj, "dict")):
         return None
+    # dict-arm body = N>=1 `if <disc>: return True` tag-guards followed by the
+    # `return any(self(v) for v in obj.values())` recursion. The 6+`_check`+
+    # `is_recursive` have exactly ONE tag-guard; `uses_array_lit` has TWO (a plain
+    # `type=="ArrayLit"` arm and a nested `type=="BinOp" and op=="*" and
+    # obj["left"].get("type")=="ArrayLit"` arm) — a DISJUNCTION, ORed in the emitter.
     db = if_dict.get("body", [])
-    if len(db) != 2:
+    if len(db) < 2:
         return None
-    tag_if, dret = db
-    if not (isinstance(tag_if, dict) and tag_if.get("stmt") == "If"
-            and not tag_if.get("orelse")):
-        return None
-    pred = _match_type_discriminant(tag_if.get("test", {}), subj, carried)
-    if pred is None:
-        return None
-    if not (len(tag_if.get("body", [])) == 1
-            and _is_bool_true_return(tag_if["body"][0])):
-        return None
+    tag_ifs, dret = db[:-1], db[-1]
+    preds: List[Dict[str, Any]] = []
+    for tag_if in tag_ifs:
+        if not (isinstance(tag_if, dict) and tag_if.get("stmt") == "If"
+                and not tag_if.get("orelse")):
+            return None
+        pr = _match_type_discriminant(tag_if.get("test", {}), subj, carried)
+        if pr is None:
+            return None
+        if not (len(tag_if.get("body", [])) == 1
+                and _is_bool_true_return(tag_if["body"][0])):
+            return None
+        preds.append(pr)
     if not (isinstance(dret, dict) and dret.get("stmt") == "Return"):
         return None
 
@@ -5847,7 +5920,7 @@ def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not _match_any_selfrecurse_genexp(lret.get("value", {}), subj,
                                          self_base, _subj_iter, carried):
         return None
-    return {"subject": subj, "pred": pred, "carried": carried}
+    return {"subject": subj, "preds": preds, "carried": carried}
 
 
 def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
@@ -5866,20 +5939,28 @@ def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     non-facade signal. `obj` appears in the emitted body (de-vacuified,
     wall-lessons (l))."""
     n = whyml_ident(func["name"])
-    pred = desc["pred"]
+    preds = desc["preds"]
     # `is_recursive(name, obj)`: leading scalar-`str` params carried verbatim
     # through the whole rec group (declared `(c: string)`, threaded into every
     # self-call). Empty for the plain `uses_<X>(obj)` shape (byte-inert there).
     cids = [whyml_ident(c) for c in desc.get("carried", [])]
     cdecl = "".join(f" ({c}: string)" for c in cids)   # declaration positions
     cargs = "".join(f" {c}" for c in cids)             # call-site threading
-    _NAMED = {"type": "K_type", "func": "K_func", "op": "K_op"}
+    # interned irkey constant per read key (theory `get d K_<key>` / the DCons cell).
+    _IRKEY = {"type": "K_type", "left": "K_left", "right": "K_right",
+              "op": "K_op", "value": "K_value", "target": "K_target",
+              "body": "K_body", "orelse": "K_orelse", "func": "K_func",
+              "name": "K_name"}
     out: List[str] = []
+    _emitted: set = set()
 
     def _emit_key_reader(key: str) -> None:
         # interned-named-key reader (option string over the K_<key> cell) +
         # `<key>_is` predicate — the `_emit_stmt_reader` shape, interned variant.
-        kc = _NAMED[key]
+        if key in _emitted:
+            return
+        _emitted.add(key)
+        kc = _IRKEY[key]
         out.append(f"  let rec {n}__get_{key} (d: pydict) : option string")
         out.append("    variant { d }")
         out.append("  = match d with DNil -> None")
@@ -5891,22 +5972,80 @@ def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
                    f" Some t -> pystr_eq t tag | None -> false end)")
         out.append("    | _ -> false end")
 
-    _emit_key_reader("type")
-    if pred["kind"] == "simple":
-        pdict_arm = f'{n}__type_is obj "{pred["tag"]}"'
-    elif pred["kind"] == "param":
-        # `type=="<T>" and <k2>==<carried param>` — the second reader compares the
-        # interned key's PStr value against the runtime carried string (not a
-        # literal): `{n}__<k2>_is obj <param>` (`func_is obj name`).
+    def _emit_childp_reader(nkey: str) -> None:
+        # option-pyval projector for the interned K_<nkey> cell — the direct
+        # DCons-constructor match (the SAME style as the string `_emit_key_reader`,
+        # returning the raw child `v` instead of its PStr). Avoids the theory `get`
+        # (its unqualified name mis-resolves in this scope).
+        if ("childp", nkey) in _emitted:
+            return
+        _emitted.add(("childp", nkey))
+        kc = _IRKEY[nkey]
+        out.append(f"  let rec {n}__getp_{nkey} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        out.append(f"    | DCons {kc} v rest -> Some v")
+        out.append(f"    | DCons _ _ rest -> {n}__getp_{nkey} rest end")
+
+    def _emit_nested_reader(nkey: str, subkey: str) -> None:
+        # `<subj>["<nkey>"].get("<subkey>") == tag` -> read the K_<nkey> child pyval
+        # then apply the CHILD's `<subkey>_is`. A non-PDict child makes `<subkey>_is`
+        # return false (subsumes the source's `isinstance(obj["<nkey>"], dict)` guard).
+        _emit_key_reader(subkey)
+        _emit_childp_reader(nkey)
+        tag = ("nested", nkey, subkey)
+        if tag in _emitted:
+            return
+        _emitted.add(tag)
+        out.append(f"  let function {n}__nested_{nkey}_{subkey}_is"
+                   f" (v: pyval) (tag: string) : bool")
+        out.append("  = match v with")
+        out.append(f"    | PDict d -> (match {n}__getp_{nkey} d with"
+                   f" Some c -> {n}__{subkey}_is c tag | None -> false end)")
+        out.append("    | _ -> false end")
+
+    def _fact_str(f: Dict[str, Any]) -> str:
+        if f["t"] == "keylit":
+            _emit_key_reader(f["key"])
+            return f'{n}__{f["key"]}_is obj "{f["tag"]}"'
+        if f["t"] == "keyin":
+            _emit_key_reader(f["key"])
+            mem = " || ".join(f'{n}__{f["key"]}_is obj "{t}"' for t in f["tags"])
+            return f"({mem})"
+        if f["t"] == "keyparam":
+            _emit_key_reader(f["key"])
+            return f'{n}__{f["key"]}_is obj {whyml_ident(f["param"])}'
+        # proj
+        _emit_nested_reader(f["key"], f["subkey"])
+        return f'{n}__nested_{f["key"]}_{f["subkey"]}_is obj "{f["tag"]}"'
+
+    def _arm_str(pred: Dict[str, Any]) -> str:
+        _emit_key_reader("type")
+        if pred["kind"] == "simple":
+            return f'{n}__type_is obj "{pred["tag"]}"'
+        if pred["kind"] == "param":
+            # `type=="<T>" and <k2>==<carried param>` — the second reader compares the
+            # interned key's PStr value against the runtime carried string (not a
+            # literal): `{n}__<k2>_is obj <param>` (`func_is obj name`).
+            _emit_key_reader(pred["key2"])
+            pval = whyml_ident(pred["param"])
+            return (f'{n}__type_is obj "{pred["type_tag"]}"'
+                    f' && {n}__{pred["key2"]}_is obj {pval}')
+        if pred["kind"] == "nested":
+            facts = " && ".join(_fact_str(f) for f in pred["facts"])
+            return f'{n}__type_is obj "{pred["type_tag"]}" && {facts}'
+        # compound
         _emit_key_reader(pred["key2"])
-        k2 = pred["key2"]
-        pval = whyml_ident(pred["param"])
-        pdict_arm = f'{n}__type_is obj "{pred["type_tag"]}" && {n}__{k2}_is obj {pval}'
+        mem = " || ".join(f'{n}__{pred["key2"]}_is obj "{t}"' for t in pred["tags"])
+        return f'{n}__type_is obj "{pred["type_tag"]}" && ({mem})'
+
+    # DISJUNCTION of all recognised dict tag-arms (`uses_array_lit` has 2; every
+    # other predicate exactly 1 — a single arm keeps the emitted string identical
+    # to the pre-multi-arm output, so the 8 already-converted stay byte-stable).
+    if len(preds) == 1:
+        pdict_arm = _arm_str(preds[0])
     else:
-        _emit_key_reader(pred["key2"])
-        k2 = pred["key2"]
-        mem = " || ".join(f'{n}__{k2}_is obj "{t}"' for t in pred["tags"])
-        pdict_arm = f'{n}__type_is obj "{pred["type_tag"]}" && ({mem})'
+        pdict_arm = " || ".join(f"({_arm_str(p)})" for p in preds)
     # scalar-rooted mutual catamorphism into bool (R2d rec-group fold); the
     # carried params are threaded (declared once per member, passed on each call).
     out.append(f"  let rec {n}{cdecl} (obj: pyval) : bool")

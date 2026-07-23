@@ -72,9 +72,11 @@ KNOWN_ERASURES = {
     # it IS in the Module5 functions list (formal_params `['obj']`), and recognition failed
     # only because the `self_base` derivation ate `_check`'s leading underscore
     # (`irscanner___check` -> "check" != genexp "_check"); `split("__",1)` fixes it. REMOVED.
-    # The remainder stays erased: `uses_array_lit` (disjunctive nested-field
-    # BinOp*ArrayLit discriminant) — distinct shape, measured residual.
-    "irscanner__uses_array_lit",
+    # `uses_array_lit` is now DE-VACUIFIED faithfully (BOTH arms modelled): the
+    # type-existence recognizer accepts a DISJUNCTION of dict tag-arms and a NESTED
+    # child-field projection `obj["left"].get("type")=="ArrayLit"` (emitted as a
+    # `getp_left` option-pyval projector feeding the child's `type_is`). The `[0]*n`
+    # BinOp arm is NOT under-approximated away (lesson (j)). REMOVED.
     # `is_recursive(name, obj)` is now FULLY de-vacuified: the type-existence
     # recognizer threads a leading `str` "carried" param (`name`) through the rec
     # group and the discriminant matches `type=="Call" and func==name` (equality

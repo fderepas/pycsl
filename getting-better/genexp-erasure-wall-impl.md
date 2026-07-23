@@ -289,3 +289,30 @@ GATES (all fresh): ir_scanner.mlw whole-file proof SUCCESS; vacuity `--emit` exi
 removed, no NEW erasure, 0 input-blind; corpus byte-diff 0 @ 784==784; L3-tc 52/52; mirror-check 52/52;
 sync drift 5 (== HEAD); ledger 3; count 943 unchanged. The `carried=[]` default keeps all 6 + `_check`
 byte-identical (verified by the 0 byte-diff and unchanged recognitions).
+
+### (i2) `uses_array_lit(obj)` — DE-VACUIFIED FAITHFULLY, BOTH arms (`irscanner__uses_array_lit` removed)
+A DISJUNCTIVE dict-arm: `type=="ArrayLit"` OR (`type=="BinOp" and op=="*" and
+obj["left"].get("type")=="ArrayLit"`). Two BOUNDED extensions, all machinery pre-existing:
+(a) the dict-arm body may hold N>=1 `if <disc>: return True` tag-guards (was exactly 1) — the
+    recognizer collects a `preds` LIST, the emitter ORs the per-arm strings (single-arm output
+    stays byte-identical, so the 8 already-converted are unchanged); and
+(b) a NESTED child-field projection `_match_nested_type_proj` (`obj["left"].get("type")==tag`,
+    lowered by Module5 to a `Call func="get"` with a `receiver=Subscript(obj,"left")`) -> a
+    `"nested"` pred kind whose emitter reads the interned `K_left` cell with a direct-match
+    `getp_left (d): option pyval` projector (NOT the theory `get`, which mis-resolves unqualified),
+    then applies the CHILD's `type_is`. The `isinstance(obj["left"],dict)` guard is dropped as a
+    sound over-approx (the pyval `type_is` on a non-PDict child already returns false).
+Capturing ONLY the direct `ArrayLit` arm would have UNDER-approximated (missed `[0]*n`) — refused
+per lesson (j); both arms are modelled. Emitted body references `obj` through real folds.
+GATES (all fresh): ir_scanner.mlw whole-file proof SUCCESS (first attempt type-errored on the theory
+`get`; fixed with the `getp_left` projector, re-proved SUCCESS); vacuity `--emit` exit 0,
+`irscanner__uses_array_lit` removed, no NEW erasure, 0 input-blind; corpus byte-diff 0 @ 784==784;
+L3-tc 52/52; mirror-check 52/52; sync drift 5 (== HEAD); ledger 3; count 943 unchanged.
+
+### VERDICT — all 3 residual/partial IRScanner erasures were BOUNDED and are DE-VACUIFIED
+KNOWN_ERASURES lost all 3 IRScanner entries (`irscanner___check`, `irscanner__is_recursive`,
+`irscanner__uses_array_lit`); the remaining 3 gated entries are non-IRScanner (`_collect_class_constants`,
+`_handle_mktuple_expr`, `_emit_new_ghost_ref`). The IRScanner type-existence family is FULLY honest.
+No boundary was recorded — the R2d-outcome prose that predicted 2 residual boundaries was refuted by
+re-measuring against the real Module5 IR. No new axiom/cert/theory (ledger 3); count 943 throughout
+(de-vacuification makes a fake conversion honest, it does not lower the count).
