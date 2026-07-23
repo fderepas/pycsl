@@ -682,12 +682,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_list_to_ir(self, csl_list: List[CSLNode]) -> List[int]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _comprehension_generators_to_ir(self, generators: List[ast.comprehension]) -> List[int]:
-        return []
+        """Translate Python comprehension generators to IR."""
+        return [
+            {
+                "target": gen.target.id if isinstance(gen.target, ast.Name) else "_comp_var",
+                "iter": self._py_expr_to_ir(gen.iter),
+                "ifs": [self._py_expr_to_ir(if_) for if_ in gen.ifs],
+            }
+            for gen in generators
+        ]
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1943,12 +1950,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return self._wrap_optional(annotation, scope_name)
         return self._field_type_from_annotation_inst(annotation, scope_name)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._fresh_var_counter, self.program_ir
     def _wrap_optional(self, inner: "ExprIR", scope_name: str) -> str:
-        return ""
+        """Lower `Optional[T]` for a TypedDict field by synthesizing a
+        `_union_<scope>_<idx>` variant with a `None` arm (reusing the TY1
+        Union normalization)."""
+        optional_ann = ast.Subscript(
+            value=ast.Name(id="Optional", ctx=ast.Load()),
+            slice=inner, ctx=ast.Load())
+        try:
+            return self._normalize_union_annotation(optional_ann, scope_name)
+        except Exception:
+            return self._field_type_from_annotation_inst(inner, scope_name)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
