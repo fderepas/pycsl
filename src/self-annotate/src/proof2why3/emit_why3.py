@@ -24,12 +24,17 @@ _BINOP_PREC = {'->': _PREC_ARROW, '\\/': _PREC_OR, '/\\': _PREC_AND, '=': _PREC_
 def _pp(t: Term, parent_prec: int) -> str:
     return ""
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def ir_to_whyml_axiom_body(term: Term) -> str:
-    return ""
+    """Serialize a Term back to a WhyML axiom-body string.
+
+    The output is suitable for direct inclusion as a value in
+    `_AXIOM_REGISTRY` (Module 6 preamble). Round-trip through
+    `parse_type_expr` + `canonicalize` produces the same canonical
+    form as the input."""
+    return _pp(term, _PREC_TOP)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

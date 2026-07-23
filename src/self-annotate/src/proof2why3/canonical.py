@@ -30,12 +30,14 @@ def _expand_nat_to_int(t: Term) -> Term:
 def _alpha_rename(t: Term, counter: List[int]) -> Term:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def alpha_normalize(t: Term) -> Term:
-    return None
+    """Alpha-rename all bound variables to v0, v1, … left-to-right.
+    Top-level entry that initializes the counter."""
+    counter = [0]
+    return _alpha_rename(t, counter)
 
 _FLIP_COMPARISON = {'<=': '>=', '<': '>'}
 #@ \trusted reviewer: pycsl-self-annotate

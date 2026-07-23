@@ -12,12 +12,12 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def sertop_available() -> bool:
-    return False
+    """True iff sertop is on $PATH (post `opam install coq-serapi`)."""
+    return shutil.which("sertop") is not None
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -54,12 +54,22 @@ def parse_sexp(s: str) -> object:
 def _process_sertop_line(line: str, payloads_by_tag: int) -> int:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _extract_stmid(added_payload: object) -> int:
-    return None
+    """Parse the STMID out of an `(Added <stmid> ...)` Answer body.
+
+    sertop's `Add` returns `(Answer N (Added STMID (...))) NewAddTip`
+    style; we want the STMID."""
+    if not isinstance(added_payload, tuple) or len(added_payload) < 2:
+        return None
+    if added_payload[0] != "Added":
+        return None
+    try:
+        return int(added_payload[1])
+    except (ValueError, TypeError):
+        return None
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
