@@ -298,6 +298,50 @@ soundly-trusted boundary, NOT a conversion backlog.** Convert by measurement, no
     and drifted (`Module3_Weaver` failed whole-file proof on the `option seq int` bug, undetected for
     weeks). A move is not done until the suite array points at the new paths and still exits 0.
 
+### 10b — driver-campaign carve-outs (runs #5–#7, 2026-07; full evidence in `getting-better/wall-lessons.md`)
+
+These four are ledger lessons general enough to change base-loop policy, carved here per the Gate-S-lesson
+protocol so they bind future runs, not just document past ones.
+
+12. **"CONVERTED" MEANS *PORTED*, AND NOTHING ELSE — not rewritten, not truncated (wall-lesson (j)).** The
+    converter's job (§4.2) is a body BYTE-VERBATIM to live. Two silent substitutes both pass every other
+    gate and are NOT conversions: (a) a HAND-REWRITE — e.g. replacing live's `any(genexp)` with an
+    index-counting `while` loop; it passes the mutation test and proves, but the proof covers a body the
+    emitter never runs; (b) a TRUNCATION — e.g. shortening a multi-line error-message f-string so it
+    lowers. Only a verbatim port supports the claim "proving the mirror proves the emitter." When a
+    verbatim port cannot be made to prove, record the stub as DRIFTED (leave it `\trusted`); never book a
+    green proof over a body the tool does not run. A count is only as meaningful as the body-fidelity gate
+    behind it — `bin/check-self-annotate-mirror-sync.py` compares `ast.unparse` of the body (the repaired
+    gate); keep it GREEN, never let it go permanently red (see 15).
+
+13. **A `\trusted` STUB'S `#@ assigns` IS AN ASSUMPTION EVERY CALLER INHERITS (wall-lesson (f)).** An
+    over-tight frame on a trusted stub is not "conservative" — it is FALSE, and any converted caller's
+    proof silently rests on it (a caller's termination/frame proof can be discharged off a lie). Distinct
+    from a facade: the body is real, the proof is real, only the PREMISE is fabricated, so no output-gate
+    sees it. Before trusting a converted caller, RE-READ each trusted callee's declared frame against its
+    LIVE body's actual (and transitive) writes. A stub with NO `assigns` clause emits as effect-free — that
+    is the false claim `\nothing`, not "unspecified". (The mass-audit corollary, wall-lesson (h): before
+    fixing a flagged frame family, probe the LOWERING per type — "mutates a param" is three defect classes
+    with different verdicts; only the by-reference one is a soundness defect.)
+
+14. **THE MUTATION TEST (Gate C) CANNOT SEE INT-HASH ERASURE — add the STRUCTURAL vacuity gate
+    (wall-lesson (l)).** When a body int-hash-erases its input, a Python literal is emitted as its hash, so
+    perturbing the literal STILL moves the emitted `.mlw` — the mutation test passes *because of* the
+    erasure, over a body that never references its parameter (`IRScanner.uses_string` → `obj` appears
+    nowhere; `any(genexp)` → unconstrained `any_1 (Array.make 1 0)`). This is sound-but-VACUOUS, not
+    unsound. `bin/check-emitted-vacuity.py` is the gate that catches it (a body that never mentions a
+    parameter its LIVE body uses); it is part of the battery — run `--emit`, require exit 0 and no NEW
+    erasure. A green whole-file proof is NOT evidence the body reads its inputs.
+
+15. **A PARTIAL method takes a GENUINE precondition — carve-out to the fixed contract shape (wall-lesson
+    (d)).** The shape is `requires True / ensures True / assigns <frame>`, but a method that is genuinely
+    partial in the live code (e.g. `_Parser.take` steps `self.pos` unguarded and really raises IndexError
+    past the end) makes `requires True` UNPROVABLE, and the class invariant `pos < len` would be a LIE.
+    `#@ requires self.pos < \length(self.toks)` — the method's REAL domain — is permitted. STRICT carve-out,
+    not a licence to weaken: a precondition is allowed ONLY when it states the method's genuine partiality,
+    never a convenience narrowing to dodge an unproved goal, and the class invariant must never be
+    strengthened beyond what the live code actually maintains.
+
 ## 11. LOOP ENTRY — the campaign is CLOSED; the loop ASKS before working (do NOT auto-run)
 
 The tier-1/2/3 ADT campaign is closed at count **1240** (§10). There is **no auto-run backlog.** When
