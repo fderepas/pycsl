@@ -196,11 +196,16 @@ def _check_checkpoints(func) -> None:
 def _cp_walk(node, where) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _contains_result(node) -> bool:
+    if isinstance(node, dict):
+        if node.get("type") == "Result":
+            return True
+        return any(_contains_result(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_contains_result(x) for x in node)
     return False
 
 #@ \trusted reviewer: pycsl-self-annotate
