@@ -67,10 +67,14 @@ KNOWN_ERASURES = {
     # recognize_type_existence) — de-vacuified (references `obj`), REMOVED here.
     # SINGLE "type"-tag: uses_string/uses_subscript/uses_sum/uses_set_card.
     # COMPOUND "type==Call and <key2> in (tags)": uses_minmax/uses_ord_chr.
-    # The remainder stays erased: `_check` (nested closure behind the
-    # `uses_divmod` wrapper) and `uses_array_lit` (disjunctive nested-field
-    # BinOp*ArrayLit discriminant) — distinct shapes, measured residual.
-    "irscanner___check", "irscanner__uses_array_lit",
+    # `_check` (the lambda-lifted nested `def` behind the `uses_divmod` wrapper) is now
+    # de-vacuified via the SAME compound catamorphism (`type=="BinOp" and op in (div,/,%)`):
+    # it IS in the Module5 functions list (formal_params `['obj']`), and recognition failed
+    # only because the `self_base` derivation ate `_check`'s leading underscore
+    # (`irscanner___check` -> "check" != genexp "_check"); `split("__",1)` fixes it. REMOVED.
+    # The remainder stays erased: `uses_array_lit` (disjunctive nested-field
+    # BinOp*ArrayLit discriminant) — distinct shape, measured residual.
+    "irscanner__uses_array_lit",
     # Partial erasures.
     "irscanner__is_recursive",                              # keeps `name`, erases `obj`
     "pycsltojsonemitter___collect_class_constants",         # erases `field_names`

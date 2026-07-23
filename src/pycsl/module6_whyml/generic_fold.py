@@ -5729,7 +5729,16 @@ def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             and tail["value"].get("type") == "Bool"
             and tail["value"].get("value") is False):
         return None
-    self_base = (func.get("name") or "").rsplit(".", 1)[-1].rsplit("__", 1)[-1]
+    # self_base = the method's own name, i.e. everything after the `<classlower>__`
+    # prefix. Split on the FIRST `__` (the class-method boundary), NOT the last:
+    # a lambda-lifted nested `def _check` mangles to `irscanner___check`
+    # (`irscanner` + `__` + `_check`), and `rsplit("__",1)` would eat the method's
+    # leading underscore -> "check", which no longer equals the genexp self-call's
+    # basename "_check" (recognition silently fails). A class-lowered name never
+    # contains `__` (CamelCase collapses to an underscore-free run), so `split`
+    # is identical to `rsplit` for every single-`__` method name (the 6 already
+    # converted) and strictly more correct for a leading-`_` / internal-`__` name.
+    self_base = (func.get("name") or "").rsplit(".", 1)[-1].split("__", 1)[-1]
     # if_dict: if isinstance(obj, dict): [ if obj.get("type")=="<TAG>": return True,
     #                                      return any(self(v) for v in obj.values()) ]
     if not (isinstance(if_dict, dict) and if_dict.get("stmt") == "If"

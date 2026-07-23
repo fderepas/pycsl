@@ -248,3 +248,28 @@ group (self-recursion binds, no `unbound symbol`) and terminates on the structur
   pyval child -> its type). Capturing only the direct `type=="ArrayLit"` arm would UNDER-approximate
   (miss `[0]*n`) = an unfaithful partial conversion (refused per wall-lesson (j)). Needs a nested
   child-projection discriminant.
+
+## §R2d-followup — the 3 residual/partial IRScanner erasures RE-SPIKED — all 3 BOUNDED, built
+
+Re-measured against the REAL Module5 IR (spike `scratchpad/irx/spike_ir.py`). The R2d-outcome
+prose above was WRONG about `_check`'s blocker, and both other residuals turned out bounded.
+
+### (i3) `_check` — DE-VACUIFIED (`irscanner___check` removed from KNOWN_ERASURES)
+The "nested def NOT in the Module5 functions list" claim is FALSE. The lambda-lifted `_check` IS a
+first-class IR function `irscanner___check` (`formal_params ['obj']`, no annotations, return bool),
+and its body is EXACTLY the compound shape the R2d recognizer already handles (`type=="BinOp" and
+op in ("div","/","%")`). Recognition failed for ONE reason: `self_base` was derived with
+`rsplit("__",1)[-1]`, which on the mangled `irscanner___check` (`irscanner` + `__` + `_check`) EATS
+the method's leading underscore -> `"check"`, so the genexp self-call basename `"_check"` no longer
+matched and the whole match bailed. Fix = `split("__",1)[-1]` (the class-method boundary is the
+FIRST `__`; a class-lowered name never contains `__`, so it is identical to `rsplit` for every
+single-`__` name — byte-inert for the 6 already converted). One-line emitter change; `_check` now
+emits the real compound pyval/pydict catamorphism over `obj`.
+GATES (all fresh): ir_scanner.mlw whole-file proof SUCCESS; vacuity `--emit` exit 0, `irscanner___check`
+removed, no NEW erasure, 0 input-blind; corpus byte-diff 0 @ 784==784 (detached-HEAD worktree);
+mirror-wide L3-tc 52/52; mirror-check 52/52; sync drift 5 (== HEAD); ledger 3 (no cert touched);
+count 943 unchanged.
+NOTE (honest): `irscanner___check` is the de-vacuified target (the KNOWN_ERASURES entry). Its wrapper
+`uses_divmod` (`return _check(stmts)`, NOT in KNOWN_ERASURES — references `stmts`) still lowers the
+`_check(stmts)` call to the abstract `val _check_1` — connecting the wrapper to the real body is a
+separate call-site-typing change, not required for this erasure.
