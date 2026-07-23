@@ -65,6 +65,15 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
      is a per-carrier value model (biggest = the `ast.*` M5 family), gated by its own measure-before-build
      carrier census + authorization — NOT a bespoke per-stub recognizer. Fell through to item 4.
 
+**AST-NODE CARRIER SIZED (2026-07-23, count 942):** 47 `\trusted` stubs dispatch on `isinstance(_,ast.*)`
+   (24 in Module5_IREmitter, 14 in Module3_Weaver). BUT the top users are HEAVY transforms —
+   `_build_function_symbol_table` (30 ast-dispatches → 3-tuple of dicts), `_build_function_ir`,
+   `visit_Module`, `_synthesize_*` — i.e. the emitter's core AST→IR construction. A faithful `ast`-node
+   value model for these is re-implementing the emitter in WhyML, the campaign's DEEPEST wall (§10.3
+   int-AST / generic-Any), NOT a bounded carrier. So the biggest cluster is the least tractable. The
+   TRACTABLE carriers remain the small ones (tuple/sexp: 3 from_sexp stubs; class-variant: 2). Deprioritize
+   the ast-node model until a small carrier proves the certificate+emitter pattern is repeatable in-window.
+
 4. **The closure / nested-`def` walker family (dropped-closure blocker).** `_check`-style wrappers
    solved; the `found=[False]` / nested-`def` lambda-lift family (`_body_has_raise`,
    `_body_has_diverging_construct`, `_lemma_*`) still drops the closure at emission. Needs the
