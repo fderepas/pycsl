@@ -672,16 +672,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     acc = f"(HCons {self._pyval_wrap(e, local_refs)} {acc})"
                 return f"(HArr {acc})"
             if t == "DictLit":
-                self._add_abstract_op(
-                    "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
-                    ": map 'k (option 'v)\n"
-                    "    ensures { result = Map.set m k (Some v) }")
-                acc = "(const (None: option hval))"
+                # R3: build the HMap carrier as an assoc list — PREPEND each
+                # (key, hval) binding onto `PNil` (`hpairs = PNil | PCons key hval
+                # hpairs`), NOT a `map_update_some` Map.set chain. The map carrier
+                # was non-iterable; the assoc list makes the read (`pairs_get`) a
+                # terminating structural fold. Distinct keys → prepend order is
+                # observationally irrelevant.
+                acc = "PNil"
                 for k_ir, ve_ir in zip(v_ir.get("keys", []) or [],
                                        v_ir.get("values", []) or []):
                     k_low = self._expr_to_whyml(k_ir, local_refs)
-                    acc = (f"(map_update_some {acc} {k_low} "
-                           f"{self._pyval_wrap(ve_ir, local_refs)})")
+                    acc = (f"(PCons {k_low} "
+                           f"{self._pyval_wrap(ve_ir, local_refs)} {acc})")
                 return f"(HMap {acc})"
             # an IR-node construction (`{"type": "Var", …}`) carries an emit_ir node.
             if self._is_emit_ir_expr(v_ir):
@@ -6131,7 +6133,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not _empty_default:
             return None
         _lw = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
-        _empty = "(HMap (const (None: option hval)))"
+        _empty = "(HMap PNil)"  # R3: empty HMap carrier is the empty assoc list
         return (f"(match {_lw} with HMap m_or -> {_lw} "
                 f"| _ -> {_empty} end)")
 
@@ -6231,11 +6233,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # feeds a `.get` chain) -> corpus byte-inert.
         if recv in getattr(self, "_pyval_locals", set()):
             _k = args[0]
-            _empty = "(HMap (const (None: option hval)))"
+            _empty = "(HMap PNil)"  # R3: empty HMap carrier is the empty assoc list
             if len(args) == 2:
-                # `.get(k, {})` -> unwrap the option-hval to an hval.
+                # `.get(k, {})` -> unwrap the option-hval to an hval. R3: the carrier
+                # is the assoc list `hpairs`, so the lookup is the `pairs_get` fold.
                 return (f"(match {recv} with HMap m_k7 -> "
-                        f"(match Map.get m_k7 {_k} with Some v_ -> v_ "
+                        f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
                         f"| None -> {_empty} end) | _ -> {_empty} end)")
             # `.get(k)` (leaf, no default) -> unwrap the option-pyval to a `pyval`, the
             # absent key defaulting to the `PInt 0` None-sentinel (consistent with the
@@ -6243,7 +6246,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # An `hval` value (not `option hval`) so the read composes uniformly — e.g.
             # `{"bound": info.get("bound")}` embeds it via `_pyval_wrap`.
             return (f"(match {recv} with HMap m_k7 -> "
-                    f"(match Map.get m_k7 {_k} with Some v_ -> v_ "
+                    f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
                     f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
         # §26: `X.get(k)` where X aliases a self dict-field → `self.<field>.get(k)`.
         _alias = self._alias_self_field(recv)

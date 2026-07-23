@@ -5207,16 +5207,32 @@ class PreambleEmissionMixin:
             " D1/R-A generic-fold `pyval`/`PStr` family (_pydict_theory_lines) so both"
             " value models can coexist in one scope. HArr recurses through the BESPOKE"
             " `hval_list` (HNil/HCons), NOT `seq hval` (Why3 rejects `seq` recursion as"
-            " non-strictly-positive). HMap `map string (option hval)` is accepted (hval"
-            " in the positive arrow codomain). Structural mutual recursion, NO `variant`"
-            " clause. `map string (option hval)` is the heterogeneous dict type; reads"
-            " are `Map.get`. Gated on `_uses_pyval` -> corpus byte-identical. Arms are"
-            " inline (single `type`/`with` line) so the abstract-val insert point"
+            " non-strictly-positive). R3: HMap's carrier is the BESPOKE assoc list"
+            " `hpairs` (PNil/PCons), NOT a `map string (option hval)` — the map was"
+            " non-iterable so `.values()` could not fold; the assoc list keeps the"
+            " recursion structural and makes the read a terminating lookup fold"
+            " (`pairs_get`). Structural mutual recursion, NO `variant` clause. Gated on"
+            " `_uses_pyval` -> corpus byte-identical. The abstract-val insert point"
             " (`_find_abstract_val_insert_idx`, which skips `with`/`invariant`/`by` but"
-            " NOT `|` arm lines) lands AFTER the whole mutual group, not mid-declaration. *)",
+            " NOT `|` arm lines) lands AFTER the whole mutual group + `pairs_get`. *)",
             "  type hval = HStr string | HInt int | HArr hval_list"
-            " | HMap (map string (option hval)) | HNode hval",
+            " | HMap hpairs | HNode hval",
             "  with hval_list = HNil | HCons hval hval_list",
+            "  with hpairs = PNil | PCons string hval hpairs",
+            "  (* R3 carrier read: `.values()`-foldable lookup over the assoc list"
+            " (the map carrier was non-iterable). Build PREPENDS a binding (PCons)."
+            " A `let rec function` (usable in program `let` bindings — where the reads"
+            " occur); `variant { p }` gives structural termination over the assoc-list"
+            " cons. The key test is the opaque program primitive `hpairs_key_eq` (Why3"
+            " has no native program string `=`; disjoint from the str-set `pystr_eq`);"
+            " the DECIDABLE key equality + non-vacuity is certified in Phase2f_PyVal. *)",
+            "  val hpairs_key_eq (a b: string) : bool",
+            "  let rec function pairs_get (p: hpairs) (k: string) : option hval",
+            "    variant { p }",
+            "    = match p with",
+            "      | PNil -> None",
+            "      | PCons k' v t -> if hpairs_key_eq k k' then Some v else pairs_get t k",
+            "      end",
             "",
         ]
 
