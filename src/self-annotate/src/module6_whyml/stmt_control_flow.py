@@ -735,6 +735,14 @@ class ControlFlowStmtMixin:
         if val_ir is None:
             val = "()"
         elif (val_ir.get("type") == "Var"
+              and val_ir.get("name") in getattr(self, "_pyval_seq_locals", set())):
+            # K4 (local/return-position seq-pyval, self-tcb-reduction Tier-5): the
+            # function's declared return is `seq hval`, so a `return fields` where
+            # `fields` is the `seq hval` local returns the seq DIRECTLY (`!fields`) —
+            # NOT the `materialize` (seq int -> array int) bridge, which drops the pyval
+            # carrier. Gated on `_pyval_seq_locals` -> byte-inert.
+            val = f"!{whyml_ident(val_ir['name'])}"
+        elif (val_ir.get("type") == "Var"
               and val_ir.get("name") in getattr(self, "_seq_locals", set())):
             # 07-1705-rev4 P4: returning a seq-modelled (growable) list local where the
             # function's declared return is `array int` (a `list`) crosses the seq→array
@@ -818,6 +826,20 @@ class ControlFlowStmtMixin:
                 # return raises `Return_str <string>` (caught by the `with Return_str r -> r`
                 # arm). `val` is already the lowered string expression — no int coercion.
                 return f"{indent}raise (Return_str {val})"
+            if func_ret == "emit_ir":
+                # Return_emit_ir infra: an emit_ir-returning function's early/in-loop
+                # return raises `Return_emit_ir <emit_ir>` (caught by the `with
+                # Return_emit_ir r -> r` arm, statements.py::_wrap_body_with_return_catch).
+                # `val` is already the lowered emit_ir constructor expression (e.g. `(IrAttr
+                # ... ...)`) — no int coercion, mirroring the Return_str arm above.
+                return f"{indent}raise (Return_emit_ir {val})"
+            if func_ret.startswith("_union_"):
+                # value-model campaign incr5 (primitive c): a synthesized-union (`Optional[X]`)
+                # early/in-loop return raises its dedicated `Return_<variant>` exception
+                # (caught by `_wrap_body_with_return_catch`). `val` is already the injected
+                # variant value (`_maybe_inject_union_return` wrapped it as `Arm_N_0 <v>` /
+                # `Arm_N_None`) — no int coercion, mirroring the Return_str/Return_emit_ir arms.
+                return f"{indent}raise (Return_{func_ret} {val})"
             # Array-returning functions with early returns CANNOT use the
             # straightforward `raise (Return arr)` shape — Why3 forbids
             # `array int` in exception payloads (mutable types), and the
@@ -844,6 +866,30 @@ class ControlFlowStmtMixin:
                 val = self._bool_ir_to_int_wrap(val, val_ir)
             val = self._coerce_to_int(val)
             return f"{indent}raise (Return {val})"
+        # W8 (vii): TAIL-return bool→int coercion. A `-> bool` Python function lowers to
+        # a WhyML `int`-returning `let` (Python `bool` is modelled as `int` throughout —
+        # `bool` params, `bool` fields and the early/in-loop `raise (Return …)` path above
+        # all coerce). The tail (non-raise) return was the ONE position that did not, so
+        # `def f(x: int) -> bool: return x == 55` emitted `let f (x: int) : int = (x = 55)`
+        # and failed L3 type-check. Applies the SAME normalization as the raise path
+        # (literal True/False → 1/0, bool-source IR → `if … then 1 else 0`) and only when
+        # the function's WhyML return type is `int`, so unit/string/array/record/union
+        # returns are untouched. Byte-inert on the corpus: no corpus or pycsl_lib function
+        # declares `-> bool`, and an int-returning function whose tail value is a bool-source
+        # expression was ill-typed WhyML before this (it could not have been emitting).
+        # IDEMPOTENCE GUARD: some Compare lowerings (the string relational ops
+        # `str_lt_op`/`str_le_op`, corpus 0477-0480) already emit the int form
+        # `(if … then 1 else 0)`; re-wrapping would produce `(if (if … then 1 else 0)
+        # then 1 else 0)` (ill-typed AND a corpus byte-diff). Skip when the lowered
+        # value is already an int-coerced conditional.
+        if (self._func_return_type == "int"
+                and not (val.startswith("(if ") and val.endswith(" then 1 else 0)"))):
+            if val == "true":
+                val = "1"
+            elif val == "false":
+                val = "0"
+            else:
+                val = self._bool_ir_to_int_wrap(val, val_ir)
         return f"{indent}{val}"
 
 
