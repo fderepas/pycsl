@@ -89,6 +89,14 @@ Each iteration, in order, WITHOUT asking the user:
    `no_cheap_remaining` plus the list of residual wall stubs `{stub, first_blocker}` (never its rationale —
    the barrier)." If it converted a cheap stub → the driver-verifier re-checks the three L-planes, COMMIT,
    **stay in Phase 1** (next iteration, drain more). Repeat until `no_cheap_remaining`.
+   - **THE SUB-AGENT MUST PROVE/SWEEP IN THE FOREGROUND OF ITS OWN TURN AND RETURN A CONCRETE VERDICT
+     (per lesson (n)).** Its task prompt must say so explicitly: *do all census/proof work in the foreground;
+     NEVER launch a `run_in_background` sweep and then stop.* A backgrounded census that outlives the agent
+     becomes an **ownerless writer**: a measure-before-build census does port → prove → REVERT per file, so
+     it mutates the working tree in real time AFTER the agent reports "completed", racing the driver and
+     corrupting increments (run #7: an ownerless `sweep.py` bounced the count 943→938 and flickered
+     `ir.py`/`monomorphize.py`/`parser.py` dirty with `*.py.bak` backups; killed mid-cycle it left ~5 files
+     stuck in the ported state, a phantom "−5"). Commit each conversion inside the agent's own turn.
 3. **Phase 2 — Gate W** (only reached when Phase 1 returns `no_cheap_remaining`): pick ONE residual wall
    (stuck, `cheap_win == false`, not already CERTIFIED-BOUNDARY) and escalate the full cycle (§4 steps 3–8:
    report → fable review [Gate R] → impl plan [Gate P] → spike [Gate S] → BROKEN build [Gate B/C] or
@@ -98,7 +106,22 @@ Each iteration, in order, WITHOUT asking the user:
 4. **Commit EVERY increment immediately** (a conversion, a CERTIFIED-BOUNDARY record, a lesson) so an
    interruption at any point loses nothing. NEVER leave a dirty tree between iterations; revert a
    sprawling/refuted build to clean before committing its finding.
-5. **Gate S-lesson** on any consolidated lesson → `wall-lessons.md`.
+   - **ON EVERY SUB-AGENT RETURN, VERIFY NO REPO-WRITING PROCESS SURVIVED IT, BEFORE trusting any number
+     (per lesson (n)).** A sub-agent that reports "completed" may have left a `run_in_background` census
+     still walking the tree. Two checks, in order: (a) confirm no writer is alive — trace the PARENT CHAIN of
+     any live `pycsl.py`/`sweep`/`python` proc (`ps -o pid,ppid,cmd`, walk `ppid` up to its root) rather than
+     trusting `pgrep`, because the orphan is parented by THIS session and looks legitimate; (b) treat the
+     `\trusted` count as UNTRUSTED until it is STABLE across ≥3 samples several seconds apart — a single read
+     taken during a live port→prove→REVERT census is a phantom. If an ownerless writer is found: kill it +
+     its shell + its proof child (and any stale orphan), then `git checkout -- src/self-annotate/` (SANCTIONED
+     here — the working-tree churn is a dead census's garbage, HEAD is the verified state) + `find
+     src/self-annotate -name '*.py.bak' -delete` (checkout leaves UNTRACKED `.bak` backups behind), then
+     re-confirm the count is stable and fidelity is green before continuing.
+5. **Gate S-lesson** on any consolidated lesson → `wall-lessons.md`. A lesson general enough to change how
+   the DRIVER or its SUB-AGENTS must behave (not a per-wall finding) also gets a CARVE-OUT into THIS skill in
+   the same increment — the ledger holds the evidence, the skill holds the enforceable rule; a behavioral
+   rule that lives only in `wall-lessons.md` does not bind the next run (that is why lesson (n) is also A.2.2
+   + A.2.4, and why the heartbeat fix went into A.1/A.2/A.5 rather than the ledger).
 6. **BEFORE ENDING THE TURN, CHECK THE WAKE SOURCE — this is what makes the run autonomous.**
    The turn is about to end. Ask: *is there a pending background task that will notify me?*
    - **Yes** (a whole-file proof, a sub-agent, a sweep) → that notification resumes the loop. Do not
