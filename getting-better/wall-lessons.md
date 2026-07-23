@@ -685,3 +685,26 @@ touch. The fable review does not substitute for this: the reviewer reasoned from
 framing and inherited its blind spot. A "what existing capability already does this?" census is a
 distinct, cheap gate that belongs BEFORE the report→review→impl cycle for any build that proposes a
 new certified construct.**
+
+### (q) run #8/18h — the count is blocked on EMITTER RECOGNITION, not provability (measured 3× over)
+Across this run the same wall shape held for every count-moving cluster — sexp/tuple carrier, the
+closure/nested-`def` family (item 4), the `ast.*` family (item 3), and the residual drifts: the
+VALUE MODEL and its CERTIFICATE prove AXIOM-FREE (sexp: `Print Assumptions` = "Closed under the
+global context", `sexp.mlw` positive/evil-twin non-vacuous; likewise hval/pyval/stmt_ir before it),
+but the EMITTER RECOGNIZER cannot lower the verbatim live body onto the model. The sexp case is the
+sharpest: cert proven, value oracle proven, yet `t[i]` is consumed as BOTH a string and a sub-sexp
+at the same syntactic form (context-directed coercion the emitter lacks), the helpers build a
+`List[str]` the single-string oracle sidesteps, and dispatch is on a string tag — three recognizer
+features for −3 stubs.
+**This SHARPENS §10.3.** The generic-`Any`/tuple/closure walkers are NOT "unmodellable" — they are
+MODELLABLE and CERTIFIABLE; the bottleneck is that bridging each Python IDIOM (positional
+heterogeneous tuple-walk, `List[str]` accumulation, mutable-closure `found=[False]`, `ast.*`
+dispatch) to the proven model needs a BESPOKE per-idiom recognizer, each ~3 features for a few
+stubs. So the residual count is a MULTI-SESSION RECOGNIZER-ENGINEERING program with per-cluster
+diminishing returns, NOT a transcription backlog and NOT a provability wall.
+**LESSON: when a count-moving target's value model + cert prove but conversions don't land, the
+wall is the RECOGNIZER, not the math — and spiking the model/cert (which will pass) is NOT evidence
+the build will convert. The decisive spike for these is the RECOGNIZER falsifier (can the emitter
+lower the VERBATIM body's idiom?), run BEFORE the cert/emitter build, because the cert is the easy
+part. Bank the proven model+cert as reusable oracles, record the recognizer blocker, and do not
+build cert+emitter infra that has no converting consumer (no-dead-infra).**
