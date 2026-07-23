@@ -71,3 +71,22 @@ sibling converted AND a value-model feature:
 - `_handle_mktuple_expr` — `lr` flows only into `self._e` (trusted).
 - `_collect_class_constants` — `field_names` similar.
 Bounded frontier EXHAUSTED; run stops early per driver §A.3.
+
+## §REDRAIN — 12h run: recognizer's Phase-1 reach measured & exhausted (1 conversion)
+After R2d landed `recognize_type_existence`, a re-drain censused the whole mirror for `\trusted`
+recursive-`Any` existence-walker stubs the recognizer could now convert (§10.3's "leave-trusted"
+generic-Any class). Strict AST census (exact `if isinstance(_,dict)…/if isinstance(_,list)…/return
+False` shape) found only **2** trusted matches, both in `core_ir_semantic.py`:
+- **`_contains_result` CONVERTED (943→942, `f9d21fa7`, pushed)** — verbatim port, byte-identical to
+  live, emitted as a real pyval/pydict catamorphism (`type_is obj "Result"` + `.values()` fold,
+  certified variants), whole-file proof SUCCESS 0-unproven (driver-independent re-run), vacuity
+  exit 0, ledger 3.
+- **`_union_c8_test_references_union_var` NOT convertible** — needs TWO recognizer features
+  (subject-FIRST param ordering + a set-membership discriminant `test.get("name") in union_vars`
+  over a threaded SET param). A refined census (bool-returning + set-membership) found only ~1-2
+  beneficiaries, so this extension is 2 features for ≈1 stub — over-engineering, NOT built.
+
+**The recognizer's bounded reach is EXHAUSTED at 9 total (8 IRScanner + `_contains_result`).** The
+mirror's remaining `Any`-walkers are STRUCTURE-returning (str/dict tree transforms:
+`_expr_to_whyml`, `_to_bool`, the `_build_method_*_ensures_map` family) — a fundamentally different
+class the bool-existence recognizer does not model (session-scale). Run stopped early per §A.3.
