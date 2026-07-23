@@ -273,3 +273,19 @@ NOTE (honest): `irscanner___check` is the de-vacuified target (the KNOWN_ERASURE
 `uses_divmod` (`return _check(stmts)`, NOT in KNOWN_ERASURES — references `stmts`) still lowers the
 `_check(stmts)` call to the abstract `val _check_1` — connecting the wrapper to the real body is a
 separate call-site-typing change, not required for this erasure.
+
+### (i1) `is_recursive(name, obj)` — FULLY DE-VACUIFIED (`irscanner__is_recursive` removed)
+The only PARTIAL IRScanner erasure (kept `name` via `str_hash_op name`, int-erased `obj`). Two
+independent deltas vs the 6, both BOUNDED extensions of the recognizer/emitter:
+(a) a leading scalar-`str` "carried" param `name` threaded verbatim through the mutually-recursive
+    fold group (`is_recursive name obj` / `__d name d` / `__l name xs`); and
+(b) a discriminant that compares the interned "func" key against the RUNTIME param, not a literal:
+    `type=="Call" and func==name` -> new `_match_key_eq_param` matcher + a `"param"` pred kind
+    emitting `{n}__func_is obj name` (reuses the existing `func_is (v) (tag: string)` reader,
+    passing `name` where a literal tag would go). The genexp self-call `IRScanner.is_recursive(name, v)`
+    now matches via a generalized `_match_any_selfrecurse_genexp` (carried leading args + bound var last).
+Emitted body references BOTH `name` and `obj` via a real pyval fold + `pystr_eq`.
+GATES (all fresh): ir_scanner.mlw whole-file proof SUCCESS; vacuity `--emit` exit 0, `irscanner__is_recursive`
+removed, no NEW erasure, 0 input-blind; corpus byte-diff 0 @ 784==784; L3-tc 52/52; mirror-check 52/52;
+sync drift 5 (== HEAD); ledger 3; count 943 unchanged. The `carried=[]` default keeps all 6 + `_check`
+byte-identical (verified by the 0 byte-diff and unchanged recognitions).

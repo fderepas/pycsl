@@ -75,8 +75,12 @@ KNOWN_ERASURES = {
     # The remainder stays erased: `uses_array_lit` (disjunctive nested-field
     # BinOp*ArrayLit discriminant) — distinct shape, measured residual.
     "irscanner__uses_array_lit",
+    # `is_recursive(name, obj)` is now FULLY de-vacuified: the type-existence
+    # recognizer threads a leading `str` "carried" param (`name`) through the rec
+    # group and the discriminant matches `type=="Call" and func==name` (equality
+    # against the runtime param, not a literal) -> `func_is obj name`. Emitted body
+    # references BOTH `name` and `obj`. REMOVED (was the sole partial IRScanner erasure).
     # Partial erasures.
-    "irscanner__is_recursive",                              # keeps `name`, erases `obj`
     "pycsltojsonemitter___collect_class_constants",         # erases `field_names`
     "ghostspecopsmixin___handle_mktuple_expr",              # erases `lr`
     # `Set[str].add(param)` emits a literal `()` — a DIFFERENT, live-tool faithfulness bug in the

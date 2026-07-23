@@ -5614,15 +5614,22 @@ def _match_key_in_tuple(node: Any, subj: str) -> Optional[Tuple[str, List[str]]]
     return (key, tags)
 
 
-def _match_type_discriminant(test: Any, subj: str) -> Optional[Dict[str, Any]]:
+def _match_type_discriminant(test: Any, subj: str,
+                             carried: Optional[List[str]] = None
+                             ) -> Optional[Dict[str, Any]]:
     """The tag-arm discriminant of an IRScanner type-existence predicate.
 
-    Two shapes are recognised, both keyed on the interned "type" key:
+    Shapes recognised, all keyed on the interned "type" key:
       * SIMPLE   `<subj>.get("type") == "<TAG>"`
         -> {kind: "simple", tag: TAG}
       * COMPOUND `<subj>.get("type") == "<T>" and <subj>.get("<k2>") in (<tags>)
                   [and <extra conjuncts>]`  (`uses_ord_chr`/`uses_minmax`)
         -> {kind: "compound", type_tag: T, key2: k2 ("func"/"op"), tags: [...]}
+      * PARAM    `<subj>.get("type") == "<T>" and <subj>.get("<k2>") == <carried>`
+                 (`is_recursive`: `type=="Call" and func==name`)
+        -> {kind: "param", type_tag: T, key2: k2 ("func"/"op"), param: <name>}
+        the RHS is a `Var` naming one of the `carried` scalar params — the
+        discriminant compares against a runtime string value, not a literal.
         `k2` is restricted to the interned named keys func/op. Any EXTRA
         conjuncts (`uses_minmax`'s `len(obj.get("args",[]))==2`) are DROPPED —
         a sound over-approximation under the fixed `ensures True` contract
@@ -5632,18 +5639,21 @@ def _match_type_discriminant(test: Any, subj: str) -> Optional[Dict[str, Any]]:
         mutation-sensitive `type`/`k2`-tag discriminants (the non-facade signal)
         are preserved verbatim.
     """
+    carried = carried or []
     # SIMPLE
     kt = _match_type_tag_test(test, subj)
     if kt is not None and kt[0] == "type":
         return {"kind": "simple", "tag": kt[1]}
-    # COMPOUND: flatten the `and`-chain, require exactly one `type==T` conjunct
-    # and exactly one `key2 in (tags)` conjunct over an interned named key.
+    # COMPOUND / PARAM: flatten the `and`-chain, require exactly one `type==T`
+    # conjunct and exactly one secondary key conjunct (either `k2 in (tags)` or
+    # `k2 == <carried>`) over an interned named key.
     conjs = _flatten_and(test)
     if len(conjs) < 2:
         return None
     type_tag = None
     key2 = None
     tags: List[str] = []
+    param = None
     for c in conjs:
         st = _match_type_tag_test(c, subj)
         if st is not None and st[0] == "type":
@@ -5657,18 +5667,53 @@ def _match_type_discriminant(test: Any, subj: str) -> Optional[Dict[str, Any]]:
                 return None
             key2, tags = kin
             continue
+        kep = _match_key_eq_param(c, subj, carried)
+        if kep is not None and kep[0] in ("func", "op"):
+            if key2 is not None:
+                return None
+            key2, param = kep
+            continue
         # any other conjunct is an insight-C droppable extra — leave it be.
     if type_tag is None or key2 is None:
         return None
+    if param is not None:
+        return {"kind": "param", "type_tag": type_tag, "key2": key2,
+                "param": param}
     return {"kind": "compound", "type_tag": type_tag, "key2": key2, "tags": tags}
 
 
+def _match_key_eq_param(node: Any, subj: str, carried: List[str]
+                        ) -> Optional[Tuple[str, str]]:
+    """`<subj>.get("<key>") == <Var carried_i>` -> (key, carried_i); None.
+    The RHS must be a bare `Var` naming one of the carried scalar params."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "=="):
+        return None
+    left, right = node.get("left", {}), node.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"):
+        return None
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    key = _is_string(gargs[0])
+    if key is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "Var"
+            and right.get("name") in carried):
+        return None
+    return (key, right["name"])
+
+
 def _match_any_selfrecurse_genexp(node: Any, subj: str, self_base: str,
-                                  iter_ok) -> bool:
-    """`any(<self>(<lv>) for <lv> in <iter>)` — a bare-`any` over a filter-less
-    single-generator comprehension whose element is a single-arg SELF call
-    (basename `self_base`) on the bound variable, and whose iterable satisfies
-    `iter_ok(iter_node, lv)`."""
+                                  iter_ok, carried: Optional[List[str]] = None
+                                  ) -> bool:
+    """`any(<self>(<carried...>, <lv>) for <lv> in <iter>)` — a bare-`any` over a
+    filter-less single-generator comprehension whose element is a SELF call
+    (basename `self_base`) whose LAST arg is the bound variable, preceded by the
+    `carried` scalar params (as `Var`s, in order), and whose iterable satisfies
+    `iter_ok(iter_node, lv)`. `carried=None`/`[]` is the plain `self(lv)` shape."""
+    carried = carried or []
     if not (isinstance(node, dict) and node.get("type") == "Call"
             and node.get("func") == "any"):
         return False
@@ -5693,7 +5738,13 @@ def _match_any_selfrecurse_genexp(node: Any, subj: str, self_base: str,
             and elt["func"].rsplit(".", 1)[-1] == self_base):
         return False
     eargs = elt.get("args", [])
-    if len(eargs) != 1 or not _is_var(eargs[0], lv):
+    if len(eargs) != len(carried) + 1:
+        return False
+    # leading args = the carried params verbatim (in order); last arg = bound var.
+    for a, cname in zip(eargs, carried):
+        if not _is_var(a, cname):
+            return False
+    if not _is_var(eargs[-1], lv):
         return False
     return iter_ok(g.get("iter", {}), lv)
 
@@ -5709,14 +5760,24 @@ def recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     params = func.get("formal_params", [])
-    if len(params) != 1:
+    if not params:
         return None
-    subj = params[0]
+    # The Any-tree subject is the LAST param; any LEADING params are "carried"
+    # scalars threaded verbatim through the whole fold group (the
+    # `is_recursive(name, obj)` shape — `name: str` is compared inside the
+    # discriminant and passed unchanged into every self-call). Each carried param
+    # MUST be an annotated `str`: the only carried lowering the discriminant +
+    # emitter model is the string-key equality `<subj>.get("<k>") == <carried>`.
+    subj = params[-1]
+    carried = list(params[:-1])
     pa = func.get("param_annotations", {}) or {}
     # genuinely UNTYPED `Any` subject only (an annotated `list`/`set`/record
     # subject is a different recogniser's shape).
     if subj in pa:
         return None
+    for c in carried:
+        if pa.get(c) != "str":
+            return None
     if func.get("return_annotation") != "bool":
         return None
     body = func.get("body", [])
@@ -5752,7 +5813,7 @@ def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not (isinstance(tag_if, dict) and tag_if.get("stmt") == "If"
             and not tag_if.get("orelse")):
         return None
-    pred = _match_type_discriminant(tag_if.get("test", {}), subj)
+    pred = _match_type_discriminant(tag_if.get("test", {}), subj, carried)
     if pred is None:
         return None
     if not (len(tag_if.get("body", [])) == 1
@@ -5766,7 +5827,7 @@ def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                 and it.get("func") == f"{subj}.values" and not it.get("args"))
 
     if not _match_any_selfrecurse_genexp(dret.get("value", {}), subj,
-                                         self_base, _values_iter):
+                                         self_base, _values_iter, carried):
         return None
     # if_list: if isinstance(obj, list): return any(self(x) for x in obj)
     if not (isinstance(if_list, dict) and if_list.get("stmt") == "If"
@@ -5784,9 +5845,9 @@ def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return _is_var(it, subj)
 
     if not _match_any_selfrecurse_genexp(lret.get("value", {}), subj,
-                                         self_base, _subj_iter):
+                                         self_base, _subj_iter, carried):
         return None
-    return {"subject": subj, "pred": pred}
+    return {"subject": subj, "pred": pred, "carried": carried}
 
 
 def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
@@ -5806,6 +5867,12 @@ def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     wall-lessons (l))."""
     n = whyml_ident(func["name"])
     pred = desc["pred"]
+    # `is_recursive(name, obj)`: leading scalar-`str` params carried verbatim
+    # through the whole rec group (declared `(c: string)`, threaded into every
+    # self-call). Empty for the plain `uses_<X>(obj)` shape (byte-inert there).
+    cids = [whyml_ident(c) for c in desc.get("carried", [])]
+    cdecl = "".join(f" ({c}: string)" for c in cids)   # declaration positions
+    cargs = "".join(f" {c}" for c in cids)             # call-site threading
     _NAMED = {"type": "K_type", "func": "K_func", "op": "K_op"}
     out: List[str] = []
 
@@ -5827,24 +5894,33 @@ def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     _emit_key_reader("type")
     if pred["kind"] == "simple":
         pdict_arm = f'{n}__type_is obj "{pred["tag"]}"'
+    elif pred["kind"] == "param":
+        # `type=="<T>" and <k2>==<carried param>` — the second reader compares the
+        # interned key's PStr value against the runtime carried string (not a
+        # literal): `{n}__<k2>_is obj <param>` (`func_is obj name`).
+        _emit_key_reader(pred["key2"])
+        k2 = pred["key2"]
+        pval = whyml_ident(pred["param"])
+        pdict_arm = f'{n}__type_is obj "{pred["type_tag"]}" && {n}__{k2}_is obj {pval}'
     else:
         _emit_key_reader(pred["key2"])
         k2 = pred["key2"]
         mem = " || ".join(f'{n}__{k2}_is obj "{t}"' for t in pred["tags"])
         pdict_arm = f'{n}__type_is obj "{pred["type_tag"]}" && ({mem})'
-    # scalar-rooted mutual catamorphism into bool (R2d rec-group fold).
-    out.append(f"  let rec {n} (obj: pyval) : bool")
+    # scalar-rooted mutual catamorphism into bool (R2d rec-group fold); the
+    # carried params are threaded (declared once per member, passed on each call).
+    out.append(f"  let rec {n}{cdecl} (obj: pyval) : bool")
     out.append("    requires { true } ensures { true } variant { pv_size obj }")
     out.append("  = match obj with")
-    out.append(f"    | PDict d -> {pdict_arm} || {n}__d d")
-    out.append(f"    | PList xs -> {n}__l xs")
+    out.append(f"    | PDict d -> {pdict_arm} || {n}__d{cargs} d")
+    out.append(f"    | PList xs -> {n}__l{cargs} xs")
     out.append("    | _ -> false end")
-    out.append(f"  with {n}__d (d: pydict) : bool")
+    out.append(f"  with {n}__d{cdecl} (d: pydict) : bool")
     out.append("    requires { true } ensures { true } variant { size_dict d }")
     out.append(f"  = match d with DNil -> false"
-               f" | DCons _ v rest -> {n} v || {n}__d rest end")
-    out.append(f"  with {n}__l (xs: list pyval) : bool")
+               f" | DCons _ v rest -> {n}{cargs} v || {n}__d{cargs} rest end")
+    out.append(f"  with {n}__l{cdecl} (xs: list pyval) : bool")
     out.append("    requires { true } ensures { true } variant { size_list xs }")
     out.append(f"  = match xs with Nil -> false"
-               f" | Cons h t -> {n} h || {n}__l t end")
+               f" | Cons h t -> {n}{cargs} h || {n}__l{cargs} t end")
     return out
