@@ -209,3 +209,42 @@ TYPE-FAILS at L3-tc (caught), it does not int-hash silently.
 
 **Bounded Phase-2 frontier is now EXHAUSTED** (R2a/R2b landed; self-state vacuity gate landed; R2c
 grammar, R2d, R2e, R3 all session-scale / authorize-first). Per driver §A.3 the run stops early.
+
+---
+
+## §R2d OUTCOME — **BUILT via the pyval catamorphism (NOT hval); 6/8 IRScanner de-vacuified, erasures 12->6**
+
+Commits `413ba556` (+4) and `f778ffb8` (+2). Ledger of KNOWN_ERASURES (bin/check-emitted-vacuity.py)
+**12 -> 6**. corpus byte-diff 0 @ population 784==784 both increments; ledger 3 (no cert touched).
+
+**Gate S PASSED — the `let rec ... with ... variant` rec-group weaving is achievable, and the KEY
+FINDING is it needs NEITHER hval NOR a new certificate.** The r2d-r3-impl framed the target as the R3
+assoc-list `hval` carrier + a new mutual-recursion fold. But the IRScanner `uses_X(obj: Any)` family
+is the `obj: Any` dict-first `.get("type")` existence fold, which the ALREADY-CERTIFIED pyval/pydict/
+list-pyval L1 catamorphism (the same theory `recognize_bool_existence` / `recognize_void_generic_
+descend` fold over, `pv_size`/`size_dict`/`size_list`, ledger 3) models directly — `obj.values()` is
+the `size_dict` fold over the `DCons _ v rest` assoc list. So the R2d rec-group fold is a new
+recognizer/templater (`recognize_type_existence` + `emit_type_existence_group`, generic_fold.py),
+scalar-rooted and keyed on the interned `K_type`, emitting the proven `let rec <n> (obj: pyval) ...
+with <n>__d ... with <n>__l ...` group. The fold co-lives with the recursive predicate in ONE mutual
+group (self-recursion binds, no `unbound symbol`) and terminates on the structural pyval measure.
+`ir_scanner.mlw` whole-file proof SUCCESS both increments.
+
+**Converted (removed from KNOWN_ERASURES):**
+- SINGLE "type"-tag: `uses_string`, `uses_subscript`, `uses_sum`, `uses_set_card`.
+- COMPOUND `type=="Call" and <k2> in (tags)` (k2 = interned K_func/K_op): `uses_ord_chr`, `uses_minmax`.
+  `uses_minmax`'s extra `len(args)==2` conjunct is DROPPED — a sound over-approximation under the fixed
+  `ensures True` (insight C, the doctrine `recognize_bool_existence` uses for its membership conjunct):
+  the true-set is a superset, nothing false is derived, and the mutation-sensitive type/func tags (the
+  non-facade signal) are preserved verbatim.
+
+**Residual (2, measured, distinct shapes — NOT the same wall):**
+- `_check` (behind the `uses_divmod` wrapper) — a NESTED `def` lambda-lifted at EMISSION time, so it
+  is NOT in the Module5 `functions` list the recognizer scans (the "nested def dropped" blocker,
+  run-#5 blocker A). Converting it needs recognizing the `uses_divmod` wrapper whole (nested-def +
+  delegating call, with the call-site `stmts: Any -> pyval` typing) — a distinct recognizer.
+- `uses_array_lit` — a DISJUNCTIVE two-tag-arm discriminant whose second arm is `type=="BinOp" and
+  op=="*" and obj["left"].get("type")=="ArrayLit"` — a NESTED-FIELD projection (`obj["left"]` -> a
+  pyval child -> its type). Capturing only the direct `type=="ArrayLit"` arm would UNDER-approximate
+  (miss `[0]*n`) = an unfaithful partial conversion (refused per wall-lesson (j)). Needs a nested
+  child-projection discriminant.
