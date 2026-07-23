@@ -632,3 +632,37 @@ repo-writing process is still alive (parent-chain trace, not just `pgrep`), and 
 untrusted until it is STABLE across several seconds. A single count read taken during a live census is a
 phantom.** The 38-conversion batch itself was unaffected (committed, independently re-proved 8/8 SUCCESS
 before the re-drain ran); only the uncommitted re-drain residue was discarded.
+
+### (o) run #7 (Phase 2) — the vacuity gate's self-state blind spot: closed, and the booked set is CLEAN
+The run-#7 re-drain flagged that `bin/check-emitted-vacuity.py` checks only PARAMETER erasure, so a
+self-ONLY method that erases its `self.*` reads to a constant (`summary` → `""`, `process` → `0`) passes
+it while being fully vacuous — the self-state analogue of (l). Measured and closed this Phase-2 increment.
+
+**The booked set is CLEAN.** Extending the check to self-state and running it over all 943 booked
+(`let`/verified) conversions finds **0 input-blind methods** — no already-converted stub is a self-state
+facade. (The agent's `summary`/`process`/`message`/`as_dict` examples are `\trusted` `val` stubs it
+temporarily un-trusted during its sweep and reverted — never booked; the worry is about FUTURE conversions,
+which the gate now guards.)
+
+**CALIBRATE BEFORE BELIEVING — the naive self-check over-fires 148/236 (63%).** Two false-positive
+mechanisms, both load-bearing:
+1. **Sibling-call reads.** A method that reads `self` only to CALL a sibling (`self._expr_to_whyml(x)`)
+   emits a self-LESS bridge (`self__expr_to_whyml_2 x`) with no `self` argument — faithful, not a facade.
+   Fix: count only self DATA-FIELD reads (a `self.<attr>` Load that is NOT a call callee); 148 → 3.
+2. **Bridge-name field encoding.** `self._precedences.get(...)` emits `self__precedences_get_2 …` and
+   `self._source.extend(t)` emits `self__source_extend_1 …` — the field is in the FUNCTION NAME, and
+   `\bself\b` does NOT match `self__…` (a `_` is a word char, so no word boundary). Counting the `self__`
+   bridge form as a self-use: 3 → 1.
+The last 1 (`_union_arm_tag`, reads `self.program_ir`) is a REAL method that dispatches on its `elt` param
+faithfully — only its record-arm branch degrades (the documented genexp `any_1` site). It is NOT a
+self-only facade. The SOUND signal is INPUT-BLIND: the emitted body references NONE of its inputs — every
+data param the live body uses is erased AND (if live reads self-state) no `self`/`self__` appears. That
+clears `_union_arm_tag` (uses `elt`) → **0**.
+
+**Gate hardened, `emitted_references_self` + `live_self_fields` added, mutation-tested 4 ways** (positive
+facade fires; bridge-name, bare-self, and param-use all correctly cleared). Existing param behaviour
+unchanged (12 known, exit 0). **LESSON: a self-state vacuity check is NOT a copy of the param check — the
+self-field lives in the emitted BRIDGE NAME as often as in a `self` token, and a `\bself\b` test misses it
+(a 63% false-positive cliff). The only sound facade signal is INPUT-BLIND: references none of {data params,
+self-state} at once; anything that touches one input is real. Same calibrate-before-believe discipline that
+took the param probe 118 → 76 → 12.**

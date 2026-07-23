@@ -135,6 +135,42 @@ def live_functions(path):
     return out
 
 
+def live_self_fields(path):
+    """{method_name: {self.<field> DATA-fields it READS}} for the live source.
+
+    A DATA-field read is a `self.<attr>` in Load context that is NOT the callee of a call —
+    `self.foo(...)` reads a bound METHOD, not state, so it is excluded (a method that only calls
+    siblings is not reading self-state). Write targets (`self.x = v`) are Store context, also
+    excluded. This is the `self`-analogue of the parameter set: the run-#7 re-drain found that the
+    param-only vacuity check is blind to a self-ONLY method that erases its `self.*` reads to
+    constants (`summary` → `""`), so this closes that gap."""
+    out = {}
+    for n in ast.walk(ast.parse(open(path).read())):
+        if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        call_funcs = {id(x.func) for x in ast.walk(n)
+                      if isinstance(x, ast.Call) and isinstance(x.func, ast.Attribute)
+                      and isinstance(x.func.value, ast.Name) and x.func.value.id == "self"}
+        out[n.name] = {x.attr for x in ast.walk(n)
+                       if isinstance(x, ast.Attribute) and isinstance(x.value, ast.Name)
+                       and x.value.id == "self" and isinstance(x.ctx, ast.Load)
+                       and id(x) not in call_funcs}
+    return out
+
+
+def emitted_references_self(wbody):
+    """True if the emitted body reaches self-state at all — EITHER a bare `self` token (field
+    read / self passed to a sibling) OR a `self__<field>_<op>` BRIDGE name.
+
+    The bridge form is the load-bearing subtlety: `self._precedences.get(...)` emits as
+    `self__precedences_get_2 …` and `self._source.extend(t)` as `self__source_extend_1 …`, in
+    which the self-field is encoded in the FUNCTION NAME, not as a `self` argument. A naive
+    `\\bself\\b` misses `self__…` (a `_` is a word char, so no word boundary), which over-fired
+    148/236 methods in calibration — nearly all faithful. Counting the bridge form drops that to
+    zero real self-only facades in the booked set."""
+    return re.search(r"\bself\b|self__", wbody) is not None
+
+
 def uses(ident, text):
     return re.search(r"\b" + re.escape(ident) + r"\b", text) is not None
 
@@ -149,7 +185,7 @@ def main():
              "--no-proof --no-typecheck --keep-mlw >/dev/null 2>&1"],
             input="\n".join(files), text=True, check=False)
 
-    full, partial = [], []
+    full, partial, input_blind = [], [], []
     for root, _dirs, files in os.walk(MIRROR_ROOT):
         for fn in sorted(files):
             if not fn.endswith(".mlw"):
@@ -161,23 +197,33 @@ def main():
                 continue
             emitted = emitted_functions(open(mlw).read())
             lf = live_functions(live)
+            sf = live_self_fields(live)
             for wname, (wparams, wbody) in emitted.items():
-                real = [p for p in wparams if p not in SKIP_PARAMS]
-                if not real:
-                    continue
                 pyname = wname.split("__")[-1]
                 cand = lf.get(pyname) or lf.get("_" + pyname)
                 if cand is None:
                     continue                      # no live counterpart to compare against
                 lparams, lbody = cand
-                # a param is ERASED when the live body uses it and the emitted body does not
+                self_fields = sf.get(pyname) or sf.get("_" + pyname) or set()
+                rel = os.path.relpath(mlw)
+
+                # (1) parameter erasure (the original check).
+                real = [p for p in wparams if p not in SKIP_PARAMS]
                 erased = [p for p in real
                           if p in lparams and uses(p, lbody) and not uses(p, wbody)]
-                if not erased:
-                    continue
-                rel = os.path.relpath(mlw)
-                (full if len(erased) == len(real) else partial).append(
-                    (rel, wname, pyname, erased, real))
+                if real and erased:
+                    (full if len(erased) == len(real) else partial).append(
+                        (rel, wname, pyname, erased, real))
+
+                # (2) INPUT-BLIND (self-state analogue, run-#7): the emitted body references
+                # NONE of its inputs — every data param the live body uses is erased AND (if the
+                # live body reads self-state) no self / self__ bridge appears. A method that
+                # touches even one input is NOT input-blind, which is why `_union_arm_tag` (uses
+                # `elt`) and the bridge-encoded `get_precedence`/`write` do not fire.
+                if "self" in wparams and self_fields \
+                        and not emitted_references_self(wbody) \
+                        and all((not uses(p, lbody)) or (not uses(p, wbody)) for p in real):
+                    input_blind.append((rel, wname, pyname, sorted(self_fields), real))
 
     new = [r for r in full + partial if r[1] not in KNOWN_ERASURES]
     known = [r for r in full + partial if r[1] in KNOWN_ERASURES]
@@ -196,6 +242,17 @@ def main():
         print(f"[+] emitted-vacuity: {len(fixed)} known erasure(s) NO LONGER erased — remove from "
               f"KNOWN_ERASURES: {', '.join(sorted(fixed))}")
 
+    blind_new = [r for r in input_blind if r[1] not in KNOWN_ERASURES]
+    if blind_new:
+        print(f"[!] emitted-vacuity: {len(blind_new)} INPUT-BLIND method(s) — the emitted body "
+              f"references NONE of its inputs (all data params erased AND all self-state erased), "
+              f"while the live body reads self-state:")
+        for rel, wname, pyname, fields, real in blind_new:
+            print(f"    {rel}::{wname}  self-fields {fields} + params {real} ALL erased  "
+                  f"(live `{pyname}`)")
+        print("    This is the self-state analogue of int-hash erasure — a pure constant/"
+              "abstract-val body. See wall-lessons (l)/(o).")
+
     if new:
         print(f"[!] emitted-vacuity: {len(new)} NEW erasure(s) — a verified function's emitted "
               f"body ignores an input its live body uses, and it is not in the known ledger:")
@@ -203,11 +260,13 @@ def main():
             print(f"    {rel}::{wname}  erased={erased} of {real}  (live `{pyname}`)")
         print("    A mutation test does NOT catch these: the changed literal's hash still moves "
               "the emitted output. See getting-better/genexp-erasure-wall.md.")
+
+    if new or blind_new:
         return 1
 
-    print(f"[+] emitted-vacuity: no NEW erasure ({len(known)} known, gated). NOTE: this probe is a "
-          f"LOWER BOUND — a whole-function test cannot see a function that erases one read while "
-          f"still using its other parameters.")
+    print(f"[+] emitted-vacuity: no NEW erasure ({len(known)} known param-erasures gated; "
+          f"0 input-blind methods). NOTE: this probe is a LOWER BOUND — a whole-function test "
+          f"cannot see a function that erases one input while still using another.")
     return 0
 
 

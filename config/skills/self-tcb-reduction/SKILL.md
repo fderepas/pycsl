@@ -331,7 +331,12 @@ protocol so they bind future runs, not just document past ones.
     nowhere; `any(genexp)` → unconstrained `any_1 (Array.make 1 0)`). This is sound-but-VACUOUS, not
     unsound. `bin/check-emitted-vacuity.py` is the gate that catches it (a body that never mentions a
     parameter its LIVE body uses); it is part of the battery — run `--emit`, require exit 0 and no NEW
-    erasure. A green whole-file proof is NOT evidence the body reads its inputs.
+    erasure. A green whole-file proof is NOT evidence the body reads its inputs. The gate covers BOTH
+    parameter erasure AND self-state (wall-lesson (o)): a method is INPUT-BLIND when it references none of
+    its inputs — every data param erased AND, if the live body reads a `self.<field>`, no `self`/`self__`
+    token in the emitted body. NOTE the self-check is NOT a copy of the param check: a self-field is often
+    encoded in the emitted BRIDGE NAME (`self__precedences_get_2`), which `\bself\b` misses — a naive check
+    over-fires ~63%. Booked set measured CLEAN (0 input-blind) as of count 943.
 
 15. **A PARTIAL method takes a GENUINE precondition — carve-out to the fixed contract shape (wall-lesson
     (d)).** The shape is `requires True / ensures True / assigns <frame>`, but a method that is genuinely
