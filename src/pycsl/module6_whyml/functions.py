@@ -2693,7 +2693,16 @@ class FunctionEmissionMixin:
             recognize_sawalk, emit_sawalk_group,
             recognize_dictfold, emit_dictfold_group,
             recognize_void_dispatch, emit_void_dispatch_group,
-            recognize_void_generic_descend, emit_void_generic_descend_group)
+            recognize_void_generic_descend, emit_void_generic_descend_group,
+            recognize_type_existence, emit_type_existence_group)
+        # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
+        # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
+        # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
+        # key, de-vacuifying the fully-erased predicate (wall-lessons (l)).
+        # Fail-closed; a template bug is a loud unprovable instance.
+        _te = recognize_type_existence(func)
+        if _te is not None:
+            return emit_type_existence_group(func, _te, whyml_ident)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)

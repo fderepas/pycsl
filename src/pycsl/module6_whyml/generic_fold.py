@@ -5526,3 +5526,223 @@ def emit_stmt_has_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append("    requires { true } ensures { true }")
     out.append(f"  = {n}__sl_has body")
     return out
+
+
+# =========================================================================
+# IRScanner `obj: Any` TYPE-existence fold — recognize_type_existence.
+#
+# genexp-erasure-wall / wall-lessons (l), R2d+R3 convergence: the generic-`Any`
+# tree existence predicate rooted at a SCALAR untyped `obj` with a dict-first
+# `isinstance` dispatch, a `.get("type") == "<TAG>"` discriminant, and mutual
+# recursion via `any(self(v) for v in obj.values())` / `any(self(x) for x in
+# obj)`:
+#
+#     def uses_string(obj):
+#         if isinstance(obj, dict):
+#             if obj.get("type") == "String": return True
+#             return any(IRScanner.uses_string(v) for v in obj.values())
+#         if isinstance(obj, list):
+#             return any(IRScanner.uses_string(item) for item in obj)
+#         return False
+#
+# Before this, BOTH the `obj: Any` int-erasure AND the `any(genexp)` unconstrained
+# oracle collapsed the emitted body to a value that never mentions `obj`
+# (`typeof_op 315`, `obj_get_1 <hash>`, `any_1 (Array.make 1 0)`) — a fully
+# vacuous facade the mutation test cannot see (wall-lessons (l),
+# bin/check-emitted-vacuity.py). This emits the certified pyval/pydict/list-pyval
+# catamorphism (the SAME proven L1 theory as recognize_bool_existence /
+# recognize_void_generic_descend — no new ADT, no new certificate, ledger 3),
+# scalar-rooted and keyed on the interned "type" key (K_type). The `let rec ...
+# with ... variant { pv_size obj } / { size_dict d } / { size_list xs }` weaving
+# is the R2d rec-group fold: the fold co-lives with the recursive predicate in
+# ONE mutual group, so the self-recursion binds (no `unbound symbol`) and
+# terminates on the structural pyval measure. The emitted body matches on `obj`
+# (de-vacuified) and the recognised discriminant tag drives the true-arm (the
+# mutation-sensitive, non-facade signal). Fail-closed: a body-fidelity bug yields
+# a loud unprovable instance, never a false proof. The family: uses_string /
+# uses_subscript / uses_sum / uses_set_card (single "type"-tag shape).
+
+
+def _match_type_tag_test(test: Any, subj: str) -> Optional[Tuple[str, str]]:
+    """`<subj>.get("<key>") == "<TAG>"` -> (key, TAG); None (fail-closed)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "=="):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"):
+        return None
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    key = _is_string(gargs[0])
+    tag = _is_string(right)
+    if key is None or tag is None:
+        return None
+    return (key, tag)
+
+
+def _match_any_selfrecurse_genexp(node: Any, subj: str, self_base: str,
+                                  iter_ok) -> bool:
+    """`any(<self>(<lv>) for <lv> in <iter>)` — a bare-`any` over a filter-less
+    single-generator comprehension whose element is a single-arg SELF call
+    (basename `self_base`) on the bound variable, and whose iterable satisfies
+    `iter_ok(iter_node, lv)`."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "any"):
+        return False
+    args = node.get("args", [])
+    if len(args) != 1:
+        return False
+    ge = args[0]
+    if not (isinstance(ge, dict) and ge.get("type") in ("GenExp", "ListComp")):
+        return False
+    gens = ge.get("generators", [])
+    if len(gens) != 1 or not isinstance(gens[0], dict):
+        return False
+    g = gens[0]
+    if g.get("ifs"):
+        return False
+    lv = g.get("target")
+    if not isinstance(lv, str):
+        return False
+    elt = ge.get("elt", {})
+    if not (isinstance(elt, dict) and elt.get("type") == "Call"
+            and isinstance(elt.get("func"), str)
+            and elt["func"].rsplit(".", 1)[-1] == self_base):
+        return False
+    eargs = elt.get("args", [])
+    if len(eargs) != 1 or not _is_var(eargs[0], lv):
+        return False
+    return iter_ok(g.get("iter", {}), lv)
+
+
+def recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the IRScanner `obj: Any` type-existence fold.
+    Returns {subject, tag} or None. Never raises."""
+    try:
+        return _recognize_type_existence(func)
+    except Exception:
+        return None
+
+
+def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {}) or {}
+    # genuinely UNTYPED `Any` subject only (an annotated `list`/`set`/record
+    # subject is a different recogniser's shape).
+    if subj in pa:
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+    if_dict, if_list, tail = body
+    # tail: `return False`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    self_base = (func.get("name") or "").rsplit(".", 1)[-1].rsplit("__", 1)[-1]
+    # if_dict: if isinstance(obj, dict): [ if obj.get("type")=="<TAG>": return True,
+    #                                      return any(self(v) for v in obj.values()) ]
+    if not (isinstance(if_dict, dict) and if_dict.get("stmt") == "If"
+            and not if_dict.get("orelse")
+            and _match_isinstance(if_dict.get("test", {}), subj, "dict")):
+        return None
+    db = if_dict.get("body", [])
+    if len(db) != 2:
+        return None
+    tag_if, dret = db
+    if not (isinstance(tag_if, dict) and tag_if.get("stmt") == "If"
+            and not tag_if.get("orelse")):
+        return None
+    kt = _match_type_tag_test(tag_if.get("test", {}), subj)
+    if kt is None or kt[0] != "type":
+        return None
+    tag = kt[1]
+    if not (len(tag_if.get("body", [])) == 1
+            and _is_bool_true_return(tag_if["body"][0])):
+        return None
+    if not (isinstance(dret, dict) and dret.get("stmt") == "Return"):
+        return None
+
+    def _values_iter(it: Any, lv: str) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{subj}.values" and not it.get("args"))
+
+    if not _match_any_selfrecurse_genexp(dret.get("value", {}), subj,
+                                         self_base, _values_iter):
+        return None
+    # if_list: if isinstance(obj, list): return any(self(x) for x in obj)
+    if not (isinstance(if_list, dict) and if_list.get("stmt") == "If"
+            and not if_list.get("orelse")
+            and _match_isinstance(if_list.get("test", {}), subj, "list")):
+        return None
+    lb = if_list.get("body", [])
+    if len(lb) != 1:
+        return None
+    lret = lb[0]
+    if not (isinstance(lret, dict) and lret.get("stmt") == "Return"):
+        return None
+
+    def _subj_iter(it: Any, lv: str) -> bool:
+        return _is_var(it, subj)
+
+    if not _match_any_selfrecurse_genexp(lret.get("value", {}), subj,
+                                         self_base, _subj_iter):
+        return None
+    return {"subject": subj, "tag": tag}
+
+
+def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
+                              whyml_ident) -> List[str]:
+    """Emit the certified scalar-rooted pyval/pydict/list-pyval type-existence
+    catamorphism for a recognised IRScanner `uses_<X>(obj)` predicate.
+
+    Structurally identical to `emit_bool_existence_group` (the proven A-bool
+    OR-fold over the SAME L1 `pyval` theory) except: (a) rooted at a SCALAR
+    `pyval` `obj` instead of a `list pyval` subject, and (b) the discriminant
+    reader is keyed on the INTERNED "type" key (`K_type`) rather than the
+    computed "stmt" key. The recursion is on DIRECT structural sub-terms (the
+    `v` of `DCons`, the `h`/`t` of `Cons`), so each `variant` (`pv_size`/
+    `size_dict`/`size_list`) decreases syntactically. The recognised tag drives
+    the true-arm (`{n}__type_is obj "<tag>"`) — the mutation-sensitive,
+    non-facade signal. `obj` appears in the emitted body (de-vacuified,
+    wall-lessons (l))."""
+    n = whyml_ident(func["name"])
+    tag = desc["tag"]
+    out: List[str] = []
+    # "type"-key reader (option string over the K_type cell) + `type_is`
+    # predicate — the `_emit_stmt_reader` shape, interned-key variant.
+    out.append(f"  let rec {n}__get_type (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append(f"    | DCons K_type (PStr s) rest -> Some s")
+    out.append(f"    | DCons _ _ rest -> {n}__get_type rest end")
+    out.append(f"  let function {n}__type_is (v: pyval) (tag: string) : bool")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {n}__get_type d with"
+               f" Some t -> pystr_eq t tag | None -> false end)")
+    out.append("    | _ -> false end")
+    # scalar-rooted mutual catamorphism into bool (R2d rec-group fold).
+    out.append(f"  let rec {n} (obj: pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size obj }")
+    out.append("  = match obj with")
+    out.append(f'    | PDict d -> {n}__type_is obj "{tag}" || {n}__d d')
+    out.append(f"    | PList xs -> {n}__l xs")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__d (d: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> false"
+               f" | DCons _ v rest -> {n} v || {n}__d rest end")
+    out.append(f"  with {n}__l (xs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> false"
+               f" | Cons h t -> {n} h || {n}__l t end")
+    return out
