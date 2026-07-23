@@ -70,6 +70,51 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    `_body_has_diverging_construct`, `_lemma_*`) still drops the closure at emission. Needs the
    emitter to recognize a nested-def existence walker whole. Spike-gate.
 
+   **CENSUS + SPIKE DONE (2026-07-23, count 942) — CERTIFIED-BOUNDARY for existing/bounded machinery.**
+   - STEP-0 census (lesson p): ported the LIVE closure body of `_body_has_raise` VERBATIM into the
+     mirror (`found=[False]; def walk(node): ... for v in node.values(): walk(v)`), `--no-proof
+     --keep-mlw`. **The closure is DROPPED at emission** and lowers input-blind/VACUOUS:
+     `let _body_has_raise (body: int) : int = let found = Array.make 1 0 in let _ = walk body in ();
+     found[0]` — `body` erased to `int` (default int-hash, no `list` value model), the nested `walk`
+     lifted to a free/erased symbol, `found` a constant array. **No existing recognizer fires on the
+     nested-def `found=[False]` closure.** Blocker = nested-`def` lambda-lift drops the walk AND the
+     mutable-closure idiom erases the subject to int. (The already-converted sibling `_body_has_return`
+     right below emits the certified `stmt_ir` catamorphism — it was flat-rewritten live+mirror to the
+     `recognize_stmt_has` shape; that is the ONLY working precedent for this family.)
+   - STEP-1 spike (recognize the nested-def walker as a WHOLE) = a nested-`def` + mutable-closure
+     lowering SUBSYSTEM = **session-scale**. The bypass (flat-rewrite to `recognize_stmt_has`, the
+     `_body_has_return` precedent) reaches AT MOST `_body_has_raise` and even that is CERTIFICATE-COUPLED:
+     the certified `stmt_ir` ADT (WhyML preamble + Lean `StmtIR.lean` + Rocq `Phase2d_StmtIR.v`, w/
+     round-trip completeness + tag-distinctness theorems) has **no `SRaise` constructor** — "Raise" is
+     not in `_STMT_LEAF_TAG_CTOR`/`_STMT_COMPOUND` and cannot be, so the typed catamorphism can't return
+     `SRaise -> true`. The other 9 of 10 are each SEPARATELY blocked, so SRaise unlocks 1, not the cluster:
+       * `_body_has_diverging_construct` — detects `type=="Call"` in EXPRESSION positions; the stmt_ir
+         catamorphism deliberately does NOT descend into `emit_ir` expr children, so the typed route
+         structurally cannot see it; plus a compound multi-tag+`type` discriminant. Needs generic-expr descent.
+       * `_lemma_returns_value` — needs the `SReturn` `iropt_ir` PAYLOAD guard (value present & non-`None`);
+         the catamorphism arm `SReturn _ -> true` discards the payload. Not expressible as-is.
+       * `_returns_string_seq` / `_func_returns_string_seq` — self-state `_seq_value_types` map read +
+         string-element value model.
+       * `_is_linear_expr` — an AND-fold (universal) expression whitelist over `emit_ir`, not an
+         existence-OR walk; different algebra.
+       * `_has_set_op_on_map` — self-state map-locals + `_rhs_yields_map`/`_test_contains_map` sibling
+         calls + compound discriminants.
+       * `_should_auto_trust_tuple_return` — self-state `array_vars` + `IRScanner` + nested tuple-slot walk.
+   - VALUE verdict (lesson 7 / §10.5): even the certificate-coupled `SRaise` build (WhyML preamble +
+     both certs + round-trip/distinctness re-proof + the `emit_ir`→`stmt_ir` marshalling) unlocks exactly
+     1 of 10; it does NOT open the cluster. Not worth a both-prover ADT extension for a lone marker.
+     **Reopening capabilities (record for a future ladder edit):**
+     (R1) a nested-`def`+mutable-closure (`found=[False]`) existence-walker RECOGNIZER that lifts
+     `def f(root): found=[False]; def walk(x): if <cond>: found[0]=True; <descend>; walk(root);
+     return found[0]` WHOLE onto the certified `emit_bool_existence_group` (pyval) / `emit_stmt_has_group`
+     (stmt_ir) target — the pyval route is the natural carrier because its `__d` already generically
+     descends ALL dict values (incl. expr children); (R2) `SRaise` added to the certified stmt_ir ADT
+     (axiom-free co-landing cert) for the "Raise" tag; (R3) generic-EXPRESSION-position Call detection +
+     compound multi-tag/`type` discriminant → `_body_has_diverging_construct`; (R4) an `SReturn`
+     iropt-payload predicate → `_lemma_returns_value`; (R5) self-state map/dict value-model threading
+     (`_seq_value_types`, map-locals) → the auto_trust/functions self-state members.
+     Fell through to item 5.
+
 5. **R2c — contract-grammar genexp** (`#@ assert all(x >= 0 for x in a)` does not parse). Repairs the
    spec plane of the any/all fold. Independent of R2d/R2e. Grammar work in `Module2_Parser.py`; may
    be its own subsystem — SPLIT and record if so.
