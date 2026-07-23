@@ -1,0 +1,1 @@
+item3 BOUNDARY — value-returning Any-walker class: 0/8 reached by existing recognizers; spike proves value-folds OK; real wall = 4 un-built value carriers (tuple/sexp, class-variant, ast-node, runtime-string). Fell through to item4. (commit 1625df58, count 942)
