@@ -48,7 +48,17 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    - The real wall: the 8 candidates sit behind **four distinct un-built value carriers**, none a small
      extension to an existing recognizer:
        * Python **tuple / sexp** ADT (indexed `t[1]`, tag-at-`[0]`): `from_sexp._const_name`,
-         `_ind_short_name`, `_binder_name` — reopen with a tuple value carrier.
+         `_ind_short_name`, `_binder_name` — **CERTIFIED-BOUNDARY (2026-07-24, sexp-carrier-impl.md
+         §OUTCOME).** Both spikes re-verified axiom-free by the driver (SexpCert.v coqc 8.20.1 "Closed
+         under the global context" ×3; sexp.mlw z3 pos Valid / evil Timeout / nth1 Valid), so
+         PROVABILITY is not the wall. The RECOGNIZER walls: the verbatim bodies use heterogeneous
+         positional index `t[i]` consumed as BOTH string (`return inner[1]`, `out.append(iid[1])`) and
+         sub-sexp (`_walk_modpath(mp[1])`) at the same syntactic form (BLOCKER 1 — needs consuming-
+         context-directed `atom_of` coercion the emitter's emit_ir-node-only subscript lowering lacks),
+         the helpers build a `List[str]` result via `.append`/`.extend`/`reversed`+for-over-slist that
+         the `last_atom` oracle sidesteps (BLOCKER 2), plus string-tag dispatch/`len>=3` guards
+         (BLOCKER 3). REOPEN needs a bespoke sexp recognizer = 3 new features for net −3 (session-scale,
+         §10.3 generic-Any class). Cert + value oracle banked in getting-better/sexp-carrier-oracles/.
        * **class-instance variant** ADT (`isinstance(t,Var)` + `t.name`/`node.left`): `emit_why3._pp`,
          `Module2_Parser._csl_to_str` — reopen with @dataclass/class→WhyML-variant model + faithful
          f-string interpolation of runtime strings + `str(int)`.
