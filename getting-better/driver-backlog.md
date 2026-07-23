@@ -164,6 +164,34 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 8. **Soundness/gate hardening (do opportunistically, never a reason to stop).** The self-state vacuity
    gate's LOWER-BOUND partials; a `check-self-annotate-sync.sh` audit; the 5 flagged judgment-call
    lessons (i,k,g,j',m) carve-outs. Small, bounded, always-available filler between walls.
+   - **STATUS 2026-07-23 — fidelity-drift repair, 5 DIVERGED → 4 (1 verified re-port, 4 STILL-BLOCKED).**
+     The §10.4 fidelity gate was RED with 5 un-`\trusted` mirror methods proving stale bodies. Per-drift
+     verbatim re-port + full gate:
+     - `_handle_return_stmt` (stmt_control_flow) — **RE-PORTED & VERIFIED** (commit, drift 5→4). Added the
+       `_pyval_seq_locals` return branch, the `emit_ir`/`_union_` raise branches, the tail bool→int block.
+       `--fun` SUCCESS (13 goals all Valid, ~3m46s); L3-tc whole-file ✓; emitted body faithful (dispatches
+       on real `func_ret` tags, references `val_ir`/`py_val`, no `any_1`); vacuity no-NEW-erasure/0-input-blind;
+       mirror-check 52/52; count-neutral 942; mirror-only (byte-diff 0 by construction).
+     - `_pattern_has_constructor` — **STILL-BLOCKED (vacuous).** Verbatim `any(genexp)` lowers to
+       `any_1 (Array.make 1 0)` (wall-lesson l facade). The new `recognize_type_existence`/`recognize_bool_existence`
+       do NOT cover this shape (recursion over a named list FIELD `alternatives` via a `self._method` call,
+       dispatch on a non-`type` tag `pattern`). Missing cap: a recognizer for `any(self._pred(a) for a in
+       node.get("<field>",[]))` recursive-existence-over-list-field. Committed body stays the (lesson-j)
+       while-loop rewrite — flag for re-trust vs recognizer build.
+     - `_union_arm_whyml_type` — **STILL-BLOCKED (V1 dict value-model).** The record-tail read
+       `_record_types[tag]["whyml_name"]` lowers to `subscript_get !_rt <hash>` = int, clashing with the
+       string return. Missing cap: nested `_record_types: Dict[str,Dict[str,str]]` string-field projection.
+     - `_handle_var_expr` (expressions) — **STILL-BLOCKED (V1 dict value-model).** Needs helper
+       `_union_local_read_projection`, whose verbatim body reads nested `_variant_types[st]["constructors"][cn]
+       ["arity"/"payload"]`; mirror models `_variant_types` as flat `Dict[str,str]`, so the helper collapses to
+       an int stub and `_proj` (int) clashes with the string return. Adding it `\trusted` would be a +1 regression.
+     - `_handle_for_stmt` — **STILL-BLOCKED (missing subsystem).** Verbatim body needs ~12 helpers absent from
+       the mirror (`_string_char_iter`, `_classbody_psl_recv`, `_pyast_walk_recv`, `_keyword_iter_recv`,
+       `_tparam_iter_recv`, `_mktuple_elts_recv_ir`, `_tparam_bases_recv`, `_add_abstract_op`) + 5 new self-state
+       fields + a widened frame; the string-char-iter / pyast-stmt / keyword / tparam ADT-reflection is the V1/V2
+       census wall. Supplying stubs would raise the count (forbidden).
+     Net: fidelity gate greener (5→4), count-neutral 942, tree clean, no axiom. The 4 residuals are the V1
+     `Dict[str,Any]`/genexp-list-field value-model wall (census-known), not a bounded transcription backlog.
 
 ## Exhaustion = STOP (the ONLY early-stop condition now)
 The loop stops before the deadline ONLY when items 1–8 are each BROKEN or CERTIFIED-BOUNDARY for the
