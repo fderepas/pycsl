@@ -5582,6 +5582,87 @@ def _match_type_tag_test(test: Any, subj: str) -> Optional[Tuple[str, str]]:
     return (key, tag)
 
 
+def _flatten_and(test: Any) -> List[Any]:
+    """Flatten a left/right-nested `and` chain into its leaf conjuncts."""
+    if (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return (_flatten_and(test.get("left", {}))
+                + _flatten_and(test.get("right", {})))
+    return [test]
+
+
+def _match_key_in_tuple(node: Any, subj: str) -> Optional[Tuple[str, List[str]]]:
+    """`<subj>.get("<key>") in ("<t0>", "<t1>", ...)` -> (key, [tags])."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "in"):
+        return None
+    left, right = node.get("left", {}), node.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{subj}.get"):
+        return None
+    gargs = left.get("args", [])
+    if len(gargs) != 1:
+        return None
+    key = _is_string(gargs[0])
+    if key is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "Tuple"):
+        return None
+    tags = [_is_string(e) for e in right.get("elts", [])]
+    if not tags or any(t is None for t in tags):
+        return None
+    return (key, tags)
+
+
+def _match_type_discriminant(test: Any, subj: str) -> Optional[Dict[str, Any]]:
+    """The tag-arm discriminant of an IRScanner type-existence predicate.
+
+    Two shapes are recognised, both keyed on the interned "type" key:
+      * SIMPLE   `<subj>.get("type") == "<TAG>"`
+        -> {kind: "simple", tag: TAG}
+      * COMPOUND `<subj>.get("type") == "<T>" and <subj>.get("<k2>") in (<tags>)
+                  [and <extra conjuncts>]`  (`uses_ord_chr`/`uses_minmax`)
+        -> {kind: "compound", type_tag: T, key2: k2 ("func"/"op"), tags: [...]}
+        `k2` is restricted to the interned named keys func/op. Any EXTRA
+        conjuncts (`uses_minmax`'s `len(obj.get("args",[]))==2`) are DROPPED —
+        a sound over-approximation under the fixed `ensures True` contract
+        (insight C, the same doctrine `recognize_bool_existence` uses to drop
+        its membership-set conjunct): the emitted catamorphism matches a
+        SUPERSET of the source's true-set, so nothing false is derived, and the
+        mutation-sensitive `type`/`k2`-tag discriminants (the non-facade signal)
+        are preserved verbatim.
+    """
+    # SIMPLE
+    kt = _match_type_tag_test(test, subj)
+    if kt is not None and kt[0] == "type":
+        return {"kind": "simple", "tag": kt[1]}
+    # COMPOUND: flatten the `and`-chain, require exactly one `type==T` conjunct
+    # and exactly one `key2 in (tags)` conjunct over an interned named key.
+    conjs = _flatten_and(test)
+    if len(conjs) < 2:
+        return None
+    type_tag = None
+    key2 = None
+    tags: List[str] = []
+    for c in conjs:
+        st = _match_type_tag_test(c, subj)
+        if st is not None and st[0] == "type":
+            if type_tag is not None:
+                return None
+            type_tag = st[1]
+            continue
+        kin = _match_key_in_tuple(c, subj)
+        if kin is not None and kin[0] in ("func", "op"):
+            if key2 is not None:
+                return None
+            key2, tags = kin
+            continue
+        # any other conjunct is an insight-C droppable extra — leave it be.
+    if type_tag is None or key2 is None:
+        return None
+    return {"kind": "compound", "type_tag": type_tag, "key2": key2, "tags": tags}
+
+
 def _match_any_selfrecurse_genexp(node: Any, subj: str, self_base: str,
                                   iter_ok) -> bool:
     """`any(<self>(<lv>) for <lv> in <iter>)` — a bare-`any` over a filter-less
@@ -5662,10 +5743,9 @@ def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not (isinstance(tag_if, dict) and tag_if.get("stmt") == "If"
             and not tag_if.get("orelse")):
         return None
-    kt = _match_type_tag_test(tag_if.get("test", {}), subj)
-    if kt is None or kt[0] != "type":
+    pred = _match_type_discriminant(tag_if.get("test", {}), subj)
+    if pred is None:
         return None
-    tag = kt[1]
     if not (len(tag_if.get("body", [])) == 1
             and _is_bool_true_return(tag_if["body"][0])):
         return None
@@ -5697,7 +5777,7 @@ def _recognize_type_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not _match_any_selfrecurse_genexp(lret.get("value", {}), subj,
                                          self_base, _subj_iter):
         return None
-    return {"subject": subj, "tag": tag}
+    return {"subject": subj, "pred": pred}
 
 
 def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
@@ -5716,25 +5796,38 @@ def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     non-facade signal. `obj` appears in the emitted body (de-vacuified,
     wall-lessons (l))."""
     n = whyml_ident(func["name"])
-    tag = desc["tag"]
+    pred = desc["pred"]
+    _NAMED = {"type": "K_type", "func": "K_func", "op": "K_op"}
     out: List[str] = []
-    # "type"-key reader (option string over the K_type cell) + `type_is`
-    # predicate — the `_emit_stmt_reader` shape, interned-key variant.
-    out.append(f"  let rec {n}__get_type (d: pydict) : option string")
-    out.append("    variant { d }")
-    out.append("  = match d with DNil -> None")
-    out.append(f"    | DCons K_type (PStr s) rest -> Some s")
-    out.append(f"    | DCons _ _ rest -> {n}__get_type rest end")
-    out.append(f"  let function {n}__type_is (v: pyval) (tag: string) : bool")
-    out.append("  = match v with")
-    out.append(f"    | PDict d -> (match {n}__get_type d with"
-               f" Some t -> pystr_eq t tag | None -> false end)")
-    out.append("    | _ -> false end")
+
+    def _emit_key_reader(key: str) -> None:
+        # interned-named-key reader (option string over the K_<key> cell) +
+        # `<key>_is` predicate — the `_emit_stmt_reader` shape, interned variant.
+        kc = _NAMED[key]
+        out.append(f"  let rec {n}__get_{key} (d: pydict) : option string")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        out.append(f"    | DCons {kc} (PStr s) rest -> Some s")
+        out.append(f"    | DCons _ _ rest -> {n}__get_{key} rest end")
+        out.append(f"  let function {n}__{key}_is (v: pyval) (tag: string) : bool")
+        out.append("  = match v with")
+        out.append(f"    | PDict d -> (match {n}__get_{key} d with"
+                   f" Some t -> pystr_eq t tag | None -> false end)")
+        out.append("    | _ -> false end")
+
+    _emit_key_reader("type")
+    if pred["kind"] == "simple":
+        pdict_arm = f'{n}__type_is obj "{pred["tag"]}"'
+    else:
+        _emit_key_reader(pred["key2"])
+        k2 = pred["key2"]
+        mem = " || ".join(f'{n}__{k2}_is obj "{t}"' for t in pred["tags"])
+        pdict_arm = f'{n}__type_is obj "{pred["type_tag"]}" && ({mem})'
     # scalar-rooted mutual catamorphism into bool (R2d rec-group fold).
     out.append(f"  let rec {n} (obj: pyval) : bool")
     out.append("    requires { true } ensures { true } variant { pv_size obj }")
     out.append("  = match obj with")
-    out.append(f'    | PDict d -> {n}__type_is obj "{tag}" || {n}__d d')
+    out.append(f"    | PDict d -> {pdict_arm} || {n}__d d")
     out.append(f"    | PList xs -> {n}__l xs")
     out.append("    | _ -> false end")
     out.append(f"  with {n}__d (d: pydict) : bool")

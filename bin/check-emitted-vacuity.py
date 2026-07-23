@@ -62,14 +62,15 @@ SKIP_PARAMS = {"self"}
 # `Module5_IREmitter.py::_union_arm_tag`.
 KNOWN_ERASURES = {
     # IRScanner generic-`Any`-tree predicates — fully erased (`obj` absent from the body).
-    # R2d+R3 convergence (genexp-erasure-wall): the SINGLE "type"-tag family
-    # (uses_string/uses_subscript/uses_sum/uses_set_card) is now the certified
-    # scalar-rooted pyval/pydict type-existence catamorphism (generic_fold.py
+    # R2d+R3 convergence (genexp-erasure-wall): the type-existence family is now
+    # the certified scalar-rooted pyval/pydict catamorphism (generic_fold.py
     # recognize_type_existence) — de-vacuified (references `obj`), REMOVED here.
-    # The COMPOUND-discriminant remainder stays erased pending the second-key
-    # (`func`/`op`) projection capability.
-    "irscanner___check", "irscanner__uses_array_lit", "irscanner__uses_minmax",
-    "irscanner__uses_ord_chr",
+    # SINGLE "type"-tag: uses_string/uses_subscript/uses_sum/uses_set_card.
+    # COMPOUND "type==Call and <key2> in (tags)": uses_minmax/uses_ord_chr.
+    # The remainder stays erased: `_check` (nested closure behind the
+    # `uses_divmod` wrapper) and `uses_array_lit` (disjunctive nested-field
+    # BinOp*ArrayLit discriminant) — distinct shapes, measured residual.
+    "irscanner___check", "irscanner__uses_array_lit",
     # Partial erasures.
     "irscanner__is_recursive",                              # keeps `name`, erases `obj`
     "pycsltojsonemitter___collect_class_constants",         # erases `field_names`
