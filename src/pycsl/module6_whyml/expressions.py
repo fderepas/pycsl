@@ -367,6 +367,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Other expressions (int) need `<> 0` coercion."""
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
+        # opaque-nested-map-reader SPLIT form: truthiness of an inner-alias local
+        # (`if _rt` / `_rt and …` where `_rt = getattr(self, "_record_types", {}).get(tag)`)
+        # is membership of the OUTER key — `<base>_mem <tag> : bool` — not the int `<> 0`
+        # coercion (the local has no int value; it aliases `record_types[tag]`).
+        if t == "Var" and ir_expr.get("name") in getattr(self, "_opaque_selfmap_inner_aliases", {}):
+            _osm = self._opaque_selfmap_inner_mem(ir_expr.get("name"), set(), False, None)
+            if _osm is not None:
+                return _osm
         # W8 capability (ii): truthiness of the `*vals: str` vararg param is Python
         # tuple truthiness — NON-EMPTINESS of the argument sequence. `not vals` is
         # exactly "no explicit values were passed", the guard the `at_name`/`at_bs`
@@ -6221,6 +6229,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         if len(args) not in (1, 2):
             return None
+        # opaque-nested-map-reader SPLIT form: `<inner-alias>.get("<lit>")` → the boundary
+        # reader `<base>_<lit> <outer-key> : string` (the `.get` twin of the `<alias>["<lit>"]`
+        # subscript below), keyed on the REAL outer key. Same reader the chained form uses.
+        if recv in getattr(self, "_opaque_selfmap_inner_aliases", {}) and len(args) == 1:
+            _k0 = (expr.get("args") or [None])[0]
+            if isinstance(_k0, dict) and _k0.get("type") == "String":
+                _osi = self._opaque_selfmap_inner_read(
+                    recv, _k0.get("value", ""), local_refs or set(), invariant_ctx, subst)
+                if _osi is not None:
+                    return _osi
         # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): `.get` on a `pyval` LOCAL
         # (a chained read `registry = self.f.get(..); info = registry.get(k, {})`) lowers
         # to a REAL `PMap` match-projection over the heterogeneous carrier —
@@ -7008,6 +7026,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val function {base}_{lit} (k: string) : string")
         return f"({base}_{lit} {key})"
 
+    def _opaque_selfmap_inner_read(self, local: str, lit_raw: str, local_refs: Set[str],
+                                   invariant_ctx: bool,
+                                   subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """SPLIT-form inner-alias string projection: `<local>["<lit>"]` /
+        `<local>.get("<lit>")` where <local> is an opaque-nested-map inner alias
+        (`_rt = getattr(self, "_record_types", {}).get(tag)`) → the boundary reader
+        `<base>_<lit> <outer-key> : string`, the SAME reader the chained
+        `record_types[tag]["<lit>"]` form uses, keyed on the REAL outer key `tag`.
+        None if <local> is not an inner alias."""
+        _ent = getattr(self, "_opaque_selfmap_inner_aliases", {}).get(local)
+        if not _ent:
+            return None
+        base, key_ir = _ent
+        lit = whyml_ident(lit_raw)
+        key = self._expr_to_whyml(key_ir, local_refs, invariant_ctx, subst)
+        self._add_abstract_op(f"val function {base}_{lit} (k: string) : string")
+        return f"({base}_{lit} {key})"
+
+    def _opaque_selfmap_inner_mem(self, local: str, local_refs: Set[str],
+                                  invariant_ctx: bool,
+                                  subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """SPLIT-form inner-alias truthiness: `if <local>` / `<local> and …` where
+        <local> is an opaque-nested-map inner alias → the membership reader
+        `<base>_mem <outer-key> : bool` (does the outer key name an entry). None if
+        <local> is not an inner alias."""
+        _ent = getattr(self, "_opaque_selfmap_inner_aliases", {}).get(local)
+        if not _ent:
+            return None
+        base, key_ir = _ent
+        key = self._expr_to_whyml(key_ir, local_refs, invariant_ctx, subst)
+        self._add_abstract_op(f"val function {base}_mem (k: string) : bool")
+        return f"({base}_mem {key})"
+
     @staticmethod
     def _negative_literal_index(index_ir: object) -> Optional[int]:
         """W8 (iv): `k > 0` iff `index_ir` is the negative integer literal `-k`.
@@ -7045,6 +7096,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _osm = self._opaque_selfmap_nested_read(expr, local_refs, invariant_ctx, subst)
         if _osm is not None:
             return _osm
+        # opaque-nested-map-reader SPLIT form: `<inner-alias>["<lit>"]` → the boundary
+        # reader `<base>_<lit> <outer-key> : string` (the split-binding twin of the
+        # chained nested read above).
+        _iv = expr.get("value", {})
+        _ii = expr.get("index", {})
+        if (isinstance(_iv, dict) and _iv.get("type") == "Var"
+                and isinstance(_ii, dict) and _ii.get("type") == "String"):
+            _osi = self._opaque_selfmap_inner_read(
+                _iv.get("name", ""), _ii.get("value", ""), local_refs, invariant_ctx, subst)
+            if _osi is not None:
+                return _osi
         index = self._expr_to_whyml(expr["index"], local_refs, invariant_ctx, subst)
         # B-C5: `<emit_ir>.get("args")[0]` → `arg0_of` (the Call's first arg node).
         _ar0 = self._emit_ir_args_recv_ir(expr.get("value", {}))

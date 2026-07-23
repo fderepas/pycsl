@@ -246,6 +246,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if target in getattr(self, "_opaque_selfmap_aliases", {}):
             _rest = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
             return _rest if _rest else f"{indent}()"
+        # opaque-nested-map-reader SPLIT form: `_rt = getattr(self, "_record_types",
+        # {}).get(tag)` binds an inner-alias local — emit NOTHING (the local is never a
+        # real value; `_rt["<lit>"]` / `_rt.get("<lit>")` / `if _rt` route to the boundary
+        # readers keyed on the outer key). Mirrors the opaque-selfmap alias suppression above.
+        if target in getattr(self, "_opaque_selfmap_inner_aliases", {}):
+            _rest = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            return _rest if _rest else f"{indent}()"
         # 7a (self-tcb-reduction L4b): `tparams = getattr(<node>,"type_params",None) or []`
         # binds a pure tparam_list ALIAS (`_tparam_iter_recv` resolves `for tp in tparams`
         # to `(type_params_of node)`) — emit NOTHING, exactly like the `.to_dict()` /
@@ -3097,6 +3104,55 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return None
         return a[1].get("value")
 
+    def _opaque_selfmap_inner_getattr(self, v: Any):
+        """SPLIT form of the opaque-nested-map read: if `v` is
+        `getattr(self, "<field>", {}).get(<key>)` (a `.get` on an opaque-instance-map
+        getattr, binding the INNER dict for one OUTER key) return `(<field>, <key-ir>)`;
+        else None. The receiver must be the empty-dict-default getattr (the opaque-map
+        shape `_opaque_selfmap_getattr_field` recognizes); the call a single-arg `.get`."""
+        if not (isinstance(v, dict) and v.get("type") == "Call"
+                and v.get("func") == "get"):
+            return None
+        recv = v.get("receiver")
+        fld = self._opaque_selfmap_getattr_field(recv)
+        if not fld:
+            return None
+        args = v.get("args") or []
+        if len(args) != 1 or not isinstance(args[0], dict):
+            return None
+        return (fld, args[0])
+
+    def _inner_alias_str_reads(self, node: Any, local: str, out: Set[str]) -> None:
+        """Collect the string litkeys `<lit>` for every read `<local>["<lit>"]` (Subscript)
+        or `<local>.get("<lit>")` (Call) anywhere in an IR subtree — the read shape that
+        distinguishes an opaque-nested-map INNER alias (used to gate registration so the
+        recognizer is corpus-inert)."""
+        if isinstance(node, dict):
+            if node.get("type") == "Subscript":
+                idx = node.get("index", {})
+                inner = node.get("value", {})
+                if (isinstance(idx, dict) and idx.get("type") == "String"
+                        and isinstance(inner, dict) and inner.get("type") == "Var"
+                        and inner.get("name") == local):
+                    out.add(idx.get("value"))
+            if (node.get("type") == "Call" and node.get("func") == "get"):
+                recv = node.get("receiver")
+                a = node.get("args") or []
+                # ONLY a 1-arg leaf `.get("<lit>")` (no default) — a 2-arg
+                # `.get("field_types", {})` returns a NESTED dict, not a leaf string,
+                # and must NOT be modelled as the string reader (it would type-clash a
+                # chained `.get(field)`). This scopes the recognizer to leaf-string
+                # projections (the `_union_arm_whyml_type` shape).
+                if (isinstance(recv, dict) and recv.get("type") == "Var"
+                        and recv.get("name") == local and len(a) == 1
+                        and isinstance(a[0], dict) and a[0].get("type") == "String"):
+                    out.add(a[0].get("value"))
+            for w in node.values():
+                self._inner_alias_str_reads(w, local, out)
+        elif isinstance(node, list):
+            for w in node:
+                self._inner_alias_str_reads(w, local, out)
+
     def _nested_str_subscript_reads(self, node: Any, local: str, out: Set[str]) -> None:
         """Collect the set of string litkeys `<lit>` for every nested read
         `<local>[<k>]["<lit>"]` anywhere in an IR subtree — the read shape that
@@ -3125,14 +3181,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         the field name with leading underscores stripped). Gated on the nested-read
         shape being PRESENT so no other getattr-empty-dict usage changes emission."""
         assigns: List[Tuple[str, str]] = []
+        inner_assigns: List[Tuple[str, str, Any]] = []
         def _walk(stmts):
             for st in stmts or []:
                 if not isinstance(st, dict): continue
                 if st.get("stmt") in ("assign", "Assign"):
                     tgt = st.get("target")
-                    fld = self._opaque_selfmap_getattr_field(st.get("value", {}))
+                    val = st.get("value", {})
+                    fld = self._opaque_selfmap_getattr_field(val)
                     if isinstance(tgt, str) and fld:
                         assigns.append((tgt, fld))
+                    else:
+                        _inner = self._opaque_selfmap_inner_getattr(val)
+                        if isinstance(tgt, str) and _inner:
+                            inner_assigns.append((tgt, _inner[0], _inner[1]))
                 for key in ("body", "orelse", "finalbody", "then", "else_body"):
                     sub = st.get(key)
                     if isinstance(sub, list): _walk(sub)
@@ -3142,6 +3204,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             self._nested_str_subscript_reads(body_stmts, local, litkeys)
             if litkeys:
                 self._opaque_selfmap_aliases[local] = fld.lstrip("_")
+        for local, fld, key_ir in inner_assigns:
+            litkeys: Set[str] = set()
+            self._inner_alias_str_reads(body_stmts, local, litkeys)
+            if litkeys:
+                self._opaque_selfmap_inner_aliases[local] = (fld.lstrip("_"), key_ir)
 
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
@@ -3173,6 +3240,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # dedup, now subsumed by the union).
         self._prescan_todict_aliases(body_stmts)
         self._opaque_selfmap_aliases = {}
+        self._opaque_selfmap_inner_aliases = {}
         self._prescan_opaque_selfmap_aliases(body_stmts)
         typed_local_vars = self._typed_local_vars(body_stmts)
         # var -> class name for record-instance locals (`c = C()`), so method
@@ -3208,6 +3276,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # getattr assignment is suppressed; reads route to boundary readers) —
             # so no `ref 0` pre-declaration.
             and v not in self._opaque_selfmap_aliases
+            # opaque-nested-map-reader SPLIT form: an inner-alias local is never a real
+            # value (reads route to boundary readers) — so no `ref 0` pre-declaration.
+            and v not in getattr(self, "_opaque_selfmap_inner_aliases", {})
             # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a pyval chain local
             # is `let`-bound immutable at its assignment (single-assignment SSA), never
             # an int `ref 0` pre-decl (which would int-erase it). Gated -> byte-inert.

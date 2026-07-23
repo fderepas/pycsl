@@ -188,7 +188,22 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
        dispatch on a non-`type` tag `pattern`). Missing cap: a recognizer for `any(self._pred(a) for a in
        node.get("<field>",[]))` recursive-existence-over-list-field. Committed body stays the (lesson-j)
        while-loop rewrite — flag for re-trust vs recognizer build.
-     - `_union_arm_whyml_type` — **STILL-BLOCKED, but RE-DIAGNOSED 2026-07-24 (narrower than thought).**
+     - `_union_arm_whyml_type` — **RESOLVED 2026-07-24 (drift 4→3, commit pending).** Fixed by a
+       byte-inert `src/pycsl` emitter recognizer — but NOT the map-local pre-decl proposed below; the
+       cleaner FAITHFUL fix is the **opaque-selfmap-reader SPLIT form**. The existing opaque-nested-map
+       machinery (`_opaque_selfmap_aliases`, built for the CHAINED `record_types[tag]["whyml_name"]`) was
+       extended to the two-statement SPLIT binding `_rt = getattr(self,"_record_types",{}).get(tag)` +
+       `_rt["<lit>"]`/`_rt.get("<lit>")`: `_opaque_selfmap_inner_aliases[_rt] = (base, key_ir)`, the
+       assignment is SUPPRESSED, and the three read sites lower to the SAME abstract readers the chained
+       form uses, keyed on the REAL outer key — `if _rt` → `(record_types_mem tag : bool)`,
+       `_rt.get("whyml_name")`/`_rt["whyml_name"]` → `(record_types_whyml_name tag : string)`. NO int-hash,
+       NO opaque `subscript_get`/`_rt_get_str`, `tag` flows into every reader (non-vacuous, lesson l).
+       Gated on the 1-arg leaf-string read shape present → corpus byte-diff 0 (786/786), mirror-diff
+       confined to the target, whole-file L3-tc SUCCESS, `--fun` proof SUCCESS. `_record_types` field
+       annotated `Dict[str,Dict[str,str]]` on the mirror class; body ported VERBATIM (added `emit_ir`
+       map entry + `_record_types` tail). The map-local pre-decl below was the OTHER viable path but is
+       superseded (it int-hashes the inner key; the opaque-reader is more faithful and reuses precedent).
+       Historical diagnosis (kept for context):
        The prior "missing cap: nested string-field projection" was WRONG. With the field annotated
        `_record_types: Dict[str,Dict[str,str]]` AND the intermediate local annotated `_rt: Dict[str,str]`
        (both mirror-only, sync-gate drops local annotations), BOTH projections lower FAITHFULLY —

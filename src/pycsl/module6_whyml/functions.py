@@ -338,6 +338,19 @@ class FunctionEmissionMixin:
         # instead gated on the nested `X[k]["<lit>"]` read shape being present
         # (corpus-inert — see `_prescan_opaque_selfmap_aliases`).
         self._opaque_selfmap_aliases: Dict[str, str] = {}
+        # opaque-nested-map-reader SPLIT form (self-tcb-reduction, drift-1
+        # `_union_arm_whyml_type`): `_rt = getattr(self, "_record_types", {}).get(tag)`
+        # binds a local to the INNER dict for the OUTER key `tag`; a later `_rt["<lit>"]`
+        # / `_rt.get("<lit>")` string projection and the truthiness `if _rt` then read
+        # `self._record_types[tag]["<lit>"]` / membership. This is the two-statement
+        # split of the chained `record_types[tag]["whyml_name"]` shape the (non-split)
+        # `_opaque_selfmap_aliases` already models. Maps the inner-alias local ->
+        # (reader base, OUTER-key IR): `_rt.get("whyml_name")`/`_rt["whyml_name"]` lower
+        # to `record_types_whyml_name <tag> : string`, `if _rt` to `record_types_mem
+        # <tag> : bool` — the SAME abstract readers, keyed on the REAL outer key (no
+        # int-hash, non-vacuous). Gated on the inner string-lit read shape being present
+        # (see `_prescan_opaque_selfmap_aliases`) -> corpus byte-inert.
+        self._opaque_selfmap_inner_aliases: Dict[str, Tuple[str, Any]] = {}
         # no-more-int-3 A1: dict var -> WhyML value type ν (string) for
         # string-valued dicts; consulted by the dict literal / declaration /
         # MapGet-default / MapSet sites to emit `map int (option string)`.

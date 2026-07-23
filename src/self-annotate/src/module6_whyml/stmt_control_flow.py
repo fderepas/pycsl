@@ -21,6 +21,14 @@ class ControlFlowStmtMixin:
     _havoc_counter: int = 0
     _seq_locals: Set[str] = None
     _array_locals: Set[str] = None
+    # W8 capability (v) / nested-string-map local: `_union_arm_whyml_type` reads
+    # `self._record_types.get(tag)` (a `Dict[str, str]` record-metadata sub-dict, e.g.
+    # `{"whyml_name": ...}`) then projects `_rt.get("whyml_name")` (a string). Annotated
+    # `Dict[str, Dict[str, str]]` (NOT `Any`) so the emitter models it as
+    # `map string (option (map string (option string)))` and the `_rt` local is a
+    # nested-string-map (`map string (option string)`), not the int-erased `ref 0`.
+    # Live: Module6_WhyMLTranspiler.__init__ (`self._record_types: Dict[str, Any] = {}`).
+    _record_types: Dict[str, Dict[str, str]] = None
     # SOUNDNESS (frame audit): `_in_spec` is WRITTEN by the ported bodies
     # (`self._in_spec = True/False` around the invariant/variant emission in
     # `_handle_while_stmt` / `_handle_for_stmt`) but was undeclared, so no `assigns`
@@ -713,8 +721,19 @@ class ControlFlowStmtMixin:
         m = {"int": "int", "bool": "int", "str": "string", "float": "real",
              "list": "array int", "bytes": "array int", "bytearray": "array int",
              "dict": "map int (option int)", "set": "map int (option int)",
-             "frozenset": "map int (option int)", "tuple": "array int"}
-        return m.get(tag, "int")
+             "frozenset": "map int (option int)", "tuple": "array int",
+             # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
+             # carries the already-lowered emit_ir sub-node.
+             "emit_ir": "emit_ir"}
+        if tag in m:
+            return m[tag]
+        # W8 capability (v): a RECORD-class arm tag (`Optional[_Tok]` -> the arm
+        # tag `_Tok`) resolves to that record's Why3 type, so the return-value
+        # injection below can match a record-valued `return` against the arm.
+        _rt = getattr(self, "_record_types", {}).get(tag)
+        if _rt and _rt.get("whyml_name"):
+            return _rt["whyml_name"]
+        return "int"
 
     #@ requires True
     #@ ensures True
