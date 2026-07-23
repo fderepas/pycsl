@@ -33,6 +33,38 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    (not just existence). Spike whether the certified pyval/pydict/stmt_ir catamorphisms can carry a
    RETURNED value before scoping anything new (lesson p). Highest count-ROI if it opens.
 
+   **CENSUS + SPIKE DONE (2026-07-23, count 971) — CERTIFIED-BOUNDARY for existing/minimal machinery.**
+   - STEP-0 census (lesson p): **0 of the 8 clean candidates are reached by any existing recognizer**
+     (`recognize_frt`/`sawalk`/`substmap`/`dictfold`/`setfold`). Demonstrated verbatim-porting
+     `monomorphize._type_str`: the `Any` param lowers to `int` (default int-hash model), `typeof_op 422`
+     reads a HASH CONSTANT (vacuous, lesson l), and the sibling call `_sanitize_type_name node` fails to
+     typecheck (int-vs-string). The value-producing recognizers are each **bespoke to ONE live-method
+     shape** over pydict/pyval and match none of the candidates.
+   - STEP-1 spike: **NOT refuted.** A value-returning `: string` catamorphism over pyval proves
+     non-vacuously — `emit_frt_group` already emits `find_return_type (stmts: list pyval) : string` that
+     BUILDS a string from the tree (`str_concat_op "(" (str_join_arr ", " (Array.make nn "int")) ")"`,
+     tuple arity `nn` read via real spine readers), variant-terminating, axiom-free, and it is un-`\trusted`
+     + gated in the mirror. So provability is NOT the wall.
+   - The real wall: the 8 candidates sit behind **four distinct un-built value carriers**, none a small
+     extension to an existing recognizer:
+       * Python **tuple / sexp** ADT (indexed `t[1]`, tag-at-`[0]`): `from_sexp._const_name`,
+         `_ind_short_name`, `_binder_name` — reopen with a tuple value carrier.
+       * **class-instance variant** ADT (`isinstance(t,Var)` + `t.name`/`node.left`): `emit_why3._pp`,
+         `Module2_Parser._csl_to_str` — reopen with @dataclass/class→WhyML-variant model + faithful
+         f-string interpolation of runtime strings + `str(int)`.
+       * Python **`ast.*` node** hierarchy (`isinstance(x,ast.Subscript)`, `x.value.id`): M5
+         `_normalize_literal_annotation`, `_encode_callable_annotation`, `_typeddict_field_type` — reopen
+         with an `ast`-node value model (plus self-state mutation / `\trusted`-sibling calls / raise+encode).
+       * **pyval-dict flat projection** (`_type_str`) + **runtime-string ops** (`ir_inline._global_call_target`:
+         `partition(".")`, `"." in f`, `recv in globals_set`, `g_class[recv]`) — `_type_str` is the ONLY
+         candidate on an existing carrier (pyval) but is a LONE stub (no cluster) needing a bespoke
+         ~flat-projection recognizer; not worth a per-method build (§10.7 VALUE-not-count, lesson p).
+   - Cluster measurement: 113 `str`- + 25 `Optional[str]`-returning `\trusted` stubs exist, but the
+     population is **heterogeneous non-fold** (I/O `_find_coqc`, regex `_strip_rocq_comments`, self-state
+     `errors.message`, string manip) — no single small recognizer unlocks a cluster. A worthwhile build
+     is a per-carrier value model (biggest = the `ast.*` M5 family), gated by its own measure-before-build
+     carrier census + authorization — NOT a bespoke per-stub recognizer. Fell through to item 4.
+
 4. **The closure / nested-`def` walker family (dropped-closure blocker).** `_check`-style wrappers
    solved; the `found=[False]` / nested-`def` lambda-lift family (`_body_has_raise`,
    `_body_has_diverging_construct`, `_lemma_*`) still drops the closure at emission. Needs the
