@@ -1243,3 +1243,38 @@ emitter can GENERATE it from source. The **M2 emitter build** (recognizer → de
 byte-diff-0, fidelity-verbatim) + the **C5 census** (IR-shaped & pyval-native-sibling vs not) are the next
 phase. My brief's research-grade pessimism is overturned at the target level for IR-shaped reflection with a
 pyval-native sibling; the open question shifts to emitter-generability + per-method reach.
+
+### Iteration 2026-07-22 — cheap-win census + verbatim-port batch (base loop, non-interactive)
+
+Global `\trusted` grep count **981 → 943** (net **38** converted across 5 commits, all mirror-only,
+`src/pycsl` untouched → no byte-diff sweep needed; ledger held at 3; allowlist untouched).
+
+Method (measure-before-build, §10.1/§10.2): a 981-stub census found 72 stubs whose mirror body was
+ALREADY byte-verbatim to live (marker present but body real) and ~305 more small stubs portable
+verbatim. Each candidate ran **port → L3-tc → per-function emitted-vacuity → whole-file Why3 proof**;
+only whole-file-proof-green AND non-vacuous ports were booked. The per-function vacuity pre-gate
+(replicating `bin/check-emitted-vacuity.py` cross-check on one function) caught int-hash-erased
+"conversions" (wall-lessons (l)) BEFORE booking, so 9 vacuous ports were rejected, not committed.
+
+**Converted (38):**
+- `pycsl.py::_check_goal_conservation` (already-verbatim vein)
+- `frontend/pure_ast.py` — 28 `_Unparser`/`_Parser` visitor + helper stubs
+- `frontend/exec_splice.py` — `_is_constant_exec`, `splice_constant_exec`
+- `frontend/module_collect.py::_module_const_int`; `proof2why3/canonical.py::alpha_normalize`;
+  `proof2why3/emit_why3.py::ir_to_whyml_axiom_body`; `proof2why3/sertop.py::{sertop_available,_extract_stmid}`
+- `frontend/Module5_IREmitter.py::{_comprehension_generators_to_ir,_wrap_optional}`
+
+**Rejected-and-left-`\trusted` (measured, not skipped):**
+- VACUOUS (emitted body erases the input the live body uses): `Module2_Parser::{_err,parse_contract}`,
+  `import_classifier::_stub_set`, `pure_ast::{_Parser.error,_Parser.unsupported,_Unparser.get_type_comment}`,
+  `Module5_IREmitter::{_csl_proj,_should_skip_method}`, `monomorphize::_rewrite_call_sites`,
+  `extract_lean_meta::lean_meta_available`, `core_ir_semantic::{_check_span,_collect_noreturn_names,_conc_check_shared_access}`
+- WHOLE-FILE-PROOF fails/times-out with the verbatim body:
+  `pure_ast::{visit_ListComp (termination Timeout, 122M steps),set_precedence}`,
+  `exec_splice::_contains_exec`, `proof2why3/{crosscheck,crosscheck_ir}::_load_axiom_registry`,
+  `from_lean_json::_linearize_app`, `core_ir_semantic::{_conc_stmts,_cp_walk}` (generic `.values()` walkers, V1),
+  `module6_whyml/stmt_control_flow.py::_try_local_decl_kind` (whole-file proof EXIT=124 at 3000s — reverted).
+
+Gates each increment: whole-file Why3 SUCCESS; `check-self-annotate-sync.sh` = 5 DIVERGED (documented
+baseline, unchanged); `self-annotate-mirror-check.sh` 52/52; mirror-wide L3-tc sweep 52/52; vacuity
+`--emit` exit 0 (no NEW erasure, 12 known); count strictly decreasing.
