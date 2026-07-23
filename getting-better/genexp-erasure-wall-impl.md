@@ -188,3 +188,24 @@ blocker — the recursion is a second, independent one. The vacuity ledger stays
   still does not PARSE. Untouched by R2a/R2b; the spec plane remains unrepaired.
 - **R3** — unchanged and still gated behind response condition 7 (assoc-list `hval` proving its
   evil twin with the map arm present).
+
+## §R2e SPIKE OUTCOME — REFUTE-as-bounded: R2e is SESSION-SCALE, needs authorization (like R2d/R3)
+
+Gate-S spike (`scratchpad/anyspike/r2e.py`, no emitter edit). The 2 non-recursive string-predicate
+sites (`_handle_fieldassign_stmt`, `_union_arm_tag`) need FOUR coordinated capabilities, not the
+"parameterized element type" this plan scoped:
+1. **Element-type parameterization.** The fold hardcodes `a: array int`; `any(x == "" for x in xs)`
+   over a `List[str]` emits `_any_fold (a: array int)` applied to `array string` → L3-tc TYPE ERROR.
+2. **Faithful string-predicate lowering INSIDE the fold.** Even typed, `x == ""` lowers to
+   `a[_fk] = 313406155` (the int-hash of `""`) — a vacuous comparison; it must be `str_eq_op a[_fk] ""`.
+3. **Closure-capture threading.** `any(s.startswith(p) for p in prefixes)` captures the FREE var `s`;
+   a standalone `let function _any_fold (a: ...)` cannot see it, so it must be threaded as an extra
+   fold parameter. Today it fully erases to `any_1 (Array.make 1 0)`.
+4. **A faithful `startswith` model.**
+This is the same tier as R2d (mutual-recursion) and R3 (hval carrier swap): a multi-capability
+emitter build, NOT a bounded increment. **Disposition: CERTIFIED-BOUNDARY-as-bounded; authorize
+first.** No silent vacuity exists in the booked corpus from R2b's int-only fold — a string element
+TYPE-FAILS at L3-tc (caught), it does not int-hash silently.
+
+**Bounded Phase-2 frontier is now EXHAUSTED** (R2a/R2b landed; self-state vacuity gate landed; R2c
+grammar, R2d, R2e, R3 all session-scale / authorize-first). Per driver §A.3 the run stops early.
