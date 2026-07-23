@@ -40,3 +40,34 @@ R3 is certificate-touching; every make-or-break was spiked FIRST, before any emi
 4. Converge on the IRScanner 8 (`uses_string`/`uses_sum`/`_check`/…): faithful hval `obj` +
    recursive fold → remove each from `KNOWN_ERASURES` as it de-vacuifies.
 Refutation exit at any step: record boundary, revert clean, fall back to R2d-as-infra.
+
+## §OUTCOME — 18h run, R2d+R3: authorized goal ACHIEVED (8/8 IRScanner), with honest caveats
+
+**All 8 IRScanner predicates de-vacuified**, driver-verified independently (ir_scanner whole-file
+proof SUCCESS 0-unproven re-run by the driver 3×; each emitted body hand-inspected = a real
+pyval/pydict fold, `pystr_eq`/`DCons _ v rest`/certified variant, never `any_1`/int-hash; both
+`uses_array_lit` arms modelled incl. the nested `obj[left]` projection — NOT under-approximated).
+`KNOWN_ERASURES` 12 → 3. Gates all green: byte-diff 0 @ 784==784, L3-tc 52/52, mirror-check 52/52,
+drift 5, ledger 3.
+
+### Caveat 1 — the count did NOT move (943 throughout). These are INTEGRITY gains, not count.
+The 8 predicates were already-booked (un-trusted) VACUOUS conversions; de-vacuifying makes 8 fake
+conversions HONEST. Real value (the mirror proof now says something about what they compute), but
+NOT a `\trusted` reduction. Earlier run-prose that framed this as "count moves" was wrong.
+
+### Caveat 2 — R3 (the certificate-touching build) was UNNECESSARY for this goal.
+R3 swapped the hval HMap carrier map→assoc-list (verified axiom-free). But R2d de-vacuified all 8
+via the PRE-EXISTING Phase2c `pydict` catamorphism, whose `pydict = DNil | DCons key val rest` is
+ALREADY the iterable assoc-list R3 rebuilt for hval. The reviewer and driver both missed that the
+older certified theory already had the value model. R3 is banked (verified, axiom-free, byte-inert,
+a legitimate capability for hval-typed `.values()` walkers) but was avoidable — the driver should
+have checked the existing value models before scoping R3. Lesson to bank.
+
+### The 3 remaining erasures are SESSION-SCALE (measured, authorize-first)
+All three erase a param that flows ONLY into a `\trusted` sibling stub, so de-vacuifying needs the
+sibling converted AND a value-model feature:
+- `_emit_new_ghost_ref` — `target` only via `declared_refs.add`/`local_refs.add` (Set[str] params)
+  → needs set-param-by-reference + `_stmts_to_whyml` (trusted) converted.
+- `_handle_mktuple_expr` — `lr` flows only into `self._e` (trusted).
+- `_collect_class_constants` — `field_names` similar.
+Bounded frontier EXHAUSTED; run stops early per driver §A.3.
