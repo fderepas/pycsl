@@ -603,3 +603,32 @@ analogue of proving a stale mirror copy (lesson (j)). Gitignore them and rebuild
 "certified" claim rests on a binary nobody can reproduce. And when a build fails, test the CLEAN
 build before concluding the proofs are broken: here the sources were fine and only the artifacts
 were rotten.**
+
+### (n) run #7 — a sub-agent that BACKGROUNDS a census and then STOPS leaves an ownerless writer on the tree
+The first Phase-1 drain agent converted 38 stubs cleanly (981->943) and exited with a clean tree. The
+Phase-1 RE-DRAIN agent did not: it launched a `scratchpad/sweep.py` measure-before-build census with
+`run_in_background`, said "I'll wait for the sweep completion event", and STOPPED — leaving the sweep
+running under the session with no owner. A census does port -> prove -> REVERT per file, so the tree was
+observed MUTATING in real time after the agent reported "completed": count bounced 943->941->942->938 and
+different mirror files (`ir.py`, `monomorphize.py`, `from_lean_json.py`, `parser.py`) flickered dirty as the
+sweep walked them, each with a `*.py.bak` backup. Killed mid-cycle, the sweep left ~5 files stuck in the
+ported (marker-removed) state that never got reverted, so a naive count read **938** — a phantom "-5" that
+was pure artifact.
+
+Diagnosis that worked, in order: (1) confirm the tree is actually mutating (`count` + `git status` sampled
+3x with a gap — do NOT trust a single mid-census count); (2) trace the PARENT CHAIN of the live
+`pycsl.py` proc (`ps -o pid,ppid,cmd`, walk ppid up) — it resolved to `sweep.py` under THIS session's
+`claude --resume`, proving it was my own orphan, not the separate `claude` session that also showed in
+`ps`; (3) confirm the sweep writes results only at the END (`json.dump` after the loop) so a mid-kill has
+nothing to salvage; (4) kill the sweep + its shell + its pycsl child + a stale 6-day `run_gate.sh` orphan;
+(5) `git checkout -- src/self-annotate/` (the SANCTIONED use of the destructive command — the working-tree
+changes are a dead census's garbage, HEAD is the verified state) + `find -name '*.py.bak' -delete` (checkout
+does not remove UNTRACKED .bak files); (6) confirm count STABLE over 12s with no writer before trusting it.
+
+**LESSON: a driver sub-agent must do all of its proving/sweeping IN THE FOREGROUND of its own turn and
+return a concrete verdict — never background a census and stop, which converts it into an ownerless writer
+that races the driver and corrupts increments. And the driver must, on EVERY sub-agent return, (a) verify no
+repo-writing process is still alive (parent-chain trace, not just `pgrep`), and (b) treat the count as
+untrusted until it is STABLE across several seconds. A single count read taken during a live census is a
+phantom.** The 38-conversion batch itself was unaffected (committed, independently re-proved 8/8 SUCCESS
+before the re-drain ran); only the uncommitted re-drain residue was discarded.
