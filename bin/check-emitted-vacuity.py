@@ -159,7 +159,13 @@ def live_self_fields(path):
     siblings is not reading self-state). Write targets (`self.x = v`) are Store context, also
     excluded. This is the `self`-analogue of the parameter set: the run-#7 re-drain found that the
     param-only vacuity check is blind to a self-ONLY method that erases its `self.*` reads to
-    constants (`summary` → `""`), so this closes that gap."""
+    constants (`summary` → `""`), so this closes that gap.
+
+    ALSO counts `getattr(self, "<attr>"[, default])` as a field read (run-#8 gate-gap): the drift
+    `_union_arm_whyml_type` reads `getattr(self, "_record_types", {})` — a `self.Call`, NOT an
+    `ast.Attribute` — so the Attribute-only walk missed it, and the opaque-self-map re-port passed
+    the gate although its emitted body reads no self field. A `getattr(self, "x")` is a self-state
+    read exactly like `self.x`."""
     out = {}
     for n in ast.walk(ast.parse(open(path).read())):
         if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -167,10 +173,18 @@ def live_self_fields(path):
         call_funcs = {id(x.func) for x in ast.walk(n)
                       if isinstance(x, ast.Call) and isinstance(x.func, ast.Attribute)
                       and isinstance(x.func.value, ast.Name) and x.func.value.id == "self"}
-        out[n.name] = {x.attr for x in ast.walk(n)
-                       if isinstance(x, ast.Attribute) and isinstance(x.value, ast.Name)
-                       and x.value.id == "self" and isinstance(x.ctx, ast.Load)
-                       and id(x) not in call_funcs}
+        fields = {x.attr for x in ast.walk(n)
+                  if isinstance(x, ast.Attribute) and isinstance(x.value, ast.Name)
+                  and x.value.id == "self" and isinstance(x.ctx, ast.Load)
+                  and id(x) not in call_funcs}
+        # getattr(self, "<attr>"[, default]) — a self-field read that is a Call, not an Attribute.
+        for x in ast.walk(n):
+            if (isinstance(x, ast.Call) and isinstance(x.func, ast.Name)
+                    and x.func.id == "getattr" and len(x.args) >= 2
+                    and isinstance(x.args[0], ast.Name) and x.args[0].id == "self"
+                    and isinstance(x.args[1], ast.Constant) and isinstance(x.args[1].value, str)):
+                fields.add(x.args[1].value)
+        out[n.name] = fields
     return out
 
 
