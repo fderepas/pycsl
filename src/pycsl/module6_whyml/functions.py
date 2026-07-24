@@ -2729,7 +2729,8 @@ class FunctionEmissionMixin:
             recognize_type_existence, emit_type_existence_group,
             recognize_named_field_existence, emit_named_field_existence_group,
             recognize_pyval_string_walker, emit_pyval_string_walker_group,
-            recognize_pyval_list_walker, emit_pyval_list_walker_group)
+            recognize_pyval_list_walker, emit_pyval_list_walker_group,
+            recognize_pyval_list_search, emit_pyval_list_search_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -2782,6 +2783,13 @@ class FunctionEmissionMixin:
         # C1b: pass the module's pyval-list-walker name set so a cross-call to a
         # sibling walker (`_walk_kername`→`_walk_modpath`) is a legal listexpr.
         _pvl_sibs = getattr(self, "_pyval_list_walker_names", set())
+        # C1b SEARCH catamorphism (`_find_kername_components`): a pyval tree search
+        # for the first non-empty per-node reader result — emitted as the certified
+        # mutual `{n}(v) with {n}__list(l)` group (auto-terminating). Tried first
+        # (more specific structure); mutually exclusive with the accumulator walker.
+        _pvls = recognize_pyval_list_search(func, _pvl_sibs)
+        if _pvls is not None:
+            return emit_pyval_list_search_group(func, _pvls, whyml_ident)
         _pvl = recognize_pyval_list_walker(func, _pvl_sibs)
         if _pvl is not None:
             return emit_pyval_list_walker_group(func, _pvl, whyml_ident)

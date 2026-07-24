@@ -6739,7 +6739,10 @@ def _pvl_stmts(stmts: Any, state: Dict[str, Any], k, ctx: Dict[str, Any]) -> str
             return "(Nil: list string)"
         if _is_var(v) and v.get("name") in state["acc"]:
             return state["acc"][v.get("name")]
-        raise _PVWBail()
+        # C1b: `return <listexpr>` — a cross-call to a sibling walker
+        # (`_full_const_path` -> `return _find_kername_components(const_node[1])`),
+        # `reversed(acc)`, or a self-call. `_pvl_listexpr` bails on anything else.
+        return _pvl_listexpr(v, state, ctx)
     if kind == "If":
         test = _pvl_test(s0.get("test"), ctx)
         thenb = _pvl_stmts(s0.get("body", []), _pvl_copy(state), kont, ctx)
@@ -6816,19 +6819,7 @@ def emit_pyval_list_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
     self_rec = _pvl_has_selfcall(func.get("body", []), func["name"])
     out: List[str] = []
     # ---- inline TOTAL pyval projectors (axiom-free; pv_size cert = measure) ---
-    out.append(f"  let rec function {P}nthl (l: list pyval) (i: int) : pyval")
-    out.append("    variant { l }")
-    out.append(f"  = match l with Nil -> PNone"
-               f" | Cons h t -> if i <= 0 then h else {P}nthl t (i - 1) end")
-    out.append(f"  let function {P}pnth (v: pyval) (i: int) : pyval")
-    out.append(f"  = match v with PList xs -> {P}nthl xs i | _ -> PNone end")
-    out.append(f"  let rec function {P}lenl (l: list pyval) : int")
-    out.append("    ensures { result >= 0 } variant { l }")
-    out.append(f"  = match l with Nil -> 0 | Cons _ t -> 1 + {P}lenl t end")
-    out.append(f"  let function {P}plen (v: pyval) : int")
-    out.append(f"  = match v with PList xs -> {P}lenl xs | _ -> 0 end")
-    out.append(f"  let function {P}atom (v: pyval) : string")
-    out.append('  = match v with PStr s -> s | _ -> "" end')
+    out.extend(_pvl_projectors(P))
     # ---- inline TOTAL list ops (self-contained: no preamble use → byte-inert) -
     out.append(f"  let rec function {P}app (a b: list string) : list string")
     out.append("    variant { a }")
@@ -6860,6 +6851,27 @@ def emit_pyval_list_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
     return out
 
 
+def _pvl_projectors(P: str) -> List[str]:
+    """Inline TOTAL pyval projectors (pv_nth/pv_len/atom over the certified pyval
+    ADT). DEFINED `let (rec) function`s — axiom-free; the pyval `pv_size` cert
+    already covers the structural measure, so no new certificate (ledger 3)."""
+    out: List[str] = []
+    out.append(f"  let rec function {P}nthl (l: list pyval) (i: int) : pyval")
+    out.append("    variant { l }")
+    out.append(f"  = match l with Nil -> PNone"
+               f" | Cons h t -> if i <= 0 then h else {P}nthl t (i - 1) end")
+    out.append(f"  let function {P}pnth (v: pyval) (i: int) : pyval")
+    out.append(f"  = match v with PList xs -> {P}nthl xs i | _ -> PNone end")
+    out.append(f"  let rec function {P}lenl (l: list pyval) : int")
+    out.append("    ensures { result >= 0 } variant { l }")
+    out.append(f"  = match l with Nil -> 0 | Cons _ t -> 1 + {P}lenl t end")
+    out.append(f"  let function {P}plen (v: pyval) : int")
+    out.append(f"  = match v with PList xs -> {P}lenl xs | _ -> 0 end")
+    out.append(f"  let function {P}atom (v: pyval) : string")
+    out.append('  = match v with PStr s -> s | _ -> "" end')
+    return out
+
+
 def compute_pyval_list_walker_names(functions: List[Dict[str, Any]]) -> set:
     """C1b: the fixpoint set of module function names recognized as pyval→
     `list string` walkers WITH cross-calls resolved. Monotone: start from the
@@ -6869,7 +6881,11 @@ def compute_pyval_list_walker_names(functions: List[Dict[str, Any]]) -> set:
     already-recognized sibling (`_walk_kername`→`_walk_modpath`) is admitted. The
     recognizer is fail-closed, so this only ever GROWS the set to a fixpoint; it
     never admits a non-walker. Emission then relies on SCC topological ordering
-    (scc.py — callees before callers) to place each sibling before its caller."""
+    (scc.py — callees before callers) to place each sibling before its caller.
+
+    Both walker SHAPES count as walkers a sibling may cross-call: the C1
+    accumulator walker (`recognize_pyval_list_walker`) AND the C1b search
+    catamorphism (`recognize_pyval_list_search`, `_find_kername_components`)."""
     names: set = set()
     changed = True
     while changed:
@@ -6878,7 +6894,187 @@ def compute_pyval_list_walker_names(functions: List[Dict[str, Any]]) -> set:
             nm = f.get("name")
             if nm in names:
                 continue
-            if recognize_pyval_list_walker(f, names) is not None:
+            if (recognize_pyval_list_walker(f, names) is not None
+                    or recognize_pyval_list_search(f, names) is not None):
                 names.add(nm)
                 changed = True
     return names
+
+
+# ============================================================================
+# pyval-walker-impl.md C1b — the SEARCH catamorphism. Where the C1 accumulator
+# walker BUILDS a `list string` via `.append`/`.extend`, this shape SEARCHES a
+# heterogeneous pyval tree for the first non-empty result of a per-node reader,
+# recursing on EVERY element of the spine (the `from_sexp._find_kername_components`
+# shape). It cannot use the C1 single-`pv_size`-variant + `size_nthl` lemma path,
+# because the self-call is on a spine ELEMENT (`for sub in payload: f(sub)`), not a
+# direct `payload[i]`. Instead it emits the certified pyval CATAMORPHISM shape (the
+# `emit_bool_multiway_group` precedent, lines ~2302): a mutual
+# `let rec {n} (v: pyval) variant { pv_size v } with {n}__list (l) variant { size_list l }`
+# whose cross-decreasing structural measures discharge termination AUTOMATICALLY —
+# NO new axiom, ledger stays 3 (spike: 24 VCs Valid under Alt-Ergo, 0 non-valid).
+#
+# Recognized shape (single `Any` param `p`, `-> List[str]`):
+#   if isinstance(p, tuple):                       (outer guard = is_plist)
+#       if <guard>:                                (a `_pvl_test` over p)
+#           return <call>(p)                       (self- or sibling-walker call)
+#       for <sub> in p:                            (search over the spine)
+#           <r> = <selfname>(<sub>)                (self-call on the loop var)
+#           if <r>:                                (list truthiness — first match)
+#               return <r>
+#   return []
+# The guard-`if` is optional; everything else is required. Fail-closed `_PVWBail`.
+
+def _pvl_search_parse(func: Dict[str, Any],
+                      ctx: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Structurally match the search shape; raise `_PVWBail` on any deviation.
+    Translates the guard / calls in the naming carried by `ctx` (placeholder in
+    the recognizer, real `whyml_ident` in the emitter). Returns the descriptor."""
+    p = func["formal_params"][0]
+    name = func.get("name")
+    body = func.get("body", [])
+    if not (isinstance(body, list) and len(body) == 2):
+        raise _PVWBail()
+    outer, tail = body[0], body[1]
+    # tail: `return []`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"):
+        raise _PVWBail()
+    tv = tail.get("value")
+    if not (isinstance(tv, dict) and tv.get("type") == "ArrayLit"
+            and not tv.get("elts")):
+        raise _PVWBail()
+    # outer: `if isinstance(p, tuple): <inner>` (no else)
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        raise _PVWBail()
+    if outer.get("orelse"):
+        raise _PVWBail()
+    ot = outer.get("test")
+    if not (isinstance(ot, dict) and ot.get("type") == "Call"
+            and ot.get("func") == "isinstance"):
+        raise _PVWBail()
+    outer_test = _pvw_isinstance(ot, ctx)          # -> `(is_plist v_p)`
+    inner = outer.get("body", [])
+    if not isinstance(inner, list) or not inner:
+        raise _PVWBail()
+    # optional guard-if `if <guard>: return <call>(p)` as the FIRST inner stmt
+    guard_test = None
+    guard_call = None
+    idx = 0
+    g = inner[0]
+    if (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        gbody = g.get("body", [])
+        if (len(gbody) == 1 and isinstance(gbody[0], dict)
+                and gbody[0].get("stmt") == "Return"):
+            gret = gbody[0].get("value")
+            # a self- or sibling-walker call applied to the PARAM
+            state = {"acc": {}, "scope": {p}}
+            guard_call = _pvl_listexpr(gret, state, ctx)   # bails if not a call
+            if _pvw_valref(gret.get("args", [{}])[0], ctx) != _pvw_mv(p):
+                raise _PVWBail()                    # must be applied to the param
+            guard_test = _pvl_test(g.get("test"), ctx)
+            idx = 1
+    # the search For must be the (only) remaining inner stmt
+    rest = inner[idx:]
+    if len(rest) != 1:
+        raise _PVWBail()
+    forn = rest[0]
+    if not (isinstance(forn, dict) and forn.get("stmt") == "For"):
+        raise _PVWBail()
+    sub = forn.get("target")
+    if not isinstance(sub, str):
+        raise _PVWBail()
+    if _pvw_valref(forn.get("iter"), ctx) != _pvw_mv(p):
+        raise _PVWBail()                            # must iterate the PARAM spine
+    fbody = forn.get("body", [])
+    if not (isinstance(fbody, list) and len(fbody) == 2):
+        raise _PVWBail()
+    asg, ifr = fbody
+    # `r = <selfname>(sub)`  — a SELF-recursive call on the loop var
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        raise _PVWBail()
+    rvar = asg.get("target")
+    if not isinstance(rvar, str):
+        raise _PVWBail()
+    av = asg.get("value")
+    if not (isinstance(av, dict) and av.get("type") == "Call"
+            and av.get("func") == name):
+        raise _PVWBail()                            # must be the SELF-call
+    subctx = dict(ctx); subctx["scope"] = {p, sub}
+    if _pvw_valref(av.get("args", [{}])[0], subctx) != _pvw_mv(sub):
+        raise _PVWBail()
+    # `if r: return r`
+    if not (isinstance(ifr, dict) and ifr.get("stmt") == "If" and not ifr.get("orelse")):
+        raise _PVWBail()
+    tt = ifr.get("test")
+    if not (_is_var(tt) and tt.get("name") == rvar):
+        raise _PVWBail()
+    rbody = ifr.get("body", [])
+    if not (len(rbody) == 1 and isinstance(rbody[0], dict)
+            and rbody[0].get("stmt") == "Return"
+            and _is_var(rbody[0].get("value"))
+            and rbody[0]["value"].get("name") == rvar):
+        raise _PVWBail()
+    if not _pvw_body_reads(body):
+        raise _PVWBail()
+    return {"param": p, "outer_test": outer_test, "guard_test": guard_test,
+            "guard_call": guard_call, "siblings": set(ctx["siblings"])}
+
+
+def recognize_pyval_list_search(
+        func: Dict[str, Any],
+        sibling_walkers: Optional[set] = None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the C1b pyval `List[str]` SEARCH catamorphism.
+    Returns the emit descriptor or None. Never raises."""
+    try:
+        params = func.get("formal_params", [])
+        if len(params) != 1:
+            return None
+        if func.get("param_annotations", {}).get(params[0]) not in (None, "Any"):
+            return None
+        if func.get("return_annotation") not in ("list", "List"):
+            return None
+        name = func.get("name")
+        ctx = {"n": "f", "p": "f__", "scope": {params[0]}, "counter": [0],
+               "selfname": name, "siblings": set(sibling_walkers or set()) - {name},
+               "ident": lambda x: x}
+        return _pvl_search_parse(func, ctx)
+    except Exception:
+        return None
+
+
+def emit_pyval_list_search_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                 whyml_ident) -> List[str]:
+    """Emit the C1b SEARCH catamorphism: inline TOTAL projectors + a mutual
+    `let rec {n} (v: pyval) variant { pv_size v } with {n}__list (l) variant
+    { size_list l }`. Termination is the certified cross-decreasing structural
+    measure (pyval `pv_size` / `size_list` cert), NO new axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    P = f"{n}__"
+    param = desc["param"]
+    mvp = _pvw_mv(param)
+    # Re-translate the guard / calls in the REAL (`whyml_ident`) naming ctx.
+    ctx = {"n": n, "p": P, "scope": {param}, "counter": [0],
+           "selfname": func["name"],
+           "siblings": set(desc.get("siblings") or set()) - {func["name"]},
+           "ident": whyml_ident}
+    d = _pvl_search_parse(func, ctx)
+    if d["guard_test"] is not None:
+        cond = f"({d['outer_test']} && {d['guard_test']})"
+        then_expr = d["guard_call"]
+    else:                                            # no guard-if → never the then-arm
+        cond = "false"
+        then_expr = "(Nil: list string)"
+    out: List[str] = []
+    out.extend(_pvl_projectors(P))
+    out.append(f"  let rec {n} ({mvp}: pyval) : list string")
+    out.append(f"    requires {{ true }} ensures {{ true }} variant {{ pv_size {mvp} }}")
+    out.append(f"  = (if {cond} then {then_expr}")
+    out.append(f"     else (match {mvp} with PList xs -> {n}__list xs"
+               f" | _ -> (Nil: list string) end))")
+    out.append(f"  with {n}__list (l: list pyval) : list string")
+    out.append("    requires { true } ensures { true } variant { size_list l }")
+    out.append("  = match l with Nil -> (Nil: list string)")
+    out.append(f"    | Cons {P}sub {P}rest -> let {P}r = ({n} {P}sub) in")
+    out.append(f"         (if (match {P}r with Nil -> false | _ -> true end)"
+               f" then {P}r else ({n}__list {P}rest)) end")
+    return out
