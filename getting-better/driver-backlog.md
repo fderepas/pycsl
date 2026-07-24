@@ -89,10 +89,20 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    forward-refs, so no `let rec…with` mutual-group emission was needed (the residual premise was wrong).
    Mutation test decisive on both emitters; corpus byte-diff 0; fixtures 0944/0945; drift 2; ledger 3.
    Commits bb3c497b/76fb3ee9/e9762a4e/23e1dd55/f7a73ffb. See pyval-walker-impl.md §OUTCOME-C1b.
-   **RESIDUAL (still [COST/SCALE]):** C2 param-annotation→pyval hook for a TRUSTED helper + negative-index
-   -from-end (`parts[-1]`) + `Optional[str]` return → `_const_name`/`_ind_short_name`; C3 tuple/int returns
-   → `_construct_indices`/`_find_construct_idx`/`_flatten_tuples`. Each bounded (no 4th axiom, Why3 accepts
-   the carrier); the string+list+search walkers are the reusable foundation all extend.
+   **C2 DONE (2026-07-24, 936→934):** the STRING walker `recognize_pyval_string_walker` now takes the
+   module's pyval-list-walker fixpoint set, so a `<var> = <sibling>(vref)` assign binds a `list string`
+   local and `<var>[-k] if <var> else None` reads its NEGATIVE-index end. The neg-index lowers TOTAL to
+   `nths sl (lens sl - k)` (two inline `list string` projectors, DEFINED not axiomatized → CORRECTNESS-
+   clean, NO OOB assumption, NO 4th axiom), composing with the `Optional[str]` union. Converted BOTH
+   `_const_name` (935) and `_ind_short_name` (934). Mutation test decisive incl. neg-index-offset
+   discrimination (`[-1]`→`- 1`, `[-2]`→`- 2`); `--fun` each + whole-file from_sexp proof SUCCESS; corpus
+   byte-diff 0 (792 common identical, only new 0946/0947 fixtures mine-only); suite-mirror byte-diff only
+   from_sexp.mlw; drift 2; ledger 3. Fixtures 0946 (positive) + 0947 ([-2] discriminating twin). See
+   pyval-walker-impl.md §OUTCOME-C2.
+   **RESIDUAL (still [COST/SCALE]):** C3 tuple/int returns → `_construct_indices`/`_find_construct_idx`/
+   `_flatten_tuples` (`Optional[Tuple[str,int]]` / `Optional[int]`+`int(...)` / `List[Any]` — different
+   result algebras). Bounded (no 4th axiom, Why3 accepts the carrier); the string+list+search+neg-index
+   walkers are the reusable foundation all extend.
 
    **CENSUS + SPIKE DONE (2026-07-23, count 971) — CERTIFIED-BOUNDARY for existing/minimal machinery.**
    - STEP-0 census (lesson p): **0 of the 8 clean candidates are reached by any existing recognizer**

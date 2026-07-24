@@ -209,6 +209,90 @@ and (ii) for `_find_kername_components`, a SEARCH-loop shape (self-call on a spi
 their return is `Optional[str]` not `List[str]`). `_construct_indices` / `_find_construct_idx` /
 `_flatten_tuples` = C3 (tuple/int result algebras). Bounded, distinct builds; not this run.
 
+## §OUTCOME-C2 — 2026-07-24 driver run: C2 BUILT + 2 conversions (936 → 934)
+
+**Verdict: C2 is BUILT and converts BOTH `_const_name` and `_ind_short_name` (the full C2
+sub-cluster). Count 936 → 934. Ledger 3 (no new axiom). CORRECTNESS-clean: the neg-index-from-end
+lowers via a TOTAL `list string` projector, so no unsound OOB assumption and no 4th axiom.**
+
+### GATE-S census — reachable sub-cluster size = 2
+Both C2 stubs share ONE shape: (guard) `parts = _find_kername_components(<pyval subscript>)` — a
+CROSS-CALL to the C1b SEARCH walker (already converted, emitted `pyval → list string`) — then
+`return parts[-1] if parts else None`. The IR (dumped) confirms: `Assign parts = Call
+_find_kername_components(...)`, then `Return IfExpr(test=Var parts, body=Subscript(parts,
+UnaryOp(-, Number 1)), orelse=None)`. NO hidden C3 tuple/int blocker; the only new work is
+(a) binding a `list string` local from a sibling walker call in the STRING walker, and (b) the
+neg-index-from-end + the `Optional[str]` conditional-return composing with it. `_binder_name`
+(0942) needed neither; C1/C1b return `List[str]`, not the union — so this is genuinely the C2 shape.
+
+### Make-or-break spike — PASSED on `_const_name` (CORRECTNESS-clean)
+The falsifier was whether the negative index needs an unsound OOB assumption / a 4th axiom / a
+facade that ignores `k`. It does NOT. The neg-index `parts[-k]` (k≥1) lowers to
+`nths parts (lens parts - k)` where `nths`/`lens` are two inline TOTAL `list string` projectors
+(`nths` returns `""` past the end / on `Nil`; `lens` is the structural length) — DEFINED
+`let rec function`s, structurally terminating, NO axiom. The projectors are total, so no OOB
+proof obligation arises; the real read is additionally kept in-range by the `if parts` guard
+(`lens parts > 0`). Emitted `_const_name` body (excerpt):
+```
+= (if ((not (is_plist v_const_node)) || (_const_name__plen v_const_node < 2)) then Arm_0_None
+   else (let v_payload = (_const_name__pnth v_const_node 1) in
+         (let v_parts = (_find_kername_components v_payload) in
+          (if (_const_name__lens v_parts > 0)
+           then (Arm_0_0 (_const_name__nths v_parts (_const_name__lens v_parts - 1)))
+           else Arm_0_None))))
+```
+Real reads throughout — `is_plist`/`plen`/`pnth`, the CROSS-CALL `(_find_kername_components
+v_payload)`, `lens v_parts > 0` (list truthiness), `nths v_parts (lens v_parts - 1)` (neg-index
+from end), composing into the synthesized `Arm_0_0 string | Arm_0_None` union. NO int-hash, NO
+`any_1`, NO oracle. `--fun _const_name` **SUCCESS**; `--fun _ind_short_name` **SUCCESS**;
+**whole-file** `from_sexp.py` proof **SUCCESS** (all proven, 0 unproven); L3-tc ✓.
+**MUTATION TEST (Gate C, decisive — incl. the neg-index-offset discrimination):** `[-1]` → `[-2]`
+in BOTH bodies → the emitted `.mlw`'s `(_const_name__lens v_parts - 1)` becomes `(… - 2)` and
+`(_ind_short_name__lens v_parts - 1)` becomes `(… - 2)`. A neg-index that hard-coded the last
+element / dropped `k` would leave the emission unchanged — so this is decisive proof the offset
+tracks `k`, not a facade.
+
+### What was BUILT (all in `src/pycsl`, NOT the mirror → 0 new stubs, net +2)
+- **`recognize_pyval_string_walker(func, sibling_walkers)`** (`generic_fold.py`) — the STRING walker
+  now takes the module's pyval-list-walker fixpoint set (same source as C1b). New fragment nodes:
+  * `<var> = <sibling>(vref)` assign → binds `<var>` as a `list string` local (tracked in a new
+    `slist` scope, NOT the pyval `scope`); the arg is a pyval `_pvw_valref`. SCC ordering places the
+    sibling first (the C1b DAG mechanism — no mutual group needed).
+  * `return <IfExpr>` (`X if T else Y`) → a real `if/then/else` over the union arms, with the
+    truthiness `<slist>` → `lens sl > 0` (`_pvw_slist_truth`).
+  * `<slist>[-k]` (k≥1) → `nths sl (lens sl - k)` (`_pvw_slist_strexpr`), wrapped in the Some arm.
+- **two inline TOTAL `list string` projectors** `{n}__nths` / `{n}__lens` — emitted ONLY when the
+  body binds a sibling-walker `list string` local and reads its end (`ctx["used_slist"]` flag), so
+  `_binder_name`'s emission is byte-unchanged. DEFINED, not axiomatized; ledger stays 3.
+- **dispatch** (`functions.py`) — passes `_pyval_list_walker_names` into
+  `recognize_pyval_string_walker`; `desc["siblings"]` threads to the emitter.
+
+### Gate battery (driver-verified fresh)
+- count 936 → **934** (`_const_name` 935, `_ind_short_name` 934); ledger **3** (projectors DEFINED;
+  no cert/allowlist/formal-semantics touched — verified `git diff` on proof_axiom_allowlist.py /
+  formal-semantics is empty).
+- `--fun _const_name` + `--fun _ind_short_name` **SUCCESS**; **whole-file** `from_sexp.py` proof
+  **SUCCESS** (all proven, 0 unproven); L3-tc ✓.
+- **corpus byte-diff 0** (792 common == 792, mine vs detached-HEAD worktree with `.venv` symlinked;
+  the two new fixtures 0946/0947 are mine-only). The extended recognizer does NOT over-fire.
+- **suite-mirror byte-diff: ONLY `from_sexp.mlw` differs** across all 52 mirrors → the recognizer
+  does not over-fire on any other mirror (gated on `_pyval_list_walker_names` non-empty, which only
+  from_sexp has) ⇒ the self-annotation proof suite is provably unaffected elsewhere.
+- vacuity `--emit` exit 0: 0 input-blind, no NEW erasure (the 3 KNOWN unchanged; both `_const_name`
+  and `_ind_short_name` read their params).
+- mirror-check **52/52**; drift **2 == HEAD** (both bodies verbatim = in sync; the 2 pre-existing
+  `_handle_var_expr`/`_handle_for_stmt` still-blocked).
+- fixtures (`git add -f`): `0946_pyval_string_walker_negidx.py` (positive witness, PROVES) +
+  `0947_pyval_string_walker_negidx2.py` (the `[-2]` DISCRIMINATING TWIN — byte-identical to 0946
+  except `[-1]`→`[-2]`, emits `- 2` where 0946 emits `- 1`; the mechanical offset regression lock).
+  Both PROVE.
+
+### §RESIDUAL-after-C2 — the from_sexp cluster remaining ([COST], C3 only)
+Only the C3 tuple/int-result algebra stubs remain: `_construct_indices` (`Optional[Tuple[str,int]]`),
+`_find_construct_idx` (`Optional[int]` + `int(...)`), `_flatten_tuples` (`List[Any]`). Different
+result algebras (tuple-return + int-parse + heterogeneous list) — distinct, still-unbuilt carriers.
+The string+list+search+neg-index walkers are the reusable foundation all extend.
+
 ## §RESIDUAL — the rest of the from_sexp cluster ([COST/SCALE], carriers enumerated)
 The walker CURRENTLY reaches exactly `_binder_name` (self-contained `Optional[str]` fold). The other
 6 need distinct, still-unbuilt carriers (each a real feature, not a facade):
