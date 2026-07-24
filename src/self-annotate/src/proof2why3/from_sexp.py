@@ -93,12 +93,14 @@ def _find_kername_components(payload: Any) -> List[str]:
                 return r
     return []
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _ind_short_name(ind_node: Any) -> Optional[str]:
-    return None
+    if not isinstance(ind_node, tuple) or len(ind_node) < 2:
+        return None
+    parts = _find_kername_components(ind_node[1])
+    return parts[-1] if parts else None
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
