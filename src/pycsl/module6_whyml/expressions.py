@@ -2357,6 +2357,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         return rt.get("field_key_types", {}).get(field, "int")
 
+    def _set_union_left_is_strfield(self, ir):
+        """r1-setop I2 (self-tcb-reduction): True iff the LEFT set operand of a
+        `<set> | {x}` UNION is a κ=string dict/set FIELD (`self.<f>`/`<rec>.<f>`), which
+        lowers to a `map string (option int)` (field_key_types) — so the union must write
+        the RAW native string element (no `str_hash_op`), matching the field's
+        `.add`/membership/`.get` (a mismatch is a WhyML type error: `str_hash_op x : int`
+        cannot index a `map string`). A bare Var operand (a @mutable_state method's set
+        param/local, `map int`) returns False → keeps `str_hash_op` (byte-identical for
+        the mirror's `local_refs | {target}` / `declared_refs.copy() | {target}`). Only a
+        FIELD is genuinely `map string` under the current gating (a method set PARAM stays
+        `map int` — the by-ref κ=string case is not @mutable_state-reachable; a `.copy()`
+        of a string FIELD is blocked upstream on `.copy()` field-read modeling, so it is
+        not recognized here — no working consumer)."""
+        if not isinstance(ir, dict):
+            return False
+        if ir.get("type") in ("Attribute", "FieldGet"):
+            _o = ir.get("object")
+            _f = ir.get("field") or ir.get("attr")
+            if isinstance(_o, str) and isinstance(_f, str):
+                return self._self_field_dict_kappa(f"{_o}.{_f}") == "string"
+        return False
+
     # stmt-list-append-mutation wall (C-bucket): the `{"stmt": K, …}` statement-node
     # kinds this lowers to `stmt_ir` constructors, and the payload field each reads
     # (as `(field, child-kind)`). A nullary node (Pass/Break/Continue) has no payload;
@@ -3666,13 +3688,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
                     ": map 'k (option 'v)\n"
                     "    ensures { result = Map.set m k (Some v) }")
+                # r1-setop I2 (self-tcb-reduction): if the LEFT set operand is a κ=string
+                # dict/set FIELD (`self.<f>`/`<rec>.<f>`) it lowers to a
+                # `map string (option int)` (field_key_types) — so the union must write the
+                # RAW native string element (no `str_hash_op`), matching that field's
+                # `.add`/membership (a mismatch is a WhyML type error, as `str_hash_op x : int`
+                # can't index a `map string`). A Var operand (a method set param/local, `map
+                # int`) keeps `str_hash_op` → byte-identical for every non-string-field union
+                # (the mirror's `local_refs | {target}` / `declared_refs.copy() | {target}`).
+                _lstrfield = self._set_union_left_is_strfield(expr.get("left"))
                 _acc = left
                 for _e in _rset.get("elts", []):
                     _ew = self._expr_to_whyml(_e, local_refs, invariant_ctx, subst)
-                    _key = (f"(str_hash_op {_ew})" if self._is_string_expr(_e)
-                            else self._coerce_to_int(_ew))
-                    if self._is_string_expr(_e):
+                    if _lstrfield and self._is_string_expr(_e):
+                        _key = _ew
+                    elif self._is_string_expr(_e):
                         self._add_abstract_op("val str_hash_op (s: string) : int")
+                        _key = f"(str_hash_op {_ew})"
+                    else:
+                        _key = self._coerce_to_int(_ew)
                     _acc = f"(map_update_some {_acc} {_key} 0)"
                 return _acc
         if raw_op in self._BITWISE_FN_NAMES:
