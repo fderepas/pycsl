@@ -89,6 +89,29 @@ int`) keeps `str_hash_op` (byte-identical: mirror `local_refs | {target}` / `dec
 Membership/`.add`/`.discard` needed NO change (already raw-string, S5). Fixture 0941 (union presence + DISTINCT
 "c" absence — needs the injective key str_hash can't give) proves Valid; anti-facade mutation test PASS.
 
+## RESULTS — run 2 (2026-07-24): I3 LANDED. count 942, drift 2, ledger 3.
+
+**I3 — parametric-`Set[str]` lowering in a cross-mixin `requires_method` sig. LANDED, byte-inert.**
+GROUND-TRUTH CORRECTION: the Module2_Parser GRAMMAR **already parses `Set[str]` fine** (spike:
+`_ContractParser._parse_depends_method` round-trips `(self, val_ir: ExprIR, local_refs: Set[str]) -> str`
+verbatim, brackets intact; even `Dict[str, int]` parses). The "falls back to int" is NOT in the parser —
+it is in the TYPE-LOWERING consumer `_symtype_to_whyml` (`functions.py`), which had no branch for the
+bracketed form and hit the `int` default (WORSE than bare `set`→`map int`). Measured directly: flipping
+the mirror annotation to `Set[str]` emitted `val self__seq_operand_2 (x0: emit_ir) (x1: int)` (the bug).
+- **Fix (one function, LIVE + mirror):** `_symtype_to_whyml` recognizes `Set[str]`/`FrozenSet[str]` →
+  `map string (option int)` and `Set[int]`/`FrozenSet[int]`/`Set`/`FrozenSet` → `map int (option int)`,
+  by simple string equality (identical shape to the existing `symtype in ("set","dict","frozenset")`
+  branch — trivially provable, no string-parsing). NO Module2_Parser change needed.
+- **Spike confirms capability:** with the branch, flipping the annotation to `Set[str]` emits
+  `val self__seq_operand_2 (x0: emit_ir) (x1: map string (option int))` (was `int`). Annotation kept `set`.
+- **Byte-inert (verified, not assumed):** corpus byte-diff **0** (population 788/788 both sides, detached-
+  HEAD worktree). No `Set[`/`FrozenSet[` param appears in ANY mixin sig (mirror or LIVE) → the new branches
+  are unreachable for every current emission. Mirror `functions.py` (the changed converted body) whole-file
+  proof **SUCCESS, 0 unproven**; mirror-check 52/52; vacuity exit 0; count 942; drift 2; no axiom; allowlist
+  untouched.
+- **I3 is the type-recognition PREREQUISITE for I4** (the fixpoint will flip the annotation to `Set[str]` and
+  needs this branch). It is a correct latent-bug fix on its own (the `int` fallback was wrong).
+
 ## BLOCKERS carried forward (for I3–I6)
 - **I4 (cross-method κ=string bridge fixpoint) is a PREREQUISITE, not a follow-on.** I1's `_mut_coll` gate is a
   WORKAROUND: a method's `Set[str]` param cannot become `map string` until every sibling `val` bridge it is

@@ -4001,6 +4001,18 @@ class FunctionEmissionMixin:
         in abstract val parameter declarations. Defaults to `int`."""
         if symtype in ("set", "dict", "frozenset"):
             return "map int (option int)"
+        # r1-setop I3 (self-tcb-reduction): a PARAMETRIC set type in a cross-mixin
+        # `#@ requires_method` signature (`local_refs: Set[str]`) lowers to a STRING-keyed
+        # map when the element is `str` — the set element IS the map key, so the abstract-val
+        # bridge for a string-name-set dependency agrees with the already-string-keyed
+        # `.add`/membership lowering (I1/I2). `Set[int]`/bare `Set` stay int-keyed. This was
+        # the `int` fallback (WORSE than the bare-`set` `map int`); no corpus program uses a
+        # cross-mixin requires_method set param, so byte-inert. (Prerequisite for the I4
+        # cross-method κ=string bridge fixpoint; until that lands, the mirror keeps `set`.)
+        if symtype in ("Set[str]", "FrozenSet[str]"):
+            return "map string (option int)"
+        if symtype in ("Set[int]", "FrozenSet[int]", "Set", "FrozenSet"):
+            return "map int (option int)"
         if symtype in ("list", "tuple", "bytes", "bytearray"):
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             return "array int"
