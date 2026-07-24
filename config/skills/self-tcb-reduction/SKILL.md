@@ -381,6 +381,24 @@ mistake made MORE THAN ONCE and each is a rule, not a per-wall finding.
     build fails, test the CLEAN build before concluding the proofs are broken — usually only the artifacts
     are rotten.
 
+21. **NEVER run a tree-wide destructive git/glob command; there is ZERO legitimate need (multiple agents
+    destroyed the user's work here).** BANNED, always: `git checkout -- .` / `git checkout .` / `git checkout
+    HEAD -- .` / `git restore` on `.` or any path you did not personally create; `git reset` (any form);
+    `git clean` (any form); `git stash` (any form); `find … -delete` / `find … -exec rm`; `rm` with a
+    glob/wildcard; any `rm -r`/delete reaching `.`, the repo root, or `test-suite/corpus/` (46 tracked
+    fixtures). These wiped uncommitted `TODO`/`session.txt`/`parser-primitives-wall-impl.md` (2026-07-24,
+    irrecoverable) and once deleted 35 tracked fixtures. Pre-existing dirty files (`TODO`, `session.txt`,
+    `style.css`, `getting-better/parser-primitives-wall-impl.md`, `.driver-deadline`) are NEVER yours — if
+    `git status` shows them dirty, that is correct; leave them. Commit ONLY files you edited, BY EXPLICIT
+    PATH (`git add <path1> <path2>`); NEVER `git add -A`/`.`/`<dir>`. Undo your OWN edit by re-editing, or
+    `git checkout -- <one.exact.file>` naming a single file you own. **The ONE legitimate need this keeps
+    hitting — clearing regenerated `.mlw` between proof runs — has a SAFE form: `.mlw` under
+    `src/self-annotate/src/` and the emit output dirs is all gitignored/regenerable (ZERO tracked `.mlw`
+    live there — verify once with `git ls-files 'src/self-annotate/**/*.mlw' | wc -l` == 0), so
+    `find src/self-annotate/src -name '*.mlw' -delete` is PERMITTED (it cannot reach a tracked file). The
+    ban is on globs that can reach `.`/repo-root/`test-suite/corpus/`, never on this scoped regenerable-output
+    cleanup.** If you think the tree needs any broader cleaning, STOP and report instead.
+
 ## 11. LOOP ENTRY — the campaign is CLOSED; the loop ASKS before working (do NOT auto-run)
 
 The tier-1/2/3 ADT campaign is closed at count **1240** (§10). There is **no auto-run backlog.** When
