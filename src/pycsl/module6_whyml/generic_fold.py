@@ -7332,28 +7332,33 @@ _TERM_SCALAR = {"str": "string", "int": "int", "bool": "bool"}
 
 
 def _term_field_names_selfiter(functions: List[Dict[str, Any]]) -> set:
-    """Field names F such that SOME function body contains
-    `any(<self>(x) for x in <param>.F)` — i.e. F is a `list term` (not
-    `list string`). Deterministic over the file's folds; the recursion signal
-    recovers the `Tuple[Term,...]` vs `Tuple[str,...]` distinction the IR
-    (both -> "tuple") lost. Best-effort; never raises."""
+    """Field names F such that SOME function body contains a self-recursive
+    generator over `<param>.F` — `any(<self>(x) for x in <param>.F)` (bool fold)
+    OR `tuple(<self>(x) for x in <param>.F)` / any other genexp wrapper (Term->Term
+    transform, class-variant-impl.md T-transform) — i.e. F is a `list term`
+    (not `list string`). The signal is `<self>(x)` applied to the ELEMENTS, which
+    only a recursive-child list admits (binder-string lists never self-recurse).
+    Deterministic over the file's folds; recovers the `Tuple[Term,...]` vs
+    `Tuple[str,...]` distinction the IR (both -> "tuple") lost. Best-effort;
+    never raises."""
     out: set = set()
     for f in functions:
         name = f.get("name")
 
         def scan(node):
             if isinstance(node, dict):
-                if (node.get("type") == "Call" and node.get("func") == "any"):
-                    for a in node.get("args", []):
-                        if isinstance(a, dict) and a.get("type") == "GenExp":
-                            elt = a.get("elt")
-                            gens = a.get("generators", [])
-                            if (isinstance(elt, dict) and elt.get("type") == "Call"
-                                    and elt.get("func") == name and len(gens) == 1):
-                                it = gens[0].get("iter")
-                                if (isinstance(it, dict) and it.get("type") == "Attribute"
-                                        and _is_var(it.get("object"))):
-                                    out.add(it.get("attr"))
+                # A self-recursive generator over a param attribute, regardless of
+                # the wrapping call (`any` for a bool fold, `tuple`/`list` for a
+                # Term->Term transform): `<self>(x) for x in <param>.F`.
+                if node.get("type") == "GenExp":
+                    elt = node.get("elt")
+                    gens = node.get("generators", [])
+                    if (isinstance(elt, dict) and elt.get("type") == "Call"
+                            and elt.get("func") == name and len(gens) == 1):
+                        it = gens[0].get("iter")
+                        if (isinstance(it, dict) and it.get("type") == "Attribute"
+                                and _is_var(it.get("object"))):
+                            out.add(it.get("attr"))
                 for v in node.values():
                     scan(v)
             elif isinstance(node, list):
@@ -7619,3 +7624,420 @@ def _emit_term_retval(node: Any, subj: str, n: str) -> str:
         arg = node.get("args")[0]
         return f"{n} v_{_term_field_of(arg)}"
     raise _PVWBail()
+
+
+# ===========================================================================
+# class-variant-impl.md — T-transform: the Term->Term (constructor-rebuilding)
+# transform algebra over the `term` variant (driver-backlog item 3 residual).
+#
+# A `\trusted` transform (`_flip_comparisons` shape) dispatches on isinstance
+# over the term ADT and RECONSTRUCTS a new Term via constructor calls:
+#   `match t with Var _ -> t | App h a -> App h (map self a)
+#                | BinOp o l r -> ... | Forall b ty bd -> Forall b ty (self bd) ...`
+# This extends the certified bool-fold recognizer with:
+#   (i) identity leaf arms (`return t`);
+#   (ii) constructor-rebuild arms (copy a scalar/string field, recurse on a term
+#        child, map-recurse on a `list term` child);
+#   (iii) the SAME-KIND rebuild idiom (`kind = Forall if isinstance(t, Forall)
+#        else Exists; return kind(...)`) -> two arms, each rebuilding its own ctor;
+#   (iv) a const-string-map conditional on a string field (`if t.op in _MAP:
+#        return Ctor(_MAP[t.op], ...)`) -> an `if pystr_eq f "<k>" then ... else`
+#        chain (the map contents come from `module_const_dicts`, the certified
+#        str->str module constant).
+# Emitted as a PROGRAM `let rec` (so it may call the abstract `val pystr_eq` —
+# the string guard, its result constrained by no VC since the contract is
+# `ensures True`), structurally terminating over the certified `term` inductive
+# (NO new axiom; the same `Phase2i_TermIR.v` / `TermIR.lean` cert covers it).
+# Fail-closed: any shape outside the fragment -> `_PVWBail` -> the stub stays
+# `\trusted`.
+# ===========================================================================
+
+
+def recognize_term_isinstance_transform(func: Dict[str, Any],
+                                        spec: Optional[Dict[str, Any]],
+                                        const_dicts: Optional[Dict[str, Any]] = None
+                                        ) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the Term->Term transform over the `term`
+    variant (the `_flip_comparisons` shape). Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_isinstance_transform(func, spec, const_dicts or {})
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_isinstance_transform(func: Dict[str, Any],
+                                         spec: Dict[str, Any],
+                                         const_dicts: Dict[str, Any]
+                                         ) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    # The transform returns the SAME union type as its single subject param (the
+    # ADT alias, e.g. `Term`/`Expr`) — disjoint from the bool fold (bool return).
+    # Totality over the ctor set (below) confirms it is genuinely the ADT union.
+    ra = func.get("return_annotation")
+    pa = (func.get("param_annotations") or {}).get(subj)
+    if not (ra and ra == pa):
+        return None
+    body = func.get("body", [])
+    if not (isinstance(body, list) and body):
+        return None
+    name = func.get("name")
+    ctor_set = set(spec["ctors"].keys())
+    arms: Dict[str, Any] = {}
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                    # trailing unreachable raise (total match)
+        if not (isinstance(st, dict) and st.get("stmt") == "If" and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        arm_map = _parse_transform_arm(st.get("body", []), subj, name, spec,
+                                       const_dicts, classes)
+        for c, d in arm_map.items():
+            if c in arms:
+                raise _PVWBail()        # a ctor matched twice
+            arms[c] = d
+    if set(arms.keys()) != ctor_set:
+        raise _PVWBail()                # totality over the ADT
+    uses_list = _transform_uses_list(arms)
+    uses_streq = any(a.get("kind") == "condmap" for a in arms.values())
+    return {"param": subj, "arms": arms,
+            "uses_list": uses_list, "uses_streq": uses_streq}
+
+
+def _parse_transform_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
+                         const_dicts: Dict[str, Any],
+                         classes: List[str]) -> Dict[str, Any]:
+    """Parse one isinstance-arm body into a per-ctor rebuild descriptor."""
+    if not (isinstance(ibody, list) and ibody):
+        raise _PVWBail()
+    # -- identity: `return t`
+    if (len(ibody) == 1 and _is_return(ibody[0])
+            and _is_var(ibody[0].get("value"), subj)):
+        return {c: {"kind": "id"} for c in classes}
+    # -- same-kind rebuild: `kind = X if isinstance(t, X) else Y; return kind(...)`
+    if (len(ibody) == 2 and isinstance(ibody[0], dict)
+            and ibody[0].get("stmt") == "Assign" and _is_return(ibody[1])):
+        return _parse_samekind_arm(ibody[0], ibody[1], subj, name, spec, classes)
+    # -- const-map conditional (BinOp op-swap): `if t.F in MAP: return Ctor(MAP[t.F], ...)`
+    #    followed by a fallthrough `return Ctor(...)`.
+    if (len(ibody) == 2 and isinstance(ibody[0], dict)
+            and ibody[0].get("stmt") == "If" and _is_return(ibody[1])):
+        return _parse_condmap_arm(ibody[0], ibody[1], subj, name, spec,
+                                  const_dicts, classes)
+    # -- plain single-ctor rebuild: `return Ctor(...)`
+    if len(ibody) == 1 and _is_return(ibody[0]):
+        if len(classes) != 1:
+            raise _PVWBail()
+        c = classes[0]
+        call = ibody[0].get("value")
+        _require_ctor_call(call, c)
+        builders = _parse_ctor_fields(call, subj, name, c, spec)
+        if any(b[0] == "mapval" for b in builders):
+            raise _PVWBail()            # mapval only valid inside a condmap arm
+        return {c: {"kind": "rebuild", "ctor": c, "fields": builders}}
+    raise _PVWBail()
+
+
+def _parse_samekind_arm(assign: Dict[str, Any], ret: Dict[str, Any], subj: str,
+                        name: str, spec: Dict[str, Any],
+                        classes: List[str]) -> Dict[str, Any]:
+    """`kind = A if isinstance(t, A) else B; return kind(f=...)` — rebuild each
+    of the two ctors A, B with the SAME field builders (their field layouts are
+    identical, e.g. Forall/Exists)."""
+    if len(classes) != 2:
+        raise _PVWBail()
+    kvar = assign.get("target")
+    if not isinstance(kvar, str):
+        raise _PVWBail()
+    ie = assign.get("value")
+    if not (isinstance(ie, dict) and ie.get("type") == "IfExpr"):
+        raise _PVWBail()
+    tgt = _isinstance_target_classes(ie.get("test"), subj)
+    body_v, orelse_v = ie.get("body"), ie.get("orelse")
+    if not (len(tgt) == 1 and _is_var(body_v) and _is_var(orelse_v)):
+        raise _PVWBail()
+    a = tgt[0]                          # isinstance(t, A) -> A
+    b = orelse_v.get("name")            # else -> B
+    if not (_is_var(body_v, a) and {a, b} == set(classes)):
+        raise _PVWBail()
+    call = ret.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == kvar):
+        raise _PVWBail()
+    # Field layouts of A and B must be identical (Forall/Exists) so one builder
+    # list rebuilds both.
+    fa = [fn for fn, _ in spec["ctors"][a]]
+    fb = [fn for fn, _ in spec["ctors"][b]]
+    if fa != fb:
+        raise _PVWBail()
+    builders = _parse_ctor_fields(call, subj, name, a, spec)
+    if any(bd[0] == "mapval" for bd in builders):
+        raise _PVWBail()
+    return {a: {"kind": "rebuild", "ctor": a, "fields": builders},
+            b: {"kind": "rebuild", "ctor": b, "fields": builders}}
+
+
+def _parse_condmap_arm(iff: Dict[str, Any], fallret: Dict[str, Any], subj: str,
+                       name: str, spec: Dict[str, Any],
+                       const_dicts: Dict[str, Any],
+                       classes: List[str]) -> Dict[str, Any]:
+    """`if t.F in MAP: return Ctor(MAP[t.F], ...)` else fallthrough
+    `return Ctor(...)`."""
+    if len(classes) != 1:
+        raise _PVWBail()
+    c = classes[0]
+    if iff.get("orelse"):
+        raise _PVWBail()
+    test = iff.get("test")
+    # test = `t.F in MAP_NAME`
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "in"):
+        raise _PVWBail()
+    left, right = test.get("left"), test.get("right")
+    if not (_is_term_field_read(left, subj)
+            and isinstance(right, dict) and right.get("type") == "Var"):
+        raise _PVWBail()
+    op_field = _term_field_of(left)
+    map_name = right.get("name")
+    the_map = const_dicts.get(map_name)
+    if not (isinstance(the_map, dict) and the_map):
+        raise _PVWBail()                # need the certified str->str const contents
+    if not all(isinstance(k, str) and isinstance(v, str)
+               for k, v in the_map.items()):
+        raise _PVWBail()
+    tbody = iff.get("body", [])
+    if not (len(tbody) == 1 and _is_return(tbody[0])):
+        raise _PVWBail()
+    tcall = tbody[0].get("value")
+    fcall = fallret.get("value")
+    _require_ctor_call(tcall, c)
+    _require_ctor_call(fcall, c)
+    true_fields = _parse_ctor_fields(tcall, subj, name, c, spec)
+    false_fields = _parse_ctor_fields(fcall, subj, name, c, spec)
+    # The op field of the TRUE build must be the map lookup `MAP[t.F]`; the FALSE
+    # build must copy `t.F`.
+    fields = spec["ctors"][c]
+    op_idx = next((i for i, (fn, _) in enumerate(fields) if fn == op_field), None)
+    if op_idx is None:
+        raise _PVWBail()
+    tb = true_fields[op_idx]
+    fb = false_fields[op_idx]
+    if not (tb[0] == "mapval" and tb[1] == map_name and tb[2] == op_field):
+        raise _PVWBail()
+    if not (fb[0] == "copy" and fb[1] == op_field):
+        raise _PVWBail()
+    # No OTHER field may be a mapval.
+    for i, b in enumerate(true_fields):
+        if i != op_idx and b[0] == "mapval":
+            raise _PVWBail()
+    for b in false_fields:
+        if b[0] == "mapval":
+            raise _PVWBail()
+    return {c: {"kind": "condmap", "ctor": c, "op_field": op_field,
+                "map": dict(the_map),
+                "true_fields": true_fields, "false_fields": false_fields}}
+
+
+def _parse_ctor_fields(call: Dict[str, Any], subj: str, name: str, ctor: str,
+                       spec: Dict[str, Any]) -> List[Any]:
+    """Map a constructor call's args/keywords onto the ctor's field order and
+    parse each into a field builder."""
+    fields = spec["ctors"][ctor]
+    fname_order = [fn for fn, _ in fields]
+    provided: Dict[str, Any] = {}
+    kws = call.get("keywords") or []
+    args = call.get("args") or []
+    if kws:
+        for kw in kws:
+            if not (isinstance(kw, dict) and "arg" in kw):
+                raise _PVWBail()
+            provided[kw["arg"]] = kw.get("value")
+        if set(provided.keys()) != set(fname_order):
+            raise _PVWBail()
+    else:
+        if len(args) != len(fname_order):
+            raise _PVWBail()
+        for fn, av in zip(fname_order, args):
+            provided[fn] = av
+    return [_parse_field_builder(provided[fn], subj, name) for fn in fname_order]
+
+
+def _parse_field_builder(e: Any, subj: str, name: str) -> Any:
+    """Parse a constructor-argument expression into a field builder tuple:
+      ("copy",   F)             -- `t.F`                (scalar/string/binder copy)
+      ("rec",    F)             -- `self(t.F)`          (recurse on a term child)
+      ("maprec", F)             -- `tuple(self(x) for x in t.F)` (list term child)
+      ("mapval", MAP, F)        -- `MAP[t.F]`           (const-map lookup; condmap only)
+    """
+    if not isinstance(e, dict):
+        raise _PVWBail()
+    t = e.get("type")
+    # copy: t.F
+    if _is_term_field_read(e, subj):
+        return ("copy", _term_field_of(e))
+    # rec: self(t.F)
+    if t == "Call" and e.get("func") == name:
+        a = e.get("args") or []
+        if len(a) == 1 and _is_term_field_read(a[0], subj):
+            return ("rec", _term_field_of(a[0]))
+        raise _PVWBail()
+    # maprec: tuple(self(x) for x in t.F)
+    if t == "Call" and e.get("func") == "tuple":
+        a = e.get("args") or []
+        if len(a) == 1 and isinstance(a[0], dict) and a[0].get("type") == "GenExp":
+            ge = a[0]
+            gens = ge.get("generators", [])
+            elt = ge.get("elt")
+            if (len(gens) == 1 and not gens[0].get("ifs")
+                    and isinstance(elt, dict) and elt.get("type") == "Call"
+                    and elt.get("func") == name):
+                eargs = elt.get("args") or []
+                tv = gens[0].get("target")
+                it = gens[0].get("iter")
+                if (len(eargs) == 1 and _is_var(eargs[0], tv)
+                        and _is_term_field_read(it, subj)):
+                    return ("maprec", _term_field_of(it))
+        raise _PVWBail()
+    # mapval: MAP[t.F]
+    if t == "Subscript":
+        val = e.get("value")
+        idx = e.get("index")
+        if (isinstance(val, dict) and val.get("type") == "Var"
+                and _is_term_field_read(idx, subj)):
+            return ("mapval", val.get("name"), _term_field_of(idx))
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _is_return(st: Any) -> bool:
+    return isinstance(st, dict) and st.get("stmt") == "Return"
+
+
+def _require_ctor_call(call: Any, ctor: str) -> None:
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == ctor):
+        raise _PVWBail()
+
+
+def _transform_uses_list(arms: Dict[str, Any]) -> bool:
+    for a in arms.values():
+        for key in ("fields", "true_fields", "false_fields"):
+            for b in a.get(key, []) or []:
+                if b[0] == "maprec":
+                    return True
+    return False
+
+
+def _transform_used_fields(arm: Dict[str, Any]) -> set:
+    """Source field names the arm's builders read (to name vs `_` the pattern
+    binders)."""
+    out: set = set()
+    if arm.get("kind") == "id":
+        return out
+    lists = []
+    if arm.get("kind") == "rebuild":
+        lists = [arm.get("fields", [])]
+    elif arm.get("kind") == "condmap":
+        lists = [arm.get("true_fields", []), arm.get("false_fields", [])]
+        out.add(arm.get("op_field"))
+    for bl in lists:
+        for b in bl:
+            if b[0] == "mapval":
+                out.add(b[2])
+            else:
+                out.add(b[1])
+    return out
+
+
+def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                         spec: Dict[str, Any], whyml_ident
+                                         ) -> List[str]:
+    """Emit the Term->Term transform over the `term` variant as a total positional
+    `match` that RECONSTRUCTS terms via the variant constructors (+ a `{n}__list`
+    map helper for `list term` children). PROGRAM `let rec` (calls `val pystr_eq`
+    for the const-map guard); structural `variant` — termination Why3-intrinsic
+    over the certified inductive; NO new axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["param"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    out.append(f"  let rec {n} (v_{subj}: term) : term")
+    out.append("    ensures  { true }")
+    out.append(f"    variant  {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        arm = arms[c]
+        used = _transform_used_fields(arm)
+        binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
+        pat = c + ((" " + binders) if binders else "")
+        rhs = _emit_transform_arm(arm, subj, n)
+        out.append(f"    | {pat} -> {rhs}")
+    out.append("    end")
+    if desc.get("uses_list"):
+        out.append(f"  with {n}__list (l: list term) : list term")
+        out.append("    ensures  { true }")
+        out.append("    variant  { l }")
+        out.append(f"  = match l with Nil -> Nil"
+                   f" | Cons h t -> Cons ({n} h) ({n}__list t) end")
+    return out
+
+
+def _emit_builder(b: Any, n: str, mapval: Optional[str] = None) -> str:
+    kind = b[0]
+    if kind == "copy":
+        return f"v_{b[1]}"
+    if kind == "rec":
+        return f"({n} v_{b[1]})"
+    if kind == "maprec":
+        return f"({n}__list v_{b[1]})"
+    if kind == "mapval":
+        return _mlw_str_lit(mapval)
+    raise _PVWBail()
+
+
+def _emit_ctor(ctor: str, builders: List[Any], n: str,
+               mapval: Optional[str] = None) -> str:
+    if not builders:
+        return ctor
+    return ctor + " " + " ".join(_emit_builder(b, n, mapval) for b in builders)
+
+
+def _emit_transform_arm(arm: Dict[str, Any], subj: str, n: str) -> str:
+    kind = arm.get("kind")
+    if kind == "id":
+        return f"v_{subj}"
+    if kind == "rebuild":
+        return _emit_ctor(arm["ctor"], arm["fields"], n)
+    if kind == "condmap":
+        c = arm["ctor"]
+        op_field = arm["op_field"]
+        m = arm["map"]
+        tf = arm["true_fields"]
+        ff = arm["false_fields"]
+        expr = _emit_ctor(c, ff, n)     # final else
+        for k in reversed(list(m.keys())):
+            v = m[k]
+            true_build = _emit_ctor(c, tf, n, mapval=v)
+            expr = (f"if pystr_eq v_{op_field} {_mlw_str_lit(k)}"
+                    f" then {true_build} else {expr}")
+        return expr
+    raise _PVWBail()
+
+
+def _mlw_str_lit(s: Optional[str]) -> str:
+    """A WhyML string literal. The op/head tokens here are short ASCII operators
+    (`<=`, `>=`, `iff`, ...) with no quote/backslash; reject anything richer
+    fail-closed so a surprising literal never mis-emits."""
+    if not isinstance(s, str) or '"' in s or "\\" in s:
+        raise _PVWBail()
+    return '"' + s + '"'

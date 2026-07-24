@@ -2748,9 +2748,19 @@ class FunctionEmissionMixin:
         # fragment stays `\trusted`. The spec is computed once in the preamble
         # needs-scan and stashed on `self._term_adt_spec`.
         from module6_whyml.generic_fold import (
-            recognize_term_isinstance_fold, emit_term_isinstance_fold_group)
+            recognize_term_isinstance_fold, emit_term_isinstance_fold_group,
+            recognize_term_isinstance_transform,
+            emit_term_isinstance_transform_group)
         _tspec = getattr(self, "_term_adt_spec", None)
         if _tspec:
+            # class-variant-impl.md T-transform: a Term->Term (constructor-rebuild)
+            # transform (`_flip_comparisons` shape) — disjoint from the bool fold
+            # (it returns a Term, the fold a bool). Tried first; fail-closed.
+            _tt = recognize_term_isinstance_transform(
+                func, _tspec, getattr(self, "_term_const_dicts", {}))
+            if _tt is not None:
+                return emit_term_isinstance_transform_group(
+                    func, _tt, _tspec, whyml_ident)
             _tf = recognize_term_isinstance_fold(func, _tspec)
             if _tf is not None:
                 return emit_term_isinstance_fold_group(

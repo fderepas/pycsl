@@ -2092,17 +2092,33 @@ class PreambleEmissionMixin:
         # dispatch both see the SAME spec. None (no term-fold) -> carrier off, corpus
         # + every other mirror byte-identical.
         from module6_whyml.generic_fold import (
-            compute_term_adt_spec, recognize_term_isinstance_fold)
+            compute_term_adt_spec, recognize_term_isinstance_fold,
+            recognize_term_isinstance_transform)
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
-        needs_term = bool(self._term_adt_spec) and any(
+        # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)
+        # transforms need the str->str module constants (op-swap maps) + the
+        # abstract `val pystr_eq` string guard. Stash both; a transform sets
+        # needs_term exactly like a bool fold.
+        self._term_const_dicts = self.ir.get("module_const_dicts") or {}
+        _term_transforms = [
+            recognize_term_isinstance_transform(
+                f, self._term_adt_spec, self._term_const_dicts)
+            for f in functions] if self._term_adt_spec else []
+        needs_term_streq = any(
+            d is not None and d.get("uses_streq") for d in _term_transforms)
+        needs_term = bool(self._term_adt_spec) and (any(
             recognize_term_isinstance_fold(f, self._term_adt_spec) is not None
-            for f in functions)
+            for f in functions) or any(d is not None for d in _term_transforms))
         if not needs_term:
             self._term_adt_spec = None
+            self._term_const_dicts = {}
+            needs_term_streq = False
+        self._needs_term_streq = needs_term_streq
         return {
             "needs_pydict": needs_pydict,
             "needs_term": needs_term,
+            "needs_term_streq": needs_term_streq,
             "needs_sdict": needs_sdict,
             "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
@@ -2820,6 +2836,16 @@ class PreambleEmissionMixin:
                 for (_fn, wt) in ctors[c])
             lines.append(f"    | {c}{tys}")
         lines.append("")
+        # class-variant-impl.md T-transform: a Term->Term const-map guard
+        # (`if t.op in _MAP`) lowers to `pystr_eq` on the string field. It is an
+        # abstract `val` whose result no VC constrains (contract is `ensures
+        # True`) — NOT an axiom (ledger stays 3). Emit it here only when a
+        # transform needs it AND the pydict theory (which also declares it) is
+        # not present, so it is never declared twice.
+        if getattr(self, "_needs_term_streq", False) and not needs.get("needs_pydict"):
+            lines.append("  (* T-transform const-map string guard (result VC-free; ledger 3) *)")
+            lines.append("  val pystr_eq (a b: string) : bool")
+            lines.append("")
         return lines
 
     def _emit_pydict_theory(self, needs: Dict[str, Any]) -> List[str]:
