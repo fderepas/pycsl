@@ -2737,6 +2737,24 @@ class FunctionEmissionMixin:
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
         # key, de-vacuifying the fully-erased predicate (wall-lessons (l)).
         # Fail-closed; a template bug is a loud unprovable instance.
+        # class-variant-impl.md (driver-backlog item 3): the class-instance VARIANT
+        # ADT carrier — a `\trusted` walker that isinstance-dispatches over a
+        # frozen-dataclass UNION (the proof2why3 `Term` ADT) and reads named fields.
+        # No existing value model carries a 9-way isinstance dispatch on distinct
+        # dataclasses; this lowers the union onto a Why3 VARIANT `term` and
+        # translates the isinstance-if-chain to a total positional `match`
+        # (faithful, structurally terminating, co-landed axiom-free with the
+        # Rocq/Lean TermIR cert; ledger 3). Fail-closed; a shape outside the
+        # fragment stays `\trusted`. The spec is computed once in the preamble
+        # needs-scan and stashed on `self._term_adt_spec`.
+        from module6_whyml.generic_fold import (
+            recognize_term_isinstance_fold, emit_term_isinstance_fold_group)
+        _tspec = getattr(self, "_term_adt_spec", None)
+        if _tspec:
+            _tf = recognize_term_isinstance_fold(func, _tspec)
+            if _tf is not None:
+                return emit_term_isinstance_fold_group(
+                    func, _tf, _tspec, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)

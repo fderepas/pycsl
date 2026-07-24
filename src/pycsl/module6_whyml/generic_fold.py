@@ -7310,3 +7310,312 @@ def emit_pyval_flatten_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append(f"    | Cons {P}sub {P}rest ->"
                f" {P}ftapp ({n} {P}sub) ({n}__list {P}rest) end")
     return out
+
+
+# =====================================================================
+# class-instance VARIANT ADT carrier (self-tcb-reduction, driver-backlog
+# item 3: `class-variant-impl.md`). A `\trusted` walker that dispatches on
+# `isinstance(t, SomeDataclass)` over a frozen-dataclass UNION (the proof2why3
+# `Term` ADT: Var|IntLit|BoolLit|App|BinOp|UnaryOp|Forall|Exists|Unsupported)
+# and reads named fields (`t.lhs`/`t.args`/...) has NO existing certified value
+# model (pyval's 2 discriminants can't express is_Var vs is_App; pyast_stmt/
+# stmt_ir/pyconst_val model DIFFERENT Python types). This carrier lowers the
+# union onto a Why3 VARIANT `term = Var string | ... | App string (list term)
+# | ...` and translates the isinstance-if-chain to a total positional `match`
+# — faithful (each isinstance arm -> its constructor arm; each `t.field` -> the
+# positional binder), structurally terminating, co-landed with the axiom-free
+# Rocq/Lean TermIR certificate (ledger 3). Fail-closed (`_PVWBail`); a shape
+# outside the fragment stays `\trusted`.
+# =====================================================================
+
+_TERM_SCALAR = {"str": "string", "int": "int", "bool": "bool"}
+
+
+def _term_field_names_selfiter(functions: List[Dict[str, Any]]) -> set:
+    """Field names F such that SOME function body contains
+    `any(<self>(x) for x in <param>.F)` — i.e. F is a `list term` (not
+    `list string`). Deterministic over the file's folds; the recursion signal
+    recovers the `Tuple[Term,...]` vs `Tuple[str,...]` distinction the IR
+    (both -> "tuple") lost. Best-effort; never raises."""
+    out: set = set()
+    for f in functions:
+        name = f.get("name")
+
+        def scan(node):
+            if isinstance(node, dict):
+                if (node.get("type") == "Call" and node.get("func") == "any"):
+                    for a in node.get("args", []):
+                        if isinstance(a, dict) and a.get("type") == "GenExp":
+                            elt = a.get("elt")
+                            gens = a.get("generators", [])
+                            if (isinstance(elt, dict) and elt.get("type") == "Call"
+                                    and elt.get("func") == name and len(gens) == 1):
+                                it = gens[0].get("iter")
+                                if (isinstance(it, dict) and it.get("type") == "Attribute"
+                                        and _is_var(it.get("object"))):
+                                    out.add(it.get("attr"))
+                for v in node.values():
+                    scan(v)
+            elif isinstance(node, list):
+                for v in node:
+                    scan(v)
+        try:
+            scan(f.get("body", []))
+        except Exception:
+            pass
+    return out
+
+
+def compute_term_adt_spec(functions: List[Dict[str, Any]],
+                          type_decls: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Build the `term` variant spec (constructor set + per-field WhyML types)
+    from the imported dataclass `type_decls` + the file's fold-recursion usage.
+    Returns {"ctors": {Cls: [(field, whytype), ...]}, "order": [...]} or None
+    when the file has no recognized term-fold. Fail-closed: any un-typeable
+    field -> None (the whole carrier stays off, every stub keeps `\trusted`)."""
+    # Constructor set = every class named in an isinstance target of a
+    # single-param bool/term/str-returning fold whose subject is the param.
+    ctor_names: set = set()
+    for f in functions:
+        params = f.get("formal_params", [])
+        if len(params) != 1:
+            continue
+        subj = params[0]
+        for st in f.get("body", []):
+            if not (isinstance(st, dict) and st.get("stmt") == "If"):
+                continue
+            for cls in _isinstance_target_classes(st.get("test"), subj):
+                ctor_names.add(cls)
+    if not ctor_names:
+        return None
+    decls = {td.get("name"): td for td in (type_decls or [])}
+    # Every isinstance target must be an imported dataclass (a real ctor).
+    if not all(c in decls for c in ctor_names):
+        return None
+    list_term_fields = _term_field_names_selfiter(functions)
+    ctors: Dict[str, List] = {}
+    for c in sorted(ctor_names):
+        fields = decls[c].get("fields", [])
+        spec_fields = []
+        for fld in fields:
+            fn = fld.get("name")
+            ft = fld.get("type")
+            if ft == "Any":
+                wt = "term"                       # a recursive Term child
+            elif ft == "tuple":
+                wt = "list term" if fn in list_term_fields else "list string"
+            elif ft in _TERM_SCALAR:
+                wt = _TERM_SCALAR[ft]
+            else:
+                return None                       # un-typeable -> carrier off
+            spec_fields.append((fn, wt))
+        ctors[c] = spec_fields
+    return {"ctors": ctors, "order": sorted(ctor_names)}
+
+
+def _isinstance_target_classes(test: Any, subj: str) -> List[str]:
+    """`isinstance(<subj>, X)` / `isinstance(<subj>, (A, B, ...))` -> [class names].
+    Empty list if `test` is not that shape or subject is not `subj`."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return []
+    args = test.get("args", [])
+    if len(args) != 2 or not _is_var(args[0], subj):
+        return []
+    tgt = args[1]
+    if isinstance(tgt, dict) and tgt.get("type") == "Var":
+        return [tgt.get("name")]
+    if isinstance(tgt, dict) and tgt.get("type") == "Tuple":
+        out = []
+        for e in tgt.get("elts", []):
+            if isinstance(e, dict) and e.get("type") == "Var":
+                out.append(e.get("name"))
+            else:
+                return []
+        return out
+    return []
+
+
+def recognize_term_isinstance_fold(func: Dict[str, Any],
+                                   spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the bool existence fold over the `term`
+    variant (the `contains_unsupported` shape). Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_isinstance_fold(func, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_isinstance_fold(func: Dict[str, Any],
+                                    spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if not (isinstance(body, list) and body):
+        return None
+    name = func.get("name")
+    ctor_set = set(spec["ctors"].keys())
+    arms: Dict[str, Any] = {}           # ctor -> retval IR
+    uses_list = False
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                    # trailing unreachable raise (total match)
+        if not (isinstance(st, dict) and st.get("stmt") == "If" and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        ibody = st.get("body", [])
+        if not (isinstance(ibody, list) and len(ibody) == 1
+                and isinstance(ibody[0], dict) and ibody[0].get("stmt") == "Return"):
+            raise _PVWBail()
+        retval = ibody[0].get("value")
+        # validate the retval is inside the fragment (raises _PVWBail if not);
+        # `uses_list` is set as a side effect.
+        marker = {"v": False}
+        _validate_term_retval(retval, subj, name, spec)
+        if _retval_uses_list(retval, subj, name):
+            uses_list = True
+        for c in classes:
+            if c in arms:
+                raise _PVWBail()        # a ctor matched twice
+            arms[c] = retval
+    # Totality: every constructor of the ADT must be covered.
+    if set(arms.keys()) != ctor_set:
+        raise _PVWBail()
+    return {"param": subj, "arms": arms, "uses_list": uses_list}
+
+
+def _retval_uses_list(node: Any, subj: str, selfname: str) -> bool:
+    if isinstance(node, dict):
+        if (node.get("type") == "Call" and node.get("func") == "any"):
+            return True
+        return any(_retval_uses_list(v, subj, selfname) for v in node.values())
+    if isinstance(node, list):
+        return any(_retval_uses_list(v, subj, selfname) for v in node)
+    return False
+
+
+def _validate_term_retval(node: Any, subj: str, selfname: str,
+                          spec: Dict[str, Any]) -> None:
+    """Raise _PVWBail unless `node` is in the bool-fold retval fragment:
+    Bool const | self(subj.F) | self(subj.A) or/and self(subj.B) |
+    any(self(x) for x in subj.F)."""
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "Bool":
+        return
+    if t == "BinOp" and node.get("op") in ("or", "and"):
+        _validate_term_retval(node.get("left"), subj, selfname, spec)
+        _validate_term_retval(node.get("right"), subj, selfname, spec)
+        return
+    if t == "Call" and node.get("func") == selfname:
+        args = node.get("args", [])
+        if len(args) == 1 and _is_term_field_read(args[0], subj):
+            return
+        raise _PVWBail()
+    if t == "Call" and node.get("func") == "any":
+        args = node.get("args", [])
+        if len(args) == 1 and isinstance(args[0], dict) and args[0].get("type") == "GenExp":
+            ge = args[0]
+            gens = ge.get("generators", [])
+            elt = ge.get("elt")
+            if (len(gens) == 1 and not gens[0].get("ifs")
+                    and isinstance(elt, dict) and elt.get("type") == "Call"
+                    and elt.get("func") == selfname):
+                eargs = elt.get("args", [])
+                tgt = gens[0].get("target")
+                it = gens[0].get("iter")
+                if (len(eargs) == 1 and _is_var(eargs[0], tgt)
+                        and _is_term_field_read(it, subj)):
+                    return
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _is_term_field_read(node: Any, subj: str) -> bool:
+    return (isinstance(node, dict) and node.get("type") == "Attribute"
+            and _is_var(node.get("object"), subj))
+
+
+def _term_field_of(node: Any) -> str:
+    return node.get("attr")
+
+
+def emit_term_isinstance_fold_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                    spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the bool existence fold over the `term` variant as a total positional
+    `match` (+ a `{n}__list` list helper when an `any(... for ... in t.F)` arm is
+    present). Structural `variant` — termination is Why3-intrinsic over the
+    certified inductive; NO new axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["param"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    out.append(f"  let rec function {n} (v_{subj}: term) : bool")
+    out.append(f"    variant {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        retval = arms[c]
+        used = _term_retval_fields(retval)
+        binders = []
+        for (fn, _wt) in fields:
+            binders.append(f"v_{fn}" if fn in used else "_")
+        pat = c + ("" if not binders else " " + " ".join(binders))
+        rhs = _emit_term_retval(retval, subj, n)
+        out.append(f"    | {pat} -> {rhs}")
+    out.append("    end")
+    if desc.get("uses_list"):
+        out.append(f"  with {n}__list (l: list term) : bool")
+        out.append("    variant { l }")
+        out.append(f"  = match l with Nil -> false"
+                   f" | Cons h t -> {n} h || {n}__list t end")
+    return out
+
+
+def _term_retval_fields(node: Any) -> set:
+    """Field names of the param read by this retval (to decide which positional
+    binders to name vs `_`)."""
+    out: set = set()
+
+    def walk(x):
+        if isinstance(x, dict):
+            if x.get("type") == "Attribute" and _is_var(x.get("object")):
+                out.add(x.get("attr"))
+            for v in x.values():
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(node)
+    return out
+
+
+def _emit_term_retval(node: Any, subj: str, n: str) -> str:
+    t = node.get("type")
+    if t == "Bool":
+        return "true" if node.get("value") else "false"
+    if t == "BinOp" and node.get("op") in ("or", "and"):
+        op = "||" if node.get("op") == "or" else "&&"
+        l = _emit_term_retval(node.get("left"), subj, n)
+        r = _emit_term_retval(node.get("right"), subj, n)
+        return f"({l}) {op} ({r})"
+    if t == "Call" and node.get("func") == "any":
+        ge = node.get("args")[0]
+        it = ge.get("generators")[0].get("iter")
+        return f"{n}__list v_{_term_field_of(it)}"
+    if t == "Call":                     # self(subj.F)
+        arg = node.get("args")[0]
+        return f"{n} v_{_term_field_of(arg)}"
+    raise _PVWBail()

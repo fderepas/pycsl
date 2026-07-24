@@ -2085,8 +2085,24 @@ class PreambleEmissionMixin:
         # `needs_list_ghost` so their emission stays byte-identical. Gated +
         # never set by the reference corpus (self-annotate-mirror-only) → byte-diff-0.
         needs_void_dispatch = any(recognize_void_dispatch(f) is not None for f in functions)
+        # class-variant-impl.md (driver-backlog item 3): the class-instance VARIANT
+        # ADT carrier — the proof2why3 `Term` union (isinstance-dispatch + named-field
+        # reads). Compute the `term` variant spec from the imported dataclass
+        # type_decls + the file's fold usage; store it so the theory (gated) + the
+        # dispatch both see the SAME spec. None (no term-fold) -> carrier off, corpus
+        # + every other mirror byte-identical.
+        from module6_whyml.generic_fold import (
+            compute_term_adt_spec, recognize_term_isinstance_fold)
+        self._term_adt_spec = compute_term_adt_spec(
+            functions, self.ir.get("type_decls", []))
+        needs_term = bool(self._term_adt_spec) and any(
+            recognize_term_isinstance_fold(f, self._term_adt_spec) is not None
+            for f in functions)
+        if not needs_term:
+            self._term_adt_spec = None
         return {
             "needs_pydict": needs_pydict,
+            "needs_term": needs_term,
             "needs_sdict": needs_sdict,
             "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
@@ -2260,6 +2276,14 @@ class PreambleEmissionMixin:
             # reference corpus → byte-diff-0.
             for _u in ("  use list.List", "  use option.Option", "  use string.String",
                        "  use map.Map", "  use map.Const", "  use bool.Bool"):
+                if _u not in out:
+                    out.append(_u)
+        if needs.get("needs_term"):
+            # class-variant-impl.md: the `term` variant's constructors carry
+            # `string` (Var/App/...), `list term` (App.args), `list string`
+            # (Forall.binders) — need string.String + list.List in scope. Idempotent
+            # guarded appends; a corpus file never sets `needs_term` -> byte-identical.
+            for _u in ("  use string.String", "  use list.List"):
                 if _u not in out:
                     out.append(_u)
         if self._uses_pyval():
@@ -2765,6 +2789,39 @@ class PreambleEmissionMixin:
             out.append(f"  {line}")
         return out
 
+    def _emit_term_theory(self, needs: Dict[str, Any]) -> List[str]:
+        """class-variant-impl.md (driver-backlog item 3): emit the `term` VARIANT
+        ADT (the proof2why3 `Term` union: Var|IntLit|BoolLit|App|BinOp|UnaryOp|
+        Forall|Exists|Unsupported) — the class-instance-variant carrier for
+        isinstance-dispatch + named-field reads. A `\trusted` walker
+        (`contains_unsupported`) lowers onto a total positional `match` over this
+        variant. The type is a plain inductive: constructors are DISTINCT +
+        INJECTIVE (Why3 intrinsic), recursion (`App string (list term)`,
+        `BinOp string term term`, ...) is structurally WELL-FOUNDED — co-landed
+        AXIOM-FREE with the Rocq `Phase2i_TermIR.v` / Lean `TermIR.lean`
+        certificate (ledger stays 3). Gated on `needs_term` -> the reference
+        corpus (which never imports the proof2why3 Term ADT into a term-fold) and
+        every other mirror emit byte-identical."""
+        spec = getattr(self, "_term_adt_spec", None)
+        if not needs.get("needs_term") or not spec:
+            return []
+        ctors = spec["ctors"]
+        order = spec["order"]
+        lines = [
+            "  (* ==== class-variant-impl.md: the proof2why3 `Term` union as a Why3"
+            " VARIANT (isinstance-dispatch + named-field carrier). Co-landed"
+            " axiom-free with the Rocq/Lean TermIR certificate; ledger 3. Gated on"
+            " `needs_term` -> corpus + every other mirror byte-identical. ==== *)",
+            "  type term =",
+        ]
+        for c in order:
+            tys = "".join(
+                (" (" + wt + ")") if " " in wt else (" " + wt)
+                for (_fn, wt) in ctors[c])
+            lines.append(f"    | {c}{tys}")
+        lines.append("")
+        return lines
+
     def _emit_pydict_theory(self, needs: Dict[str, Any]) -> List[str]:
         """WALL-PLAN v2 (generic-dict-str-any-2-plan.md §1 D1–D3, §2 E4, §3 F4):
         the concrete-map universal-value theory, promoted from the Phase-0 spike
@@ -2968,6 +3025,7 @@ class PreambleEmissionMixin:
         out += self._emit_preamble_exceptions(needs)
         out += self._emit_preamble_helpers(needs)
         out += self._emit_pydict_theory(needs)
+        out += self._emit_term_theory(needs)
         out += self._emit_preamble_no_exception_predicates(needs)
         # NOTE: `#@ proof` axioms are emitted by `transpile()` AFTER the type
         # declarations (not here) — an axiom may quantify over a user
