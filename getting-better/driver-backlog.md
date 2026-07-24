@@ -26,6 +26,36 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
      `_union_c8_test_references_union_var` (measured: ~1 stub; over-engineering-adjacent, do it only
      if item 1 is dry and nothing richer is ready).
 
+   **CENSUS + SPIKE DONE (2026-07-24, count 942) — CERTIFIED-BOUNDARY (3-features-for-1-stub + item-7
+   string-set dependency). ROI gate stops here.**
+   - STEP-0 census (lesson p): the subject-first + set-membership BOOL-existence-fold shape is EXACTLY
+     ONE stub. AST scan of every `\trusted` mirror stub with an `Any`-first + `set`/`Set[str]`-second
+     signature yields 7 candidates, but 6 are the WRONG algebra: `_collect_call_targets`,
+     `_hp_collect_written`, `_check_typeddict_access`, `_check_namedtuple_access` return `None` (void
+     collectors/checkers via `acc.add`/side-effect), `find_calls_in_ir` returns `Set` (set-builder),
+     `find_named_expr_targets` returns `None` (void). Only `_union_c8_test_references_union_var` is the
+     recursive bool existence fold with a set-membership leaf. **No cluster.**
+   - STEP-0 spike: ported the LIVE body VERBATIM into the mirror, `--no-proof --keep-mlw`. Current
+     recognizers do NOT fire — neither `recognize_type_existence` (subject is FIRST not LAST, carried
+     param is `set` not `str`) nor `recognize_named_field_existence` (2 params, not 1). It lowers to
+     `let rec function _union_c8_test_references_union_var (test: int) (union_vars: map int (option int))`
+     — `test` erased to `int`, discriminant `(typeof_op 448) = 4` reads a HASH CONSTANT (vacuous,
+     lesson l), set membership `Map.get union_vars (test_get_1 1878939832)` int-hashes the key, and the
+     `any(genexp)` lowers to `_any_fold_59885` referencing a FREE unbound `union_vars` (L3-tc FAILS).
+   - Feature count to convert non-vacuously (references `test` AND `union_vars`, real string-keyed
+     membership, no int-hash): **≥3 genuinely-new recognizer features** — (F1) subject-FIRST param
+     ordering (`recognize_type_existence` hard-codes `subj = params[-1]`); (F2) a `set`-typed carried
+     param (the carried handling requires each leading param annotated `str`, declared `(c: string)`);
+     (F3) a set-membership leaf discriminant `<subj>.get("<k>") in <set param>` (a new matcher + a new
+     emit arm) — PLUS (F4) to be non-vacuous the membership needs a STRING-KEYED set (bare `set` →
+     `map int (option int)`, int-hash = lesson l), which is exactly item 7's session-scale
+     string-keyed-set model (already CERTIFIED-BOUNDARY 2026-07-24). So even a full F1–F3 recognizer
+     build stays VACUOUS until item 7 lands. 3 recognizer features + a session-scale dependency, for 1
+     stub, no cluster ⇒ ROI-gate STOP (§10c, lesson q refutation-exit).
+   - REOPEN: only worthwhile if item 7's string-keyed-set model lands FIRST (then F4 is free), AND a
+     future shape-census surfaces a ≥3-stub cluster sharing the subject-first + set-membership
+     existence-fold shape. Until then this is a lone marker behind a session-scale wall — leave-trusted.
+
 3. **The structure-returning `Any`-walker class (session-scale, the big remaining vein).** The mirror
    is dominated by walkers that RETURN a string/dict/list (`_expr_to_whyml`, `_to_bool`, the
    `_build_method_*_ensures_map` family, the `visit_X` unparse family) rather than a bool. The
