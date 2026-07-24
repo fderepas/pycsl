@@ -708,3 +708,6 @@ the build will convert. The decisive spike for these is the RECOGNIZER falsifier
 lower the VERBATIM body's idiom?), run BEFORE the cert/emitter build, because the cert is the easy
 part. Bank the proven model+cert as reusable oracles, record the recognizer blocker, and do not
 build cert+emitter infra that has no converting consumer (no-dead-infra).**
+
+### (i,k,g,j,m) CARVED into skill §10c (2026-07-24, item-8)
+The five flagged judgment-call lessons — (i) dead-gate=disabled, (k) byte-diff population, (g) two SMT facts, (j) count-a-gate-skips, (m) never-commit-proof-artifacts + canonical-count — are now base-loop RULES in `self-tcb-reduction/SKILL.md` §10c items 16-20 (they were mistakes made >1x, so they bind future runs, not just document past ones). No longer "awaiting user decision".

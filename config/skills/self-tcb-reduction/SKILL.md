@@ -347,6 +347,40 @@ protocol so they bind future runs, not just document past ones.
     never a convenience narrowing to dodge an unproved goal, and the class invariant must never be
     strengthened beyond what the live code actually maintains.
 
+### 10c — operational carve-outs (runs #6–#8; the recurring gate/measurement traps)
+
+These five are ledger lessons (i,k,g,j',m) about HOW to run the gates, carved here because each is a
+mistake made MORE THAN ONCE and each is a rule, not a per-wall finding.
+
+16. **A permanently-red gate is a DISABLED gate, not a conservative one (wall-lesson (i)).** A gate that is
+    always red fires no new signal and every actor learns to skip it — that is how a real drift hid for
+    months behind `check-self-annotate-sync.sh`. Either fix a red gate (make it green on the known-good
+    tree) or explicitly retire it from the battery; never leave it red "to be safe". Corollary (j'): when a
+    gate SKIPS a case "by design" (`if name not in live: continue`), COUNT the skips and look at them — that
+    is exactly where a fabricated/erased body hides; a skip is an assumption until the census checks it.
+
+17. **A "no differences" gate is meaningless without its POPULATION count (wall-lesson (k)).** `byte-diff-
+    sweep.sh` over a detached worktree emitted ZERO files (a worktree has no `.venv`) and `diff` of two empty
+    dirs returned 0 — a perfect false green on the most important gate for a `src/pycsl` change. ALWAYS read
+    the `emitted N` line and assert N == the corpus size (currently 784) on BOTH sides; symlink the repo
+    `.venv` into any worktree first. A pass condition of "found nothing" must separately prove it looked.
+
+18. **CANONICAL count is `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l`** — the
+    raw `grep -h '\trusted'` (≈+29) counts docstring mentions and is WRONG. THREE sub-agents miscounted this
+    ("972"/"971"); every count claim uses the `#@ \trusted` form.
+
+19. **Two SMT/emitter facts to reuse (wall-lesson (g)).** (a) **Alt-Ergo cannot prove string disequality**
+    (`"A" <> "B"`); z3 can — every gate for a string-distinctness goal must be z3-inclusive, and a "hard"
+    goal under Alt-Ergo-alone is often just this. (b) A Python `bool` lowers to `int`, so `\result == True`
+    is VACUOUS (`o <> 0` always); write `\result != False ==> …`.
+
+20. **NEVER commit proof-assistant build artifacts (wall-lesson (m)).** Git does not preserve mtimes, so a
+    tracked `.vo`/`.olean` is a STALE certificate that `make` trusts over its own source — the trust-anchor
+    analogue of proving a stale mirror. The in-repo Rocq `make` is currently broken by exactly this; verify
+    a certificate by a CLEAN scratch build (`rm` all artifacts, `make`, `Print Assumptions`). When a proof
+    build fails, test the CLEAN build before concluding the proofs are broken — usually only the artifacts
+    are rotten.
+
 ## 11. LOOP ENTRY — the campaign is CLOSED; the loop ASKS before working (do NOT auto-run)
 
 The tier-1/2/3 ADT campaign is closed at count **1240** (§10). There is **no auto-run backlog.** When
