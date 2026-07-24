@@ -45,7 +45,6 @@ class App:
     'N-ary application `head arg0 arg1 …`.'
     head: str
     args: Tuple['Term', ...]
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
