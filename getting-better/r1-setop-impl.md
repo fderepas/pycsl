@@ -51,3 +51,52 @@ faithfulness fix + any stubs a string-keyed-set census unblocks.
 
 Refutation exit at any increment that cascades unboundably or breaks a corpus program unfixably →
 record the exact blocker + how far it got, revert THAT increment clean, keep the landed ones.
+
+## RESULTS — run 1 (2026-07-24): I0 ✓, I1 LANDED (352576ae), I2 LANDED (0e2c5ab9). count 942, drift 2, ledger 3.
+
+**I0 SPIKE — seed reproduces.** `def add_it(s: Set[str], x: str): s.add(x)` `#@ ensures x in s` →
+`ref (map string (option int))`, L3-tc ✓, proof **Valid / SUCCESS**. Ground-truth finding: the set-ops
+were ALREADY string-key-aware — Module5's usage-based κ inference (`_tag_str_keyed`, on `.add`/membership
+with a provably-`str` key) tags the param κ=string, and the `.add`/membership handlers (cleared-hash S5)
+already emit the RAW string key. The ONLY bug was the TYPE PLANE (`_emit_param` hard-coded `map int`), a
+`map int` vs raw-string-key mismatch. So I1 = ONE edit (`_emit_param`), not four.
+
+**I1 LANDED (byte-inert, fixture 0940).** `_emit_param` set branch consults `_dict_key_types`;
+**GATED ON `_mut_coll`** → only a BY-REF set param → `ref (map string (option int))`.
+- Seed edits (b),(c),(d) REFUTED:
+  - **(d) annotation-pin BREAKS 0884** — the `\nothing` frame-negative's `acc.add(node["target"])` adds an
+    `Any`-erased (int) value; pinning κ=string from the `Set[str]` annotation would put an `int` into a
+    `map string` → 0884 fails to typecheck instead of staying unproven. Usage-inference (only tags a
+    provably-`str` key) is the correct, safe signal; the annotation over-approximates.
+  - **`_mut_coll` gate is REQUIRED, not optional.** A METHOD's set param is excluded from by-ref promotion
+    (`_seed_mutated_collection_params` skips methods), so its `.add` lowers to the sound `()` NO-OP (this is
+    exactly why `_emit_new_ghost_ref` is the I5 de-vacuify target). But usage-inference STILL tags its params
+    κ=string. Un-gated, `_emit_param` emitted `map string` for `_emit_new_ghost_ref`'s `local_refs`/`declared_refs`,
+    which forward to the sibling `val` bridge `_stmts_to_whyml` (still `map int`) → **statements.py whole-file
+    L3-tc: base GREEN → head RED** (measured WITH `--import-path`; the standalone run masks this behind a
+    missing-import artifact). Gating on `_mut_coll` keeps method set params `map int` → statements.py stays green.
+  - (b),(c) [cross-method param maps] dropped: a method set-param's abstract `val` (map string) would then
+    mismatch its own `let` definition (map int, `_mut_coll`-gated) — same coupling.
+- **Result: fully byte-inert (corpus 786/786 diff 0, mirror 52/52 diff 0).** The by-ref-`Set[str]` capability
+  has no existing corpus/mirror consumer (all corpus set params are `Set[int]` or `Any`-erased; mirror set
+  params are method params) → witnessed by fixture 0940 (string twin of 0833).
+
+**I2 LANDED (byte-inert, fixture 0941).** Real, all-users bug (measured): a `Set[str]` FIELD is `map string`
+(field_key_types), its `.add`/membership use the raw key, but set-UNION `self.s | {x}` `str_hash_op`-hashed
+the element (`int`) → type error indexing the `map string` field. Fix: `_set_union_left_is_strfield` gates the
+raw-string union key on the left operand being a κ=string dict/set FIELD; a Var (method set param/local, `map
+int`) keeps `str_hash_op` (byte-identical: mirror `local_refs | {target}` / `declared_refs.copy() | {target}`).
+Membership/`.add`/`.discard` needed NO change (already raw-string, S5). Fixture 0941 (union presence + DISTINCT
+"c" absence — needs the injective key str_hash can't give) proves Valid; anti-facade mutation test PASS.
+
+## BLOCKERS carried forward (for I3–I6)
+- **I4 (cross-method κ=string bridge fixpoint) is a PREREQUISITE, not a follow-on.** I1's `_mut_coll` gate is a
+  WORKAROUND: a method's `Set[str]` param cannot become `map string` until every sibling `val` bridge it is
+  forwarded to (`_stmts_to_whyml`, …) also becomes `map string`, propagated as a FIXPOINT over the self-method
+  call graph (the `_build_func_mutated_collection_params` shape). Until then, method set params stay `map int`
+  and the de-vacuify (I5) of `_emit_new_ghost_ref` (whose `.add` is a no-op precisely because it is a non-by-ref
+  method param) is UNREACHABLE — I5 depends on I4 lifting the method by-ref exclusion AND the bridge fixpoint.
+- **I2 residual:** `.copy()`-of-a-string-FIELD union (`self.s.copy() | {x}`) is blocked upstream on `.copy()`
+  field-read modeling (`get_s self` mistypes independently of the string key) — NOT a string-key gap.
+- **A by-ref `Set[str]` param union `| {x}`** is unreachable: the union branch is `@mutable_state`-gated and
+  standalone functions (where by-ref params live) are not `@mutable_state`. Needs I5 (method by-ref promotion).
