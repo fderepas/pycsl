@@ -17,12 +17,52 @@ _PREC_MUL = 6
 _PREC_APP = 7
 _PREC_ATOM = 8
 _BINOP_PREC = {'->': _PREC_ARROW, '\\/': _PREC_OR, '/\\': _PREC_AND, '=': _PREC_CMP, '>': _PREC_CMP, '>=': _PREC_CMP, '<': _PREC_CMP, '<=': _PREC_CMP, '<>': _PREC_CMP, '!=': _PREC_CMP, '+': _PREC_ADD, '-': _PREC_ADD, '*': _PREC_MUL}
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _pp(t: Term, parent_prec: int) -> str:
-    return ""
+    """Pretty-print `t` inside a context whose minimum-required
+    precedence is `parent_prec`. Wraps with parens if our own
+    precedence is strictly less than the parent's."""
+    if isinstance(t, Var):
+        return t.name
+    if isinstance(t, IntLit):
+        return str(t.value)
+    if isinstance(t, BoolLit):
+        return "true" if t.value else "false"
+    if isinstance(t, Unsupported):
+        return f"<<UNSUPPORTED:{t.reason}>>"
+    if isinstance(t, Forall):
+        binders = " ".join(t.binders)
+        body = _pp(t.body, _PREC_TOP)
+        s = f"forall {binders} : {t.ty}. {body}"
+        return f"({s})" if parent_prec > _PREC_TOP else s
+    if isinstance(t, Exists):
+        binders = " ".join(t.binders)
+        body = _pp(t.body, _PREC_TOP)
+        s = f"exists {binders} : {t.ty}. {body}"
+        return f"({s})" if parent_prec > _PREC_TOP else s
+    if isinstance(t, BinOp):
+        op_prec = _BINOP_PREC.get(t.op, _PREC_CMP)
+        if t.op == "->":
+            lhs = _pp(t.lhs, op_prec + 1)
+            rhs = _pp(t.rhs, op_prec)
+        else:
+            lhs = _pp(t.lhs, op_prec)
+            rhs = _pp(t.rhs, op_prec + 1)
+        s = f"{lhs} {t.op} {rhs}"
+        return f"({s})" if parent_prec > op_prec else s
+    if isinstance(t, UnaryOp):
+        arg = _pp(t.arg, _PREC_ATOM)
+        s = f"{t.op} {arg}"
+        return f"({s})" if parent_prec > _PREC_MUL else s
+    if isinstance(t, App):
+        if not t.args:
+            return t.head
+        args_s = " ".join(_pp(a, _PREC_ATOM) for a in t.args)
+        s = f"{t.head} {args_s}"
+        return f"({s})" if parent_prec > _PREC_APP else s
+    raise TypeError(f"_pp: unknown term type {type(t)}")
 
 #@ requires True
 #@ ensures True
