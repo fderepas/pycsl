@@ -161,6 +161,54 @@ resolution — either a `let rec … with` mutual-group emission from the per-fu
 dependency-order emission. Both are bounded (no 4th axiom, Why3 accepts the carrier) but distinct
 builds. The List carrier is the reusable foundation; C1b is the next increment when authorized.
 
+## §OUTCOME-C1b — 2026-07-24 driver run: C1b BUILT + 3 conversions (939 → 936)
+
+**Verdict: C1b is BUILT and converts ALL 3 remaining C1 stubs (`_walk_kername`,
+`_find_kername_components`, `_full_const_path`). Count 939 → 936. Ledger 3 (no new axiom).**
+
+### GATE-S census — CORRECTION to the C1b premise
+The residual predicted a `let rec … with` MUTUAL group for a forward-reference/mutual-recursion
+wall. The census found the cluster is a **DAG**, not a mutual-recursion cycle:
+`_find_kername_components`→`_walk_kername`→`_walk_modpath` (each self-recursive), `_full_const_path`
+→`_find_kername_components`. No back-edge between distinct functions ⇒ each is its own SCC. The
+EXISTING SCC topological ordering (`scc.py`, callees-before-callers, driven by `find_calls_in_ir`
+body edges) ALREADY emits `_walk_modpath` before `_walk_kername` etc., so **no mutual-group emission
+is needed** — the real blockers were (i) cross-function sibling-walker CALLS in the walker fragment,
+and (ii) for `_find_kername_components`, a SEARCH-loop shape (self-call on a spine ELEMENT, not
+`p[i]`). Reachable sub-cluster size = **3** (all, sequenced by the DAG dependency).
+
+### What was BUILT (two carriers, both in `src/pycsl`, ledger 3)
+- **Cross-call carrier** (`_pvl_listexpr` sibling case + `recognize_pyval_list_walker(func,
+  sibling_walkers)` + `compute_pyval_list_walker_names` fixpoint + Module6 wiring + `functions.py`
+  dispatch). A walker may call a sibling recognized `pyval`→`list string` walker; SCC ordering places
+  the callee first. Converts `_walk_kername` (cross-calls `_walk_modpath`) ALONE.
+- **Search catamorphism** (`recognize_pyval_list_search` / `emit_pyval_list_search_group`) — the
+  `_find_kername_components` tree-search shape emitted as the certified mutual
+  `let rec {n}(v) variant { pv_size v } with {n}__list(l) variant { size_list l }` (the
+  `emit_bool_multiway_group` precedent). Cross-decreasing structural measures discharge termination
+  AUTOMATICALLY — **spike: 24 VCs Valid under Alt-Ergo, 0 non-valid, NO new axiom**. Plus the C1
+  Return handler generalized to `return <listexpr>` (a cross-call) for `_full_const_path`.
+
+### Gate battery (driver-verified fresh, per conversion)
+- count 939 → **936** (`_walk_kername` 938, `_find_kername_components` 937, `_full_const_path` 936);
+  ledger **3** (projectors/list-ops DEFINED; search-group termination is the certified pyval
+  `pv_size`/`size_list` cross-variant; no cert/allowlist/formal-semantics touched).
+- `--fun` each **SUCCESS**; **whole-file** `from_sexp.py` proof **SUCCESS** (Valid); L3-tc ✓.
+- **MUTATION TEST** (decisive) on both new emitters: `"KerName"`→`"KerZZZZ"`/`"KerQQQQ"` in the body
+  changes the emitted `.mlw`'s `pystr_eq … "…"`. Non-facade (no int-hash/oracle to hide behind).
+- **corpus byte-diff 0** (790 common == 790, detached-HEAD baseline; only the NEW fixtures 0944/0945
+  are mine-only). Both carriers fire ONLY on the exact shapes → byte-inert on real programs.
+- mirror-check **52/52**; drift **2 == HEAD** (both new bodies verbatim = in sync; the 2 pre-existing
+  `_handle_var_expr`/`_handle_for_stmt` still-blocked).
+- vacuity `--emit from_sexp` exit 0: 0 input-blind, no NEW erasure (both read their params).
+- fixtures (`git add -f`): `0944_pyval_list_walker_crosscall.py` (cross-call witness),
+  `0945_pyval_list_search.py` (search-catamorphism witness) — both PROVE (regression locks).
+
+### §RESIDUAL-after-C1b — the from_sexp cluster remaining ([COST], C2/C3)
+`_const_name` / `_ind_short_name` = C2 (call the `List[str]` helper + index `[-1]` neg-from-end;
+their return is `Optional[str]` not `List[str]`). `_construct_indices` / `_find_construct_idx` /
+`_flatten_tuples` = C3 (tuple/int result algebras). Bounded, distinct builds; not this run.
+
 ## §RESIDUAL — the rest of the from_sexp cluster ([COST/SCALE], carriers enumerated)
 The walker CURRENTLY reaches exactly `_binder_name` (self-contained `Optional[str]` fold). The other
 6 need distinct, still-unbuilt carriers (each a real feature, not a facade):
