@@ -8,12 +8,23 @@ the source. The mirror-check gate enforces signature parity.
 from __future__ import annotations
 from typing import Any, List, Optional, Tuple
 from proof2why3.ir import App, BinOp, BoolLit, Forall, IntLit, Term, UnaryOp, Unsupported, Var
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _walk_kername(kn: Any) -> List[str]:
-    return []
+    """Walk a (KerName MPfile/MPdot ... (Id NAME)) tree and return the
+    full dotted-path components as a list of strings."""
+    out: List[str] = []
+    if not isinstance(kn, tuple):
+        return out
+    if kn and kn[0] == "KerName":
+        if len(kn) >= 3:
+            mp = kn[1]
+            iid = kn[2]
+            out.extend(_walk_modpath(mp))
+            if isinstance(iid, tuple) and iid[0] == "Id" and len(iid) >= 2:
+                out.append(iid[1])
+    return out
 
 #@ requires True
 #@ ensures True
