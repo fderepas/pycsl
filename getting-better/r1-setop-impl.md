@@ -188,6 +188,52 @@ cross-mixin getattr, κ=string unrecognized) and/or carry unrelated value-model 
 faithfulness fix, count-neutral; I4 CERTIFIED-BOUNDARY; I5 de-vacuify unreachable behind I4; I6 no count
 movement.** No stub converted, tree clean, count 942, drift 2, ledger 3.
 
+## RESULTS — run 3 (2026-07-24): I4 REOPENED + BUILT. count 942 → **941** (1 conversion). drift 2, ledger 3.
+
+The driver reopened I4 (cross-mixin field-key propagation) as a Full-authorized COST/SCALE item.
+**GATE S spike PASSED** (branch: build the reachable subset). The build is NOT the session-scale
+`local_refs`/`declared_refs` fixpoint I4 originally scoped — that stays CERTIFIED-BOUNDARY. The
+reachable cross-mixin case is realized **MIRROR-ONLY, no src/pycsl edit**:
+
+- **The propagation mechanism ALREADY EXISTS.** `_self_field_dict_kappa` (expressions.py) reads
+  `field_key_types` from `_record_types[self._current_self_type]`, and the membership handler
+  (expressions.py L985) consults it. A cross-mixin field lowers string-keyed as soon as the SIBLING
+  mixin class DECLARES it — the exact pattern the mirror already uses for `_array_locals`/`_dict_locals`
+  (`_array_locals: Set[str] = None`). I6 missed this: it ported the body WITHOUT the class annotations,
+  so the field stayed an opaque `getattr_typeinferencemixin self <hash>` (int-hash, vacuous).
+- **I6's "f-string-of-int wall" does NOT exist.** `f"tuple{self._ghost_tuple_vars[target]}"` lowers
+  faithfully to `str_concat_op "tuple" (int_to_string (Map.get self._ghost_tuple_vars target …))`.
+  `int_to_string` is a `val` abstract op (uninterpreted, ledger-neutral), already used across the mirror.
+
+**CONVERTED: `_resolve_effective_ghost_type` (types.py, `TypeInferenceMixin`).** Added five class-level
+annotations (`_ghost_{list,set,dict,string}_vars: Set[str]`, `_ghost_tuple_vars: Dict[str,int]`) +
+ported the body VERBATIM. Emission: every membership `target in self._ghost_*_vars` →
+`match Map.get (self._ghost_*_vars) (target) with Some _ -> true | None -> false end` (RAW string key,
+non-vacuous); all three params referenced. GATES (fresh): `--fun` SUCCESS; whole-file `types.py` proof
+SUCCESS 0-unproven (uncapped, ~4min); mirror-check 52/52; vacuity `--emit` exit 0 (no new erasure);
+sync drift 2 (unchanged — verbatim port, the 2 known residuals only); corpus byte-inert (mirror-only);
+ledger 3. **commit ef753230.**
+
+**REACHABLE SUBSET = 1 of 19.** The other 18 carry walls ORTHOGONAL to the mixin boundary (so the
+propagation alone does not free them) — classify each `[CORRECTNESS]`:
+- `_expr_to_whyml_string_ctx` (expressions.py) — recursive `Dict[str,Any]` expr-walker + `_expr_to_whyml`
+  sibling recursion (generic-Any tree-transform wall, §10.3).
+- `_field_type_for`/`_field_type_of`/`_call_return_whyml_type` (types.py) — `_record_types.values()`
+  `Dict[str,Any]` iteration + nested `.get("field_types",{}).get(field)` reads, plus `rpartition(".")`/
+  `.lower()` string ops. The Dict[str,Any] `.values()` walker wall + runtime-string-ops wall.
+- `_maybe_emit_no_exception_assert`/`_wrap_call_with_callee_raises_assert` (Module6_WhyMLTranspiler.py) —
+  in-body `from exception_model import …`, `.format(*operands)`, list-of-dict `raises` iteration, sibling
+  `_render_callee_condition`.
+- `_emit_uncited_axiom_func_decls` (preamble.py) — `.split()`, `List[str]` accumulate/return, dict iter.
+- `.add`/`.discard` writers (`_handle_ghost_assign_stmt` 97L, `_reset_function_state` 290L, stmt_control_flow
+  `_pyast_stmt_locals`/`_tparam_locals` writers) — giant handlers needing real (non-`\nothing`) frames.
+
+**Verdict.** SPIKE PASSED for the 1 clean stub (the mixin boundary WAS its only blocker); the remaining 18
+are `[CORRECTNESS]` value-model boundaries (Dict[str,Any] walker / string-op / mutator-frame), not the
+`[COST/SCALE]` mixin boundary. R1 I4 partially opened: the cross-mixin field-key recognition is a real,
+byte-inert, count-moving capability — but its reach is stubs whose ONLY wall is the missing field
+declaration, and there is exactly one such stub. count 941, drift 2, ledger 3.
+
 ### Backlog (what an authorized I4 build would need, in order)
 - A SOUND cluster-wide κ inference that tags a FORWARDED param κ=string from the callee's tagged slot
   (propagate κ backward across the 81 call edges), REPLACING annotation-pinning — must handle the

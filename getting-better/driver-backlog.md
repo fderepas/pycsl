@@ -339,10 +339,17 @@ When you record a CERTIFIED-BOUNDARY, TAG it `[CORRECTNESS]` or `[COST/SCALE]` a
 capability, so the stop-classification is mechanical, not a judgment call.
 
 ### Live COST/SCALE reopening capabilities (Full-authorized — BUILD these before any early stop)
-- **R1 I4 — cross-mixin/method κ=string fixpoint.** Propagate `field_key_types`/param string-keying across
-  the mixin boundary (the sibling-mixin `getattr` that currently int-hashes) and the expr↔stmt call graph.
-  Unblocks R1's de-vacuify (I5) AND I6's 19 `Set[str]`-field stubs. Cost: 44 methods / 81 sites / cyclic —
-  session-scale, count-POSITIVE. This is the highest-value live build.
+- **R1 I4 — cross-mixin/method κ=string fixpoint. PARTIALLY BUILT 2026-07-24 (count 942 → 941, commit
+  ef753230).** The FIELD half is realized MIRROR-ONLY: a sibling mixin that reads an owning-mixin `Set[str]`
+  field just DECLARES it as a class-level annotation (the existing `_array_locals: Set[str] = None` pattern)
+  → `_self_field_dict_kappa` recognizes it string-keyed, membership lowers to the raw key, non-vacuous. NO
+  src/pycsl edit; byte-inert. Converted `_resolve_effective_ghost_type` (types.py). REACHABLE SUBSET = 1 of
+  19: the other 18 carry independent `[CORRECTNESS]` walls (Dict[str,Any] `.values()` iteration, `rpartition`/
+  `.lower`/`.split`/`.format` string ops, in-body imports, `List[str]` returns, `.add`/`.discard` mutator
+  frames) that the field recognition does not touch. I6's claimed "f-string-of-int wall" was refuted
+  (`int_to_string` handles it). The PARAM/method half (`local_refs`/`declared_refs`, 44 methods/81 sites/
+  cyclic, expr↔stmt mutual recursion) + I5 de-vacuify STAY CERTIFIED-BOUNDARY — session-scale, no consistent
+  sound κ signal. See `r1-setop-impl.md` run 3.
 - **sexp recognizer** — the 3 `from_sexp` tuple/sexp-carrier stubs; cert + value oracle banked in
   `getting-better/sexp-carrier-oracles/`. Reassess the "net −3" as a genuine VALUE refutation (does it grow
   the trusted SURFACE, §10.7?) vs a mere marker-count artifact before deprioritizing.
