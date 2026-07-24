@@ -2803,6 +2803,19 @@ class FunctionEmissionMixin:
                 getattr(self, "_term_pp_mc", {}))
             if _tpw is not None:
                 return emit_term_pp_wrapper_group(func, _tpw, whyml_ident)
+            # class-variant-impl.md §OUTCOME-TS RESIDUAL: the RECORD⇄VARIANT BRIDGE
+            # for the 5 ir.py per-class `.pp` methods. A converted (non-`\trusted`)
+            # pp method delegates `<cls>__pp (self: <rec>) = pp_term (<Ctor>
+            # self.<f>...)` to the synthesized unified `pp_term` catamorphism
+            # (emitted once, before the first delegation). `\trusted` pp methods
+            # never reach here (they emit `val`), so the 5 targets convert one per
+            # commit as their `\trusted` is removed. Fail-closed via the family
+            # recognizer (needs-scan): a body outside the fragment -> family off.
+            _fam = getattr(self, "_term_pp_family", None)
+            if (_fam and not func.get("trusted", False)
+                    and func.get("name") in _fam.get("method_names", set())):
+                return self._emit_term_pp_delegation(
+                    func, _fam, _tspec, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)
@@ -3279,6 +3292,40 @@ class FunctionEmissionMixin:
             lines += self._emit_union_arm_vc(name, _symtab)
         if _pos_in_scc == _scc_size - 1:
             lines.append("")
+        return lines
+
+    def _emit_term_pp_delegation(self, func, fam, spec, whyml_ident) -> List[str]:
+        """class-variant-impl.md §OUTCOME-TS RESIDUAL (record⇄variant bridge, part c):
+        emit a converted per-class `.pp` method as a record→variant injection +
+        delegation: `let <cls>__pp (self: <rec>) : string = pp_term (<Ctor>
+        self.<f1> self.<f2> ...)` (ctor args in spec/variant order, `self.<label>`
+        via `_field_label`). The shared `pp_term` catamorphism is emitted ONCE,
+        before the first delegation (flag `_pp_term_emitted`). NO axiom (ledger 3)."""
+        from module6_whyml.generic_fold import emit_pp_term_helper
+        cls = func["self_type"]                       # e.g. "App"
+        recname = whyml_ident(cls.lower())            # e.g. "app"
+        fname = whyml_ident(func["name"])             # e.g. "app__pp"
+        spec_fields = spec["ctors"][cls]              # [(head, string), (args, list term)]
+        ctor_args = " ".join(
+            f"self.{self._field_label(recname, fn)}" for (fn, _wt) in spec_fields)
+        inject = f"{cls} {ctor_args}" if ctor_args else cls
+        lines: List[str] = []
+        if not getattr(self, "_pp_term_emitted", False):
+            # Register the string-build abstract `val`s `pp_term` uses (dedup-identical
+            # where a leaf pp method already registered them via `str()`/f-string
+            # lowering — e.g. ir.py's intlit__pp/unsupported__pp).
+            if fam.get("uses_strconcat"):
+                self._add_abstract_op(
+                    "val str_concat_op (a: string) (b: string) : string\n"
+                    "    ensures { result = (concat a b) }\n"
+                    "    ensures { String.length result = String.length a + String.length b }")
+            if fam.get("uses_strofint"):
+                self._add_abstract_op("val str_of_int (x: int) : string")
+            lines += emit_pp_term_helper(fam, spec)
+            self._pp_term_emitted = True
+        lines.append(f"  let {fname} (self: {recname}) : string")
+        lines.append("    requires { true } ensures { true }")
+        lines.append(f"  = pp_term ({inject})")
         return lines
 
     def _emit_subtyping_goals(self, functions: List[Dict[str, Any]]) -> List[str]:

@@ -2095,7 +2095,8 @@ class PreambleEmissionMixin:
             compute_term_adt_spec, recognize_term_isinstance_fold,
             recognize_term_isinstance_transform,
             recognize_term_list_build, recognize_term_flatten_arrow,
-            recognize_term_free_vars, recognize_term_string_pp)
+            recognize_term_free_vars, recognize_term_string_pp,
+            recognize_term_pp_methods)
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)
@@ -2127,6 +2128,26 @@ class PreambleEmissionMixin:
         # (string concat) + `str_of_int` (IntLit `str()`). Gate their declaration
         # in the term theory (emit_why3.py's other functions don't pull them).
         needs_term_strbuild = any(d is not None for d in _term_pps)
+        # class-variant-impl.md §OUTCOME-TS RESIDUAL: the RECORD⇄VARIANT BRIDGE
+        # for the 5 ir.py per-class `.pp` METHODS. The family is recognized as a
+        # WHOLE (every ctor's pp body parses into a string-build arm), synthesizing
+        # a unified `pp_term : term -> string`. Sets needs_term (same certified
+        # inductive) + the ctor-class set the record-field-type override consults.
+        # `pp_term` uses the leaf pp methods' existing abstract `val`s
+        # (str_concat_op/str_of_int) which sit after `type term` -> no strbuild flag.
+        self._term_pp_family = recognize_term_pp_methods(
+            functions, self._term_adt_spec)
+        self._term_pp_method_classes = (
+            set(self._term_pp_family["classes"]) if self._term_pp_family else set())
+        # the record-field-type override applies ONLY to classes whose pp method is
+        # CONVERTED (delegates) in THIS file -> a file that imports the pp methods as
+        # `\trusted` vals keeps its records byte-identical.
+        self._term_pp_convert_classes = (
+            set(self._term_pp_family["convert_classes"])
+            if self._term_pp_family else set())
+        # `pp_term` is emitted ONCE (before the first per-class delegation); the
+        # flag resets here per file.
+        self._pp_term_emitted = False
         # class-variant-impl.md §OUTCOME-TL: the T-set/list LEAF algebras
         # (`mk_arrow_chain` list-fold builder, `flatten_arrow_chain` while-spine
         # tuple return) also set needs_term — same certified `term` inductive.
@@ -2139,7 +2160,8 @@ class PreambleEmissionMixin:
                    for f in functions)
             or any(recognize_term_free_vars(f, self._term_adt_spec) is not None
                    for f in functions)
-            or any(d is not None for d in _term_pps))
+            or any(d is not None for d in _term_pps)
+            or self._term_pp_family is not None)
         # §OUTCOME-TL: the `free_vars` set-fold needs `use bool.Bool` (orb/andb/notb
         # in `set_union`/`set_diff`). Gate it narrowly so needs_term files WITHOUT a
         # set-fold (emit_why3.py, canonical.py) stay byte-identical.
@@ -2153,6 +2175,9 @@ class PreambleEmissionMixin:
             self._term_const_dicts = {}
             self._term_const_int_dicts = {}
             self._term_pp_names = set()
+            self._term_pp_family = None
+            self._term_pp_method_classes = set()
+            self._term_pp_convert_classes = set()
             needs_term_streq = False
             needs_term_setfold = False
             needs_term_strbuild = False
@@ -2869,6 +2894,26 @@ class PreambleEmissionMixin:
         for line in predicate_definitions():
             out.append(f"  {line}")
         return out
+
+    def _term_pp_field_override(self, cls: Optional[str],
+                                field: Optional[str]) -> Optional[str]:
+        """class-variant-impl.md §OUTCOME-TS RESIDUAL (record⇄variant bridge, part a):
+        for a term-ctor dataclass whose `.pp` family is recognized, override a
+        RECURSIVE field's record type to the VARIANT field type (`term` / `list
+        term` / `list string`) so the record→variant injection `pp_term (<Ctor>
+        self.<f>...)` typechecks. Only the recursive/variant fields are overridden
+        (scalar `string`/`int`/`bool` fields keep the emitter's default computation,
+        so `boollit_value: int` etc stay byte-identical). Returns the WhyML type or
+        None (no override). Gated on the pp family present (only ir.py) -> corpus +
+        every other term mirror byte-identical."""
+        classes = getattr(self, "_term_pp_convert_classes", None)
+        spec = getattr(self, "_term_adt_spec", None)
+        if not classes or not spec or cls not in classes:
+            return None
+        wt = dict(spec.get("ctors", {}).get(cls, [])).get(field)
+        if wt in ("term", "list term", "list string"):
+            return wt
+        return None
 
     def _emit_term_theory(self, needs: Dict[str, Any]) -> List[str]:
         """class-variant-impl.md (driver-backlog item 3): emit the `term` VARIANT
@@ -5961,6 +6006,17 @@ class PreambleEmissionMixin:
                     f = fields[j]
                     prefix = "" if _list_elem_pure else (
                         "mutable " if f.get("mutable") else "")
+                    # class-variant-impl.md §OUTCOME-TS RESIDUAL (record⇄variant
+                    # bridge, part a): a recognized term-ctor's recursive field
+                    # emits the VARIANT field type (`list term`/`term`/`list string`)
+                    # so the record→variant injection typechecks. Gated on the pp
+                    # family (ir.py only) -> corpus + other mirrors byte-identical.
+                    _tpp = self._term_pp_field_override(td.get("name"), f.get("name"))
+                    if _tpp is not None:
+                        field_strs.append(
+                            f"{prefix}{self._field_label(type_name, f['name'])}: {_tpp}")
+                        j += 1
+                        continue
                     ftype = f['type']
                     # Map Python-level type tags to WhyML types.
                     # `set`/`dict`/`frozenset` → `map int (option int)`

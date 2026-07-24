@@ -9159,3 +9159,420 @@ def emit_term_string_pp_group(func: Dict[str, Any], desc: Dict[str, Any],
         out.append(f"    | Cons a t -> str_concat_op ({n} a pr) (str_concat_op sep ({n}__joinargs sep t pr))")
         out.append("    end")
     return out
+
+
+# ===========================================================================
+# class-variant-impl.md §OUTCOME-TS RESIDUAL: the RECORD⇄VARIANT BRIDGE for the
+# 5 `ir.py` per-class `.pp` METHODS (App/BinOp/UnaryOp/Forall/Exists .pp).
+#
+# Unlike `_pp` (emit_why3, a SINGLE-FUNCTION isinstance-dispatch catamorphism),
+# the ir.py pp family is a set of per-variant METHODS on the frozen-dataclass
+# RECORD types (`app__pp (self: app)`), each body a straight-line string build
+# recursing via a VIRTUAL `child.pp()` on a `Term`-typed field. There is no
+# isinstance dispatch inside a method — the class IS the dispatch.
+#
+# The bridge (3 co-landed parts, ALL source-only, 0 new stubs, ledger 3):
+#   (a) RECORD-FIELD-TYPE fix (preamble.py `_term_pp_field_override`): a term-ctor
+#       dataclass's recursive fields emit the VARIANT field types (`args: list
+#       term`, `lhs/rhs: term`, `binders: list string`) instead of `array int`/
+#       `int`, so the record→variant injection typechecks.
+#   (b) a SYNTHESIZED unified `pp_term (v_t: term) : string` catamorphism assembled
+#       from all 9 pp method bodies (the 4 non-`\trusted` leaves + the 5 targets) —
+#       total over the `term` ADT, the virtual `child.pp()` becomes `pp_term
+#       child`. Emitted ONCE before the first delegation (flag-gated).
+#   (c) each `<cls>__pp (self: <rec>) : string = pp_term (<Ctor> self.<f>...)`
+#       (record→variant injection + delegation).
+#
+# The `pp_term` cat is co-dependent across the whole family (a converted BinOp.pp
+# recurses `pp_term` into an App child, so App's arm must be the REAL one) — so all
+# 9 real bodies feed the synthesis; the 5 targets are un-`\trusted` one per commit
+# (each flips its emission val -> delegation) once the shared `pp_term` is faithful.
+#
+# NO new certificate: the `term` inductive's well-formedness / distinctness /
+# injectivity are ALREADY certified axiom-free in `Phase2i_TermIR.v` / `TermIR.lean`;
+# `pp_term` is a structural `variant { v_t }` fold over the same constructors, and
+# the string ops (`str_concat_op`/`str_of_int`) are the leaf pp methods' existing
+# abstract `val`s (spec'd by `concat`, NOT axioms). Ledger stays 3.
+#
+# Fail-closed (`_PVWBail`): a pp method outside the fragment -> the FAMILY is off
+# (returns None) -> every pp method keeps `\trusted`. Mutation-sensitive (separator
+# / subterm-order / ctor-field knobs all flow into the emitted `.mlw`).
+# ===========================================================================
+
+
+def _tpm_field(node: Any) -> Optional[str]:
+    """`self.<attr>` (a FieldGet on `self`) -> attr name, else None."""
+    if (isinstance(node, dict) and node.get("type") == "FieldGet"
+            and node.get("object") == "self"):
+        return node.get("field")
+    return None
+
+
+def _tpm_str(node: Any, ctx: Dict[str, Any]) -> Any:
+    """Parse a pp-method string sub-expression into the arm string-AST.
+    `ctx` = {"fld": {field: whytype}, "str_locals": set}. Raise `_PVWBail`."""
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "String":
+        return ("lit", node.get("value"))
+    if t == "Var":
+        nm = node.get("name")
+        if nm in ctx["str_locals"]:
+            return ("loc", nm)
+        raise _PVWBail()
+    fld = _tpm_field(node)
+    if fld is not None:
+        if ctx["fld"].get(fld) != "string":
+            raise _PVWBail()
+        return ("field", fld)
+    if t == "Call":
+        f = node.get("func")
+        args = node.get("args") or []
+        # `str(self.<intfield>)` -> str_of_int
+        if f == "str" and len(args) == 1:
+            ifld = _tpm_field(args[0])
+            if ifld and ctx["fld"].get(ifld) == "int":
+                return ("i2s", ifld)
+            raise _PVWBail()
+        # `self.<termfield>.pp()` -> pp_term recursion
+        if isinstance(f, str) and f.startswith("self.") and f.endswith(".pp") \
+                and not args:
+            mfld = f[len("self."):-len(".pp")]
+            if "." not in mfld and ctx["fld"].get(mfld) == "term":
+                return ("mrec", mfld)
+            raise _PVWBail()
+        # `"<sep>".join(<arg>)`
+        if f == "join" and len(args) == 1:
+            recv = node.get("receiver")
+            if not (isinstance(recv, dict) and recv.get("type") == "String"):
+                raise _PVWBail()
+            sep = recv.get("value")
+            a0 = args[0]
+            bfld = _tpm_field(a0)
+            # `" ".join(self.<binderfield>)` -> list-string join
+            if bfld and ctx["fld"].get(bfld) == "list string":
+                ctx["uses_joinstr"] = True
+                return ("joinstr", sep, bfld)
+            # `" ".join(x.pp() for x in self.<argfield>)` -> list-term join w/ rec
+            if isinstance(a0, dict) and a0.get("type") == "GenExp":
+                return _tpm_joinrec(a0, sep, ctx)
+            raise _PVWBail()
+        raise _PVWBail()
+    if t == "IfExpr":
+        test = node.get("test")
+        bfld = _tpm_field(test)
+        b, o = node.get("body"), node.get("orelse")
+        if bfld and ctx["fld"].get(bfld) == "bool" \
+                and isinstance(b, dict) and b.get("type") == "String" \
+                and isinstance(o, dict) and o.get("type") == "String":
+            return ("bool", bfld, b.get("value"), o.get("value"))
+        raise _PVWBail()
+    if t == "FString":
+        return ("concat", [_tpm_str(p, ctx) for p in node.get("parts", [])])
+    raise _PVWBail()
+
+
+def _tpm_joinrec(ge: Any, sep: str, ctx: Dict[str, Any]) -> Any:
+    """`sep.join(x.pp() for x in self.<field>)` -> a term-list join with recursion
+    (the App-arg catamorphism). Raise `_PVWBail` on any deviation."""
+    gens = ge.get("generators") or []
+    elt = ge.get("elt")
+    if not (len(gens) == 1 and not gens[0].get("ifs")):
+        raise _PVWBail()
+    loopv = gens[0].get("target")
+    it = gens[0].get("iter")
+    fld = _tpm_field(it)
+    if not (fld and ctx["fld"].get(fld) == "list term"):
+        raise _PVWBail()
+    if not (isinstance(elt, dict) and elt.get("type") == "Call"
+            and not (elt.get("args") or [])):
+        raise _PVWBail()
+    ef = elt.get("func")
+    if not (isinstance(ef, str) and ef == f"{loopv}.pp"):
+        raise _PVWBail()          # must be the loop var's virtual `.pp()`
+    ctx["uses_joinrec"] = True
+    return ("joinrec", sep, fld)
+
+
+def _tpm_cond(node: Any, ctx: Dict[str, Any]) -> Any:
+    """`not self.<listfield>` (empty-list guard) -> ("empty", field)."""
+    if (isinstance(node, dict) and node.get("type") == "UnaryOp"
+            and node.get("op") == "not"):
+        fld = _tpm_field(node.get("expr"))
+        if fld and ctx["fld"].get(fld) == "list term":
+            return ("empty", fld)
+    raise _PVWBail()
+
+
+def _tpm_block(stmts: Any, ctx: Dict[str, Any]) -> Any:
+    """A pp-method body block ::= ('final', S) | ('guard', C, S, block)
+                                 | ('seq', (localname, S), block)."""
+    if not (isinstance(stmts, list) and stmts):
+        raise _PVWBail()
+    st = stmts[0]
+    if not isinstance(st, dict):
+        raise _PVWBail()
+    kind = st.get("stmt")
+    if kind == "Return":
+        if len(stmts) != 1:
+            raise _PVWBail()
+        return ("final", _tpm_str(st.get("value"), ctx))
+    if kind == "If":
+        ibody = st.get("body", [])
+        if (not st.get("orelse") and len(ibody) == 1 and isinstance(ibody[0], dict)
+                and ibody[0].get("stmt") == "Return"):
+            cond = _tpm_cond(st.get("test"), ctx)
+            ret = _tpm_str(ibody[0].get("value"), ctx)
+            return ("guard", cond, ret, _tpm_block(stmts[1:], ctx))
+        raise _PVWBail()
+    if kind == "Assign":
+        name = st.get("target")
+        if not isinstance(name, str):
+            raise _PVWBail()
+        val = _tpm_str(st.get("value"), ctx)
+        ctx["str_locals"].add(name)
+        return ("seq", (name, val), _tpm_block(stmts[1:], ctx))
+    raise _PVWBail()
+
+
+def recognize_term_pp_methods(functions: List[Dict[str, Any]],
+                              spec: Optional[Dict[str, Any]]
+                              ) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the ir.py per-class `.pp` METHOD family (the
+    record⇄variant bridge). Requires EVERY ctor in `spec` to have a `pp` method
+    whose body parses into a string-build arm (totality is mandatory — `pp_term`
+    must be total over the `term` ADT). Returns
+    {"arms": {Ctor: block}, "classes": set, "method_names": set,
+     "uses_joinstr": bool, "uses_joinrec": bool} or None. Never raises."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_pp_methods(functions, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_pp_methods(functions, spec):
+    ctors = spec["ctors"]
+    ctor_set = set(ctors.keys())
+    # index the pp method of each ctor class
+    by_cls: Dict[str, Dict[str, Any]] = {}
+    for f in functions:
+        if f.get("kind") != "method":
+            continue
+        cls = f.get("self_type")
+        if cls not in ctor_set or f.get("return_annotation") != "str":
+            continue
+        # method must be `pp` (no positional params beyond self)
+        if f.get("formal_params"):
+            continue
+        nm = f.get("name", "")
+        if not (nm == "pp" or nm.endswith(".pp") or nm.endswith("__pp")
+                or nm.endswith("_pp")):
+            continue
+        if cls in by_cls:
+            raise _PVWBail()          # two pp methods for one ctor
+        by_cls[cls] = f
+    if set(by_cls.keys()) != ctor_set:
+        return None                   # not every ctor has a parseable pp -> family off
+    arms: Dict[str, Any] = {}
+    method_names: set = set()
+    convert_classes: set = set()
+    flags = {"uses_joinstr": False, "uses_joinrec": False}
+    for c in ctor_set:
+        f = by_cls[c]
+        ctx = {"fld": dict(ctors[c]), "str_locals": set(),
+               "uses_joinstr": False, "uses_joinrec": False}
+        arms[c] = _tpm_block(f.get("body", []), ctx)
+        # DELEGATION set = only the RECURSIVE (internal-node) ctors: their `.pp`
+        # recurses via the virtual `child.pp()` (`mrec`/`joinrec`), so a faithful
+        # emission REQUIRES the shared `pp_term`. The NON-recursive leaves
+        # (Var/IntLit/BoolLit/Unsupported) keep their own direct bodies — which also
+        # register the `str_concat_op`/`str_of_int` abstract `val`s `pp_term` uses.
+        if _tpm_arm_recurses(arms[c]):
+            method_names.add(f.get("name"))
+            # CONVERT set = recursive ctors whose pp method is CONVERTED
+            # (non-`\trusted`) in THIS file — only these delegate, so only their
+            # RECORD needs the variant field types. A file that merely IMPORTS the
+            # pp methods as `\trusted` vals (emit_why3/canonical) has an EMPTY
+            # convert set -> its records stay byte-identical (`args: array int`).
+            if not f.get("trusted", False):
+                convert_classes.add(c)
+        flags["uses_joinstr"] |= ctx["uses_joinstr"]
+        flags["uses_joinrec"] |= ctx["uses_joinrec"]
+    # String-build ops `pp_term` needs: `str_concat_op` (any `concat`/joinstr/joinrec
+    # arm) + `str_of_int` (any `i2s` arm). These are the same abstract `val`s the leaf
+    # pp methods register from `str()`/f-string lowering — but NOT every fixture has a
+    # leaf that does (a Var/Num/Flag-only leaf set never uses `str_concat_op`), so the
+    # delegation emitter registers them explicitly (dedup-identical where a leaf
+    # already did, e.g. ir.py's `unsupported__pp`/`intlit__pp`).
+    uses_strconcat = flags["uses_joinstr"] or flags["uses_joinrec"] or any(
+        _tpm_arm_uses(arms[c], ("concat",)) for c in ctor_set)
+    uses_strofint = any(_tpm_arm_uses(arms[c], ("i2s",)) for c in ctor_set)
+    return {"arms": arms, "classes": set(ctor_set), "method_names": method_names,
+            "convert_classes": convert_classes,
+            "uses_joinstr": flags["uses_joinstr"],
+            "uses_joinrec": flags["uses_joinrec"],
+            "uses_strconcat": uses_strconcat, "uses_strofint": uses_strofint}
+
+
+def _tpm_arm_uses(b: Any, tags: tuple) -> bool:
+    """True iff any string-expr node in the arm block has one of `tags`."""
+    found = [False]
+
+    def s(e):
+        if e[0] in tags:
+            found[0] = True
+        elif e[0] == "concat":
+            if "concat" in tags:
+                found[0] = True
+            for p in e[1]:
+                s(p)
+
+    def blk(bb):
+        if bb[0] == "final":
+            s(bb[1])
+        elif bb[0] == "guard":
+            s(bb[2]); blk(bb[3])
+        elif bb[0] == "seq":
+            s(bb[1][1]); blk(bb[2])
+    blk(b)
+    return found[0]
+
+
+def _tpm_arm_recurses(b: Any) -> bool:
+    """True iff the arm block recurses via the virtual `child.pp()`
+    (`mrec` / `joinrec`) — i.e. an internal node that must delegate to `pp_term`."""
+    found = [False]
+
+    def s(e):
+        tag = e[0]
+        if tag in ("mrec", "joinrec"):
+            found[0] = True
+        elif tag == "concat":
+            for p in e[1]:
+                s(p)
+
+    def blk(bb):
+        if bb[0] == "final":
+            s(bb[1])
+        elif bb[0] == "guard":
+            s(bb[2]); blk(bb[3])
+        elif bb[0] == "seq":
+            s(bb[1][1]); blk(bb[2])
+    blk(b)
+    return found[0]
+
+
+# ---- emit ------------------------------------------------------------------
+
+def _tpm_emit_str(e: Any) -> str:
+    tag = e[0]
+    if tag == "lit":
+        return _ppw_slit(e[1])
+    if tag == "field":
+        return f"v_{e[1]}"
+    if tag == "loc":
+        return f"l_{e[1]}"
+    if tag == "i2s":
+        return f"(str_of_int v_{e[1]})"
+    if tag == "bool":
+        return f"(if v_{e[1]} then {_ppw_slit(e[2])} else {_ppw_slit(e[3])})"
+    if tag == "mrec":
+        return f"(pp_term v_{e[1]})"
+    if tag == "joinstr":
+        return f"(pp_term__joinstr {_ppw_slit(e[1])} v_{e[2]})"
+    if tag == "joinrec":
+        return f"(pp_term__joinargs {_ppw_slit(e[1])} v_{e[2]})"
+    if tag == "concat":
+        return _ppw_concat([_tpm_emit_str(p) for p in e[1]])
+    raise _PVWBail()
+
+
+def _tpm_emit_cond(c: Any) -> str:
+    if c[0] == "empty":
+        return f"(match v_{c[1]} with Nil -> true | Cons _ _ -> false end)"
+    raise _PVWBail()
+
+
+def _tpm_emit_block(b: Any) -> str:
+    tag = b[0]
+    if tag == "final":
+        return _tpm_emit_str(b[1])
+    if tag == "guard":
+        return (f"(if {_tpm_emit_cond(b[1])} then {_tpm_emit_str(b[2])}"
+                f" else {_tpm_emit_block(b[3])})")
+    if tag == "seq":
+        name, val = b[1]
+        return f"(let l_{name} = {_tpm_emit_str(val)} in {_tpm_emit_block(b[2])})"
+    raise _PVWBail()
+
+
+def _tpm_block_fields(b: Any, out: set) -> None:
+    """Collect the ctor-field names read anywhere in a block (name vs `_` binder)."""
+    def s(e):
+        tag = e[0]
+        if tag in ("field", "i2s", "bool"):
+            out.add(e[1])
+        elif tag == "mrec":
+            out.add(e[1])
+        elif tag in ("joinstr", "joinrec"):
+            out.add(e[2])
+        elif tag == "concat":
+            for p in e[1]:
+                s(p)
+
+    def c(cd):
+        if cd[0] == "empty":
+            out.add(cd[1])
+
+    def blk(bb):
+        if bb[0] == "final":
+            s(bb[1])
+        elif bb[0] == "guard":
+            c(bb[1]); s(bb[2]); blk(bb[3])
+        elif bb[0] == "seq":
+            s(bb[1][1]); blk(bb[2])
+    blk(b)
+
+
+def emit_pp_term_helper(fam: Dict[str, Any], spec: Dict[str, Any]) -> List[str]:
+    """Emit the SYNTHESIZED unified `pp_term (v_t: term) : string` catamorphism
+    (+ the inline TOTAL `pp_term__joinstr` list-string join, and the mutual
+    `pp_term__joinargs` term-list join-with-recursion). Structural `variant`
+    over the certified `term` inductive; NO axiom (ledger 3). Emitted ONCE,
+    before the first per-class delegation."""
+    arms = fam["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    if fam["uses_joinstr"]:
+        out.append("  let rec pp_term__joinstr (sep: string) (l: list string) : string")
+        out.append("    variant { l }")
+        out.append("  = match l with")
+        out.append('    | Nil -> ""')
+        out.append("    | Cons h Nil -> h")
+        out.append("    | Cons h t -> str_concat_op h (str_concat_op sep (pp_term__joinstr sep t))")
+        out.append("    end")
+    out.append("  let rec pp_term (v_t: term) : string")
+    out.append("    variant  { v_t }")
+    out.append("  = match v_t with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        used: set = set()
+        _tpm_block_fields(arms[c], used)
+        binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
+        pat = c + ((" " + binders) if binders else "")
+        out.append(f"    | {pat} -> {_tpm_emit_block(arms[c])}")
+    out.append("    end")
+    if fam["uses_joinrec"]:
+        out.append("  with pp_term__joinargs (sep: string) (l: list term) : string")
+        out.append("    variant { l }")
+        out.append("  = match l with")
+        out.append('    | Nil -> ""')
+        out.append("    | Cons a Nil -> pp_term a")
+        out.append("    | Cons a t -> str_concat_op (pp_term a) (str_concat_op sep (pp_term__joinargs sep t))")
+        out.append("    end")
+    return out

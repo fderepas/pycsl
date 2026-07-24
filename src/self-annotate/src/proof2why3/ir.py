@@ -50,7 +50,9 @@ class App:
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        if not self.args:
+            return self.head
+        return f"({self.head} {' '.join(a.pp() for a in self.args)})"
 
 
 @dataclass(frozen=True)
@@ -64,7 +66,7 @@ class BinOp:
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return f"({self.lhs.pp()} {self.op} {self.rhs.pp()})"
 
 
 @dataclass(frozen=True)
@@ -77,7 +79,7 @@ class UnaryOp:
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        return f"({self.op} {self.arg.pp()})"
 
 
 @dataclass(frozen=True)
@@ -91,7 +93,8 @@ class Forall:
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        binders = " ".join(self.binders)
+        return f"(forall {binders} : {self.ty}, {self.body.pp()})"
 
 
 @dataclass(frozen=True)
@@ -104,7 +107,8 @@ class Exists:
     #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
-        return ""
+        binders = " ".join(self.binders)
+        return f"(exists {binders} : {self.ty}, {self.body.pp()})"
 
 
 @dataclass(frozen=True)
