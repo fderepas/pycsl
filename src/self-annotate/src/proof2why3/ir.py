@@ -72,7 +72,6 @@ class UnaryOp:
     'Unary operator (currently only logical `not` and arithmetic `-`).'
     op: str
     arg: 'Term'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -86,7 +85,6 @@ class Forall:
     binders: Tuple[str, ...]
     ty: str
     body: 'Term'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -100,7 +98,6 @@ class Exists:
     binders: Tuple[str, ...]
     ty: str
     body: 'Term'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
