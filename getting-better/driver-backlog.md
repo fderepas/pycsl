@@ -63,6 +63,21 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    (not just existence). Spike whether the certified pyval/pydict/stmt_ir catamorphisms can carry a
    RETURNED value before scoping anything new (lesson p). Highest count-ROI if it opens.
 
+   **PARTIALLY BUILT 2026-07-24 (count 941 → 940, commits 8def3372 feature + 1e1066b6 conversion) —
+   the general value-returning pyval STRING walker is IN-TREE. See `pyval-walker-impl.md`.** The
+   §OUTCOME-2 "[COST/SCALE], no bounded non-facade entry" is SUPERSEDED for the self-contained
+   `Optional[str]` fold shape: `recognize_pyval_string_walker` + `emit_pyval_string_walker_group`
+   (`generic_fold.py`, source-only → 0 new stubs) is a STRUCTURAL translator over the pyval ADT with 3
+   inline TOTAL projectors pv_nth/pv_len/atom_of (DEFINED not axiomatized; ledger 3). Converted
+   `from_sexp._binder_name` (the one self-contained cluster stub). Mutation test decisive, corpus
+   byte-diff 0, mirror byte-diff touches only the converted file, whole-file proof SUCCESS.
+   **RESIDUAL (rest of the from_sexp 7, still [COST/SCALE]):** C1 `List[str]`/`array string`
+   accumulator model (`.append`/`.extend`/`reversed`) → `_walk_kername`/`_walk_modpath`/
+   `_find_kername_components`/`_full_const_path`; C2 param-annotation→pyval hook for a TRUSTED helper
+   + negative-index-from-end (`parts[-1]`) → `_const_name`/`_ind_short_name`; C3 tuple/int returns →
+   `_construct_indices`/`_find_construct_idx`/`_flatten_tuples`. Each bounded (no 4th axiom, Why3
+   accepts the carrier), the walker is the reusable foundation all three extend.
+
    **CENSUS + SPIKE DONE (2026-07-23, count 971) — CERTIFIED-BOUNDARY for existing/minimal machinery.**
    - STEP-0 census (lesson p): **0 of the 8 clean candidates are reached by any existing recognizer**
      (`recognize_frt`/`sawalk`/`substmap`/`dictfold`/`setfold`). Demonstrated verbatim-porting
@@ -354,6 +369,11 @@ capability, so the stop-classification is mechanical, not a judgment call.
   (`int_to_string` handles it). The PARAM/method half (`local_refs`/`declared_refs`, 44 methods/81 sites/
   cyclic, expr↔stmt mutual recursion) + I5 de-vacuify STAY CERTIFIED-BOUNDARY — session-scale, no consistent
   sound κ signal. See `r1-setop-impl.md` run 3.
+- **sexp recognizer / value-returning pyval walker — PARTIALLY BUILT 2026-07-24 (count 941 → 940,
+  commits 8def3372 + 1e1066b6).** The general walker is now in-tree (`pyval-walker-impl.md`) and
+  converted `from_sexp._binder_name`. The remaining 6 from_sexp stubs stay [COST/SCALE] behind the
+  enumerated carriers C1 (`List[str]` accumulator) / C2 (trusted-helper pyval hook + `[-1]`) / C3
+  (tuple/int returns) — see item 3. Below is the pre-build record (superseded for `_binder_name`):
 - **sexp recognizer** — the 3 `from_sexp` tuple/sexp-carrier stubs. **REOPENED + REFINED 2026-07-24
   (count 941 held, tree clean, nothing committed) — still [COST/SCALE], but the record improved on two
   axes (see sexp-carrier-impl.md §OUTCOME-2):**
