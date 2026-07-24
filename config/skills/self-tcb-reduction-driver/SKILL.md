@@ -155,19 +155,33 @@ Each iteration, in order, WITHOUT asking the user:
    continuing — narration is not an iteration, and stopping to narrate is the most common way this
    loop dies.
 
-### A.3 Finish (deadline reached, or the BACKLOG is genuinely empty)
+### A.3 Finish (deadline reached, or the backlog is TRULY exhausted — every non-BROKEN item a CORRECTNESS boundary)
 - Stop iterating. **Do NOT re-arm the heartbeat**, and `rm getting-better/.driver-deadline
   getting-better/.driver-started` (an in-flight heartbeat then reports "deadline passed" and dies, since
   it reads the deadline file at wake time — so removing the file is also how you kill an early stop).
 - Emit ONE summary: walls RESOLVED this run (BROKEN vs CERTIFIED-BOUNDARY), conversions + count delta,
   lessons banked, and the unpushed-commit count. Do NOT auto-push (the standing rule holds: push only on
   an explicit "push"/"push it") — list what is ready to push.
-- **The ONLY early-stop condition is an EMPTY BACKLOG (§A.6): every item in
-  `getting-better/driver-backlog.md` is BROKEN or CERTIFIED-BOUNDARY for the current tree.** "The cheap/bounded
-  frontier is exhausted" is NOT that — escalate to the next session-scale backlog item instead (A.2.3). Do not
-  stop early to hand back a scope decision the backlog already authorized; that mid-run stop was the failure
-  this design removed. If you genuinely reach an empty backlog before the deadline, STOP and say so, and list
-  for each CERTIFIED-BOUNDARY item the NEW capability that would reopen it (so a backlog edit can re-arm it).
+- **The ONLY early-stop condition is a TRULY-EXHAUSTED BACKLOG — and a CERTIFIED-BOUNDARY does NOT by
+  itself make an item exhausted.** Before ANY early stop you MUST re-read `getting-better/driver-backlog.md`
+  from disk (never from memory/summary — memory drift is what caused the 2026-07-24 false stop, run below)
+  and CLASSIFY every non-BROKEN item's boundary as one of two kinds:
+  - **CORRECTNESS / SOUNDNESS boundary** — the make-or-break spike proved the build IMPOSSIBLE or UNSOUND for
+    reasons a bigger budget cannot fix: Why3 TYPE-REJECTS the shape (e.g. mutable elem in a pure type var), it
+    would need a NEW AXIOM (ledger would exceed 3), or the value model genuinely cannot express the semantics.
+    This is a real floor. Counts toward STOP.
+  - **COST / SCALE boundary** — the spike proved only that the build is LARGE, EXPENSIVE, multi-feature,
+    session-scale, cyclic-but-tractable, or "N new features for M stubs". This is NOT a floor: **a funded long
+    window IS the budget that pays this cost.** It does NOT count toward STOP. PROMOTE its named reopening
+    capability to a live backlog item and BUILD it (spike-first, refutation-exit, full gate battery). The
+    sexp recognizer ("3 features, session-scale") and the R1 I4 cross-mixin/method κ fixpoint (unblocks R1's
+    count payoff AND I6's 19 stubs) are COST/SCALE boundaries — exactly the work an 18h window funds.
+  **You may STOP early ONLY if every non-BROKEN item is a CORRECTNESS boundary.** If even one is COST/SCALE,
+  you are NOT at floor — escalate to it; stopping is a bug. And NEVER present a "which should I do / needs
+  fresh authorization" menu for a capability the Full-authority backlog already names as a reopening path:
+  under Full authority the funded window IS the authorization, so that menu is the forbidden mid-run stop this
+  design removed. (When you genuinely reach an all-CORRECTNESS-boundary floor, STOP, say so, and list each
+  boundary's reopening capability + WHY a bigger budget cannot fix it.)
 
 ### A.6 The standing backlog — pre-authorized escalation (removes mid-run authorization stops)
 `getting-better/driver-backlog.md` is a user-curated, priority-ordered ladder of walls/directions the loop may

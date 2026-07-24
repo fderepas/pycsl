@@ -326,7 +326,23 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
      `Dict[str,Any]`/genexp-list-field value-model wall (census-known), not a bounded transcription backlog.
 
 ## Exhaustion = STOP (the ONLY early-stop condition now)
-The loop stops before the deadline ONLY when items 1–8 are each BROKEN or CERTIFIED-BOUNDARY for the
-current tree — a genuinely empty ladder. "Bounded work ran out" is NOT a stop condition; escalate to
-the next session-scale item instead. When you DO record a CERTIFIED-BOUNDARY, note what NEW capability
-would reopen it, so a future run (or a future ladder edit) can pick it back up.
+The loop stops before the deadline ONLY when EVERY item 1–8 is either BROKEN or a **CORRECTNESS/SOUNDNESS
+CERTIFIED-BOUNDARY** — a spike that proved the build IMPOSSIBLE/UNSOUND for reasons a bigger budget cannot
+fix (Why3 type-rejection, would-need-a-4th-axiom, value model genuinely inexpressive). A **COST/SCALE
+CERTIFIED-BOUNDARY** ("session-scale", "N features for M stubs", "cyclic but tractable") is NOT exhaustion:
+a funded window is the budget that pays it — PROMOTE its reopening capability to a live item and BUILD it.
+"Bounded work ran out" is NOT a stop condition either; escalate. **Before stopping, re-read this file from
+disk and classify every boundary CORRECTNESS vs COST/SCALE — never assert "ladder empty" from memory** (the
+2026-07-24 false stop did exactly that: called it floor at 9h of an 18h window while two COST/SCALE reopening
+capabilities — the sexp recognizer and the R1 I4 cross-mixin κ fixpoint — sat un-built and Full-authorized).
+When you record a CERTIFIED-BOUNDARY, TAG it `[CORRECTNESS]` or `[COST/SCALE]` and note the reopening
+capability, so the stop-classification is mechanical, not a judgment call.
+
+### Live COST/SCALE reopening capabilities (Full-authorized — BUILD these before any early stop)
+- **R1 I4 — cross-mixin/method κ=string fixpoint.** Propagate `field_key_types`/param string-keying across
+  the mixin boundary (the sibling-mixin `getattr` that currently int-hashes) and the expr↔stmt call graph.
+  Unblocks R1's de-vacuify (I5) AND I6's 19 `Set[str]`-field stubs. Cost: 44 methods / 81 sites / cyclic —
+  session-scale, count-POSITIVE. This is the highest-value live build.
+- **sexp recognizer** — the 3 `from_sexp` tuple/sexp-carrier stubs; cert + value oracle banked in
+  `getting-better/sexp-carrier-oracles/`. Reassess the "net −3" as a genuine VALUE refutation (does it grow
+  the trusted SURFACE, §10.7?) vs a mere marker-count artifact before deprioritizing.
