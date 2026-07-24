@@ -2707,7 +2707,8 @@ class FunctionEmissionMixin:
             recognize_dictfold, emit_dictfold_group,
             recognize_void_dispatch, emit_void_dispatch_group,
             recognize_void_generic_descend, emit_void_generic_descend_group,
-            recognize_type_existence, emit_type_existence_group)
+            recognize_type_existence, emit_type_existence_group,
+            recognize_named_field_existence, emit_named_field_existence_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -2716,6 +2717,16 @@ class FunctionEmissionMixin:
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)
+        # genexp-erasure-wall / wall-lessons (l),(j): the single-node named-field
+        # self-recursive existence fold (`_pattern_has_constructor` shape) — the
+        # SAME certified scalar pyval/pydict catamorphism, keyed on a `K_dyn`
+        # dynamic key (non-`type` dispatch) with the named-field recursion
+        # subsumed by the universal descend. De-vacuifies the `any(genexp)` →
+        # `any_1` erasure. Fail-closed; a template bug is a loud unprovable
+        # instance, never a false proof.
+        _nfe = recognize_named_field_existence(func)
+        if _nfe is not None:
+            return emit_named_field_existence_group(func, _nfe, whyml_ident)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)

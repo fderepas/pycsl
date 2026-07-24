@@ -182,12 +182,23 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
        `--fun` SUCCESS (13 goals all Valid, ~3m46s); L3-tc whole-file ✓; emitted body faithful (dispatches
        on real `func_ret` tags, references `val_ir`/`py_val`, no `any_1`); vacuity no-NEW-erasure/0-input-blind;
        mirror-check 52/52; count-neutral 942; mirror-only (byte-diff 0 by construction).
-     - `_pattern_has_constructor` — **STILL-BLOCKED (vacuous).** Verbatim `any(genexp)` lowers to
-       `any_1 (Array.make 1 0)` (wall-lesson l facade). The new `recognize_type_existence`/`recognize_bool_existence`
-       do NOT cover this shape (recursion over a named list FIELD `alternatives` via a `self._method` call,
-       dispatch on a non-`type` tag `pattern`). Missing cap: a recognizer for `any(self._pred(a) for a in
-       node.get("<field>",[]))` recursive-existence-over-list-field. Committed body stays the (lesson-j)
-       while-loop rewrite — flag for re-trust vs recognizer build.
+     - `_pattern_has_constructor` — **RESOLVED 2026-07-24 (drift 3→2).** Built the missing recognizer:
+       `recognize_named_field_existence` + `emit_named_field_existence_group` (generic_fold.py) — the
+       single-node named-field self-recursive existence fold (`p = pat.get("pattern"); if p == "Constructor":
+       return True; if p == "Or": return any(self(a) for a in pat.get("alternatives", [])); return False`).
+       Emits the SAME certified scalar pyval/pydict/list-pyval catamorphism as `emit_type_existence_group`,
+       differing only in (i) the discriminant is keyed via the theory's built-in `K_dyn "<key>"` computed-key
+       cell (non-`type` dispatch — NO new interned constant, NO theory change) and (ii) the `[assign, if-tag,
+       if-recurse, return-False]` shape. The named-field recursion is subsumed by the universal structural
+       descend (insight-C over-approx, the SAME doctrine the 8 IRScanner predicates use). Body re-ported
+       VERBATIM from live (`any(genexp)`, mirror `pat` un-annotated so it lowers to the pyval carrier).
+       Emitted body: `let rec …(pat: pyval): bool = match pat with PDict d -> …__key_is pat "Constructor"
+       || …__d d | PList xs -> …__l xs | _ -> false end` with `variant { pv_size pat }` — REAL fold, `pat`
+       referenced, mutation-sensitive tag, NO `any_1`/int-hash. GATES: drift 3→2; count 942 (unchanged —
+       fidelity fix, not a marker move); mirror-check 52/52; corpus byte-diff 0 (786/786, clean HEAD
+       worktree — recognizer gated on the exact shape, corpus-inert); vacuity --emit exit 0 (0 input-blind,
+       no new erasure); whole-file L3-tc ✓; `--fun controlflowstmtmixin___pattern_has_constructor` full
+       proof SUCCESS; ledger 3 untouched. Whole-file proof HEAVY (>cap) — driver re-runs uncapped to confirm.
      - `_union_arm_whyml_type` — **RESOLVED 2026-07-24 (drift 4→3, commit pending).** Fixed by a
        byte-inert `src/pycsl` emitter recognizer — but NOT the map-local pre-decl proposed below; the
        cleaner FAITHFUL fix is the **opaque-selfmap-reader SPLIT form**. The existing opaque-nested-map

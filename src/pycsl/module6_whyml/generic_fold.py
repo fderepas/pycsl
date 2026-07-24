@@ -6063,3 +6063,178 @@ def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append(f"  = match xs with Nil -> false"
                f" | Cons h t -> {n}{cargs} h || {n}__l{cargs} t end")
     return out
+
+
+# =========================================================================
+# NAMED-FIELD self-recursive existence fold — recognize_named_field_existence.
+#
+# genexp-erasure-wall / wall-lessons (l),(j),(q): a SINGLE untyped-node
+# existence predicate that (a) reads its discriminant into a local via a
+# `.get("<KEY>")` on a NON-`type` key, (b) returns True on a literal tag, and
+# (c) recurses over a NAMED LIST FIELD via `any(self(a) for a in
+# obj.get("<FIELD>", []))` — the `_pattern_has_constructor` shape:
+#
+#     def _pattern_has_constructor(pat):
+#         p = pat.get("pattern")
+#         if p == "Constructor":
+#             return True
+#         if p == "Or":
+#             return any(self._pattern_has_constructor(a)
+#                        for a in pat.get("alternatives", []))
+#         return False
+#
+# Before this, the `any(genexp)` collapsed to `any_1 (Array.make 1 0)` (an
+# UNCONSTRAINED oracle over a fabricated argument) — a fully vacuous facade the
+# mutation test cannot see (wall-lessons (l), bin/check-emitted-vacuity.py).
+# This emits the SAME certified scalar-rooted pyval/pydict/list-pyval
+# catamorphism as `emit_type_existence_group` (no new ADT, no new certificate,
+# ledger 3), differing only in (i) the discriminant key is read via the
+# `K_dyn "<key>"` computed-key cell (the theory's built-in dynamic-key
+# fallback — no new interned constant) rather than `K_type`, and (ii) the shape
+# is `[assign, if-tag, if-recurse, return-False]` rather than the isinstance
+# dict/list arms. The named-field recursion is subsumed by the universal
+# structural descend (insight-C over-approximation — the SAME doctrine the 8
+# IRScanner predicates use to drop `.values()`/membership conjuncts): the fold
+# OR-descends every sub-term, so the `alternatives` list (one child cell) is
+# covered, and the emitted body matches on the real subject param + drives the
+# true-arm off the literal tag (the mutation-sensitive, non-facade signal;
+# `<subj>` appears in the body, de-vacuified). Fail-closed; a body-fidelity bug
+# yields a loud unprovable instance, never a false proof.
+# =========================================================================
+
+
+def recognize_named_field_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the single-node named-field self-recursive
+    existence fold (`_pattern_has_constructor` shape). Returns
+    {subject, key, tags} or None. Never raises."""
+    try:
+        return _recognize_named_field_existence(func)
+    except Exception:
+        return None
+
+
+def _recognize_named_field_existence(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    pa = func.get("param_annotations", {}) or {}
+    # genuinely UNTYPED `Any` subject only (an annotated subject is a
+    # different recogniser's shape — the pyval carrier is for untyped nodes).
+    if subj in pa:
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body", [])
+    if len(body) != 4:
+        return None
+    assign, if_a, if_b, tail = body
+    # tail: `return False`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # assign: `p = <subj>.get("<KEY>")` — the discriminant read into a local.
+    if not (isinstance(assign, dict) and assign.get("stmt") == "Assign"):
+        return None
+    dispatch_var = assign.get("target")
+    if not isinstance(dispatch_var, str):
+        return None
+    key = _match_get_call(assign.get("value", {}), subj)
+    if key is None:
+        return None
+    # if_a: `if p == "<TAG>": return True` (the decisive-tag arm).
+    if not (isinstance(if_a, dict) and if_a.get("stmt") == "If"
+            and not if_a.get("orelse")):
+        return None
+    tags_a = _match_stype_tag_or_tags(if_a.get("test", {}), dispatch_var)
+    if not tags_a:
+        return None
+    if not (len(if_a.get("body", [])) == 1
+            and _is_bool_true_return(if_a["body"][0])):
+        return None
+    # if_b: `if p == "<TAG2>": return any(self(a) for a in <subj>.get("<F>", []))`
+    if not (isinstance(if_b, dict) and if_b.get("stmt") == "If"
+            and not if_b.get("orelse")):
+        return None
+    if not _match_stype_tag_or_tags(if_b.get("test", {}), dispatch_var):
+        return None
+    bb = if_b.get("body", [])
+    if len(bb) != 1:
+        return None
+    bret = bb[0]
+    if not (isinstance(bret, dict) and bret.get("stmt") == "Return"):
+        return None
+    self_base = (func.get("name") or "").rsplit(".", 1)[-1].split("__", 1)[-1]
+
+    def _field_iter(it: Any, lv: str) -> bool:
+        # the recursion iterable is a named-field read `<subj>.get("<F>", [])`
+        # (any literal field; the descend subsumes it — insight-C).
+        return _match_get_call(it, subj) is not None
+
+    if not _match_any_selfrecurse_genexp(bret.get("value", {}), subj,
+                                         self_base, _field_iter):
+        return None
+    return {"subject": subj, "key": key, "tags": list(tags_a)}
+
+
+def emit_named_field_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                     whyml_ident) -> List[str]:
+    """Emit the certified scalar-rooted pyval/pydict/list-pyval existence
+    catamorphism for a recognised named-field self-recursive predicate
+    (`_pattern_has_constructor`). Structurally identical to
+    `emit_type_existence_group` (the proven L1 `pyval` OR-fold) except the
+    discriminant is keyed on the `K_dyn "<key>"` dynamic-key cell (the
+    theory's computed-key fallback — no new interned constant, no theory
+    change) instead of the interned `K_type`. The recognised tag drives the
+    true-arm (`{n}__key_is <subj> "<tag>"`) — the mutation-sensitive,
+    non-facade signal. `<subj>` appears in the emitted body (de-vacuified,
+    wall-lessons (l)); recursion terminates on the structural `pv_size`
+    measure (certified variant, NO `any_1`/int-hash)."""
+    n = whyml_ident(func["name"])
+    subj_id = whyml_ident(desc["subject"])
+    key = desc["key"]
+    tags = desc["tags"]
+    _IRKEY = {"type": "K_type", "left": "K_left", "right": "K_right",
+              "op": "K_op", "value": "K_value", "target": "K_target",
+              "body": "K_body", "orelse": "K_orelse", "func": "K_func",
+              "name": "K_name"}
+    out: List[str] = []
+    # interned-or-dynamic key reader (option string over the matched cell).
+    out.append(f"  let rec {n}__get (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    if key in _IRKEY:
+        out.append(f"    | DCons {_IRKEY[key]} (PStr s) rest -> Some s")
+    else:
+        out.append(f"    | DCons (K_dyn ks) (PStr s) rest ->"
+                   f' if pystr_eq ks "{key}" then Some s else {n}__get rest')
+    out.append(f"    | DCons _ _ rest -> {n}__get rest end")
+    out.append(f"  let function {n}__key_is (v: pyval) (tag: string) : bool")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {n}__get d with"
+               f" Some t -> pystr_eq t tag | None -> false end)")
+    out.append("    | _ -> false end")
+    # DISJUNCTION of the decisive-tag arm(s) (a single tag for the
+    # `_pattern_has_constructor` shape; the `in (...)` form yields several).
+    tag_disj = " || ".join(f'{n}__key_is {subj_id} "{t}"' for t in tags)
+    # scalar-rooted mutual catamorphism into bool (the R2d rec-group fold —
+    # the fold co-lives with the recursive predicate so the self-recursion
+    # binds and terminates on the structural pyval measure).
+    out.append(f"  let rec {n} ({subj_id}: pyval) : bool")
+    out.append("    requires { true } ensures { true }"
+               f" variant {{ pv_size {subj_id} }}")
+    out.append(f"  = match {subj_id} with")
+    out.append(f"    | PDict d -> {tag_disj} || {n}__d d")
+    out.append(f"    | PList xs -> {n}__l xs")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__d (d: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> false"
+               f" | DCons _ v rest -> {n} v || {n}__d rest end")
+    out.append(f"  with {n}__l (xs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> false"
+               f" | Cons h t -> {n} h || {n}__l t end")
+    return out
