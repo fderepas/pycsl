@@ -2765,11 +2765,25 @@ class FunctionEmissionMixin:
         if getattr(self, "_has_opaque_term_fields", False):
             from module6_whyml.generic_fold import (
                 recognize_crosscheck_selfstate_bool,
-                emit_crosscheck_selfstate_bool_group)
+                emit_crosscheck_selfstate_bool_group,
+                recognize_crosscheck_term_method,
+                emit_crosscheck_term_method_group)
             _css = recognize_crosscheck_selfstate_bool(func)
             if _css is not None:
                 return emit_crosscheck_selfstate_bool_group(
                     func, _css, whyml_ident)
+            # class-variant-impl.md §F3+§F4: the term-STRUCTURAL crosscheck
+            # methods (`any_unsupported`/`all_present_unsupported` — isinstance
+            # over the `option term` canon fields; `provers_agree`/`all_agree` —
+            # structural `term_eq`). Gated on the certified `term` inductive
+            # being available (`_term_adt_spec`). Fail-closed: a `\trusted` stub
+            # body (`return False`) never matches the grammar -> emits as `val`.
+            _tspec_cc = getattr(self, "_term_adt_spec", None)
+            if _tspec_cc:
+                _ctm = recognize_crosscheck_term_method(func)
+                if _ctm is not None:
+                    return emit_crosscheck_term_method_group(
+                        func, _ctm, _tspec_cc, whyml_ident)
         _tspec = getattr(self, "_term_adt_spec", None)
         if _tspec:
             # class-variant-impl.md T-transform: a Term->Term (constructor-rebuild)

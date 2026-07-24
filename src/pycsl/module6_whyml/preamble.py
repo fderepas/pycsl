@@ -2200,7 +2200,8 @@ class PreambleEmissionMixin:
         # the self-state boolean recognizer + `val pystr_eq`. Corpus/other-mirror
         # never carry this value_type -> byte-inert everywhere else.
         from module6_whyml.generic_fold import (
-            recognize_crosscheck_selfstate_bool, _uses_str_empty)
+            recognize_crosscheck_selfstate_bool, _uses_str_empty,
+            recognize_crosscheck_term_method)
         self._has_opaque_term_fields = any(
             f.get("value_type") == "opaque_term"
             for td in self.ir.get("type_decls", [])
@@ -2210,6 +2211,18 @@ class PreambleEmissionMixin:
             recognize_crosscheck_selfstate_bool(f) is not None
             and _uses_str_empty(recognize_crosscheck_selfstate_bool(f)["expr"])
             for f in functions)
+        # class-variant-impl.md §F4: a CONVERTED term-structural crosscheck
+        # method that compares terms (`provers_agree`/`all_agree`, `==` on Term)
+        # needs the DEFINED structural `term_eq`/`term_list_eq`/`strlist_eq`
+        # emitted in the `term` theory. Gated on the recognizer matching (a still-
+        # `\trusted` stub body `return False` never matches) AND the term spec
+        # being present -> term_eq emits ONLY once an eq-method is converted;
+        # corpus/other-mirror byte-inert (no opaque_term fields there).
+        needs_term_eq = bool(
+            self._has_opaque_term_fields and self._term_adt_spec and any(
+                (recognize_crosscheck_term_method(f) or {}).get("uses_term_eq")
+                for f in functions))
+        self._needs_term_eq = needs_term_eq
         return {
             "needs_pydict": needs_pydict,
             "needs_term": needs_term,
@@ -2217,6 +2230,7 @@ class PreambleEmissionMixin:
             "needs_term_setfold": needs_term_setfold,
             "needs_term_strbuild": needs_term_strbuild,
             "needs_selfstate_streq": needs_selfstate_streq,
+            "needs_term_eq": needs_term_eq,
             "needs_sdict": needs_sdict,
             "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
@@ -2982,10 +2996,24 @@ class PreambleEmissionMixin:
         # True`) — NOT an axiom (ledger stays 3). Emit it here only when a
         # transform needs it AND the pydict theory (which also declares it) is
         # not present, so it is never declared twice.
-        if getattr(self, "_needs_term_streq", False) and not needs.get("needs_pydict"):
+        if ((getattr(self, "_needs_term_streq", False)
+                or needs.get("needs_term_eq"))
+                and not needs.get("needs_pydict")
+                and not needs.get("needs_selfstate_streq")):
+            # `needs_selfstate_streq` (the registry_skipped string-empty path)
+            # already declares `val pystr_eq` via the preamble helpers — never
+            # double-declare it here (term_eq reuses that one).
             lines.append("  (* T-transform const-map string guard (result VC-free; ledger 3) *)")
             lines.append("  val pystr_eq (a b: string) : bool")
             lines.append("")
+        # class-variant-impl.md §F4: the DEFINED structural equality over the
+        # certified `term` inductive — `a == b` on Term (crosscheck_ir
+        # `provers_agree`/`all_agree`) lowers to `term_eq`. TOTAL, mutually
+        # recursive with `term_list_eq` (App.args : list term) and `strlist_eq`
+        # (Forall/Exists.binders : list string), structural `variant` (Why3-
+        # intrinsic termination over the same Phase2i-certified inductive — NO
+        # new certificate, NO axiom; `pystr_eq` is a VC-free `val`). Emitted
+        # generically from the term spec so a field-type change flows.
         # T-string (`_pp`): the string-BUILD catamorphism needs string concat +
         # int->string. Abstract `val`s (str_concat_op is spec'd by `concat`; ledger
         # 3 — no axiom). Gated on the pp recognizer so non-pp term files stay
@@ -2998,6 +3026,71 @@ class PreambleEmissionMixin:
                          " = String.length a + String.length b }")
             lines.append("  val str_of_int (x: int) : string")
             lines.append("")
+        if needs.get("needs_term_eq"):
+            lines += self._emit_term_eq_defs(ctors, order)
+        return lines
+
+    def _emit_term_eq_defs(self, ctors: Dict[str, Any],
+                           order: List[str]) -> List[str]:
+        """Generate `term_eq`/`term_list_eq`/`strlist_eq` from the term spec
+        (class-variant-impl.md §F4). Per-ctor arm ANDs the field-wise equality
+        chosen by each field's WhyML type (string -> pystr_eq, int -> `=`,
+        bool -> iff, term -> term_eq, list term -> term_list_eq, list string ->
+        strlist_eq). Faithful (a field-type change flows); axiom-free (the
+        Phase2i cert already certifies the inductive is well-formed / distinct /
+        injective — the facts this total structural eq relies on)."""
+        def _feq(wt: str, a: str, b: str) -> str:
+            if wt == "string":
+                return f"(pystr_eq {a} {b})"
+            if wt == "int":
+                return f"(if {a} = {b} then true else false)"
+            if wt == "bool":
+                return f"(if {a} then {b} else (not {b}))"
+            if wt == "term":
+                return f"(term_eq {a} {b})"
+            if wt == "list term":
+                return f"(term_list_eq {a} {b})"
+            if wt == "list string":
+                return f"(strlist_eq {a} {b})"
+            return "false"                    # fail-closed (unreachable for spec)
+        lines = [
+            "  (* §F4: DEFINED structural term equality (mutual, terminating;"
+            " ledger 3) *)",
+            "  let rec term_eq (a b: term) : bool",
+            "    variant { a }",
+            "  = match a, b with",
+        ]
+        for c in order:
+            flds = ctors[c]
+            av = [f"a{i}" for i in range(len(flds))]
+            bv = [f"b{i}" for i in range(len(flds))]
+            lpat = f"{c} {' '.join(av)}".rstrip()
+            rpat = f"{c} {' '.join(bv)}".rstrip()
+            if flds:
+                conj = " && ".join(
+                    _feq(wt, av[i], bv[i]) for i, (_fn, wt) in enumerate(flds))
+            else:
+                conj = "true"
+            lines.append(f"    | {lpat}, {rpat} -> {conj}")
+        lines.append("    | _, _ -> false")
+        lines.append("    end")
+        lines.append("  with term_list_eq (xs ys: list term) : bool")
+        lines.append("    variant { xs }")
+        lines.append("  = match xs, ys with")
+        lines.append("    | Nil, Nil -> true")
+        lines.append("    | Cons x xs2, Cons y ys2 ->"
+                     " (term_eq x y) && (term_list_eq xs2 ys2)")
+        lines.append("    | _, _ -> false")
+        lines.append("    end")
+        lines.append("  with strlist_eq (xs ys: list string) : bool")
+        lines.append("    variant { xs }")
+        lines.append("  = match xs, ys with")
+        lines.append("    | Nil, Nil -> true")
+        lines.append("    | Cons x xs2, Cons y ys2 ->"
+                     " (pystr_eq x y) && (strlist_eq xs2 ys2)")
+        lines.append("    | _, _ -> false")
+        lines.append("    end")
+        lines.append("")
         return lines
 
     def _emit_pydict_theory(self, needs: Dict[str, Any]) -> List[str]:
@@ -6152,13 +6245,22 @@ class PreambleEmissionMixin:
                         _ov = f.get("value_type")
                         if _ov == "opaque_term":
                             # crosscheck_ir.py self-state carrier
-                            # (class-variant-impl.md §OUTCOME-CC): an
-                            # `Optional[Term]` canon field with an OPAQUE payload
-                            # -> inhabitable `option int` so a presence test is
-                            # non-vacuous. value_type "opaque_term" arises ONLY
-                            # from the (class,field) allow-list in Module5, so
-                            # this branch is corpus/other-mirror byte-inert.
-                            ftype = "option int"
+                            # (class-variant-impl.md §OUTCOME-CC / §F3): an
+                            # `Optional[Term]` canon field. When the certified
+                            # `term` inductive is available in this file (the mirror
+                            # imports the full 9-ctor Term union -> `_term_adt_spec`
+                            # is derived, `type term` is emitted), the field is the
+                            # FAITHFUL `option term` — so `isinstance(c, Unsupported)`
+                            # / `c == d` (term_eq) over the canon fields lower onto
+                            # the real inductive (F3/F4). Absent the inductive it
+                            # degrades to an inhabitable `option int` (presence-only,
+                            # the §OUTCOME-CC `registry_skipped` path). value_type
+                            # "opaque_term" arises ONLY from the (class,field)
+                            # allow-list in Module5 -> corpus/other-mirror byte-inert.
+                            if getattr(self, "_term_adt_spec", None):
+                                ftype = "option term"
+                            else:
+                                ftype = "option int"
                         elif (_ov in ("string", "emit_ir")
                                 and (getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):

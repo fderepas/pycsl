@@ -9684,3 +9684,291 @@ def _uses_str_empty(x: Any) -> bool:
                if isinstance(v, (dict, list))) or any(
         _uses_str_empty(e) for v in x.values() if isinstance(v, list) for e in v
         if isinstance(e, dict))
+
+
+# ============================================================================
+# class-variant-impl.md §F3+§F4: crosscheck_ir.py term-STRUCTURAL methods
+# ----------------------------------------------------------------------------
+# The 4 `IRCrossCheckResult` methods that dispatch/compare over the `Optional
+# [Term]` canon self-state (`rocq_canon`/`lean_canon`/`registry_canon`, each an
+# `option term` once the certified 9-ctor inductive is available — §F3):
+#   any_unsupported        : any(isinstance(c, Unsupported) for c in <fields> if c is not None)
+#   all_present_unsupported: canons=[...]; if not canons: False; all(isinstance(c, Unsupported) ...)
+#   all_agree              : canons=[...]; if not canons: False; all(c == canons[0] for c in canons)
+#   provers_agree          : if F1 is None or F2 is None: True; return F1 == F2
+# `isinstance(c, <Ctor>)` lowers to a `Some (<Ctor> _..)` match arm over the
+# real inductive; `c == d` lowers to the DEFINED structural `term_eq` (§F4).
+# STRICT / fail-closed: any shape outside these grammars -> None (stub keeps
+# `\trusted`). Faithful (mutation-flowing): the emitted `.mlw` reads the actual
+# fields, quantifier, isinstance target ctor, and eq operands.
+# ============================================================================
+
+def _cc_field_of(x: Any) -> Optional[str]:
+    if _cc_is_self_field(x):
+        return x.get("field")
+    return None
+
+
+def _cc_none(x: Any) -> bool:
+    return isinstance(x, dict) and x.get("type") == "None"
+
+
+def _cc_isnotnone_filter(ifs: Any, subj: str) -> bool:
+    """`ifs` is exactly `[<subj> != None]`."""
+    if not (isinstance(ifs, list) and len(ifs) == 1):
+        return False
+    g = ifs[0]
+    return (isinstance(g, dict) and g.get("type") == "BinOp"
+            and g.get("op") == "!=" and _is_var(g.get("left"), subj)
+            and _cc_none(g.get("right")))
+
+
+def _cc_canon_tuple_fields(iter_node: Any) -> Optional[List[str]]:
+    """`(self.F1, self.F2, self.F3)` -> [F1, F2, F3] (>=1 self-field, all self)."""
+    if not (isinstance(iter_node, dict) and iter_node.get("type") == "Tuple"):
+        return None
+    fields: List[str] = []
+    for e in iter_node.get("elts", []):
+        f = _cc_field_of(e)
+        if f is None:
+            return None
+        fields.append(f)
+    return fields or None
+
+
+def _cc_pred(elt: Any, subj: str) -> Optional[Dict[str, Any]]:
+    """The genexp predicate over the bound var `subj`:
+        isinstance(subj, <Ctor>)  -> {"kind":"isinstance","ctor":<Ctor>}
+        subj == canons[0]         -> {"kind":"eq_first"}"""
+    if not isinstance(elt, dict):
+        return None
+    if (elt.get("type") == "Call" and elt.get("func") == "isinstance"):
+        args = elt.get("args", [])
+        if (len(args) == 2 and _is_var(args[0], subj)
+                and isinstance(args[1], dict) and args[1].get("type") == "Var"):
+            return {"kind": "isinstance", "ctor": args[1].get("name")}
+        return None
+    if (elt.get("type") == "BinOp" and elt.get("op") == "=="
+            and _is_var(elt.get("left"), subj)):
+        r = elt.get("right")
+        if (isinstance(r, dict) and r.get("type") == "Subscript"
+                and _is_var(r.get("value"))
+                and isinstance(r.get("index"), dict)
+                and r["index"].get("type") == "Number"
+                and r["index"].get("value") == 0):
+            return {"kind": "eq_first", "canons_var": r["value"].get("name")}
+    return None
+
+
+def recognize_crosscheck_term_method(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Recognize the 4 term-structural `IRCrossCheckResult` methods. Returns a
+    descriptor {"shape","fields","quant","pred",...} or None (fail-closed)."""
+    if func.get("formal_params"):
+        return None
+    if "__" not in (func.get("name") or ""):
+        return None
+    body = func.get("body", [])
+
+    # --- Shape PROVERS: `if F1 is None or F2 is None: return True; return F1 == F2`
+    if (len(body) == 2 and isinstance(body[0], dict)
+            and body[0].get("stmt") == "If" and isinstance(body[1], dict)
+            and body[1].get("stmt") == "Return"):
+        test = body[0].get("test")
+        thenb = body[0].get("body", [])
+        if (isinstance(test, dict) and test.get("type") == "BinOp"
+                and test.get("op") == "or" and not body[0].get("orelse")
+                and len(thenb) == 1 and thenb[0].get("stmt") == "Return"
+                and isinstance(thenb[0].get("value"), dict)
+                and thenb[0]["value"].get("type") == "Bool"
+                and thenb[0]["value"].get("value") is True):
+            l, r = test.get("left"), test.get("right")
+            def _isnone_cmp(n):
+                return (isinstance(n, dict) and n.get("type") == "BinOp"
+                        and n.get("op") == "==" and _cc_none(n.get("right"))
+                        and _cc_field_of(n.get("left")))
+            f1, f2 = _isnone_cmp(l), _isnone_cmp(r)
+            ret = body[1].get("value")
+            if (f1 and f2 and isinstance(ret, dict) and ret.get("type") == "BinOp"
+                    and ret.get("op") == "==" ):
+                rf1, rf2 = _cc_field_of(ret.get("left")), _cc_field_of(ret.get("right"))
+                if rf1 == f1 and rf2 == f2:
+                    return {"shape": "provers", "f1": f1, "f2": f2,
+                            "uses_term_eq": True}
+
+    # --- Shape ANY: single `return any(<pred> for c in (F1,F2,F3) if c != None)`
+    if len(body) == 1 and isinstance(body[0], dict) \
+            and body[0].get("stmt") == "Return":
+        v = body[0].get("value")
+        d = _cc_quant_genexp(v, inline_filter=True)
+        if d is not None:
+            return d
+
+    # --- Shape LISTCOMP-QUANT: canons=[...]; if not canons: return False; return all/any(...)
+    if (len(body) == 3 and isinstance(body[0], dict)
+            and body[0].get("stmt") == "Assign"
+            and isinstance(body[1], dict) and body[1].get("stmt") == "If"
+            and isinstance(body[2], dict) and body[2].get("stmt") == "Return"):
+        cvar = body[0].get("target")
+        lc = body[0].get("value")
+        if not (isinstance(lc, dict) and lc.get("type") == "ListComp"):
+            return None
+        gens = lc.get("generators", [])
+        elt = lc.get("elt")
+        if not (len(gens) == 1 and _is_var(elt, gens[0].get("target"))):
+            return None
+        subj = gens[0].get("target")
+        fields = _cc_canon_tuple_fields(gens[0].get("iter"))
+        if fields is None or not _cc_isnotnone_filter(gens[0].get("ifs"), subj):
+            return None
+        # `if not canons: return False`
+        test = body[1].get("test")
+        thenb = body[1].get("body", [])
+        if not (isinstance(test, dict) and test.get("type") == "UnaryOp"
+                and test.get("op") == "not" and _is_var(test.get("expr"), cvar)
+                and not body[1].get("orelse") and len(thenb) == 1
+                and thenb[0].get("stmt") == "Return"
+                and isinstance(thenb[0].get("value"), dict)
+                and thenb[0]["value"].get("type") == "Bool"
+                and thenb[0]["value"].get("value") is False):
+            return None
+        # final `return all/any(<pred> for c in canons)`
+        d = _cc_quant_genexp(body[2].get("value"), inline_filter=False,
+                             over_var=cvar)
+        if d is None:
+            return None
+        d["fields"] = fields
+        d["shape"] = "listcomp"
+        d["empty_false"] = True
+        return d
+    return None
+
+
+def _cc_quant_genexp(v: Any, inline_filter: bool,
+                     over_var: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """`any(<pred> for c in <it> [if c != None])`. When inline_filter: `<it>` is
+    the (F1,F2,F3) tuple with a `!= None` filter (the ANY shape). Otherwise
+    `<it>` must be the bound `over_var` list with no filter (the LISTCOMP tail)."""
+    if not (isinstance(v, dict) and v.get("type") == "Call"
+            and v.get("func") in ("any", "all")):
+        return None
+    args = v.get("args", [])
+    if len(args) != 1 or not isinstance(args[0], dict) \
+            or args[0].get("type") != "GenExp":
+        return None
+    ge = args[0]
+    gens = ge.get("generators", [])
+    if len(gens) != 1:
+        return None
+    subj = gens[0].get("target")
+    pred = _cc_pred(ge.get("elt"), subj)
+    if pred is None:
+        return None
+    if inline_filter:
+        fields = _cc_canon_tuple_fields(gens[0].get("iter"))
+        if fields is None or not _cc_isnotnone_filter(gens[0].get("ifs"), subj):
+            return None
+        return {"shape": "any", "fields": fields, "quant": v.get("func"),
+                "pred": pred, "uses_term_eq": pred.get("kind") == "eq_first"}
+    else:
+        if not (_is_var(gens[0].get("iter"), over_var) and not gens[0].get("ifs")):
+            return None
+        return {"quant": v.get("func"), "pred": pred,
+                "uses_term_eq": pred.get("kind") == "eq_first"}
+
+
+def _cc_ctor_arity(tspec: Dict[str, Any], ctor: str) -> Optional[int]:
+    ctors = (tspec or {}).get("ctors", {})
+    if ctor not in ctors:
+        return None
+    return len(ctors[ctor])
+
+
+def _cc_is_ctor_arm(field: str, ctor: str, arity: int) -> str:
+    wild = " ".join(["_"] * arity)
+    pat = f"({ctor} {wild})" if arity else ctor
+    return (f"(match self.{field} with Some {pat} -> true | _ -> false end)")
+
+
+def _cc_is_some(field: str) -> str:
+    return f"(match self.{field} with Some _ -> true | None -> false end)"
+
+
+def emit_crosscheck_term_method_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                      tspec: Dict[str, Any],
+                                      whyml_ident) -> List[str]:
+    """Emit a term-structural crosscheck method as a total `let` over the
+    `option term` self-state. `isinstance(c, Ctor)` -> a `Some (Ctor _..)` arm;
+    `c == d` -> the DEFINED structural `term_eq` (§F4). `ensures True`."""
+    n = whyml_ident(func["name"])
+    self_type = n.split("__")[0]
+    shape = desc["shape"]
+
+    if shape == "provers":
+        # `if F1 is None or F2 is None: return True; return F1 == F2`
+        f1, f2 = desc["f1"], desc["f2"]
+        body = (f"match self.{f1}, self.{f2} with "
+                f"| Some a, Some b -> term_eq a b | _, _ -> true end")
+        return [
+            f"  let {n} (self: {self_type}) : bool",
+            "    requires { true } ensures { true }",
+            f"  = {body}",
+        ]
+
+    fields = desc["fields"]
+    pred = desc["pred"]
+    quant = desc["quant"]
+    if pred["kind"] == "isinstance":
+        ctor = pred["ctor"]
+        arity = _cc_ctor_arity(tspec, ctor)
+        if arity is None:
+            return []          # fail-closed: unknown ctor (should not happen)
+        if quant == "any":
+            # any present is <Ctor>  (None fields are filtered out)
+            arms = " || ".join(_cc_is_ctor_arm(f, ctor, arity) for f in fields)
+            body = f"({arms})"
+        else:
+            # all present are <Ctor>  AND at least one present (empty -> False)
+            def _all_arm(f):
+                wild = " ".join(["_"] * arity)
+                pat = f"({ctor} {wild})" if arity else ctor
+                return (f"(match self.{f} with None -> true "
+                        f"| Some {pat} -> true | Some _ -> false end)")
+            allc = " && ".join(_all_arm(f) for f in fields)
+            somec = " || ".join(_cc_is_some(f) for f in fields)
+            body = f"({allc}) && ({somec})"
+    elif pred["kind"] == "eq_first":
+        # all(c == canons[0] for c in canons); canons[0] = FIRST present field.
+        # Nested destructure to bind the first present, term_eq the rest.
+        body = _cc_emit_eq_first(fields)
+    else:
+        return []
+    return [
+        f"  let {n} (self: {self_type}) : bool",
+        "    requires { true } ensures { true }",
+        f"  = {body}",
+    ]
+
+
+def _cc_emit_eq_first(fields: List[str]) -> str:
+    """`all(c == canons[0])` over the present canon fields: find the first
+    present, term_eq every later present one against it; empty -> false."""
+    def rest_agree(anchor_local: str, later: List[str]) -> str:
+        if not later:
+            return "true"
+        conj = " && ".join(
+            f"(match self.{f} with Some x{i} -> term_eq {anchor_local} x{i} "
+            f"| None -> true end)"
+            for i, f in enumerate(later))
+        return conj
+    # build a match over all fields as a tuple, picking the first Some.
+    scrut = ", ".join(f"self.{f}" for f in fields)
+    n = len(fields)
+    arms = []
+    # all-None -> false
+    arms.append("| " + ", ".join(["None"] * n) + " -> false")
+    for i in range(n):
+        # field i is the first present: pattern None*i, Some a, _*(n-i-1)
+        pat = (["None"] * i) + ["Some a"] + ["_"] * (n - i - 1)
+        arms.append("| " + ", ".join(pat) + " -> "
+                    + rest_agree("a", fields[i + 1:]))
+    return "match " + scrut + " with " + " ".join(arms) + " end"

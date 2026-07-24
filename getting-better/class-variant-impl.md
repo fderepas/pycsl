@@ -481,3 +481,101 @@ emit, gated). No 4th axiom (the `term` inductive is Phase2i-certified; `term_eq`
 2-ctor `Unsupported|Other` collapse is a Gate-C FACADE (mutation test on `isinstance(c, Var)`
 would not flow) → the FULL inductive is required. `pairwise` (returns `Dict[str, Optional[bool]]`)
 is a distinct dict-result algebra on top of `term_eq`.
+
+## §OUTCOME-F3F4 — 2026-07-24 driver run: F3+F4 BUILT + 4 conversions (921 → 917), the crosscheck term-structural cluster CLOSED
+
+**Verdict: F3 (the certified `term` inductive made available in crosscheck_ir
+WITHOUT an in-file isinstance-dispatch) + F4 (a DEFINED structural `term_eq`
+emitter) are BUILT, the make-or-break spike PASSED, and ALL FOUR residual
+term-structural methods convert: `any_unsupported` + `all_present_unsupported`
+(F3-only, `isinstance(c, Unsupported)` over `option term`), `provers_agree` +
+`all_agree` (F3+F4, structural `term_eq`). NO new certificate — the SAME
+Phase2i `term` inductive (well-formed / distinct / injective, axiom-free)
+covers `term_eq`; `pystr_eq` is a VC-free `val`, NOT an axiom. Ledger stays 3;
+src/formal-semantics/ + proof_axiom_allowlist.py UNTOUCHED. This CLOSES the
+§RESIDUAL-CC 4-method cluster.**
+
+### GATE-S census + make-or-break spike — PASSED (CORRECTNESS-clean)
+`scratchpad/cc_spike.mlw`: hand-wrote the 9-ctor `term` variant, the `option
+term` self-state record, a program `let rec term_eq`/`term_list_eq`/`strlist_eq`
+(structural mutual recursion, `variant { a }`/`{ xs }`), and the 4 method bodies.
+**All 7 VCs Valid (alt-ergo)** incl. `term_eq'vc` (termination) — Why3 ACCEPTS
+`option term` fields + mutual term_eq; NO 4th axiom. Census: `any_unsupported`/
+`all_present_unsupported` need F3 only; `provers_agree`/`all_agree` need F3+F4.
+
+### F3 — the certified term spec WITHOUT an in-file isinstance-dispatch
+`compute_term_adt_spec` derives the `term` inductive from an isinstance-DISPATCH
+over the imported ctor dataclasses. Obstacle 3 (§OUTCOME-CC) said crosscheck_ir
+imports only `Term`+`Unsupported` → no dispatch → no spec. **SOLVED cleanly by
+importing the full 9-ctor union in the MIRROR** (`from proof2why3.ir import App,
+BinOp, BoolLit, Exists, Forall, IntLit, Term, UnaryOp, Unsupported, Var`):
+imports are NOT diffed by the mirror-sync gate (module-level statements are
+ignored), and the import ALSO pulls the module-level `free_vars`/`mk_arrow_chain`/
+`flatten_arrow_chain` folds whose isinstance-dispatch seeds the EXACT certified
+9-ctor spec (App.args : list term, BinOp lhs/rhs : term, Forall/Exists.binders :
+list string — verified identical to emit_why3/canonical/ir). NO canonical-spec
+fallback / hardcoded ctor set was needed (that would have risked a facade) — the
+spec is genuinely derived from the imported dataclasses + their fold usage. The
+`Optional[Term]` canon fields then become the FAITHFUL `option term` (Module6
+`opaque_term` branch, gated on `_term_adt_spec` present — else the §OUTCOME-CC
+`option int` presence-only degrade).
+
+### F4 — the DEFINED structural `term_eq` emitter
+`_emit_term_eq_defs` (preamble.py) generates `term_eq`/`term_list_eq`/`strlist_eq`
+GENERICALLY from the term spec (per-ctor arm ANDs the field-wise equality chosen
+by each field's WhyML type: string→pystr_eq, int→`=`, bool→iff, term→term_eq,
+list term→term_list_eq, list string→strlist_eq), TOTAL, structural `variant`
+(Why3-intrinsic termination over the Phase2i-certified inductive — NO measure, NO
+axiom). Gated on `needs_term_eq` = a CONVERTED eq-method present (a still-
+`\trusted` stub body `return False` never matches the recognizer) → term_eq
+emits ONLY once `provers_agree`/`all_agree` are converted.
+
+### What was BUILT (all source-only in `src/pycsl`, NOT the mirror → 0 new stubs)
+- **`recognize_crosscheck_term_method` + `emit_crosscheck_term_method_group`**
+  (`generic_fold.py`) — STRICT fail-closed recognizers for the 4 shapes (ANY
+  genexp with inline `!= None` filter; LISTCOMP-QUANT `canons=[...]; if not
+  canons: return False; all/any(...)`; PROVERS `if F1 is None or F2 is None:
+  return True; return F1 == F2`). `isinstance(c, Ctor)` → a `Some (Ctor _..)`
+  arm (arity from the spec); `c == d` → `term_eq`; `c == canons[0]` → a
+  first-present nested destructure. Reads the ACTUAL fields / quantifier /
+  isinstance target / eq operands (mutation-flowing, non-facade).
+- **Module6** (`preamble.py`): `opaque_term` → `option term` when `_term_adt_spec`;
+  `_emit_term_eq_defs` under `needs_term_eq`; pystr_eq never double-declared
+  (excluded when `needs_selfstate_streq` already emits it).
+- **dispatch** (`functions.py`): tried after the selfstate-bool recognizer,
+  gated on `_has_opaque_term_fields` + `_term_adt_spec` → 0 corpus / 0 other mirror.
+
+### Gate battery (driver-verified fresh, per conversion)
+- count 921 → **920** (`any_unsupported`) → **919** (`all_present_unsupported`)
+  → **918** (`provers_agree`) → **917** (`all_agree`); ledger **3** (`git diff`
+  on proof_axiom_allowlist.py / src/formal-semantics EMPTY).
+- **whole-file** `crosscheck_ir.py` proof **SUCCESS** (all 4 methods + term_eq;
+  28s). L3-tc ✓ whole file. The sibling term mirrors (emit_why3/canonical/ir/
+  from_sexp/parser) emit BYTE-IDENTICAL to HEAD (mirror-emission diff = only
+  crosscheck_ir differs) → their proofs carry (the full suite exceeds the 10-min
+  foreground cap; verified by byte-identity + the changed file's whole-file proof).
+- **corpus byte-diff 0** (810 common == 810, mine vs detached-HEAD worktree with
+  `.venv` symlinked, IDENTICAL, 0 changed / 0 only-in; new 0964/0965 fixtures
+  mine-only). All machinery gated on `_has_opaque_term_fields`/`_term_adt_spec`.
+- Vacuity `--emit` exit 0: **0 input-blind**, no NEW erasure (the 4 methods read
+  their canon fields; the 3 KNOWN erasures unchanged).
+- mirror-check **52/52**; drift **2 == HEAD** (the 4 methods verbatim = in sync;
+  the 2 pre-existing `_handle_var_expr`/`_handle_for_stmt` still-blocked).
+- **MUTATION TEST (Gate C, decisive):** (M1) `isinstance(c, Unsupported)`→`Var`
+  flips `Some (Unsupported _ _)`→`Some (Var _)` (ctor + arity flow); (M2)
+  `all`→`any` flips the AND+exists form→OR; (M3') `lean_canon`→`registry_canon`
+  flips the `term_eq` operand field; (M4) tuple field-order flips the match
+  scrutinee. Non-facade (real `option term` fields, real ctor destructure, real
+  term_eq — no int-hash / 2-ctor-collapse / oracle).
+- fixtures (`git add -f`): `0964_crosscheck_term_structural.py` (positive; the
+  full 3-ctor `Term = Unsupported | Var | Bin` union + `has_unsup` dispatch fold
+  + `IRCrossCheckResult` with all 4 methods; PROVES) + `0965_..._twin.py` (the
+  `isinstance(c, Var)` DISCRIMINATING TWIN; PROVES, byte-different emission).
+
+### §RESIDUAL-after-F3F4 — the crosscheck term-structural cluster is CLOSED
+The 4 methods are converted; `pairwise` (returns `Dict[str, Optional[bool]]`) is
+a distinct dict-result algebra on top of `term_eq` (a separate small carrier, not
+built). `diagnostic` (str-build via `.pp()`) rides the record-bridge pp family.
+`Module2_Parser._csl_to_str` (CSLNode ADT) stays [CORRECTNESS] (its int is
+`str_to_int` = the oracle). This is the IO/parser boundary band — the driver
+consolidates from here.

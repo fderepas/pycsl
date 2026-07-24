@@ -504,3 +504,15 @@ capability, so the stop-classification is mechanical, not a judgment call.
   pyval walker (== item 3); a shape-specific recognizer = Gate-C facade reject. Sound throughout (no 4th
   axiom, no unsound guess). REOPEN: build pyval `pv_nth`/`pv_len`/`atom_of` + the general value-returning-
   pyval walker + a param-annotation→pyval hook + negative-index-from-end; do it once, generally.
+
+### item 3 — F3+F4 crosscheck term-structural: CLOSED (2026-07-24, 921->917)
+The §RESIDUAL-CC 4-method cluster (any_unsupported/all_present_unsupported/
+provers_agree/all_agree) is CONVERTED. F3 = the certified `term` inductive made
+available in crosscheck_ir by importing the full 9-ctor union in the mirror
+(imports aren't sync-diffed; the imported folds seed compute_term_adt_spec);
+opaque_term fields -> `option term`. F4 = a generic DEFINED `term_eq` emitter
+(structural, no axiom, Phase2i-covered). Remaining crosscheck stubs: `pairwise`
+(Dict[str,Optional[bool]] result algebra over term_eq) + `diagnostic` (str-build,
+record-bridge pp) + the non-term `_load_axiom_registry`/`_preprocess_whyml`/
+`crosscheck_file_ir`/`main` (IO/parse boundary). See class-variant-impl.md
+§OUTCOME-F3F4.
