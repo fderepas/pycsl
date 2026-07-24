@@ -2201,7 +2201,7 @@ class PreambleEmissionMixin:
         # never carry this value_type -> byte-inert everywhere else.
         from module6_whyml.generic_fold import (
             recognize_crosscheck_selfstate_bool, _uses_str_empty,
-            recognize_crosscheck_term_method)
+            recognize_crosscheck_term_method, recognize_crosscheck_pairwise)
         self._has_opaque_term_fields = any(
             f.get("value_type") == "opaque_term"
             for td in self.ir.get("type_decls", [])
@@ -2219,9 +2219,11 @@ class PreambleEmissionMixin:
         # being present -> term_eq emits ONLY once an eq-method is converted;
         # corpus/other-mirror byte-inert (no opaque_term fields there).
         needs_term_eq = bool(
-            self._has_opaque_term_fields and self._term_adt_spec and any(
+            self._has_opaque_term_fields and self._term_adt_spec and (any(
                 (recognize_crosscheck_term_method(f) or {}).get("uses_term_eq")
-                for f in functions))
+                for f in functions) or any(
+                recognize_crosscheck_pairwise(f) is not None
+                for f in functions)))
         self._needs_term_eq = needs_term_eq
         return {
             "needs_pydict": needs_pydict,

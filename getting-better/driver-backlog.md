@@ -511,8 +511,23 @@ provers_agree/all_agree) is CONVERTED. F3 = the certified `term` inductive made
 available in crosscheck_ir by importing the full 9-ctor union in the mirror
 (imports aren't sync-diffed; the imported folds seed compute_term_adt_spec);
 opaque_term fields -> `option term`. F4 = a generic DEFINED `term_eq` emitter
-(structural, no axiom, Phase2i-covered). Remaining crosscheck stubs: `pairwise`
-(Dict[str,Optional[bool]] result algebra over term_eq) + `diagnostic` (str-build,
-record-bridge pp) + the non-term `_load_axiom_registry`/`_preprocess_whyml`/
-`crosscheck_file_ir`/`main` (IO/parse boundary). See class-variant-impl.md
-§OUTCOME-F3F4.
+(structural, no axiom, Phase2i-covered). See class-variant-impl.md §OUTCOME-F3F4.
+
+### item 3b — F5 crosscheck `pairwise`: CONVERTED (2026-07-24, 917->916)
+`pairwise` (`Dict[str,Optional[bool]]`) is CONVERTED via a small carrier over
+`term_eq`: `recognize_crosscheck_pairwise` + `emit_crosscheck_pairwise_group`
+(generic_fold.py) → total `ghost let … : map string (option (option bool))`
+(dict-presence `Some _` DISJOINT from the value's own `option bool`). BLOCKER was
+that `pairwise` uniquely kept `@property` (Module5 `_should_skip_method` drops all
+`@property`) → it was dropped from IR; removing it (like the sibling mirror
+properties) + inlining the nested `cmp` (Module5 drops nested defs → facade risk)
+surfaced it. NO new axiom (reuses term_eq); ledger 3. whole-file proof SUCCESS
+(`--import-path src/pycsl`), corpus byte-diff 0, mirror 52/52, drift 2, vacuity 0,
+M1/M3 mutation decisive; fixtures 0966/0967. See class-variant-impl.md §OUTCOME-F5.
+
+`diagnostic` stays `\trusted` = **CERTIFIED-BOUNDARY [COST/SCALE]+[CORRECTNESS]**:
+it iterates `self.pairwise.items()` (a Why3 `map` has NO items()/iteration —
+non-expressible) + interpolates `Term.pp()` into f-strings + `list.append`/`join`
+— a bespoke multi-feature str-build beyond the carrier. Non-term crosscheck stubs
+(`_load_axiom_registry`/`_preprocess_whyml`/`crosscheck_file_ir`/`main`) remain the
+IO/parse boundary. crosscheck_ir's TERM cluster is CLOSED.

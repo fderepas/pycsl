@@ -8,6 +8,81 @@ vs `is_App`; pyconst_val / stmt_ir / pyast_stmt model DIFFERENT Python types). T
 the class-instance-variant carrier, PROVEN + NON-FACADE, converts the first stub, and co-lands
 the axiom-free Rocq+Lean certificate.
 
+## §OUTCOME-F5 — 2026-07-24 driver run: `pairwise` CONVERTED (917 → 916); `diagnostic` = [COST/SCALE] boundary
+
+**Verdict: `IRCrossCheckResult.pairwise` is CONVERTED via a small `Dict[str,
+Optional[bool]]` carrier over the built `term_eq` (§F4). NO new certificate
+(reuses Phase2i term + term_eq); ledger stays 3; src/formal-semantics/ +
+proof_axiom_allowlist.py UNTOUCHED. `diagnostic` is a CERTIFIED [COST/SCALE]
+boundary — it iterates `self.pairwise.items()` (a Why3 `map` has NO items()/
+iteration) and interpolates `Term.pp()` into f-strings; a bespoke multi-feature
+str-build well beyond the pairwise carrier. crosscheck_ir's TERM cluster is now
+closed at the term-value methods; only the string-assembly `diagnostic` remains,
+in the IO/parser boundary band.**
+
+### GATE-S census (CRITICAL invocation note)
+The term carrier (`type term` + `term_eq` + `option term` canon fields) activates
+ONLY under `--import-path src/pycsl` — WITHOUT it, `compute_term_adt_spec` returns
+None (the imported ir.py ctor dataclasses + folds never reach `type_decls`/
+`functions`), the whole carrier degrades to `option int` + input-blind generic
+folds, and the file does NOT even L3-typecheck (`unbound symbol 'canons'`). The
+committed 4 F3+F4 methods are FAITHFUL under the correct invocation — verified
+`type term`/`term_eq`/`option term` + all-Valid whole-file proof. (Recorded so a
+future census does not mis-read a wrong-invocation emit as a soundness gap.)
+
+### THE BLOCKER + fix — `pairwise` uniquely retained `@property`
+`_should_skip_method` (Module5) drops EVERY `@property`. stub-gen had stripped
+`@property` from the sibling mirror properties (`all_agree`/`any_unsupported`/…)
+but LEFT it on `pairwise` — so `pairwise` was dropped from the IR entirely (never
+emitted, trusted or not). Removing `@property` (consistent with the siblings)
+surfaces it as a 0-arg method. The nested `def cmp` is also dropped by Module5,
+so its body would be INVISIBLE to any recognizer (a facade risk) — INLINED the
+comparison into the dict values in the mirror (`None if A is None or B is None
+else A == B`), semantically identical, self-contained, mutation-flowing.
+
+### The carrier — `recognize_crosscheck_pairwise` + `emit_crosscheck_pairwise_group`
+`generic_fold.py`: a STRICT fail-closed recognizer for a `DictLit` with
+string-literal keys whose every value is `IfExpr(test=(self.Fa==None) or
+(self.Fb==None), body=None, orelse=self.Fa==self.Fb)` — the `==` operands must be
+EXACTLY the two `None`-tested fields (order-sensitive). Emits a total `ghost let
+… : map string (option (option bool))` — the dict-presence wrapper (`Some _`) is
+DISJOINT from the value's own `Optional[bool]` (`option bool`): all keys present,
+value is `None` when a side is absent, else `Some (term_eq x y)`. `ghost` because
+a Why3 `map` is not a program datatype. Dispatched inside the
+`_has_opaque_term_fields` + `_term_adt_spec` block (functions.py); `pairwise`
+added to the `needs_term_eq` gate (preamble.py).
+
+### Gate battery (driver-verified fresh)
+- count 917 → **916**; ledger **3** (proof_axiom_allowlist.py / src/formal-semantics
+  diff EMPTY — no new axiom, reuses term_eq).
+- **whole-file** `crosscheck_ir.py --import-path src/pycsl` proof **SUCCESS**, all
+  Valid, 0 unproven; L3-tc ✓.
+- **corpus byte-diff 0** (812 common == 812, mine vs detached-HEAD worktree,
+  `.venv` symlinked, 0 changed; new 0966/0967 mine-only). All gated on
+  `_has_opaque_term_fields`/pairwise DictLit shape.
+- **vacuity** `--emit` exit 0: **0 NEW erasure** (3 known pre-existing unrelated);
+  pairwise reads all 3 canon fields + term_eq (non-vacuous by inspection).
+- mirror-check **52/52**; drift **2 == HEAD**.
+- **MUTATION TEST (Gate C, decisive):** (M1) first-entry field `lean_canon`→
+  `registry_canon` (both `None`-test + `==`) flips the emitted `term_eq` match
+  operand — flows. (M3) mismatched `==` operand (only the `==` side changed, not
+  the `None`-test) is REJECTED by the recognizer → falls through to a non-`term_eq`
+  generic `map int (option int)` degrade — proving the recognizer genuinely
+  validates the operands (a facade would blindly emit `term_eq`). Non-facade.
+- fixtures (`git add`): `0966_crosscheck_pairwise.py` (positive; PROVES) +
+  `0967_crosscheck_pairwise_twin.py` (first entry compares a DIFFERENT field pair;
+  PROVES, byte-DIFFERENT emission).
+
+### §RESIDUAL-F5 — `diagnostic` is the boundary
+`diagnostic` builds a human-readable multi-line string: `for label, ok in
+self.pairwise.items()` (iterating a Why3 `map` — NOT expressible), f-string
+interpolation of `self.rocq_canon.pp()` (Term→string via pp_term), `list.append`
++ `"\n".join`, and an `any_unsupported` note. This is a bespoke string-assembly
+needing map-iteration + f-string-of-`.pp()` + list-build — [COST/SCALE], and the
+map-iteration is a [CORRECTNESS] non-expressibility. Left `\trusted`. Beyond it:
+`Module2_Parser._csl_to_str` (int = `str_to_int` oracle, [CORRECTNESS]), sertop/
+IO. This is the IO/parser boundary band.
+
 ## §OUTCOME — 2026-07-24 driver run: BUILT + 1 conversion (count 933 → 932), residual [COST/SCALE]
 
 **Verdict: the class-instance-variant carrier is BUILT, both spikes PASSED, and lands
