@@ -100,6 +100,80 @@ over `CSLNode` = Var|Number|BinOp) uses `str(int(node.value))` = the `str_to_int
   evil-twin (the carrier forces `ensures True`, no oracle to collapse to; mutation test + vacuity are
   the non-vacuity lock — the pyval-walker precedent).
 
+## §OUTCOME-T — 2026-07-24 driver run: T-transform BUILT + 1 conversion (932 → 931)
+
+**Verdict: the Term→Term (constructor-rebuild) transform algebra is BUILT, the spike
+PASSED, and it converts `canonical.py::_flip_comparisons` (932 → 931). NO new certificate
+(the SAME `Phase2i_TermIR.v`/`TermIR.lean` inductive covers it); ledger stays 3; `val
+pystr_eq` is an uninterpreted `val`, NOT an axiom. src/formal-semantics/ + proof_axiom_allowlist.py
+UNTOUCHED.**
+
+### GATE-S census — the transform-algebra-ALONE cluster is SMALL (1 clean, not "most of 10")
+Of the 10 canonical.py Term→Term stubs, only stubs reachable by constructor-rebuild + recursion +
+simple guards **with NO cross-call to an un-built callee and NO extra value shape** count. Measured:
+- **`_flip_comparisons` — REACHABLE, CLEAN. CONVERTED.** Pure structural rebuild; the only tweak is
+  the BinOp op-swap via the certified str→str module constant `_FLIP_COMPARISON` (`module_const_dicts`).
+- **`_iff_app_to_binop` — RESIDUAL [COST/SCALE].** Needs `len(t.args)==2` + `t.args[0]/[1]` index →
+  a nested list-pattern `Cons a0 (Cons a1 Nil)`; the spike (`ttransform_spike2.mlw`) proved `flip`
+  Valid (0.24s) but `iff_app` TIMES OUT on BOTH alt-ergo AND z3 (the structural-variant termination
+  VC on deep nested-pattern subterms `a0`/`a1` blows up: 6.4M steps). Two extra recognizer features
+  (list-len-guard, list-index) + a proof-cost wall → not clean.
+- **The other 8 are OUT (cross-call / extra value shape), NOT transform-algebra-reachable:**
+  `substitute` (Dict[str,str] map param + `.get`), `_alpha_rename` (cross-calls `substitute` + mutable
+  counter + f-string), `_expand_nat_to_int`/`_dedup_arrow_chain`/`_sort_arrow_hypotheses`/`_flatten_foralls`
+  (cross-call the still-`\trusted` `mk_arrow_chain`/`flatten_arrow_chain`), `_ac_normalize` (closure +
+  `sorted` + `.pp()`), `_normalize_names` (cross-calls `_camel_to_snake`/`substitute`/`_normalize_type_string`
+  + string ops), `canonicalize` (cross-calls ALL). So the T-transform-ALONE cluster = **1**; the rest wait
+  on the T-string (`_pp`), map-param, and cross-call-callee carriers.
+
+### Make-or-break spike — PASSED (CORRECTNESS clean)
+- Hand-wrote `flip` (= `_flip_comparisons`) as a PROGRAM `let rec` over the 9-ctor `term` variant with the
+  op-swap via `val pystr_eq`: **flip'vc Valid** (alt-ergo, 0.24s), structural `variant { v_t }` / list helper
+  `variant { l }`, NO axiom (pystr_eq is a `val`, not an `axiom`). String equality on the `string` op field
+  in COMPUTABLE position is the blocker (Why3 `string.String` gives only LOGICAL `=`); SOLVED by the
+  already-trusted, ledger-neutral abstract `val pystr_eq (a b: string): bool` (used by the pydict readers),
+  which forces a **program `let rec`** (not the bool-fold's logic `let rec function`).
+- BASELINE VACUITY confirmed: the verbatim body lowers to `_flip_comparisons (t: int)`, `isinstance_op 0 0`
+  (hash constants), `subscript_get _FLIP_COMPARISON (get_op t)` (int-hash), and FAILS L3-tc — the wall is real.
+
+### What was BUILT (all source-only in `src/pycsl`, NOT the mirror → 0 new stubs; ledger 3)
+- **`recognize_term_isinstance_transform` + `emit_term_isinstance_transform_group`** (`generic_fold.py`) — the
+  Term→Term algebra: identity leaf arms (`return t` → `v_t`), single-ctor rebuild (COPY `t.F`→`v_F`, REC
+  `self(t.F)`→`{n} v_F`, MAPREC `tuple(self(x) for x in t.F)`→`{n}__list v_F`), the SAME-KIND rebuild idiom
+  (`kind = A if isinstance(t,A) else B; return kind(...)` → two arms each rebuilding its own ctor), and the
+  const-map conditional (`if t.op in _MAP: return Ctor(_MAP[t.op], …)` → an `if pystr_eq v_op "<k>" then …`
+  chain, contents from `module_const_dicts`). TOTAL positional `match` over the ctor set, PROGRAM `let rec`
+  + `{n}__list` list helper, structural `variant` — NO measure, NO axiom. Fail-closed `_PVWBail`.
+- **`_term_field_names_selfiter` generalized** (`generic_fold.py`) — now detects a self-recursive genexp under
+  ANY wrapper (`tuple(...)` for a transform, not only `any(...)` for a bool fold), so `App.args` types as
+  `list term` (the recursion signal is `self(x)` applied to the elements — binder-string lists never self-recurse).
+- **dispatch** (`functions.py`) — transform tried before the bool fold (disjoint: transform returns the union
+  type, fold returns bool); gated on `self._term_adt_spec`.
+- **preamble** — `_scan_preamble_needs` sets `needs_term` for a transform too, stashes `self._term_const_dicts
+  = ir["module_const_dicts"]`, and flags `needs_term_streq`; `_emit_term_theory` appends `val pystr_eq` under
+  `needs_term_streq` when pydict isn't already declaring it.
+- **Certificate: UNCHANGED.** The `term` inductive's well-formedness / distinctness / injectivity (the
+  facts the total-match + positional-projection rely on) are ALREADY certified axiom-free in `Phase2i_TermIR.v`
+  / `TermIR.lean`. Constructor EMISSION uses the same constructors; no new fact. Ledger stays 3.
+
+### Gate battery (driver-verified fresh)
+- count 932 → **931** (`_flip_comparisons` un-`\trusted`); ledger **3** (no cert/allowlist/formal-semantics edit).
+- `--fun _flip_comparisons` **SUCCESS**; **whole-file** `canonical.py` proof **SUCCESS** (all VCs Valid incl.
+  `_flip_comparisons'vc`, `_flip_comparisons__list'vc`, `alpha_normalize'vc`). L3-tc ✓ whole file.
+- **corpus byte-diff 0** (797 common == 797, mine vs detached-HEAD worktree, `.venv` symlinked, IDENTICAL) —
+  the recognizer is fail-closed + gated on `needs_term`.
+- Vacuity `--emit` exit 0: **0 input-blind**, no NEW erasure (`_flip_comparisons` reads `v_t`; the 3 KNOWN
+  erasures unchanged).
+- mirror-check **52/52**; drift **2 == HEAD** (`_flip_comparisons` verbatim = in sync; the 2 pre-existing
+  `_handle_var_expr` / `_handle_for_stmt` still-blocked).
+- **MUTATION TEST (Gate C, decisive):** map value `>=`→`>>` flips emitted `BinOp ">="`→`BinOp ">>"` (const-map
+  contents genuinely flow); dropping `UnaryOp(t.op, self(t.arg))`→`UnaryOp(t.op, t.arg)` flips `UnaryOp v_op
+  (_flip_comparisons v_arg)`→`UnaryOp v_op v_arg`. Non-facade (real variant fields, no int-hash/oracle).
+- reference fixture (`git add -f`): `0951_class_variant_term_transform.py` — a standalone
+  `Expr = Leaf | Neg | Bin | Quant` flip transform (identity + rebuild + condmap + list-string-binder rebuild)
+  that fires the carrier and PROVES (regression lock). No evil-twin (carrier forces `ensures True`; mutation
+  test + vacuity are the non-vacuity lock — the 0950 precedent).
+
 ## §RESIDUAL — the rest of the Term-ADT cluster ([COST/SCALE], carriers enumerated)
 The carrier CURRENTLY reaches the **bool existence fold** only (`contains_unsupported`; `any_unsupported`
 / `all_present_unsupported` are methods on a crosscheck class — the same bool algebra, reachable with a

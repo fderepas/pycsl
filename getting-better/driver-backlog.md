@@ -158,10 +158,24 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
          `emit_why3.contains_unsupported` (the bool existence fold) → total positional `match` over the
          `term` variant. Both spikes PASSED (cert Valid all algebras / recognizer falsifier); mutation
          test decisive; corpus byte-diff 0 (796==796); whole-file emit_why3 proof SUCCESS (added to
-         suite, lesson 10); drift 2; fixture 0950. **RESIDUAL [COST/SCALE]:** the T-transform (Term→Term
-         constructor emission, 10 canonical.py stubs — biggest sub-cluster), T-string (`_pp` f-string
-         build), T-set/list (`free_vars`/`flatten_arrow_chain`) result algebras — all CERT-covered by
-         the SAME `term` inductive (no new cert), distinct recognizers. `Module2_Parser._csl_to_str`
+         suite, lesson 10); drift 2; fixture 0950.
+         **T-TRANSFORM BUILT 2026-07-24 (count 932 → 931) — see class-variant-impl.md §OUTCOME-T.**
+         `recognize_term_isinstance_transform` + `emit_term_isinstance_transform_group` (generic_fold.py,
+         source-only → 0 new stubs): the Term→Term constructor-rebuild algebra (identity leaf / single-ctor
+         rebuild w/ COPY|REC|MAPREC fields / same-kind `kind=A if isinstance else B` rebuild / const-map
+         op-swap via `pystr_eq`). NO new cert (same `Phase2i_TermIR` inductive; pystr_eq is a `val`, not an
+         axiom; ledger 3). **CENSUS CORRECTION: the transform-algebra-ALONE cluster is 1, NOT "most of 10".**
+         Only `_flip_comparisons` is clean; `_iff_app_to_binop` = RESIDUAL [COST/SCALE] (list-len-guard +
+         index + termination-proof-cost — spike TIMES OUT on both alt-ergo AND z3); the other 8 are OUT
+         (cross-call the still-`\trusted` `mk_arrow_chain`/`flatten_arrow_chain`/`substitute`/`_camel_to_snake`,
+         or a `Dict[str,str]` map param). Converted `_flip_comparisons`. Mutation test decisive (map value
+         `>=`→`>>`; UnaryOp recursion drop); corpus byte-diff 0 (797==797); `--fun`+whole-file canonical.py
+         proof SUCCESS; drift 2; fixture 0951.
+         **RESIDUAL [COST/SCALE] (unchanged carriers):** `_iff_app_to_binop` (list-index/len + proof cost),
+         the OTHER 8 transforms behind un-built callee/map-param carriers (need `mk_arrow_chain`/
+         `flatten_arrow_chain`/`substitute` converted first, or the `Dict[str,str]` map-param model),
+         T-string (`_pp` f-string build), T-set/list (`free_vars`/`flatten_arrow_chain`) — all CERT-covered
+         by the SAME `term` inductive (no new cert), distinct recognizers. `Module2_Parser._csl_to_str`
          (CSLNode ADT) stays [CORRECTNESS] (its int is `str_to_int` = the oracle).
        * Python **`ast.*` node** hierarchy (`isinstance(x,ast.Subscript)`, `x.value.id`): M5
          `_normalize_literal_annotation`, `_encode_callable_annotation`, `_typeddict_field_type` — reopen
