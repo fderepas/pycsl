@@ -7165,3 +7165,148 @@ def emit_pyval_list_search_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append(f"         (if (match {P}r with Nil -> false | _ -> true end)"
                f" then {P}r else ({n}__list {P}rest)) end")
     return out
+
+
+# ============================================================================
+# pyval-walker-impl.md C3 (driver-backlog item 3, from_sexp residual) —
+# the `list pyval` FLATTEN catamorphism. Where C1/C1b RETURN `list string`,
+# `_flatten_tuples` RETURNS `List[Any]` = `list pyval` (a list of the sub-nodes
+# themselves, not strings extracted from them). This is a DISTINCT value model:
+# the accumulator element type is `pyval`, appended whole (`out.append(t)`) and
+# the children flattened by a self-call on each spine element (`out.extend(
+# _flatten_tuples(sub))`). Emitted as the certified mutual
+#   let rec {n} (v: pyval) variant { pv_size v }
+#     with {n}__list (l: list pyval) variant { size_list l }
+# with an inline TOTAL `list pyval` append (`{n}__ftapp`, `variant { a }`).
+# Termination is the certified cross-decreasing pyval `pv_size`/`size_list`
+# measure (spike: all VCs Valid under Alt-Ergo, NO new axiom, ledger 3).
+#
+# Supported fragment (single `Any` param `p`, `-> List[Any]` (`ret == "list"`)):
+#   out = []
+#   if isinstance(p, tuple|list):
+#       [out.append(p)]            # OPTIONAL self-node head (the `head` knob)
+#       for <v> in p:
+#           out.extend(<selfname>(<v>))
+#   return out
+# Any deviation raises `_PVWBail` → recognizer returns None (fail-closed,
+# precision-over-recall). The templater is NOT in the TCB — a bug yields an
+# unprovable instance (the whole-file re-proof is loud), never a false proof.
+
+def recognize_pyval_flatten(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the C3 `list pyval` flatten catamorphism.
+    Returns {param, head} or None. Never raises."""
+    try:
+        return _recognize_pyval_flatten(func)
+    except Exception:
+        return None
+
+
+def _recognize_pyval_flatten(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    p = params[0]
+    if func.get("param_annotations", {}).get(p) not in (None, "Any"):
+        return None
+    if func.get("return_annotation") not in ("list", "List"):
+        return None
+    name = func.get("name")
+    body = func.get("body", [])
+    # Exactly: out=[] ; if isinstance(p, tuple): <inner> ; return out
+    if not (isinstance(body, list) and len(body) == 3):
+        raise _PVWBail()
+    a0, a1, a2 = body
+    # out = []
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        raise _PVWBail()
+    acc = a0.get("target")
+    v0 = a0.get("value")
+    if not (isinstance(acc, str) and isinstance(v0, dict)
+            and v0.get("type") == "ArrayLit" and not v0.get("elts")):
+        raise _PVWBail()
+    # return out
+    if not (isinstance(a2, dict) and a2.get("stmt") == "Return"
+            and _is_var(a2.get("value"), acc)):
+        raise _PVWBail()
+    # if isinstance(p, tuple|list): <inner>   (no else)
+    if not (isinstance(a1, dict) and a1.get("stmt") == "If") or a1.get("orelse"):
+        raise _PVWBail()
+    t = a1.get("test")
+    if not (isinstance(t, dict) and t.get("type") == "Call"
+            and t.get("func") == "isinstance"):
+        raise _PVWBail()
+    targs = t.get("args", [])
+    if not (len(targs) == 2 and _is_var(targs[0], p)
+            and _is_var(targs[1]) and targs[1].get("name") in ("tuple", "list")):
+        raise _PVWBail()
+    inner = a1.get("body", [])
+    if not (isinstance(inner, list) and inner):
+        raise _PVWBail()
+    # OPTIONAL leading `out.append(p)` (the self-node head knob).
+    head = False
+    idx = 0
+    s0 = inner[0]
+    if (isinstance(s0, dict) and s0.get("stmt") == "Expr"):
+        call = s0.get("value")
+        if (isinstance(call, dict) and call.get("type") == "Call"
+                and call.get("func") == f"{acc}.append"):
+            aargs = call.get("args", [])
+            if not (len(aargs) == 1 and _is_var(aargs[0], p)):
+                raise _PVWBail()          # append of anything but the param
+            head = True
+            idx = 1
+    # Then EXACTLY one `for <v> in p: out.extend(<selfname>(<v>))`.
+    if len(inner) != idx + 1:
+        raise _PVWBail()
+    fr = inner[idx]
+    if not (isinstance(fr, dict) and fr.get("stmt") == "For"):
+        raise _PVWBail()
+    tgt = fr.get("target")
+    if not (isinstance(tgt, str) and _is_var(fr.get("iter"), p)):
+        raise _PVWBail()
+    fbody = fr.get("body", [])
+    if not (isinstance(fbody, list) and len(fbody) == 1):
+        raise _PVWBail()
+    es = fbody[0]
+    if not (isinstance(es, dict) and es.get("stmt") == "Expr"):
+        raise _PVWBail()
+    ecall = es.get("value")
+    if not (isinstance(ecall, dict) and ecall.get("type") == "Call"
+            and ecall.get("func") == f"{acc}.extend"):
+        raise _PVWBail()
+    eargs = ecall.get("args", [])
+    if not (len(eargs) == 1 and isinstance(eargs[0], dict)
+            and eargs[0].get("type") == "Call"
+            and eargs[0].get("func") == name):
+        raise _PVWBail()
+    scargs = eargs[0].get("args", [])
+    if not (len(scargs) == 1 and _is_var(scargs[0], tgt)):
+        raise _PVWBail()
+    return {"param": p, "head": head}
+
+
+def emit_pyval_flatten_group(func: Dict[str, Any], desc: Dict[str, Any],
+                             whyml_ident) -> List[str]:
+    """Emit the C3 `list pyval` flatten catamorphism: an inline TOTAL `list pyval`
+    append (`{n}__ftapp`) + the mutual `let rec {n}(v) with {n}__list(l)` group.
+    Termination is the certified cross-decreasing pyval `pv_size`/`size_list`
+    measure — NO new axiom (ledger 3). `head` controls the self-node `Cons {mv}`."""
+    n = whyml_ident(func["name"])
+    P = f"{n}__"
+    mvp = _pvw_mv(desc["param"])
+    head = f"Cons {mvp} " if desc.get("head") else ""
+    out: List[str] = []
+    out.append(f"  let rec function {P}ftapp (a b: list pyval) : list pyval")
+    out.append("    variant { a }")
+    out.append(f"  = match a with Nil -> b | Cons h t -> Cons h ({P}ftapp t b) end")
+    out.append(f"  let rec {n} ({mvp}: pyval) : list pyval")
+    out.append(f"    requires {{ true }} ensures {{ true }} variant {{ pv_size {mvp} }}")
+    out.append(f"  = if not (is_plist {mvp}) then (Nil: list pyval)")
+    out.append(f"    else {head}({n}__list"
+               f" (match {mvp} with PList xs -> xs | _ -> Nil end))")
+    out.append(f"  with {n}__list (l: list pyval) : list pyval")
+    out.append("    requires { true } ensures { true } variant { size_list l }")
+    out.append("  = match l with Nil -> (Nil: list pyval)")
+    out.append(f"    | Cons {P}sub {P}rest ->"
+               f" {P}ftapp ({n} {P}sub) ({n}__list {P}rest) end")
+    return out

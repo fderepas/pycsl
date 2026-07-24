@@ -2730,7 +2730,8 @@ class FunctionEmissionMixin:
             recognize_named_field_existence, emit_named_field_existence_group,
             recognize_pyval_string_walker, emit_pyval_string_walker_group,
             recognize_pyval_list_walker, emit_pyval_list_walker_group,
-            recognize_pyval_list_search, emit_pyval_list_search_group)
+            recognize_pyval_list_search, emit_pyval_list_search_group,
+            recognize_pyval_flatten, emit_pyval_flatten_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -2787,6 +2788,16 @@ class FunctionEmissionMixin:
         # 3). Fail-closed; a template bug is a loud unprovable instance.
         # C1b: pass the module's pyval-list-walker name set so a cross-call to a
         # sibling walker (`_walk_kername`→`_walk_modpath`) is a legal listexpr.
+        # pyval-walker-impl.md C3: the `list pyval` FLATTEN catamorphism
+        # (`_flatten_tuples` — returns `List[Any]` = a list of the sub-nodes
+        # themselves, not strings). A DISTINCT value model (pyval-element
+        # accumulator) emitted as the certified mutual `{n}(v) with {n}__list(l)`
+        # group + inline TOTAL `list pyval` append. Tried before the `list string`
+        # walkers (its `.append(<pyval param>)` would make them bail anyway).
+        # Fail-closed; a template bug is a loud unprovable instance.
+        _pvf = recognize_pyval_flatten(func)
+        if _pvf is not None:
+            return emit_pyval_flatten_group(func, _pvf, whyml_ident)
         _pvl_sibs = getattr(self, "_pyval_list_walker_names", set())
         # C1b SEARCH catamorphism (`_find_kername_components`): a pyval tree search
         # for the first non-empty per-node reader result — emitted as the certified
