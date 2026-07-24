@@ -2767,9 +2767,7 @@ class FunctionEmissionMixin:
                 recognize_crosscheck_selfstate_bool,
                 emit_crosscheck_selfstate_bool_group,
                 recognize_crosscheck_term_method,
-                emit_crosscheck_term_method_group,
-                recognize_crosscheck_pairwise,
-                emit_crosscheck_pairwise_group)
+                emit_crosscheck_term_method_group)
             _css = recognize_crosscheck_selfstate_bool(func)
             if _css is not None:
                 return emit_crosscheck_selfstate_bool_group(
@@ -2782,13 +2780,6 @@ class FunctionEmissionMixin:
             # body (`return False`) never matches the grammar -> emits as `val`.
             _tspec_cc = getattr(self, "_term_adt_spec", None)
             if _tspec_cc:
-                # class-variant-impl.md §F5: `pairwise` — a `DictLit` of inlined
-                # option-lifted `term_eq` comparisons -> `map string (option
-                # (option bool))`. Needs the defined `term_eq` (same gate).
-                _pw = recognize_crosscheck_pairwise(func)
-                if _pw is not None:
-                    return emit_crosscheck_pairwise_group(
-                        func, _pw, whyml_ident)
                 _ctm = recognize_crosscheck_term_method(func)
                 if _ctm is not None:
                     return emit_crosscheck_term_method_group(

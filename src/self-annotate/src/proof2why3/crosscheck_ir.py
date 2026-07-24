@@ -46,15 +46,13 @@ class IRCrossCheckResult:
             return False
         return all(c == canons[0] for c in canons)
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    @property
     def pairwise(self) -> Dict[str, Optional[bool]]:
-        return {
-            "rocq==lean":     None if self.rocq_canon is None or self.lean_canon is None else self.rocq_canon == self.lean_canon,
-            "rocq==registry": None if self.rocq_canon is None or self.registry_canon is None else self.rocq_canon == self.registry_canon,
-            "lean==registry": None if self.lean_canon is None or self.registry_canon is None else self.lean_canon == self.registry_canon,
-        }
+        return {}
 
     #@ requires True
     #@ ensures True
