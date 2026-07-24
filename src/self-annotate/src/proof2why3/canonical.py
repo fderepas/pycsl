@@ -40,12 +40,30 @@ def alpha_normalize(t: Term) -> Term:
     return _alpha_rename(t, counter)
 
 _FLIP_COMPARISON = {'<=': '>=', '<': '>'}
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _flip_comparisons(t: Term) -> Term:
-    return None
+    """Rewrite `a <= b` → `b >= a` and `a < b` → `b > a` recursively."""
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_flip_comparisons(a) for a in t.args))
+    if isinstance(t, BinOp):
+        if t.op in _FLIP_COMPARISON:
+            return BinOp(
+                _FLIP_COMPARISON[t.op],
+                _flip_comparisons(t.rhs),
+                _flip_comparisons(t.lhs),
+            )
+        return BinOp(t.op, _flip_comparisons(t.lhs), _flip_comparisons(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _flip_comparisons(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty, body=_flip_comparisons(t.body))
+    raise TypeError(f"_flip_comparisons: unknown {type(t)}")
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
