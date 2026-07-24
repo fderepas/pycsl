@@ -66,12 +66,14 @@ def _walk_modpath(mp: Any) -> List[str]:
 def _const_name(const_node: Any) -> Optional[str]:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _full_const_path(const_node: Any) -> List[str]:
-    return []
+    """Return the full dotted path of a Const node."""
+    if not isinstance(const_node, tuple) or len(const_node) < 2:
+        return []
+    return _find_kername_components(const_node[1])
 
 #@ requires True
 #@ ensures True
