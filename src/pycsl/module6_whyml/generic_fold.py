@@ -6580,8 +6580,12 @@ def _pvl_test(node: Any, ctx: Dict[str, Any]) -> str:
 
 
 def _pvl_listexpr(node: Any, state: Dict[str, Any], ctx: Dict[str, Any]) -> str:
-    """A `list string`-typed term: an accumulator, `reversed(acc)`, or a
-    self-recursive call `<selfname>(vref)`."""
+    """A `list string`-typed term: an accumulator, `reversed(acc)`, a
+    self-recursive call `<selfname>(vref)`, or a C1b CROSS-CALL to a SIBLING
+    pyval→`list string` walker `<sibling>(vref)` (resolved via `ctx["siblings"]`;
+    SCC topological ordering — callees before callers — guarantees the sibling's
+    top-level `let [rec] <sibling>` is in scope by the time this call is emitted).
+    A bound `list string` local (from `<var> = <sibling>(vref)`) is also a term."""
     if _is_var(node):
         nm = node.get("name")
         if nm in state["acc"]:
@@ -6594,6 +6598,8 @@ def _pvl_listexpr(node: Any, state: Dict[str, Any], ctx: Dict[str, Any]) -> str:
             return f"({ctx['p']}rev {_pvl_listexpr(args[0], state, ctx)})"
         if f == ctx["selfname"] and len(args) == 1:
             return f"({ctx['n']} {_pvw_valref(args[0], ctx)})"
+        if f in ctx.get("siblings", set()) and len(args) == 1:
+            return f"({ctx['ident'](f)} {_pvw_valref(args[0], ctx)})"
         raise _PVWBail()
     raise _PVWBail()
 
@@ -6744,16 +6750,23 @@ def _pvl_stmts(stmts: Any, state: Dict[str, Any], k, ctx: Dict[str, Any]) -> str
     raise _PVWBail()
 
 
-def recognize_pyval_list_walker(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def recognize_pyval_list_walker(
+        func: Dict[str, Any],
+        sibling_walkers: Optional[set] = None) -> Optional[Dict[str, Any]]:
     """Fail-closed match of the pyval List[str]-accumulator walker.
-    Returns {param} or None. Never raises."""
+    Returns {param, siblings} or None. Never raises. `sibling_walkers` (C1b) is
+    the set of OTHER function names in the module already recognized as
+    pyval→`list string` walkers; a cross-call to one of them is a legal
+    `listexpr` (see `_pvl_listexpr`). Empty by default → identical to the
+    pre-C1b behaviour (any cross-call bails)."""
     try:
-        return _recognize_pyval_list_walker(func)
+        return _recognize_pyval_list_walker(func, sibling_walkers or set())
     except Exception:
         return None
 
 
-def _recognize_pyval_list_walker(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _recognize_pyval_list_walker(
+        func: Dict[str, Any], sibling_walkers: set) -> Optional[Dict[str, Any]]:
     params = func.get("formal_params", [])
     if len(params) != 1:
         return None
@@ -6768,14 +6781,18 @@ def _recognize_pyval_list_walker(func: Dict[str, Any]) -> Optional[Dict[str, Any
         return None
     # Dry-run structural translation (placeholder names). Any unsupported node
     # raises _PVWBail -> recognizer returns None. This IS the fail-closed gate.
+    # `ident` is identity here (the emitted name is irrelevant to the bail check);
+    # the emitter substitutes the real `whyml_ident`.
     ctx = {"n": "f", "p": "f__", "scope": {p}, "counter": [0],
-           "selfname": func.get("name")}
+           "selfname": func.get("name"),
+           "siblings": set(sibling_walkers) - {func.get("name")},
+           "ident": lambda x: x}
     state0 = {"acc": {}, "scope": {p}}
 
     def k0(_st):
         raise _PVWBail()
     _pvl_stmts(body, state0, k0, ctx)
-    return {"param": p}
+    return {"param": p, "siblings": set(sibling_walkers) - {func.get("name")}}
 
 
 def emit_pyval_list_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
@@ -6788,7 +6805,9 @@ def emit_pyval_list_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
     P = f"{n}__"
     param = desc["param"]
     ctx = {"n": n, "p": P, "scope": set(), "counter": [0],
-           "selfname": func["name"]}
+           "selfname": func["name"],
+           "siblings": set(desc.get("siblings") or set()) - {func["name"]},
+           "ident": whyml_ident}
     state0 = {"acc": {}, "scope": {param}}
 
     def k0(_st):
@@ -6839,3 +6858,27 @@ def emit_pyval_list_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
         out.append("    requires { true } ensures { true }")
     out.append(f"  = {body}")
     return out
+
+
+def compute_pyval_list_walker_names(functions: List[Dict[str, Any]]) -> set:
+    """C1b: the fixpoint set of module function names recognized as pyval→
+    `list string` walkers WITH cross-calls resolved. Monotone: start from the
+    self-contained walkers (recognized with an empty sibling set — e.g.
+    `_walk_modpath`, self-recursion only), then repeatedly re-recognize with the
+    growing set until it stabilizes, so a walker that cross-calls an
+    already-recognized sibling (`_walk_kername`→`_walk_modpath`) is admitted. The
+    recognizer is fail-closed, so this only ever GROWS the set to a fixpoint; it
+    never admits a non-walker. Emission then relies on SCC topological ordering
+    (scc.py — callees before callers) to place each sibling before its caller."""
+    names: set = set()
+    changed = True
+    while changed:
+        changed = False
+        for f in functions:
+            nm = f.get("name")
+            if nm in names:
+                continue
+            if recognize_pyval_list_walker(f, names) is not None:
+                names.add(nm)
+                changed = True
+    return names

@@ -2779,7 +2779,10 @@ class FunctionEmissionMixin:
         # `from_sexp._walk_modpath` shape). Inline TOTAL projectors + list ops +
         # an axiom-free per-function size lemma for tree self-recursion (ledger
         # 3). Fail-closed; a template bug is a loud unprovable instance.
-        _pvl = recognize_pyval_list_walker(func)
+        # C1b: pass the module's pyval-list-walker name set so a cross-call to a
+        # sibling walker (`_walk_kername`→`_walk_modpath`) is a legal listexpr.
+        _pvl_sibs = getattr(self, "_pyval_list_walker_names", set())
+        _pvl = recognize_pyval_list_walker(func, _pvl_sibs)
         if _pvl is not None:
             return emit_pyval_list_walker_group(func, _pvl, whyml_ident)
         _gf = recognize_generic_fold(func)

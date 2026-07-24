@@ -815,6 +815,11 @@ class Module6_WhyMLTranspiler(
 
         sorted_functions, scc_info = sort_functions_by_scc(
             functions, self._record_return_sibling_methods())
+        # C1b (pyval-walker-impl.md): the fixpoint set of pyval→`list string`
+        # walker names, so a walker that cross-calls a sibling walker is
+        # recognized. SCC ordering above already places callees before callers.
+        from module6_whyml.generic_fold import compute_pyval_list_walker_names
+        self._pyval_list_walker_names = compute_pyval_list_walker_names(functions)
         self._emitted_logic_funcs = set()
         self._late_content_ops = []
         for func in sorted_functions:
@@ -1081,6 +1086,8 @@ class Module6_WhyMLTranspiler(
         # (untagged) set + one list per group.
         sorted_functions, scc_info = sort_functions_by_scc(
             functions, self._record_return_sibling_methods())
+        from module6_whyml.generic_fold import compute_pyval_list_walker_names
+        self._pyval_list_walker_names = compute_pyval_list_walker_names(functions)
         group_funcs: Dict[str, List[Dict[str, Any]]] = {g: [] for g in groups}
         main_funcs: List[Dict[str, Any]] = []
         for func in sorted_functions:
