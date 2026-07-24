@@ -67,13 +67,13 @@ class IRCrossCheckResult:
     def all_present_unsupported(self) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def registry_skipped(self) -> bool:
-        return False
+        return (not self.registry_raw) and (
+            self.rocq_canon is not None or self.lean_canon is not None
+        )
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

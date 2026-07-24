@@ -61,6 +61,13 @@ SUITE=(
     # file (converted leaves + `type term` theory + the still-`\trusted` pp vals) is
     # proven together, not just `--fun`.
     "src/self-annotate/src/proof2why3/ir.py"
+    # class-variant-impl.md §OUTCOME-CC (self-tcb-reduction item 3): crosscheck_ir.py
+    # holds the self-state boolean-predicate conversion (`registry_skipped` over the
+    # `IRCrossCheckResult` record with `option`-typed `Optional[Term]` canon fields) —
+    # add it to the FULL-FILE proof gate so the whole file (converted method +
+    # option fields + `val pystr_eq` + the still-`\trusted` val stubs) is proven
+    # together.
+    "src/self-annotate/src/proof2why3/crosscheck_ir.py"
     "src/self-annotate/src/audit_proof.py"
     "src/self-annotate/src/Module6_WhyMLTranspiler.py"
     "src/self-annotate/src/pycsl.py"
