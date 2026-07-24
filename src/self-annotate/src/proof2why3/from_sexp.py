@@ -59,12 +59,15 @@ def _walk_modpath(mp: Any) -> List[str]:
                 out.append(iid[1])
     return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _const_name(const_node: Any) -> Optional[str]:
-    return None
+    if not isinstance(const_node, tuple) or len(const_node) < 2:
+        return None
+    payload = const_node[1]
+    parts = _find_kername_components(payload)
+    return parts[-1] if parts else None
 
 #@ requires True
 #@ ensures True
