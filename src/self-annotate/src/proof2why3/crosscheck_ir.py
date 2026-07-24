@@ -60,13 +60,15 @@ class IRCrossCheckResult:
                              self.registry_canon)
                    if c is not None)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def all_present_unsupported(self) -> bool:
-        return False
+        canons = [c for c in (self.rocq_canon, self.lean_canon,
+                              self.registry_canon) if c is not None]
+        if not canons:
+            return False
+        return all(isinstance(c, Unsupported) for c in canons)
 
     #@ requires True
     #@ ensures True
