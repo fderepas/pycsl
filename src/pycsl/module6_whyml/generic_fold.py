@@ -6506,3 +6506,336 @@ def emit_pyval_string_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append("    requires { true } ensures { true }")
     out.append(f"  = {body}")
     return out
+
+
+# ============================================================================
+# pyval-walker-impl.md C1 (driver-backlog item 3, sexp-carrier residual C1) —
+# the LIST-accumulator counterpart of the value-returning pyval string walker.
+# Where the string walker RETURNS an `Optional[str]` (single string), this walker
+# RETURNS a `List[str]` (`list string`) BUILT by a `.append`/`.extend`/`reversed`
+# accumulator over the certified pyval spine (the `from_sexp` `_walk_modpath`/
+# `_walk_kername`/`_find_kername_components`/`_full_const_path` shape). It is a
+# STRUCTURAL, CPS/state-passing translator (not a shape matcher): each statement
+# threads the current `list string` value of every in-scope accumulator, so the
+# emitted `.mlw` is a faithful function of the body (mutation test passes by
+# construction). Any node outside the fragment raises `_PVWBail` → recognizer
+# returns None (precision-over-recall, fail-closed). The templater is NOT in the
+# TCB — a bug yields an unprovable instance (the whole-file re-proof is loud),
+# never a false proof.
+#
+# Termination for a TREE self-recursion (`_walk_modpath(mp[1])`) is discharged by
+# an axiom-free, per-function `let rec lemma {n}__size_nthl` (in-range element
+# size <= list size; the recursion IS the induction, proved by Alt-Ergo — NO new
+# axiom, ledger stays 3). The list ops (`app`/`rev`) are inline TOTAL `let rec
+# function`s (NO preamble `use list.Append/Reverse` → zero corpus byte-diff).
+#
+# Supported fragment (single `Any` param `p`, `-> List[str]` (`ret == "list"`)):
+#   stmt ::= <acc> = []                         (new list accumulator)
+#          | <var> = vref                       (pyval read-binding)
+#          | <acc>.append(<strexpr>)
+#          | <acc>.extend(<listexpr>)
+#          | if <test>: stmts [else: stmts]
+#          | for <var> in vref: stmts           (single-accumulator fold)
+#          | return <acc> | return []
+#   listexpr ::= <acc> | reversed(<acc>) | <selfname>(vref)   (self-recursion)
+#   test extends the string-walker fragment with a bare `vref` (tuple truthiness
+#        -> `plen vref > 0`).
+
+def _pvl_copy(state: Dict[str, Any]) -> Dict[str, Any]:
+    return {"acc": dict(state["acc"]), "scope": set(state["scope"])}
+
+
+def _pvl_freshacc(ctx: Dict[str, Any], name: str) -> str:
+    k = ctx["counter"][0]
+    ctx["counter"][0] += 1
+    return f"v_{name}_{k}"
+
+
+def _pvl_test(node: Any, ctx: Dict[str, Any]) -> str:
+    """String-walker test fragment + bare-`vref` tuple truthiness."""
+    if _is_var(node):
+        nm = node.get("name")
+        if nm not in ctx["scope"]:
+            raise _PVWBail()
+        return f'({ctx["p"]}plen {_pvw_mv(nm)} > 0)'
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "UnaryOp" and node.get("op") == "not":
+        return f"(not {_pvl_test(node.get('expr'), ctx)})"
+    if t == "BinOp":
+        op = node.get("op")
+        if op in ("and", "or"):
+            l = _pvl_test(node.get("left"), ctx)
+            r = _pvl_test(node.get("right"), ctx)
+            return f"({l} {'&&' if op == 'and' else '||'} {r})"
+        if op == "==":
+            return _pvw_eq(node.get("left"), node.get("right"), ctx)
+        if op in (">=", ">", "<=", "<"):
+            return _pvw_lencmp(node.get("left"), op, node.get("right"), ctx)
+        raise _PVWBail()
+    if t == "Call":
+        return _pvw_isinstance(node, ctx)
+    raise _PVWBail()
+
+
+def _pvl_listexpr(node: Any, state: Dict[str, Any], ctx: Dict[str, Any]) -> str:
+    """A `list string`-typed term: an accumulator, `reversed(acc)`, or a
+    self-recursive call `<selfname>(vref)`."""
+    if _is_var(node):
+        nm = node.get("name")
+        if nm in state["acc"]:
+            return state["acc"][nm]
+        raise _PVWBail()
+    if isinstance(node, dict) and node.get("type") == "Call":
+        f = node.get("func")
+        args = node.get("args", [])
+        if f == "reversed" and len(args) == 1:
+            return f"({ctx['p']}rev {_pvl_listexpr(args[0], state, ctx)})"
+        if f == ctx["selfname"] and len(args) == 1:
+            return f"({ctx['n']} {_pvw_valref(args[0], ctx)})"
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _pvl_modified_accs(body: Any, accs: set) -> set:
+    """Accumulators (`.append`/`.extend` targets) mutated anywhere in `body`."""
+    mods: set = set()
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("stmt") == "Expr":
+                call = node.get("value")
+                if isinstance(call, dict) and call.get("type") == "Call":
+                    f = call.get("func", "")
+                    for suf in (".append", ".extend"):
+                        if f.endswith(suf) and f[:-len(suf)] in accs:
+                            mods.add(f[:-len(suf)])
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+    walk(body)
+    return mods
+
+
+def _pvl_has_selfcall(body: Any, selfname: str) -> bool:
+    def walk(node: Any) -> bool:
+        if isinstance(node, dict):
+            if (node.get("type") == "Call" and node.get("func") == selfname):
+                return True
+            return any(walk(v) for v in node.values())
+        if isinstance(node, list):
+            return any(walk(x) for x in node)
+        return False
+    return walk(body)
+
+
+def _pvl_for(s0: Any, kont, ctx: Dict[str, Any], state: Dict[str, Any]) -> str:
+    tgt = s0.get("target")
+    if not isinstance(tgt, str):
+        raise _PVWBail()
+    ctx["scope"] = state["scope"]
+    itref = _pvw_valref(s0.get("iter"), ctx)
+    body = s0.get("body", [])
+    mods = _pvl_modified_accs(body, set(state["acc"].keys()))
+    if len(mods) != 1:                       # single-accumulator fold only
+        raise _PVWBail()
+    acc = next(iter(mods))
+    k = ctx["counter"][0]; ctx["counter"][0] += 1
+    loop = f"{ctx['n']}__lloop{k}"
+    pacc = f"{loop}_acc"
+    rv = f"{loop}_rest"
+    lstate = _pvl_copy(state)
+    lstate["acc"][acc] = pacc
+    lstate["scope"].add(tgt)
+
+    def loopkont(st: Dict[str, Any]) -> str:
+        return f"({loop} {rv} {st['acc'][acc]})"
+
+    lbody = _pvl_stmts(body, lstate, loopkont, ctx)
+    mv = _pvl_freshacc(ctx, acc)
+    st2 = _pvl_copy(state)
+    st2["acc"][acc] = mv
+    spine = f"(match {itref} with PList xs -> xs | _ -> Nil end)"
+    return (f"(let rec {loop} (l: list pyval) ({pacc}: list string) : list string\n"
+            f"     variant {{ l }}\n"
+            f"   = match l with Nil -> {pacc}\n"
+            f"     | Cons {_pvw_mv(tgt)} {rv} -> {lbody} end\n"
+            f"   in let {mv} = {loop} {spine} {state['acc'][acc]} in {kont(st2)})")
+
+
+def _pvl_stmts(stmts: Any, state: Dict[str, Any], k, ctx: Dict[str, Any]) -> str:
+    """CPS translate a statement list into a `list string` expression; `k` is the
+    fall-through continuation (a Python callable state->str). Every path must end
+    in an explicit `return` (else the top-level `k` raises _PVWBail)."""
+    if not isinstance(stmts, list):
+        raise _PVWBail()
+    ctx["scope"] = state["scope"]
+    if not stmts:
+        return k(state)
+    s0, rest = stmts[0], stmts[1:]
+    if not isinstance(s0, dict):
+        raise _PVWBail()
+
+    def kont(st: Dict[str, Any]) -> str:
+        return _pvl_stmts(rest, st, k, ctx)
+
+    kind = s0.get("stmt")
+    if kind == "Assign":
+        tgt = s0.get("target")
+        if not isinstance(tgt, str):
+            raise _PVWBail()
+        val = s0.get("value")
+        if (isinstance(val, dict) and val.get("type") == "ArrayLit"
+                and not val.get("elts")):
+            mv = _pvl_freshacc(ctx, tgt)
+            st2 = _pvl_copy(state)
+            st2["acc"][tgt] = mv
+            return f"(let {mv} = (Nil: list string) in {kont(st2)})"
+        rhs = _pvw_valref(val, ctx)          # pyval read-binding
+        st2 = _pvl_copy(state)
+        st2["scope"].add(tgt)
+        return f"(let {_pvw_mv(tgt)} = {rhs} in {kont(st2)})"
+    if kind == "Expr":
+        call = s0.get("value")
+        if not (isinstance(call, dict) and call.get("type") == "Call"):
+            raise _PVWBail()
+        f = call.get("func", "")
+        args = call.get("args", [])
+        if f.endswith(".append") and len(args) == 1:
+            acc = f[:-len(".append")]
+            if acc not in state["acc"]:
+                raise _PVWBail()
+            se = _pvw_strexpr(args[0], ctx)
+            cur = state["acc"][acc]
+            mv = _pvl_freshacc(ctx, acc)
+            st2 = _pvl_copy(state)
+            st2["acc"][acc] = mv
+            return (f"(let {mv} = {ctx['p']}app {cur} "
+                    f"(Cons {se} (Nil: list string)) in {kont(st2)})")
+        if f.endswith(".extend") and len(args) == 1:
+            acc = f[:-len(".extend")]
+            if acc not in state["acc"]:
+                raise _PVWBail()
+            le = _pvl_listexpr(args[0], state, ctx)
+            cur = state["acc"][acc]
+            mv = _pvl_freshacc(ctx, acc)
+            st2 = _pvl_copy(state)
+            st2["acc"][acc] = mv
+            return f"(let {mv} = {ctx['p']}app {cur} {le} in {kont(st2)})"
+        raise _PVWBail()
+    if kind == "Return":
+        v = s0.get("value")
+        if (isinstance(v, dict) and v.get("type") == "ArrayLit"
+                and not v.get("elts")):
+            return "(Nil: list string)"
+        if _is_var(v) and v.get("name") in state["acc"]:
+            return state["acc"][v.get("name")]
+        raise _PVWBail()
+    if kind == "If":
+        test = _pvl_test(s0.get("test"), ctx)
+        thenb = _pvl_stmts(s0.get("body", []), _pvl_copy(state), kont, ctx)
+        elseb = _pvl_stmts(s0.get("orelse") or [], _pvl_copy(state), kont, ctx)
+        return f"(if {test} then {thenb} else {elseb})"
+    if kind == "For":
+        return _pvl_for(s0, kont, ctx, state)
+    raise _PVWBail()
+
+
+def recognize_pyval_list_walker(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the pyval List[str]-accumulator walker.
+    Returns {param} or None. Never raises."""
+    try:
+        return _recognize_pyval_list_walker(func)
+    except Exception:
+        return None
+
+
+def _recognize_pyval_list_walker(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    p = params[0]
+    if func.get("param_annotations", {}).get(p) not in (None, "Any"):
+        return None
+    ret = func.get("return_annotation")
+    if ret not in ("list", "List"):
+        return None
+    body = func.get("body", [])
+    if not _pvw_body_reads(body):
+        return None
+    # Dry-run structural translation (placeholder names). Any unsupported node
+    # raises _PVWBail -> recognizer returns None. This IS the fail-closed gate.
+    ctx = {"n": "f", "p": "f__", "scope": {p}, "counter": [0],
+           "selfname": func.get("name")}
+    state0 = {"acc": {}, "scope": {p}}
+
+    def k0(_st):
+        raise _PVWBail()
+    _pvl_stmts(body, state0, k0, ctx)
+    return {"param": p}
+
+
+def emit_pyval_list_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                 whyml_ident) -> List[str]:
+    """Emit the pyval List[str] walker: inline TOTAL projectors (pv_nth/pv_len/
+    atom_of) + inline TOTAL list ops (app/rev) + (when tree self-recursive) an
+    axiom-free size lemma, then the CPS-translated body returning `list string`.
+    All defined, not axiomatized; ledger stays 3."""
+    n = whyml_ident(func["name"])
+    P = f"{n}__"
+    param = desc["param"]
+    ctx = {"n": n, "p": P, "scope": set(), "counter": [0],
+           "selfname": func["name"]}
+    state0 = {"acc": {}, "scope": {param}}
+
+    def k0(_st):
+        raise _PVWBail()
+    body = _pvl_stmts(func.get("body", []), state0, k0, ctx)
+    self_rec = _pvl_has_selfcall(func.get("body", []), func["name"])
+    out: List[str] = []
+    # ---- inline TOTAL pyval projectors (axiom-free; pv_size cert = measure) ---
+    out.append(f"  let rec function {P}nthl (l: list pyval) (i: int) : pyval")
+    out.append("    variant { l }")
+    out.append(f"  = match l with Nil -> PNone"
+               f" | Cons h t -> if i <= 0 then h else {P}nthl t (i - 1) end")
+    out.append(f"  let function {P}pnth (v: pyval) (i: int) : pyval")
+    out.append(f"  = match v with PList xs -> {P}nthl xs i | _ -> PNone end")
+    out.append(f"  let rec function {P}lenl (l: list pyval) : int")
+    out.append("    ensures { result >= 0 } variant { l }")
+    out.append(f"  = match l with Nil -> 0 | Cons _ t -> 1 + {P}lenl t end")
+    out.append(f"  let function {P}plen (v: pyval) : int")
+    out.append(f"  = match v with PList xs -> {P}lenl xs | _ -> 0 end")
+    out.append(f"  let function {P}atom (v: pyval) : string")
+    out.append('  = match v with PStr s -> s | _ -> "" end')
+    # ---- inline TOTAL list ops (self-contained: no preamble use → byte-inert) -
+    out.append(f"  let rec function {P}app (a b: list string) : list string")
+    out.append("    variant { a }")
+    out.append(f"  = match a with Nil -> b | Cons h t -> Cons h ({P}app t b) end")
+    out.append(f"  let rec function {P}revacc (a acc: list string) : list string")
+    out.append("    variant { a }")
+    out.append(f"  = match a with Nil -> acc | Cons h t -> {P}revacc t (Cons h acc) end")
+    out.append(f"  let function {P}rev (a: list string) : list string = {P}revacc a Nil")
+    if self_rec:
+        # axiom-free size lemma (ledger 3): in-range element size <= list size.
+        # The recursion IS the induction; Alt-Ergo discharges the postcondition
+        # (calling the certified size_pos / size_list_nonneg cert lemmas).
+        out.append(f"  let rec lemma {P}size_nthl (l: list pyval) (i: int) : unit")
+        out.append(f"    ensures {{ 0 <= i < {P}lenl l ->"
+                   f" pv_size ({P}nthl l i) <= size_list l }}")
+        out.append("    variant { l }")
+        out.append(f"  = match l with Nil -> () | Cons h t ->"
+                   f" size_pos h; size_list_nonneg t; {P}size_nthl t (i - 1) end")
+    # ---- the walker ----------------------------------------------------------
+    mvp = _pvw_mv(param)
+    if self_rec:
+        out.append(f"  let rec {n} ({mvp}: pyval) : list string")
+        out.append(f"    requires {{ true }} ensures {{ true }}"
+                   f" variant {{ pv_size {mvp} }}")
+    else:
+        out.append(f"  let {n} ({mvp}: pyval) : list string")
+        out.append("    requires { true } ensures { true }")
+    out.append(f"  = {body}")
+    return out

@@ -2728,7 +2728,8 @@ class FunctionEmissionMixin:
             recognize_void_generic_descend, emit_void_generic_descend_group,
             recognize_type_existence, emit_type_existence_group,
             recognize_named_field_existence, emit_named_field_existence_group,
-            recognize_pyval_string_walker, emit_pyval_string_walker_group)
+            recognize_pyval_string_walker, emit_pyval_string_walker_group,
+            recognize_pyval_list_walker, emit_pyval_list_walker_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -2772,6 +2773,15 @@ class FunctionEmissionMixin:
                     _pvw["some_ctor"] = _some
                     _pvw["none_ctor"] = _none
                     return emit_pyval_string_walker_group(func, _pvw, whyml_ident)
+        # pyval-walker-impl.md C1: the LIST-accumulator counterpart — a
+        # `List[str]` (`list string`)-RETURNING catamorphism BUILT via
+        # `.append`/`.extend`/`reversed` over the certified pyval spine (the
+        # `from_sexp._walk_modpath` shape). Inline TOTAL projectors + list ops +
+        # an axiom-free per-function size lemma for tree self-recursion (ledger
+        # 3). Fail-closed; a template bug is a loud unprovable instance.
+        _pvl = recognize_pyval_list_walker(func)
+        if _pvl is not None:
+            return emit_pyval_list_walker_group(func, _pvl, whyml_ident)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)
