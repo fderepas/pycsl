@@ -2195,12 +2195,28 @@ class PreambleEmissionMixin:
                         f.get("type") == "tuple" for f in _td.get("fields", [])):
                     needs_array = True
                     break
+        # crosscheck_ir.py self-state carrier (class-variant-impl.md §OUTCOME-CC):
+        # a record field of value_type "opaque_term" (Module5 allow-list) gates
+        # the self-state boolean recognizer + `val pystr_eq`. Corpus/other-mirror
+        # never carry this value_type -> byte-inert everywhere else.
+        from module6_whyml.generic_fold import (
+            recognize_crosscheck_selfstate_bool, _uses_str_empty)
+        self._has_opaque_term_fields = any(
+            f.get("value_type") == "opaque_term"
+            for td in self.ir.get("type_decls", [])
+            if td.get("kind") == "record"
+            for f in td.get("fields", []))
+        needs_selfstate_streq = self._has_opaque_term_fields and any(
+            recognize_crosscheck_selfstate_bool(f) is not None
+            and _uses_str_empty(recognize_crosscheck_selfstate_bool(f)["expr"])
+            for f in functions)
         return {
             "needs_pydict": needs_pydict,
             "needs_term": needs_term,
             "needs_term_streq": needs_term_streq,
             "needs_term_setfold": needs_term_setfold,
             "needs_term_strbuild": needs_term_strbuild,
+            "needs_selfstate_streq": needs_selfstate_streq,
             "needs_sdict": needs_sdict,
             "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
@@ -2303,7 +2319,8 @@ class PreambleEmissionMixin:
                 out.append("  use map.Map")
                 out.append("  use map.Const")
             if (needs["needs_ghost_dict"] or needs.get("needs_body_dict")
-                    or _record_has_map or needs.get("needs_option_record")):
+                    or _record_has_map or needs.get("needs_option_record")
+                    or getattr(self, "_has_opaque_term_fields", False)):
                 # Body-level Python dicts are modelled as
                 # `ref (map int (option int))` (parallel to ghost dicts);
                 # `None` marks absent keys. self-field-dict-reflection (§12): a record
@@ -2490,6 +2507,19 @@ class PreambleEmissionMixin:
     def _emit_preamble_helpers(self, needs: Dict[str, Any]) -> List[str]:
         """Phase C: emit helper lemmas, pycsl_sum, pycsl_div, pycsl_mod function bodies."""
         out: List[str] = []
+        # crosscheck_ir.py self-state carrier (class-variant-impl.md §OUTCOME-CC):
+        # the string-empty test `not self.<strfield>` lowers to the abstract
+        # `val pystr_eq` (result no VC constrains -> NOT an axiom, ledger 3; the
+        # term-carrier precedent). Gated on the self-state recognizer; never
+        # double-declared (pydict/term declare their own, and this file has
+        # neither). Corpus/other-mirror byte-inert (needs_selfstate_streq False).
+        if (needs.get("needs_selfstate_streq")
+                and not needs.get("needs_pydict")
+                and not needs.get("needs_term_streq")):
+            out.append("")
+            out.append("  (* crosscheck self-state string-empty guard"
+                       " (result VC-free; ledger 3) *)")
+            out.append("  val pystr_eq (a b: string) : bool")
         if needs.get("needs_list_ghost"):
             # axiom mem_head: base case of mem — makes \mem(x, \cons(x, l)) proofs tractable
             # without recursive unfolding. This is the head-match case of mem's definition,
@@ -6120,7 +6150,16 @@ class PreambleEmissionMixin:
                         # (only 3 corpus files carry any `Optional[...]` field, all
                         # non-@mutable_state → int).
                         _ov = f.get("value_type")
-                        if (_ov in ("string", "emit_ir")
+                        if _ov == "opaque_term":
+                            # crosscheck_ir.py self-state carrier
+                            # (class-variant-impl.md §OUTCOME-CC): an
+                            # `Optional[Term]` canon field with an OPAQUE payload
+                            # -> inhabitable `option int` so a presence test is
+                            # non-vacuous. value_type "opaque_term" arises ONLY
+                            # from the (class,field) allow-list in Module5, so
+                            # this branch is corpus/other-mirror byte-inert.
+                            ftype = "option int"
+                        elif (_ov in ("string", "emit_ir")
                                 and (getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):
                             ftype = f"option {_ov}"

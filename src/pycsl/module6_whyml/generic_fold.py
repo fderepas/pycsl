@@ -9576,3 +9576,111 @@ def emit_pp_term_helper(fam: Dict[str, Any], spec: Dict[str, Any]) -> List[str]:
         out.append("    | Cons a t -> str_concat_op (pp_term a) (str_concat_op sep (pp_term__joinargs sep t))")
         out.append("    end")
     return out
+
+
+# ---------------------------------------------------------------------------
+# crosscheck_ir.py self-state boolean predicate carrier (driver: crosscheck_ir
+# target). A `@property`-derived 0-arg self method over a record with
+# `Optional[Term]` fields (the `IRCrossCheckResult` shape). This carrier reaches
+# the PRESENCE/string-empty fragment ONLY (`registry_skipped`) — it needs
+# NEITHER the `term` inductive NOR `term_eq`: the option payload is opaque
+# (`option int`), `is_some`/`is_none` are inline matches, and the string-empty
+# test is the ledger-neutral abstract `val pystr_eq` (the term-carrier
+# precedent; NOT an axiom). The methods that DO destruct `Unsupported` /
+# structurally compare terms (`any_unsupported`, `provers_agree`, `all_agree`,
+# …) need the certified `term` inductive + `term_eq` sourced/emitted here and
+# stay `\trusted` (recorded [COST/SCALE] in class-variant-impl.md).
+# Gated (dispatch) on `_has_opaque_term_fields` -> fires on 0 corpus programs
+# and 0 other mirror files (only IRCrossCheckResult carries the allow-listed
+# `opaque_term` fields).
+
+def _cc_is_self_field(x: Any) -> bool:
+    return (isinstance(x, dict) and x.get("type") == "FieldGet"
+            and x.get("object") == "self" and isinstance(x.get("field"), str))
+
+
+def _cc_selfstate_valid(x: Any) -> bool:
+    """Fail-closed grammar check for the self-state boolean fragment:
+        bexpr := and(bexpr,bexpr) | or(bexpr,bexpr)
+               | not(self.<F>)              # string field: non-empty test
+               | self.<F> != None           # option field: is_some
+               | self.<F> == None           # option field: is_none
+    Every leaf MUST be one of the three self-field forms; any other node
+    rejects the whole method (the carrier stays off, the stub keeps `\trusted`)."""
+    if not isinstance(x, dict):
+        return False
+    t = x.get("type")
+    if t == "BinOp" and x.get("op") in ("and", "or"):
+        return (_cc_selfstate_valid(x.get("left"))
+                and _cc_selfstate_valid(x.get("right")))
+    if t == "UnaryOp" and x.get("op") == "not":
+        return _cc_is_self_field(x.get("expr"))
+    if t == "BinOp" and x.get("op") in ("!=", "=="):
+        r = x.get("right")
+        return (_cc_is_self_field(x.get("left"))
+                and isinstance(r, dict) and r.get("type") == "None")
+    return False
+
+
+def recognize_crosscheck_selfstate_bool(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Recognize a 0-formal-param self method whose body is a single
+    `return <bexpr>` in the self-state boolean fragment above. Returns
+    {"expr": <ir>} or None (fail-closed)."""
+    if func.get("formal_params"):
+        return None
+    if "__" not in (func.get("name") or ""):
+        return None
+    body = func.get("body", [])
+    if len(body) != 1 or not isinstance(body[0], dict) \
+            or body[0].get("stmt") != "Return":
+        return None
+    expr = body[0].get("value")
+    # require at least one self-field leaf (a bare `return True/None` must not match)
+    if not _cc_selfstate_valid(expr):
+        return None
+    return {"expr": expr}
+
+
+def _cc_emit_bexpr(x: Dict[str, Any]) -> str:
+    t = x.get("type")
+    if t == "BinOp" and x.get("op") in ("and", "or"):
+        conn = "&&" if x["op"] == "and" else "||"
+        return f"({_cc_emit_bexpr(x['left'])}) {conn} ({_cc_emit_bexpr(x['right'])})"
+    if t == "UnaryOp" and x.get("op") == "not":
+        f = x["expr"]["field"]
+        return f'(pystr_eq self.{f} "")'
+    # != / == None
+    f = x["left"]["field"]
+    if x["op"] == "!=":
+        return f"(match self.{f} with Some _ -> true | None -> false end)"
+    return f"(match self.{f} with Some _ -> false | None -> true end)"
+
+
+def emit_crosscheck_selfstate_bool_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                         whyml_ident) -> List[str]:
+    """Emit the self-state boolean predicate as a total `let`. `is_some`/`is_none`
+    are inline option matches (opaque payload), the string-empty test is the
+    abstract `val pystr_eq` (result VC-free; ledger 3). `self`'s record type is
+    the method-name prefix (`<record>__<method>`)."""
+    n = whyml_ident(func["name"])
+    self_type = n.split("__")[0]
+    body = _cc_emit_bexpr(desc["expr"])
+    return [
+        f"  let {n} (self: {self_type}) : bool",
+        "    requires { true } ensures { true }",
+        f"  = {body}",
+    ]
+
+
+def _uses_str_empty(x: Any) -> bool:
+    """True if the self-state bexpr contains a `not(self.<F>)` (string-empty
+    test) node -> the emission needs `val pystr_eq`."""
+    if not isinstance(x, dict):
+        return False
+    if x.get("type") == "UnaryOp" and x.get("op") == "not" \
+            and _cc_is_self_field(x.get("expr")):
+        return True
+    return any(_uses_str_empty(v) for v in x.values()
+               if isinstance(v, (dict, list))) or any(
+        _uses_str_empty(e) for v in x.values() if isinstance(v, list) for e in v
+        if isinstance(e, dict))

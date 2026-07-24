@@ -1789,6 +1789,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ("Forall", "binder_type"), ("Forall", "domain"),
         ("Exists", "binder_type"), ("Exists", "domain"),
         ("FunctionVariant", "ordering"),
+        # crosscheck_ir.py self-state carrier (class-variant-impl.md §OUTCOME-CC):
+        # the `IRCrossCheckResult` `Optional[Term]` canon fields become an
+        # inhabitable `option` (value_type "opaque_term" -> `option int` in
+        # Module6) so a presence test (`self.rocq_canon is not None`) is
+        # non-vacuous. The base `Term` union has no local structure here, so the
+        # payload stays opaque; `registry_skipped` reads presence only.
+        ("IRCrossCheckResult", "rocq_canon"),
+        ("IRCrossCheckResult", "lean_canon"),
+        ("IRCrossCheckResult", "registry_canon"),
     })
 
     @staticmethod
@@ -1829,6 +1838,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return "string"
         if nm in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
             return "emit_ir"
+        if nm == "Term":
+            # crosscheck_ir.py self-state carrier: `Optional[Term]` -> an
+            # inhabitable `option` with an OPAQUE payload (Module6 maps
+            # "opaque_term" -> `option int`). Scoped by the (class, field)
+            # allow-list above -> corpus/other-mirror byte-inert.
+            return "opaque_term"
         return None
 
     def _field_type_from_annotation(annotation: Optional[ast.expr]) -> str:

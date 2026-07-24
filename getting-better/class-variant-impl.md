@@ -396,3 +396,88 @@ bridge above — a bounded but genuinely-distinct session-scale build (record-fi
 synthesized `pp_term` + per-class injection/delegation, co-dependent across the family, with
 corpus-byte-diff exposure). No 4th axiom (the `term` cert covers it). `Module2_Parser._csl_to_str`
 (CSLNode ADT) stays [CORRECTNESS] (its int is `str_to_int` = the oracle).
+
+## §OUTCOME-CC — 2026-07-24 driver run: crosscheck_ir self-state carrier BUILT + 1 conversion (922 → 921), rest [COST/SCALE]
+
+**Verdict: the crosscheck_ir.py self-state boolean-predicate carrier is BUILT and
+converts `IRCrossCheckResult.registry_skipped` (922 → 921) — the ONE method
+reachable by presence/string-empty ALONE (no `term` inductive, no `term_eq`). The
+correctness spike PASSED for the WHOLE sub-cluster (term_eq DEFINABLE, no 4th
+axiom), so the frontier is [COST/SCALE]; the remaining 4 term-structural methods
+stay `\trusted` behind a full-`term`-inductive-source + `term_eq`-emitter build,
+precisely enumerated below. NO new certificate (no term theory emitted); ledger 3;
+src/formal-semantics/ + proof_axiom_allowlist.py UNTOUCHED.**
+
+### THREE emitter obstacles discovered (why this is not the "reuse Phase2i + a record" the target framed)
+1. **`@property` methods are SKIPPED pre-IR** (`Module5._should_skip_method`) — the 6
+   crosscheck `@property` stubs never reach WhyML, so removing `\trusted` alone would be a
+   count-only FACADE. SOLVED cleanly by DROPPING `@property` in the MIRROR (both gates ignore
+   decorators: mirror-check compares `(func, qualname, n_params)`; sync compares
+   `ast.unparse(node.body)`) → the method emits as a normal `ircrosscheckresult__<m>` with a
+   verbatim body. NO Module5 un-skip / no cross-file cascade.
+2. **`Optional[Term]` fields ERASE the Term arm at IR** — Module5 desugars `Optional[Term]` into
+   a synthesized `_union_..._N` variant whose `Term` arm is dropped as `Any` (GT1), leaving only
+   `Arm_N_None` → the field is effectively a unit (`is not None` VACUOUS). SOLVED via the
+   existing `_M5_OPTION_FIELD_ALLOWLIST` (class,field-keyed → corpus/other-mirror-inert): added
+   the 3 `IRCrossCheckResult` canon fields + `_m5_get_option_field_inner` returns "opaque_term";
+   Module6 maps value_type "opaque_term" → an inhabitable `option int` (opaque payload — faithful
+   for a presence-only reader). `_has_opaque_term_fields` gate pulls `use option.Option`.
+3. **`compute_term_adt_spec` cannot derive the `term` ADT here** — the file has NO isinstance-
+   dispatch over the ctor set (methods use `==` (term_eq) + only `isinstance(c, Unsupported)` on a
+   loop var), and imports only `Term`+`Unsupported` (not the 9 ctor dataclasses). So the certified
+   `type term` inductive + `term_eq` CANNOT be sourced/emitted from this file's contents. This is
+   the wall for the 4 term-structural methods (below).
+
+### Make-or-break spike — PASSED (CORRECTNESS-clean, the WHOLE sub-cluster)
+`scratchpad/cc_spike.mlw`: hand-wrote the `option term` self-state record + a program `let rec
+term_eq`/`term_list_eq`/`strlist_eq` (structural mutual recursion, `variant { a }`/`{ xs }`) + the
+5 method bodies (`any_unsupported`/`all_present_unsupported`/`registry_skipped`/`provers_agree`/
+`all_agree`). **ALL 8 VCs Valid (alt-ergo)** incl. `term_eq'vc` (termination) — Why3 ACCEPTS
+`option term` record fields + mutual-recursive term_eq; NO 4th axiom (`term_eq` DEFINED; `pystr_eq`
+a `val`). Frontier = [COST/SCALE].
+
+### What was BUILT (all source-only in `src/pycsl`, NOT the mirror → 0 new stubs; ledger 3)
+- **`recognize_crosscheck_selfstate_bool` + `emit_crosscheck_selfstate_bool_group`**
+  (`generic_fold.py`) — a 0-formal-param self method whose body is a single `return <bexpr>` over
+  the STRICT fail-closed fragment `and|or|not(self.<strF>)|self.<optF> !=/== None`. Emits
+  `(pystr_eq self.<strF> "")` for the string-empty test and inline `match self.<optF> with Some _
+  -> true|false | None -> ...` for is_some/is_none over the opaque `option int`. TOTAL `let`,
+  `ensures True`.
+- **Module5** `_M5_OPTION_FIELD_ALLOWLIST` + `_m5_get_option_field_inner` ("Term"→"opaque_term").
+- **Module6** `_emit_type_decls` option branch ("opaque_term"→`option int`); `_scan_preamble_needs`
+  sets `_has_opaque_term_fields` + `needs_selfstate_streq`; `_emit_preamble_helpers` emits
+  `val pystr_eq` (gated, never double-declared); `_emit_preamble_uses` pulls `use option.Option`
+  under `_has_opaque_term_fields`. **functions.py** dispatch tries the recognizer first, gated on
+  `_has_opaque_term_fields` → fires on 0 corpus + 0 other mirror files.
+- **Certificate: NONE emitted** (no `type term`, no `term_eq` — the opaque `option int` payload
+  needs no inductive). Ledger 3 unchanged.
+
+### Gate battery (driver-verified fresh)
+- count 922 → **921** (`registry_skipped` un-`\trusted`); ledger **3** (no cert/allowlist/
+  formal-semantics edit).
+- **whole-file** `crosscheck_ir.py` proof **SUCCESS** (added to the suite gate). L3-tc ✓ whole file.
+- **corpus byte-diff 0** (808 common == 808, mine vs detached-HEAD worktree, `.venv` symlinked,
+  IDENTICAL; only new 0962/0963 fixtures mine-only). **suite-mirror byte-diff 0** (36 common
+  identical). All gated on `_has_opaque_term_fields`/allow-list → byte-inert everywhere else.
+- Vacuity `--emit` exit 0: 0 input-blind, no NEW erasure (`registry_skipped` reads
+  `registry_raw`/`rocq_canon`/`lean_canon`; the 3 KNOWN erasures unchanged).
+- mirror-check **52/52**; drift **2 == HEAD** (`registry_skipped` verbatim = in sync; the 2
+  pre-existing `_handle_var_expr`/`_handle_for_stmt` still-blocked).
+- **MUTATION TEST (Gate C, decisive):** `rocq_canon`→`registry_canon` flips emitted `match
+  self.registry_canon`; `registry_raw`→`rocq_raw` flips emitted `pystr_eq self.rocq_raw ""`.
+  Non-facade (real record fields flow; no int-hash/oracle — carrier forces `ensures True`, so
+  mutation + vacuity are the non-facade lock).
+- fixtures (`git add -f`): `0962_crosscheck_selfstate_registry_skipped.py` (positive; PROVES) +
+  `0963_..._twin.py` (registry_canon-vs-rocq_canon discriminating twin; PROVES, byte-different).
+
+### §RESIDUAL-CC — the 4 term-structural methods stay [COST/SCALE] (reopening capability)
+`any_unsupported`, `all_present_unsupported` (destruct `Unsupported`), `provers_agree`, `all_agree`
+(structural `term_eq`) — REACHABLE (correctness spike PASSED) but each needs the certified 9-ctor
+`term` inductive + (for the eq pair) a DEFINED `term_eq`/`term_list_eq` EMITTED in this file, which
+`compute_term_adt_spec` cannot derive here (obstacle 3). REOPEN: (F3) a canonical-`term`-spec
+SOURCE independent of isinstance-dispatch (e.g. import the ctor dataclasses in the mirror +
+harvest the Term-subclass set) + (F4) a `term`-theory + `term_eq` EMITTER (a new defined-function
+emit, gated). No 4th axiom (the `term` inductive is Phase2i-certified; `term_eq` is DEFINED). A
+2-ctor `Unsupported|Other` collapse is a Gate-C FACADE (mutation test on `isinstance(c, Var)`
+would not flow) → the FULL inductive is required. `pairwise` (returns `Dict[str, Optional[bool]]`)
+is a distinct dict-result algebra on top of `term_eq`.

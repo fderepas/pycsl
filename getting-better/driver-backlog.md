@@ -201,6 +201,19 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
          record model erases recursive children to int; reaching them needs the record⇄variant bridge
          (record-field-type fix + synthesized unified `pp_term` + per-class injection/delegation,
          co-dependent across the family, corpus-byte-diff exposure). No 4th axiom.
+         **CROSSCHECK SELF-STATE CARRIER BUILT 2026-07-24 (count 922 → 921) — see class-variant-impl.md §OUTCOME-CC.**
+         `recognize_crosscheck_selfstate_bool` + `emit_crosscheck_selfstate_bool_group` (generic_fold.py,
+         source-only → 0 new stubs): the `IRCrossCheckResult` `@property` self-state boolean fragment
+         (presence `is_some` / string-empty `pystr_eq`) over `Optional[Term]` canon fields typed as an
+         inhabitable OPAQUE `option int` (M5 allow-list "opaque_term"). Dropped `@property` in the mirror
+         (both gates decorator-blind) to un-skip the pre-IR-dropped property. Converted `registry_skipped`.
+         Correctness spike PASSED the WHOLE sub-cluster (`term_eq` DEFINABLE, no 4th axiom → [COST/SCALE]).
+         **RESIDUAL [COST/SCALE]:** the 4 term-STRUCTURAL methods (`any_unsupported`/`all_present_unsupported`
+         destruct `Unsupported`; `provers_agree`/`all_agree` need `term_eq`) require the certified 9-ctor
+         `term` inductive + a DEFINED `term_eq` EMITTED here, which `compute_term_adt_spec` cannot derive
+         (no isinstance-dispatch over the ctor set) — REOPEN needs (F3) a canonical-`term`-spec source +
+         (F4) a `term`-theory/`term_eq` emitter. No 4th axiom. Mutation tests decisive; corpus+suite-mirror
+         byte-diff 0; whole-file proof SUCCESS; drift 2; ledger 3; fixtures 0962/0963.
          **RESIDUAL [COST/SCALE] (unchanged carriers):** `_iff_app_to_binop` (list-index/len + proof cost),
          the 4 cascade-caller transforms above (need the genexp-to-termlist / dedup-membership / sorted /
          gather-loop recognizers), `substitute` (`Dict[str,str]` map-param), T-string (`_pp` f-string build)

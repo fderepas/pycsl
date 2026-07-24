@@ -2756,6 +2756,20 @@ class FunctionEmissionMixin:
             recognize_term_free_vars, emit_term_free_vars_group,
             recognize_term_string_pp, emit_term_string_pp_group,
             recognize_term_pp_wrapper, emit_term_pp_wrapper_group)
+        # crosscheck_ir.py self-state carrier (class-variant-impl.md §OUTCOME-CC):
+        # a `@property`-derived 0-arg self method over the `IRCrossCheckResult`
+        # record whose body is the presence/string-empty boolean fragment
+        # (`registry_skipped`). Disjoint from the term param-folds (0 formal
+        # params, reads self-record fields). Gated on `_has_opaque_term_fields`
+        # -> fires on 0 corpus programs + 0 other mirror files.
+        if getattr(self, "_has_opaque_term_fields", False):
+            from module6_whyml.generic_fold import (
+                recognize_crosscheck_selfstate_bool,
+                emit_crosscheck_selfstate_bool_group)
+            _css = recognize_crosscheck_selfstate_bool(func)
+            if _css is not None:
+                return emit_crosscheck_selfstate_bool_group(
+                    func, _css, whyml_ident)
         _tspec = getattr(self, "_term_adt_spec", None)
         if _tspec:
             # class-variant-impl.md T-transform: a Term->Term (constructor-rebuild)
