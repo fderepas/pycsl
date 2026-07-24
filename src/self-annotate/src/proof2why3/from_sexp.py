@@ -73,11 +73,19 @@ def _const_name(const_node: Any) -> Optional[str]:
 def _full_const_path(const_node: Any) -> List[str]:
     return []
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _find_kername_components(payload: Any) -> List[str]:
+    """Recursively search the payload for the first KerName subtree
+    and return its components."""
+    if isinstance(payload, tuple):
+        if payload and payload[0] == "KerName":
+            return _walk_kername(payload)
+        for sub in payload:
+            r = _find_kername_components(sub)
+            if r:
+                return r
     return []
 
 #@ \trusted reviewer: pycsl-self-annotate
