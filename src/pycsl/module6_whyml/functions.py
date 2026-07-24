@@ -2756,7 +2756,12 @@ class FunctionEmissionMixin:
         # projectors (axiom-free; ledger 3). Fires only when the Optional[str] return
         # resolves to a synthesized 2-arm (str-payload + None) union. Fail-closed; a
         # template bug is a loud unprovable instance, never a false proof.
-        _pvw = recognize_pyval_string_walker(func)
+        # C2 (pyval-walker-impl.md): pass the module's pyval-list-walker name set
+        # so a `<var> = <sibling>(vref)` assign binds a `list string` local and
+        # `<var>[-k] if <var> else None` reads its end (`_const_name`/
+        # `_ind_short_name`, which call `_find_kername_components`).
+        _pvw_sibs = getattr(self, "_pyval_list_walker_names", set())
+        _pvw = recognize_pyval_string_walker(func, _pvw_sibs)
         if _pvw is not None:
             _ret = func.get("return_annotation")
             _vinfo = getattr(self, "_variant_types", {}).get(_ret)

@@ -6376,9 +6376,56 @@ def _pvw_test(node: Any, ctx: Dict[str, Any]) -> str:
     raise _PVWBail()
 
 
+def _pvw_slist_strexpr(node: Any, ctx: Dict[str, Any]) -> str:
+    """C2: a `string`-typed term read from a `list string` local (the result of a
+    sibling pyval→`list string` walker): the NEGATIVE-index-from-end `sl[-k]`
+    (`k >= 1`), lowered TOTAL and in-range-guarded to `nths sl (lens sl - k)`.
+    The projectors are total (return "" past the end / on Nil), so no unsound OOB
+    assumption is made; the `if sl` guard in the surrounding IfExpr keeps the real
+    read in-range. Any other shape bails (fail-closed)."""
+    if not (isinstance(node, dict) and node.get("type") == "Subscript"):
+        raise _PVWBail()
+    base = node.get("value")
+    if not (_is_var(base) and base.get("name") in ctx.get("slist", set())):
+        raise _PVWBail()
+    idx = node.get("index")
+    if not (isinstance(idx, dict) and idx.get("type") == "UnaryOp"
+            and idx.get("op") == "-"):
+        raise _PVWBail()                                  # only NEGATIVE index
+    num = idx.get("expr")
+    if not (isinstance(num, dict) and num.get("type") == "Number"
+            and isinstance(num.get("value"), int) and num.get("value") >= 1):
+        raise _PVWBail()
+    k = num["value"]
+    nm = _pvw_mv(base["name"])
+    P = ctx["p"]
+    return f"({P}nths {nm} ({P}lens {nm} - {k}))"
+
+
+def _pvw_slist_truth(node: Any, ctx: Dict[str, Any]) -> str:
+    """C2: the test of the `sl[-k] if sl else None` conditional-return — a bare
+    `list string` local's truthiness (`lens sl > 0`); otherwise the general pyval
+    test fragment (`_pvw_test`)."""
+    if _is_var(node) and node.get("name") in ctx.get("slist", set()):
+        return f'({ctx["p"]}lens {_pvw_mv(node["name"])} > 0)'
+    return _pvw_test(node, ctx)
+
+
 def _pvw_return(value: Any, ctx: Dict[str, Any]) -> str:
     if isinstance(value, dict) and value.get("type") == "None":
         return ctx["none_ctor"]
+    # C2: conditional-expression return `X if T else Y` (`parts[-1] if parts
+    # else None`) — a real if/then/else over the union arms.
+    if isinstance(value, dict) and value.get("type") == "IfExpr":
+        test = _pvw_slist_truth(value.get("test"), ctx)
+        thenb = _pvw_return(value.get("body"), ctx)
+        elseb = _pvw_return(value.get("orelse"), ctx)
+        return f"(if {test} then {thenb} else {elseb})"
+    # C2: a NEGATIVE-index read off a `list string` local, wrapped in the Some arm.
+    if (isinstance(value, dict) and value.get("type") == "Subscript"
+            and _is_var(value.get("value"))
+            and value["value"].get("name") in ctx.get("slist", set())):
+        return f"({ctx['some_ctor']} {_pvw_slist_strexpr(value, ctx)})"
     return f"({ctx['some_ctor']} {_pvw_strexpr(value, ctx)})"
 
 
@@ -6399,7 +6446,24 @@ def _pvw_stmts(stmts: Any, cont: str, ctx: Dict[str, Any]) -> str:
         tgt = s0.get("target")
         if not isinstance(tgt, str):
             raise _PVWBail()
-        rhs = _pvw_valref(s0.get("value"), ctx)           # RHS is a pyval term
+        val = s0.get("value")
+        # C2: RHS = a call to a SIBLING pyval→`list string` walker
+        # (`parts = _find_kername_components(payload)`) — bind `tgt` as a
+        # `list string` local (tracked in `slist`, NOT the pyval `scope`). SCC
+        # topological ordering (callees before callers) guarantees the sibling's
+        # top-level `let [rec] <sibling>` is in scope. The single arg is a pyval
+        # term (`_pvw_valref`).
+        if (isinstance(val, dict) and val.get("type") == "Call"
+                and val.get("func") in ctx.get("siblings", set())
+                and len(val.get("args", [])) == 1):
+            arg = _pvw_valref(val["args"][0], ctx)
+            callee = ctx["ident"](val["func"])
+            ctx.setdefault("used_slist", [False])[0] = True
+            newctx = dict(ctx)
+            newctx["slist"] = ctx.get("slist", set()) | {tgt}
+            return (f"(let {_pvw_mv(tgt)} = ({callee} {arg}) in "
+                    f"{_pvw_stmts(rest, cont, newctx)})")
+        rhs = _pvw_valref(val, ctx)                        # RHS is a pyval term
         newctx = dict(ctx); newctx["scope"] = ctx["scope"] | {tgt}
         return f"(let {_pvw_mv(tgt)} = {rhs} in {_pvw_stmts(rest, cont, newctx)})"
     if kind == "If":
@@ -6441,16 +6505,23 @@ def _pvw_body_reads(stmts: Any) -> bool:
     return walk(stmts)
 
 
-def recognize_pyval_string_walker(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def recognize_pyval_string_walker(
+        func: Dict[str, Any],
+        sibling_walkers: Optional[set] = None) -> Optional[Dict[str, Any]]:
     """Fail-closed match of the general value-returning pyval string walker.
-    Returns {param} or None. Never raises."""
+    Returns {param, siblings} or None. Never raises. `sibling_walkers` (C2) is the
+    set of module function names already recognized as pyval→`list string`
+    walkers; a `<var> = <sibling>(vref)` assign binds a `list string` local, and
+    `<var>[-k] if <var> else None` reads its end (`from_sexp._const_name`/
+    `_ind_short_name`). Empty by default → identical to the pre-C2 behaviour."""
     try:
-        return _recognize_pyval_string_walker(func)
+        return _recognize_pyval_string_walker(func, sibling_walkers or set())
     except Exception:
         return None
 
 
-def _recognize_pyval_string_walker(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _recognize_pyval_string_walker(
+        func: Dict[str, Any], sibling_walkers: set) -> Optional[Dict[str, Any]]:
     params = func.get("formal_params", [])
     if len(params) != 1:
         return None
@@ -6463,12 +6534,15 @@ def _recognize_pyval_string_walker(func: Dict[str, Any]) -> Optional[Dict[str, A
     body = func.get("body", [])
     if not _pvw_body_reads(body):
         return None
+    sibs = set(sibling_walkers) - {func.get("name")}
     # Dry-run structural translation (placeholder ctors). Any unsupported node
     # raises _PVWBail -> recognizer returns None. This IS the fail-closed gate.
     ctx = {"n": "f", "p": "f__", "scope": {p}, "ret": ret,
-           "some_ctor": "S", "none_ctor": "N", "counter": [0]}
+           "some_ctor": "S", "none_ctor": "N", "counter": [0],
+           "siblings": sibs, "ident": lambda x: x,
+           "slist": set(), "used_slist": [False]}
     _pvw_stmts(body, "N", ctx)
-    return {"param": p}
+    return {"param": p, "siblings": sibs}
 
 
 def emit_pyval_string_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
@@ -6484,7 +6558,9 @@ def emit_pyval_string_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
     param = desc["param"]
     ctx = {"n": n, "p": P, "scope": {param}, "ret": desc["ret_whyml"],
            "some_ctor": desc["some_ctor"], "none_ctor": desc["none_ctor"],
-           "counter": [0]}
+           "counter": [0],
+           "siblings": set(desc.get("siblings") or set()) - {func["name"]},
+           "ident": whyml_ident, "slist": set(), "used_slist": [False]}
     body = _pvw_stmts(func.get("body", []), desc["none_ctor"], ctx)
     out: List[str] = []
     # ---- inline TOTAL projectors (no axiom; pv_size cert covers the measure) --
@@ -6501,6 +6577,17 @@ def emit_pyval_string_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append(f"  = match v with PList xs -> {P}lenl xs | _ -> 0 end")
     out.append(f"  let function {P}atom (v: pyval) : string")
     out.append('  = match v with PStr s -> s | _ -> "" end')
+    # ---- C2: inline TOTAL `list string` projectors (nths/lens) — emitted only
+    #      when the body binds a sibling-walker `list string` local and reads its
+    #      NEGATIVE-index end. DEFINED (not axiomatized); ledger 3. --------------
+    if ctx["used_slist"][0]:
+        out.append(f"  let rec function {P}nths (l: list string) (i: int) : string")
+        out.append("    variant { l }")
+        out.append(f'  = match l with Nil -> ""'
+                   f" | Cons h t -> if i <= 0 then h else {P}nths t (i - 1) end")
+        out.append(f"  let rec function {P}lens (l: list string) : int")
+        out.append("    ensures { result >= 0 } variant { l }")
+        out.append(f"  = match l with Nil -> 0 | Cons _ t -> 1 + {P}lens t end")
     # ---- the walker ----------------------------------------------------------
     out.append(f"  let {n} ({_pvw_mv(param)}: pyval) : {desc['ret_whyml']}")
     out.append("    requires { true } ensures { true }")
