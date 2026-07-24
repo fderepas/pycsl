@@ -15,12 +15,38 @@ from proof2why3.ir import App, BinOp, BoolLit, Forall, IntLit, Term, UnaryOp, Un
 def _walk_kername(kn: Any) -> List[str]:
     return []
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _walk_modpath(mp: Any) -> List[str]:
-    return []
+    """Walk a MPfile / MPdot / MPbound tree to extract module path
+    components in left-to-right order."""
+    out: List[str] = []
+    if not isinstance(mp, tuple):
+        return out
+    if mp and mp[0] == "MPfile":
+        # (MPfile (DirPath ((Id NAME) ...)))
+        if len(mp) >= 2:
+            dp = mp[1]
+            if isinstance(dp, tuple) and dp[0] == "DirPath" and len(dp) >= 2:
+                segments = dp[1]
+                # DirPath stores components in REVERSE order; reverse to
+                # get logical left-to-right.
+                segs_reversed: List[str] = []
+                if isinstance(segments, tuple):
+                    for seg in segments:
+                        if (isinstance(seg, tuple) and seg[0] == "Id"
+                                and len(seg) >= 2):
+                            segs_reversed.append(seg[1])
+                out.extend(reversed(segs_reversed))
+    elif mp and mp[0] == "MPdot":
+        # (MPdot <parent_mp> (Id NAME))
+        if len(mp) >= 3:
+            out.extend(_walk_modpath(mp[1]))
+            iid = mp[2]
+            if isinstance(iid, tuple) and iid[0] == "Id" and len(iid) >= 2:
+                out.append(iid[1])
+    return out
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

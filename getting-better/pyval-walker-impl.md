@@ -85,6 +85,82 @@ int-hash erasure to hide behind, so the mutation test IS decisive here (contrast
   breaks its proof). No evil-twin: the recognizer forces `ensures True` (no postcondition to refute)
   and emits no oracle to collapse to, so the mutation test + vacuity gate are the non-vacuity lock.
 
+## §OUTCOME-C1 — 2026-07-24 driver run: LIST-accumulator carrier BUILT + 1 conversion (940 → 939)
+
+**Verdict: the C1 `List[str]`-accumulator carrier is BUILT, spike-PASSED, and converts
+`from_sexp._walk_modpath` (the ONE C1 stub reachable by the List carrier ALONE). The other
+3 C1 stubs stay [COST/SCALE] behind a distinct, precisely-located wall — CROSS-FUNCTION
+CALLS + WhyML forward-reference/mutual-rec ordering (renamed C1b below).**
+
+### GATE-S census (lesson p) — reachable-ALONE sub-cluster size = 1
+Of the 4 C1 candidates, exactly ONE is reachable by the List-accumulator carrier ALONE:
+- `_walk_modpath` — **self-recursion only, NO cross-function call, no `[-1]`.** REACHABLE. ✓
+- `_walk_kername` — calls `_walk_modpath` (a helper that must carry a `pyval` param). NOT alone.
+- `_find_kername_components` — calls `_walk_kername` + self. NOT alone.
+- `_full_const_path` — calls `_find_kername_components`. NOT alone.
+The 3 non-alone stubs are all blocked by **C1b** (a cross-function call to a sibling that must
+itself be a `pyval`→`list string` function), AND by WhyML **forward-reference ordering**: source
+order is `_walk_kername`(1st)→`_walk_modpath`(2nd), so a converted `_walk_kername` forward-refs
+`_walk_modpath` (WhyML `let` is sequential; needs a `let rec … with` mutual group the per-function
+recognizer path does not emit). Distinct feature, not the List carrier — deferred with a measured
+reason, not speculatively built.
+
+### Make-or-break spike — PASSED on `_walk_modpath` (CORRECTNESS)
+The spike falsifier was NOT provability of the list-build (that typechecks trivially) but
+**TERMINATION of the TREE self-recursion** `_walk_modpath(mp[1])`. Hand-lowered `_walk_modpath`
+to a `list string` accumulator (`app`/`rev` + a spine fold): Why3 **typechecks** the accumulator
+shape (L3-tc ✓), the inner spine fold's `variant { l }` is Valid, but the outer
+`variant { pv_size v_mp }` **times out** — Why3 cannot prove `pv_size (pnth v_mp 1) < pv_size v_mp`
+unaided. Fix (the DICT-analog `size_dict_mem` cert lemma already exists): an **axiom-free per-function
+`let rec lemma {n}__size_nthl`** (`0 <= i < lenl l -> pv_size (nthl l i) <= size_list l`, the recursion
+IS the induction, calling the certified `size_pos`/`size_list_nonneg`). With it, **Alt-Ergo (the
+pipeline's FIRST prover) proves the whole `_walk_modpath'vc` unsplit in 0.14 s** (z3 OOMs — moot,
+Alt-Ergo is tried first). NO new axiom, ledger stays 3. Real pipeline: `--fun _walk_modpath` **SUCCESS**,
+whole-file `from_sexp.py` proof **SUCCESS**.
+**MUTATION TEST (Gate C, decisive):** `"MPfile"` → `"MPZZZ"` in the body → the emitted `.mlw`'s
+`pystr_eq … "MPfile"` becomes `… "MPZZZ"`. Non-facade.
+
+### What was BUILT (all in `src/pycsl`, NOT the mirror → 0 new stubs, net +1)
+- **`recognize_pyval_list_walker` + `emit_pyval_list_walker_group`** (`generic_fold.py`) — a
+  CPS/state-passing STRUCTURAL translator threading the current `list string` value of every
+  in-scope accumulator. Fragment: `<acc>=[]`; `<var>=vref` (pyval bind); `<acc>.append(strexpr)`;
+  `<acc>.extend(listexpr)`; `if/else`; `for x in vref` (single-accumulator fold); `return <acc>`/
+  `return []`; `listexpr ::= <acc> | reversed(<acc>) | <selfname>(vref)`; `test` += bare-`vref`
+  tuple truthiness (`plen>0`). Fail-closed `_PVWBail` → None.
+- **inline TOTAL list ops** `{n}__app` (list append) + `{n}__rev`/`{n}__revacc` (reverse) — DEFINED
+  `let rec function`s, self-contained: **NO preamble `use list.Append/Reverse`** → zero corpus byte-diff.
+- **inline TOTAL projectors** `{n}__nthl/pnth/lenl/plen/atom` (reused from the string walker).
+- **axiom-free `{n}__size_nthl` lemma** — emitted ONLY when the body is tree-self-recursive (ledger 3).
+- **dispatch** (`functions.py`) after the string-walker block; **needs_pydict gate** (`preamble.py`
+  `_scan_preamble_needs`, a `\trusted` mirror stub → no §10.4 re-port) pulls the pyval theory (+
+  `use list.List`) into scope when the recognizer fires — REQUIRED for a standalone fixture (in the
+  mirror `_walk_modpath` piggybacked on `_binder_name`'s already-pulled theory).
+
+### Gate battery (driver-verified fresh)
+- count 940 → **939** (`_walk_modpath` un-`\trusted`); ledger **3** (size lemma is `let rec lemma`
+  PROVEN by Alt-Ergo; app/rev/projectors DEFINED; no cert/allowlist/formal-semantics touched).
+- `--fun _walk_modpath` **SUCCESS**; **whole-file** `from_sexp.py` proof **SUCCESS**; L3-tc ✓.
+- **corpus byte-diff 0** (789 common == 789, mine vs detached-HEAD worktree with `.venv` symlinked;
+  only the NEW `0943_pyval_list_walker.mlw` is mine-only). The list recognizer does NOT over-fire.
+- **suite-mirror byte-diff 0** (34 proven-suite mirrors byte-identical HEAD vs mine, both BEFORE and
+  AFTER the preamble edit ⇒ the self-annotation proof suite is provably unaffected).
+- vacuity `--emit from_sexp` exit 0: 0 input-blind, no NEW erasure (the 3 KNOWN unchanged;
+  `_walk_modpath` reads its param).
+- mirror-check **52/52**; drift **2 == HEAD** (`_walk_modpath` in sync = verbatim port; the 2
+  pre-existing `_handle_var_expr`/`_handle_for_stmt` still-blocked).
+- reference fixture (`git add -f`): `0943_pyval_list_walker.py` — a standalone `walk_path` tree
+  walker that fires the recognizer, exercises `.append`/`.extend`/`reversed`/for-fold + the tree
+  self-recursion size lemma, and PROVES (regression lock). No evil-twin (ensures True, no oracle to
+  collapse to; mutation test + vacuity gate are the non-vacuity lock).
+
+### §RESIDUAL-C1b — the other 3 C1 stubs ([COST/SCALE], cross-call ordering)
+`_walk_kername`/`_find_kername_components`/`_full_const_path` need the List carrier PLUS: (a) a
+cross-function call to a sibling that is itself a converted `pyval`→`list string` function (a
+trusted `val` sibling has an `int` param → type mismatch, the C2 wall); (b) WhyML forward-reference
+resolution — either a `let rec … with` mutual-group emission from the per-function recognizer path, or
+dependency-order emission. Both are bounded (no 4th axiom, Why3 accepts the carrier) but distinct
+builds. The List carrier is the reusable foundation; C1b is the next increment when authorized.
+
 ## §RESIDUAL — the rest of the from_sexp cluster ([COST/SCALE], carriers enumerated)
 The walker CURRENTLY reaches exactly `_binder_name` (self-contained `Optional[str]` fold). The other
 6 need distinct, still-unbuilt carriers (each a real feature, not a facade):
