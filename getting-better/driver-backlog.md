@@ -146,9 +146,23 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
          0 new stubs (recognizer lands in UNmirrored generic_fold.py) — NOT a giants-trap; pyval REUSE
          (PStr=SAtom, PList=SList) kills the new-cert cost (3 projectors on the certified pyval theory,
          ledger 3). Residual = the §10.3 value-returning-pyval walker, no bounded/non-facade entry.**
-       * **class-instance variant** ADT (`isinstance(t,Var)` + `t.name`/`node.left`): `emit_why3._pp`,
-         `Module2_Parser._csl_to_str` — reopen with @dataclass/class→WhyML-variant model + faithful
-         f-string interpolation of runtime strings + `str(int)`.
+       * **class-instance variant** ADT (`isinstance(t,Var)` + `t.name`/`node.left`) — **CARRIER BUILT
+         2026-07-24 (count 933 → 932, `class-variant-impl.md`).** CENSUS: the proof2why3 `Term` union
+         (Var|IntLit|BoolLit|App|BinOp|UnaryOp|Forall|Exists|Unsupported) is the LARGEST reachable
+         cluster (~18 stubs: canonical.py ×10 transforms, ir.py ×2, emit_why3.py ×2, crosscheck_ir.py
+         ×2). NO existing value model fits a 9-way isinstance dispatch on distinct dataclasses → a NEW
+         variant ADT + co-landing cert. BUILT `compute_term_adt_spec` + `recognize_term_isinstance_fold`
+         + `emit_term_isinstance_fold_group` (generic_fold.py) + `_emit_term_theory` (preamble.py, gated
+         `needs_term`) + dispatch (functions.py); co-landed AXIOM-FREE `Phase2i_TermIR.v` (Print
+         Assumptions closed ×9) + `TermIR.lean` (no axioms ×14), ledger 3. Converted
+         `emit_why3.contains_unsupported` (the bool existence fold) → total positional `match` over the
+         `term` variant. Both spikes PASSED (cert Valid all algebras / recognizer falsifier); mutation
+         test decisive; corpus byte-diff 0 (796==796); whole-file emit_why3 proof SUCCESS (added to
+         suite, lesson 10); drift 2; fixture 0950. **RESIDUAL [COST/SCALE]:** the T-transform (Term→Term
+         constructor emission, 10 canonical.py stubs — biggest sub-cluster), T-string (`_pp` f-string
+         build), T-set/list (`free_vars`/`flatten_arrow_chain`) result algebras — all CERT-covered by
+         the SAME `term` inductive (no new cert), distinct recognizers. `Module2_Parser._csl_to_str`
+         (CSLNode ADT) stays [CORRECTNESS] (its int is `str_to_int` = the oracle).
        * Python **`ast.*` node** hierarchy (`isinstance(x,ast.Subscript)`, `x.value.id`): M5
          `_normalize_literal_annotation`, `_encode_callable_annotation`, `_typeddict_field_type` — reopen
          with an `ast`-node value model (plus self-state mutation / `\trusted`-sibling calls / raise+encode).
