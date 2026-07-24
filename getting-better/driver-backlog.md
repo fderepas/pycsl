@@ -171,6 +171,49 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    `Set[str].add(param)→()` faithfulness bug (lesson h family) — a real all-users fix worth doing
    under item 7.
 
+   **`Set[str]` STRING-KEYING — CERTIFIED-BOUNDARY (2026-07-24, count 942 unchanged, tree reverted clean).**
+   The driver's spike is CORRECT and PROVEN for STANDALONE functions, but landing it consistently across
+   the self-annotation mirror is the "set-membership/`Fset`/`SetApp` model rework" the refutation clause
+   names — NOT a bounded param-type change.
+   - **Root diagnosis (verified):** a `Set[str]` PARAM already lowers by-reference; the real bug is the SET
+     branch (`functions.py::_emit_param` L96) hard-codes `map int (option int)` while a string element
+     should drive `map string (option int)` (the DICT branch already consults `_dict_key_types`; the set
+     branch ignored it).
+   - **SPIKE PASSED (standalone):** with 4 emitter edits — (a) `_emit_param` set branch consults
+     `_dict_key_types`; (b)+(c) `_build_method_param_types_map` + `_build_method_param_whyml_types_by_name`
+     string-key a `set` param when `_kt[name]=="string"`; (d) Module5 `_build_function_symbol_table` param
+     loop pins `dict_key_types[arg]="string"` from a `Set[str]` annotation via `_m5_get_set_elem_type` —
+     the fixture `def add_it(s: Set[str], x: str) with #@ ensures x in s: s.add(x)` L3-tc ✓ AND **PROVES**
+     Valid (`map_update_some !s x 0` typechecks; `x in s` discharges). Real all-users faithfulness repair
+     for standalone code.
+   - **WHY IT CASCADES (the boundary):** `local_refs`/`declared_refs` are a `Set[str]` of variable NAMES
+     threaded through the ENTIRE statement/expression-emission subsystem, and the mirror was built on the
+     int-keyed (`str_hash_op`) set model. Making the param string-keyed breaks — measured, each revealing
+     the next — (1) the set-union `|` lowering (`expressions.py` L3660) `str_hash_op`-hashes the string
+     element to an int key (needed a raw-key branch for a string-keyed left, incl. the `<set>.copy()` left
+     variant); (2) the cross-mixin `#@ requires_method _seq_operand: (…, local_refs: set)` decls — the
+     `requires_method` GRAMMAR doesn't parse `Set[str]` (fell back to `int`, worse); (3) membership `in`
+     and `.add`/`.discard` write sites all `str_hash_op`-hash (not yet reached but same shape); (4) the
+     mirror's own INCONSISTENT annotations — 60 `local_refs: Set[str]` vs 15 `local_refs: int` vs 1 bare
+     `set` — so no single inference is globally consistent; (5) cross-file self-method-call bridges default
+     the callee param to `map int` when the callee's real sig isn't in the emitting file. The
+     mirror-wide L3-tc sweep broke `expressions.py` + `stmt_control_flow.py` (both green at HEAD) — §10.4
+     shared-lowering cascade — and full consistency needs every set-op lowering (union/copy/membership/
+     add/discard) made string-key-aware + the requires_method grammar extended + the mirror re-annotated,
+     with corpus byte-diff risk on every set-of-strings program. Session-scale, refutation-exit taken.
+   - **DE-VACUIFY `_emit_new_ghost_ref` — SEPARATELY BLOCKED (stays in `KNOWN_ERASURES`).** Even with the
+     key-type fix, `declared_refs.add(target)`/`local_refs.add(target)` still emit `()` (dropped) → `target`
+     stays erased. Reason: `_seed_mutated_collection_params` (functions.py L4143) EXCLUDES methods from
+     by-reference promotion ("ref promotion would desync the abstract-op call map"), and `_emit_new_ghost_ref`
+     is a method. So `.add` on its by-value set param is dropped; the key-type change cannot de-vacuify it.
+   - **REOPEN capability:** (R1) a string-keyed set-operation lowering pass — union `|`, `.copy()`,
+     membership `in`, `.add`/`.discard`/`.remove` all emit the RAW string key (retiring `str_hash_op`) when
+     the set is `_dict_key_types`-string; (R2) extend the `#@ requires_method` type grammar to parse
+     `Set[str]`; (R3) reconcile the mirror's `local_refs`/`declared_refs` annotations to a single `Set[str]`
+     (the 15 `int` + 1 bare `set` sites) + cross-file bridge string-key inference; (R4) for the de-vacuify,
+     lift the method by-ref-promotion exclusion + resync the abstract-op call map for set-ref params. The
+     4-edit standalone spike is banked (proves) and is the clean seed for R1.
+
 8. **Soundness/gate hardening (do opportunistically, never a reason to stop).** The self-state vacuity
    gate's LOWER-BOUND partials; a `check-self-annotate-sync.sh` audit; the 5 flagged judgment-call
    lessons (i,k,g,j',m) carve-outs. Small, bounded, always-available filler between walls.
