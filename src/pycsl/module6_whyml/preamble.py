@@ -2095,7 +2095,7 @@ class PreambleEmissionMixin:
             compute_term_adt_spec, recognize_term_isinstance_fold,
             recognize_term_isinstance_transform,
             recognize_term_list_build, recognize_term_flatten_arrow,
-            recognize_term_free_vars)
+            recognize_term_free_vars, recognize_term_string_pp)
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)
@@ -2103,12 +2103,30 @@ class PreambleEmissionMixin:
         # abstract `val pystr_eq` string guard. Stash both; a transform sets
         # needs_term exactly like a bool fold.
         self._term_const_dicts = self.ir.get("module_const_dicts") or {}
+        # class-variant-impl.md T-string: the term->string BUILD catamorphism
+        # (`_pp`) needs the str->int module const dicts (`_BINOP_PREC` precedence
+        # table) + the module int constants (`_PREC_*`) + `val pystr_eq`.
+        self._term_const_int_dicts = self.ir.get("module_const_int_dicts") or {}
+        _mc = self.ir.get("module_constants") or {}
         _term_transforms = [
             recognize_term_isinstance_transform(
                 f, self._term_adt_spec, self._term_const_dicts)
             for f in functions] if self._term_adt_spec else []
+        _term_pps = [
+            recognize_term_string_pp(
+                f, self._term_adt_spec, _mc, self._term_const_int_dicts)
+            for f in functions] if self._term_adt_spec else []
+        self._term_pp_names = {
+            f["name"] for f, d in zip(functions, _term_pps) if d is not None}
+        self._term_pp_mc = _mc
         needs_term_streq = any(
-            d is not None and d.get("uses_streq") for d in _term_transforms)
+            d is not None and d.get("uses_streq") for d in _term_transforms) \
+            or any(d is not None and (d.get("uses_streq") or d.get("binop_dicts"))
+                   for d in _term_pps)
+        # T-string: the pp catamorphism BUILDS a string -> it needs `str_concat_op`
+        # (string concat) + `str_of_int` (IntLit `str()`). Gate their declaration
+        # in the term theory (emit_why3.py's other functions don't pull them).
+        needs_term_strbuild = any(d is not None for d in _term_pps)
         # class-variant-impl.md §OUTCOME-TL: the T-set/list LEAF algebras
         # (`mk_arrow_chain` list-fold builder, `flatten_arrow_chain` while-spine
         # tuple return) also set needs_term — same certified `term` inductive.
@@ -2120,7 +2138,8 @@ class PreambleEmissionMixin:
             or any(recognize_term_flatten_arrow(f, self._term_adt_spec) is not None
                    for f in functions)
             or any(recognize_term_free_vars(f, self._term_adt_spec) is not None
-                   for f in functions))
+                   for f in functions)
+            or any(d is not None for d in _term_pps))
         # §OUTCOME-TL: the `free_vars` set-fold needs `use bool.Bool` (orb/andb/notb
         # in `set_union`/`set_diff`). Gate it narrowly so needs_term files WITHOUT a
         # set-fold (emit_why3.py, canonical.py) stay byte-identical.
@@ -2132,14 +2151,31 @@ class PreambleEmissionMixin:
         if not needs_term:
             self._term_adt_spec = None
             self._term_const_dicts = {}
+            self._term_const_int_dicts = {}
+            self._term_pp_names = set()
             needs_term_streq = False
             needs_term_setfold = False
+            needs_term_strbuild = False
         self._needs_term_streq = needs_term_streq
+        self._needs_term_strbuild = needs_term_strbuild
+        # A frozen-dataclass term ctor with a `tuple` field emits an `array int`
+        # RECORD field (`type app = { args: array int }`), which requires
+        # `use array.Array`. Pull it when the term carrier is active and any ctor
+        # dataclass has a tuple field. Gated on needs_term -> corpus (no term ADT)
+        # byte-identical; the term mirrors already pull Array via other conditions.
+        if needs_term and self._term_adt_spec:
+            _ctors = set(self._term_adt_spec.get("ctors", {}))
+            for _td in self.ir.get("type_decls", []):
+                if _td.get("name") in _ctors and any(
+                        f.get("type") == "tuple" for f in _td.get("fields", [])):
+                    needs_array = True
+                    break
         return {
             "needs_pydict": needs_pydict,
             "needs_term": needs_term,
             "needs_term_streq": needs_term_streq,
             "needs_term_setfold": needs_term_setfold,
+            "needs_term_strbuild": needs_term_strbuild,
             "needs_sdict": needs_sdict,
             "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
@@ -2874,6 +2910,18 @@ class PreambleEmissionMixin:
         if getattr(self, "_needs_term_streq", False) and not needs.get("needs_pydict"):
             lines.append("  (* T-transform const-map string guard (result VC-free; ledger 3) *)")
             lines.append("  val pystr_eq (a b: string) : bool")
+            lines.append("")
+        # T-string (`_pp`): the string-BUILD catamorphism needs string concat +
+        # int->string. Abstract `val`s (str_concat_op is spec'd by `concat`; ledger
+        # 3 — no axiom). Gated on the pp recognizer so non-pp term files stay
+        # byte-identical.
+        if getattr(self, "_needs_term_strbuild", False):
+            lines.append("  (* T-string (`_pp`) string-build ops (ledger 3) *)")
+            lines.append("  val str_concat_op (a: string) (b: string) : string")
+            lines.append("    ensures { result = (concat a b) }")
+            lines.append("    ensures { String.length result"
+                         " = String.length a + String.length b }")
+            lines.append("  val str_of_int (x: int) : string")
             lines.append("")
         return lines
 

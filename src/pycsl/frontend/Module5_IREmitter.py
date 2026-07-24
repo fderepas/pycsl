@@ -9,6 +9,7 @@ from frontend.module5.memoization_rt import MemoizationRTMixin
 from frontend.module5.construction_synth import ConstructionSynthMixin
 from frontend.module_collect import (collect_module_constants,
                                       collect_module_const_dicts,
+                                      collect_module_const_int_dicts,
                                       collect_module_const_compound_dicts,
                                       collect_module_globals)
 from frontend.Module2_Parser import (
@@ -246,6 +247,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         module_const_dicts = collect_module_const_dicts(node)
         if module_const_dicts:
             self.program_ir["module_const_dicts"] = module_const_dicts
+
+        # class-variant-impl.md T-string: module-level str->int const dicts
+        # (`_BINOP_PREC = {"->": _PREC_ARROW, ...}`) → consumed ONLY by the Module-6
+        # term->string catamorphism emitter (gated on the term-pp recognizer). No
+        # corpus program has a term ADT, so this field is inert everywhere else.
+        module_const_int_dicts = collect_module_const_int_dicts(node)
+        if module_const_int_dicts:
+            self.program_ir["module_const_int_dicts"] = module_const_int_dicts
 
         # compound-key const-map lowering: a module-const dict with a COMPOUND
         # (tuple) key and a LIST value (`TRIGGERS: Dict[Tuple[str, Optional[str]],

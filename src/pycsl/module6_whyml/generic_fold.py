@@ -8602,3 +8602,560 @@ def emit_term_free_vars_group(func: Dict[str, Any], desc: Dict[str, Any],
         out.append(f"  = match l with Nil -> {_FV_EMPTY}"
                    f" | Cons h t -> {n}__set_union ({n} h) ({n}__list t) end")
     return out
+
+
+# ===========================================================================
+# class-variant-impl.md — T-string: a term->string BUILD catamorphism over the
+# `term` variant (driver-backlog item 3 residual, the `_pp`/pretty-print family).
+#
+# A `\trusted` string-returning fold (`emit_why3._pp` shape) isinstance-dispatches
+# on the term ADT and BUILDS a string per arm via f-string / `str()` / `" ".join`,
+# threading a second inherited-attribute int param (`parent_prec`) that drives a
+# precedence table lookup (`_BINOP_PREC.get(op, default)`), int arithmetic
+# (`op_prec + 1`) and a conditional paren-wrap (`f"({s})" if parent_prec > p`).
+# Emitted as a PROGRAM `let rec {n} (v_t: term) (parent_prec: int) : string`
+# structurally terminating over the certified `term` inductive (`variant {v_t}`;
+# the SAME `Phase2i_TermIR.v`/`TermIR.lean` cert — NO new axiom, ledger 3), with:
+#   * an inline TOTAL `{n}__joinstr` (space-join of a `list string` binder field),
+#   * a mutual `{n}__joinargs` (space-join of `_pp` over a `list term` App-arg
+#     field — the recursion that makes it a catamorphism, NOT a shape match),
+#   * an inline `{n}__binop_prec_<dict>` int table (str->int const dict from
+#     `module_const_int_dicts`, resolved to literal ints; the `val pystr_eq`
+#     string guard — a `val`, NOT an axiom).
+# Fail-closed: any node outside the fragment raises `_PVWBail` → recognizer
+# returns None → the stub stays `\trusted`. The templater is NOT in the TCB (a bug
+# yields an unprovable instance the whole-file re-proof catches, never a false
+# proof). Mutation-sensitive (separator / const-map value / subterm-prec knobs
+# all flow into the emitted `.mlw`).
+# ===========================================================================
+
+
+def recognize_term_pp_wrapper(func: Dict[str, Any], pp_names: set,
+                              module_constants: Optional[Dict[str, Any]] = None
+                              ) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for a term->string DELEGATING WRAPPER:
+    `def f(x: Term) -> str: return <pp>(x, <int-const>)` where `<pp>` is a
+    recognized term-string-pp function (§10.4 cascade: `ir_to_whyml_axiom_body`,
+    the sole caller of `_pp`, must type its `x` as the `term` variant now that
+    `_pp` takes `term`). Returns {param, callee, prec} or None."""
+    try:
+        if not pp_names:
+            return None
+        params = func.get("formal_params", [])
+        if len(params) != 1 or func.get("return_annotation") != "str":
+            return None
+        body = func.get("body", [])
+        if not (isinstance(body, list) and len(body) == 1
+                and isinstance(body[0], dict) and body[0].get("stmt") == "Return"):
+            return None
+        val = body[0].get("value")
+        if not (isinstance(val, dict) and val.get("type") == "Call"
+                and val.get("func") in pp_names):
+            return None
+        args = val.get("args") or []
+        if not (len(args) == 2 and _is_var(args[0], params[0])):
+            return None
+        mc = module_constants or {}
+        a1 = args[1]
+        if isinstance(a1, dict) and a1.get("type") == "Number" \
+                and isinstance(a1.get("value"), int):
+            pr = a1.get("value")
+        elif isinstance(a1, dict) and a1.get("type") == "Var" \
+                and isinstance(mc.get(a1.get("name")), int) \
+                and not isinstance(mc.get(a1.get("name")), bool):
+            pr = mc.get(a1.get("name"))
+        else:
+            return None
+        return {"param": params[0], "callee": val.get("func"), "prec": pr}
+    except Exception:
+        return None
+
+
+def emit_term_pp_wrapper_group(func: Dict[str, Any], desc: Dict[str, Any],
+                               whyml_ident) -> List[str]:
+    n = whyml_ident(func["name"])
+    callee = whyml_ident(desc["callee"])
+    p = desc["param"]
+    return [f"  let {n} (v_{p}: term) : string",
+            "    requires { true } ensures { true }",
+            f"  = {callee} v_{p} ({desc['prec']})"]
+
+
+def _ppw_field(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.<attr>` -> attr name, else None."""
+    if (isinstance(node, dict) and node.get("type") == "Attribute"
+            and _is_var(node.get("object"), subj)):
+        return node.get("attr")
+    return None
+
+
+def recognize_term_string_pp(func: Dict[str, Any],
+                             spec: Optional[Dict[str, Any]],
+                             module_constants: Optional[Dict[str, Any]] = None,
+                             const_int_dicts: Optional[Dict[str, Any]] = None
+                             ) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the term->string BUILD catamorphism (the
+    `_pp` shape). Returns a desc (with the fully-parsed, constant-resolved per-arm
+    blocks) or None. Never raises."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_string_pp(
+            func, spec, module_constants or {}, const_int_dicts or {})
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_string_pp(func: Dict[str, Any], spec: Dict[str, Any],
+                              mc: Dict[str, Any],
+                              cid: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    if func.get("return_annotation") != "str":
+        return None
+    subj, prec = params[0], params[1]
+    if func.get("param_annotations", {}).get(prec) not in ("int",):
+        return None
+    body = func.get("body", [])
+    if not (isinstance(body, list) and body):
+        return None
+    name = func["name"]
+    ctor_set = set(spec["ctors"].keys())
+    ctx = {"subj": subj, "prec": prec, "self": name, "spec": spec,
+           "mc": mc, "cid": cid, "flags": {"streq": False, "joinstr": False,
+           "joinargs": False, "sep_args": None, "sep_str": None,
+           "binop_dicts": {}}}
+    arms: Dict[str, Any] = {}
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                              # trailing total-match raise
+        if not (isinstance(st, dict) and st.get("stmt") == "If"
+                and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        # each arm parsed with the ctor's fields visible (to type field reads)
+        for c in classes:
+            if c in arms:
+                raise _PVWBail()
+            fld_types = dict(spec["ctors"][c])
+            actx = dict(ctx)
+            actx["fld_types"] = fld_types
+            actx["int_locals"] = set()
+            actx["str_locals"] = set()
+            arms[c] = _ppw_block(st.get("body", []), actx)
+    if set(arms.keys()) != ctor_set:
+        raise _PVWBail()                          # totality over the ADT
+    return {"param": subj, "prec": prec, "arms": arms,
+            "uses_streq": ctx["flags"]["streq"],
+            "uses_joinstr": ctx["flags"]["joinstr"],
+            "uses_joinargs": ctx["flags"]["joinargs"],
+            "binop_dicts": ctx["flags"]["binop_dicts"]}
+
+
+def _ppw_block(stmts: Any, ctx: Dict[str, Any]) -> Any:
+    """A block ::= ('final', strexpr) | ('guard', cond, retstr, block)
+                 | ('seq', ('let', isint, name, expr), block)."""
+    if not (isinstance(stmts, list) and stmts):
+        raise _PVWBail()
+    st = stmts[0]
+    if not isinstance(st, dict):
+        raise _PVWBail()
+    kind = st.get("stmt")
+    if kind == "Return":
+        if len(stmts) != 1:
+            raise _PVWBail()
+        return ("final", _ppw_str(st.get("value"), ctx))
+    if kind == "If":
+        ibody = st.get("body", [])
+        orelse = st.get("orelse", [])
+        # early-return guard: `if <cond>: return <str>`  (empty orelse)
+        if (not orelse and len(ibody) == 1 and isinstance(ibody[0], dict)
+                and ibody[0].get("stmt") == "Return"):
+            cond = _ppw_cond(st.get("test"), ctx)
+            ret = _ppw_str(ibody[0].get("value"), ctx)
+            return ("guard", cond, ret, _ppw_block(stmts[1:], ctx))
+        # parallel conditional assigns: both branches assign the SAME targets
+        # in the SAME order -> a sequence of conditional lets.
+        cond = _ppw_cond(st.get("test"), ctx)
+        tsteps = _ppw_assign_seq(ibody, ctx)
+        esteps = _ppw_assign_seq(orelse, ctx)
+        if not tsteps or [t for t, _ in tsteps] != [t for t, _ in esteps]:
+            raise _PVWBail()
+        # build the conditional lets (register locals as string — the `_pp`
+        # branch-assigned lhs/rhs are recursion results = strings)
+        letsteps = []
+        for (tname, tval), (_ename, eval_) in zip(tsteps, esteps):
+            ctx["str_locals"].add(tname)
+            letsteps.append(("let", False, tname,
+                             ("scond", cond, tval, eval_)))
+        rest = _ppw_block(stmts[1:], ctx)
+        for step in reversed(letsteps):
+            rest = ("seq", step, rest)
+        return rest
+    if kind == "Assign":
+        name = st.get("target")
+        if not isinstance(name, str):
+            raise _PVWBail()
+        val = st.get("value")
+        isint, expr = _ppw_assign_value(val, ctx)
+        (ctx["int_locals"] if isint else ctx["str_locals"]).add(name)
+        return ("seq", ("let", isint, name, expr), _ppw_block(stmts[1:], ctx))
+    raise _PVWBail()
+
+
+def _ppw_assign_seq(stmts: Any, ctx: Dict[str, Any]) -> List:
+    """A list of `Assign target=<rec-strexpr>` -> [(target, strexpr), ...]."""
+    out = []
+    if not isinstance(stmts, list) or not stmts:
+        return out
+    for st in stmts:
+        if not (isinstance(st, dict) and st.get("stmt") == "Assign"
+                and isinstance(st.get("target"), str)):
+            raise _PVWBail()
+        out.append((st.get("target"), _ppw_str(st.get("value"), ctx)))
+    return out
+
+
+def _ppw_assign_value(val: Any, ctx: Dict[str, Any]):
+    """(isint, expr). Try the int fragment first (dict.get / +N / int const /
+    Number); fall back to the string fragment."""
+    try:
+        return True, _ppw_int(val, ctx)
+    except _PVWBail:
+        return False, _ppw_str(val, ctx)
+
+
+def _ppw_cond(node: Any, ctx: Dict[str, Any]) -> Any:
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "BinOp" and node.get("op") == ">":
+        return ("gt", _ppw_int(node.get("left"), ctx),
+                _ppw_int(node.get("right"), ctx))
+    if t == "BinOp" and node.get("op") == "==":
+        fld = _ppw_field(node.get("left"), ctx["subj"])
+        r = node.get("right")
+        if fld and isinstance(r, dict) and r.get("type") == "String":
+            ctx["flags"]["streq"] = True
+            return ("streq", fld, r.get("value"))
+        raise _PVWBail()
+    if t == "UnaryOp" and node.get("op") == "not":
+        fld = _ppw_field(node.get("expr"), ctx["subj"])
+        if fld and ctx["fld_types"].get(fld) == "list term":
+            return ("empty", fld)
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _ppw_int(node: Any, ctx: Dict[str, Any]) -> Any:
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "Number" and isinstance(node.get("value"), int):
+        return ("ilit", node.get("value"))
+    if t == "Var":
+        nm = node.get("name")
+        if nm == ctx["prec"]:
+            return ("iparam",)
+        if nm in ctx["int_locals"]:
+            return ("iloc", nm)
+        v = ctx["mc"].get(nm)
+        if isinstance(v, int) and not isinstance(v, bool):
+            return ("ilit", v)
+        raise _PVWBail()
+    if t == "BinOp" and node.get("op") == "+":
+        r = node.get("right")
+        if isinstance(r, dict) and r.get("type") == "Number" \
+                and isinstance(r.get("value"), int):
+            return ("iadd", _ppw_int(node.get("left"), ctx), r.get("value"))
+        raise _PVWBail()
+    if t == "Call" and isinstance(node.get("func"), str) \
+            and node.get("func").endswith(".get"):
+        dname = node.get("func")[:-4]
+        args = node.get("args") or []
+        entries = ctx["cid"].get(dname)
+        if not (isinstance(entries, dict) and entries and len(args) == 2):
+            raise _PVWBail()
+        fld = _ppw_field(args[0], ctx["subj"])
+        default = _ppw_int(args[1], ctx)
+        if not (fld and default[0] == "ilit"):
+            raise _PVWBail()
+        ctx["flags"]["binop_dicts"][dname] = (entries, default[1])
+        return ("dictget", dname, fld)
+    raise _PVWBail()
+
+
+def _ppw_str(node: Any, ctx: Dict[str, Any]) -> Any:
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "String":
+        return ("lit", node.get("value"))
+    if t == "Var":
+        nm = node.get("name")
+        if nm in ctx["str_locals"]:
+            return ("loc", nm)
+        raise _PVWBail()
+    fld = _ppw_field(node, ctx["subj"])
+    if fld is not None:
+        if ctx["fld_types"].get(fld) != "string":
+            raise _PVWBail()
+        return ("field", fld)
+    if t == "Call":
+        f = node.get("func")
+        args = node.get("args") or []
+        if f == "str" and len(args) == 1:
+            ifld = _ppw_field(args[0], ctx["subj"])
+            if ifld and ctx["fld_types"].get(ifld) == "int":
+                return ("i2s", ifld)
+            raise _PVWBail()
+        if f == ctx["self"] and len(args) == 2:
+            rfld = _ppw_field(args[0], ctx["subj"])
+            if rfld and ctx["fld_types"].get(rfld) == "term":
+                return ("rec", rfld, _ppw_int(args[1], ctx))
+            raise _PVWBail()
+        if f == "join" and len(args) == 1:
+            recv = node.get("receiver")
+            if not (isinstance(recv, dict) and recv.get("type") == "String"):
+                raise _PVWBail()
+            sep = recv.get("value")
+            a0 = args[0]
+            bfld = _ppw_field(a0, ctx["subj"])
+            if bfld and ctx["fld_types"].get(bfld) == "list string":
+                ctx["flags"]["joinstr"] = True
+                ctx["flags"]["sep_str"] = sep
+                return ("joinstr", sep, bfld)
+            if isinstance(a0, dict) and a0.get("type") == "GenExp":
+                return _ppw_joinrec(a0, sep, ctx)
+            raise _PVWBail()
+        raise _PVWBail()
+    if t == "IfExpr":
+        test = node.get("test")
+        bfld = _ppw_field(test, ctx["subj"])
+        b, o = node.get("body"), node.get("orelse")
+        if bfld and ctx["fld_types"].get(bfld) == "bool" \
+                and isinstance(b, dict) and b.get("type") == "String" \
+                and isinstance(o, dict) and o.get("type") == "String":
+            return ("bool", bfld, b.get("value"), o.get("value"))
+        return ("scond", _ppw_cond(test, ctx),
+                _ppw_str(b, ctx), _ppw_str(o, ctx))
+    if t == "FString":
+        return ("concat", [_ppw_str(p, ctx) for p in node.get("parts", [])])
+    raise _PVWBail()
+
+
+def _ppw_joinrec(ge: Any, sep: str, ctx: Dict[str, Any]) -> Any:
+    """`sep.join(<self>(a, <int>) for a in <subj>.<field>)` -> a term-list join
+    with recursion (the App-arg catamorphism)."""
+    gens = ge.get("generators") or []
+    elt = ge.get("elt")
+    if not (len(gens) == 1 and not gens[0].get("ifs")):
+        raise _PVWBail()
+    loopv = gens[0].get("target")
+    it = gens[0].get("iter")
+    fld = _ppw_field(it, ctx["subj"])
+    if not (fld and ctx["fld_types"].get(fld) == "list term"):
+        raise _PVWBail()
+    if not (isinstance(elt, dict) and elt.get("type") == "Call"
+            and elt.get("func") == ctx["self"]):
+        raise _PVWBail()
+    eargs = elt.get("args") or []
+    if not (len(eargs) == 2 and _is_var(eargs[0], loopv)):
+        raise _PVWBail()
+    pr = _ppw_int(eargs[1], ctx)
+    ctx["flags"]["joinargs"] = True
+    ctx["flags"]["sep_args"] = sep
+    return ("joinrec", sep, fld, pr)
+
+
+# ---- emit ------------------------------------------------------------------
+
+def _ppw_slit(s: Optional[str]) -> str:
+    """A WhyML string literal (escapes backslash + quote — the op tokens `\\/`,
+    `/\\` carry backslashes, unlike `_mlw_str_lit`'s ASCII-only fail-closed form)."""
+    if not isinstance(s, str):
+        raise _PVWBail()
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _ppw_emit_int(e: Any, n: str) -> str:
+    tag = e[0]
+    if tag == "ilit":
+        return str(e[1])
+    if tag == "iparam":
+        return "parent_prec"
+    if tag == "iloc":
+        return f"l_{e[1]}"
+    if tag == "iadd":
+        return f"({_ppw_emit_int(e[1], n)} + {e[2]})"
+    if tag == "dictget":
+        return f"({n}{_bp_helper(e[1])} v_{e[2]})"
+    raise _PVWBail()
+
+
+def _bp_helper(dname: str) -> str:
+    import re as _re
+    return "__binop_prec_" + _re.sub(r"[^0-9a-zA-Z_]", "_", dname).lstrip("_")
+
+
+def _ppw_emit_cond(c: Any, n: str) -> str:
+    if c[0] == "gt":
+        return f"({_ppw_emit_int(c[1], n)} > {_ppw_emit_int(c[2], n)})"
+    if c[0] == "streq":
+        return f"(pystr_eq v_{c[1]} {_ppw_slit(c[2])})"
+    if c[0] == "empty":
+        return f"(match v_{c[1]} with Nil -> true | Cons _ _ -> false end)"
+    raise _PVWBail()
+
+
+def _ppw_emit_str(e: Any, n: str) -> str:
+    tag = e[0]
+    if tag == "lit":
+        return _ppw_slit(e[1])
+    if tag == "field":
+        return f"v_{e[1]}"
+    if tag == "loc":
+        return f"l_{e[1]}"
+    if tag == "i2s":
+        return f"(str_of_int v_{e[1]})"
+    if tag == "bool":
+        return f"(if v_{e[1]} then {_ppw_slit(e[2])} else {_ppw_slit(e[3])})"
+    if tag == "rec":
+        return f"({n} v_{e[1]} ({_ppw_emit_int(e[2], n)}))"
+    if tag == "joinstr":
+        return f"({n}__joinstr {_ppw_slit(e[1])} v_{e[2]})"
+    if tag == "joinrec":
+        return f"({n}__joinargs {_ppw_slit(e[1])} v_{e[2]} ({_ppw_emit_int(e[3], n)}))"
+    if tag == "scond":
+        return (f"(if {_ppw_emit_cond(e[1], n)} then {_ppw_emit_str(e[2], n)}"
+                f" else {_ppw_emit_str(e[3], n)})")
+    if tag == "concat":
+        parts = [_ppw_emit_str(p, n) for p in e[1]]
+        return _ppw_concat(parts)
+    raise _PVWBail()
+
+
+def _ppw_concat(parts: List[str]) -> str:
+    if not parts:
+        return '""'
+    acc = parts[-1]
+    for p in reversed(parts[:-1]):
+        acc = f"(str_concat_op {p} {acc})"
+    return acc
+
+
+def _ppw_emit_block(b: Any, n: str) -> str:
+    tag = b[0]
+    if tag == "final":
+        return _ppw_emit_str(b[1], n)
+    if tag == "guard":
+        return (f"(if {_ppw_emit_cond(b[1], n)} then {_ppw_emit_str(b[2], n)}"
+                f" else {_ppw_emit_block(b[3], n)})")
+    if tag == "seq":
+        _, isint, name, expr = b[1]
+        rhs = _ppw_emit_int(expr, n) if isint else _ppw_emit_str(expr, n)
+        return f"(let l_{name} = {rhs} in {_ppw_emit_block(b[2], n)})"
+    raise _PVWBail()
+
+
+def _ppw_block_fields(b: Any, out: set) -> None:
+    """Collect the subject-field names read anywhere in a block (to name vs `_`
+    the ctor pattern binders)."""
+    def s(e):
+        tag = e[0]
+        if tag == "field":
+            out.add(e[1])
+        elif tag in ("i2s", "bool"):
+            out.add(e[1])
+        elif tag == "joinstr":
+            out.add(e[2])
+        elif tag == "rec":
+            out.add(e[1]); i(e[2])
+        elif tag == "joinrec":
+            out.add(e[2]); i(e[3])
+        elif tag == "scond":
+            c(e[1]); s(e[2]); s(e[3])
+        elif tag == "concat":
+            for p in e[1]:
+                s(p)
+
+    def i(e):
+        tag = e[0]
+        if tag == "iadd":
+            i(e[1])
+        elif tag == "dictget":
+            out.add(e[2])
+
+    def c(cd):
+        if cd[0] == "gt":
+            i(cd[1]); i(cd[2])
+        elif cd[0] in ("streq", "empty"):
+            out.add(cd[1])
+
+    def blk(bb):
+        if bb[0] == "final":
+            s(bb[1])
+        elif bb[0] == "guard":
+            c(bb[1]); s(bb[2]); blk(bb[3])
+        elif bb[0] == "seq":
+            _, isint, _name, expr = bb[1]
+            (i if isint else s)(expr)
+            blk(bb[2])
+    blk(b)
+
+
+def emit_term_string_pp_group(func: Dict[str, Any], desc: Dict[str, Any],
+                              spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the term->string BUILD catamorphism (the `_pp` shape). Inline TOTAL
+    `{n}__joinstr` (list-string space-join) + `{n}__binop_prec_<dict>` (str->int
+    const table), a mutual `{n}__joinargs` (term-list `_pp` join = the App-arg
+    recursion), and the per-arm structural-translated body. Structural
+    `variant {v_t}` over the certified `term` inductive; NO axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["param"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    # ---- str->int precedence table(s) (program `let`; calls `val pystr_eq`) ----
+    for dname, (entries, default) in desc["binop_dicts"].items():
+        h = f"{n}{_bp_helper(dname)}"
+        expr = str(default)
+        for k, v in reversed(list(entries.items())):
+            expr = f"if pystr_eq op {_ppw_slit(k)} then {v} else {expr}"
+        out.append(f"  let {h} (op: string) : int = {expr}")
+    # ---- list-string space-join (pure structural TOTAL) -----------------------
+    if desc["uses_joinstr"]:
+        out.append(f"  let rec {n}__joinstr (sep: string) (l: list string) : string")
+        out.append("    variant { l }")
+        out.append("  = match l with")
+        out.append('    | Nil -> ""')
+        out.append("    | Cons h Nil -> h")
+        out.append(f"    | Cons h t -> str_concat_op h (str_concat_op sep ({n}__joinstr sep t))")
+        out.append("    end")
+    # ---- the catamorphism (mutual with the term-list App-arg join) ------------
+    out.append(f"  let rec {n} (v_{subj}: term) (parent_prec: int) : string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant  {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        used: set = set()
+        _ppw_block_fields(arms[c], used)
+        binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
+        pat = c + ((" " + binders) if binders else "")
+        out.append(f"    | {pat} -> {_ppw_emit_block(arms[c], n)}")
+    out.append("    end")
+    if desc["uses_joinargs"]:
+        out.append(f"  with {n}__joinargs (sep: string) (l: list term) (pr: int) : string")
+        out.append("    variant { l }")
+        out.append("  = match l with")
+        out.append('    | Nil -> ""')
+        out.append(f"    | Cons a Nil -> {n} a pr")
+        out.append(f"    | Cons a t -> str_concat_op ({n} a pr) (str_concat_op sep ({n}__joinargs sep t pr))")
+        out.append("    end")
+    return out

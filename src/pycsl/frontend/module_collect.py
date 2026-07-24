@@ -113,6 +113,62 @@ def collect_module_const_dicts(node: ast.Module) -> Dict[str, Dict[str, str]]:
             and n not in written_via_global}
 
 
+def collect_module_const_int_dicts(node: ast.Module) -> Dict[str, Dict[str, int]]:
+    """Module-level constant str->int dict literals: a top-level
+    `NAME = {"k1": <int>, "k2": <int>, ...}` whose keys are ALL plain string
+    literals and whose values are ALL int literals OR references to a
+    module-level int constant (`_BINOP_PREC = {"->": _PREC_ARROW, ...}`), bound
+    EXACTLY ONCE at module scope, not `#@ shared`, never written via `global`.
+    The int-const references are resolved against `collect_module_constants` so
+    the returned map is str->int. Preserves source (insertion) order.
+
+    Analogue of `collect_module_const_dicts` (str->str) for the str->int shape
+    (`proof2why3/emit_why3._BINOP_PREC`, a precedence table read at a
+    `NAME.get(k, default)` site). Consumed ONLY by the Module-6 term->string
+    catamorphism emitter (class-variant-impl.md T-string), which is gated on the
+    term-pp recognizer — so the field is inert for every corpus program (no term
+    ADT). Fail-closed: any non-string key or unresolved/non-int value excludes the
+    whole dict."""
+    int_consts = collect_module_constants(node)
+    counts: Dict[str, int] = {}
+    candidates: Dict[str, Dict[str, int]] = {}
+    for child in getattr(node, "body", []):
+        target = None
+        value = None
+        if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                and isinstance(child.targets[0], ast.Name)):
+            target, value = child.targets[0].id, child.value
+        elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+            target, value = child.target.id, child.value
+        if target is None:
+            continue
+        counts[target] = counts.get(target, 0) + 1
+        if not isinstance(value, ast.Dict) or not value.keys:
+            continue
+        entries: Dict[str, int] = {}
+        ok = True
+        for k, v in zip(value.keys, value.values):
+            if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):
+                ok = False
+                break
+            iv = _module_const_int(v)
+            if iv is None and isinstance(v, ast.Name):
+                rv = int_consts.get(v.id)
+                iv = rv if isinstance(rv, int) else None
+            if iv is None:
+                ok = False
+                break
+            entries[k.value] = iv
+        if ok and entries and len(entries) == len(value.keys):
+            candidates[target] = entries
+    shared = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+    written_via_global = {n for g in ast.walk(node) if isinstance(g, ast.Global)
+                          for n in g.names}
+    return {n: v for n, v in candidates.items()
+            if counts.get(n, 0) == 1 and n not in shared
+            and n not in written_via_global}
+
+
 _COMPOUND_SCALAR_WHYML = {"str": "string", "int": "int", "bool": "int", "float": "real"}
 
 

@@ -185,6 +185,22 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
          `_dedup_arrow_chain`, `_sort_arrow_hypotheses`, `_flatten_foralls`) each carry an INDEPENDENT wall
          beyond the leaf call (genexp-to-termlist / `not in`-dedup+term-eq / `sorted` closure / mutable
          gather-loop) → the leaves are the yield, not a cascade.
+         **T-STRING BUILT 2026-07-24 (count 928 → 927) — see class-variant-impl.md §OUTCOME-TS.**
+         `recognize_term_string_pp` + `emit_term_string_pp_group` (generic_fold.py, source-only → 0 new
+         stubs): the term→string BUILD catamorphism (the `_pp` shape) — f-string/`str()`/`" ".join` build
+         threading a `parent_prec: int` inherited attribute + a `_BINOP_PREC` str→int const table (new
+         `collect_module_const_int_dicts` collector, gated → corpus-inert) + int-arith + conditional
+         paren-wrap. PROGRAM `let rec` (calls `val pystr_eq`/`str_concat_op`/`str_of_int` — all `val`s, NO
+         axiom; same `Phase2i_TermIR` cert; ledger 3). Converted `emit_why3._pp` + its §10.4 caller-cascade
+         `ir_to_whyml_axiom_body` (new `recognize_term_pp_wrapper`, re-proven same commit). **CENSUS
+         REFUTES the "~7 stub" framing: 1 single-function (`_pp`) + 5 RECORD-BRIDGE.** Mutation test
+         decisive (separator ` . `→` ; `); corpus byte-diff 0 (804==804); whole-file emit_why3/ir/canonical
+         proofs SUCCESS; drift 2; fixtures 0958 (positive) + 0959 (twin). **RESIDUAL [COST/SCALE]:** the 5
+         `ir.py` per-class `pp` methods (App/BinOp/UnaryOp/Forall/Exists) are per-variant METHODS on the
+         frozen-dataclass RECORDS (`self: app`, `args: array int`) recursing via VIRTUAL `a.pp()` — the
+         record model erases recursive children to int; reaching them needs the record⇄variant bridge
+         (record-field-type fix + synthesized unified `pp_term` + per-class injection/delegation,
+         co-dependent across the family, corpus-byte-diff exposure). No 4th axiom.
          **RESIDUAL [COST/SCALE] (unchanged carriers):** `_iff_app_to_binop` (list-index/len + proof cost),
          the 4 cascade-caller transforms above (need the genexp-to-termlist / dedup-membership / sorted /
          gather-loop recognizers), `substitute` (`Dict[str,str]` map-param), T-string (`_pp` f-string build)

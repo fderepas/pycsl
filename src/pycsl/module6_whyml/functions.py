@@ -2753,7 +2753,9 @@ class FunctionEmissionMixin:
             emit_term_isinstance_transform_group,
             recognize_term_list_build, emit_term_list_build_group,
             recognize_term_flatten_arrow, emit_term_flatten_arrow_group,
-            recognize_term_free_vars, emit_term_free_vars_group)
+            recognize_term_free_vars, emit_term_free_vars_group,
+            recognize_term_string_pp, emit_term_string_pp_group,
+            recognize_term_pp_wrapper, emit_term_pp_wrapper_group)
         _tspec = getattr(self, "_term_adt_spec", None)
         if _tspec:
             # class-variant-impl.md T-transform: a Term->Term (constructor-rebuild)
@@ -2785,6 +2787,22 @@ class FunctionEmissionMixin:
             _tfv = recognize_term_free_vars(func, _tspec)
             if _tfv is not None:
                 return emit_term_free_vars_group(func, _tfv, _tspec, whyml_ident)
+            # class-variant-impl.md T-string: a term->string BUILD catamorphism
+            # (`_pp` shape) — f-string/`str()`/`" ".join` build with a threaded
+            # `parent_prec: int` inherited attribute + a `_BINOP_PREC` str->int
+            # const table. Disjoint (returns str, 2 params). Fail-closed.
+            _tsp = recognize_term_string_pp(
+                func, _tspec, getattr(self, "_term_pp_mc", {}),
+                getattr(self, "_term_const_int_dicts", {}))
+            if _tsp is not None:
+                return emit_term_string_pp_group(func, _tsp, _tspec, whyml_ident)
+            # §10.4 cascade: a delegating wrapper `return _pp(x, const)` (the sole
+            # caller of a converted pp catamorphism) must type `x` as `term`.
+            _tpw = recognize_term_pp_wrapper(
+                func, getattr(self, "_term_pp_names", set()),
+                getattr(self, "_term_pp_mc", {}))
+            if _tpw is not None:
+                return emit_term_pp_wrapper_group(func, _tpw, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)

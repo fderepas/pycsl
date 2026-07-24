@@ -278,3 +278,121 @@ Each is a bounded feature the funded window CAN pay (no 4th axiom — the `term`
 ADT; Why3 accepts the variant). This run banked the certified carrier + cert + the bool-fold conversion;
 the transform/string recognizers are the next increments. `Module2_Parser._csl_to_str` (the CSLNode
 ADT) stays [CORRECTNESS] (its int is `str_to_int` = the oracle, no-more-int).
+
+## §OUTCOME-TS — 2026-07-24 driver run: T-string BUILT + 1 conversion (928 → 927), the ir.py per-class pp family is a RECORD-BRIDGE [COST/SCALE] boundary
+
+**Verdict: the term→string BUILD catamorphism (the `_pp` shape) is BUILT, the spike
+PASSED, and it converts `emit_why3._pp` (928 → 927) — the single-function member of the
+pp/pretty-print family. NO new certificate (the SAME `Phase2i_TermIR` inductive covers it);
+ledger stays 3; `val pystr_eq`/`str_concat_op`/`str_of_int` are uninterpreted `val`s, NOT
+axioms. src/formal-semantics/ + proof_axiom_allowlist.py UNTOUCHED.**
+
+### GATE-S census — REFUTES the target's "~7 stub" framing: 1 single-function + 5 record-bridge
+The target expected the whole pp/`_pp` family (~7) reachable by "the term→string catamorphism
+ALONE". The AST census REFUTES this — the family splits into TWO structurally-distinct shapes:
+- **`emit_why3._pp` — a SINGLE-FUNCTION isinstance-dispatch catamorphism** (`_pp(t: Term,
+  parent_prec: int) -> str`), the same shape the existing term recognizers use (like
+  `contains_unsupported`). REACHABLE — **CONVERTED (927).** It carries a precedence sub-algebra
+  beyond a plain string build: a threaded inherited-attribute int param (`parent_prec`), a
+  `_BINOP_PREC` str→int const-table lookup, int arithmetic (`op_prec + 1`), an int comparison +
+  conditional paren-wrap (`f"({s})" if parent_prec > op_prec`), plus two list-joins (binder
+  `list string` + App-arg `list term` with recursion). All SOUND (no oracle, no 4th axiom).
+- **`ir.py` App/BinOp/UnaryOp/Forall/Exists `.pp` (5 stubs) — NOT reachable by the catamorphism
+  ALONE. [COST/SCALE] RECORD-BRIDGE boundary.** These are per-variant METHODS on the frozen-
+  dataclass RECORD types (`app__pp (self: app)` where `type app = { head: string; args: array
+  int }`), recursing via VIRTUAL dispatch `a.pp()` on `Term`-typed subterms. The record model
+  ERASES the recursive children to `array int`/`int` — there is NO faithful bridge to the `term`
+  variant `App string (list term)`. Converting them needs a distinct capability: (a) a record-
+  field-type fix so a term-ctor dataclass's record fields emit the VARIANT field types (`args:
+  list term`, `lhs/rhs: term` — the `compute_term_adt_spec` types), (b) a SYNTHESIZED unified
+  `pp_term (t: term): string` catamorphism assembled from the 9-method family, and (c) each
+  `cls__pp` emitted as `pp_term (Ctor self.<fields>)` (record→variant injection). It is
+  co-dependent across the whole family (you cannot convert `App.pp` alone — the virtual
+  `a.pp()` needs the unified `pp_term`), so it violates one-stub-per-commit without staging, and
+  the record-field-type change has corpus-byte-diff exposure. REOPEN: build the record⇄variant
+  bridge + synthesized `pp_term` + per-class delegation; do it once for all 5. No 4th axiom
+  (Why3 accepts the variant) — a bounded but genuinely-distinct session-scale build.
+
+There is NO other term→string single-function catamorphism in the mirror (canonical.py = 10
+Term→Term transforms; crosscheck_ir = bool folds). So the T-string-single-function cluster = 1.
+
+### Make-or-break spike — PASSED (CORRECTNESS-clean, sound; whole-body PROOF, not just tc)
+BASELINE (verbatim port, `--no-proof`): the vacuous int-hash wall — `_pp (t: int) (parent_prec:
+int)`, every `isinstance_op 0 0` (hash constants), string literals as hash ints, `str_concat:
+int×int→int`, `_BINOP_PREC_get_2` opaque; L3-tc FAILS. Wall real, sound to break (all features
+DEFINED/Why3-intrinsic). BUILT the recognizer → the emitted `_pp` is a REAL fold over the
+certified `term` inductive:
+```
+let rec _pp (v_t: term) (parent_prec: int) : string variant { v_t }
+= match v_t with
+  | App v_head v_args -> (if (match v_args with Nil -> true | Cons _ _ -> false end) then v_head
+      else (let l_args_s = (_pp__joinargs " " v_args (8)) in ...
+            (if (parent_prec > 7) then (str_concat_op "(" (str_concat_op l_s ")")) else l_s)))
+  | BinOp v_op v_lhs v_rhs -> (let l_op_prec = (_pp__binop_prec_BINOP_PREC v_op) in
+      (let l_lhs = (if (pystr_eq v_op "->") then (_pp v_lhs ((l_op_prec + 1)))
+                    else (_pp v_lhs (l_op_prec))) in ...))
+  | IntLit v_value -> (str_of_int v_value)  | Var v_name -> v_name  | ... end
+with _pp__joinargs (sep: string) (l: list term) (pr: int) : string variant { l } = ...
+```
+Real reads throughout (`v_op`/`v_head`/`v_args`, `pystr_eq v_op "->"`, the recursion `_pp v_lhs
+…`, `str_of_int v_value`); NO int-hash, NO `any_1`, NO oracle. `--fun _pp` **SUCCESS**;
+**whole-file** `emit_why3.py` proof **SUCCESS** (all `_pp'vc` / `_pp__joinstr'vc` /
+`_pp__joinargs'vc` sub-goals Valid, structural `variant { v_t }` / `variant { l }`; the
+str-build `val`s spec'd by `concat`, NO axiom). L3-tc ✓ whole file.
+
+### What was BUILT (all source-only in `src/pycsl`, NOT the mirror → 0 new stubs; ledger 3)
+- **`collect_module_const_int_dicts`** (`frontend/module_collect.py`) — the str→int analogue of
+  `collect_module_const_dicts` (`_BINOP_PREC = {"->": _PREC_ARROW, ...}`, int-const values
+  resolved via `collect_module_constants`). New IR field `module_const_int_dicts`, wired in
+  Module5. Consumed ONLY by the term-pp emitter (gated on the recognizer) → corpus-inert.
+- **`recognize_term_string_pp` + `emit_term_string_pp_group`** (`generic_fold.py`) — a genuine
+  fragment-grammar STRUCTURAL translator (not a shape matcher) over the `term` ADT: per-arm
+  blocks with intra-arm local `let`s, parallel conditional assigns (`if op=="->"` lhs/rhs), an
+  early-return guard (`if not args`), a string sublanguage (lit / field / `str()` / bool-ifexpr /
+  f-string→`str_concat_op` / list-string join / term-list join-with-recursion / conditional
+  paren-wrap) and an int sublanguage (lit / module-const / threaded param / `+N` / `dict.get`).
+  Fail-closed `_PVWBail`. Inline TOTAL `{n}__joinstr` + `{n}__binop_prec_<dict>` + mutual
+  `{n}__joinargs`; PROGRAM `let rec` (calls `val pystr_eq`), structural `variant`, NO axiom.
+- **`recognize_term_pp_wrapper` + `emit_term_pp_wrapper_group`** (`generic_fold.py`, §10.4
+  cascade) — `ir_to_whyml_axiom_body` (the sole caller of `_pp`, a VERIFIED sibling) delegates
+  `return _pp(term, _PREC_TOP)`; it must now type its param as the `term` variant. Emitted as
+  `let f (v_x: term): string = _pp v_x (0)`. Re-proven SAME commit (whole-file SUCCESS).
+- **preamble** (`preamble.py`) — `needs_term` fires for a pp too; `needs_term_streq` (pystr_eq)
+  and a new `needs_term_strbuild` (declare `str_concat_op` + `str_of_int` in the term theory)
+  are OR-set from the pp descs; stashes `_term_const_int_dicts` / `_term_pp_names` / `_term_pp_mc`.
+  A byte-safe `needs_array` gate: a term-ctor dataclass with a `tuple` field emits an `array int`
+  RECORD field → pull `use array.Array` (gated on needs_term → corpus byte-identical; the term
+  mirrors already pull Array). **dispatch** (`functions.py`) tried after the other term algebras.
+- **Certificate: UNCHANGED.** The `term` inductive's well-formedness / distinctness / injectivity
+  (the facts the total-match + positional-projection + structural `variant` rely on) are ALREADY
+  certified axiom-free in `Phase2i_TermIR.v` / `TermIR.lean`. The string BUILD uses the same
+  constructors as projectors; no new fact. Ledger stays 3.
+
+### Gate battery (driver-verified fresh)
+- count 928 → **927** (`_pp` un-`\trusted`); ledger **3** (no cert/allowlist/formal-semantics
+  edit — `git diff` on proof_axiom_allowlist.py / src/formal-semantics EMPTY).
+- `--fun _pp` **SUCCESS**; **whole-file** `emit_why3.py` proof **SUCCESS**; the other two
+  needs_term mirrors re-proven no-cascade: `ir.py` **SUCCESS**, `canonical.py` **SUCCESS**. L3-tc
+  ✓ whole file.
+- **corpus byte-diff 0** (804 common == 804, mine vs detached-HEAD worktree with `.venv`
+  symlinked, IDENTICAL; only the new 0958/0959 fixtures are mine-only). The recognizer +
+  collector are fail-closed + gated on `needs_term` → fire on 0 corpus programs.
+- Vacuity `--emit` exit 0: **0 input-blind**, no NEW erasure (`_pp` reads `v_t` + `parent_prec`;
+  the 3 KNOWN erasures unchanged).
+- mirror-check **52/52**; drift **2 == HEAD** (`_pp` verbatim = in sync; the 2 pre-existing
+  `_handle_var_expr` / `_handle_for_stmt` still-blocked).
+- **MUTATION TEST (Gate C, decisive):** the 0959 twin (Quant separator ` . ` → ` ; `) emits
+  `str_concat_op … " ; " …` where 0958 emits `… " . " …` — the separator genuinely flows into
+  the `.mlw`. Non-facade (real variant fields + real string ops, no int-hash / oracle to hide
+  behind; the carrier forces `ensures True`, so mutation + vacuity are the non-vacuity lock).
+- fixtures (`git add -f`): `0958_term_string_pp.py` (positive witness — exercises field read /
+  `str()` / bool-ifexpr / f-string / binder-join / App-arg join-recursion / `_OPPREC` table /
+  int-arith / conditional paren-wrap / `pystr_eq` guard; PROVES) + `0959_term_string_pp_twin.py`
+  (the separator DISCRIMINATING TWIN; PROVES, byte-different emission).
+
+### §RESIDUAL-after-TS — the pp family remaining ([COST/SCALE], the record-bridge)
+`ir.py` App/BinOp/UnaryOp/Forall/Exists `.pp` (5) stay `\trusted` behind the RECORD⇄VARIANT
+bridge above — a bounded but genuinely-distinct session-scale build (record-field-type fix +
+synthesized `pp_term` + per-class injection/delegation, co-dependent across the family, with
+corpus-byte-diff exposure). No 4th axiom (the `term` cert covers it). `Module2_Parser._csl_to_str`
+(CSLNode ADT) stays [CORRECTNESS] (its int is `str_to_int` = the oracle).
