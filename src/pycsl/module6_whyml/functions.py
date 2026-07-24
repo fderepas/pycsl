@@ -2752,7 +2752,8 @@ class FunctionEmissionMixin:
             recognize_term_isinstance_transform,
             emit_term_isinstance_transform_group,
             recognize_term_list_build, emit_term_list_build_group,
-            recognize_term_flatten_arrow, emit_term_flatten_arrow_group)
+            recognize_term_flatten_arrow, emit_term_flatten_arrow_group,
+            recognize_term_free_vars, emit_term_free_vars_group)
         _tspec = getattr(self, "_term_adt_spec", None)
         if _tspec:
             # class-variant-impl.md T-transform: a Term->Term (constructor-rebuild)
@@ -2778,6 +2779,12 @@ class FunctionEmissionMixin:
             _tfa = recognize_term_flatten_arrow(func, _tspec)
             if _tfa is not None:
                 return emit_term_flatten_arrow_group(func, _tfa, _tspec, whyml_ident)
+            # `free_vars` — a set-of-strings catamorphism over `term` (singleton /
+            # `|`-union / `-`-diff / list-union), returning `map string bool` (the
+            # certified L1 set repr). Fail-closed.
+            _tfv = recognize_term_free_vars(func, _tspec)
+            if _tfv is not None:
+                return emit_term_free_vars_group(func, _tfv, _tspec, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)

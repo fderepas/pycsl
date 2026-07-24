@@ -2094,7 +2094,8 @@ class PreambleEmissionMixin:
         from module6_whyml.generic_fold import (
             compute_term_adt_spec, recognize_term_isinstance_fold,
             recognize_term_isinstance_transform,
-            recognize_term_list_build, recognize_term_flatten_arrow)
+            recognize_term_list_build, recognize_term_flatten_arrow,
+            recognize_term_free_vars)
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)
@@ -2117,16 +2118,28 @@ class PreambleEmissionMixin:
             or any(recognize_term_list_build(f, self._term_adt_spec) is not None
                    for f in functions)
             or any(recognize_term_flatten_arrow(f, self._term_adt_spec) is not None
+                   for f in functions)
+            or any(recognize_term_free_vars(f, self._term_adt_spec) is not None
                    for f in functions))
+        # §OUTCOME-TL: the `free_vars` set-fold needs `use bool.Bool` (orb/andb/notb
+        # in `set_union`/`set_diff`). Gate it narrowly so needs_term files WITHOUT a
+        # set-fold (emit_why3.py, canonical.py) stay byte-identical.
+        _term_setfolds = [recognize_term_free_vars(f, self._term_adt_spec)
+                          for f in functions] if self._term_adt_spec else []
+        needs_term_setfold = any(
+            d is not None and (d.get("uses_union") or d.get("uses_diff"))
+            for d in _term_setfolds)
         if not needs_term:
             self._term_adt_spec = None
             self._term_const_dicts = {}
             needs_term_streq = False
+            needs_term_setfold = False
         self._needs_term_streq = needs_term_streq
         return {
             "needs_pydict": needs_pydict,
             "needs_term": needs_term,
             "needs_term_streq": needs_term_streq,
+            "needs_term_setfold": needs_term_setfold,
             "needs_sdict": needs_sdict,
             "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
@@ -2308,6 +2321,14 @@ class PreambleEmissionMixin:
             # (Forall.binders) — need string.String + list.List in scope. Idempotent
             # guarded appends; a corpus file never sets `needs_term` -> byte-identical.
             for _u in ("  use string.String", "  use list.List"):
+                if _u not in out:
+                    out.append(_u)
+        if needs.get("needs_term_setfold"):
+            # §OUTCOME-TL: the `free_vars` set-of-strings result algebra
+            # (`map string bool`) needs map.Map (get/set) + bool.Bool (orb/andb/notb
+            # in the pointwise union/diff). Gated on a set-fold present -> needs_term
+            # files WITHOUT one stay byte-identical.
+            for _u in ("  use map.Map", "  use bool.Bool"):
                 if _u not in out:
                     out.append(_u)
         if self._uses_pyval():

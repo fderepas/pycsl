@@ -171,12 +171,25 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
          or a `Dict[str,str]` map param). Converted `_flip_comparisons`. Mutation test decisive (map value
          `>=`→`>>`; UnaryOp recursion drop); corpus byte-diff 0 (797==797); `--fun`+whole-file canonical.py
          proof SUCCESS; drift 2; fixture 0951.
+         **T-SET/LIST LEAVES BUILT 2026-07-24 (count 931 → 928) — see class-variant-impl.md §OUTCOME-TL.**
+         The 3 `proof2why3/ir.py` leaf utilities converted over the SAME `term` inductive (no new cert;
+         ledger 3): `mk_arrow_chain` (recognize_term_list_build — a (list term, term) accumulator BUILDER,
+         930), `flatten_arrow_chain` (recognize_term_flatten_arrow — a while-spine (list term, term) TUPLE
+         walker, 929), `free_vars` (recognize_term_free_vars — a set-of-strings catamorphism over
+         `map string bool`, structural mutual variants, bare-`val` __set_add = no assumed fact, 928). Plus
+         the FAITHFULNESS fix (mirror `App.args: Tuple[Term,...]`/`binders: Tuple[str,...]` = live) +
+         `_term_field_names_selfiter` For-loop detection. SHARED-LEAF cascade (importers canonical/emit_why3/
+         parser) benign — all re-prove SUCCESS. Mutation tests decisive; corpus byte-diff 0; full suite PASS;
+         drift 2; fixtures 0952–0957 (3 positive + 3 discriminating twins). **CASCADE CALLERS did NOT
+         unblock** — the 4 `canonical.py` transforms cross-calling the leaves (`_expand_nat_to_int`,
+         `_dedup_arrow_chain`, `_sort_arrow_hypotheses`, `_flatten_foralls`) each carry an INDEPENDENT wall
+         beyond the leaf call (genexp-to-termlist / `not in`-dedup+term-eq / `sorted` closure / mutable
+         gather-loop) → the leaves are the yield, not a cascade.
          **RESIDUAL [COST/SCALE] (unchanged carriers):** `_iff_app_to_binop` (list-index/len + proof cost),
-         the OTHER 8 transforms behind un-built callee/map-param carriers (need `mk_arrow_chain`/
-         `flatten_arrow_chain`/`substitute` converted first, or the `Dict[str,str]` map-param model),
-         T-string (`_pp` f-string build), T-set/list (`free_vars`/`flatten_arrow_chain`) — all CERT-covered
-         by the SAME `term` inductive (no new cert), distinct recognizers. `Module2_Parser._csl_to_str`
-         (CSLNode ADT) stays [CORRECTNESS] (its int is `str_to_int` = the oracle).
+         the 4 cascade-caller transforms above (need the genexp-to-termlist / dedup-membership / sorted /
+         gather-loop recognizers), `substitute` (`Dict[str,str]` map-param), T-string (`_pp` f-string build)
+         — all CERT-covered by the SAME `term` inductive (no new cert), distinct recognizers.
+         `Module2_Parser._csl_to_str` (CSLNode ADT) stays [CORRECTNESS] (its int is `str_to_int` = oracle).
        * Python **`ast.*` node** hierarchy (`isinstance(x,ast.Subscript)`, `x.value.id`): M5
          `_normalize_literal_annotation`, `_encode_callable_annotation`, `_typeddict_field_type` — reopen
          with an `ast`-node value model (plus self-state mutation / `\trusted`-sibling calls / raise+encode).

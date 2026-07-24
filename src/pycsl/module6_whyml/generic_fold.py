@@ -7359,6 +7359,27 @@ def _term_field_names_selfiter(functions: List[Dict[str, Any]]) -> set:
                         if (isinstance(it, dict) and it.get("type") == "Attribute"
                                 and _is_var(it.get("object"))):
                             out.add(it.get("attr"))
+                # class-variant-impl.md §OUTCOME-TL: a For-LOOP self-recursion over
+                # a param attribute (`free_vars` shape: `for a in <param>.F: … <self>(a) …`).
+                # The signal is the SAME (`<self>` applied to the elements), so F is a
+                # `list term` — the set-fold `free_vars` never uses a genexp.
+                if node.get("stmt") == "For":
+                    it = node.get("iter")
+                    tgt = node.get("target")
+                    if (isinstance(it, dict) and it.get("type") == "Attribute"
+                            and _is_var(it.get("object")) and isinstance(tgt, str)):
+                        def _self_on_target(nd):
+                            if isinstance(nd, dict):
+                                if (nd.get("type") == "Call" and nd.get("func") == name):
+                                    for a in nd.get("args", []):
+                                        if _is_var(a, tgt):
+                                            return True
+                                return any(_self_on_target(v) for v in nd.values())
+                            if isinstance(nd, list):
+                                return any(_self_on_target(v) for v in nd)
+                            return False
+                        if _self_on_target(node.get("body", [])):
+                            out.add(it.get("attr"))
                 for v in node.values():
                     scan(v)
             elif isinstance(node, list):
@@ -8355,4 +8376,229 @@ def emit_term_flatten_arrow_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append(f"  let {n} (v_{subj}: term) : (list term, term)")
     out.append("    requires { true } ensures { true }")
     out.append(f"  = {n}__go v_{subj} Nil")
+    return out
+
+
+def recognize_term_free_vars(func: Dict[str, Any],
+                             spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the `free_vars` shape: a set-of-strings
+    catamorphism over the `term` variant (singleton / `|`-union / `-`-diff /
+    list-union fold), returning a `set`. Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_free_vars(func, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_free_vars(func: Dict[str, Any],
+                              spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    subj = params[0]
+    name = func["name"]
+    body = func.get("body", [])
+    if not body:
+        raise _PVWBail()
+    ctor_set = set(spec["ctors"].keys())
+    arms: Dict[str, Any] = {}
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                        # trailing total-match raise
+        if not (isinstance(st, dict) and st.get("stmt") == "If"
+                and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        se = _parse_fv_arm(st.get("body", []), subj, name, spec)
+        for c in classes:
+            if c in arms:
+                raise _PVWBail()
+            arms[c] = se
+    if set(arms.keys()) != ctor_set:
+        raise _PVWBail()                    # totality over the ADT
+    uses = _fv_uses(arms.values())
+    return {"subj": subj, "arms": arms, "uses_union": uses["union"],
+            "uses_diff": uses["diff"], "uses_binders": uses["binders"],
+            "uses_list": uses["list"]}
+
+
+def _parse_fv_arm(ibody: Any, subj: str, name: str,
+                  spec: Dict[str, Any]) -> Any:
+    """Parse one isinstance-arm body into a set-expr AST."""
+    if not (isinstance(ibody, list) and ibody):
+        raise _PVWBail()
+    # -- single `return <setexpr>`
+    if len(ibody) == 1 and _is_return(ibody[0]):
+        return _parse_fv_setexpr(ibody[0].get("value"), subj, name, spec)
+    # -- the App list-union arm: `out = set(); for a in t.F: out |= self(a); return out`
+    if len(ibody) == 3:
+        a0, forst, ret = ibody
+        if (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+                and _is_empty_set_call(a0.get("value"))
+                and isinstance(forst, dict) and forst.get("stmt") == "For"
+                and _is_return(ret) and _is_var(ret.get("value"), a0.get("target"))):
+            acc = a0.get("target")
+            it = forst.get("iter")
+            loopv = forst.get("target")
+            if not (_is_term_field_read(it, subj) and isinstance(loopv, str)):
+                raise _PVWBail()
+            fb = forst.get("body", [])
+            if not (len(fb) == 1 and isinstance(fb[0], dict)
+                    and fb[0].get("stmt") == "AugAssign"
+                    and fb[0].get("target") == acc and fb[0].get("op") == "|"):
+                raise _PVWBail()
+            call = fb[0].get("value")
+            if not (isinstance(call, dict) and call.get("type") == "Call"
+                    and call.get("func") == name):
+                raise _PVWBail()
+            ca = call.get("args") or []
+            if not (len(ca) == 1 and _is_var(ca[0], loopv)):
+                raise _PVWBail()
+            return ("listunion", _term_field_of(it))
+    raise _PVWBail()
+
+
+def _parse_fv_setexpr(e: Any, subj: str, name: str, spec: Dict[str, Any]) -> Any:
+    if not isinstance(e, dict):
+        raise _PVWBail()
+    t = e.get("type")
+    # set() -> empty ; set(t.F) -> binders(F)
+    if t == "Call" and e.get("func") == "set":
+        args = e.get("args") or []
+        if not args:
+            return ("empty",)
+        if len(args) == 1 and _is_term_field_read(args[0], subj):
+            return ("binders", _term_field_of(args[0]))
+        raise _PVWBail()
+    # {t.F} -> singleton(F)
+    if t == "SetLit":
+        elts = e.get("elts") or []
+        if len(elts) == 1 and _is_term_field_read(elts[0], subj):
+            return ("singleton", _term_field_of(elts[0]))
+        raise _PVWBail()
+    # self(t.F) -> rec(F)
+    if t == "Call" and e.get("func") == name:
+        args = e.get("args") or []
+        if len(args) == 1 and _is_term_field_read(args[0], subj):
+            return ("rec", _term_field_of(args[0]))
+        raise _PVWBail()
+    # A | B -> union ; A - B -> diff
+    if t == "BinOp" and e.get("op") in ("|", "-"):
+        a = _parse_fv_setexpr(e.get("left"), subj, name, spec)
+        b = _parse_fv_setexpr(e.get("right"), subj, name, spec)
+        return ("union" if e.get("op") == "|" else "diff", a, b)
+    raise _PVWBail()
+
+
+def _is_empty_set_call(e: Any) -> bool:
+    return (isinstance(e, dict) and e.get("type") == "Call"
+            and e.get("func") == "set" and not (e.get("args") or []))
+
+
+def _fv_setexpr_fields(node: Any) -> set:
+    tag = node[0]
+    if tag in ("singleton", "rec", "listunion", "binders"):
+        return {node[1]}
+    if tag in ("union", "diff"):
+        return _fv_setexpr_fields(node[1]) | _fv_setexpr_fields(node[2])
+    return set()
+
+
+def _fv_uses(setexprs) -> Dict[str, bool]:
+    u = {"union": False, "diff": False, "binders": False, "list": False}
+
+    def walk(node):
+        tag = node[0]
+        if tag == "union":
+            u["union"] = True
+            walk(node[1]); walk(node[2])
+        elif tag == "diff":
+            u["diff"] = True
+            walk(node[1]); walk(node[2])
+        elif tag == "binders":
+            u["binders"] = True
+        elif tag == "listunion":
+            u["list"] = True
+            u["union"] = True               # {n}__list uses set_union
+    for se in setexprs:
+        walk(se)
+    return u
+
+
+_FV_EMPTY = "(fun (_k: string) -> false)"
+
+
+def _emit_fv_setexpr(node: Any, n: str, as_arg: bool = False) -> str:
+    tag = node[0]
+    if tag == "empty":
+        return _FV_EMPTY
+    if tag == "singleton":
+        s = f"{n}__set_add {_FV_EMPTY} v_{node[1]}"
+    elif tag == "rec":
+        s = f"{n} v_{node[1]}"
+    elif tag == "listunion":
+        s = f"{n}__list v_{node[1]}"
+    elif tag == "binders":
+        s = f"{n}__binders v_{node[1]}"
+    elif tag == "union":
+        s = (f"{n}__set_union ({_emit_fv_setexpr(node[1], n)})"
+             f" ({_emit_fv_setexpr(node[2], n)})")
+    elif tag == "diff":
+        s = (f"{n}__set_diff ({_emit_fv_setexpr(node[1], n)})"
+             f" ({_emit_fv_setexpr(node[2], n)})")
+    else:
+        raise _PVWBail()
+    return f"({s})" if as_arg else s
+
+
+def emit_term_free_vars_group(func: Dict[str, Any], desc: Dict[str, Any],
+                              spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `free_vars` set-of-strings catamorphism over the `term` variant.
+    A returned `set` is `map string bool` (the certified L1 set repr); union /
+    diff are pointwise or / and-not; `{n}__set_add` is a bare abstract `val`
+    (result no VC constrains — the walk contract is `ensures True`; the pystr_eq
+    precedent, NOT an axiom). Structural mutual `variant { v_t }` / `variant { l }`
+    over the certified `term` inductive; NO axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["subj"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    out: List[str] = []
+    out.append(f"  val {n}__set_add (m: map string bool) (e: string) : map string bool")
+    if desc["uses_union"]:
+        out.append(f"  let function {n}__set_union (a b: map string bool) : map string bool")
+        out.append("    = fun (k: string) -> orb (Map.get a k) (Map.get b k)")
+    if desc["uses_diff"]:
+        out.append(f"  let function {n}__set_diff (a b: map string bool) : map string bool")
+        out.append("    = fun (k: string) -> andb (Map.get a k) (notb (Map.get b k))")
+    if desc["uses_binders"]:
+        out.append(f"  let rec function {n}__binders (l: list string) : map string bool")
+        out.append("    variant { l }")
+        out.append(f"  = match l with Nil -> {_FV_EMPTY}"
+                   f" | Cons h t -> {n}__set_add ({n}__binders t) h end")
+    out.append(f"  let rec {n} (v_{subj}: term) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant  {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        se = arms[c]
+        used = _fv_setexpr_fields(se)
+        binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
+        pat = c + ((" " + binders) if binders else "")
+        out.append(f"    | {pat} -> {_emit_fv_setexpr(se, n)}")
+    out.append("    end")
+    if desc["uses_list"]:
+        out.append(f"  with {n}__list (l: list term) : map string bool")
+        out.append("    variant { l }")
+        out.append(f"  = match l with Nil -> {_FV_EMPTY}"
+                   f" | Cons h t -> {n}__set_union ({n} h) ({n}__list t) end")
     return out

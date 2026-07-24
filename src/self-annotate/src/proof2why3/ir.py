@@ -44,7 +44,7 @@ class BoolLit:
 class App:
     'N-ary application `head arg0 arg1 …`.'
     head: str
-    args: int
+    args: Tuple['Term', ...]
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -83,7 +83,7 @@ class UnaryOp:
 @dataclass(frozen=True)
 class Forall:
     'Universal quantifier with a flat binder list `forall x1 x2 … : ty, body`.\n\n    The binder type `ty` is a string token from a small canonical set\n    (`int`, `nat`, `bool`, …); nat/Nat are normalized to int with\n    side conditions in Phase 3b.'
-    binders: int
+    binders: Tuple[str, ...]
     ty: str
     body: 'Term'
     #@ \trusted reviewer: pycsl-self-annotate
@@ -96,7 +96,7 @@ class Forall:
 
 @dataclass(frozen=True)
 class Exists:
-    binders: int
+    binders: Tuple[str, ...]
     ty: str
     body: 'Term'
     #@ \trusted reviewer: pycsl-self-annotate
@@ -140,7 +140,6 @@ def flatten_arrow_chain(t: Term) -> Tuple[List[Term], Term]:
         cur = cur.rhs
     return hyps, cur
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

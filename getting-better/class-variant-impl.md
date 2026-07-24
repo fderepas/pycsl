@@ -174,13 +174,28 @@ simple guards **with NO cross-call to an un-built callee and NO extra value shap
   that fires the carrier and PROVES (regression lock). No evil-twin (carrier forces `ensures True`; mutation
   test + vacuity are the non-vacuity lock — the 0950 precedent).
 
-## §OUTCOME-TL — 2026-07-24 driver run: T-set/list LEAF algebras BUILT + conversions (931 → …)
+## §OUTCOME-TL — 2026-07-24 driver run: T-set/list LEAF algebras BUILT + 3 conversions (931 → 928)
 
 **Verdict: the T-set/list LEAF algebras over `term` are BUILT and convert the `ir.py` leaf
-utilities `mk_arrow_chain` (list-fold BUILDER), `flatten_arrow_chain` (while-spine TUPLE return),
-and `free_vars` (set-fold). All three lower onto the SAME certified `Phase2i_TermIR` inductive —
-NO new value shape, NO new certificate; ledger stays 3. src/formal-semantics/ +
-proof_axiom_allowlist.py UNTOUCHED.**
+utilities `mk_arrow_chain` (list-fold BUILDER, 930), `flatten_arrow_chain` (while-spine TUPLE
+return, 929), and `free_vars` (set-fold, 928). All three lower onto the SAME certified
+`Phase2i_TermIR` inductive — NO new value shape, NO new certificate; ledger stays 3.
+src/formal-semantics/ + proof_axiom_allowlist.py UNTOUCHED.**
+
+**SHARED-LEAF CASCADE (§10.4, benign):** the leaves live in `proof2why3/ir.py` and are IMPORTED by
+`canonical.py`, `emit_why3.py`, `parser.py`. Converting them changes every importer's emission (the
+`val` stub → the full definition inlined). Verified all three needs_term importers still prove
+whole-file SUCCESS (`emit_why3.py`, `canonical.py`, `ir.py`) and `parser.py` (not suite-gated)
+L3-tc ✓ — no cascade regression. The App.args/Forall.binders faithfulness fix (below) affects only
+the `term` VARIANT theory those files already emit; corpus byte-diff stays 0.
+
+**FAITHFULNESS FIX (`App.args`, `Forall`/`Exists.binders`):** the mirror stub-gen degraded
+`Tuple[Term,...]`→`int` and `Tuple[str,...]`→`int`. `free_vars` needs `App.args` typed `list term`
+(the `for a in t.args` self-recursion) and `binders` typed `list string` (`set(t.binders)`). Fixed
+the mirror dataclass fields to MATCH LIVE (`args: Tuple['Term', ...]`, `binders: Tuple[str, ...]`) —
+mirror-check compares param COUNTS not field types, so no drift; the fix is more faithful (reduces
+mirror↔live divergence). Extended `_term_field_names_selfiter` to detect For-LOOP self-recursion
+(`for a in <p>.F: … <self>(a) …`), not only genexps, so `App.args` types `list term` in the set-fold.
 
 ### GATE-S census — 3 reachable leaves; the cascade CALLERS stay [COST/SCALE]
 The leaf set (`mk_arrow_chain`/`flatten_arrow_chain`/`free_vars`; `substitute` is a separate
@@ -193,10 +208,11 @@ The leaf set (`mk_arrow_chain`/`flatten_arrow_chain`/`free_vars`; `substitute` i
   the `->` chain, structural recursion over the term spine returning `(list term, term)` (Why3-native
   tuple). Spike (`spike_fac.mlw`) all Valid, `variant { v_cur }`, only abstract symbol a VC-free
   `val __streq` (the T-transform `pystr_eq` precedent), NO axiom.
-- **`free_vars(t: Term) -> set` — REACHABLE (needs `App.args` typed `list term`).** A set-of-strings
-  catamorphism (singleton/`|`-union/`-`-diff over `map string bool`, the ALREADY-CERTIFIED L1 set
-  repr). Spike (`spike_fv2.mlw`) all Valid once the size-positivity lemma pack (`tsize_pos`/
-  `tsize_list_nonneg`) is emitted (the pyval `size_pos` precedent). NO new cert.
+- **`free_vars(t: Term) -> set` — REACHABLE, CONVERTED.** A set-of-strings catamorphism
+  (singleton/`|`-union/`-`-diff over `map string bool`, the ALREADY-CERTIFIED L1 set repr). Spike
+  (`spike_fv5.mlw`) all Valid with STRUCTURAL mutual `variant { v_t }` / `variant { l }` (the fold
+  emitter precedent — NO size-lemma pack needed, unlike the first `spike_fv2` attempt). `__set_add`
+  is a BARE abstract `val` (no `ensures` → not even an assumed fact; maximally axiom-free). NO new cert.
 - **The cascade CALLERS stay [COST/SCALE] — the leaves did NOT unblock them.** Re-census of the 4
   `canonical.py` transforms that cross-call the now-converted leaves: `_expand_nat_to_int` (a
   genexp `[BinOp(">=", Var(b), IntLit(0)) for b in t.binders]` building a `list term` from a binder
@@ -222,22 +238,25 @@ The leaf set (`mk_arrow_chain`/`flatten_arrow_chain`/`free_vars`; `substitute` i
 - **suite** (`run-self-annotation-suite.sh`) — `proof2why3/ir.py` added to the FULL-FILE proof gate.
 
 ### Gate battery (driver-verified fresh, per conversion)
-- count 931 → **930** (`mk_arrow_chain`) → **929** (`flatten_arrow_chain`); ledger **3** (no cert/
-  allowlist/formal-semantics edit — `git diff` EMPTY).
-- **whole-file** `ir.py` proof **SUCCESS** (all VCs Valid incl. `mk_arrow_chain'vc`,
-  `flatten_arrow_chain'vc` + the record `*_pp` vals). L3-tc ✓ whole file.
+- count 931 → **930** (`mk_arrow_chain`) → **929** (`flatten_arrow_chain`) → **928** (`free_vars`);
+  ledger **3** (no cert/allowlist/formal-semantics edit — `git diff` EMPTY).
+- **whole-file** proof **SUCCESS** for all three needs_term files (`ir.py` — the conversions; plus
+  the shared-leaf importers `emit_why3.py` + `canonical.py`, re-proven with the inlined defs). L3-tc
+  ✓ whole file. Full self-annotation SUITE PASS.
 - **corpus byte-diff 0** (798 common == 798, mine vs detached-HEAD worktree with `.venv` symlinked,
-  IDENTICAL). Both recognizers fail-closed + gated on `needs_term` → fire on 0 corpus programs.
-- Vacuity `--emit` exit 0: 0 input-blind, no NEW erasure (both leaves read their params; the 3 KNOWN
-  erasures unchanged).
-- mirror-check **52/52**; drift **2 == HEAD** (both bodies verbatim = in sync; the 2 pre-existing
+  IDENTICAL; only the new 0952–0957 fixtures are mine-only). All recognizers fail-closed + gated on
+  `needs_term`/`needs_term_setfold` → fire on 0 corpus programs.
+- Vacuity `--emit` exit 0: 0 input-blind, no NEW erasure (all three leaves read their params; the 3
+  KNOWN erasures unchanged).
+- mirror-check **52/52**; drift **2 == HEAD** (all bodies verbatim = in sync; the 2 pre-existing
   `_handle_var_expr`/`_handle_for_stmt` still-blocked).
 - **MUTATION TEST (Gate C, decisive):** `mk_arrow_chain` ctor `"->"` → `"~>"` flips emitted `Bin
   "->" v_h …` → `Bin "~>" …`; `flatten_arrow_chain` `cur.lhs` → `cur.rhs` flips emitted `Cons v_lhs
-  Nil` → `Cons v_rhs Nil`. Non-facade (real variant fields, no int-hash/oracle).
-- fixtures (`git add -f`): `0952_term_list_build.py` (positive) + `0953_term_list_build_twin.py`
-  (the ctor-string `"->"`→`"&&"` DISCRIMINATING TWIN — emits `Bin "&&"` where 0952 emits `Bin "->"`;
-  both PROVE, the mechanical non-facade lock) for the list-builder; the flatten twins follow in commit.
+  Nil` → `Cons v_rhs Nil`; `free_vars` `-`→`|` flips emitted `set_diff` → `set_union` in the Quant/
+  Forall arm. Non-facade (real variant fields, no int-hash/oracle).
+- fixtures (`git add -f`): `0952`/`0953` (list-build + ctor-string twin), `0954`/`0955` (flatten +
+  append-field twin), `0956`/`0957` (free_vars + diff-vs-union twin) — all PROVE; each twin is the
+  mechanical non-facade lock (byte-different emission for the discriminated knob).
 
 ## §RESIDUAL — the rest of the Term-ADT cluster ([COST/SCALE], carriers enumerated)
 The carrier CURRENTLY reaches the **bool existence fold** only (`contains_unsupported`; `any_unsupported`
