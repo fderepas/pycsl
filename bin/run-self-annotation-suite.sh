@@ -54,6 +54,13 @@ SUITE=(
     # file (converted stub + its `type term` theory + the still-`\trusted` `_pp`)
     # is proven together, not just `--fun`.
     "src/self-annotate/src/proof2why3/emit_why3.py"
+    # class-variant-impl.md §OUTCOME-TL (self-tcb-reduction item 3): proof2why3/ir.py
+    # holds the T-set/list LEAF conversions (`mk_arrow_chain` list-fold builder,
+    # `flatten_arrow_chain` while-spine tuple return, `free_vars` set-fold) over the
+    # `term` variant — add it to the FULL-FILE proof gate (lesson 10) so the whole
+    # file (converted leaves + `type term` theory + the still-`\trusted` pp vals) is
+    # proven together, not just `--fun`.
+    "src/self-annotate/src/proof2why3/ir.py"
     "src/self-annotate/src/audit_proof.py"
     "src/self-annotate/src/Module6_WhyMLTranspiler.py"
     "src/self-annotate/src/pycsl.py"

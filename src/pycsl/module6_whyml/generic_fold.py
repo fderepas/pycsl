@@ -8041,3 +8041,318 @@ def _mlw_str_lit(s: Optional[str]) -> str:
     if not isinstance(s, str) or '"' in s or "\\" in s:
         raise _PVWBail()
     return '"' + s + '"'
+
+
+# ===========================================================================
+# class-variant-impl.md §OUTCOME-TL — the T-set/list leaf algebras over `term`
+#
+# The `ir.py` utility LEAVES the `canonical.py` transforms cross-call:
+#   - `mk_arrow_chain(hyps: List[Term], conclusion: Term) -> Term` : a list-fold
+#     that BUILDS a right-leaning `->` chain (a `list term` -> `term` builder).
+#   - `flatten_arrow_chain(t: Term) -> Tuple[List[Term], Term]` : the inverse, a
+#     while-spine walk down the `->` chain returning `(list term, term)`.
+#   - `free_vars(t: Term) -> set` : a set-of-strings catamorphism over the term.
+# All three lower onto the SAME certified `term` inductive (Phase2i_TermIR) — NO
+# new value shape, NO new certificate (ledger 3). Structural / measure variants;
+# the only abstract symbols are DEFINED helpers (`__app`/`__set_*`) or a VC-free
+# `val __streq` (the T-transform `pystr_eq` precedent). Fail-closed `_PVWBail`.
+# ===========================================================================
+
+
+def recognize_term_list_build(func: Dict[str, Any],
+                              spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the `mk_arrow_chain` shape: a two-param
+    (`list term`, `term`) accumulator fold that rebuilds a `term` via a single
+    constructor call in the loop body. Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_list_build(func, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_list_build(func: Dict[str, Any],
+                               spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    pann = func.get("param_annotations") or {}
+    ra = func.get("return_annotation")
+    if not ra:
+        return None
+    # One param is the `list term` (annotated the degraded generic "list"); the
+    # OTHER is the `term` seed (annotated the SAME alias the return resolves to).
+    listp = seedp = None
+    for p in params:
+        a = pann.get(p)
+        if a == "list":
+            listp = p
+        elif a == ra:
+            seedp = p
+    if not (listp and seedp):
+        return None
+    # The return alias must be the term alias (a param carries it AND it isinstance-
+    # dispatches somewhere in the file => it is the spec's union). We over-approximate
+    # by requiring the seed param annotation == return annotation (both the alias);
+    # the ctor-build parse below (ctors ALL in the spec) is the real soundness gate.
+    body = func.get("body", [])
+    if len(body) != 3:
+        raise _PVWBail()
+    a0, forst, ret = body
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and _is_var(a0.get("value"), seedp)):
+        raise _PVWBail()
+    acc = a0.get("target")
+    if not isinstance(acc, str):
+        raise _PVWBail()
+    if not (isinstance(forst, dict) and forst.get("stmt") == "For"):
+        raise _PVWBail()
+    loopvar = forst.get("target")
+    if not isinstance(loopvar, str):
+        raise _PVWBail()
+    it = forst.get("iter")
+    if (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "reversed"):
+        ia = it.get("args") or []
+        if not (len(ia) == 1 and _is_var(ia[0], listp)):
+            raise _PVWBail()
+        reversed_ = True
+    elif _is_var(it, listp):
+        reversed_ = False
+    else:
+        raise _PVWBail()
+    fbody = forst.get("body", [])
+    if not (len(fbody) == 1 and isinstance(fbody[0], dict)
+            and fbody[0].get("stmt") == "Assign" and fbody[0].get("target") == acc):
+        raise _PVWBail()
+    upd = fbody[0].get("value")
+    ctor_expr = _parse_term_build_expr(upd, spec, loopvar, acc)
+    if ctor_expr[0] != "ctor":
+        raise _PVWBail()                    # the update MUST build a term ctor
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), acc)):
+        raise _PVWBail()
+    return {"listp": listp, "seedp": seedp, "loopvar": loopvar,
+            "reversed": reversed_, "ctor_expr": ctor_expr, "order": list(params)}
+
+
+def _parse_term_build_expr(e: Any, spec: Dict[str, Any], loopvar: str,
+                           acc: str) -> Any:
+    """Parse a term-builder expression into a nested tuple AST over:
+      ("loop",)         -- the loop variable        (a `term` element)
+      ("acc",)          -- the accumulator variable  (recursed / threaded)
+      ("str", s)        -- a string literal          (a ctor string field)
+      ("ctor", C, [..]) -- a term constructor call   (C in the spec)
+    Fail-closed: anything else raises."""
+    if not isinstance(e, dict):
+        raise _PVWBail()
+    t = e.get("type")
+    if t == "Var":
+        nm = e.get("name")
+        if nm == loopvar:
+            return ("loop",)
+        if nm == acc:
+            return ("acc",)
+        raise _PVWBail()
+    if t == "String":
+        return ("str", e.get("value"))
+    if t == "Call":
+        fn = e.get("func")
+        if fn in spec["ctors"]:
+            args = e.get("args") or []
+            fields = spec["ctors"][fn]
+            if len(args) != len(fields):
+                raise _PVWBail()
+            return ("ctor", fn,
+                    [_parse_term_build_expr(a, spec, loopvar, acc) for a in args])
+        raise _PVWBail()
+    raise _PVWBail()
+
+
+def _emit_term_build_expr(node: Any, loopvar: str, acc_repl: str,
+                          as_arg: bool = False) -> str:
+    tag = node[0]
+    if tag == "loop":
+        return f"v_{loopvar}"
+    if tag == "acc":
+        return acc_repl
+    if tag == "str":
+        return _mlw_str_lit(node[1])
+    if tag == "ctor":
+        name, args = node[1], node[2]
+        if not args:
+            return name if not as_arg else name
+        inner = name + " " + " ".join(
+            _emit_term_build_expr(a, loopvar, acc_repl, as_arg=True) for a in args)
+        return f"({inner})" if as_arg else inner
+    raise _PVWBail()
+
+
+def emit_term_list_build_group(func: Dict[str, Any], desc: Dict[str, Any],
+                               spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `mk_arrow_chain` shape as a structural fold over `list term`
+    that rebuilds a `term`. `reversed(l)` -> a foldr (ctor wraps `{n}__go rest`);
+    a plain `for` -> a foldl (accumulator threaded). Structural `variant { l }`,
+    NO axiom (all constructors are the certified `term` inductive; ledger 3)."""
+    n = whyml_ident(func["name"])
+    listp, seedp = desc["listp"], desc["seedp"]
+    loopvar = desc["loopvar"]
+    reversed_ = desc["reversed"]
+    ctor_expr = desc["ctor_expr"]
+    out: List[str] = []
+    out.append(f"  let rec {n}__go (l: list term) (v_{seedp}: term) : term")
+    out.append("    variant { l }")
+    out.append("  = match l with")
+    out.append(f"    | Nil -> v_{seedp}")
+    if reversed_:
+        rhs = _emit_term_build_expr(ctor_expr, loopvar,
+                                    f"({n}__go rest v_{seedp})")
+        out.append(f"    | Cons v_{loopvar} rest -> {rhs}")
+    else:
+        step = _emit_term_build_expr(ctor_expr, loopvar, f"v_{seedp}")
+        out.append(f"    | Cons v_{loopvar} rest -> {n}__go rest ({step})")
+    out.append("    end")
+    sig = " ".join(
+        f"(v_{p}: list term)" if p == listp else f"(v_{p}: term)"
+        for p in desc["order"])
+    out.append(f"  let {n} {sig} : term")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__go v_{listp} v_{seedp}")
+    return out
+
+
+def recognize_term_flatten_arrow(func: Dict[str, Any],
+                                 spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the `flatten_arrow_chain` shape: a while-spine
+    walk down a right-leaning BinOp `->` chain, returning `(list term, term)`.
+    Returns a desc or None."""
+    if not spec:
+        return None
+    try:
+        return _recognize_term_flatten_arrow(func, spec)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_term_flatten_arrow(func: Dict[str, Any],
+                                  spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    if func.get("return_annotation") != "tuple":
+        return None
+    subj = params[0]
+    body = func.get("body", [])
+    if len(body) != 4:
+        raise _PVWBail()
+    a_list, a_cur, wh, ret = body
+    # hyps = []
+    if not (isinstance(a_list, dict) and a_list.get("stmt") == "Assign"
+            and isinstance(a_list.get("value"), dict)
+            and a_list["value"].get("type") == "ArrayLit"
+            and not a_list["value"].get("elts")):
+        raise _PVWBail()
+    listvar = a_list.get("target")
+    # cur = t
+    if not (isinstance(a_cur, dict) and a_cur.get("stmt") == "Assign"
+            and _is_var(a_cur.get("value"), subj)):
+        raise _PVWBail()
+    curvar = a_cur.get("target")
+    if not (isinstance(listvar, str) and isinstance(curvar, str)):
+        raise _PVWBail()
+    if not (isinstance(wh, dict) and wh.get("stmt") == "While"):
+        raise _PVWBail()
+    # test = isinstance(cur, BinOp) and cur.op == "->"
+    test = wh.get("test")
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        raise _PVWBail()
+    cls = _isinstance_target_classes(test.get("left"), curvar)
+    if len(cls) != 1 or cls[0] not in spec["ctors"]:
+        raise _PVWBail()
+    binop_cls = cls[0]
+    rt = test.get("right")
+    if not (isinstance(rt, dict) and rt.get("type") == "BinOp"
+            and rt.get("op") == "=="):
+        raise _PVWBail()
+    op_read, op_lit = rt.get("left"), rt.get("right")
+    if not (_is_term_field_read(op_read, curvar)
+            and isinstance(op_lit, dict) and op_lit.get("type") == "String"):
+        raise _PVWBail()
+    op_field = _term_field_of(op_read)
+    arrow_lit = op_lit.get("value")
+    # loop body: hyps.append(cur.<f1>); cur = cur.<f2>
+    wbody = wh.get("body", [])
+    if len(wbody) != 2:
+        raise _PVWBail()
+    app_st, adv_st = wbody
+    if not (isinstance(app_st, dict) and app_st.get("stmt") == "Expr"):
+        raise _PVWBail()
+    appc = app_st.get("value")
+    if not (isinstance(appc, dict) and appc.get("type") == "Call"
+            and appc.get("func") == f"{listvar}.append"):
+        raise _PVWBail()
+    aargs = appc.get("args") or []
+    if not (len(aargs) == 1 and _is_term_field_read(aargs[0], curvar)):
+        raise _PVWBail()
+    f1 = _term_field_of(aargs[0])           # cur.lhs
+    if not (isinstance(adv_st, dict) and adv_st.get("stmt") == "Assign"
+            and adv_st.get("target") == curvar
+            and _is_term_field_read(adv_st.get("value"), curvar)):
+        raise _PVWBail()
+    f2 = _term_field_of(adv_st.get("value"))  # cur.rhs
+    # return hyps, cur
+    rv = ret.get("value")
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and isinstance(rv, dict) and rv.get("type") == "Tuple"):
+        raise _PVWBail()
+    elts = rv.get("elts") or []
+    if not (len(elts) == 2 and _is_var(elts[0], listvar) and _is_var(elts[1], curvar)):
+        raise _PVWBail()
+    # Resolve the BinOp ctor's field order (must contain op_field, f1, f2).
+    fields = [fn for fn, _ in spec["ctors"][binop_cls]]
+    if not (op_field in fields and f1 in fields and f2 in fields):
+        raise _PVWBail()
+    return {"subj": subj, "binop_cls": binop_cls, "fields": fields,
+            "op_field": op_field, "f1": f1, "f2": f2, "arrow_lit": arrow_lit}
+
+
+def emit_term_flatten_arrow_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                  spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `flatten_arrow_chain` as a structural recursion over the term spine,
+    returning `(list term, term)`. `variant { v_cur }` (recursion on the rhs
+    subterm); `{n}__app` a DEFINED list append, `{n}__streq` a VC-free `val`
+    string guard (the T-transform pystr_eq precedent). NO axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["subj"]
+    binop_cls = desc["binop_cls"]
+    fields = desc["fields"]
+    op_field, f1, f2 = desc["op_field"], desc["f1"], desc["f2"]
+    used = {op_field, f1, f2}
+    binders = " ".join(f"v_{fn}" if fn in used else "_" for fn in fields)
+    pat = binop_cls + ((" " + binders) if binders else "")
+    lit = _mlw_str_lit(desc["arrow_lit"])
+    out: List[str] = []
+    out.append(f"  let rec function {n}__app (a b: list term) : list term")
+    out.append("    variant { a }")
+    out.append("  = match a with Nil -> b | Cons h t -> Cons h (%s__app t b) end" % n)
+    out.append(f"  val {n}__streq (a b: string) : bool")
+    out.append(f"  let rec {n}__go (v_{subj}: term) ({n}__acc: list term)"
+               " : (list term, term)")
+    out.append(f"    variant {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    out.append(f"    | {pat} ->")
+    out.append(f"        if {n}__streq v_{op_field} {lit}")
+    out.append(f"        then {n}__go v_{f2} ({n}__app {n}__acc (Cons v_{f1} Nil))")
+    out.append(f"        else ({n}__acc, v_{subj})")
+    out.append(f"    | _ -> ({n}__acc, v_{subj})")
+    out.append("    end")
+    out.append(f"  let {n} (v_{subj}: term) : (list term, term)")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__go v_{subj} Nil")
+    return out

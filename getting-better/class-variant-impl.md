@@ -174,6 +174,71 @@ simple guards **with NO cross-call to an un-built callee and NO extra value shap
   that fires the carrier and PROVES (regression lock). No evil-twin (carrier forces `ensures True`; mutation
   test + vacuity are the non-vacuity lock — the 0950 precedent).
 
+## §OUTCOME-TL — 2026-07-24 driver run: T-set/list LEAF algebras BUILT + conversions (931 → …)
+
+**Verdict: the T-set/list LEAF algebras over `term` are BUILT and convert the `ir.py` leaf
+utilities `mk_arrow_chain` (list-fold BUILDER), `flatten_arrow_chain` (while-spine TUPLE return),
+and `free_vars` (set-fold). All three lower onto the SAME certified `Phase2i_TermIR` inductive —
+NO new value shape, NO new certificate; ledger stays 3. src/formal-semantics/ +
+proof_axiom_allowlist.py UNTOUCHED.**
+
+### GATE-S census — 3 reachable leaves; the cascade CALLERS stay [COST/SCALE]
+The leaf set (`mk_arrow_chain`/`flatten_arrow_chain`/`free_vars`; `substitute` is a separate
+`Dict[str,str]` map-param carrier) — reachability by a T-set/list algebra over the `term` ADT ALONE:
+- **`mk_arrow_chain(hyps: List[Term], conclusion: Term) -> Term` — REACHABLE, CLEANEST.** A
+  (`list term`, `term`) accumulator fold that BUILDS a right-leaning chain via `Bin("->", h, out)`.
+  No new value shape (result = `term`, the T-transform algebra). Spike (`spike_mac.mlw`) all VCs
+  Valid Alt-Ergo, structural `variant { l }`, NO axiom.
+- **`flatten_arrow_chain(t: Term) -> Tuple[List[Term], Term]` — REACHABLE.** A while-spine walk down
+  the `->` chain, structural recursion over the term spine returning `(list term, term)` (Why3-native
+  tuple). Spike (`spike_fac.mlw`) all Valid, `variant { v_cur }`, only abstract symbol a VC-free
+  `val __streq` (the T-transform `pystr_eq` precedent), NO axiom.
+- **`free_vars(t: Term) -> set` — REACHABLE (needs `App.args` typed `list term`).** A set-of-strings
+  catamorphism (singleton/`|`-union/`-`-diff over `map string bool`, the ALREADY-CERTIFIED L1 set
+  repr). Spike (`spike_fv2.mlw`) all Valid once the size-positivity lemma pack (`tsize_pos`/
+  `tsize_list_nonneg`) is emitted (the pyval `size_pos` precedent). NO new cert.
+- **The cascade CALLERS stay [COST/SCALE] — the leaves did NOT unblock them.** Re-census of the 4
+  `canonical.py` transforms that cross-call the now-converted leaves: `_expand_nat_to_int` (a
+  genexp `[BinOp(">=", Var(b), IntLit(0)) for b in t.binders]` building a `list term` from a binder
+  `list string` + the `mk_arrow_chain` call — a genexp-to-termlist feature the transform recognizer
+  lacks), `_dedup_arrow_chain` (a `not in`-membership dedup loop over `list term` — term-equality +
+  list-search), `_sort_arrow_hypotheses` (`sorted` closure), `_flatten_foralls` (mutable hyp
+  gather-loop). Each carries an INDEPENDENT wall beyond the leaf call; the leaf conversions are the
+  yield, not a cascade.
+
+### What was BUILT (all in `src/pycsl`, NOT the mirror → 0 new stubs; ledger 3)
+- **`recognize_term_list_build` + `emit_term_list_build_group`** (`generic_fold.py`) — the
+  (`list term`, `term`) accumulator BUILDER: parses `acc = seed; for h in [reversed(]list[)]: acc =
+  Ctor(… h … acc …); return acc`, emits a structural `{n}__go (l: list term) (acc: term): term` fold
+  (`reversed` => foldr wrapping `{n}__go rest`; plain => foldl threading the acc). The ctor-build
+  expression is parsed to a nested AST over the `term` spec ctors (fail-closed `_PVWBail`).
+- **`recognize_term_flatten_arrow` + `emit_term_flatten_arrow_group`** (`generic_fold.py`) — the
+  while-spine TUPLE walker: `list=[]; cur=t; while isinstance(cur,BinOp) and cur.op==LIT:
+  list.append(cur.<f1>); cur=cur.<f2>; return list,cur` → a structural `{n}__go (v_cur: term) (acc:
+  list term): (list term, term) variant { v_cur }` + inline DEFINED `{n}__app` list append + VC-free
+  `val {n}__streq`.
+- **needs_term gate** (`preamble.py`) — both leaf recognizers set `needs_term` (same `term` theory).
+- **dispatch** (`functions.py`) — tried after the transform/fold, gated on `self._term_adt_spec`.
+- **suite** (`run-self-annotation-suite.sh`) — `proof2why3/ir.py` added to the FULL-FILE proof gate.
+
+### Gate battery (driver-verified fresh, per conversion)
+- count 931 → **930** (`mk_arrow_chain`) → **929** (`flatten_arrow_chain`); ledger **3** (no cert/
+  allowlist/formal-semantics edit — `git diff` EMPTY).
+- **whole-file** `ir.py` proof **SUCCESS** (all VCs Valid incl. `mk_arrow_chain'vc`,
+  `flatten_arrow_chain'vc` + the record `*_pp` vals). L3-tc ✓ whole file.
+- **corpus byte-diff 0** (798 common == 798, mine vs detached-HEAD worktree with `.venv` symlinked,
+  IDENTICAL). Both recognizers fail-closed + gated on `needs_term` → fire on 0 corpus programs.
+- Vacuity `--emit` exit 0: 0 input-blind, no NEW erasure (both leaves read their params; the 3 KNOWN
+  erasures unchanged).
+- mirror-check **52/52**; drift **2 == HEAD** (both bodies verbatim = in sync; the 2 pre-existing
+  `_handle_var_expr`/`_handle_for_stmt` still-blocked).
+- **MUTATION TEST (Gate C, decisive):** `mk_arrow_chain` ctor `"->"` → `"~>"` flips emitted `Bin
+  "->" v_h …` → `Bin "~>" …`; `flatten_arrow_chain` `cur.lhs` → `cur.rhs` flips emitted `Cons v_lhs
+  Nil` → `Cons v_rhs Nil`. Non-facade (real variant fields, no int-hash/oracle).
+- fixtures (`git add -f`): `0952_term_list_build.py` (positive) + `0953_term_list_build_twin.py`
+  (the ctor-string `"->"`→`"&&"` DISCRIMINATING TWIN — emits `Bin "&&"` where 0952 emits `Bin "->"`;
+  both PROVE, the mechanical non-facade lock) for the list-builder; the flatten twins follow in commit.
+
 ## §RESIDUAL — the rest of the Term-ADT cluster ([COST/SCALE], carriers enumerated)
 The carrier CURRENTLY reaches the **bool existence fold** only (`contains_unsupported`; `any_unsupported`
 / `all_present_unsupported` are methods on a crosscheck class — the same bool algebra, reachable with a

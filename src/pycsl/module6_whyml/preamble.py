@@ -2093,7 +2093,8 @@ class PreambleEmissionMixin:
         # + every other mirror byte-identical.
         from module6_whyml.generic_fold import (
             compute_term_adt_spec, recognize_term_isinstance_fold,
-            recognize_term_isinstance_transform)
+            recognize_term_isinstance_transform,
+            recognize_term_list_build, recognize_term_flatten_arrow)
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)
@@ -2107,9 +2108,16 @@ class PreambleEmissionMixin:
             for f in functions] if self._term_adt_spec else []
         needs_term_streq = any(
             d is not None and d.get("uses_streq") for d in _term_transforms)
+        # class-variant-impl.md §OUTCOME-TL: the T-set/list LEAF algebras
+        # (`mk_arrow_chain` list-fold builder, `flatten_arrow_chain` while-spine
+        # tuple return) also set needs_term — same certified `term` inductive.
         needs_term = bool(self._term_adt_spec) and (any(
             recognize_term_isinstance_fold(f, self._term_adt_spec) is not None
-            for f in functions) or any(d is not None for d in _term_transforms))
+            for f in functions) or any(d is not None for d in _term_transforms)
+            or any(recognize_term_list_build(f, self._term_adt_spec) is not None
+                   for f in functions)
+            or any(recognize_term_flatten_arrow(f, self._term_adt_spec) is not None
+                   for f in functions))
         if not needs_term:
             self._term_adt_spec = None
             self._term_const_dicts = {}

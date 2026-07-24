@@ -120,24 +120,46 @@ class Unsupported:
 
 
 Term = 0  # pycsl: stubbed type alias (string form unsupported)
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def mk_arrow_chain(hyps: List[Term], conclusion: Term) -> Term:
-    return None
+    out: Term = conclusion
+    for h in reversed(hyps):
+        out = BinOp("->", h, out)
+    return out
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def flatten_arrow_chain(t: Term) -> Tuple[List[Term], Term]:
-    return ([], {})
+    hyps: List[Term] = []
+    cur = t
+    while isinstance(cur, BinOp) and cur.op == "->":
+        hyps.append(cur.lhs)
+        cur = cur.rhs
+    return hyps, cur
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def free_vars(t: Term) -> set:
-    return set()
+    if isinstance(t, Var):
+        return {t.name}
+    if isinstance(t, (IntLit, BoolLit, Unsupported)):
+        return set()
+    if isinstance(t, App):
+        out = set()
+        for a in t.args:
+            out |= free_vars(a)
+        return out
+    if isinstance(t, BinOp):
+        return free_vars(t.lhs) | free_vars(t.rhs)
+    if isinstance(t, UnaryOp):
+        return free_vars(t.arg)
+    if isinstance(t, (Forall, Exists)):
+        return free_vars(t.body) - set(t.binders)
+    raise TypeError(f"free_vars: unknown term type {type(t)}")
 

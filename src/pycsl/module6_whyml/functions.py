@@ -2750,7 +2750,9 @@ class FunctionEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_term_isinstance_fold, emit_term_isinstance_fold_group,
             recognize_term_isinstance_transform,
-            emit_term_isinstance_transform_group)
+            emit_term_isinstance_transform_group,
+            recognize_term_list_build, emit_term_list_build_group,
+            recognize_term_flatten_arrow, emit_term_flatten_arrow_group)
         _tspec = getattr(self, "_term_adt_spec", None)
         if _tspec:
             # class-variant-impl.md T-transform: a Term->Term (constructor-rebuild)
@@ -2765,6 +2767,17 @@ class FunctionEmissionMixin:
             if _tf is not None:
                 return emit_term_isinstance_fold_group(
                     func, _tf, _tspec, whyml_ident)
+            # class-variant-impl.md §OUTCOME-TL: the T-set/list LEAF algebras.
+            # `mk_arrow_chain` — a (`list term`, `term`) accumulator fold that
+            # BUILDS a right-leaning chain via a term constructor. Fail-closed.
+            _tlb = recognize_term_list_build(func, _tspec)
+            if _tlb is not None:
+                return emit_term_list_build_group(func, _tlb, _tspec, whyml_ident)
+            # `flatten_arrow_chain` — a while-spine walk down the `->` chain,
+            # returning `(list term, term)`. Fail-closed.
+            _tfa = recognize_term_flatten_arrow(func, _tspec)
+            if _tfa is not None:
+                return emit_term_flatten_arrow_group(func, _tfa, _tspec, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)
