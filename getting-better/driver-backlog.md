@@ -99,10 +99,22 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    byte-diff 0 (792 common identical, only new 0946/0947 fixtures mine-only); suite-mirror byte-diff only
    from_sexp.mlw; drift 2; ledger 3. Fixtures 0946 (positive) + 0947 ([-2] discriminating twin). See
    pyval-walker-impl.md §OUTCOME-C2.
-   **RESIDUAL (still [COST/SCALE]):** C3 tuple/int returns → `_construct_indices`/`_find_construct_idx`/
-   `_flatten_tuples` (`Optional[Tuple[str,int]]` / `Optional[int]`+`int(...)` / `List[Any]` — different
-   result algebras). Bounded (no 4th axiom, Why3 accepts the carrier); the string+list+search+neg-index
-   walkers are the reusable foundation all extend.
+   **C3 DONE + VEIN CLOSED (2026-07-24, 934→933):** the census REFUTED the target's "int via
+   pv_nth/pv_len + int accumulator" framing — the int is `int(<pyval string atom>)` = the unconstrained
+   `str_to_int` ORACLE (expressions.py:5743; rejected by no-more-int). Split:
+   • `_flatten_tuples` (`List[Any]` = `list pyval`, a list-of-NODES accumulator — a DIFFERENT algebra,
+     NO int/oracle) → **BUILT + CONVERTED (933)** via `recognize_pyval_flatten`/`emit_pyval_flatten_group`
+     (`generic_fold.py`): the certified mutual `{n}(v) with {n}__list(l)` group + inline TOTAL `list pyval`
+     append; spike all-Valid Alt-Ergo, NO axiom; `--fun`+whole-file from_sexp proof SUCCESS; corpus
+     byte-diff 0 (794 identical); suite-mirror byte-diff only from_sexp.mlw; drift 2; ledger 3; mutation
+     test decisive (the `head` knob: drop `out.append(t)` → emission loses `Cons v_t`). Fixtures 0948
+     (positive) + 0949 (head-knob discriminating twin). See pyval-walker-impl.md §OUTCOME-C3.
+   • `_find_construct_idx` (`Optional[int]`) + `_construct_indices` (`Optional[Tuple[str,int]]`) →
+     **[CORRECTNESS] boundary — NOT COST.** Their int is the `str_to_int` oracle (the tuple's int
+     component transitively so); a faithful lowering needs a 4th cited axiom (a real string→int parse) or
+     the oracle (any_1, forbidden). **No further pyval carrier reaches them → the from_sexp pyval-walker
+     vein is CLOSED at the value-model boundary** (10 of 12 from_sexp stubs verified; the final 2 are a
+     str→int-parse-oracle correctness wall).
 
    **CENSUS + SPIKE DONE (2026-07-23, count 971) — CERTIFIED-BOUNDARY for existing/minimal machinery.**
    - STEP-0 census (lesson p): **0 of the 8 clean candidates are reached by any existing recognizer**

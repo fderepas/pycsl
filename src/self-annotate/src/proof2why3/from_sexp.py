@@ -116,12 +116,17 @@ def _construct_indices(construct_node: Any) -> int:
 def _find_construct_idx(payload: Any) -> int:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _flatten_tuples(t: Any) -> List[Any]:
-    return []
+    """Helper: yield all sub-tuples of t at any depth."""
+    out: List[Any] = []
+    if isinstance(t, tuple):
+        out.append(t)
+        for sub in t:
+            out.extend(_flatten_tuples(sub))
+    return out
 
 #@ requires True
 #@ ensures True

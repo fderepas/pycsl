@@ -293,6 +293,87 @@ Only the C3 tuple/int-result algebra stubs remain: `_construct_indices` (`Option
 result algebras (tuple-return + int-parse + heterogeneous list) — distinct, still-unbuilt carriers.
 The string+list+search+neg-index walkers are the reusable foundation all extend.
 
+## §OUTCOME-C3 — 2026-07-24 driver run: `list pyval` FLATTEN BUILT + 1 conversion (934 → 933); the int/tuple algebras are a [CORRECTNESS] boundary that CLOSES the from_sexp vein
+
+**Verdict: the C3 census REFUTES the target's "tuple/int result via pv_nth/pv_len + int
+accumulator" framing. The actual bodies show the int does NOT come from a positional
+index/accumulator — it comes from `int(tail)` (parsing a pyval STRING atom), which lowers
+to the unconstrained abstract `str_to_int` ORACLE (expressions.py:5743; explicitly rejected
+by the no-more-int doctrine). So of the 3 C3 stubs:**
+- **`_flatten_tuples` → `List[Any]` = `list pyval`** — a DIFFERENT (fourth) algebra: a
+  list-of-NODES accumulator, NOT tuple/int. NO int, NO oracle. **REACHABLE** by a new
+  `list pyval` carrier (COST, not correctness). **BUILT + converted (934 → 933).**
+- **`_find_construct_idx` → `Optional[int]`** — the ONLY int source is `int(tail)` =
+  `str_to_int` oracle. A faithful int result cannot be produced without a 4th axiom (a real
+  string→int parse) or the oracle (=`any_1`, forbidden). **[CORRECTNESS] boundary.**
+- **`_construct_indices` → `Optional[Tuple[str,int]]`** — the tuple's `int` component is
+  transitively `_find_construct_idx` = the `str_to_int` oracle. **[CORRECTNESS] boundary
+  (inherits the int-parse oracle).**
+
+Reachable sub-cluster size = **1** (`_flatten_tuples`). The int/tuple vein is genuinely
+CORRECTNESS-blocked → this **CLOSES the pyval-walker from_sexp vein**: of the 12 original
+from_sexp stubs, 10 are now VERIFIED (C0 `_binder_name`, C1 `_walk_modpath`, C1b
+`_walk_kername`/`_find_kername_components`/`_full_const_path`, C2 `_const_name`/
+`_ind_short_name`, plus the earlier `_const_name`-family, and C3 `_flatten_tuples`) and the
+final 2 (`_find_construct_idx`, `_construct_indices`) are a str→int-parse-oracle CORRECTNESS
+wall, not a COST residual — no further pyval carrier reaches them.
+
+### Make-or-break spike — PASSED on `_flatten_tuples` (CORRECTNESS-clean, no axiom/oracle)
+Hand-lowered the verbatim body to a `list pyval` accumulator: the mutual
+```
+let rec function _ft_app (a b: list pyval) : list pyval variant { a }
+let rec _flatten_tuples (v_t: pyval) : list pyval variant { pv_size v_t }
+  = if not (is_plist v_t) then Nil
+    else Cons v_t (_flatten_tuples__list (match v_t with PList xs -> xs | _ -> Nil end))
+with _flatten_tuples__list (l: list pyval) : list pyval variant { size_list l }
+  = match l with Nil -> Nil
+    | Cons v_sub _rest -> _ft_app (_flatten_tuples v_sub) (_flatten_tuples__list _rest) end
+```
+**All VCs Valid under Alt-Ergo (`_ft_app'vc`, `_flatten_tuples'vc`, `_flatten_tuples__list'vc`).**
+Termination = the certified cross-decreasing pyval `pv_size`/`size_list` measure (the `+1`-per-cons
+`size_list` def makes `pv_size sub < size_list (Cons sub rest)` strict), **NO new axiom, ledger 3**.
+Spike falsifier (the append helper `_ft_app` in the mutual group polluting the shared variant order)
+found + fixed (moved it out as a standalone `let rec function`). Real pipeline: `--fun _flatten_tuples`
+**SUCCESS**, whole-file `from_sexp.py` proof **SUCCESS** (all contracts proven).
+**MUTATION TEST (Gate C, decisive — the `head` knob):** removing `out.append(t)` from the body →
+the emission changes from `else Cons v_t (_flatten_tuples__list …)` to `else (_flatten_tuples__list …)`
+(the `Cons v_t` self-node head disappears). A template that hard-coded the head would emit both
+identically — it does not, so the emitter tracks the body, non-facade.
+
+### What was BUILT (all in `src/pycsl`, NOT the mirror → 0 new stubs, net +1; ledger 3)
+- **`recognize_pyval_flatten` + `emit_pyval_flatten_group`** (`generic_fold.py`) — a fail-closed
+  matcher for the EXACT `out=[]; if isinstance(p,tuple): [out.append(p)]; for v in p:
+  out.extend(self(v)); return out` shape, emitting the certified mutual `{n}(v) with {n}__list(l)`
+  group + inline TOTAL `list pyval` append `{n}__ftapp`. The OPTIONAL `out.append(p)` is the `head`
+  knob (`Cons {mv}` present/absent). DEFINED, not axiomatized.
+- **dispatch** (`functions.py`) — tried BEFORE the `list string` walkers (`.append(<pyval param>)`
+  would make them bail anyway); fail-closed → un-recognized shapes stay `\trusted`.
+- **needs_pydict gate** (`preamble.py`) — pulls the pyval theory when the recognizer fires (required
+  for the standalone fixtures; in the mirror from_sexp already pulls it).
+
+### Gate battery (driver-verified fresh)
+- count 934 → **933** (`_flatten_tuples` un-`\trusted`); ledger **3** (ftapp/group DEFINED;
+  termination is the certified pyval `pv_size`/`size_list`; `git diff` on proof_axiom_allowlist.py /
+  formal-semantics EMPTY).
+- `--fun _flatten_tuples` **SUCCESS**; **whole-file** `from_sexp.py` proof **SUCCESS** (all proven);
+  L3-tc ✓.
+- **corpus byte-diff 0** (794 common == 794, mine vs detached-HEAD worktree with `.venv` symlinked,
+  IDENTICAL). The flatten recognizer does NOT over-fire on any real program.
+- mirror-check **52/52**; drift **2 == HEAD** (`_flatten_tuples` in sync = verbatim port; the 2
+  pre-existing `_handle_var_expr`/`_handle_for_stmt` still-blocked).
+- vacuity `--emit from_sexp` exit 0: 0 input-blind, no NEW erasure (`_flatten_tuples` reads its param;
+  the 3 KNOWN erasures unchanged).
+- fixtures (`git add -f`): `0948_pyval_flatten.py` (positive witness, PROVES) +
+  `0949_pyval_flatten_nohead.py` (the `head`-knob DISCRIMINATING TWIN — no `out.append`, emits without
+  the `Cons v_node` head; the non-facade regression lock). Both PROVE.
+
+### §RESIDUAL-after-C3 — the from_sexp vein is CLOSED ([CORRECTNESS], not COST)
+`_find_construct_idx` + `_construct_indices` stay `\trusted` on a genuine CORRECTNESS wall: their int
+result is `int(<pyval string atom>)` = the unconstrained `str_to_int` oracle. Faithfully lowering it
+needs either a 4th cited axiom (a real string→int parse spec — an allowlist edit, auto-reject here) or
+the oracle (any_1, forbidden). No further pyval carrier reaches them; the pyval-walker vein is
+exhausted at the value-model boundary, not for want of a build.
+
 ## §RESIDUAL — the rest of the from_sexp cluster ([COST/SCALE], carriers enumerated)
 The walker CURRENTLY reaches exactly `_binder_name` (self-contained `Optional[str]` fold). The other
 6 need distinct, still-unbuilt carriers (each a real feature, not a facade):
