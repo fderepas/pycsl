@@ -71,11 +71,25 @@ def _find_construct_idx(payload: Any) -> int:
 def _flatten_tuples(t: Any) -> List[Any]:
     return []
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _binder_name(binder_annot: Any) -> Optional[str]:
+    """Extract the variable name from a binder_annot tuple, or None
+    if the binder is Anonymous (arrow hypothesis)."""
+    if not isinstance(binder_annot, tuple):
+        return None
+    for field in binder_annot:
+        if (isinstance(field, tuple) and len(field) >= 2
+                and field[0] == "binder_name"):
+            val = field[1]
+            if val == "Anonymous":
+                return None
+            if isinstance(val, tuple) and val[0] == "Name" and len(val) >= 2:
+                inner = val[1]
+                if (isinstance(inner, tuple) and inner[0] == "Id"
+                        and len(inner) >= 2):
+                    return inner[1]
     return None
 
 _CONST_STRIP_TABLE = {'gcd': 'gcd', 'modulo': 'mod', 'add': 'add', 'mul': 'mul', 'sub': 'sub', 'gt': '>', 'lt': '<', 'ge': '>=', 'le': '<='}
