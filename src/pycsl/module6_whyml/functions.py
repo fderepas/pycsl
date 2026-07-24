@@ -94,9 +94,28 @@ class FunctionEmissionMixin:
                 return f"({safe}: ref ({_mt}))"
             return f"({safe}: {_mt})"
         if symtype in ("set", "frozenset"):
+            # r1-setop I1 (self-tcb-reduction): a BY-REFERENCE `Set[str]`/`FrozenSet[str]`
+            # param (a mutated-collection param → `ref (map …)`) is STRING-keyed `ref (map
+            # string (option int))` (the set element IS the key), mirroring the dict branch's
+            # κ threading — so `s.add(x)`/`x in s` on it read/write the RAW native string key
+            # (no `str_hash_op`), matching the already-string-keyed set-op lowering. κ is taken
+            # from `_dict_key_types` (Module5's usage-based inference: a `.add`/membership with
+            # a provably-string key tags the param κ=string; cf. `_tag_str_keyed`).
+            #   GATED ON `_mut_coll`: a by-ref set param genuinely EMITS the raw-string map
+            # write (`s := map_update_some !s x 0`), so its type must agree. A NON-by-ref set
+            # param (a METHOD's set param — `_seed_mutated_collection_params` excludes methods —
+            # whose `.add` lowers to the sound `()` no-op, e.g. `_emit_new_ghost_ref`'s
+            # `local_refs`/`declared_refs`) must STAY `map int`: it emits no raw-string op AND is
+            # forwarded to sibling `val` bridges (`_stmts_to_whyml`) still typed `map int`, so a
+            # `map string` here would mistype the bridge (that cross-method κ=string agreement is
+            # the deferred I4 fixpoint). Byte-identical for every int-keyed / non-by-ref set param
+            # (0821/0833 `Set[int]`, 0884's `Any`-erased `acc`, and all method set params).
+            kt = getattr(self, "_dict_key_types", {}) or {}
+            _sk = "string" if (_mut_coll and kt.get(arg) == "string") else "int"
+            _smt = f"map {_sk} (option int)"
             if _mut_coll:
-                return f"({safe}: ref (map int (option int)))"
-            return f"({safe}: map int (option int))"
+                return f"({safe}: ref ({_smt}))"
+            return f"({safe}: {_smt})"
         if arg in array1d_params or symtype in ("list", "bytes", "bytearray"):
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             if self._value_semantic:
