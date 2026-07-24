@@ -42,6 +42,11 @@ class TypeInferenceMixin:
     _current_array1d_params: Set[str] = None
     _variant_types: Dict[str, str] = None
     _mutable_state_classes: Set[str] = None
+    _ghost_list_vars: Set[str] = None
+    _ghost_set_vars: Set[str] = None
+    _ghost_dict_vars: Set[str] = None
+    _ghost_string_vars: Set[str] = None
+    _ghost_tuple_vars: Dict[str, int] = None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -209,12 +214,22 @@ class TypeInferenceMixin:
                     or self._rhs_yields_map(val_ir.get("right", {})))
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _resolve_effective_ghost_type(self, target: str, op: str, ghost_type: str) -> str:
-        return ""
+        if ghost_type == "int" and op != "=":
+            if target in self._ghost_list_vars:
+                return "ghost_list"
+            if target in self._ghost_set_vars:
+                return "ghost_set"
+            if target in self._ghost_dict_vars:
+                return "ghost_dict"
+            if target in self._ghost_tuple_vars:
+                return f"tuple{self._ghost_tuple_vars[target]}"
+            if target in self._ghost_string_vars:
+                return "string"
+        return ghost_type
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
