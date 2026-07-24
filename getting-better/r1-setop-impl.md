@@ -150,6 +150,44 @@ is UNREACHABLE without I4** — `_emit_new_ghost_ref` STAYS in `check-emitted-va
 not attempted (depends on I4). R1 final = I1 (Set[str] type-plane) + I2 (string-key set-union) + I3
 (parametric-Set[str] requires_method lowering) = the faithfulness fix; de-vacuify deferred behind this fixpoint.
 
+## I6 — census RESULT (2026-07-24): **ZERO conversions.** count 942, drift 2, ledger 3. R1 CLOSED.
+
+Measure-before-build census (§10.1) over the genuinely-new I1/I2/I3 unblock surface (Set[str] **FIELD**
+str-key + str-field union `<field> | {x}` + requires_method Set[str] sig — NOT method Set[str] params,
+which I4 left `map int`). Coarse "131 Set[str]-touching stubs" refined by cross-referencing each `\trusted`
+stub's LIVE body against the actual Set[str] FIELD ops.
+
+**Refined candidate count: 19** `\trusted` stubs whose live body does a Set[str]-field op (`in`/`.add`/
+`.discard`/`|`/`.copy()`). Per-candidate verdict — **0 convertible:**
+
+1. **17 are field membership/`.add`/`.discard` (NOT newly unblocked).** I2 established these already used the
+   raw string key (S5) pre-R1 — I2 changed nothing for them; only str-field UNION was fixed. So they were
+   never blocked by the string-key bug. Empirically spiked the cleanest one, `_resolve_effective_ghost_type`
+   (types.py, `TypeInferenceMixin`, all-`str` params, reads 4 ghost `Set[str]` fields): ported verbatim →
+   `--no-proof --keep-mlw` → membership emits `contains_check (str_hash_op target)
+   (getattr_typeinferencemixin self 732187999)` — an **int-hashed OPAQUE CROSS-MIXIN self-getattr**, NOT the
+   fixed string-keyed map. STRUCTURAL ROOT: every `Set[str]` field (`_ghost_*_vars`, `_dict_locals`, …) is
+   declared in `functions.py`/`Module6_WhyMLTranspiler.py`'s `__init__`, but these stubs live in OTHER mixins
+   (types.py/statements.py/expressions.py/preamble.py) where the field is an unrecognized cross-mixin
+   getattr → I2's `field_key_types` κ=string recognition NEVER fires. Plus each carries independent walls
+   (here: `_ghost_tuple_vars[target]` Dict[str,int] subscript + `f"tuple{…}"` — the actual L3-tc error).
+   Reverted clean.
+2. **2 are set-field "union" — but the WRONG shape.** `_reset_function_state` (functions.py, 290L):
+   `self._dict_locals |= self._mutated_collection_params` — augmented union of two SET FIELDS, not the
+   I2-fixed `<str-field> | {x}` single-element-literal union. `_emit_type_decls` (preamble.py, 540L):
+   `self._ambiguous_fields |= (_rec_fields & _local_names)` — set-INTERSECTION union, further still from the
+   fixed shape. Both are GIANT multi-blocker methods (getattr reflection, Dict[str,Any] IR reads throughout);
+   the `|=` is one incidental line among hundreds. Not consumers of the new capability; not convertible.
+3. **requires_method Set[str] sig (I3): zero consumers.** No mixin sig (mirror or live) has a `Set[`/
+   `FrozenSet[` param (re-confirmed) — I3's branch is a correct latent-bug fix with no converting stub.
+
+**Verdict.** A well-evidenced ZERO, exactly as the honest expectation predicted. The string-key fix's reach
+is FIELDS-declared-in-the-owning-mixin only; the Set[str]-touching stubs all sit in sibling mixins (opaque
+cross-mixin getattr, κ=string unrecognized) and/or carry unrelated value-model walls. **R1 CLOSES: I1
+(Set[str] type-plane) + I2 (string-key set-union) + I3 (parametric Set[str] requires_method lowering) = the
+faithfulness fix, count-neutral; I4 CERTIFIED-BOUNDARY; I5 de-vacuify unreachable behind I4; I6 no count
+movement.** No stub converted, tree clean, count 942, drift 2, ledger 3.
+
 ### Backlog (what an authorized I4 build would need, in order)
 - A SOUND cluster-wide κ inference that tags a FORWARDED param κ=string from the callee's tagged slot
   (propagate κ backward across the 81 call edges), REPLACING annotation-pinning — must handle the
