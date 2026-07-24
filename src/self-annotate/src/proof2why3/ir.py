@@ -129,7 +129,6 @@ def mk_arrow_chain(hyps: List[Term], conclusion: Term) -> Term:
         out = BinOp("->", h, out)
     return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
