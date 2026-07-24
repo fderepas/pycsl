@@ -397,7 +397,15 @@ mistake made MORE THAN ONCE and each is a rule, not a per-wall finding.
     live there — verify once with `git ls-files 'src/self-annotate/**/*.mlw' | wc -l` == 0), so
     `find src/self-annotate/src -name '*.mlw' -delete` is PERMITTED (it cannot reach a tracked file). The
     ban is on globs that can reach `.`/repo-root/`test-suite/corpus/`, never on this scoped regenerable-output
-    cleanup.** If you think the tree needs any broader cleaning, STOP and report instead.
+    cleanup.** UPDATE 2026-07-24 (4th incident — an agent given this "safe form" DEVIATED to
+    `find test-suite/corpus/pycsl-reference -name '*.mlw' -delete`, deleting 46 tracked fixtures): **do NOT
+    clean `.mlw` (or anything) AT ALL.** Generated `.mlw` litter is gitignored and completely harmless — a
+    byte-diff writes to a fresh scratch dir, a proof reads a fresh emit; stale `.mlw` never affect either, so
+    there is ZERO need to delete them. LEAVE ALL generated files in place. Every cleanup attempt so far has
+    endangered tracked files; none was ever necessary. If you believe cleanup is required, you are mistaken —
+    proceed without it. (Driver-side note: never audit a Rocq cert by `rm`-ing `.vo` + rebuilding in place —
+    that churns ~100 tracked build artifacts (lesson m); `coqchk` the committed `.vo`, or build in a scratch
+    copy.)
 
 ## 11. LOOP ENTRY — the campaign is CLOSED; the loop ASKS before working (do NOT auto-run)
 
