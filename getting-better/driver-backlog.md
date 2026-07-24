@@ -89,6 +89,10 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
          the `last_atom` oracle sidesteps (BLOCKER 2), plus string-tag dispatch/`len>=3` guards
          (BLOCKER 3). REOPEN needs a bespoke sexp recognizer = 3 new features for net −3 (session-scale,
          §10.3 generic-Any class). Cert + value oracle banked in getting-better/sexp-carrier-oracles/.
+         **REFINED 2026-07-24 (sexp-carrier-impl.md §OUTCOME-2): "net −3" is a genuine count DECREASE /
+         0 new stubs (recognizer lands in UNmirrored generic_fold.py) — NOT a giants-trap; pyval REUSE
+         (PStr=SAtom, PList=SList) kills the new-cert cost (3 projectors on the certified pyval theory,
+         ledger 3). Residual = the §10.3 value-returning-pyval walker, no bounded/non-facade entry.**
        * **class-instance variant** ADT (`isinstance(t,Var)` + `t.name`/`node.left`): `emit_why3._pp`,
          `Module2_Parser._csl_to_str` — reopen with @dataclass/class→WhyML-variant model + faithful
          f-string interpolation of runtime strings + `str(int)`.
@@ -350,6 +354,25 @@ capability, so the stop-classification is mechanical, not a judgment call.
   (`int_to_string` handles it). The PARAM/method half (`local_refs`/`declared_refs`, 44 methods/81 sites/
   cyclic, expr↔stmt mutual recursion) + I5 de-vacuify STAY CERTIFIED-BOUNDARY — session-scale, no consistent
   sound κ signal. See `r1-setop-impl.md` run 3.
-- **sexp recognizer** — the 3 `from_sexp` tuple/sexp-carrier stubs; cert + value oracle banked in
-  `getting-better/sexp-carrier-oracles/`. Reassess the "net −3" as a genuine VALUE refutation (does it grow
-  the trusted SURFACE, §10.7?) vs a mere marker-count artifact before deprioritizing.
+- **sexp recognizer** — the 3 `from_sexp` tuple/sexp-carrier stubs. **REOPENED + REFINED 2026-07-24
+  (count 941 held, tree clean, nothing committed) — still [COST/SCALE], but the record improved on two
+  axes (see sexp-carrier-impl.md §OUTCOME-2):**
+  (i) **NET accounting RESOLVED the §10.7 concern: net is POSITIVE, NOT a giants-trap.** The recognizer
+  lands in `generic_fold.py`, which is NOT mirrored (mirror-check is a declared-SUBSET gate; source-only
+  emitter methods force 0 new `\trusted` stubs — precedent: the named-field recognizer added 0). Net =
+  +3 (count −3), 0 new stubs. The "net −3" is a genuine count DECREASE, not surface growth.
+  (ii) **pyval REUSE eliminates the new-ADT + new-cert cost.** The certified `pyval` ADT (`PStr`=SAtom,
+  `PList (list pyval)`=SList, with `pv_size`/`size_pos` proven axiom-free) IS the carrier; the build
+  needs only 3 small total projectors (`pv_nth`/`pv_len`/`atom_of`) on the existing pyval theory — NO
+  `Phase2*_Sexp.v`/`Sexp.lean`, ledger stays 3. The banked `sexp-carrier-oracles/` encode a SEPARATE ADT
+  that pyval-reuse supersedes. Build-step 1 (new cert) is unnecessary.
+  (iii) **Residual wall precisely located (concrete verbatim spike of `_const_name`), all [COST/SCALE],
+  no bounded entry.** Current lowering is vacuous (`const_node: int`, `isinstance_op 0 0` on hash
+  constants) + fails L3-tc (Optional-union can't absorb `subscript_get: int`). `_const_name`/
+  `_ind_short_name` need the trusted helper `_find_kername_components` (emitted `val (payload:int):array
+  string`) to carry a pyval param — NO annotation→pyval hook exists, and converting the helper hits
+  BLOCKER 1+2. `_binder_name` is self-contained but needs a value-returning pyval-list for-fold with
+  early return + BLOCKER 1 `atom_of` coercion. The genuine build = the §10.3 general value-returning-
+  pyval walker (== item 3); a shape-specific recognizer = Gate-C facade reject. Sound throughout (no 4th
+  axiom, no unsound guess). REOPEN: build pyval `pv_nth`/`pv_len`/`atom_of` + the general value-returning-
+  pyval walker + a param-annotation→pyval hook + negative-index-from-end; do it once, generally.

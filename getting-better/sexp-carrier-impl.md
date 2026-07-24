@@ -88,3 +88,65 @@ slist-length guards (BLOCKER 3). That is a multi-feature, session-scale build fo
 the same §10.3 generic-Any-tree-walker class, sharpened here to "heterogeneously-typed tuple positions
 consumed context-dependently." Deprioritized; the certificate + value oracle are banked in
 `getting-better/sexp-carrier-oracles/` (proven, reusable) for whenever that build is authorized.
+
+## §OUTCOME-2 — 2026-07-24 driver REOPEN (GATE-S net accounting + pyval-reuse) — REFINED [COST/SCALE] BOUNDARY
+
+**Verdict: boundary STANDS, but the record is materially improved on two axes and the cost is LOWER
+than §OUTCOME recorded. Count holds at 941; tree clean; nothing committed (still no bounded, non-facade,
+count-moving entry).** The reopen ran GATE-S (net accounting FIRST, per the giants-net-marker trap) then
+a concrete verbatim spike of `_const_name`.
+
+### Finding 1 — NET ACCOUNTING: net is POSITIVE, NOT a giants-trap (§10.7 concern REFUTED)
+The recognizer is LIVE-emitter code that lands in `src/pycsl/module6_whyml/generic_fold.py`, which is
+**NOT in the self-annotate mirror** (`ls src/self-annotate/src/module6_whyml/` has no `generic_fold.py`;
+precedent: the `recognize_named_field_existence` + `emit_named_field_existence_group` additions for
+`_pattern_has_constructor` added **0** mirror stubs). The mirror-check is a declared SUBSET gate — it
+verifies each MIRROR def has a source counterpart, NOT that each source def is mirrored — so new
+source-only recognizer/emitter methods force **zero** new `\trusted` mirror stubs. NET = (3 stubs
+converted) − (0 new stubs) = **+3** (count −3). The prior "net −3" is a genuine count DECREASE, not
+surface growth. So this is NOT the giants-are-net-marker-positive trap; the deprioritization was never
+about net-marker-negativity.
+
+### Finding 2 — pyval REUSE eliminates the new-ADT + new-certificate cost (supersedes build-step 1)
+The certified `pyval` ADT already in `preamble.py` (`_pydict_theory_lines`) IS the sexp carrier:
+`type pyval = PInt | PStr string | PBool | PNone | PList (list pyval) | PDict pydict` with `is_pstr`/
+`is_plist` projectors, the `pv_size` measure, and PROVEN axiom-free `size_pos`/`size_list_nonneg` lemmas.
+Map `SAtom s → PStr s`, `SList xs → PList xs`, `is_slist → is_plist`. The build needs only **3 small
+total projectors** — `pv_nth : pyval→int→pyval`, `pv_len : pyval→int`, `atom_of : pyval→string` — added
+to the EXISTING pyval theory. **No separate `sexp` ADT, no `Phase2*_Sexp.v`/`Sexp.lean`, no new
+certificate** (the pyval cert already covers measure/termination); ledger stays 3 trivially and Why3
+already accepts pyval. Build-sequence step 1 (port SexpCert.v into new cert files) is therefore
+UNNECESSARY. The banked `sexp-carrier-oracles/` remain valid but encode the SEPARATE-ADT approach that
+pyval-reuse supersedes.
+
+### Finding 3 — the residual wall, precisely located and classified [COST/SCALE] (not correctness)
+Concrete spike (verbatim `_const_name` ported into the mirror, `--no-proof --keep-mlw`): the current
+emitter lowers it VACUOUSLY (`const_node: int`, `isinstance_op 0 0` on HASH CONSTANTS) AND fails L3-tc
+(the `Optional[str]` return-union `Arm_0_0 string | Arm_0_None` cannot absorb `subscript_get`'s `int`).
+The gap to a non-vacuous lowering is the §10.3 value-returning-pyval-walker subsystem — the SAME class as
+driver-backlog item 3 (itself CERTIFIED-BOUNDARY). No bounded single-feature entry point exists:
+- `_const_name` / `_ind_short_name`: their OWN bodies are clean of BLOCKER 1 (the `[i]` is used only as a
+  sub-sexp fed to the trusted helper), BUT the trusted helper `_find_kername_components` emits as
+  `val (payload: int) : array string`. Typing `const_node` pyval makes `payload = pv_nth const_node 1 :
+  pyval`, which cannot be passed to a `payload: int` param. There is **no param-annotation→pyval hook**
+  (pyval is inferred from usage; a trusted stub has none). So converting these two requires EITHER a new
+  annotation→pyval-param mechanism OR converting `_find_kername_components` — which carries BLOCKER 1
+  (`out.append(iid[1])` string-coercion alongside `_walk_modpath(mp[1])` sub-sexp at the same `[1]`) +
+  BLOCKER 2 (`List[str]` via `.append`/`.extend`/`reversed`). Also `parts[-1]` mis-lowers to literal
+  index `-1` (negative-from-end unmodeled) — a further small gap.
+- `_binder_name`: self-contained (no helper call, no BLOCKER 2), but needs a value-returning pyval-list
+  `for field in binder_annot` fold with EARLY RETURN of `inner[1]` (option string) + BLOCKER 1 `atom_of`
+  coercion at the nested tag sites (`field[0]=="binder_name"`, `val[0]=="Name"`, `inner[0]=="Id"`).
+All of these are **sound** (`atom_of`/`pv_nth`/`pv_len` are total projections; the guards make the
+coercion faithful; no unsound guess, no 4th axiom, Why3 accepts the carrier) — so **[COST/SCALE]**, not
+correctness. A recognizer firing only on these exact nested shapes is a Gate-C facade reject (§10.10);
+the genuine build is the general value-returning-pyval-walker (backlog item 3). No count-moving,
+non-facade increment was available in-window, so nothing was committed (committing dead projector infra
+was already rejected in §OUTCOME).
+
+**REOPEN (revised, for a future ladder edit):** build on pyval REUSE (Finding 2) — add `pv_nth`/`pv_len`/
+`atom_of` to the pyval theory (no new cert), then the §10.3 general value-returning-pyval walker with
+(a) context-directed `atom_of` coercion at `==<strlit>` / str-return sites, (b) a param-annotation→pyval
+hook so a trusted helper can carry a pyval param (unblocks `_const_name`/`_ind_short_name` without
+converting the helper), (c) negative-index-from-end lowering. This is the same subsystem backlog item 3
+needs; do it once, generally, and the from_sexp cluster falls out.
