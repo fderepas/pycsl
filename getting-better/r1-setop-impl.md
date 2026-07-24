@@ -112,6 +112,54 @@ the mirror annotation to `Set[str]` emitted `val self__seq_operand_2 (x0: emit_i
 - **I3 is the type-recognition PREREQUISITE for I4** (the fixpoint will flip the annotation to `Set[str]` and
   needs this branch). It is a correct latent-bug fix on its own (the `int` fallback was wrong).
 
+## I4 — CROSS-METHOD κ=string BRIDGE FIXPOINT: **CERTIFIED-BOUNDARY (SESSION-SCALE/cyclic/unsound-signal). NOT built.**
+
+Spiked the fixpoint FIRST (lesson q) — MEASURED the `local_refs`/`declared_refs` cluster before any build.
+Three INDEPENDENT walls, each individually sufficient to refuse the build:
+
+1. **Size + cyclicity (not a localizable cluster).** `local_refs`/`declared_refs` is the AMBIENT "set of
+   local ghost-ref names" threaded through **44 distinct methods** (LIVE statements.py + expressions.py),
+   plus the mirror threads it through stmt_control_flow.py and functions.py (`_build_param_list`) — 4 files.
+   **81 distinct forwarding call sites** pass it to siblings. The graph is MUTUALLY RECURSIVE: `_stmts_to_whyml`
+   (stmt) → `_expr_to_whyml`/`_e` → `_handle_*_expr` → nested `_stmts_to_whyml`. `_emit_new_ghost_ref` (the I5
+   target) → `_stmts_to_whyml` → the ENTIRE emission recursion. There is no small cut; the fixpoint IS the
+   whole expr↔stmt pipeline.
+
+2. **No CONSISTENT κ=string signal exists with current machinery (the decisive wall).** The SAFE signal is
+   Module5 usage-inference (`_dict_key_types` tags a param κ=string ONLY when THAT method's OWN body has a
+   provably-`str` `.add`/membership). But the 81 forwarding sites just PASS `local_refs` through with no local
+   str `.add` → usage-inference does NOT tag them → they stay `map int`. The UNSOUND alternative
+   (annotation-pin κ=string from a `Set[str]` annotation) was already REFUTED at I1 — it breaks 0884 (an
+   `Any`-erased value `.add`ed into a `map string` fails to typecheck). WORSE: `statements.py:793` does
+   `local_refs.add(st)` where `st` is a STATEMENT-IR node, not a string — so `local_refs` is not even
+   semantically a string-set on every path; κ=string is ACTIVELY WRONG there. So no uniform, sound κ=string
+   assignment across the cluster exists; the fixpoint has no consistent solution.
+
+3. **`_mut_coll` no-op-model collision (I5's own precondition).** `_emit_new_ghost_ref` does
+   `local_refs.add(target)` / `declared_refs.add(target)` which today emit `()` NO-OPS (method excluded from
+   by-ref promotion → `_mut_coll` False → `target` erased = the KNOWN_ERASURE). Making them caller-visible
+   (I5) requires LIFTING the method by-ref exclusion — but that turns the ~7 `.add` sites into real
+   `map_update_some` writes and forces by-ref (`ref (map …)` + `writes {p}`) promotion to propagate
+   TRANSITIVELY through the cyclic 44-method graph (the `_build_func_mutated_collection_params` fixpoint,
+   currently GATED to standalone functions with methods explicitly excluded PRECISELY to avoid this cascade).
+
+**Verdict → keep I1+I2+I3; do NOT build I4; STOP (no grind).** I3 (the type-recognition prerequisite) is the
+only part of the κ=string chain that lands cleanly and byte-inert. **I5's de-vacuify of `_emit_new_ghost_ref`
+is UNREACHABLE without I4** — `_emit_new_ghost_ref` STAYS in `check-emitted-vacuity.py` KNOWN_ERASURES (its
+`target` erasure is a true consequence of the sound method-`.add`-is-`()` no-op model, not a facade). I6 census
+not attempted (depends on I4). R1 final = I1 (Set[str] type-plane) + I2 (string-key set-union) + I3
+(parametric-Set[str] requires_method lowering) = the faithfulness fix; de-vacuify deferred behind this fixpoint.
+
+### Backlog (what an authorized I4 build would need, in order)
+- A SOUND cluster-wide κ inference that tags a FORWARDED param κ=string from the callee's tagged slot
+  (propagate κ backward across the 81 call edges), REPLACING annotation-pinning — must handle the
+  `local_refs.add(st)` non-string path (either prove those paths never reach a string-keyed consumer, or
+  split `local_refs` into a string-set vs a stmt-holder). Session-scale, new inference pass.
+- Then lift I1's `_mut_coll` gate for the now-consistent cluster AND extend
+  `_build_func_mutated_collection_params` to promote method params transitively (drop the `kind == "method"`
+  exclusion) without breaking the abstract-`val`/`let` agreement — a second fixpoint over the same cyclic graph.
+- Only then is I5 (`_emit_new_ghost_ref` de-vacuify) reachable.
+
 ## BLOCKERS carried forward (for I3–I6)
 - **I4 (cross-method κ=string bridge fixpoint) is a PREREQUISITE, not a follow-on.** I1's `_mut_coll` gate is a
   WORKAROUND: a method's `Set[str]` param cannot become `map string` until every sibling `val` bridge it is
