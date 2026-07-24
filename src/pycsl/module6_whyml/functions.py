@@ -2727,7 +2727,8 @@ class FunctionEmissionMixin:
             recognize_void_dispatch, emit_void_dispatch_group,
             recognize_void_generic_descend, emit_void_generic_descend_group,
             recognize_type_existence, emit_type_existence_group,
-            recognize_named_field_existence, emit_named_field_existence_group)
+            recognize_named_field_existence, emit_named_field_existence_group,
+            recognize_pyval_string_walker, emit_pyval_string_walker_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -2746,6 +2747,31 @@ class FunctionEmissionMixin:
         _nfe = recognize_named_field_existence(func)
         if _nfe is not None:
             return emit_named_field_existence_group(func, _nfe, whyml_ident)
+        # pyval-walker-impl.md (driver-backlog item 3): the GENERAL value-returning
+        # pyval string walker — a string-RETURNING catamorphism over a heterogeneous
+        # nested-tuple/list param (the `from_sexp` sertop s-expression shape), lowered
+        # onto the certified pyval ADT via inline TOTAL pv_nth/pv_len/atom_of
+        # projectors (axiom-free; ledger 3). Fires only when the Optional[str] return
+        # resolves to a synthesized 2-arm (str-payload + None) union. Fail-closed; a
+        # template bug is a loud unprovable instance, never a false proof.
+        _pvw = recognize_pyval_string_walker(func)
+        if _pvw is not None:
+            _ret = func.get("return_annotation")
+            _vinfo = getattr(self, "_variant_types", {}).get(_ret)
+            if _vinfo:
+                _ctors = _vinfo.get("constructors", {})
+                _some = _none = None
+                for _cn, _cd in _ctors.items():
+                    if _cd.get("arity") == 0:
+                        _none = _cn
+                    elif _cd.get("arity") == 1 and _cd.get("payload") in (
+                            ["str"], ["string"]):
+                        _some = _cn
+                if _some and _none and len(_ctors) == 2:
+                    _pvw["ret_whyml"] = _vinfo["whyml_name"]
+                    _pvw["some_ctor"] = _some
+                    _pvw["none_ctor"] = _none
+                    return emit_pyval_string_walker_group(func, _pvw, whyml_ident)
         _gf = recognize_generic_fold(func)
         if _gf is not None:
             return emit_generic_fold_group(func, _gf, whyml_ident)

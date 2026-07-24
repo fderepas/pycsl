@@ -6238,3 +6238,271 @@ def emit_named_field_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append(f"  = match xs with Nil -> false"
                f" | Cons h t -> {n} h || {n}__l t end")
     return out
+
+
+# ============================================================================
+# pyval-walker-impl.md (driver-backlog item 3) — the GENERAL value-returning
+# pyval string walker. Unlike the bool-existence family (return bool) this is a
+# string-RETURNING catamorphism over a heterogeneous nested-tuple/list param
+# (the sertop s-expression / `from_sexp` shape): `isinstance(t, tuple)` guards,
+# POSITIONAL index `t[i]`, string-literal tag dispatch `t[0] == "..."`, `len(t)`
+# length guards, a `for x in t` fold with EARLY string-return, all lowered onto
+# the certified `pyval` ADT (PStr=atom, PList=tuple) via three small TOTAL
+# projectors (pv_nth/pv_len/atom_of, emitted inline, NO axiom — the pyval
+# `pv_size` cert already covers measure/termination; ledger stays 3).
+#
+# This is a STRUCTURAL translator, not a shape matcher: it recursively lowers an
+# arbitrary composition of the supported fragment (below), so the emitted `.mlw`
+# is a faithful function of the body — the mutation test (change a literal / an
+# index / a guard → the emitted body changes) passes by construction. Any node
+# outside the fragment raises `_PVWBail` and the recognizer returns None
+# (precision-over-recall, fail-closed: a miss keeps the stub `\trusted`, never a
+# false fire). The templater is NOT in the TCB — a bug yields an unprovable
+# instance (the whole-file re-proof is loud), never a false proof.
+#
+# Supported fragment (single `Any` param `p`, `-> Optional[str]` union return):
+#   test  ::= not test | test and test | test or test
+#           | isinstance(vref, tuple|list|dict|str)
+#           | len(vref) (>=|>|<=|<|==) <int>
+#           | vref == "<lit>" | "<lit>" == vref          (atom/tag compare)
+#   vref  ::= <var> | vref[<int>]                        (a pyval-typed term)
+#   stmt  ::= return None | return <strexpr>
+#           | <var> = vref
+#           | if test: stmts [else: stmts]
+#           | for <var> in vref: stmts                   (fold w/ early return)
+#   strexpr ::= "<lit>" | vref                           (vref -> atom_of)
+
+class _PVWBail(Exception):
+    """Raised on any node outside the supported fragment (fail-closed)."""
+
+
+def _pvw_mv(name: str) -> str:
+    """Mangle a source variable name to a keyword-safe WhyML identifier
+    (`val` is a WhyML keyword; a uniform `v_` prefix dodges every clash)."""
+    return "v_" + name
+
+
+def _pvw_strlit(s: str) -> str:
+    """A WhyML string literal, fail-closed on quote/backslash (no escaping)."""
+    if '"' in s or "\\" in s:
+        raise _PVWBail()
+    return '"' + s + '"'
+
+
+def _pvw_valref(node: Any, ctx: Dict[str, Any]) -> str:
+    """Translate a Var / positional-Subscript into a pyval-typed WhyML term."""
+    if _is_var(node):
+        nm = node.get("name")
+        if nm not in ctx["scope"]:
+            raise _PVWBail()
+        return _pvw_mv(nm)
+    if isinstance(node, dict) and node.get("type") == "Subscript":
+        base = _pvw_valref(node.get("value"), ctx)
+        idx = node.get("index")
+        if not (isinstance(idx, dict) and idx.get("type") == "Number"):
+            raise _PVWBail()
+        i = idx.get("value")
+        if not isinstance(i, int) or i < 0:
+            raise _PVWBail()
+        return f'({ctx["p"]}pnth {base} {i})'
+    raise _PVWBail()
+
+
+def _pvw_strexpr(node: Any, ctx: Dict[str, Any]) -> str:
+    """Translate an expression used in a STRING context (return / tag compare):
+    a literal stays a literal; a pyval vref is coerced by `atom_of`."""
+    s = _is_string(node)
+    if s is not None:
+        return _pvw_strlit(s)
+    return f'({ctx["p"]}atom {_pvw_valref(node, ctx)})'
+
+
+def _pvw_isinstance(node: Any, ctx: Dict[str, Any]) -> str:
+    if node.get("func") != "isinstance":
+        raise _PVWBail()
+    args = node.get("args", [])
+    if len(args) != 2 or not _is_var(args[1]):
+        raise _PVWBail()
+    base = _pvw_valref(args[0], ctx)
+    cls = args[1].get("name")
+    if cls in ("tuple", "list"):
+        return f"(is_plist {base})"
+    if cls == "dict":
+        return f"(is_pdict {base})"
+    if cls == "str":
+        return f"(is_pstr {base})"
+    raise _PVWBail()
+
+
+def _pvw_lencmp(left: Any, op: str, right: Any, ctx: Dict[str, Any]) -> str:
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == "len" and len(left.get("args", [])) == 1):
+        raise _PVWBail()
+    if not (isinstance(right, dict) and right.get("type") == "Number"
+            and isinstance(right.get("value"), int)):
+        raise _PVWBail()
+    base = _pvw_valref(left["args"][0], ctx)
+    return f'({ctx["p"]}plen {base} {op} {right["value"]})'
+
+
+def _pvw_eq(left: Any, right: Any, ctx: Dict[str, Any]) -> str:
+    ls, rs = _is_string(left), _is_string(right)
+    if rs is not None and ls is None:
+        return f"(pystr_eq {_pvw_strexpr(left, ctx)} {_pvw_strlit(rs)})"
+    if ls is not None and rs is None:
+        return f"(pystr_eq {_pvw_strexpr(right, ctx)} {_pvw_strlit(ls)})"
+    raise _PVWBail()
+
+
+def _pvw_test(node: Any, ctx: Dict[str, Any]) -> str:
+    if not isinstance(node, dict):
+        raise _PVWBail()
+    t = node.get("type")
+    if t == "UnaryOp" and node.get("op") == "not":
+        return f"(not {_pvw_test(node.get('expr'), ctx)})"
+    if t == "BinOp":
+        op = node.get("op")
+        if op in ("and", "or"):
+            l = _pvw_test(node.get("left"), ctx)
+            r = _pvw_test(node.get("right"), ctx)
+            return f"({l} {'&&' if op == 'and' else '||'} {r})"
+        if op == "==":
+            return _pvw_eq(node.get("left"), node.get("right"), ctx)
+        if op in (">=", ">", "<=", "<"):
+            return _pvw_lencmp(node.get("left"), op, node.get("right"), ctx)
+        raise _PVWBail()
+    if t == "Call":
+        return _pvw_isinstance(node, ctx)
+    raise _PVWBail()
+
+
+def _pvw_return(value: Any, ctx: Dict[str, Any]) -> str:
+    if isinstance(value, dict) and value.get("type") == "None":
+        return ctx["none_ctor"]
+    return f"({ctx['some_ctor']} {_pvw_strexpr(value, ctx)})"
+
+
+def _pvw_stmts(stmts: Any, cont: str, ctx: Dict[str, Any]) -> str:
+    """Translate a statement list into a WhyML expression of the union return
+    type; `cont` is the fall-through value when the list is exhausted."""
+    if not isinstance(stmts, list):
+        raise _PVWBail()
+    if not stmts:
+        return cont
+    s0, rest = stmts[0], stmts[1:]
+    if not isinstance(s0, dict):
+        raise _PVWBail()
+    kind = s0.get("stmt")
+    if kind == "Return":
+        return _pvw_return(s0.get("value"), ctx)          # terminal
+    if kind == "Assign":
+        tgt = s0.get("target")
+        if not isinstance(tgt, str):
+            raise _PVWBail()
+        rhs = _pvw_valref(s0.get("value"), ctx)           # RHS is a pyval term
+        newctx = dict(ctx); newctx["scope"] = ctx["scope"] | {tgt}
+        return f"(let {_pvw_mv(tgt)} = {rhs} in {_pvw_stmts(rest, cont, newctx)})"
+    if kind == "If":
+        contrest = _pvw_stmts(rest, cont, ctx)
+        test = _pvw_test(s0.get("test"), ctx)
+        thenb = _pvw_stmts(s0.get("body", []), contrest, ctx)
+        elseb = _pvw_stmts(s0.get("orelse") or [], contrest, ctx)
+        return f"(if {test} then {thenb} else {elseb})"
+    if kind == "For":
+        tgt = s0.get("target")
+        if not isinstance(tgt, str):
+            raise _PVWBail()
+        itref = _pvw_valref(s0.get("iter"), ctx)
+        k = ctx["counter"][0]; ctx["counter"][0] += 1
+        loop = f"{ctx['n']}__loop{k}"
+        rv = f"{loop}_rest"
+        aftercont = _pvw_stmts(rest, cont, ctx)           # Nil case
+        newctx = dict(ctx); newctx["scope"] = ctx["scope"] | {tgt}
+        lbody = _pvw_stmts(s0.get("body", []), f"({loop} {rv})", newctx)
+        return (f"(let rec {loop} (l: list pyval) : {ctx['ret']}\n"
+                f"     variant {{ l }}\n"
+                f"   = match l with Nil -> {aftercont}\n"
+                f"     | Cons {_pvw_mv(tgt)} {rv} -> {lbody} end\n"
+                f"   in {loop} (match {itref} with PList xs -> xs | _ -> Nil end))")
+    raise _PVWBail()
+
+
+def _pvw_body_reads(stmts: Any) -> bool:
+    """True iff the body contains a positional Subscript or a For over the param
+    (a genuine pyval read) — the non-vacuity floor (wall-lessons (l))."""
+    def walk(node: Any) -> bool:
+        if isinstance(node, dict):
+            if node.get("type") == "Subscript" or node.get("stmt") == "For":
+                return True
+            return any(walk(v) for v in node.values())
+        if isinstance(node, list):
+            return any(walk(x) for x in node)
+        return False
+    return walk(stmts)
+
+
+def recognize_pyval_string_walker(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the general value-returning pyval string walker.
+    Returns {param} or None. Never raises."""
+    try:
+        return _recognize_pyval_string_walker(func)
+    except Exception:
+        return None
+
+
+def _recognize_pyval_string_walker(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    p = params[0]
+    if func.get("param_annotations", {}).get(p) not in (None, "Any"):
+        return None
+    ret = func.get("return_annotation")
+    if not (isinstance(ret, str) and ret.startswith("_union_")):
+        return None
+    body = func.get("body", [])
+    if not _pvw_body_reads(body):
+        return None
+    # Dry-run structural translation (placeholder ctors). Any unsupported node
+    # raises _PVWBail -> recognizer returns None. This IS the fail-closed gate.
+    ctx = {"n": "f", "p": "f__", "scope": {p}, "ret": ret,
+           "some_ctor": "S", "none_ctor": "N", "counter": [0]}
+    _pvw_stmts(body, "N", ctx)
+    return {"param": p}
+
+
+def emit_pyval_string_walker_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                   whyml_ident) -> List[str]:
+    """Emit the general value-returning pyval string walker: three inline TOTAL
+    projectors (pv_nth/pv_len/atom_of over the certified pyval ADT, axiom-free,
+    structurally terminating) + the structurally-translated body as a function
+    returning the synthesized Optional[str] union. `desc` carries the resolved
+    union: {param, ret_whyml, some_ctor, none_ctor} (filled at the dispatch site
+    from `self._variant_types`)."""
+    n = whyml_ident(func["name"])
+    P = f"{n}__"
+    param = desc["param"]
+    ctx = {"n": n, "p": P, "scope": {param}, "ret": desc["ret_whyml"],
+           "some_ctor": desc["some_ctor"], "none_ctor": desc["none_ctor"],
+           "counter": [0]}
+    body = _pvw_stmts(func.get("body", []), desc["none_ctor"], ctx)
+    out: List[str] = []
+    # ---- inline TOTAL projectors (no axiom; pv_size cert covers the measure) --
+    out.append(f"  let rec function {P}nthl (l: list pyval) (i: int) : pyval")
+    out.append("    variant { l }")
+    out.append(f"  = match l with Nil -> PNone"
+               f" | Cons h t -> if i <= 0 then h else {P}nthl t (i - 1) end")
+    out.append(f"  let function {P}pnth (v: pyval) (i: int) : pyval")
+    out.append(f"  = match v with PList xs -> {P}nthl xs i | _ -> PNone end")
+    out.append(f"  let rec function {P}lenl (l: list pyval) : int")
+    out.append("    ensures { result >= 0 } variant { l }")
+    out.append(f"  = match l with Nil -> 0 | Cons _ t -> 1 + {P}lenl t end")
+    out.append(f"  let function {P}plen (v: pyval) : int")
+    out.append(f"  = match v with PList xs -> {P}lenl xs | _ -> 0 end")
+    out.append(f"  let function {P}atom (v: pyval) : string")
+    out.append('  = match v with PStr s -> s | _ -> "" end')
+    # ---- the walker ----------------------------------------------------------
+    out.append(f"  let {n} ({_pvw_mv(param)}: pyval) : {desc['ret_whyml']}")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {body}")
+    return out
