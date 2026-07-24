@@ -78,13 +78,13 @@ class IRCrossCheckResult:
             self.rocq_canon is not None or self.lean_canon is not None
         )
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def provers_agree(self) -> bool:
-        return False
+        if self.rocq_canon is None or self.lean_canon is None:
+            return True
+        return self.rocq_canon == self.lean_canon
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
