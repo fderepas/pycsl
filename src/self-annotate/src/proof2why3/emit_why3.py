@@ -36,10 +36,24 @@ def ir_to_whyml_axiom_body(term: Term) -> str:
     form as the input."""
     return _pp(term, _PREC_TOP)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def contains_unsupported(term: Term) -> bool:
-    return False
+    """True if any sub-term is an `Unsupported` leaf. Used by the
+    merge tool to skip non-round-trippable entries rather than
+    overwriting the existing hand-curated body with a sentinel."""
+    if isinstance(term, Unsupported):
+        return True
+    if isinstance(term, (Var, IntLit, BoolLit)):
+        return False
+    if isinstance(term, App):
+        return any(contains_unsupported(a) for a in term.args)
+    if isinstance(term, BinOp):
+        return contains_unsupported(term.lhs) or contains_unsupported(term.rhs)
+    if isinstance(term, UnaryOp):
+        return contains_unsupported(term.arg)
+    if isinstance(term, (Forall, Exists)):
+        return contains_unsupported(term.body)
+    raise TypeError(f"contains_unsupported: unknown {type(term)}")
 

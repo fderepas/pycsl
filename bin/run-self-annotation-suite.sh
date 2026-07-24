@@ -48,6 +48,12 @@ SUITE=(
     "src/self-annotate/src/__init__.py"
     "src/self-annotate/src/module6_whyml/__init__.py"
     # Bucket C — research-grade, \trusted reviewer with stub bodies
+    # class-variant-impl.md (self-tcb-reduction item 3): emit_why3.py holds the
+    # first class-instance-variant conversion (`contains_unsupported` over the
+    # `term` ADT) — add it to the FULL-FILE proof gate (lesson 10) so the whole
+    # file (converted stub + its `type term` theory + the still-`\trusted` `_pp`)
+    # is proven together, not just `--fun`.
+    "src/self-annotate/src/proof2why3/emit_why3.py"
     "src/self-annotate/src/audit_proof.py"
     "src/self-annotate/src/Module6_WhyMLTranspiler.py"
     "src/self-annotate/src/pycsl.py"
