@@ -18,7 +18,7 @@ from proof2why3.extract import extract_lean_statements, extract_rocq_statements
 from proof2why3.extract_lean_meta import extract_lean_statements_meta, lean_meta_available
 from proof2why3.from_lean_json import project_to_ir as lean_ast_to_ir
 from proof2why3.from_sexp import project_constr
-from proof2why3.ir import Term, Unsupported
+from proof2why3.ir import App, BinOp, BoolLit, Exists, Forall, IntLit, Term, UnaryOp, Unsupported, Var
 from proof2why3.parser import parse_type_expr
 from proof2why3.sertop import extract_via_sertop, sertop_available
 ""  # pycsl
@@ -51,13 +51,14 @@ class IRCrossCheckResult:
     def pairwise(self) -> Dict[str, Optional[bool]]:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def any_unsupported(self) -> bool:
-        return False
+        return any(isinstance(c, Unsupported)
+                   for c in (self.rocq_canon, self.lean_canon,
+                             self.registry_canon)
+                   if c is not None)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
