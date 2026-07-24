@@ -35,13 +35,16 @@ class IRCrossCheckResult:
     rocq_canon: Optional[Term] = None
     lean_canon: Optional[Term] = None
     registry_canon: Optional[Term] = None
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def all_agree(self) -> bool:
-        return False
+        canons = [c for c in
+                  (self.rocq_canon, self.lean_canon, self.registry_canon)
+                  if c is not None]
+        if not canons:
+            return False
+        return all(c == canons[0] for c in canons)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
