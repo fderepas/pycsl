@@ -4207,6 +4207,34 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 for _vt in reversed(args[_vfixed:]):
                     _vpacked = f"(Seq.cons {_vt} {_vpacked})"
                 args = args[:_vfixed] + [_vpacked]
+        # 1111-spec R7 (self-method extension): a same-class `self.<m>(...)` call that
+        # passes FEWER positional args than the callee's arity fills the missing trailing
+        # params from the callee's positional DEFAULTS, so the concrete/abstract
+        # application is TOTAL — never a partial application (`self.expect_name()` on
+        # `expect_name(self, val=None)` otherwise lowers to `(<c>__expect_name self)` of
+        # type `string -> string`, an L3-tc error). Mirrors the module-function call path
+        # (_handle_call_expr, "1111-spec R7"): keyed on the MANGLED callee name (the
+        # `_module_method_*` maps' method key), a `None` default on a non-int param is
+        # filled at its faithful zero (Gap 3), and a trailing param with NO default is
+        # left as a shortfall (byte-identical to today's arity mismatch). Every corpus
+        # program that already passes full arity is UNCHANGED (len(args) >= arity).
+        if func_name.startswith("self.") and self._current_self_type:
+            _dk = whyml_ident(f"{self._current_self_type}__{func_name[len('self.'):]}")
+            _dfp = getattr(self, "_module_method_formal_params", {}).get(_dk, [])
+            if _dfp and len(args) < len(_dfp):
+                _ddefs = getattr(self, "_module_method_param_defaults", {}).get(_dk, {})
+                _dptypes = getattr(
+                    self, "_module_method_param_whyml_types", {}).get(_dk, {})
+                for _nm in _dfp[len(args):]:
+                    if _nm not in _ddefs:
+                        break   # no default -> leave the shortfall (old behaviour)
+                    _dir = _ddefs[_nm]
+                    _pwt = _dptypes.get(_nm, "int")
+                    if (isinstance(_dir, dict) and _dir.get("type") == "None"
+                            and _pwt != "int"):
+                        args = args + [{"string": '""', "real": "0.0"}.get(_pwt, "0")]
+                    else:
+                        args = args + [self._expr_to_whyml(_dir, set(), False, None)]
         safe_name = whyml_ident(func_name.replace(".", "_"))
         n = len(args)
         arity_name = f"{safe_name}_{n}"
