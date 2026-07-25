@@ -1215,7 +1215,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_mixin_type(self):
+    def _parse_mixin_type(self) -> str:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1229,15 +1229,23 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_mixin_params(self):
+    def _parse_mixin_params(self) -> str:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_mixin_method_sig(self):
-        pass
+    def _parse_mixin_method_sig(self) -> str:
+        self.expect_op("(")
+        params = None
+        if not self.at_op(")"):
+            params = self._parse_mixin_params()
+        self.expect_op(")")
+        self.expect_op("->")
+        ret = self._parse_mixin_type()
+        if params is not None:
+            return f"({params}) -> {ret}"
+        return f"() -> {ret}"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
