@@ -1121,12 +1121,18 @@ class _ContractParser:
     def _parse_opt_except(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_dotted_path(self):
-        pass
+    def _parse_dotted_path(self) -> str:
+        path = self.expect_name()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op("."):
+            path += "." + self.expect_name()
+        return path
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
