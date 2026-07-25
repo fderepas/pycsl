@@ -882,7 +882,8 @@ class _ContractParser:
         return self.cur().type == 'EOF'
 
     #@ requires True
-    #@ ensures True
+    #@ ensures \result != None ==> self.i > \old(self.i)
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def accept_op(self, val: str) -> Optional[_Tok]:
         if self.at_op(val):
@@ -898,7 +899,13 @@ class _ContractParser:
         return self.advance()
 
     #@ requires True
-    #@ ensures True
+    # Monotonicity is a REAL property of the token cursor: `expect_name` moves
+    # `self.i` only through `advance` (`self.i >= \old(self.i)`); `_err` is
+    # `assigns \nothing`, `at_name` is `assigns \nothing`. This is what lets the
+    # `while self.accept_op("."): … self.expect_name()` loops (`_parse_qualname`,
+    # `_parse_dotted_path`) discharge their `\length(self.toks) - self.i` variant,
+    # exactly as the expression-chain RHS helpers (`_parse_impl_rhs`, …) do.
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def expect_name(self, val: str = None) -> str:
         if not self.at_name() or (val is not None and not self.at_name(val)):
@@ -1024,12 +1031,18 @@ class _ContractParser:
     def _parse_proof(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_qualname(self):
-        pass
+    def _parse_qualname(self) -> str:
+        name = self.expect_name()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op("."):
+            name += "." + self.expect_name()
+        return name
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
