@@ -232,3 +232,45 @@ frees `_parse_qualname`/`_parse_dotted_path` — the smallest next cut], (2) GAP
 [the bulk]. Gate battery this run: corpus byte-diff 0; mirror emission 23/23 identical; `git diff`
 src/pycsl = the ~60-line feature only; vacuity exit 0; mirror-check 52/52; no new drift; count 912;
 drift 2; ledger 3 (untouched); formal-semantics untouched; zero scope-creep live changes.
+
+## GAP #1c BUILT + parser-string cluster OPENED (2026-07-25, Phase-2 executor) — count 912 -> 910 (2 REAL conversions)
+
+**VERDICT: the bounded convert-or-BOUNDARY shot CONVERTS.** GAP #1c is the last gap the
+`while self.accept_op("."):` pure-string sub-cluster needed, and it is a SMALL emitter feature
+(24 lines) + two faithful mirror contract strengthenings. Two stubs converted, whole-file proven.
+
+**GAP #1c feature (commit `5c8b83f4`, `module6_whyml/expressions.py::_union_none_ctor_for`):**
+extended the spec union-None handler so a `\result` operand (IR `type == "Result"`) whose
+`_func_return_type` is a synthesized `_union_*` resolves the nullary `Arm_*_None` ctor. `\result
+!= None` / `\result == None` in an `ensures` of an `-> Optional[<object>]` method now lowers to the
+is-None ctor DISCRIMINANT `(not (result = Arm_9_None))` instead of the `(result <> 0)` int coercion
+(the observed union-vs-int L3-tc error). The spec/formula-position analogue of #1b — #1b handles
+condition position (`_to_bool`), #1c handles BinOp-`!=`/`==`-in-spec (`_union_none_ctor_for`).
+Corpus byte-diff 0 (812/812); the ENTIRE mirror has exactly one `\result`/None spec (accept_op), so
+the feature's emission surface is provably confined to that one method. Mutation test PASS (`!=`->`==`
+flips the emitted discriminant). Vacuity 0; drift 2; ledger 3.
+
+**The stacked-gap chain, fully resolved for the pure-string sub-cluster (3 enabling + 1 feature):**
+- default-arg filling (#1a, `fc43f946`) — `self.expect_name()` -> total application.
+- Optional-truthiness-in-condition (#1b, `165d6a82`) — `while self.accept_op(".")` guard truthiness.
+- GAP #1c (`5c8b83f4`) — `accept_op`'s `\result != None` strict-increment ensures lowers in spec.
+- **accept_op contract** (mirror, `b03b6ae0`): `ensures \result != None ==> self.i > \old(self.i)`
+  (strict increment on match — EOF-sentinel: at_op=>OP=>not-EOF=>i<len-1=>advance +1) AND `ensures
+  self.i >= \old(self.i)` (the None branch is where the loop EXITS; without a lower bound there the
+  exit guard-eval havocs self.i and the postcondition fails — this was the "4th blocker" the REFUTES
+  route anticipated, resolved by a faithful monotone-in-both-branches ensures, NOT a 4th feature).
+- **expect_name contract** (mirror, `b03b6ae0`): `ensures self.i >= \old(self.i)` — the loop BODY
+  helper must not decrease self.i (only advance moves it, monotone). Same monotonicity the
+  expression-chain RHS helpers (`_parse_impl_rhs`, ...) already carry.
+
+**CONVERTED (verbatim live ports, whole-file proof SUCCESS 0-unproven each, foreground):**
+- `_parse_qualname` (`b03b6ae0`, 912->911) — `name=expect_name(); while accept_op("."): name+="."+expect_name(); return name`.
+- `_parse_dotted_path` (`92e3b8dc`, 911->910) — identical shape over `path`.
+
+**Reachable cluster EXHAUSTED at 2 with this machinery.** The remaining `while self.accept_op(X):`
+methods (`_parse_dotted_path_list`, `_parse_act_names`, `_parse_variant_def`, `_parse_compose_from`,
+`_parse_conforms_to`, ...) all build LISTS (`names.append(...)` / `paths.append(...)`) = family-B
+(list-append), or construct CSLNode records = family-B (emit_ir variants). Reopen order for the rest:
+(1) family-B list-append + emit_ir node variants [the bulk], (2) GAP #2 unit-local for the trusted
+`_parse_expr`-calling methods. GAP #1c is banked and reusable for any future `-> Optional[<object>]`
+strict-monotonicity ensures.

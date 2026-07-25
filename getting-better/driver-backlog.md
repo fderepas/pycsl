@@ -541,6 +541,17 @@ capability, so the stop-classification is mechanical, not a judgment call.
   `_parse_expr` unit-local) / family-B. Revised reopen order: (1) **GAP #1c spec-`\result`-union-None**
   [smallest cut: frees `_parse_qualname`/`_parse_dotted_path`], (2) GAP #2 unit-local, (3) family-B +
   list-append. See `parser-tokenstream-impl.md` §OPTIONAL-TRUTHINESS-IN-CONDITION build.
+  **UPDATE 2026-07-25 (GAP #1c BUILT + pure-string sub-cluster CONVERTED, count 912 -> 910):** GAP #1c
+  shipped (`5c8b83f4`, `_union_none_ctor_for` Result-branch: `\result != None`/`== None` on a `_union_*`
+  return lowers to the is-None ctor discriminant in a SPEC formula). With the two prior enablers (#1a
+  default-arg, #1b Optional-truthiness) PLUS faithful mirror contract strengthenings on `accept_op`
+  (`ensures \result != None ==> self.i > \old` AND `ensures self.i >= \old` — the None branch = loop
+  exit needed the monotone lower bound, the anticipated "4th blocker", resolved by a faithful ensures
+  NOT a 4th feature) and `expect_name` (`ensures self.i >= \old`, the loop-body helper), the pure-string
+  sub-cluster CONVERTS: **`_parse_qualname` (`b03b6ae0`) + `_parse_dotted_path` (`92e3b8dc`)**, whole-file
+  proof SUCCESS 0-unproven each, corpus byte-diff 0, drift 2, ledger 3. Reachable pure-string cluster
+  EXHAUSTED at 2; the rest (`_parse_dotted_path_list`, `_parse_act_names`, ...) build LISTS (`.append`) =
+  family-B. GAP #1c banked reusable. See `parser-tokenstream-impl.md` §GAP #1c BUILT.
   **(B) node-constructing `_parse_X`** (~50-55; each builds a distinct `CSLNode` e.g.
   `_parse_membership`→`CSLIn`/`CSLNotIn`) = BUILDABLE **[COST/SCALE]** — needs the `emit_ir`-variant
   coupling per node family (IrBinOp precedent — emitter already lowers the construction to a record but
