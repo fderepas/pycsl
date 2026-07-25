@@ -891,12 +891,13 @@ class _ContractParser:
             return self.advance()
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def expect_op(self, val):
-        pass
+    def expect_op(self, val: str) -> _Tok:
+        if not self.at_op(val):
+            self._err(f"expected {val!r}")
+        return self.advance()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -905,18 +906,19 @@ class _ContractParser:
     def expect_name(self, val=None):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def expect_bs(self, val):
-        pass
+    def expect_bs(self, val: str) -> str:
+        if not self.at_bs(val):
+            self._err(f"expected {val!r}")
+        return self.advance().string
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _err(self, msg):
+    def _err(self, msg: str):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
