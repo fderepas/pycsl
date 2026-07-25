@@ -3900,6 +3900,14 @@ class PreambleEmissionMixin:
             # mirror + the whole corpus. The IrBinOp/IrCallKw structural-variant precedent.
             + (" | IrProofDecl string string"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B: IrClassInvariant carries the `#@ class
+            # invariant <expr>` node's single EMIT_IR child (`ClassInvariant(expr)`,
+            # `_parse_class_invariant`) — the parsed contract expression. size recurses
+            # the real `expr` child (`1 + size e`, gated arm below); kind_of has its own
+            # arm. Gated on `_uses_clause_ir` → byte-inert in every other mirror + the
+            # whole corpus. The IrBinOp/IrForallItems emit_ir-child precedent.
+            + (" | IrClassInvariant emit_ir"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4075,6 +4083,8 @@ class PreambleEmissionMixin:
             # ctors so kind_of stays exhaustive in both configs — kind_of has NO wildcard,
             # so the arm is REQUIRED when the ctor is present and ABSENT when it is not).
             *(["    | IrProofDecl _ _ -> \"ProofDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrClassInvariant _ -> \"ClassInvariant\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
@@ -4282,6 +4292,10 @@ class PreambleEmissionMixin:
             # (arg0_of e) < size e`) stays VALID now that `is_call` also matches IrCallKw.
             # Without this arm IrCallKw falls to `| _ -> 1` and the lemma is FALSE.
             *(["    | IrCallKw _ _ a _ -> 1 + size a"] if self._uses_call_kw() else []),
+            # self-tcb-reduction family-B: IrClassInvariant recurses its single emit_ir
+            # child (`1 + size e`), gated WITH the ctor so the measure stays faithful in
+            # Module2_Parser.mlw and byte-inert elsewhere. The IrForallItems-body precedent.
+            *(["    | IrClassInvariant e -> 1 + size e"] if self._uses_clause_ir() else []),
             "    | _ -> 1",
             "    end",
             "",

@@ -1289,6 +1289,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # a @mutable_state class (the `_call_irnode_constructor` gate) nor constructs
         # these classes, so these entries never fire outside the parser mirror.
         "ProofDecl": ("IrProofDecl", ["prover", "qualname"]),
+        # ClassInvariant -> `IrClassInvariant emit_ir` (the single EMIT_IR field `expr`
+        # of `_parse_class_invariant`'s `ClassInvariant(self._parse_expr())`). The child
+        # `self._parse_expr()` lowers to an emit_ir value (`_parse_expr -> "ExprIR"`), so
+        # the ctor's emit_ir field is filled by the lowered argument, `_call_irnode_constructor`.
+        "ClassInvariant": ("IrClassInvariant", ["expr"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in

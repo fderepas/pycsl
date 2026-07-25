@@ -968,12 +968,13 @@ class _ContractParser:
     def _parse_loop(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_class_invariant(self):
-        pass
+    def _parse_class_invariant(self) -> "ExprIR":
+        self.expect_name("class")
+        self.expect_name("invariant")
+        return ClassInvariant(self._parse_expr())
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1283,7 +1284,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_expr(self):
+    def _parse_expr(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
