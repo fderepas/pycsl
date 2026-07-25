@@ -136,3 +136,45 @@ EMITTER work (default-argument filling; for-in-list termination variant; unit-lo
 deliberate (B) build, not a cheap win. Gate battery: whole-file proof SUCCESS 0-unproven (foreground);
 `git diff` mirror-only (src/pycsl clean); vacuity exit 0 (no new erasure); mirror-check 52/52; drift 2;
 ledger 3 (untouched).
+
+## DEFAULT-ARG-FILLING build (2026-07-25, Phase-2 emitter executor) — GAP #1 BUILT; count 912 (no stub converts standalone)
+
+**Feature (commit `fc43f946`):** extended 1111-spec R7 default-argument filling to the SELF-METHOD
+path (`module6_whyml/expressions.py::_handle_dotted_call`). A same-class `self.<m>(...)` call passing
+FEWER positional args than the callee's arity now fills the missing trailing params from the callee's
+positional DEFAULTS — keyed on the MANGLED callee name (`<self_type>__<m>`, the `_module_method_*`
+maps' method key), a `None` default on a non-int param filled at its faithful zero (Gap 3), a param
+with no default left a shortfall. `self.expect_name()` on `expect_name(self, val=None)` NO LONGER
+lowers to the partial application `(<c>__expect_name self) : string -> string` (L3-tc error, the
+observed `.mlw` line-972 failure); it lowers to the TOTAL `(<c>__expect_name self "")`.
+
+**GATE S (all green):** FULL corpus byte-diff **0** (812/812 both sides vs detached-HEAD worktree
+baseline) → feature corpus-inert. MUTATION TEST **PASS** (filled `""` → `"__MUT__"` moves the emitted
+`.mlw`; not a facade). §10c shared-emitter check: **3 mirror files** change emission
+(`pure_ast`/`statements`/`stmt_control_flow`) — ALL pure abstract-op-arity widening on UNCONSTRAINED
+`val`s (no param-referencing ensures, verified by grep) → logically **proof-neutral**; `pure_ast`
+whole-file SUCCESS, `statements` 3/5 changed fns `--fun` SUCCESS, both heavy files L3-tc ✓ (the other 2
++ `_handle_match_stmt` are heavy but provably-neutral; driver re-verifies uncapped). The feature is
+STRICTLY MORE FAITHFUL: it unifies `fill(self, text='')` from two independent oracles
+(`self_fill_0 ()` / `self_fill_1 <arg>`) into one (`self_fill_1`). Vacuity exit 0; mirror-sync exit 0.
+
+**CERTIFIED-BOUNDARY — default-arg filling converts ZERO parser stubs STANDALONE.** A full census of the
+32 `self.expect_name()`-callers (`ast.unparse` scan) shows EVERY one hits a SECOND, independent emitter
+gap on top of GAP #1:
+- **Optional[_Tok]-truthiness-in-condition** (`while`/`if self.accept_op(X):`) — `_parse_qualname`,
+  `_parse_dotted_path`, `_parse_dotted_path_list`, `_parse_act_names`, `_parse_variant_def`,
+  `_parse_compose_from`, `_parse_conforms_to`, `_parse_mixin_type/_param`. `accept_op` returns
+  `Optional[_Tok]`, emitted as a union `_union_accept_op_N`; the loop/if condition lowers as
+  `(... ) <> 0` (int compare) → L3-tc "type `_union_accept_op_N` expected int" (observed `_parse_qualname`
+  `.mlw` line-973). This is the SMALLEST next feature — it alone (over the now-built default-arg) frees
+  the pure-string `_parse_qualname`/`_parse_dotted_path` sub-cluster.
+- **GAP #2 record/unit-local from a trusted `_parse_*` call** — `_parse_mutex_expr_str` (tested
+  empirically: `index = self._parse_expr()` → `.mlw` "type () expected int"), `_parse_footprint`,
+  `_parse_happy`, and every `parse_call=True` method.
+- **family (B) node construction / list-append** — the `return <CamelCase>(...)` / `.append(...)` methods.
+
+So GAP #1 is a NECESSARY enabling capability for the entire parser string/list cluster but SUFFICIENT for
+none of it. Reopen order: (1) Optional-truthiness-in-condition [unblocks `_parse_qualname`/`_parse_dotted_path`
+first, +default-arg], (2) GAP #2 record/unit-local inference, (3) family-B emit_ir variants. Gate battery
+this run: corpus byte-diff 0; `git diff` src/pycsl = the 28-line feature only; vacuity exit 0; mirror-sync
+exit 0; count 912; drift 2; ledger 3 (untouched).

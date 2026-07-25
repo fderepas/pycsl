@@ -517,6 +517,17 @@ capability, so the stop-classification is mechanical, not a judgment call.
   ~62 token-level stubs → three families:
   **(A) state-only / already-modeled-return** (`expect_name`, `parse`, `_grab_reviewer_id` — cheap
   follow-ons, ~5-7) = CONVERT-NOW;
+  **UPDATE 2026-07-25 (default-arg-filling build, commit `fc43f946`, count 912):** the DEFAULT-ARG
+  emitter gap (GAP #1, 74 no-arg `self.expect_name()` sites → partial application) is now BUILT
+  (R7 default-fill extended to the `_handle_dotted_call` self-method path; corpus byte-diff 0,
+  mutation-tested, §10c proof-neutral over 3 changed mirror files). BUT a full census of the 32
+  `expect_name()`-callers proves default-arg is NECESSARY-BUT-NOT-SUFFICIENT: every one hits a
+  SECOND gap — Optional[_Tok]-truthiness-in-`while/if accept_op` (the whole `_parse_qualname`/
+  `_parse_dotted_path`/`_parse_act_names`/… cluster), or GAP #2 record/unit-local from a trusted
+  `_parse_*` (`_parse_mutex_expr_str` confirmed empirically), or family-B node construction. So (A)
+  converts ZERO standalone. NEXT single feature = **Optional-truthiness-in-condition** (frees the
+  pure-string `_parse_qualname`/`_parse_dotted_path` over the built default-arg). See
+  `parser-tokenstream-impl.md` §DEFAULT-ARG-FILLING build.
   **(B) node-constructing `_parse_X`** (~50-55; each builds a distinct `CSLNode` e.g.
   `_parse_membership`→`CSLIn`/`CSLNotIn`) = BUILDABLE **[COST/SCALE]** — needs the `emit_ir`-variant
   coupling per node family (IrBinOp precedent — emitter already lowers the construction to a record but
