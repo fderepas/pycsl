@@ -552,6 +552,23 @@ capability, so the stop-classification is mechanical, not a judgment call.
   proof SUCCESS 0-unproven each, corpus byte-diff 0, drift 2, ledger 3. Reachable pure-string cluster
   EXHAUSTED at 2; the rest (`_parse_dotted_path_list`, `_parse_act_names`, ...) build LISTS (`.append`) =
   family-B. GAP #1c banked reusable. See `parser-tokenstream-impl.md` §GAP #1c BUILT.
+  **UPDATE 2026-07-25 (GAP #2 BUILT + mixin-sig cluster CONVERTED, count 910 -> 908):** GAP #2 (unit-local
+  type inference) shipped (`ba2777da`, `functions.py`): a `\trusted` `-> str` stub with a `pass` body
+  yields `find_return_type -> "unit"`, so the `ann=="str" and return_type=="int"` overrides in BOTH
+  `_compute_return_type` (main val) AND `_build_method_return_type_map` (self-call abstract val) missed it
+  and emitted `: unit` → a converted caller's `ret = self._parse_mixin_type()` string local failed L3-tc.
+  Extended both branches with a `== "unit" and func.get("trusted")` disjunct (string-return sibling of the
+  `-> "ExprIR"` unit-stub → emit_ir promotion; gated on trusted → corpus byte-inert, 812/812 diff 0,
+  mutation PASS, §10c confined to Module2_Parser). CONVERTS: **`_parse_mixin_method_sig` (`5ae4be79`) +
+  `_parse_mixin_param` (`2c912843`)** (both return str, assign/interpolate a `-> str` self-call; their
+  `-> str` deps `_parse_mixin_type`/`_parse_mixin_params` stay `\trusted` = family-B list-append), whole-file
+  proof SUCCESS 0-unproven each, drift 2, ledger 3. Reachable str-local cluster EXHAUSTED at 2.
+  **`_parse_mutex_expr_str` = CERTIFIED BOUNDARY:** `index = self._parse_expr()` (un-annotated trusted →
+  unit) flows to `_csl_to_str(index)` (CSLNode param → int) — an irreducible two-trusted-stub type
+  mismatch GAP #2 cannot bridge. GAP #2 (str) banked reusable; symmetric `-> _Tok`/unit branches un-needed
+  (no reachable stub) → NOT built. **The parser cheap/inert frontier is now EXHAUSTED; remaining =
+  family-B (list-append + emit_ir node variants), corpus-reaching / deliberate multi-session build.**
+  See `parser-tokenstream-impl.md` §GAP #2 BUILT.
   **(B) node-constructing `_parse_X`** (~50-55; each builds a distinct `CSLNode` e.g.
   `_parse_membership`→`CSLIn`/`CSLNotIn`) = BUILDABLE **[COST/SCALE]** — needs the `emit_ir`-variant
   coupling per node family (IrBinOp precedent — emitter already lowers the construction to a record but

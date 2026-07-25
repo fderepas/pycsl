@@ -274,3 +274,68 @@ methods (`_parse_dotted_path_list`, `_parse_act_names`, `_parse_variant_def`, `_
 (1) family-B list-append + emit_ir node variants [the bulk], (2) GAP #2 unit-local for the trusted
 `_parse_expr`-calling methods. GAP #1c is banked and reusable for any future `-> Optional[<object>]`
 strict-monotonicity ensures.
+
+## GAP #2 BUILT + parser mixin-sig cluster CONVERTED (2026-07-25, Phase-2 executor) — count 910 -> 908 (2 REAL conversions)
+
+**VERDICT: the bounded convert-or-BOUNDARY shot CONVERTS.** GAP #2 (unit-local type
+inference) is a SMALL, corpus-inert emitter completeness fix, and it converts the two
+string-returning mixin-signature methods that were blocked only by their trusted `-> str`
+deps emitting `: unit`.
+
+**Root cause (empirically pinned on `_parse_mixin_method_sig`):** the emitter ALREADY
+types a local assigned from a `-> str` self-method call as `string` (`_collect_str_call_result_locals`)
+and a `-> "ExprIR"` self-call local as `emit_ir` (`_collect_emit_ir_result_locals`). The
+gap was on the CALLEE side: a `\trusted` `-> str` stub with a bare `pass` body yields
+`find_return_type -> "unit"`, and the `ann == "str" and return_type == "int"` overrides in
+BOTH `_compute_return_type` (the main `val` return type) AND `_build_method_return_type_map`
+(the `self.<m>(...)` abstract-`val` at the call site) only fire on `int`, never `unit`. So
+the trusted stub's two emitted `val`s (`_contractparser___parse_mixin_type` and the
+synthesized forward-decl `self__parse_mixin_type_0`) announced `: unit`, and the converted
+caller's `ret := (self__parse_mixin_type_0 self)` (with `ret : string`) failed L3-tc
+("type () expected string"). The `-> "ExprIR"` branch had ALREADY been extended to cover
+`"unit"` (the node-ctor trusted-stub case); the primitive `str` branch had not.
+
+**Feature (commit `ba2777da`, `module6_whyml/functions.py`):** extend BOTH str-branches with a
+`return_type/ret == "unit" and func.get("trusted")` disjunct — the string-return sibling of
+the `-> "ExprIR"` unit-stub → `emit_ir` promotion. Gated on `func["trusted"]`: a real corpus
+`-> str` function has a return statement so `return_type`/`ret` is never `"unit"` — provably
+byte-inert. FULL corpus byte-diff **0** (812/812 vs detached-HEAD `2ea5920e` worktree).
+MUTATION TEST **PASS**: mapping the target type `string`→`real` moves BOTH the call-site
+abstract `val self__parse_mixin_type_0 () : real` AND the main `val ... : real` in the emitted
+`.mlw`, and L3-tc then fails — the emission is load-bearing, not a facade. §10c: exactly **2**
+trusted `-> str` unit-body stubs exist mirror-wide (both in `Module2_Parser`, the two deps I
+annotated), and a same-mirror-source 52/52 emission sweep (baseline emitter vs feature emitter)
+shows **ONLY `Module2_Parser.mlw` changes** → the feature's emission surface is confined to the
+one file proven whole-file. Vacuity exit 0 (no new erasure). Feature converts **0** stubs
+standalone (enabling capability).
+
+**CONVERTED (verbatim live ports, whole-file proof SUCCESS 0-unproven each, foreground):**
+- `_parse_mixin_method_sig` (`5ae4be79`, 910→909) — `params = self._parse_mixin_params(); ret =
+  self._parse_mixin_type(); return f"({params}) -> {ret}"` (params is an Optional[str] local:
+  `params = None` then a conditional string self-call).
+- `_parse_mixin_param` (`2c912843`, 909→908) — `if self.accept_op(":"): return f"{name}:
+  {self._parse_mixin_type()}"; return str(name)` (f-string segment from a `-> str` self-call +
+  `str(name)` on a string local).
+
+Both enabled by faithful `-> str` return annotations on the two **still-`\trusted`** deps
+`_parse_mixin_type` / `_parse_mixin_params` (each builds a LOCAL LIST → family-B, so they stay
+trusted — the annotation just makes the trusted interface precise, the pattern the
+`accept_op`/`expect_name` ensures-strengthenings already established).
+
+**Reachable str-local cluster EXHAUSTED at 2. The residual is family-B or a hard boundary:**
+- `_parse_mixin_type` / `_parse_mixin_params` / `_parse_dotted_path_list` / `_parse_act_names` /
+  … build a LOCAL LIST (`args.append(...)`, `', '.join(args)`) = family-B (list-append).
+- `_parse_mutex_expr_str` = **CERTIFIED BOUNDARY**: its `index = self._parse_expr()` callee
+  `_parse_expr` is an UN-ANNOTATED trusted stub → emits `unit`, AND the value flows to
+  `_csl_to_str(index)` whose `node: CSLNode` param lowers to `int`. These two trusted stubs
+  disagree on the type of the value between them (unit vs int) — an irreducible two-trusted-stub
+  mismatch that GAP #2 cannot bridge (inferring `index`'s type from either callee still clashes
+  with the other). This is exactly the task's "callee returns a trusted/unmodeled type that
+  genuinely can't be inferred" case.
+- All other `_parse_*` construct CSLNode records = family-B (`emit_ir` variants).
+
+GAP #2 (str) is banked and reusable for any future trusted `-> str` stub. The symmetric
+`-> _Tok`-record and unit branches are un-needed by any reachable stub (no non-family-B method
+returns/consumes them), so they were NOT built (avoiding a neutral feature). **Next parser cut
+= family-B (list-append + emit_ir node variants) — corpus-reaching / deliberate multi-session
+build, per the frontier-exhaustion doctrine.**
