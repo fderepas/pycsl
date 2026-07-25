@@ -505,6 +505,27 @@ capability, so the stop-classification is mechanical, not a judgment call.
   axiom, no unsound guess). REOPEN: build pyval `pv_nth`/`pv_len`/`atom_of` + the general value-returning-
   pyval walker + a param-annotation→pyval hook + negative-index-from-end; do it once, generally.
 
+- **R-parser — Module2_Parser token-level `_ContractParser` cluster. SPIKE PASSED 2026-07-25 (count
+  917 → 915).** Refutes the prior census line "Module2_Parser 69 = int-AST boundary / needs a new
+  subsystem": the concrete token-stream model is **ALREADY BUILT & PROVEN** (prior
+  `parser-primitives-wall` campaign — `_Tok` record, `@mutable_state` `toks: array _tok` + `i: int`
+  cursor, EOF-sentinel class invariant, and the whole `cur/peek/advance/at_*/accept_op` + precedence
+  chain `_parse_implication`…`_parse_factor` already non-trusted and proving `self.i >= \old`). This
+  spike converted **`expect_op`** + **`expect_bs`** (verbatim ports; family A = state-only /
+  already-modeled return; ZERO new machinery, no axiom, no cert; whole-file proof SUCCESS, mutation
+  test decisive, corpus byte-diff 0 by construction, mirror 52/52, drift 2, ledger 3). Census of the
+  ~62 token-level stubs → three families:
+  **(A) state-only / already-modeled-return** (`expect_name`, `parse`, `_grab_reviewer_id` — cheap
+  follow-ons, ~5-7) = CONVERT-NOW;
+  **(B) node-constructing `_parse_X`** (~50-55; each builds a distinct `CSLNode` e.g.
+  `_parse_membership`→`CSLIn`/`CSLNotIn`) = BUILDABLE **[COST/SCALE]** — needs the `emit_ir`-variant
+  coupling per node family (IrBinOp precedent — emitter already lowers the construction to a record but
+  the variant/cert is missing → L3-tc error) + co-landing axiom-free cert + coqchk, NO 4th axiom;
+  **(C) hard boundary** (`_try` higher-order backtracking frame; `_err` raise stays trusted `val`;
+  `__init__`/`_lex_contract` char-lexer) = leave `\trusted`. REOPEN family B: add the CSL-AST-node
+  `emit_ir` variants (IrIn/IrNotIn/…) + fold/cert co-land, then verbatim-port the ~50-55. See
+  `parser-tokenstream-impl.md`.
+
 ### item 3 — F3+F4 crosscheck term-structural: CLOSED (2026-07-24, 921->917)
 The §RESIDUAL-CC 4-method cluster (any_unsupported/all_present_unsupported/
 provers_agree/all_agree) is CONVERTED. F3 = the certified `term` inductive made
