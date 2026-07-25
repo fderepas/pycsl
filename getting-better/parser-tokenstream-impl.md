@@ -178,3 +178,57 @@ none of it. Reopen order: (1) Optional-truthiness-in-condition [unblocks `_parse
 first, +default-arg], (2) GAP #2 record/unit-local inference, (3) family-B emit_ir variants. Gate battery
 this run: corpus byte-diff 0; `git diff` src/pycsl = the 28-line feature only; vacuity exit 0; mirror-sync
 exit 0; count 912; drift 2; ledger 3 (untouched).
+
+## OPTIONAL-TRUTHINESS-IN-CONDITION build (2026-07-25, Phase-2 emitter executor) — GAP #1b BUILT; count 912 (no stub converts standalone)
+
+**Feature (this commit):** extended `module6_whyml/expressions.py::_to_bool` (the boolean-context
+lowering used by every if/while guard + and/or/not operand) so an `Optional[OBJECT]` `<e>` (a
+record-payload option — `_Tok`, NO `__bool__`) in CONDITION position lowers to the is-Some
+discriminant `(match <e> with <None-arm> -> false | _ -> true end)` instead of the int `(<e> <> 0)`
+coercion (the observed `_parse_qualname` `.mlw` line-973 `_union_accept_op_9` vs `int` L3-tc error).
+New helper `_optional_object_union_none_ctor(ir_expr)` recognizes two shapes: (a) a `Var` whose
+symbol-table type is a `_union_*`, (b) a same-class `self.<m>(...)` `Call` whose synthesized
+`-> Optional[τ]` return union `_union_<m>_<idx>` is resolved by the METHOD-SCOPE prefix from
+`_variant_types` (the cross-reference `_module_method_return_types` map DEFAULTS a union return to
+`int`, so it can't serve this lookup). **Record-payload gate** (single Some-arm whose payload names
+a declared `_record_types` class) DEFERS `Optional[int]`/`Optional[str]` (falsy-zero/empty — a
+different rule), per task scope.
+
+**GATE S (all green, feature corpus-inert):** FULL corpus byte-diff **0** (812/812 vs detached-HEAD
+`b7a8da8e` worktree baseline) → M1-clean, no verdict re-run needed. §10c shared-emitter: ALL 23
+emitting self-annotate MIRROR files byte-IDENTICAL baseline-vs-feature (incl. Module2_Parser) → no
+changed emissions ANYWHERE. MUTATION TEST **PASS**: flipping the discriminant sense
+(`-> false | _ -> true` → `-> true | _ -> false`) moved the emitted `_parse_qualname` while-cond in
+the `.mlw` — not a facade. Vacuity `--emit` exit 0; mirror-check 52/52; sync.py output byte-identical
+to baseline (no new drift). count 912; drift 2; ledger 3 (untouched).
+
+**CERTIFIED-BOUNDARY — Optional-truthiness converts ZERO parser stubs STANDALONE (a THIRD gap found).**
+The task's reopen note expected this feature (+default-arg) to free `_parse_qualname`/`_parse_dotted_path`.
+It does NOT, because the sole `accept_op` guard is used two ways, each with an INDEPENDENT second/third
+blocker:
+- **`while self.accept_op(X):` (qualname, dotted_path, dotted_path_list, act_names, compose_from,
+  conforms_to, variant_def, mixin_type/params, …):** the loop TERMINATION variant
+  `\length(self.toks) - self.i` cannot discharge. The strict per-iteration increment happens IN THE
+  GUARD (`accept_op` advances when it matches), but `accept_op`/`expect_name` both `ensures True`, so
+  the modular caller sees no progress (whole-file proof: 3 goals unproven = variant + the `self.i >=
+  \old` / bounds loop invariants). Fixing it needs `accept_op` to expose
+  `ensures \result != None ==> self.i > \old(self.i)` — but `\result != None` on a union return
+  lowers in a SPEC/formula to `(result <> 0)` (union-vs-int L3-tc error): the SAME union-vs-None gap
+  but in `\result`/BinOp-`!=` position, NOT condition position. `_union_none_ctor_for` (the existing
+  spec union-None handler) only resolves a symbol-table `Var`, never `\result`. This is **GAP #1c =
+  spec-position `\result` union-None discriminant** — a distinct emitter feature, DEFERRED (scope:
+  build only condition-position). Progress: `advance` already exposes `\old < len-1 ==> +1`, so once
+  GAP #1c lands, `accept_op`'s strict-on-Some ensures is a provable in-scope MIRROR annotation and the
+  pure-string qualname/dotted_path convert; the list ones still also need family-B (list-append).
+- **`if self.accept_op(X):` (mixin_param, ghost, for_block, quantifier, ctor \is_ctor/\payload):**
+  the Optional-truthiness `if`-guard needs NO variant and lowers cleanly with THIS feature, but every
+  then-branch calls a trusted `_parse_expr`/`_parse_mixin_type` (unit return, GAP #2 unit-local in an
+  f-string/value) and/or constructs a `CSLNode` (family-B). Blocked on GAP #2 / family-B, not on this.
+
+So the necessary-but-insufficient pattern of the default-arg run repeats one layer deeper. Revised
+reopen order for the parser string cluster: (1) **GAP #1c spec-`\result`-union-None** [with #1b+default-arg,
+frees `_parse_qualname`/`_parse_dotted_path` — the smallest next cut], (2) GAP #2 unit-local inference
+[frees the `if accept_op` + trusted-`_parse_expr` methods], (3) family-B emit_ir variants + list-append
+[the bulk]. Gate battery this run: corpus byte-diff 0; mirror emission 23/23 identical; `git diff`
+src/pycsl = the ~60-line feature only; vacuity exit 0; mirror-check 52/52; no new drift; count 912;
+drift 2; ledger 3 (untouched); formal-semantics untouched; zero scope-creep live changes.

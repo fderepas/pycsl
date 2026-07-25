@@ -501,8 +501,67 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (name in getattr(self, "_emit_ir_local_vars", set())
                     or self._is_emit_ir_expr(ir_expr)):
                 return "true"
+        # parser-vein gap-1b (Optional-truthiness-in-condition): an `Optional[OBJECT]`
+        # `<e>` (a record-payload option — `_Tok`, NO `__bool__`) in a boolean condition
+        # (`if <e>:`/`while <e>:`/`and`/`or`/`not <e>`) is Python-true iff `<e> is not
+        # None` — the is-Some discriminant of its synthesized `_union_*` type. Never the
+        # int `<> 0` coercion (a `_union_*` vs int L3-tc error, the observed
+        # `_parse_qualname` `.mlw` failure). SCOPE: record-payload Some-arm only; an
+        # `Optional[int]`/`Optional[str]` (falsy-zero/empty) union is a DIFFERENT rule,
+        # DEFERRED by the record-payload gate in `_optional_object_union_none_ctor`.
+        _none_ctor = self._optional_object_union_none_ctor(ir_expr)
+        if _none_ctor is not None:
+            return f"(match {whyml_str} with {_none_ctor} -> false | _ -> true end)"
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
+
+    def _optional_object_union_none_ctor(self, ir_expr: Dict[str, Any]) -> Optional[str]:
+        """parser-vein gap-1b: the None-arm constructor name of `ir_expr`'s synthesized
+        `_union_*` type WHEN that Optional wraps an OBJECT/record payload (a single
+        `Some`-arm whose payload names a declared RECORD type, e.g. `Optional[_Tok]`),
+        else None.
+
+        Recognizes two condition-position shapes: a `Var` whose symbol-table type is a
+        `_union_*` (an `Optional[OBJECT]` LOCAL read in a guard) and a same-class
+        `self.<m>(...)` `Call` returning `Optional[OBJECT]` (a guard method, e.g.
+        `accept_op`; its synthesized `-> Optional[τ]` return union is named `_union_<m>_<idx>`
+        after the method scope, resolved here from `_variant_types`). The record-payload
+        gate DEFERS `Optional[int]`/`Optional[str]` (falsy-value truthiness — a different
+        rule) and any multi-`Some`-arm union (not a plain Optional)."""
+        candidate_symtypes: List[str] = []
+        t = ir_expr.get("type", "")
+        if t == "Var":
+            st = getattr(self, "_current_symbol_table", {}).get(ir_expr.get("name"))
+            if isinstance(st, str) and st.startswith("_union_"):
+                candidate_symtypes.append(st)
+        elif t == "Call":
+            func = ir_expr.get("func", "")
+            if isinstance(func, str) and func.startswith("self."):
+                # The method's `-> Optional[τ]` return union is synthesized (Module5) as
+                # `_union_<safe(method)>_<idx>` after the method's own scope name. Resolve
+                # it by that scope prefix (the cross-reference return-type map defaults a
+                # union return to `int`, so it cannot serve this lookup).
+                method_tail = func[len("self."):]
+                safe = "".join(c if c.isalnum() else "_" for c in method_tail) or "anon"
+                prefix = f"_union_{safe}_"
+                for vname in getattr(self, "_variant_types", {}):
+                    if (isinstance(vname, str) and vname.startswith(prefix)
+                            and vname[len(prefix):].isdigit()):
+                        candidate_symtypes.append(vname)
+        for symtype in candidate_symtypes:
+            none_ctor, some_ctors = self._union_ctors(symtype)
+            # A plain Optional[τ] has exactly one Some-arm + the nullary None-arm.
+            if none_ctor is None or len(some_ctors) != 1:
+                continue
+            # OBJECT/record-payload gate: the Some-arm's single payload names a declared
+            # record type — never int/str/bool/float/list/dict (those carry falsy-value
+            # truthiness, a rule this feature deliberately defers).
+            cinfo = getattr(self, "_constructors", {}).get(some_ctors[0], {})
+            payload = cinfo.get("payload", [])
+            if len(payload) != 1 or payload[0] not in getattr(self, "_record_types", {}):
+                continue
+            return none_ctor
+        return None
 
     @staticmethod
     def _coerce_str_arg(whyml_str: str) -> str:

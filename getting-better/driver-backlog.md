@@ -528,6 +528,19 @@ capability, so the stop-classification is mechanical, not a judgment call.
   converts ZERO standalone. NEXT single feature = **Optional-truthiness-in-condition** (frees the
   pure-string `_parse_qualname`/`_parse_dotted_path` over the built default-arg). See
   `parser-tokenstream-impl.md` §DEFAULT-ARG-FILLING build.
+  **UPDATE 2026-07-25 (Optional-truthiness-in-condition build, count 912):** GAP #1b now BUILT
+  (`_to_bool` lowers an `Optional[OBJECT]` `<e>` in a condition to the is-Some match discriminant,
+  not int `<> 0`; corpus byte-diff 0, mirror emission 23/23 identical, mutation-tested). STILL converts
+  ZERO standalone — a THIRD blocker surfaced: `while self.accept_op(X):` methods need a loop TERMINATION
+  variant whose strict increment sits in the GUARD, so `accept_op` must expose
+  `ensures \result != None ==> self.i > \old` — but `\result != None` on a union return lowers in a
+  SPEC formula to `(result <> 0)` (union-vs-int L3-tc). That is **GAP #1c = spec-position `\result`
+  union-None discriminant** (`_union_none_ctor_for` resolves only symbol-table Vars, never `\result`),
+  a distinct feature, DEFERRED (scope = condition-position only). The `if self.accept_op(X):` methods
+  (mixin_param/ghost/quantifier/…) lower cleanly with #1b but their then-branch hits GAP #2 (trusted
+  `_parse_expr` unit-local) / family-B. Revised reopen order: (1) **GAP #1c spec-`\result`-union-None**
+  [smallest cut: frees `_parse_qualname`/`_parse_dotted_path`], (2) GAP #2 unit-local, (3) family-B +
+  list-append. See `parser-tokenstream-impl.md` §OPTIONAL-TRUTHINESS-IN-CONDITION build.
   **(B) node-constructing `_parse_X`** (~50-55; each builds a distinct `CSLNode` e.g.
   `_parse_membership`→`CSLIn`/`CSLNotIn`) = BUILDABLE **[COST/SCALE]** — needs the `emit_ir`-variant
   coupling per node family (IrBinOp precedent — emitter already lowers the construction to a record but
