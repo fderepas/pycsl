@@ -411,3 +411,65 @@ statement is: **generic-`Dict[str,Any]`-composition inference is research-grade;
 `TypedDict` shape is a bounded ~5-feature lowering build.** A reviewer's SOTA-synthesis answer buys the
 *annotation-free* case; the annotated case is already engineering (in progress). B0 (impossibility) is therefore
 NOT warranted for the composition wall under a declared-shape (TypedDict) discipline.
+
+---
+
+## 10. Measured update — 2026-07-25: the Module-5 self-mut collector cluster is the SAME wall (sharpens §3/§8)
+
+**Context.** Canonical `\trusted` floor is now **908** (down from the 1234 of §8; the intervening cut is the
+banked `pyval`/term-ADT + string/list/search/flatten walker campaign, [[pyval_walker_vein]]). This session
+spiked the **Module-5 IR-emitter "self-mut collector" cluster** — the `_collect_*` / `_synthesize_*` family in
+`frontend/Module5_IREmitter.py`, the largest non-parser residual cluster (~2 dozen mirror stubs). Goal:
+convert-or-BOUNDARY. Two structurally-disjoint candidates were ported verbatim (live body + real signature)
+and run under `--fun` whole-body proof. **Both fail on the value-model wall of §3 — confirming the cluster is
+not a new frontier but the SAME `Dict[str,Any]`-composition wall, now compounded with collection-RESULT
+modelling.**
+
+**Spike A — `_collect_str_decode_locals` (generic-`Any` IR walker → `Set[str]`).** Verbatim body: a lifted
+nested-closure recursion over `.values()` that accumulates `node["target"]` into a `Set[str]` when
+`node.get("stmt")=="Assign"` and the value is a `.decode()` call. The nested closure lifts cleanly
+(`pycsltojsonemitter__rec` appears as a top-level function — closure-capture is NOT the blocker). Verbatim
+Why3 error:
+
+```
+This expression has type PyCSL_Program.StrSet.set,
+but is expected to have type int -> option.Option.option int
+```
+
+Reading: the `Set[str]` result model **exists** (`StrSet.set`), but the generic-`Any` `.values()` recursion
+types the heterogeneous dict as the int-erased map `int -> option.Option.option int` (§2.3 wall 1), so
+`node["target"]` cannot be given the `string` type the `.add` needs. **Wall 1 (heterogeneous dict) ∧
+collection-result (Set) — two stacked capabilities.**
+
+**Spike B — `_collect_2d_params` (IR `List[Dict]` loop → `sorted(Set[str])` = `List[str]`).** Structurally
+disjoint from A (flat loop, no closure, delegates to `_scan_2d_in_stmt`, returns a sorted list). Verbatim
+Why3 error:
+
+```
+This expression has type int -> option.Option.option int,
+but is expected to have type int
+```
+
+Reading: the loop variable `stmt` drawn from `body_ir: List[Dict[str,Any]]` is the int-erased map
+`int -> option int`; it cannot be passed where a faithfully-typed IR node is expected, and `sorted(result)`
+is the Set→List collection-result on top. **Same wall 1, again compounded with collection-result.**
+
+**Convergence (the §12-trigger-2 characterization).** Two disjoint collectors — one closure/Set, one
+loop/sorted-List — dissolve into the identical `int -> option.Option.option int` heterogeneous-dict typing
+that §2.3/§3 already isolate as the research-grade wall. Every remaining member of the cluster reads the same
+raw `Dict[str,Any]` IR as its FIRST operation, so each is blocked upstream of anything cluster-specific.
+Beyond wall 1 the cluster also needs, per member: **collection-result modelling** (`Set[str]`/`List[str]`
+build-and-return, the §8 "B-comp" set-algebra leg), and for the `ast.*`-reflecting members
+(`_collect_class_fields`, `_collect_union_arms`, `_synthesize_typeddict_functional`,
+`_synthesize_namedtuple_functional`, `_synthesize_overload_guard`) additionally **tuple-return-pyval**,
+**Python-`ast`-node construction** (`ast.Constant(value=None)`), and **`type()`/`getattr` annotation
+reflection** — i.e. ≥2, typically ≥3, STACKED capabilities per stub. Under the driver's no-stack rule this is
+a **CERTIFIED-BOUNDARY**, not a bounded one-feature build.
+
+**Consequence for the open question (unchanged, re-confirmed at floor 908).** The §9 dichotomy stands: the
+annotation-free generic-`Dict[str,Any]`-composition read remains research-grade (SOTA §5); the collector
+cluster is a concrete, reproducible instance of it (the two verbatim errors above are the frozen benchmark
+δ for this cluster). A declared-shape (TypedDict, §9) route would reduce these to bounded lowering, but the
+live emitter reads raw `Dict[str,Any]` — so converting the cluster in place is gated on either the
+research-grade decoder-synthesis answer OR a live-emitter retype to TypedDict (a separate, larger build).
+No spike was left in the tree; floor unchanged at 908; 3-axiom ledger untouched.
