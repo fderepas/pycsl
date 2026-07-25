@@ -1278,6 +1278,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "ArrayLit": ("IrListN", ["elts"]),
         "SetLit":   ("IrSetN", ["elts"]),
         "Call":     ("IrCallN", ["func", "args"]),
+        # self-tcb-reduction family-B (parser clause parsers): wire the CSL-AST
+        # CONTRACT-CLAUSE node constructions the recursive-descent `_ContractParser`
+        # builds to the matching `emit_ir` ctors (preamble.py `_emit_exprir_theory`,
+        # gated `_uses_clause_ir`). ProofDecl -> `IrProofDecl string string` (the two
+        # LEAF-string fields `prover`/`qualname` of `_parse_proof`'s
+        # `ProofDecl(prover=prover, qualname=qualname)`). Bound BY NAME off the class's
+        # `__init__` field order in `_call_irnode_constructor`, so a payload/field-order
+        # mismatch can never silently mis-bind. Corpus-inert: no corpus program declares
+        # a @mutable_state class (the `_call_irnode_constructor` gate) nor constructs
+        # these classes, so these entries never fire outside the parser mirror.
+        "ProofDecl": ("IrProofDecl", ["prover", "qualname"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in

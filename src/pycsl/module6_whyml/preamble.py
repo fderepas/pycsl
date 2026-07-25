@@ -3889,6 +3889,17 @@ class PreambleEmissionMixin:
             # the standalone types on `_uses_call_kw` → byte-inert elsewhere.
             + (" | IrCallKw string keyword_list emit_ir int"
                if self._uses_call_kw() else "")
+            # self-tcb-reduction family-B (parser clause parsers): the CONTRACT-CLAUSE
+            # node ctors the recursive-descent `_ContractParser._parse_*` methods
+            # construct. IrProofDecl carries the `#@ proof <prover> <qualname>` node's two
+            # LEAF strings (`ProofDecl(prover, qualname)`, `_parse_proof`) — a childless
+            # (for the `size` measure) leaf, covered by size's `_ -> 1` catch-all; no
+            # consumer reflects it back (terminal parser output), so no discriminant /
+            # size-decrease law is needed (the IrOldField two-leaf-string precedent).
+            # Gated WITH its kind_of arm on `_uses_clause_ir` → byte-inert in every other
+            # mirror + the whole corpus. The IrBinOp/IrCallKw structural-variant precedent.
+            + (" | IrProofDecl string string"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4060,6 +4071,11 @@ class PreambleEmissionMixin:
             # (non-injective kind_of is sound — the IrCall/IrCallN precedent).
             *(["    | IrCallKw _ _ _ _ -> \"Call\""]
               if self._uses_call_kw() else []),
+            # self-tcb-reduction family-B: the clause-node kind_of arms (gated WITH the
+            # ctors so kind_of stays exhaustive in both configs — kind_of has NO wildcard,
+            # so the arm is REQUIRED when the ctor is present and ABSENT when it is not).
+            *(["    | IrProofDecl _ _ -> \"ProofDecl\""]
+              if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
             "",
@@ -5358,6 +5374,40 @@ class PreambleEmissionMixin:
                         walk(v.get("body")) if isinstance(v.get("body"), list) else None
         walk(func.get("body"))
         return found
+
+    # self-tcb-reduction family-B (parser clause parsers): the CSL-AST CONTRACT-CLAUSE
+    # node kinds the recursive-descent `_ContractParser._parse_*` methods construct
+    # (`ProofDecl(prover, qualname)`, `ClassInvariant(expr)`, `LoopInvariant(expr)`,
+    # `LoopVariant(expr)`, `RaisesDecl(exc, cond)`, ...). Distinct from the EXPR family
+    # (IrBinOp/IrVar/...) which appears inside ordinary contract expressions and thus
+    # reaches the corpus — these clause kinds appear ONLY as a parser method's returned
+    # node, never as a sub-expression of a corpus contract. Lowercased (the
+    # `_record_types` key convention).
+    _CLAUSE_IR_NODES = (
+        "ProofDecl", "ClassInvariant", "LoopInvariant", "LoopVariant",
+        "RaisesDecl",
+    )
+
+    def _uses_clause_ir(self) -> bool:
+        """self-tcb-reduction family-B: True iff THIS file DEFINES one of the parser
+        contract-clause node classes (`_CLAUSE_IR_NODES`) as a `record` type_decl. Only
+        `frontend/Module2_Parser` defines them (both live and mirror), and it is the SOLE
+        file that constructs them, so gating the clause `emit_ir` ctors + their `kind_of`
+        arms on this keeps the emit_ir theory BYTE-IDENTICAL in every other mirror AND the
+        whole reference corpus (no corpus program declares a `@mutable_state` class, let
+        alone one of these clause classes). Reads `self.ir['type_decls']` DIRECTLY (the
+        `_record_types` dict is populated LATE — during preamble record-decl emission,
+        after the emit_ir theory is first realized — so a `_record_types` probe caches a
+        false negative). The `_uses_call_kw` byte-inert-gate pattern verbatim. Cached."""
+        cached = getattr(self, "_uses_clause_ir_cache", None)
+        if cached is not None:
+            return cached
+        clause = set(self._CLAUSE_IR_NODES)
+        result = any(
+            td.get("kind") == "record" and td.get("name") in clause
+            for td in (self.ir.get("type_decls", []) or []))
+        self._uses_clause_ir_cache = result
+        return result
 
     def _uses_stmt_ir(self) -> bool:
         """stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): True iff some

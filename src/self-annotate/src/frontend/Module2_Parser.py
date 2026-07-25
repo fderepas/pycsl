@@ -1024,12 +1024,14 @@ class _ContractParser:
     def _parse_assumes(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_proof(self):
-        pass
+    def _parse_proof(self) -> "ExprIR":
+        self.expect_name("proof")
+        prover = self.expect_name()  # PROVER_ID: rocq | lean
+        qualname = self._parse_qualname()
+        return ProofDecl(prover=prover, qualname=qualname)
 
     #@ requires True
     #@ ensures self.i >= \old(self.i)
