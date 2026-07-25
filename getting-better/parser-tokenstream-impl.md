@@ -339,3 +339,42 @@ GAP #2 (str) is banked and reusable for any future trusted `-> str` stub. The sy
 returns/consumes them), so they were NOT built (avoiding a neutral feature). **Next parser cut
 = family-B (list-append + emit_ir node variants) — corpus-reaching / deliberate multi-session
 build, per the frontier-exhaustion doctrine.**
+
+## Family-B emit_ir-child clause parsers BUILT (2026-07-26)
+
+Extends the `_parse_proof`→`IrProofDecl` string-leaf template (37f0ae3c) to the FIRST
+**emit_ir-child** clause parsers. Per clause node kind, all gated on `_uses_clause_ir`
+(true only for the file defining the parser clause classes → byte-inert everywhere else):
+
+1. `preamble.py` `_emit_exprir_theory`: `| IrX <fields>` ctor + `| IrX _ … -> "X"` kind_of
+   arm + `| IrX … e -> 1 + size e` size arm (recurse the emit_ir child; leading strings
+   not counted).
+2. `expressions.py` `_IRNODE_CTORS["X"] = ("IrX", [__init__ field names])`.
+3. mirror method: drop `\trusted`, give a faithful body ending in a GUARANTEED `return X(...)`.
+
+The emit_ir child comes from `self._parse_expr()`. That call lowers to an emit_ir value only
+because `_parse_expr` carries a `-> "ExprIR"` return annotation (added here; the stub STAYS
+`\trusted` — this is the GAP #2 typed-trusted-return machinery, same as the `_parse_impl_rhs`/
+`_parse_or_rhs` precedence RHS stubs). `_call_irnode_constructor` then binds the ctor's emit_ir
+field to the lowered argument by `__init__` field order.
+
+CONVERTED (each: whole-file Module2_Parser.py proof SUCCESS 0-unproven [foreground], FULL corpus
+byte-diff 0 [812/812, byte-INERT], mutation test PASS, vacuity exit 0, mirror-check 52/52, drift 2,
+ledger 3 — NO new cert, the IrBinOp/IrForallItems emit_ir-child precedent):
+
+- **`_parse_class_invariant`** → `IrClassInvariant emit_ir` (e09c8dcd, 907→906) — single emit_ir
+  child `ClassInvariant(self._parse_expr())`.
+- **`_parse_raises`** → `IrRaisesDecl string emit_ir` (026f38c1, 906→905) — leaf-string `exc`
+  (`self.expect_name()`, ProofDecl precedent) + emit_ir condition child.
+
+**DEFERRED `_parse_loop`** (edits reverted clean): the live body ends in `self._err(...)` with NO
+following return, so the neither-`invariant`-nor-`variant` path falls off the end returning unit
+while the two branch arms `return LoopInvariant/LoopVariant(...)` return emit_ir → L3-tc
+`"This expression has type emit_ir, but is expected to have type ()"`. The faithful fix requires
+modelling `_err` as diverging/raising (it lives at the leaf of `expect_name`/`expect_op`/`expect_bs`
+which are ALREADY proven with `_err: assigns \nothing; ensures True` — changing it re-opens their
+proofs) OR an unfaithful control-flow restructure. Both violate the no-stack / faithful-semantics
+discipline. **The trailing-`_err` fall-through is the shared blocker** for `_parse_loop`,
+`_parse_function_variant`, `_parse_ghost`, `_parse_interface`, and every other `_parse_X` whose live
+body ends in `_err`. REOPEN this sub-cluster only alongside a deliberate `_err`-divergence-model
+build. Clean next candidates = clause `_parse_X` with a guaranteed terminal `return`.

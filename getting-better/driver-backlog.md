@@ -578,6 +578,24 @@ capability, so the stop-classification is mechanical, not a judgment call.
   `emit_ir` variants (IrIn/IrNotIn/…) + fold/cert co-land, then verbatim-port the ~50-55. See
   `parser-tokenstream-impl.md`.
 
+  **(B) IN PROGRESS — clause-node `_parse_X` via `_uses_clause_ir`-gated emit_ir variants
+  (2026-07-26).** Template = `_parse_proof`→`IrProofDecl string string` (37f0ae3c, string-leaf).
+  `_CLAUSE_IR_NODES` = {ProofDecl, ClassInvariant, LoopInvariant, LoopVariant, RaisesDecl}. CONVERTED
+  this batch (emit_ir-child, foreground): **`_parse_class_invariant`→`IrClassInvariant emit_ir`
+  (e09c8dcd, 907→906)** + **`_parse_raises`→`IrRaisesDecl string emit_ir` (026f38c1, 906→905)**. The
+  emit_ir child `self._parse_expr()` lowers via a `-> "ExprIR"` annotation on the STILL-`\trusted`
+  `_parse_expr` stub (GAP #2 typed-return); no new cert (ledger 3). Each: whole-file proof SUCCESS,
+  corpus byte-diff 0 (byte-INERT), mutation PASS, vacuity 0, mirror-check 52/52, drift 2. **DEFERRED
+  `_parse_loop`** (LoopInvariant/LoopVariant ctors/wiring reverted clean): its trailing
+  `self._err(...)` fall-through (no guaranteed return on the neither-invariant-nor-variant path)
+  L3-fails "type emit_ir but expected type ()" — the emit_ir early-returns clash with the unit-typed
+  body. Faithful fix = model `_err` as diverging/raising (broad impact on `expect_name`/`expect_op`/
+  `expect_bs` + re-proof risk) OR an unfaithful control-flow restructure; both break the
+  no-stack/faithful-semantics discipline → REOPEN only alongside an `_err`-divergence-model build.
+  Same trailing-`_err` blocker applies to `_parse_function_variant`/`_parse_ghost`/`_parse_interface`
+  and any other `_parse_X` whose live body ends in `_err`. Next clean clause candidates = those with a
+  guaranteed terminal `return` (single-token leaf or emit_ir-child, no trailing `_err`).
+
 ### item 3 — F3+F4 crosscheck term-structural: CLOSED (2026-07-24, 921->917)
 The §RESIDUAL-CC 4-method cluster (any_unsupported/all_present_unsupported/
 provers_agree/all_agree) is CONVERTED. F3 = the certified `term` inductive made
