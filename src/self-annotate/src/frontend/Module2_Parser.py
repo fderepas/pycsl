@@ -1218,12 +1218,14 @@ class _ContractParser:
     def _parse_mixin_type(self) -> str:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_mixin_param(self):
-        pass
+    def _parse_mixin_param(self) -> str:
+        name = self.expect_name()
+        if self.accept_op(":"):
+            return f"{name}: {self._parse_mixin_type()}"
+        return str(name)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
