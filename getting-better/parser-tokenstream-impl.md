@@ -94,3 +94,45 @@ Fund the emit_ir-variant coupling: for each node family the `_parse_*` methods c
 (IrBinOp precedent), extend the size/helper folds, co-land the axiom-free cert + coqchk (ledger 3).
 Then the ~50-55 family-B methods convert as verbatim ports. `_try` needs a higher-order-frame feature
 (or stays boundary).
+
+## CHEAP-DRAIN pass (2026-07-25, Phase-2 executor) — count 914 → 912
+
+Marker-removal drain of the ~66 `\trusted` methods in the mirror. **Result: 2 converted; the
+string/list-returning cluster is BLOCKED by two live EMITTER gaps (deferred → (B)).**
+
+**CONVERTED (+0 machinery, verbatim live bodies, mirror-only, byte-inert by construction):**
+- `_Tok.__repr__` → `return f"_Tok({self.type}, {self.string!r})"` (`!r` lowers cleanly; `assigns \nothing`, reads fields only).
+- `_Tok.__init__` → field-init body un-trusted (`assigns \nothing` sound for a fresh constructor).
+
+**FAILED-and-stay-trusted + the exact blocker (this scopes the deferred (B) vein):**
+- **Whole string/list cluster** — `_parse_qualname`, `_parse_dotted_path`, `_parse_dotted_path_list`,
+  `_parse_act_names`, `_parse_opt_except`, `_parse_mixin_type/_param/_params/_method_sig`,
+  `_parse_mutex_expr_str`, `_parse_variant_def`, `_parse_compose_from`, `_parse_conforms_to`, …:
+  **EMITTER GAP #1 — no default-argument filling for method calls.** Every one calls
+  `self.expect_name()` (no arg; 74 such call sites live). `expect_name(self, val=None)` emits as a
+  2-param `let (self)(py_val:string)`, so `self.expect_name()` lowers to a PARTIAL application
+  (`string -> string`, type error). Working around it in the mirror (`expect_name("")`) is exactly
+  the forbidden default-sentinel massage (cf. the prohibited live `peek()`→`peek(1)`), so left trusted.
+- **`parse`** — `node = self._parse_contract(); … return node`: **EMITTER GAP #2 — local-var type
+  inference from a unit-returning trusted call.** The emitter defaults the local `node` to `int`
+  (`let node = ref 0`) but trusted `_parse_contract` returns `()`, so `node := ()` is a type error.
+- **`parse_node_contracts`** — `for contract_str in raw_contracts: parsed_nodes.append(...)`:
+  **EMITTER GAP #3 — no auto termination-variant for a `for … in LIST` loop outside a
+  `@mutable_state` class / the psl-loop.** The loop index (`_idx_contract_str`) is emitter-internal
+  and unnameable, so no explicit `#@ loop variant` can be written; the two VCs (`termination`,
+  `index in array bounds`) time out. (`_Tok.__init__` in the same batch proved; only these 2 goals failed.)
+- **`_parse_impl_rhs` / `_parse_or_rhs` / `_parse_and_rhs`** — delegate to `_parse_quantifier` (record,
+  trusted); their own contract needs `ensures self.i >= \old(self.i)` but the quantifier's trusted
+  contract gives no monotonicity — strengthening a trusted stub's *assumed* ensures is a trust-widen
+  (needs reviewer), not cheap.
+- **`_try`** (higher-order, callee-frame boundary), **`_err`** (raises; deliberately left trusted, and
+  making it diverge would perturb the already-converted `expect_*` proofs), **`_grab_reviewer_id`**
+  (`self.source` + `_re.match`), **`_lex_contract` / `_ContractParser.__init__`** (char-lexer boundary),
+  **`_csl_to_str`** (recursive CSL dispatch): all pre-existing (A)/(B) boundaries.
+- **All remaining `_parse_*`** construct CSLNode records → family (B) (needs the `emit_ir`-variant coupling).
+
+**Verdict:** the pure marker-removal drain is EXHAUSTED at 2 wins. The next parser cut is gated on
+EMITTER work (default-argument filling; for-in-list termination variant; unit-local inference) — a
+deliberate (B) build, not a cheap win. Gate battery: whole-file proof SUCCESS 0-unproven (foreground);
+`git diff` mirror-only (src/pycsl clean); vacuity exit 0 (no new erasure); mirror-check 52/52; drift 2;
+ledger 3 (untouched).

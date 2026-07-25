@@ -774,7 +774,6 @@ def mutable_state(cls):
 
 class _Tok:
     __slots__ = ('type', 'string', 'start')
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -783,12 +782,11 @@ class _Tok:
         self.string: str = string
         self.start: int = start
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __repr__(self):
-        pass
+        return f"_Tok({self.type}, {self.string!r})"
 
 
 _OP_ALTERNATIVES = ['==>', '<==>', '//', '..', '+=', '-=', '*=', '->', '==', '!=', '>=', '<=', '+', '-', '*', '/', '%', '^', ':', ',', ';', '(', ')', '[', ']', '=', '.', '<', '>', '|']
