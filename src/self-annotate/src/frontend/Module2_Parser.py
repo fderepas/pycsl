@@ -899,12 +899,13 @@ class _ContractParser:
             self._err(f"expected {val!r}")
         return self.advance()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def expect_name(self, val=None):
-        pass
+    def expect_name(self, val: str = None) -> str:
+        if not self.at_name() or (val is not None and not self.at_name(val)):
+            self._err(f"expected name {val!r}" if val else "expected name")
+        return self.advance().string
 
     #@ requires True
     #@ ensures True
