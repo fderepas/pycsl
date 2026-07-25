@@ -1861,7 +1861,21 @@ class FunctionEmissionMixin:
             # `_union_*`/`int` its opaque body would otherwise imply. `PyVal` is a
             # corpus-absent annotation sentinel -> byte-inert.
             return_type = "hval"
-        elif ann == "str" and return_type == "int":
+        elif ann == "str" and (return_type == "int"
+                or (return_type == "unit" and func.get("trusted"))):
+            # self-tcb-reduction GAP #2 (unit-local type inference): a `\trusted`
+            # mirror stub whose placeholder body is a bare `pass` yields
+            # `find_return_type -> "unit"`, so the plain `return_type == "int"`
+            # override misses it and its `val` announces `: unit` — a CONVERTED
+            # caller's `ret = self._parse_mixin_type()` local (correctly typed
+            # `string` by `_collect_str_call_result_locals`) then fails to
+            # type-check against the `unit`-returning `val`. The DECLARED `-> str`
+            # annotation is the authority on what a trusted stub returns, so its
+            # `val` must announce `string` — the string-return counterpart of the
+            # `-> "ExprIR"` unit-stub → `emit_ir` promotion below. Gated on
+            # `func["trusted"]`: a real corpus `-> str` function has a return
+            # statement (`return_type` never "unit"), so this is byte-identical for
+            # the reference corpus (verified: full-corpus byte-diff 0).
             return_type = "string"
         elif ann == "float" and return_type == "int":
             return_type = "real"  # no-more-int Stage D
@@ -3469,10 +3483,21 @@ class FunctionEmissionMixin:
                 # don't pre-decl a `ref 0` (int) target and then `:=` a
                 # map.
                 ret = "map int (option int)"
-            elif ann == "str" and ret == "int":
+            elif ann == "str" and (ret == "int"
+                    or (ret == "unit" and func.get("trusted"))):
                 # no-more-int emitter campaign L1: a `-> str` function returns a
                 # WhyML `string`, not the legacy int hash — so a caller can type a
                 # `s = f(...)` local as string. (MEASUREMENT branch — gated.)
+                # self-tcb-reduction GAP #2: the `ret == "unit"` disjunct (gated on
+                # `func["trusted"]`) is the self-call-site sibling of the
+                # `_compute_return_type` GAP #2 fix — a `\trusted` `-> str` mirror
+                # stub with a bare `pass` body (`find_return_type -> "unit"`) must
+                # abstract its `self.<m>(...)` call site as `: string`, else a
+                # CONVERTED caller's `ret = self._parse_mixin_type()` local (typed
+                # `string`) fails to type-check against the `unit`-returning abstract
+                # `val`. Matches the `-> "ExprIR"` unit-stub → `emit_ir` disjunct
+                # below. Byte-identical for the corpus (a real `-> str` function has
+                # a return statement, so `ret` is never "unit").
                 ret = "string"
             elif (ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
                     and ret in ("int", "unit")):
