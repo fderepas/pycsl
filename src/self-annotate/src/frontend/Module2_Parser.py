@@ -1004,12 +1004,14 @@ class _ContractParser:
     def _parse_ghost(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_raises(self):
-        pass
+    def _parse_raises(self) -> "ExprIR":
+        self.expect_name("raises")
+        exc = self.expect_name()
+        self.expect_name("when")
+        return RaisesDecl(exc, self._parse_expr())
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

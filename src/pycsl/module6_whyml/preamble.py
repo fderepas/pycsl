@@ -3908,6 +3908,14 @@ class PreambleEmissionMixin:
             # whole corpus. The IrBinOp/IrForallItems emit_ir-child precedent.
             + (" | IrClassInvariant emit_ir"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B: IrRaisesDecl carries the `#@ raises <Exc> when
+            # <cond>` node's LEAF-string exception name (`exc_type`) + its single EMIT_IR
+            # condition child (`RaisesDecl(exc, self._parse_expr())`, `_parse_raises`).
+            # size recurses the real `condition` child (`1 + size e`, gated arm below).
+            # Gated on `_uses_clause_ir` → byte-inert everywhere else. The IrForallItems
+            # (leading-strings + emit_ir child) precedent.
+            + (" | IrRaisesDecl string emit_ir"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4085,6 +4093,8 @@ class PreambleEmissionMixin:
             *(["    | IrProofDecl _ _ -> \"ProofDecl\""]
               if self._uses_clause_ir() else []),
             *(["    | IrClassInvariant _ -> \"ClassInvariant\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrRaisesDecl _ _ -> \"RaisesDecl\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
@@ -4296,6 +4306,10 @@ class PreambleEmissionMixin:
             # child (`1 + size e`), gated WITH the ctor so the measure stays faithful in
             # Module2_Parser.mlw and byte-inert elsewhere. The IrForallItems-body precedent.
             *(["    | IrClassInvariant e -> 1 + size e"] if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B: IrRaisesDecl recurses its emit_ir condition
+            # child (`1 + size e`); the leading exception-name string is not counted
+            # (the IrForallItems/IrSum leading-string precedent). Gated WITH the ctor.
+            *(["    | IrRaisesDecl _ e -> 1 + size e"] if self._uses_clause_ir() else []),
             "    | _ -> 1",
             "    end",
             "",

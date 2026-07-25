@@ -1294,6 +1294,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `self._parse_expr()` lowers to an emit_ir value (`_parse_expr -> "ExprIR"`), so
         # the ctor's emit_ir field is filled by the lowered argument, `_call_irnode_constructor`.
         "ClassInvariant": ("IrClassInvariant", ["expr"]),
+        # RaisesDecl -> `IrRaisesDecl string emit_ir` (the LEAF-string `exc_type` +
+        # the EMIT_IR `condition` of `_parse_raises`'s `RaisesDecl(exc, self._parse_expr())`).
+        # `exc` is a string local (`self.expect_name()`, ProofDecl precedent), the condition
+        # lowers to emit_ir; `_call_irnode_constructor` binds both by __init__ field order.
+        "RaisesDecl": ("IrRaisesDecl", ["exc_type", "condition"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
