@@ -1601,24 +1601,28 @@ class _ContractParser:
             left = BinOp(left, op, self._parse_unary())
         return left
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
-    # calls `advance`). Monotonicity is a real property of the expression chain:
-    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
-    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
-    # from any expression rule. It is what lets the converted precedence methods
-    # prove their loop variant across a sibling call.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ \variant \length(self.toks) - self.i
     def _parse_unary(self) -> "ExprIR":
-        pass
+        if self.at_name("not") or self.at_op("-", "+"):
+            op = self.advance().string
+            return UnaryOp(op, self._parse_unary())
+        return self._parse_atom()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    # FAITHFUL MONOTONICITY (was `ensures True`): the atom rule only ADVANCES the
+    # cursor. Its live body calls `_parse_atom_primary`/`advance`/`_parse_atom`
+    # (recursion) — every one monotone; it NEVER calls the sole backtracking site
+    # `_try` (used only by `_parse_assigns_region`, line 1481 live) and NEVER assigns
+    # `self.i` directly. Verified against the live body. This is the trusted-callee
+    # monotonicity ensures a converted caller (`_parse_unary`) discharges its own
+    # `self.i >= \old` frame from — the `advance`/`accept_op`/`_parse_impl_rhs` precedent.
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_atom(self):
+    def _parse_atom(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
