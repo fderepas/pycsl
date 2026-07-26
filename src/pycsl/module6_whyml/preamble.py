@@ -3916,6 +3916,15 @@ class PreambleEmissionMixin:
             # (leading-strings + emit_ir child) precedent.
             + (" | IrRaisesDecl string emit_ir"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (membership run): IrCSLIn / IrCSLNotIn carry
+            # the `<e> in <coll>` / `<e> not in <coll>` node's TWO EMIT_IR children
+            # (`CSLIn(element, collection)` / `CSLNotIn(element, collection)`,
+            # `_parse_membership`). size recurses BOTH children (`1 + size l + size r`,
+            # gated arms below; the IrGhostArraySetDecl / IrStrConcat two-emit_ir-child
+            # precedent); kind_of has its own arm each. Gated on `_uses_clause_ir` →
+            # byte-inert in every other mirror + the whole corpus.
+            + (" | IrCSLIn emit_ir emit_ir | IrCSLNotIn emit_ir emit_ir"
+               if self._uses_clause_ir() else "")
             # self-tcb-reduction family-B (_err-divergence run): IrLoopInvariant /
             # IrLoopVariant carry the `#@ loop invariant/variant <e>` node's single EMIT_IR
             # child (`LoopInvariant(expr)` / `LoopVariant(expr)`, `_parse_loop`). size
@@ -4185,6 +4194,9 @@ class PreambleEmissionMixin:
               if self._uses_clause_ir() else []),
             *(["    | IrRaisesDecl _ _ -> \"RaisesDecl\""]
               if self._uses_clause_ir() else []),
+            *(["    | IrCSLIn _ _ -> \"CSLIn\"",
+               "    | IrCSLNotIn _ _ -> \"CSLNotIn\""]
+              if self._uses_clause_ir() else []),
             *(["    | IrLoopInvariant _ -> \"LoopInvariant\"",
                "    | IrLoopVariant _ -> \"LoopVariant\""]
               if self._uses_clause_ir() else []),
@@ -4425,6 +4437,11 @@ class PreambleEmissionMixin:
             # child (`1 + size e`); the leading exception-name string is not counted
             # (the IrForallItems/IrSum leading-string precedent). Gated WITH the ctor.
             *(["    | IrRaisesDecl _ e -> 1 + size e"] if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B (membership run): IrCSLIn / IrCSLNotIn recurse
+            # BOTH emit_ir children (the IrGhostArraySetDecl / IrStrConcat precedent).
+            *(["    | IrCSLIn l r -> 1 + size l + size r",
+               "    | IrCSLNotIn l r -> 1 + size l + size r"]
+              if self._uses_clause_ir() else []),
             *(["    | IrLoopInvariant e -> 1 + size e",
                "    | IrLoopVariant e -> 1 + size e"] if self._uses_clause_ir() else []),
             *(["    | IrInterfaceClause _ e -> 1 + size e",

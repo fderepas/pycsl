@@ -1558,18 +1558,18 @@ class _ContractParser:
             left = BinOp(left, op, self._parse_membership())
         return left
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
-    # calls `advance`). Monotonicity is a real property of the expression chain:
-    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
-    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
-    # from any expression rule. It is what lets the converted precedence methods
-    # prove their loop variant across a sibling call.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _parse_membership(self) -> "ExprIR":
-        pass
+        left = self._parse_term()
+        if self.at_name("in"):
+            self.advance()
+            return CSLIn(left, self._parse_term())
+        if self.at_name("not") and self.peek().type == "NAME" and self.peek().string == "in":
+            self.advance(); self.advance()
+            return CSLNotIn(left, self._parse_term())
+        return left
 
     #@ requires True
     #@ ensures self.i >= \old(self.i)

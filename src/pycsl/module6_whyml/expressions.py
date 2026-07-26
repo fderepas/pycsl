@@ -1159,6 +1159,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `_csl_forall_items`) to the matching `emit_ir` ctors added alongside
         # IrBinOp/IrIfExpr/IrTer3 (preamble.py `_emit_exprir_theory`).
         "UnaryOp":       ("IrUnaryOp", ["op", "expr"]),
+        # self-tcb-reduction family-B (membership run): `_parse_membership` builds
+        # `CSLIn(element, collection)` / `CSLNotIn(element, collection)` — both children
+        # are emit_ir expressions. Wired to the `IrCSLIn`/`IrCSLNotIn` two-emit_ir-child
+        # ctors (preamble.py `_emit_exprir_theory`, `_uses_clause_ir`-gated → byte-inert).
+        "CSLIn":         ("IrCSLIn", ["element", "collection"]),
+        "CSLNotIn":      ("IrCSLNotIn", ["element", "collection"]),
         "At":            ("IrAt", ["expr", "label"]),
         "ArrayLen":      ("IrArrayLen", ["var"]),
         "InGlobals":     ("IrInGlobals", ["name"]),
