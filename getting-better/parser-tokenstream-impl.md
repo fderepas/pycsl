@@ -499,3 +499,78 @@ mirror-check 52/52; drift 2; ledger 3):**
   (annotated trusted returns), `_parse_impl_rhs`/`_parse_or_rhs`/`_parse_and_rhs` (quantifier-
   monotonicity trust-widen — reviewer), `_parse_contract`/`_parse_trusted`/`_grab_reviewer_id`/
   `_lex_contract`/`_csl_to_str` (char-lexer / recursive-dispatch boundaries).
+
+## LIST-append clause vein: 5 string-list clause parsers CONVERTED; emit_ir-list DEFERRED (2026-07-26, Phase-2 executor) — count 894 -> 889
+
+**VERDICT: the reachable LIST-append frontier is the STRING-element list clause parsers
+(5 converted, verbatim ports). The EMIT_IR-element list parsers (`_parse_act_block`/
+`_parse_for_block`) are a proof-COST boundary at the 30s SMT budget — the seq_to_irlist
+bridge capability is BUILT and proves, but their converted-body VC deterministically times
+out (see below).**
+
+### CENSUS (list-string vs list-emit_ir vs list-of-records)
+- **list-STRING (`list string`) — CONVERTED (5):** `_parse_act_names`, `_parse_dotted_path_list`
+  (direct `list string` return); `_parse_compose_from`, `_parse_conforms_to`, `_parse_lock_order`
+  (wrap the `list string` in a clause node).
+- **list-EMIT_IR (`irlist`) — DEFERRED (2):** `_parse_act_block`, `_parse_for_block` (clauses =
+  list of Given/Requires/Ensures/Assigns emit_ir nodes). Capability BUILT, VC-cost blocked.
+- **list-of-RECORDS/tuples — DEFERRED (element value shape):** `_parse_datatype`
+  (variants = list of `(ctor, list string)` tuples), `_parse_variant_def` (returns a bare
+  tuple), `_parse_inductive`/`_parse_inductive_rules` (list of `(name, expr)` / 3-tuples),
+  `_parse_mixin_params`/`_parse_mixin_type` (`list string` then `', '.join(...)` -> a STRING;
+  needs faithful list-string join), `_parse_happy*` (multi-field HappyProperty with list +
+  optional fields). Need a NEW element value shape (list-of-tuple ADT / string-join).
+
+### CONVERTED — list-string (each: whole-file Module2_Parser proof SUCCESS 0-unproven
+[foreground, read]; corpus byte-diff 0; vacuity --emit exit 0; MUTATION TEST PASS;
+mirror-check 52/52; drift 2; ledger 3):
+- `_parse_act_names` (485d1d11, 894->893) — ZERO emitter change. `names=[expect_name()];
+  while accept_op(','): names.append(expect_name()); return names`. The `seq string`
+  list-local + `array string` return + `materialize_str` bridge machinery ALREADY existed;
+  the faithful `-> List[str]` annotation (item34.md CF5 `return_value_type=string`) is all
+  that was needed. **This is the whole capability for direct `list string` returns.**
+- `_parse_dotted_path_list` (c9025d93, 893->892) — ZERO emitter change; same shape over the
+  already-converted `-> str` `_parse_dotted_path`.
+- **list-string CLAUSE CTORS BUILT** (24497b02, with `_parse_compose_from` 892->891):
+  `IrComposeFromDecl (seq string)` / `IrConformsToDecl (seq string)` / `IrLockOrder
+  (seq string)` (preamble `_emit_exprir_theory` ctor + kind_of arm; NO size arm — the
+  growable `seq string` is not an emit_ir child, size's `_ -> 1` catch-all covers it) +
+  `_IRNODE_CTORS` (mixins/protocols/order) + `_CLAUSE_IR_NODES` registration. Gated
+  `_uses_clause_ir` (True ONLY for Module2_Parser, grep-verified sole clause-class definer
+  -> corpus byte-diff 0 [812/812], emission surface confined to the proven file). The
+  in-body list local lowers to a growable `seq string` (Seq.cons/snoc); `_call_irnode_
+  constructor` binds it to the ctor's `seq string` field. Conversion carries `-> "ExprIR"`.
+- `_parse_conforms_to` (c81ce926, 891->890) — pure-mirror (reuses `IrConformsToDecl`).
+- `_parse_lock_order` (37e41441, 890->889) — pure-mirror (reuses `IrLockOrder`). Elements
+  from the trusted `-> str` `_parse_mutex_expr_str` (stays trusted). SOUNDNESS (first
+  trusted-val-in-loop): termination is accept_op-driven (its proven strict-on-Some increment
+  advances self.i every iteration INDEPENDENT of the trusted call); `self.i >= \old` faithful.
+
+### DEFERRED — emit_ir-element list (`_parse_act_block`, `_parse_for_block`): capability BUILT, 30s VC-COST blocked
+The full capability was built and REVERTED (uncommitted, clean) after the proof-cost wall:
+- **`seq_to_irlist` bridge** (preamble, after `irnth`): `let rec function seq_to_irlist_from
+  (s: seq emit_ir) (i: int) : irlist requires {0<=i<=length} variant {length s - i} = if
+  i>=length then ILNil else ILCons (Seq.get s i) (seq_to_irlist_from s (i+1))`. The
+  `seq_to_sl` (stmt_ir) precedent verbatim — materializes the growable `seq emit_ir` a
+  clause-list LOCAL builds into the monomorphic `irlist` (Why3 rejects a direct `seq emit_ir`
+  ctor field of emit_ir, non-strictly-positive). **The bridge + all its VCs PROVE.**
+- **ctors** `IrGiven emit_ir` / `IrAct string irlist` / `IrForExpand string emit_ir emit_ir
+  irlist` (+ kind_of arms; IrGiven size `1+size e`; IrAct/IrForExpand fall to size's `_->1`
+  catch-all, the IrMkTupleN irlist precedent) + `_IRNODE_CTORS` (Act/ForExpand/Given) +
+  `_IRNODE_CTOR_IRLISTFIELDS = {Act:{clauses}, ForExpand:{clauses}}` (wraps a seq actual in
+  `seq_to_irlist` at an irlist-field ctor slot in `_call_irnode_constructor`).
+- **THE BLOCKER (proof-cost, not capability):** `_parse_act_block`'s converted body
+  type-checks and emits a faithful non-vacuous body (`clauses = ref Seq.empty; while
+  <4-way at_name guard>: ...Seq.snoc !clauses (IrGiven/IrRequires/IrEnsures/parse_assigns...);
+  if not clauses: _err; IrAct !name (seq_to_irlist !clauses)`), but its whole-file proof has
+  ONE deterministic 30s TIMEOUT (98-100M steps) on the **loop-invariant-INIT of the BOUNDS
+  invariant `0 <= self.i < length`** — a class-invariant fact that is trivially Valid (0.03s)
+  in every other converted loop. Isolation confirmed: (a) with the emitter ctors present but
+  act_block trusted, the file proves SUCCESS -> the added theory does NOT bloat other goals;
+  (b) even a single-`at_name` guard still times out -> not the guard breadth. The cost is
+  intrinsic to act_block's converted body (the `seq emit_ir` LOCAL + expanded clause theory
+  pollute the solver context so a trivial bounds fact drowns). No faithful annotation change
+  clears a 98M-step init. `_parse_for_block` is strictly heavier (tuple-unpack + `Number(0)`
+  ctor + 4-field wrapper). **REOPEN with a raised SMT budget for this file OR a lighter
+  `at_name`/bounds model; the seq_to_irlist bridge + IrAct/IrForExpand/IrGiven ctor design
+  above is the drop-in build (it type-checks and the bridge proves).**

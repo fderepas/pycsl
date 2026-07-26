@@ -623,3 +623,17 @@ opaque_term fields -> `option term`. F4 = a generic DEFINED `term_eq` emitter
 record-bridge pp) + the non-term `_load_axiom_registry`/`_preprocess_whyml`/
 `crosscheck_file_ir`/`main` (IO/parse boundary). See class-variant-impl.md
 §OUTCOME-F3F4.
+
+## LIST-append clause vein (2026-07-26) — 894 -> 889, 5 conversions
+STRING-element list clause parsers CONVERTED: _parse_act_names, _parse_dotted_path_list
+(direct `list string` return, ZERO emitter change — `-> List[str]` annotation drives the
+existing seq-string/array-string/materialize_str machinery); _parse_compose_from (+ shared
+list-string clause ctors IrComposeFromDecl/IrConformsToDecl/IrLockOrder `(seq string)`,
+gated _uses_clause_ir, corpus byte-diff 0), _parse_conforms_to, _parse_lock_order.
+DEFERRED emit_ir-element list (_parse_act_block, _parse_for_block): seq_to_irlist bridge +
+IrAct/IrForExpand/IrGiven ctors BUILT + bridge PROVES, but act_block's converted-body VC
+deterministically 30s-TIMEOUTs (98M steps) on the trivial BOUNDS-invariant-init (solver
+context pollution from the seq emit_ir local) — a proof-COST boundary, not a capability gap
+(reverted clean; design banked in parser-tokenstream-impl.md). DEFERRED list-of-records
+(_parse_datatype/_parse_variant_def/_parse_inductive*/_parse_mixin_params/_parse_happy*):
+need a new element value shape (list-of-tuple ADT / faithful list-string join).
