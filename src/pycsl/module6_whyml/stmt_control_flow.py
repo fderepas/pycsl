@@ -1497,6 +1497,15 @@ class ControlFlowStmtMixin:
             # carrier. Gated on `_pyval_seq_locals` -> byte-inert.
             val = f"!{whyml_ident(val_ir['name'])}"
         elif (val_ir.get("type") == "Var"
+              and val_ir.get("name") in getattr(self, "_seq_locals", set())
+              and self._func_return_type == "seq emit_ir"):
+            # self-tcb-reduction (parser _parse_expr_list): the function's declared return is
+            # `seq emit_ir`, so `return exprs` (exprs the growable seq emit_ir local) hands the
+            # seq back DIRECTLY (`!exprs`) — emit_ir is an immutable pure ADT, so no seq->array
+            # `materialize` bridge is needed (the `seq hval` direct-return precedent above).
+            # Gated on `_func_return_type == "seq emit_ir"` -> byte-inert.
+            val = f"!{whyml_ident(val_ir['name'])}"
+        elif (val_ir.get("type") == "Var"
               and val_ir.get("name") in getattr(self, "_seq_locals", set())):
             # 07-1705-rev4 P4: returning a seq-modelled (growable) list local where the
             # function's declared return is `array int` (a `list`) crosses the seq→array
