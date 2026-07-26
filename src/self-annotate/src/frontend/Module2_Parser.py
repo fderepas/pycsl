@@ -1292,12 +1292,19 @@ class _ContractParser:
             names.append(self.expect_name())
         return ComposeFromDecl(names)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_conforms_to(self):
-        pass
+    def _parse_conforms_to(self) -> "ExprIR":
+        self.expect_name("conforms_to")
+        names = [self.expect_name()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return ConformsToDecl(names)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
