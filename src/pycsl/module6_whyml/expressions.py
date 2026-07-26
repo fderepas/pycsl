@@ -1317,6 +1317,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "InterfaceClause": ("IrInterfaceClause", ["kind", "payload"]),
         "Ensures":  ("IrEnsures", ["expr"]),
         "Requires": ("IrRequires", ["expr"]),
+        # self-tcb-reduction family-B (optional-field run): `#@ \variant <e>` /
+        # `#@ \variant (<e>, <ordering>)` (`_parse_function_variant`). FunctionVariant
+        # carries the required EMIT_IR `expr` + the OPTIONAL string `ordering`
+        # (`Optional[str] = None`). The ADT ctor `IrFunctionVariant emit_ir iropt_str`
+        # ALREADY exists (preamble, for the dict-based `_recognize_functionvariant_builder`),
+        # so this needs NO preamble/kind_of/size change. The `ordering` slot is a
+        # MONOMORPHIC-option `iropt_str` (see `_IRNODE_CTOR_OPTFIELDS`): a bound string arg
+        # (the 2-arg `FunctionVariant(e, ordering)` form) wraps to `IrSSome <ordering>`; an
+        # OMITTED field (the 1-arg `FunctionVariant(self._parse_expr())` form) is `IrSNone`,
+        # faithful to `ordering=None`. The parser class-construction analog of the dict-based
+        # `_lower_functionvariant_optfield` (which wraps an `option string` node field).
+        "FunctionVariant": ("IrFunctionVariant", ["expr", "ordering"]),
+    }
+
+    # self-tcb-reduction family-B (optional-field run): per-ctor map of payload slots
+    # that are MONOMORPHIC-OPTION ADT fields (`iropt_str = IrSNone | IrSSome string`),
+    # keyed by the class field name. In `_call_irnode_constructor`, a BOUND such field
+    # wraps its lowered (bare-string) actual as `(IrSSome <v>)`; an UNBOUND (omitted,
+    # defaulted-to-None) such field is `IrSNone` — instead of the required-field decline.
+    # Faithful to a Python `Optional[str] = None` dataclass field: present token vs absent.
+    _IRNODE_CTOR_OPTFIELDS = {
+        "FunctionVariant": {"ordering": "iropt_str"},
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
@@ -6786,12 +6808,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         bound: Dict[str, str] = dict(zip(init_params, args))
         bound.update(kwargs_map or {})
         cname, payload = ctor
-        # Every ctor payload slot must be bound by the construction — an unbound slot
-        # would mean a DROPPED child, which is exactly the facade this build exists to
-        # avoid. Decline instead.
-        if any(f not in bound for f in payload):
-            return None
-        return f"({cname} {' '.join(bound[f] for f in payload)})"
+        optfields = self._IRNODE_CTOR_OPTFIELDS.get(func_name, {})
+        parts: List[str] = []
+        for f in payload:
+            if optfields.get(f) == "iropt_str":
+                # Monomorphic-option `iropt_str` slot (an `Optional[str] = None` field):
+                # a BOUND string actual wraps to `(IrSSome <v>)`; an OMITTED field is
+                # `IrSNone` (faithful to the None default) — NOT a dropped child.
+                parts.append(f"(IrSSome {bound[f]})" if f in bound else "IrSNone")
+                continue
+            # Every REQUIRED ctor payload slot must be bound by the construction — an
+            # unbound slot would mean a DROPPED child, which is exactly the facade this
+            # build exists to avoid. Decline instead.
+            if f not in bound:
+                return None
+            parts.append(bound[f])
+        return f"({cname} {' '.join(parts)})"
 
     def _call_record_constructor(self, args: List[str], func_name: str,
                                  kwargs_map: Optional[Dict[str, str]] = None) -> Optional[str]:

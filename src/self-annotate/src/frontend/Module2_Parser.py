@@ -990,12 +990,19 @@ class _ContractParser:
         self.expect_name("invariant")
         return ClassInvariant(self._parse_expr())
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_function_variant(self):
-        pass
+    def _parse_function_variant(self) -> "ExprIR":
+        self.expect_bs("\\variant")
+        if self.at_op("("):
+            self.advance()
+            e = self._parse_expr()
+            self.expect_op(",")
+            ordering = self.expect_name()
+            self.expect_op(")")
+            return FunctionVariant(e, ordering)
+        return FunctionVariant(self._parse_expr())
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
