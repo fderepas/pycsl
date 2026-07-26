@@ -1315,15 +1315,23 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_mutex_expr_str(self):
+    # Returns the mutex-expression STRING (`NAME` or `NAME[<idx>]`); the `-> str` return
+    # annotation lets a converted caller (`_parse_mutex_invariant`) bind it as the leaf
+    # `mutex` field. Stays `\trusted` — its `f"{name}[{_csl_to_str(index)}]"` body threads
+    # a value through the two-trusted-stub `_parse_expr`/`_csl_to_str` type mismatch
+    # (CERTIFIED BOUNDARY, parser-tokenstream-impl.md GAP #2 run); the annotation only
+    # makes the trusted interface precise (the `_parse_assigns`/`_parse_expr` precedent).
+    def _parse_mutex_expr_str(self) -> str:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_mutex_invariant(self):
-        pass
+    def _parse_mutex_invariant(self) -> "ExprIR":
+        self.expect_name("mutex_invariant")
+        mutex = self._parse_mutex_expr_str()
+        self.expect_op(":")
+        return MutexInvariant(mutex, self._parse_expr())
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

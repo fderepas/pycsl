@@ -3952,6 +3952,15 @@ class PreambleEmissionMixin:
             # arm. Gated `_uses_clause_ir` → byte-inert. The IrRaisesDecl precedent.
             + (" | IrFootprint string emit_ir"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (mutex run): IrMutexInvariant carries the
+            # `#@ mutex_invariant <MUTEX>: <EXPR>` node's LEAF-string `mutex` (the mutex
+            # expression string, from the trusted `-> str` `_parse_mutex_expr_str`) + its
+            # single EMIT_IR `expr` child (`MutexInvariant(mutex, self._parse_expr())`,
+            # `_parse_mutex_invariant`). Same string-leaf + emit_ir-child shape as
+            # IrRaisesDecl/IrFootprint. size recurses the real `expr` child (gated arm
+            # below); kind_of has its own arm. Gated `_uses_clause_ir` → byte-inert.
+            + (" | IrMutexInvariant string emit_ir"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4143,6 +4152,8 @@ class PreambleEmissionMixin:
                "    | IrGhostArraySetDecl _ _ _ -> \"GhostArraySetDecl\""]
               if self._uses_clause_ir() else []),
             *(["    | IrFootprint _ _ -> \"Footprint\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrMutexInvariant _ _ -> \"MutexInvariant\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
@@ -4375,6 +4386,10 @@ class PreambleEmissionMixin:
             # emit_ir `arg` child (`1 + size a`; leading `happy_name` string not counted —
             # the IrRaisesDecl precedent). Gated WITH the ctor.
             *(["    | IrFootprint _ a -> 1 + size a"] if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B (mutex run): IrMutexInvariant recurses its single
+            # emit_ir `expr` child (`1 + size e`; leading `mutex` string not counted).
+            # Gated WITH the ctor.
+            *(["    | IrMutexInvariant _ e -> 1 + size e"] if self._uses_clause_ir() else []),
             "    | _ -> 1",
             "    end",
             "",

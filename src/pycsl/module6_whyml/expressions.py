@@ -1346,6 +1346,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # RaisesDecl; `_call_irnode_constructor` binds by __init__ field order. Gated
         # `_uses_clause_ir` (preamble) → byte-inert.
         "Footprint": ("IrFootprint", ["happy_name", "arg"]),
+        # self-tcb-reduction family-B (mutex run): `#@ mutex_invariant <M>: <EXPR>`
+        # (`_parse_mutex_invariant`). MutexInvariant -> `IrMutexInvariant string emit_ir`
+        # (LEAF `mutex` [from the trusted `-> str` `_parse_mutex_expr_str`] + EMIT_IR
+        # `expr`). Same string-leaf + emit_ir-child shape as RaisesDecl/Footprint. Gated
+        # `_uses_clause_ir` (preamble) → byte-inert.
+        "MutexInvariant": ("IrMutexInvariant", ["mutex", "expr"]),
     }
 
     # self-tcb-reduction family-B (ghost run): per-ctor map of a payload slot to the
