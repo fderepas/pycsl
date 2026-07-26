@@ -722,6 +722,16 @@ class Module6_WhyMLTranspiler(
         # against it. Empty for non-mixin modules → maps unchanged → byte-identical.
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # self-tcb-reduction (_err-divergence): callee IR-names declared `-> NoReturn`
+        # (is_noreturn, Module5 NR1). A `self.<m>(...)` call to one of these is modelled at
+        # the call site (`_handle_dotted_call`) as making the continuation UNREACHABLE — the
+        # abstract op gets `ensures { false }` (the faithful never-returns claim, justified
+        # by the callee's unconditional-raise body) and the call lowers to
+        # `(let _ = <call> in absurd)`, so a trailing `self._err(...)` in a `-> ExprIR`
+        # clause parser type-checks. Empty for every module with no `-> NoReturn` method →
+        # byte-identical.
+        self._module_method_noreturn = {
+            f["name"] for f in funcs_for_maps if f.get("is_noreturn")}
         self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
         # wrong-lowering-to-fix.md §WL-05b: func-name -> {dict/set params modelled as a
         # caller-visible mutable `ref (map ...)` (fixpoint over direct item-mutation +
@@ -915,6 +925,16 @@ class Module6_WhyMLTranspiler(
                for m in ind.get("members", [])})
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # self-tcb-reduction (_err-divergence): callee IR-names declared `-> NoReturn`
+        # (is_noreturn, Module5 NR1). A `self.<m>(...)` call to one of these is modelled at
+        # the call site (`_handle_dotted_call`) as making the continuation UNREACHABLE — the
+        # abstract op gets `ensures { false }` (the faithful never-returns claim, justified
+        # by the callee's unconditional-raise body) and the call lowers to
+        # `(let _ = <call> in absurd)`, so a trailing `self._err(...)` in a `-> ExprIR`
+        # clause parser type-checks. Empty for every module with no `-> NoReturn` method →
+        # byte-identical.
+        self._module_method_noreturn = {
+            f["name"] for f in funcs_for_maps if f.get("is_noreturn")}
         self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
         # wrong-lowering-to-fix.md §WL-05b: func-name -> {dict/set params modelled as a
         # caller-visible mutable `ref (map ...)` (fixpoint over direct item-mutation +

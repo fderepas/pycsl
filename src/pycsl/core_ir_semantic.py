@@ -821,6 +821,15 @@ def _check_noreturn(func) -> None:
     at proof time."""
     if not func.get("is_noreturn"):
         return
+    # A `\trusted` / `#@ \abstract` stub emits as a bodyless WhyML `val`: its `ensures
+    # { false }` (NR1) is a reviewer-vouched INTERFACE assumption, not a claim about the
+    # placeholder body (`pass`). The NR2a body-justification is meaningless there — it
+    # exists to catch a REAL body that can return normally yet claims NoReturn. The trust
+    # boundary is where the never-returns fact is discharged out of band (e.g. the live
+    # `_ContractParser._err` body is an unconditional `raise`, mirrored here as a trusted
+    # stub). Exempt both, exactly as the emitter treats them as assumption-only vals.
+    if func.get("trusted") or func.get("abstract"):
+        return
     name = func.get("name", "<anonymous>")
     body = func.get("body", []) or []
     if _body_has_return(body):

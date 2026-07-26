@@ -1469,6 +1469,27 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         in_loop: bool,
     ) -> str:
         val = stmt.value.to_dict()
+        # self-tcb-reduction (_err-divergence): a bare-statement `self.<m>(...)` call to a
+        # `-> NoReturn` callee never returns. `_handle_dotted_call` lowers it to
+        # `(let _ = <call> in absurd)` (type `'a`). As a STATEMENT it must NOT be wrapped in
+        # the usual `let _ = <expr> in ()` (that forces the result to `unit` and discards the
+        # bottom-typing — the observed `type emit_ir but expected ()` at the trailing
+        # `self._err(...)` of a `-> ExprIR` clause parser). Emit the self-terminating
+        # `absurd` form as the tail VALUE so it unifies with the enclosing branch's type.
+        # Any `rest` after it is genuinely dead (`absurd` discharges it); chain it unchanged.
+        # Gated on the noreturn set → byte-identical for every module with no `-> NoReturn`.
+        if val.get("type") == "Call":
+            _nrf = val.get("func", "")
+            if (_nrf.startswith("self.") and getattr(self, "_current_self_type", None)
+                    and whyml_ident(
+                        f"{self._current_self_type}__{_nrf[len('self.'):]}")
+                    in getattr(self, "_module_method_noreturn", set())):
+                expr_str = self._expr_to_whyml(stmt.value, local_refs)
+                code = f"{indent}{expr_str}"
+                if rest:
+                    code += ";\n" + self._stmts_to_whyml(
+                        rest, local_refs, declared_refs, indent, in_loop)
+                return code
         if val.get("type") == "Call":
             func = val.get("func", "")
             if func.endswith(".append") and self._value_semantic:

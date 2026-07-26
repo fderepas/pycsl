@@ -1106,6 +1106,14 @@ class ControlFlowStmtMixin:
             body_returns_value = (last_line.startswith("(") and
                                   not last_line.startswith("()") and
                                   "raise " not in last_line and
+                                  # self-tcb-reduction (_err-divergence): a body ending in
+                                  # `absurd` (a `-> NoReturn` `self._err(...)` call, lowered
+                                  # to `(let _ = <call> in absurd)`) DIVERGES — like a
+                                  # `raise` it is not a value-returning arm. Route it to the
+                                  # no-else `if test then begin <body> end` form (the `'a`
+                                  # of `absurd` unifies with the implicit `()`), NOT the
+                                  # value-if whose `else 0` would force an `int` type.
+                                  not last_line.endswith("absurd)") and
                                   "<-" not in last_line and
                                   ":=" not in last_line and
                                   "subscript_set" not in last_line)

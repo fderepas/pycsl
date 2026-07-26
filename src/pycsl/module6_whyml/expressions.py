@@ -1299,6 +1299,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `exc` is a string local (`self.expect_name()`, ProofDecl precedent), the condition
         # lowers to emit_ir; `_call_irnode_constructor` binds both by __init__ field order.
         "RaisesDecl": ("IrRaisesDecl", ["exc_type", "condition"]),
+        # self-tcb-reduction family-B (_err-divergence run): the `#@ loop invariant <e>` /
+        # `#@ loop variant <e>` node's single EMIT_IR child (`LoopInvariant(expr)` /
+        # `LoopVariant(expr)`, `_parse_loop`). Same 1-emit_ir-child shape as ClassInvariant;
+        # the child `self._parse_expr()` lowers to emit_ir. `_call_irnode_constructor` binds
+        # the emit_ir field by __init__ order. Gated `_uses_clause_ir` (preamble) → byte-inert.
+        "LoopInvariant": ("IrLoopInvariant", ["expr"]),
+        "LoopVariant":   ("IrLoopVariant", ["expr"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
@@ -4431,13 +4438,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._func_return_type = ret_type
         ensures_suffix = self._dotted_ensures_suffix(result_ensures, n, param_types, field_spec)
         self._func_return_type = _saved_frt
+        # self-tcb-reduction (_err-divergence): a `self.<m>(...)` call to a `-> NoReturn`
+        # callee never returns normally. Model it faithfully: give the abstract op the
+        # `ensures { false }` never-returns postcondition (justified by the callee's
+        # unconditional-raise body — the same claim Module5/functions.py emit on the
+        # callee's own def, NR1) and lower the CALL to `(let _ = <call> in absurd)`, so the
+        # continuation is bottom-typed (`'a`) and a trailing `self._err(...)` in an
+        # `-> ExprIR` clause parser (e.g. `_parse_loop`) type-checks against the emit_ir
+        # arms. NOT a blanket massage of the CALLER's contract: the caller's real
+        # postcondition still has to hold on every returning arm; only the raising arm is
+        # discharged by the divergence. Gated on the noreturn set → byte-identical for every
+        # module with no `-> NoReturn` method.
+        _nr_callee = (
+            func_name.startswith("self.") and self._current_self_type is not None
+            and whyml_ident(f"{self._current_self_type}__{func_name[len('self.'):]}")
+            in getattr(self, "_module_method_noreturn", set()))
+        if _nr_callee:
+            ensures_suffix = ensures_suffix + "\n    ensures { false }"
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
-            return f"({arity_name} ())"
+            _call = f"({arity_name} ())"
+            return f"(let _ = {_call} in absurd)" if _nr_callee else _call
         params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
         params = f"{receiver_param}{params}".rstrip()
         self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{writes_clause}{ensures_suffix}")
-        return f"({arity_name} {' '.join(coerced)})"
+        _call = f"({arity_name} {' '.join(coerced)})"
+        return f"(let _ = {_call} in absurd)" if _nr_callee else _call
 
     def _is_seq_arg(self, arg: str) -> bool:
         """True if a lowered arg is a `seq`-typed value (a seq local or a seq-producing op), so

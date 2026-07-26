@@ -3916,6 +3916,14 @@ class PreambleEmissionMixin:
             # (leading-strings + emit_ir child) precedent.
             + (" | IrRaisesDecl string emit_ir"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (_err-divergence run): IrLoopInvariant /
+            # IrLoopVariant carry the `#@ loop invariant/variant <e>` node's single EMIT_IR
+            # child (`LoopInvariant(expr)` / `LoopVariant(expr)`, `_parse_loop`). size
+            # recurses the real `expr` child (`1 + size e`, gated arms below); kind_of has
+            # its own arm each. Gated on `_uses_clause_ir` → byte-inert in every other mirror
+            # + the whole corpus. The IrClassInvariant emit_ir-child precedent.
+            + (" | IrLoopInvariant emit_ir | IrLoopVariant emit_ir"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4095,6 +4103,9 @@ class PreambleEmissionMixin:
             *(["    | IrClassInvariant _ -> \"ClassInvariant\""]
               if self._uses_clause_ir() else []),
             *(["    | IrRaisesDecl _ _ -> \"RaisesDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrLoopInvariant _ -> \"LoopInvariant\"",
+               "    | IrLoopVariant _ -> \"LoopVariant\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
@@ -4310,6 +4321,8 @@ class PreambleEmissionMixin:
             # child (`1 + size e`); the leading exception-name string is not counted
             # (the IrForallItems/IrSum leading-string precedent). Gated WITH the ctor.
             *(["    | IrRaisesDecl _ e -> 1 + size e"] if self._uses_clause_ir() else []),
+            *(["    | IrLoopInvariant e -> 1 + size e",
+               "    | IrLoopVariant e -> 1 + size e"] if self._uses_clause_ir() else []),
             "    | _ -> 1",
             "    end",
             "",
