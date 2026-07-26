@@ -440,3 +440,62 @@ binding — `_call_irnode_constructor` does not yet handle kwargs/arg-count-vari
 Both have a GUARANTEED terminal return, so they do NOT exercise the `_err`-divergence model — they
 are pure node-ctor family-B, fundable independently. The `_err`-divergence model is banked and
 reusable for ANY future trailing-`_err` clause parser.
+
+## Family-B clause batch: 7 more clause parsers CONVERTED (2026-07-26, Phase-2 executor) — count 903 -> 894 (9 REAL conversions this run + 2 earlier same-day)
+
+**VERDICT: the reachable simple-CLAUSE-parser frontier is now EXHAUSTED.** Nine
+single-terminal-return contract-clause `_parse_*` builders converted this run, each a
+verbatim live port gated by a fresh foreground whole-file proof. Three small, reusable,
+byte-inert emitter capabilities banked (optfield `iropt_str` wrap, string-default fill,
+explicit-`None`-arg → `IrSNone`); the rest reuse existing precedents.
+
+**Emitter capabilities BUILT (module6_whyml, all @mutable_state / `_uses_clause_ir`-gated → corpus byte-inert):**
+- **optfield `iropt_str` wrap** (`_IRNODE_CTOR_OPTFIELDS` + `_call_irnode_constructor`):
+  an `Optional[str] = None` ctor field — a BOUND string actual wraps to `(IrSSome <v>)`,
+  an OMITTED field is `IrSNone`. The parser class-construction analog of the dict-based
+  `_lower_functionvariant_optfield`.
+- **string-default fill** (`_IRNODE_CTOR_STRDEFAULTS`): an OMITTED required string slot is
+  filled from its class field's concrete string default (`declared_type: str = 'int'` →
+  the literal `"int"`), since Module5 `field_defaults` captures only int/float defaults.
+- **explicit-`None`-arg → `IrSNone`** (`none_arg_indices`/`none_kwargs` threaded from
+  `_handle_call_expr`): an EXPLICIT `None` literal bound to an `iropt_str` optfield slot
+  (`SharedDecl(name, None)`) maps to `IrSNone` instead of the ill-typed `IrSSome 0`
+  (`None` lowers to the int witness `0`). Mutation-verified load-bearing.
+
+**CONVERTED (each: whole-file Module2_Parser proof SUCCESS 0-unproven [foreground, read];
+FULL corpus byte-diff 0 [812/812 vs clean-HEAD 969feaa2 worktree]; MUTATION TEST PASS;
+vacuity --emit exit 0; Module5_IREmitter L3-tc SUCCESS [additive ctors, exhaustiveness
+intact — whole-file M5 proof a pre-existing heavy timeout, additive extension proof-neutral];
+mirror-check 52/52; drift 2; ledger 3):**
+- `_parse_function_variant` (67953136, 903→902) — `IrFunctionVariant emit_ir iropt_str`
+  (ADT ctor ALREADY existed for the dict recognizer; only the optfield wiring added).
+- `_parse_ghost` (81a5ba30, 902→901) — `IrGhostAssignDecl string emit_ir string string`
+  (declared_type string-default fill) + `IrGhostArraySetDecl string emit_ir emit_ir`.
+- `_parse_footprint` (680bb4ef, 901→900) — `IrFootprint string emit_ir` (RaisesDecl shape).
+- `_parse_mutex_invariant` (7dd9e426, 900→899) — `IrMutexInvariant string emit_ir`
+  (`_parse_mutex_expr_str` gains `-> str`, stays trusted).
+- `_parse_shared` (894945a7, 899→898) — `IrSharedDecl string iropt_str` (explicit-None optfield).
+- `_parse_assigns_region` (71391489, 898→897) — existing `IrAssignsRegion string emit_ir
+  emit_ir` ctor; ZERO emitter change, pure-mirror conversion.
+- `_parse_shared_state` (ead9e192, 897→896) — `IrSharedStateDecl string string` (2 leaf strings).
+- `_parse_touches_field` (12ff3cfb, 896→895) — `IrTouchesFieldDecl string string`.
+- `_parse_depends_method` (93a1ec39, 895→894) — `IrMethodDependencyDecl string string string`
+  (`kind: str` method param + `sig` from the converted `-> str` `_parse_mixin_method_sig`).
+
+**REMAINING trusted `_parse_*` = two disjoint deferred veins (NOT simple-clause wins):**
+- **LIST-building clause parsers** (`.append(...)` / `', '.join(...)` / clause-list loops):
+  `_parse_datatype` (+ `_parse_variant_def` tuple), `_parse_lock_order`, `_parse_happy`
+  (+ region/targets/opt_except), `_parse_act_block`, `_parse_for_block`, `_parse_act_names`,
+  `_parse_compose_from`, `_parse_conforms_to`, `_parse_dotted_path_list`, `_parse_assigns_target`
+  (+ `_try` higher-order), `_parse_no_exception` [SKIP, List[str]], `_parse_inductive*`. Need the
+  family-B **list-append** capability — a deliberate build.
+- **EXPRESSION-grammar cluster** (`_parse_membership`→CSLIn/CSLNotIn, `_parse_unary`→UnaryOp,
+  `_parse_atom`→StrConcatExpr, `_parse_atom_name`/`_parse_atom_bs`→CSLBool/CSLNone/
+  SubscriptFieldAccess/FieldAccess/Result/…): each constructs MULTIPLE mutually-recursive
+  ExprIR node kinds; needs the per-node emit_ir variants co-landed as an interconnected set
+  (the IrBinOp precedent × many). A larger deliberate build, not single-shot.
+- **Hard boundaries** (stay trusted): `_parse_mutex_expr_str`/`_parse_mixin_type`/`_parse_mixin_params`
+  (string list-join, annotated `-> str`), `_parse_assigns`/`_parse_expr`/`_parse_quantifier`
+  (annotated trusted returns), `_parse_impl_rhs`/`_parse_or_rhs`/`_parse_and_rhs` (quantifier-
+  monotonicity trust-widen — reviewer), `_parse_contract`/`_parse_trusted`/`_grab_reviewer_id`/
+  `_lex_contract`/`_csl_to_str` (char-lexer / recursive-dispatch boundaries).

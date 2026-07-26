@@ -29,3 +29,14 @@ Unblock path: either the research-grade decoder-synthesis SOTA answer, OR a live
 ## Standing residual (unchanged)
 - V1 heterogeneous `Dict[str,Any]` value model — research-grade (external-reviewer report standing).
 - Parser-primitives wall — separate track (`getting-better/parser-primitives-wall-impl.md`, driver-progress.log).
+
+## Family-B parser clause batch DONE (2026-07-26) — count 903 -> 894 (9 conversions)
+Reachable SIMPLE contract-clause `_parse_*` builders EXHAUSTED. 9 converted (function_variant,
+ghost, footprint, mutex_invariant, shared, assigns_region, shared_state, touches_field,
+depends_method). Banked reusable emitter capabilities: optfield `iropt_str` wrap, string-default
+fill, explicit-`None`-arg → `IrSNone`. Full detail: getting-better/parser-tokenstream-impl.md.
+Remaining parser trusted = two deferred veins: (1) family-B **list-append** (datatype/lock_order/
+happy/act_block/for_block/compose_from/conforms_to/dotted_path_list/assigns_target/inductive*),
+(2) the **expression-grammar cluster** (`_parse_membership`/`_parse_unary`/`_parse_atom*` — many
+mutually-recursive ExprIR node kinds, co-land the emit_ir variants as an interconnected set). Both
+are deliberate multi-node builds, not single-shot clause wins.
