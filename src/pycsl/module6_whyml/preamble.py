@@ -3924,6 +3924,14 @@ class PreambleEmissionMixin:
             # + the whole corpus. The IrClassInvariant emit_ir-child precedent.
             + (" | IrLoopInvariant emit_ir | IrLoopVariant emit_ir"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (_err-divergence run): IrInterfaceClause carries
+            # the `#@ interface <kind> <clause>` node's LEAF-string kind + its EMIT_IR
+            # payload (the wrapped Ensures/Requires/Assigns node); IrEnsures/IrRequires each
+            # wrap the single emit_ir contract expression (`_parse_interface`). size recurses
+            # the real emit_ir children (gated arms below). Gated `_uses_clause_ir` →
+            # byte-inert. The IrRaisesDecl / IrClassInvariant precedents.
+            + (" | IrInterfaceClause string emit_ir | IrEnsures emit_ir | IrRequires emit_ir"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4106,6 +4114,10 @@ class PreambleEmissionMixin:
               if self._uses_clause_ir() else []),
             *(["    | IrLoopInvariant _ -> \"LoopInvariant\"",
                "    | IrLoopVariant _ -> \"LoopVariant\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrInterfaceClause _ _ -> \"InterfaceClause\"",
+               "    | IrEnsures _ -> \"Ensures\"",
+               "    | IrRequires _ -> \"Requires\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
@@ -4323,6 +4335,9 @@ class PreambleEmissionMixin:
             *(["    | IrRaisesDecl _ e -> 1 + size e"] if self._uses_clause_ir() else []),
             *(["    | IrLoopInvariant e -> 1 + size e",
                "    | IrLoopVariant e -> 1 + size e"] if self._uses_clause_ir() else []),
+            *(["    | IrInterfaceClause _ e -> 1 + size e",
+               "    | IrEnsures e -> 1 + size e",
+               "    | IrRequires e -> 1 + size e"] if self._uses_clause_ir() else []),
             "    | _ -> 1",
             "    end",
             "",

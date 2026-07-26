@@ -1306,6 +1306,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # the emit_ir field by __init__ order. Gated `_uses_clause_ir` (preamble) → byte-inert.
         "LoopInvariant": ("IrLoopInvariant", ["expr"]),
         "LoopVariant":   ("IrLoopVariant", ["expr"]),
+        # self-tcb-reduction family-B (_err-divergence run): `#@ interface
+        # ensures/requires/assigns <clause>` (`_parse_interface`). InterfaceClause carries
+        # a LEAF-string `kind` + an EMIT_IR `payload` (the wrapped Ensures/Requires/Assigns
+        # node — arms 1/2 build `Ensures(...)`/`Requires(...)`, arm 3 delegates to the
+        # trusted `-> ExprIR` `_parse_assigns`). Ensures/Requires each wrap a single emit_ir
+        # `expr`. `_call_irnode_constructor` binds by __init__ field order. Gated
+        # `_uses_clause_ir` → byte-inert. The IrRaisesDecl(string+emit_ir) / IrClassInvariant
+        # (emit_ir) precedents.
+        "InterfaceClause": ("IrInterfaceClause", ["kind", "payload"]),
+        "Ensures":  ("IrEnsures", ["expr"]),
+        "Requires": ("IrRequires", ["expr"]),
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
