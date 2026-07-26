@@ -1236,12 +1236,15 @@ class _ContractParser:
     def _parse_inductive_rules(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_shared_state(self):
-        pass
+    def _parse_shared_state(self) -> "ExprIR":
+        self.expect_name("shared_state")
+        name = self.expect_name()
+        self.expect_op(":")
+        ty = self._parse_mixin_type()
+        return SharedStateDecl(name, ty)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -3970,6 +3970,13 @@ class PreambleEmissionMixin:
             # has its own arm. Gated `_uses_clause_ir` → byte-inert.
             + (" | IrSharedDecl string iropt_str"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (mixin-decl run): IrSharedStateDecl carries the
+            # `#@ shared_state <name>: <type>` node's two LEAF strings (SharedStateDecl(name,
+            # type_str), `_parse_shared_state`). No emit_ir child → childless for the `size`
+            # measure (the IrProofDecl two-leaf-string precedent, falls to size's `_ -> 1`
+            # catch-all → NO size arm). kind_of has its own arm. Gated `_uses_clause_ir`.
+            + (" | IrSharedStateDecl string string"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4165,6 +4172,8 @@ class PreambleEmissionMixin:
             *(["    | IrMutexInvariant _ _ -> \"MutexInvariant\""]
               if self._uses_clause_ir() else []),
             *(["    | IrSharedDecl _ _ -> \"SharedDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrSharedStateDecl _ _ -> \"SharedStateDecl\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",

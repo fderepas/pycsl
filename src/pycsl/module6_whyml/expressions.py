@@ -1360,6 +1360,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # wraps to `IrSSome <mutex>`; the plain-`SharedDecl(name, None)` branch's EXPLICIT
         # None maps to `IrSNone` (via `none_arg_indices`). Gated `_uses_clause_ir` → byte-inert.
         "SharedDecl": ("IrSharedDecl", ["variable", "mutex"]),
+        # self-tcb-reduction family-B (mixin-decl run): `#@ shared_state <name>: <type>`
+        # (`_parse_shared_state`). SharedStateDecl -> `IrSharedStateDecl string string`
+        # (two LEAF strings `name` + `type_str` [from the trusted `-> str`
+        # `_parse_mixin_type`]). The IrProofDecl two-leaf-string precedent. Gated
+        # `_uses_clause_ir` (preamble) → byte-inert.
+        "SharedStateDecl": ("IrSharedStateDecl", ["name", "type_str"]),
     }
 
     # self-tcb-reduction family-B (ghost run): per-ctor map of a payload slot to the
