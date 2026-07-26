@@ -1063,18 +1063,28 @@ class _ContractParser:
             name += "." + self.expect_name()
         return name
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_interface(self):
-        pass
+    def _parse_interface(self) -> "ExprIR":
+        self.expect_name("interface")
+        if self.at_name("ensures"):
+            self.advance(); return InterfaceClause("ensures", Ensures(self._parse_expr()))
+        if self.at_name("requires"):
+            self.advance(); return InterfaceClause("requires", Requires(self._parse_expr()))
+        if self.at_name("assigns"):
+            self.advance(); return InterfaceClause("assigns", self._parse_assigns())
+        self._err("expected ensures/requires/assigns after 'interface'")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_assigns(self):
+    # Returns an `Assigns` contract-AST node; the `-> "ExprIR"` return annotation lets a
+    # converted caller (`_parse_interface`) bind it as an emit_ir payload (GAP #2 typed
+    # trusted-return, the `_parse_expr` precedent). Stays `\trusted` (builds an assigns
+    # target list — family-B list boundary); the annotation only makes the interface precise.
+    def _parse_assigns(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
