@@ -1308,13 +1308,27 @@ class _ContractParser:
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    # FAITHFUL MONOTONICITY (was `ensures True`): `_parse_mixin_type` is a
+    # recursive-descent rule over the token stream whose only cursor effect is
+    # `expect_name`/`advance`/`accept_op` — all of which only INCREMENT `self.i`
+    # (never backtrack; `_try` is not reachable from a mixin-type rule). So
+    # `self.i >= \old(self.i)` is a REAL structural property of the live body,
+    # exactly like the `_parse_unary` expression-chain frame. It is what lets the
+    # converted `_parse_mixin_params`/`_parse_mixin_param` callers discharge their
+    # loop variant / monotonicity postcondition across this sibling call. Stays
+    # `\trusted` (the body builds a STRING via recursion + list-string `', '.join`;
+    # CONVERTING the recursive body is blocked at a distinct proof-infrastructure
+    # boundary — the EOF-sentinel class invariant is not ambient at the FIRST
+    # recursive call, which sits OUTSIDE any loop, and threading it spreads
+    # caller obligations across the mixin call graph). The annotation only makes
+    # the trusted interface precise.
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _parse_mixin_type(self) -> str:
         pass
 
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _parse_mixin_param(self) -> str:
         name = self.expect_name()
@@ -1322,12 +1336,18 @@ class _ContractParser:
             return f"{name}: {self._parse_mixin_type()}"
         return str(name)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _parse_mixin_params(self) -> str:
-        pass
+        params = [self._parse_mixin_param()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            params.append(self._parse_mixin_param())
+        return ", ".join(params)
 
     #@ requires True
     #@ ensures True
