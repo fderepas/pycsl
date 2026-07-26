@@ -1438,13 +1438,15 @@ class _ContractParser:
     def _parse_quantifier(self) -> "ExprIR":
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _mk_in(var, domain, body, is_exists):
-        pass
+    def _mk_in(var: str, domain: "ExprIR", body: "ExprIR", is_exists: bool) -> "ExprIR":
+        # quantification.md P3 desugar: ∀x in S; P ≡ ∀x; (x in S) ==> P ;
+        # ∃x in S; P ≡ ∃x; (x in S) and P.
+        op = "and" if is_exists else "==>"
+        return BinOp(CSLIn(Var(var), domain), op, body)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
