@@ -1370,6 +1370,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (`_parse_touches_field`). TouchesFieldDecl -> `IrTouchesFieldDecl string string`
         # (two LEAF strings). The IrSharedStateDecl precedent. Gated `_uses_clause_ir`.
         "TouchesFieldDecl": ("IrTouchesFieldDecl", ["name", "type_str"]),
+        # self-tcb-reduction family-B (mixin-decl run): `#@ depends_method/requires_method
+        # <m>: <sig>` (`_parse_depends_method`). MethodDependencyDecl -> `IrMethodDependency
+        # Decl string string string` (three LEAF strings `method`/`sig`/`kind`; `sig` from
+        # the converted `-> str` `_parse_mixin_method_sig`, `kind` the method's param). The
+        # IrProofDecl leaf-string precedent. Gated `_uses_clause_ir` → byte-inert.
+        "MethodDependencyDecl": ("IrMethodDependencyDecl", ["method", "sig", "kind"]),
     }
 
     # self-tcb-reduction family-B (ghost run): per-ctor map of a payload slot to the

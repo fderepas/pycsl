@@ -3983,6 +3983,14 @@ class PreambleEmissionMixin:
             # IrProofDecl / IrSharedStateDecl precedent). kind_of has its own arm. Gated.
             + (" | IrTouchesFieldDecl string string"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (mixin-decl run): IrMethodDependencyDecl carries
+            # the `#@ depends_method/requires_method <m>: <sig>` node's three LEAF strings
+            # (MethodDependencyDecl(method, sig, kind), `_parse_depends_method`; `sig` from
+            # the converted `-> str` `_parse_mixin_method_sig`, `kind` the method's own
+            # discriminator param). No emit_ir child → NO size arm (the IrProofDecl
+            # leaf-string precedent). kind_of has its own arm. Gated `_uses_clause_ir`.
+            + (" | IrMethodDependencyDecl string string string"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4182,6 +4190,8 @@ class PreambleEmissionMixin:
             *(["    | IrSharedStateDecl _ _ -> \"SharedStateDecl\""]
               if self._uses_clause_ir() else []),
             *(["    | IrTouchesFieldDecl _ _ -> \"TouchesFieldDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrMethodDependencyDecl _ _ _ -> \"MethodDependencyDecl\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",

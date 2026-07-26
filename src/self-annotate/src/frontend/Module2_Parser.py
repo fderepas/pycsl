@@ -1256,12 +1256,15 @@ class _ContractParser:
         ty = self._parse_mixin_type()
         return TouchesFieldDecl(name, ty)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_depends_method(self, kind):
-        pass
+    def _parse_depends_method(self, kind: str) -> "ExprIR":
+        self.advance()  # depends_method / requires_method
+        method = self.expect_name()
+        self.expect_op(":")
+        sig = self._parse_mixin_method_sig()
+        return MethodDependencyDecl(method, sig, kind)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
