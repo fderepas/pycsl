@@ -3932,6 +3932,18 @@ class PreambleEmissionMixin:
             # byte-inert. The IrRaisesDecl / IrClassInvariant precedents.
             + (" | IrInterfaceClause string emit_ir | IrEnsures emit_ir | IrRequires emit_ir"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (ghost run): IrGhostAssignDecl carries the
+            # `#@ ghost <name> <op> <e>` (opt. `: <type>`) node's LEAF-string `target` +
+            # its EMIT_IR `value` child + LEAF-string `op` + LEAF-string `declared_type`
+            # (`GhostAssignDecl(name, value, op[, declared_type=gtype])`, `_parse_ghost`);
+            # `declared_type` defaults to the concrete string "int". IrGhostArraySetDecl
+            # carries `#@ ghost <name>[<i>] = <e>` — LEAF-string `target` + EMIT_IR `index`
+            # + EMIT_IR `value` (`GhostArraySetDecl(name, index, value)`). size recurses the
+            # real emit_ir children (gated arms below); kind_of has its own arm each. Gated
+            # `_uses_clause_ir` → byte-inert. The IrRaisesDecl (string+emit_ir) precedent.
+            + (" | IrGhostAssignDecl string emit_ir string string"
+               " | IrGhostArraySetDecl string emit_ir emit_ir"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4118,6 +4130,9 @@ class PreambleEmissionMixin:
             *(["    | IrInterfaceClause _ _ -> \"InterfaceClause\"",
                "    | IrEnsures _ -> \"Ensures\"",
                "    | IrRequires _ -> \"Requires\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrGhostAssignDecl _ _ _ _ -> \"GhostAssignDecl\"",
+               "    | IrGhostArraySetDecl _ _ _ -> \"GhostArraySetDecl\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
@@ -4338,6 +4353,14 @@ class PreambleEmissionMixin:
             *(["    | IrInterfaceClause _ e -> 1 + size e",
                "    | IrEnsures e -> 1 + size e",
                "    | IrRequires e -> 1 + size e"] if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B (ghost run): IrGhostAssignDecl recurses its single
+            # emit_ir `value` child (`1 + size v`; leading `target` + trailing `op`/
+            # `declared_type` strings not counted); IrGhostArraySetDecl recurses BOTH emit_ir
+            # children `index` + `value` (the IrGhostCopyRange two-emit_ir-child precedent).
+            # Gated WITH the ctors.
+            *(["    | IrGhostAssignDecl _ v _ _ -> 1 + size v",
+               "    | IrGhostArraySetDecl _ i v -> 1 + size i + size v"]
+              if self._uses_clause_ir() else []),
             "    | _ -> 1",
             "    end",
             "",

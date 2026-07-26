@@ -1018,12 +1018,27 @@ class _ContractParser:
     def _grab_reviewer_id(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_ghost(self):
-        pass
+    def _parse_ghost(self) -> "ExprIR":
+        self.expect_name("ghost")
+        name = self.expect_name()
+        if self.accept_op(":"):
+            gtype = self.expect_name()  # GHOST_TYPE
+            self.expect_op("=")
+            return GhostAssignDecl(name, self._parse_expr(), "=", declared_type=gtype)
+        if self.at_op("+=") or self.at_op("-=") or self.at_op("*="):
+            op = self.advance().string
+            return GhostAssignDecl(name, self._parse_expr(), op)
+        if self.at_op("["):
+            self.advance()
+            index = self._parse_expr()
+            self.expect_op("]")
+            self.expect_op("=")
+            return GhostArraySetDecl(name, index, self._parse_expr())
+        self.expect_op("=")
+        return GhostAssignDecl(name, self._parse_expr(), "=")
 
     #@ requires True
     #@ ensures self.i >= \old(self.i)

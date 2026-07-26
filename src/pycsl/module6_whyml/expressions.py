@@ -1329,6 +1329,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # faithful to `ordering=None`. The parser class-construction analog of the dict-based
         # `_lower_functionvariant_optfield` (which wraps an `option string` node field).
         "FunctionVariant": ("IrFunctionVariant", ["expr", "ordering"]),
+        # self-tcb-reduction family-B (ghost run): `#@ ghost <name> <op> <e>` (opt.
+        # `: <type>`) / `#@ ghost <name>[<i>] = <e>` (`_parse_ghost`). GhostAssignDecl
+        # -> `IrGhostAssignDecl string emit_ir string string` (LEAF `target`, EMIT_IR
+        # `value`, LEAF `op`, LEAF `declared_type`); the `declared_type: str = 'int'`
+        # field is filled from its concrete string DEFAULT when omitted (see
+        # `_IRNODE_CTOR_STRDEFAULTS`), else from the `declared_type=gtype` keyword.
+        # GhostArraySetDecl -> `IrGhostArraySetDecl string emit_ir emit_ir` (LEAF
+        # `target`, EMIT_IR `index`, EMIT_IR `value`). `_call_irnode_constructor` binds
+        # by __init__ field order. Gated `_uses_clause_ir` (preamble) → byte-inert.
+        "GhostAssignDecl": ("IrGhostAssignDecl", ["target", "value", "op", "declared_type"]),
+        "GhostArraySetDecl": ("IrGhostArraySetDecl", ["target", "index", "value"]),
+    }
+
+    # self-tcb-reduction family-B (ghost run): per-ctor map of a payload slot to the
+    # concrete STRING default of its class field (a `f: str = "<lit>"` dataclass field),
+    # used to FILL an omitted required string slot in `_call_irnode_constructor` (Module5
+    # `field_defaults` captures only int/float defaults). Faithful: the Python default
+    # value is a compile-time constant, so an omitted `declared_type` IS the string "int".
+    _IRNODE_CTOR_STRDEFAULTS = {
+        "GhostAssignDecl": {"declared_type": "int"},
     }
 
     # self-tcb-reduction family-B (optional-field run): per-ctor map of payload slots
@@ -6809,6 +6829,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         bound.update(kwargs_map or {})
         cname, payload = ctor
         optfields = self._IRNODE_CTOR_OPTFIELDS.get(func_name, {})
+        strdefaults = self._IRNODE_CTOR_STRDEFAULTS.get(func_name, {})
         parts: List[str] = []
         for f in payload:
             if optfields.get(f) == "iropt_str":
@@ -6816,6 +6837,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # a BOUND string actual wraps to `(IrSSome <v>)`; an OMITTED field is
                 # `IrSNone` (faithful to the None default) — NOT a dropped child.
                 parts.append(f"(IrSSome {bound[f]})" if f in bound else "IrSNone")
+                continue
+            if f not in bound and f in strdefaults:
+                # A required string slot OMITTED at the call site → fill it from its
+                # class field's concrete string default (a compile-time constant), NOT a
+                # dropped child. Faithful to Python positional-default semantics.
+                parts.append(f'"{strdefaults[f]}"')
                 continue
             # Every REQUIRED ctor payload slot must be bound by the construction — an
             # unbound slot would mean a DROPPED child, which is exactly the facade this
