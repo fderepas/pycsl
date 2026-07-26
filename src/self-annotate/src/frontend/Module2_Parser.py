@@ -1378,12 +1378,19 @@ class _ContractParser:
         self.expect_op(":")
         return MutexInvariant(mutex, self._parse_expr())
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_lock_order(self):
-        pass
+    def _parse_lock_order(self) -> "ExprIR":
+        self.expect_name("lock_order")
+        names = [self._parse_mutex_expr_str()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self._parse_mutex_expr_str())
+        return LockOrder(names)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
