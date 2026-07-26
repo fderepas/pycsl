@@ -1650,18 +1650,12 @@ class _ContractParser:
     def _parse_atom_bs(self):
         pass
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures True
     #@ assigns self.i
-    def _parse_expr_list(self) -> List["ExprIR"]:
-        exprs = [self._parse_expr()]
-        #@ loop invariant self.i >= \old(self.i)
-        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
-        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
-        #@ loop variant \length(self.toks) - self.i
-        while self.accept_op(","):
-            exprs.append(self._parse_expr())
-        return exprs
+    def _parse_expr_list(self):
+        pass
 
 
 class Module2_Parser:

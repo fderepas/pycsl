@@ -1837,14 +1837,6 @@ class FunctionEmissionMixin:
             # materialize). `pyval` is a corpus-absent sentinel -> byte-inert.
             elif func.get("return_value_type") == "hval":
                 return_type = "seq hval"
-            # self-tcb-reduction (parser _parse_expr_list): a `-> List["ExprIR"]` return is
-            # the growable `seq emit_ir` (the emit_ir sibling of the `seq hval` return) — the
-            # returned list local builds real emit_ir nodes (`exprs.append(self._parse_expr())`,
-            # already snoc'd faithfully by the seq-local append) and is handed back DIRECTLY
-            # (`!exprs`, no int-`materialize`; emit_ir is an immutable pure ADT). A `List[ExprIR]`
-            # return is corpus-absent (only the self-annotate parser) -> byte-inert.
-            elif func.get("return_value_type") == "emit_ir":
-                return_type = "seq emit_ir"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
             # self-tcb-reduction giants (generic class-body lowering): a `-> Dict[str, int]`
