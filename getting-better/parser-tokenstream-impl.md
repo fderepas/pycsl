@@ -574,3 +574,64 @@ The full capability was built and REVERTED (uncommitted, clean) after the proof-
   ctor + 4-field wrapper). **REOPEN with a raised SMT budget for this file OR a lighter
   `at_name`/bounds model; the seq_to_irlist bridge + IrAct/IrForExpand/IrGiven ctor design
   above is the drop-in build (it type-checks and the bridge proves).**
+
+## LIST-OF-RECORDS vein: CENSUS + SPIKE — 1 cert-free win, rest = BOUNDARY (2026-07-26, Phase-2 executor) — count 889 -> 888
+
+**VERDICT: the list-of-records vein yields ONE clean cert-free conversion
+(`_parse_mixin_params`, a list-string JOIN); the genuine list-of-records/tuple
+members are a CERTIFIED/INFRASTRUCTURE BOUNDARY (per convert-or-BOUNDARY, do-not-over-build).**
+
+### CENSUS — element shapes of the deferred `_parse_*`
+- **list-string JOIN → STRING (no ADT, no cert):** `_parse_mixin_params` (`', '.join(list str)`),
+  `_parse_mixin_type` (recursive, `f"{name}[{', '.join(args)}]"`). Result type is a bare `string`.
+- **bare TUPLE `(string, seq string)`:** `_parse_variant_def` (`return (ctor, types)`).
+- **list of `(string, seq string)` tuples:** `_parse_datatype` (`variants=[variant_def]; while '|': append`,
+  → `DatatypeDecl(name, variants, type_params)`).
+- **list of `(string, emit_ir)` pairs:** `_parse_inductive_rules` (`rules.append((rname, self._parse_expr()))`).
+- **nested list-of-3-tuples-with-inner-rule-list:** `_parse_inductive` (`members.append((wname, wsig, wrules))`).
+
+### CONVERTED — `_parse_mixin_params` (0af25459, 889->888)
+The emitter ALREADY lowers `", ".join(params)` over a **VARIABLE** `seq string` local to
+`(str_join_seq ", " !params)` — `str_join_seq` is a pre-existing abstract `val` in the preamble.
+So the direct list-string-join return needs **ZERO new machinery, ZERO emitter change
+(`src/pycsl` untouched → corpus byte-inert BY CONSTRUCTION), NO certificate**. Verbatim live
+port (`params=[_parse_mixin_param()]; while accept_op(','): params.append(_parse_mixin_param());
+return ", ".join(params)`). Gate battery: whole-file Module2_Parser.py proof **SUCCESS 0-unproven**
+(foreground, read); vacuity `--emit` exit 0 (no NEW erasure); MUTATION TEST **PASS** (join sep
+`", "`→`"MUTSEP"` moves the emitted `str_join_seq` arg); mirror-check 52/52; drift 2; ledger 3.
+Enabled by a faithful `ensures self.i >= \old(self.i)` on the loop-body callee `_parse_mixin_param`
+(a CONVERTED method — proves it) and its still-`\trusted` dep `_parse_mixin_type` (the accepted
+**`_parse_unary` precedent**: a trusted parser stub MAY carry a real structural monotonicity ensures
+with a justifying comment — monotonicity is a genuine property of the recursive-descent cursor).
+
+### BOUNDARY — the rest of the vein
+- **`_parse_mixin_type` (recursive) — PROOF-INFRASTRUCTURE BOUNDARY.** Spiked FULLY as a
+  converted `let rec` (emitter emits `let rec … variant { (Array.length self.toks) - self.i }`,
+  L3-tc ✓; recursion + `str_join_seq` + f-string all lower). Whole-file proof gets to **1
+  stubborn unproven goal**: the FIRST recursive call `[self._parse_mixin_type()]` sits OUTSIDE
+  any loop, and its termination-variant decrease needs `advance` to strictly increment, which
+  needs `self.i < \length-1`, which needs the **EOF-sentinel class invariant to be ambient**
+  (`toks[i]=="OP" ∧ toks[len-1]=="EOF" ⟹ i≠len-1`). Every converted precedence **loop** proves
+  this — but only because the sentinel is RE-STATED as a loop invariant there; it is NOT ambient
+  mid-body outside a loop. `#@ assert` (can't re-prove the non-ambient sentinel) and a
+  `#@ requires <sentinel>` (proves inside the body but **cascades an unprovable caller obligation
+  to every non-loop call site** across the mixin call graph) both fail cleanly. Threading class
+  invariants as ambient mid-body hypotheses is a general, risky emitter change = over-build.
+  Reverted clean; left `\trusted` with the faithful monotonicity ensures.
+- **`_parse_variant_def` — CLASS-O TUPLE-SLOT BOUNDARY.** Spiked: a `(string, seq string)` bare
+  tuple return emits the signature as the homogeneous `(int, array int)` (the `auto_trust.py`
+  `_should_auto_trust_tuple_return` "class O" gap: per-slot tuple type inference not landed), AND
+  the empty-list branch `(ctor, [])` lowers the `[]` to `array int` (`Array.make 1024 0`) while the
+  built-up branch is `seq string` — two stacked type bugs. Needs per-slot tuple type inference +
+  empty-list-literal-in-tuple typing = a real emitter build (1 stub standalone).
+- **`_parse_datatype` / `_parse_inductive_rules` / `_parse_inductive` — NEW-SHAPE BOUNDARY.**
+  Datatype needs `seq (string, seq string)` (depends on the variant_def tuple capability);
+  inductive_rules needs `seq (string, emit_ir)` and inductive a nested member-list+rule-list —
+  and a `seq`-of-tuple-containing-`emit_ir` ctor field of emit_ir is non-strictly-positive
+  (Why3-rejected, the same wall `irlist` was built for), so these need NEW monomorphic certified
+  inductives (rule_list / member_list) with emit_ir children = ≥2 stacked new shapes + co-landing
+  certs. Per the decision rule (≥2 stacked shapes / new cert for a 1-2 stub cluster) = CERTIFIED-BOUNDARY.
+
+**Net:** list-of-records vein = 1 conversion (`_parse_mixin_params`), count 889→888. The tuple/
+list-of-tuple/inductive members are a deliberate multi-feature (tuple-slot-typing + monomorphic
+list-of-tuple ADTs + co-landing certs) build — authorize before funding.

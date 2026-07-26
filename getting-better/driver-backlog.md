@@ -637,3 +637,16 @@ context pollution from the seq emit_ir local) — a proof-COST boundary, not a c
 (reverted clean; design banked in parser-tokenstream-impl.md). DEFERRED list-of-records
 (_parse_datatype/_parse_variant_def/_parse_inductive*/_parse_mixin_params/_parse_happy*):
 need a new element value shape (list-of-tuple ADT / faithful list-string join).
+
+## LIST-OF-RECORDS vein (2026-07-26) — 889 -> 888, 1 conversion
+_parse_mixin_params CONVERTED (0af25459): `', '.join(seq-string local)` → `str_join_seq`
+(pre-existing abstract val over a VARIABLE seq); ZERO emitter change (src/pycsl untouched →
+corpus byte-inert by construction), NO cert. Enabled by faithful monotonicity ensures on
+_parse_mixin_param (converted, proves it) + still-trusted _parse_mixin_type (the _parse_unary
+precedent). Whole-file proof SUCCESS 0-unproven, vacuity 0, mutation PASS, mirror 52/52.
+BOUNDARY (rest of vein): _parse_mixin_type recursive = PROOF-INFRA boundary (first recursive
+call OUTSIDE any loop → EOF-sentinel class invariant not ambient; requires-threading cascades
+caller obligations = over-build); _parse_variant_def = class-O tuple-slot boundary (`(str,seq str)`
+→ `(int,array int)` + `[]`-in-tuple → array int); _parse_datatype/_parse_inductive* = new-shape
+boundary (seq-of-tuple / monomorphic rule_list+member_list ADTs w/ emit_ir children = ≥2 stacked
+shapes + certs). See parser-tokenstream-impl.md §LIST-OF-RECORDS.
