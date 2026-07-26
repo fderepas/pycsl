@@ -1304,12 +1304,17 @@ class _ContractParser:
             return f"({params}) -> {ret}"
         return f"() -> {ret}"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_shared(self):
-        pass
+    def _parse_shared(self) -> "ExprIR":
+        self.expect_name("shared")
+        name = self.expect_name()
+        if self.at_name("protected_by"):
+            self.advance()
+            mutex = self._parse_mutex_expr_str()
+            return SharedDecl(name, mutex)
+        return SharedDecl(name, None)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

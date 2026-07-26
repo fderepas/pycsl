@@ -3961,6 +3961,15 @@ class PreambleEmissionMixin:
             # below); kind_of has its own arm. Gated `_uses_clause_ir` → byte-inert.
             + (" | IrMutexInvariant string emit_ir"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (shared run): IrSharedDecl carries the
+            # `#@ shared <VAR> [protected_by <MUTEX>]` node's LEAF-string `variable` + its
+            # OPTIONAL `mutex` string as a monomorphic-option `iropt_str` (`SharedDecl(name,
+            # mutex)` / `SharedDecl(name, None)`, `_parse_shared`). No emit_ir child → NO
+            # size arm (falls to `size`'s `_ -> 1` catch-all, the IrProofDecl leaf precedent);
+            # the `iropt_str` domain is not recursed (the IrFunctionVariant precedent). kind_of
+            # has its own arm. Gated `_uses_clause_ir` → byte-inert.
+            + (" | IrSharedDecl string iropt_str"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4154,6 +4163,8 @@ class PreambleEmissionMixin:
             *(["    | IrFootprint _ _ -> \"Footprint\""]
               if self._uses_clause_ir() else []),
             *(["    | IrMutexInvariant _ _ -> \"MutexInvariant\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrSharedDecl _ _ -> \"SharedDecl\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",

@@ -1352,6 +1352,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `expr`). Same string-leaf + emit_ir-child shape as RaisesDecl/Footprint. Gated
         # `_uses_clause_ir` (preamble) → byte-inert.
         "MutexInvariant": ("IrMutexInvariant", ["mutex", "expr"]),
+        # self-tcb-reduction family-B (optional-field run): `#@ shared <VAR>
+        # [protected_by <MUTEX>]` (`_parse_shared`). SharedDecl -> `IrSharedDecl string
+        # iropt_str` (LEAF `variable` + OPTIONAL string `mutex`, `Optional[str] = None`).
+        # The `mutex` slot is a monomorphic `iropt_str` optfield: the `protected_by` branch
+        # `SharedDecl(name, mutex)` (from the trusted `-> str` `_parse_mutex_expr_str`)
+        # wraps to `IrSSome <mutex>`; the plain-`SharedDecl(name, None)` branch's EXPLICIT
+        # None maps to `IrSNone` (via `none_arg_indices`). Gated `_uses_clause_ir` → byte-inert.
+        "SharedDecl": ("IrSharedDecl", ["variable", "mutex"]),
     }
 
     # self-tcb-reduction family-B (ghost run): per-ctor map of a payload slot to the
@@ -1371,6 +1379,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # Faithful to a Python `Optional[str] = None` dataclass field: present token vs absent.
     _IRNODE_CTOR_OPTFIELDS = {
         "FunctionVariant": {"ordering": "iropt_str"},
+        "SharedDecl": {"mutex": "iropt_str"},
     }
 
     # tier3-p1 T3.1.2: node kinds that have a match-based constructor discriminant in
@@ -5233,6 +5242,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             for kw in (expr.get("keywords") or [])
             if isinstance(kw, dict) and isinstance(kw.get("arg"), str)
         }
+        # self-tcb-reduction family-B (optional-field run): positions / keyword names
+        # whose RAW actual is the `None` literal (`{"type":"None"}`, which `_expr_to_whyml`
+        # lowers to the int witness `0`). Used by `_call_irnode_constructor` to map an
+        # EXPLICIT `None` bound to an `iropt_str` optfield slot (`SharedDecl(name, None)`)
+        # to `IrSNone` — faithful to `mutex=None` — instead of the ill-typed `IrSSome 0`.
+        none_arg_indices: Set[int] = {
+            i for i, a in enumerate(expr.get("args") or [])
+            if isinstance(a, dict) and a.get("type") == "None"
+        }
+        none_kwargs: Set[str] = {
+            kw["arg"] for kw in (expr.get("keywords") or [])
+            if isinstance(kw, dict) and isinstance(kw.get("arg"), str)
+            and isinstance(kw.get("value"), dict) and kw["value"].get("type") == "None"
+        }
         # NODE-CTOR (self-tcb-reduction): a CLASS construction of a CSL-AST node
         # (`BinOp(left, op, right)`) inside the emitter model lowers to the SAME
         # `emit_ir` ADT constructor the equivalent DICT construction
@@ -5245,7 +5268,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # positional `__init__` params (dataclass field order), so a mismatch between
         # the class's field order and the ctor's payload order can never silently
         # mis-bind. Gated on @mutable_state (the emitter model) → corpus byte-identical.
-        adt = self._call_irnode_constructor(args, func_name, kwargs_map)
+        adt = self._call_irnode_constructor(args, func_name, kwargs_map,
+                                            none_arg_indices, none_kwargs)
         if adt is not None:
             return adt
         rec = self._call_record_constructor(args, func_name, kwargs_map)
@@ -6808,7 +6832,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return rec_name
 
     def _call_irnode_constructor(self, args: List[str], func_name: str,
-                                 kwargs_map: Optional[Dict[str, str]] = None
+                                 kwargs_map: Optional[Dict[str, str]] = None,
+                                 none_arg_indices: Optional[Set[int]] = None,
+                                 none_kwargs: Optional[Set[str]] = None
                                  ) -> Optional[str]:
         """NODE-CTOR (self-tcb-reduction): `C(a, b, c)` for a CSL-AST node class that the
         SHARED `_IRNODE_CTORS` table models → the `emit_ir` ADT application
@@ -6842,13 +6868,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         cname, payload = ctor
         optfields = self._IRNODE_CTOR_OPTFIELDS.get(func_name, {})
         strdefaults = self._IRNODE_CTOR_STRDEFAULTS.get(func_name, {})
+        # Fields whose actual is the EXPLICIT `None` literal — a positional None at index i
+        # binds `init_params[i]`, a keyword `f=None` binds `f`. For an `iropt_str` optfield
+        # slot such a field is `IrSNone` (faithful), NOT the ill-typed `IrSSome 0`.
+        none_fields = {init_params[i] for i in (none_arg_indices or set())
+                       if i < len(init_params)} | (none_kwargs or set())
         parts: List[str] = []
         for f in payload:
             if optfields.get(f) == "iropt_str":
                 # Monomorphic-option `iropt_str` slot (an `Optional[str] = None` field):
-                # a BOUND string actual wraps to `(IrSSome <v>)`; an OMITTED field is
-                # `IrSNone` (faithful to the None default) — NOT a dropped child.
-                parts.append(f"(IrSSome {bound[f]})" if f in bound else "IrSNone")
+                # an EXPLICIT-None or OMITTED field is `IrSNone` (faithful to the None
+                # value/default); a BOUND string actual wraps to `(IrSSome <v>)` — NOT a
+                # dropped child.
+                if f in none_fields or f not in bound:
+                    parts.append("IrSNone")
+                else:
+                    parts.append(f"(IrSSome {bound[f]})")
                 continue
             if f not in bound and f in strdefaults:
                 # A required string slot OMITTED at the call site → fill it from its
