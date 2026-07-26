@@ -1230,6 +1230,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "CtorTest":    ("IrCtorTest", ["var", "ctor"]),
         "CtorPayload": ("IrCtorPayload", ["var", "ctor", "index"]),
         "StrConcat": ("IrStrConcat", ["left", "right"]),
+        # self-tcb-reduction (parser _parse_atom): the recursive-descent atom rule
+        # constructs the CSL AST class `StrConcatExpr(left, right)` for `s ^ t`
+        # (`_parse_atom`); Module5's `_csl_strconcat` uses the "StrConcat" wire key
+        # above, but the parser body names the class directly. Both children are
+        # emit_ir; reuse the EXISTING base-theory `IrStrConcat` ctor (no new variant).
+        "StrConcatExpr": ("IrStrConcat", ["left", "right"]),
         "StrLength": ("IrStrLength", ["string"]),
         "StrSub":    ("IrStrSub", ["string", "lo", "hi"]),
         "GhostCopy":      ("IrGhostCopy", ["arr"]),

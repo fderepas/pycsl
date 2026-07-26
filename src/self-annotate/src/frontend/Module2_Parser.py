@@ -1611,25 +1611,29 @@ class _ContractParser:
             return UnaryOp(op, self._parse_unary())
         return self._parse_atom()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    # FAITHFUL MONOTONICITY (was `ensures True`): the atom rule only ADVANCES the
-    # cursor. Its live body calls `_parse_atom_primary`/`advance`/`_parse_atom`
-    # (recursion) — every one monotone; it NEVER calls the sole backtracking site
-    # `_try` (used only by `_parse_assigns_region`, line 1481 live) and NEVER assigns
-    # `self.i` directly. Verified against the live body. This is the trusted-callee
-    # monotonicity ensures a converted caller (`_parse_unary`) discharges its own
-    # `self.i >= \old` frame from — the `advance`/`accept_op`/`_parse_impl_rhs` precedent.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ \variant \length(self.toks) - self.i
     def _parse_atom(self) -> "ExprIR":
-        pass
+        node = self._parse_atom_primary()
+        if self.at_op("^"):
+            self.advance()
+            right = self._parse_atom()        # right-assoc (Lark LALR shifts)
+            return StrConcatExpr(node, right)
+        return node
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    # FAITHFUL MONOTONICITY (was `ensures True`): the atom-primary rule only ADVANCES
+    # the cursor. Its live body calls `cur`/`advance`/`_parse_atom_bs`/`_parse_atom_name`/
+    # `_parse_expr`/`expect_op`/`_err` — every one monotone (or diverging); it NEVER
+    # calls `_try` (sole backtracking site is `_parse_assigns_region`, line 1481 live)
+    # and NEVER assigns `self.i` directly. Verified against the live body — the
+    # `_parse_atom` monotonicity precedent (its converted caller discharges its frame).
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_atom_primary(self):
+    def _parse_atom_primary(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
