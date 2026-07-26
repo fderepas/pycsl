@@ -707,3 +707,58 @@ PLUS their own blockers. The contract expression-grammar cluster is the parser-v
 only with a per-file raised SMT budget for Module2_Parser.py OR a modular-boundary mechanism that
 removes a converted method's body definition from OTHER goals' solver context (a deliberate emitter/
 proof-harness build, authorize first). ZERO live-parser changes; foregrounded every proof; zero orphans.
+
+## REOPENED-TAIL run: 5 expr-grammar conversions — the "proof-cost terminus" was TWO more misdiagnoses (2026-07-27, Phase-2 executor) — count 887 -> 882
+
+**VERDICT: the expr-grammar "CERTIFIED PROOF-COST BOUNDARY" (parser-vein TERMINUS at 888) was WRONG on
+two further counts, exactly as the proof-scale wall was.** With `_parse_expr` already converted (the
+contract-gap fix, 887), FIVE more expr-grammar stubs convert cleanly, each whole-file-proven foreground.
+
+**CONVERTED (each: whole-file Module2_Parser proof SUCCESS 0-unproven [foreground, read]; corpus
+byte-diff 0; MUTATION TEST PASS; vacuity --emit exit 0; mirror-check 52/52; drift 2; ledger 3):**
+- `_parse_membership` (0f78d22a, 887->886) — `CSLIn`/`CSLNotIn` (2 emit_ir children each). NEW ctors
+  `IrCSLIn`/`IrCSLNotIn emit_ir emit_ir` (`_uses_clause_ir`-gated; IrGhostArraySetDecl precedent);
+  `_IRNODE_CTORS` CSLIn/CSLNotIn. Module5_IREmitter L3-tc ✓ (additive, exhaustiveness intact).
+- `_mk_in` (47c14e80, 886->885) — MIRROR-ONLY (all ctors existed: IrBinOp/IrVar + the just-landed
+  IrCSLIn); `BinOp(CSLIn(Var(var),domain), op, body)`. Faithful param annotations, byte-inert.
+- `_parse_unary` (b6472469, 885->884) — RECURSIVE, `IrUnaryOp` (pre-existing). The census's
+  "EOF-sentinel-not-ambient recursion boundary" was TWO misdiagnoses: (1) self-recursion emitted `let`
+  not `let rec` -> the `#@ \variant \length(self.toks)-self.i` directive fixes it (NO emitter change);
+  (2) the variant PROVES directly from the EOF-sentinel class invariant + advance's strict-increment on
+  the guarded branch (cur NAME/OP => not EOF => self.i<len-1). MIRROR-ONLY. `_parse_atom` stays trusted
+  with a FAITHFUL monotonicity ensures (only-advances; `_try` sole site = `_parse_assigns_region` L1481)
+  + `-> "ExprIR"` (GAP #2).
+- `_parse_atom` (f9bf09f2, 884->883) — RECURSIVE, `IrStrConcat` (pre-existing base ctor). Same
+  `#@ \variant` pattern. Emitter: 1 line `_IRNODE_CTORS["StrConcatExpr"]` -> the existing IrStrConcat
+  (Module5 uses "StrConcat" wire key; parser names the class). Corpus byte-diff 0. `_parse_atom_primary`
+  stays trusted (faithful monotonicity + `-> ExprIR`; itself a str_to_int/float boundary).
+- `_parse_expr_list` (825c6406, 883->882) — returns `List[ExprIR]`. NEW emitter capability (NOT a
+  contract-gap): a `-> List[ExprIR]` return -> `seq emit_ir` + DIRECT `!exprs` return (the `seq hval`
+  List[PyVal] precedent), replacing the mistyped `array int`+int-`materialize`. functions.py
+  (return_value_type=="emit_ir") + stmt_control_flow.py (`_func_return_type=="seq emit_ir"` direct
+  return). Confined: `_parse_expr_list` is the SOLE `-> List[ExprIR]` method mirror+corpus-wide
+  (Module5_IREmitter.mlw byte-IDENTICAL; corpus byte-diff 0).
+
+**Capabilities banked (all `_uses_clause_ir`/sentinel-gated, corpus byte-inert):** IrCSLIn/IrCSLNotIn
+2-child ctors; StrConcatExpr class->ctor alias; the `#@ \variant` recursive-descent-parser recursion
+key (`let rec` + EOF-sentinel variant, reusable for ANY guarded self-recursive parser rule incl. the
+prior `_parse_mixin_type` boundary); the `seq emit_ir` List[ExprIR] return.
+
+**REMAINING tail = GENUINE boundaries (convert-or-DEFER -> DEFER):**
+- `_parse_quantifier` — class-valued `cls = Exists if is_exists else Forall` then `cls(var,...)` (the
+  emitter recognizes ctor calls BY NAME; a class held in a variable can't be lowered) + ForallItems +
+  `isinstance(domain, DictView)`/`domain.kind` + `reversed(names)` nested-node loop + raise. CLASS-VALUED-CTOR BOUNDARY.
+- `_parse_atom_primary` — `Number(int(t.string))`/`Number(float(t.string))` = str_to_int/str_to_float
+  oracle CORRECTNESS boundary. (Now trusted with faithful monotonicity + `-> ExprIR`.)
+- `_parse_atom_name` (~13 node kinds + class-valued all/any->Forall/Exists + list-append) /
+  `_parse_atom_bs` (~50 node kinds + int(idx)) — interconnected multi-variant + class-valued + str_to_int BULK BOUNDARY.
+- `_parse_act_block` / `_parse_for_block` — need the `irlist` ctor-FIELD (Why3 REJECTS a `seq emit_ir`
+  ctor field as non-strictly-positive -> the bespoke monomorphic `ILNil|ILCons emit_ir irlist` inductive
+  + seq_to_irlist bridge, BUILT-and-REVERTED prior run). Their converted body hits a deterministic
+  30s/98M-step TIMEOUT on the bounds-invariant-INIT `0 <= self.i < length` — a goal at LOOP ENTRY,
+  BEFORE any `_parse_expr` call, so NOT the shared clause-caller contract-gap; a genuine clause-theory
+  SMT proof-COST boundary. Reopen with a per-file raised SMT budget OR a lighter clause-theory model.
+
+**LESSON (third time): a parser "proof-cost / recursion boundary" reached without an isolating
+measurement is a HYPOTHESIS, not a floor.** The `#@ \variant` directive + faithful trusted-callee
+monotonicity ensures cleared what the census called an intrinsic EOF-sentinel-ambient proof-infra wall.

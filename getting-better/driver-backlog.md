@@ -666,3 +666,17 @@ Forall`, StrConcatExpr+recursion, `Number(int(str))` str_to_int, ~50-variant `_p
 irlist proof-cost `_parse_expr_list`), the whole cluster is the parser-vein TERMINUS. Reopen only with
 a per-file raised SMT budget for Module2_Parser.py OR a body-out-of-context modular mechanism
 (deliberate build, authorize first). See parser-tokenstream-impl.md §EXPRESSION-GRAMMAR.
+
+## REOPENED-TAIL run (2026-07-27) — 5 expr-grammar conversions, count 887 -> 882; expr-grammar "terminus" was 2 more misdiagnoses
+With `_parse_expr` converted (contract-gap fix), 5 more convert: `_parse_membership` (IrCSLIn/IrCSLNotIn
+2-child ctors), `_mk_in` (mirror-only), `_parse_unary`+`_parse_atom` (RECURSIVE — the census
+"EOF-sentinel recursion boundary" cleared by `#@ \variant` + the EOF-sentinel class invariant; NO
+emitter change for unary, 1-line StrConcatExpr alias for atom), `_parse_expr_list` (NEW `seq emit_ir`
+List[ExprIR] return capability, the `seq hval` precedent). DEFERRED genuine boundaries:
+`_parse_quantifier` (class-valued `cls=Exists/Forall` ctor + ForallItems + isinstance/DictView + list),
+`_parse_atom_primary` (str_to_int/float), `_parse_atom_name`/`_parse_atom_bs` (multi-variant+class-valued+
+str_to_int bulk), `_parse_act_block`/`_parse_for_block` (irlist ctor-field + seq_to_irlist bridge +
+documented 98M-step bounds-invariant-INIT proof-cost timeout at LOOP ENTRY = genuine SMT cost, not the
+clause-caller contract-gap). Banked: `#@ \variant` recursive-descent-parser recursion key (reusable for
+`_parse_mixin_type` + any guarded self-recursive rule); seq emit_ir return. See parser-tokenstream-impl.md
+§REOPENED-TAIL. Gates all foreground/read; zero live-parser changes; drift 2; ledger 3.
