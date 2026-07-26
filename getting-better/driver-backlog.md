@@ -650,3 +650,19 @@ caller obligations = over-build); _parse_variant_def = class-O tuple-slot bounda
 → `(int,array int)` + `[]`-in-tuple → array int); _parse_datatype/_parse_inductive* = new-shape
 boundary (seq-of-tuple / monomorphic rule_list+member_list ADTs w/ emit_ir children = ≥2 stacked
 shapes + certs). See parser-tokenstream-impl.md §LIST-OF-RECORDS.
+
+## EXPRESSION-GRAMMAR cluster (2026-07-26) — CERTIFIED PROOF-COST BOUNDARY, parser-vein TERMINUS, 888 held
+The 7 contract-expression stubs (`_parse_expr`/`_parse_quantifier`/`_parse_atom`/`_parse_atom_primary`/
+`_parse_atom_name`/`_parse_atom_bs`/`_parse_expr_list`). SPIKED the SIMPLEST — `_parse_expr` (pure
+dispatch, ZERO new machinery, no node built, no live-parser change): L3-tc ✓, faithful non-vacuous
+body, but whole-file proof FAILS with 6 unproven goals — ALL postconditions of the ALREADY-CONVERTED
+clause-parser callers (`_parse_class_invariant`/`_parse_interface`/`_parse_loop`/`_parse_raises`) that
+embed `_parse_expr self` as an emit_ir child. Converting the opaque `\trusted val` to a concrete `let`
+body puts the whole precedence chain into the module solver context → trivial `ensures True`
+postconditions drown at 100M+ steps = the documented `_parse_act_block` solver-context-pollution wall.
+`#@ no_inline` PROBED, does NOT clear it (same 6 timeouts). Reverted clean. Since the CHEAPEST member
+is a proof-COST boundary and all 6 others are strictly harder (class-valued `cls=Exists if.. else
+Forall`, StrConcatExpr+recursion, `Number(int(str))` str_to_int, ~50-variant `_parse_atom_bs`,
+irlist proof-cost `_parse_expr_list`), the whole cluster is the parser-vein TERMINUS. Reopen only with
+a per-file raised SMT budget for Module2_Parser.py OR a body-out-of-context modular mechanism
+(deliberate build, authorize first). See parser-tokenstream-impl.md §EXPRESSION-GRAMMAR.

@@ -635,3 +635,75 @@ with a justifying comment — monotonicity is a genuine property of the recursiv
 **Net:** list-of-records vein = 1 conversion (`_parse_mixin_params`), count 889→888. The tuple/
 list-of-tuple/inductive members are a deliberate multi-feature (tuple-slot-typing + monomorphic
 list-of-tuple ADTs + co-landing certs) build — authorize before funding.
+
+## EXPRESSION-GRAMMAR cluster = CERTIFIED PROOF-COST BOUNDARY (parser-vein TERMINUS) (2026-07-26, Phase-2 executor) — count STAYS 888
+
+**VERDICT: the contract expression-grammar cluster is the honest parser-vein TERMINUS. The
+CHEAPEST possible member — `_parse_expr`, a pure dispatch with ZERO new machinery — is itself a
+PROOF-COST boundary; every other member is strictly harder. Convert-or-BOUNDARY → BOUNDARY, reverted
+clean, count 888 held.**
+
+### CENSUS — the 7 expr-grammar stubs (node kinds constructed + existing ctor? + blocker)
+- **`_parse_expr`** — constructs NOTHING; pure dispatch `if at_bs(\forall|\exists|\exist):
+  _parse_quantifier() else _parse_implication()`. Zero new emit_ir variant, zero machinery. Needs
+  only `_parse_quantifier` annotated `-> "ExprIR"` (stays trusted, GAP #2 banked). NO live-parser
+  change (single-token `at_bs` guards, no `peek`). **The simplest conceivable conversion.**
+- **`_parse_quantifier`** — `cls = Exists if is_exists else Forall` then `cls(var, ...)`
+  (CLASS-VALUED variable construction — emitter recognizes ctor calls BY NAME, cannot lower a class
+  held in a variable) + `ForallItems`, `_mk_in`→`BinOp(CSLIn(Var(var),domain),op,body)`, `isinstance`/
+  `DictView.kind` checks, `raise`, `reversed(names)` nested-node loop. Class-valued + multi-node = BOUNDARY.
+- **`_parse_atom`** — `StrConcatExpr(node, right)` (new emit_ir variant needed) + RECURSIVE
+  `_parse_atom()` OUTSIDE any loop → the EOF-sentinel-not-ambient proof-infra boundary (identical to
+  the `_parse_mixin_type` recursion boundary). BOUNDARY (proof-infra).
+- **`_parse_atom_primary`** — `Number(float(t.string))` / `Number(int(t.string))` = string→number
+  conversion (the str_to_int / str_to_float oracle CORRECTNESS boundary) + `StringLiteral`, delegates.
+  BOUNDARY (correctness).
+- **`_parse_atom_name`** — ~13 node kinds (CSLBool/CSLNone/FieldAccess/SubscriptFieldAccess/
+  FieldSubscript/DictView/GlobalFieldSubscript/CallExpr/CSLSlice/ChainedSubscript/NestedSubscript/
+  SubscriptAccess/Var) + class-valued `cls` (genexp all/any→Forall/Exists) + list-append (args) + `raise`.
+  Massive interconnected multi-variant + class-valued + list-append. BOUNDARY.
+- **`_parse_atom_bs`** — ~50 DISTINCT backslash-atom node kinds (Result/Old/Nothing/ArrayLength/Valid/
+  Separated/all map/set/list ghost exprs/…) + `int(idx_tok.string)`. Interconnected ~50-variant co-land
+  + str_to_int. BOUNDARY (the bulk).
+- **`_parse_expr_list`** — returns `list of emit_ir` = `irlist`; needs the `seq_to_irlist` bridge
+  that is the DOCUMENTED proof-COST wall (`_parse_act_block`/`_parse_for_block`, 30s/98M-step timeout).
+  BOUNDARY (proof-cost).
+
+### SPIKE (`_parse_expr`, the simplest) — measured, then REVERTED
+Ported the verbatim live body, annotated `_parse_quantifier -> "ExprIR"` (stayed `\trusted`), dropped
+`\trusted` on `_parse_expr`. **`--no-proof --keep-mlw`: L3-tc ✓** — emits a faithful NON-VACUOUS body
+(`if ((at_bs "\forall")<>0 || (at_bs "\exists")<>0 || (at_bs "\exist")<>0) then Return(_parse_quantifier
+self) else Return(_parse_implication self)`), zero int-hash/opaque.
+
+**Whole-file Module2_Parser.py proof (FOREGROUND, read by me): FAILED — 6 goals unproven.** The 6 are
+ALL POSTCONDITIONs of the ALREADY-CONVERTED clause-parser CALLERS — `_parse_class_invariant`
+(Timeout 103M steps), `_parse_interface` (×2 Unknown), `_parse_loop` (×2 Unknown), `_parse_raises`
+(Timeout 102M steps) — NOT `_parse_expr` itself. Those callers embed `_parse_expr self` as an emit_ir
+CHILD (`IrClassInvariant (_parse_expr self)`, ~20 call sites across the clause parsers). Pre-conversion
+these callers all proved SUCCESS 0-unproven (documented above); converting `_parse_expr` from an opaque
+`\trusted val` to a concrete `let` body puts its definition (→ transitively `_parse_implication` → the
+WHOLE precedence chain) into the module's solver context, and even the TRIVIAL `ensures True`
+postconditions of `_parse_class_invariant`/`_parse_raises` then DROWN at 100M+ steps. This is the exact
+**solver-context-pollution proof-COST wall** documented for `_parse_act_block` ("the seq emit_ir LOCAL +
+expanded clause theory pollute the solver context so a trivial bounds fact drowns; no faithful annotation
+change clears a 98M-step init").
+
+**`#@ no_inline` PROBED and does NOT clear it** — the documented anti-inlining-blowup directive
+("avoids re-proving a large body in every caller's context, the os `sys_write` blow-up"): the SAME 6
+goals still time out (class_invariant 107M, raises 112M steps). So the pollution is the module-level
+PRESENCE of the concrete `_parse_expr` definition in the whole-file solver context, NOT call-site
+splicing — `no_inline` prevents IR splicing but the `let _parse_expr = body` still lives in the .mlw and
+the solver context still explodes. No faithful annotation clears a 100M-step postcondition drown.
+
+### TERMINUS argument
+The gate (whole-file proof SUCCESS 0-unproven) FAILS → REVERTED clean (single file
+`src/self-annotate/src/frontend/Module2_Parser.py` via `git checkout -- <exact path>`), count 888 held,
+`_parse_quantifier` back to no-annotation `\trusted`. The decisive point: `_parse_expr` is the
+**cheapest conceivable** expr-grammar conversion (pure dispatch, no node built, no new variant, no new
+machinery, no live-parser change). It is a proof-COST boundary. Every OTHER member is strictly harder
+(builds nodes, embeds `_parse_expr`, needs new machinery / class-valued lowering / str_to_int / the
+irlist proof-cost bridge) — so ALL 7 are blocked by AT LEAST the same clause-parser-caller pollution
+PLUS their own blockers. The contract expression-grammar cluster is the parser-vein TERMINUS. Reopen
+only with a per-file raised SMT budget for Module2_Parser.py OR a modular-boundary mechanism that
+removes a converted method's body definition from OTHER goals' solver context (a deliberate emitter/
+proof-harness build, authorize first). ZERO live-parser changes; foregrounded every proof; zero orphans.
