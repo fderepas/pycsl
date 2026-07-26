@@ -1412,18 +1412,30 @@ class _ContractParser:
             names.append(self._parse_mutex_expr_str())
         return LockOrder(names)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    # FAITHFUL MONOTONICITY (the `_parse_impl_rhs`/`advance`/`accept_op` precedent):
+    # `self.i` is only ever incremented (via `advance`); the sole backtracking site,
+    # `_try`, is used exclusively by `_parse_assigns_region` and is UNREACHABLE from any
+    # expression rule (`_parse_expr` -> `_parse_quantifier`/`_parse_implication` -> the
+    # precedence chain, none of which call `_try`). This is what lets the already-converted
+    # clause callers (`_parse_class_invariant`/`_parse_raises`/`_parse_loop`/`_parse_interface`)
+    # prove their own `self.i >= \old(self.i)` compositionally from this contract.
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _parse_expr(self) -> "ExprIR":
-        pass
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_implication()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    # FAITHFUL MONOTONICITY (the `_parse_impl_rhs` precedent): the quantifier rule only
+    # advances the cursor (`advance`); it never calls the backtracking `_try`. Stays
+    # `\trusted` (builds Forall/Exists/ForallItems nodes = family-B); the monotonicity
+    # ensures makes the trusted interface precise so `_parse_expr` proves its own frame.
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_quantifier(self):
+    def _parse_quantifier(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate

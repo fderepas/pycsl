@@ -1,6 +1,21 @@
 # self-tcb-reduction driver — backlog
 
-Canonical count: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l` = **908** (drift 2, ledger 3).
+Canonical count: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l` = **887** (drift 2, ledger 3).
+
+## PARSER "PROOF-SCALE WALL" (888 terminus) = MISDIAGNOSIS, BROKEN (2026-07-26, Phase-2 SPIKE)
+
+The `parser-tokenstream-impl.md` §EXPRESSION-GRAMMAR "solver-context-pollution proof-COST wall"
+(the claim that converting `_parse_expr` drowns the clause callers' postconditions irreducibly) is
+**refuted**. The callers' postcondition is `self.i >= \old(self.i)` (NOT `ensures True`); the prior
+spike converted `_parse_expr` with only `ensures True` + the now-faithful `writes {self.i}`, which
+HAVOCS the callers' monotonicity postcondition. DECISIVE isolation: the `ensures-true` and
+`ensures-monotone` `.mlw` are byte-identical at 1448 lines except ONE `ensures` line, yet the former
+drowns (104M steps) and the latter proves in 0.03s — same module, same bodies, same context. The
+sound fix is the existing faithful-monotonicity precedent (`_parse_impl_rhs`/`advance`/`accept_op`):
+**`_parse_expr` CONVERTED (888→887) under the STANDARD unmodified whole-file-proof gate**, no emitter/
+gate/module/timelimit change. Full data + soundness argument: `getting-better/parser-proof-scale-impl.md`.
+Residual expr-grammar members retain their OWN independent blockers (emit_ir variants / str_to_int /
+class-valued ctor / irlist proof-cost) but the shared caller-monotonicity blocker is gone.
 
 ## CERTIFIED-BOUNDARY — Module-5 self-mut collector cluster (2026-07-25)
 
