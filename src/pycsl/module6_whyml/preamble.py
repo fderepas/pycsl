@@ -3991,6 +3991,20 @@ class PreambleEmissionMixin:
             # leaf-string precedent). kind_of has its own arm. Gated `_uses_clause_ir`.
             + (" | IrMethodDependencyDecl string string string"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (LIST-append clause parsers): IrComposeFromDecl /
+            # IrConformsToDecl / IrLockOrder each carry the single `list string` field the
+            # `.append`-loop clause parsers build (`ComposeFromDecl(mixins)` /
+            # `ConformsToDecl(protocols)` / `LockOrder(order)`, `_parse_compose_from` /
+            # `_parse_conforms_to` / `_parse_lock_order`). The payload is the growable
+            # `seq string` the in-body list local lowers to (Seq.cons/snoc; the `_parse_act_names`
+            # precedent — a `list string` returned/passed as `seq string`), NOT an emit_ir child
+            # → childless for the `size` measure (falls to size's `_ -> 1` catch-all → NO size
+            # arm; the IrProofDecl leaf precedent). kind_of has its own arm each. Gated
+            # `_uses_clause_ir` → byte-inert in every other mirror + the whole corpus.
+            + (" | IrComposeFromDecl (seq string)"
+               " | IrConformsToDecl (seq string)"
+               " | IrLockOrder (seq string)"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4192,6 +4206,10 @@ class PreambleEmissionMixin:
             *(["    | IrTouchesFieldDecl _ _ -> \"TouchesFieldDecl\""]
               if self._uses_clause_ir() else []),
             *(["    | IrMethodDependencyDecl _ _ _ -> \"MethodDependencyDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrComposeFromDecl _ -> \"ComposeFromDecl\"",
+               "    | IrConformsToDecl _ -> \"ConformsToDecl\"",
+               "    | IrLockOrder _ -> \"LockOrder\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
@@ -5532,6 +5550,11 @@ class PreambleEmissionMixin:
     _CLAUSE_IR_NODES = (
         "ProofDecl", "ClassInvariant", "LoopInvariant", "LoopVariant",
         "RaisesDecl",
+        # self-tcb-reduction family-B (LIST-append clause parsers): the clause node
+        # kinds whose sole field is a `list string` built by an `.append` loop
+        # (`ComposeFromDecl(mixins)`, `ConformsToDecl(protocols)`, `LockOrder(order)` —
+        # `_parse_compose_from`/`_parse_conforms_to`/`_parse_lock_order`).
+        "ComposeFromDecl", "ConformsToDecl", "LockOrder",
     )
 
     def _uses_clause_ir(self) -> bool:

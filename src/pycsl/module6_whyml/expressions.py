@@ -1376,6 +1376,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # the converted `-> str` `_parse_mixin_method_sig`, `kind` the method's param). The
         # IrProofDecl leaf-string precedent. Gated `_uses_clause_ir` → byte-inert.
         "MethodDependencyDecl": ("IrMethodDependencyDecl", ["method", "sig", "kind"]),
+        # self-tcb-reduction family-B (LIST-append clause parsers): `#@ compose_from M1,
+        # M2, …` / `#@ conforms_to P1, … ` / `#@ lock_order M1, …` (`_parse_compose_from`
+        # / `_parse_conforms_to` / `_parse_lock_order`). Each wraps a SINGLE `list string`
+        # field built by an `.append` loop (`ComposeFromDecl(mixins)` etc.) into the new
+        # `IrComposeFromDecl (seq string)` / `IrConformsToDecl (seq string)` / `IrLockOrder
+        # (seq string)` ctor. `_call_irnode_constructor` binds the `seq string` field to the
+        # lowered list-local argument by __init__ field order. Gated `_uses_clause_ir` →
+        # byte-inert. The IrProofDecl single-field precedent (here the field is a `list`, not
+        # a leaf string, so NO size arm — the growable seq is not an emit_ir child).
+        "ComposeFromDecl": ("IrComposeFromDecl", ["mixins"]),
+        "ConformsToDecl": ("IrConformsToDecl", ["protocols"]),
+        "LockOrder": ("IrLockOrder", ["order"]),
     }
 
     # self-tcb-reduction family-B (ghost run): per-ctor map of a payload slot to the
