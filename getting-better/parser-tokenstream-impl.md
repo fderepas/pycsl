@@ -378,3 +378,65 @@ discipline. **The trailing-`_err` fall-through is the shared blocker** for `_par
 `_parse_function_variant`, `_parse_ghost`, `_parse_interface`, and every other `_parse_X` whose live
 body ends in `_err`. REOPEN this sub-cluster only alongside a deliberate `_err`-divergence-model
 build. Clean next candidates = clause `_parse_X` with a guaranteed terminal `return`.
+
+## _err-DIVERGENCE MODEL BUILT + _parse_loop/_parse_interface CONVERTED (2026-07-26, Phase-2 executor) — count 905 -> 903 (2 REAL conversions)
+
+**VERDICT: SPIKE PASSES NON-VACUOUSLY — the `_err`-divergence model is SOUND and BANKED.**
+The trailing-`self._err(...)` fall-through (the shared blocker deferred by the prior batch)
+is resolved by modelling `_err`'s UNCONDITIONAL-raise faithfully, NOT a blanket `ensures False`
+massage. Two trailing-`_err` clause parsers converted, whole-file proven, corpus byte-diff 0.
+
+**The model (commit `56d871b6`, emitter + mirror stmt_control_flow re-port):**
+- `_err` annotated `-> NoReturn` in the mirror (live body is `t = self.cur(); raise
+  _ContractSyntaxError(...)` — unconditional raise; STAYS `\trusted`, the annotation only
+  makes the trusted interface precise). Module5 sets `is_noreturn` (NR1).
+- `Module6_WhyMLTranspiler._module_method_noreturn` set (callee IR-names with is_noreturn).
+- `expressions._handle_dotted_call`: a `self.<noreturn>(...)` call gets the abstract op
+  `ensures { false }` (faithful never-returns, justified by the raise body) and lowers to
+  `(let _ = <call> in absurd)` (bottom-typed `'a`) — continuation UNREACHABLE.
+- `statements._handle_expr_stmt`: a bare-statement noreturn self-call emits the
+  self-terminating absurd form (not `let _ = e in ()`, which would force `unit`).
+- `stmt_control_flow._handle_if_stmt`: a one-armed-if body ending in `absurd)` diverges
+  like a `raise` → no-else form, not the `else 0` value-if.
+- `core_ir_semantic` NR2a: exempt `\trusted`/`\abstract` stubs (bodyless `val`; the
+  `ensures { false }` is a reviewer-vouched INTERFACE assumption, not a body claim).
+
+**SOUNDNESS (the decisive gate):** (a) `_err`'s live+mirror body IS an unconditional raise
+— no non-raising path — so the divergence is JUSTIFIED, not assumed. (b) `check-emitted-vacuity
+--emit` exit 0, NO new erasure on either converted method. (c) both converted bodies are
+NON-VACUOUS: read self.i / at_name / advance / real emit_ir children; mutation-test-sensitive.
+The `ensures { false }` poisons ONLY the genuinely-raising arm; each caller's real postcondition
+(`self.i >= \old`) still holds on every RETURNING arm (proven). NOT a caller-contract massage.
+
+**Family-B emit_ir ctors added (gated `_uses_clause_ir`, additive structural-variant, no cert):**
+- `IrLoopInvariant`/`IrLoopVariant emit_ir` (commit `56d871b6`) — for `_parse_loop`.
+- `IrInterfaceClause string emit_ir` + `IrEnsures`/`IrRequires emit_ir` (commit `8aecc3b9`) —
+  for `_parse_interface`; `_parse_assigns` gains a `-> "ExprIR"` return annotation (stays trusted).
+
+**CONVERTED (each: whole-file Module2_Parser proof SUCCESS 0-unproven [foreground, read];
+FULL corpus byte-diff 0 [812/812 vs clean-HEAD b6574af0 worktree]; MUTATION TEST PASS; vacuity
+--emit exit 0; mirror-sync drift 2; ledger 3):**
+- `_parse_loop` (`a661a482`, 905->904) — LoopInvariant/LoopVariant arms + trailing `_err`.
+- `_parse_interface` (`331623f1`, 904->903) — InterfaceClause(Ensures/Requires/`_parse_assigns`)
+  arms + trailing `_err`.
+
+**expect_op/expect_name/expect_bs re-prove (§10.4):** all three call `_err`; the model changes
+their emission (the `_err` call now lowers to `(let _ = <call> in absurd)`). ALL re-proven by
+the whole-file Module2_Parser proof SUCCESS (they are in the same file). expect_name's one-armed
+`if not at_name: _err(...)` now routes to the no-else divergence form — proves.
+
+**§10c shared-emitter:** only TWO mirror files carry the clause-IR theory (Module2_Parser,
+Module5_IREmitter). Module5_IREmitter emission changes by EXACTLY the additive ctor lines (type
+decl + total kind_of/size arms — NO function body changed); L3-tc SUCCESS confirms exhaustiveness
+intact (wildcard matches). Whole-file Module5_IREmitter proof is a pre-existing HEAVY-file timeout
+(171KB .mlw, like stmt_control_flow); the additive extension is structurally proof-neutral
+(base-Valid⟹new-Valid, base-timeout⟹new-timeout — the IrClassInvariant/IrRaisesDecl precedent).
+
+**REMAINING siblings (NOT divergence-model work — separate family-B builds):** `_parse_ghost`
+(terminal returns; needs `IrGhostAssignDecl`/`IrGhostArraySetDecl` with keyword/default-arg ctor
+binding — `_call_irnode_constructor` does not yet handle kwargs/arg-count-variance) and
+`_parse_function_variant` (terminal returns; needs FunctionVariant class-construction → optfield
+`iropt_str` wrapping, distinct from the existing dict-based `_recognize_functionvariant_builder`).
+Both have a GUARANTEED terminal return, so they do NOT exercise the `_err`-divergence model — they
+are pure node-ctor family-B, fundable independently. The `_err`-divergence model is banked and
+reusable for ANY future trailing-`_err` clause parser.

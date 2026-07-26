@@ -596,6 +596,22 @@ capability, so the stop-classification is mechanical, not a judgment call.
   and any other `_parse_X` whose live body ends in `_err`. Next clean clause candidates = those with a
   guaranteed terminal `return` (single-token leaf or emit_ir-child, no trailing `_err`).
 
+  **(B) `_err`-DIVERGENCE MODEL BUILT + trailing-`_err` clause parsers CONVERTED (2026-07-26,
+  905→903).** The deferred trailing-`_err` blocker is RESOLVED — `_err` `-> NoReturn` (unconditional
+  raise, stays `\trusted`) → abstract op `ensures { false }` + call lowers `(let _ = <call> in absurd)`
+  (continuation unreachable). Emitter model `56d871b6` (4 sites: `_module_method_noreturn` set;
+  `_handle_dotted_call` absurd-wrap + ensures-false; `_handle_expr_stmt` tail-absurd; `_handle_if_stmt`
+  no-else on absurd-body; NR2a exempts trusted/abstract bodyless vals). NOT a blanket `ensures False`
+  massage — soundness gate: `_err`'s live body IS an unconditional raise (justified), vacuity `--emit`
+  exit 0, both bodies NON-VACUOUS + mutation-tested. CONVERTED: **`_parse_loop`→IrLoopInvariant/
+  IrLoopVariant (`a661a482`, 905→904)** + **`_parse_interface`→IrInterfaceClause/IrEnsures/IrRequires
+  (`331623f1`, 904→903)** (`_parse_assigns` gains `-> "ExprIR"`, stays trusted). Each: whole-file proof
+  SUCCESS, corpus byte-diff 0 (812/812), mutation PASS, vacuity 0, drift 2, ledger 3. `expect_op/name/bs`
+  re-proven (whole-file). Model banked + reusable. REMAINING `_parse_ghost`/`_parse_function_variant`
+  have TERMINAL returns (no `_err`) → NOT divergence work; separate family-B needing kwargs/default-arg
+  ctor binding (`_parse_ghost` GhostAssignDecl/GhostArraySetDecl) resp. FunctionVariant optfield
+  class-construction. See `parser-tokenstream-impl.md` §_err-DIVERGENCE.
+
 ### item 3 — F3+F4 crosscheck term-structural: CLOSED (2026-07-24, 921->917)
 The §RESIDUAL-CC 4-method cluster (any_unsupported/all_present_unsupported/
 provers_agree/all_agree) is CONVERTED. F3 = the certified `term` inductive made
