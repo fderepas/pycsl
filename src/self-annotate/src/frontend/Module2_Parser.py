@@ -1116,12 +1116,17 @@ class _ContractParser:
     def _parse_assigns_target(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_assigns_region(self):
-        pass
+    def _parse_assigns_region(self) -> "ExprIR":
+        name = self.expect_name()
+        self.expect_op("[")
+        lo = self._parse_expr()
+        self.expect_op("..")
+        hi = self._parse_expr()
+        self.expect_op("]")
+        return AssignsRegion(name, lo, hi)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
