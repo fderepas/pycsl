@@ -3944,6 +3944,14 @@ class PreambleEmissionMixin:
             + (" | IrGhostAssignDecl string emit_ir string string"
                " | IrGhostArraySetDecl string emit_ir emit_ir"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (footprint run): IrFootprint carries the
+            # `#@ footprint <NAME>(<arg>)` node's LEAF-string `happy_name` + its single
+            # EMIT_IR `arg` child (`Footprint(happy_name, self._parse_expr())`,
+            # `_parse_footprint`). Same string-leaf + emit_ir-child shape as IrRaisesDecl.
+            # size recurses the real `arg` child (gated arm below); kind_of has its own
+            # arm. Gated `_uses_clause_ir` → byte-inert. The IrRaisesDecl precedent.
+            + (" | IrFootprint string emit_ir"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4133,6 +4141,8 @@ class PreambleEmissionMixin:
               if self._uses_clause_ir() else []),
             *(["    | IrGhostAssignDecl _ _ _ _ -> \"GhostAssignDecl\"",
                "    | IrGhostArraySetDecl _ _ _ -> \"GhostArraySetDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrFootprint _ _ -> \"Footprint\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
@@ -4361,6 +4371,10 @@ class PreambleEmissionMixin:
             *(["    | IrGhostAssignDecl _ v _ _ -> 1 + size v",
                "    | IrGhostArraySetDecl _ i v -> 1 + size i + size v"]
               if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B (footprint run): IrFootprint recurses its single
+            # emit_ir `arg` child (`1 + size a`; leading `happy_name` string not counted —
+            # the IrRaisesDecl precedent). Gated WITH the ctor.
+            *(["    | IrFootprint _ a -> 1 + size a"] if self._uses_clause_ir() else []),
             "    | _ -> 1",
             "    end",
             "",

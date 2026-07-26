@@ -1192,12 +1192,16 @@ class _ContractParser:
     def _parse_dotted_path_list(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_footprint(self):
-        pass
+    def _parse_footprint(self) -> "ExprIR":
+        self.expect_name("footprint")
+        happy_name = self.expect_name()
+        self.expect_op("(")
+        arg = self._parse_expr()
+        self.expect_op(")")
+        return Footprint(happy_name, arg)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

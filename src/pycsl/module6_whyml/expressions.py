@@ -1340,6 +1340,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # by __init__ field order. Gated `_uses_clause_ir` (preamble) → byte-inert.
         "GhostAssignDecl": ("IrGhostAssignDecl", ["target", "value", "op", "declared_type"]),
         "GhostArraySetDecl": ("IrGhostArraySetDecl", ["target", "index", "value"]),
+        # self-tcb-reduction family-B (footprint run): `#@ footprint <NAME>(<arg>)`
+        # (`_parse_footprint`). Footprint -> `IrFootprint string emit_ir` (LEAF
+        # `happy_name` + EMIT_IR `arg`). Same string-leaf + emit_ir-child shape as
+        # RaisesDecl; `_call_irnode_constructor` binds by __init__ field order. Gated
+        # `_uses_clause_ir` (preamble) → byte-inert.
+        "Footprint": ("IrFootprint", ["happy_name", "arg"]),
     }
 
     # self-tcb-reduction family-B (ghost run): per-ctor map of a payload slot to the
