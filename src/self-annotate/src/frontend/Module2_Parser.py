@@ -1246,12 +1246,15 @@ class _ContractParser:
         ty = self._parse_mixin_type()
         return SharedStateDecl(name, ty)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_touches_field(self):
-        pass
+    def _parse_touches_field(self) -> "ExprIR":
+        self.expect_name("touches_field")
+        name = self.expect_name()
+        self.expect_op(":")
+        ty = self._parse_mixin_type()
+        return TouchesFieldDecl(name, ty)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -1366,6 +1366,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `_parse_mixin_type`]). The IrProofDecl two-leaf-string precedent. Gated
         # `_uses_clause_ir` (preamble) → byte-inert.
         "SharedStateDecl": ("IrSharedStateDecl", ["name", "type_str"]),
+        # self-tcb-reduction family-B (mixin-decl run): `#@ touches_field <name>: <type>`
+        # (`_parse_touches_field`). TouchesFieldDecl -> `IrTouchesFieldDecl string string`
+        # (two LEAF strings). The IrSharedStateDecl precedent. Gated `_uses_clause_ir`.
+        "TouchesFieldDecl": ("IrTouchesFieldDecl", ["name", "type_str"]),
     }
 
     # self-tcb-reduction family-B (ghost run): per-ctor map of a payload slot to the

@@ -3977,6 +3977,12 @@ class PreambleEmissionMixin:
             # catch-all → NO size arm). kind_of has its own arm. Gated `_uses_clause_ir`.
             + (" | IrSharedStateDecl string string"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (mixin-decl run): IrTouchesFieldDecl carries the
+            # `#@ touches_field <name>: <type>` node's two LEAF strings (TouchesFieldDecl(
+            # name, type_str), `_parse_touches_field`). No emit_ir child → NO size arm (the
+            # IrProofDecl / IrSharedStateDecl precedent). kind_of has its own arm. Gated.
+            + (" | IrTouchesFieldDecl string string"
+               if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
             + "  with iropt_ir = IrONone | IrOSome emit_ir",
@@ -4174,6 +4180,8 @@ class PreambleEmissionMixin:
             *(["    | IrSharedDecl _ _ -> \"SharedDecl\""]
               if self._uses_clause_ir() else []),
             *(["    | IrSharedStateDecl _ _ -> \"SharedStateDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrTouchesFieldDecl _ _ -> \"TouchesFieldDecl\""]
               if self._uses_clause_ir() else []),
             "    | IrOther k -> k",
             "    end",
