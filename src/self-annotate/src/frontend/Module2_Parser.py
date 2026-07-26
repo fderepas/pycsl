@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Union, Any, Optional
+from typing import List, Union, Any, Optional, NoReturn
 from errors import PyCSLParseError
 ""  # pycsl
 @dataclass
@@ -924,7 +924,17 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _err(self, msg: str):
+    # DIVERGENCE MODEL (_err-divergence run): the LIVE `_err` body is
+    # `t = self.cur(); raise _ContractSyntaxError(...)` — an UNCONDITIONAL raise, so it
+    # NEVER returns normally. The `-> NoReturn` annotation records that faithfully: Module5
+    # sets is_noreturn (NR1), Module6 gives the abstract op `ensures { false }` and lowers a
+    # `self._err(...)` call to `(let _ = <call> in absurd)` (continuation UNREACHABLE). This
+    # is what lets a clause parser whose live body ends in a trailing `self._err(...)` with
+    # no following return (e.g. `_parse_loop`) type-check as `-> ExprIR` — the raising path
+    # yields the branch's emit_ir type via the divergence, not a spurious `unit`. Stays
+    # `\trusted` (raise + f-string + `self.cur()` char boundary); the annotation only makes
+    # the trusted interface precise, backed by the live unconditional raise.
+    def _err(self, msg: str) -> NoReturn:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -961,12 +971,16 @@ class _ContractParser:
     def _parse_contract(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_loop(self):
-        pass
+    def _parse_loop(self) -> "ExprIR":
+        self.expect_name("loop")
+        if self.at_name("invariant"):
+            self.advance(); return LoopInvariant(self._parse_expr())
+        if self.at_name("variant"):
+            self.advance(); return LoopVariant(self._parse_expr())
+        self._err("expected 'invariant' or 'variant' after 'loop'")
 
     #@ requires True
     #@ ensures self.i >= \old(self.i)
