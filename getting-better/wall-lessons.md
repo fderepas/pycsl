@@ -748,3 +748,28 @@ cost is (a) strengthening every affected trusted callee with faithful monotonici
 real mutable record fields. Multi-method, multi-file — beyond a single-stub spike. FLAGGED for the
 user: this surfaced a latent unsoundness (effect-free trusted callees) worth a dedicated
 faithful-frame campaign, not an autonomous inline land.**
+
+## Wall: _pb_stmt/_cs_stmt trio-fusion — CERTIFIED-BOUNDARY (feasible, authorizable; 2026-07-27)
+After `_pb_expr` (875) unblocked its callers, `_pb_stmt` spiked → REFUTE for a single additive
+increment, but the spike PROVED it is NOT a proof wall: a standalone `.mlw` (11 goals Valid) shows
+termination works with existing `pyval`/`pydict`/`pv_size` + size-carrying extraction postconditions
++ a **lexicographic 2-component variant `{size, phase}`** (the naive single `pv_size` fails only at
+`pb_descend(v)→pb_stmt(v)` equal-size; phase clears it). Ledger stays 3, NO new value-shape/cert/axiom.
+**Why it's a BOUNDARY for autonomous landing:** `_pb_stmt` is MUTUALLY RECURSIVE with the
+already-converted walkers `_pb_body`/`_pb_descend` (today trusted `_pb_stmt` is called by opaque
+`int`/`0` handles). Converting it forces: fuse the trio (+helpers) into ONE `let rec…with…` group;
+RETYPE + RE-EMIT `_pb_body`/`_pb_descend` (int→pyval/string/sdict) — i.e. PERTURB converted walkers;
+a NEW cross-function trio-fusion emitter that claims the trio + suppresses the corpus-shared generic
+`recognize_void_dispatch`/`recognize_void_generic_descend` emissions for it while leaving the generic
+path intact for corpus code; emit-deferral after `_pb_expr`. This is a reorder + shared-emitter
+modelling change that re-emits VERIFIED artifacts = the RISKY-brick class (unlike additive byte-inert
+`_cp_walk`/`_pb_expr`). `_cs_stmt` = same fusion + trusted `_cs_clause` prerequisite (needs
+`_ir_free_vars` too).
+**LESSON: the walker vein splits into TWO risk classes — ADDITIVE recognizer extensions (new matcher,
+backward-compatible, byte-inert, converted walkers untouched → auto-landable under gates:
+`_cp_walk`/`_pb_expr`) vs MUTUAL-REC FUSION (must re-emit converted walkers + new cross-function
+fusion architecture + emission reorder → FLAG/authorize, don't auto-dispatch). The `{size,phase}`
+lexicographic variant + size-carrying extraction-helper postconditions are the banked, proven
+termination recipe for the fusion build when authorized.** FLAGGED for the user as a de-risked,
+authorizable multi-feature increment (files: generic_fold.py fusion emitter, functions.py
+dispatch+suppression, mirror _pb_stmt/_pb_body/_pb_descend), gated by whole-file proof + corpus byte-diff 0.
