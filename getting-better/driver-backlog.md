@@ -697,3 +697,15 @@ documented 98M-step bounds-invariant-INIT proof-cost timeout at LOOP ENTRY = gen
 clause-caller contract-gap). Banked: `#@ \variant` recursive-descent-parser recursion key (reusable for
 `_parse_mixin_type` + any guarded self-recursive rule); seq emit_ir return. See parser-tokenstream-impl.md
 §REOPENED-TAIL. Gates all foreground/read; zero live-parser changes; drift 2; ledger 3.
+
+## 2026-07-27 — sibling-walker vein measured (post _cp_walk 876)
+`_cp_walk` (recognize_cpwalk) landed at 876; its machinery does NOT drain the sibling walkers
+(measured refutation): only `_pb_expr` is catamorphism-shaped, and it needs ≥5 stacked features
+(4-arm `node.get("type")` dispatch pre-action, module-level constant-NAME tuple resolution, 2nd env
+set `known` as sdict-presence, string-op guards, list-first-return walker shape) — NO new
+value-shape/cert (ledger stays 3), so it is an IN-SCOPE multi-feature wall-break, not a matcher-arm.
+`_pb_stmt`/`_cs_stmt` = structured `s.get("stmt")` dispatchers (heterogeneous sub-walks) gated on
+converting `_pb_expr` first. `_cs_clause` = set-consumer gated on the trusted `_ir_free_vars`.
+NEXT: escalate `_pb_expr` (chain-root) via spike-gated wall-break — its make-or-break spike is the
+recognizer-architecture-expressiveness question (can a multi-arm dispatch + 2nd env set + list-first
+shape emit a non-vacuous proving body without a new value shape?).
