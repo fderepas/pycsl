@@ -1469,44 +1469,41 @@ class _ContractParser:
         op = "and" if is_exists else "==>"
         return BinOp(CSLIn(Var(var), domain), op, body)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
-    # calls `advance`). Monotonicity is a real property of the expression chain:
+    # FAITHFUL FRAME: monotonicity is a real property of the expression chain —
     # `self.i` is only ever incremented (`advance`); the sole backtracking site,
     # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
-    # from any expression rule. It is what lets the converted precedence methods
-    # prove their loop variant across a sibling call.
+    # from any expression rule. Pure dispatch: both branches return an emit_ir node
+    # via a callee (`_parse_quantifier` / `_parse_logical_or`) that itself carries
+    # `ensures self.i >= \old(self.i)`, so the frame + monotonicity discharge.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _parse_impl_rhs(self) -> "ExprIR":
-        pass
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_logical_or()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
-    # calls `advance`). Monotonicity is a real property of the expression chain:
-    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
-    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
-    # from any expression rule. It is what lets the converted precedence methods
-    # prove their loop variant across a sibling call.
+    # FAITHFUL FRAME: `self.i` is only ever incremented in the expression chain; the
+    # sole backtracking site `_try` is unreachable from any expression rule. Pure
+    # dispatch — both branches return an emit_ir node via a monotone callee.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _parse_or_rhs(self) -> "ExprIR":
-        pass
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_logical_and()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — it
-    # calls `advance`). Monotonicity is a real property of the expression chain:
-    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
-    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
-    # from any expression rule. It is what lets the converted precedence methods
-    # prove their loop variant across a sibling call.
+    # FAITHFUL FRAME: `self.i` is only ever incremented in the expression chain; the
+    # sole backtracking site `_try` is unreachable from any expression rule. Pure
+    # dispatch — both branches return an emit_ir node via a monotone callee.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _parse_and_rhs(self) -> "ExprIR":
-        pass
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_equality()
 
     #@ requires True
     #@ ensures self.i >= \old(self.i)
