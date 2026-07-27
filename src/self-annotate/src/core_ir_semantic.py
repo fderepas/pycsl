@@ -189,12 +189,22 @@ def _sa_walk(node, where, symtab) -> None:
 def _check_checkpoints(func) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _cp_walk(node, where) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("stmt") == "ProofAssert" and _contains_result(node.get("test")):
+            raise PyCSLSemanticError(
+                f"'\\result' is not allowed in a `#@ {node.get('kind')}` in {where} "
+                f"(it is bound only at return; use `ensures` for return values).",
+                code="PYCSL-SEM-CHECKPOINT",
+            )
+        for v in node.values():
+            _cp_walk(v, where)
+    elif isinstance(node, list):
+        for x in node:
+            _cp_walk(x, where)
 
 #@ requires True
 #@ ensures True

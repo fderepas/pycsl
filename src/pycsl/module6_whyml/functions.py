@@ -2737,6 +2737,7 @@ class FunctionEmissionMixin:
             recognize_bool_lastelem, recognize_bool_earlyreturn,
             recognize_frt, emit_frt_group,
             recognize_sawalk, emit_sawalk_group,
+            recognize_cpwalk, emit_cpwalk_group,
             recognize_dictfold, emit_dictfold_group,
             recognize_void_dispatch, emit_void_dispatch_group,
             recognize_void_generic_descend, emit_void_generic_descend_group,
@@ -3016,6 +3017,14 @@ class FunctionEmissionMixin:
         _sa = recognize_sawalk(func)
         if _sa is not None:
             return emit_sawalk_group(func, _sa, whyml_ident)
+        # 2-arg checkpoint walk `_cp_walk(node, where)`: the `_sa_walk` sibling
+        # with a SINGLE env param and a cross-call pre-action (`_contains_result`
+        # on `node.get("test")`). Arity-2, so `recognize_sawalk` (exactly 3
+        # params) never matches it; ordered here as the immediate sibling. Same
+        # fail-closed discipline; a template bug is a loud unprovable instance.
+        _cp = recognize_cpwalk(func)
+        if _cp is not None:
+            return emit_cpwalk_group(func, _cp, whyml_ident)
         # alist-adict-census §3: the returned-`sdict` dict-fold (result_algebra =
         # a string-keyed dict, by RETURN). The by-key-grouping twin of the A-set
         # returned-set fold; reuses the certified `sdict` + purely-defined

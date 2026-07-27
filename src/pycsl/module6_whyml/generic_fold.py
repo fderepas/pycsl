@@ -27,7 +27,7 @@ match that flips the gate red once.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # The named irkey constructors the L1 preamble theory declares
 # (`_emit_pydict_theory`). A literal schema key outside this set lowers to the
@@ -4286,10 +4286,12 @@ def emit_frt_group(func: Dict[str, Any], desc: Dict[str, Any],
 # termination — the `variant` stays `size node` (an inherited attribute).
 # ============================================================================
 
-def _match_sa_selfrec3(stmt: Any, fname: str, p1: str, p2: str) -> bool:
-    """`<self>(<any-var>, <p1>, <p2>)` as an ExprStmt — the 3-arg env-threaded
-    self-recursion (`_sa_walk(v, where, symtab)`); the two trailing args are the
-    read-only threaded env (`where`, `symtab`) passed VERBATIM."""
+def _match_selfrec_env(stmt: Any, fname: str, env_names: List[str]) -> bool:
+    """`<self>(<any-var>, <env...>)` as an ExprStmt — the env-threaded self-
+    recursion, arity-generalized. The leading arg is the recursion target (any
+    var); the remaining args thread the read-only env params (`env_names`, e.g.
+    `[where, symtab]` for `_sa_walk`, `[where]` for `_cp_walk`) passed VERBATIM
+    in order. Arity = 1 + len(env_names)."""
     if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
         return False
     call = stmt.get("value", {})
@@ -4298,12 +4300,21 @@ def _match_sa_selfrec3(stmt: Any, fname: str, p1: str, p2: str) -> bool:
     if not _call_is_self(call.get("func"), fname):
         return False
     args = call.get("args", [])
-    return (len(args) == 3 and _is_var(args[0])
-            and _is_var(args[1], p1) and _is_var(args[2], p2))
+    if len(args) != 1 + len(env_names) or not _is_var(args[0]):
+        return False
+    return all(_is_var(args[1 + i], e) for i, e in enumerate(env_names))
 
 
-def _match_sa_values_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) -> bool:
-    """`for v in <subj>.values(): <self>(v, p1, p2)`."""
+def _match_sa_selfrec3(stmt: Any, fname: str, p1: str, p2: str) -> bool:
+    """The 3-arg env-threaded self-recursion `<self>(v, p1, p2)` (`_sa_walk`
+    family); a thin `env_names=[p1, p2]` specialization of `_match_selfrec_env`
+    (backward-compatible — behaviour unchanged)."""
+    return _match_selfrec_env(stmt, fname, [p1, p2])
+
+
+def _match_values_loop_env(stmt: Any, subj: str, fname: str,
+                           env_names: List[str]) -> bool:
+    """`for v in <subj>.values(): <self>(v, env...)` (arity-generalized)."""
     if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"):
         return False
     it = stmt.get("iter", {})
@@ -4311,17 +4322,30 @@ def _match_sa_values_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) ->
             and it.get("func") == f"{subj}.values" and not it.get("args")):
         return False
     body = stmt.get("body", [])
-    return len(body) == 1 and _match_sa_selfrec3(body[0], fname, p1, p2)
+    return len(body) == 1 and _match_selfrec_env(body[0], fname, env_names)
 
 
-def _match_sa_list_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) -> bool:
-    """`for x in <subj>: <self>(x, p1, p2)`."""
+def _match_sa_values_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) -> bool:
+    """`for v in <subj>.values(): <self>(v, p1, p2)` — 3-arg specialization of
+    `_match_values_loop_env` (backward-compatible)."""
+    return _match_values_loop_env(stmt, subj, fname, [p1, p2])
+
+
+def _match_list_loop_env(stmt: Any, subj: str, fname: str,
+                         env_names: List[str]) -> bool:
+    """`for x in <subj>: <self>(x, env...)` (arity-generalized)."""
     if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"):
         return False
     if not _is_var(stmt.get("iter"), subj):
         return False
     body = stmt.get("body", [])
-    return len(body) == 1 and _match_sa_selfrec3(body[0], fname, p1, p2)
+    return len(body) == 1 and _match_selfrec_env(body[0], fname, env_names)
+
+
+def _match_sa_list_loop(stmt: Any, subj: str, fname: str, p1: str, p2: str) -> bool:
+    """`for x in <subj>: <self>(x, p1, p2)` — 3-arg specialization of
+    `_match_list_loop_env` (backward-compatible)."""
+    return _match_list_loop_env(stmt, subj, fname, [p1, p2])
 
 
 def _match_sa_raise(stmt: Any) -> Optional[str]:
@@ -4644,7 +4668,7 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
         out.append("         | None -> () end)")
         out.append("    | _ -> () end")
         # ---- the env-threaded walk group (shared with the ArraySet shape) ----
-        out += _sa_walk_group_lines(n, subj, p1, p2, exc)
+        out += _sa_walk_group_lines(n, subj, [(p1, "string"), (p2, "sdict")], f" {p2}", exc)
         return out
     # ---- spine readers for the pre-action's computed/interned keys ----
     out += _sa_reader_lines(n, "stmt", as_str=True)
@@ -4684,37 +4708,196 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
     out.append("         | None -> () end)")
     out.append("    | _ -> () end")
     # ---- the env-threaded walk group (shared with the ghoststr shape) ----
-    out += _sa_walk_group_lines(n, subj, p1, p2, exc)
+    out += _sa_walk_group_lines(n, subj, [(p1, "string"), (p2, "sdict")], f" {p2}", exc)
     return out
 
 
-def _sa_walk_group_lines(n: str, subj: str, p1: str, p2: str,
-                         exc: str) -> List[str]:
+def _sa_walk_group_lines(n: str, subj: str, env: List[Tuple[str, str]],
+                         pre_args: str, exc: str) -> List[str]:
     """The env-threaded `pyval`/`pydict`/`list pyval` walk / walk_dict /
-    walk_list mutual group shared by every `_sa_walk`-family shape (ArraySet
-    and ghoststr). The env (`p1: string`, `p2: sdict`) is threaded read-only;
-    the `variant` is the L1 structural measure (`pv_size`/`size_dict`/
+    walk_list mutual group shared by every `_sa_walk`-family shape (ArraySet,
+    ghoststr, and the 2-arg `_cp_walk` checkpoint walk). `env` is the ordered
+    list of read-only threaded env params as `(name, whyml_type)` pairs —
+    `[(p1, "string"), (p2, "sdict")]` for the 3-arg `_sa_walk` symtab shapes,
+    `[(where, "string")]` for the 2-arg `_cp_walk` shape. `pre_args` is the
+    argument suffix passed to the shape-specific `{n}__pre` (` {p2}` for the
+    symtab shapes, empty for `_cp_walk` whose pre-action reads only the node).
+    The `variant` is the L1 structural measure (`pv_size`/`size_dict`/
     `size_list`); the per-node pre-action (`{n}__pre`) is the only shape-
-    specific part."""
+    specific part. Emitting `[(p1, "string"), (p2, "sdict")]` reproduces the
+    original 3-arg group byte-for-byte."""
+    env_sig = "".join(f" ({nm}: {ty})" for nm, ty in env)
+    env_args = "".join(f" {nm}" for nm, _ in env)
     out: List[str] = []
-    out.append(f"  let rec {n} ({subj}: pyval) ({p1}: string) ({p2}: sdict) : unit")
+    out.append(f"  let rec {n} ({subj}: pyval){env_sig} : unit")
     out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
     out.append(f"    variant {{ pv_size {subj} }}")
     out.append(f"  = match {subj} with")
-    out.append(f"    | PDict d -> {n}__pre {subj} {p2}; {n}__dict d {p1} {p2}")
-    out.append(f"    | PList xs -> {n}__list xs {p1} {p2}")
+    out.append(f"    | PDict d -> {n}__pre {subj}{pre_args}; {n}__dict d{env_args}")
+    out.append(f"    | PList xs -> {n}__list xs{env_args}")
     out.append("    | _ -> () end")
-    out.append(f"  with {n}__dict (d: pydict) ({p1}: string) ({p2}: sdict) : unit")
+    out.append(f"  with {n}__dict (d: pydict){env_sig} : unit")
     out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
     out.append("    variant { size_dict d }")
     out.append("  = match d with")
     out.append("    | DNil -> ()")
-    out.append(f"    | DCons _ v rest -> {n} v {p1} {p2}; {n}__dict rest {p1} {p2}")
+    out.append(f"    | DCons _ v rest -> {n} v{env_args}; {n}__dict rest{env_args}")
     out.append("    end")
-    out.append(f"  with {n}__list (xs: list pyval) ({p1}: string) ({p2}: sdict) : unit")
+    out.append(f"  with {n}__list (xs: list pyval){env_sig} : unit")
     out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
     out.append("    variant { size_list xs }")
-    out.append(f"  = match xs with Nil -> () | Cons h t -> {n} h {p1} {p2}; {n}__list t {p1} {p2} end")
+    out.append(f"  = match xs with Nil -> () | Cons h t -> {n} h{env_args}; {n}__list t{env_args} end")
+    return out
+
+
+# =========================================================================
+# 2-arg checkpoint walk `_cp_walk(node, where)` — the `_sa_walk` sibling with
+# a SINGLE read-only env param (`where`) and a CROSS-CALL pre-action. Instead
+# of the symtab-lookup guard of `_match_sa_pre`/`_match_gso_pre`, the per-node
+# action is `if node.get("stmt")=="ProofAssert" and _contains_result(node.get(
+# "test")): raise` — a compound guard whose right conjunct cross-calls an
+# already-emitted sibling `pyval -> bool` fold (`_contains_result`) on a REAL
+# `option pyval` spine read of the node's "test" sub-value. Reuses the arity-
+# generalized `_sa_walk_group_lines` walk group (env = `[(where, "string")]`).
+# =========================================================================
+
+
+def _match_cp_pre(pre_if: Any, subj: str) -> Optional[Dict[str, Any]]:
+    """Match the `_cp_walk` checkpoint pre-action — a single `if` whose test is
+    a compound `<subj>.get("stmt") == "<TAG>" and <cross>(<subj>.get("<KEY>"))`
+    conjunction and whose body is a lone `raise <Exc>`. Shape:
+
+        if <subj>.get("stmt") == "ProofAssert" and _contains_result(<subj>.get("test")):
+            raise PyCSLSemanticError(...)
+
+    Returns {tag, cross, key, exc} or None (fail-closed). `<cross>` is the bare
+    name of an already-emitted sibling `pyval -> bool` fold (`_contains_result`);
+    whether it returns true on the `<KEY>` sub-value is a value fact no VC
+    constrains (insight C), but the pre-action's SHAPE — reading the `stmt` tag
+    and the `<KEY>` sub-value off the node and cross-calling the sibling on a
+    real `pyval` — is validated, keeping the emission non-vacuous."""
+    if not (isinstance(pre_if, dict) and pre_if.get("stmt") == "If"
+            and not pre_if.get("orelse")):
+        return None
+    test = pre_if.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    tag = _match_stmt_tag_test(test.get("left", {}), subj)
+    if tag is None:
+        return None
+    call = test.get("right", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    cross = call.get("func")
+    if not isinstance(cross, str):
+        return None
+    cargs = call.get("args", [])
+    if len(cargs) != 1:
+        return None
+    key = _match_get_call(cargs[0], subj)
+    if key is None:
+        return None
+    body = pre_if.get("body", [])
+    if len(body) != 1:
+        return None
+    exc = _match_sa_raise(body[0])
+    if exc is None:
+        return None
+    return {"tag": tag, "cross": cross, "key": key, "exc": exc}
+
+
+def recognize_cpwalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the 2-arg checkpoint walk `_cp_walk(node, where)` —
+    the env-threaded `_sa_walk` sibling with a SINGLE read-only env param and a
+    cross-call pre-action. Returns a descriptor or None; never raises."""
+    try:
+        return _recognize_cpwalk(func)
+    except Exception:
+        return None
+
+
+def _recognize_cpwalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    subj, env1 = params[0], params[1]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+    # dict-arm: exactly [cross-call pre-action If, values loop]
+    dbody = outer.get("body", [])
+    if len(dbody) != 2:
+        return None
+    pre = _match_cp_pre(dbody[0], subj)
+    if pre is None:
+        return None
+    if not _match_values_loop_env(dbody[1], subj, fname, [env1]):
+        return None
+    # else-arm: exactly `if isinstance(node, list): for x in node: self(x, where)`
+    orelse = outer.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    inner = orelse[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If" and not inner.get("orelse")):
+        return None
+    if not _match_isinstance(inner.get("test", {}), subj, "list"):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1 or not _match_list_loop_env(ibody[0], subj, fname, [env1]):
+        return None
+    return {"subject": subj, "env1": env1, "pre": pre}
+
+
+def emit_cpwalk_group(func: Dict[str, Any], cp: Dict[str, Any],
+                      whyml_ident) -> List[str]:
+    """Emit the 2-arg checkpoint walk group for a recognized `_cp_walk`.
+
+    A single read-only env param (`where: string`) is threaded down the
+    `pyval`/`pydict`/`list pyval` catamorphism (variant `pv_size`/`size_dict`/
+    `size_list`; the env does not affect termination). The per-node pre-action
+    reads the node's `stmt` tag and, on a match, cross-calls the already-emitted
+    sibling `pyval -> bool` fold (`_contains_result`) on the node's `<KEY>`
+    sub-value — a REAL `option pyval` spine read, never the int-erased default —
+    raising the source exception when the fold returns true. Whether the fold
+    returns true is a value fact no VC constrains (insight C); the exception is
+    inside `why3_implements_wp_w` (axiom 3), so the ledger does not move."""
+    n = whyml_ident(func["name"])
+    subj = cp["subject"]
+    p1 = cp["env1"]
+    pre = cp["pre"]
+    exc = pre["exc"]  # already a valid WhyML exception ident (user_exceptions)
+    cross = whyml_ident(pre["cross"])
+    key = pre["key"]
+    out: List[str] = []
+    # ---- spine readers: the `stmt` tag (string) + the cross-call KEY (pyval) ----
+    out += _sa_reader_lines(n, "stmt", as_str=True)
+    out += _sa_reader_lines(n, key, as_str=False)
+    stmt_suf = _reader_suffix("stmt")
+    key_suf = _reader_suffix(key)
+    # ---- the pre-action: tag-gated cross-call to the sibling bool fold ----
+    out.append(f"  let {n}__pre ({subj}: pyval) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_{stmt_suf} d with")
+    out.append(f'         | Some st -> if pystr_eq st "{pre["tag"]}" then')
+    out.append(f"             (match {n}__get_{key_suf} d with")
+    out.append(f"              | Some tv -> if {cross} tv then raise {exc} else ()")
+    out.append("              | None -> () end)")
+    out.append("           else ()")
+    out.append("         | None -> () end)")
+    out.append("    | _ -> () end")
+    # ---- the env-threaded walk group (shared with the `_sa_walk` shapes) ----
+    out += _sa_walk_group_lines(n, subj, [(p1, "string")], "", exc)
     return out
 
 

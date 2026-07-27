@@ -2053,7 +2053,8 @@ class PreambleEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_generic_fold, recognize_setfold, recognize_substmap,
             recognize_bool_existence, recognize_bool_multiway, recognize_frt,
-            recognize_sawalk, recognize_dictfold, recognize_void_dispatch,
+            recognize_sawalk, recognize_cpwalk, recognize_dictfold,
+            recognize_void_dispatch,
             recognize_stmt_setfold, recognize_void_generic_descend,
             recognize_type_existence, recognize_named_field_existence,
             recognize_pyval_string_walker, recognize_pyval_list_walker,
@@ -2078,6 +2079,7 @@ class PreambleEmissionMixin:
             or recognize_pyval_string_walker(f) is not None
             or recognize_pyval_list_walker(f) is not None
             or recognize_pyval_flatten(f) is not None
+            or recognize_cpwalk(f) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only
