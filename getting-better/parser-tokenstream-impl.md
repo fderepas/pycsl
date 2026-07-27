@@ -762,3 +762,64 @@ prior `_parse_mixin_type` boundary); the `seq emit_ir` List[ExprIR] return.
 **LESSON (third time): a parser "proof-cost / recursion boundary" reached without an isolating
 measurement is a HYPOTHESIS, not a floor.** The `#@ \variant` directive + faithful trusted-callee
 monotonicity ensures cleared what the census called an intrinsic EOF-sentinel-ambient proof-infra wall.
+
+## LIST-OF-RECORDS vein RE-SPIKED: `_parse_variant_def` = EARLY-RETURN TUPLE-EXCEPTION BOUNDARY (2026-07-27, Phase-2 executor) — count STAYS 883
+
+**VERDICT: CERTIFIED-BOUNDARY, sharpened by measurement (the prior "class-O tuple-slot" census was
+STALE in one direction and INCOMPLETE in another).** Convert-or-BOUNDARY on the 4 remaining
+list-of-records members (`_parse_variant_def`, `_parse_datatype`, `_parse_inductive_rules`,
+`_parse_inductive`) → BOUNDARY, reverted clean (emitter `functions.py` + mirror both `git checkout`).
+
+### CENSUS — element shapes (all PURE for the first two, emit_ir-bearing for the last two)
+- `_parse_variant_def` → bare tuple `(string, seq string)` (`ctor = expect_name(); … return (ctor, types)`
+  / `return (ctor, [])`). NO record class exists — the live body returns a raw 2-tuple, so a faithful
+  port MUST emit a tuple, not a `{ctor; fields}` record. PURE (no emit_ir) → no non-strict-positivity,
+  **no certificate**.
+- `_parse_datatype` → `DatatypeDecl(name: string, variants: seq (string, seq string), type_params: seq string)`.
+  PURE → no cert; needs a `seq (string, seq string)` LOCAL build + an `IrDatatypeDecl` ctor with a
+  `seq (string, seq string)` field.
+- `_parse_inductive_rules` → `seq (string, emit_ir)`; `_parse_inductive` → nested `seq (string, string, seq (string, emit_ir))`.
+  emit_ir INSIDE a tuple inside a seq → a `seq (string, emit_ir)` ctor field of emit_ir is
+  **non-strictly-positive (Why3-rejected, the `irlist` wall)** → needs NEW monomorphic **certified**
+  inductives (`rule_list = RLNil | RLCons string emit_ir rule_list` + `seq_to_rulelist` bridge) with
+  emit_ir children = ≥2 stacked new shapes + co-landing certs → §10.5 CERTIFIED-BOUNDARY.
+
+### SPIKE (`_parse_variant_def`, verbatim port + loop invariants) — MEASURED gap stack
+The prior census said "per-slot tuple type inference NOT landed" — **STALE**: `_refine_tuple_return_type`
++ `_infer_tuple_slot_type` (functions.py) DO refine per-slot signatures (string/array/emit_ir). A small
+byte-inert emitter add (string-call-result-local + `seq_value_types` seq-string-local slot recognition,
+`_mutable_state_classes`-gated) refined the signature `(int,int)` → `(string, array int)` (the `ctor`
+string slot landed). BUT `--no-proof --keep-mlw` then exposes the REAL, DEEPER stack — three MORE gaps,
+each non-trivial, for this ONE standalone stub (its only caller `_parse_datatype` stays trusted → does
+not consume the tuple, so variant_def is standalone-reachable but standalone-boundaried):
+1. **seq-string SLOT at map-build time.** The `types` slot stayed `array int` — `func["seq_value_types"]`
+   (which drives the body's correct `seq string` Seq.cons/snoc) is not populated at return-type-MAP-build
+   time, so the slot refinement can't see it. (The BODY lowers `types` right; only the SIGNATURE lags.)
+2. **empty-list-in-tuple-slot.** The second branch `return (ctor, [])` lowers `[]` via the generic
+   `expressions.py` Tuple path to `(Array.make 1024 0)` (array int), with NO slot-type context — needs a
+   per-slot return lowering that maps an empty ListLit in a `seq string` slot to `(Seq.empty: seq string)`.
+3. **DECISIVE — the tuple-return EXCEPTION is all-int, keyed only by ARITY.** `_parse_variant_def` has a
+   CONDITIONAL (early) return → `_has_early_ret` → the raise/catch path: `raise (Return_2 …)` caught by
+   `with Return_2 r -> r`, where preamble.py declares `exception Return_2 (int, int)` (`", ".join(["int"]*arity)`,
+   line ~2474). The refined-tuple-return feature only ever covered **TAIL-return** functions (`_unpack_direntry`
+   `(int, array int)` has a single tail return → no exception). Extending it to early-return refined tuples
+   needs a **per-slot-typed** `Return_{arity}` exception (name keyed on slot types, not arity — else two
+   arity-2 functions with different slot types collide on one global exception), touching the preamble
+   declaration + every raise + every catch = a cross-cutting exception-model change that also risks corpus
+   byte-diff. This is the hard blocker measured this run (`.mlw` line-1482: body `(string, seq string)` vs
+   `Return_2 (int, int)`).
+
+### DECISION
+`_parse_variant_def` = **1 standalone stub needing ≥3 stacked new emitter shapes** (seq-string-slot at
+map-time + empty-list-in-tuple + per-slot-typed early-return tuple exception). `_parse_datatype` adds a
+4th (seq-of-tuple element typing + `IrDatatypeDecl` ctor). `_parse_inductive*` add certified monomorphic
+inductives (emit_ir-in-tuple). Per the convert-or-BOUNDARY rule (1 stub / ≥2 stacked shapes / new cert →
+CERTIFIED-BOUNDARY, do-not-over-build), the whole vein is a BOUNDARY. Reverted BOTH edited files by exact
+path (`git checkout -- src/self-annotate/src/frontend/Module2_Parser.py src/pycsl/module6_whyml/functions.py`);
+count held 883, drift 2, ledger 3, formal-semantics untouched, zero live-parser changes, zero orphans.
+**REOPEN key:** the *sharpest single next feature* is the **per-slot-typed early-return tuple-return
+exception** (gap #3) — it is what distinguishes this from the already-landed tail-return refined tuple;
+build it (+ gaps #1/#2, both small) and `_parse_variant_def` converts, then `_parse_datatype` needs only
+the seq-of-tuple + `IrDatatypeDecl` add (pure, no cert); `_parse_inductive*` stay behind the certified
+`rule_list` inductive. NOTE: this is a MEASURED gap stack, not a census hypothesis — the emission was
+read at each layer.

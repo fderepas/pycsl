@@ -651,6 +651,23 @@ caller obligations = over-build); _parse_variant_def = class-O tuple-slot bounda
 boundary (seq-of-tuple / monomorphic rule_list+member_list ADTs w/ emit_ir children = ≥2 stacked
 shapes + certs). See parser-tokenstream-impl.md §LIST-OF-RECORDS.
 
+## LIST-OF-RECORDS RE-SPIKE (2026-07-27) — 883 held, BOUNDARY sharpened by measurement
+Re-spiked `_parse_variant_def` (verbatim port + loop invariants, `--no-proof --keep-mlw`). The
+2026-07-26 census was STALE ("per-slot tuple inference not landed" — it IS landed for TAIL returns:
+`_refine_tuple_return_type`/`_infer_tuple_slot_type`). A small byte-inert emitter add
+(string-call-result-local + `seq_value_types` seq-string-local slot recognition) refined the signature
+`(int,int)`→`(string, array int)` (ctor slot landed). The REAL blocker stack (read at each `.mlw` layer):
+(1) seq-string SLOT not resolvable at return-type-MAP-build time (`func["seq_value_types"]` unpopulated
+there — the BODY lowers `types` right, only the SIGNATURE lags); (2) `[]`-in-tuple-slot → `Array.make 1024 0`
+(generic Tuple lowering, no slot-type context); (3) DECISIVE — `_parse_variant_def` has a CONDITIONAL/early
+return → raise/catch path → `exception Return_{arity} (int,…,int)` (all-int, keyed only by ARITY,
+preamble.py ~L2474). The refined-tuple feature only ever covered TAIL-return functions; early-return refined
+tuples need a per-slot-TYPED tuple-return exception (name keyed on slot types, cross-cutting preamble+raise+catch,
+byte-diff risk). = 1 standalone stub needing ≥3 stacked new emitter shapes → CERTIFIED-BOUNDARY (do-not-over-build).
+Reverted functions.py + mirror by exact path. REOPEN key = the per-slot-typed EARLY-RETURN tuple exception
+(gap #3, the one distinguishing this from the landed tail-return refined tuple). See parser-tokenstream-impl.md
+§"LIST-OF-RECORDS vein RE-SPIKED".
+
 ## EXPRESSION-GRAMMAR cluster (2026-07-26) — CERTIFIED PROOF-COST BOUNDARY, parser-vein TERMINUS, 888 held
 The 7 contract-expression stubs (`_parse_expr`/`_parse_quantifier`/`_parse_atom`/`_parse_atom_primary`/
 `_parse_atom_name`/`_parse_atom_bs`/`_parse_expr_list`). SPIKED the SIMPLEST — `_parse_expr` (pure
