@@ -1817,16 +1817,6 @@ class PreambleEmissionMixin:
         needs_return_str = False
         needs_return_emit_ir = False
         tuple_return_arities: Set[int] = set()
-        # early-return-tuple exception (gap #3): funcs whose early/in-loop tuple return has
-        # a NON-int slot (`(string, seq string)`) — their per-slot-typed `Return_tuple_*`
-        # exceptions can only be typed once the cross-method return-type map is built (a
-        # slot bound to a `-> str` self-call needs it), so they are DEFERRED to
-        # `_emit_tuple_return_exceptions` (post-map), the same "declare-after-info" shape as
-        # `_emit_union_return_exceptions`. The scan-time refinement is a reliable BINARY
-        # classifier (homogeneous all-int vs not): a passing all-int corpus tuple refines to
-        # `(int, …)` here (→ legacy arity path, byte-identical); a non-int tuple has an
-        # array/dict/string slot that shows up even without the map.
-        tuple_return_defer_funcs: List[Dict[str, Any]] = []
         # value-model campaign incr5 (primitive c): synthesized-union (`Optional[X]`) return
         # types that need a dedicated `Return_<variant>` exception — a function returning a
         # `_union_*` variant WITH an early/in-loop return can't carry the variant through the
@@ -1843,17 +1833,10 @@ class PreambleEmissionMixin:
                 if ret_type == "unit":
                     needs_return_void = True
                 elif ret_type.startswith("(") and "," in ret_type:
-                    # Tuple return — needs a dedicated exception so the value carries
-                    # through; the plain `exception Return int` would force `_coerce_to_int`
-                    # to hash the whole tuple. A homogeneous all-int tuple keeps the legacy
-                    # arity-only `Return_<arity> (int,…)` here (byte-identical). A tuple with
-                    # a non-int slot is DEFERRED to `_emit_tuple_return_exceptions` (post-map)
-                    # where its per-slot types can be resolved.
-                    refined = self._refine_tuple_return_type(func, func["body"], ret_type)
-                    if all(s == "int" for s in self._tuple_slot_types(refined)):
-                        tuple_return_arities.add(ret_type.count(",") + 1)
-                    else:
-                        tuple_return_defer_funcs.append(func)
+                    # Tuple return — needs a dedicated Return_<arity> exception
+                    # so the value carries through; the plain `exception Return int`
+                    # would force `_coerce_to_int` to hash the whole tuple.
+                    tuple_return_arities.add(ret_type.count(",") + 1)
                 elif ret_type == "array int" or ann in ("list", "bytes", "bytearray"):
                     # return-arr.md: an array-returning function with early/in-loop returns.
                     # Why3 forbids a mutable `array int` exception payload, so carry the value
@@ -2263,7 +2246,6 @@ class PreambleEmissionMixin:
             "needs_return_void": needs_return_void,
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
-            "tuple_return_defer_funcs": tuple_return_defer_funcs,
             "union_return_types": union_return_types,
             "needs_string": needs_string,
             "needs_char": needs_char,
@@ -2486,10 +2468,9 @@ class PreambleEmissionMixin:
             out.append("")
             out.append("  exception Return_void")
         for arity in sorted(needs.get("tuple_return_arities", set())):
-            # Homogeneous all-int tuple returns: each arity gets its own exception
-            # carrying the full tuple, avoiding the int-hash collapse the plain
-            # `Return int` would force via `_coerce_to_int`. Non-int tuples are declared
-            # later by `_emit_tuple_return_exceptions` (post-map).
+            # Tuple returns: each arity gets its own exception carrying the
+            # full tuple, avoiding the int-hash collapse the plain `Return int`
+            # would force via `_coerce_to_int`.
             parts = ", ".join(["int"] * arity)
             out.append("")
             out.append(f"  exception Return_{arity} ({parts})")
@@ -2535,38 +2516,6 @@ class PreambleEmissionMixin:
                 continue
             out.append("")
             out.append(f"  exception Return_{ut} {ut}")
-        return out
-
-    def _emit_tuple_return_exceptions(self, needs: Dict[str, Any]) -> List[str]:
-        """early-return-tuple exception (gap #3): emit the PER-SLOT-TYPED
-        `Return_tuple_<arity>_<slot-tokens>` exceptions for early/in-loop-returning
-        tuple functions whose refined return type has a NON-int slot
-        (`(string, seq string)`). Called AFTER the cross-method return-type map
-        (`_module_method_return_types`) is built — so a slot bound to a `-> str`
-        self-call (`ctor = self.expect_name()`) resolves to `string`, and a growable
-        `seq string` local to `seq string` — the same refinement `_compute_return_type`
-        applies at the function's own emission, so the declared exception NAME + payload
-        match the `raise`/`catch` sites (statements/stmt_control_flow) exactly.
-
-        Parallel to `_emit_union_return_exceptions` (the "declare-after-info" shape). A
-        homogeneous all-int tuple never reaches here (it took the legacy arity path in
-        `_emit_preamble_exceptions`), so the corpus (all-int tuples only) emits nothing
-        here → byte-identical. Deduped by exception name so two functions with the same
-        (arity, slot-types) signature share one declaration."""
-        out: List[str] = []
-        seen: Set[str] = set()
-        for func in needs.get("tuple_return_defer_funcs", []):
-            ret_type = IRScanner.find_return_type(func["body"])
-            refined = self._refine_tuple_return_type(func, func["body"], ret_type)
-            slots = self._tuple_slot_types(refined)
-            if all(s == "int" for s in slots):
-                continue  # slot types now resolve as all-int → handled by the legacy path
-            name, payload = self._tuple_return_exc(refined)
-            if name in seen:
-                continue
-            seen.add(name)
-            out.append("")
-            out.append(f"  exception {name} ({payload})")
         return out
 
     def _emit_preamble_helpers(self, needs: Dict[str, Any]) -> List[str]:

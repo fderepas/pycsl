@@ -807,22 +807,11 @@ class ControlFlowStmtMixin:
                 return f"{indent}raise Return_void"
             arity = self._current_tuple_arity
             if arity > 0:
-                # Tuple return: use the dedicated per-slot-typed exception
-                # (`_tuple_return_exc`) so the whole tuple value carries through. Do
-                # NOT call _coerce_to_int — for tuple-shaped strings that would hash
-                # the whole tuple to a single int. An all-int tuple keeps the legacy
-                # `Return_<arity>` name and the generic `val` lowering (byte-inert);
-                # a refined tuple with a non-int slot uses a slot-aware value build
-                # (gap #2: an empty `[]` in a `seq string` slot → `(Seq.empty: …)`,
-                # a seq-string local → `!local`) so each slot matches its declared
-                # payload type.
-                name, _ = self._tuple_return_exc(func_ret)
-                slots = self._tuple_slot_types(func_ret)
-                if (any(s != "int" for s in slots)
-                        and isinstance(val_ir, dict) and val_ir.get("type") == "Tuple"):
-                    tval = self._tuple_raise_value(val_ir, slots, local_refs)
-                    return f"{indent}raise ({name} {tval})"
-                return f"{indent}raise ({name} {val})"
+                # Tuple return: use the dedicated Return_<arity> exception
+                # so the whole tuple value carries through. Do NOT call
+                # _coerce_to_int — for tuple-shaped strings that would hash
+                # the whole tuple to a single int.
+                return f"{indent}raise (Return_{arity} {val})"
             if func_ret == "array int":
                 # return-arr.md: array-returning functions with early/in-loop returns carry the
                 # value through an IMMUTABLE seq (Why3 forbids a mutable `array int` exception

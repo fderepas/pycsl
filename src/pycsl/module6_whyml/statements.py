@@ -1893,10 +1893,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if return_type == "unit":
             return f"    try\n{body_code}\n    with Return_void -> () end"
         if arity > 0:
-            # early-return-tuple: the catch arm name matches the per-slot-typed exception
-            # `_tuple_return_exc` declares/raises (an all-int tuple keeps `Return_<arity>`).
-            name, _ = self._tuple_return_exc(return_type)
-            return f"    try\n{body_code}\n    with {name} r -> r end"
+            return f"    try\n{body_code}\n    with Return_{arity} r -> r end"
         if return_type == "array int":
             # return-arr.md: early/in-loop returns in an array-returning function are raised as
             # an immutable `Return_seq (seq int)` (Why3 forbids a mutable array payload); the

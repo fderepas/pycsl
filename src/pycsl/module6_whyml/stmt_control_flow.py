@@ -1473,37 +1473,6 @@ class ControlFlowStmtMixin:
             return None
         return None
 
-    def _tuple_raise_value(self, val_ir: Dict[str, Any], slots: List[str],
-                           local_refs: Set[str]) -> str:
-        """early-return-tuple gap #2: build a tuple raise value SLOT-AWARE, so a slot
-        whose declared type is a sequence gets a sequence value even when the source
-        element is an empty list literal or a growable seq local. Used only on the
-        per-slot-typed early-return path (a tuple with a non-int slot); the generic
-        `_expr_to_whyml` Tuple lowering (all-int) is untouched → byte-inert.
-
-        Per slot: a `seq string`/`seq int` slot lowers an empty `[]`/`()` list to the
-        polymorphic `(Seq.empty: …)`, a seq-local Var to `!local`, and any other
-        list-shaped RHS through `_seq_init_expr`; every other slot type (`string`,
-        `emit_ir`, `int`, `map …`) uses the ordinary expression lowering."""
-        elts = val_ir.get("elts", [])
-        parts: List[str] = []
-        for slot, e in zip(slots, elts):
-            if slot in ("seq string", "seq int"):
-                is_empty_list = (isinstance(e, dict)
-                                 and e.get("type") in ("ListLit", "ArrayLit", "Tuple")
-                                 and not e.get("elts"))
-                if is_empty_list:
-                    ety = "string" if slot == "seq string" else "int"
-                    parts.append(f"(Seq.empty: Seq.seq {ety})")
-                elif (isinstance(e, dict) and e.get("type") == "Var"
-                      and e.get("name") in getattr(self, "_seq_locals", set())):
-                    parts.append(f"!{whyml_ident(e['name'])}")
-                else:
-                    parts.append(self._seq_init_expr(e, local_refs))
-            else:
-                parts.append(self._expr_to_whyml(e, local_refs))
-        return "(" + ", ".join(parts) + ")"
-
     def _handle_return_stmt(
         self,
         stmt: ReturnStmt,
@@ -1573,22 +1542,11 @@ class ControlFlowStmtMixin:
                 return f"{indent}raise Return_void"
             arity = self._current_tuple_arity
             if arity > 0:
-                # Tuple return: use the dedicated per-slot-typed exception
-                # (`_tuple_return_exc`) so the whole tuple value carries through. Do
-                # NOT call _coerce_to_int — for tuple-shaped strings that would hash
-                # the whole tuple to a single int. An all-int tuple keeps the legacy
-                # `Return_<arity>` name and the generic `val` lowering (byte-inert);
-                # a refined tuple with a non-int slot uses a slot-aware value build
-                # (gap #2: an empty `[]` in a `seq string` slot → `(Seq.empty: …)`,
-                # a seq-string local → `!local`) so each slot matches its declared
-                # payload type.
-                name, _ = self._tuple_return_exc(func_ret)
-                slots = self._tuple_slot_types(func_ret)
-                if (any(s != "int" for s in slots)
-                        and isinstance(val_ir, dict) and val_ir.get("type") == "Tuple"):
-                    tval = self._tuple_raise_value(val_ir, slots, local_refs)
-                    return f"{indent}raise ({name} {tval})"
-                return f"{indent}raise ({name} {val})"
+                # Tuple return: use the dedicated Return_<arity> exception
+                # so the whole tuple value carries through. Do NOT call
+                # _coerce_to_int — for tuple-shaped strings that would hash
+                # the whole tuple to a single int.
+                return f"{indent}raise (Return_{arity} {val})"
             if func_ret == "array int":
                 # return-arr.md: array-returning functions with early/in-loop returns carry the
                 # value through an IMMUTABLE seq (Why3 forbids a mutable `array int` exception

@@ -779,14 +779,6 @@ class Module6_WhyMLTranspiler(
         # zero byte risk. Built from `funcs_for_maps`, so imported str-stubs are covered.
         self._module_method_return_annotations = \
             self._build_method_return_annotation_map(funcs_for_maps)
-        # early-return-tuple exception (gap #3): NOW that BOTH the return-type map and the
-        # return-ANNOTATION map are built, the per-slot-typed `Return_tuple_*` exceptions for
-        # non-int early-return tuples can be fully typed (a `-> str` self-call slot resolves to
-        # `string` via the annotation map, a growable string-list local to `seq string`).
-        # Declared here — before the function bodies (emitted below) that raise/catch them —
-        # parallel to the union-return exceptions. Empty (byte-identical) for the all-int-tuple
-        # corpus (which took the legacy arity path in `_emit_preamble_exceptions`).
-        out += self._emit_tuple_return_exceptions(needs)
         # str-list-elements: the set of module functions that return a STRING-element list
         # (`array string`, via a returned seq local whose `seq_value_types` is "string").
         # A caller binding `names = f(...)` for such an `f` gets a string-element array
