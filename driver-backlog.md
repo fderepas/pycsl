@@ -1,7 +1,34 @@
 # self-tcb-reduction driver — backlog
 
-Canonical count: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l` = **883** (drift 2, ledger 3).
-(The 2026-07-27 `_parse_variant_def` 883→882 was reverted — the per-slot tuple-exception feature L3-tc-broke a Module5 importer mirror, §10c trap; 883 restored.)
+Canonical count: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l` = **882** (drift 2, ledger 3).
+(The 2026-07-27 `_parse_variant_def` 883→882 was reverted — the per-slot tuple-exception feature L3-tc-broke a Module5 importer mirror, §10c trap; 883 restored. Then 883→882 via `_gso_walk`, below.)
+
+## WALKER-RECOGNIZER VEIN — `_gso_walk` CONVERTED (2026-07-27, commit 5121100f, 883→882)
+
+The isolation-spike prediction ("recognizer-gated, one field-read off `_sa_walk`") is CONFIRMED and
+worked: extended `recognize_sawalk`/`emit_sawalk_group` (`generic_fold.py`) with a fail-closed second
+env-threaded pre-action shape — the GhostAssign ghost-string guard (`_match_gso_pre`) — reusing the
+certified L1 `pyval`/`pydict` catamorphism (ledger 3, no new axiom). Shared walk group factored into
+`_sa_walk_group_lines` (arrayset path byte-identical). Emits real spine readers on `node` + `slookup`
+on `symtab` (non-vacuous), NOT the int-erased facade. Gate: whole-file proof SUCCESS; §10c all-7-importer
+L3-tc OK; byte-diff 812==812 exit 0; vacuity clean; mutation PASS; mirror 52/52.
+
+**Nearest remaining walker candidates — DEFERRED (≥2 stacked each):**
+- `_union_c8_test_references_union_var` — the spike's "unbound `union_vars`" is a SYMPTOM of the WRONG
+  recognizer (`_try_emit_any_all_fold` fallback), not a threading bug: the real body int-erases
+  (`test: int`, `typeof_op 448` constant, `test_values_0 ()` nullary) AND the fold gets `int` where it
+  wants `array int` — threading `union_vars` alone does NOT fix L3-tc. Sound path = `recognize_type_existence`
+  extended with THREE stacked: `set`-typed carried (emitter hardcodes `(c: string)`) + a `name in <carried-set>`
+  membership discriminant + reversed subject-first/carried-last param order. Research-grade for +1.
+- `_cp_walk` — 2-param single-env arity generalization of `_sa_walk_group_lines` (NO sdict) + a ProofAssert
+  cross-call guard matcher (`_contains_result(node.get("test"))`) + cross-call emission. ≥2 stacked, and
+  touches the shared arrayset walk-group (byte-identical risk).
+- The other ~54 residual (`_pb_stmt`/`_pb_expr`/`_cs_stmt`/`_cs_clause` dispatch-checkers; `_body_has_*`
+  nested-closure `found=[False]` walks; `_noreturn_walk_stmts` inter-iteration state; `_stmt_is_noreturn_call`
+  set-membership+`rsplit`; `_typeddict/_namedtuple_walk_*` `.items()`-key-dispatch + set/dict carried;
+  `_union_c8_recognized_guard` flat multi-branch typed-node predicate) — each a DISTINCT bespoke recognizer
+  extension or the `functions.py` `_build_method_*_map` research-grade BUILD family. Per
+  [[frontier_exhaustion_map]]: bounded engineering, one +1-marker apiece, authorize per-shape.
 
 ## `Dict[str,Any]` VALUE-MODEL WALL = REFRAMED (recognizer-gated, NOT value-model floor) — 2026-07-27 ISOLATION SPIKE
 
