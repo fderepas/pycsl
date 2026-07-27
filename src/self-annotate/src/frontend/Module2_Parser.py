@@ -891,7 +891,15 @@ class _ContractParser:
         return None
 
     #@ requires True
-    #@ ensures True
+    # FAITHFUL MONOTONICITY (was `ensures True`): `expect_op` moves `self.i` only
+    # through `advance` (`self.i >= \old(self.i)`) on the success path; the failure
+    # path is `self._err(...)` which is `-> NoReturn` (diverges, never returns
+    # normally). So `self.i >= \old(self.i)` is a REAL property of the live body —
+    # the same monotonicity `expect_name`/`accept_op`/`advance` already export. It
+    # lets a converted caller whose live body ends in `self.expect_op(...)` (e.g.
+    # `_parse_mixin_type`'s `expect_op("]")` tail) discharge its own monotonicity
+    # postcondition across this sibling call.
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def expect_op(self, val: str) -> _Tok:
         if not self.at_op(val):
@@ -1306,26 +1314,37 @@ class _ContractParser:
             names.append(self.expect_name())
         return ConformsToDecl(names)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    # FAITHFUL MONOTONICITY (was `ensures True`): `_parse_mixin_type` is a
-    # recursive-descent rule over the token stream whose only cursor effect is
-    # `expect_name`/`advance`/`accept_op` — all of which only INCREMENT `self.i`
-    # (never backtrack; `_try` is not reachable from a mixin-type rule). So
-    # `self.i >= \old(self.i)` is a REAL structural property of the live body,
-    # exactly like the `_parse_unary` expression-chain frame. It is what lets the
-    # converted `_parse_mixin_params`/`_parse_mixin_param` callers discharge their
-    # loop variant / monotonicity postcondition across this sibling call. Stays
-    # `\trusted` (the body builds a STRING via recursion + list-string `', '.join`;
-    # CONVERTING the recursive body is blocked at a distinct proof-infrastructure
-    # boundary — the EOF-sentinel class invariant is not ambient at the FIRST
-    # recursive call, which sits OUTSIDE any loop, and threading it spreads
-    # caller obligations across the mixin call graph). The annotation only makes
-    # the trusted interface precise.
+    # FAITHFUL MONOTONICITY: `_parse_mixin_type` is a recursive-descent rule over
+    # the token stream whose only cursor effect is `expect_name`/`advance`/
+    # `accept_op`/`expect_op` — all monotone (never backtrack; `_try` is not
+    # reachable from a mixin-type rule). So `self.i >= \old(self.i)` is a REAL
+    # structural property of the live body (what lets the converted
+    # `_parse_mixin_params`/`_parse_mixin_param` callers discharge their loop
+    # variant across this sibling call). CONVERTED via the banked `#@ \variant`
+    # recursive-descent key: the mandatory `expect_name` + `advance` under the
+    # `at_op("[")` guard strictly increments `self.i` before the FIRST recursive
+    # call (the token at `self.i` is an OP, the EOF sentinel is the last token, so
+    # `self.i < \length - 1` and `advance` gives `+1`), so the variant is
+    # well-founded; the string result is built by the banked `', '.join`
+    # (str_join_seq) over a `list string`.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ \variant \length(self.toks) - self.i
     def _parse_mixin_type(self) -> str:
-        pass
+        name = self.expect_name()
+        if self.at_op("["):
+            self.advance()
+            args = [self._parse_mixin_type()]
+            #@ loop invariant self.i > \old(self.i)
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op(","):
+                args.append(self._parse_mixin_type())
+            self.expect_op("]")
+            return f"{name}[{', '.join(args)}]"
+        return str(name)
 
     #@ requires True
     #@ ensures self.i >= \old(self.i)
