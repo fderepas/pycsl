@@ -773,3 +773,24 @@ lexicographic variant + size-carrying extraction-helper postconditions are the b
 termination recipe for the fusion build when authorized.** FLAGGED for the user as a de-risked,
 authorizable multi-feature increment (files: generic_fold.py fusion emitter, functions.py
 dispatch+suppression, mirror _pb_stmt/_pb_body/_pb_descend), gated by whole-file proof + corpus byte-diff 0.
+
+## REFINEMENT (2026-07-27): _pb_stmt trio-fusion — the real terminus is WHOLE-FILE E-MATCHING SATURATION
+The fusion BUILD was executed (scoped trio-fusion emitter + mirror `_pb_stmt` body) and passed EVERY
+gate EXCEPT the whole-file proof: corpus byte-diff **0** (scoping correct — no corpus leak), §10c
+all-7 importer L3-tc ✓, vacuity 0, fidelity drift 2, `_pb_stmt` a faithful structured dispatcher.
+The whole-file proof failed with exactly **1 unproven goal**: postcondition of `_pb_stmt__body'vc`,
+`Timeout (30s, 32.6M steps)`. Diagnosis (measured, not assumed): NOT a missing local postcondition —
+local asserts add subgoals and still time out; the blowup is **E-matching over the recursive
+`wf_dict`/`wf_ir_binds` predicates in the FULL whole-file solver context**. The prior spike proved the
+same VC Valid in ISOLATION (11-goal standalone .mlw) — so the fusion is sound and feasible in
+isolation; the terminus is whole-file **solver-context saturation** (same class as act_block/for_block
+and the parser solver-context-saturation terminus), a proof-SCALE wall.
+**LESSON: a spike that proves a VC in an isolated .mlw does NOT prove it discharges in the FULL
+whole-file context — E-matching over the file's recursive well-formedness predicates
+(`wf_dict`/`wf_ir_binds`) can saturate the solver when the new goals are added. The isolation spike
+measures FEASIBILITY (the math works), not whole-file PROVABILITY (the §10.10 gate). To land the
+trio-fusion, the missing piece is MODULAR VERIFICATION (prove the trio in a separate module / restrict
+the wf_* triggers), which touches the whole-file-proof gate = REVIEW-GATED. The fusion EMITTER itself
+is built + validated (byte-diff 0 / §10c / vacuity / sound-in-isolation) and banked for that session.**
+FLAGGED for the user: trio-fusion needs a modular-proof approach, not just the fusion emitter —
+a bigger, §10.10-gate-touching lift than the earlier "authorize the fusion build" framing implied.
