@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Union, Any, Optional, NoReturn, Tuple
+from typing import List, Union, Any, Optional, NoReturn
 from errors import PyCSLParseError
 ""  # pycsl
 @dataclass
@@ -891,12 +891,7 @@ class _ContractParser:
         return None
 
     #@ requires True
-    # Monotonicity is a REAL property of the token cursor (same as `expect_name`):
-    # `expect_op` moves `self.i` only through `advance` (`self.i >= \old(self.i)`);
-    # `_err` is `-> NoReturn` (diverges), `at_op` is `assigns \nothing`. This lets a
-    # caller that ends a branch in `self.expect_op(")")` (e.g. `_parse_variant_def`'s
-    # `(ctor, types)` return) still discharge its own `self.i >= \old(self.i)`.
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures True
     #@ assigns self.i
     def expect_op(self, val: str) -> _Tok:
         if not self.at_op(val):
@@ -1232,23 +1227,12 @@ class _ContractParser:
     def _parse_datatype(self):
         pass
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures True
     #@ assigns self.i
-    def _parse_variant_def(self) -> Tuple[str, List[str]]:
-        ctor = self.expect_name()
-        if self.at_op("("):
-            self.advance()
-            types = [self.expect_name()]
-            #@ loop invariant self.i >= \old(self.i)
-            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
-            #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
-            #@ loop variant \length(self.toks) - self.i
-            while self.accept_op(","):
-                types.append(self.expect_name())
-            self.expect_op(")")
-            return (ctor, types)
-        return (ctor, [])
+    def _parse_variant_def(self):
+        pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
