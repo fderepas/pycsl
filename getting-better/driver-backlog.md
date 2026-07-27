@@ -709,3 +709,20 @@ converting `_pb_expr` first. `_cs_clause` = set-consumer gated on the trusted `_
 NEXT: escalate `_pb_expr` (chain-root) via spike-gated wall-break — its make-or-break spike is the
 recognizer-architecture-expressiveness question (can a multi-arm dispatch + 2nd env set + list-first
 shape emit a non-vacuous proving body without a new value shape?).
+
+## 2026-07-27 — string-op vein measured: NOT safe-additive (CERTIFIED-BOUNDARY)
+Spiked `_find_abstract_val_insert_idx` (`.strip().startswith("type ")` over `List[str]`): emits FULLY
+VACUOUS — the faithful `str_strip_op`/`str_startswith_op` lowering is gated on `_is_string_expr(receiver)`
+(expressions.py:5495/2392), but `List[str]` iterates via the generic int-erasure path so the loop-bound
+`line` is never string-typed → string theory never fires. Vein-wide: pure `str→str` leaves use
+`re.sub`/`re.search` (regex CORRECTNESS-floor); `List[str]` string-predicate leaves need corpus-perturbing
+live-emitter features (risky-flag); IR-string leaves gate on `ir.get("type")` (heterogeneous Dict[str,Any]
+value-model wall, needs-authorization). The "reuse str theory as safe-additive pure-mirror" thesis is
+REFUTED — string-op sits behind the same generic-iteration/value-model wall as the other veins.
+
+## FRONTIER STATE at 875 (measured 2026-07-27, this window)
+Safe-additive autonomous frontier EXHAUSTED (883→875, 8 conversions: 6 parser + `_cp_walk` + `_pb_expr`).
+Remaining classified: walker-FUSION (`_pb_stmt`/`_cs_stmt` — feasibility-PROVEN, ledger 3, no cert;
+attempting under airtight gates); string-keyed-set (session-scale cascade); heterogeneous Dict[str,Any]
+V1 / family-B node-ctors / char-lexer (needs new value-shape + §10.5 cert = authorization); str_to_int +
+regex (CORRECTNESS-floors).
