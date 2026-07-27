@@ -1184,12 +1184,14 @@ class _ContractParser:
     def _parse_happy_targets(self, name):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_opt_except(self):
-        pass
+    def _parse_opt_except(self) -> List[str]:
+        if self.at_name("except"):
+            self.advance()
+            return self._parse_act_names()
+        return []
 
     #@ requires True
     #@ ensures self.i >= \old(self.i)
