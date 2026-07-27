@@ -4434,9 +4434,91 @@ def _match_sa_pre(inner_if: Any, subj: str, symparam: str) -> Optional[Dict[str,
     g3b = g3.get("body", [])
     if len(g3b) != 1 or _match_sa_raise(g3b[0]) != exc:
         return None
-    return {"tag": tag, "array_key": array_key, "type_key": type_key,
-            "type_val": type_val, "name_key": name_key,
+    return {"kind": "arrayset", "tag": tag, "array_key": array_key,
+            "type_key": type_key, "type_val": type_val, "name_key": name_key,
             "ok_types": ok_types, "exc": exc}
+
+
+def _match_gso_pre(inner_if: Any, subj: str, symparam: str) -> Optional[Dict[str, Any]]:
+    """Match the ghost-string GhostAssign pre-action guard (the `_gso_walk`
+    shape), the sibling of `_match_sa_pre`'s ArraySet guard under the SAME
+    env-threaded `_sa_walk`-family walk. Shape:
+
+        if <subj>.get("stmt") == "<TAG>":
+            <opv> = <subj>.get("<OP_KEY>")
+            <tgt> = <subj>.get("<TGT_KEY>")
+            if <opv> != "<NE_VAL>" and <symparam>.get(<tgt>) == "<STR_VAL>":
+                raise <Exc>
+
+    Returns {kind:"ghoststr", tag, op_key, tgt_key, ne_val, str_val, exc} or
+    None (fail-closed). The raise-guard boolean is a value fact no VC constrains
+    (insight C, exactly as the ArraySet `ok_type`/`slookup` guard); only its
+    SHAPE — reading op/target off the node and the target's type off symtab — is
+    validated, keeping the emitted pre-action non-vacuous (it reads subj + symtab)."""
+    if not (isinstance(inner_if, dict) and inner_if.get("stmt") == "If"
+            and not inner_if.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(inner_if.get("test", {}), subj)
+    if tag is None:
+        return None
+    ibody = inner_if.get("body", [])
+    if len(ibody) != 3:
+        return None
+    # [0] <opv> = <subj>.get("<OP_KEY>")
+    a0 = ibody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    opvar = a0.get("target")
+    op_key = _match_get_call(a0.get("value", {}), subj)
+    if not isinstance(opvar, str) or op_key is None:
+        return None
+    # [1] <tgt> = <subj>.get("<TGT_KEY>")
+    a1 = ibody[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign"):
+        return None
+    tgtvar = a1.get("target")
+    tgt_key = _match_get_call(a1.get("value", {}), subj)
+    if not isinstance(tgtvar, str) or tgt_key is None:
+        return None
+    # [2] if <opv> != "<NE_VAL>" and <symparam>.get(<tgt>) == "<STR_VAL>": raise
+    a2 = ibody[2]
+    if not (isinstance(a2, dict) and a2.get("stmt") == "If" and not a2.get("orelse")):
+        return None
+    t2 = a2.get("test", {})
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp"
+            and t2.get("op") == "and"):
+        return None
+    lft, rgt = t2.get("left", {}), t2.get("right", {})
+    # left conjunct: <opv> != "<NE_VAL>"
+    if not (isinstance(lft, dict) and lft.get("type") == "BinOp"
+            and lft.get("op") == "!=" and _is_var(lft.get("left"), opvar)):
+        return None
+    ne_val = _is_string(lft.get("right"))
+    if ne_val is None:
+        return None
+    # right conjunct: <symparam>.get(<tgt>) == "<STR_VAL>"
+    if not (isinstance(rgt, dict) and rgt.get("type") == "BinOp"
+            and rgt.get("op") == "=="):
+        return None
+    rl = rgt.get("left", {})
+    if not (isinstance(rl, dict) and rl.get("type") == "Call"
+            and rl.get("func") == f"{symparam}.get"):
+        return None
+    rargs = rl.get("args", [])
+    if not (len(rargs) == 1 and _is_var(rargs[0], tgtvar)):
+        return None
+    str_val = _is_string(rgt.get("right"))
+    if str_val is None:
+        return None
+    a2b = a2.get("body", [])
+    if len(a2b) != 1:
+        return None
+    exc = _match_sa_raise(a2b[0])
+    if exc is None:
+        return None
+    return {"kind": "ghoststr", "tag": tag, "op_key": op_key,
+            "tgt_key": tgt_key, "ne_val": ne_val, "str_val": str_val,
+            "exc": exc}
 
 
 def recognize_sawalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -4469,6 +4551,8 @@ def _recognize_sawalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if len(dbody) != 2:
         return None
     pre = _match_sa_pre(dbody[0], subj, p2)
+    if pre is None:
+        pre = _match_gso_pre(dbody[0], subj, p2)
     if pre is None:
         return None
     if not _match_sa_values_loop(dbody[1], subj, fname, p1, p2):
@@ -4531,6 +4615,37 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
     pre = sa["pre"]
     exc = pre["exc"]  # already a valid WhyML exception ident (user_exceptions)
     out: List[str] = []
+    if pre.get("kind") == "ghoststr":
+        # ---- ghost-string GhostAssign pre-action (the `_gso_walk` sibling) ----
+        # readers: stmt/op/target, all string-valued.
+        out += _sa_reader_lines(n, "stmt", as_str=True)
+        out += _sa_reader_lines(n, pre["op_key"], as_str=True)
+        out += _sa_reader_lines(n, pre["tgt_key"], as_str=True)
+        stmt_suf = _reader_suffix("stmt")
+        op_suf = _reader_suffix(pre["op_key"])
+        tgt_suf = _reader_suffix(pre["tgt_key"])
+        out.append(f"  let {n}__pre ({subj}: pyval) ({p2}: sdict) : unit")
+        out.append(f"    raises {{ {exc} }}")
+        out.append(f"  = match {subj} with")
+        out.append("    | PDict d ->")
+        out.append(f"        (match {n}__get_{stmt_suf} d with")
+        out.append(f'         | Some st -> if pystr_eq st "{pre["tag"]}" then')
+        out.append(f"             (match {n}__get_{tgt_suf} d with")
+        out.append("              | Some tgt ->")
+        out.append(f"                  let opne = (match {n}__get_{op_suf} d with"
+                   f' Some opv -> not (pystr_eq opv "{pre["ne_val"]}")'
+                   " | None -> true end) in")
+        out.append(f"                  let tystr = (match slookup tgt {p2} with"
+                   f' Some (PStr aty) -> pystr_eq aty "{pre["str_val"]}"'
+                   " | _ -> false end) in")
+        out.append(f"                  if opne && tystr then raise {exc} else ()")
+        out.append("              | None -> () end)")
+        out.append("           else ()")
+        out.append("         | None -> () end)")
+        out.append("    | _ -> () end")
+        # ---- the env-threaded walk group (shared with the ArraySet shape) ----
+        out += _sa_walk_group_lines(n, subj, p1, p2, exc)
+        return out
     # ---- spine readers for the pre-action's computed/interned keys ----
     out += _sa_reader_lines(n, "stmt", as_str=True)
     out += _sa_reader_lines(n, pre["array_key"], as_str=False)
@@ -4568,7 +4683,20 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
     out.append("           else ()")
     out.append("         | None -> () end)")
     out.append("    | _ -> () end")
-    # ---- the env-threaded walk / walk_dict / walk_list group ----
+    # ---- the env-threaded walk group (shared with the ghoststr shape) ----
+    out += _sa_walk_group_lines(n, subj, p1, p2, exc)
+    return out
+
+
+def _sa_walk_group_lines(n: str, subj: str, p1: str, p2: str,
+                         exc: str) -> List[str]:
+    """The env-threaded `pyval`/`pydict`/`list pyval` walk / walk_dict /
+    walk_list mutual group shared by every `_sa_walk`-family shape (ArraySet
+    and ghoststr). The env (`p1: string`, `p2: sdict`) is threaded read-only;
+    the `variant` is the L1 structural measure (`pv_size`/`size_dict`/
+    `size_list`); the per-node pre-action (`{n}__pre`) is the only shape-
+    specific part."""
+    out: List[str] = []
     out.append(f"  let rec {n} ({subj}: pyval) ({p1}: string) ({p2}: sdict) : unit")
     out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
     out.append(f"    variant {{ pv_size {subj} }}")

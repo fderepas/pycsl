@@ -215,12 +215,27 @@ def _contains_result(node) -> bool:
 def _check_ghost_string_ops(func) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _gso_walk(node, where, symtab) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("stmt") == "GhostAssign":
+            op = node.get("op")
+            target = node.get("target")
+            if op != "=" and symtab.get(target) == "string":
+                raise PyCSLSemanticError(
+                    f"Ghost string variable '{target}' does not support '{op}' "
+                    f"in {where}. "
+                    "Use the ^ operator for string concatenation: "
+                    f"#@ ghost {target} = {target} ^ expr",
+                    code="PYCSL-SEM-GHOSTSTR",
+                )
+        for v in node.values():
+            _gso_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _gso_walk(x, where, symtab)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
