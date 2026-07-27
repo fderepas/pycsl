@@ -711,3 +711,40 @@ build cert+emitter infra that has no converting consumer (no-dead-infra).**
 
 ### (i,k,g,j,m) CARVED into skill §10c (2026-07-24, item-8)
 The five flagged judgment-call lessons — (i) dead-gate=disabled, (k) byte-diff population, (g) two SMT facts, (j) count-a-gate-skips, (m) never-commit-proof-artifacts + canonical-count — are now base-loop RULES in `self-tcb-reduction/SKILL.md` §10c items 16-20 (they were mistakes made >1x, so they bind future runs, not just document past ones). No longer "awaiting user decision".
+
+## Wall: trusted method-val drops `#@ assigns self.<field>` frame — CERTIFIED-BOUNDARY (2026-07-27)
+
+Report: `getting-better/trusted-val-assigns-writes-wall.md`. Phase-2 escalation after Phase-1
+`no_cheap_remaining` at 877. Symptom: `parse` can't prove its `assigns self.i` because its only
+effect is a trusted `_parse_contract` (`#@ assigns self.i`) call that emits **effect-free** — both
+emission paths exclude the trusted-val self-field case (`_emit_frame_condition` skips self-object
+targets for vals; the `_module_method_writes` machinery is gated `and not emit_as_val`).
+
+**Make-or-break spike (measured, then reverted clean): REFUTE.** The one-line fix (drop `and not
+emit_as_val`, emit `writes { self.<field> }` for the trusted-val + `@mutable_state` case) makes
+`parse`'s OWN VC fully Valid — the targeted frame IS breakable in isolation — but refutes on two
+independent gates:
+1. **Sibling-proof invalidation (soundness finding).** `_parse_lock_order` (loop invariant/variant)
+   and `_parse_interface` (postcond) proved at baseline ONLY because their trusted callees
+   (`_parse_assigns`, `_parse_mutex_expr_str`) were unsoundly effect-free. Emitting the faithful
+   `writes { self.i }` havocs `self.i`; the callees carry no monotonicity/bound `ensures` to
+   re-establish the invariants → 4 new unproven goals. **The current "verified" mirror has methods
+   that are green only because trusted callees under-declare their effects.**
+2. **Unbound-field target.** Module5_IREmitter L3-tc breaks: a trusted method's
+   `#@ assigns self._cur_func_symtab` names a field that is NOT a bound mutable record field →
+   `unbound function or predicate symbol '_cur_func_symtab'` (the "unbound target" hazard the
+   statements.py:1849 comment warned of, resurfaced as an unbound symbol).
+
+**Corpus-inert (report premise CORRECTED).** byte-diff = 0 across 812 programs; NO corpus program
+has the (trusted-val ∧ @mutable_state ∧ assigns self.field) combination (0661/0662 aren't
+@mutable_state; 0900/0901's trusted method is `__init__`/`assigns \nothing`). So this is NOT a
+corpus-perturbing risky brick — the blocker is proof-invalidation, not blast radius.
+
+**LESSON: emitting a faithful frame onto a previously effect-free trusted val is soundness-IMPROVING
+but not a free win — it can INVALIDATE sibling proofs that silently depended on the effect-free
+unsoundness, and it requires each assigned self-field to be a bound mutable record field. The real
+cost is (a) strengthening every affected trusted callee with faithful monotonicity/bound `ensures`
+(the blessed parser-vein pattern) so siblings survive the havoc, AND (b) making the assigned fields
+real mutable record fields. Multi-method, multi-file — beyond a single-stub spike. FLAGGED for the
+user: this surfaced a latent unsoundness (effect-free trusted callees) worth a dedicated
+faithful-frame campaign, not an autonomous inline land.**

@@ -72,3 +72,20 @@ SOUNDNESS-SENSITIVE + CORPUS-PERTURBING (4 programs) → per the safe-vs-risky-b
 is a RISKY brick: it is landed ONLY if the spike passes AND an independent fable review blesses the
 soundness AND all 4 corpus programs re-prove. Otherwise it is recorded as a well-evidenced boundary
 and FLAGGED for the user — not force-landed autonomously.
+
+---
+## SPIKE VERDICT (2026-07-27): REFUTE → CERTIFIED-BOUNDARY
+Measured, then reverted clean (count 877). The fix makes `parse`'s own VC Valid but refutes on:
+- **4a**: 4 new unproven goals in siblings `_parse_lock_order`/`_parse_interface` — they were green
+  only because trusted callees (`_parse_assigns`/`_parse_mutex_expr_str`) were effect-free; the
+  faithful `writes {self.i}` havocs `self.i` and the callees lack monotonicity/bound `ensures`.
+  **Latent-unsoundness finding.**
+- **4b**: Module5_IREmitter L3-tc — `unbound ... '_cur_func_symtab'`; a trusted method's
+  `#@ assigns self._cur_func_symtab` field isn't a bound mutable record field.
+- **4e CORRECTION**: corpus byte-diff = 0 (no corpus program has trusted-val ∧ @mutable_state ∧
+  assigns self.field); the blast-radius premise above was inaccurate — the change is corpus-inert.
+
+**Resolution:** the simple single-method fix is a CERTIFIED-BOUNDARY. The real win requires a
+multi-method faithful-frame campaign (strengthen affected trusted callees with monotonicity/bound
+`ensures`; make assigned self-fields bound mutable record fields). FLAGGED for the user, not
+autonomously undertaken.
