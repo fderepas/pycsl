@@ -1,6 +1,21 @@
 # self-tcb-reduction driver — backlog
 
-Canonical count: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l` = **887** (drift 2, ledger 3).
+Canonical count: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l` = **882** (drift 2, ledger 3).
+
+## PER-SLOT-TYPED EARLY-RETURN TUPLE EXCEPTION BUILT + `_parse_variant_def` CONVERTED (2026-07-27) — 883 -> 882
+
+The 883 list-of-records "early-return tuple-exception BOUNDARY" was a REOPEN KEY, not a floor. Built
+the DECISIVE gap #3 (per-slot-typed early-return tuple exception, `_tuple_return_exc`: all-int keeps
+the legacy `Return_<arity>` byte-inert; a non-int tuple gets `Return_tuple_<arity>_<slot-tokens>`
+declared in a post-map phase parallel to `_emit_union_return_exceptions`) + gaps #1 (str-call/seq-string
+slot typing via the body's own `_collect_str_call_result_locals`/`_collect_array_elem_types`) and #2
+(slot-aware empty-`[]`→`Seq.empty` raise value). Feature corpus byte-diff 0 (812/812); mutation-test
+load-bearing; commits 872635f4 (feature) + 4ce8e418 (`_parse_variant_def`, whole-file proof SUCCESS,
+`expect_op` gains the faithful monotonicity ensures). Full detail: `getting-better/parser-tokenstream-impl.md`.
+Rest of the early-return refined-tuple cluster DEFERRED (independent secondary blockers): `_parse_datatype`
+(seq-of-tuple element + `IrDatatypeDecl` ctor), `_parse_inductive*` (certified `rule_list` inductive for
+emit_ir-in-tuple), `parse_rocq_assumptions_block` (splitlines/startswith-tuple/split string-op boundary),
+pycsl.py `_why3_typecheck`/`_run_vacuity_gate`/`_dispatch_provers`/`_probe_one` (subprocess/I/O boundary).
 
 ## PARSER "PROOF-SCALE WALL" (888 terminus) = MISDIAGNOSIS, BROKEN (2026-07-26, Phase-2 SPIKE)
 

@@ -823,3 +823,70 @@ build it (+ gaps #1/#2, both small) and `_parse_variant_def` converts, then `_pa
 the seq-of-tuple + `IrDatatypeDecl` add (pure, no cert); `_parse_inductive*` stay behind the certified
 `rule_list` inductive. NOTE: this is a MEASURED gap stack, not a census hypothesis — the emission was
 read at each layer.
+
+## PER-SLOT-TYPED EARLY-RETURN TUPLE EXCEPTION BUILT + `_parse_variant_def` CONVERTED (2026-07-27, Phase-2 executor) — count 883 -> 882
+
+**VERDICT: the reopen key CONVERTS.** The three measured gaps were built (gap #3 the decisive one,
+gaps #1/#2 small); `_parse_variant_def` converts under the standard whole-file-proof gate; the rest of
+the early-return refined-tuple cluster is DEFERRED with INDEPENDENT secondary blockers (not the tuple
+exception).
+
+### Feature (commit `872635f4`) — per-slot-typed early-return tuple exception
+The all-int early-return tuple keeps the legacy arity-keyed `Return_<arity> (int,…)` EXACTLY (byte-
+identical). A tuple with ANY non-int slot gets a PER-SLOT-TYPED exception carrying the faithful slot
+types, keyed on the slot signature so two arity-N functions with different slot types don't collide.
+- **`_tuple_slot_types` / `_tuple_return_exc`** (`functions.py`): split a refined tuple type paren-aware;
+  emit `Return_<arity>` for all-int, else `Return_tuple_<arity>_<slot-tokens> (<slot types>)`
+  (`re.sub([^A-Za-z0-9]+,_)` token key + arity prefix). Computed IDENTICALLY at the decl, `raise` and
+  `catch` sites.
+- **Gap #1 slot typing** (`_infer_tuple_slot_type` + `_refine_tuple_return_type`): a `-> str`-call-result
+  slot (`ctor = self.expect_name()`) → `string`, a growable string-list slot (`types = [expect_name()]`)
+  → `seq string` — reusing the BODY's own `_collect_str_call_result_locals`/`_collect_array_elem_types`
+  so the SIGNATURE agrees with the emitted local types (the body already lowered `ctor: ref ""` /
+  `types: seq string` correctly; only the signature/exception lagged).
+- **Post-map declaration** (`preamble.py::_emit_tuple_return_exceptions`, wired in
+  `Module6_WhyMLTranspiler` after BOTH the return-type + return-ANNOTATION maps — a `-> str` self-call
+  slot needs the annotation map to resolve to `string`): the non-int tuples are DEFERRED here (parallel
+  to `_emit_union_return_exceptions`), the all-int ones stay in `_emit_preamble_exceptions` (unchanged
+  position → byte-identical). The scan-time refinement is a reliable BINARY all-int-vs-not classifier;
+  a passing corpus tuple is all-int (a non-int slot at emission would already fail the legacy
+  `Return_<arity>` L3-tc, so none is in a passing baseline).
+- **Gap #2 slot-aware raise value** (`stmt_control_flow.py::_tuple_raise_value`): an empty `[]` in a
+  `seq string` slot → `(Seq.empty: Seq.seq string)`, a seq-string local → `!local`.
+- **Mirror re-port** (`self-annotate .../module6_whyml/stmt_control_flow.py::_handle_return_stmt`, §10.4):
+  the one un-trusted mirror method the live edit touched; drift held at 2.
+
+**GATE S (all green):** FULL corpus byte-diff **0** (812/812 vs baseline) → feature corpus-inert.
+MUTATION TEST **PASS**: forcing the `string` scalar slot → `real` moved the emitted exception name AND
+payload at the declaration, both `raise` sites AND the `catch` — all four in lockstep (load-bearing, not
+a facade). Vacuity `--emit` exit 0 (no new erasure). mirror-check 52/52; drift 2; ledger 3 (no cert;
+additive structural).
+
+### CONVERTED `_parse_variant_def` (commit `4ce8e418`, 883 -> 882)
+Verbatim live port: `ctor = expect_name(); if at_op("("): advance(); types = [expect_name()]; while
+accept_op(","): types.append(expect_name()); expect_op(")"); return (ctor, types); return (ctor, [])`.
+The early `(ctor, types)` (inside the `if`) + tail `(ctor, [])` both raise/catch through
+`Return_tuple_2_string_seq_string (string, seq string)`; the `[]` slot lowers to `(Seq.empty: seq string)`.
+Also strengthens the ALREADY-CONVERTED `expect_op` with the faithful cursor-monotonicity ensures
+`self.i >= \old(self.i)` (advance-only, `_err` diverges — the same justification `expect_name` carries):
+the if-branch ends in `expect_op(")")`, so without it the caller's own `self.i >= \old` postcondition
+havocs (this was the single unproven goal on the first proof pass; the whole-file proof then re-proves
+`expect_op` in-file). Whole-file Module2_Parser.py proof **SUCCESS 0-unproven** (FOREGROUND, read, 6m25s);
+corpus byte-diff 0; vacuity exit 0; mirror-check 52/52; drift 2; ledger 3.
+
+### Cluster census — DEFERRED members all have INDEPENDENT secondary blockers (not the tuple exception)
+- `_parse_datatype` → `DatatypeDecl(name, variants: seq (string, seq string), type_params)`: needs a
+  `seq (string, seq string)` LOCAL build + an `IrDatatypeDecl` ctor with that field (pure, no cert) —
+  a family-B build, the tuple exception is a prerequisite but not sufficient.
+- `_parse_inductive_rules` (`seq (string, emit_ir)`) / `_parse_inductive` (nested): a `seq (…, emit_ir)`
+  ctor field of emit_ir is non-strictly-positive (Why3-rejected, the `irlist` wall) → needs a NEW
+  certified monomorphic `rule_list` inductive = §10.5 CERTIFIED-BOUNDARY.
+- `parse_rocq_assumptions_block` (`tuple[bool, list[str]]`): STRING-OP BOUNDARY —
+  `block.splitlines()` + `line.startswith((tuple))` + `line.split(" : ", 1)[0]` are unmodeled string ops.
+- pycsl.py `_why3_typecheck` / `_run_vacuity_gate` / `_dispatch_provers` / `_probe_one`: SUBPROCESS/I/O
+  BOUNDARY (invoke `subprocess`/why3, parse output) — trusted for I/O, not the tuple exception.
+
+So the feature unblocks EXACTLY `_parse_variant_def` standalone; every other early-return refined-tuple
+stub is gated by a distinct boundary. The per-slot-typed early-return tuple exception is banked and
+reusable for any future non-int early-return tuple (once its OTHER blockers clear). Zero live-parser
+changes; foregrounded every proof; zero orphans; jobs empty.
