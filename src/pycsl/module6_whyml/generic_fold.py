@@ -4902,6 +4902,411 @@ def emit_cpwalk_group(func: Dict[str, Any], cp: Dict[str, Any],
 
 
 # =========================================================================
+# predicate-base walk `_pb_expr(node, ctx, symtab, known)` — the `_sa_walk`
+# sibling with a MULTI-ARM `node.get("type")` type-dispatch pre-action and a
+# THREE-param read-only env (`ctx: string`, `symtab: sdict`, and a 2nd env
+# `known: sdict` modelled as a string-keyed set via `slookup … <> None`). The
+# source shape differs from `_sa_walk` in five load-bearing ways handled here:
+#   (1) a multi-arm `t == "<Tag>"` / `t in (…)` dispatch on the node's "type"
+#       key (four arms: ArrayLen / Valid / Separated / Forall|Exists), read
+#       through a local `t = node.get("type")` — NOT a single-tag guard;
+#   (2) module-level constant-NAME tuple membership (`typ in
+#       _PB_LENGTHLESS_TYPES` / `arr_type not in _PB_ARRAY_BASE_TYPES`) — the
+#       recognizer PINS the two constant names and the emitter reproduces their
+#       (fixed) string sets as concrete `pystr_eq` disjunctions;
+#   (3) the 2nd env `known`, a set of type-name strings, modelled as `sdict`
+#       presence (`slookup bt known <> None`);
+#   (4) string-op guards `not str(var).startswith("self.")` and `var !=
+#       "\\result"` — lowered to a VC-free `val …__startswith` (the `pystr_eq`
+#       discipline: result no VC constrains, ledger stays 3) + `pystr_eq`;
+#   (5) a LIST-FIRST-return shape: `if isinstance(node, list): … ; return`
+#       is the FIRST statement (with an early `return`), the dict work follows
+#       as sibling statements — NOT the dict-first `If … else` the `_sa_walk`
+#       matchers require.
+# Every arm's raise is `PyCSLSemanticError` (axiom 3, inside
+# `why3_implements_wp_w` — the ledger does not move). Which raise fires is a
+# value fact no VC constrains (insight C); the SHAPE — reading `type`/`var`/
+# `base`/`base1`/`base2`/`binder_type` off the node and the `symtab`/`known`
+# `sdict` via `slookup` — is validated, keeping the emission non-vacuous. The
+# walk group reuses the arity-generalized `_sa_walk_group_lines` (env =
+# `[(ctx,"string"),(symtab,"sdict"),(known,"sdict")]`) — the three converted
+# walkers (`_sa_walk`/`_gso_walk`/`_cp_walk`) are untouched.
+# =========================================================================
+
+_PB_LENGTHLESS_LITS = ("dict", "Dict", "set", "Set", "frozenset", "FrozenSet")
+# _PB_ARRAY_BASE_TYPES = ('list','List','bytes','bytearray','Any', None); the
+# `None` element is the `slookup … -> None` arm (a missing/None symtab entry is
+# NOT flagged), so only the string members enter the `__array_base` disjunction.
+_PB_ARRAY_BASE_LITS = ("list", "List", "bytes", "bytearray", "Any")
+
+
+def _pb_var_eq_str(test: Any, var: str) -> Optional[str]:
+    """`<var> == "<S>"` -> "<S>" (the per-arm tag test)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "=="):
+        return None
+    if not _is_var(test.get("left"), var):
+        return None
+    return _is_string(test.get("right"))
+
+
+def _pb_var_in_strtuple(test: Any, var: str) -> Optional[List[str]]:
+    """`<var> in ("<S0>", "<S1>", …)` -> [S0, S1, …] (the Forall|Exists arm)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "in"):
+        return None
+    if not _is_var(test.get("left"), var):
+        return None
+    rt = test.get("right", {})
+    if not (isinstance(rt, dict) and rt.get("type") == "Tuple"):
+        return None
+    outs = [_is_string(e) for e in rt.get("elts", [])]
+    if any(o is None for o in outs):
+        return None
+    return outs
+
+
+def _pb_assign_symtab_get(stmt: Any, symparam: str, argvar: str) -> Optional[str]:
+    """`<tgt> = <symparam>.get(<argvar>)` -> "<tgt>" (the symbol-table read)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    tgt = stmt.get("target")
+    val = stmt.get("value", {})
+    if not (isinstance(val, dict) and val.get("type") == "Call"
+            and val.get("func") == f"{symparam}.get"):
+        return None
+    args = val.get("args", [])
+    if len(args) != 1 or not _is_var(args[0], argvar):
+        return None
+    return tgt if isinstance(tgt, str) else None
+
+
+def _pb_membership_raise(stmt: Any, memvar: str, op: str,
+                         const_name: str) -> Optional[str]:
+    """`if <memvar> <op> <const_name>: raise <Exc>(…)` -> "<Exc>" (fail-closed).
+    `<op>` is "in" or "not in"; `<const_name>` is the pinned module-constant Var
+    name whose (fixed) string set the emitter reproduces."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == op):
+        return None
+    if not _is_var(test.get("left"), memvar):
+        return None
+    if not _is_var(test.get("right"), const_name):
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return None
+    return _match_sa_raise(body[0])
+
+
+def _match_pb_arms(s3: Any, subj: str, tvar: str, symtab: str,
+                   known: str) -> Optional[Dict[str, Any]]:
+    """Validate the nested ArrayLen / Valid / Separated / (Forall|Exists) type
+    dispatch and collect the (shared) raised exception. Returns {"exc": …} or
+    None (fail-closed). The read keys and constant sets are the fixed source
+    shape — pinned here; reproduced verbatim by `emit_pbexpr_group`."""
+    excs: List[str] = []
+    # ---- arm 1: ArrayLen ----
+    if not (isinstance(s3, dict) and s3.get("stmt") == "If"):
+        return None
+    if _pb_var_eq_str(s3.get("test", {}), tvar) != "ArrayLen":
+        return None
+    ab = s3.get("body", [])
+    if len(ab) != 2:
+        return None
+    # var = node.get("var", "")
+    if not (isinstance(ab[0], dict) and ab[0].get("stmt") == "Assign"):
+        return None
+    varname = ab[0].get("target")
+    if _match_get_call(ab[0].get("value", {}), subj) != "var" or not isinstance(varname, str):
+        return None
+    # if not str(var).startswith("self.") and var != "\result":
+    g = ab[1]
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        return None
+    gt = g.get("test", {})
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"):
+        return None
+    left = gt.get("left", {})
+    if not (isinstance(left, dict) and left.get("type") == "UnaryOp" and left.get("op") == "not"):
+        return None
+    sw = left.get("expr", {})
+    if not (isinstance(sw, dict) and sw.get("type") == "Call" and sw.get("func") == "startswith"):
+        return None
+    if _is_string((sw.get("args") or [None])[0]) != "self.":
+        return None
+    recv = sw.get("receiver", {})
+    if not (isinstance(recv, dict) and recv.get("type") == "Call" and recv.get("func") == "str"
+            and _is_var((recv.get("args") or [None])[0], varname)):
+        return None
+    right = gt.get("right", {})
+    if not (isinstance(right, dict) and right.get("type") == "BinOp" and right.get("op") == "!="
+            and _is_var(right.get("left"), varname) and _is_string(right.get("right")) == "\\result"):
+        return None
+    gb = g.get("body", [])
+    if len(gb) != 2:
+        return None
+    typvar = _pb_assign_symtab_get(gb[0], symtab, varname)
+    if typvar is None:
+        return None
+    e = _pb_membership_raise(gb[1], typvar, "in", "_PB_LENGTHLESS_TYPES")
+    if e is None:
+        return None
+    excs.append(e)
+    # ---- arm 2: Valid (in s3.orelse) ----
+    oe = s3.get("orelse", [])
+    if len(oe) != 1:
+        return None
+    s_valid = oe[0]
+    if not (isinstance(s_valid, dict) and s_valid.get("stmt") == "If"):
+        return None
+    if _pb_var_eq_str(s_valid.get("test", {}), tvar) != "Valid":
+        return None
+    vb = s_valid.get("body", [])
+    if len(vb) != 3:
+        return None
+    if not (isinstance(vb[0], dict) and vb[0].get("stmt") == "Assign"):
+        return None
+    basevar = vb[0].get("target")
+    if _match_get_call(vb[0].get("value", {}), subj) != "base" or not isinstance(basevar, str):
+        return None
+    atvar = _pb_assign_symtab_get(vb[1], symtab, basevar)
+    if atvar is None:
+        return None
+    e = _pb_membership_raise(vb[2], atvar, "not in", "_PB_ARRAY_BASE_TYPES")
+    if e is None:
+        return None
+    excs.append(e)
+    # ---- arm 3: Separated (in s_valid.orelse) ----
+    oe2 = s_valid.get("orelse", [])
+    if len(oe2) != 1:
+        return None
+    s_sep = oe2[0]
+    if not (isinstance(s_sep, dict) and s_sep.get("stmt") == "If"):
+        return None
+    if _pb_var_eq_str(s_sep.get("test", {}), tvar) != "Separated":
+        return None
+    sb = s_sep.get("body", [])
+    if len(sb) != 1:
+        return None
+    forl = sb[0]
+    if not (isinstance(forl, dict) and forl.get("stmt") == "For"):
+        return None
+    it = forl.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Tuple"):
+        return None
+    keys = [_match_get_call(e, subj) for e in it.get("elts", [])]
+    if keys != ["base1", "base2"]:
+        return None
+    lvar = forl.get("target")
+    fb = forl.get("body", [])
+    if len(fb) != 2 or not isinstance(lvar, str):
+        return None
+    at2 = _pb_assign_symtab_get(fb[0], symtab, lvar)
+    if at2 is None:
+        return None
+    e = _pb_membership_raise(fb[1], at2, "not in", "_PB_ARRAY_BASE_TYPES")
+    if e is None:
+        return None
+    excs.append(e)
+    # ---- arm 4: Forall|Exists (in s_sep.orelse) ----
+    oe3 = s_sep.get("orelse", [])
+    if len(oe3) != 1:
+        return None
+    s_q = oe3[0]
+    if not (isinstance(s_q, dict) and s_q.get("stmt") == "If" and not s_q.get("orelse")):
+        return None
+    if _pb_var_in_strtuple(s_q.get("test", {}), tvar) != ["Forall", "Exists"]:
+        return None
+    qb = s_q.get("body", [])
+    if len(qb) != 2:
+        return None
+    if not (isinstance(qb[0], dict) and qb[0].get("stmt") == "Assign"):
+        return None
+    btvar = qb[0].get("target")
+    if _match_get_call(qb[0].get("value", {}), subj) != "binder_type" or not isinstance(btvar, str):
+        return None
+    qi = qb[1]
+    if not (isinstance(qi, dict) and qi.get("stmt") == "If" and not qi.get("orelse")):
+        return None
+    qt = qi.get("test", {})
+    # bt is not None and bt not in known
+    if not (isinstance(qt, dict) and qt.get("type") == "BinOp" and qt.get("op") == "and"):
+        return None
+    ql, qr = qt.get("left", {}), qt.get("right", {})
+    if not (isinstance(ql, dict) and ql.get("type") == "BinOp" and ql.get("op") == "!="
+            and _is_var(ql.get("left"), btvar)
+            and isinstance(ql.get("right"), dict) and ql.get("right", {}).get("type") == "None"):
+        return None
+    if not (isinstance(qr, dict) and qr.get("type") == "BinOp" and qr.get("op") == "not in"
+            and _is_var(qr.get("left"), btvar) and _is_var(qr.get("right"), known)):
+        return None
+    qib = qi.get("body", [])
+    if len(qib) != 1:
+        return None
+    e = _match_sa_raise(qib[0])
+    if e is None:
+        return None
+    excs.append(e)
+    if len(set(excs)) != 1:
+        return None
+    return {"exc": excs[0]}
+
+
+def recognize_pbexpr(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the predicate-base walk `_pb_expr(node, ctx, symtab,
+    known)` — the multi-arm type-dispatch `_sa_walk` sibling. Returns a
+    descriptor or None; never raises."""
+    try:
+        return _recognize_pbexpr(func)
+    except Exception:
+        return None
+
+
+def _recognize_pbexpr(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 4:
+        return None
+    subj, ctx, symtab, known = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 5:
+        return None
+    env = [ctx, symtab, known]
+    # [0] if isinstance(node, list): for x in node: self(x, ctx, symtab, known); return
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If" and not s0.get("orelse")):
+        return None
+    if not _match_isinstance(s0.get("test", {}), subj, "list"):
+        return None
+    b0 = s0.get("body", [])
+    if len(b0) != 2 or not _match_list_loop_env(b0[0], subj, fname, env):
+        return None
+    if not (isinstance(b0[1], dict) and b0[1].get("stmt") == "Return"):
+        return None
+    # [1] if not isinstance(node, dict): return
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If" and not s1.get("orelse")):
+        return None
+    t1 = s1.get("test", {})
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp" and t1.get("op") == "not"):
+        return None
+    if not _match_isinstance(t1.get("expr", {}), subj, "dict"):
+        return None
+    b1 = s1.get("body", [])
+    if len(b1) != 1 or not (isinstance(b1[0], dict) and b1[0].get("stmt") == "Return"):
+        return None
+    # [2] t = node.get("type")
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Assign"):
+        return None
+    tvar = s2.get("target")
+    if not isinstance(tvar, str) or _match_get_call(s2.get("value", {}), subj) != "type":
+        return None
+    # [3] the four-arm type dispatch
+    arms = _match_pb_arms(body[3], subj, tvar, symtab, known)
+    if arms is None:
+        return None
+    # [4] for v in node.values(): self(v, ctx, symtab, known)
+    if not _match_values_loop_env(body[4], subj, fname, env):
+        return None
+    return {"subject": subj, "ctx": ctx, "symtab": symtab, "known": known,
+            "exc": arms["exc"]}
+
+
+def emit_pbexpr_group(func: Dict[str, Any], pb: Dict[str, Any],
+                      whyml_ident) -> List[str]:
+    """Emit the predicate-base walk group for a recognized `_pb_expr`.
+
+    Three read-only env params (`ctx: string`, `symtab: sdict`, `known: sdict`)
+    are threaded down the `pyval`/`pydict`/`list pyval` catamorphism (variant
+    `pv_size`/`size_dict`/`size_list`; env does not affect termination). The
+    per-node pre-action is a multi-arm dispatch on the node's `type` key: it
+    reads `var`/`base`/`base1`/`base2`/`binder_type` off the `PDict` spine and
+    the `symtab`/`known` `sdict` via `slookup`, `raise`-ing `PyCSLSemanticError`
+    on a membership mismatch. The string-prefix guard is a VC-free
+    `val …__startswith` (the `pystr_eq` discipline — result no VC constrains, so
+    NO axiom, ledger 3). Which arm/raise fires is a value fact no VC constrains
+    (insight C); the exception is inside `why3_implements_wp_w` (axiom 3)."""
+    n = whyml_ident(func["name"])
+    subj = pb["subject"]
+    ctx, symtab, known = pb["ctx"], pb["symtab"], pb["known"]
+    exc = pb["exc"]
+    out: List[str] = []
+    # ---- VC-free string-prefix guard (result no VC constrains; ledger 3) ----
+    out.append(f"  val {n}__startswith (s p: string) : bool")
+    # ---- spine readers (all string-valued) for the dispatch's read keys ----
+    for key in ("type", "var", "base", "base1", "base2", "binder_type"):
+        out += _sa_reader_lines(n, key, as_str=True)
+    # ---- constant-tuple membership as concrete pystr_eq disjunctions ----
+    out.append(f"  let function {n}__lengthless (s: string) : bool = "
+               + " || ".join(f'pystr_eq s "{t}"' for t in _PB_LENGTHLESS_LITS))
+    out.append(f"  let function {n}__array_base (s: string) : bool = "
+               + " || ".join(f'pystr_eq s "{t}"' for t in _PB_ARRAY_BASE_LITS))
+    out.append(f"  let function {n}__present (k: string) (s: sdict) : bool = "
+               "match slookup k s with Some _ -> true | None -> false end")
+    ty_suf = _reader_suffix("type")
+    var_suf = _reader_suffix("var")
+    base_suf = _reader_suffix("base")
+    b1_suf = _reader_suffix("base1")
+    b2_suf = _reader_suffix("base2")
+    bt_suf = _reader_suffix("binder_type")
+
+    def _base_check(suf: str) -> str:
+        # a single `arr_type not in _PB_ARRAY_BASE_TYPES` raise-guard: a missing
+        # (None) symtab entry is NOT flagged (None is a tuple member).
+        return (f"(match {n}__get_{suf} d with"
+                f" | Some b -> (match slookup b {symtab} with"
+                f" | None -> ()"
+                f" | Some (PStr aty) -> if {n}__array_base aty then () else raise {exc}"
+                f" | Some _ -> raise {exc} end)"
+                f" | None -> () end)")
+
+    # ---- the multi-arm type-dispatch pre-action ----
+    out.append(f"  let {n}__pre ({subj}: pyval) ({symtab}: sdict) ({known}: sdict) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_{ty_suf} d with")
+    out.append("         | Some ty ->")
+    # arm 1: ArrayLen
+    out.append(f'             if pystr_eq ty "ArrayLen" then')
+    out.append(f"               (match {n}__get_{var_suf} d with")
+    out.append("                | Some var ->")
+    out.append(f'                    if (not ({n}__startswith var "self.")) && (not (pystr_eq var "\\\\result")) then')
+    out.append(f"                      (match slookup var {symtab} with")
+    out.append(f"                       | Some (PStr typ) -> if {n}__lengthless typ then raise {exc} else ()")
+    out.append("                       | _ -> () end)")
+    out.append("                    else ()")
+    out.append("                | None -> () end)")
+    # arm 2: Valid
+    out.append(f'             else if pystr_eq ty "Valid" then')
+    out.append(f"               {_base_check(base_suf)}")
+    # arm 3: Separated
+    out.append(f'             else if pystr_eq ty "Separated" then')
+    out.append(f"               ({_base_check(b1_suf)}; {_base_check(b2_suf)})")
+    # arm 4: Forall | Exists
+    out.append(f'             else if (pystr_eq ty "Forall") || (pystr_eq ty "Exists") then')
+    out.append(f"               (match {n}__get_{bt_suf} d with")
+    out.append(f"                | Some bt -> if {n}__present bt {known} then () else raise {exc}")
+    out.append("                | None -> () end)")
+    out.append("             else ()")
+    out.append("         | None -> () end)")
+    out.append("    | _ -> () end")
+    # ---- the env-threaded walk group (reuses the shared arity-generalized group) ----
+    out += _sa_walk_group_lines(
+        n, subj, [(ctx, "string"), (symtab, "sdict"), (known, "sdict")],
+        f" {symtab} {known}", exc)
+    return out
+
+
+# =========================================================================
 # alist-adict-census §3 (the ONE marginal A-dict opportunity) — the
 # returned-`sdict` DICT-FOLD result algebra (result_algebra = a string-keyed
 # dict, by RETURN). The by-KEY-grouping twin of the A-set returned-set fold.

@@ -91,12 +91,62 @@ def _pb_descend(v, fname, symtab, known) -> None:
         for x in v:
             _pb_descend(x, fname, symtab, known)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _pb_expr(node, ctx, symtab, known) -> None:
-    pass
+    """Recursively check predicate bases (`\\length`/`\\valid`/`\\separated`) and typed
+    quantifier binders in a contract-expr tree, against the surface context. Messages
+    reproduce Module 4 verbatim."""
+    if isinstance(node, list):
+        for x in node:
+            _pb_expr(x, ctx, symtab, known)
+        return
+    if not isinstance(node, dict):
+        return
+    t = node.get("type")
+    if t == "ArrayLen":
+        var = node.get("var", "")
+        if not str(var).startswith("self.") and var != "\\result":
+            typ = symtab.get(var)
+            if typ in _PB_LENGTHLESS_TYPES:
+                raise PyCSLSemanticError(
+                    f"\\length is not supported on the {typ}-typed '{var}' in "
+                    f"{ctx}: dicts/sets are modelled as total maps "
+                    f"(`map int (option int)`) with no cardinality. Use \\has_key(d, k) "
+                    f"for key presence, or a list/array for a length-bearing collection.",
+                    code="PYCSL-SEM-PREDBASE",
+                )
+    elif t == "Valid":
+        base = node.get("base")
+        arr_type = symtab.get(base)
+        if arr_type not in _PB_ARRAY_BASE_TYPES:
+            raise PyCSLSemanticError(
+                f"\\valid base '{base}' is not a list/bytes parameter "
+                f"in {ctx} (got type '{arr_type}').",
+                code="PYCSL-SEM-PREDBASE",
+            )
+    elif t == "Separated":
+        for base in (node.get("base1"), node.get("base2")):
+            arr_type = symtab.get(base)
+            if arr_type not in _PB_ARRAY_BASE_TYPES:
+                raise PyCSLSemanticError(
+                    f"\\separated base '{base}' is not a list/bytes parameter "
+                    f"in {ctx} (got type '{arr_type}').",
+                    code="PYCSL-SEM-PREDBASE",
+                )
+    elif t in ("Forall", "Exists"):
+        bt = node.get("binder_type")
+        if bt is not None and bt not in known:
+            raise PyCSLSemanticError(
+                f"Quantifier binder '{node.get('var')}: {bt}' in {ctx} has an "
+                f"unresolved type '{bt}'. A typed binder must name a scalar "
+                f"(int/bool/str/float) or a declared `#@ datatype` / class — "
+                f"it is never silently defaulted to int. "
+                f"Known types: {sorted(known)}.",
+                code="PYCSL-SEM-QUANTBINDER")
+    for v in node.values():
+        _pb_expr(v, ctx, symtab, known)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

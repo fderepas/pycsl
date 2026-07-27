@@ -2053,7 +2053,8 @@ class PreambleEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_generic_fold, recognize_setfold, recognize_substmap,
             recognize_bool_existence, recognize_bool_multiway, recognize_frt,
-            recognize_sawalk, recognize_cpwalk, recognize_dictfold,
+            recognize_sawalk, recognize_cpwalk, recognize_pbexpr,
+            recognize_dictfold,
             recognize_void_dispatch,
             recognize_stmt_setfold, recognize_void_generic_descend,
             recognize_type_existence, recognize_named_field_existence,
@@ -2065,6 +2066,7 @@ class PreambleEmissionMixin:
         # already-landed pydict-group mirrors stay byte-identical).
         needs_sdict = any(
             recognize_sawalk(f) is not None or recognize_dictfold(f) is not None
+            or recognize_pbexpr(f) is not None
             for f in functions)
         needs_pydict = needs_sdict or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None

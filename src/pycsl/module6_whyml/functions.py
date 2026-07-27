@@ -2738,6 +2738,7 @@ class FunctionEmissionMixin:
             recognize_frt, emit_frt_group,
             recognize_sawalk, emit_sawalk_group,
             recognize_cpwalk, emit_cpwalk_group,
+            recognize_pbexpr, emit_pbexpr_group,
             recognize_dictfold, emit_dictfold_group,
             recognize_void_dispatch, emit_void_dispatch_group,
             recognize_void_generic_descend, emit_void_generic_descend_group,
@@ -3025,6 +3026,16 @@ class FunctionEmissionMixin:
         _cp = recognize_cpwalk(func)
         if _cp is not None:
             return emit_cpwalk_group(func, _cp, whyml_ident)
+        # predicate-base walk `_pb_expr(node, ctx, symtab, known)`: the `_sa_walk`
+        # sibling with a MULTI-ARM `node.get("type")` type dispatch (ArrayLen /
+        # Valid / Separated / Forall|Exists), a 2nd env `known` modelled as
+        # `sdict`-presence, and string-op guards (VC-free `__startswith` +
+        # `pystr_eq`). Reuses the arity-generalized `_sa_walk_group_lines` walk
+        # group. Same fail-closed discipline; a template bug is a loud unprovable
+        # instance, never a false proof.
+        _pb = recognize_pbexpr(func)
+        if _pb is not None:
+            return emit_pbexpr_group(func, _pb, whyml_ident)
         # alist-adict-census §3: the returned-`sdict` dict-fold (result_algebra =
         # a string-keyed dict, by RETURN). The by-key-grouping twin of the A-set
         # returned-set fold; reuses the certified `sdict` + purely-defined
