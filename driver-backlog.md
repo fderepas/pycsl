@@ -1,6 +1,48 @@
 # self-tcb-reduction driver — backlog
 
-Canonical count: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l` = **882** (drift 2, ledger 3).
+Canonical count: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l` = **883** (drift 2, ledger 3).
+(The 2026-07-27 `_parse_variant_def` 883→882 was reverted — the per-slot tuple-exception feature L3-tc-broke a Module5 importer mirror, §10c trap; 883 restored.)
+
+## `Dict[str,Any]` VALUE-MODEL WALL = REFRAMED (recognizer-gated, NOT value-model floor) — 2026-07-27 ISOLATION SPIKE
+
+**The value model is NOT the wall.** Decisive isolation datum: the built `pyval`/`pydict` model
+lowers generic `.values()`/`.items()` dict walks NON-VACUOUSLY. Living proof = the ALREADY-CONVERTED
+`_cs_descend`/`_pb_descend`/`_sa_walk`/`_contains_result`/`_body_has_return` in `core_ir_semantic.py`
+emit `(v: pyval)`, `PDict/PList/PStr` spine walks, `values (d: pydict): list pyval`. A `Dict[str,Any]`
+param does NOT intrinsically erase to `option int`.
+
+**The residual is RECOGNIZER-GATED, not value-model-gated.** Each still-trusted walker int-erases
+ONLY because no bespoke recognizer matches its exact structural shape → fall-through to the default
+int-hash emitter. Three verbatim-port + emit + read isolation datums (all reverted clean):
+- `_pb_stmt` (`.get("stmt")`-dispatch + list-field iteration) → `s: int`, `s_get_1 <hash>`, literals
+  hashed, list-fields → vacuous `Array.make 1024 0`, `s.values()` → nullary `s_values_0 ()`. INT-ERASED.
+- `_gso_walk` (compound pre-action `op!="=" and symtab.get(target)=="string"`, single raise) → `node: int`,
+  `typeof_op 422` (isinstance vs a CONSTANT), `node_values_0 ()` nullary. INT-ERASED — ONE field-read
+  different from the CONVERTED `_sa_walk`, but `recognize_sawalk._match_sa_pre` is tailored to sa_walk's
+  exact two-raise nested-isinstance pre-action.
+- `_union_c8_test_references_union_var` (2-param bool-existence) → recognizer FIRES, emits the CORRECT
+  non-vacuous `exists _fk. ... self(a[_fk] union_vars)` postcondition, but L3-tc FAILS
+  `unbound symbol 'union_vars'` — the env param isn't threaded into the generic-values-loop arm's spec.
+
+**Composition (core_ir_semantic.py, 56 trusted):** every zero-build-reachable shape (pure-descend
+`.values()` walkers, thin-fanout body walkers, 1-param `any()` bool-existence, sawalk env-threaded walker)
+is ALREADY CONVERTED. The 56 residual each need a DISTINCT bespoke recognizer extension: env-param
+threading (`_union_c8*` — the closest, the recognizer already emits the right spec), compound-pre-action
+matcher (`_gso_walk`), stmt-dispatch+list-field recognizer (`_pb_stmt`/`_cs_stmt`/`_pb_expr`/`_cs_clause`),
+nested-closure `found=[False]` mutable-cell support (`_body_has_raise`/`_body_has_diverging_construct`/
+`_lemma_returns_value`), + set-membership/`rsplit`/`warn`/arithmetic secondaries. Each is a bounded
+(+1-marker, low-yield) engineering extension of a SHARED emitter (`generic_fold.py`, not mirrored → 0 new
+stubs) — but each carries the §10c ALL-importer-mirror L3-tc obligation. NOT a research-grade value-model
+floor for the WALKER cluster.
+
+**Still research-grade (the BUILD family):** `module6_whyml/functions.py` `_build_method_*_map`
+(`Dict[str,List[Dict[str,Any]]]` build-and-return, 16-682 body lines) = genuinely ≥3-stacked
+(heterogeneous-dict BUILD + collection-result + self-state maps). Large build, unchanged research-grade.
+
+VERDICT: CERTIFIED-BOUNDARY at zero-build (0/3 sampled convert clean); reachable-with-existing-recognizers
+frontier in core_ir_semantic is EXHAUSTED. Next lever (if funded): thread the env param through the
+bool-existence generic-values-loop arm — the single smallest recognizer gap, closes `_union_c8*` +
+possibly a sub-cluster of env-param existence walkers; measure-before-build + §10c all-importer L3-tc.
 
 ## PER-SLOT-TYPED EARLY-RETURN TUPLE EXCEPTION BUILT + `_parse_variant_def` CONVERTED (2026-07-27) — 883 -> 882
 

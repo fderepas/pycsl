@@ -473,3 +473,50 @@ cluster is a concrete, reproducible instance of it (the two verbatim errors abov
 live emitter reads raw `Dict[str,Any]` — so converting the cluster in place is gated on either the
 research-grade decoder-synthesis answer OR a live-emitter retype to TypedDict (a separate, larger build).
 No spike was left in the tree; floor unchanged at 908; 3-axiom ledger untouched.
+
+## 11. Measured update — 2026-07-27: the READER/WALKER cluster is NOT the value-model wall — it is RECOGNIZER-GATED (sharpens §3/§8/§10; separates two claims that §3 conflated)
+
+**Context.** Floor now **883**. This spike isolation-measured the generic-`Dict[str,Any]` `.values()`/
+`.items()` **reader/walker** stubs (the `core_ir_semantic.py` void-checker + bool-predicate family — the ~20
+`.values()`-walk pool §8 folds into "wall 1"), asking convert-or-BOUNDARY: does the built `pyval`/`pydict`
+model reach any of them, or is the dict typing an intrinsic `int -> option int` floor?
+
+**The decisive datum overturns the "value model is the wall" framing for this cluster.** The value model
+already lowers generic `.values()`/`.items()` dict walks **non-vacuously**. Living proof: the ALREADY-CONVERTED
+`_cs_descend`/`_pb_descend`/`_sa_walk`/`_contains_result`/`_body_has_return` in `core_ir_semantic.py` emit
+`(v: pyval)` parameters, `PDict/PList/PStr` spine matches, and a faithful `values (d: pydict) : list pyval`.
+A `Dict[str,Any]` param does **not** intrinsically erase to `option int` — the §2.1 `pyval`/`pydict` datatype
+is the working carrier, and `.values()` is modelled as spine traversal.
+
+**What actually blocks the residual is RECOGNIZER coverage, not the value model.** A stub int-erases (the §3
+`int -> option int` symptom) precisely when **no bespoke recognizer matches its exact structural shape** — it
+then falls through to the default int-hash emitter. Three verbatim-port + emit + read datums (reverted clean):
+1. `_pb_stmt` (`.get("stmt")`-dispatch → list-field iteration → else `.values()` descend): emits `s: int`,
+   `s.get("stmt")`=`s_get_1 285165683` (key hashed), `"While"`=`1685277026` (literal hashed), the list-fields
+   `s.get("invariants") or []` → vacuous `Array.make 1024 0`, `s.values()` → **nullary** `s_values_0 ()`
+   disconnected from any real dict. Sound-but-VACUOUS int-hash erasure (the §6 anti-pattern). No recognizer
+   covers the "named-tag dispatch + list-field iteration" statement-handler shape.
+2. `_gso_walk`: `node: int`, `typeof_op 422` (the `isinstance(node,dict)` test lowered against a **constant**
+   unrelated to `node`), `node_values_0 ()` nullary. INT-ERASED — yet this is ONE field-read different from the
+   CONVERTED `_sa_walk`; `recognize_sawalk`'s pre-action matcher is tailored to sa_walk's exact two-raise
+   nested-isinstance shape and rejects gso_walk's compound single-raise guard.
+3. `_union_c8_test_references_union_var` (2-param existence walk `any(self(v,union_vars) for v in test.values())`):
+   the existence recognizer **fires** and emits the CORRECT non-vacuous postcondition
+   `exists _fk. 0<=_fk<len /\ self(a[_fk] union_vars)` — but L3-tc FAILS `unbound symbol 'union_vars'`: the
+   read-only env param is not threaded into the generic-values-loop arm's emitted logical spec. A scoping gap,
+   not an erasure.
+
+**Composition (core_ir_semantic.py, 56 trusted).** Every zero-build-reachable shape is ALREADY CONVERTED
+(pure-descend `.values()` walkers, thin-fanout body walkers, 1-param `any()` bool-existence, the sawalk
+env-threaded walker). The 56 residual each require a DISTINCT bespoke recognizer extension — env-param
+threading, compound-pre-action matcher, tag-dispatch+list-field recognizer, nested-closure `found=[False]`
+mutable-cell support, plus set-membership/`rsplit`/`warn`/arithmetic secondaries.
+
+**Consequence — the two claims §3 must separate.** (i) For the **reader/walker** cluster the value-model wall
+is BROKEN: `pyval`/`pydict` is a sufficient carrier; the boundary is a set of BOUNDED, low-yield (+1-marker
+each) recognizer extensions of a shared, non-mirrored emitter (`generic_fold.py`), each carrying only the
+mechanical §10c all-importer-mirror L3-tc obligation — **not research-grade**. (ii) The §10 collector /
+`_build_method_*_map` **BUILD** family (heterogeneous-dict CONSTRUCTION + collection-result + self-state)
+remains the genuine ≥3-stacked research-grade wall — the open question of §5 stands only for the value-
+*producing* half. The frozen §6 benchmark is unchanged; the reader-side δ is now known to be recognizer
+engineering, not a modelling open-problem. No spike left in the tree; floor unchanged at 883; ledger 3.
