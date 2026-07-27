@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import whyml_ident, safe_exc_name
@@ -990,7 +991,9 @@ class FunctionEmissionMixin:
         return None
 
     def _infer_tuple_slot_type(self, elt: Dict[str, Any], array_vars: Set[str],
-                               dict_vars: Set[str], symtab: Dict[str, Any]) -> str:
+                               dict_vars: Set[str], symtab: Dict[str, Any],
+                               seq_str_vars: Set[str] = frozenset(),
+                               str_call_vars: Set[str] = frozenset()) -> str:
         """The WhyML type of ONE tuple-return slot, refining the homogeneous
         `int` default. Mirrors the value-type recognition in
         `find_array_and_dict_vars` (the array/dict producers) so a slot bound to a
@@ -1008,9 +1011,25 @@ class FunctionEmissionMixin:
             # string FIRST: a str-attr projection (`node.kind`/`.var`/`.op` → kind_of/name_of) is
             # `string`, but `_is_emit_ir_expr` over-claims any attr on an emit_ir node as a sub-node
             # — so the string check must precede it.
-            if self._is_string_expr(elt) or (t == "Var" and elt.get("name") in getattr(
-                    self, "_tuple_string_slot_locals", set())):
+            if (self._is_string_expr(elt)
+                    or (t == "Var" and elt.get("name") in getattr(
+                        self, "_tuple_string_slot_locals", set()))
+                    or (t == "Var" and elt.get("name") in str_call_vars)):
+                # early-return-tuple gap #1 (scalar): a slot bound to a `-> str`-call result
+                # local (`ctor = self.expect_name()`) is a `string` slot — the body pre-decls
+                # it `ref ""` (via `_collect_str_call_result_locals`), so the signature must
+                # agree, else the raised tuple's string component mis-types against an `int`
+                # slot.
                 return "string"
+            # early-return-tuple gap #1 (seq): a slot bound to a STRING-element list local
+            # (a growable `seq string` the body lowers via Seq.cons/snoc — `types =
+            # [expect_name()]; types.append(expect_name())`) is typed `seq string`, NOT the
+            # `array int` its bare `Var in array_vars` membership would give. The signature
+            # must agree with the body's `seq string` local so the per-slot-typed early-return
+            # exception carries the right payload. Checked ahead of the array_vars/dict_vars
+            # Var defaults. @mutable_state-gated → corpus tuples (all homogeneous int) unaffected.
+            if t == "Var" and elt.get("name") in seq_str_vars:
+                return "seq string"
             if self._is_emit_ir_expr(elt) or (t == "Var" and elt.get("name") in getattr(
                     self, "_tuple_emit_ir_slot_locals", set())):
                 return "emit_ir"
@@ -1083,14 +1102,85 @@ class FunctionEmissionMixin:
         _nm = func.get("name", "")
         if "__" in _nm:
             self._current_self_type = _nm.split("__", 1)[0]
+        # early-return-tuple gap #1: reuse the SAME body-level string/seq-element
+        # recognizers the emitted body uses to pre-declare its locals, so the tuple
+        # SIGNATURE agrees with the emitted local types. `_collect_str_call_result_locals`
+        # marks a `-> str`-call result local (`ctor = self.expect_name()` → `ref ""`);
+        # `_collect_array_elem_types` maps a growable list local to its element type
+        # ("string" for `types = [expect_name()]` — the body lowers it `seq string`). Both
+        # need `_current_symbol_table`/`_current_self_type` (set just above) and are
+        # @mutable_state-gated → empty (inert) for every corpus function. The
+        # `seq_value_types` fallback keeps the Module5-provided signal when present.
+        str_call_vars: Set[str] = set()
+        elem_types: Dict[str, str] = {}
         try:
-            slots = [self._infer_tuple_slot_type(e, array_vars, dict_vars, _st) for e in elts]
+            str_call_vars = self._collect_str_call_result_locals(body_stmts)
+            elem_types = self._collect_array_elem_types(body_stmts)
+        except Exception:
+            pass
+        seq_promoted = set(func.get("seq_promoted_vars") or [])
+        svt = func.get("seq_value_types") or {}
+        seq_str_vars = {v for v in seq_promoted
+                        if elem_types.get(v) == "string" or svt.get(v) == "string"}
+        try:
+            slots = [self._infer_tuple_slot_type(e, array_vars, dict_vars, _st,
+                                                 seq_str_vars, str_call_vars)
+                     for e in elts]
         finally:
             self._current_symbol_table = _saved_st
             self._current_self_type = _saved_cs
         if len(slots) == return_type.count(",") + 1 and any(s != "int" for s in slots):
             return "(" + ", ".join(slots) + ")"
         return return_type
+
+    def _tuple_slot_types(self, tuple_type: str) -> List[str]:
+        """Split a refined tuple return type string (`(string, seq string)`,
+        `(int, map int (option int))`) into its per-slot WhyML type strings.
+        Paren/bracket-depth aware so a nested `map int (option int)` slot is not
+        split on its inner comma. The inverse of the `", ".join(slots)` build in
+        `_refine_tuple_return_type`."""
+        inner = tuple_type[1:-1] if tuple_type.startswith("(") else tuple_type
+        slots: List[str] = []
+        depth = 0
+        cur: List[str] = []
+        for ch in inner:
+            if ch in "([":
+                depth += 1
+                cur.append(ch)
+            elif ch in ")]":
+                depth -= 1
+                cur.append(ch)
+            elif ch == "," and depth == 0:
+                slots.append("".join(cur).strip())
+                cur = []
+            else:
+                cur.append(ch)
+        if cur:
+            slots.append("".join(cur).strip())
+        return slots
+
+    def _tuple_return_exc(self, tuple_type: str) -> Tuple[str, str]:
+        """The (exception_name, payload_type_str) for an early/in-loop-returning
+        tuple function whose refined return type is `tuple_type`.
+
+        A homogeneous all-`int` tuple keeps the legacy ARITY-only name
+        `Return_<arity>` with an all-`int` payload — byte-identical with the
+        pre-existing homogeneous-int tuple corpus (the only tuple-return shape that
+        currently passes L3-tc). A tuple with ANY non-int slot (`string`,
+        `seq string`, `array int`, `emit_ir`, …) gets a PER-SLOT-TYPED name
+        `Return_tuple_<arity>_<slot-tokens>` carrying the faithful slot types, keyed
+        on the slot signature so two arity-N functions with DIFFERENT slot types do
+        not collide on one global `Return_N` exception. The arity prefix + the fixed
+        multi-word type vocabulary make the underscore-joined token key injective in
+        practice. The name is computed IDENTICALLY at the preamble declaration, the
+        `raise` site (stmt_control_flow) and the `catch` site (statements)."""
+        slots = self._tuple_slot_types(tuple_type)
+        arity = len(slots)
+        if all(s == "int" for s in slots):
+            return f"Return_{arity}", ", ".join(["int"] * arity)
+        tokens = "_".join(
+            re.sub(r"[^A-Za-z0-9]+", "_", s).strip("_") for s in slots)
+        return f"Return_tuple_{arity}_{tokens}", ", ".join(slots)
 
     # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the COMPOUND
     # statement kinds a `_process_*` handler returns (`{"stmt": K}` → SWhile/
