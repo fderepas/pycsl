@@ -70,12 +70,35 @@ def _pb_body(stmts: List[Dict[str, Any]], fname, symtab, known) -> None:
         if isinstance(s, dict):
             _pb_stmt(s, fname, symtab, known)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _pb_stmt(s, fname, symtab, known) -> None:
-    pass
+    st = s.get("stmt")
+    if st == "While":
+        lctx = f"while loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _pb_expr(clause, lctx, symtab, known)
+        for clause in (s.get("variants") or []):
+            _pb_expr(clause, lctx, symtab, known)
+        _pb_body(s.get("body", []) or [], fname, symtab, known)
+    elif st == "For":
+        lctx = f"for loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _pb_expr(clause, lctx, symtab, known)
+        for clause in (s.get("variants") or []):
+            _pb_expr(clause, lctx, symtab, known)
+        _pb_body(s.get("body", []) or [], fname, symtab, known)
+    elif st == "GhostAssign":
+        _pb_expr(s.get("value"),
+                 f"function '{fname}' (ghost '{s.get('target')}')", symtab, known)
+    elif st == "GhostArraySet":
+        gctx = f"function '{fname}' (ghost '{s.get('target')}[...]')"
+        _pb_expr(s.get("index"), gctx, symtab, known)
+        _pb_expr(s.get("value"), gctx, symtab, known)
+    else:
+        for v in s.values():
+            _pb_descend(v, fname, symtab, known)
 
 #@ requires True
 #@ ensures True

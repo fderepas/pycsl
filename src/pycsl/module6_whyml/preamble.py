@@ -2100,7 +2100,17 @@ class PreambleEmissionMixin:
             recognize_term_isinstance_transform,
             recognize_term_list_build, recognize_term_flatten_arrow,
             recognize_term_free_vars, recognize_term_string_pp,
-            recognize_term_pp_methods)
+            recognize_term_pp_methods, recognize_pb_trio)
+        # PB-TRIO FUSION (generic_fold.py): the mutually-recursive
+        # `{_pb_stmt,_pb_body,_pb_descend}` statement-walker triad emitted as ONE
+        # `let rec` group so `_pb_stmt` can be un-trusted. Module-level (needs all
+        # three functions). None (no trio) -> every other mirror + the whole
+        # corpus byte-identical. `_pb_trio_emitted` gates the once-only emission
+        # (deferred to just after the `_pb_expr` group the trio calls into).
+        self._pb_trio = recognize_pb_trio(functions)
+        self._pb_trio_names = (
+            set(self._pb_trio["names"]) if self._pb_trio else set())
+        self._pb_trio_emitted = False
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)

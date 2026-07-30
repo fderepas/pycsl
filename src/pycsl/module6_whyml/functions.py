@@ -2656,6 +2656,13 @@ class FunctionEmissionMixin:
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
+        # PB-TRIO FUSION (preamble/generic_fold): the `{_pb_stmt,_pb_body,
+        # _pb_descend}` triad emits as ONE `let rec` group, DEFERRED to just
+        # after the `_pb_expr` group it calls into. Each trio member's own slot
+        # emits nothing here; the whole group is appended when `_pb_expr` is
+        # emitted (see the `recognize_pbexpr` branch below).
+        if getattr(self, "_pb_trio", None) and func.get("name") in self._pb_trio_names:
+            return []
         # SCriticalSection increment (self-tcb-reduction M5, C-bucket): the `_py_stmt_with`
         # mutex/extend handler — bespoke (the generic lowering int-erases the weave-injected
         # mutex attrs + no-ops the extend). Corpus-inert.
@@ -2742,6 +2749,7 @@ class FunctionEmissionMixin:
             recognize_dictfold, emit_dictfold_group,
             recognize_void_dispatch, emit_void_dispatch_group,
             recognize_void_generic_descend, emit_void_generic_descend_group,
+            emit_pb_trio_group,
             recognize_type_existence, emit_type_existence_group,
             recognize_named_field_existence, emit_named_field_existence_group,
             recognize_pyval_string_walker, emit_pyval_string_walker_group,
@@ -3035,7 +3043,13 @@ class FunctionEmissionMixin:
         # instance, never a false proof.
         _pb = recognize_pbexpr(func)
         if _pb is not None:
-            return emit_pbexpr_group(func, _pb, whyml_ident)
+            lines = emit_pbexpr_group(func, _pb, whyml_ident)
+            # PB-TRIO FUSION: append the fused `{_pb_stmt,_pb_body,_pb_descend}`
+            # group right after `_pb_expr` (which it calls into), once.
+            if getattr(self, "_pb_trio", None) and not self._pb_trio_emitted:
+                lines = lines + emit_pb_trio_group(self._pb_trio, whyml_ident)
+                self._pb_trio_emitted = True
+            return lines
         # alist-adict-census §3: the returned-`sdict` dict-fold (result_algebra =
         # a string-keyed dict, by RETURN). The by-key-grouping twin of the A-set
         # returned-set fold; reuses the certified `sdict` + purely-defined

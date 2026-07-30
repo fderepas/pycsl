@@ -6070,6 +6070,407 @@ def emit_void_generic_descend_group(func: Dict[str, Any], desc: Dict[str, Any],
 
 
 # =========================================================================
+# PB-TRIO FUSION — the mutually-recursive `{_pb_stmt, _pb_body, _pb_descend}`
+# statement-walker triad (core_ir_semantic self-annotation), fused into ONE
+# `let rec … with …` group so `_pb_stmt` can be UN-TRUSTED.
+#
+# Today `_pb_body`/`_pb_descend` lower via `recognize_void_dispatch` /
+# `recognize_void_generic_descend`, each calling the still-`\trusted`
+# `_pb_stmt` opaque-`int` val. Converting `_pb_stmt` forces the three to share
+# ONE recursion group, RETYPED so the real dict flows: `s: pyval`,
+# `stmts: list pyval`, ctx `fname: string`, `symtab/known: sdict` — matching
+# the `_pb_expr` group the trio calls into (emit-DEFERRED after `_pb_expr`).
+#
+# TERMINATION is the banked `{ size, phase }` lexicographic variant (stmt/body
+# at phase 0, descend/__d/__l at phase 1, clearing the equal-size
+# `_pb_descend(v)→_pb_stmt(v)` hop). The child-list/child-value EXTRACTION
+# helpers carry the size-decrease postconditions the variant needs.
+#
+# WHOLE-FILE PROOF-SCALE FIX (getting-better/driver-frontier-floor.md trio row):
+# the naive recursive extraction helper's postcondition (`size_list result <
+# 1 + size_dict d`) proves in ISOLATION but E-matching-SATURATES in the full
+# module context (measured: ~92.9k Alt-Ergo steps → 30s Timeout; NOT caused by
+# `wf_ir_binds` — removing it leaves the step count unchanged). The SOUND fix
+# (no axiom, no weakened goal): route BOTH child extractors through ONE shared
+# recursive `__dget : pydict → option pyval` whose postcondition is on
+# `pv_size` (the form Z3 discharges in 0.05s), then make the list extractor a
+# NON-recursive wrapper (`pv_size (PList xs) = 1 + size_list xs` is a single
+# unfold Alt-Ergo closes in 0.18s). The prover CASCADE (Alt-Ergo then Z3)
+# covers both. Corpus-inert: this whole group emits ONLY for the recognised
+# trio, so no shared preamble/`wf_*` text changes (byte-diff 0).
+#
+# Non-facade: the dispatch tags ("While"/"For"/"GhostAssign"/"GhostArraySet")
+# and the dict keys ("stmt"/"invariants"/"variants"/"body"/"value"/"index")
+# are READ OFF `_pb_stmt`'s body — a change to any of them either moves the
+# emitted arm/extractor or (on a structural change) fails the fail-closed match
+# and reverts `_pb_stmt` to `\trusted` (loud count regression, never a false
+# proof).
+# =========================================================================
+
+def _sget_key(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<KEY>")` (any extra default arg allowed) -> KEY, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{subj}.get"):
+        return None
+    args = node.get("args") or []
+    if not args:
+        return None
+    return _is_string(args[0])
+
+
+def _or_empty_sget(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<KEY>") or []`  (or a bare `<subj>.get("<KEY>")`) -> KEY."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"
+            and isinstance(node.get("right"), dict)
+            and node["right"].get("type") == "ArrayLit"
+            and not (node["right"].get("elts") or [])):
+        return _sget_key(node.get("left"), subj)
+    return _sget_key(node, subj)
+
+
+def _pbexpr_call(node: Any, callee: str, subj: str, ctx: List[str]):
+    """An `Expr` stmt `<callee>(<arg0>, <ctx1>, symtab, known)` where the tail
+    args are exactly the 2 trailing ctx params (symtab, known). Returns arg0
+    (the node being checked) or None. The 2nd arg (a context string) is not
+    constrained (message text, irrelevant to the model)."""
+    if not (isinstance(node, dict) and node.get("stmt") == "Expr"):
+        return None
+    call = node.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == callee):
+        return None
+    args = call.get("args") or []
+    if len(args) != 2 + len(ctx[1:]):
+        return None
+    # trailing args must be the ctx params after the message-string slot
+    for a, p in zip(args[2:], ctx[1:]):
+        if not _is_var(a, p):
+            return None
+    return args[0]
+
+
+def _match_loop_branch(branch: List[Any], subj: str, ctx: List[str],
+                       pbexpr: str, pbbody: str) -> Optional[Dict[str, str]]:
+    """[Assign lctx=FString, For(inv-clause→pbexpr), For(var-clause→pbexpr),
+    Expr pbbody(<body-list>, *ctx)] -> {inv,var,body} keys, else None."""
+    if len(branch) != 4:
+        return None
+    a0 = branch[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    keys = []
+    for fr in (branch[1], branch[2]):
+        if not (isinstance(fr, dict) and fr.get("stmt") == "For"):
+            return None
+        k = _or_empty_sget(fr.get("iter"), subj)
+        if k is None:
+            return None
+        fb = fr.get("body") or []
+        if len(fb) != 1 or _pbexpr_call(fb[0], pbexpr, subj, ctx) is None:
+            return None
+        keys.append(k)
+    call = branch[3]
+    if not (isinstance(call, dict) and call.get("stmt") == "Expr"):
+        return None
+    cv = call.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"
+            and cv.get("func") == pbbody):
+        return None
+    cargs = cv.get("args") or []
+    if len(cargs) != 1 + len(ctx):
+        return None
+    body_key = _or_empty_sget(cargs[0], subj)
+    if body_key is None:
+        return None
+    for a, p in zip(cargs[1:], ctx):
+        if not _is_var(a, p):
+            return None
+    return {"inv": keys[0], "var": keys[1], "body": body_key}
+
+
+def _flatten_if_chain(node: Any):
+    """Flatten an `if/elif/.../else` chain -> ([(tag, branch_body)], else_body).
+    Each arm's test must be `st == "<TAG>"`. Returns None on any deviation."""
+    arms = []
+    cur = node
+    while isinstance(cur, dict) and cur.get("stmt") == "If":
+        test = cur.get("test") or {}
+        if not (test.get("type") == "BinOp" and test.get("op") == "=="
+                and _is_var(test.get("left"))):
+            return None
+        tag = _is_string(test.get("right"))
+        if tag is None:
+            return None
+        arms.append((tag, cur.get("body") or [], test["left"].get("name")))
+        orelse = cur.get("orelse") or []
+        if len(orelse) == 1 and isinstance(orelse[0], dict) \
+                and orelse[0].get("stmt") == "If":
+            cur = orelse[0]
+        else:
+            return arms, orelse
+    return None
+
+
+def recognize_pb_trio(functions: List[Dict[str, Any]]
+                      ) -> Optional[Dict[str, Any]]:
+    """Fail-closed module-level match of the `{_pb_stmt,_pb_body,_pb_descend}`
+    fusion triad. Returns a descriptor (names, ctx params, dispatch tags, dict
+    keys) or None. Never raises."""
+    try:
+        return _recognize_pb_trio(functions)
+    except Exception:
+        return None
+
+
+def _recognize_pb_trio(functions):
+    by_name = {f.get("name"): f for f in functions if isinstance(f, dict)}
+    # _pb_body: void-dispatch fan-out whose callee is the stmt walker.
+    body_fn = None
+    for f in functions:
+        d = recognize_void_dispatch(f)
+        if d is not None and d["callee"] in by_name:
+            callee = by_name[d["callee"]]
+            # the callee must itself be the structured stmt dispatcher (below)
+            body_fn = (f, d)
+            break
+    if body_fn is None:
+        return None
+    b_func, b_desc = body_fn
+    stmt_name = b_desc["callee"]
+    stmt_fn = by_name.get(stmt_name)
+    if stmt_fn is None:
+        return None
+    # _pb_descend: generic tree descender whose callee is the SAME stmt walker.
+    descend_fn = None
+    for f in functions:
+        d = recognize_void_generic_descend(f)
+        if d is not None and d["callee"] == stmt_name:
+            descend_fn = (f, d)
+            break
+    if descend_fn is None:
+        return None
+    d_func, d_desc = descend_fn
+    # ctx params must agree across body / descend (subject + 3 ctx here).
+    ctx_params = b_desc["ctx_params"]
+    if d_desc["ctx_params"] != ctx_params or len(ctx_params) != 3:
+        return None
+    # --- structured _pb_stmt dispatcher --------------------------------------
+    params = stmt_fn.get("formal_params") or []
+    if len(params) != 4:
+        return None
+    subj = params[0]
+    if params[1:] != ctx_params:
+        return None
+    if stmt_fn.get("return_annotation") not in ("None", None):
+        return None
+    sbody = stmt_fn.get("body") or []
+    if len(sbody) != 2:
+        return None
+    a0 = sbody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    stmt_key = _sget_key(a0.get("value"), subj)
+    st_var = a0.get("target")
+    if stmt_key is None or not isinstance(st_var, str):
+        return None
+    flat = _flatten_if_chain(sbody[1])
+    if flat is None:
+        return None
+    arms, else_body = flat
+    # the discriminant variable must be `st` throughout.
+    if any(v != st_var for _, _, v in arms):
+        return None
+    # pbexpr / pbbody / pbdescend callee names (read off the recognised sibs).
+    pbexpr_name = "_pb_expr"
+    if pbexpr_name not in by_name:
+        return None
+    loop_tags: List[str] = []
+    loop_keys = None
+    ghost_assign = None       # (tag, key)
+    ghost_arrayset = None     # (tag, index_key, value_key)
+    for tag, branch, _ in arms:
+        lb = _match_loop_branch(branch, subj, ctx_params, pbexpr_name,
+                                b_func["name"])
+        if lb is not None:
+            if loop_keys is not None and loop_keys != lb:
+                return None
+            loop_keys = lb
+            loop_tags.append(tag)
+            continue
+        # ghost-assign: single Expr pbexpr(s.get(<key>), <ctx-str>, symtab, known)
+        if len(branch) == 1:
+            arg0 = _pbexpr_call(branch[0], pbexpr_name, subj, ctx_params)
+            k = _sget_key(arg0, subj) if arg0 is not None else None
+            if k is None:
+                return None
+            if ghost_assign is not None:
+                return None
+            ghost_assign = (tag, k)
+            continue
+        # ghost-arrayset: [Assign gctx, Expr pbexpr(s.get(idx)), Expr pbexpr(s.get(val))]
+        if len(branch) == 3:
+            if not (isinstance(branch[0], dict)
+                    and branch[0].get("stmt") == "Assign"):
+                return None
+            a_i = _pbexpr_call(branch[1], pbexpr_name, subj, ctx_params)
+            a_v = _pbexpr_call(branch[2], pbexpr_name, subj, ctx_params)
+            ki = _sget_key(a_i, subj) if a_i is not None else None
+            kv = _sget_key(a_v, subj) if a_v is not None else None
+            if ki is None or kv is None:
+                return None
+            if ghost_arrayset is not None:
+                return None
+            ghost_arrayset = (tag, ki, kv)
+            continue
+        return None
+    if not loop_tags or ghost_assign is None or ghost_arrayset is None:
+        return None
+    # else: `for v in s.values(): _pb_descend(v, *ctx)`
+    if len(else_body) != 1:
+        return None
+    eloop = else_body[0]
+    if not (isinstance(eloop, dict) and eloop.get("stmt") == "For"):
+        return None
+    eit = eloop.get("iter") or {}
+    if not (isinstance(eit, dict) and eit.get("type") == "Call"
+            and eit.get("func") == f"{subj}.values" and not (eit.get("args") or [])):
+        return None
+    evar = eloop.get("target")
+    eb = eloop.get("body") or []
+    if not (isinstance(evar, str) and len(eb) == 1
+            and isinstance(eb[0], dict) and eb[0].get("stmt") == "Expr"):
+        return None
+    ecall = eb[0].get("value") or {}
+    if not (isinstance(ecall, dict) and ecall.get("type") == "Call"
+            and ecall.get("func") == d_func["name"]):
+        return None
+    eargs = ecall.get("args") or []
+    if len(eargs) != 1 + len(ctx_params) or not _is_var(eargs[0], evar):
+        return None
+    for a, p in zip(eargs[1:], ctx_params):
+        if not _is_var(a, p):
+            return None
+    return {
+        "stmt_name": stmt_name,
+        "body_name": b_func["name"],
+        "descend_name": d_func["name"],
+        "pbexpr_name": pbexpr_name,
+        "ctx_params": ctx_params,
+        "stmt_key": stmt_key,
+        "loop_tags": loop_tags,
+        "inv_key": loop_keys["inv"],
+        "var_key": loop_keys["var"],
+        "body_key": loop_keys["body"],
+        "gassign_tag": ghost_assign[0],
+        "gassign_key": ghost_assign[1],
+        "garrayset_tag": ghost_arrayset[0],
+        "garrayset_index_key": ghost_arrayset[1],
+        "garrayset_value_key": ghost_arrayset[2],
+        "names": {stmt_name, b_func["name"], d_func["name"]},
+    }
+
+
+def emit_pb_trio_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the fused `{_pb_stmt,_pb_body,_pb_descend}` group (see module note).
+    Must be emitted AFTER the `_pb_expr` group (which it calls into)."""
+    n = whyml_ident(desc["stmt_name"])
+    nb = whyml_ident(desc["body_name"])
+    nd = whyml_ident(desc["descend_name"])
+    npe = whyml_ident(desc["pbexpr_name"])
+    f, sy, kn = (whyml_ident(p) for p in desc["ctx_params"])
+    ctx_sig = f" ({f}: string) ({sy}: sdict) ({kn}: sdict)"
+    ctx_args = f" {f} {sy} {kn}"
+    exc = "    requires { true } ensures { true } raises { PyCSLSemanticError }"
+    loop_cond = " || ".join(
+        f'pystr_eq st "{t}"' for t in desc["loop_tags"])
+    out: List[str] = []
+    # --- statement-tag reader --------------------------------------------
+    out.append(f"  let rec {n}__get_stmt (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append(f'    | DCons (K_dyn k) (PStr s) rest -> if pystr_eq k "{desc["stmt_key"]}" then Some s else {n}__get_stmt rest')
+    out.append(f"    | DCons _ _ rest -> {n}__get_stmt rest end")
+    out.append("")
+    # --- shared value extractor (pv_size postcond — the Z3-fast form) -----
+    out.append(f"  let rec {n}__dget (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons (K_dyn k) v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        if pystr_eq k key then Some v else {n}__dget key rest")
+    out.append("    | DCons _ v rest ->")
+    out.append(f"        size_pos v; size_dict_nonneg rest; {n}__dget key rest end")
+    out.append("")
+    # --- single-value child (ghost value/index) --------------------------
+    out.append(f"  let {n}__val_child (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append(f"  = {n}__dget key d")
+    out.append("")
+    # --- list child (loop body) — NON-recursive wrapper (Alt-Ergo-fast) --
+    out.append(f"  let {n}__list_child (key: string) (d: pydict) : list pyval")
+    out.append("    ensures { size_list result < 1 + size_dict d }")
+    out.append("  = size_dict_nonneg d;")
+    out.append(f"    match {n}__dget key d with")
+    out.append("    | Some (PList xs) -> size_list_nonneg xs; xs")
+    out.append("    | _ -> Nil")
+    out.append("    end")
+    out.append("")
+    # --- the mutual recursion group --------------------------------------
+    out.append(f"  let rec {n} (s: pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { pv_size s, 0 }")
+    out.append("  = match s with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_stmt d with")
+    out.append("         | Some st ->")
+    out.append(f"             if {loop_cond} then begin")
+    out.append(f'               {npe}__list ({n}__list_child "{desc["inv_key"]}" d){ctx_args};')
+    out.append(f'               {npe}__list ({n}__list_child "{desc["var_key"]}" d){ctx_args};')
+    out.append(f'               {nb} ({n}__list_child "{desc["body_key"]}" d){ctx_args}')
+    out.append(f'             end else if pystr_eq st "{desc["gassign_tag"]}" then begin')
+    out.append(f'               (match {n}__val_child "{desc["gassign_key"]}" d with Some w -> {npe} w{ctx_args} | None -> () end)')
+    out.append(f'             end else if pystr_eq st "{desc["garrayset_tag"]}" then begin')
+    out.append(f'               (match {n}__val_child "{desc["garrayset_index_key"]}" d with Some w -> {npe} w{ctx_args} | None -> () end);')
+    out.append(f'               (match {n}__val_child "{desc["garrayset_value_key"]}" d with Some w -> {npe} w{ctx_args} | None -> () end)')
+    out.append("             end else")
+    out.append(f"               {n}__d d{ctx_args}")
+    out.append(f"         | None -> {n}__d d{ctx_args} end)")
+    out.append("    | _ -> () end")
+    out.append(f"  with {nb} (stmts: list pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { size_list stmts, 0 }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons s t ->")
+    out.append("        size_pos s; size_list_nonneg t;")
+    out.append(f"        (match s with PDict _ -> {n} s{ctx_args} | _ -> () end);")
+    out.append(f"        {nb} t{ctx_args}")
+    out.append("    end")
+    out.append(f"  with {nd} (v: pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { pv_size v, 1 }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {n}__get_stmt d with")
+    out.append(f"        | Some _ -> {n} (PDict d){ctx_args}")
+    out.append(f"        | None -> {n}__d d{ctx_args} end)")
+    out.append(f"    | PList xs -> {n}__l xs{ctx_args}")
+    out.append("    | _ -> () end")
+    out.append(f"  with {n}__d (d: pydict){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { size_dict d, 1 }")
+    out.append("  = match d with DNil -> ()")
+    out.append(f"    | DCons _ v rest -> size_pos v; size_dict_nonneg rest; {nd} v{ctx_args}; {n}__d rest{ctx_args} end")
+    out.append(f"  with {n}__l (xs: list pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { size_list xs, 1 }")
+    out.append("  = match xs with Nil -> ()")
+    out.append(f"    | Cons h t -> size_pos h; size_list_nonneg t; {nd} h{ctx_args}; {n}__l t{ctx_args} end")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,
