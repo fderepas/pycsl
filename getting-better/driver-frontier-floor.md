@@ -1,4 +1,4 @@
-# Driver frontier floor — count 875 (2026-07-27, 96h autonomous run)
+# Driver frontier — count 874 (2026-07-27/29; trio-fusion wall BROKEN, user-authorized)
 
 The self-tcb-reduction-driver reached its **autonomous floor at 875** this run (883→875, 8 conversions).
 Established NOT by assumption but by draining all safe-additive work AND build-attempting/spiking EVERY
@@ -28,3 +28,14 @@ NOT re-probe these characterized walls (that only burns the clock).
 
 Ledger held at 3 throughout; drift 2 (pre-existing `_handle_var_expr`/`_handle_for_stmt`); zero live-parser
 behavioral changes; nothing pushed.
+
+## UPDATE 2026-07-29 — trio-fusion wall BROKEN (user authorized campaign 1), count 875→874
+`_pb_stmt` CONVERTED via the reconstructed trio-fusion + a SOUND extraction-helper fix (commit 2fbff96c).
+The two prior diagnoses were BOTH refuted by measurement: (a) it is NOT a modular-verification necessity;
+(b) it is NOT wf_dict/wf_ir_binds E-matching (removing wf_ir_binds left the failing goal's step count
+unchanged ~92.9k) — the real cause was generic full-module context size on the extraction-helper size VC.
+Sound fix: shared recursive `_pb_stmt__dget : pydict -> option pyval` with a `pv_size` postcondition
+(Z3 0.05s) + a non-recursive list-extractor wrapper. No axiom, no weakened goal, corpus byte-diff 0.
+Whole-file proof: 449 Valid, 0 unproven. NEXT FOLLOW-ON: `_cs_stmt` (same fusion pattern with
+_cs_body/_cs_descend) — but it cross-calls the still-trusted `_cs_clause` (a set-consumer over
+`_ir_free_vars`), so it may need `_cs_clause`/`_ir_free_vars` handled first.

@@ -794,3 +794,22 @@ the wf_* triggers), which touches the whole-file-proof gate = REVIEW-GATED. The 
 is built + validated (byte-diff 0 / §10c / vacuity / sound-in-isolation) and banked for that session.**
 FLAGGED for the user: trio-fusion needs a modular-proof approach, not just the fusion emitter —
 a bigger, §10.10-gate-touching lift than the earlier "authorize the fusion build" framing implied.
+
+## Wall: _pb_stmt trio-fusion — BROKEN (2026-07-29, user-authorized), supersedes the CERTIFIED-BOUNDARY
+The trio-fusion, previously recorded CERTIFIED-BOUNDARY (whole-file "E-matching saturation → modular
+verification, review-gated"), is now BROKEN and the boundary framing was WRONG on two counts, both
+caught by MEASUREMENT: (1) NOT an E-matching-over-wf_* problem — deleting `wf_ir_binds` left the failing
+goal's Alt-Ergo step count unchanged (~92.9k) vs 0.26s in isolation, so the cause was generic full-module
+CONTEXT SIZE, not that lemma's instantiation; (2) NO modular isolation / trigger surgery was needed. The
+fix was a better-SHAPED extraction helper: route the trio's two child extractors through ONE shared
+recursive `_pb_stmt__dget : pydict -> option pyval` whose postcondition is on `pv_size` (Z3 discharges in
+0.05s), and make the list extractor a NON-recursive wrapper (`pv_size (PList xs) = 1 + size_list xs`, one
+unfold). Prover cascade Alt-Ergo→Z3 closes all 60 trio goals; whole-file 449 Valid / 0 unproven;
+corpus byte-diff 0; ledger 3.
+**LESSON: a "whole-file solver saturation" terminus is a HYPOTHESIS about the CAUSE, not just the
+symptom — MEASURE which term drives the blowup (delete the suspected lemma/predicate and re-count steps)
+before concluding "needs modular verification / trigger surgery / review-gate". Here the real lever was
+re-SHAPING the emitted helper (a shared recursive `pv_size`-carrying extractor + a non-recursive wrapper)
+so the solver discharges the size VC structurally in a small step budget — an IN-SCOPE emitter fix, not a
+§10.10-gate change. Two consecutive boundary diagnoses on this wall were both wrong; the win came from a
+step-count differential, not from authority.**
