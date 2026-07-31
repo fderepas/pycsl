@@ -2863,7 +2863,8 @@ class FunctionEmissionMixin:
             recognize_check_guard_cascade, emit_check_guard_cascade_group,
             recognize_check_clause_fold, emit_check_clause_fold_group,
             recognize_check_lemma, emit_check_lemma_group,
-            recognize_check_no_exception, emit_check_no_exception_group)
+            recognize_check_no_exception, emit_check_no_exception_group,
+            recognize_check_warn_fold, emit_check_warn_fold_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -3037,6 +3038,19 @@ class FunctionEmissionMixin:
         _cne = recognize_check_no_exception(func)
         if _cne is not None:
             return emit_check_no_exception_group(_cne, whyml_ident)
+        # IR-LIST WARN-FOLD `_check_*` caller (`_check_union_gt1`): the purest
+        # report-only orchestrator — read ONE top-level list field off the
+        # bridged `ir` pydict (`x = ir.get("<K>") or []`) and iterate it emitting
+        # a `warnings.warn(...)` per element. `warnings.warn` is an unmodelled
+        # side-channel (no verifiable value, no control flow), so the loop lowers
+        # to a total, terminating UNIT fold over the field's list (each warn ->
+        # no-op) over the certified pydict/list `pyval` bridge (`pget_list`). No
+        # raise path, `ensures true`. The field key is load-bearing; only the
+        # error-message-only warn `FString` is erased. Fail-closed; a loop body
+        # with any non-`warnings.warn` statement stays `\trusted`.
+        _cwf = recognize_check_warn_fold(func)
+        if _cwf is not None:
+            return emit_check_warn_fold_group(_cwf, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)

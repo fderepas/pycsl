@@ -2065,7 +2065,7 @@ class PreambleEmissionMixin:
             recognize_check_subscript_assignments,
             recognize_check_contract_scope,
             recognize_check_clause_fold,
-            recognize_check_no_exception)
+            recognize_check_no_exception, recognize_check_warn_fold)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
@@ -2080,6 +2080,7 @@ class PreambleEmissionMixin:
             or recognize_check_contract_scope(f) is not None
             or recognize_check_clause_fold(f) is not None
             or recognize_check_no_exception(f) is not None
+            or recognize_check_warn_fold(f) is not None
             for f in functions)
         # pdict-to-sdict-impl.md: the heterogeneous-func caller cluster
         # (`_check_contract_exprs` + the body-only `_check_checkpoints`/
@@ -2092,7 +2093,8 @@ class PreambleEmissionMixin:
             or recognize_check_subscript_assignments(f) is not None
             or recognize_check_contract_scope(f) is not None
             or recognize_check_clause_fold(f) is not None
-            or recognize_check_no_exception(f) is not None for f in functions)
+            or recognize_check_no_exception(f) is not None
+            or recognize_check_warn_fold(f) is not None for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs)
         needs_pydict = needs_sdict or bool(

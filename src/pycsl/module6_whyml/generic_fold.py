@@ -9191,6 +9191,114 @@ def emit_check_no_exception_group(desc: Dict[str, Any], whyml_ident) -> List[str
 
 
 # =========================================================================
+# IR-LIST WARN-FOLD `_check_*` caller — `recognize_check_warn_fold`.
+#
+# The purest report-only orchestrator shape (`_check_union_gt1(ir)`): read ONE
+# top-level list field off the bridged `ir` pydict (`x = ir.get("<K>") or []`)
+# and iterate it, emitting a `warnings.warn(...)` per element. `warnings.warn`
+# is NOT modelled state in PyCSL (like `print` — a pure side-channel that
+# constrains no verifiable value and no control flow), so its faithful lowering
+# is a UNIT no-op; the loop therefore lowers to a total, terminating unit fold
+# over the list read from the field (`pget_list "<K>"`). No raise path,
+# `ensures true`. Type-safe + terminating over the certified pydict/list `pyval`
+# bridge (`pget_dyn`/`pget_list`); no new type/axiom/cert, ledger 3. The
+# field-key string is load-bearing (mutation-faithful: it selects WHICH IR list
+# is read); only the (error-message-only) warn `FString` is erased. Fail-closed:
+# a loop body carrying any non-`warnings.warn` statement (a raise, an assign, a
+# nested control-flow effect) does NOT match and the caller stays `\trusted`.
+# =========================================================================
+
+def _match_ir_get_or_empty(stmt: Any, subj: str) -> Optional[Tuple[str, str]]:
+    """`<acc> = <subj>.get("<K>") or []` -> (acc, K) or None (fail-closed)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    acc = stmt.get("target")
+    if not isinstance(acc, str):
+        return None
+    val = stmt.get("value")
+    if not (isinstance(val, dict) and val.get("type") == "BinOp"
+            and val.get("op") == "or"):
+        return None
+    right = val.get("right")
+    if not (isinstance(right, dict) and right.get("type") == "ArrayLit"
+            and not right.get("elts")):
+        return None
+    key = _match_get_call(val.get("left"), subj)
+    if key is None:
+        return None
+    return (acc, key)
+
+
+def _is_warn_only_body(stmts: Any) -> bool:
+    """Every statement is an `Expr` wrapping a `warnings.warn(...)` Call (a
+    report-only side-channel, no control flow). Empty body does NOT match
+    (nothing to fold)."""
+    if not isinstance(stmts, list) or not stmts:
+        return False
+    for s in stmts:
+        if not (isinstance(s, dict) and s.get("stmt") == "Expr"):
+            return False
+        v = s.get("value")
+        if not (isinstance(v, dict) and v.get("type") == "Call"
+                and v.get("func") == "warnings.warn"):
+            return False
+    return True
+
+
+def recognize_check_warn_fold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the IR-list warn-fold `_check_*(ir)` caller (see
+    module note). Returns {name, subj, field} or None; never raises."""
+    try:
+        return _recognize_check_warn_fold(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_warn_fold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    ge = _match_ir_get_or_empty(body[0], subj)
+    if ge is None:
+        return None
+    acc, key = ge
+    loop = body[1]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), acc)):
+        return None
+    if not _is_warn_only_body(loop.get("body") or []):
+        return None
+    return {"name": func.get("name"), "subj": subj, "field": key}
+
+
+def emit_check_warn_fold_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the IR-list warn-fold caller (see module note): read the ONE list
+    field off `ir`'s bridged pydict (`pget_list "<field>"`) and fold it to unit
+    (each `warnings.warn` -> no-op). Total + terminating over the certified
+    pydict/list `pyval` bridge; no raise path, `ensures true`. NO new
+    type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    field = desc["field"]
+    out: List[str] = []
+    out.append(f"  let rec {n}__list (l: list pyval) : unit")
+    out.append("    requires { true } ensures { true } variant { l }")
+    out.append(f"  = match l with Nil -> () | Cons _ t -> {n}__list t end")
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {subj} with")
+    out.append(f'    | PDict d -> {n}__list (pget_list "{field}" d)')
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,

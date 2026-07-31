@@ -933,10 +933,16 @@ def _union_c11_check_dead_arms(match_stmt: Any, fname: str) -> None:
 def _check_callable_params(func: Any) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_union_gt1(ir: Any) -> None:
-    pass
+    gt1_sites = ir.get("union_gt1_sites") or []
+    for site in gt1_sites:
+        warnings.warn(
+            f"GT1: Union arm `Any` refused (opaque, operation-barren) in "
+            f"variant '{site}'. The arm was dropped from the synthesized variant; "
+            f"the static plane discharges C2/C3 against non-`Any` arms only.",
+            stacklevel=2,
+        )
 
