@@ -39,3 +39,13 @@ Sound fix: shared recursive `_pb_stmt__dget : pydict -> option pyval` with a `pv
 Whole-file proof: 449 Valid, 0 unproven. NEXT FOLLOW-ON: `_cs_stmt` (same fusion pattern with
 _cs_body/_cs_descend) — but it cross-calls the still-trusted `_cs_clause` (a set-consumer over
 `_ir_free_vars`), so it may need `_cs_clause`/`_ir_free_vars` handled first.
+
+## UPDATE 2026-07-31 (cont.) — _cs_stmt chain BROKEN (user authorized), count 874→871
+The `_cs_stmt` follow-on landed as a 3-conversion chain, all with EXISTING machinery (no new cert,
+ledger 3): `_ir_free_vars` (set-union fold → the existing `map string bool` set model; commit 24b663e0),
+`_cs_clause` (set-consumer: _contains_result guard + StrSet.mem double-membership + raise), and `_cs_stmt`
+(the `{_cs_stmt,_cs_body,_cs_descend}` trio-fusion reusing the proven emit_pb_trio_group recipe;
+commit 009f4384). `_cs_clause` erases `ctx` (error-message-only) — added to check-emitted-vacuity.py
+KNOWN_ERASURES as FAITHFUL-by-semantics (WhyML matches exceptions by type, not message). Whole-file proof
+SUCCESS, byte-diff 0, §10c all-7 ✓, vacuity 0. Both walker trios (_pb + _cs) now proven — the
+structured-dispatcher wall is fully cleared. Run total this session: 883→871 (12 conversions).
