@@ -2063,7 +2063,8 @@ class PreambleEmissionMixin:
             recognize_cs_clause, recognize_check_contract_exprs,
             recognize_check_body_walk,
             recognize_check_subscript_assignments,
-            recognize_check_contract_scope)
+            recognize_check_contract_scope,
+            recognize_check_clause_fold)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
@@ -2076,6 +2077,7 @@ class PreambleEmissionMixin:
             or recognize_check_body_walk(f) is not None
             or recognize_check_subscript_assignments(f) is not None
             or recognize_check_contract_scope(f) is not None
+            or recognize_check_clause_fold(f) is not None
             for f in functions)
         # pdict-to-sdict-impl.md: the heterogeneous-func caller cluster
         # (`_check_contract_exprs` + the body-only `_check_checkpoints`/
@@ -2086,7 +2088,8 @@ class PreambleEmissionMixin:
             recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
             or recognize_check_subscript_assignments(f) is not None
-            or recognize_check_contract_scope(f) is not None for f in functions)
+            or recognize_check_contract_scope(f) is not None
+            or recognize_check_clause_fold(f) is not None for f in functions)
         needs_pydict = needs_sdict or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_substmap(f) is not None

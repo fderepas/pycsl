@@ -8129,6 +8129,244 @@ def emit_check_field_guard_raise_group(
 
 
 # =========================================================================
+# CLAUSE-LIST FIELD-CHECK FOLD `_check_*` caller (`_check_assigns_regions`)
+# — a caller that folds over ONE contract clause-list
+# (`func["contracts"]["assigns"]`), projecting each element's nested fields,
+# doing a `symtab.get(base)` lookup and a literal-set membership decision, then
+# raising `PyCSLSemanticError`. Shape (exactly THREE statements):
+#
+#     def _check_X(func) -> None:
+#         where  = f"…"                                     # FString ctx (irrelevant)
+#         symtab = func.get("<SYMTAB_FIELD>") or {}
+#         for target in func.get("<CF>", {}).get("<AF>", []) or []:
+#             if isinstance(target, dict) and target.get("<TYPE_KEY>") == "<TAG>":
+#                 base     = target.get("<BASE_KEY>")
+#                 arr_type = symtab.get(base)
+#                 if arr_type is None:                 raise PyCSLSemanticError(…)
+#                 if arr_type not in (<S0>, <S1>, …):  raise PyCSLSemanticError(…)
+#
+# Emitted as a bounded INLINE list fold (NOT a walker delegation): the caller
+# reads the `symbol_table` pydict field off `func`, bridges it to `sdict`, and
+# runs a local `let rec …__fold` over `pget_list "<AF>"` of the `<CF>` pydict.
+# Per element: read `<TYPE_KEY>`, and when it equals `<TAG>` read `<BASE_KEY>`,
+# `slookup` it in the bridged symtab, and raise on a `None` lookup (undefined
+# variable — the `arr_type is None` arm; a missing/non-string base reads as
+# `None`, faithfully `symtab.get(None)`) or a non-member type (the `not in`
+# literal-set arm). WHICH raise fires is a value fact no VC constrains
+# (insight C); the SHAPE — reading type/base off the element + the symtab via
+# `slookup` + the pinned literal set as `pystr_eq` disjunctions — is validated,
+# keeping the emission non-vacuous (every raise path AND the normal-exit arms
+# are live) and mutation-faithful (change the tag / base-key / literal-set in the
+# source and the emitted .mlw moves). Reuses the certified pydict->sdict bridge +
+# `slookup`; NO new type/axiom/cert, ledger 3. The `where` FString ctx is
+# verification-irrelevant (error-message-only). Emitted inline at the caller's
+# own slot (NO deferral, no forward reference — the check is fully inline).
+# =========================================================================
+
+def recognize_check_clause_fold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the clause-list field-check fold `_check_*` caller
+    (see module note). Returns a descriptor of the field keys, the guard tag, the
+    literal type set, and the exception, or None; never raises."""
+    try:
+        return _recognize_check_clause_fold(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_clause_fold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    # [0] where = f"…" (FString ctx; content verification-irrelevant)
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"
+            and isinstance(s0.get("value"), dict)
+            and s0["value"].get("type") == "FString"):
+        return None
+    # [1] symtab = func.get("<SYMTAB_FIELD>") or {}
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    symtab_lv = s1.get("target")
+    symtab_field = _cce_field_or_default(s1.get("value"), subj)
+    if not (isinstance(symtab_lv, str) and symtab_field):
+        return None
+    # [2] for target in func.get("<CF>", {}).get("<AF>", []) or []: <inner-if>
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "For"):
+        return None
+    tgt_lv = s2.get("target")
+    if not isinstance(tgt_lv, str):
+        return None
+    it = s2.get("iter") or {}
+    # unwrap the trailing `… or []` idiom, then the chained `.get(<AF>).get`.
+    inner_it = (it.get("left") if isinstance(it, dict) and it.get("type") == "BinOp"
+                and it.get("op") == "or" else it)
+    if not (isinstance(inner_it, dict) and inner_it.get("type") == "Call"
+            and inner_it.get("func") == "get"):
+        return None
+    iargs = inner_it.get("args") or []
+    if not iargs:
+        return None
+    assigns_field = _is_string(iargs[0])
+    if not assigns_field:
+        return None
+    contracts_field = _match_get_call(inner_it.get("receiver") or {}, subj)
+    if not contracts_field:
+        return None
+    # for-body: a single inner If (the field-check guard).
+    fb = s2.get("body") or []
+    if len(fb) != 1:
+        return None
+    guard = fb[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")):
+        return None
+    # test: isinstance(target, dict) and target.get("<TYPE_KEY>") == "<TAG>"
+    gt = guard.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"):
+        return None
+    if not _match_isinstance(gt.get("left", {}), tgt_lv, "dict"):
+        return None
+    tr = gt.get("right", {})
+    if not (isinstance(tr, dict) and tr.get("type") == "BinOp" and tr.get("op") == "=="):
+        return None
+    type_key = _match_get_call(tr.get("left", {}), tgt_lv)
+    tag = _is_string(tr.get("right"))
+    if not (type_key and tag):
+        return None
+    # guard-body (4 stmts): base = …; arr_type = symtab.get(base); 2 raises.
+    gb = guard.get("body") or []
+    if len(gb) != 4:
+        return None
+    # [0] base = target.get("<BASE_KEY>")
+    b0 = gb[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    base_lv = b0.get("target")
+    base_key = _match_get_call(b0.get("value", {}), tgt_lv)
+    if not (isinstance(base_lv, str) and base_key):
+        return None
+    # [1] arr_type = symtab.get(base)  (the local symtab from body[1])
+    b1 = gb[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Assign"):
+        return None
+    at_lv = b1.get("target")
+    bv = b1.get("value", {})
+    if not (isinstance(bv, dict) and bv.get("type") == "Call"
+            and bv.get("func") == f"{symtab_lv}.get"):
+        return None
+    bargs = bv.get("args") or []
+    if not (isinstance(at_lv, str) and len(bargs) == 1 and _is_var(bargs[0], base_lv)):
+        return None
+    # [2] if arr_type is None: raise <Exc>
+    b2 = gb[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "If" and not b2.get("orelse")):
+        return None
+    t2 = b2.get("test", {})
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp" and t2.get("op") == "=="
+            and _is_var(t2.get("left"), at_lv)
+            and isinstance(t2.get("right"), dict) and t2["right"].get("type") == "None"):
+        return None
+    b2b = b2.get("body") or []
+    if len(b2b) != 1:
+        return None
+    exc = _match_sa_raise(b2b[0])
+    if exc is None:
+        return None
+    # [3] if arr_type not in (<S0>, …): raise <Exc>
+    b3 = gb[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "If" and not b3.get("orelse")):
+        return None
+    t3 = b3.get("test", {})
+    if not (isinstance(t3, dict) and t3.get("type") == "BinOp" and t3.get("op") == "not in"
+            and _is_var(t3.get("left"), at_lv)):
+        return None
+    tup = t3.get("right", {})
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    ok_types = [_is_string(e) for e in tup.get("elts", [])]
+    if not ok_types or any(s is None for s in ok_types):
+        return None
+    b3b = b3.get("body") or []
+    if len(b3b) != 1 or _match_sa_raise(b3b[0]) != exc:
+        return None
+    return {"name": func.get("name"), "subj": subj,
+            "symtab_field": symtab_field, "contracts_field": contracts_field,
+            "assigns_field": assigns_field, "type_key": type_key, "tag": tag,
+            "base_key": base_key, "ok_types": ok_types, "exc": exc}
+
+
+def emit_check_clause_fold_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the clause-list field-check fold `_check_*` caller (see module note):
+    bridge `func`'s `symbol_table` pydict field to `sdict`, then run a local
+    `let rec …__fold` over `pget_list "<assigns_field>"` of the `<contracts_field>`
+    pydict. Per element read the type key, and when it equals the guard tag read
+    the base key and `slookup` it in the bridged symtab, `raise`-ing on a `None`
+    lookup (undefined variable) or a non-member type. Type-safe + terminating over
+    the certified pydict/sdict bridge (no recursion beyond the structural list
+    fold, no new type/axiom/cert, ledger 3)."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    exc = desc["exc"]
+    sf, cf, af = desc["symtab_field"], desc["contracts_field"], desc["assigns_field"]
+    tag = desc["tag"]
+    type_suf = _reader_suffix(desc["type_key"])
+    base_suf = _reader_suffix(desc["base_key"])
+    out: List[str] = []
+    # ---- spine readers for the element's type + base keys (string-valued) ----
+    out += _sa_reader_lines(n, desc["type_key"], as_str=True)
+    out += _sa_reader_lines(n, desc["base_key"], as_str=True)
+    # ---- ok-type membership (semantic guard, insight C: result unconstrained) ----
+    cond = " || ".join(f'pystr_eq s "{t}"' for t in desc["ok_types"])
+    out.append(f"  let function {n}__ok_type (s: string) : bool = {cond}")
+    # ---- the bounded inline clause-list fold ----
+    out.append(f"  let rec {n}__fold (xs: list pyval) (symtab: sdict) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append("    variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h t ->")
+    out.append("        (match h with")
+    out.append("         | PDict d ->")
+    out.append(f"             (match {n}__get_{type_suf} d with")
+    out.append(f'              | Some ty -> if pystr_eq ty "{tag}" then')
+    out.append(f"                  (match {n}__get_{base_suf} d with")
+    out.append("                   | Some b ->")
+    out.append("                       (match slookup b symtab with")
+    out.append(f"                        | None -> raise {exc}")
+    out.append(f"                        | Some (PStr aty) -> if {n}__ok_type aty then () else raise {exc}")
+    out.append(f"                        | Some _ -> raise {exc}")
+    out.append("                        end)")
+    out.append(f"                   | None -> raise {exc} end)")
+    out.append("                else ()")
+    out.append("              | None -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__fold t symtab")
+    out.append("    end")
+    # ---- the caller entry point: bridge symtab, then fold the assigns list ----
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"  = let symtab = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+    out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+    out.append("                    | _ -> SNil end)")
+    out.append("      | _ -> SNil end) in")
+    out.append(f"    (match {subj} with")
+    out.append(f'     | PDict d -> (match pget_dyn "{cf}" d with')
+    out.append(f'                   | Some (PDict cd) -> {n}__fold (pget_list "{af}" cd) symtab')
+    out.append("                   | _ -> () end)")
+    out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,

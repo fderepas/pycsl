@@ -50,12 +50,27 @@ def _check_span(func: Any, stage: str) -> None:
 def _check_no_exception(func: Any) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_assigns_regions(func: Any) -> None:
-    pass
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    for target in func.get("contracts", {}).get("assigns", []) or []:
+        if isinstance(target, dict) and target.get("type") == "AssignsRegion":
+            base = target.get("base")
+            arr_type = symtab.get(base)
+            if arr_type is None:
+                raise PyCSLSemanticError(
+                    f"Assigns region references undefined variable '{base}' in {where}.",
+                    code="PYCSL-SEM-ASSIGNS",
+                )
+            if arr_type not in ("list", "List", "Any"):
+                raise PyCSLSemanticError(
+                    f"Assigns region on non-list variable '{base}' "
+                    f"(type '{arr_type}') in {where}.",
+                    code="PYCSL-SEM-ASSIGNS",
+                )
 
 _PB_ARRAY_BASE_TYPES = ('list', 'List', 'bytes', 'bytearray', 'Any', None)
 _PB_LENGTHLESS_TYPES = ('dict', 'Dict', 'set', 'Set', 'frozenset', 'FrozenSet')

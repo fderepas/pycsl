@@ -2835,7 +2835,8 @@ class FunctionEmissionMixin:
             recognize_cs_clause, emit_cs_clause_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
-            recognize_check_field_guard_raise, emit_check_field_guard_raise_group)
+            recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
+            recognize_check_clause_fold, emit_check_clause_fold_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -2959,6 +2960,17 @@ class FunctionEmissionMixin:
         _fgr = recognize_check_field_guard_raise(func)
         if _fgr is not None:
             return emit_check_field_guard_raise_group(_fgr, whyml_ident)
+        # CLAUSE-LIST FIELD-CHECK FOLD `_check_*` caller
+        # (`_check_assigns_regions`): a caller that folds ONE contract clause-list
+        # (`contracts["assigns"]`), projecting each element's nested `type`/`base`
+        # fields, `slookup`-ing `base` in the bridged symtab, and raising on a
+        # `None` lookup or a non-member type. Emitted inline (bounded list fold, no
+        # walker delegation, no forward reference) over the certified pydict->sdict
+        # bridge + `slookup`. Fail-closed; a shape outside the fragment stays
+        # `\trusted`.
+        _ccf = recognize_check_clause_fold(func)
+        if _ccf is not None:
+            return emit_check_clause_fold_group(_ccf, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)
