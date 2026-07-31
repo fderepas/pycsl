@@ -2059,7 +2059,7 @@ class PreambleEmissionMixin:
             recognize_stmt_setfold, recognize_void_generic_descend,
             recognize_type_existence, recognize_named_field_existence,
             recognize_pyval_string_walker, recognize_pyval_list_walker,
-            recognize_pyval_flatten)
+            recognize_pyval_flatten, recognize_ir_free_vars)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
@@ -2082,6 +2082,7 @@ class PreambleEmissionMixin:
             or recognize_pyval_list_walker(f) is not None
             or recognize_pyval_flatten(f) is not None
             or recognize_cpwalk(f) is not None
+            or recognize_ir_free_vars(f) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only

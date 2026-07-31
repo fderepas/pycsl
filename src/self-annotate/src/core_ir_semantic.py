@@ -214,12 +214,51 @@ def _cs_descend(v, fname, symtab, mc) -> None:
 def _cs_clause(clause, ctx, allow_result, symtab, mc) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _ir_free_vars(node):
-    pass
+    """IR port of Module 4's ``extract_variables`` — the free (local-scope) variable
+    names a contract expr references. Excludes quantifier binders, ``\\result`` (a
+    ``Result`` node, not a ``Var``), and ``self`` fields (``FieldGet``); the string-base
+    predicates (``\\length``/``\\valid``/``\\separated``/``\\copy``/assigns-region) carry
+    their base as a string, so it is added explicitly before the generic recursion picks
+    up nested ``Var`` nodes (lengths, indices, bounds)."""
+    if isinstance(node, list):
+        out: set = set()
+        for x in node:
+            out |= _ir_free_vars(x)
+        return out
+    if not isinstance(node, dict):
+        return set()
+    t = node.get("type")
+    if t == "Var":
+        return {node.get("name")}
+    if t in ("FieldGet", "Result", "Attribute", "Call", "CallExpr"):
+        return set()
+    if t == "ArrayLen":
+        var = node.get("var", "")
+        if str(var).startswith("self.") or var == "\\result":
+            return set()
+        return {var}
+    if t in ("Forall", "Exists"):
+        return _ir_free_vars(node.get("body")) - {node.get("var")}
+    if t == "ForallItems":
+        return ((_ir_free_vars(node.get("body")) - {node.get("key"), node.get("val")})
+                | {node.get("coll")})
+    base_names: set = set()
+    if t == "Valid":
+        base_names = {node.get("base")}
+    elif t == "Separated":
+        base_names = {node.get("base1"), node.get("base2")}
+    elif t in ("GhostCopy", "GhostCopyRange"):
+        base_names = {node.get("arr")}
+    elif t == "AssignsRegion":
+        base_names = {node.get("base")}
+    out = {b for b in base_names if b}
+    for v in node.values():
+        out |= _ir_free_vars(v)
+    return out
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

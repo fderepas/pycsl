@@ -6471,6 +6471,490 @@ def emit_pb_trio_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
 
 
 # =========================================================================
+# IR-FREE-VARS — the `_ir_free_vars` value-returning SET-UNION fold
+# (core_ir_semantic self-annotation). A `Set[str]` catamorphism over the
+# dynamic `pyval`/`pydict`/`list pyval` ADT, returning the certified L1 set
+# repr `map string bool` (`set_add`/`set_union` from the pydict theory, plus a
+# purely-model `set_remove` val for the quantifier-binder subtractions). Under
+# the fixed `ensures True` contract the set VALUE is never observed — the proof
+# checks type-safety + termination only; the emitter reads the type-tag strings
+# and dict keys OFF the body (fail-closed), so a tag/key change moves the
+# emitted `.mlw` (mutation-faithful) or fails the match and reverts the method
+# to `\trusted` (loud count regression, never a false proof).
+#
+# TERMINATION: the banked `{ pv_size, phase }` lexicographic variant (top fold
+# phase 0, __d/__l phase 1). Child recursion (`node.get("body")` in the
+# Forall/Exists/ForallItems arms) routes through the shared `__dget` extractor
+# carrying the `pv_size w < 1 + size_dict d` postcondition — the Z3-fast form
+# proven whole-file for the pb trio's `__dget`. Corpus-inert (fires only for the
+# recognised mirror function).
+# =========================================================================
+
+def _fv_empty_set(node: Any) -> bool:
+    """`set()` — a no-arg call to the `set` builtin."""
+    return (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "set" and not (node.get("args") or []))
+
+
+def _fv_setlit_getkeys(node: Any, subj: str) -> Optional[List[str]]:
+    """A `{ <subj>.get("k1"), <subj>.get("k2"), ... }` set literal -> [k1, k2],
+    else None. Every element must be a single-arg `<subj>.get(<str>)`."""
+    if not (isinstance(node, dict) and node.get("type") == "SetLit"):
+        return None
+    keys: List[str] = []
+    for e in node.get("elts") or []:
+        k = _sget_key(e, subj)
+        if k is None:
+            return None
+        keys.append(k)
+    return keys
+
+
+def _fv_self_call_getkey(node: Any, name: str, subj: str) -> Optional[str]:
+    """`<name>(<subj>.get("<k>"))` (the self-recursion into a child field) -> k."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and _canon_call(node.get("func") or "") == name):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    return _sget_key(args[0], subj)
+
+
+def _fv_tags_of_test(test: Any, tvar: str) -> Optional[List[str]]:
+    """`t == "TAG"` -> ["TAG"]; `t in ("T1","T2",...)` -> [T1,T2,...]; else None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"):
+        return None
+    if not _is_var(test.get("left"), tvar):
+        return None
+    op = test.get("op")
+    if op == "==":
+        s = _is_string(test.get("right"))
+        return [s] if s is not None else None
+    if op == "in":
+        rt = test.get("right") or {}
+        if not (isinstance(rt, dict) and rt.get("type") == "Tuple"):
+            return None
+        tags: List[str] = []
+        for e in rt.get("elts") or []:
+            s = _is_string(e)
+            if s is None:
+                return None
+            tags.append(s)
+        return tags or None
+    return None
+
+
+def recognize_ir_free_vars(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_ir_free_vars` Set[str] union-fold (see module
+    note). Returns a descriptor of the extracted tag/key strings, or None."""
+    try:
+        return _recognize_ir_free_vars(func)
+    except Exception:
+        return None
+
+
+def _recognize_ir_free_vars(func):
+    name = func.get("name")
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    body = func.get("body") or []
+    if len(body) != 13:
+        return None
+    # [0] if isinstance(node, list): out=set(); for x in node: out|=self(x); return out
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If"
+            and _match_isinstance(s0.get("test"), subj, "list")
+            and not (s0.get("orelse") or [])):
+        return None
+    b0 = s0.get("body") or []
+    if len(b0) != 3 or not (b0[0].get("stmt") == "Assign"
+                            and _fv_empty_set(b0[0].get("value"))):
+        return None
+    lacc = b0[0].get("target")
+    lloop = b0[1]
+    if not (isinstance(lloop, dict) and lloop.get("stmt") == "For"
+            and _is_var(lloop.get("iter"), subj)):
+        return None
+    lv = lloop.get("target")
+    lbody = lloop.get("body") or []
+    if len(lbody) != 1 or not _fv_aug_self(lbody[0], lacc, name, lv):
+        return None
+    if not (b0[2].get("stmt") == "Return" and _is_var(b0[2].get("value"), lacc)):
+        return None
+    # [1] if not isinstance(node, dict): return set()
+    s1 = body[1]
+    t1 = s1.get("test") if isinstance(s1, dict) else None
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If"
+            and isinstance(t1, dict) and t1.get("type") == "UnaryOp"
+            and t1.get("op") == "not"
+            and _match_isinstance(t1.get("expr"), subj, "dict")):
+        return None
+    rb1 = s1.get("body") or []
+    if len(rb1) != 1 or not (rb1[0].get("stmt") == "Return"
+                             and _fv_empty_set(rb1[0].get("value"))):
+        return None
+    # [2] t = node.get("type")
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Assign"):
+        return None
+    type_key = _sget_key(s2.get("value"), subj)
+    tvar = s2.get("target")
+    if type_key is None or not isinstance(tvar, str):
+        return None
+    # [3] if t == "Var": return { node.get("name") }
+    var_tags = _fv_return_guard_tags(body[3], tvar)
+    if var_tags is None or len(var_tags) != 1:
+        return None
+    var_ret = body[3]["body"][0].get("value")
+    name_keys = _fv_setlit_getkeys(var_ret, subj)
+    if name_keys is None or len(name_keys) != 1:
+        return None
+    # [4] if t in (...opaque...): return set()
+    opq_tags = _fv_return_guard_tags(body[4], tvar)
+    if opq_tags is None or not _fv_empty_set(body[4]["body"][0].get("value")):
+        return None
+    # [5] if t == "ArrayLen": [var=node.get("var",""); if ...: return set(); return {var}]
+    al = _fv_match_arraylen(body[5], tvar, subj, name)
+    if al is None:
+        return None
+    # [6] if t in ("Forall","Exists"): return self(node.get("body")) - {node.get("var")}
+    q = _fv_match_quant(body[6], tvar, subj, name)
+    if q is None:
+        return None
+    # [7] if t == "ForallItems": return (self(get(body)) - {get(key),get(val)}) | {get(coll)}
+    fi = _fv_match_forallitems(body[7], tvar, subj, name)
+    if fi is None:
+        return None
+    # [8] base_names = set()
+    if not (isinstance(body[8], dict) and body[8].get("stmt") == "Assign"
+            and _fv_empty_set(body[8].get("value"))):
+        return None
+    bn_var = body[8].get("target")
+    # [9] the Valid/Separated/GhostCopy/AssignsRegion base-name if/elif chain
+    base_branches = _fv_match_base_chain(body[9], tvar, subj, bn_var)
+    if base_branches is None:
+        return None
+    # [10] out = {b for b in base_names if b}
+    if not _fv_match_setcomp(body[10], bn_var):
+        return None
+    oacc = body[10].get("target")
+    # [11] for v in node.values(): out |= self(v)
+    vloop = body[11]
+    if not (isinstance(vloop, dict) and vloop.get("stmt") == "For"):
+        return None
+    vit = vloop.get("iter") or {}
+    if not (isinstance(vit, dict) and vit.get("type") == "Call"
+            and vit.get("func") == f"{subj}.values" and not (vit.get("args") or [])):
+        return None
+    vv = vloop.get("target")
+    vb = vloop.get("body") or []
+    if len(vb) != 1 or not _fv_aug_self(vb[0], oacc, name, vv):
+        return None
+    # [12] return out
+    if not (isinstance(body[12], dict) and body[12].get("stmt") == "Return"
+            and _is_var(body[12].get("value"), oacc)):
+        return None
+    return {
+        "name": name,
+        "type_key": type_key,
+        "var_tags": var_tags,
+        "name_key": name_keys[0],
+        "opaque_tags": opq_tags,
+        "arraylen": al,
+        "quant": q,
+        "forallitems": fi,
+        "base_branches": base_branches,
+    }
+
+
+def _fv_aug_self(stmt: Any, acc: str, name: str, loopvar: str) -> bool:
+    """`<acc> |= <name>(<loopvar>)`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "AugAssign"
+            and stmt.get("target") == acc and stmt.get("op") == "|"):
+        return False
+    call = stmt.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and _canon_call(call.get("func") or "") == name):
+        return False
+    args = call.get("args") or []
+    return len(args) == 1 and _is_var(args[0], loopvar)
+
+
+def _fv_return_guard_tags(stmt: Any, tvar: str) -> Optional[List[str]]:
+    """A `if <t-tags>: return <expr>` guard (single Return body, empty orelse)
+    -> the tag list, else None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not (stmt.get("orelse") or [])):
+        return None
+    tags = _fv_tags_of_test(stmt.get("test"), tvar)
+    if tags is None:
+        return None
+    b = stmt.get("body") or []
+    if len(b) != 1 or b[0].get("stmt") != "Return":
+        return None
+    return tags
+
+
+def _fv_match_arraylen(stmt: Any, tvar: str, subj: str,
+                       name: str) -> Optional[Dict[str, Any]]:
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not (stmt.get("orelse") or [])):
+        return None
+    tags = _fv_tags_of_test(stmt.get("test"), tvar)
+    if tags is None or len(tags) != 1:
+        return None
+    b = stmt.get("body") or []
+    if len(b) != 3:
+        return None
+    if not (b[0].get("stmt") == "Assign"):
+        return None
+    var_key = _sget_key(b[0].get("value"), subj)
+    lvar = b[0].get("target")
+    if var_key is None or not isinstance(lvar, str):
+        return None
+    # inner guard: if str(var).startswith("self.") or var == "\result": return set()
+    g = b[1]
+    if not (isinstance(g, dict) and g.get("stmt") == "If"
+            and not (g.get("orelse") or [])):
+        return None
+    gt = g.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "or"):
+        return None
+    sw = _fv_startswith_prefix(gt.get("left"), lvar)
+    rl = gt.get("right") or {}
+    if sw is None or not (isinstance(rl, dict) and rl.get("type") == "BinOp"
+                          and rl.get("op") == "==" and _is_var(rl.get("left"), lvar)):
+        return None
+    result_lit = _is_string(rl.get("right"))
+    if result_lit is None:
+        return None
+    gb = g.get("body") or []
+    if len(gb) != 1 or not (gb[0].get("stmt") == "Return"
+                            and _fv_empty_set(gb[0].get("value"))):
+        return None
+    if not (b[2].get("stmt") == "Return"):
+        return None
+    ret_elts = b[2].get("value") or {}
+    if not (isinstance(ret_elts, dict) and ret_elts.get("type") == "SetLit"
+            and len(ret_elts.get("elts") or []) == 1
+            and _is_var(ret_elts["elts"][0], lvar)):
+        return None
+    return {"tag": tags[0], "var_key": var_key,
+            "self_prefix": sw, "result_lit": result_lit}
+
+
+def _fv_startswith_prefix(node: Any, var: str) -> Optional[str]:
+    """`str(<var>).startswith("<prefix>")` -> prefix, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "startswith"):
+        return None
+    rcv = node.get("receiver") or {}
+    if not (isinstance(rcv, dict) and rcv.get("type") == "Call"
+            and rcv.get("func") == "str" and _is_var((rcv.get("args") or [None])[0], var)):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    return _is_string(args[0])
+
+
+def _fv_match_quant(stmt: Any, tvar: str, subj: str,
+                    name: str) -> Optional[Dict[str, Any]]:
+    tags = _fv_return_guard_tags(stmt, tvar)
+    if tags is None:
+        return None
+    ret = stmt["body"][0].get("value") or {}
+    # self(node.get(body_key)) - { node.get(var_key) }
+    if not (isinstance(ret, dict) and ret.get("type") == "BinOp"
+            and ret.get("op") == "-"):
+        return None
+    body_key = _fv_self_call_getkey(ret.get("left"), name, subj)
+    minus = _fv_setlit_getkeys(ret.get("right"), subj)
+    if body_key is None or minus is None or len(minus) != 1:
+        return None
+    return {"tags": tags, "body_key": body_key, "var_key": minus[0]}
+
+
+def _fv_match_forallitems(stmt: Any, tvar: str, subj: str,
+                          name: str) -> Optional[Dict[str, Any]]:
+    tags = _fv_return_guard_tags(stmt, tvar)
+    if tags is None or len(tags) != 1:
+        return None
+    ret = stmt["body"][0].get("value") or {}
+    # (self(get(body)) - {get(key),get(val)}) | {get(coll)}
+    if not (isinstance(ret, dict) and ret.get("type") == "BinOp"
+            and ret.get("op") == "|"):
+        return None
+    coll = _fv_setlit_getkeys(ret.get("right"), subj)
+    inner = ret.get("left") or {}
+    if coll is None or len(coll) != 1:
+        return None
+    if not (isinstance(inner, dict) and inner.get("type") == "BinOp"
+            and inner.get("op") == "-"):
+        return None
+    body_key = _fv_self_call_getkey(inner.get("left"), name, subj)
+    minus = _fv_setlit_getkeys(inner.get("right"), subj)
+    if body_key is None or minus is None or len(minus) != 2:
+        return None
+    return {"tag": tags[0], "body_key": body_key,
+            "key_key": minus[0], "val_key": minus[1], "coll_key": coll[0]}
+
+
+def _fv_match_base_chain(stmt: Any, tvar: str, subj: str,
+                         bn_var: str) -> Optional[List[Dict[str, Any]]]:
+    """The `if t=="Valid": base_names={get(base)} elif ...` chain ->
+    ordered list of {tags, keys}, else None."""
+    branches: List[Dict[str, Any]] = []
+    cur = stmt
+    while isinstance(cur, dict) and cur.get("stmt") == "If":
+        tags = _fv_tags_of_test(cur.get("test"), tvar)
+        if tags is None:
+            return None
+        b = cur.get("body") or []
+        if len(b) != 1 or not (b[0].get("stmt") == "Assign"
+                               and b[0].get("target") == bn_var):
+            return None
+        keys = _fv_setlit_getkeys(b[0].get("value"), subj)
+        if keys is None:
+            return None
+        branches.append({"tags": tags, "keys": keys})
+        orelse = cur.get("orelse") or []
+        if not orelse:
+            return branches
+        if len(orelse) == 1 and isinstance(orelse[0], dict) \
+                and orelse[0].get("stmt") == "If":
+            cur = orelse[0]
+        else:
+            return None
+    return branches or None
+
+
+def _fv_match_setcomp(stmt: Any, bn_var: str) -> bool:
+    """`out = { b for b in base_names if b }`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return False
+    sc = stmt.get("value") or {}
+    if not (isinstance(sc, dict) and sc.get("type") == "SetComp"):
+        return False
+    gens = sc.get("generators") or []
+    if len(gens) != 1:
+        return False
+    g = gens[0]
+    tvar = g.get("target")
+    return (_is_var(sc.get("elt"), tvar)
+            and _is_var(g.get("iter"), bn_var))
+
+
+def _fv_tag_cond(tags: List[str], tvar: str) -> str:
+    """`pystr_eq t "T1" || pystr_eq t "T2" || ...`."""
+    return " || ".join(f'pystr_eq {tvar} "{t}"' for t in tags)
+
+
+def _fv_addk_fold(keys: List[str], n: str, base: str) -> str:
+    """Nested `{n}__addk "kN" d ( ... {n}__addk "k1" d <base> )`."""
+    expr = base
+    for k in keys:
+        expr = f'{n}__addk "{k}" d ({expr})'
+    return expr
+
+
+def emit_ir_free_vars_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_ir_free_vars` Set[str] union-fold group (see module note).
+    Transcribes the whole-body-proven fv_full.mlw shape, with the type tags and
+    dict keys read off the recognised body."""
+    n = whyml_ident(desc["name"])
+    tv = "t"
+    empty = "(const false : map string bool)"
+    out: List[str] = []
+    out.append(f"  val {n}__sw (s p: string) : bool")
+    # `set_remove` (the quantifier-binder subtraction) — purely a `Map.set … false`
+    # val, parallel to the preamble's `set_add`; emitted here (not the shared
+    # pydict theory) so every other pydict-theory mirror/corpus file stays
+    # byte-identical. No axiom (`ensures { result = Map.set … }` is the def).
+    out.append("  val set_remove (m: map string bool) (e: string) : map string bool")
+    out.append("    ensures { result = Map.set m e false }")
+    out.append(f"  let rec {n}__dget (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons (K_dyn k) v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        if pystr_eq k key then Some v else {n}__dget key rest")
+    out.append("    | DCons _ v rest ->")
+    out.append(f"        size_pos v; size_dict_nonneg rest; {n}__dget key rest end")
+    out.append(f"  let {n}__str (key: string) (d: pydict) : option string")
+    out.append(f"  = match {n}__dget key d with Some (PStr s) -> Some s | _ -> None end")
+    out.append(f"  let {n}__addk (key: string) (d: pydict) (acc: map string bool) : map string bool")
+    out.append(f"  = match {n}__str key d with Some s -> set_add acc s | None -> acc end")
+    out.append(f"  let rec {n} (node: pyval) : map string bool")
+    out.append("    variant { pv_size node, 0 }")
+    out.append("  = match node with")
+    out.append(f"    | PList xs -> {n}__l xs")
+    out.append("    | PDict d ->")
+    out.append(f'        (match {n}__str "{desc["type_key"]}" d with')
+    out.append("         | Some t ->")
+    out.append(f'             if {_fv_tag_cond(desc["var_tags"], tv)} then')
+    out.append(f'               {n}__addk "{desc["name_key"]}" d {empty}')
+    out.append(f'             else if {_fv_tag_cond(desc["opaque_tags"], tv)} then')
+    out.append(f"               {empty}")
+    al = desc["arraylen"]
+    out.append(f'             else if {_fv_tag_cond([al["tag"]], tv)} then')
+    out.append(f'               (match {n}__str "{al["var_key"]}" d with')
+    out.append("                | Some var ->")
+    out.append(f'                    if {n}__sw var "{al["self_prefix"]}" || pystr_eq var "{al["result_lit"]}"')
+    out.append(f"                    then {empty}")
+    out.append(f"                    else set_add {empty} var")
+    out.append(f"                | None -> {empty} end)")
+    q = desc["quant"]
+    out.append(f'             else if {_fv_tag_cond(q["tags"], tv)} then')
+    out.append(f'               (match {n}__dget "{q["body_key"]}" d with')
+    out.append("                | Some w ->")
+    out.append(f'                    (match {n}__str "{q["var_key"]}" d with')
+    out.append(f"                     | Some bv -> set_remove ({n} w) bv")
+    out.append(f"                     | None -> {n} w end)")
+    out.append(f"                | None -> {empty} end)")
+    fi = desc["forallitems"]
+    out.append(f'             else if {_fv_tag_cond([fi["tag"]], tv)} then')
+    out.append(f'               (match {n}__dget "{fi["body_key"]}" d with')
+    out.append("                | Some w ->")
+    out.append(f'                    let i1 = (match {n}__str "{fi["key_key"]}" d with')
+    out.append(f"                              | Some kk -> set_remove ({n} w) kk")
+    out.append(f"                              | None -> {n} w end) in")
+    out.append(f'                    let i2 = (match {n}__str "{fi["val_key"]}" d with')
+    out.append("                              | Some vv -> set_remove i1 vv | None -> i1 end) in")
+    out.append(f'                    {n}__addk "{fi["coll_key"]}" d i2')
+    out.append(f"                | None -> {empty} end)")
+    out.append("             else")
+    out.append("               let bn =")
+    first = True
+    for br in desc["base_branches"]:
+        kw = "if" if first else "else if"
+        first = False
+        out.append(f'                 {kw} {_fv_tag_cond(br["tags"], tv)} then')
+        out.append(f'                   {_fv_addk_fold(br["keys"], n, empty)}')
+    out.append(f"                 else {empty}")
+    out.append(f"               in set_union bn ({n}__d d)")
+    out.append(f"         | None -> {n}__d d end)")
+    out.append(f"    | _ -> {empty} end")
+    out.append(f"  with {n}__d (d: pydict) : map string bool")
+    out.append("    variant { size_dict d, 1 }")
+    out.append(f"  = match d with DNil -> {empty}")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        set_union ({n} v) ({n}__d rest) end")
+    out.append(f"  with {n}__l (xs: list pyval) : map string bool")
+    out.append("    variant { size_list xs, 1 }")
+    out.append(f"  = match xs with Nil -> {empty}")
+    out.append("    | Cons h t ->")
+    out.append("        size_pos h; size_list_nonneg t;")
+    out.append(f"        set_union ({n} h) ({n}__l t) end")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,

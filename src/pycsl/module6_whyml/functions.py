@@ -2755,7 +2755,8 @@ class FunctionEmissionMixin:
             recognize_pyval_string_walker, emit_pyval_string_walker_group,
             recognize_pyval_list_walker, emit_pyval_list_walker_group,
             recognize_pyval_list_search, emit_pyval_list_search_group,
-            recognize_pyval_flatten, emit_pyval_flatten_group)
+            recognize_pyval_flatten, emit_pyval_flatten_group,
+            recognize_ir_free_vars, emit_ir_free_vars_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -3041,6 +3042,14 @@ class FunctionEmissionMixin:
         # `pystr_eq`). Reuses the arity-generalized `_sa_walk_group_lines` walk
         # group. Same fail-closed discipline; a template bug is a loud unprovable
         # instance, never a false proof.
+        # IR-FREE-VARS (generic_fold): the `_ir_free_vars` Set[str] union-fold —
+        # a `map string bool` catamorphism over the pyval/pydict ADT. Corpus-inert
+        # (fires only for the recognised mirror function). Same fail-closed
+        # discipline; a template bug is a loud unprovable instance, never a false
+        # proof.
+        _fv = recognize_ir_free_vars(func)
+        if _fv is not None:
+            return emit_ir_free_vars_group(_fv, whyml_ident)
         _pb = recognize_pbexpr(func)
         if _pb is not None:
             lines = emit_pbexpr_group(func, _pb, whyml_ident)
