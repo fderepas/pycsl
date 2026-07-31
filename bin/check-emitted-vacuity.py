@@ -96,6 +96,15 @@ KNOWN_ERASURES = {
     # exception type with or without it). Recorded reason per this ledger's policy; landed with the
     # `_cs_stmt` chain (user-authorized 2026-07-31).
     "_cs_clause",                                            # erases `ctx` (error-message-only; faithful)
+    # `_check_span` erases `stage` — SAME policy as `_cs_clause`'s `ctx`: the
+    # field-guard-raise conversion (a single `if "line" not in func: raise`) models
+    # the guard by the presence of the `"line"` key in `func`'s bridged pydict and
+    # raises `PyCSLSemanticError` by TYPE. `stage` appears ONLY as the `stage=stage`
+    # error-metadata kwarg of that raise constructor — never in the guard condition,
+    # an assignment, or a return — so it is verification-irrelevant (same raise, same
+    # condition, same exception type with or without it). Recorded reason per this
+    # ledger's policy; landed with the field-guard-raise cluster.
+    "_check_span",                                           # erases `stage` (error-message-only; faithful)
 }
 
 

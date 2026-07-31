@@ -2834,7 +2834,8 @@ class FunctionEmissionMixin:
             recognize_ir_free_vars, emit_ir_free_vars_group,
             recognize_cs_clause, emit_cs_clause_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
-            recognize_check_body_walk, emit_check_body_walk_group)
+            recognize_check_body_walk, emit_check_body_walk_group,
+            recognize_check_field_guard_raise, emit_check_field_guard_raise_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -2947,6 +2948,17 @@ class FunctionEmissionMixin:
                     and func.get("name") in _fam.get("method_names", set())):
                 return self._emit_term_pp_delegation(
                     func, _fam, _tspec, whyml_ident)
+        # FIELD-GUARD-RAISE `_check_*` caller (`_check_span`,
+        # `_check_mutable_defaults`): a single-`If` field-guard whose only effect
+        # is `raise PyCSLSemanticError`. Emitted inline (no walker, no forward
+        # reference) — reads one key off `func`'s bridged pydict, raises on its
+        # presence/absence else returns unit. Tried early: a single-statement
+        # If-raise body never matches a fold/walker recogniser, but ordering here
+        # keeps it disjoint by construction. Fail-closed; a shape outside the
+        # fragment stays `\trusted`.
+        _fgr = recognize_check_field_guard_raise(func)
+        if _fgr is not None:
+            return emit_check_field_guard_raise_group(_fgr, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)

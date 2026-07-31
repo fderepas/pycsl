@@ -30,12 +30,18 @@ def _collect_call_targets(node: Any, acc: set) -> None:
 def _check_fresh_globals(ir: Any, stage: str) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_span(func: Any, stage: str) -> None:
-    pass
+    if "line" not in func:
+        name = func.get("name", "<anonymous>")
+        raise PyCSLSemanticError(
+            f"IR function '{name}' carries no source span; a front-end must "
+            f"stamp §4.4 spans (line/col) on every node",
+            stage=stage,
+            code="PYCSL-SEM-SPAN",
+        )
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -545,12 +551,19 @@ def _lemma_calls_trusted(body, trusted) -> str:
 def _check_lemma(func, trusted_funcs) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_mutable_defaults(func) -> None:
-    pass
+    if func.get("has_mutable_default"):
+        raise PyCSLSemanticError(
+            f"Mutable default argument in function '{func.get('name', '<anonymous>')}': "
+            f"a list/dict/set default is a single object shared across all calls (a "
+            f"shared-aliasing bug) and is outside PyCSL's value-semantics boundary "
+            f"(ownership discipline R2). Use a `None` sentinel and initialise the "
+            f"collection in the body.",
+            code="PYCSL-SEM-MUTDEFAULT",
+        )
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

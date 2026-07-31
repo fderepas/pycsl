@@ -7994,6 +7994,141 @@ def emit_check_contract_scope_group(
 
 
 # =========================================================================
+# FIELD-GUARD-RAISE `_check_*` caller (`_check_span`, `_check_mutable_defaults`)
+# — the SIMPLEST heterogeneous-`func` caller: a straight-line field guard whose
+# only effect is to `raise PyCSLSemanticError`. Shape (exactly ONE statement):
+#
+#     def _check_X(<subj>[, <p2>, ...]) -> None:
+#         if <field-guard over subj>:
+#             [<msg-var> = ...        # optional error-message binding(s)]
+#             raise PyCSLSemanticError(f"…", …)
+#
+# where <field-guard> is one of:
+#   * `<subj>.get("K")`      — raise when K is present/truthy  (sense "present")
+#   * `"K" in <subj>`        — raise when K is present         (sense "present")
+#   * `"K" not in <subj>`    — raise when K is absent          (sense "absent")
+#
+# No walker, no contract-clause fan-out, no forward reference: the caller reads a
+# SINGLE key off `func`'s bridged pydict and either raises `PyCSLSemanticError`
+# (in the emitted `raises` set) or returns `unit`. The guard's exact truthiness is
+# a value fact NO VC constrains (insight C) — modelled by the PRESENCE of the key
+# in the bridged pydict, exactly as the `_check_subscript_assignments` annotation
+# gate models its keys. Non-vacuous (reads `func` via `pget_dyn`, both the raise
+# path and the normal-exit `else`/wildcard path are live) and mutation-faithful
+# (change the key/sense and the emitted `.mlw` moves; a shape outside the fragment
+# reverts to `\trusted`). Extra params (only `_check_span`'s error-metadata
+# `stage`) are verification-irrelevant — emitted with their annotated scalar type
+# and unused, exactly as the pre-conversion `\trusted` val declared them (the
+# `stage` erasure is recorded in bin/check-emitted-vacuity.py KNOWN_ERASURES,
+# error-message-only, the same policy as `_cs_clause`'s `ctx`). Emitted inline at
+# the caller's own slot (NO deferral), reusing the same total pydict bridge, NO
+# new type/axiom/cert, ledger 3.
+# =========================================================================
+
+def _field_guard(test: Any, subj: str) -> Optional[Tuple[str, str]]:
+    """A single-key truthiness/membership guard over the subject pydict param.
+    Returns `(key, sense)` where sense is "present" (raise when the key is
+    present/truthy) or "absent" (raise when the key is absent), or None
+    (fail-closed)."""
+    if not isinstance(test, dict):
+        return None
+    # `<subj>.get("K")` used directly as a truthiness test -> raise when present.
+    k = _match_get_call(test, subj)
+    if k is not None:
+        return (k, "present")
+    # `"K" in <subj>` / `"K" not in <subj>` -> membership on a string literal.
+    if test.get("type") == "BinOp" and test.get("op") in ("in", "not in"):
+        lk = _is_string(test.get("left"))
+        if lk is not None and _is_var(test.get("right"), subj):
+            return (lk, "absent" if test.get("op") == "not in" else "present")
+    return None
+
+
+def _param_whyml_type(annot: Optional[str]) -> str:
+    """Map a formal param's annotation to its WhyML scalar type for a field-guard
+    caller's UNUSED extra params (matching the pre-conversion `\\trusted` val's
+    declared types). Anything not a plain scalar falls back to `pyval`."""
+    if annot == "str":
+        return "string"
+    if annot in ("int", "bool"):
+        return "int"
+    return "pyval"
+
+
+def recognize_check_field_guard_raise(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of a field-guard-raise `_check_*` caller (see module
+    note). Returns a descriptor of the guarded key + sense + params, or None;
+    never raises."""
+    try:
+        return _recognize_check_field_guard_raise(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_field_guard_raise(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if not params:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If" and not s0.get("orelse")):
+        return None
+    guard = _field_guard(s0.get("test"), subj)
+    if guard is None:
+        return None
+    key, sense = guard
+    ib = s0.get("body") or []
+    if not ib:
+        return None
+    # Every statement before the terminal raise must be a plain message-var
+    # binding (`Assign`); the last must be `raise PyCSLSemanticError(...)`.
+    for st in ib[:-1]:
+        if not (isinstance(st, dict) and st.get("stmt") == "Assign"):
+            return None
+    last = ib[-1]
+    if not (isinstance(last, dict) and last.get("stmt") == "Raise"
+            and last.get("exc_type") == "PyCSLSemanticError"):
+        return None
+    return {"name": func.get("name"), "subj": subj, "params": params,
+            "key": key, "sense": sense,
+            "param_annotations": func.get("param_annotations") or {}}
+
+
+def emit_check_field_guard_raise_group(
+        desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit a field-guard-raise `_check_*` caller (see module note): read the
+    single guarded key off `func`'s bridged pydict and `raise PyCSLSemanticError`
+    when the guard holds (modelled by the key's PRESENCE), else return `unit`.
+    Type-safe + terminating over the certified pydict bridge (no recursion, no
+    new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    key = desc["key"]
+    if desc["sense"] == "present":
+        guard = f'(match pget_dyn "{key}" d with Some _ -> true | None -> false end)'
+    else:
+        guard = f'(match pget_dyn "{key}" d with Some _ -> false | None -> true end)'
+    sig = f"({subj}: pyval)"
+    for p in desc["params"][1:]:
+        sig += f" ({p}: {_param_whyml_type(desc['param_annotations'].get(p))})"
+    out: List[str] = []
+    out.append(f"  let {n} {sig} : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PDict d -> if {guard} then raise PyCSLSemanticError else ()")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,
