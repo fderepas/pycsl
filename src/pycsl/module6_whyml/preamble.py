@@ -2061,7 +2061,9 @@ class PreambleEmissionMixin:
             recognize_pyval_string_walker, recognize_pyval_list_walker,
             recognize_pyval_flatten, recognize_ir_free_vars,
             recognize_cs_clause, recognize_check_contract_exprs,
-            recognize_check_body_walk)
+            recognize_check_body_walk,
+            recognize_check_subscript_assignments,
+            recognize_check_contract_scope)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
@@ -2072,6 +2074,8 @@ class PreambleEmissionMixin:
             or recognize_cs_clause(f) is not None
             or recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
+            or recognize_check_subscript_assignments(f) is not None
+            or recognize_check_contract_scope(f) is not None
             for f in functions)
         # pdict-to-sdict-impl.md: the heterogeneous-func caller cluster
         # (`_check_contract_exprs` + the body-only `_check_checkpoints`/
@@ -2080,7 +2084,9 @@ class PreambleEmissionMixin:
         # so every already-landed sdict mirror stays byte-identical; corpus-inert.
         needs_pdict_bridge = any(
             recognize_check_contract_exprs(f) is not None
-            or recognize_check_body_walk(f) is not None for f in functions)
+            or recognize_check_body_walk(f) is not None
+            or recognize_check_subscript_assignments(f) is not None
+            or recognize_check_contract_scope(f) is not None for f in functions)
         needs_pydict = needs_sdict or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_substmap(f) is not None
@@ -2154,6 +2160,27 @@ class PreambleEmissionMixin:
             if recognize_check_body_walk(f) is not None]
         self._cbw_names = {f.get("name") for f, _ in self._cbw_funcs}
         self._cbw_emitted = set()
+        # CHECK-SUBSCRIPT-ASSIGNMENTS caller (driver target #2): a body-only
+        # caller running TWO `_sa_walk`-family walks with an annotation gate. It
+        # is a forward reference to BOTH walkers, so it is DEFERRED until both
+        # walker groups are emitted (tracked in `_emitted_walker_names`).
+        from module6_whyml.generic_fold import (
+            recognize_check_subscript_assignments, recognize_check_contract_scope)
+        self._csa_funcs = [
+            (f, recognize_check_subscript_assignments(f)) for f in functions
+            if recognize_check_subscript_assignments(f) is not None]
+        self._csa_names = {f.get("name") for f, _ in self._csa_funcs}
+        self._csa_emitted = set()
+        self._emitted_walker_names = set()
+        # CHECK-CONTRACT-SCOPE caller (driver target #3): the per-key
+        # `allow_result` scope check — a forward reference to `_cs_clause`/
+        # `_cs_body`, DEFERRED to just after the `_cs_clause` group + cs-trio
+        # (same append plumbing as `_check_contract_exprs` after the pb-trio).
+        self._ccs_funcs = [
+            (f, recognize_check_contract_scope(f)) for f in functions
+            if recognize_check_contract_scope(f) is not None]
+        self._ccs_names = {f.get("name") for f, _ in self._ccs_funcs}
+        self._ccs_emitted = False
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)

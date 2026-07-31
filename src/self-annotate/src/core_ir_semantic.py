@@ -177,12 +177,22 @@ def _pb_expr(node, ctx, symtab, known) -> None:
     for v in node.values():
         _pb_expr(v, ctx, symtab, known)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_contract_scope(func, module_constants) -> None:
-    pass
+    symtab = func.get("symbol_table") or {}
+    _va_name = func.get("vararg_str_param")
+    if _va_name and _va_name not in symtab:
+        symtab = {**symtab, _va_name: "tuple"}
+    fname = func.get("name", "<anonymous>")
+    fctx = f"function '{fname}'"
+    contracts = func.get("contracts") or {}
+    for key, allow_result in (("requires", False), ("ensures", True),
+                              ("assigns", False), ("function_variants", False)):
+        for clause in contracts.get(key, []) or []:
+            _cs_clause(clause, fctx, allow_result, symtab, module_constants)
+    _cs_body(func.get("body", []) or [], fname, symtab, module_constants)
 
 #@ requires True
 #@ ensures True
@@ -301,12 +311,39 @@ def _ir_free_vars(node):
         out |= _ir_free_vars(v)
     return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_subscript_assignments(func) -> None:
-    pass
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    _sa_immutable_walk(func.get("body", []) or [], where, symtab)
+    c = func.get("contracts") or {}
+    if not (c.get("requires") or c.get("ensures") or c.get("assigns")):
+        return
+    _sa_walk(func.get("body", []) or [], where, symtab)
+
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def _sa_immutable_walk(node, where, symtab) -> None:
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if isinstance(arr, dict) and arr.get("type") == "Var":
+                if symtab.get(arr.get("name")) == "bytes":
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to immutable 'bytes' variable "
+                        f"'{arr.get('name')}' in {where} — a Python `bytes` object "
+                        f"does not support item assignment (TypeError). Use a "
+                        f"`bytearray` for a mutable byte buffer.",
+                        code="PYCSL-SEM-SUBSCRIPT",
+                    )
+        for v in node.values():
+            _sa_immutable_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _sa_immutable_walk(x, where, symtab)
 
 #@ requires True
 #@ ensures True

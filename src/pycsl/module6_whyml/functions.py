@@ -2673,6 +2673,34 @@ class FunctionEmissionMixin:
                 self._cbw_emitted.add(nm)
         return out
 
+    def _note_emitted_walker(self, walker_name) -> None:
+        """Record a just-emitted `_sa_walk`/`_cp_walk`-family walker's canonical
+        name (drives the multi-walker CHECK-SUBSCRIPT-ASSIGNMENTS deferral)."""
+        from module6_whyml.generic_fold import _canon_call
+        if not hasattr(self, "_emitted_walker_names"):
+            self._emitted_walker_names = set()
+        if walker_name is not None:
+            self._emitted_walker_names.add(_canon_call(walker_name))
+
+    def _emit_deferred_csa(self, whyml_ident) -> List[str]:
+        """Append the deferred CHECK-SUBSCRIPT-ASSIGNMENTS caller group(s) once
+        ALL of a caller's required walkers (`_sa_immutable_walk` + `_sa_walk`)
+        have been emitted (tracked in `_emitted_walker_names`)."""
+        from module6_whyml.generic_fold import (
+            _canon_call, emit_check_subscript_assignments_group)
+        if not getattr(self, "_csa_funcs", None):
+            return []
+        out: List[str] = []
+        for f, desc in self._csa_funcs:
+            nm = f.get("name")
+            if nm in self._csa_emitted:
+                continue
+            needed = {_canon_call(desc["imm_walker"]), _canon_call(desc["sa_walker"])}
+            if needed <= getattr(self, "_emitted_walker_names", set()):
+                out += emit_check_subscript_assignments_group(desc, whyml_ident)
+                self._csa_emitted.add(nm)
+        return out
+
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
@@ -2699,6 +2727,16 @@ class FunctionEmissionMixin:
         # `_gso_walk` walker group (see the `recognize_cpwalk`/`recognize_sawalk`
         # branches below). Its own slot emits nothing.
         if getattr(self, "_cbw_names", None) and func.get("name") in self._cbw_names:
+            return []
+        # CHECK-SUBSCRIPT-ASSIGNMENTS caller (driver target #2): DEFERRED until
+        # both its `_sa_immutable_walk`/`_sa_walk` walker groups are emitted (see
+        # the `recognize_sawalk` branch). Its own slot emits nothing.
+        if getattr(self, "_csa_names", None) and func.get("name") in self._csa_names:
+            return []
+        # CHECK-CONTRACT-SCOPE caller (driver target #3): DEFERRED to just after
+        # the `_cs_clause` group + cs-trio it calls into (see the
+        # `recognize_cs_clause` branch). Its own slot emits nothing.
+        if getattr(self, "_ccs_names", None) and func.get("name") in self._ccs_names:
             return []
         # SCriticalSection increment (self-tcb-reduction M5, C-bucket): the `_py_stmt_with`
         # mutex/extend handler — bespoke (the generic lowering int-erases the weave-injected
@@ -3069,7 +3107,11 @@ class FunctionEmissionMixin:
             lines = emit_sawalk_group(func, _sa, whyml_ident)
             # BODY-WALK caller siblings: append any deferred `_check_*` caller
             # whose walker is THIS just-emitted `_sa_walk`/`_gso_walk` (once).
-            return lines + self._emit_deferred_cbw(func.get("name"), whyml_ident)
+            lines = lines + self._emit_deferred_cbw(func.get("name"), whyml_ident)
+            # CHECK-SUBSCRIPT-ASSIGNMENTS: record this walker + append the
+            # multi-walker caller once BOTH its walkers have been emitted.
+            self._note_emitted_walker(func.get("name"))
+            return lines + self._emit_deferred_csa(whyml_ident)
         # 2-arg checkpoint walk `_cp_walk(node, where)`: the `_sa_walk` sibling
         # with a SINGLE env param and a cross-call pre-action (`_contains_result`
         # on `node.get("test")`). Arity-2, so `recognize_sawalk` (exactly 3
@@ -3080,7 +3122,9 @@ class FunctionEmissionMixin:
             lines = emit_cpwalk_group(func, _cp, whyml_ident)
             # BODY-WALK caller siblings: append any deferred `_check_*` caller
             # whose walker is THIS just-emitted `_cp_walk` (once).
-            return lines + self._emit_deferred_cbw(func.get("name"), whyml_ident)
+            lines = lines + self._emit_deferred_cbw(func.get("name"), whyml_ident)
+            self._note_emitted_walker(func.get("name"))
+            return lines + self._emit_deferred_csa(whyml_ident)
         # predicate-base walk `_pb_expr(node, ctx, symtab, known)`: the `_sa_walk`
         # sibling with a MULTI-ARM `node.get("type")` type dispatch (ArrayLen /
         # Valid / Separated / Forall|Exists), a 2nd env `known` modelled as
@@ -3108,6 +3152,14 @@ class FunctionEmissionMixin:
                 lines = lines + emit_pb_trio_group(self._cs_trio, whyml_ident,
                                                    clause_val_mid=" false")
                 self._cs_trio_emitted = True
+            # CHECK-CONTRACT-SCOPE caller (driver target #3): append the deferred
+            # caller group(s) right after the `_cs_clause` group + cs-trio they
+            # call into (`_cs_clause`/`_cs_clause__list` + `_cs_body`), once.
+            if getattr(self, "_ccs_funcs", None) and not self._ccs_emitted:
+                from module6_whyml.generic_fold import emit_check_contract_scope_group
+                for _cf, _desc in self._ccs_funcs:
+                    lines = lines + emit_check_contract_scope_group(_desc, whyml_ident)
+                self._ccs_emitted = True
             return lines
         _pb = recognize_pbexpr(func)
         if _pb is not None:

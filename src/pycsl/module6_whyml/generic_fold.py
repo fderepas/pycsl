@@ -4545,6 +4545,91 @@ def _match_gso_pre(inner_if: Any, subj: str, symparam: str) -> Optional[Dict[str
             "exc": exc}
 
 
+def _match_sa_immutable_pre(inner_if: Any, subj: str,
+                            symparam: str) -> Optional[Dict[str, Any]]:
+    """Match the bytes-immutability ArraySet guard (the `_sa_immutable_walk`
+    shape) — the sibling of `_match_sa_pre`'s ArraySet guard with a SINGLE
+    `symtab.get(arr.get(name)) == "bytes"` raise (no intermediate name/arr_type
+    locals). Shape:
+
+        if <subj>.get("stmt") == "<TAG>":
+            arr = <subj>.get("<ARRAY_KEY>")
+            if isinstance(arr, dict) and arr.get("<TYPE_KEY>") == "<TYPE_VAL>":
+                if <symparam>.get(arr.get("<NAME_KEY>")) == "<STR_VAL>":
+                    raise <Exc>
+
+    Returns {kind:"immutable", tag, array_key, type_key, type_val, name_key,
+    str_val, exc} or None (fail-closed). The raised comparison is a value fact no
+    VC constrains (insight C, as the ArraySet `ok_type`/`slookup` guard); only its
+    SHAPE — reading the array/type/name off the node and the target's type off
+    symtab — is validated, keeping the emitted pre-action non-vacuous."""
+    if not (isinstance(inner_if, dict) and inner_if.get("stmt") == "If"
+            and not inner_if.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(inner_if.get("test", {}), subj)
+    if tag is None:
+        return None
+    ibody = inner_if.get("body", [])
+    if len(ibody) != 2:
+        return None
+    # [0] arr = <subj>.get("<ARRAY_KEY>")
+    a0 = ibody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    arrvar = a0.get("target")
+    array_key = _match_get_call(a0.get("value", {}), subj)
+    if not isinstance(arrvar, str) or array_key is None:
+        return None
+    # [1] the `isinstance(arr, dict) and arr.get("<TYPE_KEY>") == "<TYPE_VAL>"` If
+    a1 = ibody[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "If" and not a1.get("orelse")):
+        return None
+    t1 = a1.get("test", {})
+    if not (isinstance(t1, dict) and t1.get("type") == "BinOp" and t1.get("op") == "and"):
+        return None
+    if not _match_isinstance(t1.get("left", {}), arrvar, "dict"):
+        return None
+    tr = t1.get("right", {})
+    if not (isinstance(tr, dict) and tr.get("type") == "BinOp" and tr.get("op") == "=="):
+        return None
+    type_val = _is_string(tr.get("right"))
+    type_key = _match_get_call(tr.get("left", {}), arrvar)
+    if type_val is None or type_key is None:
+        return None
+    gbody = a1.get("body", [])
+    if len(gbody) != 1:
+        return None
+    # [0] if <symparam>.get(arr.get("<NAME_KEY>")) == "<STR_VAL>": raise
+    g0 = gbody[0]
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If" and not g0.get("orelse")):
+        return None
+    t0 = g0.get("test", {})
+    if not (isinstance(t0, dict) and t0.get("type") == "BinOp" and t0.get("op") == "=="):
+        return None
+    str_val = _is_string(t0.get("right"))
+    if str_val is None:
+        return None
+    gl = t0.get("left", {})
+    if not (isinstance(gl, dict) and gl.get("type") == "Call"
+            and gl.get("func") == f"{symparam}.get"):
+        return None
+    gargs = gl.get("args", [])
+    if len(gargs) != 1:
+        return None
+    name_key = _match_get_call(gargs[0], arrvar)
+    if name_key is None:
+        return None
+    g0b = g0.get("body", [])
+    if len(g0b) != 1:
+        return None
+    exc = _match_sa_raise(g0b[0])
+    if exc is None:
+        return None
+    return {"kind": "immutable", "tag": tag, "array_key": array_key,
+            "type_key": type_key, "type_val": type_val, "name_key": name_key,
+            "str_val": str_val, "exc": exc}
+
+
 def recognize_sawalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Fail-closed match of the T3 context-threading walk `_sa_walk(node, where,
     symtab)` (plan §5). Returns a descriptor or None; never raises."""
@@ -4577,6 +4662,8 @@ def _recognize_sawalk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     pre = _match_sa_pre(dbody[0], subj, p2)
     if pre is None:
         pre = _match_gso_pre(dbody[0], subj, p2)
+    if pre is None:
+        pre = _match_sa_immutable_pre(dbody[0], subj, p2)
     if pre is None:
         return None
     if not _match_sa_values_loop(dbody[1], subj, fname, p1, p2):
@@ -4664,6 +4751,43 @@ def emit_sawalk_group(func: Dict[str, Any], sa: Dict[str, Any],
                    " | _ -> false end) in")
         out.append(f"                  if opne && tystr then raise {exc} else ()")
         out.append("              | None -> () end)")
+        out.append("           else ()")
+        out.append("         | None -> () end)")
+        out.append("    | _ -> () end")
+        # ---- the env-threaded walk group (shared with the ArraySet shape) ----
+        out += _sa_walk_group_lines(n, subj, [(p1, "string"), (p2, "sdict")], f" {p2}", exc)
+        return out
+    if pre.get("kind") == "immutable":
+        # ---- bytes-immutability ArraySet pre-action (the `_sa_immutable_walk`
+        # sibling): a SINGLE `symtab.get(arr.get(name)) == "<STR_VAL>"` raise. ----
+        out += _sa_reader_lines(n, "stmt", as_str=True)
+        out += _sa_reader_lines(n, pre["array_key"], as_str=False)
+        out += _sa_reader_lines(n, pre["type_key"], as_str=True)
+        out += _sa_reader_lines(n, pre["name_key"], as_str=True)
+        stmt_suf = _reader_suffix("stmt")
+        arr_suf = _reader_suffix(pre["array_key"])
+        type_suf = _reader_suffix(pre["type_key"])
+        name_suf = _reader_suffix(pre["name_key"])
+        out.append(f"  let {n}__pre ({subj}: pyval) ({p2}: sdict) : unit")
+        out.append(f"    raises {{ {exc} }}")
+        out.append(f"  = match {subj} with")
+        out.append("    | PDict d ->")
+        out.append(f"        (match {n}__get_{stmt_suf} d with")
+        out.append(f'         | Some st -> if pystr_eq st "{pre["tag"]}" then')
+        out.append(f"             (match {n}__get_{arr_suf} d with")
+        out.append("              | Some (PDict ad) ->")
+        out.append(f"                  (match {n}__get_{type_suf} ad with")
+        out.append(f'                   | Some ty -> if pystr_eq ty "{pre["type_val"]}" then')
+        out.append(f"                       (match {n}__get_{name_suf} ad with")
+        out.append("                        | Some nm ->")
+        out.append(f"                            (match slookup nm {p2} with")
+        out.append(f'                             | Some (PStr aty) -> if pystr_eq aty "{pre["str_val"]}" then raise {exc} else ()')
+        out.append("                             | _ -> ()")
+        out.append("                             end)")
+        out.append("                        | None -> () end)")
+        out.append("                     else ()")
+        out.append("                   | None -> () end)")
+        out.append("              | _ -> () end)")
         out.append("           else ()")
         out.append("         | None -> () end)")
         out.append("    | _ -> () end")
@@ -7448,6 +7572,424 @@ def emit_check_body_walk_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
         out.append(f"    (match {subj} with")
         out.append(f'     | PDict d -> {walker}__list (pget_list "{bf}" d) where')
         out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
+# CHECK-SUBSCRIPT-ASSIGNMENTS caller (`_check_subscript_assignments(func)`) —
+# the body-only heterogeneous-`func` caller that runs TWO `_sa_walk`-family body
+# walks with an annotation-emptiness GATE between them (driver target #2). Shape:
+#
+#     where  = f"function '{func.get('name', '<anonymous>')}'"       # FString ctx
+#     symtab = func.get("symbol_table") or {}                        # bridged sdict
+#     IMMWALKER(func.get("body", []) or [], where, symtab)           # unconditional
+#     c = func.get("contracts") or {}
+#     if not (c.get(k0) or c.get(k1) or c.get(k2)): return           # annotation gate
+#     SAWALKER(func.get("body", []) or [], where, symtab)            # gated
+#
+# The generalisation of `recognize_check_body_walk` to TWO walkers separated by
+# the `not (c.get(...) or ...)` early-return gate. Both walkers are already-
+# converted `_sa_walk`-family env-threaded walks; the caller feeds them the
+# body-list + the (error-message-only) `where` + the bridged `symtab`. The gate's
+# truthiness is a value fact no VC constrains (insight C) — modelled by the
+# PRESENCE of any of the gate keys in the bridged `contracts` pydict, so the
+# emitted body reads `func`'s contracts dict + the gate key names (mutation-
+# faithful, non-vacuous). Emission is DEFERRED until BOTH walker groups are
+# emitted (forward reference — the caller is textually before both).
+# =========================================================================
+
+def _flatten_or_get_keys(node: Any, subj: str) -> Optional[List[str]]:
+    """A left-nested `<subj>.get(k0) or <subj>.get(k1) or ...` chain -> the key
+    list [k0, k1, ...] in source order, or None (fail-closed)."""
+    keys: List[str] = []
+    cur = node
+    while (isinstance(cur, dict) and cur.get("type") == "BinOp"
+           and cur.get("op") == "or"):
+        rk = _match_get_call(cur.get("right"), subj)
+        if rk is None:
+            return None
+        keys.append(rk)
+        cur = cur.get("left")
+    lk = _match_get_call(cur, subj)
+    if lk is None:
+        return None
+    keys.append(lk)
+    keys.reverse()
+    return keys
+
+
+def recognize_check_subscript_assignments(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_subscript_assignments(func)` caller (see
+    module note). Returns a descriptor of the field/gate keys + both walker
+    names, or None; never raises."""
+    try:
+        return _recognize_check_subscript_assignments(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_subscript_assignments(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    # [0] where = f"function '...'"  (FString ctx)
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"
+            and isinstance(s0.get("value"), dict)
+            and s0["value"].get("type") == "FString"):
+        return None
+    where_lv = s0.get("target")
+    # [1] symtab = func.get("<sf>") or {}
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    symtab_lv = s1.get("target")
+    symtab_field = _cce_field_or_default(s1.get("value"), subj)
+    if not symtab_field:
+        return None
+    # [2] IMMWALKER(func.get("<bf>") or [], where, symtab)
+    w0 = _cce_expr_call(body[2])
+    if w0 is None:
+        return None
+    imm_name, imm_args = w0
+    if len(imm_args) != 3:
+        return None
+    body_field = _cce_field_or_default(imm_args[0], subj)
+    if not (body_field and _is_var(imm_args[1], where_lv)
+            and _is_var(imm_args[2], symtab_lv)):
+        return None
+    # [3] c = func.get("<cf>") or {}
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign"):
+        return None
+    c_lv = s3.get("target")
+    contracts_field = _cce_field_or_default(s3.get("value"), subj)
+    if not contracts_field:
+        return None
+    # [4] if not (c.get(k0) or c.get(k1) or ...): return
+    s4 = body[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "If" and not s4.get("orelse")):
+        return None
+    t4 = s4.get("test", {})
+    if not (isinstance(t4, dict) and t4.get("type") == "UnaryOp"
+            and t4.get("op") == "not"):
+        return None
+    gate_keys = _flatten_or_get_keys(t4.get("expr"), c_lv)
+    if not gate_keys:
+        return None
+    ib = s4.get("body") or []
+    if len(ib) != 1 or not (isinstance(ib[0], dict) and ib[0].get("stmt") == "Return"):
+        return None
+    # [5] SAWALKER(func.get("<bf2>") or [], where, symtab)
+    w1 = _cce_expr_call(body[5])
+    if w1 is None:
+        return None
+    sa_name, sa_args = w1
+    if len(sa_args) != 3:
+        return None
+    body_field2 = _cce_field_or_default(sa_args[0], subj)
+    if not (body_field2 and _is_var(sa_args[1], where_lv)
+            and _is_var(sa_args[2], symtab_lv)):
+        return None
+    return {"name": func.get("name"), "subj": subj,
+            "symtab_field": symtab_field, "body_field": body_field,
+            "body_field2": body_field2, "contracts_field": contracts_field,
+            "gate_keys": gate_keys,
+            "imm_walker": _canon_call(imm_name),
+            "sa_walker": _canon_call(sa_name)}
+
+
+def emit_check_subscript_assignments_group(
+        desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_subscript_assignments` caller group (see module note):
+    bridge `symbol_table` to `sdict`, run IMMWALKER over the body-list, then —
+    gated on the PRESENCE of any annotation gate key in the bridged `contracts`
+    pydict — run SAWALKER over the body-list. Type-safe + terminating over the
+    already-certified pydict/sdict/walker theories."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    imm = whyml_ident(desc["imm_walker"])
+    saw = whyml_ident(desc["sa_walker"])
+    sf, cf = desc["symtab_field"], desc["contracts_field"]
+    bf, bf2 = desc["body_field"], desc["body_field2"]
+    gate = " || ".join(
+        f'(match pget_dyn "{k}" cd with Some _ -> true | None -> false end)'
+        for k in desc["gate_keys"])
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = let symtab = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+    out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+    out.append("                    | _ -> SNil end)")
+    out.append("      | _ -> SNil end) in")
+    out.append(f"    let where = {n}__anystr () in")
+    out.append(f"    (match {subj} with")
+    out.append("     | PDict d ->")
+    out.append(f'         {imm}__list (pget_list "{bf}" d) where symtab;')
+    out.append(f'         let annotated = (match pget_dyn "{cf}" d with')
+    out.append(f"                          | Some (PDict cd) -> {gate}")
+    out.append("                          | _ -> false end) in")
+    out.append(f'         if annotated then {saw}__list (pget_list "{bf2}" d) where symtab else ()')
+    out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
+# CHECK-CONTRACT-SCOPE caller (`_check_contract_scope(func, module_constants)`)
+# — the scope/`\result` check that fans the already-converted `_cs_clause` over
+# each contract-key clause list (with a PER-KEY `allow_result` literal) and the
+# `_cs_body` statement walk over the body (driver target #3). Shape:
+#
+#     symtab = func.get("symbol_table") or {}
+#     _va_name = func.get("vararg_str_param")
+#     if _va_name and _va_name not in symtab:
+#         symtab = {**symtab, _va_name: "tuple"}          # vararg augmentation
+#     fname = func.get("name", "<anonymous>")
+#     fctx = f"function '{fname}'"
+#     contracts = func.get("contracts") or {}
+#     for key, allow_result in (("requires",False),("ensures",True),…):
+#         for clause in contracts.get(key, []) or []:
+#             _cs_clause(clause, fctx, allow_result, symtab, module_constants)
+#     _cs_body(func.get("body", []) or [], fname, symtab, module_constants)
+#
+# Two bounded features over the `_check_contract_exprs` caller: (a) the vararg
+# dict-spread symtab merge — modelled as `SCons va (PStr "tuple") symtab` on the
+# bridged sdict when the `vararg_str_param` field is present (VC-irrelevant; the
+# guard's truthiness/`not in` is a value fact no VC constrains, insight C); and
+# (b) the PER-KEY `allow_result` — the `ensures` arm needs `allow_result=true`,
+# so it routes through a locally-emitted `__ens` fold that passes `true`, while
+# the `False` keys reuse the already-emitted `_cs_clause__list` (which passes
+# `false`). Emission is DEFERRED to just after the `_cs_clause` group + cs-trio
+# it calls into (forward reference). Reads the field/contract keys + the (key,
+# allow_result) literal pairs + callee names OFF the body (fail-closed, mutation-
+# faithful): change a key/flag and the emitted `.mlw` moves.
+# =========================================================================
+
+def recognize_check_contract_scope(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_contract_scope(func, module_constants)`
+    caller (see module note). Returns a descriptor of the field keys, the
+    (key, allow_result) literal pairs, and the clause/body callee names, or None;
+    never raises."""
+    try:
+        return _recognize_check_contract_scope(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_contract_scope(
+        func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, mc = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 8:
+        return None
+    # [0] symtab = func.get("<sf>") or {}
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"):
+        return None
+    symtab_lv = s0.get("target")
+    symtab_field = _cce_field_or_default(s0.get("value"), subj)
+    if not symtab_field:
+        return None
+    # [1] _va_name = func.get("<vf>")
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    va_lv = s1.get("target")
+    vararg_field = _match_get_call(s1.get("value"), subj)
+    if not (isinstance(va_lv, str) and vararg_field):
+        return None
+    # [2] if _va_name and _va_name not in symtab: symtab = {**symtab, _va_name: "<TV>"}
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "If" and not s2.get("orelse")):
+        return None
+    t2 = s2.get("test", {})
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp" and t2.get("op") == "and"
+            and _is_var(t2.get("left"), va_lv)):
+        return None
+    ni = t2.get("right", {})
+    if not (isinstance(ni, dict) and ni.get("type") == "BinOp"
+            and ni.get("op") == "not in" and _is_var(ni.get("left"), va_lv)
+            and _is_var(ni.get("right"), symtab_lv)):
+        return None
+    mb = s2.get("body") or []
+    if len(mb) != 1 or not (isinstance(mb[0], dict) and mb[0].get("stmt") == "Assign"
+                            and mb[0].get("target") == symtab_lv):
+        return None
+    dl = mb[0].get("value", {})
+    if not (isinstance(dl, dict) and dl.get("type") == "DictLit"):
+        return None
+    dkeys, dvals = dl.get("keys") or [], dl.get("values") or []
+    if not (len(dkeys) == 2 and len(dvals) == 2
+            and isinstance(dkeys[0], dict) and dkeys[0].get("type") == "None"
+            and _is_var(dvals[0], symtab_lv) and _is_var(dkeys[1], va_lv)):
+        return None
+    tuple_val = _is_string(dvals[1])
+    if tuple_val is None:
+        return None
+    # [3] fname = func.get("name", …)
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign"):
+        return None
+    fname_lv = s3.get("target")
+    if _match_get_call(s3.get("value"), subj) is None:
+        return None
+    # [4] fctx = f"function '{fname}'" (FString; verification-irrelevant)
+    s4 = body[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "Assign"
+            and isinstance(s4.get("value"), dict)
+            and s4["value"].get("type") == "FString"):
+        return None
+    fctx_lv = s4.get("target")
+    # [5] contracts = func.get("<cf>") or {}
+    s5 = body[5]
+    if not (isinstance(s5, dict) and s5.get("stmt") == "Assign"):
+        return None
+    contracts_lv = s5.get("target")
+    contracts_field = _cce_field_or_default(s5.get("value"), subj)
+    if not contracts_field:
+        return None
+    # [6] for key, allow_result in ((<str>,<bool>),…): for clause in contracts.get(key) or []:
+    #         _cs_clause(clause, fctx, allow_result, symtab, module_constants)
+    s6 = body[6]
+    if not (isinstance(s6, dict) and s6.get("stmt") == "For"):
+        return None
+    tt = s6.get("tuple_targets") or []
+    if len(tt) != 2:
+        return None
+    key_name, ar_name = tt
+    it = s6.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Tuple"):
+        return None
+    key_pairs: List[Tuple[str, bool]] = []
+    for e in it.get("elts", []):
+        if not (isinstance(e, dict) and e.get("type") == "Tuple"):
+            return None
+        pe = e.get("elts", [])
+        if len(pe) != 2:
+            return None
+        ks = _is_string(pe[0])
+        if ks is None or not (isinstance(pe[1], dict) and pe[1].get("type") == "Bool"):
+            return None
+        key_pairs.append((ks, bool(pe[1].get("value"))))
+    if not key_pairs:
+        return None
+    ob = s6.get("body") or []
+    if len(ob) != 1:
+        return None
+    inner = ob[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"):
+        return None
+    clause_lv = inner.get("target")
+    iit = inner.get("iter")
+    iit_l = (iit.get("left") if isinstance(iit, dict) and iit.get("type") == "BinOp"
+             and iit.get("op") == "or" else iit)
+    if not (isinstance(iit_l, dict) and iit_l.get("type") == "Call"
+            and iit_l.get("func") == f"{contracts_lv}.get"):
+        return None
+    iargs = iit_l.get("args") or []
+    if not (iargs and _is_var(iargs[0], key_name)):
+        return None
+    ib = inner.get("body") or []
+    if len(ib) != 1:
+        return None
+    cc = _cce_expr_call(ib[0])
+    if cc is None:
+        return None
+    clause_name, cargs = cc
+    if not (len(cargs) == 5 and _is_var(cargs[0], clause_lv)
+            and _is_var(cargs[1], fctx_lv) and _is_var(cargs[2], ar_name)
+            and _is_var(cargs[3], symtab_lv) and _is_var(cargs[4], mc)):
+        return None
+    # [7] _cs_body(func.get("<bf>") or [], fname, symtab, module_constants)
+    bc = _cce_expr_call(body[7])
+    if bc is None:
+        return None
+    body_name, bargs = bc
+    if len(bargs) != 4:
+        return None
+    body_field = _cce_field_or_default(bargs[0], subj)
+    if not (body_field and _is_var(bargs[1], fname_lv)
+            and _is_var(bargs[2], symtab_lv) and _is_var(bargs[3], mc)):
+        return None
+    return {"name": func.get("name"), "subj": subj, "mc": mc,
+            "symtab_field": symtab_field, "vararg_field": vararg_field,
+            "tuple_val": tuple_val, "contracts_field": contracts_field,
+            "body_field": body_field, "key_pairs": key_pairs,
+            "clause_name": _canon_call(clause_name),
+            "body_name": _canon_call(body_name)}
+
+
+def emit_check_contract_scope_group(
+        desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_contract_scope` caller group (see module note). Bridges
+    `symbol_table` to `sdict`, augments it with the vararg entry when the
+    `vararg_str_param` field is present, fans `_cs_clause` over each contract-key
+    clause list with the key's `allow_result` literal (the `true` arm via a local
+    `__ens` fold, the `false` arms via the existing `_cs_clause__list`), and runs
+    `_cs_body` over the body. Type-safe + terminating over the certified
+    pydict/sdict/`_cs_clause`/`_cs_body` theories."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    mc = desc["mc"]
+    clausefn = whyml_ident(desc["clause_name"])
+    bodyfn = whyml_ident(desc["body_name"])
+    sf, vf = desc["symtab_field"], desc["vararg_field"]
+    cf, bf = desc["contracts_field"], desc["body_field"]
+    tv = desc["tuple_val"]
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    # local `allow_result=true` per-element fold (the `ensures` arm).
+    out.append(f"  let rec {n}__ens (xs: list pyval) (ctx: string) (symtab: sdict) (mc: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { xs }")
+    out.append("  = match xs with Nil -> ()")
+    out.append(f"    | Cons h t -> {clausefn} h ctx true symtab mc; {n}__ens t ctx symtab mc end")
+    out.append(f"  let {n} ({subj}: pyval) ({mc}: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = let symtab0 = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+    out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+    out.append("                    | _ -> SNil end)")
+    out.append("      | _ -> SNil end) in")
+    out.append(f"    let symtab = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{vf}" d with')
+    out.append(f'                    | Some (PStr va) -> SCons va (PStr "{tv}") symtab0')
+    out.append("                    | _ -> symtab0 end)")
+    out.append("      | _ -> symtab0 end) in")
+    out.append(f"    let fctx = {n}__anystr () in")
+    out.append(f"    let fname = {n}__anystr () in")
+    out.append(f"    (match {subj} with")
+    out.append("     | PDict d ->")
+    out.append(f'         (match pget_dyn "{cf}" d with')
+    out.append("          | Some (PDict cd) ->")
+    key_calls = []
+    for k, ar in desc["key_pairs"]:
+        if ar:
+            key_calls.append(f'{n}__ens (pget_list "{k}" cd) fctx symtab {mc}')
+        else:
+            key_calls.append(f'{clausefn}__list (pget_list "{k}" cd) fctx symtab {mc}')
+    for i, kc in enumerate(key_calls):
+        sep = ";" if i < len(key_calls) - 1 else ""
+        out.append(f"              {kc}{sep}")
+    out.append("          | _ -> () end);")
+    out.append(f'         {bodyfn} (pget_list "{bf}" d) fname symtab {mc}')
+    out.append("     | _ -> () end)")
     return out
 
 
