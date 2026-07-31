@@ -53,12 +53,18 @@ def _check_assigns_regions(func: Any) -> None:
 
 _PB_ARRAY_BASE_TYPES = ('list', 'List', 'bytes', 'bytearray', 'Any', None)
 _PB_LENGTHLESS_TYPES = ('dict', 'Dict', 'set', 'Set', 'frozenset', 'FrozenSet')
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_contract_exprs(func, known) -> None:
-    pass
+    symtab = func.get("symbol_table") or {}
+    fname = func.get("name", "<anonymous>")
+    fctx = f"function '{fname}'"
+    contracts = func.get("contracts") or {}
+    for key in ("requires", "ensures", "assigns", "function_variants"):
+        for clause in contracts.get(key, []) or []:
+            _pb_expr(clause, fctx, symtab, known)
+    _pb_body(func.get("body", []) or [], fname, symtab, known)
 
 #@ requires True
 #@ ensures True

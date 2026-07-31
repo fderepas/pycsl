@@ -7131,6 +7131,200 @@ def emit_cs_clause_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
 
 
 # =========================================================================
+# CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
+# heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
+# walkers (pdict-to-sdict-impl.md; driver heterogeneous-func caller cluster).
+#
+# The body EXTRACTS the function's `symbol_table` pydict field off the `func`
+# pyval, bridges it to the string-keyed `sdict` the walkers consume (the total,
+# terminating `pdict_to_sdict` primitive — a K_dyn-only structural recursion, no
+# new type / no new axiom, ledger 3), then fans the `_pb_expr` predicate-base
+# walk over each contract-clause list (requires/ensures/assigns/
+# function_variants) and the `_pb_body` statement walk over the body. Under the
+# fixed `ensures True` contract the walkers place NO VC constraint on the bridged
+# sdict (`pystr_eq`/`slookup` uninterpreted — insight C), so the caller needs
+# only type-safety + termination; NO correspondence lemma is expressible or
+# needed (see scratchpad/pdict_to_sdict_spike.mlw). The `ctx`/`fname` strings are
+# verification-irrelevant (they feed only raise-message f-strings; WhyML matches
+# exceptions by TYPE) — an abstract `val …__anystr`.
+#
+# Emission is DEFERRED (forward reference): the caller is textually before its
+# `_pb_expr`/`_pb_body` callees, so it emits AFTER the `_pb_expr` group + the
+# pb-trio (reusing the same deferred-append plumbing as the trio). The emitter
+# reads the field keys + the contract keys + the callee names OFF the body
+# (fail-closed, mutation-faithful): change a key/tag in the source and the
+# emitted `.mlw` moves; a shape outside the fragment reverts to `\trusted`.
+# =========================================================================
+
+def _cce_field_or_default(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<k>")` or `<subj>.get("<k>") or {}` / `... or []` -> "<k>".
+    Unwraps a leading `or`-BinOp (the `func.get(k) or {}` idiom), then matches
+    the `.get(<lit>)` call."""
+    inner = node
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        inner = node.get("left")
+    return _match_get_call(inner, subj)
+
+
+def _cce_expr_call(stmt: Any) -> Optional[Tuple[str, List[Any]]]:
+    """An `Expr` statement wrapping a bare `Call` -> (callee, args), else None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return None
+    v = stmt.get("value")
+    if not (isinstance(v, dict) and v.get("type") == "Call"):
+        return None
+    fn = v.get("func")
+    if not isinstance(fn, str):
+        return None
+    return fn, (v.get("args") or [])
+
+
+def recognize_check_contract_exprs(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_contract_exprs(func, known)` caller (see
+    module note). Returns a descriptor of the field/contract keys + callee names,
+    or None; never raises."""
+    try:
+        return _recognize_check_contract_exprs(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_contract_exprs(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, known = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    # [0] symtab = func.get("symbol_table") or {}
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"):
+        return None
+    symtab_lv = s0.get("target")
+    symtab_field = _cce_field_or_default(s0.get("value"), subj)
+    if not symtab_field:
+        return None
+    # [1] fname = func.get("name", …)
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    fname_lv = s1.get("target")
+    if _match_get_call(s1.get("value"), subj) is None:
+        return None
+    # [2] fctx = f"function '{fname}'" (an FString; content is verification-irrelevant)
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Assign"
+            and isinstance(s2.get("value"), dict)
+            and s2["value"].get("type") == "FString"):
+        return None
+    fctx_lv = s2.get("target")
+    # [3] contracts = func.get("contracts") or {}
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign"):
+        return None
+    contracts_lv = s3.get("target")
+    contracts_field = _cce_field_or_default(s3.get("value"), subj)
+    if not contracts_field:
+        return None
+    # [4] for key in (<str tuple>): for clause in contracts.get(key) or []:
+    #         _pb_expr(clause, fctx, symtab, known)
+    s4 = body[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "For"):
+        return None
+    key_lv = s4.get("target")
+    if not _is_string_tuple(s4.get("iter")):
+        return None
+    keys = [_is_string(e) for e in s4["iter"].get("elts", [])]
+    ob = s4.get("body") or []
+    if len(ob) != 1:
+        return None
+    inner = ob[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"):
+        return None
+    clause_lv = inner.get("target")
+    it = inner.get("iter")
+    it_l = (it.get("left") if isinstance(it, dict) and it.get("type") == "BinOp"
+            and it.get("op") == "or" else it)
+    if not (isinstance(it_l, dict) and it_l.get("type") == "Call"
+            and it_l.get("func") == f"{contracts_lv}.get"):
+        return None
+    it_args = it_l.get("args") or []
+    if not (it_args and _is_var(it_args[0], key_lv)):
+        return None
+    ib = inner.get("body") or []
+    if len(ib) != 1:
+        return None
+    pbe = _cce_expr_call(ib[0])
+    if pbe is None:
+        return None
+    pbe_name, pbe_args = pbe
+    if not (len(pbe_args) == 4 and _is_var(pbe_args[0], clause_lv)
+            and _is_var(pbe_args[1], fctx_lv) and _is_var(pbe_args[2], symtab_lv)
+            and _is_var(pbe_args[3], known)):
+        return None
+    # [5] _pb_body(func.get("body") or [], fname, symtab, known)
+    pbb = _cce_expr_call(body[5])
+    if pbb is None:
+        return None
+    pbb_name, pbb_args = pbb
+    if len(pbb_args) != 4:
+        return None
+    body_field = _cce_field_or_default(pbb_args[0], subj)
+    if not body_field:
+        return None
+    if not (_is_var(pbb_args[1], fname_lv) and _is_var(pbb_args[2], symtab_lv)
+            and _is_var(pbb_args[3], known)):
+        return None
+    return {"name": func.get("name"), "subj": subj, "known": known,
+            "symtab_field": symtab_field, "contracts_field": contracts_field,
+            "keys": keys, "body_field": body_field,
+            "pbexpr_name": _canon_call(pbe_name),
+            "pbbody_name": _canon_call(pbb_name)}
+
+
+def emit_check_contract_exprs_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_contract_exprs` caller group (see module note). Reads the
+    `symbol_table` pydict field off `func`, bridges it to `sdict` via the total
+    `pdict_to_sdict` primitive, and fans `_pb_expr__list` over each contract-key
+    clause list + `_pb_body` over the body. Whole-body-proven shape
+    (scratchpad/pdict_to_sdict_spike.mlw)."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    known = desc["known"]
+    pbe = whyml_ident(desc["pbexpr_name"])
+    pbb = whyml_ident(desc["pbbody_name"])
+    sf, cf, bf = desc["symtab_field"], desc["contracts_field"], desc["body_field"]
+    keys = desc["keys"]
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let {n} ({subj}: pyval) ({known}: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = let symtab = (match {subj} with")
+    out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+    out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+    out.append("                    | _ -> SNil end)")
+    out.append("      | _ -> SNil end) in")
+    out.append(f"    let fctx = {n}__anystr () in")
+    out.append(f"    (match {subj} with")
+    out.append("     | PDict d ->")
+    out.append(f'         (match pget_dyn "{cf}" d with')
+    out.append("          | Some (PDict cd) ->")
+    key_calls = [f'{pbe}__list (pget_list "{k}" cd) fctx symtab {known}'
+                 for k in keys]
+    for i, kc in enumerate(key_calls):
+        sep = ";" if i < len(key_calls) - 1 else ""
+        out.append(f"              {kc}{sep}")
+    out.append("          | _ -> () end);")
+    out.append(f'         {pbb} (pget_list "{bf}" d) fctx symtab {known}')
+    out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,

@@ -2668,6 +2668,12 @@ class FunctionEmissionMixin:
         # calls into (see the `recognize_cs_clause` branch below).
         if getattr(self, "_cs_trio", None) and func.get("name") in self._cs_trio_names:
             return []
+        # CHECK-CONTRACT-EXPRS caller (pdict-to-sdict-impl.md): the heterogeneous
+        # `_check_contract_exprs` caller is DEFERRED (forward reference) — emitted
+        # after the `_pb_expr` group + pb-trio it calls into (see the
+        # `recognize_pbexpr` branch below). Its own slot emits nothing.
+        if getattr(self, "_cce_names", None) and func.get("name") in self._cce_names:
+            return []
         # SCriticalSection increment (self-tcb-reduction M5, C-bucket): the `_py_stmt_with`
         # mutex/extend handler — bespoke (the generic lowering int-erases the weave-injected
         # mutex attrs + no-ops the extend). Corpus-inert.
@@ -2762,7 +2768,8 @@ class FunctionEmissionMixin:
             recognize_pyval_list_search, emit_pyval_list_search_group,
             recognize_pyval_flatten, emit_pyval_flatten_group,
             recognize_ir_free_vars, emit_ir_free_vars_group,
-            recognize_cs_clause, emit_cs_clause_group)
+            recognize_cs_clause, emit_cs_clause_group,
+            recognize_check_contract_exprs, emit_check_contract_exprs_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -3077,6 +3084,16 @@ class FunctionEmissionMixin:
             if getattr(self, "_pb_trio", None) and not self._pb_trio_emitted:
                 lines = lines + emit_pb_trio_group(self._pb_trio, whyml_ident)
                 self._pb_trio_emitted = True
+            # CHECK-CONTRACT-EXPRS callers (pdict-to-sdict-impl.md): append the
+            # deferred `_check_contract_exprs` caller group(s) right after the
+            # `_pb_expr` group + pb-trio they call into (once).
+            if getattr(self, "_cce_funcs", None) and not self._cce_emitted:
+                for _cf in self._cce_funcs:
+                    _cce = recognize_check_contract_exprs(_cf)
+                    if _cce is not None:
+                        lines = lines + emit_check_contract_exprs_group(
+                            _cce, whyml_ident)
+                self._cce_emitted = True
             return lines
         # alist-adict-census §3: the returned-`sdict` dict-fold (result_algebra =
         # a string-keyed dict, by RETURN). The by-key-grouping twin of the A-set

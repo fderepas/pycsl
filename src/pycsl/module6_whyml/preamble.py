@@ -2060,7 +2060,7 @@ class PreambleEmissionMixin:
             recognize_type_existence, recognize_named_field_existence,
             recognize_pyval_string_walker, recognize_pyval_list_walker,
             recognize_pyval_flatten, recognize_ir_free_vars,
-            recognize_cs_clause)
+            recognize_cs_clause, recognize_check_contract_exprs)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
@@ -2069,7 +2069,14 @@ class PreambleEmissionMixin:
             recognize_sawalk(f) is not None or recognize_dictfold(f) is not None
             or recognize_pbexpr(f) is not None
             or recognize_cs_clause(f) is not None
+            or recognize_check_contract_exprs(f) is not None
             for f in functions)
+        # pdict-to-sdict-impl.md: the heterogeneous-func caller cluster
+        # (`_check_contract_exprs`) additionally needs the pydict->sdict bridge
+        # theory (`pget_dyn`/`pget_list`/`pdict_to_sdict`). Gated separately so
+        # every already-landed sdict mirror stays byte-identical; corpus-inert.
+        needs_pdict_bridge = any(
+            recognize_check_contract_exprs(f) is not None for f in functions)
         needs_pydict = needs_sdict or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_substmap(f) is not None
@@ -2121,6 +2128,17 @@ class PreambleEmissionMixin:
         self._cs_trio_names = (
             set(self._cs_trio["names"]) if self._cs_trio else set())
         self._cs_trio_emitted = False
+        # pdict-to-sdict-impl.md (heterogeneous-func caller cluster): the
+        # `_check_contract_exprs` caller is a FORWARD REFERENCE to its
+        # `_pb_expr`/`_pb_body` callees (textually before them), so it is emitted
+        # AFTER the `_pb_expr` group + pb-trio (same deferred-append plumbing).
+        # `_cce_funcs` holds the recognised caller func dicts; `_cce_emitted`
+        # gates the once-only append. Corpus-inert.
+        from module6_whyml.generic_fold import recognize_check_contract_exprs
+        self._cce_funcs = [
+            f for f in functions if recognize_check_contract_exprs(f) is not None]
+        self._cce_names = {f.get("name") for f in self._cce_funcs}
+        self._cce_emitted = False
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)
@@ -2256,6 +2274,7 @@ class PreambleEmissionMixin:
             "needs_selfstate_streq": needs_selfstate_streq,
             "needs_term_eq": needs_term_eq,
             "needs_sdict": needs_sdict,
+            "needs_pdict_bridge": needs_pdict_bridge,
             "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
             "needs_matrix": needs_matrix,
@@ -3171,6 +3190,56 @@ class PreambleEmissionMixin:
             "  = match a with",
             "    | SNil -> b",
             "    | SCons k v rest -> SCons k v (sappend rest b)",
+            "    end",
+        ] + self._pdict_bridge_theory_lines(needs)
+
+    def _pdict_bridge_theory_lines(self, needs: Dict[str, Any]) -> List[str]:
+        """pdict-to-sdict-impl.md (heterogeneous-func caller cluster): the
+        `pydict -> sdict` extraction bridge a caller (`_check_contract_exprs`)
+        needs to hand a function's `symbol_table` pydict field to the
+        already-converted `sdict`-consuming walkers. `pget_dyn`/`pget_list` are
+        the program-level dynamic-string-key readers (constructor `K_dyn` match,
+        NOT irkey `=`, which resolves to int equality in program context);
+        `irkey_to_string` is a TOTAL pure literal map (a genuine symbol_table has
+        only `K_dyn s` keys, so its faithful case is the carried runtime string);
+        `pdict_to_sdict` is the total, structurally-terminating conversion. All
+        purely DEFINED over the already-certified `pydict`/`sdict` — NO new type,
+        NO new axiom (ledger 3 unchanged). Gated on `needs_pdict_bridge`
+        (corpus-inert; fires only for the recognised caller)."""
+        if not needs.get("needs_pdict_bridge"):
+            return []
+        return [
+            "",
+            "  (* ==== pdict-to-sdict-impl.md: pydict -> sdict extraction bridge ==== *)",
+            "  (* dynamic-string-key readers (constructor `K_dyn` match, never irkey `=`) *)",
+            "  let rec pget_dyn (name: string) (d: pydict) : option pyval",
+            "    variant { d }",
+            "  = match d with",
+            "    | DNil -> None",
+            "    | DCons (K_dyn s) v rest -> if pystr_eq name s then Some v else pget_dyn name rest",
+            "    | DCons _ _ rest -> pget_dyn name rest",
+            "    end",
+            "",
+            "  let pget_list (name: string) (d: pydict) : list pyval",
+            "  = match pget_dyn name d with Some (PList xs) -> xs | _ -> Nil end",
+            "",
+            "  (* irkey -> string: TOTAL pure literal map (K_dyn carries its runtime string; *)",
+            "  (* interned keys are totalised to their literal — never appear in a symbol_table). *)",
+            "  let function irkey_to_string (k: irkey) : string",
+            "  = match k with",
+            '    | K_type   -> "type"   | K_left  -> "left"  | K_right  -> "right"',
+            '    | K_op     -> "op"     | K_z     -> "z"     | K_value  -> "value"',
+            '    | K_target -> "target" | K_body  -> "body"  | K_orelse -> "orelse"',
+            '    | K_func   -> "func"   | K_name  -> "name"',
+            "    | K_dyn s  -> s",
+            "    end",
+            "",
+            "  (* total, structurally-terminating pydict -> sdict conversion (no axiom). *)",
+            "  let rec function pdict_to_sdict (d: pydict) : sdict",
+            "    variant { d }",
+            "  = match d with",
+            "    | DNil -> SNil",
+            "    | DCons k v rest -> SCons (irkey_to_string k) v (pdict_to_sdict rest)",
             "    end",
         ]
 
