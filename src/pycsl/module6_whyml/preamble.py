@@ -2093,7 +2093,9 @@ class PreambleEmissionMixin:
             or recognize_check_contract_scope(f) is not None
             or recognize_check_clause_fold(f) is not None
             or recognize_check_no_exception(f) is not None for f in functions)
-        needs_pydict = needs_sdict or any(
+        from module6_whyml.generic_fold import recognize_closure_existence_pairs
+        needs_pydict = needs_sdict or bool(
+            recognize_closure_existence_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_substmap(f) is not None
             or recognize_bool_existence(f) is not None
@@ -2166,6 +2168,19 @@ class PreambleEmissionMixin:
             if recognize_check_body_walk(f) is not None]
         self._cbw_names = {f.get("name") for f, _ in self._cbw_funcs}
         self._cbw_emitted = set()
+        # CLOSURE-FORM existence walk (`_body_has_diverging_construct`/
+        # `_lemma_returns_value`): a `found=[False]` nested `def walk` existence
+        # predicate whose lifted `walk` sibling shares the accumulator as an
+        # int-erased global (a vacuous facade). Pair each OUTER wrapper with its
+        # lifted `walk` (adjacency), emit the wrapper as the certified `list
+        # pyval` existence catamorphism, and SUPPRESS the lifted `walk`. Keyed on
+        # object identity (`id`) — the walks share the name `walk`, so a
+        # name-keyed set would over-suppress. Corpus-inert (fires only on the
+        # recognised mirror wrappers). See generic_fold.py module note.
+        from module6_whyml.generic_fold import recognize_closure_existence_pairs
+        _clx = recognize_closure_existence_pairs(functions)
+        self._clx_outer_ids = _clx["outer_ids"]
+        self._clx_walk_ids = _clx["walk_ids"]
         # CHECK-SUBSCRIPT-ASSIGNMENTS caller (driver target #2): a body-only
         # caller running TWO `_sa_walk`-family walks with an annotation gate. It
         # is a forward reference to BOTH walkers, so it is DEFERRED until both

@@ -9345,6 +9345,347 @@ def emit_type_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
 
 
 # =========================================================================
+# CLOSURE-FORM existence walk — recognize_closure_existence_pairs.
+#
+# The `found=[False]` mutable-closure existence predicate (`_body_has_
+# diverging_construct` / `_lemma_returns_value`): a nested `def walk(node)`
+# that sets a captured 1-element accumulator list on the first matching node
+# and short-circuits, driven by an OUTER wrapper of exactly:
+#
+#     def P(body[, extra...]) -> bool:
+#         found = [False]
+#         def walk(node):
+#             if found[0]: return
+#             if isinstance(node, dict):
+#                 if <disc-0>: found[0] = True; return
+#                 ...
+#                 if <disc-k>: found[0] = True; return
+#                 for v in node.values(): walk(v)
+#             elif isinstance(node, list):
+#                 for x in node: walk(x)
+#         walk(body)
+#         return found[0]
+#
+# Module 5 lambda-lifts the nested `walk` to a SEPARATE sibling function that
+# shares `found` as an untyped GLOBAL, and the generic lowering int-erases the
+# whole thing (`val constant found : int`, `walk (node: int)`, discriminants
+# collapsed to constant hashes) — a fully vacuous facade. This recognizer pairs
+# the outer wrapper with its lifted `walk` (by adjacency: the walk directly
+# follows its wrapper) and emits the OUTER as the SAME certified `list pyval`/
+# `pyval`/`pydict` existence catamorphism `emit_bool_existence_group` /
+# `emit_type_existence_group` use (no new ADT/axiom/cert, ledger 3), OR-descending
+# the whole subtree with the recognised discriminant tag(s) driving the true-arm.
+# The lifted `walk` sibling is SUPPRESSED (emits nothing — no collision, no
+# facade). The `found[0]=True`-on-first-match / read-`found[0]` accumulator IS
+# (provably, and trivially under `ensures True`) the `∃ matching node` boolean —
+# the pure OR-fold discards the mutable accumulator mechanism, exactly the
+# doctrine `emit_type_existence_group` uses to discard the `any(genexp)` walk.
+# The recognised discriminant is the mutation-sensitive, non-facade signal
+# (change a tag in the source and the emitted .mlw moves; the subject appears in
+# the emitted body — de-vacuified). Fail-closed: a body-fidelity bug yields a
+# loud unprovable instance, never a false proof. Bool accumulator ONLY
+# (`[False]`); a string accumulator (`_lemma_calls_trusted`'s `hit=[""]`) is a
+# string-search over a free-var set — out of this recogniser's scope.
+# =========================================================================
+
+# interned irkey per read key (theory `DCons K_<key>` cell). A key NOT in this
+# set is the computed-key fallback `DCons (K_dyn "<key>")`.
+_CLX_IRKEY = {"type": "K_type", "left": "K_left", "right": "K_right",
+              "op": "K_op", "z": "K_z", "value": "K_value",
+              "target": "K_target", "body": "K_body", "orelse": "K_orelse",
+              "func": "K_func", "name": "K_name"}
+
+
+def _clx_match_acc_subscript(node: Any, acc: str) -> bool:
+    """`<acc>[0]` (Subscript on the accumulator var, index 0)."""
+    return (isinstance(node, dict) and node.get("type") == "Subscript"
+            and _is_var(node.get("value"), acc)
+            and isinstance(node.get("index"), dict)
+            and node["index"].get("type") in ("Number", "Int")
+            and node["index"].get("value") == 0)
+
+
+def _clx_has_acc_set(node: Any, acc: str) -> bool:
+    """True iff `<acc>[0] = ...` (an ArraySet to the accumulator, index 0)
+    occurs anywhere within `node` (guard-body may nest it under a refinement
+    `If`; the refinement is a dropped insight-C over-approximation)."""
+    if isinstance(node, dict):
+        if (node.get("stmt") == "ArraySet" and _is_var(node.get("array"), acc)
+                and isinstance(node.get("index"), dict)
+                and node["index"].get("type") in ("Number", "Int")
+                and node["index"].get("value") == 0):
+            return True
+        return any(_clx_has_acc_set(v, acc) for v in node.values())
+    if isinstance(node, list):
+        return any(_clx_has_acc_set(x, acc) for x in node)
+    return False
+
+
+def _clx_match_pred(test: Any, subj: str) -> Optional[Dict[str, Any]]:
+    """A single discriminant guard test -> a pred descriptor, or None.
+
+    Shapes (keyed on any string key; interned via `_CLX_IRKEY`, else `K_dyn`):
+      * `<subj>.get("<k>") == "<TAG>"`            -> {kind:"keylit", key, tag}
+      * `<subj>.get("<k>") in ("<t0>", ...)`      -> {kind:"keyin",  key, tags}
+    """
+    kt = _match_type_tag_test(test, subj)
+    if kt is not None:
+        return {"kind": "keylit", "key": kt[0], "tag": kt[1]}
+    kin = _match_key_in_tuple(test, subj)
+    if kin is not None:
+        return {"kind": "keyin", "key": kin[0], "tags": kin[1]}
+    return None
+
+
+def _clx_walk_iter_selfcall(node: Any, self_name: str, subj: str,
+                            iter_ok) -> bool:
+    """`for <lv> in <iter>: <walk-name>(<lv>)` — a bare descent loop whose sole
+    body statement is a self-call on the bound var, and whose iterable satisfies
+    `iter_ok(iter_node)`."""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return False
+    if not iter_ok(node.get("iter", {})):
+        return False
+    lv = node.get("target")
+    if not isinstance(lv, str):
+        return False
+    lb = node.get("body", [])
+    if len(lb) != 1:
+        return False
+    s = lb[0]
+    if not (isinstance(s, dict) and s.get("stmt") == "Expr"):
+        return False
+    call = s.get("value", {})
+    return (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == self_name
+            and len(call.get("args", [])) == 1
+            and _is_var(call["args"][0], lv))
+
+
+def _recognize_closure_walk(walkfunc: Dict[str, Any], acc: str
+                            ) -> Optional[List[Dict[str, Any]]]:
+    """Match the lifted `walk(node)` body (see module note); return its ordered
+    discriminant preds, or None. `acc` is the captured accumulator var name (from
+    the outer's `found = [False]`). Fail-closed."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    self_name = walkfunc.get("name")
+    body = walkfunc.get("body") or []
+    # [0] early-exit guard: `if <acc>[0]: return`
+    if len(body) != 2:
+        return None
+    g0, dispatch = body
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If"
+            and not g0.get("orelse")
+            and _clx_match_acc_subscript(g0.get("test"), acc)):
+        return None
+    # [1] `if isinstance(node, dict): <dict-arm> elif isinstance(node, list): ...`
+    if not (isinstance(dispatch, dict) and dispatch.get("stmt") == "If"
+            and _match_isinstance(dispatch.get("test", {}), node, "dict")):
+        return None
+    darm = dispatch.get("body", [])
+    if len(darm) < 2:
+        return None
+    guards, drecur = darm[:-1], darm[-1]
+    preds: List[Dict[str, Any]] = []
+    for g in guards:
+        if not (isinstance(g, dict) and g.get("stmt") == "If"
+                and not g.get("orelse")):
+            return None
+        pr = _clx_match_pred(g.get("test", {}), node)
+        if pr is None:
+            return None
+        # anti-facade: the guard body must set the accumulator (its whole point).
+        if not _clx_has_acc_set(g.get("body", []), acc):
+            return None
+        preds.append(pr)
+    if not preds:
+        return None
+
+    def _values_iter(it: Any) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{node}.values" and not it.get("args"))
+
+    if not _clx_walk_iter_selfcall(drecur, self_name, node, _values_iter):
+        return None
+    # elif isinstance(node, list): for x in node: walk(x)
+    orelse = dispatch.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    larm_if = orelse[0]
+    if not (isinstance(larm_if, dict) and larm_if.get("stmt") == "If"
+            and not larm_if.get("orelse")
+            and _match_isinstance(larm_if.get("test", {}), node, "list")):
+        return None
+    lb = larm_if.get("body", [])
+    if len(lb) != 1:
+        return None
+    if not _clx_walk_iter_selfcall(lb[0], self_name, node,
+                                   lambda it: _is_var(it, node)):
+        return None
+    return preds
+
+
+def _recognize_closure_outer(func: Dict[str, Any]
+                             ) -> Optional[Dict[str, Any]]:
+    """Match the OUTER wrapper `[Assign acc=[False], Expr walk(subj[,...]),
+    Return acc[0]]`; return {subj, walker_name, extra_params} or None. Bool
+    accumulator only (`[False]`). Fail-closed."""
+    params = func.get("formal_params") or []
+    if not params:
+        return None
+    subj = params[0]
+    extra = list(params[1:])
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    s_assign, s_call, s_ret = body
+    # [0] acc = [False]
+    if not (isinstance(s_assign, dict) and s_assign.get("stmt") == "Assign"
+            and isinstance(s_assign.get("value"), dict)
+            and s_assign["value"].get("type") == "ArrayLit"):
+        return None
+    elts = s_assign["value"].get("elts", [])
+    if not (len(elts) == 1 and isinstance(elts[0], dict)
+            and elts[0].get("type") == "Bool" and elts[0].get("value") is False):
+        return None
+    acc = s_assign.get("target")
+    if not isinstance(acc, str):
+        return None
+    # [1] walk(subj)  (a bare-expr Call; first arg is the subject var)
+    if not (isinstance(s_call, dict) and s_call.get("stmt") == "Expr"):
+        return None
+    call = s_call.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    cargs = call.get("args", [])
+    if not (cargs and _is_var(cargs[0], subj)):
+        return None
+    walker_name = call["func"]
+    # [2] return acc[0]
+    if not (isinstance(s_ret, dict) and s_ret.get("stmt") == "Return"
+            and _clx_match_acc_subscript(s_ret.get("value"), acc)):
+        return None
+    return {"subj": subj, "acc": acc, "walker_name": walker_name,
+            "extra_params": extra}
+
+
+def recognize_closure_existence_pairs(functions: List[Dict[str, Any]]
+                                      ) -> Dict[str, Any]:
+    """Pair each closure-form existence OUTER wrapper with its lifted `walk`
+    sibling (by adjacency — the walk directly follows the wrapper). Returns
+    {"outer_ids": {id(outer): desc}, "walk_ids": {id(walk), ...}}. Never raises;
+    an unpaired/unmatched wrapper is simply skipped (stays on its normal path)."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            try:
+                od = _recognize_closure_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            # find the walk: the immediately-following sibling whose name is the
+            # wrapper's call target and whose body is the walk shape.
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            if wf.get("name") != od["walker_name"]:
+                continue
+            if id(wf) in walk_ids:
+                continue
+            try:
+                preds = _recognize_closure_walk(wf, od["acc"])
+            except Exception:
+                preds = None
+            if preds is None:
+                continue
+            outer_ids[id(f)] = {"name": f.get("name"), "subj": od["subj"],
+                                "preds": preds,
+                                "extra_params": od["extra_params"]}
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_closure_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                 whyml_ident) -> List[str]:
+    """Emit the certified `list pyval`/`pyval`/`pydict` existence catamorphism
+    for a recognised closure-form wrapper (see module note). The PDict arm is the
+    disjunction of the recognised discriminant preds OR the structural descent;
+    each `variant` (`size_list`/`pv_size`/`size_dict`) decreases on a direct
+    structural sub-term. `ensures True` (type-safety + termination only). The
+    read keys are interned (`_CLX_IRKEY`) or the `K_dyn` computed-key fallback;
+    the emitted body matches on the subject + drives the true-arm off the tag(s)
+    (mutation-sensitive, non-facade, de-vacuified)."""
+    n = whyml_ident(func["name"])
+    extra = desc.get("extra_params") or []
+    extra_sig = "".join(f" ({whyml_ident(e)}: map string bool)" for e in extra)
+    extra_args = "".join(f" {whyml_ident(e)}" for e in extra)
+    out: List[str] = []
+    _emitted: set = set()
+
+    def _emit_key_reader(key: str) -> None:
+        if key in _emitted:
+            return
+        _emitted.add(key)
+        if key in _CLX_IRKEY:
+            kc = _CLX_IRKEY[key]
+            out.append(f"  let rec {n}__get_{key} (d: pydict) : option string")
+            out.append("    variant { d }")
+            out.append("  = match d with DNil -> None")
+            out.append(f"    | DCons {kc} (PStr s) rest -> Some s")
+            out.append(f"    | DCons _ _ rest -> {n}__get_{key} rest end")
+        else:
+            out.append(f"  let rec {n}__get_{key} (d: pydict) : option string")
+            out.append("    variant { d }")
+            out.append("  = match d with DNil -> None")
+            out.append(f'    | DCons (K_dyn k) (PStr s) rest ->'
+                       f' if pystr_eq k "{key}" then Some s else {n}__get_{key} rest')
+            out.append(f"    | DCons _ _ rest -> {n}__get_{key} rest end")
+        out.append(f"  let function {n}__{key}_is (v: pyval) (tag: string) : bool")
+        out.append("  = match v with")
+        out.append(f"    | PDict d -> (match {n}__get_{key} d with"
+                   f" Some t -> pystr_eq t tag | None -> false end)")
+        out.append("    | _ -> false end")
+
+    def _pred_str(pred: Dict[str, Any]) -> str:
+        key = pred["key"]
+        _emit_key_reader(key)
+        if pred["kind"] == "keylit":
+            return f'{n}__{key}_is v "{pred["tag"]}"'
+        # keyin
+        mem = " || ".join(f'{n}__{key}_is v "{t}"' for t in pred["tags"])
+        return f"({mem})"
+
+    disc = " || ".join(_pred_str(p) for p in desc["preds"])
+    # the recursive-bool existence fold (proven; scratch mk.mlw all-Valid).
+    out.append(f"  let rec {n} (stmts: list pyval){extra_sig} : bool")
+    out.append("    requires { true } ensures { true } variant { size_list stmts }")
+    out.append(f"  = match stmts with Nil -> false"
+               f" | Cons h t -> {n}__v h{extra_args} || {n} t{extra_args} end")
+    out.append(f"  with {n}__v (v: pyval){extra_sig} : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> ({disc}) || {n}__d d{extra_args}")
+    out.append(f"    | PList xs -> {n} xs{extra_args}")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__d (d: pydict){extra_sig} : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> false"
+               f" | DCons _ v rest -> {n}__v v{extra_args} || {n}__d rest{extra_args} end")
+    return out
+
+
+# =========================================================================
 # NAMED-FIELD self-recursive existence fold — recognize_named_field_existence.
 #
 # genexp-erasure-wall / wall-lessons (l),(j),(q): a SINGLE untyped-node

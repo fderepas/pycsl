@@ -486,12 +486,34 @@ def _gso_walk(node, where, symtab) -> None:
         for x in node:
             _gso_walk(x, where, symtab)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _body_has_diverging_construct(body) -> bool:
-    return False
+    """True iff the IR body contains a loop (``While``/``For``), a critical section
+    (``CriticalSection`` — a lock-acquire that may block forever), or a function/method
+    call (``{"type": "Call"}`` — recursion or a diverging callee). This is the IR port of
+    Module 4's ``ast.walk`` over ``ast.While/For/AsyncFor/Call`` + critical ``with``."""
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") in ("While", "For", "CriticalSection"):
+                found[0] = True
+                return
+            if node.get("type") == "Call":
+                found[0] = True
+                return
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -572,12 +594,34 @@ def _noreturn_walk_stmts(stmts, fname, noreturn_names) -> None:
 def _stmt_is_noreturn_call(s, noreturn_names) -> bool:
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _lemma_returns_value(body) -> bool:
-    return False
+    """True iff the IR body contains a ``Return`` statement carrying a non-``None`` value
+    (Module 4 walked ``ast.Return`` whose value was neither absent nor the ``None``
+    constant)."""
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") == "Return":
+                v = node.get("value")
+                # `return` / `return None` → value is None (no value) or a None constant.
+                if v is not None and not (
+                        isinstance(v, dict) and v.get("type") in ("None", "CSLNone")):
+                    found[0] = True
+                    return
+            for x in node.values():
+                walk(x)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

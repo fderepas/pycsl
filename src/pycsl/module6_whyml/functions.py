@@ -2728,6 +2728,20 @@ class FunctionEmissionMixin:
         # branches below). Its own slot emits nothing.
         if getattr(self, "_cbw_names", None) and func.get("name") in self._cbw_names:
             return []
+        # CLOSURE-FORM existence walk (generic_fold.py module note): the lifted
+        # `walk` sibling of a recognised `found=[False]` wrapper is SUPPRESSED
+        # (emits nothing — the wrapper's self-contained catamorphism does not call
+        # it, so no reference is dangled and no name collides across siblings).
+        # Keyed on object identity; corpus-inert.
+        if id(func) in getattr(self, "_clx_walk_ids", set()):
+            return []
+        # …and the wrapper itself emits the certified `list pyval` existence
+        # catamorphism (proven; NO new type/axiom/cert, ledger 3), de-vacuifying
+        # the int-erased `walk body` facade.
+        _clx_desc = getattr(self, "_clx_outer_ids", {}).get(id(func))
+        if _clx_desc is not None:
+            from module6_whyml.generic_fold import emit_closure_existence_group
+            return emit_closure_existence_group(func, _clx_desc, whyml_ident)
         # CHECK-SUBSCRIPT-ASSIGNMENTS caller (driver target #2): DEFERRED until
         # both its `_sa_immutable_walk`/`_sa_walk` walker groups are emitted (see
         # the `recognize_sawalk` branch). Its own slot emits nothing.
