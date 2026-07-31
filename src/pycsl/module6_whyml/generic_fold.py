@@ -8554,6 +8554,377 @@ def emit_check_clause_fold_group(desc: Dict[str, Any], whyml_ident) -> List[str]
 
 
 # =========================================================================
+# LEMMA-SOUNDNESS `_check_*` caller — `recognize_check_lemma`.
+#
+# lemma-soundness-impl.md (self-tcb-reduction): `_check_lemma(func,
+# trusted_funcs)` is the `#@ lemma` well-formedness gate. Unlike the simple
+# multi-guard cascade (`recognize_check_guard_cascade`, an `if guard: return`*
+# then one terminal raise), it is a SEQUENCE of independent `if <cond>: raise`
+# guards interleaved with error-message-only local assigns, plus a clause-fold
+# over `contracts.assigns` and a threaded set-param. Exact live shape (11 stmts):
+#
+#     def _check_lemma(func, trusted_funcs) -> None:
+#         if not func.get("lemma"): return                     # [0] absent -> return
+#         name = func.get("name", "<anonymous>")               # [1] err-msg local (dropped)
+#         if func.get("diverges"): raise Exc                    # [2] field-present -> raise
+#         contracts = func.get("contracts") or {}               # [3] nested pydict local
+#         if not (contracts.get("ensures") or []): raise Exc    # [4] nested list empty -> raise
+#         ra = func.get("return_annotation")                    # [5] string local
+#         if ra not in (None, "None"): raise Exc                # [6] present & != "None" -> raise
+#         for t in contracts.get("assigns", []) or []:          # [7] clause fold over assigns
+#             if not (isinstance(t, dict) and t.get("type") == "Nothing"): raise Exc
+#         if _lemma_returns_value(func.get("body", []) or []): raise Exc   # [8] bool pred
+#         leaked = _lemma_calls_trusted(func.get("body", []) or [], trusted_funcs)  # [9] str pred
+#         if leaked: raise Exc                                  # [10] non-empty -> raise
+#
+# All raises are the SAME exception (`PyCSLSemanticError`); the caller needs only
+# type-safety + termination (`ensures true`, `raises { Exc }`). Emitted inline
+# over the certified pydict/list `pyval` bridge (`pget_dyn`/`pget_list` + a
+# `_sa_reader_lines` interned `type` reader), the converted bool existence
+# predicate (`_lemma_returns_value : list pyval -> bool`, gated on
+# `clx_pred_names`), and the converted string-search predicate
+# (`_lemma_calls_trusted : list pyval -> map string bool -> string`, gated on
+# `lss_pred_names`) threading `trusted_funcs` as the `map string bool` set PARAM.
+# The `contracts.assigns` fold is a bounded structural list fold (raise unless
+# each element is a PDict tagged `Nothing`). WHICH raise fires is a value fact no
+# VC constrains (insight C, exactly as the sibling `_check_*` callers); the SHAPE
+# — the real field keys ("lemma"/"diverges"/"contracts"/"ensures"/
+# "return_annotation"/"assigns"/"body"), the "None"/"Nothing" literals, and the
+# real converted-predicate calls on the real body list + threaded set-param — is
+# validated and appears in the emitted body (mutation-sensitive: change any
+# key/tag/predicate/body-key in the source and the emitted .mlw moves;
+# de-vacuified, `func` + `trusted_funcs` both live). Reuses the certified
+# pydict/list `pyval` bridge + the two converted predicates; NO new type/axiom/
+# cert, ledger 3. The `name` local + all FStrings are verification-irrelevant
+# (error-message-only). Fail-closed: any shape deviation (or an unconverted /
+# differently-typed predicate) keeps the caller `\trusted`.
+# =========================================================================
+
+def recognize_check_lemma(func: Dict[str, Any], clx_pred_names=None,
+                          lss_pred_names=None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_lemma` lemma-soundness caller (see module
+    note). Returns a descriptor of the field keys, literals, converted predicate
+    names, and the exception, or None; never raises."""
+    try:
+        return _recognize_check_lemma(func, clx_pred_names or set(),
+                                      lss_pred_names or set())
+    except Exception:
+        return None
+
+
+def _recognize_check_lemma(func: Dict[str, Any], clx_pred_names,
+                           lss_pred_names) -> Optional[Dict[str, Any]]:
+    # SPECIFIC to the lemma-soundness gate: this is a bespoke 11-statement shape,
+    # so key it by name (the other `_check_*` recognizers are equally specific).
+    if func.get("name") != "_check_lemma":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, setp = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 11:
+        return None
+
+    def _if_raise(st: Any) -> Optional[str]:
+        """`if <test>: raise <Exc>` (single-raise body, no orelse) -> exc name."""
+        if not (isinstance(st, dict) and st.get("stmt") == "If"
+                and not st.get("orelse")):
+            return None
+        ib = st.get("body") or []
+        if len(ib) != 1:
+            return None
+        return _match_sa_raise(ib[0])
+
+    excs: List[str] = []
+
+    # [0] if not func.get("lemma"): return
+    s = body[0]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    t = s.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "UnaryOp"
+            and t.get("op") == "not"):
+        return None
+    lemma_key = _match_get_call(t.get("expr") or {}, subj)
+    if lemma_key is None:
+        return None
+    rb = s.get("body") or []
+    if not (len(rb) == 1 and isinstance(rb[0], dict)
+            and rb[0].get("stmt") == "Return" and rb[0].get("value") is None):
+        return None
+
+    # [1] name = func.get("name", "<anonymous>")  (error-message-only local)
+    s = body[1]
+    if not (isinstance(s, dict) and s.get("stmt") == "Assign"
+            and _match_get_call(s.get("value") or {}, subj) is not None):
+        return None
+
+    # [2] if func.get("diverges"): raise
+    s = body[2]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    diverges_key = _match_get_call(s.get("test") or {}, subj)
+    if diverges_key is None:
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [3] contracts = func.get("contracts") or {}
+    s = body[3]
+    if not (isinstance(s, dict) and s.get("stmt") == "Assign"):
+        return None
+    cvar = s.get("target")
+    cval = s.get("value") or {}
+    if not (isinstance(cvar, str) and isinstance(cval, dict)
+            and cval.get("type") == "BinOp" and cval.get("op") == "or"):
+        return None
+    contracts_key = _match_get_call(cval.get("left") or {}, subj)
+    rdict = cval.get("right") or {}
+    if not (contracts_key is not None and isinstance(rdict, dict)
+            and rdict.get("type") == "DictLit"):
+        return None
+
+    # [4] if not (contracts.get("ensures") or []): raise
+    s = body[4]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    t = s.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "UnaryOp"
+            and t.get("op") == "not"):
+        return None
+    inner = t.get("expr") or {}
+    if not (isinstance(inner, dict) and inner.get("type") == "BinOp"
+            and inner.get("op") == "or"):
+        return None
+    ensures_key = _match_get_call(inner.get("left") or {}, cvar)
+    if ensures_key is None:
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [5] ra = func.get("return_annotation")
+    s = body[5]
+    if not (isinstance(s, dict) and s.get("stmt") == "Assign"):
+        return None
+    ravar = s.get("target")
+    ra_key = _match_get_call(s.get("value") or {}, subj)
+    if not (isinstance(ravar, str) and ra_key is not None):
+        return None
+
+    # [6] if ra not in (None, "None"): raise
+    s = body[6]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    t = s.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "BinOp"
+            and t.get("op") == "not in" and _is_var(t.get("left"), ravar)):
+        return None
+    tup = t.get("right") or {}
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    elts = tup.get("elts") or []
+    if not (len(elts) == 2 and isinstance(elts[0], dict)
+            and elts[0].get("type") == "None"):
+        return None
+    none_lit = _is_string(elts[1])
+    if none_lit is None:
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [7] for t in (contracts.get("assigns", []) or []):
+    #         if not (isinstance(t, dict) and t.get("type") == "<TAG>"): raise
+    s = body[7]
+    if not (isinstance(s, dict) and s.get("stmt") == "For"):
+        return None
+    tv = s.get("target")
+    it = s.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "BinOp"
+            and it.get("op") == "or"):
+        return None
+    assigns_key = _match_get_call(it.get("left") or {}, cvar)
+    if not (isinstance(tv, str) and assigns_key is not None):
+        return None
+    fb = s.get("body") or []
+    if len(fb) != 1:
+        return None
+    gif = fb[0]
+    if not (isinstance(gif, dict) and gif.get("stmt") == "If"
+            and not gif.get("orelse")):
+        return None
+    gt = gif.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "UnaryOp"
+            and gt.get("op") == "not"):
+        return None
+    conj = gt.get("expr") or {}
+    if not (isinstance(conj, dict) and conj.get("type") == "BinOp"
+            and conj.get("op") == "and"):
+        return None
+    if not _match_isinstance(conj.get("left") or {}, tv, "dict"):
+        return None
+    eqn = conj.get("right") or {}
+    if not (isinstance(eqn, dict) and eqn.get("type") == "BinOp"
+            and eqn.get("op") == "=="):
+        return None
+    type_key = _match_get_call(eqn.get("left") or {}, tv)
+    nothing_tag = _is_string(eqn.get("right"))
+    if not (type_key and nothing_tag):
+        return None
+    e = _if_raise(gif)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [8] if _lemma_returns_value(func.get("body", []) or []): raise
+    s = body[8]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    call = s.get("test") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)
+            and call["func"] in clx_pred_names):
+        return None
+    bool_pred = call["func"]
+    cargs = call.get("args") or []
+    if len(cargs) != 1:
+        return None
+    body_key_1 = _gc_body_arg_key(cargs[0], subj)
+    if body_key_1 is None:
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # [9] leaked = _lemma_calls_trusted(func.get("body", []) or [], trusted_funcs)
+    s = body[9]
+    if not (isinstance(s, dict) and s.get("stmt") == "Assign"):
+        return None
+    leaked_var = s.get("target")
+    lcall = s.get("value") or {}
+    if not (isinstance(leaked_var, str) and isinstance(lcall, dict)
+            and lcall.get("type") == "Call" and isinstance(lcall.get("func"), str)
+            and lcall["func"] in lss_pred_names):
+        return None
+    str_pred = lcall["func"]
+    largs = lcall.get("args") or []
+    if len(largs) != 2:
+        return None
+    body_key_2 = _gc_body_arg_key(largs[0], subj)
+    if body_key_2 is None:
+        return None
+    if not _is_var(largs[1], setp):
+        return None
+
+    # [10] if leaked: raise
+    s = body[10]
+    if not (isinstance(s, dict) and s.get("stmt") == "If" and not s.get("orelse")):
+        return None
+    if not _is_var(s.get("test"), leaked_var):
+        return None
+    e = _if_raise(s)
+    if e is None:
+        return None
+    excs.append(e)
+
+    # every guard raises the SAME exception (the lemma-specific message differs,
+    # but the type is invariant — a single `raises { Exc }` covers all paths).
+    if len(set(excs)) != 1:
+        return None
+    exc = excs[0]
+
+    return {"name": func.get("name"), "subj": subj, "set_param": setp,
+            "lemma_key": lemma_key, "diverges_key": diverges_key,
+            "contracts_key": contracts_key, "ensures_key": ensures_key,
+            "ra_key": ra_key, "none_lit": none_lit, "assigns_key": assigns_key,
+            "type_key": type_key, "nothing_tag": nothing_tag,
+            "bool_pred": bool_pred, "body_key_1": body_key_1,
+            "str_pred": str_pred, "body_key_2": body_key_2, "exc": exc}
+
+
+def emit_check_lemma_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_lemma` lemma-soundness caller (see module note): bridge
+    `func` to `PDict d`, and — when the `lemma` field is present — run the six
+    independent raise-guards in source order over the certified pydict/list
+    `pyval` bridge. The `contracts.assigns` clause fold is a bounded structural
+    list fold; the two converted predicates are called on the body list (the
+    string-search one threading `trusted_funcs` as the `map string bool` set
+    PARAM). Type-safe + terminating; NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = whyml_ident(desc["subj"])
+    setp = whyml_ident(desc["set_param"])
+    exc = desc["exc"]
+    bool_pred = whyml_ident(desc["bool_pred"])
+    str_pred = whyml_ident(desc["str_pred"])
+    type_suf = _reader_suffix(desc["type_key"])
+    out: List[str] = []
+    # element `type`-key reader (interned or K_dyn) for the assigns clause fold.
+    out += _sa_reader_lines(n, desc["type_key"], as_str=True)
+    # the bounded `contracts.assigns` clause fold: raise unless each element is a
+    # PDict tagged <nothing_tag> (the `isinstance(t, dict) and t["type"]==TAG`
+    # guard; a non-dict or a missing/other tag raises).
+    out.append(f"  let rec {n}__afold (xs: list pyval) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}"
+               " variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h rest ->")
+    out.append("        (match h with")
+    out.append(f"         | PDict hd -> (match {n}__get_{type_suf} hd with")
+    out.append(f'                        | Some ty -> if pystr_eq ty "{desc["nothing_tag"]}"'
+               f" then () else raise {exc}")
+    out.append(f"                        | None -> raise {exc} end)")
+    out.append(f"         | _ -> raise {exc} end);")
+    out.append(f"        {n}__afold rest")
+    out.append("    end")
+    # the caller entry point.
+    out.append(f"  let {n} ({subj}: pyval) ({setp}: map string bool) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    # [0] gate: `if not func.get("lemma"): return` -> run checks only when present.
+    out.append(f'        if (match pget_dyn "{desc["lemma_key"]}" d with'
+               " Some _ -> true | None -> false end) then begin")
+    # [2] diverges present -> raise.
+    out.append(f'          (if (match pget_dyn "{desc["diverges_key"]}" d with'
+               f" Some _ -> true | None -> false end) then raise {exc});")
+    # [4] contracts.ensures empty -> raise (absent contracts reads as {} -> raise).
+    out.append(f'          (match pget_dyn "{desc["contracts_key"]}" d with')
+    out.append(f'           | Some (PDict cd) -> (match pget_list "{desc["ensures_key"]}" cd'
+               f" with Nil -> raise {exc} | Cons _ _ -> () end)")
+    out.append(f"           | _ -> raise {exc} end);")
+    # [6] return_annotation present and != "None" -> raise (absent -> None -> ok).
+    out.append(f'          (match pget_dyn "{desc["ra_key"]}" d with')
+    out.append(f'           | Some (PStr s) -> if pystr_eq s "{desc["none_lit"]}"'
+               f" then () else raise {exc}")
+    out.append(f"           | Some _ -> raise {exc}")
+    out.append("           | None -> () end);")
+    # [7] assigns clause fold (absent contracts -> empty iter -> no raise).
+    out.append(f'          (match pget_dyn "{desc["contracts_key"]}" d with')
+    out.append(f'           | Some (PDict cd) -> {n}__afold (pget_list "{desc["assigns_key"]}" cd)')
+    out.append("           | _ -> () end);")
+    # [8] `_lemma_returns_value(body)` -> raise.
+    out.append(f'          (if {bool_pred} (pget_list "{desc["body_key_1"]}" d)'
+               f" then raise {exc});")
+    # [10] `_lemma_calls_trusted(body, trusted_funcs)` non-empty -> raise.
+    out.append(f'          (if not (pystr_eq ({str_pred} (pget_list "{desc["body_key_2"]}" d)'
+               f' {setp}) "") then raise {exc})')
+    out.append("        end else ()")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
 # TWO-LIST CROSS-REF `_check_*` caller — `recognize_check_no_exception`.
 #
 # no-exception-crossref-impl.md (self-tcb-reduction, generalises

@@ -676,12 +676,48 @@ def _lemma_calls_trusted(body, trusted) -> str:
     walk(body)
     return hit[0]
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_lemma(func, trusted_funcs) -> None:
-    pass
+    if not func.get("lemma"):
+        return
+    name = func.get("name", "<anonymous>")
+    if func.get("diverges"):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' is also `#@ \\diverges`: a non-terminating "
+            f"lemma proves nothing and would be unsound as a fact. Remove one.",
+            code="PYCSL-SEM-LEMMA")
+    contracts = func.get("contracts") or {}
+    if not (contracts.get("ensures") or []):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' has no `#@ ensures`: a lemma must state the "
+            f"fact it proves (the conclusion). Add at least one `#@ ensures`.",
+            code="PYCSL-SEM-LEMMA")
+    ra = func.get("return_annotation")
+    if ra not in (None, "None"):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' must be annotated `-> None`: a lemma computes "
+            f"nothing (its WhyML result is `unit`); the body is the proof.",
+            code="PYCSL-SEM-LEMMA")
+    for t in contracts.get("assigns", []) or []:
+        if not (isinstance(t, dict) and t.get("type") == "Nothing"):
+            raise PyCSLSemanticError(
+                f"`#@ lemma` '{name}' must be `assigns \\nothing`: a lemma is "
+                f"erased at extraction and may not mutate non-ghost state.",
+                code="PYCSL-SEM-LEMMA")
+    if _lemma_returns_value(func.get("body", []) or []):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' body must not `return` a value — it is a "
+            f"proof (returns unit). Use `pass` for an immediate arm.",
+            code="PYCSL-SEM-LEMMA")
+    leaked = _lemma_calls_trusted(func.get("body", []) or [], trusted_funcs)
+    if leaked:
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' calls `\\trusted` function '{leaked}': a "
+            f"checked lemma may not rest on an unverified (trusted) fact — that "
+            f"would smuggle an unchecked axiom into a 'proved' lemma.",
+            code="PYCSL-SEM-LEMMA")
 
 #@ requires True
 #@ ensures True

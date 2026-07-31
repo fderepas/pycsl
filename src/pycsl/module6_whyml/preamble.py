@@ -2202,6 +2202,13 @@ class PreambleEmissionMixin:
         self._clx_pred_names = {
             d["name"] for d in self._clx_outer_ids.values()
             if not d.get("extra_params")}
+        # LEMMA-SOUNDNESS `_check_lemma` caller (lemma-soundness-impl.md): the set
+        # of converted string-search predicate NAMES (`_lemma_calls_trusted`,
+        # `list pyval -> map string bool -> string`). `_check_lemma` threads its
+        # `trusted_funcs` set PARAM into one of these; a call to an unconverted /
+        # differently-typed predicate keeps the caller `\trusted` (fail-closed).
+        self._lss_pred_names = {
+            d["name"] for d in self._lss_outer_ids.values()}
         # CHECK-SUBSCRIPT-ASSIGNMENTS caller (driver target #2): a body-only
         # caller running TWO `_sa_walk`-family walks with an annotation gate. It
         # is a forward reference to BOTH walkers, so it is DEFERRED until both

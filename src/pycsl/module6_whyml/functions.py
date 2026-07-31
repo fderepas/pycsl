@@ -2862,6 +2862,7 @@ class FunctionEmissionMixin:
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
             recognize_check_guard_cascade, emit_check_guard_cascade_group,
             recognize_check_clause_fold, emit_check_clause_fold_group,
+            recognize_check_lemma, emit_check_lemma_group,
             recognize_check_no_exception, emit_check_no_exception_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
@@ -3009,6 +3010,22 @@ class FunctionEmissionMixin:
         _ccf = recognize_check_clause_fold(func)
         if _ccf is not None:
             return emit_check_clause_fold_group(_ccf, whyml_ident)
+        # LEMMA-SOUNDNESS `_check_*` caller (`_check_lemma`): the `#@ lemma`
+        # well-formedness gate — a sequence of independent `if <cond>: raise`
+        # guards over `func`'s bridged pydict, a bounded `contracts.assigns`
+        # clause fold, and the two converted lemma predicates on the body list
+        # (`_lemma_returns_value : list pyval -> bool`, gated on `_clx_pred_names`;
+        # `_lemma_calls_trusted : list pyval -> map string bool -> string`, gated
+        # on `_lss_pred_names`, threading `trusted_funcs` as the set PARAM).
+        # Emitted inline over the certified pydict/list `pyval` bridge (no walker
+        # delegation, no forward reference — both predicates are emitted earlier,
+        # callee-before-caller). Fail-closed; a shape outside the fragment (or an
+        # unconverted / differently-typed predicate) stays `\trusted`.
+        _cl = recognize_check_lemma(
+            func, getattr(self, "_clx_pred_names", set()),
+            getattr(self, "_lss_pred_names", set()))
+        if _cl is not None:
+            return emit_check_lemma_group(_cl, whyml_ident)
         # TWO-LIST CROSS-REF FOLD `_check_*` caller (`_check_no_exception`): a
         # caller that folds ONE contract clause-list (`contracts["no_exception"]`)
         # while cross-referencing a SECOND (`contracts["raises"]` by `exc_type`)
