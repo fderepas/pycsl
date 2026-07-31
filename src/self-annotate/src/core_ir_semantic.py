@@ -335,12 +335,12 @@ def _sa_walk(node, where, symtab) -> None:
         for x in node:
             _sa_walk(x, where, symtab)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_checkpoints(func) -> None:
-    pass
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    _cp_walk(func.get("body", []) or [], where)
 
 #@ requires True
 #@ ensures True
@@ -371,12 +371,13 @@ def _contains_result(node) -> bool:
         return any(_contains_result(x) for x in node)
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_ghost_string_ops(func) -> None:
-    pass
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    _gso_walk(func.get("body", []) or [], where, symtab)
 
 #@ requires True
 #@ ensures True

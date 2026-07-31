@@ -2060,7 +2060,8 @@ class PreambleEmissionMixin:
             recognize_type_existence, recognize_named_field_existence,
             recognize_pyval_string_walker, recognize_pyval_list_walker,
             recognize_pyval_flatten, recognize_ir_free_vars,
-            recognize_cs_clause, recognize_check_contract_exprs)
+            recognize_cs_clause, recognize_check_contract_exprs,
+            recognize_check_body_walk)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
@@ -2070,13 +2071,16 @@ class PreambleEmissionMixin:
             or recognize_pbexpr(f) is not None
             or recognize_cs_clause(f) is not None
             or recognize_check_contract_exprs(f) is not None
+            or recognize_check_body_walk(f) is not None
             for f in functions)
         # pdict-to-sdict-impl.md: the heterogeneous-func caller cluster
-        # (`_check_contract_exprs`) additionally needs the pydict->sdict bridge
-        # theory (`pget_dyn`/`pget_list`/`pdict_to_sdict`). Gated separately so
-        # every already-landed sdict mirror stays byte-identical; corpus-inert.
+        # (`_check_contract_exprs` + the body-only `_check_checkpoints`/
+        # `_check_ghost_string_ops` siblings) additionally needs the pydict->sdict
+        # bridge theory (`pget_dyn`/`pget_list`/`pdict_to_sdict`). Gated separately
+        # so every already-landed sdict mirror stays byte-identical; corpus-inert.
         needs_pdict_bridge = any(
-            recognize_check_contract_exprs(f) is not None for f in functions)
+            recognize_check_contract_exprs(f) is not None
+            or recognize_check_body_walk(f) is not None for f in functions)
         needs_pydict = needs_sdict or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_substmap(f) is not None
@@ -2139,6 +2143,17 @@ class PreambleEmissionMixin:
             f for f in functions if recognize_check_contract_exprs(f) is not None]
         self._cce_names = {f.get("name") for f in self._cce_funcs}
         self._cce_emitted = False
+        # BODY-WALK caller siblings (`_check_checkpoints`/`_check_ghost_string_ops`):
+        # each is a FORWARD REFERENCE to its `_cp_walk`/`_gso_walk` walker callee
+        # (textually before it), so it is emitted AFTER its walker group, keyed on
+        # the emitted walker's name. `_cbw_funcs` holds the recognised caller func
+        # dicts (with their descriptors); `_cbw_emitted` gates each once-only append.
+        from module6_whyml.generic_fold import recognize_check_body_walk
+        self._cbw_funcs = [
+            (f, recognize_check_body_walk(f)) for f in functions
+            if recognize_check_body_walk(f) is not None]
+        self._cbw_names = {f.get("name") for f, _ in self._cbw_funcs}
+        self._cbw_emitted = set()
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)

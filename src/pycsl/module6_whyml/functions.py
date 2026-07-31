@@ -2653,6 +2653,26 @@ class FunctionEmissionMixin:
         ]
         return L
 
+    def _emit_deferred_cbw(self, walker_name, whyml_ident) -> List[str]:
+        """Append the deferred BODY-WALK `_check_*` caller group(s) whose walker is
+        `walker_name` (the just-emitted `_cp_walk`/`_gso_walk`/`_sa_walk`), once
+        each. Keyed on the emitted walker's canonical name so each caller lands
+        immediately after the walker it calls into (forward-reference resolution)."""
+        from module6_whyml.generic_fold import (
+            _canon_call, emit_check_body_walk_group)
+        if not getattr(self, "_cbw_funcs", None) or walker_name is None:
+            return []
+        wcanon = _canon_call(walker_name)
+        out: List[str] = []
+        for f, desc in self._cbw_funcs:
+            nm = f.get("name")
+            if nm in self._cbw_emitted:
+                continue
+            if _canon_call(desc["walker_name"]) == wcanon:
+                out += emit_check_body_walk_group(desc, whyml_ident)
+                self._cbw_emitted.add(nm)
+        return out
+
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
@@ -2673,6 +2693,12 @@ class FunctionEmissionMixin:
         # after the `_pb_expr` group + pb-trio it calls into (see the
         # `recognize_pbexpr` branch below). Its own slot emits nothing.
         if getattr(self, "_cce_names", None) and func.get("name") in self._cce_names:
+            return []
+        # BODY-WALK caller siblings (`_check_checkpoints`/`_check_ghost_string_ops`):
+        # each is DEFERRED (forward reference) — emitted after its `_cp_walk`/
+        # `_gso_walk` walker group (see the `recognize_cpwalk`/`recognize_sawalk`
+        # branches below). Its own slot emits nothing.
+        if getattr(self, "_cbw_names", None) and func.get("name") in self._cbw_names:
             return []
         # SCriticalSection increment (self-tcb-reduction M5, C-bucket): the `_py_stmt_with`
         # mutex/extend handler — bespoke (the generic lowering int-erases the weave-injected
@@ -2769,7 +2795,8 @@ class FunctionEmissionMixin:
             recognize_pyval_flatten, emit_pyval_flatten_group,
             recognize_ir_free_vars, emit_ir_free_vars_group,
             recognize_cs_clause, emit_cs_clause_group,
-            recognize_check_contract_exprs, emit_check_contract_exprs_group)
+            recognize_check_contract_exprs, emit_check_contract_exprs_group,
+            recognize_check_body_walk, emit_check_body_walk_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -3039,7 +3066,10 @@ class FunctionEmissionMixin:
         # unprovable instance, never a false proof.
         _sa = recognize_sawalk(func)
         if _sa is not None:
-            return emit_sawalk_group(func, _sa, whyml_ident)
+            lines = emit_sawalk_group(func, _sa, whyml_ident)
+            # BODY-WALK caller siblings: append any deferred `_check_*` caller
+            # whose walker is THIS just-emitted `_sa_walk`/`_gso_walk` (once).
+            return lines + self._emit_deferred_cbw(func.get("name"), whyml_ident)
         # 2-arg checkpoint walk `_cp_walk(node, where)`: the `_sa_walk` sibling
         # with a SINGLE env param and a cross-call pre-action (`_contains_result`
         # on `node.get("test")`). Arity-2, so `recognize_sawalk` (exactly 3
@@ -3047,7 +3077,10 @@ class FunctionEmissionMixin:
         # fail-closed discipline; a template bug is a loud unprovable instance.
         _cp = recognize_cpwalk(func)
         if _cp is not None:
-            return emit_cpwalk_group(func, _cp, whyml_ident)
+            lines = emit_cpwalk_group(func, _cp, whyml_ident)
+            # BODY-WALK caller siblings: append any deferred `_check_*` caller
+            # whose walker is THIS just-emitted `_cp_walk` (once).
+            return lines + self._emit_deferred_cbw(func.get("name"), whyml_ident)
         # predicate-base walk `_pb_expr(node, ctx, symtab, known)`: the `_sa_walk`
         # sibling with a MULTI-ARM `node.get("type")` type dispatch (ArrayLen /
         # Valid / Separated / Forall|Exists), a 2nd env `known` modelled as

@@ -7325,6 +7325,133 @@ def emit_check_contract_exprs_group(desc: Dict[str, Any], whyml_ident) -> List[s
 
 
 # =========================================================================
+# BODY-WALK caller SIBLINGS (`_check_checkpoints`, `_check_ghost_string_ops`)
+# — the generalisation of the `_check_contract_exprs` caller to the simpler
+# heterogeneous-`func` callers that walk ONLY the function BODY (no contract-
+# clause fan-out). The shared shape is a 1-param `_check_*(func)` returning
+# None whose body is:
+#
+#     where  = f"function '{func.get('name', '<anonymous>')}'"   # FString ctx
+#     [symtab = func.get("symbol_table") or {}]                  # OPTIONAL
+#     WALKER(func.get("body", []) or [], where[, symtab])        # body walk
+#
+# `_check_checkpoints`     -> WALKER=`_cp_walk`  (2-arg env: where)        no symtab
+# `_check_ghost_string_ops`-> WALKER=`_gso_walk` (3-arg env: where,symtab)  symtab
+#
+# The WALKER is one of the already-converted `_sa_walk`-family env-threaded
+# walks; the caller only feeds it the body-list + the (verification-irrelevant,
+# error-message-only) `where` string + the bridged `symtab` (`pdict_to_sdict`
+# over the `symbol_table` pydict field — same total, terminating primitive the
+# `_check_contract_exprs` caller uses, NO new type/axiom, ledger 3). The walkers
+# place no VC constraint on `symtab`/`where` (`slookup`/`pystr_eq` uninterpreted,
+# insight C), so the caller needs only type-safety + termination — no
+# correspondence lemma. Emission is DEFERRED (forward reference): each caller is
+# textually before its WALKER callee, so it emits AFTER the walker group (the
+# `recognize_cpwalk` / `recognize_sawalk` branch), keyed on the emitted walker's
+# name. The emitter reads the `symbol_table`/`body` field keys + the WALKER name
+# OFF the body (fail-closed, mutation-faithful): change a key/callee in the
+# source and the emitted `.mlw` moves; a shape outside the fragment reverts to
+# `\trusted`.
+# =========================================================================
+
+def recognize_check_body_walk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of a body-only `_check_*(func)` caller (see module
+    note): `where = f-string; [symtab = func.get("symbol_table") or {}];
+    WALKER(func.get("body") or [], where[, symtab])`. Returns a descriptor of
+    the WALKER name + optional symtab field, or None; never raises."""
+    try:
+        return _recognize_check_body_walk(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_body_walk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) not in (2, 3):
+        return None
+    # [0] where = f"function '{func.get('name', ...)}'"  (an FString ctx)
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"
+            and isinstance(s0.get("value"), dict)
+            and s0["value"].get("type") == "FString"):
+        return None
+    where_lv = s0.get("target")
+    # [1] OPTIONAL: symtab = func.get("symbol_table") or {}
+    symtab_lv = None
+    symtab_field = None
+    call_stmt = body[1]
+    if len(body) == 3:
+        s1 = body[1]
+        if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+            return None
+        symtab_lv = s1.get("target")
+        symtab_field = _cce_field_or_default(s1.get("value"), subj)
+        if not symtab_field:
+            return None
+        call_stmt = body[2]
+    # [last] WALKER(func.get("body") or [], where[, symtab])
+    wc = _cce_expr_call(call_stmt)
+    if wc is None:
+        return None
+    walker_name, wargs = wc
+    body_field = _cce_field_or_default(wargs[0], subj) if wargs else None
+    if not body_field:
+        return None
+    if symtab_lv is None:
+        # 2-arg env walk: (body, where)
+        if not (len(wargs) == 2 and _is_var(wargs[1], where_lv)):
+            return None
+    else:
+        # 3-arg env walk: (body, where, symtab)
+        if not (len(wargs) == 3 and _is_var(wargs[1], where_lv)
+                and _is_var(wargs[2], symtab_lv)):
+            return None
+    return {"name": func.get("name"), "subj": subj,
+            "needs_symtab": symtab_lv is not None,
+            "symtab_field": symtab_field, "body_field": body_field,
+            "walker_name": _canon_call(walker_name)}
+
+
+def emit_check_body_walk_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit a body-only `_check_*` caller group (see module note): compute the
+    `where` context (an abstract `val …__anystr`, error-message-only), bridge the
+    optional `symbol_table` pydict field to `sdict` via `pdict_to_sdict`, and fan
+    the WALKER's `__list` over the body-list (`pget_list "body"`). Type-safe +
+    terminating over the already-certified `pydict`/`sdict`/walker theories."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    walker = whyml_ident(desc["walker_name"])
+    bf = desc["body_field"]
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    if desc["needs_symtab"]:
+        sf = desc["symtab_field"]
+        out.append(f"  = let symtab = (match {subj} with")
+        out.append(f'      | PDict d -> (match pget_dyn "{sf}" d with')
+        out.append("                    | Some (PDict sd) -> pdict_to_sdict sd")
+        out.append("                    | _ -> SNil end)")
+        out.append("      | _ -> SNil end) in")
+        out.append(f"    let where = {n}__anystr () in")
+        out.append(f"    (match {subj} with")
+        out.append(f'     | PDict d -> {walker}__list (pget_list "{bf}" d) where symtab')
+        out.append("     | _ -> () end)")
+    else:
+        out.append(f"  = let where = {n}__anystr () in")
+        out.append(f"    (match {subj} with")
+        out.append(f'     | PDict d -> {walker}__list (pget_list "{bf}" d) where')
+        out.append("     | _ -> () end)")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,
