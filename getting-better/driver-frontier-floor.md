@@ -49,3 +49,28 @@ commit 009f4384). `_cs_clause` erases `ctx` (error-message-only) — added to ch
 KNOWN_ERASURES as FAITHFUL-by-semantics (WhyML matches exceptions by type, not message). Whole-file proof
 SUCCESS, byte-diff 0, §10c all-7 ✓, vacuity 0. Both walker trios (_pb + _cs) now proven — the
 structured-dispatcher wall is fully cleared. Run total this session: 883→871 (12 conversions).
+
+## UPDATE 2026-08-01 — heterogeneous-func campaign DRAINED to autonomous floor at 855
+User-authorized "trio-fusion modular proof" (2026-07-31) snowballed into breaking the heterogeneous
+Dict[str,Any] "V1 wall" (in-scope via a pydict->sdict bridge, NO cert — a cert-need spike proved the
+primitive with existing certified shapes) and draining most of the core_ir_semantic orchestrator
+cluster. Session total: 883 -> 855 = **28 conversions**, 3 walls broken (_pb trio, _cs trio,
+heterogeneous-func V1), 1 vacuous facade REMOVED (the lambda-lifted int-erased closure `walk`).
+Ledger held at 3 throughout; every increment whole-file-proof + §10c all-7 + corpus-byte-diff-0 verified.
+KEY REUSABLE MACHINERY BANKED (all in generic_fold.py, no cert): pydict->sdict bridge; the trio-fusion
+emitter (emit_pb_trio_group, {size,phase} variant + shared pv_size extractor); recognizers for
+body-walk / clause-fold / field-guard-raise / guard-cascade / no_exception(literal-set) /
+closure-existence bool-fold / lemma string-search + map-string-bool SET-PARAM / check_lemma / warn-fold
+(warnings.warn = unmodelled no-op side-channel). Converted callers: _check_contract_exprs, _checkpoints,
+_ghost_string_ops, _subscript_assignments, _contract_scope, _span, _mutable_defaults, _assigns_regions,
+_no_exception, _check_diverges, _check_lemma, _check_union_gt1 (+ predicates _ir_free_vars, _cs_clause,
+_body_has_diverging_construct, _lemma_returns_value, _lemma_calls_trusted, _body_has_raise, _sa_immutable_walk).
+
+## AUTONOMOUS FLOOR at 855 — remaining tail is feature/authorization-gated (measured per-stub)
+- `_check_happy` (NEXT-CHEAPEST, authorize deliberately) — needs a fused set-collect (_hp_collect_written over ir["functions"]) + guard-cascade+warn over happy["properties"] = a multi-shape build.
+- `_check_acts` — local `defined` DICT-accumulator + `referenced` set built in-body (new pattern).
+- `_check_class_invariants` — ir `type_decls` fold + set-builder + sorted(genexp); no ir-typedecl-fold recognizer.
+- `_check_mutex_invariants` / `_check_callable_params` — string-PARSING (.split/.partition/.isidentifier) = string-op wall.
+- `_check_final*` / `_check_concurrency*` / `_check_typeddict_access*` / `_check_namedtuple_access*` / `_check_union_narrowing*` / `_check_noreturn_successors*` — mutually-trusted HELPER CLUSTERS (need whole cluster + un-converted collectors: _collect_call_targets/_hp_collect_written/_final_walk_body/_collect_noreturn_names).
+- `_check_noreturn` — needs a pyval->stmt_list bridge = CERT (formal-semantics, authorization).
+- `run_ir_semantic_checks` — top orchestrator; converts only once ~all callees do.
