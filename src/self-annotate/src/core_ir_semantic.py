@@ -515,19 +515,48 @@ def _body_has_diverging_construct(body) -> bool:
     walk(body)
     return found[0]
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_diverges(func) -> None:
-    pass
+    if not func.get("diverges"):
+        return
+    if func.get("lemma"):
+        return  # _check_lemma raises the lemma-specific message first
+    if _body_has_diverging_construct(func.get("body", []) or []):
+        return
+    raise PyCSLSemanticError(
+        f"`#@ \\diverges` on function '{func.get('name', '<anonymous>')}' is not "
+        f"justified: its body has no potentially-diverging construct (no critical "
+        f"section / lock-acquire, no loop, no call/recursion). A straight-line body "
+        f"provably terminates, so Why3 rejects the `diverges` effect (\"this expression "
+        f"does not diverge\"). Remove `#@ \\diverges`, or give the body a construct that "
+        f"can actually block or loop.",
+        code="PYCSL-SEM-DIVERGES",
+    )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _body_has_raise(body) -> bool:
-    return False
+    """True iff the IR body contains a ``Raise`` statement (anywhere, at any depth)."""
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") == "Raise":
+                found[0] = True
+                return
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
 
 #@ requires True
 #@ ensures True

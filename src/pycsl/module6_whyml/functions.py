@@ -2850,6 +2850,7 @@ class FunctionEmissionMixin:
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
+            recognize_check_guard_cascade, emit_check_guard_cascade_group,
             recognize_check_clause_fold, emit_check_clause_fold_group,
             recognize_check_no_exception, emit_check_no_exception_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
@@ -2975,6 +2976,18 @@ class FunctionEmissionMixin:
         _fgr = recognize_check_field_guard_raise(func)
         if _fgr is not None:
             return emit_check_field_guard_raise_group(_fgr, whyml_ident)
+        # MULTI-GUARD CASCADE `_check_*` caller (`_check_diverges`): a sequence of
+        # `if <field-guard | converted-predicate-call>: return` early-returns then
+        # a terminal unconditional `raise`. Emitted inline (no walker, no forward
+        # reference — the existence predicate is emitted earlier, callee-before-
+        # caller) over the certified pydict/list `pyval` bridge. The predicate call
+        # is gated on the converted-closure-existence name set (`_clx_pred_names`),
+        # so a differently-typed / unconverted predicate stays `\trusted`.
+        # Fail-closed; a shape outside the fragment stays `\trusted`.
+        _gcc = recognize_check_guard_cascade(
+            func, getattr(self, "_clx_pred_names", set()))
+        if _gcc is not None:
+            return emit_check_guard_cascade_group(_gcc, whyml_ident)
         # CLAUSE-LIST FIELD-CHECK FOLD `_check_*` caller
         # (`_check_assigns_regions`): a caller that folds ONE contract clause-list
         # (`contracts["assigns"]`), projecting each element's nested `type`/`base`

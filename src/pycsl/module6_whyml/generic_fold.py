@@ -8129,6 +8129,193 @@ def emit_check_field_guard_raise_group(
 
 
 # =========================================================================
+# MULTI-GUARD CASCADE `_check_*` caller — `recognize_check_guard_cascade`.
+#
+# check-diverges-noreturn-impl.md (self-tcb-reduction, generalises
+# `recognize_check_field_guard_raise` from a SINGLE `if`-raise to a CASCADE):
+# a void `_check_*` caller that is a sequence of `if <guard>: return`
+# early-returns followed by a FINAL unconditional `raise <Exc>`, where each
+# `<guard>` reads a bool field off `func`'s bridged pydict (`func.get("k")`,
+# optionally negated), or calls a NOW-CONVERTED `list pyval -> bool` existence
+# predicate (`_body_has_diverging_construct`) on the body list
+# (`func.get("body", []) or []`). Shape (the `_check_diverges` caller):
+#
+#     def _check_diverges(func) -> None:
+#         if not func.get("diverges"):                     return
+#         if func.get("lemma"):                            return
+#         if _body_has_diverging_construct(func.get("body", []) or []): return
+#         raise PyCSLSemanticError(...)
+#
+# Emitted inline (no walker, no forward reference — the existence predicate is
+# already emitted earlier, callee-before-caller by SCC dependency order): bridge
+# `func` to `PDict d`, read each bool field via `pget_dyn` (modelled by key
+# PRESENCE — WHICH guard fires is a value fact no VC constrains, insight C), call
+# the converted predicate on `pget_list "body" d` (a `list pyval`), and fold the
+# cascade into `if <g0> then () else if <g1> then () else ... else raise <Exc>`
+# (a guard true => early-return unit; all false => the terminal raise). Callers
+# need only type-safety + termination (`ensures true`, `raises { <Exc> }`). The
+# SHAPE — the real field keys + the real converted-predicate call on the real
+# `body` list — is validated (mutation-sensitive: change a key/predicate/body-key
+# in the source and the emitted .mlw moves; `func` appears in the emitted body,
+# de-vacuified). The predicate call is gated on `clx_pred_names` (the set of
+# single-arg closure-existence-converted `list pyval -> bool` predicates) so a
+# guard that references an UNCONVERTED / differently-typed predicate stays
+# `\trusted` (fail-closed). Reuses the certified pydict/list `pyval` bridge
+# (`pget_dyn`/`pget_list`) + the converted predicate; NO new type/axiom/cert,
+# ledger 3. FStrings in the raise (`func.get("name", ...)`) are
+# verification-irrelevant (error-message-only).
+# =========================================================================
+
+def _gc_body_arg_key(arg: Any, subj: str) -> Optional[str]:
+    """The body-list argument of an existence-predicate call:
+    `<subj>.get("<k>"[, default])` or `<subj>.get("<k>"[, default]) or []`
+    -> "<k>", else None."""
+    node = arg
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        node = node.get("left")
+    return _match_get_call(node, subj)
+
+
+def _gc_parse_guard(test: Any, subj: str,
+                    clx_pred_names) -> Optional[Dict[str, Any]]:
+    """A single cascade guard -> a guard descriptor, or None (fail-closed).
+    Shapes: `not <g>`; `<subj>.get("<k>")` (field-present); a converted
+    `list pyval -> bool` predicate call on the body list."""
+    if not isinstance(test, dict):
+        return None
+    # `not <g>`
+    if test.get("type") == "UnaryOp" and test.get("op") == "not":
+        inner = _gc_parse_guard(test.get("expr"), subj, clx_pred_names)
+        if inner is None:
+            return None
+        return {"kind": "not", "arg": inner}
+    # `<subj>.get("<k>")` truthiness -> field-present
+    k = _match_get_call(test, subj)
+    if k is not None:
+        return {"kind": "present", "key": k}
+    # `<pred>(<subj>.get("body"...) or [])` — pred converted as list pyval->bool
+    if (test.get("type") == "Call" and isinstance(test.get("func"), str)
+            and clx_pred_names is not None
+            and test.get("func") in clx_pred_names):
+        args = test.get("args") or []
+        if len(args) != 1:
+            return None
+        bk = _gc_body_arg_key(args[0], subj)
+        if bk is None:
+            return None
+        return {"kind": "pred", "pred": test["func"], "body_key": bk}
+    return None
+
+
+def _gc_has_pred(g: Dict[str, Any]) -> bool:
+    if g.get("kind") == "pred":
+        return True
+    if g.get("kind") == "not":
+        return _gc_has_pred(g["arg"])
+    return False
+
+
+def recognize_check_guard_cascade(
+        func: Dict[str, Any], clx_pred_names=None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the multi-guard cascade `_check_*` caller (see module
+    note). Returns a descriptor of the ordered guards + the final exception, or
+    None; never raises."""
+    try:
+        return _recognize_check_guard_cascade(func, clx_pred_names)
+    except Exception:
+        return None
+
+
+def _recognize_check_guard_cascade(
+        func: Dict[str, Any], clx_pred_names) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if not params:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    # >= 1 guard + a terminal unconditional raise.
+    if len(body) < 2:
+        return None
+    *guard_stmts, last = body
+    exc = _match_sa_raise(last)
+    if exc is None:
+        return None
+    guards: List[Dict[str, Any]] = []
+    used_pred = False
+    for st in guard_stmts:
+        if not (isinstance(st, dict) and st.get("stmt") == "If"
+                and not st.get("orelse")):
+            return None
+        ib = st.get("body") or []
+        # guard body is exactly `return` (no value).
+        if len(ib) != 1:
+            return None
+        r = ib[0]
+        if not (isinstance(r, dict) and r.get("stmt") == "Return"
+                and r.get("value") is None):
+            return None
+        g = _gc_parse_guard(st.get("test"), subj, clx_pred_names)
+        if g is None:
+            return None
+        used_pred = used_pred or _gc_has_pred(g)
+        guards.append(g)
+    if not guards:
+        return None
+    # anti-facade: at least one guard must call a converted existence predicate
+    # (the SHAPE this recogniser exists to lower faithfully); a pure field-guard
+    # cascade with no predicate is a different, simpler shape left out of scope.
+    if not used_pred:
+        return None
+    return {"name": func.get("name"), "subj": subj, "params": params,
+            "param_annotations": func.get("param_annotations") or {},
+            "guards": guards, "exc": exc}
+
+
+def emit_check_guard_cascade_group(
+        desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the multi-guard cascade `_check_*` caller (see module note): bridge
+    `func` to `PDict d`, read each bool field via `pget_dyn` (guard by key
+    PRESENCE) or call a converted `list pyval -> bool` predicate on
+    `pget_list "<body_key>" d`, and fold the cascade into
+    `if <g0> then () else ... else raise <Exc>`. Type-safe + terminating over the
+    certified pydict/list `pyval` bridge (no recursion, no new type/axiom/cert,
+    ledger 3)."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    exc = desc["exc"]
+
+    def gemit(g: Dict[str, Any]) -> str:
+        if g["kind"] == "present":
+            return (f'(match pget_dyn "{g["key"]}" d with'
+                    f' Some _ -> true | None -> false end)')
+        if g["kind"] == "not":
+            return f"(not {gemit(g['arg'])})"
+        # pred
+        pn = whyml_ident(g["pred"])
+        return f'({pn} (pget_list "{g["body_key"]}" d))'
+
+    sig = f"({subj}: pyval)"
+    for p in desc["params"][1:]:
+        sig += f" ({p}: {_param_whyml_type(desc['param_annotations'].get(p))})"
+    out: List[str] = []
+    out.append(f"  let {n} {sig} : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    indent = "        "
+    for g in desc["guards"]:
+        out.append(f"{indent}if {gemit(g)} then ()")
+        out.append(f"{indent}else")
+    out.append(f"{indent}raise {exc}")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
 # CLAUSE-LIST FIELD-CHECK FOLD `_check_*` caller (`_check_assigns_regions`)
 # — a caller that folds over ONE contract clause-list
 # (`func["contracts"]["assigns"]`), projecting each element's nested fields,

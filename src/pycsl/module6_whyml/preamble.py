@@ -2181,6 +2181,15 @@ class PreambleEmissionMixin:
         _clx = recognize_closure_existence_pairs(functions)
         self._clx_outer_ids = _clx["outer_ids"]
         self._clx_walk_ids = _clx["walk_ids"]
+        # MULTI-GUARD CASCADE `_check_*` caller (check-diverges-noreturn-impl.md):
+        # the set of single-arg closure-existence-converted `list pyval -> bool`
+        # predicate NAMES (`_body_has_diverging_construct`). A cascade guard that
+        # calls one of these on the body list is emitted as a real predicate call;
+        # a guard referencing an unconverted / differently-typed predicate keeps
+        # the caller `\trusted` (fail-closed). Single-arg only (no extra params).
+        self._clx_pred_names = {
+            d["name"] for d in self._clx_outer_ids.values()
+            if not d.get("extra_params")}
         # CHECK-SUBSCRIPT-ASSIGNMENTS caller (driver target #2): a body-only
         # caller running TWO `_sa_walk`-family walks with an annotation gate. It
         # is a forward reference to BOTH walkers, so it is DEFERRED until both
