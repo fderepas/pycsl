@@ -2836,7 +2836,8 @@ class FunctionEmissionMixin:
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
-            recognize_check_clause_fold, emit_check_clause_fold_group)
+            recognize_check_clause_fold, emit_check_clause_fold_group,
+            recognize_check_no_exception, emit_check_no_exception_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -2971,6 +2972,17 @@ class FunctionEmissionMixin:
         _ccf = recognize_check_clause_fold(func)
         if _ccf is not None:
             return emit_check_clause_fold_group(_ccf, whyml_ident)
+        # TWO-LIST CROSS-REF FOLD `_check_*` caller (`_check_no_exception`): a
+        # caller that folds ONE contract clause-list (`contracts["no_exception"]`)
+        # while cross-referencing a SECOND (`contracts["raises"]` by `exc_type`)
+        # and testing the finite `KNOWN_EXCEPTIONS` literal-set membership, raising
+        # by exception TYPE. Emitted inline (bounded nested list fold + literal-set
+        # disjunction over the certified pydict/list `pyval` bridge, no walker
+        # delegation, no forward reference). Fail-closed; a shape outside the
+        # fragment stays `\trusted`.
+        _cne = recognize_check_no_exception(func)
+        if _cne is not None:
+            return emit_check_no_exception_group(_cne, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)

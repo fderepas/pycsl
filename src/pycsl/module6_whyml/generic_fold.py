@@ -8367,6 +8367,272 @@ def emit_check_clause_fold_group(desc: Dict[str, Any], whyml_ident) -> List[str]
 
 
 # =========================================================================
+# TWO-LIST CROSS-REF `_check_*` caller — `recognize_check_no_exception`.
+#
+# no-exception-crossref-impl.md (self-tcb-reduction, generalises
+# `recognize_check_clause_fold`): the `_check_no_exception` caller reads two
+# contract clause-lists off `func`'s bridged pydict — `contracts.no_exception`
+# (names) and `contracts.raises` (dicts with an `exc_type` field) — plus the
+# `contracts.no_exception_all` bool, and enforces three raise-on-violation
+# rules by TYPE (all `PyCSLSemanticError`; callers need only type-safety +
+# termination):
+#
+#   for name in no_exc:
+#       if name not in KNOWN_EXCEPTIONS:  raise         (finite literal-set)
+#       if name in raised_names:          raise         (two-list cross-ref)
+#   if no_exc_all and raised_names:       raise         (raises non-empty)
+#
+# `KNOWN_EXCEPTIONS` (exception_model.py) is a FIXED-LITERAL `frozenset` of
+# exception-name strings, so `name in KNOWN_EXCEPTIONS` is a finite literal-set
+# membership emitted as a `pystr_eq` disjunction over the ACTUAL frozenset
+# members (read live from `exception_model.KNOWN_EXCEPTIONS` at recognise time,
+# so a change to the constant re-derives the emission — not a hardcoded facade).
+# `raised_names = {r.get("exc_type") for r in raises}` is a set whose only
+# semantic use is membership + non-emptiness, so it lowers to a bounded nested
+# fold `<n>__raised_has nm rs` (scan `raises` for a matching `exc_type`) and a
+# `raises`-non-empty test (a set built from a list is non-empty iff the list
+# is). No dynamic set model, no new type/axiom/cert — the certified pydict/list
+# `pyval` bridge (`pget_dyn`/`pget_list`) only, ledger 3. Fail-closed: a shape
+# outside the fragment (or a failed `exception_model` import) stays `\trusted`.
+
+
+def recognize_check_no_exception(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the two-list cross-ref `_check_no_exception` caller
+    (see module note). Returns a descriptor or None; never raises."""
+    try:
+        return _recognize_check_no_exception(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_no_exception(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 8:
+        return None
+
+    # [0] contracts = func.get("<CF>") or {}
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"):
+        return None
+    contracts_lv = s0.get("target")
+    v0 = s0.get("value") or {}
+    if not (isinstance(v0, dict) and v0.get("type") == "BinOp" and v0.get("op") == "or"):
+        return None
+    contracts_field = _match_get_call(v0.get("left") or {}, subj)
+    if not (isinstance(contracts_lv, str) and contracts_field):
+        return None
+
+    # [1] no_exc = list(contracts.get("<NEF>", []) or [])
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    no_exc_lv = s1.get("target")
+    v1 = s1.get("value") or {}
+    if not (isinstance(v1, dict) and v1.get("type") == "Call" and v1.get("func") == "list"):
+        return None
+    v1a = (v1.get("args") or [None])[0] or {}
+    inner1 = (v1a.get("left") if isinstance(v1a, dict) and v1a.get("type") == "BinOp"
+              and v1a.get("op") == "or" else v1a)
+    noexc_field = _match_get_call(inner1 or {}, contracts_lv)
+    if not (isinstance(no_exc_lv, str) and noexc_field):
+        return None
+
+    # [2] no_exc_all = bool(contracts.get("<NEAF>", False))
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Assign"):
+        return None
+    no_exc_all_lv = s2.get("target")
+    v2 = s2.get("value") or {}
+    if not (isinstance(v2, dict) and v2.get("type") == "Call" and v2.get("func") == "bool"):
+        return None
+    noexcall_field = _match_get_call((v2.get("args") or [None])[0] or {}, contracts_lv)
+    if not (isinstance(no_exc_all_lv, str) and noexcall_field):
+        return None
+
+    # [3] raises = contracts.get("<RF>", []) or []
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign"):
+        return None
+    raises_lv = s3.get("target")
+    v3 = s3.get("value") or {}
+    inner3 = (v3.get("left") if isinstance(v3, dict) and v3.get("type") == "BinOp"
+              and v3.get("op") == "or" else v3)
+    raises_field = _match_get_call(inner3 or {}, contracts_lv)
+    if not (isinstance(raises_lv, str) and raises_field):
+        return None
+
+    # [4] raised_names = {r.get("<EXF>") for r in raises}
+    s4 = body[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "Assign"):
+        return None
+    raised_lv = s4.get("target")
+    v4 = s4.get("value") or {}
+    if not (isinstance(v4, dict) and v4.get("type") == "SetComp"):
+        return None
+    gens = v4.get("generators") or []
+    if len(gens) != 1:
+        return None
+    g0 = gens[0]
+    if not (isinstance(g0, dict) and g0.get("target") and not g0.get("ifs")
+            and _is_var(g0.get("iter"), raises_lv)):
+        return None
+    elt_var = g0.get("target")
+    exc_field = _match_get_call(v4.get("elt") or {}, elt_var)
+    if not (isinstance(raised_lv, str) and exc_field):
+        return None
+
+    # [5] where = f"…"  (FString ctx; content verification-irrelevant)
+    s5 = body[5]
+    if not (isinstance(s5, dict) and s5.get("stmt") == "Assign"
+            and isinstance(s5.get("value"), dict)
+            and s5["value"].get("type") == "FString"):
+        return None
+
+    # [6] for name in no_exc: <two guarded raises>
+    s6 = body[6]
+    if not (isinstance(s6, dict) and s6.get("stmt") == "For"
+            and _is_var(s6.get("iter"), no_exc_lv)):
+        return None
+    loop_var = s6.get("target")
+    if not isinstance(loop_var, str):
+        return None
+    fb = s6.get("body") or []
+    if len(fb) != 2:
+        return None
+    # [6.0] if name not in KNOWN_EXCEPTIONS: raise <Exc>
+    g_known = fb[0]
+    if not (isinstance(g_known, dict) and g_known.get("stmt") == "If"
+            and not g_known.get("orelse")):
+        return None
+    tk = g_known.get("test") or {}
+    if not (isinstance(tk, dict) and tk.get("type") == "BinOp" and tk.get("op") == "not in"
+            and _is_var(tk.get("left"), loop_var)):
+        return None
+    known_const = tk.get("right") or {}
+    if not (_is_var(known_const) and isinstance(known_const.get("name"), str)):
+        return None
+    known_name = known_const["name"]
+    gkb = g_known.get("body") or []
+    if len(gkb) != 1:
+        return None
+    exc = _match_sa_raise(gkb[0])
+    if exc is None:
+        return None
+    # [6.1] if name in raised_names: raise <Exc>
+    g_cross = fb[1]
+    if not (isinstance(g_cross, dict) and g_cross.get("stmt") == "If"
+            and not g_cross.get("orelse")):
+        return None
+    tc = g_cross.get("test") or {}
+    if not (isinstance(tc, dict) and tc.get("type") == "BinOp" and tc.get("op") == "in"
+            and _is_var(tc.get("left"), loop_var) and _is_var(tc.get("right"), raised_lv)):
+        return None
+    gcb = g_cross.get("body") or []
+    if len(gcb) != 1 or _match_sa_raise(gcb[0]) != exc:
+        return None
+
+    # [7] if no_exc_all and raised_names: raise <Exc>
+    s7 = body[7]
+    if not (isinstance(s7, dict) and s7.get("stmt") == "If" and not s7.get("orelse")):
+        return None
+    t7 = s7.get("test") or {}
+    if not (isinstance(t7, dict) and t7.get("type") == "BinOp" and t7.get("op") == "and"
+            and _is_var(t7.get("left"), no_exc_all_lv)
+            and _is_var(t7.get("right"), raised_lv)):
+        return None
+    b7 = s7.get("body") or []
+    if len(b7) != 1 or _match_sa_raise(b7[0]) != exc:
+        return None
+
+    # the finite literal-set: read the ACTUAL frozenset members live (non-facade).
+    # Guard on the recognised constant name so a rename fails closed.
+    if known_name != "KNOWN_EXCEPTIONS":
+        return None
+    from exception_model import KNOWN_EXCEPTIONS as _KE
+    members = sorted(str(m) for m in _KE)
+    if not members:
+        return None
+
+    return {"name": func.get("name"), "subj": subj,
+            "contracts_field": contracts_field, "noexc_field": noexc_field,
+            "noexcall_field": noexcall_field, "raises_field": raises_field,
+            "exc_field": exc_field, "members": members, "exc": exc}
+
+
+def emit_check_no_exception_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the two-list cross-ref `_check_no_exception` caller (see module note):
+    read `contracts.<noexc_field>`/`.<raises_field>` (lists) + `.<noexcall_field>`
+    (bool) off `func`'s bridged pydict, fold the name list raising on a
+    non-`KNOWN_EXCEPTIONS` member (a `pystr_eq` disjunction over the ACTUAL
+    frozenset members) or a name found by the bounded nested `raised_has` scan of
+    the raises list, then raise once more when `no_exc_all` holds with a non-empty
+    raises list. Type-safe + terminating over the certified pydict/list `pyval`
+    bridge (`pget_dyn`/`pget_list`); no new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    exc = desc["exc"]
+    cf = desc["contracts_field"]
+    nef, naf, rf = desc["noexc_field"], desc["noexcall_field"], desc["raises_field"]
+    exc_suf = _reader_suffix(desc["exc_field"])
+    out: List[str] = []
+    # ---- spine reader for a raises element's exc_type key (string-valued) ----
+    out += _sa_reader_lines(n, desc["exc_field"], as_str=True)
+    # ---- finite literal-set membership (the KNOWN_EXCEPTIONS frozenset) ----
+    cond = " || ".join(f'pystr_eq s "{m}"' for m in desc["members"])
+    out.append(f"  let function {n}__known (s: string) : bool = {cond}")
+    # ---- the bounded nested cross-ref scan: name in {r.exc_type | r <- raises} ----
+    out.append(f"  let rec {n}__raised_has (nm: string) (rs: list pyval) : bool")
+    out.append("    variant { rs }")
+    out.append("  = match rs with")
+    out.append("    | Nil -> false")
+    out.append("    | Cons h t ->")
+    out.append("        (match h with")
+    out.append(f"         | PDict d -> (match {n}__get_{exc_suf} d with")
+    out.append(f"                       | Some et -> if pystr_eq et nm then true else {n}__raised_has nm t")
+    out.append(f"                       | None -> {n}__raised_has nm t end)")
+    out.append(f"         | _ -> {n}__raised_has nm t end)")
+    out.append("    end")
+    # ---- the outer name-list fold (two guarded raises per name) ----
+    out.append(f"  let rec {n}__fold (xs: list pyval) (rs: list pyval) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append("    variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h t ->")
+    out.append("        (match h with")
+    out.append("         | PStr nm ->")
+    out.append(f"             (if not ({n}__known nm) then raise {exc}")
+    out.append(f"              else if {n}__raised_has nm rs then raise {exc}")
+    out.append("              else ());")
+    out.append(f"             {n}__fold t rs")
+    out.append(f"         | _ -> {n}__fold t rs end)")
+    out.append("    end")
+    # ---- the caller entry point: bridge the nested contracts pydict, then fold ----
+    out.append(f"  let {n} ({subj}: pyval) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict fd ->")
+    out.append(f'        (match pget_dyn "{cf}" fd with')
+    out.append("         | Some (PDict cd) ->")
+    out.append(f'             let nexc = pget_list "{nef}" cd in')
+    out.append(f'             let rlist = pget_list "{rf}" cd in')
+    out.append(f'             let nall = (match pget_dyn "{naf}" cd with')
+    out.append("                         | Some (PBool b) -> b | _ -> false end) in")
+    out.append(f"             {n}__fold nexc rlist;")
+    out.append("             if nall && (match rlist with Nil -> false | Cons _ _ -> true end)")
+    out.append(f"             then raise {exc} else ()")
+    out.append("         | _ -> () end)")
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,

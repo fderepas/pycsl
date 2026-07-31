@@ -43,12 +43,39 @@ def _check_span(func: Any, stage: str) -> None:
             code="PYCSL-SEM-SPAN",
         )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_no_exception(func: Any) -> None:
-    pass
+    from exception_model import KNOWN_EXCEPTIONS  # lazy: keep the import surface small
+
+    contracts = func.get("contracts") or {}
+    no_exc = list(contracts.get("no_exception", []) or [])
+    no_exc_all = bool(contracts.get("no_exception_all", False))
+    raises = contracts.get("raises", []) or []
+    raised_names = {r.get("exc_type") for r in raises}
+
+    where = f"function '{func.get('name', '<anonymous>')}' (line {func.get('line', 0)})"
+
+    for name in no_exc:
+        if name not in KNOWN_EXCEPTIONS:
+            raise PyCSLSemanticError(
+                f"{where}: no_exception names unknown exception '{name}'. "
+                f"Known: {sorted(KNOWN_EXCEPTIONS)}.",
+                code="PYCSL-SEM-NOEXC",
+            )
+        if name in raised_names:
+            raise PyCSLSemanticError(
+                f"{where}: contradictory annotations — no_exception {name} "
+                f"and raises {{ {name} -> ... }} cannot both apply.",
+                code="PYCSL-SEM-NOEXC",
+            )
+    if no_exc_all and raised_names:
+        raise PyCSLSemanticError(
+            f"{where}: no_exception \\all requires the raises set to be empty; "
+            f"found raises {{ {', '.join(sorted(raised_names))} -> ... }}.",
+            code="PYCSL-SEM-NOEXC",
+        )
 
 #@ requires True
 #@ ensures True
