@@ -652,12 +652,29 @@ def _lemma_returns_value(body) -> bool:
     walk(body)
     return found[0]
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _lemma_calls_trusted(body, trusted) -> str:
-    return ""
+    hit = [""]
+
+    def walk(node):
+        if hit[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("type") == "Call":
+                fn = node.get("func")
+                if isinstance(fn, str) and fn in trusted:
+                    hit[0] = fn
+                    return
+            for x in node.values():
+                walk(x)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return hit[0]
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

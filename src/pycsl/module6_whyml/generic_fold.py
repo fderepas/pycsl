@@ -9873,6 +9873,316 @@ def emit_closure_existence_group(func: Dict[str, Any], desc: Dict[str, Any],
 
 
 # =========================================================================
+# STRING first-match search closure — recognize_lemma_string_search_pairs.
+#
+# The `hit=[""]` STRING accumulator sibling of the bool `found=[False]` closure
+# (`_lemma_calls_trusted`): a nested `def walk(node)` that, on the FIRST PDict
+# node whose `type` field is a literal TAG, reads a CAPTURE field
+# (`fn = node.get("<CKEY>")`) and — when that captured string is a member of a
+# PASSED-IN set param `trusted` — stores it into the 1-element string
+# accumulator (`hit[0] = fn`) and short-circuits; the outer returns `hit[0]`
+# (or `""`). Exactly:
+#
+#     def P(body, trusted) -> str:
+#         hit = [""]
+#         def walk(node):
+#             if hit[0]: return
+#             if isinstance(node, dict):
+#                 if node.get("type") == "<TAG>":
+#                     fn = node.get("<CKEY>")
+#                     if isinstance(fn, str) and fn in trusted:
+#                         hit[0] = fn; return
+#                 for x in node.values(): walk(x)
+#             elif isinstance(node, list):
+#                 for x in node: walk(x)
+#         walk(body)
+#         return hit[0]
+#
+# Module 5 lambda-lifts `walk` to a sibling that shares `hit` as an int-erased
+# global — a vacuous facade under the generic lowering. This recognizer pairs
+# the outer with its lifted `walk` (by adjacency) and emits the outer as a
+# certified first-match SEARCH catamorphism over `list pyval`/`pyval`/`pydict`
+# returning `option string` (unwrapped to `string`, the `""` string literal).
+# The `trusted` set is a `map string bool` PARAM (the existing A-unit set
+# model, `preamble.py`); membership is `Map.get trusted s` — a passed-in set,
+# NOT a fixed literal. The lifted `walk` is SUPPRESSED (emits nothing).
+# `ensures True` (type-safety + termination only); the result string is
+# unconstrained by any VC (over-approximation of the Python first-match order is
+# sound, exactly as `slookup`/`pystr_eq` are VC-free). NO new type/axiom/cert
+# (ledger 3): reuses the certified pyval/pydict ADT + `pv_size`/`size_list`/
+# `size_dict` measures + `pystr_eq` + `map string bool`. The emitted body reads
+# the `type` TAG, the CAPTURE key, AND the set membership — mutation-sensitive on
+# all three (change the tag / key / membership in the source and the emitted
+# .mlw moves), de-vacuified; fail-closed (a shape mismatch keeps the stub
+# `\trusted`, and a body-fidelity bug is a loud unprovable instance, never a
+# false proof).
+# =========================================================================
+
+
+def _lss_values_iter(node: str):
+    """`<node>.values()` iterable predicate (bare, no args)."""
+    return (lambda it: isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{node}.values" and not it.get("args"))
+
+
+def _recognize_lss_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER wrapper `[Assign acc=[""], Expr walk(subj), Return
+    acc[0]]` for a 2-param `-> str` string-search closure. Returns
+    {subj, set_param, acc, walker_name} or None. Fail-closed."""
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, set_param = params[0], params[1]
+    if func.get("return_annotation") != "str":
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    s_assign, s_call, s_ret = body
+    # [0] acc = [""]  (ArrayLit with a single empty-String literal)
+    if not (isinstance(s_assign, dict) and s_assign.get("stmt") == "Assign"
+            and isinstance(s_assign.get("value"), dict)
+            and s_assign["value"].get("type") == "ArrayLit"):
+        return None
+    elts = s_assign["value"].get("elts", [])
+    if not (len(elts) == 1 and isinstance(elts[0], dict)
+            and elts[0].get("type") == "String" and elts[0].get("value") == ""):
+        return None
+    acc = s_assign.get("target")
+    if not isinstance(acc, str):
+        return None
+    # [1] walk(subj)  (a bare-expr Call; first arg is the subject var)
+    if not (isinstance(s_call, dict) and s_call.get("stmt") == "Expr"):
+        return None
+    call = s_call.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    cargs = call.get("args", [])
+    if not (cargs and _is_var(cargs[0], subj)):
+        return None
+    walker_name = call["func"]
+    # [2] return acc[0]
+    if not (isinstance(s_ret, dict) and s_ret.get("stmt") == "Return"
+            and _clx_match_acc_subscript(s_ret.get("value"), acc)):
+        return None
+    return {"subj": subj, "set_param": set_param, "acc": acc,
+            "walker_name": walker_name}
+
+
+def _recognize_lss_walk(walkfunc: Dict[str, Any], acc: str, set_param: str
+                        ) -> Optional[Dict[str, Any]]:
+    """Match the lifted `walk(node)` body of the string-search closure; return
+    {type_key, type_tag, capture_key} or None. `acc` is the string accumulator
+    (`hit`); `set_param` is the membership set (`trusted`). Fail-closed."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    self_name = walkfunc.get("name")
+    body = walkfunc.get("body") or []
+    if len(body) != 2:
+        return None
+    g0, dispatch = body
+    # [0] early-exit guard: `if <acc>[0]: return`
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If"
+            and not g0.get("orelse")
+            and _clx_match_acc_subscript(g0.get("test"), acc)):
+        return None
+    # [1] `if isinstance(node, dict): <capture-if> <descent> elif isinstance list`
+    if not (isinstance(dispatch, dict) and dispatch.get("stmt") == "If"
+            and _match_isinstance(dispatch.get("test", {}), node, "dict")):
+        return None
+    darm = dispatch.get("body", [])
+    if len(darm) != 2:
+        return None
+    capture_if, descent = darm
+    # capture_if: `if node.get("<TKEY>") == "<TAG>": [Assign cvar=node.get("<CKEY>"),
+    #              If(and(isinstance(cvar,str), cvar in <set>)){ acc[0]=cvar; return }]`
+    if not (isinstance(capture_if, dict) and capture_if.get("stmt") == "If"
+            and not capture_if.get("orelse")):
+        return None
+    tt = _match_type_tag_test(capture_if.get("test", {}), node)
+    if tt is None:
+        return None
+    tkey, ttag = tt
+    cbody = capture_if.get("body", [])
+    if len(cbody) != 2:
+        return None
+    s_cap, s_if = cbody
+    # s_cap: `cvar = node.get("<CKEY>")`
+    if not (isinstance(s_cap, dict) and s_cap.get("stmt") == "Assign"):
+        return None
+    cvar = s_cap.get("target")
+    cval = s_cap.get("value")
+    if not (isinstance(cvar, str) and isinstance(cval, dict)
+            and cval.get("type") == "Call"
+            and cval.get("func") == f"{node}.get"):
+        return None
+    capargs = cval.get("args", [])
+    if len(capargs) != 1:
+        return None
+    ckey = _is_string(capargs[0])
+    if ckey is None:
+        return None
+    # s_if: `if isinstance(cvar,str) and cvar in <set>: acc[0]=cvar; return`
+    if not (isinstance(s_if, dict) and s_if.get("stmt") == "If"
+            and not s_if.get("orelse")):
+        return None
+    test = s_if.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    l, r = test.get("left", {}), test.get("right", {})
+    if not (isinstance(l, dict) and l.get("type") == "Call"
+            and l.get("func") == "isinstance"
+            and len(l.get("args", [])) == 2
+            and _is_var(l["args"][0], cvar) and _is_var(l["args"][1], "str")):
+        return None
+    if not (isinstance(r, dict) and r.get("type") == "BinOp"
+            and r.get("op") == "in"
+            and _is_var(r.get("left"), cvar)
+            and _is_var(r.get("right"), set_param)):
+        return None
+    ibody = s_if.get("body", [])
+    if not ibody:
+        return None
+    aset = ibody[0]
+    if not (isinstance(aset, dict) and aset.get("stmt") == "ArraySet"
+            and _is_var(aset.get("array"), acc)
+            and isinstance(aset.get("index"), dict)
+            and aset["index"].get("type") in ("Number", "Int")
+            and aset["index"].get("value") == 0
+            and _is_var(aset.get("value"), cvar)):
+        return None
+    # descent: `for x in node.values(): walk(x)`
+    if not _clx_walk_iter_selfcall(descent, self_name, node,
+                                   _lss_values_iter(node)):
+        return None
+    # elif isinstance(node, list): for x in node: walk(x)
+    orelse = dispatch.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    larm = orelse[0]
+    if not (isinstance(larm, dict) and larm.get("stmt") == "If"
+            and not larm.get("orelse")
+            and _match_isinstance(larm.get("test", {}), node, "list")):
+        return None
+    lb = larm.get("body", [])
+    if len(lb) != 1:
+        return None
+    if not _clx_walk_iter_selfcall(lb[0], self_name, node,
+                                   lambda it: _is_var(it, node)):
+        return None
+    return {"type_key": tkey, "type_tag": ttag, "capture_key": ckey}
+
+
+def recognize_lemma_string_search_pairs(functions: List[Dict[str, Any]]
+                                        ) -> Dict[str, Any]:
+    """Pair each string-search OUTER wrapper with its lifted `walk` sibling (by
+    adjacency). Returns {"outer_ids": {id(outer): desc}, "walk_ids": {id(walk)}}.
+    Never raises; an unpaired/unmatched wrapper is skipped (stays `\\trusted`)."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            try:
+                od = _recognize_lss_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            if wf.get("name") != od["walker_name"]:
+                continue
+            if id(wf) in walk_ids:
+                continue
+            try:
+                preds = _recognize_lss_walk(wf, od["acc"], od["set_param"])
+            except Exception:
+                preds = None
+            if preds is None:
+                continue
+            outer_ids[id(f)] = {"name": f.get("name"), "subj": od["subj"],
+                                "set_param": od["set_param"], **preds}
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_lemma_string_search_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                   whyml_ident) -> List[str]:
+    """Emit the certified first-match SEARCH catamorphism for a recognised
+    string-search closure wrapper (see module note). Returns `option string`
+    internally (None = keep searching; Some s = first hit), unwrapped to
+    `string` (the `""` string literal). The `set_param` is a `map string bool`
+    PARAM; membership is `Map.get`. `ensures True` (type-safety + termination).
+    Reuses the pyval/pydict ADT + `pystr_eq` + the `""` literal from the
+    `needs_pydict` preamble — NO new type/axiom/cert (ledger 3)."""
+    n = whyml_ident(func["name"])
+    setp = whyml_ident(desc["set_param"])
+    subj = whyml_ident(desc["subj"])
+    tkey = desc["type_key"]
+    ttag = desc["type_tag"]
+    ckey = desc["capture_key"]
+    out: List[str] = []
+
+    def _emit_str_reader(key: str, fn: str) -> None:
+        """A `pydict -> option string` reader for `key` (interned or K_dyn)."""
+        out.append(f"  let rec {fn} (d: pydict) : option string")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if key in _CLX_IRKEY:
+            out.append(f"    | DCons {_CLX_IRKEY[key]} (PStr s) rest -> Some s")
+            out.append(f"    | DCons _ _ rest -> {fn} rest end")
+        else:
+            out.append(f'    | DCons (K_dyn k) (PStr s) rest ->'
+                       f' if pystr_eq k "{key}" then Some s else {fn} rest')
+            out.append(f"    | DCons _ _ rest -> {fn} rest end")
+
+    # type-tag reader + `is-tag` discriminant (mutation-sensitive on TAG + key).
+    _emit_str_reader(tkey, f"{n}__get_type")
+    out.append(f"  let {n}__is_tag (d: pydict) : bool")
+    out.append(f"  = match {n}__get_type d with"
+               f' Some t -> pystr_eq t "{ttag}" | None -> false end')
+    # capture-key reader (the callee-name projection).
+    _emit_str_reader(ckey, f"{n}__get_cap")
+    # the mutually-recursive first-match search (proven; scratch all-Valid).
+    out.append(f"  let rec {n}__s (stmts: list pyval) ({setp}: map string bool)"
+               f" : option string")
+    out.append("    requires { true } ensures { true } variant { size_list stmts }")
+    out.append(f"  = match stmts with Nil -> None")
+    out.append(f"    | Cons h t -> (match {n}__v h {setp} with"
+               f" Some s -> Some s | None -> {n}__s t {setp} end) end")
+    out.append(f"  with {n}__v (v: pyval) ({setp}: map string bool) : option string")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> if {n}__is_tag d then")
+    out.append(f"                   (match {n}__get_cap d with")
+    out.append(f"                    | Some s -> if Map.get {setp} s then Some s"
+               f" else {n}__d d {setp}")
+    out.append(f"                    | None -> {n}__d d {setp} end)")
+    out.append(f"                 else {n}__d d {setp}")
+    out.append(f"    | PList xs -> {n}__s xs {setp}")
+    out.append("    | _ -> None end")
+    out.append(f"  with {n}__d (d: pydict) ({setp}: map string bool) : option string")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> None")
+    out.append(f"    | DCons _ v rest -> (match {n}__v v {setp} with"
+               f" Some s -> Some s | None -> {n}__d rest {setp} end) end")
+    # the outer wrapper: `-> str`, `hit[0]` fallback "" (empty-string literal).
+    out.append(f"  let {n} ({subj}: list pyval) ({setp}: map string bool) : string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f'  = match {n}__s {subj} {setp} with'
+               f' Some s -> s | None -> "" end')
+    return out
+
+
+# =========================================================================
 # NAMED-FIELD self-recursive existence fold — recognize_named_field_existence.
 #
 # genexp-erasure-wall / wall-lessons (l),(j),(q): a SINGLE untyped-node

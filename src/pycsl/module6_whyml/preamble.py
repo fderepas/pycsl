@@ -2093,9 +2093,11 @@ class PreambleEmissionMixin:
             or recognize_check_contract_scope(f) is not None
             or recognize_check_clause_fold(f) is not None
             or recognize_check_no_exception(f) is not None for f in functions)
-        from module6_whyml.generic_fold import recognize_closure_existence_pairs
+        from module6_whyml.generic_fold import (
+            recognize_closure_existence_pairs, recognize_lemma_string_search_pairs)
         needs_pydict = needs_sdict or bool(
-            recognize_closure_existence_pairs(functions)["outer_ids"]) or any(
+            recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
+            recognize_lemma_string_search_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_substmap(f) is not None
             or recognize_bool_existence(f) is not None
@@ -2181,6 +2183,16 @@ class PreambleEmissionMixin:
         _clx = recognize_closure_existence_pairs(functions)
         self._clx_outer_ids = _clx["outer_ids"]
         self._clx_walk_ids = _clx["walk_ids"]
+        # STRING first-match SEARCH closure (`_lemma_calls_trusted`): the `hit=[""]`
+        # string-accumulator sibling of the bool `found=[False]` closure. Same
+        # OUTER+lifted-`walk` adjacency pairing; the wrapper emits a certified
+        # first-match search catamorphism (`option string`, `map string bool`
+        # set param membership), the lifted `walk` is SUPPRESSED. Keyed on `id`.
+        # Corpus-inert (self-annotate-mirror-only). See generic_fold.py note.
+        from module6_whyml.generic_fold import recognize_lemma_string_search_pairs
+        _lss = recognize_lemma_string_search_pairs(functions)
+        self._lss_outer_ids = _lss["outer_ids"]
+        self._lss_walk_ids = _lss["walk_ids"]
         # MULTI-GUARD CASCADE `_check_*` caller (check-diverges-noreturn-impl.md):
         # the set of single-arg closure-existence-converted `list pyval -> bool`
         # predicate NAMES (`_body_has_diverging_construct`). A cascade guard that

@@ -2742,6 +2742,16 @@ class FunctionEmissionMixin:
         if _clx_desc is not None:
             from module6_whyml.generic_fold import emit_closure_existence_group
             return emit_closure_existence_group(func, _clx_desc, whyml_ident)
+        # STRING first-match SEARCH closure (`_lemma_calls_trusted`): the lifted
+        # `walk` sibling is SUPPRESSED; the wrapper emits the certified first-match
+        # search catamorphism (`option string`, `map string bool` set-param
+        # membership). Keyed on `id`; corpus-inert. See generic_fold.py note.
+        if id(func) in getattr(self, "_lss_walk_ids", set()):
+            return []
+        _lss_desc = getattr(self, "_lss_outer_ids", {}).get(id(func))
+        if _lss_desc is not None:
+            from module6_whyml.generic_fold import emit_lemma_string_search_group
+            return emit_lemma_string_search_group(func, _lss_desc, whyml_ident)
         # CHECK-SUBSCRIPT-ASSIGNMENTS caller (driver target #2): DEFERRED until
         # both its `_sa_immutable_walk`/`_sa_walk` walker groups are emitted (see
         # the `recognize_sawalk` branch). Its own slot emits nothing.
