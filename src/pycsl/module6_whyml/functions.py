@@ -2663,6 +2663,11 @@ class FunctionEmissionMixin:
         # emitted (see the `recognize_pbexpr` branch below).
         if getattr(self, "_pb_trio", None) and func.get("name") in self._pb_trio_names:
             return []
+        # CS-TRIO FUSION: same deferral — the `{_cs_stmt,_cs_body,_cs_descend}`
+        # triad emits as ONE group appended right after the `_cs_clause` group it
+        # calls into (see the `recognize_cs_clause` branch below).
+        if getattr(self, "_cs_trio", None) and func.get("name") in self._cs_trio_names:
+            return []
         # SCriticalSection increment (self-tcb-reduction M5, C-bucket): the `_py_stmt_with`
         # mutex/extend handler — bespoke (the generic lowering int-erases the weave-injected
         # mutex attrs + no-ops the extend). Corpus-inert.
@@ -2756,7 +2761,8 @@ class FunctionEmissionMixin:
             recognize_pyval_list_walker, emit_pyval_list_walker_group,
             recognize_pyval_list_search, emit_pyval_list_search_group,
             recognize_pyval_flatten, emit_pyval_flatten_group,
-            recognize_ir_free_vars, emit_ir_free_vars_group)
+            recognize_ir_free_vars, emit_ir_free_vars_group,
+            recognize_cs_clause, emit_cs_clause_group)
         # genexp-erasure-wall / R2d+R3: the IRScanner `obj: Any` type-existence
         # fold (`uses_string`/`uses_subscript`/`uses_sum`/`uses_set_card`) — the
         # scalar-rooted pyval/pydict catamorphism keyed on the interned "type"
@@ -3050,6 +3056,19 @@ class FunctionEmissionMixin:
         _fv = recognize_ir_free_vars(func)
         if _fv is not None:
             return emit_ir_free_vars_group(_fv, whyml_ident)
+        # CS-CLAUSE (generic_fold): the `_cs_clause` scope-checker (the
+        # `_ir_free_vars` set consumer). The `{_cs_stmt,_cs_body,_cs_descend}`
+        # trio is appended right after (deferred, once), exactly as the pb trio
+        # defers to `_pb_expr`. Corpus-inert; fail-closed.
+        _csc = recognize_cs_clause(func)
+        if _csc is not None:
+            from module6_whyml.generic_fold import emit_pb_trio_group
+            lines = emit_cs_clause_group(_csc, whyml_ident)
+            if getattr(self, "_cs_trio", None) and not self._cs_trio_emitted:
+                lines = lines + emit_pb_trio_group(self._cs_trio, whyml_ident,
+                                                   clause_val_mid=" false")
+                self._cs_trio_emitted = True
+            return lines
         _pb = recognize_pbexpr(func)
         if _pb is not None:
             lines = emit_pbexpr_group(func, _pb, whyml_ident)

@@ -2059,7 +2059,8 @@ class PreambleEmissionMixin:
             recognize_stmt_setfold, recognize_void_generic_descend,
             recognize_type_existence, recognize_named_field_existence,
             recognize_pyval_string_walker, recognize_pyval_list_walker,
-            recognize_pyval_flatten, recognize_ir_free_vars)
+            recognize_pyval_flatten, recognize_ir_free_vars,
+            recognize_cs_clause)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
@@ -2067,6 +2068,7 @@ class PreambleEmissionMixin:
         needs_sdict = any(
             recognize_sawalk(f) is not None or recognize_dictfold(f) is not None
             or recognize_pbexpr(f) is not None
+            or recognize_cs_clause(f) is not None
             for f in functions)
         needs_pydict = needs_sdict or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
@@ -2101,7 +2103,7 @@ class PreambleEmissionMixin:
             recognize_term_isinstance_transform,
             recognize_term_list_build, recognize_term_flatten_arrow,
             recognize_term_free_vars, recognize_term_string_pp,
-            recognize_term_pp_methods, recognize_pb_trio)
+            recognize_term_pp_methods, recognize_pb_trio, recognize_cs_trio)
         # PB-TRIO FUSION (generic_fold.py): the mutually-recursive
         # `{_pb_stmt,_pb_body,_pb_descend}` statement-walker triad emitted as ONE
         # `let rec` group so `_pb_stmt` can be un-trusted. Module-level (needs all
@@ -2112,6 +2114,13 @@ class PreambleEmissionMixin:
         self._pb_trio_names = (
             set(self._pb_trio["names"]) if self._pb_trio else set())
         self._pb_trio_emitted = False
+        # CS-TRIO FUSION: the `{_cs_stmt,_cs_body,_cs_descend}` scope-check triad
+        # (cross-calls `_cs_clause`, deferred to just after the `_cs_clause`
+        # group). Same once-only emit gating as the pb trio; corpus-inert.
+        self._cs_trio = recognize_cs_trio(functions)
+        self._cs_trio_names = (
+            set(self._cs_trio["names"]) if self._cs_trio else set())
+        self._cs_trio_emitted = False
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)

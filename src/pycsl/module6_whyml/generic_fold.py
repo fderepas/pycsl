@@ -6129,11 +6129,14 @@ def _or_empty_sget(node: Any, subj: str) -> Optional[str]:
     return _sget_key(node, subj)
 
 
-def _pbexpr_call(node: Any, callee: str, subj: str, ctx: List[str]):
-    """An `Expr` stmt `<callee>(<arg0>, <ctx1>, symtab, known)` where the tail
-    args are exactly the 2 trailing ctx params (symtab, known). Returns arg0
-    (the node being checked) or None. The 2nd arg (a context string) is not
-    constrained (message text, irrelevant to the model)."""
+def _pbexpr_call(node: Any, callee: str, subj: str, ctx: List[str],
+                 middle: int = 0):
+    """An `Expr` stmt `<callee>(<arg0>, <ctx1>, [<middle literals>], symtab, known)`
+    where the tail args are exactly the trailing ctx params (symtab, known).
+    Returns arg0 (the node being checked) or None. The 2nd arg (a context string)
+    and the `middle` literal args (e.g. the `_cs_clause` `allow_result=False`
+    flag — always False across the trio, message-irrelevant under `ensures True`)
+    are not constrained."""
     if not (isinstance(node, dict) and node.get("stmt") == "Expr"):
         return None
     call = node.get("value") or {}
@@ -6141,17 +6144,18 @@ def _pbexpr_call(node: Any, callee: str, subj: str, ctx: List[str]):
             and call.get("func") == callee):
         return None
     args = call.get("args") or []
-    if len(args) != 2 + len(ctx[1:]):
+    if len(args) != 2 + middle + len(ctx[1:]):
         return None
-    # trailing args must be the ctx params after the message-string slot
-    for a, p in zip(args[2:], ctx[1:]):
+    # trailing args must be the ctx params after the message-string + middle slots
+    for a, p in zip(args[2 + middle:], ctx[1:]):
         if not _is_var(a, p):
             return None
     return args[0]
 
 
 def _match_loop_branch(branch: List[Any], subj: str, ctx: List[str],
-                       pbexpr: str, pbbody: str) -> Optional[Dict[str, str]]:
+                       pbexpr: str, pbbody: str,
+                       middle: int = 0) -> Optional[Dict[str, str]]:
     """[Assign lctx=FString, For(inv-clause→pbexpr), For(var-clause→pbexpr),
     Expr pbbody(<body-list>, *ctx)] -> {inv,var,body} keys, else None."""
     if len(branch) != 4:
@@ -6167,7 +6171,7 @@ def _match_loop_branch(branch: List[Any], subj: str, ctx: List[str],
         if k is None:
             return None
         fb = fr.get("body") or []
-        if len(fb) != 1 or _pbexpr_call(fb[0], pbexpr, subj, ctx) is None:
+        if len(fb) != 1 or _pbexpr_call(fb[0], pbexpr, subj, ctx, middle) is None:
             return None
         keys.append(k)
     call = branch[3]
@@ -6215,47 +6219,65 @@ def _flatten_if_chain(node: Any):
 def recognize_pb_trio(functions: List[Dict[str, Any]]
                       ) -> Optional[Dict[str, Any]]:
     """Fail-closed module-level match of the `{_pb_stmt,_pb_body,_pb_descend}`
-    fusion triad. Returns a descriptor (names, ctx params, dispatch tags, dict
-    keys) or None. Never raises."""
+    fusion triad (clause callee `_pb_expr`, no middle literal). Returns a
+    descriptor (names, ctx params, dispatch tags, dict keys) or None."""
     try:
-        return _recognize_pb_trio(functions)
+        return _recognize_stmt_trio(functions, "_pb_expr", 0)
     except Exception:
         return None
 
 
-def _recognize_pb_trio(functions):
+def recognize_cs_trio(functions: List[Dict[str, Any]]
+                      ) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `{_cs_stmt,_cs_body,_cs_descend}` fusion triad —
+    structurally identical to the pb trio but cross-calling `_cs_clause` (which
+    carries an extra `allow_result=False` middle literal). Returns a descriptor
+    (with `pbexpr_name == "_cs_clause"`, `clause_middle == 1`) or None."""
+    try:
+        return _recognize_stmt_trio(functions, "_cs_clause", 1)
+    except Exception:
+        return None
+
+
+def _recognize_stmt_trio(functions, clause_name, clause_middle):
+    """Generalized `{stmt,body,descend}` statement-walker trio recogniser,
+    parameterized by the clause-checker callee name and the count of literal
+    args it takes between its message-string slot and the tail ctx (0 for
+    `_pb_expr`, 1 for `_cs_clause`'s `allow_result`). Iterates every void-dispatch
+    candidate and fully validates each against `clause_name` — so a module that
+    hosts BOTH the pb and cs trios resolves each independently (order-robust)."""
     by_name = {f.get("name"): f for f in functions if isinstance(f, dict)}
-    # _pb_body: void-dispatch fan-out whose callee is the stmt walker.
-    body_fn = None
+    if clause_name not in by_name:
+        return None
     for f in functions:
         d = recognize_void_dispatch(f)
-        if d is not None and d["callee"] in by_name:
-            callee = by_name[d["callee"]]
-            # the callee must itself be the structured stmt dispatcher (below)
-            body_fn = (f, d)
-            break
-    if body_fn is None:
-        return None
-    b_func, b_desc = body_fn
+        if d is None or d["callee"] not in by_name:
+            continue
+        res = _try_stmt_trio(functions, by_name, f, d, clause_name, clause_middle)
+        if res is not None:
+            return res
+    return None
+
+
+def _try_stmt_trio(functions, by_name, b_func, b_desc, clause_name, clause_middle):
     stmt_name = b_desc["callee"]
     stmt_fn = by_name.get(stmt_name)
     if stmt_fn is None:
         return None
-    # _pb_descend: generic tree descender whose callee is the SAME stmt walker.
+    # the tree descender whose callee is the SAME stmt walker.
     descend_fn = None
     for f in functions:
-        d = recognize_void_generic_descend(f)
-        if d is not None and d["callee"] == stmt_name:
-            descend_fn = (f, d)
+        dd = recognize_void_generic_descend(f)
+        if dd is not None and dd["callee"] == stmt_name:
+            descend_fn = (f, dd)
             break
     if descend_fn is None:
         return None
     d_func, d_desc = descend_fn
-    # ctx params must agree across body / descend (subject + 3 ctx here).
     ctx_params = b_desc["ctx_params"]
     if d_desc["ctx_params"] != ctx_params or len(ctx_params) != 3:
         return None
-    # --- structured _pb_stmt dispatcher --------------------------------------
+    # --- structured stmt dispatcher ------------------------------------------
     params = stmt_fn.get("formal_params") or []
     if len(params) != 4:
         return None
@@ -6278,29 +6300,24 @@ def _recognize_pb_trio(functions):
     if flat is None:
         return None
     arms, else_body = flat
-    # the discriminant variable must be `st` throughout.
     if any(v != st_var for _, _, v in arms):
-        return None
-    # pbexpr / pbbody / pbdescend callee names (read off the recognised sibs).
-    pbexpr_name = "_pb_expr"
-    if pbexpr_name not in by_name:
         return None
     loop_tags: List[str] = []
     loop_keys = None
     ghost_assign = None       # (tag, key)
     ghost_arrayset = None     # (tag, index_key, value_key)
     for tag, branch, _ in arms:
-        lb = _match_loop_branch(branch, subj, ctx_params, pbexpr_name,
-                                b_func["name"])
+        lb = _match_loop_branch(branch, subj, ctx_params, clause_name,
+                                b_func["name"], clause_middle)
         if lb is not None:
             if loop_keys is not None and loop_keys != lb:
                 return None
             loop_keys = lb
             loop_tags.append(tag)
             continue
-        # ghost-assign: single Expr pbexpr(s.get(<key>), <ctx-str>, symtab, known)
         if len(branch) == 1:
-            arg0 = _pbexpr_call(branch[0], pbexpr_name, subj, ctx_params)
+            arg0 = _pbexpr_call(branch[0], clause_name, subj, ctx_params,
+                                clause_middle)
             k = _sget_key(arg0, subj) if arg0 is not None else None
             if k is None:
                 return None
@@ -6308,13 +6325,14 @@ def _recognize_pb_trio(functions):
                 return None
             ghost_assign = (tag, k)
             continue
-        # ghost-arrayset: [Assign gctx, Expr pbexpr(s.get(idx)), Expr pbexpr(s.get(val))]
         if len(branch) == 3:
             if not (isinstance(branch[0], dict)
                     and branch[0].get("stmt") == "Assign"):
                 return None
-            a_i = _pbexpr_call(branch[1], pbexpr_name, subj, ctx_params)
-            a_v = _pbexpr_call(branch[2], pbexpr_name, subj, ctx_params)
+            a_i = _pbexpr_call(branch[1], clause_name, subj, ctx_params,
+                               clause_middle)
+            a_v = _pbexpr_call(branch[2], clause_name, subj, ctx_params,
+                               clause_middle)
             ki = _sget_key(a_i, subj) if a_i is not None else None
             kv = _sget_key(a_v, subj) if a_v is not None else None
             if ki is None or kv is None:
@@ -6326,7 +6344,6 @@ def _recognize_pb_trio(functions):
         return None
     if not loop_tags or ghost_assign is None or ghost_arrayset is None:
         return None
-    # else: `for v in s.values(): _pb_descend(v, *ctx)`
     if len(else_body) != 1:
         return None
     eloop = else_body[0]
@@ -6355,7 +6372,8 @@ def _recognize_pb_trio(functions):
         "stmt_name": stmt_name,
         "body_name": b_func["name"],
         "descend_name": d_func["name"],
-        "pbexpr_name": pbexpr_name,
+        "pbexpr_name": clause_name,
+        "clause_middle": clause_middle,
         "ctx_params": ctx_params,
         "stmt_key": stmt_key,
         "loop_tags": loop_tags,
@@ -6371,9 +6389,14 @@ def _recognize_pb_trio(functions):
     }
 
 
-def emit_pb_trio_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
-    """Emit the fused `{_pb_stmt,_pb_body,_pb_descend}` group (see module note).
-    Must be emitted AFTER the `_pb_expr` group (which it calls into)."""
+def emit_pb_trio_group(desc: Dict[str, Any], whyml_ident,
+                       clause_val_mid: str = "") -> List[str]:
+    """Emit the fused `{stmt,body,descend}` trio group (see module note). Must be
+    emitted AFTER the clause-checker group (`_pb_expr` / `_cs_clause`) it calls
+    into. `clause_val_mid` is the literal inserted into a single-value clause call
+    between the ctx-string and the tail ctx ("" for pb; " false" for cs's
+    `allow_result`) — the list-call routes through the clause-checker's own
+    `__list` wrapper (`_pb_expr__list` / `_cs_clause__list`), so it needs none."""
     n = whyml_ident(desc["stmt_name"])
     nb = whyml_ident(desc["body_name"])
     nd = whyml_ident(desc["descend_name"])
@@ -6381,6 +6404,8 @@ def emit_pb_trio_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     f, sy, kn = (whyml_ident(p) for p in desc["ctx_params"])
     ctx_sig = f" ({f}: string) ({sy}: sdict) ({kn}: sdict)"
     ctx_args = f" {f} {sy} {kn}"
+    def valc(w: str) -> str:
+        return f"{npe} {w} {f}{clause_val_mid} {sy} {kn}"
     exc = "    requires { true } ensures { true } raises { PyCSLSemanticError }"
     loop_cond = " || ".join(
         f'pystr_eq st "{t}"' for t in desc["loop_tags"])
@@ -6430,10 +6455,10 @@ def emit_pb_trio_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append(f'               {npe}__list ({n}__list_child "{desc["var_key"]}" d){ctx_args};')
     out.append(f'               {nb} ({n}__list_child "{desc["body_key"]}" d){ctx_args}')
     out.append(f'             end else if pystr_eq st "{desc["gassign_tag"]}" then begin')
-    out.append(f'               (match {n}__val_child "{desc["gassign_key"]}" d with Some w -> {npe} w{ctx_args} | None -> () end)')
+    out.append(f'               (match {n}__val_child "{desc["gassign_key"]}" d with Some w -> {valc("w")} | None -> () end)')
     out.append(f'             end else if pystr_eq st "{desc["garrayset_tag"]}" then begin')
-    out.append(f'               (match {n}__val_child "{desc["garrayset_index_key"]}" d with Some w -> {npe} w{ctx_args} | None -> () end);')
-    out.append(f'               (match {n}__val_child "{desc["garrayset_value_key"]}" d with Some w -> {npe} w{ctx_args} | None -> () end)')
+    out.append(f'               (match {n}__val_child "{desc["garrayset_index_key"]}" d with Some w -> {valc("w")} | None -> () end);')
+    out.append(f'               (match {n}__val_child "{desc["garrayset_value_key"]}" d with Some w -> {valc("w")} | None -> () end)')
     out.append("             end else")
     out.append(f"               {n}__d d{ctx_args}")
     out.append(f"         | None -> {n}__d d{ctx_args} end)")
@@ -6951,6 +6976,157 @@ def emit_ir_free_vars_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append("    | Cons h t ->")
     out.append("        size_pos h; size_list_nonneg t;")
     out.append(f"        set_union ({n} h) ({n}__l t) end")
+    return out
+
+
+# =========================================================================
+# CS-CLAUSE — the `_cs_clause` scope-checker (the `_ir_free_vars` set CONSUMER,
+# core_ir_semantic self-annotation). The clause-checker the `_cs_stmt` trio calls
+# into (emit-DEFERRED after this group, exactly as the pb trio defers to
+# `_pb_expr`). Body:
+#     if clause is None: return
+#     if not allow_result and _contains_result(clause): raise
+#     for v in _ir_free_vars(clause):
+#         if v and v not in symtab and v not in mc: raise
+# `_contains_result` (already a bool fold) + `_ir_free_vars` (the just-landed set
+# fold) are CALLED (their VCs discharge). The `for v in <set>` scope loop is
+# modelled on an abstract referenced name (`__anystr`, a nondeterministic val) —
+# a `map string bool` set is a characteristic function with no element list, so
+# the faithful device is to apply the exact double-membership guard (`v <> "" &&
+# v not-in symtab && v not-in mc`, sdict-presence via `slookup`) to an arbitrary
+# element (a sound over-approximation of the raise behaviour under `ensures
+# True`). Also emits `_cs_clause__list`, the per-element map the trio's loop arms
+# use. Corpus-inert.
+# =========================================================================
+
+def recognize_cs_clause(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_cs_clause` scope-checker (see module note).
+    Returns a descriptor of the callee names + ctx params, or None."""
+    try:
+        return _recognize_cs_clause(func)
+    except Exception:
+        return None
+
+
+def _recognize_cs_clause(func):
+    params = func.get("formal_params") or []
+    if len(params) != 5:
+        return None
+    clause, ctx, allow_result, symtab, mc = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    # [0] if clause is None: return
+    s0 = body[0]
+    t0 = s0.get("test") if isinstance(s0, dict) else None
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If"
+            and not (s0.get("orelse") or []) and isinstance(t0, dict)
+            and t0.get("type") == "BinOp" and t0.get("op") == "=="
+            and _is_var(t0.get("left"), clause)
+            and isinstance(t0.get("right"), dict)
+            and t0["right"].get("type") == "None"):
+        return None
+    b0 = s0.get("body") or []
+    if len(b0) != 1 or b0[0].get("stmt") != "Return":
+        return None
+    # [1] if not allow_result and <cr>(clause): raise
+    s1 = body[1]
+    t1 = s1.get("test") if isinstance(s1, dict) else None
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If"
+            and not (s1.get("orelse") or []) and isinstance(t1, dict)
+            and t1.get("type") == "BinOp" and t1.get("op") == "and"):
+        return None
+    lft = t1.get("left") or {}
+    if not (isinstance(lft, dict) and lft.get("type") == "UnaryOp"
+            and lft.get("op") == "not" and _is_var(lft.get("expr"), allow_result)):
+        return None
+    crc = t1.get("right") or {}
+    if not (isinstance(crc, dict) and crc.get("type") == "Call"):
+        return None
+    cr_name = _canon_call(crc.get("func") or "")
+    crargs = crc.get("args") or []
+    if len(crargs) != 1 or not _is_var(crargs[0], clause):
+        return None
+    b1 = s1.get("body") or []
+    if len(b1) != 1 or b1[0].get("stmt") != "Raise":
+        return None
+    # [2] for v in <fv>(clause): if v and v not in symtab and v not in mc: raise
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "For"):
+        return None
+    it = s2.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"):
+        return None
+    fv_name = _canon_call(it.get("func") or "")
+    fvargs = it.get("args") or []
+    if len(fvargs) != 1 or not _is_var(fvargs[0], clause):
+        return None
+    lv = s2.get("target")
+    fb = s2.get("body") or []
+    if len(fb) != 1:
+        return None
+    guard = fb[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not (guard.get("orelse") or [])):
+        return None
+    if not _cs_membership_guard(guard.get("test"), lv, symtab, mc):
+        return None
+    gb = guard.get("body") or []
+    if len(gb) != 1 or gb[0].get("stmt") != "Raise":
+        return None
+    return {"name": func.get("name"), "cr_name": cr_name, "fv_name": fv_name,
+            "symtab": symtab, "mc": mc}
+
+
+def _cs_membership_guard(test: Any, lv: str, symtab: str, mc: str) -> bool:
+    """`<lv> and <lv> not in <symtab> and <lv> not in <mc>` (left-nested and)."""
+    # ((lv and (lv not in symtab)) and (lv not in mc))
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return False
+    if not _cs_not_in(test.get("right"), lv, mc):
+        return False
+    inner = test.get("left") or {}
+    if not (isinstance(inner, dict) and inner.get("type") == "BinOp"
+            and inner.get("op") == "and"):
+        return False
+    return (_is_var(inner.get("left"), lv)
+            and _cs_not_in(inner.get("right"), lv, symtab))
+
+
+def _cs_not_in(node: Any, lv: str, coll: str) -> bool:
+    return (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "not in"
+            and _is_var(node.get("left"), lv)
+            and _is_var(node.get("right"), coll))
+
+
+def emit_cs_clause_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_cs_clause` scope-checker group + its `__list` per-element map
+    (see module note). Whole-body-proven shape (cs_spike.mlw)."""
+    n = whyml_ident(desc["name"])
+    cr = whyml_ident(desc["cr_name"])
+    fv = whyml_ident(desc["fv_name"])
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let {n} (clause: pyval) (ctx: string) (allow_result: bool) (symtab: sdict) (mc: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("  = match clause with PNone -> () | _ ->")
+    out.append(f"      (if not allow_result && {cr} clause then raise PyCSLSemanticError else ());")
+    out.append(f"      let _fv = {fv} clause in")
+    out.append(f"      let v = {n}__anystr () in")
+    out.append('      if (not (pystr_eq v ""))')
+    out.append("         && (match slookup v symtab with None -> true | _ -> false end)")
+    out.append("         && (match slookup v mc with None -> true | _ -> false end)")
+    out.append("      then raise PyCSLSemanticError else ()")
+    out.append("    end")
+    out.append(f"  let rec {n}__list (xs: list pyval) (ctx: string) (symtab: sdict) (mc: sdict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { xs }")
+    out.append("  = match xs with Nil -> ()")
+    out.append(f"    | Cons h t -> {n} h ctx false symtab mc; {n}__list t ctx symtab mc end")
     return out
 
 

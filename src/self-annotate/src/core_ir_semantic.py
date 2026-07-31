@@ -186,12 +186,35 @@ def _cs_body(stmts: List[Dict[str, Any]], fname, symtab, mc) -> None:
         if isinstance(s, dict):
             _cs_stmt(s, fname, symtab, mc)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _cs_stmt(s, fname, symtab, mc) -> None:
-    pass
+    st = s.get("stmt")
+    if st == "While":
+        lctx = f"while loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        for clause in (s.get("variants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        _cs_body(s.get("body", []) or [], fname, symtab, mc)
+    elif st == "For":
+        lctx = f"for loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        for clause in (s.get("variants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        _cs_body(s.get("body", []) or [], fname, symtab, mc)
+    elif st == "GhostAssign":
+        _cs_clause(s.get("value"),
+                   f"function '{fname}' (ghost '{s.get('target')}')", False, symtab, mc)
+    elif st == "GhostArraySet":
+        gctx = f"function '{fname}' (ghost '{s.get('target')}[...]')"
+        _cs_clause(s.get("index"), gctx, False, symtab, mc)
+        _cs_clause(s.get("value"), gctx, False, symtab, mc)
+    else:
+        for v in s.values():
+            _cs_descend(v, fname, symtab, mc)
 
 #@ requires True
 #@ ensures True
@@ -207,12 +230,24 @@ def _cs_descend(v, fname, symtab, mc) -> None:
         for x in v:
             _cs_descend(x, fname, symtab, mc)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _cs_clause(clause, ctx, allow_result, symtab, mc) -> None:
-    pass
+    if clause is None:
+        return
+    if not allow_result and _contains_result(clause):
+        raise PyCSLSemanticError(
+            f"Invalid use of '\\result' in {ctx}. It is only allowed in 'ensures'.",
+            code="PYCSL-SEM-RESULT",
+        )
+    for v in _ir_free_vars(clause):
+        if v and v not in symtab and v not in mc:
+            raise PyCSLSemanticError(
+                f"Undefined variable '{v}' referenced in contract for {ctx}. "
+                f"Available variables in scope: {list(symtab.keys())}",
+                code="PYCSL-SEM-SCOPE",
+            )
 
 #@ requires True
 #@ ensures True

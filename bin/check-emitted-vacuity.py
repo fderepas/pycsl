@@ -88,6 +88,14 @@ KNOWN_ERASURES = {
     # `Set[str].add(param)` emits a literal `()` — a DIFFERENT, live-tool faithfulness bug in the
     # wall-lessons (h) family (param-collection mutation), not genexp erasure. Filed there.
     "statementemissionmixin___emit_new_ghost_ref",          # erases `target`
+    # `_cs_clause` erases `ctx` — but UNLIKE the entries above (genexp/param-mutation MODELING
+    # gaps that lose real semantics), this erasure is FAITHFUL by semantics: `ctx` appears ONLY
+    # inside the two `raise PyCSLSemanticError(f"…{ctx}…")` error-message f-strings, never in a
+    # condition/guard/assignment/return or the raise CONDITION. WhyML matches exceptions by TYPE,
+    # not message text, so `ctx` is verification-irrelevant (same raise, same condition, same
+    # exception type with or without it). Recorded reason per this ledger's policy; landed with the
+    # `_cs_stmt` chain (user-authorized 2026-07-31).
+    "_cs_clause",                                            # erases `ctx` (error-message-only; faithful)
 }
 
 
