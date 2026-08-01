@@ -296,6 +296,77 @@ def _match_pre_action_nested_field(stmt: Any, subj: str,
             "child_key": ckey, "field_guards": field_guards, "add_key": akey}
 
 
+def _match_pre_action_local_str(stmt: Any, subj: str,
+                                acc: str) -> Optional[Dict[str, str]]:
+    """Local-string-bind pre-action (A-unit grammar delta):
+
+        if <subj>.get("<gkey>") == "<gval>":
+            <lv> = <subj>.get("<ckey>")
+            if isinstance(<lv>, str):
+                <acc>.add(<lv>)
+                <acc>.add(<transform of <lv>>)   # e.g. <lv>.rsplit(".", 1)[-1]
+
+    An outer literal-key equality guard, a LOCAL bound to a *string* child
+    (`<subj>.get("<ckey>")`), then an `isinstance(<lv>, str)` narrowing that
+    gates one-or-more `<acc>.add(...)` of that local. Each add's argument is
+    `<lv>` itself OR an arbitrary value TRANSFORM of it (`.rsplit(...)[-1]`),
+    provenance-traced back to `<lv>`. Under the fixed `ensures True` contract
+    the transform is a value fact the certified contract does not need (the
+    `.rsplit(...)` doctrine of the G-set-accumulate CHAIN add-arm: the exact
+    string is VC-irrelevant), so it is DROPPED and every add lowers to
+    `set_add` of `<ckey>`'s string value — faithful to the string's
+    PROVENANCE (the literal key it was read from). `isinstance(<lv>, str)`
+    maps EXACTLY to the `Some (PStr t)` reader arm.
+
+    Returns {kind:"eq", guard_key, guard_val, add_key} — the SAME single-value
+    descriptor `_match_pre_action` emits, so the emitter path is reused
+    verbatim — or None (fail-closed). The bound child MUST be a literal-key
+    `.get()` of `<subj>`, and every add MUST reference `<lv>` (an add of an
+    unrelated value rejects)."""
+    if not isinstance(stmt, dict) or stmt.get("stmt") != "If":
+        return None
+    if stmt.get("orelse"):
+        return None
+    outer = _match_eq_guard(stmt.get("test", {}), subj)
+    if outer is None:
+        return None
+    gkey, gval = outer
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    # body[0]: <lv> = <subj>.get("<ckey>")
+    fb = _match_field_bind(body[0])
+    if fb is None:
+        return None
+    lv, parent, ckey = fb
+    if parent != subj:
+        return None
+    # body[1]: if isinstance(<lv>, str): <acc>.add(<expr(lv)>) [; <acc>.add(...)]*
+    inner = body[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"):
+        return None
+    if inner.get("orelse"):
+        return None
+    if not _match_isinstance(inner.get("test", {}), lv, "str"):
+        return None
+    adds = inner.get("body", [])
+    if not adds:
+        return None
+    for add in adds:
+        if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+            return None
+        call = add.get("value", {})
+        if not (isinstance(call, dict) and call.get("type") == "Call"
+                and call.get("func") == f"{acc}.add"
+                and len(call.get("args", [])) == 1):
+            return None
+        refs: set = set()
+        _collect_refs(call["args"][0], refs)
+        if lv not in refs:
+            return None
+    return {"kind": "eq", "guard_key": gkey, "guard_val": gval, "add_key": ckey}
+
+
 def _match_dict_loop(stmt: Any, subj: str, acc: str, fname: str) -> Optional[Dict[str, Any]]:
     """`for k, v in obj.items(): [if k=="<skip>": continue]; f(v, targets)`
     or the `.values()` variant. Returns {skip_key: str|None} or None."""
@@ -439,6 +510,8 @@ def _recognize(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             maybe_pre = _match_pre_action_intuple(dbody[0], subj, acc)
         if maybe_pre is None:
             maybe_pre = _match_pre_action_nested_field(dbody[0], subj, acc)
+        if maybe_pre is None:
+            maybe_pre = _match_pre_action_local_str(dbody[0], subj, acc)
         if maybe_pre is not None:
             pre = maybe_pre
             dbody = dbody[1:]

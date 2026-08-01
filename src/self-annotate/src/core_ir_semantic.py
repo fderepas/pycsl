@@ -16,12 +16,21 @@ from errors import PyCSLSemanticError
 def run_ir_semantic_checks(ir: Any, *, stage: str='ir-semantic') -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns acc
 def _collect_call_targets(node: Any, acc: set) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("type") == "Call":
+            f = node.get("func")
+            if isinstance(f, str):
+                acc.add(f)
+                acc.add(f.rsplit(".", 1)[-1])
+        for v in node.values():
+            _collect_call_targets(v, acc)
+    elif isinstance(node, list):
+        for v in node:
+            _collect_call_targets(v, acc)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
