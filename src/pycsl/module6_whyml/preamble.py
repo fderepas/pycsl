@@ -2087,6 +2087,8 @@ class PreambleEmissionMixin:
         # `_check_ghost_string_ops` siblings) additionally needs the pydict->sdict
         # bridge theory (`pget_dyn`/`pget_list`/`pdict_to_sdict`). Gated separately
         # so every already-landed sdict mirror stays byte-identical; corpus-inert.
+        from module6_whyml.generic_fold import (
+            recognize_collect_noreturn_names, recognize_stmt_noreturn_call)
         needs_pdict_bridge = any(
             recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
@@ -2094,7 +2096,10 @@ class PreambleEmissionMixin:
             or recognize_check_contract_scope(f) is not None
             or recognize_check_clause_fold(f) is not None
             or recognize_check_no_exception(f) is not None
-            or recognize_check_warn_fold(f) is not None for f in functions)
+            or recognize_check_warn_fold(f) is not None
+            # #1 `_collect_noreturn_names` reads `ir["functions"]` via `pget_list`.
+            or recognize_collect_noreturn_names(f) is not None
+            for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs)
         needs_pydict = needs_sdict or bool(
@@ -2114,6 +2119,10 @@ class PreambleEmissionMixin:
             or recognize_pyval_flatten(f) is not None
             or recognize_cpwalk(f) is not None
             or recognize_ir_free_vars(f) is not None
+            # string-keyed-set NoReturn cluster: #1 `set_add`/`set_union` +
+            # #2 `pystr_eq`/`Map.get` all live in the `needs_pydict` block.
+            or recognize_collect_noreturn_names(f) is not None
+            or recognize_stmt_noreturn_call(f) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only

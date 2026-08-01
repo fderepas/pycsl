@@ -14641,3 +14641,331 @@ def _cc_emit_eq_first(fields: List[str]) -> str:
         arms.append("| " + ", ".join(pat) + " -> "
                     + rest_agree("a", fields[i + 1:]))
     return "match " + scrut + " with " + " ".join(arms) + " end"
+
+
+# =========================================================================
+# string-keyed-set NoReturn cluster (check-noreturn-successors driver):
+# the two standalone leaf helpers of `_check_noreturn_successors`, both over
+# the certified pyval/pydict L1 ADT with the `map string bool` set model —
+# NO new type / axiom / cert (ledger 3), `ensures True` (type-safety +
+# termination only). Fail-closed: a shape outside the fragment stays
+# `\trusted`; a template bug yields a loud unprovable instance, never a false
+# proof. Corpus-inert (self-annotate-mirror-only) → byte-diff-0.
+#
+#   #1 recognize_collect_noreturn_names — a FLAT `ir["functions"]` set-
+#      projection fold: `out=set(); for f in ir.get("<field>", []): if
+#      f.get("<guard>"): nm=f.get("<name_key>"); if nm: out.add(nm); ...;
+#      return out`. Lowered as `pget_list "<field>" ir`-fold that reads each
+#      element dict's `<name_key>` string and `set_add`s it (the `<guard>`
+#      presence is read; the `.rsplit` tail-add is provenance-drop, VC-
+#      irrelevant under `ensures True`).
+#   #2 recognize_stmt_noreturn_call — a bool guard-cascade of early
+#      `return False`s ending in `fn in <set_param>` read-only-set-param
+#      membership (`Map.get`). Non-recursive nested field reads
+#      (s.get("stmt")=="Expr" -> s.get("value").get("type")=="Call" ->
+#      s.get("value").get("func") in <set_param>); the `.rsplit(".",1)[-1]`
+#      second disjunct is provenance-drop.
+# =========================================================================
+
+
+def _emit_pyval_key_reader(out: List[str], rname: str, key: str) -> None:
+    """Emit a `pydict -> option pyval` reader for literal `key` (interned
+    `irkey` constructor, or the `K_dyn` computed-key cell). Structurally
+    terminating; no string theory for interned keys."""
+    out.append(f"  let rec {rname} (d: pydict) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest")
+    else:
+        out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}"'
+                   f" then Some v else {rname} rest")
+        out.append(f"    | DCons _ _ rest -> {rname} rest")
+    out.append("    end")
+
+
+def recognize_collect_noreturn_names(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the flat `ir["functions"]` set-projection fold
+    (`_collect_noreturn_names` shape). Returns
+    {name, subj, field, guard_key, name_key} or None. Never raises."""
+    try:
+        return _recognize_collect_noreturn_names(func)
+    except Exception:
+        return None
+
+
+def _recognize_collect_noreturn_names(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") != "set":
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    s_init, s_for, s_ret = body
+    # [0] out = set()
+    if not (isinstance(s_init, dict) and s_init.get("stmt") == "Assign"):
+        return None
+    acc = s_init.get("target")
+    iv = s_init.get("value")
+    if not (isinstance(acc, str) and isinstance(iv, dict)
+            and iv.get("type") == "Call" and iv.get("func") == "set"
+            and not iv.get("args")):
+        return None
+    if acc == subj:
+        return None
+    # [2] return out
+    if not (isinstance(s_ret, dict) and s_ret.get("stmt") == "Return"
+            and _is_var(s_ret.get("value"), acc)):
+        return None
+    # [1] for <loopvar> in <subj>.get("<field>", []): ...
+    if not (isinstance(s_for, dict) and s_for.get("stmt") == "For"):
+        return None
+    loopvar = s_for.get("target")
+    if not isinstance(loopvar, str):
+        return None
+    itr = s_for.get("iter")
+    field = _match_get_call(itr, subj)
+    if field is None:
+        return None
+    fbody = s_for.get("body") or []
+    if len(fbody) != 1:
+        return None
+    guard = fbody[0]
+    # if <loopvar>.get("<guard_key>"): ...
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")):
+        return None
+    guard_key = _match_get_call(guard.get("test"), loopvar)
+    if guard_key is None:
+        return None
+    gbody = guard.get("body") or []
+    if len(gbody) != 2:
+        return None
+    s_nm, s_if = gbody
+    # nm = <loopvar>.get("<name_key>")
+    if not (isinstance(s_nm, dict) and s_nm.get("stmt") == "Assign"):
+        return None
+    nmvar = s_nm.get("target")
+    name_key = _match_get_call(s_nm.get("value"), loopvar)
+    if not (isinstance(nmvar, str) and name_key is not None):
+        return None
+    # if nm: <acc>.add(nm); ...  (the add is the non-facade, mutation-sensitive signal)
+    if not (isinstance(s_if, dict) and s_if.get("stmt") == "If"
+            and _is_var(s_if.get("test"), nmvar)):
+        return None
+    ifb = s_if.get("body") or []
+    if not ifb:
+        return None
+    add0 = ifb[0]
+    if not (isinstance(add0, dict) and add0.get("stmt") == "Expr"):
+        return None
+    addcall = add0.get("value")
+    if not (isinstance(addcall, dict) and addcall.get("type") == "Call"
+            and addcall.get("func") == f"{acc}.add"
+            and [_is_var(a, nmvar) for a in addcall.get("args", [])][:1] == [True]):
+        return None
+    return {"name": func.get("name"), "subj": subj, "field": field,
+            "guard_key": guard_key, "name_key": name_key}
+
+
+def emit_collect_noreturn_names_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the flat `ir["functions"]` set-projection fold: read the one list
+    field off `ir`'s bridged pydict (`pget_list "<field>"`), fold it to a
+    `map string bool`, `set_add`ing each element dict's `<name_key>` string
+    when the `<guard_key>` field is present. Total + terminating over the
+    certified pydict/list `pyval` bridge; `ensures true`. NO new
+    type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = whyml_ident(desc["subj"])
+    field = desc["field"]
+    guard_key = desc["guard_key"]
+    name_key = desc["name_key"]
+    out: List[str] = []
+    gname = f"{n}__get_{_reader_suffix(guard_key)}"
+    nname = f"{n}__get_{_reader_suffix(name_key)}"
+    _emit_pyval_key_reader(out, gname, guard_key)
+    if name_key != guard_key:
+        _emit_pyval_key_reader(out, nname, name_key)
+    # per-element projection: present-guard -> add the name string.
+    out.append(f"  let {n}__one (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {gname} d with")
+    out.append(f"                  | Some _ -> (match {nname} d with")
+    out.append("                               | Some (PStr s) -> set_add (const false) s")
+    out.append("                               | _ -> const false end)")
+    out.append("                  | None -> const false end)")
+    out.append("    | _ -> const false end")
+    # the flat list fold.
+    out.append(f"  let rec {n}__fold (l: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { l }")
+    out.append("  = match l with")
+    out.append("    | Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({n}__one h) ({n}__fold t) end")
+    # the top wrapper: read `ir["<field>"]` (a flat list of dicts).
+    out.append(f"  let {n} ({subj}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {subj} with")
+    out.append(f'    | PDict d -> {n}__fold (pget_list "{field}" d)')
+    out.append("    | _ -> const false end")
+    return out
+
+
+def _match_not_isinstance(node: Any, subj: str, cls: str) -> bool:
+    """`not isinstance(<subj>, <cls>)` (UnaryOp not over isinstance)."""
+    return (isinstance(node, dict) and node.get("type") == "UnaryOp"
+            and node.get("op") == "not"
+            and _match_isinstance(node.get("expr"), subj, cls))
+
+
+def _match_neq_getstr(node: Any, subj: str) -> Optional[Tuple[str, str]]:
+    """`<subj>.get("<key>") != "<tag>"` -> (key, tag) or None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "!="):
+        return None
+    key = _match_get_call(node.get("left"), subj)
+    tag = _is_string(node.get("right"))
+    if key is None or tag is None:
+        return None
+    return (key, tag)
+
+
+def _is_return_false(stmt: Any) -> bool:
+    return (isinstance(stmt, dict) and stmt.get("stmt") == "Return"
+            and isinstance(stmt.get("value"), dict)
+            and stmt["value"].get("type") == "Bool"
+            and stmt["value"].get("value") is False)
+
+
+def _guard_returns_false(stmt: Any) -> bool:
+    """`if <test>: return False` (single-stmt body, no orelse)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return False
+    b = stmt.get("body") or []
+    return len(b) == 1 and _is_return_false(b[0])
+
+
+def recognize_stmt_noreturn_call(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the bool guard-cascade -> read-only-set-param
+    membership (`_stmt_is_noreturn_call` shape). Returns
+    {name, subj, set_param, stmt_key, stmt_tag, value_key, type_key, type_tag,
+     func_key} or None. Never raises."""
+    try:
+        return _recognize_stmt_noreturn_call(func)
+    except Exception:
+        return None
+
+
+def _recognize_stmt_noreturn_call(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    subj, set_param = params[0], params[1]
+    if func.get("return_annotation") != "bool":
+        return None
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    g0, a1, g2, a3, g4, ret = body
+    # [0] if <subj>.get("<stmt_key>") != "<stmt_tag>": return False
+    if not _guard_returns_false(g0):
+        return None
+    kt = _match_neq_getstr(g0.get("test"), subj)
+    if kt is None:
+        return None
+    stmt_key, stmt_tag = kt
+    # [1] val = <subj>.get("<value_key>")
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign"):
+        return None
+    valvar = a1.get("target")
+    value_key = _match_get_call(a1.get("value"), subj)
+    if not (isinstance(valvar, str) and value_key is not None):
+        return None
+    # [2] if not isinstance(val, dict) or val.get("<type_key>") != "<type_tag>": return False
+    if not _guard_returns_false(g2):
+        return None
+    t2 = g2.get("test")
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp"
+            and t2.get("op") == "or"
+            and _match_not_isinstance(t2.get("left"), valvar, "dict")):
+        return None
+    tk = _match_neq_getstr(t2.get("right"), valvar)
+    if tk is None:
+        return None
+    type_key, type_tag = tk
+    # [3] fn = <val>.get("<func_key>")
+    if not (isinstance(a3, dict) and a3.get("stmt") == "Assign"):
+        return None
+    fnvar = a3.get("target")
+    func_key = _match_get_call(a3.get("value"), valvar)
+    if not (isinstance(fnvar, str) and func_key is not None):
+        return None
+    # [4] if not isinstance(fn, str): return False
+    if not (_guard_returns_false(g4)
+            and _match_not_isinstance(g4.get("test"), fnvar, "str")):
+        return None
+    # [5] return fn in <set_param> or <...>  (left disjunct is the membership)
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return None
+    rv = ret.get("value")
+    if not (isinstance(rv, dict) and rv.get("type") == "BinOp"):
+        return None
+    mem = rv if rv.get("op") == "in" else (
+        rv.get("left") if rv.get("op") == "or" else None)
+    if not (isinstance(mem, dict) and mem.get("type") == "BinOp"
+            and mem.get("op") == "in"
+            and _is_var(mem.get("left"), fnvar)
+            and _is_var(mem.get("right"), set_param)):
+        return None
+    return {"name": func.get("name"), "subj": subj, "set_param": set_param,
+            "stmt_key": stmt_key, "stmt_tag": stmt_tag, "value_key": value_key,
+            "type_key": type_key, "type_tag": type_tag, "func_key": func_key}
+
+
+def emit_stmt_noreturn_call_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the non-recursive bool guard-cascade: read the nested `stmt`/
+    `value`/`type`/`func` fields off `s`'s bridged pydict and test read-only-
+    set-param membership (`Map.get <set_param>`). `ensures true` (type-safety;
+    no recursion, trivially terminating). NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    subj = whyml_ident(desc["subj"])
+    setp = whyml_ident(desc["set_param"])
+    out: List[str] = []
+    r_stmt = f"{n}__get_{_reader_suffix(desc['stmt_key'])}"
+    r_value = f"{n}__get_{_reader_suffix(desc['value_key'])}"
+    r_type = f"{n}__get_{_reader_suffix(desc['type_key'])}"
+    r_func = f"{n}__get_{_reader_suffix(desc['func_key'])}"
+    seen: Dict[str, str] = {}
+    for key, rn in ((desc["stmt_key"], r_stmt), (desc["value_key"], r_value),
+                    (desc["type_key"], r_type), (desc["func_key"], r_func)):
+        if key in seen:
+            continue
+        seen[key] = rn
+        _emit_pyval_key_reader(out, rn, key)
+    out.append(f"  let {n} ({subj}: pyval) ({setp}: map string bool) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {subj} with")
+    out.append(f"    | PDict d -> (match {r_stmt} d with")
+    out.append("                  | Some (PStr st) ->")
+    out.append(f'                      if pystr_eq st "{desc["stmt_tag"]}" then')
+    out.append(f"                        (match {r_value} d with")
+    out.append("                         | Some (PDict d2) ->")
+    out.append(f"                             (match {r_type} d2 with")
+    out.append("                              | Some (PStr ty) ->")
+    out.append(f'                                  if pystr_eq ty "{desc["type_tag"]}" then')
+    out.append(f"                                    (match {r_func} d2 with")
+    out.append(f"                                     | Some (PStr fn) -> Map.get {setp} fn")
+    out.append("                                     | _ -> false end)")
+    out.append("                                  else false")
+    out.append("                              | _ -> false end)")
+    out.append("                         | _ -> false end)")
+    out.append("                      else false")
+    out.append("                  | _ -> false end)")
+    out.append("    | _ -> false end")
+    return out

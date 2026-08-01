@@ -604,12 +604,20 @@ def _body_has_return(body: list) -> bool:
 def _check_noreturn(func) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _collect_noreturn_names(ir) -> set:
-    return set()
+    out: set = set()
+    for func in ir.get("functions", []):
+        if func.get("is_noreturn"):
+            nm = func.get("name")
+            if nm:
+                out.add(nm)
+                # A method call `self.m()` or `obj.m()` resolves to the
+                # `Class__method` flattened name; also accept the short tail.
+                out.add(nm.rsplit("__", 1)[-1])
+    return out
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -625,12 +633,19 @@ def _check_noreturn_successors(ir) -> None:
 def _noreturn_walk_stmts(stmts, fname, noreturn_names) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _stmt_is_noreturn_call(s, noreturn_names) -> bool:
-    return False
+    if s.get("stmt") != "Expr":
+        return False
+    val = s.get("value")
+    if not isinstance(val, dict) or val.get("type") != "Call":
+        return False
+    fn = val.get("func")
+    if not isinstance(fn, str):
+        return False
+    return fn in noreturn_names or fn.rsplit(".", 1)[-1] in noreturn_names
 
 #@ requires True
 #@ ensures True

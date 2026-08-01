@@ -3051,6 +3051,25 @@ class FunctionEmissionMixin:
         _cwf = recognize_check_warn_fold(func)
         if _cwf is not None:
             return emit_check_warn_fold_group(_cwf, whyml_ident)
+        # string-keyed-set NoReturn cluster (check-noreturn-successors driver):
+        # #1 the FLAT `ir["functions"]` set-projection fold
+        # (`_collect_noreturn_names`) — read the one list field off `ir`'s
+        # bridged pydict (`pget_list`) and fold each element dict's name string
+        # into a `map string bool`. Corpus-inert; fail-closed.
+        from module6_whyml.generic_fold import (
+            recognize_collect_noreturn_names, emit_collect_noreturn_names_group,
+            recognize_stmt_noreturn_call, emit_stmt_noreturn_call_group)
+        _cnn = recognize_collect_noreturn_names(func)
+        if _cnn is not None:
+            return emit_collect_noreturn_names_group(_cnn, whyml_ident)
+        # #2 the bool guard-cascade ending in read-only-set-param membership
+        # (`_stmt_is_noreturn_call`) — nested `s.get(stmt/value/type/func)`
+        # field reads terminating in `fn in <set_param>` (`Map.get`). The
+        # `.rsplit(".",1)[-1]` second disjunct is provenance-drop (VC-irrelevant
+        # under `ensures True`). Corpus-inert; fail-closed.
+        _snc = recognize_stmt_noreturn_call(func)
+        if _snc is not None:
+            return emit_stmt_noreturn_call_group(_snc, whyml_ident)
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)
