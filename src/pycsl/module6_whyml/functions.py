@@ -2891,6 +2891,7 @@ class FunctionEmissionMixin:
             recognize_dictfold, emit_dictfold_group,
             recognize_void_dispatch, emit_void_dispatch_group,
             recognize_void_generic_descend, emit_void_generic_descend_group,
+            recognize_wall2_items_walk, emit_wall2_items_walk_group,
             emit_pb_trio_group,
             recognize_type_existence, emit_type_existence_group,
             recognize_named_field_existence, emit_named_field_existence_group,
@@ -3417,6 +3418,16 @@ class FunctionEmissionMixin:
         _vgd = recognize_void_generic_descend(func)
         if _vgd is not None:
             return emit_void_generic_descend_group(func, _vgd, whyml_ident)
+        # R-W2a: the void heterogeneous `.items()`-walk `for s in stmts: if not
+        # isinstance(s,dict): continue; for k,v in s.items(): <compound k-guard +
+        # isinstance(v,dict/list) dispatch>; leaf(v,*ctx); walk([v],*ctx)`. Lowers
+        # onto the certified pyval/pydict L1 catamorphism; the `walk([v])` re-wrap
+        # is normalized to the direct `walk__val v` descent (termination). The
+        # leaf stays \trusted (opaque val, ensures true). Same fail-closed
+        # discipline.
+        _w2a = recognize_wall2_items_walk(func)
+        if _w2a is not None:
+            return emit_wall2_items_walk_group(func, _w2a, whyml_ident)
         body_stmts = func["body"]
         # optional-field builder (monomorphic-option ADTs): rewrite the
         # `_csl_forall`/`_csl_exists` mutable-dict-conditional-add body to a single

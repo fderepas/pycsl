@@ -6267,6 +6267,363 @@ def emit_void_generic_descend_group(func: Dict[str, Any], desc: Dict[str, Any],
 
 
 # =========================================================================
+# R-W2a — the VOID heterogeneous `.items()`-walk (Wall-2). The recognized
+# shape (`_typeddict_walk_subscripts` / `_namedtuple_walk_subscripts` /
+# `_namedtuple_walk_construction`):
+#
+#     def walk(stmts, *ctx):           # stmts: list-annotated
+#         for s in stmts:
+#             if not isinstance(s, dict):
+#                 continue
+#             for k, v in s.items():
+#                 if k == "<GVAL>" and isinstance(v, dict) and v.get("<GKEY>") == "<TAG>":
+#                     leaf(v, *ctx)
+#                 elif isinstance(v, dict):
+#                     if v.get("<GKEY>") == "<TAG>":
+#                         leaf(v, *ctx)
+#                     walk([v], *ctx)        # <-- singleton re-wrap
+#                 elif isinstance(v, list):
+#                     walk(v, *ctx)
+#
+# Every action is void, `ensures true`; `leaf` is an OTHER (\trusted) top-level
+# function whose observable is a `warnings.warn` (effect-free) — its opaque
+# `val ... ensures {true}` makes the value it receives formally irrelevant, so
+# it STAYS \trusted (the `_pb_body`/`_pb_descend` convention). This whole group
+# lowers onto the certified `pyval`/`pydict` L1 catamorphism:
+#   walk       : list pyval  (the stmt list; `size_list` variant)
+#   walk__d    : pydict      (the `.items()` pair fold; `size_dict` variant)
+#   walk__val  : pyval       (the per-value descent; `pv_size` variant)
+# `isinstance(s,dict)`/`isinstance(v,dict/list)` lower to the pyval tag match
+# (`PDict`/`PList`) — real information, not the `mod h 2` opaque fallback. The
+# k-guard `k == "<GVAL>"`, `isinstance(v,dict)` and `v.get("<GKEY>") == "<TAG>"`
+# lower to constructor/reader tests carrying the LITERAL key and tag strings,
+# so a body mutation (any of GVAL/GKEY/TAG/leaf) moves the emitted arm (anti-
+# facade; a structural change fails the fail-closed match and reverts to
+# \trusted — a loud count regression, never a false proof).
+#
+# THE KEY NORMALIZATION (measured necessary — without it `walk__d`'s termination
+# VC TIMES OUT): the `walk([v], *ctx)` singleton re-wrap is lowered as the
+# DIRECT pyval descent `walk__val v` — semantics-identical (`walk (Cons v Nil)`
+# unfolds to `walk__val v` on the sole element, every per-node action being in
+# the items loop) and STRICTLY `pv_size`-decreasing (the `list`-re-wrap only
+# WEAKLY decreases: `size_list (Cons v Nil) = 1 + pv_size v`, not `< size_dict
+# d` when the tail is `DNil`). This is a lowering rule, no model change.
+#
+# Termination: the direct structural sub-term at every recursive site, split_vc-
+# robust — the proven A-bool/void-generic-descend shape reused verbatim. ONE
+# code path handles every match (the subject/ctx/leaf/GVAL/GKEY/TAG are read off
+# the recognised body). Corpus-inert: emits ONLY for the recognised shape.
+# =========================================================================
+
+def _w2a_type_get_eq(node: Any, vvar: str) -> Optional[Tuple[str, str]]:
+    """`<vvar>.get("<KEY>") == "<TAG>"` -> (KEY, TAG), else None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "=="):
+        return None
+    left, right = node.get("left"), node.get("right")
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == f"{vvar}.get"):
+        return None
+    largs = left.get("args") or []
+    if len(largs) != 1:
+        return None
+    key = _is_string(largs[0])
+    tag = _is_string(right)
+    if key is None or tag is None:
+        return None
+    return (key, tag)
+
+
+def _w2a_leaf_call(stmt: Any, vvar: str, ctx_params: List[str],
+                   self_name: str) -> Optional[str]:
+    """`LEAF(<vvar>, *ctx)` as an Expr stmt where LEAF is an OTHER top-level
+    function (not self, not dotted) -> leaf name, else None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return None
+    call = stmt.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    leaf = call.get("func")
+    if not isinstance(leaf, str) or "." in leaf or leaf == self_name:
+        return None
+    args = call.get("args") or []
+    if len(args) != 1 + len(ctx_params):
+        return None
+    if not _is_var(args[0], vvar):
+        return None
+    for a, p in zip(args[1:], ctx_params):
+        if not _is_var(a, p):
+            return None
+    return leaf
+
+
+def _w2a_self_call(stmt: Any, arg0_is_wrap: bool, vvar: str,
+                   ctx_params: List[str], self_name: str) -> bool:
+    """`self([v], *ctx)` (arg0_is_wrap) or `self(v, *ctx)` Expr stmt."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return False
+    call = stmt.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == self_name):
+        return False
+    args = call.get("args") or []
+    if len(args) != 1 + len(ctx_params):
+        return False
+    a0 = args[0]
+    if arg0_is_wrap:
+        if not (isinstance(a0, dict) and a0.get("type") == "ArrayLit"
+                and len(a0.get("elts") or []) == 1
+                and _is_var((a0.get("elts") or [])[0], vvar)):
+            return False
+    else:
+        if not _is_var(a0, vvar):
+            return False
+    for a, p in zip(args[1:], ctx_params):
+        if not _is_var(a, p):
+            return False
+    return True
+
+
+def recognize_wall2_items_walk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the R-W2a void `.items()`-walk (see the module note
+    above). Returns {subject, ctx_params, svar, leaf, gval, gkey, tag} or None.
+    Never raises."""
+    try:
+        return _recognize_wall2_items_walk(func)
+    except Exception:
+        return None
+
+
+def _recognize_wall2_items_walk(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    name = func.get("name")
+    params = func.get("formal_params", [])
+    if len(params) < 2:
+        return None
+    subj, ctx_params = params[0], params[1:]
+    pann = func.get("param_annotations", {}) or {}
+    if pann.get(subj) != "list":
+        return None
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    # for s in stmts:
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For"
+            and not outer.get("orelse") and _is_var(outer.get("iter"), subj)):
+        return None
+    svar = outer.get("target")
+    if not isinstance(svar, str) or svar in ctx_params or svar == subj:
+        return None
+    obody = outer.get("body", [])
+    if len(obody) != 2:
+        return None
+    # if not isinstance(s, dict): continue
+    guard = obody[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")):
+        return None
+    gtest = guard.get("test", {})
+    if not (isinstance(gtest, dict) and gtest.get("type") == "UnaryOp"
+            and gtest.get("op") == "not"
+            and _match_isinstance(gtest.get("expr", {}), svar, "dict")):
+        return None
+    gcont = guard.get("body", [])
+    if len(gcont) != 1 or not (isinstance(gcont[0], dict)
+                               and gcont[0].get("stmt") == "Continue"):
+        return None
+    # for k, v in s.items():
+    inner = obody[1]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"
+            and not inner.get("orelse")):
+        return None
+    iit = inner.get("iter", {})
+    if not (isinstance(iit, dict) and iit.get("type") == "Call"
+            and iit.get("func") == f"{svar}.items" and not iit.get("args")):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1:
+        return None
+    disp = ibody[0]
+    if not (isinstance(disp, dict) and disp.get("stmt") == "If"):
+        return None
+    # compound guard: (k == "<gval>" and isinstance(v, dict)) and (v.get(...)==tag)
+    dt = disp.get("test", {})
+    if not (isinstance(dt, dict) and dt.get("type") == "BinOp"
+            and dt.get("op") == "and"):
+        return None
+    conj = dt.get("left", {})
+    if not (isinstance(conj, dict) and conj.get("type") == "BinOp"
+            and conj.get("op") == "and"):
+        return None
+    keq = conj.get("left", {})
+    if not (isinstance(keq, dict) and keq.get("type") == "BinOp"
+            and keq.get("op") == "=="):
+        return None
+    kvar = keq.get("left", {})
+    if not (isinstance(kvar, dict) and kvar.get("type") == "Var"):
+        return None
+    kvar_name = kvar.get("name")
+    gval = _is_string(keq.get("right"))
+    if gval is None:
+        return None
+    iso = conj.get("right", {})
+    # isinstance(v, dict) — extract vvar
+    if not (isinstance(iso, dict) and iso.get("type") == "Call"
+            and iso.get("func") == "isinstance"):
+        return None
+    iargs = iso.get("args") or []
+    if len(iargs) != 2 or not _is_var(iargs[0]) or not _is_var(iargs[1], "dict"):
+        return None
+    vvar = iargs[0].get("name")
+    if not isinstance(vvar, str) or vvar in ctx_params or vvar in (subj, svar):
+        return None
+    if not isinstance(kvar_name, str) or kvar_name in (subj, svar, vvar):
+        return None
+    gt = _w2a_type_get_eq(dt.get("right", {}), vvar)
+    if gt is None:
+        return None
+    gkey, tag = gt
+    # true-arm: leaf(v, *ctx)
+    tbody = disp.get("body", [])
+    if len(tbody) != 1:
+        return None
+    leaf = _w2a_leaf_call(tbody[0], vvar, ctx_params, name)
+    if leaf is None:
+        return None
+    # elif isinstance(v, dict): [if v.get(gkey)==tag: leaf(v,*ctx)]; self([v],*ctx)
+    orelse = disp.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    dbranch = orelse[0]
+    if not (isinstance(dbranch, dict) and dbranch.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(dbranch.get("test", {}), vvar, "dict"):
+        return None
+    dbody = dbranch.get("body", [])
+    if len(dbody) != 2:
+        return None
+    nif = dbody[0]
+    if not (isinstance(nif, dict) and nif.get("stmt") == "If"
+            and not nif.get("orelse")):
+        return None
+    ngt = _w2a_type_get_eq(nif.get("test", {}), vvar)
+    if ngt != (gkey, tag):
+        return None
+    nbody = nif.get("body", [])
+    if len(nbody) != 1 or _w2a_leaf_call(nbody[0], vvar, ctx_params, name) != leaf:
+        return None
+    if not _w2a_self_call(dbody[1], True, vvar, ctx_params, name):
+        return None
+    # else-arm: elif isinstance(v, list): self(v, *ctx)
+    dorelse = dbranch.get("orelse", [])
+    if len(dorelse) != 1:
+        return None
+    lbranch = dorelse[0]
+    if not (isinstance(lbranch, dict) and lbranch.get("stmt") == "If"
+            and not lbranch.get("orelse")):
+        return None
+    if not _match_isinstance(lbranch.get("test", {}), vvar, "list"):
+        return None
+    lbody = lbranch.get("body", [])
+    if len(lbody) != 1 or not _w2a_self_call(lbody[0], False, vvar,
+                                             ctx_params, name):
+        return None
+    return {"subject": subj, "ctx_params": ctx_params, "svar": svar,
+            "leaf": leaf, "gval": gval, "gkey": gkey, "tag": tag}
+
+
+# annotation -> WhyML param type, IDENTICAL to the standalone-`val` param
+# lowering (`dict`/`set` -> map, `str` -> string, list/tuple -> array int),
+# so a converted walker's ctx params keep the SAME types the trusted leaf's
+# `val` declares for the same-named params (call-site type match).
+_W2A_ANN_TYPE = {
+    "str": "string", "int": "int", "bool": "int", "float": "real",
+    "set": "map int (option int)", "dict": "map int (option int)",
+    "frozenset": "map int (option int)",
+    "list": "array int", "tuple": "array int",
+    "bytes": "array int", "bytearray": "array int",
+}
+
+
+def _w2a_ann_type(ann: Any) -> str:
+    return _W2A_ANN_TYPE.get(ann, "int")
+
+
+def emit_wall2_items_walk_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                whyml_ident) -> List[str]:
+    """Emit the R-W2a `.items()`-walk as the `pyval`/`pydict`/`list pyval`
+    mutual catamorphism into `unit` (see the module note above). The ctx params
+    (`td_vars`/`fname`) keep their real `map`/`string` types and thread
+    UNCHANGED to the trusted leaf, whose matching `val` param types they satisfy
+    exactly. The leaf's own subject arg — a `pyval` here, a `map` there — is
+    supplied as an arbitrary well-typed value (`any (map int (option int))`):
+    the leaf's `ensures {true}` makes it formally irrelevant, the same soundness
+    `emit_void_dispatch_group` relies on when it forwards an unconstrained
+    opaque Cons element. The recognised leaves annotate `sub` as `dict`
+    (-> `map int (option int)`)."""
+    n = whyml_ident(func["name"])
+    leaf = whyml_ident(desc["leaf"])
+    ctx = [whyml_ident(p) for p in desc["ctx_params"]]
+    pann = func.get("param_annotations", {}) or {}
+    ctx_types = [_w2a_ann_type(pann.get(p)) for p in desc["ctx_params"]]
+    ctx_sig = "".join(f" ({c}: {t})" for c, t in zip(ctx, ctx_types))
+    ctx_args = "".join(f" {c}" for c in ctx)
+    gval = desc["gval"]
+    gkey = desc["gkey"]
+    tag = desc["tag"]
+    gval_ctor = _irkey_ctor(gval)
+    leaf_sub_type = "map int (option int)"
+    out: List[str] = []
+    # "<gkey>"-key program reader (K_dyn style, mirrors _emit_stmt_reader)
+    out.append(f"  let rec {n}__get_key (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append(f'    | DCons (K_dyn kk) (PStr s) rest -> if pystr_eq kk "{gkey}" then Some s else {n}__get_key rest')
+    out.append(f"    | DCons _ _ rest -> {n}__get_key rest")
+    out.append("    end")
+    out.append(f"  let {n}__tag_is (v: pyval) (tg: string) : bool")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> (match {n}__get_key d with Some s -> pystr_eq s tg | None -> false end)")
+    out.append("    | _ -> false end")
+    out.append(f"  let {n}__key_is (k: irkey) : bool")
+    out.append(f'  = match k with {gval_ctor} -> true | K_dyn s -> pystr_eq s "{gval}" | _ -> false end')
+    # the trio
+    out.append(f"  let rec {n} (stmts: list pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list stmts }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append(f"    | Cons s t -> (match s with PDict d -> {n}__d d{ctx_args} | _ -> () end); {n} t{ctx_args}")
+    out.append("    end")
+    out.append(f"  with {n}__d (d: pydict){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> ()")
+    out.append("    | DCons k v rest ->")
+    out.append(f'        (if ({n}__key_is k) && (is_pdict v) && ({n}__tag_is v "{tag}")')
+    out.append(f"         then {leaf} (any {leaf_sub_type}){ctx_args}")
+    out.append("         else if is_pdict v then")
+    out.append(f'           ((if {n}__tag_is v "{tag}" then {leaf} (any {leaf_sub_type}){ctx_args} else ());')
+    out.append(f"            {n}__val v{ctx_args})")
+    out.append(f"         else (match v with PList xs -> {n} xs{ctx_args} | _ -> () end));")
+    out.append(f"        {n}__d rest{ctx_args}")
+    out.append("    end")
+    out.append(f"  with {n}__val (v: pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {n}__d d{ctx_args}")
+    out.append(f"    | PList xs -> {n} xs{ctx_args}")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
 # PB-TRIO FUSION — the mutually-recursive `{_pb_stmt, _pb_body, _pb_descend}`
 # statement-walker triad (core_ir_semantic self-annotation), fused into ONE
 # `let rec … with …` group so `_pb_stmt` can be UN-TRUSTED.

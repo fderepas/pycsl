@@ -1064,12 +1064,26 @@ def _check_mutex_invariants(ir) -> None:
 def _check_typeddict_access(func: Any, td_record_names: set) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _typeddict_walk_subscripts(stmts: list, td_vars: set, fname: str) -> None:
-    pass
+    """Walk the body IR for Subscript nodes whose receiver is a TypedDict-
+    typed variable. T5: the index must be a string literal naming a declared
+    field. A non-literal or unknown-key access is flagged (Why3 will reject it
+    at type-check; this surfaces the issue earlier)."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        for k, v in s.items():
+            if k == "value" and isinstance(v, dict) and v.get("type") == "Subscript":
+                _typeddict_check_subscript(v, td_vars, fname)
+            elif isinstance(v, dict):
+                if v.get("type") == "Subscript":
+                    _typeddict_check_subscript(v, td_vars, fname)
+                _typeddict_walk_subscripts([v], td_vars, fname)
+            elif isinstance(v, list):
+                _typeddict_walk_subscripts(v, td_vars, fname)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -1085,12 +1099,27 @@ def _typeddict_check_subscript(sub: dict, td_vars: set, fname: str) -> None:
 def _check_namedtuple_access(func: Any, nt_record_names: set, nt_record_arities: dict) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _namedtuple_walk_construction(stmts: list, nt_arities: dict, fname: str) -> None:
-    pass
+def _namedtuple_walk_construction(stmts: list, nt_arities: dict,
+                                  fname: str) -> None:
+    """Walk the body IR for `Call` nodes to a NamedTuple constructor and raise
+    a hard error when the call arity is wrong (N7). A field with a default (N1b)
+    makes trailing arguments optional, so the minimum arity is the count of
+    fields WITHOUT defaults."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        for k, v in s.items():
+            if k == "value" and isinstance(v, dict) and v.get("type") == "Call":
+                _namedtuple_check_call(v, nt_arities, fname)
+            elif isinstance(v, dict):
+                if v.get("type") == "Call":
+                    _namedtuple_check_call(v, nt_arities, fname)
+                _namedtuple_walk_construction([v], nt_arities, fname)
+            elif isinstance(v, list):
+                _namedtuple_walk_construction(v, nt_arities, fname)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -1099,12 +1128,26 @@ def _namedtuple_walk_construction(stmts: list, nt_arities: dict, fname: str) -> 
 def _namedtuple_check_call(call: dict, nt_arities: dict, fname: str) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _namedtuple_walk_subscripts(stmts: list, nt_vars: set, fname: str) -> None:
-    pass
+    """Walk the body IR for Subscript nodes whose receiver is a NamedTuple-
+    typed variable. N5: the index must be an integer literal in range. A
+    non-literal or out-of-range index is flagged (Why3 will reject it at
+    type-check; this surfaces the issue earlier)."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        for k, v in s.items():
+            if k == "value" and isinstance(v, dict) and v.get("type") == "Subscript":
+                _namedtuple_check_subscript(v, nt_vars, fname)
+            elif isinstance(v, dict):
+                if v.get("type") == "Subscript":
+                    _namedtuple_check_subscript(v, nt_vars, fname)
+                _namedtuple_walk_subscripts([v], nt_vars, fname)
+            elif isinstance(v, list):
+                _namedtuple_walk_subscripts(v, nt_vars, fname)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
