@@ -7448,6 +7448,722 @@ def emit_check_final_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
 
 
 # =========================================================================
+# CONCURRENCY CLUSTER — the mutually-trusted held-mutex / lock-order
+# protected-access walk {_check_concurrency, _conc_check_shared_access,
+# _conc_check_reads, _conc_stmts, _conc_stmt} (core_ir_semantic). Emitted as
+# ONE self-contained `let rec` block (proven in isolation:
+# scratchpad/conc_spike.mlw, 17/17 Valid; `ensures false` control Times out).
+#
+# MODEL: the HELD mutex set is `list string` (NOT the `map string bool` set
+# repr) because the lock-order check ITERATES it (`for already_held in
+# sorted(held)`) — the map repr has membership but no enumeration. `held` is
+# grown functionally (`held | {mutex}` -> `Cons mutex held`) and threaded
+# through the mutual conc_stmts/conc_stmt walk (the stateful-carry). `shared`
+# is `map string (option string)` (name -> protected_by mutex); `var_name not
+# in shared` AND `shared[var] is None` both lower to the map's `None` codomain
+# (both are lenient returns — a faithful collapse). `lock_order` is
+# `option (list string)`; `.index()` is a structural list search returning a
+# position int. Every raise diverges under `ensures True`, so the raise-guard
+# arithmetic (like the FString error payloads, which `_raises_pycsl` also
+# ignores) is abstracted; the dispatch TAGS + dict KEYS that select which
+# nodes/fields the walk inspects are READ OFF the bodies (fail-closed → a
+# tag/key change moves the emitted `.mlw`, mutation-faithful, or fails the
+# match and reverts the method to `\trusted`). Termination: the banked
+# {pv_size, phase} lexicographic variant over the pyval spine; the
+# lock/contains/index helpers decrease on their `list string`.
+# =========================================================================
+
+def _conc_stmts_call_key(node: Any, stmts_name: str, subj: str) -> Optional[str]:
+    """An `Expr` stmt `<stmts_name>(<subj>.get("<K>") or [], ...)` (5 args) ->
+    K, else None. The ctx args are NOT validated (CriticalSection passes
+    `inner_held` not `held`); only the callee + the extracted body key matter."""
+    if not (isinstance(node, dict) and node.get("stmt") == "Expr"):
+        return None
+    cv = node.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"
+            and cv.get("func") == stmts_name):
+        return None
+    args = cv.get("args") or []
+    if len(args) != 5:
+        return None
+    return _or_empty_sget(args[0], subj)
+
+
+def _conc_reads_call_key(node: Any, reads_name: str, subj: str) -> Optional[str]:
+    """An `Expr` stmt `<reads_name>(<subj>.get("<K>"), ...)` -> K, else None."""
+    if not (isinstance(node, dict) and node.get("stmt") == "Expr"):
+        return None
+    cv = node.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"
+            and cv.get("func") == reads_name):
+        return None
+    args = cv.get("args") or []
+    if not args:
+        return None
+    return _sget_key(args[0], subj)
+
+
+def _conc_peel(node: Any, stvar: str) -> Optional[List[Any]]:
+    """Peel the `if st == "T": ... elif st in (...): ...` chain into a list of
+    (tags, body) pairs; the final orelse must be empty. Fail-closed."""
+    branches: List[Any] = []
+    while isinstance(node, dict) and node.get("stmt") == "If":
+        t = node.get("test")
+        tag = _eq_str(t, stvar)
+        if tag is not None:
+            tags = [tag]
+        else:
+            io = _in_operands(t)
+            if io is None or not _is_var(io[0], stvar):
+                return None
+            tags = _string_tuple(io[1])
+            if tags is None:
+                return None
+        branches.append((tags, node.get("body") or []))
+        orelse = node.get("orelse") or []
+        if not orelse:
+            return branches
+        if len(orelse) != 1:
+            return None
+        node = orelse[0]
+    return None
+
+
+def _conc_sa_guarded_call(node: Any, target_local: str) -> Optional[str]:
+    """`if isinstance(<target_local>, str): <sa>(<target_local>, ...)` -> sa name."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If"):
+        return None
+    if not _is_var(_isinst_arg(node.get("test"), "str"), target_local):
+        return None
+    call = _only(node.get("body"))
+    if not (isinstance(call, dict) and call.get("stmt") == "Expr"):
+        return None
+    cv = call.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"):
+        return None
+    args = cv.get("args") or []
+    if not args or not _is_var(args[0], target_local):
+        return None
+    return cv.get("func")
+
+
+def _match_conc_stmt(fn: Dict[str, Any], stmts_name: str
+                     ) -> Optional[Dict[str, Any]]:
+    """Match `_conc_stmt(s, held, fname, shared, lock_order)`; extract the
+    per-branch tags + dict keys and the `sa`/`reads` callee names."""
+    p = fn.get("formal_params") or []
+    if len(p) != 5:
+        return None
+    subj = p[0]
+    body = fn.get("body") or []
+    if len(body) != 2:
+        return None
+    a0 = body[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    stmt_key = _sget_key(a0.get("value"), subj)
+    stvar = a0.get("target")
+    if stmt_key is None or not isinstance(stvar, str):
+        return None
+    branches = _conc_peel(body[1], stvar)
+    if branches is None:
+        return None
+    d: Dict[str, Any] = {"stmt_key": stmt_key}
+    sa_names: set = set()
+    reads_names: set = set()
+    seen: set = set()
+    for tags, bd in branches:
+        key = tuple(tags)
+        if len(tags) == 1:
+            tag = tags[0]
+            if not seen.isdisjoint({tag}):
+                return None
+            seen.add(tag)
+            # dispatch each single-tag branch by its shape
+            if len(bd) == 5 and isinstance(bd[0], dict) and bd[0].get("stmt") == "Assign":
+                # CriticalSection: mutex assign + ... + stmts(body) call
+                mutex_key = _sget_key(bd[0].get("value"), subj)
+                cs_body_key = _conc_stmts_call_key(bd[4], stmts_name, subj)
+                if mutex_key is None or cs_body_key is None:
+                    return None
+                d.update({"cs_tag": tag, "mutex_key": mutex_key,
+                          "cs_body_key": cs_body_key})
+            elif len(bd) == 2 and all(
+                    _conc_stmts_call_key(x, stmts_name, subj) is not None for x in bd):
+                # If: two stmts() calls (body, orelse)
+                d.update({"if_tag": tag,
+                          "if_body_key": _conc_stmts_call_key(bd[0], stmts_name, subj),
+                          "if_orelse_key": _conc_stmts_call_key(bd[1], stmts_name, subj)})
+            elif len(bd) == 3 and isinstance(bd[0], dict) and bd[0].get("stmt") == "Assign":
+                # Assign: target = s.get(K); if isinstance(target,str): sa(...); reads(s.get(V))
+                tk = _sget_key(bd[0].get("value"), subj)
+                tvar = bd[0].get("target")
+                if tk is None or not isinstance(tvar, str):
+                    return None
+                sn = _conc_sa_guarded_call(bd[1], tvar)
+                # reads callee name captured generically off the call
+                rc = bd[2]
+                if not (isinstance(rc, dict) and rc.get("stmt") == "Expr"):
+                    return None
+                rcv = rc.get("value") or {}
+                if not (isinstance(rcv, dict) and rcv.get("type") == "Call"):
+                    return None
+                rargs = rcv.get("args") or []
+                vk = _sget_key(rargs[0], subj) if rargs else None
+                if sn is None or vk is None:
+                    return None
+                sa_names.add(sn)
+                reads_names.add(rcv.get("func"))
+                d.update({"assign_tag": tag, "assign_target_key": tk,
+                          "assign_value_key": vk})
+            elif len(bd) == 2 and isinstance(bd[0], dict) and bd[0].get("stmt") == "Assign":
+                # AugAssign: target = s.get(K); if isinstance(target,str): sa(...)
+                tk = _sget_key(bd[0].get("value"), subj)
+                tvar = bd[0].get("target")
+                if tk is None or not isinstance(tvar, str):
+                    return None
+                sn = _conc_sa_guarded_call(bd[1], tvar)
+                if sn is None:
+                    return None
+                sa_names.add(sn)
+                d.update({"aug_tag": tag, "aug_target_key": tk})
+            elif len(bd) == 1 and isinstance(bd[0], dict) and bd[0].get("stmt") == "If":
+                # Return: if s.get(V) is not None: reads(s.get(V))
+                inner = _only(bd[0].get("body"))
+                rc = inner
+                if not (isinstance(rc, dict) and rc.get("stmt") == "Expr"):
+                    return None
+                rcv = rc.get("value") or {}
+                if not (isinstance(rcv, dict) and rcv.get("type") == "Call"):
+                    return None
+                rargs = rcv.get("args") or []
+                vk = _sget_key(rargs[0], subj) if rargs else None
+                if vk is None:
+                    return None
+                reads_names.add(rcv.get("func"))
+                d.update({"ret_tag": tag, "ret_value_key": vk})
+            elif len(bd) == 1 and isinstance(bd[0], dict) and bd[0].get("stmt") == "Expr":
+                # Expr: reads(s.get(V))
+                rcv = bd[0].get("value") or {}
+                if not (isinstance(rcv, dict) and rcv.get("type") == "Call"):
+                    return None
+                rargs = rcv.get("args") or []
+                vk = _sget_key(rargs[0], subj) if rargs else None
+                if vk is None:
+                    return None
+                reads_names.add(rcv.get("func"))
+                d.update({"expr_tag": tag, "expr_value_key": vk})
+            else:
+                return None
+        else:
+            # multi-tag: While/For -> single stmts(body) call
+            wf_body_key = _conc_stmts_call_key(_only(bd), stmts_name, subj)
+            if wf_body_key is None:
+                return None
+            d.update({"wf_tags": tags, "wf_body_key": wf_body_key})
+    required = ("cs_tag", "if_tag", "wf_tags", "assign_tag", "aug_tag",
+                "ret_tag", "expr_tag")
+    if any(k not in d for k in required):
+        return None
+    if len(sa_names) != 1 or len(reads_names) != 1:
+        return None
+    d["sa_name"] = next(iter(sa_names))
+    d["reads_name"] = next(iter(reads_names))
+    return d
+
+
+def _match_conc_stmts(fn: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match `_conc_stmts(stmts, held, fname, shared, lock_order)` ->
+    {stmt_name}."""
+    p = fn.get("formal_params") or []
+    if len(p) != 5:
+        return None
+    loop = _only(fn.get("body") or [])
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), p[0])):
+        return None
+    sv = loop.get("target")
+    if not isinstance(sv, str):
+        return None
+    g = _only(loop.get("body"))
+    if not (isinstance(g, dict) and g.get("stmt") == "If"):
+        return None
+    if not _is_var(_isinst_arg(g.get("test"), "dict"), sv):
+        return None
+    call = _only(g.get("body"))
+    if not (isinstance(call, dict) and call.get("stmt") == "Expr"):
+        return None
+    cv = call.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"):
+        return None
+    args = cv.get("args") or []
+    if len(args) != 5 or not _is_var(args[0], sv):
+        return None
+    for a, pv in zip(args[1:], p[1:]):
+        if not _is_var(a, pv):
+            return None
+    return {"stmt_name": cv.get("func")}
+
+
+def _match_conc_sa(fn: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match `_conc_check_shared_access(var_name, held, fname, shared, write)`.
+    Structural fail-closed check; no parameterizing literals (all var refs)."""
+    p = fn.get("formal_params") or []
+    if len(p) != 5:
+        return None
+    var_name, held = p[0], p[1]
+    shared = p[3]
+    body = fn.get("body") or []
+    if len(body) != 4:
+        return None
+    # b0: if var_name not in shared: return
+    b0 = body[0]
+    io = _in_operands(b0.get("test")) if isinstance(b0, dict) and b0.get("stmt") == "If" \
+        and isinstance(b0.get("test"), dict) and b0["test"].get("op") == "not in" else None
+    if b0.get("test", {}).get("op") != "not in":
+        return None
+    if not (_is_var(b0["test"].get("left"), var_name)
+            and _is_var(b0["test"].get("right"), shared)):
+        return None
+    # b1: req = shared[var_name]
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Assign"):
+        return None
+    sub = b1.get("value") or {}
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), shared) and _is_var(sub.get("index"), var_name)):
+        return None
+    reqvar = b1.get("target")
+    if not isinstance(reqvar, str):
+        return None
+    # b2: if req is None: return  (BinOp == None)
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "If"):
+        return None
+    t2 = b2.get("test") or {}
+    if not (t2.get("op") == "==" and _is_var(t2.get("left"), reqvar)
+            and isinstance(t2.get("right"), dict) and t2["right"].get("type") == "None"):
+        return None
+    # b3: if req not in held: <raise>
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "If"):
+        return None
+    t3 = b3.get("test") or {}
+    if not (t3.get("op") == "not in" and _is_var(t3.get("left"), reqvar)
+            and _is_var(t3.get("right"), held)):
+        return None
+    if not _raises_pycsl(b3.get("body")):
+        return None
+    return {}
+
+
+def _match_conc_reads(fn: Dict[str, Any], sa_name: str
+                      ) -> Optional[Dict[str, Any]]:
+    """Match `_conc_check_reads(node, held, fname, shared)`; extract the
+    Var-tag / type-key / name-key that select the shared-read guard."""
+    p = fn.get("formal_params") or []
+    if len(p) != 4:
+        return None
+    subj = p[0]
+    top = _only(fn.get("body") or [])
+    if not (isinstance(top, dict) and top.get("stmt") == "If"):
+        return None
+    if not _is_var(_isinst_arg(top.get("test"), "dict"), subj):
+        return None
+    tb = top.get("body") or []
+    if len(tb) != 2:
+        return None
+    # tb[0]: if node.get(type_key) == "<var_tag>": sa(node.get(name_key), ...)
+    g = tb[0]
+    if not (isinstance(g, dict) and g.get("stmt") == "If"):
+        return None
+    gt = g.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("op") == "=="):
+        return None
+    type_key = _sget_key(gt.get("left"), subj)
+    var_tag = _is_string(gt.get("right"))
+    if type_key is None or var_tag is None:
+        return None
+    sacall = _only(g.get("body"))
+    if not (isinstance(sacall, dict) and sacall.get("stmt") == "Expr"):
+        return None
+    scv = sacall.get("value") or {}
+    if not (isinstance(scv, dict) and scv.get("type") == "Call"
+            and scv.get("func") == sa_name):
+        return None
+    sargs = scv.get("args") or []
+    name_key = _sget_key(sargs[0], subj) if sargs else None
+    if name_key is None:
+        return None
+    # tb[1]: for v in node.values(): reads(v, ...)  (structural)
+    loop = tb[1]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+        return None
+    it = loop.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{subj}.values"):
+        return None
+    # orelse: if isinstance(node, list): for x in node: reads(x, ...)  (structural)
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    return {"type_key": type_key, "var_tag": var_tag, "name_key": name_key}
+
+
+def _match_conc_driver(fn: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match `_check_concurrency(ir)`; extract the ir keys, the shared-var
+    record keys (name/mutex), the func keys, and the `_conc_stmts` callee."""
+    p = fn.get("formal_params") or []
+    if len(p) != 1:
+        return None
+    subj = p[0]
+    body = fn.get("body") or []
+    if len(body) != 5:
+        return None
+    # b0: shared_list = ir.get("shared_vars") or []
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    shared_vars_key = _or_empty_sget(b0.get("value"), subj)
+    slvar = b0.get("target")
+    if shared_vars_key is None or not isinstance(slvar, str):
+        return None
+    # b1: if not shared_list: return
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "If"):
+        return None
+    t1 = b1.get("test") or {}
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp"
+            and t1.get("op") == "not" and _is_var(t1.get("expr"), slvar)):
+        return None
+    # b2: shared = {sv.get(name): sv.get(mutex) for sv in shared_list}
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Assign"):
+        return None
+    dc = b2.get("value") or {}
+    if not (isinstance(dc, dict) and dc.get("type") == "DictComp"):
+        return None
+    gens = dc.get("generators") or []
+    if len(gens) != 1:
+        return None
+    gv = gens[0].get("target")
+    if not isinstance(gv, str) or not _is_var(gens[0].get("iter"), slvar) \
+            or (gens[0].get("ifs") or []):
+        return None
+    sv_name_key = _sget_key(dc.get("key"), gv)
+    sv_mutex_key = _sget_key(dc.get("value"), gv)
+    if sv_name_key is None or sv_mutex_key is None:
+        return None
+    sharedvar = b2.get("target")
+    if not isinstance(sharedvar, str):
+        return None
+    # b3: lock_order = ir.get("lock_order")
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Assign"):
+        return None
+    lock_order_key = _sget_key(b3.get("value"), subj)
+    lovar = b3.get("target")
+    if lock_order_key is None or not isinstance(lovar, str):
+        return None
+    # b4: for func in ir.get("functions", []): fname=...; stmts(func.get(body) or [], set(), fname, shared, lock_order)
+    b4 = body[4]
+    if not (isinstance(b4, dict) and b4.get("stmt") == "For"):
+        return None
+    functions_key = _sget_key(b4.get("iter"), subj)
+    fvar = b4.get("target")
+    if functions_key is None or not isinstance(fvar, str):
+        return None
+    fb = b4.get("body") or []
+    if len(fb) != 2 or not (isinstance(fb[0], dict) and fb[0].get("stmt") == "Assign"):
+        return None
+    func_name_key = _sget_key(fb[0].get("value"), fvar)
+    fnamevar = fb[0].get("target")
+    if func_name_key is None or not isinstance(fnamevar, str):
+        return None
+    callst = fb[1]
+    if not (isinstance(callst, dict) and callst.get("stmt") == "Expr"):
+        return None
+    cv = callst.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"):
+        return None
+    cargs = cv.get("args") or []
+    if len(cargs) != 5:
+        return None
+    func_body_key = _or_empty_sget(cargs[0], fvar)
+    if func_body_key is None:
+        return None
+    init = cargs[1]
+    if not (isinstance(init, dict) and init.get("type") == "Call"
+            and init.get("func") == "set" and not (init.get("args") or [])):
+        return None
+    if not (_is_var(cargs[2], fnamevar) and _is_var(cargs[3], sharedvar)
+            and _is_var(cargs[4], lovar)):
+        return None
+    return {"shared_vars_key": shared_vars_key, "functions_key": functions_key,
+            "lock_order_key": lock_order_key, "sv_name_key": sv_name_key,
+            "sv_mutex_key": sv_mutex_key, "func_name_key": func_name_key,
+            "func_body_key": func_body_key, "stmts_name": cv.get("func")}
+
+
+def recognize_conc_cluster(functions: List[Dict[str, Any]]
+                           ) -> Optional[Dict[str, Any]]:
+    """Fail-closed module-level match of the concurrency cluster; returns a
+    descriptor (names + tags + dict keys) or None. Never raises."""
+    try:
+        return _recognize_conc_cluster(functions)
+    except Exception:
+        return None
+
+
+def _recognize_conc_cluster(functions: List[Dict[str, Any]]
+                            ) -> Optional[Dict[str, Any]]:
+    by_name = {f.get("name"): f for f in functions if isinstance(f, dict)}
+    for drv in functions:
+        if not isinstance(drv, dict):
+            continue
+        d = _match_conc_driver(drv)
+        if d is None:
+            continue
+        stmts_fn = by_name.get(d["stmts_name"])
+        if stmts_fn is None:
+            continue
+        s = _match_conc_stmts(stmts_fn)
+        if s is None:
+            continue
+        stmt_fn = by_name.get(s["stmt_name"])
+        if stmt_fn is None:
+            continue
+        st = _match_conc_stmt(stmt_fn, d["stmts_name"])
+        if st is None:
+            continue
+        sa_fn = by_name.get(st["sa_name"])
+        rd_fn = by_name.get(st["reads_name"])
+        if sa_fn is None or rd_fn is None:
+            continue
+        if _match_conc_sa(sa_fn) is None:
+            continue
+        rd = _match_conc_reads(rd_fn, st["sa_name"])
+        if rd is None:
+            continue
+        desc: Dict[str, Any] = {}
+        desc.update(d)
+        desc.update(s)
+        desc.update(st)
+        desc.update(rd)
+        desc["driver_name"] = drv.get("name")
+        desc["names"] = {drv.get("name"), d["stmts_name"], s["stmt_name"],
+                         st["sa_name"], st["reads_name"]}
+        return desc
+    return None
+
+
+def emit_conc_cluster_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the concurrency cluster as ONE self-contained `let rec` block
+    (prefixed `conc__`; nothing external references these, so the names are
+    free). See the module note for the model. Proven: conc_spike.mlw."""
+    dk = desc  # dict-key shorthand
+    exc = "    ensures { true } raises { PyCSLSemanticError }"
+    wf_cond = " || ".join(f'pystr_eq st "{t}"' for t in dk["wf_tags"])
+    out: List[str] = []
+    out.append("  (* concurrency cluster (generic_fold.recognize_conc_cluster) *)")
+    out.append("  val conc__smap_set (m: map string (option string)) (k: string) (v: option string)")
+    out.append("             : map string (option string)")
+    out.append("    ensures { result = Map.set m k v }")
+    out.append("")
+    # ---- dict extractors ------------------------------------------------
+    out.append("  let rec conc__dget (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons (K_dyn k) v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append("        if pystr_eq k key then Some v else conc__dget key rest")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest; conc__dget key rest end")
+    out.append("")
+    out.append("  let conc__dlist (key: string) (d: pydict) : list pyval")
+    out.append("    ensures { size_list result < 1 + size_dict d }")
+    out.append("  = size_dict_nonneg d;")
+    out.append("    match conc__dget key d with Some (PList xs) -> size_list_nonneg xs; xs | _ -> Nil end")
+    out.append("")
+    out.append("  let conc__dstr (key: string) (d: pydict) : option string")
+    out.append("  = match conc__dget key d with Some (PStr s) -> Some s | _ -> None end")
+    out.append("")
+    # ---- list-string set model ------------------------------------------
+    out.append("  let rec conc__contains (l: list string) (x: string) : bool")
+    out.append("    variant { l }")
+    out.append("  = match l with Nil -> false | Cons h t -> if pystr_eq h x then true else conc__contains t x end")
+    out.append("")
+    out.append("  let rec conc__lindex (l: list string) (x: string) : int")
+    out.append("    variant { l }")
+    out.append("  = match l with Nil -> -1")
+    out.append("    | Cons h t -> if pystr_eq h x then 0")
+    out.append("                  else (let r = conc__lindex t x in if r < 0 then -1 else 1 + r) end")
+    out.append("")
+    # ---- shared-var builder --------------------------------------------
+    out.append("  let rec conc__build_shared (svs: list pyval) : map string (option string)")
+    out.append("    variant { svs }")
+    out.append("  = match svs with")
+    out.append("    | Nil -> const None")
+    out.append("    | Cons e rest ->")
+    out.append("        let acc = conc__build_shared rest in")
+    out.append("        (match e with")
+    out.append(f'         | PDict d -> (match conc__dstr "{dk["sv_name_key"]}" d with')
+    out.append(f'             | Some nm -> conc__smap_set acc nm (conc__dstr "{dk["sv_mutex_key"]}" d)')
+    out.append("             | None -> acc end)")
+    out.append("         | _ -> acc end)")
+    out.append("    end")
+    out.append("")
+    # ---- shared-access membership-guarded raise -------------------------
+    out.append("  let conc__sa (var_name: string) (held: list string)")
+    out.append("               (shared: map string (option string)) : unit")
+    out.append(exc)
+    out.append("  = match Map.get shared var_name with")
+    out.append("    | None -> ()")
+    out.append("    | Some req -> if not (conc__contains held req) then raise PyCSLSemanticError else ()")
+    out.append("    end")
+    out.append("")
+    # ---- reads walk (generic void-descend) ------------------------------
+    out.append("  let rec conc__reads (node: pyval) (held: list string)")
+    out.append("                      (shared: map string (option string)) : unit")
+    out.append(exc)
+    out.append("    variant { pv_size node, 1 }")
+    out.append("  = match node with")
+    out.append("    | PDict d ->")
+    out.append(f'        (match conc__dstr "{dk["type_key"]}" d with')
+    out.append(f'         | Some ty -> if pystr_eq ty "{dk["var_tag"]}" then')
+    out.append(f'             (match conc__dstr "{dk["name_key"]}" d with')
+    out.append("              | Some nm -> conc__sa nm held shared")
+    out.append("              | None -> () end)")
+    out.append("           else ()")
+    out.append("         | None -> () end);")
+    out.append("        conc__reads_dvals d held shared")
+    out.append("    | PList xs -> conc__reads_list xs held shared")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    out.append("  with conc__reads_dvals (d: pydict) (held: list string)")
+    out.append("                         (shared: map string (option string)) : unit")
+    out.append(exc)
+    out.append("    variant { size_dict d, 0 }")
+    out.append("  = match d with")
+    out.append("    | DNil -> ()")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append("        conc__reads v held shared; conc__reads_dvals rest held shared")
+    out.append("    end")
+    out.append("  with conc__reads_list (l: list pyval) (held: list string)")
+    out.append("                        (shared: map string (option string)) : unit")
+    out.append(exc)
+    out.append("    variant { size_list l, 0 }")
+    out.append("  = match l with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h t ->")
+    out.append("        size_pos h; size_list_nonneg t;")
+    out.append("        conc__reads h held shared; conc__reads_list t held shared")
+    out.append("    end")
+    out.append("")
+    # ---- lock-order iteration over the held set -------------------------
+    out.append("  let rec conc__lockcheck (held: list string) (mutex: string) (lo: list string) : unit")
+    out.append(exc)
+    out.append("    variant { held }")
+    out.append("  = match held with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons ah rest ->")
+    out.append("        let ah_idx = if conc__contains lo ah then conc__lindex lo ah else -1 in")
+    out.append("        let new_idx = if conc__contains lo mutex then conc__lindex lo mutex else -1 in")
+    out.append("        (if ah_idx >= 0 && new_idx >= 0 && new_idx <= ah_idx")
+    out.append("         then raise PyCSLSemanticError else ());")
+    out.append("        conc__lockcheck rest mutex lo")
+    out.append("    end")
+    out.append("")
+    # ---- the mutual statement walk --------------------------------------
+    out.append("  let rec conc__stmts (stmts: list pyval) (held: list string)")
+    out.append("                      (shared: map string (option string))")
+    out.append("                      (lock_order: option (list string)) : unit")
+    out.append(exc)
+    out.append("    variant { size_list stmts, 0 }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons s t ->")
+    out.append("        size_pos s; size_list_nonneg t;")
+    out.append("        (match s with PDict _ -> conc__stmt s held shared lock_order | _ -> () end);")
+    out.append("        conc__stmts t held shared lock_order")
+    out.append("    end")
+    out.append("  with conc__stmt (s: pyval) (held: list string)")
+    out.append("                  (shared: map string (option string))")
+    out.append("                  (lock_order: option (list string)) : unit")
+    out.append(exc)
+    out.append("    variant { pv_size s, 1 }")
+    out.append("  = match s with")
+    out.append("    | PDict d ->")
+    out.append(f'        (match conc__dstr "{dk["stmt_key"]}" d with')
+    out.append("         | Some st ->")
+    out.append(f'             if pystr_eq st "{dk["cs_tag"]}" then begin')
+    out.append(f'               let mutex = conc__dstr "{dk["mutex_key"]}" d in')
+    out.append("               let inner_held = (match mutex with Some m -> Cons m held | None -> held end) in")
+    out.append("               (match mutex with")
+    out.append("                | Some m ->")
+    out.append("                    (match held with")
+    out.append("                     | Nil -> ()")
+    out.append("                     | Cons _ _ ->")
+    out.append("                         (match lock_order with")
+    out.append("                          | None -> raise PyCSLSemanticError")
+    out.append("                          | Some lo -> conc__lockcheck held m lo")
+    out.append("                          end)")
+    out.append("                     end)")
+    out.append("                | None -> () end);")
+    out.append(f'               conc__stmts (conc__dlist "{dk["cs_body_key"]}" d) inner_held shared lock_order')
+    out.append("             end")
+    out.append(f'             else if pystr_eq st "{dk["if_tag"]}" then begin')
+    out.append(f'               conc__stmts (conc__dlist "{dk["if_body_key"]}" d) held shared lock_order;')
+    out.append(f'               conc__stmts (conc__dlist "{dk["if_orelse_key"]}" d) held shared lock_order')
+    out.append("             end")
+    out.append(f"             else if ({wf_cond}) then")
+    out.append(f'               conc__stmts (conc__dlist "{dk["wf_body_key"]}" d) held shared lock_order')
+    out.append(f'             else if pystr_eq st "{dk["assign_tag"]}" then begin')
+    out.append(f'               (match conc__dstr "{dk["assign_target_key"]}" d with')
+    out.append("                | Some tgt -> conc__sa tgt held shared")
+    out.append("                | None -> () end);")
+    out.append(f'               (match conc__dget "{dk["assign_value_key"]}" d with Some v -> conc__reads v held shared | None -> () end)')
+    out.append("             end")
+    out.append(f'             else if pystr_eq st "{dk["aug_tag"]}" then')
+    out.append(f'               (match conc__dstr "{dk["aug_target_key"]}" d with')
+    out.append("                | Some tgt -> conc__sa tgt held shared")
+    out.append("                | None -> () end)")
+    out.append(f'             else if pystr_eq st "{dk["ret_tag"]}" then')
+    out.append(f'               (match conc__dget "{dk["ret_value_key"]}" d with Some v -> conc__reads v held shared | None -> () end)')
+    out.append(f'             else if pystr_eq st "{dk["expr_tag"]}" then')
+    out.append(f'               (match conc__dget "{dk["expr_value_key"]}" d with Some v -> conc__reads v held shared | None -> () end)')
+    out.append("             else ()")
+    out.append("         | None -> () end)")
+    out.append("    | _ -> ()")
+    out.append("    end")
+    out.append("")
+    # ---- driver ---------------------------------------------------------
+    out.append("  let rec conc__drive (funcs: list pyval) (shared: map string (option string))")
+    out.append("                      (lock_order: option (list string)) : unit")
+    out.append(exc)
+    out.append("    variant { funcs }")
+    out.append("  = match funcs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons f rest ->")
+    out.append(f'        (match f with PDict d -> conc__stmts (conc__dlist "{dk["func_body_key"]}" d) Nil shared lock_order | _ -> () end);')
+    out.append("        conc__drive rest shared lock_order")
+    out.append("    end")
+    out.append("")
+    out.append("  let conc__check (ir: pyval) : unit")
+    out.append(exc)
+    out.append("  = match ir with")
+    out.append("    | PDict d ->")
+    out.append(f'        let shared = conc__build_shared (conc__dlist "{dk["shared_vars_key"]}" d) in')
+    out.append("        let lock_order =")
+    out.append(f'          (match conc__dget "{dk["lock_order_key"]}" d with Some (PList _) -> Some Nil | _ -> None end) in')
+    out.append(f'        conc__drive (conc__dlist "{dk["functions_key"]}" d) shared lock_order')
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
 # IR-FREE-VARS — the `_ir_free_vars` value-returning SET-UNION fold
 # (core_ir_semantic self-annotation). A `Set[str]` catamorphism over the
 # dynamic `pyval`/`pydict`/`list pyval` ADT, returning the certified L1 set

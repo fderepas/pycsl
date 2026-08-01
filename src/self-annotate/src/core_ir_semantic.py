@@ -949,40 +949,99 @@ def _final_check_stmt(s, fname, module_finals, class_attr_finals) -> None:
             if isinstance(case, dict) and isinstance(case.get("body"), list):
                 _final_walk_body(case["body"], fname, module_finals, class_attr_finals)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_concurrency(ir) -> None:
-    pass
+    shared_list = ir.get("shared_vars") or []
+    if not shared_list:
+        return
+    shared = {sv.get("name"): sv.get("mutex") for sv in shared_list}
+    lock_order = ir.get("lock_order")
+    for func in ir.get("functions", []):
+        fname = func.get("name", "<anonymous>")
+        _conc_stmts(func.get("body", []) or [], set(), fname, shared, lock_order)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _conc_check_shared_access(var_name, held, fname, shared, write) -> None:
-    pass
+    if var_name not in shared:
+        return
+    req_mutex = shared[var_name]
+    if req_mutex is None:
+        return
+    if req_mutex not in held:
+        action = "write to" if write else "read of"
+        raise PyCSLSemanticError(
+            f"Function '{fname}': unprotected {action} shared variable '{var_name}' "
+            f"(protected_by '{req_mutex}', but held mutexes are {sorted(held) or 'none'}).",
+            code="PYCSL-SEM-CONCURRENCY")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _conc_check_reads(node, held, fname, shared) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("type") == "Var":
+            _conc_check_shared_access(node.get("name"), held, fname, shared, write=False)
+        for v in node.values():
+            _conc_check_reads(v, held, fname, shared)
+    elif isinstance(node, list):
+        for x in node:
+            _conc_check_reads(x, held, fname, shared)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _conc_stmts(stmts, held, fname, shared, lock_order) -> None:
-    pass
+    for s in stmts:
+        if isinstance(s, dict):
+            _conc_stmt(s, held, fname, shared, lock_order)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _conc_stmt(s, held, fname, shared, lock_order) -> None:
-    pass
+    st = s.get("stmt")
+    if st == "CriticalSection":
+        mutex = s.get("mutex")
+        inner_held = held | {mutex} if mutex else held
+        if mutex and held and lock_order is None:
+            raise PyCSLSemanticError(
+                f"Function '{fname}': nested mutex acquisition of '{mutex}' while holding "
+                f"{sorted(held)} requires a module-level '#@ lock_order' declaration.",
+                code="PYCSL-SEM-CONCURRENCY")
+        if mutex and held and lock_order is not None:
+            for already_held in sorted(held):
+                ah_idx = lock_order.index(already_held) if already_held in lock_order else -1
+                new_idx = lock_order.index(mutex) if mutex in lock_order else -1
+                if ah_idx >= 0 and new_idx >= 0 and new_idx <= ah_idx:
+                    raise PyCSLSemanticError(
+                        f"Function '{fname}': lock_order violation — acquiring '{mutex}' "
+                        f"while holding '{already_held}' violates declared order "
+                        f"{lock_order}.",
+                        code="PYCSL-SEM-CONCURRENCY")
+        _conc_stmts(s.get("body", []) or [], inner_held, fname, shared, lock_order)
+    elif st == "If":
+        _conc_stmts(s.get("body", []) or [], held, fname, shared, lock_order)
+        _conc_stmts(s.get("orelse", []) or [], held, fname, shared, lock_order)
+    elif st in ("While", "For"):
+        _conc_stmts(s.get("body", []) or [], held, fname, shared, lock_order)
+    elif st == "Assign":
+        target = s.get("target")
+        if isinstance(target, str):
+            _conc_check_shared_access(target, held, fname, shared, write=True)
+        _conc_check_reads(s.get("value"), held, fname, shared)
+    elif st == "AugAssign":
+        target = s.get("target")
+        if isinstance(target, str):
+            _conc_check_shared_access(target, held, fname, shared, write=True)
+    elif st == "Return":
+        if s.get("value") is not None:
+            _conc_check_reads(s.get("value"), held, fname, shared)
+    elif st == "Expr":
+        _conc_check_reads(s.get("value"), held, fname, shared)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

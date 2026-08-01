@@ -2129,7 +2129,17 @@ class PreambleEmissionMixin:
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
-            recognize_final_pair, recognize_check_final)
+            recognize_final_pair, recognize_check_final, recognize_conc_cluster)
+        # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
+        # / lock-order protected-access walk {_check_concurrency,
+        # _conc_check_shared_access, _conc_check_reads, _conc_stmts, _conc_stmt}
+        # emitted as ONE self-contained `let rec` block (conc_spike.mlw 17/17,
+        # emitted 18/18 Valid). None (no cluster) -> every other mirror + the
+        # whole corpus byte-identical (self-annotate-mirror-only match).
+        self._conc_cluster = recognize_conc_cluster(functions)
+        self._conc_names = (
+            set(self._conc_cluster["names"]) if self._conc_cluster else set())
+        self._conc_emitted = False
         # FINAL PAIR FUSION (generic_fold.py): the `{_final_walk_body,
         # _final_check_stmt}` Final write-policy walker pair re-based onto the
         # pyval spine (mutually-recursive `let rec` group so `_final_check_stmt`
@@ -2154,7 +2164,8 @@ class PreambleEmissionMixin:
                         break
         self._check_final_name = (
             self._check_final_desc["cf_name"] if self._check_final_desc else None)
-        needs_pydict = needs_sdict or (self._final_pair is not None) or bool(
+        needs_pydict = needs_sdict or (self._final_pair is not None) \
+            or (self._conc_cluster is not None) or bool(
             recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
             recognize_lemma_string_search_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None

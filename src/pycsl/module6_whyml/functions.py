@@ -2716,6 +2716,15 @@ class FunctionEmissionMixin:
         # calls into (see the `recognize_cs_clause` branch below).
         if getattr(self, "_cs_trio", None) and func.get("name") in self._cs_trio_names:
             return []
+        # CONCURRENCY CLUSTER (preamble/generic_fold): the 5-function held-mutex
+        # / lock-order walk emits as ONE self-contained `let rec` block at the
+        # first-reached member's slot; the other four members emit nothing.
+        if getattr(self, "_conc_cluster", None) and func.get("name") in self._conc_names:
+            if self._conc_emitted:
+                return []
+            from module6_whyml.generic_fold import emit_conc_cluster_group
+            self._conc_emitted = True
+            return emit_conc_cluster_group(self._conc_cluster, whyml_ident)
         # FINAL PAIR FUSION (preamble/generic_fold): the `{_final_walk_body,
         # _final_check_stmt}` pair emits as ONE `let rec` group — self-contained
         # (calls nothing external), so the whole group is emitted at whichever
