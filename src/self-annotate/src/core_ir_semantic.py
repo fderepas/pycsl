@@ -784,12 +784,46 @@ def _check_mutable_defaults(func) -> None:
             code="PYCSL-SEM-MUTDEFAULT",
         )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_acts(func) -> None:
-    pass
+    acts = func.get("acts") or []
+    if not acts:
+        return
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    defined: dict = {}
+    for a in acts:
+        if a.get("kind") != "act":
+            continue
+        name = a.get("name")
+        if name in defined:
+            raise PyCSLSemanticError(f"duplicate act name '{name}' in {where}.",
+                                     code="PYCSL-SEM-ACT")
+        defined[name] = a
+        for gx in a.get("given_exprs", []):
+            if _contains_result(gx):
+                raise PyCSLSemanticError(
+                    f"act '{name}' in {where}: '\\result' is not allowed in a "
+                    f"'given' guard (guards are evaluated in the pre-state).",
+                    code="PYCSL-SEM-ACT")
+    referenced: set = set()
+    for a in acts:
+        kind = a.get("kind")
+        if kind in ("complete", "disjoint"):
+            for nm in a.get("names", []):
+                referenced.add(nm)
+                if nm not in defined:
+                    raise PyCSLSemanticError(
+                        f"`{kind}` in {where} references undefined act '{nm}'.",
+                        code="PYCSL-SEM-ACT")
+    if any(a.get("kind") in ("complete", "disjoint") for a in acts):
+        for nm in defined:
+            if nm not in referenced:
+                warnings.warn(
+                    f"act '{nm}' in {where} is not referenced by any "
+                    f"`complete`/`disjoint` — possible typo or omission.",
+                    stacklevel=2)
 
 #@ requires True
 #@ ensures True

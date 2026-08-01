@@ -3072,6 +3072,21 @@ class FunctionEmissionMixin:
         _chp = recognize_check_happy(func)
         if _chp is not None:
             return emit_check_happy_group(_chp, whyml_ident)
+        # ACT well-formedness orchestrator (`_check_acts`): reads `func["acts"]`,
+        # builds a local `defined` DICT (key membership + iteration only, VALUES
+        # never read) that lowers to a locally-built `map string bool` set, folds
+        # each act's `given_exprs` through the converted `_contains_result` bool
+        # fold (duplicate-name / `\result`-in-guard raises), then folds `acts` a
+        # second time raising on a `complete`/`disjoint` reference to an undefined
+        # act. The `referenced` set + `warnings.warn` omission tail are report-only
+        # (dropped under `ensures True`). Lowered over the certified pydict/list
+        # `pyval` bridge, reusing `_contains_result`. Corpus-inert; fail-closed
+        # (any shape deviation stays `\trusted`).
+        from module6_whyml.generic_fold import (
+            recognize_check_acts, emit_check_acts_group)
+        _cac = recognize_check_acts(func)
+        if _cac is not None:
+            return emit_check_acts_group(_cac, whyml_ident)
         # string-keyed-set NoReturn cluster (check-noreturn-successors driver):
         # #1 the FLAT `ir["functions"]` set-projection fold
         # (`_collect_noreturn_names`) — read the one list field off `ir`'s

@@ -9670,6 +9670,375 @@ def emit_check_happy_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
 
 
 # =========================================================================
+# ACT well-formedness orchestrator recogniser — `recognize_check_acts`.
+#
+# self-tcb-reduction: the `_check_acts(func)` act-check orchestrator — it
+# (1) reads `func["acts"] or []`, early-returns if empty; (2) builds a local
+# `defined` DICT keyed by act name while iterating `acts`, raising on a
+# duplicate name (`name in defined`, a `map string bool` membership) and, per
+# act, folding its `given_exprs` through the already-converted `pyval -> bool`
+# fold `_contains_result`, raising when a guard contains `\result`; (3) folds
+# `acts` a second time, and for each `complete`/`disjoint` act raises when a
+# referenced `names` element is not in `defined` (`nm not in defined`).
+#
+# The `defined` dict's VALUES (the act dict `a`) are NEVER read — only key
+# membership and key iteration are used — so it lowers to a locally-built,
+# in-body `map string bool` set (the certified set model, `set_add`/`const
+# false`/`Map.get`) over the certified pydict/list `pyval` bridge. The local
+# `referenced` set and the final `warnings.warn` omission-guard loop are
+# report-only (referenced is only read inside the warn loop; `warnings.warn`
+# is an unmodelled side-channel), so the whole warn tail is a no-op and is
+# dropped under `ensures True`. Every dict key (`acts`, `kind`, `name`,
+# `given_exprs`, `names`), the `"act"` discriminant, the `complete`/`disjoint`
+# tuple, and the `_contains_result` callee are DERIVED from the source body, so
+# the emission is mutation-sensitive (not a name facade). `ensures true`,
+# `raises { PyCSLSemanticError }`. NO new type/axiom/cert, ledger 3.
+# Fail-closed; any shape deviation stays `\trusted`. (Proven shape:
+# scratchpad/acts_spike.mlw — all VCs Valid; `ensures false` Timeout.)
+
+def _tuple_string_lits(node: Any) -> Optional[List[str]]:
+    """A literal tuple all of whose elements are string literals -> the list of
+    the literal strings, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Tuple"):
+        return None
+    elts = node.get("elts") or []
+    lits = [_is_string(e) for e in elts]
+    if not lits or any(x is None for x in lits):
+        return None
+    return lits  # type: ignore[return-value]
+
+
+def _match_acts_dfold_body(stmts: Any, avar: str, defined_var: str
+                           ) -> Optional[Tuple[str, str, str, str, str]]:
+    """The defined-building loop body (5 stmts) -> (kind_key, act_lit, name_key,
+    given_key, cr_name) or None."""
+    if len(stmts) != 5:
+        return None
+    # [0] if a.get("<kind>") != "<act>": continue
+    s0 = stmts[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If"
+            and not (s0.get("orelse") or [])):
+        return None
+    t0 = s0.get("test")
+    if not (isinstance(t0, dict) and t0.get("type") == "BinOp"
+            and t0.get("op") == "!="):
+        return None
+    kind_key = _match_get_call(t0.get("left"), avar)
+    act_lit = _is_string(t0.get("right"))
+    if kind_key is None or act_lit is None:
+        return None
+    c0 = s0.get("body") or []
+    if not (len(c0) == 1 and isinstance(c0[0], dict)
+            and c0[0].get("stmt") == "Continue"):
+        return None
+    # [1] name = a.get("<name>")
+    s1 = stmts[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    name_var = s1.get("target")
+    name_key = _match_get_call(s1.get("value"), avar)
+    if not isinstance(name_var, str) or name_key is None:
+        return None
+    # [2] if name in defined: raise
+    s2 = stmts[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "If"
+            and not (s2.get("orelse") or [])):
+        return None
+    t2 = s2.get("test")
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp"
+            and t2.get("op") == "in" and _is_var(t2.get("left"), name_var)
+            and _is_var(t2.get("right"), defined_var)):
+        return None
+    b2 = s2.get("body") or []
+    if not (len(b2) == 1 and isinstance(b2[0], dict)
+            and b2[0].get("stmt") == "Raise"):
+        return None
+    # [3] defined[name] = a  (ArraySet)
+    s3 = stmts[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "ArraySet"
+            and _is_var(s3.get("array"), defined_var)
+            and _is_var(s3.get("index"), name_var)
+            and _is_var(s3.get("value"), avar)):
+        return None
+    # [4] for gx in a.get("<given>", []): if <cr>(gx): raise
+    s4 = stmts[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "For"):
+        return None
+    given_key = _match_get_default_empty(s4.get("iter"), avar)
+    gvar = s4.get("target")
+    if given_key is None or not isinstance(gvar, str):
+        return None
+    gb = s4.get("body") or []
+    if len(gb) != 1:
+        return None
+    gif = gb[0]
+    if not (isinstance(gif, dict) and gif.get("stmt") == "If"
+            and not (gif.get("orelse") or [])):
+        return None
+    gt = gif.get("test")
+    if not (isinstance(gt, dict) and gt.get("type") == "Call"):
+        return None
+    cr_name = _canon_call(gt.get("func") or "")
+    gargs = gt.get("args") or []
+    if not (len(gargs) == 1 and _is_var(gargs[0], gvar)):
+        return None
+    grb = gif.get("body") or []
+    if not (len(grb) == 1 and isinstance(grb[0], dict)
+            and grb[0].get("stmt") == "Raise"):
+        return None
+    return kind_key, act_lit, name_key, given_key, cr_name
+
+
+def _match_acts_rfold_body(stmts: Any, avar: str, defined_var: str,
+                           ref_var: str) -> Optional[Tuple[str, List[str], str]]:
+    """The complete/disjoint loop body (2 stmts) -> (kind_key, cd_lits,
+    names_key) or None."""
+    if len(stmts) != 2:
+        return None
+    # [0] kind = a.get("<kind>")
+    s0 = stmts[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"):
+        return None
+    kind_var = s0.get("target")
+    kind_key = _match_get_call(s0.get("value"), avar)
+    if not isinstance(kind_var, str) or kind_key is None:
+        return None
+    # [1] if kind in (<tuple>): for nm in a.get("<names>", []): ...
+    s1 = stmts[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If"
+            and not (s1.get("orelse") or [])):
+        return None
+    t1 = s1.get("test")
+    if not (isinstance(t1, dict) and t1.get("type") == "BinOp"
+            and t1.get("op") == "in" and _is_var(t1.get("left"), kind_var)):
+        return None
+    cd_lits = _tuple_string_lits(t1.get("right"))
+    if cd_lits is None:
+        return None
+    inner = s1.get("body") or []
+    if len(inner) != 1:
+        return None
+    forx = inner[0]
+    if not (isinstance(forx, dict) and forx.get("stmt") == "For"):
+        return None
+    names_key = _match_get_default_empty(forx.get("iter"), avar)
+    nmvar = forx.get("target")
+    if names_key is None or not isinstance(nmvar, str):
+        return None
+    fb = forx.get("body") or []
+    if len(fb) != 2:
+        return None
+    # [0] referenced.add(nm)
+    e0 = fb[0]
+    if not (isinstance(e0, dict) and e0.get("stmt") == "Expr"):
+        return None
+    call = e0.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{ref_var}.add"
+            and len(call.get("args") or []) == 1
+            and _is_var((call.get("args") or [None])[0], nmvar)):
+        return None
+    # [1] if nm not in defined: raise
+    e1 = fb[1]
+    if not (isinstance(e1, dict) and e1.get("stmt") == "If"
+            and not (e1.get("orelse") or [])):
+        return None
+    te1 = e1.get("test")
+    if not (isinstance(te1, dict) and te1.get("type") == "BinOp"
+            and te1.get("op") == "not in" and _is_var(te1.get("left"), nmvar)
+            and _is_var(te1.get("right"), defined_var)):
+        return None
+    rb = e1.get("body") or []
+    if not (len(rb) == 1 and isinstance(rb[0], dict)
+            and rb[0].get("stmt") == "Raise"):
+        return None
+    return kind_key, cd_lits, names_key
+
+
+def recognize_check_acts(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_acts(func)` ACT orchestrator. Returns a
+    key-descriptor dict or None; never raises."""
+    try:
+        return _recognize_check_acts(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_acts(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    fp = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 8:
+        return None
+    # b0: acts = func.get("<acts>") or []
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    acts_var = b0.get("target")
+    v0 = b0.get("value")
+    if not (isinstance(acts_var, str) and isinstance(v0, dict)
+            and v0.get("type") == "BinOp" and v0.get("op") == "or"):
+        return None
+    acts_key = _match_get_call(v0.get("left"), fp)
+    r0 = v0.get("right")
+    if acts_key is None or not (isinstance(r0, dict)
+                                and r0.get("type") == "ArrayLit"):
+        return None
+    # b1: if not acts: return
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "If"):
+        return None
+    t1 = b1.get("test")
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp"
+            and t1.get("op") == "not" and _is_var(t1.get("expr"), acts_var)):
+        return None
+    # b2: where = <FString>  (report-only local; require the Assign shape)
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Assign"):
+        return None
+    # b3: defined = {}  (empty DictLit)
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Assign"):
+        return None
+    defined_var = b3.get("target")
+    v3 = b3.get("value")
+    if not (isinstance(defined_var, str) and isinstance(v3, dict)
+            and v3.get("type") == "DictLit" and not (v3.get("keys") or [])):
+        return None
+    # b4: for a in acts: <defined-building body>
+    b4 = body[4]
+    if not (isinstance(b4, dict) and b4.get("stmt") == "For"
+            and _is_var(b4.get("iter"), acts_var)):
+        return None
+    avar = b4.get("target")
+    if not isinstance(avar, str):
+        return None
+    df = _match_acts_dfold_body(b4.get("body") or [], avar, defined_var)
+    if df is None:
+        return None
+    kind_key, act_lit, name_key, given_key, cr_name = df
+    # b5: referenced = set()
+    b5 = body[5]
+    if not (isinstance(b5, dict) and b5.get("stmt") == "Assign"):
+        return None
+    ref_var = b5.get("target")
+    v5 = b5.get("value")
+    if not (isinstance(ref_var, str) and isinstance(v5, dict)
+            and v5.get("type") == "Call" and v5.get("func") == "set"
+            and not (v5.get("args") or [])):
+        return None
+    # b6: for a in acts: <complete/disjoint body>
+    b6 = body[6]
+    if not (isinstance(b6, dict) and b6.get("stmt") == "For"
+            and _is_var(b6.get("iter"), acts_var)):
+        return None
+    avar2 = b6.get("target")
+    if not isinstance(avar2, str):
+        return None
+    rf = _match_acts_rfold_body(b6.get("body") or [], avar2, defined_var,
+                                ref_var)
+    if rf is None:
+        return None
+    kind_key2, cd_lits, names_key = rf
+    if kind_key2 != kind_key:
+        return None
+    # b7: report-only warn tail (`if any(...): for nm in defined: warn`) — dropped
+    # under `ensures True`; require the outer If shape only (fail-closed).
+    b7 = body[7]
+    if not (isinstance(b7, dict) and b7.get("stmt") == "If"):
+        return None
+    return {
+        "name": func.get("name"),
+        "func_param": fp,
+        "acts_key": acts_key,
+        "kind_key": kind_key,
+        "act_lit": act_lit,
+        "name_key": name_key,
+        "given_key": given_key,
+        "cr_name": cr_name,
+        "names_key": names_key,
+        "cd_lits": cd_lits,
+    }
+
+
+def emit_check_acts_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_acts` ACT orchestrator over the certified pydict/list
+    `pyval` bridge, reusing the already-emitted `_contains_result` fold and a
+    locally-built `map string bool` `defined` set. `ensures true`, `raises {
+    PyCSLSemanticError }`. NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    fp = whyml_ident(desc["func_param"])
+    cr = whyml_ident(desc["cr_name"])
+    ak = desc["acts_key"]
+    kk = desc["kind_key"]
+    al = desc["act_lit"]
+    nk = desc["name_key"]
+    gk = desc["given_key"]
+    nmk = desc["names_key"]
+    cond = "(" + " || ".join(f'pystr_eq k "{v}"' for v in desc["cd_lits"]) + ")"
+    out: List[str] = []
+    # given_exprs fold: raise when a guard contains `\result`.
+    out.append(f"  let rec {n}__gfold (gxs: list pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { gxs }")
+    out.append("  = match gxs with Nil -> ()")
+    out.append(f"    | Cons gx t -> (if {cr} gx then raise PyCSLSemanticError);")
+    out.append(f"                   {n}__gfold t end")
+    # defined-building fold: duplicate-name raise + given-fold; `defined` set.
+    out.append(f"  let rec {n}__dfold (acts: list pyval) (defined: ref (map string bool)) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { acts }")
+    out.append("  = match acts with Nil -> ()")
+    out.append("    | Cons (PDict ad) t ->")
+    out.append(f'        (match pget_dyn "{kk}" ad with')
+    out.append("         | Some (PStr k) ->")
+    out.append(f'             if pystr_eq k "{al}" then')
+    out.append(f'               (match pget_dyn "{nk}" ad with')
+    out.append("                | Some (PStr nm) ->")
+    out.append("                    (if Map.get !defined nm then raise PyCSLSemanticError);")
+    out.append("                    defined := set_add !defined nm;")
+    out.append(f'                    {n}__gfold (pget_list "{gk}" ad)')
+    out.append("                | _ -> () end)")
+    out.append("             else ()")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__dfold t defined")
+    out.append(f"    | Cons _ t -> {n}__dfold t defined end")
+    # names fold: raise when a referenced act is undefined.
+    out.append(f"  let rec {n}__nfold (ns: list pyval) (defined: map string bool) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { ns }")
+    out.append("  = match ns with Nil -> ()")
+    out.append("    | Cons (PStr nm) t -> (if not (Map.get defined nm) then raise PyCSLSemanticError);")
+    out.append(f"                          {n}__nfold t defined")
+    out.append(f"    | Cons _ t -> {n}__nfold t defined end")
+    # complete/disjoint fold over acts.
+    out.append(f"  let rec {n}__rfold (acts: list pyval) (defined: map string bool) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { acts }")
+    out.append("  = match acts with Nil -> ()")
+    out.append("    | Cons (PDict ad) t ->")
+    out.append(f'        (match pget_dyn "{kk}" ad with')
+    out.append("         | Some (PStr k) ->")
+    out.append(f"             if {cond} then")
+    out.append(f'               {n}__nfold (pget_list "{nmk}" ad) defined')
+    out.append("             else ()")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__rfold t defined")
+    out.append(f"    | Cons _ t -> {n}__rfold t defined end")
+    # top wrapper.
+    out.append(f"  let {n} ({fp}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match {fp} with")
+    out.append("    | PDict d ->")
+    out.append(f'        let acts = pget_list "{ak}" d in')
+    out.append("        let defined = ref (const false) in")
+    out.append(f"        {n}__dfold acts defined;")
+    out.append(f"        {n}__rfold acts !defined")
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,
