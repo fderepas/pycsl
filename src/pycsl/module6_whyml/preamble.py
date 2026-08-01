@@ -2066,6 +2066,29 @@ class PreambleEmissionMixin:
             recognize_check_contract_scope,
             recognize_check_clause_fold,
             recognize_check_no_exception, recognize_check_warn_fold)
+        # NoReturn dead-successor WALKER + CALLER (ghost-assign-bc6): the stateful
+        # bool-carry walker `_noreturn_walk_stmts` (#3) and its caller
+        # `_check_noreturn_successors` (#4). Both are FORWARD REFERENCES (the
+        # walker calls the textually-later `_stmt_is_noreturn_call`; the caller
+        # calls the walker), so both are emitted DEFERRED — appended right after
+        # the `_stmt_is_noreturn_call` group. `_nrw_funcs`/`_ccns_funcs` hold the
+        # recognised func dicts + descriptors; the `_emitted` sets gate the
+        # once-only append. The caller is recognised only when its walker is a
+        # converted (recognised) walker name. Set up BEFORE the `needs_*` gates
+        # (which read `self._nrw_names`). Corpus-inert.
+        from module6_whyml.generic_fold import (
+            recognize_noreturn_walk_stmts, recognize_check_noreturn_successors)
+        self._nrw_funcs = [
+            (f, recognize_noreturn_walk_stmts(f)) for f in functions
+            if recognize_noreturn_walk_stmts(f) is not None]
+        self._nrw_names = {f.get("name") for f, _ in self._nrw_funcs}
+        self._nrw_emitted = set()
+        self._ccns_funcs = [
+            (f, recognize_check_noreturn_successors(f, self._nrw_names))
+            for f in functions
+            if recognize_check_noreturn_successors(f, self._nrw_names) is not None]
+        self._ccns_names = {f.get("name") for f, _ in self._ccns_funcs}
+        self._ccns_emitted = set()
         # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
@@ -2088,7 +2111,8 @@ class PreambleEmissionMixin:
         # bridge theory (`pget_dyn`/`pget_list`/`pdict_to_sdict`). Gated separately
         # so every already-landed sdict mirror stays byte-identical; corpus-inert.
         from module6_whyml.generic_fold import (
-            recognize_collect_noreturn_names, recognize_stmt_noreturn_call)
+            recognize_collect_noreturn_names, recognize_stmt_noreturn_call,
+            recognize_noreturn_walk_stmts, recognize_check_noreturn_successors)
         needs_pdict_bridge = any(
             recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
@@ -2099,6 +2123,9 @@ class PreambleEmissionMixin:
             or recognize_check_warn_fold(f) is not None
             # #1 `_collect_noreturn_names` reads `ir["functions"]` via `pget_list`.
             or recognize_collect_noreturn_names(f) is not None
+            # #3/#4 the walker + caller read child/functions lists via `pget_list`.
+            or recognize_noreturn_walk_stmts(f) is not None
+            or recognize_check_noreturn_successors(f, self._nrw_names) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs)
@@ -2123,6 +2150,9 @@ class PreambleEmissionMixin:
             # #2 `pystr_eq`/`Map.get` all live in the `needs_pydict` block.
             or recognize_collect_noreturn_names(f) is not None
             or recognize_stmt_noreturn_call(f) is not None
+            # #3/#4 the walker + caller fold pyval/pydict/list with `pv_size`.
+            or recognize_noreturn_walk_stmts(f) is not None
+            or recognize_check_noreturn_successors(f, self._nrw_names) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only

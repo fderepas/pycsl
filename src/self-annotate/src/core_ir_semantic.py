@@ -619,19 +619,46 @@ def _collect_noreturn_names(ir) -> set:
                 out.add(nm.rsplit("__", 1)[-1])
     return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_noreturn_successors(ir) -> None:
-    pass
+    noreturn_names = _collect_noreturn_names(ir)
+    if not noreturn_names:
+        return  # NoReturn-free module → byte-identical (no work, no error).
+    for func in ir.get("functions", []):
+        fname = func.get("name", "<anonymous>")
+        _noreturn_walk_stmts(func.get("body", []) or [], fname, noreturn_names)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _noreturn_walk_stmts(stmts, fname, noreturn_names) -> None:
-    pass
+    prev_noreturn_call = False
+    for s in stmts:
+        if isinstance(s, dict):
+            if prev_noreturn_call:
+                raise PyCSLSemanticError(
+                    f"Dead code in function '{fname}': this statement follows a "
+                    f"call to a `NoReturn` function, which never returns normally "
+                    f"(NR3 / PEP 484). The continuation path is unreachable. "
+                    f"Remove the dead statement, or move it before the NoReturn call.",
+                    code="PYCSL-SEM-NORETURN",
+                )
+                prev_noreturn_call = False
+            prev_noreturn_call = _stmt_is_noreturn_call(s, noreturn_names)
+            for key in ("body", "orelse", "finalbody"):
+                child = s.get(key)
+                if isinstance(child, list):
+                    _noreturn_walk_stmts(child, fname, noreturn_names)
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []) or []:
+                    if isinstance(h, dict) and isinstance(h.get("body"), list):
+                        _noreturn_walk_stmts(h["body"], fname, noreturn_names)
+            if s.get("stmt") == "Match" and isinstance(s.get("cases"), list):
+                for case in s["cases"]:
+                    if isinstance(case, dict) and isinstance(case.get("body"), list):
+                        _noreturn_walk_stmts(case["body"], fname, noreturn_names)
 
 #@ requires True
 #@ ensures True

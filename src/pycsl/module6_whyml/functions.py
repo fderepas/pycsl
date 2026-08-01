@@ -2728,6 +2728,15 @@ class FunctionEmissionMixin:
         # branches below). Its own slot emits nothing.
         if getattr(self, "_cbw_names", None) and func.get("name") in self._cbw_names:
             return []
+        # NoReturn dead-successor WALKER + CALLER (ghost-assign-bc6): both are
+        # DEFERRED (forward references — the walker calls the textually-later
+        # `_stmt_is_noreturn_call`; the caller calls the walker), emitted as one
+        # append right after the `_stmt_is_noreturn_call` group (see the
+        # `recognize_stmt_noreturn_call` branch below). Their own slots emit nothing.
+        if getattr(self, "_nrw_names", None) and func.get("name") in self._nrw_names:
+            return []
+        if getattr(self, "_ccns_names", None) and func.get("name") in self._ccns_names:
+            return []
         # CLOSURE-FORM existence walk (generic_fold.py module note): the lifted
         # `walk` sibling of a recognised `found=[False]` wrapper is SUPPRESSED
         # (emits nothing — the wrapper's self-contained catamorphism does not call
@@ -3069,7 +3078,25 @@ class FunctionEmissionMixin:
         # under `ensures True`). Corpus-inert; fail-closed.
         _snc = recognize_stmt_noreturn_call(func)
         if _snc is not None:
-            return emit_stmt_noreturn_call_group(_snc, whyml_ident)
+            lines = emit_stmt_noreturn_call_group(_snc, whyml_ident)
+            # #3/#4 (deferred): the `_noreturn_walk_stmts` walker calls this
+            # `_stmt_is_noreturn_call` (forward reference), and the
+            # `_check_noreturn_successors` caller calls the walker — so both are
+            # appended here, callee-before-caller, once the leaf is emitted.
+            from module6_whyml.generic_fold import (
+                emit_noreturn_walk_stmts_group,
+                emit_check_noreturn_successors_group)
+            for f_w, desc_w in getattr(self, "_nrw_funcs", []):
+                if f_w.get("name") in self._nrw_emitted:
+                    continue
+                lines += emit_noreturn_walk_stmts_group(desc_w, whyml_ident)
+                self._nrw_emitted.add(f_w.get("name"))
+            for f_c, desc_c in getattr(self, "_ccns_funcs", []):
+                if f_c.get("name") in self._ccns_emitted:
+                    continue
+                lines += emit_check_noreturn_successors_group(desc_c, whyml_ident)
+                self._ccns_emitted.add(f_c.get("name"))
+            return lines
         _te = recognize_type_existence(func)
         if _te is not None:
             return emit_type_existence_group(func, _te, whyml_ident)

@@ -14969,3 +14969,476 @@ def emit_stmt_noreturn_call_group(desc: Dict[str, Any], whyml_ident) -> List[str
     out.append("                  | _ -> false end)")
     out.append("    | _ -> false end")
     return out
+
+
+# =========================================================================
+# NoReturn dead-successor WALKER + CALLER (ghost-assign-bc6 driver, finishing
+# the string-keyed-set NoReturn cluster) — the two remaining `\trusted` stubs.
+#
+#   #3 recognize_noreturn_walk_stmts (`_noreturn_walk_stmts`): a VOID body-walk
+#      carrying a STATEFUL `prev_noreturn_call` bool ACROSS the statement-list
+#      iterations — it raises `PyCSLSemanticError` on the statement FOLLOWING a
+#      NoReturn call, updating the carried flag via the already-converted
+#      `_stmt_is_noreturn_call` per-element test, and recurses (flag reset) into
+#      the nested child statement-lists (keys "body"/"orelse"/"finalbody", plus
+#      Try `handlers[].body` and Match `cases[].body`). Lowered as a mutual
+#      `let rec` group over the certified pyval/pydict/list L1 ADT: the bool
+#      accumulator is threaded as an extra `prev` PARAMETER through the spine
+#      fold, the raise is a real `raise <exc>` under a `raises {}` signature, and
+#      the child recursion routes through the pb-trio-banked `__dget`/
+#      `__list_child` size-decrease extractors. TERMINATION is a 3-phase
+#      lexicographic `(size, phase)` variant (spine fold phase 0, handler/case
+#      sub-fold phase 1, dict-child dispatch phase 2) — the extractor
+#      postcondition `size_list result < 1 + size_dict d` covers each hop.
+#      `ensures true` (type-safety + termination only; the flag VALUE and WHICH
+#      raise fires are facts no VC constrains). NO new type/axiom/cert, ledger 3.
+#   #4 recognize_check_noreturn_successors (`_check_noreturn_successors`): the
+#      caller — builds the NoReturn set via the converted `_collect_noreturn_names`
+#      and folds `ir["functions"]`, walking each function's "body" list through
+#      #3. A flat pget_list fold + two converted-callee calls; `ensures true`,
+#      `raises {}` (the walker may raise). Emitted AFTER #3 (callee-before-caller).
+#
+# Corpus-inert (self-annotate-mirror-only) → byte-diff-0. Fail-closed: any shape
+# deviation (or an unconverted callee) keeps the stub `\trusted` — a loud count
+# regression, never a false proof. The load-bearing keys/tags/callee-names are
+# READ OFF the body (mutation-sensitive: change one and the emitted .mlw moves or
+# the match fails); only the error-message FString is provenance-dropped.
+# =========================================================================
+
+
+def _match_child_key_for(stmt: Any, sv: str, fname_p: str, set_p: str,
+                         self_name: str) -> Optional[Dict[str, Any]]:
+    """`for key in (<str-tuple>): child = <sv>.get(key); if isinstance(child, list):
+    <self>(child, <fname_p>, <set_p>)` -> {child_keys, self_call} or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"
+            and not stmt.get("orelse")):
+        return None
+    keyvar = stmt.get("target")
+    itr = stmt.get("iter")
+    if not (isinstance(keyvar, str) and _is_string_tuple(itr)):
+        return None
+    child_keys = [_is_string(e) for e in itr.get("elts")]
+    fb = stmt.get("body") or []
+    if len(fb) != 2:
+        return None
+    a0, if1 = fb
+    # child = <sv>.get(<keyvar>)
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    childvar = a0.get("target")
+    cv = a0.get("value")
+    if not (isinstance(childvar, str) and isinstance(cv, dict)
+            and cv.get("type") == "Call" and cv.get("func") == f"{sv}.get"
+            and [_is_var(x, keyvar) for x in cv.get("args", [])][:1] == [True]):
+        return None
+    # if isinstance(child, list): <self>(child, fname, set)
+    if not (isinstance(if1, dict) and if1.get("stmt") == "If"
+            and _match_isinstance(if1.get("test"), childvar, "list")):
+        return None
+    self_call = _match_self_walk_call(if1.get("body"), childvar, fname_p, set_p)
+    if self_call is None:
+        return None
+    return {"child_keys": child_keys, "self_call": self_call}
+
+
+def _match_self_walk_call(bodylist: Any, arg0_var: str, fname_p: str,
+                          set_p: str) -> Optional[str]:
+    """Single-stmt `Expr <callee>(<arg0>, <fname_p>, <set_p>)` where arg0 is the
+    Var `arg0_var` OR a `<v>["<k>"]` subscript. Returns the callee name (a bare
+    module-level name) or None."""
+    if not (isinstance(bodylist, list) and len(bodylist) == 1):
+        return None
+    st = bodylist[0]
+    if not (isinstance(st, dict) and st.get("stmt") == "Expr"):
+        return None
+    call = st.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    callee = call.get("func")
+    if not (isinstance(callee, str) and "." not in callee):
+        return None
+    args = call.get("args") or []
+    if len(args) != 3:
+        return None
+    a0ok = _is_var(args[0], arg0_var) or (
+        isinstance(args[0], dict) and args[0].get("type") == "Subscript")
+    if not (a0ok and _is_var(args[1], fname_p) and _is_var(args[2], set_p)):
+        return None
+    return callee
+
+
+def _match_tag_handler_for(stmt: Any, sv: str, fname_p: str, set_p: str
+                           ) -> Optional[Dict[str, Any]]:
+    """`if <sv>.get("stmt") == "<TAG>": for h in (<sv>.get("<HK>", []) or []):
+    if <guards>: <self>(h["<BK>"], fname, set)` -> {tag, iter_key, body_key,
+    self_call} or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    tag = _match_stmt_tag_test(stmt.get("test"), sv)
+    if tag is None:
+        return None
+    b = stmt.get("body") or []
+    if len(b) != 1:
+        return None
+    forh = b[0]
+    if not (isinstance(forh, dict) and forh.get("stmt") == "For"):
+        return None
+    iter_key = _or_empty_sget(forh.get("iter"), sv)
+    if iter_key is None:
+        return None
+    hvar = forh.get("target")
+    fb = forh.get("body") or []
+    if not (isinstance(hvar, str) and len(fb) == 1):
+        return None
+    if1 = fb[0]
+    if not (isinstance(if1, dict) and if1.get("stmt") == "If"):
+        return None
+    res = _match_self_walk_call(if1.get("body"), hvar, fname_p, set_p)
+    if res is None:
+        return None
+    # extract the subscript body key from the call's first arg.
+    call = if1["body"][0]["value"]
+    body_key = _match_subscript_str(call.get("args")[0], hvar)
+    if body_key is None:
+        return None
+    return {"tag": tag, "iter_key": iter_key, "body_key": body_key,
+            "self_call": res}
+
+
+def _match_match_case_for(stmt: Any, sv: str, fname_p: str, set_p: str
+                          ) -> Optional[Dict[str, Any]]:
+    """`if <sv>.get("stmt") == "<TAG>" and isinstance(<sv>.get("<CK>"), list):
+    for case in <sv>["<CK>"]: if <guards>: <self>(case["<BK>"], fname, set)`
+    -> {tag, iter_key, body_key, self_call} or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test")
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    tag = _match_stmt_tag_test(test.get("left"), sv)
+    if tag is None:
+        return None
+    # right: isinstance(<sv>.get("<CK>"), list)
+    right = test.get("right")
+    if not (isinstance(right, dict) and right.get("type") == "Call"
+            and right.get("func") == "isinstance"):
+        return None
+    rargs = right.get("args") or []
+    if len(rargs) != 2 or not _is_var(rargs[1], "list"):
+        return None
+    ck1 = _match_get_call(rargs[0], sv)
+    b = stmt.get("body") or []
+    if ck1 is None or len(b) != 1:
+        return None
+    forc = b[0]
+    if not (isinstance(forc, dict) and forc.get("stmt") == "For"):
+        return None
+    iter_key = _match_subscript_str(forc.get("iter"), sv)
+    if iter_key != ck1:
+        return None
+    cvar = forc.get("target")
+    fb = forc.get("body") or []
+    if not (isinstance(cvar, str) and len(fb) == 1):
+        return None
+    if1 = fb[0]
+    if not (isinstance(if1, dict) and if1.get("stmt") == "If"):
+        return None
+    res = _match_self_walk_call(if1.get("body"), cvar, fname_p, set_p)
+    if res is None:
+        return None
+    call = if1["body"][0]["value"]
+    body_key = _match_subscript_str(call.get("args")[0], cvar)
+    if body_key is None:
+        return None
+    return {"tag": tag, "iter_key": iter_key, "body_key": body_key,
+            "self_call": res}
+
+
+def recognize_noreturn_walk_stmts(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the stateful bool-carry NoReturn dead-successor
+    walker (`_noreturn_walk_stmts` shape). Returns a descriptor or None; never
+    raises."""
+    try:
+        return _recognize_noreturn_walk_stmts(func)
+    except Exception:
+        return None
+
+
+def _recognize_noreturn_walk_stmts(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_noreturn_walk_stmts":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 3:
+        return None
+    stmts_p, fname_p, set_p = params
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    s0, s1 = body
+    # [0] prev = False
+    if not (isinstance(s0, dict) and s0.get("stmt") == "Assign"):
+        return None
+    prev = s0.get("target")
+    v0 = s0.get("value")
+    if not (isinstance(prev, str) and isinstance(v0, dict)
+            and v0.get("type") == "Bool" and v0.get("value") is False):
+        return None
+    # [1] for s in stmts:
+    if not (isinstance(s1, dict) and s1.get("stmt") == "For"
+            and _is_var(s1.get("iter"), stmts_p) and not s1.get("orelse")):
+        return None
+    sv = s1.get("target")
+    fbody = s1.get("body") or []
+    if not (isinstance(sv, str) and len(fbody) == 1):
+        return None
+    outer_if = fbody[0]
+    if not (isinstance(outer_if, dict) and outer_if.get("stmt") == "If"
+            and _match_isinstance(outer_if.get("test"), sv, "dict")
+            and not outer_if.get("orelse")):
+        return None
+    ib = outer_if.get("body") or []
+    if len(ib) != 5:
+        return None
+    g_if, prev_asgn, child_for, try_if, match_if = ib
+    # guard: if prev: raise <exc>
+    if not (isinstance(g_if, dict) and g_if.get("stmt") == "If"
+            and _is_var(g_if.get("test"), prev)):
+        return None
+    graise = g_if.get("body") or []
+    if not (graise and isinstance(graise[0], dict)
+            and graise[0].get("stmt") == "Raise"):
+        return None
+    exc = graise[0].get("exc_type")
+    if not isinstance(exc, str):
+        return None
+    # prev = <stmt_call>(s, set_p)
+    if not (isinstance(prev_asgn, dict) and prev_asgn.get("stmt") == "Assign"
+            and prev_asgn.get("target") == prev):
+        return None
+    pc = prev_asgn.get("value")
+    if not (isinstance(pc, dict) and pc.get("type") == "Call"):
+        return None
+    stmt_call = pc.get("func")
+    pcargs = pc.get("args") or []
+    if not (isinstance(stmt_call, str) and "." not in stmt_call
+            and len(pcargs) == 2 and _is_var(pcargs[0], sv)
+            and _is_var(pcargs[1], set_p)):
+        return None
+    # child-key recursion + Try/Match blocks
+    ck = _match_child_key_for(child_for, sv, fname_p, set_p, func["name"])
+    tr = _match_tag_handler_for(try_if, sv, fname_p, set_p)
+    mt = _match_match_case_for(match_if, sv, fname_p, set_p)
+    if ck is None or tr is None or mt is None:
+        return None
+    self_name = func["name"]
+    if not (ck["self_call"] == self_name and tr["self_call"] == self_name
+            and mt["self_call"] == self_name):
+        return None
+    return {"name": self_name, "stmts_param": stmts_p, "fname_param": fname_p,
+            "set_param": set_p, "stmt_call": stmt_call, "exc": exc,
+            "child_keys": ck["child_keys"],
+            "try_tag": tr["tag"], "handlers_key": tr["iter_key"],
+            "handler_body_key": tr["body_key"],
+            "match_tag": mt["tag"], "cases_key": mt["iter_key"],
+            "case_body_key": mt["body_key"]}
+
+
+def emit_noreturn_walk_stmts_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the stateful bool-carry NoReturn walker as a mutual `let rec` group
+    over the certified pyval/pydict/list L1 ADT (see module note). The `prev`
+    flag threads as a parameter; the raise is real (`raises { <exc> }`); the child
+    recursion routes through the pb-trio-banked size-decrease extractors; the
+    3-phase `(size, phase)` variant covers termination. NO new type/axiom/cert."""
+    n = whyml_ident(desc["name"])
+    sc = whyml_ident(desc["stmt_call"])
+    setp = whyml_ident(desc["set_param"])
+    exc = desc["exc"]
+    dget = f"{n}__dget"
+    lchild = f"{n}__list_child"
+    gstmt = f"{n}__get_stmt"
+    sig = f"    requires {{ true }} ensures {{ true }} raises {{ {exc} }}"
+    out: List[str] = []
+    # --- statement-tag reader (for the Try/Match tag guards) -------------
+    _emit_pyval_key_reader(out, gstmt, "stmt")
+    # --- shared value extractor (pv_size postcond — the Z3-fast form) ----
+    out.append(f"  let rec {dget} (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d"
+               " | None -> true end }")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons (K_dyn k) v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        if pystr_eq k key then Some v else {dget} key rest")
+    out.append("    | DCons _ v rest ->")
+    out.append(f"        size_pos v; size_dict_nonneg rest; {dget} key rest end")
+    # --- list child — NON-recursive wrapper (Alt-Ergo-fast) -------------
+    out.append(f"  let {lchild} (key: string) (d: pydict) : list pyval")
+    out.append("    ensures { size_list result < 1 + size_dict d }")
+    out.append("  = size_dict_nonneg d;")
+    out.append(f"    match {dget} key d with")
+    out.append("    | Some (PList xs) -> size_list_nonneg xs; xs")
+    out.append("    | _ -> Nil end")
+    # --- the stateful mutual recursion group ----------------------------
+    # spine fold (phase 0): carry the `prev` flag across the list.
+    out.append(f"  let rec {n} (prev: bool) (stmts: list pyval)"
+               f" ({setp}: map string bool) : unit")
+    out.append(sig)
+    out.append("    variant { size_list stmts, 0 }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h t ->")
+    out.append("        size_pos h; size_list_nonneg t;")
+    out.append(f"        (if prev && is_pdict h then raise {exc});")
+    out.append(f"        let prev' = {sc} h {setp} in")
+    out.append(f"        (match h with PDict d -> {n}__child d {setp} | _ -> () end);")
+    out.append(f"        {n} prev' t {setp}")
+    out.append("    end")
+    # dict-child dispatch (phase 2): recurse into each nested statement list.
+    out.append(f"  with {n}__child (d: pydict) ({setp}: map string bool) : unit")
+    out.append(sig)
+    out.append("    variant { size_dict d, 2 }")
+    out.append("  = size_dict_nonneg d;")
+    for k in desc["child_keys"]:
+        out.append(f'    {n} false ({lchild} "{k}" d) {setp};')
+    # Try handlers[].body — gated on the "stmt" tag, faithful to the source.
+    out.append(f"    (match {gstmt} d with")
+    out.append(f'     | Some (PStr st) -> if pystr_eq st "{desc["try_tag"]}"'
+               f' then {n}__hfold ({lchild} "{desc["handlers_key"]}" d) {setp} else ()')
+    out.append("     | _ -> () end);")
+    # Match cases[].body — gated on the "stmt" tag.
+    out.append(f"    (match {gstmt} d with")
+    out.append(f'     | Some (PStr st) -> if pystr_eq st "{desc["match_tag"]}"'
+               f' then {n}__hfold ({lchild} "{desc["cases_key"]}" d) {setp} else ()')
+    out.append("     | _ -> () end)")
+    # handler/case sub-fold (phase 1): each element's <body_key> list.
+    hbk = desc["handler_body_key"]
+    out.append(f"  with {n}__hfold (hs: list pyval) ({setp}: map string bool) : unit")
+    out.append(sig)
+    out.append("    variant { size_list hs, 1 }")
+    out.append("  = match hs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons h t ->")
+    out.append("        size_pos h; size_list_nonneg t;")
+    out.append(f'        (match h with PDict hd -> {n} false ({lchild} "{hbk}" hd) {setp}'
+               " | _ -> () end);")
+    out.append(f"        {n}__hfold t {setp}")
+    out.append("    end")
+    return out
+
+
+def recognize_check_noreturn_successors(
+        func: Dict[str, Any], walk_names=None) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_noreturn_successors` caller. `walk_names`
+    is the set of converted walker NAMES (`_noreturn_walk_stmts`); a caller that
+    walks via an unconverted walker stays `\\trusted`. Returns a descriptor or
+    None; never raises."""
+    try:
+        return _recognize_check_noreturn_successors(func, walk_names or set())
+    except Exception:
+        return None
+
+
+def _recognize_check_noreturn_successors(
+        func: Dict[str, Any], walk_names) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_check_noreturn_successors":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    ir_p = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    # [Assign nn = _collect_noreturn_names(ir), If not nn: return, For over functions]
+    if len(body) != 3:
+        return None
+    s_asgn, s_if, s_for = body
+    if not (isinstance(s_asgn, dict) and s_asgn.get("stmt") == "Assign"):
+        return None
+    nnvar = s_asgn.get("target")
+    av = s_asgn.get("value")
+    if not (isinstance(nnvar, str) and isinstance(av, dict)
+            and av.get("type") == "Call"):
+        return None
+    collect_call = av.get("func")
+    if not (isinstance(collect_call, str) and "." not in collect_call
+            and [_is_var(a, ir_p) for a in av.get("args", [])][:1] == [True]):
+        return None
+    # if not nn: return  (behavior-irrelevant short circuit; verify shape)
+    if not (isinstance(s_if, dict) and s_if.get("stmt") == "If"):
+        return None
+    # for func in ir.get("functions", []): fname=...; <walk>(func.get("body",[]) or [], fname, nn)
+    if not (isinstance(s_for, dict) and s_for.get("stmt") == "For"):
+        return None
+    funcs_key = _match_get_call(s_for.get("iter"), ir_p)
+    fvar = s_for.get("target")
+    if not (funcs_key is not None and isinstance(fvar, str)):
+        return None
+    fb = s_for.get("body") or []
+    if len(fb) != 2:
+        return None
+    fa, fe = fb
+    # fname = func.get("name", ...)
+    if not (isinstance(fa, dict) and fa.get("stmt") == "Assign"):
+        return None
+    fnamevar = fa.get("target")
+    if not (isinstance(fnamevar, str) and _match_get_call(fa.get("value"), fvar) == "name"):
+        return None
+    # <walk>(func.get("body",[]) or [], fname, nn)
+    if not (isinstance(fe, dict) and fe.get("stmt") == "Expr"):
+        return None
+    call = fe.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    walk_call = call.get("func")
+    if not (isinstance(walk_call, str) and walk_call in walk_names):
+        return None
+    cargs = call.get("args") or []
+    if len(cargs) != 3:
+        return None
+    # arg0: func.get("body", []) or []   -> extract body key
+    body_key = _or_empty_sget(cargs[0], fvar)
+    if not (body_key is not None and _is_var(cargs[1], fnamevar)
+            and _is_var(cargs[2], nnvar)):
+        return None
+    return {"name": func["name"], "ir_param": ir_p, "collect_call": collect_call,
+            "functions_key": funcs_key, "func_body_key": body_key,
+            "walk_call": walk_call}
+
+
+def emit_check_noreturn_successors_group(desc: Dict[str, Any], whyml_ident
+                                         ) -> List[str]:
+    """Emit the `_check_noreturn_successors` caller: build the NoReturn set via
+    the converted `_collect_noreturn_names`, then fold `ir["functions"]` walking
+    each function's body list through the converted `_noreturn_walk_stmts`.
+    `ensures true`, `raises { PyCSLSemanticError }` (the walker may raise).
+    Emitted AFTER the walker group (callee-before-caller). NO new type/axiom/cert."""
+    n = whyml_ident(desc["name"])
+    ir = whyml_ident(desc["ir_param"])
+    collect = whyml_ident(desc["collect_call"])
+    walk = whyml_ident(desc["walk_call"])
+    fkey = desc["functions_key"]
+    bkey = desc["func_body_key"]
+    out: List[str] = []
+    out.append(f"  let rec {n}__ffold (fs: list pyval) (nn: map string bool) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { fs }")
+    out.append("  = match fs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons f t ->")
+    out.append(f'        (match f with PDict fd -> {walk} false (pget_list "{bkey}" fd) nn'
+               " | _ -> () end);")
+    out.append(f"        {n}__ffold t nn")
+    out.append("    end")
+    out.append(f"  let {n} ({ir}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match {ir} with")
+    out.append(f"    | PDict d -> let nn = {collect} (PDict d) in"
+               f' {n}__ffold (pget_list "{fkey}" d) nn')
+    out.append("    | _ -> () end")
+    return out
