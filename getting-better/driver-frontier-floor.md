@@ -74,3 +74,25 @@ _body_has_diverging_construct, _lemma_returns_value, _lemma_calls_trusted, _body
 - `_check_final*` / `_check_concurrency*` / `_check_typeddict_access*` / `_check_namedtuple_access*` / `_check_union_narrowing*` / `_check_noreturn_successors*` — mutually-trusted HELPER CLUSTERS (need whole cluster + un-converted collectors: _collect_call_targets/_hp_collect_written/_final_walk_body/_collect_noreturn_names).
 - `_check_noreturn` — needs a pyval->stmt_list bridge = CERT (formal-semantics, authorization).
 - `run_ir_semantic_checks` — top orchestrator; converts only once ~all callees do.
+
+## UPDATE 2026-08-01 (72h run) — non-cert frontier EXHAUSTED at 841
+72h user-authorized run: 855->841 = 14 conversions (session total 883->841 = 42), ledger 3 throughout,
+all whole-file-proof + §10c all-7 + byte-diff-0 verified. THIS RUN converted (reusing/extending the
+banked machinery, NO cert): the collector leaves (_collect_call_targets, _collect_noreturn_names,
+_stmt_is_noreturn_call), the stateful noreturn walk (_noreturn_walk_stmts + _check_noreturn_successors),
+_check_happy, _check_acts (local map-accumulator), the FINAL cluster (_final_check_stmt + _check_final +
+re-based _final_walk_body int->pyval = a soundness fix), and the CONCURRENCY cluster (5 stubs: held->list
+string threaded, shared->map string(option string), lock_order->option(list string), VC-free
+conc__smap_set val). A driver-verifier CATCH: an agent's non-faithful _check_noreturn port (drift 3,
+cert-gated) was rejected by the fidelity gate + reverted before commit.
+EXHAUSTED at 841 (measured per-stub). Remaining trusted stubs by blocker class (ALL need authorization):
+- core_ir_semantic (20): string-parse (_check_mutex_invariants/_check_callable_params/_check_fresh_globals);
+  Wall-2 heterogeneous .items()/.values() iterator (typeddict/namedtuple/union walkers); _check_class_invariants
+  (review-gated list-returning _ir_free_vars 2nd walker); _check_noreturn (CERT pyval->stmt_list);
+  run_ir_semantic_checks (caller-position collection bridges + new dict-of-(int,set,set)-tuple value shape).
+- other mirror files (821): ir_inline/ir_resolve (.values() heterogeneous walk + string-keyed-set κ-gap);
+  pure_ast/ConcurrencyChecker/Module5/monomorphize/import_classifier (opaque CPython ast objects);
+  Module6 emitters/Weaver/Module2_Parser/proof2why3 (string-construction/parse wall); exception_model
+  (dict-of-tuples value shape + string-set + sorted); pycsl.py/audit_proof/sertop (legit IO/subprocess trusted).
+NEXT (authorize first): Wall-2 iterator model / string-keyed-set κ-inference / a cert (SRaise / pyval->stmt_list)
+/ new value-shapes / a review-gated list-returning _ir_free_vars. None autonomous-reachable under ledger-3 + no-formal-semantics.
