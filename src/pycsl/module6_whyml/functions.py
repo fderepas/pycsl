@@ -2716,6 +2716,31 @@ class FunctionEmissionMixin:
         # calls into (see the `recognize_cs_clause` branch below).
         if getattr(self, "_cs_trio", None) and func.get("name") in self._cs_trio_names:
             return []
+        # FINAL PAIR FUSION (preamble/generic_fold): the `{_final_walk_body,
+        # _final_check_stmt}` pair emits as ONE `let rec` group — self-contained
+        # (calls nothing external), so the whole group is emitted at whichever
+        # member's slot is reached FIRST; the other member emits nothing. This
+        # RE-BASES `_final_walk_body` from the `list int` void-dispatch model onto
+        # the pyval spine and UN-TRUSTS `_final_check_stmt`.
+        if getattr(self, "_final_pair", None) and func.get("name") in self._final_pair_names:
+            if self._final_pair_emitted:
+                return []
+            from module6_whyml.generic_fold import (
+                emit_final_pair_group, emit_check_final_group)
+            self._final_pair_emitted = True
+            lines = emit_final_pair_group(self._final_pair, whyml_ident)
+            # CHECK-FINAL CALLER: append the `_check_final` driver group right
+            # after the pair it calls into (once). `_check_final`'s own slot
+            # emits nothing (deferred forward reference — see the gate below).
+            if getattr(self, "_check_final_desc", None):
+                lines = lines + emit_check_final_group(
+                    self._check_final_desc, whyml_ident)
+            return lines
+        # CHECK-FINAL CALLER: `_check_final` is a forward reference to the pyval
+        # `_final_walk_body` — DEFERRED, emitted with the pair group above. Its
+        # own slot emits nothing.
+        if getattr(self, "_check_final_name", None) and func.get("name") == self._check_final_name:
+            return []
         # CHECK-CONTRACT-EXPRS caller (pdict-to-sdict-impl.md): the heterogeneous
         # `_check_contract_exprs` caller is DEFERRED (forward reference) — emitted
         # after the `_pb_expr` group + pb-trio it calls into (see the

@@ -884,12 +884,21 @@ def _hp_collect_written(node: Any, written: set) -> None:
         for x in node:
             _hp_collect_written(x, written)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_final(ir) -> None:
-    pass
+    registry = ir.get("final_registry")
+    if not registry:
+        return  # Final-free module → byte-identical (no work, no error).
+    module_finals = {e["name"] for e in registry if e.get("kind") == "module"}
+    class_attr_finals = {e["name"] for e in registry if e.get("kind") == "class_attr"}
+    if not module_finals and not class_attr_finals:
+        return
+    for func in ir.get("functions", []):
+        fname = func.get("name", "<anonymous>")
+        _final_walk_body(func.get("body", []) or [], fname,
+                         module_finals, class_attr_finals)
 
 #@ requires True
 #@ ensures True
@@ -900,12 +909,45 @@ def _final_walk_body(stmts: List[Dict[str, Any]], fname, module_finals, class_at
         if isinstance(s, dict):
             _final_check_stmt(s, fname, module_finals, class_attr_finals)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _final_check_stmt(s, fname, module_finals, class_attr_finals) -> None:
-    pass
+    st = s.get("stmt")
+    # F1: bare-name write to a module-level Final → reassignment (error).
+    if st in ("Assign", "AugAssign"):
+        target = s.get("target")
+        if isinstance(target, str) and target in module_finals:
+            raise PyCSLSemanticError(
+                f"Final: cannot reassign Final name '{target}' in function "
+                f"'{fname}' (F1 — write-once at declaration; PEP 591). The name "
+                f"is declared `Final` at module/class scope and may be written "
+                f"only at its declaration.",
+                code="PYCSL-SEM-FINAL")
+    # F2: self.<attr> write to a class_attr Final outside __init__ (error).
+    elif st in ("FieldAssign", "FieldAugAssign"):
+        if s.get("object") == "self" and s.get("field") in class_attr_finals:
+            field = s.get("field")
+            raise PyCSLSemanticError(
+                f"Final: cannot write Final instance attribute 'self.{field}' "
+                f"in function '{fname}' (F2 — __init__-only writes; PEP 591). "
+                f"The attribute is declared `Final` and may be written only in "
+                f"the declaring class's __init__.",
+                code="PYCSL-SEM-FINAL")
+    # Recurse into nested statement containers (If/While/For/Try/With bodies).
+    for key in ("body", "orelse", "finalbody", "handlers"):
+        child = s.get(key)
+        if isinstance(child, list):
+            _final_walk_body(child, fname, module_finals, class_attr_finals)
+        elif isinstance(child, dict):
+            _final_check_stmt(child, fname, module_finals, class_attr_finals)
+    # CriticalSection carries a body; Match carries cases with bodies.
+    if st == "CriticalSection" and isinstance(s.get("body"), list):
+        _final_walk_body(s["body"], fname, module_finals, class_attr_finals)
+    if st == "Match" and isinstance(s.get("cases"), list):
+        for case in s["cases"]:
+            if isinstance(case, dict) and isinstance(case.get("body"), list):
+                _final_walk_body(case["body"], fname, module_finals, class_attr_finals)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

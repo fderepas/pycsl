@@ -6693,6 +6693,761 @@ def emit_pb_trio_group(desc: Dict[str, Any], whyml_ident,
 
 
 # =========================================================================
+# FINAL PAIR FUSION — the mutually-recursive `{_final_walk_body,
+# _final_check_stmt}` Final[T] write-policy walker pair (core_ir_semantic
+# self-annotation), fused into ONE `let rec … with …` group so
+# `_final_check_stmt` can be UN-TRUSTED and `_final_walk_body` RE-BASED from
+# the crude `list int` opaque model onto the real `pyval` spine.
+#
+# UNLIKE the pb/cs trio there is NO separate `_..._descend` generic
+# `.values()` twin: `_final_check_stmt` recurses into named child containers
+# directly (a fixed key tuple `("body","orelse","finalbody","handlers")` plus
+# the `CriticalSection`/`Match` special cases). The two RAISE guards are
+# read-only `map string bool` set-PARAM memberships (`target in module_finals`,
+# `s.get("field") in class_attr_finals`) — the certified L1 set repr (`Map.get`,
+# already used by `_ir_free_vars`/`_cs_clause`), NOT a new value shape.
+#
+# TERMINATION is the banked `{ size, phase }` lexicographic variant. The three
+# child extractors (`__dget`/`__val_child`/`__list_child`) are the pb-trio's
+# verbatim, carrying the `pv_size w < 1 + size_dict d` / `size_list result <
+# 1 + size_dict d` postconditions the variant needs. `__key` (the generic-key
+# child handler) sits at phase 2 so the `__key → _final_check_stmt (PDict cd)`
+# hop (child dict, EQUAL size to `size_dict d` in the worst case) clears on the
+# phase (2 > 1); `__cases` and `_final_walk_body` sit at phase 0 (their
+# recursion decreases on the first component alone). Proven in isolation
+# (scratchpad/final_pair_spike.mlw: 235/235 Valid; the `ensures false` probe
+# times out = non-vacuous).
+#
+# Non-facade: the dispatch tags ("Assign"/"AugAssign"/"FieldAssign"/
+# "FieldAugAssign"/"CriticalSection"/"Match"), the dict keys ("stmt"/"target"/
+# "object"/"field"/"body"/"orelse"/"finalbody"/"handlers"/"cases"), the
+# "self" object literal, and the two set-param NAMES are all READ OFF
+# `_final_check_stmt`'s body — a change to any either moves the emitted arm/
+# extractor (mutation-faithful) or fails the fail-closed match and reverts
+# `_final_check_stmt` to `\trusted` (loud count regression, never a false proof).
+# =========================================================================
+
+def _isinst_arg(test: Any, cls: str) -> Optional[Any]:
+    """`isinstance(<arg>, <cls>)` (cls a bare name) -> the arg node, else None."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return None
+    args = test.get("args") or []
+    if len(args) != 2 or not _is_var(args[1], cls):
+        return None
+    return args[0]
+
+
+def _in_operands(node: Any):
+    """`<left> in <right>` (op 'in') -> (left, right), else None."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "in"):
+        return node.get("left"), node.get("right")
+    return None
+
+
+def _and_operands(node: Any):
+    """`<left> and <right>` (op 'and') -> (left, right), else None."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "and"):
+        return node.get("left"), node.get("right")
+    return None
+
+
+def _string_tuple(node: Any) -> Optional[List[str]]:
+    """A `("s1","s2",...)` tuple of string literals -> [s1,s2,...], else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Tuple"):
+        return None
+    out: List[str] = []
+    for e in node.get("elts") or []:
+        s = _is_string(e)
+        if s is None:
+            return None
+        out.append(s)
+    return out or None
+
+
+def _final_tail_call(node: Any, callee: str, ctx_params: List[str]) -> Optional[Any]:
+    """An `Expr` stmt `<callee>(<arg0>, *ctx_params)` (tail args exactly the ctx
+    params, positional/unchanged). Returns arg0 (the first arg node) or None."""
+    if not (isinstance(node, dict) and node.get("stmt") == "Expr"):
+        return None
+    call = node.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == callee):
+        return None
+    args = call.get("args") or []
+    if len(args) != 1 + len(ctx_params):
+        return None
+    for a, p in zip(args[1:], ctx_params):
+        if not _is_var(a, p):
+            return None
+    return args[0]
+
+
+def _subscript_key(node: Any, subj: str) -> Optional[str]:
+    """`<subj>["<KEY>"]` -> KEY, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Subscript"
+            and _is_var(node.get("value"), subj)):
+        return None
+    return _is_string(node.get("index"))
+
+
+def recognize_final_pair(functions: List[Dict[str, Any]]
+                         ) -> Optional[Dict[str, Any]]:
+    """Fail-closed module-level match of the `{_final_walk_body,
+    _final_check_stmt}` Final write-policy walker pair. Returns a descriptor
+    (names, ctx params, dispatch tags, dict keys, set-param names) or None.
+    Never raises."""
+    try:
+        return _recognize_final_pair(functions)
+    except Exception:
+        return None
+
+
+def _recognize_final_pair(functions: List[Dict[str, Any]]
+                          ) -> Optional[Dict[str, Any]]:
+    by_name = {f.get("name"): f for f in functions if isinstance(f, dict)}
+    for wf in functions:
+        d = recognize_void_dispatch(wf)
+        if d is None:
+            continue
+        stmt_name = d["callee"]
+        stmt_fn = by_name.get(stmt_name)
+        if stmt_fn is None:
+            continue
+        ctx_params = d["ctx_params"]
+        if len(ctx_params) != 3:
+            continue
+        desc = _try_final_check_stmt(stmt_fn, wf["name"], ctx_params)
+        if desc is not None:
+            desc["walk_name"] = wf["name"]
+            desc["stmt_name"] = stmt_name
+            desc["ctx_params"] = ctx_params
+            desc["names"] = {wf["name"], stmt_name}
+            return desc
+    return None
+
+
+def _try_final_check_stmt(stmt_fn: Dict[str, Any], walk_name: str,
+                          ctx_params: List[str]) -> Optional[Dict[str, Any]]:
+    params = stmt_fn.get("formal_params") or []
+    if len(params) != 4:
+        return None
+    subj = params[0]
+    if params[1:] != ctx_params:
+        return None
+    if stmt_fn.get("return_annotation") not in ("None", None):
+        return None
+    body = stmt_fn.get("body") or []
+    if len(body) != 5:
+        return None
+    # --- body[0]: st = s.get("stmt") -------------------------------------
+    a0 = body[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    stmt_key = _sget_key(a0.get("value"), subj)
+    stvar = a0.get("target")
+    if stmt_key is None or not isinstance(stvar, str):
+        return None
+    # --- body[1]: F1 / F2 guard-raise chain ------------------------------
+    f = _match_final_f1f2(body[1], subj, stvar, ctx_params)
+    if f is None:
+        return None
+    # --- body[2]: generic key loop ---------------------------------------
+    gkeys = _match_final_keyloop(body[2], subj, stvar, walk_name,
+                                 stmt_fn["name"], ctx_params)
+    if gkeys is None:
+        return None
+    # --- body[3]: CriticalSection re-walk --------------------------------
+    cs = _match_final_cs(body[3], subj, stvar, walk_name, ctx_params)
+    if cs is None:
+        return None
+    # --- body[4]: Match cases descent ------------------------------------
+    mt = _match_final_match(body[4], subj, stvar, walk_name, ctx_params)
+    if mt is None:
+        return None
+    desc = {"subj": subj, "stmt_key": stmt_key, "stvar": stvar}
+    desc.update(f)
+    desc["generic_keys"] = gkeys
+    desc.update(cs)
+    desc.update(mt)
+    # set-param names read off the two membership guards.
+    desc["set_params"] = {f["f1_set"], f["f2_set"]}
+    return desc
+
+
+def _match_final_f1f2(node: Any, subj: str, stvar: str,
+                      ctx_params: List[str]) -> Optional[Dict[str, Any]]:
+    """`if st in (F1TAGS): [target=s.get(K); if isinstance(target,str) and
+    target in <set>: raise] else: if st in (F2TAGS): [if s.get(OK)==OV and
+    s.get(FK) in <set2>: [field=..; raise]]`."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If"):
+        return None
+    ti = _in_operands(node.get("test"))
+    if ti is None or not _is_var(ti[0], stvar):
+        return None
+    f1_tags = _string_tuple(ti[1])
+    if f1_tags is None:
+        return None
+    # F1 body: [Assign target=s.get(K); If(isinstance & in): [Raise]]
+    b = node.get("body") or []
+    if len(b) != 2 or not (isinstance(b[0], dict) and b[0].get("stmt") == "Assign"):
+        return None
+    tvar = b[0].get("target")
+    f1_target_key = _sget_key(b[0].get("value"), subj)
+    if f1_target_key is None or not isinstance(tvar, str):
+        return None
+    g1 = b[1]
+    if not (isinstance(g1, dict) and g1.get("stmt") == "If"):
+        return None
+    ga = _and_operands(g1.get("test"))
+    if ga is None:
+        return None
+    if _isinst_arg(ga[0], "str") is None or not _is_var(_isinst_arg(ga[0], "str"), tvar):
+        return None
+    inm = _in_operands(ga[1])
+    if inm is None or not _is_var(inm[0], tvar) or not _is_var(inm[1]):
+        return None
+    f1_set = inm[1].get("name")
+    if f1_set not in ctx_params or not _raises_pycsl(g1.get("body")):
+        return None  # noqa: E501
+    # F2: node.orelse == [If st in (F2TAGS): [...]]
+    orelse = node.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    n2 = orelse[0]
+    if not (isinstance(n2, dict) and n2.get("stmt") == "If"):
+        return None
+    t2 = _in_operands(n2.get("test"))
+    if t2 is None or not _is_var(t2[0], stvar):
+        return None
+    f2_tags = _string_tuple(t2[1])
+    if f2_tags is None:
+        return None
+    b2 = n2.get("body") or []
+    if len(b2) != 1 or not (isinstance(b2[0], dict) and b2[0].get("stmt") == "If"):
+        return None
+    g2 = b2[0]
+    ga2 = _and_operands(g2.get("test"))
+    if ga2 is None:
+        return None
+    # left: s.get(OK) == "OV"
+    eqn = ga2[0]
+    if not (isinstance(eqn, dict) and eqn.get("type") == "BinOp"
+            and eqn.get("op") == "=="):
+        return None
+    f2_object_key = _sget_key(eqn.get("left"), subj)
+    f2_object_val = _is_string(eqn.get("right"))
+    if f2_object_key is None or f2_object_val is None:
+        return None
+    # right: s.get(FK) in <set2>
+    inm2 = _in_operands(ga2[1])
+    if inm2 is None or not _is_var(inm2[1]):
+        return None
+    f2_field_key = _sget_key(inm2[0], subj)
+    f2_set = inm2[1].get("name")
+    if f2_field_key is None or f2_set not in ctx_params:
+        return None
+    # g2 body: [Assign field=s.get(..); Raise] OR [Raise] — only the raise matters
+    if not _raises_pycsl(g2.get("body")):
+        return None
+    return {"f1_tags": f1_tags, "f1_target_key": f1_target_key, "f1_set": f1_set,
+            "f2_tags": f2_tags, "f2_object_key": f2_object_key,
+            "f2_object_val": f2_object_val, "f2_field_key": f2_field_key,
+            "f2_set": f2_set}
+
+
+def _raises_pycsl(body: Any) -> bool:
+    """body ends with a `raise PyCSLSemanticError(...)` (optional leading Assigns)."""
+    if not isinstance(body, list) or not body:
+        return False
+    last = body[-1]
+    return (isinstance(last, dict) and last.get("stmt") == "Raise"
+            and last.get("exc_type") == "PyCSLSemanticError")
+
+
+def _match_final_keyloop(node: Any, subj: str, stvar: str, walk_name: str,
+                         stmt_name: str, ctx_params: List[str]) -> Optional[List[str]]:
+    """`for key in (K...): child=s.get(key); if isinstance(child,list):
+    walk(child,*ctx) else: if isinstance(child,dict): check(child,*ctx)`.
+    Returns the key-string list, else None."""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return None
+    keys = _string_tuple(node.get("iter"))
+    if keys is None:
+        return None
+    keyvar = node.get("target")
+    if not isinstance(keyvar, str):
+        return None
+    b = node.get("body") or []
+    if len(b) != 2 or not (isinstance(b[0], dict) and b[0].get("stmt") == "Assign"):
+        return None
+    childvar = b[0].get("target")
+    # child = s.get(<keyvar>)  (the loop variable, not a string literal)
+    cv = b[0].get("value")
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"
+            and cv.get("func") == f"{subj}.get"):
+        return None
+    cargs = cv.get("args") or []
+    if len(cargs) != 1 or not _is_var(cargs[0], keyvar):
+        return None
+    if not isinstance(childvar, str):
+        return None
+    guard = b[1]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"):
+        return None
+    if not _is_var(_isinst_arg(guard.get("test"), "list"), childvar):
+        return None
+    if _final_tail_call(_only(guard.get("body")), walk_name, ctx_params) is None \
+            or not _is_var(_final_tail_call(_only(guard.get("body")), walk_name, ctx_params), childvar):
+        return None
+    orelse = guard.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    g2 = orelse[0]
+    if not (isinstance(g2, dict) and g2.get("stmt") == "If"):
+        return None
+    if not _is_var(_isinst_arg(g2.get("test"), "dict"), childvar):
+        return None
+    a = _final_tail_call(_only(g2.get("body")), stmt_name, ctx_params)
+    if a is None or not _is_var(a, childvar):
+        return None
+    return keys
+
+
+def _only(body: Any) -> Any:
+    """The single element of a 1-element list, else None."""
+    if isinstance(body, list) and len(body) == 1:
+        return body[0]
+    return None
+
+
+def _match_final_cs(node: Any, subj: str, stvar: str, walk_name: str,
+                    ctx_params: List[str]) -> Optional[Dict[str, Any]]:
+    """`if st == "<TAG>" and isinstance(s.get("<K>"), list): walk(s["<K>"],*ctx)`."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If"):
+        return None
+    ga = _and_operands(node.get("test"))
+    if ga is None:
+        return None
+    tag = _eq_str(ga[0], stvar)
+    if tag is None:
+        return None
+    arg = _isinst_arg(ga[1], "list")
+    cs_key = _sget_key(arg, subj) if arg is not None else None
+    if cs_key is None:
+        return None
+    call_arg = _final_tail_call(_only(node.get("body")), walk_name, ctx_params)
+    body_key = _subscript_key(call_arg, subj) if call_arg is not None else None
+    if body_key is None or body_key != cs_key:
+        return None
+    return {"cs_tag": tag, "cs_body_key": cs_key}
+
+
+def _eq_str(node: Any, var: str) -> Optional[str]:
+    """`<var> == "<s>"` -> s, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "=="):
+        return None
+    if not _is_var(node.get("left"), var):
+        return None
+    return _is_string(node.get("right"))
+
+
+def _match_final_match(node: Any, subj: str, stvar: str, walk_name: str,
+                       ctx_params: List[str]) -> Optional[Dict[str, Any]]:
+    """`if st == "<TAG>" and isinstance(s.get("<CK>"), list): for case in
+    s["<CK>"]: if isinstance(case,dict) and isinstance(case.get("<BK>"),list):
+    walk(case["<BK>"],*ctx)`."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If"):
+        return None
+    ga = _and_operands(node.get("test"))
+    if ga is None:
+        return None
+    tag = _eq_str(ga[0], stvar)
+    if tag is None:
+        return None
+    arg = _isinst_arg(ga[1], "list")
+    cases_key = _sget_key(arg, subj) if arg is not None else None
+    if cases_key is None:
+        return None
+    loop = _only(node.get("body"))
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"):
+        return None
+    if _subscript_key(loop.get("iter"), subj) != cases_key:
+        return None
+    casevar = loop.get("target")
+    if not isinstance(casevar, str):
+        return None
+    g = _only(loop.get("body"))
+    if not (isinstance(g, dict) and g.get("stmt") == "If"):
+        return None
+    ga2 = _and_operands(g.get("test"))
+    if ga2 is None:
+        return None
+    if not _is_var(_isinst_arg(ga2[0], "dict"), casevar):
+        return None
+    barg = _isinst_arg(ga2[1], "list")
+    case_body_key = _sget_key(barg, casevar) if barg is not None else None
+    if case_body_key is None:
+        return None
+    call_arg = _final_tail_call(_only(g.get("body")), walk_name, ctx_params)
+    ck = _subscript_key(call_arg, casevar) if call_arg is not None else None
+    if ck is None or ck != case_body_key:
+        return None
+    return {"match_tag": tag, "match_cases_key": cases_key,
+            "match_case_body_key": case_body_key}
+
+
+def emit_final_pair_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the fused `{_final_walk_body, _final_check_stmt}` pair as a pyval
+    mutual `let rec` group (see module note). All members `ensures True`
+    (`raises { PyCSLSemanticError }`); the two set-param memberships lower to
+    `Map.get <set> <str>` over the certified L1 `map string bool` repr."""
+    n = whyml_ident(desc["stmt_name"])
+    w = whyml_ident(desc["walk_name"])
+    set_params = desc["set_params"]
+    ctx = [whyml_ident(p) for p in desc["ctx_params"]]
+    ctx_sig = "".join(
+        f" ({whyml_ident(p)}: {'map string bool' if p in set_params else 'string'})"
+        for p in desc["ctx_params"])
+    ctx_args = "".join(f" {c}" for c in ctx)
+    f1_set = whyml_ident(desc["f1_set"])
+    f2_set = whyml_ident(desc["f2_set"])
+    exc = "    requires { true } ensures { true } raises { PyCSLSemanticError }"
+    f1_cond = " || ".join(f'pystr_eq st "{t}"' for t in desc["f1_tags"])
+    f2_cond = " || ".join(f'pystr_eq st "{t}"' for t in desc["f2_tags"])
+    out: List[str] = []
+    # --- statement-tag reader (pb-trio verbatim) -------------------------
+    out.append(f"  let rec {n}__get_stmt (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append(f'    | DCons (K_dyn k) (PStr s) rest -> if pystr_eq k "{desc["stmt_key"]}" then Some s else {n}__get_stmt rest')
+    out.append(f"    | DCons _ _ rest -> {n}__get_stmt rest end")
+    out.append("")
+    # --- shared value extractor (pv_size postcond) -----------------------
+    out.append(f"  let rec {n}__dget (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons (K_dyn k) v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        if pystr_eq k key then Some v else {n}__dget key rest")
+    out.append("    | DCons _ v rest ->")
+    out.append(f"        size_pos v; size_dict_nonneg rest; {n}__dget key rest end")
+    out.append("")
+    out.append(f"  let {n}__val_child (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append(f"  = {n}__dget key d")
+    out.append("")
+    out.append(f"  let {n}__list_child (key: string) (d: pydict) : list pyval")
+    out.append("    ensures { size_list result < 1 + size_dict d }")
+    out.append("  = size_dict_nonneg d;")
+    out.append(f"    match {n}__dget key d with")
+    out.append("    | Some (PList xs) -> size_list_nonneg xs; xs")
+    out.append("    | _ -> Nil")
+    out.append("    end")
+    out.append("")
+    # --- the mutual recursion group --------------------------------------
+    out.append(f"  let rec {n} (s: pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { pv_size s, 1 }")
+    out.append("  = match s with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_stmt d with")
+    out.append("         | Some st ->")
+    out.append(f"             (if ({f1_cond}) then")
+    out.append(f'                (match {n}__val_child "{desc["f1_target_key"]}" d with')
+    out.append(f"                 | Some (PStr tstr) -> if Map.get {f1_set} tstr then raise PyCSLSemanticError else ()")
+    out.append("                 | _ -> () end)")
+    out.append(f"              else if ({f2_cond}) then")
+    out.append(f'                (match {n}__val_child "{desc["f2_object_key"]}" d with')
+    out.append(f'                 | Some (PStr ostr) -> if pystr_eq ostr "{desc["f2_object_val"]}" then')
+    out.append(f'                       (match {n}__val_child "{desc["f2_field_key"]}" d with')
+    out.append(f"                        | Some (PStr fstr) -> if Map.get {f2_set} fstr then raise PyCSLSemanticError else ()")
+    out.append("                        | _ -> () end)")
+    out.append("                     else ()")
+    out.append("                 | _ -> () end)")
+    out.append("              else ());")
+    for k in desc["generic_keys"]:
+        out.append(f'             {n}__key "{k}" d{ctx_args};')
+    out.append(f'             (if pystr_eq st "{desc["cs_tag"]}" then {w} ({n}__list_child "{desc["cs_body_key"]}" d){ctx_args} else ());')
+    out.append(f'             (if pystr_eq st "{desc["match_tag"]}" then {n}__cases ({n}__list_child "{desc["match_cases_key"]}" d){ctx_args} else ())')
+    out.append("         | None ->")
+    genk = desc["generic_keys"]
+    for i, k in enumerate(genk):
+        term = ";" if i < len(genk) - 1 else ""
+        out.append(f'             {n}__key "{k}" d{ctx_args}{term}')
+    out.append("         end)")
+    out.append("    | _ -> () end")
+    # --- generic-key child handler (phase 2) -----------------------------
+    out.append(f"  with {n}__key (key: string) (d: pydict){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { size_dict d, 2 }")
+    out.append(f"  = (match {n}__val_child key d with")
+    out.append(f"     | Some (PList xs) -> {w} xs{ctx_args}")
+    out.append(f"     | Some (PDict cd) -> {n} (PDict cd){ctx_args}")
+    out.append("     | _ -> () end)")
+    # --- Match-cases descent (phase 0) -----------------------------------
+    out.append(f"  with {n}__cases (cases: list pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { size_list cases, 0 }")
+    out.append("  = match cases with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons c t ->")
+    out.append("        size_pos c; size_list_nonneg t;")
+    out.append(f'        (match c with PDict cd -> {w} ({n}__list_child "{desc["match_case_body_key"]}" cd){ctx_args} | _ -> () end);')
+    out.append(f"        {n}__cases t{ctx_args}")
+    out.append("    end")
+    # --- the re-based walk_body (phase 0) --------------------------------
+    out.append(f"  with {w} (stmts: list pyval){ctx_sig} : unit")
+    out.append(exc)
+    out.append("    variant { size_list stmts, 0 }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons s t ->")
+    out.append("        size_pos s; size_list_nonneg t;")
+    out.append(f"        (match s with PDict _ -> {n} s{ctx_args} | _ -> () end);")
+    out.append(f"        {w} t{ctx_args}")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
+# CHECK-FINAL CALLER — `_check_final(ir)`, the top-level Final[T] write-policy
+# driver (the caller of the `_final_walk_body`/`_final_check_stmt` pair). It
+# is emitted RIGHT AFTER the pair group (which it calls into), so its `ir` is
+# RE-BASED onto the pyval spine. The two `{e["name"] for e in registry if
+# e.get("kind") == K}` set-comprehensions lower to a filtered `map string bool`
+# BUILDER fold (`const false` empty set + `set_add`, both already in the
+# certified L1 set repr — NO new value shape); the driver `for func in
+# ir.get("functions")` loop lowers to a structural `list pyval` recursion
+# calling the pyval `_final_walk_body`. The `if not registry` / `if not mf and
+# not caf` early-returns are (under `ensures True`) semantics-preserving
+# optimisations of the empty-set path, so they are folded into the match's
+# None/`_` arms (no observable difference — an empty set raises nothing).
+# Proven in isolation (scratchpad/check_final_spike.mlw: 25/25 Valid).
+#
+# Non-facade: the registry/functions/kind/name/body keys and the two kind
+# values ("module"/"class_attr") are READ OFF `_check_final`'s body — a change
+# moves the emitted extractor/filter (mutation-faithful) or fails the
+# fail-closed match and reverts `_check_final` to `\trusted`.
+# =========================================================================
+
+def _is_not_return(node: Any, var: str) -> bool:
+    """`if not <var>: return` (empty orelse)."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If"
+            and not node.get("orelse")):
+        return False
+    t = node.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "UnaryOp"
+            and t.get("op") == "not" and _is_var(t.get("expr"), var)):
+        return False
+    b = node.get("body") or []
+    return len(b) == 1 and isinstance(b[0], dict) and b[0].get("stmt") == "Return"
+
+
+def _is_not_and_not_return(node: Any, v1: str, v2: str) -> bool:
+    """`if not <v1> and not <v2>: return` (empty orelse)."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If"
+            and not node.get("orelse")):
+        return False
+    ga = _and_operands(node.get("test"))
+    if ga is None:
+        return False
+    def _notv(x, v):
+        return (isinstance(x, dict) and x.get("type") == "UnaryOp"
+                and x.get("op") == "not" and _is_var(x.get("expr"), v))
+    if not (_notv(ga[0], v1) and _notv(ga[1], v2)):
+        return False
+    b = node.get("body") or []
+    return len(b) == 1 and isinstance(b[0], dict) and b[0].get("stmt") == "Return"
+
+
+def _match_setcomp(node: Any, reg_var: str) -> Optional[Dict[str, Any]]:
+    """`<set_var> = {<gv>["<elt_key>"] for <gv> in <reg_var> if
+    <gv>.get("<kind_key>") == "<kindval>"}` -> {set_var, elt_key, kind_key,
+    kindval, gen_var}, else None."""
+    if not (isinstance(node, dict) and node.get("stmt") == "Assign"):
+        return None
+    set_var = node.get("target")
+    sc = node.get("value") or {}
+    if not (isinstance(sc, dict) and sc.get("type") == "SetComp"):
+        return None
+    gens = sc.get("generators") or []
+    if len(gens) != 1 or not isinstance(set_var, str):
+        return None
+    g = gens[0]
+    gen_var = g.get("target")
+    if not isinstance(gen_var, str) or not _is_var(g.get("iter"), reg_var):
+        return None
+    elt_key = _subscript_key(sc.get("elt"), gen_var)
+    if elt_key is None:
+        return None
+    ifs = g.get("ifs") or []
+    if len(ifs) != 1:
+        return None
+    cmp = ifs[0]
+    if not (isinstance(cmp, dict) and cmp.get("type") == "BinOp"
+            and cmp.get("op") == "=="):
+        return None
+    kind_key = _sget_key(cmp.get("left"), gen_var)
+    kindval = _is_string(cmp.get("right"))
+    if kind_key is None or kindval is None:
+        return None
+    return {"set_var": set_var, "elt_key": elt_key, "kind_key": kind_key,
+            "kindval": kindval, "gen_var": gen_var}
+
+
+def _match_cf_loop(node: Any, subj: str, walk_name: str, mf_var: str,
+                   caf_var: str) -> Optional[Dict[str, Any]]:
+    """`for func in <subj>.get("<FK>", []): fname = func.get("<NK>", <def>);
+    <walk>(func.get("<BK>", []) or [], fname, <mf>, <caf>)`
+    -> {functions_key, name_key, body_key}, else None."""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return None
+    functions_key = _sget_key(node.get("iter"), subj)
+    func_var = node.get("target")
+    if functions_key is None or not isinstance(func_var, str):
+        return None
+    b = node.get("body") or []
+    if len(b) != 2 or not (isinstance(b[0], dict) and b[0].get("stmt") == "Assign"):
+        return None
+    fname_var = b[0].get("target")
+    name_key = _sget_key(b[0].get("value"), func_var)
+    if name_key is None or not isinstance(fname_var, str):
+        return None
+    call = b[1]
+    if not (isinstance(call, dict) and call.get("stmt") == "Expr"):
+        return None
+    cv = call.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"
+            and cv.get("func") == walk_name):
+        return None
+    args = cv.get("args") or []
+    if len(args) != 4:
+        return None
+    body_key = _or_empty_sget(args[0], func_var)
+    if body_key is None:
+        return None
+    if not (_is_var(args[1], fname_var) and _is_var(args[2], mf_var)
+            and _is_var(args[3], caf_var)):
+        return None
+    return {"functions_key": functions_key, "name_key": name_key,
+            "body_key": body_key}
+
+
+def recognize_check_final(func: Dict[str, Any], walk_name: str
+                          ) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_final(ir)` Final driver (see module
+    note). `walk_name` is the recognised pair's walk-body name (the callee).
+    Returns a descriptor (keys, kind values) or None. Never raises."""
+    try:
+        return _recognize_check_final(func, walk_name)
+    except Exception:
+        return None
+
+
+def _recognize_check_final(func: Dict[str, Any], walk_name: str
+                           ) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    a0 = body[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    registry_key = _sget_key(a0.get("value"), subj)
+    reg_var = a0.get("target")
+    if registry_key is None or not isinstance(reg_var, str):
+        return None
+    if not _is_not_return(body[1], reg_var):
+        return None
+    m2 = _match_setcomp(body[2], reg_var)
+    m3 = _match_setcomp(body[3], reg_var)
+    if m2 is None or m3 is None:
+        return None
+    if m2["elt_key"] != m3["elt_key"] or m2["kind_key"] != m3["kind_key"]:
+        return None
+    mf_var, caf_var = m2["set_var"], m3["set_var"]
+    if not _is_not_and_not_return(body[4], mf_var, caf_var):
+        return None
+    loop = _match_cf_loop(body[5], subj, walk_name, mf_var, caf_var)
+    if loop is None:
+        return None
+    return {"cf_name": func["name"], "walk_name": walk_name,
+            "registry_key": registry_key, "elt_key": m2["elt_key"],
+            "kind_key": m2["kind_key"], "mod_kindval": m2["kindval"],
+            "class_kindval": m3["kindval"], "functions_key": loop["functions_key"],
+            "name_key": loop["name_key"], "body_key": loop["body_key"]}
+
+
+def emit_check_final_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_final` driver group (see module note). MUST be emitted
+    AFTER the pair group (it calls the pyval `_final_walk_body`). All members
+    `ensures True`; the set-comprehensions lower to a filtered `map string bool`
+    builder over the certified L1 set repr (`const false` + `set_add`)."""
+    cf = whyml_ident(desc["cf_name"])
+    w = whyml_ident(desc["walk_name"])
+    exc = "    requires { true } ensures { true } raises { PyCSLSemanticError }"
+    out: List[str] = []
+    out.append(f"  let rec {cf}__dget (key: string) (d: pydict) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append(f"    | DCons (K_dyn k) v rest -> if pystr_eq k key then Some v else {cf}__dget key rest")
+    out.append(f"    | DCons _ v rest -> {cf}__dget key rest end")
+    out.append("")
+    out.append(f"  let {cf}__list (key: string) (d: pydict) : list pyval")
+    out.append(f"  = match {cf}__dget key d with Some (PList xs) -> xs | _ -> Nil end")
+    out.append("")
+    out.append(f"  let {cf}__str (key: string) (d: pydict) : string")
+    out.append(f'  = match {cf}__dget key d with Some (PStr s) -> s | _ -> "" end')
+    out.append("")
+    out.append(f"  let rec {cf}__build_set (registry: list pyval) (kindval: string) : map string bool")
+    out.append("    variant { registry }")
+    out.append("  = match registry with")
+    out.append("    | Nil -> const false")
+    out.append("    | Cons e rest ->")
+    out.append(f"        let acc = {cf}__build_set rest kindval in")
+    out.append("        (match e with")
+    out.append(f'         | PDict d -> (match {cf}__dget "{desc["kind_key"]}" d with')
+    out.append("             | Some (PStr k) -> if pystr_eq k kindval then")
+    out.append(f'                   (match {cf}__dget "{desc["elt_key"]}" d with Some (PStr nm) -> set_add acc nm | _ -> acc end)')
+    out.append("                 else acc")
+    out.append("             | _ -> acc end)")
+    out.append("         | _ -> acc end)")
+    out.append("    end")
+    out.append("")
+    out.append(f"  let rec {cf}__drive (funcs: list pyval) (mf: map string bool) (caf: map string bool) : unit")
+    out.append(exc)
+    out.append("    variant { funcs }")
+    out.append("  = match funcs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons f rest ->")
+    out.append(f'        (match f with PDict d -> {w} ({cf}__list "{desc["body_key"]}" d) ({cf}__str "{desc["name_key"]}" d) mf caf | _ -> () end);')
+    out.append(f"        {cf}__drive rest mf caf")
+    out.append("    end")
+    out.append("")
+    out.append(f"  let {cf} (ir: pyval) : unit")
+    out.append(exc)
+    out.append("  = match ir with")
+    out.append(f'    | PDict d -> (match {cf}__dget "{desc["registry_key"]}" d with')
+    out.append("        | Some (PList registry) ->")
+    out.append(f'            let mf = {cf}__build_set registry "{desc["mod_kindval"]}" in')
+    out.append(f'            let caf = {cf}__build_set registry "{desc["class_kindval"]}" in')
+    out.append(f'            {cf}__drive ({cf}__list "{desc["functions_key"]}" d) mf caf')
+    out.append("        | _ -> () end)")
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
 # IR-FREE-VARS — the `_ir_free_vars` value-returning SET-UNION fold
 # (core_ir_semantic self-annotation). A `Set[str]` catamorphism over the
 # dynamic `pyval`/`pydict`/`list pyval` ADT, returning the certified L1 set

@@ -2128,8 +2128,33 @@ class PreambleEmissionMixin:
             or recognize_check_noreturn_successors(f, self._nrw_names) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
-            recognize_closure_existence_pairs, recognize_lemma_string_search_pairs)
-        needs_pydict = needs_sdict or bool(
+            recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
+            recognize_final_pair, recognize_check_final)
+        # FINAL PAIR FUSION (generic_fold.py): the `{_final_walk_body,
+        # _final_check_stmt}` Final write-policy walker pair re-based onto the
+        # pyval spine (mutually-recursive `let rec` group so `_final_check_stmt`
+        # can be un-trusted). Module-level (needs both functions). None (no pair)
+        # -> every other mirror + the whole corpus byte-identical.
+        self._final_pair = recognize_final_pair(functions)
+        self._final_pair_names = (
+            set(self._final_pair["names"]) if self._final_pair else set())
+        self._final_pair_emitted = False
+        # CHECK-FINAL CALLER (generic_fold.py): the `_check_final(ir)` Final
+        # driver, re-based onto pyval and emitted RIGHT AFTER the pair group it
+        # calls into. Gated on the pair (needs its walk-body name); None -> the
+        # caller stays `\trusted` and every other mirror stays byte-identical.
+        self._check_final_desc = None
+        if self._final_pair:
+            _wn = self._final_pair["walk_name"]
+            for _f in functions:
+                if isinstance(_f, dict):
+                    _cfd = recognize_check_final(_f, _wn)
+                    if _cfd is not None:
+                        self._check_final_desc = _cfd
+                        break
+        self._check_final_name = (
+            self._check_final_desc["cf_name"] if self._check_final_desc else None)
+        needs_pydict = needs_sdict or (self._final_pair is not None) or bool(
             recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
             recognize_lemma_string_search_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
