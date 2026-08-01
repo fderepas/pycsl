@@ -9,18 +9,33 @@ import copy
 from typing import Any, Dict, List, Optional, Set, Tuple
 from errors import PyCSLSemanticError
 _MAX_INLINE_DEPTH = 16
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _walk_dicts(obj: Any):
-    pass
+    """Yield every dict node in an IR tree (depth-first)."""
+    if isinstance(obj, dict):
+        yield obj
+        for v in obj.values():
+            yield from _walk_dicts(v)
+    elif isinstance(obj, list):
+        for x in obj:
+            yield from _walk_dicts(x)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _touches_global(obj: Any, globals_set: int) -> bool:
+    for node in _walk_dicts(obj):
+        t = node.get("type") or node.get("stmt")
+        if t == "Attribute":
+            o = node.get("object")
+            if (isinstance(o, dict) and o.get("type") == "Var"
+                    and o.get("name") in globals_set):
+                return True
+        elif t in ("FieldGet", "FieldAssign", "FieldAugAssign"):
+            if node.get("object") in globals_set:
+                return True
     return False
 
 #@ requires True

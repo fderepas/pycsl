@@ -2892,6 +2892,8 @@ class FunctionEmissionMixin:
             recognize_void_dispatch, emit_void_dispatch_group,
             recognize_void_generic_descend, emit_void_generic_descend_group,
             recognize_wall2_items_walk, emit_wall2_items_walk_group,
+            recognize_walk_dicts_generator, emit_walk_dicts_generator_group,
+            recognize_walk_dicts_bool_consumer, emit_walk_dicts_bool_consumer_group,
             emit_pb_trio_group,
             recognize_type_existence, emit_type_existence_group,
             recognize_named_field_existence, emit_named_field_existence_group,
@@ -3428,6 +3430,22 @@ class FunctionEmissionMixin:
         _w2a = recognize_wall2_items_walk(func)
         if _w2a is not None:
             return emit_wall2_items_walk_group(func, _w2a, whyml_ident)
+        # R-W2b: the `.values()` GENERATOR-walker family (ir_inline.py). The
+        # generator `_walk_dicts(obj): if isinstance(obj,dict): yield obj; for v
+        # in obj.values(): yield from self(v); elif isinstance(obj,list): for x
+        # in obj: yield from self(x)` lowers onto the certified pyval/pydict L1
+        # catamorphism as the `list pyval` flatten trio. Its bool consumer
+        # `for node in _walk_dicts(obj): <tag/field/membership pred>; return
+        # False` folds over `_walk_dicts obj` (obj stays live). ensures True;
+        # membership is an opaque val. Fail-closed; corpus-inert.
+        _wdg = recognize_walk_dicts_generator(func)
+        if _wdg is not None:
+            return emit_walk_dicts_generator_group(func, _wdg, whyml_ident)
+        _wdc = recognize_walk_dicts_bool_consumer(func)
+        if _wdc is not None and _wdc["walk_name"] in {
+                f.get("name") for f in self.ir.get("functions", [])
+                if isinstance(f, dict) and recognize_walk_dicts_generator(f)}:
+            return emit_walk_dicts_bool_consumer_group(func, _wdc, whyml_ident)
         body_stmts = func["body"]
         # optional-field builder (monomorphic-option ADTs): rewrite the
         # `_csl_forall`/`_csl_exists` mutable-dict-conditional-add body to a single

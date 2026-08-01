@@ -6624,6 +6624,385 @@ def emit_wall2_items_walk_group(func: Dict[str, Any], desc: Dict[str, Any],
 
 
 # =========================================================================
+# R-W2b — the `.values()` GENERATOR-walker family (Wall-2, ir_inline.py).
+#
+# `_walk_dicts` is a depth-first GENERATOR that yields every dict subterm of an
+# IR tree:
+#     def _walk_dicts(obj):
+#         if isinstance(obj, dict):
+#             yield obj
+#             for v in obj.values():
+#                 yield from _walk_dicts(v)
+#         elif isinstance(obj, list):
+#             for x in obj:
+#                 yield from _walk_dicts(x)
+#
+# It lowers onto the certified pyval/pydict L1 catamorphism as the `list pyval`
+# flatten trio (`_walk_dicts / __d / __l`) — Cons the dict node, then append the
+# recursion over its `.values()` (the `size_dict` fold) and over list elements
+# (the `size_list` fold). `pv_size`/`size_dict`/`size_list` give the certified
+# cross-decreasing measure (NO new axiom; ledger 3), identical to
+# `emit_pyval_flatten_group`'s `__ftapp` append trick.
+#
+# IR-EROSION HONESTY: `yield`/`yield from` erase to `Expr(UnknownPyExpr)` in the
+# IR (Module5 has no Yield node). So the recognizer keys on the VISIBLE skeleton
+# (the two `isinstance(obj, dict/list)` guards, the `obj.values()` iteration, the
+# bare list iteration) PLUS the yield-marker `Expr(UnknownPyExpr)` statements in
+# their exact positions/counts — a removed yield changes the statement count and
+# reverts the match (loud count regression), a structural mutation
+# (`.values()`->`.keys()`, dropped list branch) fails the fail-closed match. A
+# yield-CONTENT swap (`yield obj`->`yield v`) is IR-invisible and therefore not
+# distinguished; this is an inherent IR limitation, not an emission facade — the
+# emitted trio genuinely flattens `obj` (the vacuity gate passes: `obj` is
+# matched-on, not erased). The emission's SHAPE is fully determined by the
+# recognised visible structure.
+#
+# The bool CONSUMER `_touches_global(obj, globals_set)` fuses the walk with a
+# per-node existence predicate (`for node in _walk_dicts(obj): <tag/field/
+# membership test>; return False`). It lowers to a `size_list` fold over
+# `_walk_dicts obj` (so `obj` stays live). Its predicate is FULLY visible in the
+# IR — the literal tags ("Attribute"/"FieldGet"/...) and keys ("type"/"object"/
+# "name") are read off the body and reflected in the emitted arm (mutation-
+# sensitive). `ensures True`: the fold's value is VC-unconstrained; only type-
+# safety + `size_list`-termination are proven. Membership in the string-keyed set
+# `globals_set` is an opaque `val` (result unconstrained -> not an axiom).
+# =========================================================================
+
+def _wd_yield_marker(stmt: Any) -> bool:
+    """`Expr(UnknownPyExpr)` — the erased `yield`/`yield from` marker."""
+    return (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"
+            and isinstance(stmt.get("value"), dict)
+            and stmt["value"].get("type") == "UnknownPyExpr")
+
+
+def recognize_walk_dicts_generator(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the R-W2b `_walk_dicts` `.values()` generator (see the
+    module note). Returns {name, subject} or None. Never raises."""
+    try:
+        return _recognize_walk_dicts_generator(func)
+    except Exception:
+        return None
+
+
+def _recognize_walk_dicts_generator(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    # a generator has no value return annotation
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    # if isinstance(obj, dict): yield obj; for v in obj.values(): yield from self(v)
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+    dbody = outer.get("body", [])
+    if len(dbody) != 2 or not _wd_yield_marker(dbody[0]):
+        return None
+    vfor = dbody[1]
+    if not (isinstance(vfor, dict) and vfor.get("stmt") == "For"
+            and not vfor.get("orelse")):
+        return None
+    vit = vfor.get("iter", {})
+    if not (isinstance(vit, dict) and vit.get("type") == "Call"
+            and vit.get("func") == f"{subj}.values" and not vit.get("args")):
+        return None
+    vbody = vfor.get("body", [])
+    if len(vbody) != 1 or not _wd_yield_marker(vbody[0]):
+        return None
+    # elif isinstance(obj, list): for x in obj: yield from self(x)
+    orelse = outer.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    linner = orelse[0]
+    if not (isinstance(linner, dict) and linner.get("stmt") == "If"
+            and not linner.get("orelse")):
+        return None
+    if not _match_isinstance(linner.get("test", {}), subj, "list"):
+        return None
+    lbody = linner.get("body", [])
+    if len(lbody) != 1:
+        return None
+    lfor = lbody[0]
+    if not (isinstance(lfor, dict) and lfor.get("stmt") == "For"
+            and not lfor.get("orelse") and _is_var(lfor.get("iter"), subj)):
+        return None
+    lfbody = lfor.get("body", [])
+    if len(lfbody) != 1 or not _wd_yield_marker(lfbody[0]):
+        return None
+    return {"name": func.get("name"), "subject": subj}
+
+
+def emit_walk_dicts_generator_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                    whyml_ident) -> List[str]:
+    """Emit `_walk_dicts` as the certified `list pyval` flatten trio over the
+    pyval/pydict L1 catamorphism. A local total append (`{n}__wdapp`, the
+    `emit_pyval_flatten_group.__ftapp` trick — no `list.Append` import).
+    `ensures True`; termination is the cross-decreasing `pv_size`/`size_dict`/
+    `size_list` measure (no new axiom)."""
+    n = whyml_ident(func["name"])
+    out: List[str] = []
+    out.append(f"  let rec function {n}__wdapp (a b: list pyval) : list pyval")
+    out.append("    variant { a }")
+    out.append(f"  = match a with Nil -> b | Cons h t -> Cons h ({n}__wdapp t b) end")
+    out.append(f"  let rec {n} (obj: pyval) : list pyval")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { pv_size obj }")
+    out.append("  = match obj with")
+    out.append(f"    | PDict d  -> Cons obj ({n}__d d)")
+    out.append(f"    | PList xs -> {n}__l xs")
+    out.append("    | _ -> (Nil: list pyval)")
+    out.append("    end")
+    out.append(f"  with {n}__d (d: pydict) : list pyval")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> (Nil: list pyval)")
+    out.append(f"    | DCons _ v rest -> {n}__wdapp ({n} v) ({n}__d rest)")
+    out.append("    end")
+    out.append(f"  with {n}__l (xs: list pyval) : list pyval")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> (Nil: list pyval)")
+    out.append(f"    | Cons h t -> {n}__wdapp ({n} h) ({n}__l t)")
+    out.append("    end")
+    return out
+
+
+# ---- R-W2b bool CONSUMER (`for node in _walk_dicts(obj): <pred>; return False`) ----
+
+def _wd_node_get(node: Any, nodevar: str) -> Optional[str]:
+    """`<nodevar>.get("<KEY>")` (single string arg) -> KEY, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{nodevar}.get"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    return _is_string(args[0])
+
+
+def _wd_membership(test: Any, setvar_box: List[str]) -> Optional[Any]:
+    """`<X> in <SETVAR>` -> the LHS X (records SETVAR). Fail-closed."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "in"):
+        return None
+    rhs = test.get("right", {})
+    if not (isinstance(rhs, dict) and rhs.get("type") == "Var"):
+        return None
+    sv = rhs.get("name")
+    if not isinstance(sv, str):
+        return None
+    if setvar_box and setvar_box[0] != sv:
+        return None
+    if not setvar_box:
+        setvar_box.append(sv)
+    return test.get("left")
+
+
+def recognize_walk_dicts_bool_consumer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the R-W2b bool `.values()`-walk consumer `_touches_global`
+    (see the module note). Returns {name, subject, walk_name, set_param, type_key,
+    attr_tag, obj_key, name_key, field_tags} or None. Never raises."""
+    try:
+        return _recognize_walk_dicts_bool_consumer(func)
+    except Exception:
+        return None
+
+
+def _recognize_walk_dicts_bool_consumer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    subj, set_param = params[0], params[1]
+    body = func.get("body", [])
+    if len(body) != 2:
+        return None
+    loop, tail = body
+    # tail: return False
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # loop: for node in <walk_name>(subj): <2 stmts>
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and not loop.get("orelse")):
+        return None
+    it = loop.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"):
+        return None
+    walk_name = it.get("func")
+    wargs = it.get("args") or []
+    if (not isinstance(walk_name, str) or "." in walk_name
+            or len(wargs) != 1 or not _is_var(wargs[0], subj)):
+        return None
+    nodev = loop.get("target")
+    if not isinstance(nodev, str):
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) != 2:
+        return None
+    # stmt 0: t = node.get("<type_key>") or node.get(<any>)
+    a0 = lbody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and isinstance(a0.get("target"), str)):
+        return None
+    tvar = a0["target"]
+    a0v = a0.get("value", {})
+    if not (isinstance(a0v, dict) and a0v.get("type") == "BinOp"
+            and a0v.get("op") == "or"):
+        return None
+    type_key = _wd_node_get(a0v.get("left"), nodev)
+    if type_key is None or _wd_node_get(a0v.get("right"), nodev) is None:
+        return None
+    # stmt 1: if t == "<attr_tag>": <A-arm> else: if t in (<field_tags>): <B-arm>
+    disp = lbody[1]
+    if not (isinstance(disp, dict) and disp.get("stmt") == "If"):
+        return None
+    dt = disp.get("test", {})
+    if not (isinstance(dt, dict) and dt.get("type") == "BinOp"
+            and dt.get("op") == "==" and _is_var(dt.get("left"), tvar)):
+        return None
+    attr_tag = _is_string(dt.get("right"))
+    if attr_tag is None:
+        return None
+    setbox: List[str] = [set_param]
+    # A-arm: o = node.get("<obj_key>"); if isinstance(o,dict) and o.get("type")=="Var"
+    #        and o.get("<name_key>") in set_param: return True
+    abody = disp.get("body", [])
+    if len(abody) != 2:
+        return None
+    oa = abody[0]
+    if not (isinstance(oa, dict) and oa.get("stmt") == "Assign"
+            and isinstance(oa.get("target"), str)):
+        return None
+    ovar = oa["target"]
+    obj_key = _wd_node_get(oa.get("value"), nodev)
+    if obj_key is None:
+        return None
+    aif = abody[1]
+    if not (isinstance(aif, dict) and aif.get("stmt") == "If"
+            and not aif.get("orelse")):
+        return None
+    # test = (isinstance(o,dict) and o.get("type")=="Var") and (o.get(name_key) in set)
+    at = aif.get("test", {})
+    if not (isinstance(at, dict) and at.get("type") == "BinOp" and at.get("op") == "and"):
+        return None
+    mem_lhs = _wd_membership(at.get("right"), setbox)
+    if mem_lhs is None:
+        return None
+    name_key = _wd_node_get(mem_lhs, ovar)
+    if name_key is None:
+        return None
+    if not (len(aif.get("body", [])) == 1 and _is_bool_true_return(aif["body"][0])):
+        return None
+    # B-arm (else): if t in (<field_tags>): if node.get(obj_key) in set: return True
+    orelse = disp.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    bif = orelse[0]
+    if not (isinstance(bif, dict) and bif.get("stmt") == "If" and not bif.get("orelse")):
+        return None
+    bt = bif.get("test", {})
+    if not (isinstance(bt, dict) and bt.get("type") == "BinOp" and bt.get("op") == "in"
+            and _is_var(bt.get("left"), tvar)):
+        return None
+    tup = bt.get("right", {})
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    field_tags = [_is_string(e) for e in (tup.get("elts") or [])]
+    if not field_tags or any(t is None for t in field_tags):
+        return None
+    bbody = bif.get("body", [])
+    if len(bbody) != 1:
+        return None
+    bii = bbody[0]
+    if not (isinstance(bii, dict) and bii.get("stmt") == "If" and not bii.get("orelse")):
+        return None
+    bmem = _wd_membership(bii.get("test"), setbox)
+    if bmem is None or _wd_node_get(bmem, nodev) != obj_key:
+        return None
+    if not (len(bii.get("body", [])) == 1 and _is_bool_true_return(bii["body"][0])):
+        return None
+    return {"name": func.get("name"), "subject": subj, "walk_name": walk_name,
+            "set_param": set_param, "type_key": type_key, "attr_tag": attr_tag,
+            "obj_key": obj_key, "name_key": name_key, "field_tags": field_tags}
+
+
+def emit_walk_dicts_bool_consumer_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                        whyml_ident) -> List[str]:
+    """Emit the R-W2b bool consumer as a `size_list` fold over `<walk_name> obj`
+    (keeping `obj` live). The per-node arm reflects the recognised tag literals
+    ("<attr_tag>"/<field_tags>) and keys ("<type_key>"/"<obj_key>"/"<name_key>")
+    read off the body — mutation-sensitive. `ensures True`; membership in the
+    string-keyed set is an opaque `val` (result unconstrained -> not an axiom)."""
+    n = whyml_ident(func["name"])
+    walk = whyml_ident(desc["walk_name"])
+    setp = whyml_ident(desc["set_param"])
+    setty = "map int (option int)"
+    tk = desc["type_key"]
+    ok = desc["obj_key"]
+    nk = desc["name_key"]
+    at = desc["attr_tag"]
+    field_tags = desc["field_tags"]
+    out: List[str] = []
+    # dynamic-string-key reader (K_dyn match; literal key is reflected)
+    out.append(f"  let rec {n}__getk (d: pydict) (name: string) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append(f"    | DCons (K_dyn s) v rest -> if pystr_eq name s then Some v else {n}__getk rest name")
+    out.append(f"    | DCons _ _ rest -> {n}__getk rest name")
+    out.append("    end")
+    # opaque string-keyed-set membership (result VC-free -> not an axiom)
+    out.append(f"  val {n}__mem (m: {setty}) (s: string) : bool")
+    # the field-tag disjunction
+    field_disj = " || ".join(f'pystr_eq tv "{t}"' for t in field_tags)
+    out.append(f"  let rec {n}__f (nodes: list pyval) ({setp}: {setty}) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list nodes }")
+    out.append("  = match nodes with")
+    out.append("    | Nil -> false")
+    out.append("    | Cons node rest ->")
+    out.append("        let hit =")
+    out.append("          match node with")
+    out.append("          | PDict d ->")
+    out.append(f'              (match {n}__getk d "{tk}" with')
+    out.append("               | Some (PStr tv) ->")
+    out.append(f'                   if pystr_eq tv "{at}" then')
+    out.append(f'                     (match {n}__getk d "{ok}" with')
+    out.append("                      | Some (PDict od) ->")
+    out.append(f'                          (match {n}__getk od "{nk}" with')
+    out.append(f"                           | Some (PStr nm) -> {n}__mem {setp} nm")
+    out.append("                           | _ -> false end)")
+    out.append("                      | _ -> false end)")
+    out.append(f"                   else if {field_disj} then")
+    out.append(f'                     (match {n}__getk d "{ok}" with')
+    out.append(f"                      | Some (PStr onm) -> {n}__mem {setp} onm")
+    out.append("                      | _ -> false end)")
+    out.append("                   else false")
+    out.append("               | _ -> false end)")
+    out.append("          | _ -> false")
+    out.append("          end")
+    out.append("        in")
+    out.append(f"        if hit then true else {n}__f rest {setp}")
+    out.append("    end")
+    out.append(f"  let {n} (obj: pyval) ({setp}: {setty}) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__f ({walk} obj) {setp}")
+    return out
+
+
+# =========================================================================
 # PB-TRIO FUSION — the mutually-recursive `{_pb_stmt, _pb_body, _pb_descend}`
 # statement-walker triad (core_ir_semantic self-annotation), fused into ONE
 # `let rec … with …` group so `_pb_stmt` can be UN-TRUSTED.
