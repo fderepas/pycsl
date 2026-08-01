@@ -791,12 +791,48 @@ def _check_mutable_defaults(func) -> None:
 def _check_acts(func) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_happy(ir) -> None:
-    pass
+    happy = ir.get("happy")
+    if not happy:
+        return
+    method_names = set(happy.get("method_names", []))
+    exec_methods = happy.get("exec_methods", [])
+    # written fields = the `self.<field>[...] = v` sites (ArraySet on a FieldGet of self),
+    # collected from every function body in the IR.
+    written: set = set()
+    for func in ir.get("functions", []):
+        _hp_collect_written(func.get("body", []) or [], written)
+    for hp in happy.get("properties", []):
+        hname = hp.get("name")
+        except_set = hp.get("except_set", [])
+        for name in except_set:
+            if name not in method_names:
+                raise PyCSLSemanticError(
+                    f"`happy {hname}`: exempt function '{name}' is not a method "
+                    f"in this module. Known methods: {sorted(method_names)}. "
+                    f"A typo in the exempt set would silently widen the property's "
+                    f"coverage, so this is rejected.",
+                    code="PYCSL-SEM-HAPPY")
+        for m in sorted(set(exec_methods)):
+            if m not in except_set:
+                raise PyCSLSemanticError(
+                    f"`happy {hname}`: method '{m}' contains a dynamic `exec(...)`, "
+                    f"which may write anything (not a compile-time-constant exec, so it "
+                    f"cannot be spliced/bounded). A non-exempt dynamic-exec method cannot "
+                    f"be confined by this property — add it to the except set or remove the "
+                    f"exec. (07-1839 P5 — exec is a worst-case mutator under HAPPY.)",
+                    code="PYCSL-SEM-HAPPY")
+        if hp.get("protects") is not None:
+            continue
+        if hp.get("field") not in written:
+            warnings.warn(
+                f"`happy {hname}`: no write to `self.{hp.get('field')}[...]` found in "
+                f"this module — the property expands to zero obligations (inert). "
+                f"Check the field name.",
+                stacklevel=2)
 
 #@ requires True
 #@ ensures True

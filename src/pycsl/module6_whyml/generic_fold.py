@@ -9372,6 +9372,304 @@ def emit_check_warn_fold_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
 
 
 # =========================================================================
+# HAPPY module-check orchestrator recogniser — `recognize_check_happy`.
+#
+# self-tcb-reduction: the `_check_happy(ir)` module-level HAPPY orchestrator —
+# it (1) reads `ir["happy"]`, early-returns if falsy; (2) builds `method_names`
+# = `set(happy["method_names"])`; (3) folds `ir["functions"]` through the
+# converted set-collector `_hp_collect_written` (a `ref (map string bool)`
+# mutator) to build the `written` set; (4) folds `happy["properties"]`,
+# per property raising `PyCSLSemanticError` when an `except_set` name is not a
+# known method (`name not in method_names`, a `map string bool` membership) or
+# an `exec_methods` method is not exempt (`m not in except_set`, a LIST
+# membership), then (protects-guarded) `warnings.warn`s an inert field.
+#
+# Lowered over the certified pydict/list `pyval` bridge (`pget_dyn`/`pget_list`,
+# `set_add`/`const false`, `Map.get`), reusing the already-emitted collector.
+# The two raise conditions and every dict key (`happy`, `functions`, `body`,
+# `method_names`, `exec_methods`, `properties`, `except_set`) are DERIVED from
+# the source body, so the emission is mutation-sensitive (not a name facade).
+# The `sorted`/`set` wrappers are order/dedup-only (VC-irrelevant under `ensures
+# True`) so the exec loop folds the raw `exec_methods` list; the protects/field/
+# warn tail is an unmodelled report-only no-op (`warnings.warn`). `ensures true`,
+# `raises { PyCSLSemanticError }`. NO new type/axiom/cert, ledger 3. Fail-closed;
+# any shape deviation stays `\trusted`.
+
+def _match_get_default_empty(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<K>", [])` -> "<K>" or None (requires the `[]` default)."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{subj}.get"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 2:
+        return None
+    default = args[1]
+    if not (isinstance(default, dict) and default.get("type") == "ArrayLit"
+            and not default.get("elts")):
+        return None
+    return _is_string(args[0])
+
+
+def _match_set_of_get(node: Any, subj: str) -> Optional[str]:
+    """`set(<subj>.get("<K>", []))` -> "<K>" or None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "set"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    return _match_get_default_empty(args[0], subj)
+
+
+def _match_not_in(test: Any, left_var: str) -> Optional[str]:
+    """`<left_var> not in <Var>` -> the right-hand var name, or None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "not in" and _is_var(test.get("left"), left_var)):
+        return None
+    right = test.get("right")
+    if isinstance(right, dict) and right.get("type") == "Var":
+        return right.get("name")
+    return None
+
+
+def _is_single_raise_if(stmt: Any, left_var: str, right_var: str) -> bool:
+    """`if <left_var> not in <right_var>: raise PyCSLSemanticError` (single-stmt
+    body, no orelse)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return False
+    if _match_not_in(stmt.get("test"), left_var) != right_var:
+        return False
+    b = stmt.get("body") or []
+    return (len(b) == 1 and isinstance(b[0], dict)
+            and b[0].get("stmt") == "Raise")
+
+
+def recognize_check_happy(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_check_happy(ir)` HAPPY orchestrator. Returns a
+    key-descriptor dict or None; never raises."""
+    try:
+        return _recognize_check_happy(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_happy(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    ir = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 7:
+        return None
+    # b0: happy = ir.get("happy")
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    happy_var = b0.get("target")
+    happy_key = _match_get_call(b0.get("value"), ir)
+    if not isinstance(happy_var, str) or happy_key is None:
+        return None
+    # b1: if not <happy_var>: return
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "If"):
+        return None
+    t1 = b1.get("test")
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp"
+            and t1.get("op") == "not" and _is_var(t1.get("expr"), happy_var)):
+        return None
+    # b2: method_names = set(<happy_var>.get("<mn>", []))
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Assign"):
+        return None
+    mn_var = b2.get("target")
+    mn_key = _match_set_of_get(b2.get("value"), happy_var)
+    if not isinstance(mn_var, str) or mn_key is None:
+        return None
+    # b3: exec_methods = <happy_var>.get("<em>", [])
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Assign"):
+        return None
+    em_var = b3.get("target")
+    em_key = _match_get_default_empty(b3.get("value"), happy_var)
+    if not isinstance(em_var, str) or em_key is None:
+        return None
+    # b4: written = set()
+    b4 = body[4]
+    if not (isinstance(b4, dict) and b4.get("stmt") == "Assign"):
+        return None
+    written_var = b4.get("target")
+    v4 = b4.get("value")
+    if not (isinstance(written_var, str) and isinstance(v4, dict)
+            and v4.get("type") == "Call" and v4.get("func") == "set"
+            and not (v4.get("args") or [])):
+        return None
+    # b5: for func in ir.get("<funcs>", []): collector(func.get("<body>",[]) or [], written)
+    b5 = body[5]
+    if not (isinstance(b5, dict) and b5.get("stmt") == "For"):
+        return None
+    funcs_key = _match_get_default_empty(b5.get("iter"), ir)
+    fvar = b5.get("target")
+    if funcs_key is None or not isinstance(fvar, str):
+        return None
+    fbody = b5.get("body") or []
+    if len(fbody) != 1 or not (isinstance(fbody[0], dict)
+                               and fbody[0].get("stmt") == "Expr"):
+        return None
+    call = fbody[0].get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    collector = call.get("func")
+    cargs = call.get("args") or []
+    if not (isinstance(collector, str) and len(cargs) == 2
+            and _is_var(cargs[1], written_var)):
+        return None
+    arg0 = cargs[0]
+    if not (isinstance(arg0, dict) and arg0.get("type") == "BinOp"
+            and arg0.get("op") == "or"):
+        return None
+    body_key = _match_get_default_empty(arg0.get("left"), fvar)
+    r0 = arg0.get("right")
+    if body_key is None or not (isinstance(r0, dict)
+                                and r0.get("type") == "ArrayLit"):
+        return None
+    # b6: for hp in happy.get("<props>", []): <property checks>
+    b6 = body[6]
+    if not (isinstance(b6, dict) and b6.get("stmt") == "For"):
+        return None
+    props_key = _match_get_default_empty(b6.get("iter"), happy_var)
+    hvar = b6.get("target")
+    if props_key is None or not isinstance(hvar, str):
+        return None
+    pbody = b6.get("body") or []
+    if len(pbody) != 6:
+        return None
+    # pbody[1]: except_set = hp.get("<ex>", [])
+    ib1 = pbody[1]
+    if not (isinstance(ib1, dict) and ib1.get("stmt") == "Assign"):
+        return None
+    ex_var = ib1.get("target")
+    ex_key = _match_get_default_empty(ib1.get("value"), hvar)
+    if not isinstance(ex_var, str) or ex_key is None:
+        return None
+    # pbody[2]: for name in except_set: if name not in method_names: raise
+    ib2 = pbody[2]
+    if not (isinstance(ib2, dict) and ib2.get("stmt") == "For"
+            and _is_var(ib2.get("iter"), ex_var)):
+        return None
+    nvar = ib2.get("target")
+    nb = ib2.get("body") or []
+    if not (isinstance(nvar, str) and len(nb) == 1
+            and _is_single_raise_if(nb[0], nvar, mn_var)):
+        return None
+    # pbody[3]: for m in sorted(set(exec_methods)): if m not in except_set: raise
+    ib3 = pbody[3]
+    if not (isinstance(ib3, dict) and ib3.get("stmt") == "For"):
+        return None
+    it3 = ib3.get("iter")
+    # sorted(set(<em_var>))
+    if not (isinstance(it3, dict) and it3.get("type") == "Call"
+            and it3.get("func") == "sorted"):
+        return None
+    sargs = it3.get("args") or []
+    if not (len(sargs) == 1 and isinstance(sargs[0], dict)
+            and sargs[0].get("type") == "Call" and sargs[0].get("func") == "set"
+            and len(sargs[0].get("args") or []) == 1
+            and _is_var(sargs[0]["args"][0], em_var)):
+        return None
+    mvar = ib3.get("target")
+    mb = ib3.get("body") or []
+    if not (isinstance(mvar, str) and len(mb) == 1
+            and _is_single_raise_if(mb[0], mvar, ex_var)):
+        return None
+    return {
+        "name": func.get("name"),
+        "ir": ir,
+        "happy_key": happy_key,
+        "mn_key": mn_key,
+        "em_key": em_key,
+        "funcs_key": funcs_key,
+        "body_key": body_key,
+        "props_key": props_key,
+        "ex_key": ex_key,
+        "collector": collector,
+    }
+
+
+def emit_check_happy_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the `_check_happy` HAPPY orchestrator over the certified pydict/list
+    `pyval` bridge, reusing the already-emitted set-collector. `ensures true`,
+    `raises { PyCSLSemanticError }`. NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    ir = whyml_ident(desc["ir"])
+    coll = whyml_ident(desc["collector"])
+    hk = desc["happy_key"]
+    mnk = desc["mn_key"]
+    emk = desc["em_key"]
+    fk = desc["funcs_key"]
+    bk = desc["body_key"]
+    pk = desc["props_key"]
+    exk = desc["ex_key"]
+    out: List[str] = []
+    # set-from-list (method_names).
+    out.append(f"  let rec {n}__setof (l: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { l }")
+    out.append("  = match l with Nil -> const false")
+    out.append(f"    | Cons (PStr s) t -> set_add ({n}__setof t) s")
+    out.append(f"    | Cons _ t -> {n}__setof t end")
+    # written-set fold over ir["functions"] via the converted collector.
+    out.append(f"  let rec {n}__ffold (fs: list pyval) (written: ref (map string bool)) : unit")
+    out.append("    requires { true } ensures { true } variant { fs }")
+    out.append("  = match fs with Nil -> ()")
+    out.append(f'    | Cons f t -> (match f with PDict fd -> {coll} (PList (pget_list "{bk}" fd)) written | _ -> () end);')
+    out.append(f"                  {n}__ffold t written end")
+    # list membership (`m not in except_set`).
+    out.append(f"  let rec {n}__lmem (s: string) (l: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { l }")
+    out.append("  = match l with Nil -> false")
+    out.append(f"    | Cons (PStr x) t -> (if pystr_eq x s then true else {n}__lmem s t)")
+    out.append(f"    | Cons _ t -> {n}__lmem s t end")
+    # except_set fold: raise when a name is not a known method.
+    out.append(f"  let rec {n}__exfold (es: list pyval) (mn: map string bool) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { es }")
+    out.append("  = match es with Nil -> ()")
+    out.append("    | Cons (PStr nm) t -> (if not (Map.get mn nm) then raise PyCSLSemanticError);")
+    out.append(f"                          {n}__exfold t mn")
+    out.append(f"    | Cons _ t -> {n}__exfold t mn end")
+    # exec fold: raise when an exec method is not exempt.
+    out.append(f"  let rec {n}__execf (ms: list pyval) (es: list pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { ms }")
+    out.append("  = match ms with Nil -> ()")
+    out.append(f"    | Cons (PStr m) t -> (if not ({n}__lmem m es) then raise PyCSLSemanticError);")
+    out.append(f"                         {n}__execf t es")
+    out.append(f"    | Cons _ t -> {n}__execf t es end")
+    # properties fold: per property, run both raise-folds.
+    out.append(f"  let rec {n}__pfold (ps: list pyval) (mn: map string bool) (em: list pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError } variant { ps }")
+    out.append("  = match ps with Nil -> ()")
+    out.append(f'    | Cons (PDict hd) t -> {n}__exfold (pget_list "{exk}" hd) mn;')
+    out.append(f'                           {n}__execf em (pget_list "{exk}" hd);')
+    out.append(f"                           {n}__pfold t mn em")
+    out.append(f"    | Cons _ t -> {n}__pfold t mn em end")
+    # top wrapper.
+    out.append(f"  let {n} ({ir}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match {ir} with")
+    out.append(f'    | PDict d -> (match pget_dyn "{hk}" d with')
+    out.append("                  | Some (PDict hd) ->")
+    out.append(f'                      let mn = {n}__setof (pget_list "{mnk}" hd) in')
+    out.append(f'                      let em = pget_list "{emk}" hd in')
+    out.append("                      let written = ref (const false) in")
+    out.append(f'                      {n}__ffold (pget_list "{fk}" d) written;')
+    out.append(f'                      {n}__pfold (pget_list "{pk}" hd) mn em')
+    out.append("                  | _ -> () end)")
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
 # stmt_ir tree-walk existence recogniser — `recognize_stmt_has`.
 #
 # tree-walk-wall-impl.md (self-tcb-reduction, GATE-S PROVEN): the FAITHFUL,

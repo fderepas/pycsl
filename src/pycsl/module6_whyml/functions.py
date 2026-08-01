@@ -3060,6 +3060,18 @@ class FunctionEmissionMixin:
         _cwf = recognize_check_warn_fold(func)
         if _cwf is not None:
             return emit_check_warn_fold_group(_cwf, whyml_ident)
+        # HAPPY module-check orchestrator (`_check_happy`): reads `ir["happy"]`,
+        # builds `method_names` = `set(happy["method_names"])`, folds
+        # `ir["functions"]` through the converted set-collector to build the
+        # `written` set, then folds `happy["properties"]` raising by
+        # except-set/exec-method membership + a report-only warn tail. Lowered
+        # over the certified pydict/list `pyval` bridge, reusing the collector.
+        # Corpus-inert; fail-closed (any shape deviation stays `\trusted`).
+        from module6_whyml.generic_fold import (
+            recognize_check_happy, emit_check_happy_group)
+        _chp = recognize_check_happy(func)
+        if _chp is not None:
+            return emit_check_happy_group(_chp, whyml_ident)
         # string-keyed-set NoReturn cluster (check-noreturn-successors driver):
         # #1 the FLAT `ir["functions"]` set-projection fold
         # (`_collect_noreturn_names`) — read the one list field off `ir`'s
