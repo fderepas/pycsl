@@ -190,3 +190,21 @@ sub-cases need the callee converted first (leaf-first) or emit it as an opaque v
 
 REMAINING after that: raw-ast boundaries, stateful IR-mutation (ir_resolve/monomorphize _rewrite_*/
 _specialize_*), the pyval→stmt_ir bridge cert.
+
+## 2026-08-02 CORRECTION — nested-closure cluster is a BOUNDARY, not a capability (count 822)
+The f66921bf note ("next capability = nested-closure walk recognizer") is WRONG. VERIFIED by IR
+inspection: `_func_returns_string_seq`'s emitted IR body is [Assign svt, If not svt->ret, Assign
+found=[False], Expr rec(func.get("body")), Return found[0]] — the inner `def rec(node): ...` is
+DROPPED by Module5 (nested defs are not represented in the IR); the `Expr` is a call to `rec` with NO
+definition, and the found[0] cell's walk semantics are GONE. So the nested-closure cluster
+(_func_returns_string_seq, _returns_string_seq, auto_trust._collect_map_typed_locals/_has_set_op_on_map/
+_is_linear_expr/_extract_array_lengths, types._collect_*) is UN-MODELABLE from the IR — the walk lives
+in the dropped closure. It would need a live-source rewrite (hoist the closure to a top-level function)
+= forbidden (zero live-parser changes; verbatim mirror). GENUINE BOUNDARY.
+
+DEFINITIVE: the recognizer-tractable AUTONOMOUS frontier is EXHAUSTED at 822. Every remaining stub is a
+boundary class — nested-closure (dropped def), CSL-dataclass AST (Weaver: CSLNode/Act/Var via _dc_fields),
+raw-ast (Ingestor text-parse / monomorphize _ast), heterogeneous-dict (types._field_type_*), stateful
+IR-mutation (ir_resolve/monomorphize _rewrite_*/_specialize_*), or cross-call-on-trusted (leaf-first) —
+OR a large review-gated campaign (pyval->stmt_ir bridge cert; modular verification for core_ir_semantic).
+No more autonomous recognizer wins. Session 883->822 (61 conv).
