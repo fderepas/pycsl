@@ -2888,6 +2888,7 @@ class FunctionEmissionMixin:
             recognize_generic_fold, emit_generic_fold_group,
             recognize_setfold, emit_setfold_group,
             recognize_boolfold_isinstance, emit_boolfold_isinstance_group,
+            recognize_flat_tag_func_pred, emit_flat_tag_func_pred_group,
             recognize_stmt_setfold, emit_stmt_setfold_group,
             recognize_substmap, emit_substmap_group,
             recognize_bool_existence, emit_bool_existence_group,
@@ -3317,6 +3318,12 @@ class FunctionEmissionMixin:
         _bfi = recognize_boolfold_isinstance(func)
         if _bfi is not None:
             return emit_boolfold_isinstance_group(func, _bfi, whyml_ident)
+        # flat tag+func string predicate (`_is_decode_call`): non-recursive
+        # single-node PDict read + tag guard + func string-predicate; `.endswith`
+        # -> opaque per-fn `val __suffix` (no axiom). Fail-closed; corpus-inert.
+        _ftf = recognize_flat_tag_func_pred(func)
+        if _ftf is not None:
+            return emit_flat_tag_func_pred_group(func, _ftf, whyml_ident)
         # bigger-build G-set-accumulate-multiway: the Set[str] statement-tree
         # accumulate fold (by-return sibling of `recognize_bool_existence`, same
         # `list pyval`/tag-dispatch/body-orelse-descend shape, `recognize_setfold`'s

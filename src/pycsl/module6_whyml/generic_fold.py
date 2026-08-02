@@ -1567,6 +1567,137 @@ def emit_boolfold_isinstance_group(func: Dict[str, Any], desc: Dict[str, Any],
     return out
 
 
+# ---- FLAT tag+func string predicate (`_is_decode_call`) ---------------------
+# A NON-recursive single-node bool predicate:
+#   if not isinstance(ir, dict) or ir.get("<tag_key>") != "<tag>": return False
+#   fn = ir.get("<func_key>")
+#   return isinstance(fn, str) and (fn == "<s>" or fn.endswith("<s>") or ...)
+# Emitted as a flat pyval-model read (no variant — no recursion): PDict + the
+# tag guard + the func string-predicate. `isinstance(fn, str)` maps EXACTLY to
+# the `Some (PStr fn)` reader arm (faithful: non-strings -> false). `==` ->
+# `pystr_eq`; `.endswith` -> per-fn opaque `val __suffix` (result unconstrained
+# -> NOT an axiom). Every tag/key/literal reflected (mutation-sensitive).
+
+def _is_false_return(stmt: Any) -> bool:
+    return (isinstance(stmt, dict) and stmt.get("stmt") == "Return"
+            and isinstance(stmt.get("value"), dict)
+            and stmt["value"].get("type") == "Bool"
+            and stmt["value"].get("value") is False)
+
+
+def recognize_flat_tag_func_pred(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the flat tag+func string predicate (`_is_decode_call`).
+    Returns {name, subject, tag_key, tag, func_key, clauses} or None. Never raises."""
+    try:
+        return _recognize_flat_tag_func_pred(func)
+    except Exception:
+        return None
+
+
+def _recognize_flat_tag_func_pred(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    s_guard, s_asgn, s_ret = body
+    # s_guard: if (not isinstance(subj,dict)) or (subj.get("<tk>") != "<tag>"): return False
+    if not (isinstance(s_guard, dict) and s_guard.get("stmt") == "If" and not s_guard.get("orelse")):
+        return None
+    gt = s_guard.get("test", {})
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "or"):
+        return None
+    gl = gt.get("left", {})
+    if not (isinstance(gl, dict) and gl.get("type") == "UnaryOp" and gl.get("op") == "not"
+            and _match_isinstance(gl.get("expr", {}), subj, "dict")):
+        return None
+    gr = gt.get("right", {})
+    if not (isinstance(gr, dict) and gr.get("type") == "BinOp" and gr.get("op") == "!="):
+        return None
+    tk = _bfi_node_get(gr.get("left"), subj)
+    tag = _is_string(gr.get("right"))
+    if tk is None or tag is None:
+        return None
+    if not (len(s_guard.get("body", [])) == 1 and _is_false_return(s_guard["body"][0])):
+        return None
+    # s_asgn: fn = subj.get("<fk>")
+    if not (isinstance(s_asgn, dict) and s_asgn.get("stmt") == "Assign"
+            and isinstance(s_asgn.get("target"), str)):
+        return None
+    fv = s_asgn["target"]
+    fk = _bfi_node_get(s_asgn.get("value"), subj)
+    if fk is None or fv == subj:
+        return None
+    # s_ret: return isinstance(fv,str) and (<or-tree of fv=="s" | fv.endswith("s")>)
+    if not (isinstance(s_ret, dict) and s_ret.get("stmt") == "Return"):
+        return None
+    rv = s_ret.get("value", {})
+    if not (isinstance(rv, dict) and rv.get("type") == "BinOp" and rv.get("op") == "and"):
+        return None
+    if not _match_isinstance(rv.get("left", {}), fv, "str"):
+        return None
+    clauses: List[Any] = []
+    for leaf in _bfi_flatten_or(rv.get("right", {})):
+        if (isinstance(leaf, dict) and leaf.get("type") == "BinOp" and leaf.get("op") == "=="
+                and _is_var(leaf.get("left"), fv)):
+            s = _is_string(leaf.get("right"))
+            if s is None:
+                return None
+            clauses.append(("eq", s))
+        elif (isinstance(leaf, dict) and leaf.get("type") == "Call"
+              and leaf.get("func") == f"{fv}.endswith"):
+            a = leaf.get("args") or []
+            if len(a) != 1:
+                return None
+            s = _is_string(a[0])
+            if s is None:
+                return None
+            clauses.append(("suffix", s))
+        else:
+            return None
+    if not clauses:
+        return None
+    return {"name": func.get("name"), "subject": subj, "tag_key": tk, "tag": tag,
+            "func_key": fk, "clauses": clauses}
+
+
+def emit_flat_tag_func_pred_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                  whyml_ident) -> List[str]:
+    """Emit the flat tag+func string predicate: a pyval-model read with the tag
+    guard + the func string-predicate. `.endswith` -> per-fn opaque `val
+    __suffix` (no axiom). Every tag/key/literal reflected. `ensures True`."""
+    n = whyml_ident(func["name"])
+    tk, fk, tag = desc["tag_key"], desc["func_key"], desc["tag"]
+    has_suffix = any(c[0] == "suffix" for c in desc["clauses"])
+    out: List[str] = []
+    if has_suffix:
+        out.append(f"  val {n}__suffix (s p: string) : bool")
+    out.extend(_bfi_reader(n, tk))
+    if fk != tk:
+        out.extend(_bfi_reader(n, fk))
+    disj = " || ".join(
+        (f'pystr_eq fn "{s}"' if k == "eq" else f'{n}__suffix fn "{s}"')
+        for k, s in desc["clauses"])
+    tks, fks = _reader_suffix(tk), _reader_suffix(fk)
+    out.append(f"  let {n} ({desc['subject']}: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {desc['subject']} with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__g_{tks} d with")
+    out.append(f'         | Some (PStr t) -> if pystr_eq t "{tag}" then')
+    out.append(f"             (match {n}__g_{fks} d with")
+    out.append(f"              | Some (PStr fn) -> {disj}")
+    out.append("              | _ -> false end)")
+    out.append("           else false")
+    out.append("         | _ -> false end)")
+    out.append("    | _ -> false end")
+    return out
+
+
 # =========================================================================
 # ir-traversal-residual T1 — the FUNCTORIAL-MAP (reconstruction) algebra
 # (result_algebra = the value type itself), plus insight C (guard classif.).

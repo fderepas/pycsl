@@ -2486,13 +2486,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _detect_array_dimensions(self, func_ir: int) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _is_decode_call(ir: Any) -> bool:
-        return False
+        """str-list-elements: is `ir` a `bytes.decode(...)` call (the `func` tail is
+        `decode`)? `b.decode()` lowers to a `Call` whose `func` is `"decode"` (receiver
+        a Subscript) or `"<name>.decode"` (receiver a Name). Its result is a `str`."""
+        if not isinstance(ir, dict) or ir.get("type") != "Call":
+            return False
+        fn = ir.get("func")
+        return isinstance(fn, str) and (fn == "decode" or fn.endswith(".decode"))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
