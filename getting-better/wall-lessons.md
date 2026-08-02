@@ -888,3 +888,21 @@ emit_ir expression grammar parse too. Termination = pv_size structural recursion
 (Phase2d_StmtIR.v / StmtIR.lean) already exists (axiom-free). FEASIBLE but LARGE (multi-session):
 this is the real shape of the authorized cert campaign. Unlocks _check_noreturn + reconciles the
 9 stmt_ir/stmt_list consumers with the pyval world. NOT a heartbeat-tail inline win.
+
+## BOUNDARY (2026-08-02): _check_class_invariants — set-ENUMERATION over the membership-only StrSet
+Measure-first (IR dump + emitted-type check, NO build) on the next short target `_check_class_invariants`
+(core_ir_semantic). Body: `for td in ir["type_decls"] if kind=="record": field_set=set(field_names);
+for inv in class_invariants: for var in sorted(v for v in _ir_free_vars(inv) if v): if var not in
+field_set: raise`. The inner loop ENUMERATES `_ir_free_vars(inv)`. But `_ir_free_vars` emits
+`pyval -> map string bool` (the certified MEMBERSHIP-only StrSet). A `map string bool` is a TOTAL
+FUNCTION — it has NO enumeration; you cannot `for var in` it. So the check (iterate the free-var set,
+test each against field_set, raise) is UN-modelable on the current representation.
+
+This is the SET-ENUMERATION boundary — SAME ROOT as `bases_closure` (worklist BFS needs to enumerate
+an abstract map) and the SAME CLASS as `_check_noreturn` (representation mismatch). SYSTEMIC finding:
+the `map string bool` StrSet model — which UNLOCKED many conversions (membership guards, set-collect
+folds, R-W2d, union cluster) — CANNOT serve any stub that ENUMERATES a COMPUTED set. Fixing needs
+`_ir_free_vars` (and siblings) to return an ENUMERABLE `list string` instead of `map string bool` —
+a §10.4 verified-method RE-REPRESENTATION with corpus/proof risk, NOT an inline win. There is no
+`map string bool -> list string` bridge (you cannot enumerate a total function). Record + skip.
+Stays trusted at 828.
