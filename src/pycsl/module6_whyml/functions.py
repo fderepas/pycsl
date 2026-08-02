@@ -2918,6 +2918,7 @@ class FunctionEmissionMixin:
             recognize_cs_clause, emit_cs_clause_group,
             recognize_check_class_invariants, emit_check_class_invariants_group,
             recognize_check_gt3_schema_only, emit_check_gt3_schema_only_group,
+            recognize_check_bounds, emit_check_bounds_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
@@ -3398,6 +3399,9 @@ class FunctionEmissionMixin:
         _gt3 = recognize_check_gt3_schema_only(func)
         if _gt3 is not None:
             return emit_check_gt3_schema_only_group(_gt3, whyml_ident)
+        _cb = recognize_check_bounds(func)
+        if _cb is not None:
+            return emit_check_bounds_group(_cb, whyml_ident)
         _csc = recognize_cs_clause(func)
         if _csc is not None:
             from module6_whyml.generic_fold import emit_pb_trio_group

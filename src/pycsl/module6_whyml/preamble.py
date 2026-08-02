@@ -2067,6 +2067,7 @@ class PreambleEmissionMixin:
             recognize_pyval_flatten, recognize_ir_free_vars,
             recognize_check_class_invariants,
             recognize_check_gt3_schema_only,
+            recognize_check_bounds,
             recognize_cs_clause, recognize_check_contract_exprs,
             recognize_check_body_walk,
             recognize_check_subscript_assignments,
@@ -2106,6 +2107,7 @@ class PreambleEmissionMixin:
             or recognize_cs_clause(f) is not None
             or recognize_check_class_invariants(f) is not None
             or recognize_check_gt3_schema_only(f) is not None
+            or recognize_check_bounds(f) is not None
             or recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
             or recognize_check_subscript_assignments(f) is not None
@@ -2138,6 +2140,7 @@ class PreambleEmissionMixin:
             # class-invariant / gt3 checkers read fields/type_params via pget_list.
             or recognize_check_class_invariants(f) is not None
             or recognize_check_gt3_schema_only(f) is not None
+            or recognize_check_bounds(f) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,

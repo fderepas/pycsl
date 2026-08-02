@@ -11167,6 +11167,156 @@ def emit_check_gt3_schema_only_group(desc: Dict[str, Any], whyml_ident) -> List[
     return out
 
 
+# ---- `_check_bounds`: instantiation-set raise-consumer (__anystr device) ------
+#   for gname, ct in instantiations:
+#       info = generics.get(gname)
+#       if info is None: continue
+#       for tp in info["<tp_key>"]:
+#           bound = tp.get("<bound_key>")
+#           if bound is None: continue
+#           if ct != bound: raise PyCSLSemanticError(...)
+# `instantiations` is a Set[Tuple[str,str]] (no pyval element list) -> the SAME
+# __anystr over-approximation as `_cs_clause`: pick arbitrary `gname`/`ct`, look
+# `gname` up in `generics` (pget_dyn), fold the CONCRETE `type_params` list, and
+# raise when `ct != bound`. `instantiations` is an opaque unused `pyval` param.
+# `gname` also feeds the message (erased). Keys reflected (mutation-sensitive).
+
+def recognize_check_bounds(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_check_bounds`. Returns {name, generics_param,
+    tp_key, bound_key} or None. Never raises."""
+    try:
+        return _recognize_check_bounds(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_bounds(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_check_bounds":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    gp = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For"):
+        return None
+    tts = outer.get("tuple_targets") or []
+    if len(tts) != 2:
+        return None
+    gname, ct = tts
+    ob = outer.get("body") or []
+    if len(ob) != 3:
+        return None
+    # ob[0]: info = generics.get(gname)
+    a0 = ob[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and isinstance(a0.get("target"), str)):
+        return None
+    info_var = a0["target"]
+    av = a0.get("value") or {}
+    if not (isinstance(av, dict) and av.get("type") == "Call" and av.get("func") == f"{gp}.get"
+            and len(av.get("args") or []) == 1 and _is_var(av["args"][0], gname)):
+        return None
+    # ob[1]: if info is None: continue
+    g1 = ob[1]
+    t1 = g1.get("test") if isinstance(g1, dict) else None
+    if not (isinstance(g1, dict) and g1.get("stmt") == "If" and not (g1.get("orelse") or [])
+            and isinstance(t1, dict) and t1.get("type") == "BinOp" and t1.get("op") == "=="
+            and _is_var(t1.get("left"), info_var) and isinstance(t1.get("right"), dict)
+            and t1["right"].get("type") == "None"):
+        return None
+    gb1 = g1.get("body") or []
+    if not (len(gb1) == 1 and gb1[0].get("stmt") == "Continue"):
+        return None
+    # ob[2]: for tp in info["<tp_key>"]: bound=tp.get("<bk>"); if bound is None: continue; if ct != bound: raise
+    inner = ob[2]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"):
+        return None
+    iit = inner.get("iter") or {}
+    tp_key = None
+    if isinstance(iit, dict) and iit.get("type") == "Subscript" and _is_var(iit.get("value"), info_var):
+        tp_key = _is_string(iit.get("index"))
+    if tp_key is None:
+        return None
+    tp = inner.get("target")
+    ib = inner.get("body") or []
+    if len(ib) != 3 or not isinstance(tp, str):
+        return None
+    # ib[0]: bound = tp.get("<bk>")
+    b0 = ib[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign" and isinstance(b0.get("target"), str)):
+        return None
+    bound_var = b0["target"]
+    bv = b0.get("value") or {}
+    if not (isinstance(bv, dict) and bv.get("type") == "Call" and bv.get("func") == f"{tp}.get"
+            and (bv.get("args") or [])):
+        return None
+    bound_key = _is_string(bv["args"][0])
+    if bound_key is None:
+        return None
+    # ib[1]: if bound is None: continue
+    g2 = ib[1]
+    t2 = g2.get("test") if isinstance(g2, dict) else None
+    if not (isinstance(g2, dict) and g2.get("stmt") == "If" and not (g2.get("orelse") or [])
+            and isinstance(t2, dict) and t2.get("type") == "BinOp" and t2.get("op") == "=="
+            and _is_var(t2.get("left"), bound_var) and isinstance(t2.get("right"), dict)
+            and t2["right"].get("type") == "None"):
+        return None
+    gb2 = g2.get("body") or []
+    if not (len(gb2) == 1 and gb2[0].get("stmt") == "Continue"):
+        return None
+    # ib[2]: if ct != bound: raise
+    g3 = ib[2]
+    t3 = g3.get("test") if isinstance(g3, dict) else None
+    if not (isinstance(g3, dict) and g3.get("stmt") == "If" and not (g3.get("orelse") or [])
+            and isinstance(t3, dict) and t3.get("type") == "BinOp" and t3.get("op") == "!="
+            and _is_var(t3.get("left"), ct) and _is_var(t3.get("right"), bound_var)):
+        return None
+    gb3 = g3.get("body") or []
+    if not (len(gb3) == 1 and isinstance(gb3[0], dict) and gb3[0].get("stmt") == "Raise"):
+        return None
+    return {"name": func["name"], "generics_param": gp, "tp_key": tp_key, "bound_key": bound_key}
+
+
+def emit_check_bounds_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_check_bounds`: the __anystr (arbitrary gname/ct) device over the
+    opaque instantiation set, a `generics` pget_dyn lookup, and a `type_params`
+    `list pyval` fold raising when `ct != bound`. `ensures True`, `raises {
+    PyCSLSemanticError }`. NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    tpk, bk = desc["tp_key"], desc["bound_key"]
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let rec {n}__tps (ct: string) (tps: list pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { tps }")
+    out.append("  = match tps with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons tp rest ->")
+    out.append("        (match tp with")
+    out.append(f'         | PDict d -> (match pget_dyn "{bk}" d with')
+    out.append("                      | Some (PStr bound) -> if pystr_eq ct bound then () else raise PyCSLSemanticError")
+    out.append("                      | _ -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__tps ct rest")
+    out.append("    end")
+    out.append(f"  let {n} (generics: pyval) (instantiations: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = let gname = {n}__anystr () in")
+    out.append(f"    let ct = {n}__anystr () in")
+    out.append("    let _ = instantiations in")
+    out.append("    match generics with")
+    out.append(f'    | PDict g -> (match pget_dyn gname g with')
+    out.append(f'                  | Some (PDict info) -> {n}__tps ct (pget_list "{tpk}" info)')
+    out.append("                  | _ -> () end)")
+    out.append("    | _ -> () end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`

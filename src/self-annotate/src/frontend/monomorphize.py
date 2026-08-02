@@ -114,12 +114,35 @@ def _extract_ast_subscript(node: Any, generic_names: int) -> int:
 def _check_gt4_polymorphic_recursion(ir_data: int, generics: int, instantiations: int, validated_ast: Any=None) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _check_bounds(generics: int, instantiations: int) -> None:
-    pass
+def _check_bounds(
+    generics: Dict[str, Dict[str, Any]],
+    instantiations: Set[Tuple[str, str]],
+) -> None:
+    """For each (generic, concrete_type) with a bound B on the TypeVar, the
+    concrete type must satisfy B. Today: exact match (invariant checking, GT2).
+    A bound that is None admits any concrete type."""
+    for (gname, ct) in instantiations:
+        info = generics.get(gname)
+        if info is None:
+            continue
+        for tp in info["type_params"]:
+            bound = tp.get("bound")
+            if bound is None:
+                continue
+            # Invariant checking (GT2): the concrete type must be EXACTLY the
+            # bound. Stricter than S1 (which admits subtyping); legitimate
+            # divergence-by-strictness.
+            if ct != bound:
+                raise PyCSLSemanticError(
+                    f"monomorphization: generic {gname!r} instantiated with "
+                    f"{ct!r} but its TypeVar {tp.get('name')!r} is bound to "
+                    f"{bound!r} — invariant check (GT2: variance deferred) "
+                    f"requires the concrete type to be exactly the bound.",
+                    stage="monomorphize", code="PYCSL-TY3-BOUND",
+                )
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
