@@ -1074,12 +1074,40 @@ def _check_class_invariants(ir) -> None:
                         code="PYCSL-SEM-CLASSINV",
                     )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_mutex_invariants(ir) -> None:
-    pass
+    """Module-level mutex-invariant scope/well-formedness, migrated from Module 4's
+    ``_validate_mutex_invariant_scope`` (refactor.md B-final). For each
+    ``#@ mutex_invariant <m>: <expr>``, every free variable referenced by ``<expr>``
+    must be a shared variable protected by ``<m>`` (matching by full mutex name OR by
+    array-mutex base, ``m.split('[')[0]``). Single-/two-letter names (loop/quantifier
+    binders common in invariants) are tolerated, mirroring the AST check.
+
+    This was a MODULE-level check (Module 4 ran it once in ``visit_Module``, before any
+    ``FunctionDef`` was visited — so the ``var in self.current_scope`` branch it carried
+    was over an *empty* scope and never matched). The IR has no module-level function
+    scope, so only the shared-var set remains; the message is reproduced byte-for-byte.
+    Free variables come from ``_ir_free_vars`` (Module 4's ``extract_variables`` port)."""
+    shared_vars = ir.get("shared_vars") or []
+    mutex_invariants = ir.get("mutex_invariants") or {}
+    # {var_name: mutex} over the IR's `[{name, mutex}]` shared-var list.
+    shared = {sv.get("name"): sv.get("mutex") for sv in shared_vars}
+    for mutex, inv_expr in mutex_invariants.items():
+        protected = {v for v, m in shared.items() if m == mutex or
+                     (m is not None and m.split('[')[0] == mutex.split('[')[0])}
+        for var in _ir_free_vars(inv_expr):
+            if var in protected:
+                continue
+            # Allow single-letter loop variables common in invariants
+            if len(var) <= 2:
+                continue
+            raise PyCSLSemanticError(
+                f"Mutex invariant for '{mutex}': variable '{var}' is not a shared variable "
+                f"protected by '{mutex}'. Protected variables: {sorted(protected)}.",
+                code="PYCSL-SEM-MUTEXINV",
+            )
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

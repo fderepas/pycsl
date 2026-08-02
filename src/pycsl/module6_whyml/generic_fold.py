@@ -11317,6 +11317,215 @@ def emit_check_bounds_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     return out
 
 
+# ---- `_check_mutex_invariants`: mutex-invariant scope check (__anystr) --------
+#   shared_vars = ir.get("shared_vars") or []
+#   mutex_invariants = ir.get("mutex_invariants") or {}
+#   shared = {sv["name"]: sv["mutex"] for sv in shared_vars}
+#   for mutex, inv_expr in mutex_invariants.items():
+#       protected = {v for v,m in shared.items() if m==mutex or base(m)==base(mutex)}
+#       for var in _ir_free_vars(inv_expr):
+#           if var in protected: continue
+#           if len(var) <= N: continue
+#           raise PyCSLSemanticError(...)
+# The inner free-var loop is the SAME __anystr raise-consumer as _check_class_invariants.
+# `protected` is built inline as a `set_add` fold over `shared_vars` (reading
+# `<name_key>`/`<mutex_key>`) with the mutex-match guard `m==mutex ||
+# base(m)==base(mutex)`; `base` is `split(<split_char>)[0]` -> a per-fn opaque
+# `val __base (s sep: string)` reflecting the split char (non-facade); `len(var)
+# <= N` -> a per-fn opaque `val __len (s)` compared to the reflected N. `_ir_free_vars`
+# is CALLED (VC discharges); `mutex` feeds the message (erased). Ledger 3.
+
+def _cmi_find_split_char(node: Any) -> Optional[str]:
+    """Recursively find the first `<x>.split("<c>")` call's string arg -> "<c>"."""
+    if isinstance(node, dict):
+        fn = node.get("func")
+        if (node.get("type") == "Call" and isinstance(fn, str) and fn.endswith(".split")):
+            args = node.get("args") or []
+            if args:
+                s = _is_string(args[0])
+                if s is not None:
+                    return s
+        for v in node.values():
+            r = _cmi_find_split_char(v)
+            if r is not None:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _cmi_find_split_char(x)
+            if r is not None:
+                return r
+    return None
+
+
+def recognize_check_mutex_invariants(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_check_mutex_invariants`. Returns {name, sv_key,
+    mi_key, name_key, mutex_key, split_char, fv_name, len_const} or None."""
+    try:
+        return _recognize_check_mutex_invariants(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_mutex_invariants(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_check_mutex_invariants":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    ir_p = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 4:
+        return None
+    sv_a, mi_a, sh_a, outer = body
+    if not (isinstance(sv_a, dict) and sv_a.get("stmt") == "Assign"):
+        return None
+    sv_var = sv_a.get("target")
+    sv_key = _cci_get_or_empty(sv_a.get("value"), ir_p)
+    if not (isinstance(mi_a, dict) and mi_a.get("stmt") == "Assign"):
+        return None
+    mi_var = mi_a.get("target")
+    mi_key = _cci_get_or_empty(mi_a.get("value"), ir_p)
+    if not (isinstance(sv_var, str) and sv_key and isinstance(mi_var, str) and mi_key):
+        return None
+    # shared = {sv.get("<name>"): sv.get("<mutex>") for sv in shared_vars}
+    if not (isinstance(sh_a, dict) and sh_a.get("stmt") == "Assign"):
+        return None
+    dc = sh_a.get("value") or {}
+    if not (isinstance(dc, dict) and dc.get("type") == "DictComp"):
+        return None
+    gens = dc.get("generators") or []
+    if len(gens) != 1:
+        return None
+    svv = gens[0].get("target")
+    name_key = _match_get_call(dc.get("key"), svv) if isinstance(svv, str) else None
+    mutex_key = _match_get_call(dc.get("value"), svv) if isinstance(svv, str) else None
+    if not (name_key and mutex_key and _is_var(gens[0].get("iter"), sv_var)):
+        return None
+    # outer: for mutex, inv_expr in mutex_invariants.items(): [protected=SetComp, var_for]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For"):
+        return None
+    oit = outer.get("iter") or {}
+    if not (isinstance(oit, dict) and oit.get("type") == "Call"
+            and oit.get("func") == f"{mi_var}.items"):
+        return None
+    tts = outer.get("tuple_targets") or []
+    if len(tts) != 2:
+        return None
+    mutex_v, invexpr_v = tts
+    ob = outer.get("body") or []
+    if len(ob) != 2:
+        return None
+    prot_a, var_for = ob
+    if not (isinstance(prot_a, dict) and prot_a.get("stmt") == "Assign"):
+        return None
+    prot_var = prot_a.get("target")
+    scomp = prot_a.get("value") or {}
+    if not (isinstance(scomp, dict) and scomp.get("type") == "SetComp"):
+        return None
+    split_char = _cmi_find_split_char(scomp)
+    if split_char is None:
+        return None
+    # var_for: for var in _ir_free_vars(inv_expr): [if var in prot: continue; if len(var)<=N: continue; raise]
+    if not (isinstance(var_for, dict) and var_for.get("stmt") == "For"):
+        return None
+    vit = var_for.get("iter") or {}
+    if not (isinstance(vit, dict) and vit.get("type") == "Call"):
+        return None
+    fv_name = _canon_call(vit.get("func") or "")
+    if not (len(vit.get("args") or []) == 1 and _is_var(vit["args"][0], invexpr_v)):
+        return None
+    var_v = var_for.get("target")
+    vb = var_for.get("body") or []
+    if len(vb) != 3 or not isinstance(var_v, str):
+        return None
+    g0 = vb[0]
+    t0 = g0.get("test") if isinstance(g0, dict) else None
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If" and not (g0.get("orelse") or [])
+            and isinstance(t0, dict) and t0.get("type") == "BinOp" and t0.get("op") == "in"
+            and _is_var(t0.get("left"), var_v) and _is_var(t0.get("right"), prot_var)):
+        return None
+    if not (len(g0.get("body", [])) == 1 and g0["body"][0].get("stmt") == "Continue"):
+        return None
+    g1 = vb[1]
+    t1 = g1.get("test") if isinstance(g1, dict) else None
+    if not (isinstance(g1, dict) and g1.get("stmt") == "If" and not (g1.get("orelse") or [])
+            and isinstance(t1, dict) and t1.get("type") == "BinOp" and t1.get("op") == "<="):
+        return None
+    lc = t1.get("left") or {}
+    if not (isinstance(lc, dict) and lc.get("type") == "Call" and lc.get("func") == "len"
+            and len(lc.get("args") or []) == 1 and _is_var(lc["args"][0], var_v)):
+        return None
+    rn = t1.get("right") or {}
+    if not (isinstance(rn, dict) and rn.get("type") == "Number" and isinstance(rn.get("value"), int)):
+        return None
+    len_const = rn["value"]
+    if not (len(g1.get("body", [])) == 1 and g1["body"][0].get("stmt") == "Continue"):
+        return None
+    if not (isinstance(vb[2], dict) and vb[2].get("stmt") == "Raise"):
+        return None
+    return {"name": func["name"], "sv_key": sv_key, "mi_key": mi_key,
+            "name_key": name_key, "mutex_key": mutex_key, "split_char": split_char,
+            "fv_name": fv_name, "len_const": len_const}
+
+
+def emit_check_mutex_invariants_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_check_mutex_invariants`: a `set_add` protected-fold over shared_vars
+    (mutex-match guard with an opaque `__base` reflecting the split char), the
+    __anystr free-var raise-consumer over `_ir_free_vars`, and a `mutex_invariants`
+    pydict fold. `ensures True`, `raises { PyCSLSemanticError }`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    fv = whyml_ident(desc["fv_name"])
+    svk, mik = desc["sv_key"], desc["mi_key"]
+    nk, mk = desc["name_key"], desc["mutex_key"]
+    sep = desc["split_char"]
+    L = desc["len_const"]
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  val {n}__base (s sep: string) : string")
+    out.append(f"  val {n}__len (s: string) : int")
+    out.append(f"  let rec {n}__prot (svs: list pyval) (mutex: string) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { svs }")
+    out.append("  = match svs with")
+    out.append("    | Nil -> const false")
+    out.append("    | Cons sv rest ->")
+    out.append(f"        let acc = {n}__prot rest mutex in")
+    out.append("        (match sv with")
+    out.append(f'         | PDict d -> (match pget_dyn "{mk}" d with')
+    out.append(f'                      | Some (PStr m) -> if (pystr_eq m mutex) || (pystr_eq ({n}__base m "{sep}") ({n}__base mutex "{sep}")) then')
+    out.append(f'                          (match pget_dyn "{nk}" d with Some (PStr nm) -> set_add acc nm | _ -> acc end)')
+    out.append("                        else acc")
+    out.append("                      | _ -> acc end)")
+    out.append("         | _ -> acc end)")
+    out.append("    end")
+    out.append(f"  let {n}__inv (svs: list pyval) (mutex: string) (inv_expr: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = let prot = {n}__prot svs mutex in")
+    out.append(f"    let _fv = {fv} inv_expr in")
+    out.append(f"    let var = {n}__anystr () in")
+    out.append(f"    if (not (Map.get prot var)) && (not (({n}__len var) <= {L}))")
+    out.append("    then raise PyCSLSemanticError else ()")
+    out.append(f"  let rec {n}__invs (svs: list pyval) (mis: pydict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { mis }")
+    out.append("  = match mis with")
+    out.append("    | DNil -> ()")
+    out.append("    | DCons k v rest ->")
+    out.append(f"        (match k with K_dyn mutex -> {n}__inv svs mutex v | _ -> () end);")
+    out.append(f"        {n}__invs svs rest")
+    out.append("    end")
+    out.append(f"  let {n} (ir: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("  = match ir with")
+    out.append(f'    | PDict d -> (match pget_dyn "{mik}" d with')
+    out.append(f'                  | Some (PDict mi) -> {n}__invs (pget_list "{svk}" d) mi')
+    out.append("                  | _ -> () end)")
+    out.append("    | _ -> () end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`

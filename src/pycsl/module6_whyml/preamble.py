@@ -2068,6 +2068,7 @@ class PreambleEmissionMixin:
             recognize_check_class_invariants,
             recognize_check_gt3_schema_only,
             recognize_check_bounds,
+            recognize_check_mutex_invariants,
             recognize_cs_clause, recognize_check_contract_exprs,
             recognize_check_body_walk,
             recognize_check_subscript_assignments,
@@ -2108,6 +2109,7 @@ class PreambleEmissionMixin:
             or recognize_check_class_invariants(f) is not None
             or recognize_check_gt3_schema_only(f) is not None
             or recognize_check_bounds(f) is not None
+            or recognize_check_mutex_invariants(f) is not None
             or recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
             or recognize_check_subscript_assignments(f) is not None
@@ -2141,6 +2143,7 @@ class PreambleEmissionMixin:
             or recognize_check_class_invariants(f) is not None
             or recognize_check_gt3_schema_only(f) is not None
             or recognize_check_bounds(f) is not None
+            or recognize_check_mutex_invariants(f) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
