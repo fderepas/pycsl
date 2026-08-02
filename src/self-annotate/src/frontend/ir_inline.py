@@ -66,12 +66,18 @@ def _method_edges(func: int, names: int, self_cls: str, globals_set: int, g_clas
 def _recursive_methods(funcs: List[int], globals_set: int, g_class: int) -> int:
     return set()
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _assigned_locals(stmts: Any) -> int:
-    return set()
+def _assigned_locals(stmts: Any) -> Set[str]:
+    """Local names a method body binds (Assign/AugAssign/For targets) — freshened on
+    inlining so they don't collide with (or capture) the caller's locals."""
+    out: Set[str] = set()
+    for node in _walk_dicts(stmts):
+        s = node.get("stmt")
+        if s in ("Assign", "AugAssign", "For") and isinstance(node.get("target"), str):
+            out.add(node["target"])
+    return out
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

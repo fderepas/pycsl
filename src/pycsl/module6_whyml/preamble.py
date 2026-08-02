@@ -2059,7 +2059,7 @@ class PreambleEmissionMixin:
             recognize_stmt_setfold, recognize_void_generic_descend,
             recognize_wall2_items_walk,
             recognize_walk_dicts_generator, recognize_walk_dicts_bool_consumer,
-            recognize_walk_dicts_void_consumer,
+            recognize_walk_dicts_void_consumer, recognize_walk_dicts_set_consumer,
             recognize_type_existence, recognize_named_field_existence,
             recognize_pyval_string_walker, recognize_pyval_list_walker,
             recognize_pyval_flatten, recognize_ir_free_vars,
@@ -2195,6 +2195,7 @@ class PreambleEmissionMixin:
             or recognize_walk_dicts_generator(f) is not None
             or recognize_walk_dicts_bool_consumer(f) is not None
             or recognize_walk_dicts_void_consumer(f) is not None
+            or recognize_walk_dicts_set_consumer(f) is not None
             or recognize_type_existence(f) is not None
             or recognize_named_field_existence(f) is not None
             or recognize_pyval_string_walker(f) is not None

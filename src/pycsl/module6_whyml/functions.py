@@ -2904,6 +2904,7 @@ class FunctionEmissionMixin:
             recognize_walk_dicts_generator, emit_walk_dicts_generator_group,
             recognize_walk_dicts_bool_consumer, emit_walk_dicts_bool_consumer_group,
             recognize_walk_dicts_void_consumer, emit_walk_dicts_void_consumer_group,
+            recognize_walk_dicts_set_consumer, emit_walk_dicts_set_consumer_group,
             emit_pb_trio_group,
             recognize_type_existence, emit_type_existence_group,
             recognize_named_field_existence, emit_named_field_existence_group,
@@ -3467,6 +3468,16 @@ class FunctionEmissionMixin:
                 f.get("name") for f in self.ir.get("functions", [])
                 if isinstance(f, dict) and recognize_walk_dicts_generator(f)}:
             return emit_walk_dicts_void_consumer_group(func, _wdv, whyml_ident)
+        # R-W2d: the SET `.values()`-walk consumer `_assigned_locals` — a
+        # `size_list` fold over `_walk_dicts subj` that `set_add`s a per-node
+        # string key into a returned `map string bool` StrSet (certified
+        # `set_add`/`const false` algebra, no axiom). Same generator-present
+        # gate; fail-closed; corpus-inert.
+        _wds = recognize_walk_dicts_set_consumer(func)
+        if _wds is not None and _wds["walk_name"] in {
+                f.get("name") for f in self.ir.get("functions", [])
+                if isinstance(f, dict) and recognize_walk_dicts_generator(f)}:
+            return emit_walk_dicts_set_consumer_group(func, _wds, whyml_ident)
         body_stmts = func["body"]
         # optional-field builder (monomorphic-option ADTs): rewrite the
         # `_csl_forall`/`_csl_exists` mutable-dict-conditional-add body to a single

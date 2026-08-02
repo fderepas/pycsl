@@ -7385,6 +7385,185 @@ def emit_walk_dicts_void_consumer_group(func: Dict[str, Any], desc: Dict[str, An
     return out
 
 
+# ---- R-W2d set CONSUMER (`_assigned_locals`: a `_walk_dicts` walk that
+#      `set_add`s a per-node string key into a RETURNED `Set[str]`) ----------
+#
+#   def _assigned_locals(stmts):
+#       out = set()
+#       for node in _walk_dicts(stmts):
+#           s = node.get("<stmt_key>")
+#           if s in (<str-tuple>) and isinstance(node.get("<add_key>"), str):
+#               out.add(node["<add_key>"])
+#       return out
+#
+# The sibling of R-W2b/c: same `<walk_name> subj` generator (subj stays live),
+# but the per-node arm FOLDS a returned `map string bool` StrSet via the
+# certified `set_add`/`const false` algebra (already in the `needs_pydict`
+# block, purely defined — no axiom) instead of returning a bool / raising. The
+# `s in (<tuple>)` tag guard and the `isinstance(...,str)` narrowing are pure
+# boolean gates on WHICH string is added; the isinstance maps EXACTLY to the
+# `Some (PStr t)` reader arm (faithful: only string payloads add). Tags/keys are
+# the literals read off the body (mutation-sensitive). `ensures True`.
+
+def recognize_walk_dicts_set_consumer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the R-W2d `Set[str]` `_walk_dicts` consumer
+    `_assigned_locals` (see the module note). Returns {name, subject, walk_name,
+    stmt_key, tags, add_key} or None. Never raises."""
+    try:
+        return _recognize_walk_dicts_set_consumer(func)
+    except Exception:
+        return None
+
+
+def _recognize_walk_dicts_set_consumer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+    init, loop, tail = body
+    # init: acc = set()
+    acc = _match_setinit(init)
+    if acc is None or acc == subj:
+        return None
+    # tail: return acc
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and _is_var(tail.get("value"), acc)):
+        return None
+    # loop: for node in <walk_name>(subj): <2 stmts>
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and not loop.get("orelse")):
+        return None
+    it = loop.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"):
+        return None
+    walk_name = it.get("func")
+    wargs = it.get("args") or []
+    if (not isinstance(walk_name, str) or "." in walk_name
+            or len(wargs) != 1 or not _is_var(wargs[0], subj)):
+        return None
+    nodev = loop.get("target")
+    if not isinstance(nodev, str) or nodev in (acc, subj):
+        return None
+    lbody = loop.get("body", [])
+    if len(lbody) != 2:
+        return None
+    # stmt 0: s = node.get("<stmt_key>")
+    a0 = lbody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and isinstance(a0.get("target"), str)):
+        return None
+    svar = a0["target"]
+    if svar in (acc, subj, nodev):
+        return None
+    stmt_key = _wd_node_get(a0.get("value"), nodev)
+    if stmt_key is None:
+        return None
+    # stmt 1: if s in (<str-tuple>) and isinstance(node.get("<add_key>"), str):
+    #             acc.add(node["<add_key>"])
+    guard = lbody[1]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")):
+        return None
+    test = guard.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    # left: s in (<str-tuple>)
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "in" and _is_var(left.get("left"), svar)
+            and _is_string_tuple(left.get("right", {}))):
+        return None
+    tags = [_is_string(e) for e in left["right"]["elts"]]
+    if not tags or any(t is None for t in tags):
+        return None
+    # right: isinstance(node.get("<add_key>"), str)
+    if not (isinstance(right, dict) and right.get("type") == "Call"
+            and right.get("func") == "isinstance"
+            and len(right.get("args", [])) == 2):
+        return None
+    iarg, icls = right["args"][0], right["args"][1]
+    akey_isi = _wd_node_get(iarg, nodev)
+    if akey_isi is None or not _is_var(icls, "str"):
+        return None
+    # body: acc.add(node["<add_key>"])  (Subscript, same key as the isinstance)
+    gbody = guard.get("body", [])
+    if len(gbody) != 1:
+        return None
+    add = gbody[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"
+            and len(call.get("args", [])) == 1):
+        return None
+    sub = call["args"][0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), nodev)):
+        return None
+    add_key = _is_string(sub.get("index"))
+    if add_key is None or add_key != akey_isi:
+        return None
+    return {"name": func.get("name"), "subject": subj, "walk_name": walk_name,
+            "stmt_key": stmt_key, "tags": tags, "add_key": add_key}
+
+
+def emit_walk_dicts_set_consumer_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                       whyml_ident) -> List[str]:
+    """Emit the R-W2d set consumer as a `size_list` fold over `<walk_name> subj`
+    (subj stays live) that folds a returned `map string bool` StrSet. The
+    per-node arm reflects the recognised tags (`<tags>`) and keys
+    (`<stmt_key>`/`<add_key>`) read off the body — mutation-sensitive. Reuses the
+    certified `set_add`/`const false` `map string bool` algebra (purely defined,
+    no axiom); `ensures True`."""
+    n = whyml_ident(func["name"])
+    walk = whyml_ident(desc["walk_name"])
+    sk = desc["stmt_key"]
+    ak = desc["add_key"]
+    tag_disj = " || ".join(f'pystr_eq s "{t}"' for t in desc["tags"])
+    out: List[str] = []
+    # dynamic-string-key reader (K_dyn match; literal keys reflected) — identical
+    # to the R-W2b/c consumers' reader so the walk's emitted keys resolve.
+    out.append(f"  let rec {n}__getk (d: pydict) (name: string) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append(f"    | DCons (K_dyn s) v rest -> if pystr_eq name s then Some v else {n}__getk rest name")
+    out.append(f"    | DCons _ _ rest -> {n}__getk rest name")
+    out.append("    end")
+    # per-node fold accumulating the returned StrSet
+    out.append(f"  let rec {n}__f (nodes: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list nodes }")
+    out.append("  = match nodes with")
+    out.append("    | Nil -> (const false)")
+    out.append("    | Cons node rest ->")
+    out.append(f"        let acc = {n}__f rest in")
+    out.append("        match node with")
+    out.append("        | PDict d ->")
+    out.append(f'            (match {n}__getk d "{sk}" with')
+    out.append("             | Some (PStr s) ->")
+    out.append(f"                 if {tag_disj} then")
+    out.append(f'                   (match {n}__getk d "{ak}" with')
+    out.append("                    | Some (PStr t) -> set_add acc t")
+    out.append("                    | _ -> acc end)")
+    out.append("                 else acc")
+    out.append("             | _ -> acc end)")
+    out.append("        | _ -> acc")
+    out.append("        end")
+    out.append("    end")
+    out.append(f"  let {n} (subj: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__f ({walk} subj)")
+    return out
+
+
 # =========================================================================
 # PB-TRIO FUSION — the mutually-recursive `{_pb_stmt, _pb_body, _pb_descend}`
 # statement-walker triad (core_ir_semantic self-annotation), fused into ONE
