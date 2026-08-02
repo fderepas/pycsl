@@ -11668,6 +11668,198 @@ def emit_check_callable_params_group(desc: Dict[str, Any], whyml_ident) -> List[
     return out
 
 
+# ---- `_check_fresh_globals`: fresh_globals scope confinement -----------------
+#   funcs = ir.get("functions") or []
+#   fresh = [f for f in funcs if f.get("<fresh_key>")]
+#   if not fresh: return
+#   call_targets = set()
+#   for f in funcs: <collect>(f.get("<body_key>", []), call_targets)   # mutating helper
+#   for f in fresh:
+#       name = f.get("<name_key>", "<anon>")
+#       short = name.rsplit("<sep>", 1)[-1]
+#       if f.get("<kind_key>") == "<method_tag>": raise
+#       if name in call_targets or short in call_targets: raise
+# The converted `<collect>` mutates a `ref (map string bool)` (writes {acc}); build
+# `ct` locally and fold it over `funcs`, then fold-check the fresh funcs (guarded on
+# `<fresh_key>`, no __anystr — concrete list). `rsplit(...)[-1]` -> a per-fn opaque
+# `val __rsplit_last (s sep: string)` reflecting "<sep>" (non-facade). `stage` erased.
+
+def _cfg_first_get_key(node: Any, var: str) -> Optional[str]:
+    """First `<var>.get("<k>"[, ...])` key found anywhere in `node`."""
+    if isinstance(node, dict):
+        if (node.get("type") == "Call" and node.get("func") == f"{var}.get"):
+            args = node.get("args") or []
+            if args:
+                s = _is_string(args[0])
+                if s is not None:
+                    return s
+        for v in node.values():
+            r = _cfg_first_get_key(v, var)
+            if r is not None:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _cfg_first_get_key(x, var)
+            if r is not None:
+                return r
+    return None
+
+
+def recognize_check_fresh_globals(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_check_fresh_globals`. Returns {name, functions_key,
+    fresh_key, collect_name, body_key, name_key, kind_key, method_tag, sep} or None."""
+    try:
+        return _recognize_check_fresh_globals(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_fresh_globals(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_check_fresh_globals":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    ir_p = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    funcs_a, fresh_a, _ifret, ct_a, collect_for, check_for = body
+    if not (isinstance(funcs_a, dict) and funcs_a.get("stmt") == "Assign"):
+        return None
+    funcs_var = funcs_a.get("target")
+    functions_key = _cci_get_or_empty(funcs_a.get("value"), ir_p)
+    if not (isinstance(funcs_var, str) and functions_key):
+        return None
+    # fresh = [f for f in funcs if f.get("<fresh_key>")]
+    if not (isinstance(fresh_a, dict) and fresh_a.get("stmt") == "Assign"):
+        return None
+    fresh_var = fresh_a.get("target")
+    lc = fresh_a.get("value") or {}
+    if not (isinstance(lc, dict) and lc.get("type") == "ListComp"):
+        return None
+    lgens = lc.get("generators") or []
+    if len(lgens) != 1:
+        return None
+    fvar = lgens[0].get("target")
+    ifs = lgens[0].get("ifs") or []
+    fresh_key = _match_get_call(ifs[0], fvar) if (ifs and isinstance(fvar, str)) else None
+    if not (isinstance(fresh_var, str) and fresh_key and _is_var(lgens[0].get("iter"), funcs_var)):
+        return None
+    if not (isinstance(ct_a, dict) and ct_a.get("stmt") == "Assign"):
+        return None
+    ct_var = ct_a.get("target")
+    if not isinstance(ct_var, str):
+        return None
+    # for f in funcs: <collect>(f.get("<body_key>",[]), call_targets)
+    if not (isinstance(collect_for, dict) and collect_for.get("stmt") == "For"
+            and _is_var(collect_for.get("iter"), funcs_var)):
+        return None
+    cfv = collect_for.get("target")
+    cfb = collect_for.get("body") or []
+    if len(cfb) != 1 or cfb[0].get("stmt") != "Expr":
+        return None
+    ccall = cfb[0].get("value") or {}
+    if not (isinstance(ccall, dict) and ccall.get("type") == "Call"):
+        return None
+    collect_name = _canon_call(ccall.get("func") or "")
+    cargs = ccall.get("args") or []
+    body_key = _cci_get_or_empty(cargs[0], cfv) if (len(cargs) == 2 and isinstance(cfv, str)) else None
+    if not (body_key and _is_var(cargs[1], ct_var)):
+        return None
+    # for f in fresh: [name assign, short rsplit, where, if kind==method: raise, if membership: raise]
+    if not (isinstance(check_for, dict) and check_for.get("stmt") == "For"
+            and _is_var(check_for.get("iter"), fresh_var)):
+        return None
+    chv = check_for.get("target")
+    chb = check_for.get("body") or []
+    if not isinstance(chv, str):
+        return None
+    name_key = _cfg_first_get_key(chb, chv)
+    sep = _cp_find_call_arg(chb, "rsplit")
+    # the `if f.get("<kind>") == "<method>": raise` guard
+    kind_key = method_tag = None
+    for st in chb:
+        if not (isinstance(st, dict) and st.get("stmt") == "If"):
+            continue
+        t = st.get("test") or {}
+        if (t.get("type") == "BinOp" and t.get("op") == "=="
+                and _match_get_call(t.get("left"), chv) is not None
+                and _is_string(t.get("right")) is not None):
+            gb = st.get("body") or []
+            if len(gb) == 1 and gb[0].get("stmt") == "Raise":
+                kind_key = _match_get_call(t.get("left"), chv)
+                method_tag = _is_string(t.get("right"))
+                break
+    if not (name_key and sep and kind_key and method_tag):
+        return None
+    if _cp_count_stmt(chb, "Raise") < 2:
+        return None
+    return {"name": func["name"], "functions_key": functions_key, "fresh_key": fresh_key,
+            "collect_name": collect_name, "body_key": body_key, "name_key": name_key,
+            "kind_key": kind_key, "method_tag": method_tag, "sep": sep}
+
+
+def emit_check_fresh_globals_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_check_fresh_globals`: a local `ref (map string bool)` collected over
+    `functions` via the converted mutating collector, then a fresh-guarded check
+    fold (kind==method raise; name/short membership raise). `__rsplit_last`
+    reflects the split sep. `ensures True`, `raises`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    coll = whyml_ident(desc["collect_name"])
+    fk, bk = desc["functions_key"], desc["body_key"]
+    frk, nk, kk, mt, sep = (desc["fresh_key"], desc["name_key"], desc["kind_key"],
+                            desc["method_tag"], desc["sep"])
+    out: List[str] = []
+    out.append(f"  val {n}__rsplit_last (s sep: string) : string")
+    out.append(f"  let {n}__truthy (o: option pyval) : bool")
+    out.append("  = match o with")
+    out.append("    | Some (PBool b) -> b")
+    out.append("    | Some (PInt k) -> k <> 0")
+    out.append('    | Some (PStr s) -> not (pystr_eq s "")')
+    out.append("    | Some (PList xs) -> (match xs with Nil -> false | Cons _ _ -> true end)")
+    out.append("    | _ -> false end")
+    out.append(f"  let rec {n}__collect (fs: list pyval) (ct: ref (map string bool)) : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append("    writes { ct } variant { fs }")
+    out.append("  = match fs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons f rest ->")
+    out.append(f'        (match f with PDict d -> (match pget_dyn "{bk}" d with Some b -> {coll} b ct | None -> () end) | _ -> () end);')
+    out.append(f"        {n}__collect rest ct")
+    out.append("    end")
+    out.append(f"  let rec {n}__check (fs: list pyval) (ct: ref (map string bool)) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { fs }")
+    out.append("  = match fs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons f rest ->")
+    out.append("        (match f with")
+    out.append(f'         | PDict d -> if {n}__truthy (pget_dyn "{frk}" d) then')
+    out.append(f'             (match pget_dyn "{nk}" d with')
+    out.append("              | Some (PStr name) ->")
+    out.append(f'                  (match pget_dyn "{kk}" d with Some (PStr k) -> if pystr_eq k "{mt}" then raise PyCSLSemanticError else () | _ -> () end);')
+    out.append(f'                  if (Map.get !ct name) || (Map.get !ct ({n}__rsplit_last name "{sep}")) then raise PyCSLSemanticError else ()')
+    out.append("              | _ -> () end)")
+    out.append("           else ()")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__check rest ct")
+    out.append("    end")
+    out.append(f"  let {n} (ir: pyval) (stage: string) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("  = let _ = stage in")
+    out.append("    match ir with")
+    out.append("    | PDict d ->")
+    out.append(f'        let funcs = pget_list "{fk}" d in')
+    out.append("        let ct = ref (const false) in")
+    out.append(f"        {n}__collect funcs ct;")
+    out.append(f"        {n}__check funcs ct")
+    out.append("    | _ -> () end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
