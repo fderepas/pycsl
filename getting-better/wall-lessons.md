@@ -921,3 +921,19 @@ is a boundary — a for-loop-that-RAISES over a set lowers via the __anystr over
 enumeration. The ~dozens of "enumeration-blocked" stubs must be RE-triaged: raise-consumers are
 convertible (this device); only set-BUILDING enumerations (out.add per element) genuinely need an
 enumerable representation.
+
+## BOUNDARY MEASURED (2026-08-02): _check_noreturn bridge parser — pget_list-extraction variant TIMES OUT
+Per cost≠floor (measure the scale boundary, don't assume it), I BUILT the pyval->stmt_ir structural
+parser (`__ps`/`__psl`/`__phl`/`__ph`/`__pmcl`/`__pmc`) that maps "Return"->SReturn + compound tags
+(If/While/For/Try/Match/CriticalSection) to their ctors with recursed stmt-sublists, everything else
+->SPass, placeholder expressions (IrNum 0/IrSNone/IrONone). It TYPE-CHECKS (L3-tc ✓ — all ctor arities/
+record fields/mutual types correct) and is a SOUND ABSTRACTION for _body_has_return (which ignores
+expressions). But `--fun _check_noreturn` MEASURED 24 Timeouts, ALL on `_check_noreturn__ps'vc` VARIANT
+DECREASE: Why3 cannot prove `size_list (pget_list "body" d) < pv_size (PDict d)` — the pget_list
+RECURSIVE extraction breaks the size-member chain (boolfold's __v/__d recurse on DIRECT DCons members
+so the member-size lemma applies structurally; the parser extracts a SPECIFIC key's list via pget_dyn,
+whose result-size has no lemma). CONFIRMED BOUNDARY (measured, not assumed).
+FIX: add `lemma pget_size: forall k d. size_list (pget_list k d) <= size_dict d` (provable axiom-free by
+recursion over d) to the SHARED preamble size theory — a §10c-wide + whole-file-reproof modular-theory
+change = REVIEW-GATED (§10.10). This is the concrete, minimal unblock for _check_noreturn + the whole
+stmt_ir/pyval bridge. NO new axiom needed (the lemma is provable); ledger stays 3. Reverted clean (821->822).
