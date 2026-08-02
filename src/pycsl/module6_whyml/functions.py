@@ -2894,6 +2894,7 @@ class FunctionEmissionMixin:
             recognize_wall2_items_walk, emit_wall2_items_walk_group,
             recognize_walk_dicts_generator, emit_walk_dicts_generator_group,
             recognize_walk_dicts_bool_consumer, emit_walk_dicts_bool_consumer_group,
+            recognize_walk_dicts_void_consumer, emit_walk_dicts_void_consumer_group,
             emit_pb_trio_group,
             recognize_type_existence, emit_type_existence_group,
             recognize_named_field_existence, emit_named_field_existence_group,
@@ -3446,6 +3447,17 @@ class FunctionEmissionMixin:
                 f.get("name") for f in self.ir.get("functions", [])
                 if isinstance(f, dict) and recognize_walk_dicts_generator(f)}:
             return emit_walk_dicts_bool_consumer_group(func, _wdc, whyml_ident)
+        # R-W2c: the VOID `.values()`-walk consumer `_check_no_aliasing` — an
+        # outer per-func `size_list` fold that walks `f.get("body")` and RAISES
+        # `PyCSLSemanticError` on a per-node aliasing guard (assign-a-global or
+        # pass-a-global-as-arg). Folds over `_walk_dicts obj`; the arg guard
+        # nests a `size_list args` fold. ensures True; membership opaque; raise
+        # declared. Same generator-present gate; fail-closed; corpus-inert.
+        _wdv = recognize_walk_dicts_void_consumer(func)
+        if _wdv is not None and _wdv["walk_name"] in {
+                f.get("name") for f in self.ir.get("functions", [])
+                if isinstance(f, dict) and recognize_walk_dicts_generator(f)}:
+            return emit_walk_dicts_void_consumer_group(func, _wdv, whyml_ident)
         body_stmts = func["body"]
         # optional-field builder (monomorphic-option ADTs): rewrite the
         # `_csl_forall`/`_csl_exists` mutable-dict-conditional-add body to a single

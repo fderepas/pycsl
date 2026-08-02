@@ -118,12 +118,27 @@ class _Inliner:
         return []
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _check_no_aliasing(funcs: List[int], globals_set: int) -> None:
-    pass
+def _check_no_aliasing(funcs: List[Dict[str, Any]], globals_set: Set[str]) -> None:
+    for f in funcs:
+        for node in _walk_dicts(f.get("body")):
+            if (node.get("stmt") == "Assign" and isinstance(node.get("value"), dict)
+                    and node["value"].get("type") == "Var"
+                    and node["value"].get("name") in globals_set):
+                raise PyCSLSemanticError(
+                    f"cannot alias module global '{node['value']['name']}' into a local "
+                    f"(inline.md Phase 3): a global is a single named object — call its "
+                    f"methods or read its fields directly.")
+            if node.get("type") == "Call":
+                for a in node.get("args", []):
+                    if (isinstance(a, dict) and a.get("type") == "Var"
+                            and a.get("name") in globals_set):
+                        raise PyCSLSemanticError(
+                            f"cannot pass module global '{a['name']}' as an argument "
+                            f"(inline.md Phase 3): would alias the global; operate on it "
+                            f"via its own methods/fields.")
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

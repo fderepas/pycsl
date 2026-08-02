@@ -7002,6 +7002,389 @@ def emit_walk_dicts_bool_consumer_group(func: Dict[str, Any], desc: Dict[str, An
     return out
 
 
+# ---- R-W2c void CONSUMER (`_check_no_aliasing`: a per-func `_walk_dicts` walk
+#      whose per-node guards RAISE `PyCSLSemanticError` on an aliasing use of a
+#      module global) ----------------------------------------------------------
+#
+# Shape (ir_inline.py Phase-3 aliasing ban):
+#
+#     for f in funcs:
+#         for node in _walk_dicts(f.get("<subj_key>")):
+#             if (node.get("<stmt_key>") == "<assign_tag>"
+#                     and isinstance(node.get("<value_key>"), dict)
+#                     and node["<value_key>"].get("<vtype_key>") == "<var_tag>"
+#                     and node["<value_key>"].get("<vname_key>") in globals_set):
+#                 raise PyCSLSemanticError(...)
+#             if node.get("<type_key>") == "<call_tag>":
+#                 for a in node.get("<args_key>", []):
+#                     if (isinstance(a, dict)
+#                             and a.get("<atype_key>") == "<avar_tag>"
+#                             and a.get("<aname_key>") in globals_set):
+#                         raise PyCSLSemanticError(...)
+#
+# Void sibling of the bool consumer: an outer `size_list funcs` fold that, per
+# func, walks `f.get("<subj_key>")` (the certified `list pyval` flatten via the
+# already-emitted `_walk_dicts` generator) and folds a `size_list nodes` void
+# consumer whose two per-node guards `raise PyCSLSemanticError` on a match — a
+# divergence declared `raises { PyCSLSemanticError }` on every function in the
+# group. The call-arg guard walks the node's arg list with a nested `size_list
+# args` fold. `ensures True`: whether the guard fires is a value fact no VC
+# constrains (membership in the string-keyed `globals_set` is an opaque `val`
+# whose result is unconstrained -> not an axiom). Every dispatch literal
+# (tags "<assign_tag>"/"<call_tag>"/"<var_tag>", keys "<stmt_key>"/"<value_key>"/
+# ...) is read off the body and reflected in the emitted arm — mutation-
+# sensitive, fail-closed.
+
+
+def _cna_get1(node: Any, var: str) -> Optional[str]:
+    """`<var>.get("<KEY>")` (exactly one string arg) -> KEY, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{var}.get"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    return _is_string(args[0])
+
+
+def _cna_getdefault(node: Any, var: str) -> Optional[str]:
+    """`<var>.get("<KEY>", <default>)` (2 args, first a string) -> KEY."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{var}.get"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 2:
+        return None
+    return _is_string(args[0])
+
+
+def _cna_subget(node: Any, var: str) -> Optional[Tuple[str, str]]:
+    """`<var>["<KEY>"].get("<SUBKEY>")` -> (KEY, SUBKEY), else None.
+
+    (Module 5 lowers a subscript-receiver `.get` to a bare-`get` Call with a
+    `receiver` field carrying the `Subscript`.)"""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "get"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    subkey = _is_string(args[0])
+    recv = node.get("receiver")
+    if not (isinstance(recv, dict) and recv.get("type") == "Subscript"
+            and _is_var(recv.get("value"), var)):
+        return None
+    key = _is_string(recv.get("index"))
+    if key is None or subkey is None:
+        return None
+    return (key, subkey)
+
+
+def _cna_eq_get1(node: Any, var: str) -> Optional[Tuple[str, str]]:
+    """`<var>.get("<KEY>") == "<VAL>"` -> (KEY, VAL), else None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "=="):
+        return None
+    key = _cna_get1(node.get("left"), var)
+    val = _is_string(node.get("right"))
+    if key is None or val is None:
+        return None
+    return (key, val)
+
+
+def _cna_isinstance_get(test: Any, var: str, cls: str) -> Optional[str]:
+    """`isinstance(<var>.get("<KEY>"), <cls>)` -> KEY, else None."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return None
+    args = test.get("args") or []
+    if len(args) != 2 or not _is_var(args[1], cls):
+        return None
+    return _cna_get1(args[0], var)
+
+
+def _cna_assign_guard(stmt: Any, nodev: str,
+                      setbox: List[str]) -> Optional[Dict[str, Any]]:
+    """Match guard 1: `if (node.get(SK)==AT and isinstance(node.get(VK),dict)
+    and node[VK].get(VTK)==VART and node[VK].get(VNK) in set): raise`.
+    Returns the extracted literals or None (fail-closed)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    if not (len(stmt.get("body", [])) == 1
+            and _cna_is_raise(stmt["body"][0])):
+        return None
+    t = stmt.get("test", {})
+    # t = and(and(and(A, B), MID), MEM)
+    if not (isinstance(t, dict) and t.get("type") == "BinOp" and t.get("op") == "and"):
+        return None
+    mem_lhs = _wd_membership(t.get("right"), setbox)
+    l3 = t.get("left", {})
+    if mem_lhs is None or not (isinstance(l3, dict)
+                               and l3.get("type") == "BinOp" and l3.get("op") == "and"):
+        return None
+    mid = l3.get("right", {})
+    l2 = l3.get("left", {})
+    if not (isinstance(l2, dict) and l2.get("type") == "BinOp" and l2.get("op") == "and"):
+        return None
+    # A: node.get(SK) == AT
+    ak = _cna_eq_get1(l2.get("left"), nodev)
+    if ak is None:
+        return None
+    stmt_key, assign_tag = ak
+    # B: isinstance(node.get(VK), dict)
+    value_key = _cna_isinstance_get(l2.get("right"), nodev, "dict")
+    if value_key is None:
+        return None
+    # MID: node[VK].get(VTK) == VART
+    if not (isinstance(mid, dict) and mid.get("type") == "BinOp" and mid.get("op") == "=="):
+        return None
+    sg = _cna_subget(mid.get("left"), nodev)
+    var_tag = _is_string(mid.get("right"))
+    if sg is None or var_tag is None or sg[0] != value_key:
+        return None
+    vtype_key = sg[1]
+    # MEM: node[VK].get(VNK) in set
+    sgm = _cna_subget(mem_lhs, nodev)
+    if sgm is None or sgm[0] != value_key:
+        return None
+    vname_key = sgm[1]
+    return {"stmt_key": stmt_key, "assign_tag": assign_tag, "value_key": value_key,
+            "vtype_key": vtype_key, "var_tag": var_tag, "vname_key": vname_key}
+
+
+def _cna_call_guard(stmt: Any, nodev: str,
+                    setbox: List[str]) -> Optional[Dict[str, Any]]:
+    """Match guard 2: `if node.get(TK)==CT: for a in node.get(AK, []): if
+    (isinstance(a,dict) and a.get(ATK)==AVART and a.get(ANK) in set): raise`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    tc = _cna_eq_get1(stmt.get("test"), nodev)
+    if tc is None:
+        return None
+    type_key, call_tag = tc
+    cbody = stmt.get("body", [])
+    if len(cbody) != 1:
+        return None
+    afor = cbody[0]
+    if not (isinstance(afor, dict) and afor.get("stmt") == "For"
+            and not afor.get("orelse")):
+        return None
+    args_key = _cna_getdefault(afor.get("iter"), nodev)
+    avar = afor.get("target")
+    if args_key is None or not isinstance(avar, str):
+        return None
+    fbody = afor.get("body", [])
+    if len(fbody) != 1:
+        return None
+    aif = fbody[0]
+    if not (isinstance(aif, dict) and aif.get("stmt") == "If"
+            and not aif.get("orelse")):
+        return None
+    if not (len(aif.get("body", [])) == 1 and _cna_is_raise(aif["body"][0])):
+        return None
+    at = aif.get("test", {})
+    # at = and(and(isinstance(a,dict), a.get(ATK)==AVART), a.get(ANK) in set)
+    if not (isinstance(at, dict) and at.get("type") == "BinOp" and at.get("op") == "and"):
+        return None
+    amem_lhs = _wd_membership(at.get("right"), setbox)
+    l2 = at.get("left", {})
+    if amem_lhs is None or not (isinstance(l2, dict)
+                                and l2.get("type") == "BinOp" and l2.get("op") == "and"):
+        return None
+    if not _match_isinstance(l2.get("left", {}), avar, "dict"):
+        return None
+    aeq = _cna_eq_get1(l2.get("right"), avar)
+    if aeq is None:
+        return None
+    atype_key, avar_tag = aeq
+    aname_key = _cna_get1(amem_lhs, avar)
+    if aname_key is None:
+        return None
+    return {"type_key": type_key, "call_tag": call_tag, "args_key": args_key,
+            "atype_key": atype_key, "avar_tag": avar_tag, "aname_key": aname_key}
+
+
+def _cna_is_raise(stmt: Any) -> bool:
+    """A `raise PyCSLSemanticError(...)` statement."""
+    return (isinstance(stmt, dict) and stmt.get("stmt") == "Raise"
+            and stmt.get("exc_type") == "PyCSLSemanticError")
+
+
+def recognize_walk_dicts_void_consumer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the R-W2c void `_walk_dicts` consumer
+    `_check_no_aliasing` (see the module note). Returns a descriptor or None.
+    Never raises."""
+    try:
+        return _recognize_walk_dicts_void_consumer(func)
+    except Exception:
+        return None
+
+
+def _recognize_walk_dicts_void_consumer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    funcs_p, set_param = params[0], params[1]
+    body = func.get("body", [])
+    if len(body) != 1:
+        return None
+    # outer: for f in funcs: <inner-for>
+    ofor = body[0]
+    if not (isinstance(ofor, dict) and ofor.get("stmt") == "For"
+            and not ofor.get("orelse") and _is_var(ofor.get("iter"), funcs_p)):
+        return None
+    fvar = ofor.get("target")
+    obody = ofor.get("body", [])
+    if not isinstance(fvar, str) or len(obody) != 1:
+        return None
+    # inner: for node in <walk_name>(<fvar>.get("<subj_key>")): <2 If stmts>
+    ifor = obody[0]
+    if not (isinstance(ifor, dict) and ifor.get("stmt") == "For"
+            and not ifor.get("orelse")):
+        return None
+    it = ifor.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"):
+        return None
+    walk_name = it.get("func")
+    wargs = it.get("args") or []
+    if not isinstance(walk_name, str) or "." in walk_name or len(wargs) != 1:
+        return None
+    subj_key = _cna_get1(wargs[0], fvar)
+    nodev = ifor.get("target")
+    if subj_key is None or not isinstance(nodev, str):
+        return None
+    lbody = ifor.get("body", [])
+    if len(lbody) != 2:
+        return None
+    setbox: List[str] = [set_param]
+    g1 = _cna_assign_guard(lbody[0], nodev, setbox)
+    if g1 is None:
+        return None
+    g2 = _cna_call_guard(lbody[1], nodev, setbox)
+    if g2 is None:
+        return None
+    return {"name": func.get("name"), "funcs_param": funcs_p, "set_param": set_param,
+            "walk_name": walk_name, "subj_key": subj_key, "node_var": nodev, **g1, **g2}
+
+
+def emit_walk_dicts_void_consumer_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                        whyml_ident) -> List[str]:
+    """Emit the R-W2c void consumer: an outer `size_list funcs` fold that, per
+    func, walks `<walk_name> (f.get "<subj_key>")` and folds a `size_list nodes`
+    void consumer whose per-node guards `raise PyCSLSemanticError`. The nested
+    call-arg guard walks the arg list (`size_list args` fold). All dispatch tags
+    /keys are the literals read off the body (mutation-sensitive). `ensures
+    True`; membership in the string-keyed set is an opaque `val` (result
+    unconstrained -> not an axiom); the raise is declared `raises {
+    PyCSLSemanticError }` (inside `why3_implements_wp_w`, axiom 3 — the ledger
+    does not move)."""
+    n = whyml_ident(func["name"])
+    walk = whyml_ident(desc["walk_name"])
+    setp = whyml_ident(desc["set_param"])
+    fp = whyml_ident(desc["funcs_param"])
+    setty = "map int (option int)"
+    exc = "PyCSLSemanticError"
+    sk = desc["subj_key"]
+    stmt_key, assign_tag = desc["stmt_key"], desc["assign_tag"]
+    value_key, vtype_key = desc["value_key"], desc["vtype_key"]
+    var_tag, vname_key = desc["var_tag"], desc["vname_key"]
+    type_key, call_tag = desc["type_key"], desc["call_tag"]
+    args_key = desc["args_key"]
+    atype_key, avar_tag, aname_key = desc["atype_key"], desc["avar_tag"], desc["aname_key"]
+    out: List[str] = []
+    # dynamic-string-key reader (K_dyn match; literal keys reflected below)
+    out.append(f"  let rec {n}__getk (d: pydict) (name: string) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append(f"    | DCons (K_dyn s) v rest -> if pystr_eq name s then Some v else {n}__getk rest name")
+    out.append(f"    | DCons _ _ rest -> {n}__getk rest name")
+    out.append("    end")
+    # opaque string-keyed-set membership (result VC-free -> not an axiom)
+    out.append(f"  val {n}__mem (m: {setty}) (s: string) : bool")
+    # per-arg fold (guard 2 inner loop)
+    out.append(f"  let rec {n}__a (args: list pyval) ({setp}: {setty}) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list args }")
+    out.append("  = match args with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons a rest ->")
+    out.append("        (match a with")
+    out.append("         | PDict ad ->")
+    out.append(f'             (match {n}__getk ad "{atype_key}" with')
+    out.append(f'              | Some (PStr aty) -> if pystr_eq aty "{avar_tag}" then')
+    out.append(f'                  (match {n}__getk ad "{aname_key}" with')
+    out.append(f"                   | Some (PStr nm) -> if {n}__mem {setp} nm then raise {exc} else ()")
+    out.append("                   | _ -> () end)")
+    out.append("                else ()")
+    out.append("              | _ -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__a rest {setp}")
+    out.append("    end")
+    # per-node fold
+    out.append(f"  let rec {n}__f (nodes: list pyval) ({setp}: {setty}) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list nodes }")
+    out.append("  = match nodes with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons node rest ->")
+    out.append("        (match node with")
+    out.append("         | PDict d ->")
+    # guard 1: assign-alias
+    out.append(f'             (match {n}__getk d "{stmt_key}" with')
+    out.append(f'              | Some (PStr st) -> if pystr_eq st "{assign_tag}" then')
+    out.append(f'                  (match {n}__getk d "{value_key}" with')
+    out.append("                   | Some (PDict vd) ->")
+    out.append(f'                       (match {n}__getk vd "{vtype_key}" with')
+    out.append(f'                        | Some (PStr vt) -> if pystr_eq vt "{var_tag}" then')
+    out.append(f'                            (match {n}__getk vd "{vname_key}" with')
+    out.append(f"                             | Some (PStr nm) -> if {n}__mem {setp} nm then raise {exc} else ()")
+    out.append("                             | _ -> () end)")
+    out.append("                          else ()")
+    out.append("                        | _ -> () end)")
+    out.append("                   | _ -> () end)")
+    out.append("                else ()")
+    out.append("              | _ -> () end);")
+    # guard 2: call-arg alias
+    out.append(f'             (match {n}__getk d "{type_key}" with')
+    out.append(f'              | Some (PStr ty) -> if pystr_eq ty "{call_tag}" then')
+    out.append(f'                  (match {n}__getk d "{args_key}" with')
+    out.append(f"                   | Some (PList xs) -> {n}__a xs {setp}")
+    out.append("                   | _ -> () end)")
+    out.append("                else ()")
+    out.append("              | _ -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__f rest {setp}")
+    out.append("    end")
+    # per-func fold: for f in funcs: __f (walk (f.get "<subj_key>"))
+    out.append(f"  let rec {n}__ff (funcs: list pyval) ({setp}: {setty}) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list funcs }")
+    out.append("  = match funcs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons f rest ->")
+    out.append("        (match f with")
+    out.append(f'         | PDict fd -> (match {n}__getk fd "{sk}" with')
+    out.append(f"                        | Some b -> {n}__f ({walk} b) {setp}")
+    out.append("                        | None -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__ff rest {setp}")
+    out.append("    end")
+    # entry
+    out.append(f"  let {n} ({fp}: list pyval) ({setp}: {setty}) : unit")
+    out.append(f"    raises {{ {exc} }}")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__ff {fp} {setp}")
+    return out
+
+
 # =========================================================================
 # PB-TRIO FUSION — the mutually-recursive `{_pb_stmt, _pb_body, _pb_descend}`
 # statement-walker triad (core_ir_semantic self-annotation), fused into ONE
