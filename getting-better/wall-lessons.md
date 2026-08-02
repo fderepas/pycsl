@@ -878,3 +878,13 @@ Three resolution paths, all rejected for autonomous inline landing:
 VERDICT: _check_noreturn stays trusted pending the (C) pyval→stmt_ir bridge cert. Reverted clean (829).
 The precise blocker is now recorded for that cert campaign; the recognizer/emitter design (pyval-model
 guard + pget_list body + the three helper calls) is ready to reuse once the bridge exists.
+
+### campaign-C bridge SCALE (measured 2026-08-02)
+The `list pyval -> stmt_list` bridge is a total RUNTIME WhyML parser `pyval -> stmt_ir` (+ `list pyval
+-> stmt_list`): dispatch on each PDict's "stmt" tag, construct the matching stmt_ir ctor (~24: SPass..
+SGhostAssign), recursively parse children — INCLUDING the emit_ir expression slots each compound ctor
+carries (SWhile emit_ir stmt_list, SIf emit_ir stmt_list stmt_list, ...). So it drags in the full
+emit_ir expression grammar parse too. Termination = pv_size structural recursion; the ADT cert
+(Phase2d_StmtIR.v / StmtIR.lean) already exists (axiom-free). FEASIBLE but LARGE (multi-session):
+this is the real shape of the authorized cert campaign. Unlocks _check_noreturn + reconciles the
+9 stmt_ir/stmt_list consumers with the pyval world. NOT a heartbeat-tail inline win.
