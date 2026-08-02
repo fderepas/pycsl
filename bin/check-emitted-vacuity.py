@@ -105,6 +105,16 @@ KNOWN_ERASURES = {
     # condition, same exception type with or without it). Recorded reason per this
     # ledger's policy; landed with the field-guard-raise cluster.
     "_check_span",                                           # erases `stage` (error-message-only; faithful)
+    # `_union_c11_check_dead_arms` erases `fname` — SAME policy as `_cs_clause`'s `ctx` /
+    # `_check_span`'s `stage`: the C11 dead-arm check is a VOID `ensures True` function whose
+    # only observable is a `warnings.warn(...)` and whose `fname` appears ONLY inside that
+    # warning's f-string message (`f"Function '{fname}': match arm '{ctor}' is subsumed…"`),
+    # never in a condition/guard/assignment/return/raise. The warning is an effect-free
+    # external under the fixed `ensures True` contract, so `fname` is verification-irrelevant.
+    # The emitted body faithfully folds the `seen_ctors` accumulator over `match_stmt`'s cases
+    # (the C11 semantics), which it DOES use. Recorded reason per this ledger's policy; landed
+    # with the union-narrowing cluster (user-authorized Wall-2 campaign, 2026-08-02).
+    "_union_c11_check_dead_arms",                            # erases `fname` (warn-message-only; faithful)
 }
 
 

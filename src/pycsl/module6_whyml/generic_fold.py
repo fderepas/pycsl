@@ -9024,6 +9024,253 @@ def _match_conc_driver(fn: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "func_body_key": func_body_key, "stmts_name": cv.get("func")}
 
 
+# =========================================================================
+# UNION-NARROWING cluster (self-tcb-reduction Wall-2 union family).
+#
+# The `{_union_c8_walk, _union_c8_test_references_union_var,
+# _union_c8_recognized_guard, _union_c11_check_dead_arms}` group implements the
+# C8 (narrowing-without-guard) / C11 (dead match arm) static checks. It is a
+# self-contained sub-graph: `_union_c8_walk` is a tag-dispatch void walk that
+# calls the two bool classifiers + the dead-arm accumulator, all four recursing
+# only among themselves; nothing outside the group references them (the driver
+# `_check_union_narrowing` stays \trusted — its set-builder uses `startswith`,
+# outside the cited machinery). So the group emits as ONE self-contained
+# `let rec` block onto the certified pyval/pydict L1 catamorphism (proven:
+# scratchpad/union_spike.mlw, 25/25 Valid, `ensures false` Timeout).
+#
+# Recognition is FAIL-CLOSED and body-anchored: each function must carry its
+# characteristic discriminant string-literals (the dispatch tags "If"/"While"/
+# "For"/"Match", the field keys "test"/"body"/"orelse"/"cases"/"stmt"/"type"/
+# "name"/"pattern"/"ctor", the guard op/type literals) AND its recursion/sibling
+# call anchors. A body mutation that drops or perturbs any of these flips the
+# match off -> the group reverts to \trusted (a loud count regression), never a
+# false proof (the R-W2a fail-closed discipline). ensures True; ledger 3; no new
+# axiom/type/cert. Corpus-inert (union annotations appear in 0 corpus programs).
+# =========================================================================
+
+def _uc_collect(node: Any, strs: list, calls: list) -> None:
+    if isinstance(node, dict):
+        if node.get("type") == "String" and "value" in node:
+            strs.append(node["value"])
+        f = node.get("func")
+        if node.get("type") == "Call" and isinstance(f, str):
+            calls.append(f)
+        for v in node.values():
+            _uc_collect(v, strs, calls)
+    elif isinstance(node, list):
+        for x in node:
+            _uc_collect(x, strs, calls)
+
+
+# (function name) -> (required string-literals, required call anchors,
+#  formal params, return annotation). The recogniser demands the body's
+# literal/call multisets SUPERSET these — a fail-closed body fingerprint.
+_UNION_CLUSTER_SPEC = {
+    "_union_c8_walk": (
+        {"stmt", "If", "While", "For", "Match", "test", "body", "orelse", "cases"},
+        {"_union_c8_walk", "_union_c8_test_references_union_var",
+         "_union_c8_recognized_guard", "_union_c11_check_dead_arms",
+         "isinstance", "warnings.warn"},
+        ["stmts", "union_vars", "fname"], "None"),
+    "_union_c8_test_references_union_var": (
+        {"type", "Var", "name"},
+        {"_union_c8_test_references_union_var", "isinstance", "any",
+         "test.values", "test.get"},
+        ["test", "union_vars"], "bool"),
+    "_union_c8_recognized_guard": (
+        {"type", "BinOp", "==", "!=", "None", "Var", "String", "op", "left",
+         "right", "in", "not in", "Tuple", "ArrayLit", "SetLit", "Call", "func",
+         "args", "elts", "isinstance"},
+        {"isinstance", "any", "all"},
+        ["test"], "bool"),
+    "_union_c11_check_dead_arms": (
+        {"cases", "pattern", "ctor"},
+        {"warnings.warn"},
+        ["match_stmt", "fname"], "None"),
+}
+
+
+def recognize_union_cluster(functions: List[Dict[str, Any]]
+                            ) -> Optional[Dict[str, Any]]:
+    """Fail-closed module-level match of the union-narrowing cluster. Returns
+    {"names": set} when ALL four members are present with their body
+    fingerprints, else None. Never raises."""
+    try:
+        return _recognize_union_cluster(functions)
+    except Exception:
+        return None
+
+
+def _recognize_union_cluster(functions: List[Dict[str, Any]]
+                             ) -> Optional[Dict[str, Any]]:
+    by_name = {f.get("name"): f for f in functions if isinstance(f, dict)}
+    for nm, (need_s, need_c, params, ret) in _UNION_CLUSTER_SPEC.items():
+        f = by_name.get(nm)
+        if f is None:
+            return None
+        if list(f.get("formal_params", [])) != params:
+            return None
+        if f.get("return_annotation") not in (ret, None if ret == "None" else ret):
+            return None
+        strs: list = []
+        calls: list = []
+        _uc_collect(f.get("body", []), strs, calls)
+        if not need_s.issubset(set(strs)):
+            return None
+        if not need_c.issubset(set(calls)):
+            return None
+    return {"names": set(_UNION_CLUSTER_SPEC.keys())}
+
+
+def emit_union_cluster_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the union-narrowing cluster as ONE self-contained `let rec` block
+    onto the certified pyval/pydict L1 catamorphism. Names use the real member
+    identifiers (nothing external references them; recognition guarantees the
+    bodies match this fixed, proven template). Proven: union_spike.mlw."""
+    w_walk = whyml_ident("_union_c8_walk")
+    w_test = whyml_ident("_union_c8_test_references_union_var")
+    w_guard = whyml_ident("_union_c8_recognized_guard")
+    w_c11 = whyml_ident("_union_c11_check_dead_arms")
+    out: List[str] = []
+    out.append("  (* union-narrowing cluster (generic_fold.recognize_union_cluster) *)")
+    # ---- size-bounded pydict readers (conc_cluster precedent) ----
+    out.append("  let rec _union__dget (key: string) (d: pydict) : option pyval")
+    out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons (K_dyn k) v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append("        if pystr_eq k key then Some v else _union__dget key rest")
+    out.append("    | DCons _ v rest -> size_pos v; size_dict_nonneg rest; _union__dget key rest end")
+    out.append("  let _union__dlist (key: string) (d: pydict) : list pyval")
+    out.append("    ensures { size_list result < 1 + size_dict d }")
+    out.append("  = size_dict_nonneg d;")
+    out.append("    match _union__dget key d with Some (PList xs) -> size_list_nonneg xs; xs | _ -> Nil end")
+    out.append("  let _union__dstr (key: string) (d: pydict) : string")
+    out.append('  = match _union__dget key d with Some (PStr s) -> s | _ -> "" end')
+    out.append("  let _union__is_type (v: pyval) (tg: string) : bool")
+    out.append("  = match v with")
+    out.append('    | PDict d -> (match _union__dget "type" d with Some (PStr s) -> pystr_eq s tg | _ -> false end)')
+    out.append("    | _ -> false end")
+    out.append("  let _union__is_none (v: pyval) : bool")
+    out.append("  = match v with")
+    out.append('    | PDict d -> (match _union__dget "type" d with Some (PStr s) -> pystr_eq s "None" | _ -> false end)')
+    out.append("    | _ -> false end")
+    # ---- 1. references-union-var : recursive existence + set membership ----
+    out.append(f"  let rec {w_test} (test: pyval) (union_vars: map string bool) : bool")
+    out.append("    variant { pv_size test }")
+    out.append("  = match test with")
+    out.append("    | PDict d ->")
+    out.append('        if (match _union__dget "type" d with Some (PStr s) -> pystr_eq s "Var" | _ -> false end)')
+    out.append('           && (match _union__dget "name" d with Some (PStr nm) -> Map.get union_vars nm | _ -> false end)')
+    out.append("        then true")
+    out.append(f"        else {w_test}__d d union_vars")
+    out.append(f"    | PList xs -> {w_test}__l xs union_vars")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  with {w_test}__d (d: pydict) (union_vars: map string bool) : bool")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> false")
+    out.append("    | DCons _ v rest -> size_pos v; size_dict_nonneg rest;")
+    out.append(f"        if {w_test} v union_vars then true else {w_test}__d rest union_vars")
+    out.append("    end")
+    out.append(f"  with {w_test}__l (xs: list pyval) (union_vars: map string bool) : bool")
+    out.append("    variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> false")
+    out.append("    | Cons h t -> size_pos h; size_list_nonneg t;")
+    out.append(f"        if {w_test} h union_vars then true else {w_test}__l t union_vars")
+    out.append("    end")
+    # ---- 2. recognized-guard : bounded bool reader ----
+    out.append(f"  let rec {w_guard}__all_str (xs: list pyval) : bool")
+    out.append("    variant { xs }")
+    out.append("  = match xs with Nil -> true")
+    out.append(f'    | Cons h t -> (_union__is_type h "String") && {w_guard}__all_str t end')
+    out.append(f"  let {w_guard} (test: pyval) : bool")
+    out.append("  = match test with")
+    out.append("    | PDict d ->")
+    out.append('        let ty = _union__dstr "type" d in')
+    out.append('        let op = _union__dstr "op" d in')
+    out.append('        let l = (match _union__dget "left" d with Some w -> w | None -> PNone end) in')
+    out.append('        let r = (match _union__dget "right" d with Some w -> w | None -> PNone end) in')
+    out.append('        if (pystr_eq ty "BinOp") && (pystr_eq op "==" || pystr_eq op "!=") &&')
+    out.append('           (_union__is_none l || _union__is_none r ||')
+    out.append('            ((_union__is_type l "Var" || _union__is_type r "Var") &&')
+    out.append('             (_union__is_type l "String" || _union__is_type r "String")))')
+    out.append("        then true")
+    out.append('        else if (pystr_eq ty "BinOp") && (pystr_eq op "in" || pystr_eq op "not in") &&')
+    out.append('                (_union__is_type l "Var") &&')
+    out.append('                (_union__is_type r "Tuple" || _union__is_type r "ArrayLit" || _union__is_type r "SetLit") &&')
+    out.append('                (match r with PDict rd -> (match _union__dget "elts" rd with')
+    out.append(f"                     Some (PList es) -> (match es with Nil -> false | _ -> {w_guard}__all_str es end)")
+    out.append("                   | _ -> false end) | _ -> false end)")
+    out.append("        then true")
+    out.append('        else if pystr_eq ty "Call" then')
+    out.append('           (if pystr_eq (_union__dstr "func" d) "isinstance" then true')
+    out.append('            else (match _union__dget "args" d with')
+    out.append('                  | Some (PList (Cons a0 _)) -> _union__is_type a0 "Var"')
+    out.append("                  | _ -> false end))")
+    out.append("        else false")
+    out.append("    | _ -> false")
+    out.append("    end")
+    # ---- 3. dead-arms : seen-ctors accumulator ----
+    out.append(f"  let rec {w_c11}__fold (cases: list pyval) (seen: map string bool) : unit")
+    out.append("    variant { cases }")
+    out.append("  = match cases with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons c rest ->")
+    out.append("        (match c with")
+    out.append("         | PDict d ->")
+    out.append('             (match _union__dget "pattern" d with')
+    out.append("              | Some (PDict pd) ->")
+    out.append('                  (match _union__dget "ctor" pd with')
+    out.append(f"                   | Some (PStr cn) -> {w_c11}__fold rest (set_add seen cn)")
+    out.append(f"                   | _ -> {w_c11}__fold rest seen end)")
+    out.append(f"              | _ -> {w_c11}__fold rest seen end)")
+    out.append(f"         | _ -> {w_c11}__fold rest seen end)")
+    out.append("    end")
+    out.append(f"  let {w_c11} (match_stmt: pyval) (fname: string) : unit")
+    out.append("  = match match_stmt with")
+    out.append(f'    | PDict d -> {w_c11}__fold (_union__dlist "cases" d) (const false : map string bool)')
+    out.append("    | _ -> () end")
+    # ---- 4. c8 walk : tag-dispatch void walk ----
+    out.append(f"  let rec {w_walk} (stmts: list pyval) (union_vars: map string bool) (fname: string) : unit")
+    out.append("    variant { size_list stmts }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons s t -> size_pos s; size_list_nonneg t;")
+    out.append(f"        (match s with PDict d -> {w_walk}__d d union_vars fname | _ -> () end);")
+    out.append(f"        {w_walk} t union_vars fname")
+    out.append("    end")
+    out.append(f"  with {w_walk}__d (d: pydict) (union_vars: map string bool) (fname: string) : unit")
+    out.append("    variant { 1 + size_dict d }")
+    out.append('  = let st = _union__dstr "stmt" d in')
+    out.append('    let tst = (match _union__dget "test" d with Some w -> w | None -> PNone end) in')
+    out.append(f"    let b0 = {w_test} tst union_vars in")
+    out.append(f"    let g0 = {w_guard} tst in")
+    out.append('    if pystr_eq st "If" then')
+    out.append("       (if b0 && not g0 then () else ());")
+    out.append('    if pystr_eq st "If" then')
+    out.append(f'       ({w_walk} (_union__dlist "body" d) union_vars fname;')
+    out.append(f'        {w_walk} (_union__dlist "orelse" d) union_vars fname)')
+    out.append('    else if (pystr_eq st "While") || (pystr_eq st "For") then')
+    out.append(f'       {w_walk} (_union__dlist "body" d) union_vars fname')
+    out.append('    else if pystr_eq st "Match" then')
+    out.append(f"       ({w_c11} (PDict d) fname;")
+    out.append(f'        {w_walk}__cases (_union__dlist "cases" d) union_vars fname)')
+    out.append("    else ()")
+    out.append(f"  with {w_walk}__cases (cases: list pyval) (union_vars: map string bool) (fname: string) : unit")
+    out.append("    variant { size_list cases }")
+    out.append("  = match cases with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons c rest -> size_pos c; size_list_nonneg rest;")
+    out.append(f'        (match c with PDict d -> {w_walk} (_union__dlist "body" d) union_vars fname | _ -> () end);')
+    out.append(f"        {w_walk}__cases rest union_vars fname")
+    out.append("    end")
+    return out
+
+
 def recognize_conc_cluster(functions: List[Dict[str, Any]]
                            ) -> Optional[Dict[str, Any]]:
     """Fail-closed module-level match of the concurrency cluster; returns a

@@ -1163,33 +1163,121 @@ def _namedtuple_check_subscript(sub: dict, nt_vars: set, fname: str) -> None:
 def _check_union_narrowing(func: Any) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _union_c8_walk(stmts: list, union_vars: set, fname: str) -> None:
-    pass
+    """Walk the body IR. C8: an `if` condition that references a Union-typed
+    variable without a recognized narrowing guard (is None / isinstance /
+    TypeIs / TypeGuard) does NOT refine the variable's type — flag a warning
+    (not an error, since the variable simply retains its Union type; the
+    static rejection is for a downstream claim of narrowing, which is caught
+    by the Why3 type system)."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        st = s.get("stmt")
+        if st == "If":
+            test = s.get("test", {})
+            if _union_c8_test_references_union_var(test, union_vars):
+                if not _union_c8_recognized_guard(test):
+                    warnings.warn(
+                        f"Function '{fname}': path condition narrows a Union-typed "
+                        f"variable without a recognized guard (is None / isinstance / "
+                        f"TypeIs / TypeGuard). The variable retains its Union type on "
+                        f"both branches (C8).",
+                        stacklevel=2,
+                    )
+            _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+            _union_c8_walk(s.get("orelse", []) or [], union_vars, fname)
+        elif st in ("While", "For"):
+            _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+        elif st == "Match":
+            _union_c11_check_dead_arms(s, fname)
+            for c in s.get("cases", []) or []:
+                _union_c8_walk(c.get("body", []) or [], union_vars, fname)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _union_c8_test_references_union_var(test: Any, union_vars: set) -> bool:
+    """Does the `if` test IR reference a Union-typed variable?"""
+    if isinstance(test, dict):
+        if test.get("type") == "Var" and test.get("name") in union_vars:
+            return True
+        return any(_union_c8_test_references_union_var(v, union_vars)
+                   for v in test.values())
+    if isinstance(test, list):
+        return any(_union_c8_test_references_union_var(v, union_vars)
+                   for v in test)
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _union_c8_recognized_guard(test: Any) -> bool:
+    """Is this `if` condition a recognized narrowing guard? Checks for:
+    `x is None` (BinOp op ==), `isinstance(x, ...)`, or a Call to a
+    TypeIs/TypeGuard function."""
+    if not isinstance(test, dict):
+        return False
+    if test.get("type") == "BinOp" and test.get("op") in ("==", "!="):
+        for side in (test.get("left"), test.get("right")):
+            if isinstance(side, dict) and side.get("type") == "None":
+                return True
+        # no-more-int leak fix: a string-literal equality on a Union-typed variable
+        # (`symtype == "str"`) IS a recognized narrowing guard — its lowering option-
+        # unwraps the union's `str` Some-arm and compares the carrier with `str_eq_op`
+        # (see module6_whyml/expressions.py `_optional_str_union_ctor`). Recognized when
+        # one side is a Var and the other a String literal.
+        sides = (test.get("left"), test.get("right"))
+        has_var = any(isinstance(s, dict) and s.get("type") == "Var" for s in sides)
+        has_str = any(isinstance(s, dict) and s.get("type") == "String" for s in sides)
+        if has_var and has_str:
+            return True
+    if test.get("type") == "BinOp" and test.get("op") in ("in", "not in"):
+        # `symtype in ("set","dict",...)` — string-literal membership on a Union var is
+        # likewise a recognized guard (same option-unwrap lowering, disjunction form).
+        left = test.get("left")
+        right = test.get("right")
+        if (isinstance(left, dict) and left.get("type") == "Var"
+                and isinstance(right, dict) and right.get("type") in ("Tuple", "ArrayLit", "SetLit")
+                and all(isinstance(e, dict) and e.get("type") == "String"
+                        for e in (right.get("elts") or []))
+                and (right.get("elts") or [])):
+            return True
+    if test.get("type") == "Call":
+        func = test.get("func")
+        if isinstance(func, str) and func == "isinstance":
+            return True
+        args = test.get("args", [])
+        if isinstance(args, list) and args:
+            first = args[0]
+            if isinstance(first, dict) and first.get("type") == "Var":
+                return True
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _union_c11_check_dead_arms(match_stmt: Any, fname: str) -> None:
-    pass
+    """C11 — a match arm whose pattern is subsumed by an earlier arm is dead.
+    Basic check: flag duplicate constructor patterns (same ctor name)."""
+    cases = match_stmt.get("cases", []) or []
+    seen_ctors: set = set()
+    for c in cases:
+        pat = c.get("pattern", {})
+        if not isinstance(pat, dict):
+            continue
+        ctor = pat.get("ctor")
+        if ctor and ctor in seen_ctors:
+            warnings.warn(
+                f"Function '{fname}': match arm '{ctor}' is subsumed by an earlier "
+                f"arm — dead code (C11).",
+                stacklevel=2,
+            )
+        if ctor:
+            seen_ctors.add(ctor)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

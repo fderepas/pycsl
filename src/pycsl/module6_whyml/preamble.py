@@ -2143,6 +2143,18 @@ class PreambleEmissionMixin:
         self._conc_names = (
             set(self._conc_cluster["names"]) if self._conc_cluster else set())
         self._conc_emitted = False
+        # UNION-NARROWING cluster (generic_fold.py): the 4-function
+        # {_union_c8_walk, _union_c8_test_references_union_var,
+        # _union_c8_recognized_guard, _union_c11_check_dead_arms} C8/C11 check,
+        # emitted as ONE self-contained `let rec` block onto the pyval spine so
+        # all four un-trust together (the driver `_check_union_narrowing` stays
+        # \trusted). None (no cluster) -> every other mirror + the whole corpus
+        # byte-identical (self-annotate-mirror-only match).
+        from module6_whyml.generic_fold import recognize_union_cluster
+        self._union_cluster = recognize_union_cluster(functions)
+        self._union_names = (
+            set(self._union_cluster["names"]) if self._union_cluster else set())
+        self._union_emitted = False
         # FINAL PAIR FUSION (generic_fold.py): the `{_final_walk_body,
         # _final_check_stmt}` Final write-policy walker pair re-based onto the
         # pyval spine (mutually-recursive `let rec` group so `_final_check_stmt`
@@ -2168,7 +2180,8 @@ class PreambleEmissionMixin:
         self._check_final_name = (
             self._check_final_desc["cf_name"] if self._check_final_desc else None)
         needs_pydict = needs_sdict or (self._final_pair is not None) \
-            or (self._conc_cluster is not None) or bool(
+            or (self._conc_cluster is not None) \
+            or (self._union_cluster is not None) or bool(
             recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
             recognize_lemma_string_search_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None

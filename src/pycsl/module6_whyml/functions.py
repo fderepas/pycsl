@@ -2725,6 +2725,15 @@ class FunctionEmissionMixin:
             from module6_whyml.generic_fold import emit_conc_cluster_group
             self._conc_emitted = True
             return emit_conc_cluster_group(self._conc_cluster, whyml_ident)
+        # UNION-NARROWING cluster (preamble/generic_fold): the 4-function C8/C11
+        # walk emits as ONE self-contained `let rec` block at the first-reached
+        # member's slot; the other three members emit nothing.
+        if getattr(self, "_union_cluster", None) and func.get("name") in self._union_names:
+            if self._union_emitted:
+                return []
+            from module6_whyml.generic_fold import emit_union_cluster_group
+            self._union_emitted = True
+            return emit_union_cluster_group(self._union_cluster, whyml_ident)
         # FINAL PAIR FUSION (preamble/generic_fold): the `{_final_walk_body,
         # _final_check_stmt}` pair emits as ONE `let rec` group — self-contained
         # (calls nothing external), so the whole group is emitted at whichever
