@@ -138,3 +138,21 @@ NOTE: a for-loop over a SET (map string bool) uses __anystr; over a LIST uses a 
 per-element raise. Each candidate must be measured (recognizer match + whole-file proof) before claiming.
 core_ir_semantic proofs now ~60min (bump timeout 4200); prefer fast files (ir_inline ~30s, monomorphize,
 Weaver) for throughput.
+
+## 2026-08-02 (later) — reopened-cluster fast-file wins harvested; count 825
+Harvested via the __anystr device: _check_gt3_schema_only (d0d42c78) + _check_bounds (0a973b70,
+__anystr over Set[Tuple], opaque unused param). monomorphize cluster now exhausted for easy checks
+(_check_gt4_polymorphic_recursion = raw _ast.walk boundary).
+
+REMAINING reopened-cluster (all campaign-4 string-op modeling, in the ~60min core_ir_semantic file):
+  - _check_callable_params: startswith/slice/partition("->")/split(",")/isidentifier on the callable:
+    tag. Modelable with a FAMILY of opaque string-predicate vals, EACH reflecting its literal args
+    (pystr_startswith, __contains_sep tag "->", __all_identifiers) so the mutation test holds (a bare
+    opaque __malformed(tag) that drops the "->" literal = FACADE, Gate C reject).
+  - _check_mutex_invariants: __anystr core over _ir_free_vars (like _check_class_invariants), BUT
+    `protected` needs a set_add fold with the mutex-match guard `m==mutex || base(m)==base(mutex)`
+    where base = split('[')[0] -> an opaque base-eq val reflecting '['. `shared` is a dict-comprehension.
+  - _check_fresh_globals: _collect_call_targets set-build (converted, map string bool) + is_method /
+    in-call_targets membership + a fresh-funcs filter + raise. Medium.
+These are a genuine campaign-4 string-op-primitive build (partition/split/startswith/isidentifier as
+literal-reflecting opaque vals) + the slow proof — a dedicated fresh-context build, not a heartbeat burst.
