@@ -813,3 +813,21 @@ re-SHAPING the emitted helper (a shared recursive `pv_size`-carrying extractor +
 so the solver discharges the size VC structurally in a small step budget — an IN-SCOPE emitter fix, not a
 §10.10-gate change. Two consecutive boundary diagnoses on this wall were both wrong; the win came from a
 step-count differential, not from authority.**
+
+## Wall: exception_model string-keyed-set — CERT/AXIOM boundary at bases_closure (2026-08-02, authorized)
+User-authorized string-keyed-set κ-campaign. The membership MODEL is SOUND + proven (isolated spike:
+handler_catches core `raised in bases_closure(handler)` over `map string bool` = Valid 0.01s). BUT the
+cluster is gated behind `bases_closure` — a worklist BFS (`pop`/`seen.add`/`frontier.extend(get(b))`)
+over the string->list-of-strings exception hierarchy. Over the abstract `map string (list string)` NO
+well-founded variant exists (`get(b)` can encode an unbounded/cyclic chain); the loop proves terminating
+ONLY with a NEW codomain-bound AXIOM (`∀k x. mem x (get k) -> mem x u` for a bounded universe u) + a ghost
+Fset mirror + 3 loop invariants + a lexicographic variant — none of which PyCSL auto-synthesizes and the
+axiom violates ledger-3. `subclasses_of.candidates` is unannotated -> fail-closed (a guessed κ = facade).
+`all_phase1_exceptions` = out-of-vein (`sorted(KNOWN_EXCEPTIONS)`, a separate array-string-order feature
+with corpus byte-diff risk on the shared `sorted`). CORRECTLY did NOT smuggle the axiom.
+FLAGGED narrow path (not auto-built, safe-vs-risky): handler_catches alone converts IF bases_closure gets
+a faithful `-> frozenset[str]` annotation (string-typed but stays trusted) + Module5 κ + Module6 bool-return
++ in-over-call-result — a live-emitter modelling change with byte-diff risk (touches shared `sorted`).
+LESSON: the string-keyed-set MEMBERSHIP model is sound + reusable, but a set BUILT by a worklist/frontier
+BFS over an abstract map has no dischargeable variant without a bounded-universe axiom — apply the model to
+COLLECT-walkers (bounded structural recursion, e.g. ir_inline _assigned_locals) NOT frontier-BFS builds.
