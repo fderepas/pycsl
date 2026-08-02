@@ -120,3 +120,21 @@ FLOOR: every remaining conversion needs either a NEW bespoke recognizer build (P
 wall-break, ~1 stub each, like boolfold) OR one of the authorized hard campaigns (string-parse
 modeling, opaque-ast/IO, the _check_noreturn/SRaise cert). No recognizer-addressable cheap
 wins remain.
+
+## 2026-08-02 (later) — __anystr device reopens the "enumeration" cluster; count 827
+_check_class_invariants CONVERTED (5e2404e5) via the arbitrary-element (__anystr) membership-raise
+device — CORRECTING the earlier false "set-enumeration boundary". Session 883→827 (56 conv this
+session; this window 835→827 = 8 conv, 5 new recognizers: union, R-W2d set-consumer, boolfold-isinstance,
+flat-tag-func-pred, check_class_invariants).
+
+RE-TRIAGE work-list (trusted for-loop-that-RAISES, non-set-building — the __anystr-convertible shape,
+each needs a bespoke recognizer + battery; fast-file ones first):
+  CLEAN (no string-op): Module3_Weaver::_validate_function_contracts; frontend/ir_inline::_inline_calls
+    (verify: may be stateful IR-mutation not raise-consumer); monomorphize::_check_bounds,
+    _check_gt3_schema_only; pure_ast::_write_fstring_inner (parser-family, likely boundary).
+  STRING-OP (harder, need string modeling): core_ir_semantic::_check_callable_params,
+    _check_mutex_invariants, _check_fresh_globals; expressions::_handle_call_expr.
+NOTE: a for-loop over a SET (map string bool) uses __anystr; over a LIST uses a normal list fold with
+per-element raise. Each candidate must be measured (recognizer match + whole-file proof) before claiming.
+core_ir_semantic proofs now ~60min (bump timeout 4200); prefer fast files (ir_inline ~30s, monomorphize,
+Weaver) for throughput.
