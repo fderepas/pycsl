@@ -906,3 +906,18 @@ folds, R-W2d, union cluster) — CANNOT serve any stub that ENUMERATES a COMPUTE
 a §10.4 verified-method RE-REPRESENTATION with corpus/proof risk, NOT an inline win. There is no
 `map string bool -> list string` bridge (you cannot enumerate a total function). Record + skip.
 Stays trusted at 828.
+
+### CORRECTION (2026-08-02): _check_class_invariants is NOT a set-enumeration boundary — CONVERTED
+The 1bd52a75 note above was WRONG. Measure-first found the CONVERTED sibling `_cs_clause` already
+lowers `for v in _ir_free_vars(clause): if <membership guard>: raise` via the sound ARBITRARY-ELEMENT
+device: call `_ir_free_vars` (VC discharges), bind `let v = __anystr ()`, apply the EXACT guard to
+that arbitrary element -> conditional raise. Under `ensures True` + declared `raises`, this SOUNDLY
+OVER-approximates the loop's raise behaviour (a `map string bool` has no element list, but you don't
+NEED to enumerate — one arbitrary element with the real guard covers the raise). `_check_class_invariants`
+is the SAME raise-consumer wrapped in type_decls/class_invariants list folds + a set_add field_set fold.
+CONVERTED via recognize_check_class_invariants (828->827), whole-file proof [+] SUCCESS, byte-diff 0,
+ledger 3. LESSON: "membership-only StrSet can't be enumerated" is TRUE but does NOT imply the CONSUMER
+is a boundary — a for-loop-that-RAISES over a set lowers via the __anystr over-approximation, NOT
+enumeration. The ~dozens of "enumeration-blocked" stubs must be RE-triaged: raise-consumers are
+convertible (this device); only set-BUILDING enumerations (out.add per element) genuinely need an
+enumerable representation.

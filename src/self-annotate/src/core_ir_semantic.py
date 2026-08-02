@@ -1043,12 +1043,36 @@ def _conc_stmt(s, held, fname, shared, lock_order) -> None:
     elif st == "Expr":
         _conc_check_reads(s.get("value"), held, fname, shared)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_class_invariants(ir) -> None:
-    pass
+    """B-final STEP 3 — class-invariant scope, migrated verbatim from Module 4's
+    ``visit_ClassDef`` check. For each ``type_decl`` of kind ``record``, every free
+    variable a ``class_invariant`` references must be a declared field (``self.<field>``
+    is lowered to ``FieldGet`` and excluded by ``_ir_free_vars``, exactly as Module 4's
+    ``extract_variables`` excluded ``FieldAccess``). The IR carries ``fields`` (name +
+    type) and the lowered ``class_invariants`` exprs, so the check runs on the IR alone.
+    The ``Available fields`` list is the field-name list in first-appearance order
+    (matching Module 4's ``list(self._class_fields.keys())``)."""
+    for td in ir.get("type_decls", []):
+        if td.get("kind") != "record":
+            continue
+        field_names = [f.get("name") for f in td.get("fields", []) or []]
+        field_set = set(field_names)
+        cname = td.get("name")
+        context = f"class invariant for '{cname}'"
+        for inv in td.get("class_invariants", []) or []:
+            # Sorted for determinism (Module 4 iterated a set; sorting only differs in
+            # the inherently non-deterministic multiple-undefined-var case).
+            for var in sorted(v for v in _ir_free_vars(inv) if v is not None):
+                if var not in field_set:
+                    raise PyCSLSemanticError(
+                        f"Undefined variable '{var}' in {context}. "
+                        f"Class invariants should only reference self.field or constants. "
+                        f"Available fields: {field_names}",
+                        code="PYCSL-SEM-CLASSINV",
+                    )
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

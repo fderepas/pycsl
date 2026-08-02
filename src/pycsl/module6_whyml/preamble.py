@@ -2065,6 +2065,7 @@ class PreambleEmissionMixin:
             recognize_type_existence, recognize_named_field_existence,
             recognize_pyval_string_walker, recognize_pyval_list_walker,
             recognize_pyval_flatten, recognize_ir_free_vars,
+            recognize_check_class_invariants,
             recognize_cs_clause, recognize_check_contract_exprs,
             recognize_check_body_walk,
             recognize_check_subscript_assignments,
@@ -2102,6 +2103,7 @@ class PreambleEmissionMixin:
             recognize_sawalk(f) is not None or recognize_dictfold(f) is not None
             or recognize_pbexpr(f) is not None
             or recognize_cs_clause(f) is not None
+            or recognize_check_class_invariants(f) is not None
             or recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
             or recognize_check_subscript_assignments(f) is not None

@@ -2916,6 +2916,7 @@ class FunctionEmissionMixin:
             recognize_pyval_flatten, emit_pyval_flatten_group,
             recognize_ir_free_vars, emit_ir_free_vars_group,
             recognize_cs_clause, emit_cs_clause_group,
+            recognize_check_class_invariants, emit_check_class_invariants_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
@@ -3385,6 +3386,12 @@ class FunctionEmissionMixin:
         # `_ir_free_vars` set consumer). The `{_cs_stmt,_cs_body,_cs_descend}`
         # trio is appended right after (deferred, once), exactly as the pb trio
         # defers to `_pb_expr`. Corpus-inert; fail-closed.
+        # `_check_class_invariants`: the `_ir_free_vars` set-consumer wrapped in
+        # type_decls/class_invariants list folds; reuses the cs_clause __anystr
+        # membership-raise device + set_add field_set fold. Standalone, name-matched.
+        _cci = recognize_check_class_invariants(func)
+        if _cci is not None:
+            return emit_check_class_invariants_group(_cci, whyml_ident)
         _csc = recognize_cs_clause(func)
         if _csc is not None:
             from module6_whyml.generic_fold import emit_pb_trio_group

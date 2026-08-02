@@ -10840,6 +10840,208 @@ def emit_cs_clause_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     return out
 
 
+# ---- `_check_class_invariants`: the record class-invariant scope checker -----
+# The `_ir_free_vars` set CONSUMER wrapped in the type_decls / class_invariants
+# loops (sibling of `_cs_clause`):
+#   for td in ir.get("type_decls", []):
+#       if td.get("kind") != "record": continue
+#       field_names = [f.get("name") for f in td.get("fields", []) or []]
+#       field_set = set(field_names)
+#       for inv in td.get("class_invariants", []) or []:
+#           for var in sorted(v for v in _ir_free_vars(inv) if v is not None):
+#               if var not in field_set: raise PyCSLSemanticError(...)
+# The inner `for var in <_ir_free_vars set>: if var not in field_set: raise`
+# is the SAME shape as `_cs_clause`, lowered by the SAME sound device: call
+# `_ir_free_vars inv` (its VC discharges), then apply the membership guard to an
+# ARBITRARY element (`__anystr`) -> conditional raise (a `map string bool` set is
+# a characteristic function with no element list; under `ensures True` the
+# arbitrary-element raise soundly OVER-approximates the loop's raise behaviour).
+# `field_set` is built by a `set_add` fold over `td["fields"]` (reading
+# `f["name"]`); membership is `Map.get`. `sorted(...)`/`if v is not None` are
+# VC-irrelevant (determinism / None-filter). `cname`/`context` feed only the
+# raise f-string -> erased. Every key/tag reflected off the body. Ledger 3.
+
+def _cci_get_or_empty(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<k>"[, []]) [or []]` -> "<k>" (unwrap a leading `or []`)."""
+    inner = node
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        inner = node.get("left")
+    return _match_get_call(inner, subj)
+
+
+def recognize_check_class_invariants(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_check_class_invariants` (see module note). Returns
+    {name, type_decls_key, kind_key, record_tag, fields_key, name_key,
+    class_inv_key, fv_name} or None. Never raises."""
+    try:
+        return _recognize_check_class_invariants(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_class_invariants(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_check_class_invariants":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    ir_p = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For"):
+        return None
+    td = outer.get("target")
+    tdk = _cci_get_or_empty(outer.get("iter"), ir_p)
+    if not (isinstance(td, str) and tdk is not None):
+        return None
+    ob = outer.get("body") or []
+    if len(ob) < 3:
+        return None
+    # ob[0]: if td.get("<kind>") != "<record>": continue
+    g = ob[0]
+    gt = g.get("test") if isinstance(g, dict) else None
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not (g.get("orelse") or [])
+            and isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "!="):
+        return None
+    kind_key = _match_get_call(gt.get("left"), td)
+    record_tag = _is_string(gt.get("right"))
+    if kind_key is None or record_tag is None:
+        return None
+    gb = g.get("body") or []
+    if not (len(gb) == 1 and isinstance(gb[0], dict) and gb[0].get("stmt") == "Continue"):
+        return None
+    # find field_names = [<f>.get("<name>") for <f> in <td>.get("<fields>"[,[]]) or []]
+    # and field_set = set(field_names); the LAST stmt is the inv For.
+    name_key = fields_key = field_set_var = fn_var = None
+    for st in ob[1:-1]:
+        if not (isinstance(st, dict) and st.get("stmt") == "Assign"):
+            continue
+        val = st.get("value") or {}
+        if val.get("type") == "ListComp":
+            elt = val.get("elt") or {}
+            gens = val.get("generators") or []
+            if len(gens) != 1:
+                continue
+            fvar = gens[0].get("target")
+            nk = _match_get_call(elt, fvar) if isinstance(fvar, str) else None
+            fk = _cci_get_or_empty(gens[0].get("iter"), td)
+            if nk is not None and fk is not None:
+                name_key, fields_key, fn_var = nk, fk, st.get("target")
+        elif (val.get("type") == "Call" and val.get("func") == "set"
+              and len(val.get("args") or []) == 1 and _is_var(val["args"][0], fn_var)):
+            field_set_var = st.get("target")
+    if not (name_key and fields_key and field_set_var):
+        return None
+    # ob[-1]: for inv in <td>.get("<class_inv>"[,[]]) or []: [ for var in sorted(gen) : [if var not in field_set: raise] ]
+    inv_for = ob[-1]
+    if not (isinstance(inv_for, dict) and inv_for.get("stmt") == "For"):
+        return None
+    inv = inv_for.get("target")
+    cik = _cci_get_or_empty(inv_for.get("iter"), td)
+    if not (isinstance(inv, str) and cik is not None):
+        return None
+    ib = inv_for.get("body") or []
+    if len(ib) != 1:
+        return None
+    var_for = ib[0]
+    if not (isinstance(var_for, dict) and var_for.get("stmt") == "For"):
+        return None
+    var = var_for.get("target")
+    # iter: sorted( <v> for <v> in <fv>(inv) [if ...] )
+    it = var_for.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call" and it.get("func") == "sorted"):
+        return None
+    sargs = it.get("args") or []
+    if len(sargs) != 1 or not isinstance(sargs[0], dict) or sargs[0].get("type") not in ("GenExp", "GeneratorExp"):
+        return None
+    sgens = sargs[0].get("generators") or []
+    if len(sgens) != 1:
+        return None
+    fvcall = sgens[0].get("iter") or {}
+    if not (isinstance(fvcall, dict) and fvcall.get("type") == "Call"):
+        return None
+    fv_name = _canon_call(fvcall.get("func") or "")
+    fvargs = fvcall.get("args") or []
+    if len(fvargs) != 1 or not _is_var(fvargs[0], inv):
+        return None
+    # body: if var not in field_set: raise
+    vb = var_for.get("body") or []
+    if len(vb) != 1:
+        return None
+    chk = vb[0]
+    ct = chk.get("test") if isinstance(chk, dict) else None
+    if not (isinstance(chk, dict) and chk.get("stmt") == "If" and not (chk.get("orelse") or [])
+            and isinstance(ct, dict) and ct.get("type") == "BinOp" and ct.get("op") == "not in"
+            and _is_var(ct.get("left"), var) and _is_var(ct.get("right"), field_set_var)):
+        return None
+    cb = chk.get("body") or []
+    if not (len(cb) == 1 and isinstance(cb[0], dict) and cb[0].get("stmt") == "Raise"):
+        return None
+    return {"name": func["name"], "type_decls_key": tdk, "kind_key": kind_key,
+            "record_tag": record_tag, "fields_key": fields_key, "name_key": name_key,
+            "class_inv_key": cik, "fv_name": fv_name}
+
+
+def emit_check_class_invariants_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_check_class_invariants`: type_decls / class_invariants list folds
+    (structural `variant`), a `set_add` field_set fold, and the `_cs_clause`
+    arbitrary-element (`__anystr`) membership-raise device over `_ir_free_vars`.
+    `ensures True`, `raises { PyCSLSemanticError }`. NO new type/axiom/cert."""
+    n = whyml_ident(desc["name"])
+    fv = whyml_ident(desc["fv_name"])
+    tdk, kk, rt = desc["type_decls_key"], desc["kind_key"], desc["record_tag"]
+    fk, nk, cik = desc["fields_key"], desc["name_key"], desc["class_inv_key"]
+    out: List[str] = []
+    out.append(f"  val {n}__anystr () : string")
+    out.append(f"  let rec {n}__fset (fs: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { fs }")
+    out.append("  = match fs with")
+    out.append("    | Nil -> const false")
+    out.append("    | Cons f rest ->")
+    out.append("        (match f with")
+    out.append(f'         | PDict fd -> (match pget_dyn "{nk}" fd with')
+    out.append(f"                       | Some (PStr nm) -> set_add ({n}__fset rest) nm")
+    out.append(f"                       | _ -> {n}__fset rest end)")
+    out.append(f"         | _ -> {n}__fset rest end)")
+    out.append("    end")
+    out.append(f"  let {n}__inv (fset: map string bool) (inv: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = let _fv = {fv} inv in")
+    out.append(f"    let var = {n}__anystr () in")
+    out.append('    if (not (pystr_eq var "")) && (not (Map.get fset var))')
+    out.append("    then raise PyCSLSemanticError else ()")
+    out.append(f"  let rec {n}__invs (fset: map string bool) (invs: list pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { invs }")
+    out.append("  = match invs with Nil -> ()")
+    out.append(f"    | Cons h t -> {n}__inv fset h; {n}__invs fset t end")
+    out.append(f"  let rec {n}__tds (tds: list pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { tds }")
+    out.append("  = match tds with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons td rest ->")
+    out.append("        (match td with")
+    out.append(f'         | PDict d -> (match pget_dyn "{kk}" d with')
+    out.append(f'                      | Some (PStr k) -> if pystr_eq k "{rt}" then')
+    out.append(f'                          {n}__invs ({n}__fset (pget_list "{fk}" d)) (pget_list "{cik}" d)')
+    out.append("                        else ()")
+    out.append("                      | _ -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__tds rest")
+    out.append("    end")
+    out.append(f"  let {n} (ir: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match ir with PDict d -> {n}__tds (pget_list \"{tdk}\" d) | _ -> () end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
