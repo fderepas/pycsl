@@ -11042,6 +11042,131 @@ def emit_check_class_invariants_group(desc: Dict[str, Any], whyml_ident) -> List
     return out
 
 
+# ---- `_check_gt3_schema_only`: nested dict.values()/list tag-check-raise ------
+#   for gname, info in generics.items():
+#       for tp in info["<tp_key>"]:
+#           kind = tp.get("<kind_key>", "<tv_tag>")
+#           if kind != "<tv_tag>": raise PyCSLSemanticError(...)
+# A pure raise-consumer over two CONCRETE iterations (no __anystr needed): the
+# outer `generics.items()` -> a pydict values fold; the inner `info["<tp_key>"]`
+# -> a `list pyval` fold; the per-tp guard reads `kind` (default `<tv_tag>` when
+# absent -> no raise) and raises when kind != the TypeVar tag. `gname` is
+# message-only (erased). Every key/tag reflected (mutation-sensitive). Ledger 3.
+
+def recognize_check_gt3_schema_only(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_check_gt3_schema_only`. Returns
+    {name, tp_key, kind_key, tv_tag} or None. Never raises."""
+    try:
+        return _recognize_check_gt3_schema_only(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_gt3_schema_only(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_check_gt3_schema_only":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    g = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For"):
+        return None
+    it = outer.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{g}.items" and not (it.get("args") or [])):
+        return None
+    tts = outer.get("tuple_targets") or []
+    if len(tts) != 2:
+        return None
+    info_var = tts[1]
+    ob = outer.get("body") or []
+    if len(ob) != 1:
+        return None
+    inner = ob[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"):
+        return None
+    # inner iter: info["<tp_key>"]  (Subscript) OR info.get("<tp_key>")
+    iit = inner.get("iter") or {}
+    tp_key = None
+    if isinstance(iit, dict) and iit.get("type") == "Subscript" and _is_var(iit.get("value"), info_var):
+        tp_key = _is_string(iit.get("index"))
+    elif isinstance(iit, dict) and iit.get("type") == "Call" and iit.get("func") == f"{info_var}.get":
+        a = iit.get("args") or []
+        tp_key = _is_string(a[0]) if a else None
+    if tp_key is None:
+        return None
+    tp = inner.get("target")
+    ib = inner.get("body") or []
+    if len(ib) != 2 or not isinstance(tp, str):
+        return None
+    # ib[0]: kind = tp.get("<kind_key>", "<tv_tag>")
+    a0 = ib[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and isinstance(a0.get("target"), str)):
+        return None
+    kv = a0["target"]
+    av = a0.get("value") or {}
+    if not (isinstance(av, dict) and av.get("type") == "Call" and av.get("func") == f"{tp}.get"):
+        return None
+    kargs = av.get("args") or []
+    kind_key = _is_string(kargs[0]) if kargs else None
+    tv_tag = _is_string(kargs[1]) if len(kargs) >= 2 else None
+    if kind_key is None or tv_tag is None:
+        return None
+    # ib[1]: if kind != "<tv_tag>": raise
+    gd = ib[1]
+    gt = gd.get("test") if isinstance(gd, dict) else None
+    if not (isinstance(gd, dict) and gd.get("stmt") == "If" and not (gd.get("orelse") or [])
+            and isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "!="
+            and _is_var(gt.get("left"), kv) and _is_string(gt.get("right")) == tv_tag):
+        return None
+    gb = gd.get("body") or []
+    if not (len(gb) == 1 and isinstance(gb[0], dict) and gb[0].get("stmt") == "Raise"):
+        return None
+    return {"name": func["name"], "tp_key": tp_key, "kind_key": kind_key, "tv_tag": tv_tag}
+
+
+def emit_check_gt3_schema_only_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_check_gt3_schema_only`: a pydict values fold (generics.items) over a
+    `list pyval` fold (info[tp_key]) with a per-tp kind tag-check raise. `ensures
+    True`, `raises { PyCSLSemanticError }`. NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    tpk, kk, tv = desc["tp_key"], desc["kind_key"], desc["tv_tag"]
+    out: List[str] = []
+    out.append(f"  let rec {n}__tps (tps: list pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { tps }")
+    out.append("  = match tps with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons tp rest ->")
+    out.append("        (match tp with")
+    out.append(f'         | PDict d -> (match pget_dyn "{kk}" d with')
+    out.append(f'                      | Some (PStr k) -> if pystr_eq k "{tv}" then () else raise PyCSLSemanticError')
+    out.append("                      | None -> ()")
+    out.append("                      | Some _ -> raise PyCSLSemanticError end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__tps rest")
+    out.append("    end")
+    out.append(f"  let rec {n}__outer (g: pydict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { g }")
+    out.append("  = match g with")
+    out.append("    | DNil -> ()")
+    out.append("    | DCons _ v rest ->")
+    out.append(f'        (match v with PDict info -> {n}__tps (pget_list "{tpk}" info) | _ -> () end);')
+    out.append(f"        {n}__outer rest")
+    out.append("    end")
+    out.append(f"  let {n} (generics: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match generics with PDict g -> {n}__outer g | _ -> () end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`

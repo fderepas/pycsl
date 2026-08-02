@@ -2066,6 +2066,7 @@ class PreambleEmissionMixin:
             recognize_pyval_string_walker, recognize_pyval_list_walker,
             recognize_pyval_flatten, recognize_ir_free_vars,
             recognize_check_class_invariants,
+            recognize_check_gt3_schema_only,
             recognize_cs_clause, recognize_check_contract_exprs,
             recognize_check_body_walk,
             recognize_check_subscript_assignments,
@@ -2104,6 +2105,7 @@ class PreambleEmissionMixin:
             or recognize_pbexpr(f) is not None
             or recognize_cs_clause(f) is not None
             or recognize_check_class_invariants(f) is not None
+            or recognize_check_gt3_schema_only(f) is not None
             or recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
             or recognize_check_subscript_assignments(f) is not None
@@ -2133,6 +2135,9 @@ class PreambleEmissionMixin:
             # #3/#4 the walker + caller read child/functions lists via `pget_list`.
             or recognize_noreturn_walk_stmts(f) is not None
             or recognize_check_noreturn_successors(f, self._nrw_names) is not None
+            # class-invariant / gt3 checkers read fields/type_params via pget_list.
+            or recognize_check_class_invariants(f) is not None
+            or recognize_check_gt3_schema_only(f) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,

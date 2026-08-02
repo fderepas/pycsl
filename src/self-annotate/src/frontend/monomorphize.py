@@ -25,12 +25,21 @@ def apply_monomorphization(ir_data: int, validated_ast: Any=None) -> None:
 def _collect_generic_decls(ir_data: int) -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _check_gt3_schema_only(generics: int) -> None:
-    pass
+def _check_gt3_schema_only(generics: Dict[str, Dict[str, Any]]) -> None:
+    for gname, info in generics.items():
+        for tp in info["type_params"]:
+            kind = tp.get("kind", "TypeVar")
+            if kind != "TypeVar":
+                raise PyCSLSemanticError(
+                    f"monomorphization: generic {gname!r} declares a {kind} "
+                    f"({tp.get('name')!r}) — GT3: ParamSpec/TypeVarTuple are "
+                    f"schema-only and not interpreted (typing-global-overview.md "
+                    f"§5 GT3). Use a plain TypeVar `T`.",
+                    stage="monomorphize", code="PYCSL-TY3-GT3",
+                )
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
