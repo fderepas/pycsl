@@ -846,3 +846,35 @@ a bool variant is PRE-SATISFIED. FIX = a `recognize_bool_existence_values` recog
 on `emit_setfold_group` (OR-fold bool over the `pv_size`-variant `.values()`/list descent, with the
 dict-node early-return predicate; `.endswith` → opaque `val pystr_suffix` result-unconstrained, not an
 axiom). Leverage: ~3 bool stubs (uses_inline_set_or_dict_ops, _is_decode_call, _test_contains_map).
+
+## BOUNDARY (2026-08-02): _check_noreturn — body-representation mismatch (needs the pyval→stmt_ir bridge cert)
+Measure-first spike on the campaign-3 target `_check_noreturn` (core_ir_semantic; the SOLE remaining
+trusted stub of the noreturn cluster — siblings _collect_noreturn_names/_check_noreturn_successors/
+_noreturn_walk_stmts/_stmt_is_noreturn_call all converted). Verbatim port FIDELITY-clean (drift stays 2),
+but the whole-file typecheck FAILS. Root cause (precisely located, NOT a value-soundness cert):
+
+_check_noreturn calls THREE already-converted body-helpers on the SAME `body = func.get("body")`:
+  - `_body_has_return`  : emitted `stmt_list -> bool`  (matches recognize_stmt_has — "Return"=SReturn
+     is a known stmt_ir ctor, so it lowered via the bespoke `stmt_ir`/`stmt_list` ADT).
+  - `_body_has_raise` / `_body_has_diverging_construct` : emitted `list pyval -> bool` (their tags
+     "Raise"/While/For/Call are NOT stmt_ir ctors → they fell to the generic pyval `.values()` walk).
+`func.get("body")` is a `list pyval` (pget_list). It type-checks against the latter two but COLLIDES
+with `_body_has_return`'s `stmt_list` param. There is NO axiom-free `list pyval -> stmt_list` bridge —
+the real one (`_py_stmts_to_ir`) is TRUSTED.
+
+I built recognize_check_noreturn + emit (pyval-model, field-truthiness guards, pget_list body, raise
+declared) — it matched + emitted faithfully, but hit exactly this `_body_has_return` type collision.
+Three resolution paths, all rejected for autonomous inline landing:
+  (A) UNIFY: make `_body_has_return` emit `list pyval` like its siblings → requires stopping
+      recognize_stmt_has from matching the "Return" walk = perturbs a SHARED corpus recognizer (byte-diff
+      risk). Rejected.
+  (B) INLINE: emit a local `list pyval` "Return"-existence walk in _check_noreturn. FACADE — the tag
+      "Return" would be HARDCODED in _check_noreturn's emitter, so changing `_body_has_return`'s tag
+      would NOT move _check_noreturn's .mlw → FAILS the mutation test. Rejected (Gate C).
+  (C) BRIDGE: an axiom-free `pyval -> stmt_ir` / `list pyval -> stmt_list` parser (the de-trusted
+      `_py_stmts_to_ir`) + co-landing Phase2* cert → lets _check_noreturn CALL `_body_has_return`
+      faithfully. This IS the authorized "cert" campaign — a large multi-session build, not an inline win.
+
+VERDICT: _check_noreturn stays trusted pending the (C) pyval→stmt_ir bridge cert. Reverted clean (829).
+The precise blocker is now recorded for that cert campaign; the recognizer/emitter design (pyval-model
+guard + pget_list body + the three helper calls) is ready to reuse once the bridge exists.
