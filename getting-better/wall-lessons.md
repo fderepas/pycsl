@@ -937,3 +937,17 @@ FIX: add `lemma pget_size: forall k d. size_list (pget_list k d) <= size_dict d`
 recursion over d) to the SHARED preamble size theory — a §10c-wide + whole-file-reproof modular-theory
 change = REVIEW-GATED (§10.10). This is the concrete, minimal unblock for _check_noreturn + the whole
 stmt_ir/pyval bridge. NO new axiom needed (the lemma is provable); ledger stays 3. Reverted clean (821->822).
+
+## CORRECTION (2026-08-03): _check_noreturn bridge is NOT review-gated — pget postconditions (corpus-inert)
+The ac341964 "review-gated / corpus sanctioned-reset" claim was WRONG on the decisive dimension.
+MEASURED: 60/60 corpus programs emit NO pget_dyn/size_dict (the pydict theory is mirror-only) — so a
+`pget` size fact is BYTE-DIFF-0 by construction (corpus-inert). The real fix is not a standalone lemma
+(pget_dyn/pget_list are program `let`s, unusable in a logic lemma) but POSTCONDITIONS on them:
+  pget_dyn : ensures { match result with Some v -> pv_size v <= size_dict d | None -> true }
+  pget_list: ensures { size_list result <= size_dict d }
+Both provable axiom-free (structural recursion + the existing size_dict_nonneg lemma), SAFELY ADDITIVE
+(stronger contracts can't break the ~40 caller proofs, only help), ledger 3. Emission order OK (pget_*
+emit AFTER pv_size/size_dict in _emit_pydict_theory). This is a NORMAL shared-emitter change (§10c
+re-typecheck + mirror re-proofs + byte-diff 0), autonomously attemptable — NOT coupling-rule/corpus
+review-gated. ATTEMPTING per cost≠floor (measure the fix, don't assume). Open risk remains ONLY the
+E-matching: does the parser variant DISCHARGE using pget_list's ensures (measure via --fun).
