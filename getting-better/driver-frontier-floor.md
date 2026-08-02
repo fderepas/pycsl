@@ -156,3 +156,21 @@ REMAINING reopened-cluster (all campaign-4 string-op modeling, in the ~60min cor
     in-call_targets membership + a fresh-funcs filter + raise. Medium.
 These are a genuine campaign-4 string-op-primitive build (partition/split/startswith/isidentifier as
 literal-reflecting opaque vals) + the slow proof — a dedicated fresh-context build, not a heartbeat burst.
+
+## 2026-08-02 (later) — string-op cluster COMPLETE; count 822; core_ir_semantic proof >70min
+All 3 reopened string-op checkers CONVERTED via the reflect-the-literal opaque-primitive technique:
+_check_mutex_invariants (dc16229d, __base/__len reflecting "["/2), _check_callable_params (cfbd4cc8,
+__startswith/__malformed reflecting callable:/->/,) , _check_fresh_globals (5ddf3de1, __rsplit_last
+reflecting "__" + the MUTATING _collect_call_targets via a local ref). Session 883→822 (61 conv);
+this window 835→822 (13 conv, 10 recognizers).
+
+OPERATIONAL: the core_ir_semantic whole-file proof now EXCEEDS 70min — the 4200s battery clipped on
+WALL-CLOCK alone (1462 goals all Valid, 0 Timeout, incl. the new fresh_globals goals), needed a
+6000s re-run to print [+] SUCCESS. FUTURE core_ir_semantic conversions MUST use timeout>=6000s (bump
+to 7200s to be safe). This is the proof-time-growth wall; eventually modular verification (§10.10
+review-gated) is needed for core_ir_semantic. Prefer FAST files (monomorphize/Weaver/ir_inline) for
+throughput; batch core_ir_semantic conversions to amortize the one slow proof.
+
+REMAINING: raw-ast boundaries (_check_gt4=_ast.walk, _validate_function_contracts=ast.FunctionDef,
+_write_fstring_inner=pure_ast), stateful (_inline_calls), large campaigns (pyval→stmt_ir bridge cert,
+opaque-ast/IO). No more string-op-cluster wins.
