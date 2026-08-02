@@ -11526,6 +11526,148 @@ def emit_check_mutex_invariants_group(desc: Dict[str, Any], whyml_ident) -> List
     return out
 
 
+# ---- `_check_callable_params`: callable-tag well-formedness (opaque str-ops) --
+#   symtab = func.get("symbol_table") or {}
+#   for _pname, ptag in symtab.items():
+#       if not (isinstance(ptag,str) and ptag.startswith("<prefix>")): continue
+#       body = ptag[len("<prefix>"):]
+#       arg_part, sep, ret_part = body.partition("<arrow>")
+#       if not sep: raise
+#       tags = [t for t in arg_part.split("<comma>") if t] + [ret_part]
+#       if not ret_part or any(not t.isidentifier() for t in tags): raise
+# A CONCRETE symtab-values fold (no __anystr): each string value `ptag` is tested
+# with per-fn OPAQUE predicates that REFLECT their literals (non-facade): a
+# `__startswith (s p)` gated on the "<prefix>" tag, then a `__malformed (tag arrow
+# comma)` reflecting "<arrow>"/"<comma>" (the two raise branches collapse to one —
+# both raise PyCSLSemanticError; `isidentifier` carries no literal, subsumed in the
+# opaque). Under `ensures True` the exact malformed logic is a value fact; the model
+# needs only type-safety + the reflected literals for mutation-sensitivity. Ledger 3.
+
+def _cp_find_call_arg(node: Any, suffix: str) -> Optional[str]:
+    """First `<x>.<suffix>("<c>")` call's string arg -> "<c>" (recursive)."""
+    if isinstance(node, dict):
+        fn = node.get("func")
+        if (node.get("type") == "Call" and isinstance(fn, str) and fn.endswith("." + suffix)):
+            args = node.get("args") or []
+            if args:
+                s = _is_string(args[0])
+                if s is not None:
+                    return s
+        for v in node.values():
+            r = _cp_find_call_arg(v, suffix)
+            if r is not None:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _cp_find_call_arg(x, suffix)
+            if r is not None:
+                return r
+    return None
+
+
+def _cp_count_stmt(node: Any, stmt: str) -> int:
+    c = 0
+    if isinstance(node, dict):
+        if node.get("stmt") == stmt:
+            c += 1
+        for v in node.values():
+            c += _cp_count_stmt(v, stmt)
+    elif isinstance(node, list):
+        for x in node:
+            c += _cp_count_stmt(x, stmt)
+    return c
+
+
+def recognize_check_callable_params(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_check_callable_params`. Returns {name, st_key,
+    ptag_var, prefix, arrow, comma} or None. Never raises."""
+    try:
+        return _recognize_check_callable_params(func)
+    except Exception:
+        return None
+
+
+def _recognize_check_callable_params(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_check_callable_params":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    fp = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    st_a, outer = body
+    if not (isinstance(st_a, dict) and st_a.get("stmt") == "Assign"):
+        return None
+    st_var = st_a.get("target")
+    st_key = _cci_get_or_empty(st_a.get("value"), fp)
+    if not (isinstance(st_var, str) and st_key):
+        return None
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For"):
+        return None
+    oit = outer.get("iter") or {}
+    if not (isinstance(oit, dict) and oit.get("type") == "Call"
+            and oit.get("func") == f"{st_var}.items"):
+        return None
+    tts = outer.get("tuple_targets") or []
+    if len(tts) != 2:
+        return None
+    ptag_var = tts[1]
+    ob = outer.get("body") or []
+    # first stmt: if not (isinstance(ptag,str) and ptag.startswith("<prefix>")): continue
+    if not ob or not (isinstance(ob[0], dict) and ob[0].get("stmt") == "If"
+                      and len(ob[0].get("body", [])) == 1
+                      and ob[0]["body"][0].get("stmt") == "Continue"):
+        return None
+    prefix = _cp_find_call_arg(ob[0].get("test"), "startswith")
+    arrow = _cp_find_call_arg(ob, "partition")
+    comma = _cp_find_call_arg(ob, "split")
+    if not (prefix and arrow and comma):
+        return None
+    if not isinstance(ptag_var, str):
+        return None
+    if _cp_count_stmt(ob, "Raise") < 2:
+        return None
+    return {"name": func["name"], "st_key": st_key, "ptag_var": ptag_var,
+            "prefix": prefix, "arrow": arrow, "comma": comma}
+
+
+def emit_check_callable_params_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_check_callable_params`: a CONCRETE symtab-values pydict fold with
+    per-fn opaque `__startswith`/`__malformed` predicates reflecting the recognised
+    literals. `ensures True`, `raises { PyCSLSemanticError }`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    stk = desc["st_key"]
+    pre, arrow, comma = desc["prefix"], desc["arrow"], desc["comma"]
+    out: List[str] = []
+    out.append(f"  val {n}__startswith (s p: string) : bool")
+    out.append(f"  val {n}__malformed (tag arrow comma: string) : bool")
+    out.append(f"  let rec {n}__walk (st: pydict) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("    variant { st }")
+    out.append("  = match st with")
+    out.append("    | DNil -> ()")
+    out.append("    | DCons _ v rest ->")
+    out.append("        (match v with")
+    out.append(f'         | PStr ptag -> if {n}__startswith ptag "{pre}" then')
+    out.append(f'             (if {n}__malformed ptag "{arrow}" "{comma}" then raise PyCSLSemanticError else ())')
+    out.append("           else ()")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__walk rest")
+    out.append("    end")
+    out.append(f"  let {n} (func: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append("  = match func with")
+    out.append(f'    | PDict d -> (match pget_dyn "{stk}" d with')
+    out.append(f"                  | Some (PDict st) -> {n}__walk st")
+    out.append("                  | _ -> () end)")
+    out.append("    | _ -> () end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
