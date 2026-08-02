@@ -96,3 +96,27 @@ EXHAUSTED at 841 (measured per-stub). Remaining trusted stubs by blocker class (
   (dict-of-tuples value shape + string-set + sorted); pycsl.py/audit_proof/sertop (legit IO/subprocess trusted).
 NEXT (authorize first): Wall-2 iterator model / string-keyed-set κ-inference / a cert (SRaise / pyval->stmt_list)
 / new value-shapes / a review-gated list-returning _ir_free_vars. None autonomous-reachable under ledger-3 + no-formal-semantics.
+
+## 2026-08-02 — recognizer-addressable frontier MEASURED-EXHAUSTED at count 829
+Session window 835→829 (6 conv): union cluster 4 (76e4b821), R-W2d set-consumer
+`_assigned_locals` 1 (8f512d2b), boolfold-isinstance `uses_inline_set_or_dict_ops` 1
+(e638259c). 3 new reusable recognizers, all axiom-free, all whole-file-proven, byte-diff 0.
+
+MEASURED (not guessed): a full census running EVERY single-func recognizer against the
+LIVE body of EVERY currently-trusted stub found **0 matches** — no trusted stub converts
+via an existing recognizer. `uses_inline_set_or_dict_ops` was the last recognizer-reachable
+one (unlocked by BUILDING recognize_boolfold_isinstance, the bool analog of recognize_setfold).
+
+Two heuristic "cheap cluster" probes BOTH over-counted (reproducing the census `--no-proof`
+trap): (a) mid-file utility sweep → 1 false CHEAP-PASS (uses_inline, actually a wall broken by
+build); (b) "flat bool-predicate" sweep → 14 stubs but on inspection all heterogeneous HARD
+boundaries: handler_catches=bases_closure axiom-boundary; _is_trivial_new/_should_skip_method
+=raw ast.* parser-boundary; _is_linear_expr=nested _check closure; _returns_string_seq/
+_func_returns_string_seq=nested rec-closure + found[0] mutable-cell + heterogeneous
+seq_value_types map. LESSON (again): classify on the RECOGNIZER MATCH or WHOLE-BODY PROOF,
+never a shape heuristic.
+
+FLOOR: every remaining conversion needs either a NEW bespoke recognizer build (Phase-2
+wall-break, ~1 stub each, like boolfold) OR one of the authorized hard campaigns (string-parse
+modeling, opaque-ast/IO, the _check_noreturn/SRaise cert). No recognizer-addressable cheap
+wins remain.
