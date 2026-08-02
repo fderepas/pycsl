@@ -174,3 +174,19 @@ throughput; batch core_ir_semantic conversions to amortize the one slow proof.
 REMAINING: raw-ast boundaries (_check_gt4=_ast.walk, _validate_function_contracts=ast.FunctionDef,
 _write_fstring_inner=pure_ast), stateful (_inline_calls), large campaigns (pyval→stmt_ir bridge cert,
 opaque-ast/IO). No more string-op-cluster wins.
+
+## 2026-08-02 (later) — next capability: NESTED-CLOSURE walk recognizer; count 822
+After the string-op cluster, the fast-file IR-dict candidates (auto_trust/types/monomorphize/ir_scanner)
+are dominated by a NEW blocker class my recognizers don't cover: NESTED-CLOSURE recursion — an inner
+`def walk(items)/def _check(e)` with a `result.add(...)` / `found[0]=True` mutable-cell accumulator,
+instead of the DIRECT self-recursion my folds match. Examples: auto_trust::_collect_map_typed_locals,
+_has_set_op_on_map, _extract_array_lengths, _is_linear_expr; types::_collect_* ; functions::
+_returns_string_seq; preamble::_func_returns_string_seq. Many ALSO cross-call still-trusted helpers
+(self._rhs_yields_map). Two sub-shapes: (a) set-BUILDING (result.add per elem — needs a real set_add
+fold, NOT __anystr) and (b) bool-existence (found[0]=True — an OR-fold). A NESTED-CLOSURE recognizer
+that matches `def walk`+cell and emits the equivalent DIRECT-recursive fold would unlock this cluster
+(~10+ stubs, mostly FAST files) — a genuine fresh-context capability build. Cross-call-on-trusted
+sub-cases need the callee converted first (leaf-first) or emit it as an opaque val.
+
+REMAINING after that: raw-ast boundaries, stateful IR-mutation (ir_resolve/monomorphize _rewrite_*/
+_specialize_*), the pyval→stmt_ir bridge cert.
