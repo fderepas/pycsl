@@ -1201,6 +1201,372 @@ def emit_setfold_group(func: Dict[str, Any], sf: Dict[str, Any],
     return out
 
 
+# ---- BOOL-existence isinstance-dispatch `.values()`/list catamorphism ------
+# The bool analog of `recognize_setfold` (the `collection_binder_kinds` shape),
+# for `uses_inline_set_or_dict_ops`: an inline self-recursive walk
+#   if isinstance(obj, dict):
+#       t = obj.get("<type_key>", "")
+#       if t in (<str-tuple>): return True
+#       if t == "<eqlit>":
+#           fn = obj.get("<fn_key>", "")
+#           if fn in (<str-tuple>): return True
+#           if fn.endswith("<s1>") or ... : return True
+#       for v in obj.values():
+#           if <self>(v): return True
+#   elif isinstance(obj, list):
+#       for item in obj:
+#           if <self>(item): return True
+#   return False
+# Emitted as an OR-fold over the certified `pv_size`/`size_dict`/`size_list`
+# variant — the IDENTICAL descent to `emit_setfold_group`, so termination
+# discharges in the whole-file context exactly as `collection_binder_kinds`
+# does. The per-node dict predicate reflects EVERY tag/key/tuple/suffix literal
+# read off the body (mutation-sensitive; a body change moves the emitted .mlw);
+# `.endswith` lowers to a per-function opaque `val <n>__suffix` (result
+# unconstrained -> NOT an axiom, ledger stays 3).
+
+def _bfi_flatten_or(node: Any) -> List[Any]:
+    """Flatten a left/right-nested BinOp `or` tree into its leaf operands."""
+    if isinstance(node, dict) and node.get("type") == "BinOp" and node.get("op") == "or":
+        return _bfi_flatten_or(node.get("left")) + _bfi_flatten_or(node.get("right"))
+    return [node]
+
+
+def _bfi_node_get(value: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<KEY>"[, ""])` (1 str arg, or 2nd arg an empty-string
+    default) -> KEY, else None. Fail-closed."""
+    if not (isinstance(value, dict) and value.get("type") == "Call"
+            and value.get("func") == f"{subj}.get"):
+        return None
+    args = value.get("args") or []
+    if len(args) == 1:
+        return _is_string(args[0])
+    if len(args) == 2 and _is_string(args[1]) == "":
+        return _is_string(args[0])
+    return None
+
+
+def _bfi_true_return(stmt: Any) -> bool:
+    """`return True` (single-stmt arm)."""
+    return (isinstance(stmt, dict) and stmt.get("stmt") == "Return"
+            and isinstance(stmt.get("value"), dict)
+            and stmt["value"].get("type") == "Bool"
+            and stmt["value"].get("value") is True)
+
+
+def _bfi_tuple_arm(stmt: Any, var: str) -> Optional[List[str]]:
+    """`if <var> in (<str-tuple>): return True` (orelse empty) -> the string
+    list, else None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "in" and _is_var(test.get("left"), var)
+            and _is_string_tuple(test.get("right", {}))):
+        return None
+    vals = [_is_string(e) for e in test["right"]["elts"]]
+    if any(v is None for v in vals):
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 1 or not _bfi_true_return(body[0]):
+        return None
+    return vals
+
+
+def _bfi_suffix_arm(stmt: Any, var: str) -> Optional[List[str]]:
+    """`if <var>.endswith("<s1>") or <var>.endswith("<s2>") or ...: return True`
+    (orelse empty) -> the suffix list, else None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    sufs: List[str] = []
+    for leaf in _bfi_flatten_or(test):
+        if not (isinstance(leaf, dict) and leaf.get("type") == "Call"
+                and leaf.get("func") == f"{var}.endswith"):
+            return None
+        largs = leaf.get("args") or []
+        if len(largs) != 1:
+            return None
+        s = _is_string(largs[0])
+        if s is None:
+            return None
+        sufs.append(s)
+    if not sufs:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 1 or not _bfi_true_return(body[0]):
+        return None
+    return sufs
+
+
+def _bfi_desc_for(stmt: Any, subj: str, fname: str, over_values: bool) -> bool:
+    """`for x in <obj.values()|obj>: if <fname>(x): return True` (orelse empty).
+    `over_values` selects the `<subj>.values()` iter vs the bare `<subj>` iter."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"
+            and not stmt.get("orelse")):
+        return False
+    it = stmt.get("iter", {})
+    if over_values:
+        if not (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{subj}.values" and not it.get("args")):
+            return False
+    else:
+        if not _is_var(it, subj):
+            return False
+    tgt = stmt.get("target")
+    if not isinstance(tgt, str):
+        return False
+    body = stmt.get("body", [])
+    if len(body) != 1:
+        return False
+    inner = body[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"
+            and not inner.get("orelse")):
+        return False
+    test = inner.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and isinstance(test.get("func"), str)
+            and _canon_call(test.get("func")) == fname):
+        return False
+    targs = test.get("args") or []
+    if len(targs) != 1 or not _is_var(targs[0], tgt):
+        return False
+    ibody = inner.get("body", [])
+    return len(ibody) == 1 and _bfi_true_return(ibody[0])
+
+
+def recognize_boolfold_isinstance(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the bool-existence isinstance-dispatch `.values()`/
+    list catamorphism (`uses_inline_set_or_dict_ops`). Returns
+    {name, subject, type_key, tvar, arms} or None. Never raises."""
+    try:
+        return _recognize_boolfold_isinstance(func)
+    except Exception:
+        return None
+
+
+def _recognize_boolfold_isinstance(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 2:
+        return None
+    outer, tail = body
+    # tail: return False
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # outer: if isinstance(subj, dict): <dict-block> else: if isinstance(subj,list): <list-for>
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+    dbody = list(outer.get("body", []))
+    if len(dbody) < 2:
+        return None
+    # dbody[0]: t = subj.get("<type_key>"[, ""])
+    a0 = dbody[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and isinstance(a0.get("target"), str)):
+        return None
+    tvar = a0["target"]
+    type_key = _bfi_node_get(a0.get("value"), subj)
+    if type_key is None or tvar == subj:
+        return None
+    # dbody[-1]: the `for v in subj.values(): if self(v): return True` descent
+    if not _bfi_desc_for(dbody[-1], subj, fname, over_values=True):
+        return None
+    # dbody[1..-2]: the predicate arms over `tvar` (tuple-return | eq-guard)
+    arms: List[Any] = []
+    for st in dbody[1:-1]:
+        tp = _bfi_tuple_arm(st, tvar)
+        if tp is not None:
+            arms.append(("tuple", tvar, tp))
+            continue
+        eq = _bfi_eq_guard(st, tvar, subj)
+        if eq is not None:
+            arms.append(eq)
+            continue
+        return None
+    if not arms:
+        return None
+    # orelse: exactly `if isinstance(subj, list): for item in subj: if self(item): return True`
+    orelse = outer.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    lif = orelse[0]
+    if not (isinstance(lif, dict) and lif.get("stmt") == "If" and not lif.get("orelse")):
+        return None
+    if not _match_isinstance(lif.get("test", {}), subj, "list"):
+        return None
+    lbody = lif.get("body", [])
+    if len(lbody) != 1 or not _bfi_desc_for(lbody[0], subj, fname, over_values=False):
+        return None
+    return {"name": fname, "subject": subj, "type_key": type_key,
+            "tvar": tvar, "arms": arms}
+
+
+def _bfi_eq_guard(stmt: Any, tvar: str, subj: str) -> Optional[Any]:
+    """`if <tvar> == "<eqlit>": [ fn = subj.get("<fn_key>"[,""]);
+    (fn in tuple -> True)* (fn.endswith chain -> True)* ]` -> a descriptor
+    ("eq", eqlit, fnvar, fn_key, subarms) or None. Fail-closed."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "==" and _is_var(test.get("left"), tvar)):
+        return None
+    eqlit = _is_string(test.get("right"))
+    if eqlit is None:
+        return None
+    gbody = list(stmt.get("body", []))
+    if len(gbody) < 2:
+        return None
+    fa = gbody[0]
+    if not (isinstance(fa, dict) and fa.get("stmt") == "Assign"
+            and isinstance(fa.get("target"), str)):
+        return None
+    fnvar = fa["target"]
+    fn_key = _bfi_node_get(fa.get("value"), subj)
+    if fn_key is None or fnvar in (subj, tvar):
+        return None
+    subarms: List[Any] = []
+    for st in gbody[1:]:
+        tp = _bfi_tuple_arm(st, fnvar)
+        if tp is not None:
+            subarms.append(("tuple", fnvar, tp))
+            continue
+        sf = _bfi_suffix_arm(st, fnvar)
+        if sf is not None:
+            subarms.append(("suffix", fnvar, sf))
+            continue
+        return None
+    if not subarms:
+        return None
+    return ("eq", eqlit, fnvar, fn_key, subarms)
+
+
+def _bfi_reader(n: str, key: str) -> List[str]:
+    """A `pydict -> option pyval` K_dyn reader for `key` (literal key reflected)."""
+    suf = _reader_suffix(key)
+    out = [f"  let rec {n}__g_{suf} (d: pydict) : option pyval",
+           "    variant { d }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {n}__g_{suf} rest")
+    else:
+        out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {n}__g_{suf} rest')
+        out.append(f"    | DCons _ _ rest -> {n}__g_{suf} rest")
+    out.append("    end")
+    return out
+
+
+def emit_boolfold_isinstance_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                   whyml_ident) -> List[str]:
+    """Emit the bool-existence isinstance-dispatch `.values()`/list catamorphism
+    as an OR-fold over the certified `pv_size`/`size_dict`/`size_list` variant
+    (identical descent to `emit_setfold_group`). The per-node dict predicate
+    reflects every recognised tag/key/tuple/suffix literal; `.endswith` -> a
+    per-function opaque `val <n>__suffix` (result unconstrained, not an axiom).
+    `ensures True`."""
+    n = whyml_ident(func["name"])
+    arms = desc["arms"]
+    # distinct keys the predicate reads (type_key + any eq-guard fn_key)
+    keys = [desc["type_key"]]
+    has_suffix = False
+    for a in arms:
+        if a[0] == "eq":
+            keys.append(a[3])
+            if any(sa[0] == "suffix" for sa in a[4]):
+                has_suffix = True
+    out: List[str] = []
+    if has_suffix:
+        # opaque string-suffix test (result VC-free -> not an axiom)
+        out.append(f"  val {n}__suffix (s p: string) : bool")
+    seen: set = set()
+    for k in keys:
+        if k in seen:
+            continue
+        seen.add(k)
+        out.extend(_bfi_reader(n, k))
+
+    def _tuple_disj(var: str, vals: List[str]) -> str:
+        return " || ".join(f'pystr_eq {var} "{v}"' for v in vals)
+
+    def _suffix_disj(var: str, sufs: List[str]) -> str:
+        return " || ".join(f'{n}__suffix {var} "{s}"' for s in sufs)
+
+    # the per-node dict predicate `n__pred (d: pydict) : bool`
+    tk_suf = _reader_suffix(desc["type_key"])
+    out.append(f"  let {n}__pred (d: pydict) : bool")
+    out.append(f"  = match {n}__g_{tk_suf} d with")
+    out.append("    | Some (PStr t) ->")
+    # build the nested if/else arm chain (each arm: if <clause> then true else <next>)
+    lines: List[str] = []
+    for a in arms:
+        if a[0] == "tuple":
+            _, var, vals = a
+            lines.append(("if", _tuple_disj("t", vals)))
+        elif a[0] == "eq":
+            _, eqlit, fnvar, fn_key, subarms = a
+            fk_suf = _reader_suffix(fn_key)
+            sub_clauses: List[str] = []
+            for sa in subarms:
+                if sa[0] == "tuple":
+                    sub_clauses.append(_tuple_disj("fn", sa[2]))
+                else:  # suffix
+                    sub_clauses.append(_suffix_disj("fn", sa[2]))
+            sub_disj = " || ".join(f"({c})" for c in sub_clauses)
+            eq_expr = (f'if pystr_eq t "{eqlit}" then '
+                       f"(match {n}__g_{fk_suf} d with "
+                       f"| Some (PStr fn) -> {sub_disj} "
+                       f"| _ -> false end)")
+            lines.append(("eqif", eq_expr))
+    # fold the arm chain into `if C1 then true else if C2 then true else ... else false`
+    expr = "false"
+    for kind, clause in reversed(lines):
+        if kind == "if":
+            expr = f"if {clause} then true else {expr}"
+        else:  # eqif — clause already is `if ... then (...) else` needing the else tail
+            expr = f"{clause} else {expr}"
+    out.append(f"        {expr}")
+    out.append("    | _ -> false end")
+
+    # the recursive OR-fold group (pv_size / size_dict / size_list variant)
+    out.append(f"  let rec {n} ({desc['subject']}: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant {{ pv_size {desc['subject']} }}")
+    out.append(f"  = match {desc['subject']} with")
+    out.append(f"    | PDict d -> {n}__pred d || {n}__dict d")
+    out.append(f"    | PList xs -> {n}__list xs")
+    out.append("    | _ -> false end")
+    out.append(f"  with {n}__dict (d: pydict) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> false")
+    out.append(f"    | DCons _ v rest -> {n} v || {n}__dict rest")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> false")
+    out.append(f"    | Cons h t -> {n} h || {n}__list t end")
+    return out
+
+
 # =========================================================================
 # ir-traversal-residual T1 — the FUNCTORIAL-MAP (reconstruction) algebra
 # (result_algebra = the value type itself), plus insight C (guard classif.).

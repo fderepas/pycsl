@@ -831,3 +831,18 @@ a faithful `-> frozenset[str]` annotation (string-typed but stays trusted) + Mod
 LESSON: the string-keyed-set MEMBERSHIP model is sound + reusable, but a set BUILT by a worklist/frontier
 BFS over an abstract map has no dischargeable variant without a bounded-universe axiom — apply the model to
 COLLECT-walkers (bounded structural recursion, e.g. ir_inline _assigned_locals) NOT frontier-BFS builds.
+
+## WALL (2026-08-02): census `--no-proof` over-count — the inline-recursive `.values()` bool-walk
+`ir_scanner.py::uses_inline_set_or_dict_ops` was flagged CHEAP-PASS by a census that used only
+`pycsl <file> --no-proof` (L3-tc). REPRODUCED base-loop lesson #1: `--no-proof` does NOT discharge
+the TERMINATION VC. The verbatim port type-checked but the WHOLE-FILE proof TIMED OUT on exactly
+`irscanner__uses_inline_set_or_dict_ops'vc` sub-goal "termination" (3× Timeout 30s) — the inline
+self-recursive `for v in obj.values(): if self(v): return True` walk fell to a NAIVE emission whose
+variant Why3 can't discharge in-context. REVERTED (count held 830). NOT a cheap win.
+BUT NOT a hard boundary either: the sibling `collection_binder_kinds` (SAME `.values()` inline
+recursion, SET-returning) PROVES green in the same ir_scanner whole-file context because it matches
+`recognize_setfold`, which emits the certified `pv_size`-variant fold. So the make-or-break spike for
+a bool variant is PRE-SATISFIED. FIX = a `recognize_bool_existence_values` recognizer + emit modeled
+on `emit_setfold_group` (OR-fold bool over the `pv_size`-variant `.values()`/list descent, with the
+dict-node early-return predicate; `.endswith` → opaque `val pystr_suffix` result-unconstrained, not an
+axiom). Leverage: ~3 bool stubs (uses_inline_set_or_dict_ops, _is_decode_call, _test_contains_map).

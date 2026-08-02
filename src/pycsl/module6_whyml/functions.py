@@ -2887,6 +2887,7 @@ class FunctionEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_generic_fold, emit_generic_fold_group,
             recognize_setfold, emit_setfold_group,
+            recognize_boolfold_isinstance, emit_boolfold_isinstance_group,
             recognize_stmt_setfold, emit_stmt_setfold_group,
             recognize_substmap, emit_substmap_group,
             recognize_bool_existence, emit_bool_existence_group,
@@ -3308,6 +3309,14 @@ class FunctionEmissionMixin:
         if _sf is not None:
             return emit_setfold_group(func, _sf, whyml_ident,
                                       self._lower_fold_ensures(func))
+        # bool analog of recognize_setfold: the isinstance-dispatch `.values()`/
+        # list bool-existence catamorphism (`uses_inline_set_or_dict_ops`) —
+        # OR-fold over the same certified pv_size/size_dict/size_list variant;
+        # per-node predicate reflects tag/tuple/suffix literals; `.endswith` ->
+        # opaque per-fn `val __suffix` (no axiom). Fail-closed; corpus-inert.
+        _bfi = recognize_boolfold_isinstance(func)
+        if _bfi is not None:
+            return emit_boolfold_isinstance_group(func, _bfi, whyml_ident)
         # bigger-build G-set-accumulate-multiway: the Set[str] statement-tree
         # accumulate fold (by-return sibling of `recognize_bool_existence`, same
         # `list pyval`/tag-dispatch/body-orelse-descend shape, `recognize_setfold`'s

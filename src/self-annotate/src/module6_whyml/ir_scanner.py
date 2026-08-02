@@ -119,12 +119,37 @@ class IRScanner:
     def find_array_and_dict_vars(stmts: List[int]) -> int:
         return ([], {})
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def uses_inline_set_or_dict_ops(obj: Any) -> bool:
+        """True iff anywhere in `obj` (a stmt list or arbitrary IR object)
+        there is a SetLit / DictLit, a set/dict/frozenset constructor call,
+        or a `.add()`/`.discard()`/`.remove()` method-call ExprStmt. These
+        all emit `map_update_some` / `map_update_none` into the WhyML,
+        which requires `use map.Map` + `use option.Option` in the preamble
+        — even if no body-local variable is bound to a set or dict."""
+        if isinstance(obj, dict):
+            t = obj.get("type", "")
+            if t in ("SetLit", "DictLit"):
+                return True
+            if t == "Call":
+                fn = obj.get("func", "")
+                if fn in ("set", "dict", "frozenset",
+                          "defaultdict", "Counter", "OrderedDict"):
+                    return True
+                # `<obj>.add(x)` / `.discard(x)` / `.remove(x)` patterns
+                if (fn.endswith(".add") or fn.endswith(".discard")
+                        or fn.endswith(".remove")):
+                    return True
+            for v in obj.values():
+                if IRScanner.uses_inline_set_or_dict_ops(v):
+                    return True
+        elif isinstance(obj, list):
+            for item in obj:
+                if IRScanner.uses_inline_set_or_dict_ops(item):
+                    return True
         return False
 
     #@ requires True
