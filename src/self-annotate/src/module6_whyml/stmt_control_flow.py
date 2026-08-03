@@ -720,8 +720,11 @@ class ControlFlowStmtMixin:
         """Map a Union arm IR type tag to its WhyML type string."""
         m = {"int": "int", "bool": "int", "str": "string", "float": "real",
              "list": "array int", "bytes": "array int", "bytearray": "array int",
-             "dict": "map int (option int)", "set": "map int (option int)",
-             "frozenset": "map int (option int)", "tuple": "array int",
+             # set/frozenset: faithful StrSet `map string bool` (see the twin in
+             # functions.py / preamble._VPAY) — was the int-keyed map that
+             # int-hashed a string membership key. `dict` stays on the int model.
+             "dict": "map int (option int)", "set": "map string bool",
+             "frozenset": "map string bool", "tuple": "array int",
              # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
              # carries the already-lowered emit_ir sub-node.
              "emit_ir": "emit_ir"}

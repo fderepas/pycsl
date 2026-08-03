@@ -6778,6 +6778,127 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return (f"(match Map.get {recv_whyml} {k} "
                 f"with | Some v_ -> v_ | None -> {default} end)")
 
+    def _const_dict_name(self, recv: str) -> Optional[str]:
+        """`recv` names a genuine module-level constant str->str dict (in
+        `_module_const_dicts`) NOT shadowed by a local/param/symtab entry."""
+        if not isinstance(recv, str):
+            return None
+        if getattr(self, "_module_const_dicts", {}).get(recv) is None:
+            return None
+        symtab0 = getattr(self, "_current_symbol_table", {}) or {}
+        if (recv in symtab0
+                or recv in getattr(self, "_current_params", set())):
+            return None
+        return recv
+
+    def _const_dict_value_seq(self, val_ir: Dict[str, Any],
+                              local_refs: Set[str],
+                              invariant_ctx: bool = False,
+                              subst: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """module-const-dict READ -> a faithful `seq string` value (the return-slot
+        shape for a `List[str]` function). Mirror-only const-dict theory (like the
+        `.get(k, default)` chained-ITE just above): NO corpus program reads a
+        module-const dict this way, so this is byte-inert by construction.
+
+        Three shapes, each returning a `Seq.cons`-chain of the dict's own value
+        literals (mutation-sensitive: perturb a key or value and the term moves):
+          1. `list(<X>.values())` / `<X>.values()`  -> every value, in dict order.
+          2. `[v for k, v in <X>.items() if <k> in <set>]` -> the values whose key
+             passes the membership filter (`if (Map.get <set> "k0") then Seq.cons ...`).
+
+        SHAPE-2 IDIOM ASSUMPTION (flagged): Module5 collapses a comprehension tuple
+        target `(k, v)` to `_comp_var` (`frontend/Module5_IREmitter.py`), discarding
+        which loop name binds the KEY vs the VALUE of `.items()`. This recognizer
+        applies the standard `for k, v in d.items()` idiom — the COLLECTED var (in
+        `elt`) is the value, the FILTERED var (tested `in <set>`) is the key. Exact
+        for the sole consumer (`predicate_definitions`); a non-idiomatic swap
+        (`[k for k, v in d.items() if v in s]`) would mis-model — see the reopening
+        note in the report (preserve tuple-target names in Module5). Returns None
+        (fail-closed to the existing lowering) on any deviation from these shapes."""
+        if not isinstance(val_ir, dict):
+            return None
+        t = val_ir.get("type")
+        # 1a. `list(<inner>)` wrapper -> unwrap.
+        if t == "Call" and val_ir.get("func") == "list":
+            _a = val_ir.get("args") or []
+            if len(_a) == 1:
+                return self._const_dict_value_seq(_a[0], local_refs, invariant_ctx, subst)
+            return None
+        # 1b. `<X>.values()` on a module-const dict.
+        if t == "Call" and isinstance(val_ir.get("func"), str):
+            _fn = val_ir["func"]
+            if _fn.endswith(".values") and not (val_ir.get("args") or []):
+                _cd = self._const_dict_name(_fn[:-len(".values")])
+                if _cd is not None:
+                    _mcd = self._module_const_dicts[_cd]
+                    _expr = "Seq.empty"
+                    for _vv in reversed(list(_mcd.values())):
+                        _expr = f"(Seq.cons {whyml_string_literal(_vv)} {_expr})"
+                    return _expr
+            return None
+        # 2. `[<v> for <(k,v)> in <X>.items() if <k> in <set>]`.
+        if t == "ListComp":
+            return self._const_dict_items_filter_seq(
+                val_ir, local_refs, invariant_ctx, subst)
+        return None
+
+    def _const_dict_items_filter_seq(self, val_ir: Dict[str, Any],
+                                     local_refs: Set[str],
+                                     invariant_ctx: bool,
+                                     subst: Optional[Dict[str, Any]]) -> Optional[str]:
+        """Shape-2 helper (see `_const_dict_value_seq`): the membership-filtered
+        `.items()` comprehension over a module-const dict -> a conditional
+        `Seq.cons` chain. Fail-closed (None) unless the exact idiom matches."""
+        _gens = val_ir.get("generators") or []
+        if len(_gens) != 1:
+            return None
+        _g = _gens[0]
+        _it = _g.get("iter") or {}
+        if not (isinstance(_it, dict) and _it.get("type") == "Call"
+                and isinstance(_it.get("func"), str)
+                and _it["func"].endswith(".items")
+                and not (_it.get("args") or [])):
+            return None
+        _cd = self._const_dict_name(_it["func"][:-len(".items")])
+        if _cd is None:
+            return None
+        # elt must be a single loop var (the COLLECTED value, per the idiom).
+        _elt = val_ir.get("elt") or {}
+        if not (isinstance(_elt, dict) and _elt.get("type") == "Var"):
+            return None
+        _elt_var = _elt.get("name")
+        # exactly one `<filter-var> in <set>` guard; filter-var is the KEY.
+        _ifs = _g.get("ifs") or []
+        if len(_ifs) != 1:
+            return None
+        _f = _ifs[0]
+        if not (isinstance(_f, dict) and _f.get("type") == "BinOp"
+                and _f.get("op") == "in"
+                and isinstance(_f.get("left"), dict)
+                and _f["left"].get("type") == "Var"):
+            return None
+        _key_var = _f["left"].get("name")
+        if _key_var == _elt_var or _elt_var is None or _key_var is None:
+            return None
+        _set_w = self._expr_to_whyml(_f.get("right") or {}, local_refs or set(),
+                                     invariant_ctx, subst)
+        _mcd = self._module_const_dicts[_cd]
+        # Build a LINEAR `let`-chain (tail bound once per element) rather than
+        # inlining the accumulator into both `if` arms (which would duplicate the
+        # tail 2^N times). `_cdf_i` names the tail after element i.
+        _items = list(_mcd.items())
+        _lets: List[str] = []
+        _acc = "Seq.empty"
+        for _i in range(len(_items) - 1, -1, -1):
+            _kk, _vv = _items[_i]
+            _memb = f"(Map.get {_set_w} {whyml_string_literal(_kk)})"
+            _nm = f"_cdf_{_i}"
+            _lets.append(
+                f"let {_nm} = (if {_memb} then "
+                f"(Seq.cons {whyml_string_literal(_vv)} {_acc}) else {_acc}) in")
+            _acc = _nm
+        return "(" + " ".join(_lets) + f" {_acc})"
+
     def _lower_getattr(self, expr: Dict[str, Any], args: List[str],
                        local_refs: Set[str], invariant_ctx: bool,
                        subst: Optional[Dict[str, str]]) -> str:

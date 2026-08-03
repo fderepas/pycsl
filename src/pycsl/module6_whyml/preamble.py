@@ -6526,7 +6526,17 @@ class PreambleEmissionMixin:
         _VPAY = {"int": "int", "bool": "int", "str": "string", "float": "real",
                  # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
                  # carries the already-lowered emit_ir sub-node (`Arm_i_0 emit_ir`).
-                 "emit_ir": "emit_ir"}
+                 "emit_ir": "emit_ir",
+                 # set/frozenset union-arm payload: the faithful StrSet model
+                 # `map string bool` (matches the frozenset-RETURN model and the
+                 # `_union_arm_whyml_type` inj/proj goal), NOT the int default that
+                 # int-hashed a string key at a `k in <set>` membership site. No
+                 # corpus program has an `Optional[set]`/`Union[..., set]` arm; the
+                 # sole mirror consumer is `predicate_definitions.needed` -> inert.
+                 # Parenthesized: the payload is a single ctor-argument position
+                 # (`Arm_i_0 (map string bool)`), so the multi-token type needs its
+                 # own parens or Why3 reads it as `map` applied to `string`/`bool`.
+                 "set": "(map string bool)", "frozenset": "(map string bool)"}
         # no-more-int-3 A5a: declared `#@ datatype` names, so a constructor
         # payload that NAMES a datatype (a self-reference `Node(Tree, Tree)` or
         # another variant) resolves to that variant's Why3 type instead of the

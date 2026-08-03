@@ -125,10 +125,18 @@ class FunctionEmissionMixin:
     #@ assigns \nothing
     def _union_arm_whyml_type(self, tag: str) -> str:
         """Map a Union arm IR type tag to its WhyML type string."""
+        # set/frozenset arm: the faithful StrSet model `map string bool` (present=true),
+        # matching the `frozenset`-RETURN model (subclasses_of/bases_closure emit
+        # `map string bool` via set_add / const false) — NOT the old int-keyed
+        # `map int (option int)`, which int-hashed a string key at a `k in <set>`
+        # membership site (the "bare-set-key" bug). No corpus program has an
+        # `Optional[set]`/`Union[..., set]` param, and the sole mirror consumer is
+        # `exception_model.predicate_definitions.needed` -> byte-inert by construction.
+        # `dict` is left on the int model (a separate, out-of-scope faithfulness gap).
         m = {"int": "int", "bool": "int", "str": "string", "float": "real",
              "list": "array int", "bytes": "array int", "bytearray": "array int",
-             "dict": "map int (option int)", "set": "map int (option int)",
-             "frozenset": "map int (option int)", "tuple": "array int",
+             "dict": "map int (option int)", "set": "map string bool",
+             "frozenset": "map string bool", "tuple": "array int",
              # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
              # carries the already-lowered emit_ir sub-node.
              "emit_ir": "emit_ir"}

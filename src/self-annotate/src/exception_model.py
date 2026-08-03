@@ -201,7 +201,6 @@ def triggers_for(op_key: Tuple[str, Optional[str]]) -> List[Trigger]:
     return TRIGGERS.get(op_key, [])
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

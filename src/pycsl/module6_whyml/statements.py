@@ -397,6 +397,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         """07-1705-rev4 P3: lower a seq-local's RHS to a `seq int` value. A list literal
         `[v0, v1, …]` becomes a `Seq.cons` chain (qualified); any other array-typed RHS
         is bridged with `snapshot`."""
+        # module-const-dict READ (`list(X.values())` / `[v for k,v in X.items() if k in s]`)
+        # -> a faithful `seq string` chain of the const dict's own value literals. Mirror-only
+        # const-dict theory (byte-inert: no corpus program reads a module-const dict this way).
+        _cds = self._const_dict_value_seq(val_ir, local_refs)
+        if _cds is not None:
+            return _cds
         if val_ir.get("type") == "ArrayLit":
             expr = "Seq.empty"
             for e in reversed(val_ir.get("elts", [])):
