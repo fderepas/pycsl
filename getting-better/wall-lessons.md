@@ -1079,3 +1079,52 @@ Because module6 recognizers key off the collector-populated IR fields and there 
 
 ### Reopening capability (the ONE unlock — a supervisor/review-gated Phase-2 build)
 Add a FRONT-END collector family for module-level COMPOUND constants — `collect_module_const_str_sets` (frozenset/set of str-lits → `str_set_constants`-style field), `collect_module_const_str_pairs` (List[(str,str)]), and (harder) a type-keyed op-map — wired in `Module5_IREmitter.py`, THEN the module6 lowerings (membership `x in SET`→`str_eq_op` disjunction like the class-str-set path already does; list-pair→linear-ITE; `sorted(SET)`→sorted-literal `Seq.cons`; type-dict→node-kind reflect+ITE). This mirrors exactly how the class-str-set capability (L4b) and the const-str-dict capability (84a5cc85) work, but for module-level compound shapes. It is corpus-inert by construction (no reference program reads a module compound const this way) but it EDITS THE FRONT-END, so it is out of worker scope: escalate as a report→fable-review→impl Phase-2 cycle. Once landed, target #1 converts immediately and the parser/tree-walker targets remain separately walled.
+
+## 2026-08-03 (driver cont#14) — NESTED-def / dropped-closure wall = RESEARCH WALL (spike REFUTED at Q2)
+
+MEASURE-FIRST feasibility spike on the highest-multiplicity Phase-2 wall (nested `def` closures Module5
+drops; ~21 stubs per run #5 census — `core_ir_semantic` collectors + `auto_trust._is_linear_expr`/
+`_has_set_op_on_map`/`_should_auto_trust_tuple_return`). Verdict: **RESEARCH WALL** — the front-end capture
+is cheap and byte-inert, but it is the WRONG HALF; lowering the captured body sits on two pre-existing
+CERTIFIED-BOUNDARY research floors. NO source touched; tree clean (only a scratchpad census script written).
+
+**Q1 (byte-inertness) — PASSES.** AST census over the 893-file corpus (`scratchpad/nested_census.py`,
+parent-scope-tracking walk): **ZERO** TRUE nested-function closures (a `def` whose nearest enclosing scope is
+a `FunctionDef`). The coarse grep `^\s+def ` hits 152 files, but ALL are class METHODS (`def` under `class`),
+which Module5 already captures normally — NOT the dropped-closure case. So an additive nested-def capture into
+a NEW IR field is byte-inert BY CONSTRUCTION (no corpus program's IR changes). This half is feasible.
+
+**Q2 (reconstructability without a facade) — REFUTES.** Target `auto_trust._is_linear_expr` (nested
+`def _check(e)`, a recursive type-dispatched linear-arith predicate over the contract-expr IR dict). Even a
+PERFECT capture of the closure into an IR field cannot lower faithfully without BOTH of two documented
+research floors — each independently sufficient to refute:
+  1. **Recursion + structural variant.** `_check(left) and _check(right)` needs `let rec` PROGRAM-function
+     emission with a discharging structural variant. The emit_ir theory has a `size` logic function
+     (preamble.py:4708) but — per the isinstance CERTIFIED-BOUNDARY (this ledger, line ~328) — "there is no
+     path to emit it as a program-function variant." The existing `let rec` machinery (functions.py) serves
+     RECOGNIZER-matched mutually-recursive method groups with hand-authored variants baked into each
+     recognizer; there is no path to synthesize a variant for a freshly-captured arbitrary closure.
+  2. **Heterogeneous pyval value model.** The constant branch `val = e.get("value", e.get("n",0)); return
+     isinstance(val,(int,float,bool))` distinguishes numeric from string/other at RUNTIME. `num_of` (the
+     Number-value projector, preamble.py:4855) returns `int`, so `isinstance(val,(int,float,bool))` collapses
+     to always-True over it — a FACADE (the float/string rejection vanishes, mutation-insensitive). Faithful
+     lowering requires the heterogeneous `Dict[str,Any]`/`pyval` value model — the repeatedly-recorded
+     research-grade floor (this ledger, "giants emit-ir substrate = CERTIFIED-BOUNDARY").
+  Without both, the only lowering is the banned facade (`_check` vanishes → constant `let found=…; found[0]`,
+  exactly the run #5 §A facade shape). Corroboration from the base loop itself: `generic_fold.py:12985`
+  already tags `_is_linear_expr` "(trusted: nested-closure boundary) ... opaque pyval->bool over-approximation"
+  and lowered its ONLY consumer `_is_linear_vc` by treating it as an opaque call, never its body.
+
+**Q3 (cost) — multi-session RESEARCH, not a worker build.** The nested-def capture alone converts ZERO stubs
+(non-vacuity forbids committing front-end infra with no consumer conversion), so it is not even a committable
+increment until the two floors above land. It is COST/SCALE-AND-CORRECTNESS blocked: the two floors are
+CORRECTNESS boundaries (facade-or-nothing without them), and building them is session-scale research.
+
+**Reopening capability.** The nested-def front-end capture is real, cheap, and byte-inert — bank it as the
+FIRST step of a Phase-2 cycle, but ONLY co-landed with (1) captured-closure `let rec`+auto-variant program
+emission over the IR ADT AND (2) the heterogeneous pyval value model. All three must land together (the
+fixture-witness co-land pattern) or the capture is dead infra. Do NOT re-run the Q1 census (answer: 0) and do
+NOT attempt `_is_linear_expr` as a worker build — it is a facade until both floors exist. The `core_ir_semantic`
+`.values()` collectors behind this same wall share floor (2) and additionally the untyped-dict `.values()`
+iterator model. This is the same single highest-leverage root this ledger names throughout: the emit_ir-typed
+sub-node / heterogeneous `Dict[str,Any]` value model + certified recursive fold.
