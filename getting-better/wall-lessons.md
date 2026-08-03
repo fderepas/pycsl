@@ -975,3 +975,24 @@ whole namedtuple chain (walk_construction + _check_namedtuple_access) int→pyva
 re-proving each VERIFIED function (§10.4). Coupled multi-function campaign, NOT an autonomous cheap win —
 the ebf9dfcb caller-coupling trap at chain scale. LESSON: before building a leaf, `grep` the current
 trusted-val SIGNATURE in the .mlw — an int-model val with a verified int-model caller = coupling boundary.
+
+## 2026-08-03 — clean-simple fast-file frontier DRAINED (6 conversions this session)
+Session landed 6 conversions (820→814): find_assigned_vars (ir_scanner, ref-accumulator set-collect),
+_test_contains_map (auto_trust, recursive bool-fold + opaque cross-mixin pyval-predicate), _is_linear_vc
+(auto_trust, all()-AND-fold, all distributes over ++ so no list-append), handler_catches (exception_model,
+h==r||opaque-in-closure, INT return to match verified caller), subclasses_of (exception_model, set-filter-
+fold over handler_catches), classify (import_classifier, split-first + StrSet-membership + 3 opaque const
+returns named by identifier). Banked recognizer devices: opaque input-dependent pyval/string predicate;
+short-circuit bool-fold; set-filter-fold; StrSet membership = map application; reflect-the-literal separator;
+return-type MATCH for verified callers (bool→int); const-return-as-named-opaque-val (non-facade).
+
+REMAINING FRONTIER (measured): clean-simple targets EXHAUSTED. Next tier = MEDIUM string-op-heavy funcs,
+buildable like classify but heavier (several opaque string vals each): ir_inline._global_call_target
+(partition + StrSet + map-string-string lookup + opaque _method_key), ir_inline._method_edges (_walk_dicts
+set-collect + startswith + _method_key), monomorphize._type_str/_match_generic_annotation (regex/sanitize +
+tuple), _global_call_target family. BOUNDARY classes (need a FEATURE, not a recognizer): self-state record
+readers (_field_type_for/slot_id/as_dict/arity/all_agree/ok — need field-projection model), module-const
+readers (bases_closure/predicate_definitions/_strip_const_name — need const-splice), raw-ast (pure_ast
+parser ~150 methods, Weaver/Ingestor visitors), I/O (_stub_set), stateful-mutation (_inject_functions),
+pure-string-regex-transform (_mangled_name/_expand_anon_binders — one opaque val = facade, need real string
+theory = the no-more-int campaign). _has_dynamic_exec (functions.py) is clean but the file's proof is slow.
