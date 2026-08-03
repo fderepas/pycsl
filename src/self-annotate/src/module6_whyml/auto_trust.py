@@ -64,11 +64,40 @@ class AutoTrustMixin:
     def _collect_map_typed_locals(self, stmts: List[int]) -> int:
         return set()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _test_contains_map(self, expr: Any, map_locals: int) -> bool:
+    def _test_contains_map(self, expr: Any, map_locals: Set[str]) -> bool:
+        """Recursively check whether `expr` (an If/while test) contains
+        a map-typed OR array-typed subexpression. Walks through
+        UnaryOp(not, ...), BoolOp(and/or, ...), Compare wrappers —
+        anywhere a collection could be used as a bool would trigger
+        the `(X <> 0)` problem."""
+        if not isinstance(expr, dict):
+            return False
+        # A subscript/slice yields an element (int), not the collection —
+        # `if arr[i] == 1:` / `if d[k]:` does NOT use the collection as a
+        # truthiness operand. Consume it: check only the index, never
+        # recurse into the collection base (which would mis-flag the
+        # enclosing function for auto-trust).
+        if expr.get("type") in ("Subscript", "SliceAccess", "ChainedSubscript"):
+            for key in ("index", "index1", "index2"):
+                idx = expr.get(key)
+                if isinstance(idx, dict) and self._test_contains_map(idx, map_locals):
+                    return True
+            return False
+        if (expr.get("type") == "Var" and expr.get("name") in map_locals):
+            return True
+        if self._rhs_yields_map(expr) or self._rhs_yields_array(expr):
+            return True
+        for v in expr.values():
+            if isinstance(v, dict):
+                if self._test_contains_map(v, map_locals):
+                    return True
+            elif isinstance(v, list):
+                for item in v:
+                    if self._test_contains_map(item, map_locals):
+                        return True
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate

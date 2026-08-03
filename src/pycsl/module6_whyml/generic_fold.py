@@ -12445,6 +12445,161 @@ def emit_find_assigned_vars_group(desc: Dict[str, Any], whyml_ident) -> List[str
     return out
 
 
+# ---- `_test_contains_map`: recursive bool predicate (map/array truthiness in a test) ----
+# A short-circuiting bool fold over the pyval IR tree: Subscript-family nodes recurse ONLY
+# their index children; a `Var` whose name is in the (param) map-locals set is a hit; the two
+# cross-mixin `_rhs_yields_map`/`_rhs_yields_array` predicates (opaque pyval->bool over-
+# approximations) are hits; otherwise descend generically over `.values()` (dict) + nested
+# lists. Non-vacuous (returns a real bool), coupling-safe (bool return, no verified caller).
+
+def _tcm_str_elts(node: Any) -> Optional[List[str]]:
+    """A Tuple/List IR node of String literals -> [values], else None."""
+    if not (isinstance(node, dict) and node.get("type") in ("Tuple", "List", "ListLit")):
+        return None
+    out: List[str] = []
+    for e in node.get("elts", []) or []:
+        s = _is_string(e)
+        if s is None:
+            return None
+        out.append(s)
+    return out or None
+
+
+def recognize_test_contains_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_test_contains_map`. Never raises."""
+    try:
+        return _recognize_test_contains_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_test_contains_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_test_contains_map"):
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    expr_p, ml_p = params
+    body = func.get("body") or []
+    # [not-isinstance guard, subscript-If, var-If, rhs-If, values-For, Return]
+    if len(body) != 6:
+        return None
+    # --- subscript-If: `expr.get("type") in (T...)` with an inner `for key in (K...)` ---
+    sub_if = body[1]
+    st = sub_if.get("test") if isinstance(sub_if, dict) else None
+    if not (isinstance(st, dict) and st.get("type") == "BinOp" and st.get("op") == "in"):
+        return None
+    if _get_str(st.get("left"), "func") != f"{expr_p}.get":
+        return None
+    sub_tags = _tcm_str_elts(st.get("right"))
+    if not sub_tags:
+        return None
+    forn = next((s for s in (sub_if.get("body") or []) if isinstance(s, dict) and s.get("stmt") == "For"), None)
+    idx_keys = _tcm_str_elts(forn.get("iter")) if isinstance(forn, dict) else None
+    if not idx_keys:
+        return None
+    # --- var-If: `expr.get("type") == "Var" and expr.get("name") in map_locals` ---
+    var_if = body[2]
+    vt = var_if.get("test") if isinstance(var_if, dict) else None
+    if not (isinstance(vt, dict) and vt.get("type") == "BinOp" and vt.get("op") == "and"):
+        return None
+    veq = vt.get("left") or {}
+    var_tag = _is_string(veq.get("right")) if isinstance(veq, dict) and veq.get("op") == "==" else None
+    vin = vt.get("right") or {}
+    name_key = None
+    if isinstance(vin, dict) and vin.get("op") == "in":
+        name_key = _is_string((vin.get("left") or {}).get("args", [{}])[0]) \
+            if _get_str(vin.get("left"), "func") == f"{expr_p}.get" else None
+    if not (var_tag and name_key):
+        return None
+    # --- rhs-If: `self._rhs_yields_map(expr) or self._rhs_yields_array(expr)` ---
+    rhs_if = body[3]
+    rt = rhs_if.get("test") if isinstance(rhs_if, dict) else None
+    if not (isinstance(rt, dict) and rt.get("type") == "BinOp" and rt.get("op") == "or"):
+        return None
+    m0 = _canon_call(_get_str(rt.get("left"), "func"))
+    m1 = _canon_call(_get_str(rt.get("right"), "func"))
+    if not (m0 and m1 and m0 != m1):
+        return None
+    # --- values-For: `for v in expr.values()` ---
+    vfor = body[4]
+    if not (isinstance(vfor, dict) and vfor.get("stmt") == "For"
+            and _get_str(vfor.get("iter"), "func") == f"{expr_p}.values"):
+        return None
+    return {"name": func["name"], "expr": expr_p, "map_locals": ml_p,
+            "sub_tags": sub_tags, "idx_keys": idx_keys, "var_tag": var_tag,
+            "name_key": name_key, "rhs0": m0, "rhs1": m1}
+
+
+def _get_str(node: Any, key: str) -> str:
+    """`node[key]` when it is a string, else ''."""
+    if isinstance(node, dict):
+        v = node.get(key)
+        if isinstance(v, str):
+            return v
+    return ""
+
+
+def emit_test_contains_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_test_contains_map` as a short-circuiting recursive bool fold over pyval.
+    The two cross-mixin predicates are OPAQUE pyval->bool over-approximations (sound under
+    ensures-True; input-dependent, non-facade). Index/values descent terminates via the
+    pget_dyn size postcondition + `pv_size`/`size_dict`/`size_list` measures. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    ml = "map string bool"
+    sub_or = " || ".join(f'pystr_eq t "{tg}"' for tg in desc["sub_tags"])
+    out: List[str] = []
+    # opaque cross-mixin bool predicates (pyval-typed; sound over-approx of _rhs_yields_map/array)
+    out.append(f"  val {n}__rhs0 (e: pyval) : bool")
+    out.append(f"  val {n}__rhs1 (e: pyval) : bool")
+    # K_type / K_name string readers
+    out.append(f"  let rec {n}__gtype (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons K_type (PStr s) _ -> Some s")
+    out.append(f"    | DCons _ _ rest -> {n}__gtype rest end")
+    out.append(f"  let rec {n}__gname (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons K_name (PStr s) _ -> Some s")
+    out.append(f"    | DCons _ _ rest -> {n}__gname rest end")
+    # index-key recursion helper: get the value under key, recurse iff PDict
+    def _idx_branch(key: str) -> str:
+        return (f'(match pget_dyn "{key}" d with Some v -> '
+                f"(match v with PDict _ -> {n} self v map_locals | _ -> false end) | None -> false end)")
+    idx_or = " || ".join(_idx_branch(k) for k in desc["idx_keys"])
+    # main mutual block
+    out.append(f"  let rec {n} (self: autotrustmixin) (expr: pyval) (map_locals: {ml}) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size expr }")
+    out.append("  = match expr with")
+    out.append("    | PDict d ->")
+    out.append(f'        let is_sub = (match {n}__gtype d with Some t -> ({sub_or}) | None -> false end) in')
+    out.append("        if is_sub then")
+    out.append(f"          ({idx_or})")
+    out.append("        else")
+    out.append(f'          let is_var = (match {n}__gtype d with Some t -> pystr_eq t "{desc["var_tag"]}" | None -> false end) in')
+    out.append(f"          let nm_in = (match {n}__gname d with Some nm -> map_locals nm | None -> false end) in")
+    out.append("          if (is_var && nm_in) then true")
+    out.append(f"          else if ({n}__rhs0 expr || {n}__rhs1 expr) then true")
+    out.append(f"          else {n}__dfold self d map_locals")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  with {n}__dfold (self: autotrustmixin) (d: pydict) (map_locals: {ml}) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        (match v with PDict _ -> {n} self v map_locals | PList xs -> {n}__lfold self xs map_locals | _ -> false end)")
+    out.append(f"        || {n}__dfold self rest map_locals end")
+    out.append(f"  with {n}__lfold (self: autotrustmixin) (xs: list pyval) (map_locals: {ml}) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> false")
+    out.append(f"    | Cons h t -> {n} self h map_locals || {n}__lfold self t map_locals end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
