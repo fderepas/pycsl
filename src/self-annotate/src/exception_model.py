@@ -213,7 +213,6 @@ def predicate_definitions(needed: Optional[set] = None) -> List[str]:
     return [v for k, v in PREDICATE_LIBRARY.items() if k in needed]
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

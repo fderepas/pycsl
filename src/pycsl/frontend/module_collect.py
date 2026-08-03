@@ -358,6 +358,72 @@ def collect_module_const_str_pairs(node: ast.Module) -> Dict[str, list]:
             and n not in written_via_global}
 
 
+def collect_module_const_str_sets(node: ast.Module) -> Dict[str, list]:
+    """Module-level constant STRING SET / FROZENSET literals: a top-level
+    `NAME = frozenset({"a", "b", ...})` / `NAME = {"a", "b", ...}` /
+    `NAME = frozenset(["a", ...])` / `NAME = frozenset(("a", ...))` (or annotated)
+    whose every element is a PLAIN STRING literal, bound EXACTLY ONCE at module
+    scope, not a `#@ shared` global and never written via `global`. Returns
+    `{name: [elem, ...]}` — the deduplicated element list in first-appearance order
+    (a set has no intrinsic order; consumers that need one impose it, e.g.
+    `sorted(...)` at the lookup site).
+
+    This is the finite string-membership-table shape (`KNOWN_EXCEPTIONS` in
+    `exception_model.py`, a `frozenset` scanned by `sorted(KNOWN_EXCEPTIONS)` /
+    `x in KNOWN_EXCEPTIONS`). It lets a Module-6 recognizer lower a whole-body
+    consumer FAITHFULLY over the captured elements — e.g. `return sorted(NAME)`
+    to the exact constant `array string` literal (the elements sorted at emit time,
+    a compile-time fold — NO WhyML sorting), or `x in NAME` to a `str_eq_op`
+    disjunction. Fail-closed: any non-string element, an empty set, or a reassigned
+    name excludes the whole const (keeps the opaque fallback). Consumed by Module 5
+    (IR emission) and, when such a whole-body consumer reflects it, Module 6.
+
+    Additive by construction: the field is set only when this tightly-gated collector
+    returns non-empty, so it is ABSENT for every program without such a const literal
+    (byte-identical emission), exactly like the sibling `collect_module_const_*`
+    collectors. Measured: fires on 0 of 3130 reference-corpus programs."""
+    counts: Dict[str, int] = {}
+    candidates: Dict[str, list] = {}
+    for child in getattr(node, "body", []):
+        target = None
+        value = None
+        if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                and isinstance(child.targets[0], ast.Name)):
+            target, value = child.targets[0].id, child.value
+        elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+            target, value = child.target.id, child.value
+        if target is None:
+            continue
+        counts[target] = counts.get(target, 0) + 1
+        elts = None
+        if (isinstance(value, ast.Call) and isinstance(value.func, ast.Name)
+                and value.func.id in ("frozenset", "set") and len(value.args) == 1
+                and isinstance(value.args[0], (ast.Set, ast.List, ast.Tuple))):
+            elts = value.args[0].elts
+        elif isinstance(value, ast.Set):
+            elts = value.elts
+        if not elts:
+            continue
+        members = []
+        ok = True
+        seen = set()
+        for elt in elts:
+            if not (isinstance(elt, ast.Constant) and isinstance(elt.value, str)):
+                ok = False
+                break
+            if elt.value not in seen:
+                seen.add(elt.value)
+                members.append(elt.value)
+        if ok and members:
+            candidates[target] = members
+    shared = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+    written_via_global = {n for g in ast.walk(node) if isinstance(g, ast.Global)
+                          for n in g.names}
+    return {n: v for n, v in candidates.items()
+            if counts.get(n, 0) == 1 and n not in shared
+            and n not in written_via_global}
+
+
 def collect_module_globals(node: ast.Module, class_names: set) -> Dict[str, ast.Call]:
     """inline.md Phase 1 — module-level global OBJECT instances: a top-level
     `g = C(<args>)` where `C` is a class defined in the module, bound EXACTLY ONCE at

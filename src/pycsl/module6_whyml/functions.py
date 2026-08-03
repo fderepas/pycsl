@@ -2519,6 +2519,79 @@ class FunctionEmissionMixin:
             f"    {chain}",
         ]
 
+    def _recognize_sorted_const_set(self, func: Dict[str, Any]):
+        """module-const-str-sets `sorted(NAME)` recognizer (self-tcb-reduction):
+        recognize the ENTIRE-body finite-membership-table expansion over a
+        module-level constant string set/frozenset (`module_const_str_sets`,
+        collected front-end):
+
+            def f() -> list:
+                return sorted(NAME)
+
+        Returns the SORTED element list for the faithful constant `array string`
+        lowering, else None (fail-closed). Requires EXACTLY a single-statement body
+        `return sorted(<Var>)`, NO formal params, and `<Var>` a collected str-set
+        const. `sorted` of a captured compile-time-constant set is a compile-time
+        FOLD (the elements sorted here, at emit time) — NOT a runtime sort, so no
+        WhyML sorting is modelled. Any other shape keeps its existing lowering.
+        Fires only on this exact shape over a collected str-set const → byte-identical
+        for every corpus program (the const shape is absent corpus-wide)."""
+        sets_map = getattr(self, "ir", {}) or {}
+        sets_map = sets_map.get("module_const_str_sets") or {}
+        if not sets_map:
+            return None
+        if (func.get("formal_params") or []):
+            return None
+        body = func.get("body") or []
+        if len(body) != 1:
+            return None
+        s = body[0]
+        if not (isinstance(s, dict) and s.get("stmt") == "Return"):
+            return None
+        v = s.get("value") or {}
+        if not (isinstance(v, dict) and v.get("type") == "Call"
+                and v.get("func") == "sorted"):
+            return None
+        args = v.get("args") or []
+        if len(args) != 1:
+            return None
+        a0 = args[0]
+        if not (isinstance(a0, dict) and a0.get("type") == "Var"):
+            return None
+        members = sets_map.get(a0.get("name"))
+        if not members:
+            return None
+        return sorted(members)
+
+    def _emit_sorted_const_set_bespoke(self, func: Dict[str, Any],
+                                       members: List[str]) -> List[str]:
+        """module-const-str-sets `sorted(NAME)`: emit the FAITHFUL whole-body
+        lowering as the exact constant `array string` literal over the captured
+        const's elements sorted at emit time — the SAME `Array.make` form the
+        native list-literal lowering produces (`(let _alit = Array.make N "s0" in
+        _alit[1] <- "s1"; ...; _alit)`). A compile-time fold: no runtime sort, no
+        new axiom (pure array-literal construction). Corpus-inert (recognizer-gated);
+        non-facade (perturbing a captured element moves the emitted literal)."""
+        name = whyml_ident(func["name"])
+        self_part = ""
+        if (func.get("self_type")
+                and not (func.get("is_static") or func.get("staticmethod"))):
+            self_part = f"(self: {whyml_ident(func['self_type'].lower())}) "
+        n = len(members)
+        lits = [whyml_string_literal(m) for m in members]
+        if n == 1:
+            arr = f"(Array.make 1 ({lits[0]}))"
+        else:
+            sets = "; ".join(f"_alit[{i}] <- ({lits[i]})" for i in range(1, n))
+            arr = f"(let _alit = Array.make {n} ({lits[0]}) in {sets}; _alit)"
+        return [
+            f"  let {name} {self_part}() : array string",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            f"    {arr}",
+        ]
+
     def _is_py_expr_dict(self, func: Dict[str, Any]) -> bool:
         nm = str(func.get("name", ""))
         return (func.get("kind") == "method" and nm.endswith("_py_expr_dict")
@@ -2957,6 +3030,13 @@ class FunctionEmissionMixin:
         _spl = self._recognize_str_pair_lookup(func)
         if _spl is not None:
             return self._emit_str_pair_lookup_bespoke(func, _spl[0], _spl[1])
+        # module-const-str-sets `sorted(NAME)` (self-tcb-reduction): a whole-body
+        # `return sorted(NAME)` over a collected string set/frozenset const -> the
+        # faithful constant `array string` literal (elements sorted at emit time).
+        # Corpus-inert (recognizer-gated on the exact shape over a str-set const).
+        _scs = self._recognize_sorted_const_set(func)
+        if _scs is not None:
+            return self._emit_sorted_const_set_bespoke(func, _scs)
         # dict/comprehension increments (gated-emit_ir-ctor): IrDictLit (dual compaction) /
         # IrListComp / IrSetComp / IrDictComp (fixed-child + trusted generators). Corpus-inert.
         if self._is_py_expr_dict(func):
