@@ -996,3 +996,28 @@ readers (bases_closure/predicate_definitions/_strip_const_name — need const-sp
 parser ~150 methods, Weaver/Ingestor visitors), I/O (_stub_set), stateful-mutation (_inject_functions),
 pure-string-regex-transform (_mangled_name/_expand_anon_binders — one opaque val = facade, need real string
 theory = the no-more-int campaign). _has_dynamic_exec (functions.py) is clean but the file's proof is slow.
+
+## 2026-08-03 — ir_inline global-call vein: 2 conversions (814→812) + _recursive_methods BFS boundary
+Landed `_global_call_target` (7b27a71c, 814→813) and `_method_edges` (0d8b1ee6, 813→812) in
+ir_inline.py (fast file: emit 0.8s, proof grew 61s→~2.5-9min with the pyval theory — still SUCCESS).
+Both are bespoke recognizers in generic_fold.py modeled on `classify` + R-W2d `_assigned_locals`.
+NEW banked devices (reusable for the medium string-op tier):
+- **pyval single-node field read** = TYPED-irkey `option string`/`option pyval` readers
+  (`_emit_skey_reader`/`_emit_pval_reader`): `call.get("type")`/`.get("func")`/`.get("body")` are
+  K_type/K_func/K_body TYPED keys — a K_dyn getk SILENTLY skips them (ref_accumulator lesson #1), so
+  match the constructor directly; the helper falls back to the K_dyn guard form for a genuinely-dynamic
+  key (mutation-safe either way).
+- **partition → two opaque before/after projections** `(string,sep)->string` reflecting the sep;
+  **`x in <str>` → a PRIVATE opaque containment val** (str_contains_op is NOT in every file's preamble —
+  a self-contained `val __has` keeps the file byte-inert, no shared-string-theory gate touched).
+- **`Dict[str,str]` param → `map string string`** total lookup (`g_class recv : string`); **`Set[str]`
+  → `map string bool`** membership; **`Optional[str]` return** = the union `Arm_<idx>_0 s`/`Arm_<idx>_None`
+  where idx = `union_name.rsplit("_",1)[-1]`.
+- **computed-element set fold**: `_method_edges` folds `_walk_dicts (func.body)` (`list pyval`,
+  size_list variant — STRUCTURAL, discharges) with a computed `cand: option string` (3-way self./
+  dotted/bare) and a `names`-membership-gated `set_add`. `cand=None` on the dotted-not-a-global branch
+  → `option string` None arm → not added (faithful).
+BOUNDARY — `_recursive_methods` = worklist-BFS over the abstract `edges: map string (set string)`
+(`stack.pop()/seen.add/stack.extend(edges.get(n))`): SAME class as `bases_closure` — no dischargeable
+variant without a bounded-universe AXIOM (ledger-3 violation). Stays trusted. (The _method_edges fold is
+NOT this boundary — it's a bounded structural `_walk_dicts` descent.)
