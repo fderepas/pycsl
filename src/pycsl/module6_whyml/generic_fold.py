@@ -27,6 +27,7 @@ match that flips the gate red once.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 # The named irkey constructors the L1 preamble theory declares
@@ -12810,6 +12811,119 @@ def emit_subclasses_of_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     out.append(f"  let {n} (base: string) (candidates: list string) : map string bool")
     out.append("    requires { true } ensures { true }")
     out.append(f"  = {n}__fold base candidates (const false)")
+    return out
+
+
+# ---- `classify`: split-first-component + two StrSet memberships + 3-way const return ------
+# `top = module_name.split(".",1)[0]; if m in deny or top in deny: C0; if m in stubs or top in
+# stubs: C1; else C2`. The split-first is an opaque `(string,sep)->string` (reflect the sep),
+# memberships are StrSet applications, the 3 return constants are DISTINCT opaque string vals
+# named by their source identifier (mutation-sensitive: swapping which const a branch returns
+# moves the emitted arm). Branches depend on real memberships => non-vacuous. Coupling-safe.
+
+def recognize_classify(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `classify`. Never raises."""
+    try:
+        return _recognize_classify(func)
+    except Exception:
+        return None
+
+
+def _in_or(node: Any, lvar: str, topvar: str, setvar: str) -> bool:
+    """`<lvar> in <setvar> or <topvar> in <setvar>`."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp" and node.get("op") == "or"):
+        return False
+    l, r = node.get("left") or {}, node.get("right") or {}
+    def _memb(b, v):
+        return (isinstance(b, dict) and b.get("type") == "BinOp" and b.get("op") == "in"
+                and _get_str(b.get("left"), "name") == v
+                and _get_str(b.get("right"), "name") == setvar)
+    return _memb(l, lvar) and _memb(r, topvar)
+
+
+def _recognize_classify(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("classify"):
+        return None
+    if func.get("return_annotation") != "str":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 3:
+        return None
+    mn, stubs_p, deny_p = params
+    body = func.get("body") or []
+    if len(body) != 4:
+        return None
+    # body[0]: `top = module_name.split(<sep>, 1)[0]`
+    asn = body[0]
+    if not (isinstance(asn, dict) and asn.get("stmt") == "Assign"):
+        return None
+    topvar = asn.get("target")
+    sub = asn.get("value") or {}
+    if not (sub.get("type") == "Subscript" and _is_num(sub.get("index")) == 0):
+        return None
+    scall = sub.get("value") or {}
+    if _get_str(scall, "func") != f"{mn}.split":
+        return None
+    sargs = scall.get("args") or []
+    sep = _is_string(sargs[0]) if sargs else None
+    if sep is None:
+        return None
+    # body[1]/[2]: the deny / stubs If-returns; body[3]: final return
+    if1, if2, ret = body[1], body[2], body[3]
+    if not (isinstance(if1, dict) and if1.get("stmt") == "If"
+            and _in_or(if1.get("test"), mn, topvar, deny_p)):
+        return None
+    c0 = _first_return_var(if1.get("body"))
+    if not (isinstance(if2, dict) and if2.get("stmt") == "If"
+            and _in_or(if2.get("test"), mn, topvar, stubs_p)):
+        return None
+    c1 = _first_return_var(if2.get("body"))
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return None
+    c2 = _get_str(ret.get("value"), "name")
+    if not (c0 and c1 and c2):
+        return None
+    return {"name": func["name"], "sep": sep, "c0": c0, "c1": c1, "c2": c2}
+
+
+def _is_num(node: Any) -> Optional[int]:
+    if isinstance(node, dict) and node.get("type") == "Number":
+        v = node.get("value")
+        if isinstance(v, int):
+            return v
+    return None
+
+
+def _first_return_var(stmts: Any) -> Optional[str]:
+    for s in stmts or []:
+        if isinstance(s, dict) and s.get("stmt") == "Return":
+            return _get_str(s.get("value"), "name")
+    return None
+
+
+def emit_classify_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `classify`: opaque split-first, two StrSet memberships, 3 distinct opaque string
+    return-constants keyed by their source identifier. `ensures True`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    sep = desc["sep"]
+
+    def _cst(name: str) -> str:
+        return f"{n}__cst_" + re.sub(r"[^A-Za-z0-9]", "_", name)
+
+    out: List[str] = []
+    out.append(f"  val {n}__first (s: string) (sep: string) : string")
+    seen: List[str] = []
+    for cnm in (desc["c0"], desc["c1"], desc["c2"]):
+        v = _cst(cnm)
+        if v not in seen:
+            out.append(f"  val {v} : string")
+            seen.append(v)
+    out.append(f"  let {n} (module_name: string) (stubs: map string bool) (deny_list: map string bool) : string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f'  = let top = {n}__first module_name "{sep}" in')
+    out.append(f"    if (deny_list module_name || deny_list top) then {_cst(desc['c0'])}")
+    out.append(f"    else if (stubs module_name || stubs top) then {_cst(desc['c1'])}")
+    out.append(f"    else {_cst(desc['c2'])}")
     return out
 
 

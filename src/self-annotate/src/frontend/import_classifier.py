@@ -22,12 +22,18 @@ DEFAULT_DENY_LIST: frozenset = frozenset({'ctypes', 'ctypes.util', 'cffi', 'nump
 def _stub_set(stub_dir: Path) -> int:
     return set()
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def classify(module_name: str, stubs: int, deny_list: frozenset=DEFAULT_DENY_LIST) -> str:
-    return ""
+def classify(module_name: str, stubs: Set[str],
+             deny_list: frozenset = DEFAULT_DENY_LIST) -> str:
+    """Classify a single module name."""
+    top = module_name.split(".", 1)[0]
+    if module_name in deny_list or top in deny_list:
+        return UNVERIFIED
+    if module_name in stubs or top in stubs:
+        return TRUSTED_STUB
+    return UNRESOLVED
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

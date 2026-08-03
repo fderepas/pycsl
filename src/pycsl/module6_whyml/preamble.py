@@ -2078,6 +2078,7 @@ class PreambleEmissionMixin:
             recognize_is_linear_vc,
             recognize_handler_catches,
             recognize_subclasses_of,
+            recognize_classify,
             recognize_cs_clause, recognize_check_contract_exprs,
             recognize_check_body_walk,
             recognize_check_subscript_assignments,
@@ -2128,6 +2129,7 @@ class PreambleEmissionMixin:
             or recognize_is_linear_vc(f) is not None
             or recognize_handler_catches(f) is not None
             or recognize_subclasses_of(f) is not None
+            or recognize_classify(f) is not None
             or recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
             or recognize_check_subscript_assignments(f) is not None
@@ -2171,6 +2173,7 @@ class PreambleEmissionMixin:
             or recognize_is_linear_vc(f) is not None
             or recognize_handler_catches(f) is not None
             or recognize_subclasses_of(f) is not None
+            or recognize_classify(f) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
