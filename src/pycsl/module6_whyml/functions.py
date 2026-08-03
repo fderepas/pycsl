@@ -2924,6 +2924,7 @@ class FunctionEmissionMixin:
             recognize_check_fresh_globals, emit_check_fresh_globals_group,
             recognize_check_noreturn, emit_check_noreturn_group,
             recognize_first_tuple_return, emit_first_tuple_return_group,
+            recognize_find_assigned_vars, emit_find_assigned_vars_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
@@ -3422,6 +3423,9 @@ class FunctionEmissionMixin:
         _ftr = recognize_first_tuple_return(func)
         if _ftr is not None:
             return emit_first_tuple_return_group(_ftr, whyml_ident)
+        _fav = recognize_find_assigned_vars(func)
+        if _fav is not None:
+            return emit_find_assigned_vars_group(_fav, whyml_ident)
         _csc = recognize_cs_clause(func)
         if _csc is not None:
             from module6_whyml.generic_fold import emit_pb_trio_group

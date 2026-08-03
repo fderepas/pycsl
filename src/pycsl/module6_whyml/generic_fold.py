@@ -12200,6 +12200,251 @@ def emit_first_tuple_return_group(desc: Dict[str, Any], whyml_ident) -> List[str
     return out
 
 
+# ---- `find_assigned_vars`: ref-accumulator set-collect + mutating cross-call ----
+# The IRScanner Set[str] collector (assigned var names) — a tag-dispatch elif-chain over
+# the stmt tree that `set_add`s targets and RECURSES on body/orelse/handlers/cases, plus a
+# per-stmt mutating cross-call to the converted `find_named_expr_targets`. Modelled as a
+# REF-accumulator: sub-walks add directly to the shared `acc` (no set_union needed); reuses
+# set_add + the converted find_named_expr_targets + pget-postcondition termination.
+
+def recognize_find_assigned_vars(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `find_assigned_vars`. Never raises."""
+    try:
+        return _recognize_find_assigned_vars(func)
+    except Exception:
+        return None
+
+
+def _recognize_find_assigned_vars(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("find_assigned_vars"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    stmts_p = params[0]
+    if func.get("return_annotation") != "set":
+        return None
+    body = func.get("body") or []
+    # [assigned = set(), For(...), return assigned]
+    if len(body) != 3:
+        return None
+    init, outer, ret = body
+    if not (isinstance(init, dict) and init.get("stmt") == "Assign"
+            and isinstance(init.get("value"), dict) and init["value"].get("type") == "Call"
+            and init["value"].get("func") == "set"):
+        return None
+    accname = init.get("target")
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return" and _is_var(ret.get("value"), accname)):
+        return None
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For" and _is_var(outer.get("iter"), stmts_p)):
+        return None
+    sv = outer.get("target")
+    ob = outer.get("body") or []
+    if not isinstance(sv, str):
+        return None
+    # verify the trailing mutating cross-call `<fnt>(stmt, assigned)` (last Expr in ob)
+    fnt = None
+    for st in ob:
+        if (isinstance(st, dict) and st.get("stmt") == "Expr"
+                and isinstance(st.get("value"), dict) and st["value"].get("type") == "Call"):
+            cargs = st["value"].get("args") or []
+            if len(cargs) == 2 and _is_var(cargs[0], sv) and _is_var(cargs[1], accname):
+                fnt = _canon_call(st["value"].get("func") or "")
+    if fnt is None:
+        return None
+    fv = _find_self_call_name(ob, "find_assigned_vars")
+    if fv is None:
+        return None
+    # collect the recognised tag literals + keys from the whole For body (mutation-sensitive)
+    tags = set(_all_strings(ob))
+    required = {"Assign", "AugAssign", "TupleUnpack", "While", "If", "For", "Try", "Match"}
+    if not required.issubset(tags):
+        return None
+    # keys read
+    def _has_get(subj, key):
+        return _has_getcall(ob, subj, key)
+    target_key = "target" if _has_get(sv, "target") else None
+    targets_key = "targets" if _has_get(sv, "targets") else None
+    body_key = "body" if _has_get(sv, "body") else None
+    orelse_key = "orelse" if _has_get(sv, "orelse") else None
+    handlers_key = "handlers" if _has_get(sv, "handlers") else None
+    cases_key = "cases" if _has_get(sv, "cases") else None
+    stmt_key = "stmt"
+    if not all([target_key, targets_key, body_key, orelse_key, handlers_key, cases_key]):
+        return None
+    return {"name": func["name"], "stmts": stmts_p, "fv_name": fv, "fnt_name": fnt,
+            "stmt_key": stmt_key, "target_key": target_key, "targets_key": targets_key,
+            "body_key": body_key, "orelse_key": orelse_key, "handlers_key": handlers_key,
+            "cases_key": cases_key}
+
+
+def _find_self_call_name(node: Any, suffix: str) -> Optional[str]:
+    if isinstance(node, dict):
+        if (node.get("type") == "Call" and isinstance(node.get("func"), str)):
+            cf = _canon_call(node["func"])
+            if cf.endswith(suffix):
+                return cf
+        for v in node.values():
+            r = _find_self_call_name(v, suffix)
+            if r:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _find_self_call_name(x, suffix)
+            if r:
+                return r
+    return None
+
+
+def _all_strings(node: Any):
+    if isinstance(node, dict):
+        if node.get("type") == "String" and isinstance(node.get("value"), str):
+            yield node["value"]
+        for v in node.values():
+            yield from _all_strings(v)
+    elif isinstance(node, list):
+        for x in node:
+            yield from _all_strings(x)
+
+
+def _has_getcall(node: Any, subj: str, key: str) -> bool:
+    if isinstance(node, dict):
+        if (node.get("type") == "Call" and node.get("func") == f"{subj}.get"):
+            a = node.get("args") or []
+            if a and _is_string(a[0]) == key:
+                return True
+        if (node.get("type") == "Subscript" and _is_var(node.get("value"), subj)
+                and _is_string(node.get("index")) == key):
+            return True
+        return any(_has_getcall(v, subj, key) for v in node.values())
+    elif isinstance(node, list):
+        return any(_has_getcall(x, subj, key) for x in node)
+    return False
+
+
+def emit_find_assigned_vars_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `find_assigned_vars` as a REF-accumulator set-collect (map string bool):
+    a tag-dispatch fold that set_adds targets, recurses body/orelse (typed K_body/K_orelse
+    readers) + handlers/cases (K_dyn) on the SHARED acc, folds TupleUnpack targets, and — per
+    stmt — walks it for NamedExpr (walrus) targets via an INLINED faithful copy of
+    find_named_expr_targets (which is emitted LATER in the file, so cannot be forward-called).
+    Well-known keys (target/body/orelse) are the TYPED irkey constructors, NOT K_dyn — matched
+    accordingly (a K_dyn reader would silently miss them). Termination via the size measure +
+    the `size_list result <= size_dict d` list-reader postcondition. `ensures True`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    sk, tk, tsk = desc["stmt_key"], desc["target_key"], desc["targets_key"]
+    bk, ok, hk, ck = desc["body_key"], desc["orelse_key"], desc["handlers_key"], desc["cases_key"]
+    tctor = _irkey_ctor(tk)          # K_target
+    bctor = _irkey_ctor(bk)          # K_body
+    octor = _irkey_ctor(ok)          # K_orelse
+    typ_ctor = _irkey_ctor("type")   # K_type (for the inlined named-expr walk)
+    acc_ty = "ref (map string bool)"
+    out: List[str] = []
+
+    def _opt_reader(rname: str, ctor: str, key: str) -> None:
+        """A `pydict -> option pyval` literal-key reader (typed ctor or K_dyn fallback)."""
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    def _list_reader(rname: str, ctor: str, key: str) -> None:
+        """A `pydict -> list pyval` reader carrying the size postcondition needed for the
+        outer fold's `variant { size_list stmts }` decrease (mirrors `pget_list`). The
+        `size_pos`/`size_dict_nonneg` lemma calls PIN the two nonnegativity facts the bound
+        needs so the SMT solver stops unfolding the recursive size measures (a 30M-step
+        E-matching blow-up otherwise — the whole-file proof's only two timeouts)."""
+        out.append(f"  let rec {rname} (d: pydict) : list pyval")
+        out.append("    ensures { size_list result <= size_dict d }")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> Nil")
+        out.append("    | DCons k v rest ->")
+        out.append("        size_pos v; size_dict_nonneg rest;")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'        (match k with K_dyn s -> if pystr_eq s "{key}" then (match v with PList xs -> xs | _ -> Nil end) else {rname} rest | _ -> {rname} rest end)')
+        else:
+            out.append(f"        (match k with {ctor} -> (match v with PList xs -> xs | _ -> Nil end) | _ -> {rname} rest end)")
+        out.append("    end")
+
+    # ---- literal-key readers ----
+    _opt_reader(f"{n}__gstmt", _irkey_ctor(sk), sk)          # "stmt" (K_dyn)
+    _opt_reader(f"{n}__gtgt", tctor, tk)                     # "target" (K_target)
+    _opt_reader(f"{n}__gtype", typ_ctor, "type")            # "type" (K_type) — walrus walk
+    _list_reader(f"{n}__Lbody", bctor, bk)                  # "body" (K_body)
+    _list_reader(f"{n}__Lorelse", octor, ok)                # "orelse" (K_orelse)
+
+    # ---- inlined find_named_expr_targets walk (walrus targets) — faithful copy, its own
+    #      terminating `let rec` block (never calls back into the outer fold). ----
+    out.append(f"  let rec {n}__nx (obj: pyval) (targets: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { targets } variant { pv_size obj }")
+    out.append("  = match obj with")
+    out.append("    | PDict d ->")
+    out.append(f'        (match {n}__gtype d with')
+    out.append('         | Some (PStr s) -> if pystr_eq s "NamedExpr" then')
+    out.append(f"             (match {n}__gtgt d with Some (PStr t) -> targets := set_add !targets t | _ -> () end)")
+    out.append("           else ()")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__nxd d targets")
+    out.append(f"    | PList xs -> {n}__nxl xs targets")
+    out.append("    | _ -> () end")
+    out.append(f"  with {n}__nxd (d: pydict) (targets: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { targets } variant { size_dict d }")
+    out.append("  = match d with DNil -> ()")
+    out.append("    | DCons k v rest ->")
+    out.append(f'        (match k with K_dyn s -> if pystr_eq s "{sk}" then () else {n}__nx v targets | _ -> {n}__nx v targets end);')
+    out.append(f"        {n}__nxd rest targets end")
+    out.append(f"  with {n}__nxl (xs: list pyval) (targets: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { targets } variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> () | Cons h t -> {n}__nx h targets; {n}__nxl t targets end")
+
+    # ---- main fold + sub-folds (mutual: __hf/__cf call __f) ----
+    out.append(f"  let rec {n}__f (stmts: list pyval) (acc: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { size_list stmts }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons stmt rest ->")
+    out.append("        (match stmt with")
+    out.append("         | PDict d ->")
+    out.append(f'             (match {n}__gstmt d with')
+    out.append("              | Some (PStr tag) ->")
+    out.append('                  if pystr_eq tag "Assign" || pystr_eq tag "AugAssign" then')
+    out.append(f"                    (match {n}__gtgt d with Some (PStr t) -> acc := set_add !acc t | _ -> () end)")
+    out.append(f'                  else if pystr_eq tag "TupleUnpack" then {n}__tf (pget_list "{tsk}" d) acc')
+    out.append(f'                  else if pystr_eq tag "While" then {n}__f ({n}__Lbody d) acc')
+    out.append(f'                  else if pystr_eq tag "If" then ({n}__f ({n}__Lbody d) acc; {n}__f ({n}__Lorelse d) acc)')
+    out.append(f'                  else if pystr_eq tag "For" then ((match {n}__gtgt d with Some (PStr t) -> acc := set_add !acc t | _ -> () end); {n}__f ({n}__Lbody d) acc)')
+    out.append(f'                  else if pystr_eq tag "Try" then ({n}__f ({n}__Lbody d) acc; {n}__hf (pget_list "{hk}" d) acc)')
+    out.append(f'                  else if pystr_eq tag "Match" then {n}__cf (pget_list "{ck}" d) acc')
+    out.append("                  else ()")
+    out.append("              | _ -> () end);")
+    out.append(f"             {n}__nx stmt acc")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n}__f rest acc")
+    out.append("    end")
+    out.append(f"  with {n}__tf (ts: list pyval) (acc: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { size_list ts }")
+    out.append("  = match ts with Nil -> ()")
+    out.append(f"    | Cons t rest -> (match t with PStr s -> acc := set_add !acc s | _ -> () end); {n}__tf rest acc end")
+    out.append(f"  with {n}__hf (hs: list pyval) (acc: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { size_list hs }")
+    out.append("  = match hs with Nil -> ()")
+    out.append(f'    | Cons h rest -> (match h with PDict hd -> {n}__f ({n}__Lbody hd) acc | _ -> () end); {n}__hf rest acc end')
+    out.append(f"  with {n}__cf (cs: list pyval) (acc: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { size_list cs }")
+    out.append("  = match cs with Nil -> ()")
+    out.append(f'    | Cons c rest -> (match c with PDict cd -> {n}__f ({n}__Lbody cd) acc | _ -> () end); {n}__cf rest acc end')
+    out.append(f"  let {n} (stmts: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let acc = ref (const false) in")
+    out.append(f"    {n}__f stmts acc;")
+    out.append("    !acc")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`

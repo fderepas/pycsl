@@ -32,13 +32,36 @@ class IRScanner:
                     and IRScanner.ends_with_return(last.get("orelse", [])))
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def find_assigned_vars(stmts: List[int]) -> int:
-        return set()
+    def find_assigned_vars(stmts: List[Dict[str, Any]]) -> Set[str]:
+        assigned = set()
+        for stmt in stmts:
+            if stmt["stmt"] in ("Assign", "AugAssign"):
+                assigned.add(stmt["target"])
+            elif stmt["stmt"] == "TupleUnpack":
+                assigned.update(stmt.get("targets", []))
+            elif stmt["stmt"] == "While":
+                assigned.update(IRScanner.find_assigned_vars(stmt["body"]))
+            elif stmt["stmt"] == "If":
+                assigned.update(IRScanner.find_assigned_vars(stmt.get("body", [])))
+                assigned.update(IRScanner.find_assigned_vars(stmt.get("orelse", [])))
+            elif stmt["stmt"] == "For":
+                tgt = stmt.get("target", "")
+                if tgt:
+                    assigned.add(tgt)
+                assigned.update(IRScanner.find_assigned_vars(stmt.get("body", [])))
+            elif stmt["stmt"] == "Try":
+                assigned.update(IRScanner.find_assigned_vars(stmt.get("body", [])))
+                for h in stmt.get("handlers", []):
+                    assigned.update(IRScanner.find_assigned_vars(h.get("body", [])))
+            elif stmt["stmt"] == "Match":
+                for c in stmt.get("cases", []):
+                    assigned.update(IRScanner.find_assigned_vars(c.get("body", [])))
+            IRScanner.find_named_expr_targets(stmt, assigned)
+        return assigned
 
     #@ requires True
     #@ ensures True
