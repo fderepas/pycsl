@@ -2887,6 +2887,7 @@ class FunctionEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_generic_fold, emit_generic_fold_group,
             recognize_setfold, emit_setfold_group,
+            recognize_self_method_calls, emit_self_method_calls_group,
             recognize_boolfold_isinstance, emit_boolfold_isinstance_group,
             recognize_flat_tag_func_pred, emit_flat_tag_func_pred_group,
             recognize_stmt_setfold, emit_stmt_setfold_group,
@@ -3328,6 +3329,15 @@ class FunctionEmissionMixin:
         if _sf is not None:
             return emit_setfold_group(func, _sf, whyml_ident,
                                       self._lower_fold_ensures(func))
+        # scc.md §2.7: the self-method-call fold (`find_self_method_calls`) — a
+        # returned-set catamorphism whose per-node pre-action adds a CONSTRUCTED
+        # string (`self_type.lower()+"__"+f[len("self."):]`). Faithful,
+        # mutation-sensitive reflect-the-literal lowering; same fail-closed
+        # discipline (a template bug is a loud unprovable instance).
+        _smc = recognize_self_method_calls(func)
+        if _smc is not None:
+            return emit_self_method_calls_group(func, _smc, whyml_ident,
+                                                self._lower_fold_ensures(func))
         # bool analog of recognize_setfold: the isinstance-dispatch `.values()`/
         # list bool-existence catamorphism (`uses_inline_set_or_dict_ops`) —
         # OR-fold over the same certified pv_size/size_dict/size_list variant;

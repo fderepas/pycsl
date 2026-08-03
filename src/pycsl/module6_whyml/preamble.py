@@ -2052,6 +2052,7 @@ class PreambleEmissionMixin:
         # (fires on 0/756 programs) → byte-diff-0.
         from module6_whyml.generic_fold import (
             recognize_generic_fold, recognize_setfold, recognize_substmap,
+            recognize_self_method_calls,
             recognize_bool_existence, recognize_bool_multiway, recognize_frt,
             recognize_sawalk, recognize_cpwalk, recognize_pbexpr,
             recognize_dictfold,
@@ -2236,6 +2237,7 @@ class PreambleEmissionMixin:
             recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
             recognize_lemma_string_search_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
+            or recognize_self_method_calls(f) is not None
             or recognize_substmap(f) is not None
             or recognize_bool_existence(f) is not None
             or recognize_bool_multiway(f) is not None

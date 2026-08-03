@@ -1202,6 +1202,385 @@ def emit_setfold_group(func: Dict[str, Any], sf: Dict[str, Any],
     return out
 
 
+# =========================================================================
+# scc.md §2.7 — the SELF-METHOD-CALL returned-set fold (`find_self_method_calls`).
+#
+# A sibling of `recognize_setfold` whose per-node pre-action ADDS A CONSTRUCTED
+# STRING rather than a stored one. The generic set-union walk collapses this to
+# an int-hash-erasure FACADE (`obj: int`, `typeof_op`, `f_startswith_1 <hash>`)
+# because the added element is not a `.get()` payload but
+#     resolved = self_type.lower() + "__" + f[len("self."):]
+# guarded by `obj.get("type")=="Call" and isinstance(f,str) and f.startswith("self.")`
+# and narrowed by `resolved in func_names_set and resolved in concrete_set`.
+#
+# The faithful, NON-FACADE lowering uses the banked REFLECT-THE-LITERAL device:
+# the constructed element is `str_concat (str_concat (lower self_type) "__")
+# (drop_prefix f "self.")`, where lower/concat/drop_prefix are opaque per-fn
+# `val function`s CALLED WITH THE REFLECTED SOURCE LITERALS ("__", "self.") and
+# `startswith` is an opaque `val` reflecting "self." — so perturbing ANY source
+# literal ("Call", "self.", "__") moves the emitted term (mutation-sensitive).
+# `resolved in <set>` -> `Map.get <set> resolved` on the certified `map string
+# bool` repr. Same fail-closed discipline as `recognize_setfold`: a miss keeps
+# the method `\trusted`; a template bug is a loud unprovable instance, never a
+# false proof. Opaque `val function`s have no VC constraining their result ->
+# NOT axioms (the `pystr_eq`/`str_concat_op` doctrine), ledger stays 3.
+# =========================================================================
+
+
+def _match_smc_not_var(node: Any, name: str) -> bool:
+    """`not <name>` — a unary-not over the named Var (the guard operands)."""
+    return (isinstance(node, dict) and node.get("type") == "UnaryOp"
+            and node.get("op") == "not" and _is_var(node.get("expr"), name))
+
+
+def _match_smc_in_param(node: Any, lv: str, set_params: List[str]) -> Optional[str]:
+    """`<lv> in <set_param>` -> the set-param name (one of the threaded sets)."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "in"):
+        return None
+    if not _is_var(node.get("left"), lv):
+        return None
+    r = node.get("right", {})
+    if _is_var(r) and r.get("name") in set_params:
+        return r.get("name")
+    return None
+
+
+def _match_smc_element(stmt: Any, subj: str, f_local: str, prefix_local: str,
+                       str_param: str, set_params: List[str], acc: str
+                       ) -> Optional[Dict[str, Any]]:
+    """The constructed-element pre-action:
+
+        if <subj>.get("<tkey>") == "<tval>" and isinstance(<f>, str) \
+                and <f>.startswith("<sw>"):
+            <resolved> = <prefix> + <f>[len("<slice_lit>"):]
+            if <resolved> in <set0> and <resolved> in <set1>:
+                <acc>.add(<resolved>)
+
+    Returns the reflected-literal descriptor or None (fail-closed)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    # test = ((<eq> and isinstance(f,str)) and f.startswith("<sw>"))
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    left_and = test.get("left", {})
+    sw_call = test.get("right", {})
+    if not (isinstance(left_and, dict) and left_and.get("type") == "BinOp"
+            and left_and.get("op") == "and"):
+        return None
+    te = _match_eq_guard(left_and.get("left", {}), subj)  # (tkey, tval)
+    if te is None:
+        return None
+    if not _match_isinstance(left_and.get("right", {}), f_local, "str"):
+        return None
+    if not (isinstance(sw_call, dict) and sw_call.get("type") == "Call"
+            and sw_call.get("func") == f"{f_local}.startswith"
+            and len(sw_call.get("args", [])) == 1):
+        return None
+    sw_lit = _is_string(sw_call["args"][0])
+    if sw_lit is None:
+        return None
+    body = stmt.get("body", [])
+    if len(body) != 2:
+        return None
+    rasg, memif = body
+    # <resolved> = <prefix> + <f>[len("<slice_lit>"):]
+    if not (isinstance(rasg, dict) and rasg.get("stmt") == "Assign"):
+        return None
+    resolved_local = rasg.get("target")
+    if not isinstance(resolved_local, str):
+        return None
+    rv = rasg.get("value", {})
+    if not (isinstance(rv, dict) and rv.get("type") == "BinOp"
+            and rv.get("op") == "+" and _is_var(rv.get("left"), prefix_local)):
+        return None
+    slc = rv.get("right", {})
+    if not (isinstance(slc, dict) and slc.get("type") == "SliceAccess"
+            and _is_var(slc.get("value"), f_local)):
+        return None
+    sld = slc.get("slice", {})
+    if not (isinstance(sld, dict) and sld.get("type") == "Slice"
+            and sld.get("upper") is None and sld.get("step") is None):
+        return None
+    low = sld.get("lower", {})
+    if not (isinstance(low, dict) and low.get("type") == "Call"
+            and low.get("func") == "len" and len(low.get("args", [])) == 1):
+        return None
+    slice_lit = _is_string(low["args"][0])
+    if slice_lit is None:
+        return None
+    # if <resolved> in <set0> and <resolved> in <set1>: <acc>.add(<resolved>)
+    if not (isinstance(memif, dict) and memif.get("stmt") == "If"
+            and not memif.get("orelse")):
+        return None
+    mt = memif.get("test", {})
+    if not (isinstance(mt, dict) and mt.get("type") == "BinOp"
+            and mt.get("op") == "and"):
+        return None
+    m0 = _match_smc_in_param(mt.get("left"), resolved_local, set_params)
+    m1 = _match_smc_in_param(mt.get("right"), resolved_local, set_params)
+    if m0 is None or m1 is None:
+        return None
+    mbody = memif.get("body", [])
+    if len(mbody) != 1:
+        return None
+    add = mbody[0]
+    if not (isinstance(add, dict) and add.get("stmt") == "Expr"):
+        return None
+    call = add.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"
+            and len(call.get("args", [])) == 1
+            and _is_var(call["args"][0], resolved_local)):
+        return None
+    return {"type_key": te[0], "type_val": te[1], "startswith_lit": sw_lit,
+            "slice_lit": slice_lit, "mem_sets": [m0, m1]}
+
+
+def recognize_self_method_calls(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `find_self_method_calls` (scc.md §2.7): the
+    returned-set fold whose pre-action adds a CONSTRUCTED string. Returns the
+    reflected-literal descriptor when the body is *exactly* that catamorphism;
+    else None."""
+    try:
+        return _recognize_self_method_calls(func)
+    except Exception:
+        return None
+
+
+def _recognize_self_method_calls(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 4:
+        return None
+    subj, str_param = params[0], params[1]
+    set_params = params[2:]
+    pa = func.get("param_annotations", {})
+    if pa.get(str_param) != "str":
+        return None
+    for e in set_params:
+        if pa.get(e) != "set":
+            return None
+    if func.get("return_annotation") != "set":
+        return None
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 5:
+        return None
+    guard_if, prefix_asg, out_init, outer, ret = body
+
+    # (1) guard: `if not <str_param> or not <set_param[1]>: return set()`
+    if not (isinstance(guard_if, dict) and guard_if.get("stmt") == "If"
+            and not guard_if.get("orelse")):
+        return None
+    gt = guard_if.get("test", {})
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp"
+            and gt.get("op") == "or"):
+        return None
+    if not (_match_smc_not_var(gt.get("left"), str_param)
+            and _match_smc_not_var(gt.get("right"), set_params[1])):
+        return None
+    gbody = guard_if.get("body", [])
+    if not (len(gbody) == 1 and isinstance(gbody[0], dict)
+            and gbody[0].get("stmt") == "Return"):
+        return None
+    grv = gbody[0].get("value", {})
+    if not (isinstance(grv, dict) and grv.get("type") == "Call"
+            and grv.get("func") == "set" and not grv.get("args")):
+        return None
+
+    # (2) prefix = <str_param>.lower() + "<suffix>"
+    if not (isinstance(prefix_asg, dict) and prefix_asg.get("stmt") == "Assign"):
+        return None
+    prefix_local = prefix_asg.get("target")
+    if not isinstance(prefix_local, str):
+        return None
+    pv = prefix_asg.get("value", {})
+    if not (isinstance(pv, dict) and pv.get("type") == "BinOp"
+            and pv.get("op") == "+"):
+        return None
+    lo = pv.get("left", {})
+    if not (isinstance(lo, dict) and lo.get("type") == "Call"
+            and lo.get("func") == f"{str_param}.lower" and not lo.get("args")):
+        return None
+    prefix_suffix = _is_string(pv.get("right"))
+    if prefix_suffix is None:
+        return None
+
+    # (3) out = set()
+    if not (isinstance(out_init, dict) and out_init.get("stmt") == "Assign"):
+        return None
+    acc = out_init.get("target")
+    if not isinstance(acc, str) or acc in (subj, prefix_local):
+        return None
+    iv = out_init.get("value", {})
+    if not (isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+
+    # (5) return out
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), acc)):
+        return None
+
+    # (4) outer: `if isinstance(<subj>, dict): [f-asg, inner-if, dict-loop]`
+    #            `else: if isinstance(<subj>, list): [list-loop]`
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(outer.get("test", {}), subj, "dict"):
+        return None
+    dbody = list(outer.get("body", []))
+    if len(dbody) != 3:
+        return None
+    fasg, inner_if, dloop = dbody
+    if not (isinstance(fasg, dict) and fasg.get("stmt") == "Assign"):
+        return None
+    f_local = fasg.get("target")
+    if not isinstance(f_local, str):
+        return None
+    fav = fasg.get("value", {})
+    if not (isinstance(fav, dict) and fav.get("type") == "Call"
+            and fav.get("func") == f"{subj}.get"
+            and len(fav.get("args", [])) == 1):
+        return None
+    func_key = _is_string(fav["args"][0])
+    if func_key is None:
+        return None
+    elem = _match_smc_element(inner_if, subj, f_local, prefix_local,
+                              str_param, set_params, acc)
+    if elem is None:
+        return None
+    threaded = [str_param] + set_params
+    if _match_set_dict_loop(dloop, subj, acc, fname, threaded) is None:
+        return None
+    orelse = outer.get("orelse", [])
+    if len(orelse) != 1:
+        return None
+    inner = orelse[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"
+            and not inner.get("orelse")):
+        return None
+    if not _match_isinstance(inner.get("test", {}), subj, "list"):
+        return None
+    ibody = inner.get("body", [])
+    if len(ibody) != 1 or not _match_set_list_loop(ibody[0], subj, acc, fname,
+                                                   threaded):
+        return None
+
+    return {
+        "subject": subj,
+        "str_param": str_param,
+        "set_params": set_params,
+        "empty_set_param": set_params[1],
+        "prefix_suffix": prefix_suffix,
+        "func_key": func_key,
+        "type_key": elem["type_key"],
+        "type_val": elem["type_val"],
+        "startswith_lit": elem["startswith_lit"],
+        "slice_lit": elem["slice_lit"],
+        "mem_sets": elem["mem_sets"],
+    }
+
+
+def _smc_key_reader(n: str, key: str) -> List[str]:
+    """A `pydict -> option pyval` reader for a single interned/dyn `key`."""
+    rname = f"{n}__get_{_reader_suffix(key)}"
+    out = [f"  let rec {rname} (d: pydict) : option pyval",
+           "    variant { d }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest")
+    else:
+        out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" '
+                   f"then Some v else {rname} rest")
+        out.append(f"    | DCons _ _ rest -> {rname} rest")
+    out.append("    end")
+    return out
+
+
+def emit_self_method_calls_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                 whyml_ident,
+                                 top_ensures: Optional[List[str]] = None
+                                 ) -> List[str]:
+    """Emit the returned-set catamorphism for `find_self_method_calls` with a
+    FAITHFUL, mutation-sensitive constructed element (scc.md §2.7).
+
+    Functional (`assigns \\nothing`): every function returns `map string bool`,
+    combined by the preamble's purely-defined `set_union`. The per-node element
+    is `str_concat (str_concat (lower self_type) "<suffix>") (drop_prefix f
+    "<slice_lit>")`, each opaque op reflecting its source literal so the emitted
+    text moves under any literal perturbation. `resolved in <set>` ->
+    `Map.get <set> resolved`. Opaque `val function`s add NO axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["subject"]
+    st = whyml_ident(desc["str_param"])
+    sets = [whyml_ident(s) for s in desc["set_params"]]
+    mem = [whyml_ident(s) for s in desc["mem_sets"]]
+    empty_set = whyml_ident(desc["empty_set_param"])
+    _te = list(top_ensures or ["true"])
+    _ens = "".join(f" ensures {{ {e} }}" for e in _te)
+
+    sig = f" ({st}: string)" + "".join(f" ({s}: map string bool)" for s in sets)
+    args = f" {st}" + "".join(f" {s}" for s in sets)
+
+    out: List[str] = []
+    # ---- opaque per-fn string ops (each reflects its source literal) ----
+    out.append(f"  val function {n}__lower (s: string) : string")
+    out.append(f"  val function {n}__concat (a: string) (b: string) : string")
+    out.append(f"  val function {n}__drop (s: string) (p: string) : string")
+    out.append(f"  val function {n}__starts (s: string) (p: string) : bool")
+    out.append(f"  val function {n}__emptyset (m: map string bool) : bool")
+    # ---- literal-key readers (type guard, func payload) ----
+    out.extend(_smc_key_reader(n, desc["type_key"]))
+    out.extend(_smc_key_reader(n, desc["func_key"]))
+    # ---- pre-action: the guarded constructed-element add ----
+    tget = f"{n}__get_{_reader_suffix(desc['type_key'])}"
+    fget = f"{n}__get_{_reader_suffix(desc['func_key'])}"
+    resolved = (f'{n}__concat ({n}__concat ({n}__lower {st}) "{desc["prefix_suffix"]}")'
+                f' ({n}__drop fp "{desc["slice_lit"]}")')
+    out.append(f"  let {n}__pre (d: pydict){sig} : map string bool")
+    out.append(f"  = match {tget} d with")
+    out.append("    | Some (PStr ty) ->")
+    out.append(f'        if pystr_eq ty "{desc["type_val"]}" then')
+    out.append(f"          (match {fget} d with")
+    out.append("           | Some (PStr fp) ->")
+    out.append(f'               if {n}__starts fp "{desc["startswith_lit"]}" then')
+    out.append(f"                 (let resolved = {resolved} in")
+    out.append(f"                  if (Map.get {mem[0]} resolved) && (Map.get {mem[1]} resolved)")
+    out.append("                  then set_add (const false) resolved")
+    out.append("                  else const false)")
+    out.append("               else const false")
+    out.append("           | _ -> const false end)")
+    out.append("        else const false")
+    out.append("    | _ -> const false end")
+    # ---- the walk / walk_dict / walk_list returned-set group ----
+    out.append(f"  let rec {n} ({subj}: pyval){sig} : map string bool")
+    out.append(f"    requires {{ true }}{_ens}")
+    out.append(f"    variant {{ pv_size {subj} }}")
+    out.append(f'  = if (pystr_eq {st} "") || ({n}__emptyset {empty_set}) then (const false)')
+    out.append(f"    else match {subj} with")
+    out.append(f"      | PDict d -> set_union ({n}__pre d{args}) ({n}__dict d{args})")
+    out.append(f"      | PList xs -> {n}__list xs{args}")
+    out.append("      | _ -> const false end")
+    out.append(f"  with {n}__dict (d: pydict){sig} : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> const false")
+    out.append(f"    | DCons _ v rest -> set_union ({n} v{args}) ({n}__dict rest{args})")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval){sig} : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({n} h{args}) ({n}__list t{args}) end")
+    return out
+
+
 # ---- BOOL-existence isinstance-dispatch `.values()`/list catamorphism ------
 # The bool analog of `recognize_setfold` (the `collection_binder_kinds` shape),
 # for `uses_inline_set_or_dict_ops`: an inline self-recursive walk
