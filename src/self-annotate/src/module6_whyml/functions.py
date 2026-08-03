@@ -55,12 +55,22 @@ class FunctionEmissionMixin:
     def _reset_function_state(self, func: int, body_stmts: List[int]) -> int:
         return ([], {})
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _has_dynamic_exec(self, func: int) -> bool:
-        return False
+    def _has_dynamic_exec(self, func: Dict[str, Any]) -> bool:
+        found = False
+        stack = [func.get("body", [])]
+        while stack and not found:
+            node = stack.pop()
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") == "exec":
+                    found = True
+                else:
+                    stack.extend(node.values())
+            elif isinstance(node, list):
+                stack.extend(node)
+        return found
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

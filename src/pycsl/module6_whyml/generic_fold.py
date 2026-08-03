@@ -13347,6 +13347,216 @@ def _emit_pval_reader(name: str, key: str) -> List[str]:
     return out
 
 
+# ---- `_has_dynamic_exec` (functions.py FunctionEmissionMixin): does a function's -----
+# body tree contain an `exec(...)` Call node? The LIVE body is a WORKLIST DFS:
+#   found = False; stack = [func.get("body", [])]
+#   while stack and not found:
+#     node = stack.pop()
+#     if isinstance(node, dict):
+#       if node.get("type") == "Call" and node.get("func") == "exec": found = True
+#       else: stack.extend(node.values())
+#     elif isinstance(node, list): stack.extend(node)
+#   return found
+# A worklist-existence over a FINITE pyval tree is exactly a short-circuit recursive
+# `∃ node with predicate`; the recognizer captures the CONCRETE predicate structurally
+# (body-key, type-key/val, func-key/val) and the emit lowers it to the proven mutual
+# bool-fold skeleton (walk/dfold/lfold over pyval/pydict/list; variants pv_size/
+# size_dict/size_list — the `_test_contains_map` device). Faithful: recursion visits
+# every reachable node of `func.get(body)`, and a matched exec-Call short-circuits true
+# exactly as the worklist's `found = True` (whether it then pushes children is
+# irrelevant to existence). Non-facade: the keys and tag literals are reflected from
+# the body (a predicate change moves the emit). No caller in the mirror consumes it
+# (`_reset_function_state` is a trusted stub) -> return the natural `bool`. This is
+# UNLIKE the `_recursive_methods`/`bases_closure` worklist boundary: those iterate an
+# ABSTRACT map with cycles (`stack.extend(edges.get(n))`), needing a bounded-universe
+# AXIOM; here the worklist walks a FINITE tree, so the structural variant discharges
+# axiom-free. `ensures True`; ledger 3 (reuses the certified pyval/pydict ADT).
+
+def recognize_has_dynamic_exec(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_has_dynamic_exec` worklist-existence walker.
+    Never raises. Returns a descriptor or None."""
+    try:
+        return _recognize_has_dynamic_exec(func)
+    except Exception:
+        return None
+
+
+def _hde_getkeyval(cmp: Any, var: str) -> "tuple":
+    """A `<var>.get(K) == V` comparison -> (K, V) as clean string literals, else
+    (None, None)."""
+    if not (isinstance(cmp, dict) and cmp.get("type") == "BinOp" and cmp.get("op") == "=="):
+        return (None, None)
+    l = cmp.get("left") or {}
+    if not (isinstance(l, dict) and l.get("type") == "Call" and l.get("func") == f"{var}.get"):
+        return (None, None)
+    la = l.get("args") or []
+    if len(la) != 1:
+        return (None, None)
+    return (_clean_lit(_is_string(la[0])), _clean_lit(_is_string(cmp.get("right"))))
+
+
+def _recognize_has_dynamic_exec(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    fp = params[0]
+    body = func.get("body") or []
+    if len(body) != 4:
+        return None
+    # body[0]: found = False
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"
+            and isinstance(b0.get("value"), dict) and b0["value"].get("type") == "Bool"
+            and b0["value"].get("value") is False):
+        return None
+    found_v = b0.get("target")
+    # body[1]: stack = [func.get(BODY_KEY, [])]
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Assign"):
+        return None
+    stack_v = b1.get("target")
+    av = b1.get("value") or {}
+    if not (av.get("type") == "ArrayLit" and len(av.get("elts", [])) == 1):
+        return None
+    seed = av["elts"][0]
+    if not (isinstance(seed, dict) and seed.get("type") == "Call"
+            and seed.get("func") == f"{fp}.get"):
+        return None
+    sargs = seed.get("args") or []
+    if len(sargs) != 2:
+        return None
+    body_key = _clean_lit(_is_string(sargs[0]))
+    if body_key is None or not isinstance(found_v, str) or not isinstance(stack_v, str):
+        return None
+    # body[2]: while stack and not found: <node = stack.pop(); dispatch>
+    w = body[2]
+    if not (isinstance(w, dict) and w.get("stmt") == "While"):
+        return None
+    wt = w.get("test") or {}
+    if not (wt.get("type") == "BinOp" and wt.get("op") == "and"
+            and _is_var(wt.get("left"), stack_v)):
+        return None
+    wr = wt.get("right") or {}
+    if not (isinstance(wr, dict) and wr.get("type") == "UnaryOp" and wr.get("op") == "not"
+            and _is_var(wr.get("expr"), found_v)):
+        return None
+    wb = w.get("body") or []
+    if len(wb) != 2:
+        return None
+    # wb[0]: node = stack.pop()
+    n0 = wb[0]
+    if not (isinstance(n0, dict) and n0.get("stmt") == "Assign"):
+        return None
+    node_v = n0.get("target")
+    nv = n0.get("value") or {}
+    if not (isinstance(node_v, str) and nv.get("type") == "Call"
+            and nv.get("func") == f"{stack_v}.pop"):
+        return None
+    # wb[1]: if isinstance(node, dict): <inner> else: if isinstance(node, list): ...
+    oif = wb[1]
+    if not (isinstance(oif, dict) and oif.get("stmt") == "If"):
+        return None
+    if not _match_isinstance(oif.get("test"), node_v, "dict"):
+        return None
+    dbody = oif.get("body") or []
+    if len(dbody) != 1:
+        return None
+    iif = dbody[0]
+    if not (isinstance(iif, dict) and iif.get("stmt") == "If"):
+        return None
+    it = iif.get("test") or {}
+    if not (it.get("type") == "BinOp" and it.get("op") == "and"):
+        return None
+    type_key, type_val = _hde_getkeyval(it.get("left"), node_v)
+    func_key, func_val = _hde_getkeyval(it.get("right"), node_v)
+    if None in (type_key, type_val, func_key, func_val):
+        return None
+    # inner then: found = True
+    ib = iif.get("body") or []
+    if not (len(ib) == 1 and isinstance(ib[0], dict) and ib[0].get("stmt") == "Assign"
+            and ib[0].get("target") == found_v and isinstance(ib[0].get("value"), dict)
+            and ib[0]["value"].get("type") == "Bool" and ib[0]["value"].get("value") is True):
+        return None
+    # inner else: stack.extend(node.values())
+    io = iif.get("orelse") or []
+    if not (len(io) == 1 and isinstance(io[0], dict) and io[0].get("stmt") == "Expr"):
+        return None
+    ioc = io[0].get("value") or {}
+    if not (ioc.get("type") == "Call" and ioc.get("func") == f"{stack_v}.extend"):
+        return None
+    iov = (ioc.get("args") or [{}])[0]
+    if not (isinstance(iov, dict) and iov.get("type") == "Call"
+            and iov.get("func") == f"{node_v}.values"):
+        return None
+    # outer else: if isinstance(node, list): stack.extend(node)
+    oo = oif.get("orelse") or []
+    if len(oo) != 1:
+        return None
+    lif = oo[0]
+    if not (isinstance(lif, dict) and lif.get("stmt") == "If"
+            and _match_isinstance(lif.get("test"), node_v, "list")):
+        return None
+    lb = lif.get("body") or []
+    if not (len(lb) == 1 and isinstance(lb[0], dict) and lb[0].get("stmt") == "Expr"):
+        return None
+    lbc = lb[0].get("value") or {}
+    if not (lbc.get("type") == "Call" and lbc.get("func") == f"{stack_v}.extend"
+            and _is_var((lbc.get("args") or [{}])[0], node_v)):
+        return None
+    # body[3]: return found
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Return" and _is_var(b3.get("value"), found_v)):
+        return None
+    return {"name": func["name"], "param": fp, "body_key": body_key,
+            "type_key": type_key, "type_val": type_val,
+            "func_key": func_key, "func_val": func_val}
+
+
+def emit_has_dynamic_exec_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_has_dynamic_exec` as a short-circuit recursive existence fold over the
+    pyval body tree (the `_test_contains_map` skeleton). `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    tv, fv = desc["type_val"], desc["func_val"]
+    out: List[str] = []
+    # typed-key readers: body (option pyval, extracts the PList), type/func (option string)
+    out += _emit_pval_reader(f"{P}gbody", desc["body_key"])
+    out += _emit_skey_reader(f"{P}gtype", desc["type_key"])
+    out += _emit_skey_reader(f"{P}gfunc", desc["func_key"])
+    # mutual existence fold over pyval / pydict values / list elements
+    out.append(f"  let rec {P}walk (v: pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f'        let is_exec = ((match {P}gtype d with Some t -> pystr_eq t "{tv}" | None -> false end)')
+    out.append(f'                       && (match {P}gfunc d with Some fn -> pystr_eq fn "{fv}" | None -> false end)) in')
+    out.append(f"        if is_exec then true else {P}dfold d")
+    out.append(f"    | PList xs -> {P}lfold xs")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        {P}walk v || {P}dfold rest end")
+    out.append(f"  with {P}lfold (xs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> false")
+    out.append(f"    | Cons h t -> {P}walk h || {P}lfold t end")
+    # entry: walk the elements of func.get(BODY_KEY) (the worklist seed)
+    out.append(f"  let {n} (self: functionemissionmixin) ({mv}: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {mv} with")
+    out.append(f"    | PDict d -> (match {P}gbody d with Some (PList xs) -> {P}lfold xs | _ -> false end)")
+    out.append("    | _ -> false")
+    out.append("    end")
+    return out
+
+
 # ---- `_method_edges` (ir_inline): outgoing method-call edges of a function -----------
 # Live body (a `_walk_dicts(func.get("body"))` fold building a Set[str]):
 #   out = set()

@@ -2933,6 +2933,7 @@ class FunctionEmissionMixin:
             recognize_global_call_target, emit_global_call_target_group,
             recognize_method_edges, emit_method_edges_group,
             recognize_type_str_reader, emit_type_str_reader_group,
+            recognize_has_dynamic_exec, emit_has_dynamic_exec_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
@@ -3455,6 +3456,12 @@ class FunctionEmissionMixin:
         _me = recognize_method_edges(func)
         if _me is not None:
             return emit_method_edges_group(_me, whyml_ident)
+        # self-tcb-reduction-driver: `functions.py` FunctionEmissionMixin._has_dynamic_exec —
+        # a worklist DFS `∃ node in func.get("body") with type=="Call" && func=="exec"`,
+        # lowered to the proven recursive existence fold over pyval. Fail-closed; ledger 3.
+        _hde = recognize_has_dynamic_exec(func)
+        if _hde is not None:
+            return emit_has_dynamic_exec_group(_hde, whyml_ident)
         # self-tcb-reduction-driver: `monomorphize._type_str` — a flat pyval->
         # Optional[str] reader that DELEGATES to the verified `string->Optional[str]`
         # sibling `_sanitize_type_name`. Resolve BOTH functions' synthesized
