@@ -11860,6 +11860,176 @@ def emit_check_fresh_globals_group(desc: Dict[str, Any], whyml_ident) -> List[st
     return out
 
 
+# ---- `_check_noreturn`: NR2a guard + the pyval->stmt_ir body parser ----------
+# BRIDGE (needs pget_list's size-postcondition, added to the pydict theory): a total
+# structural parser `list pyval -> stmt_list` maps "Return"->SReturn + compound tags to
+# their ctors with recursed stmt-sublists, else SPass, placeholder expressions. A SOUND
+# ABSTRACTION for `_body_has_return` (which ignores expressions). Ledger 3.
+
+def recognize_check_noreturn(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    try:
+        return _recognize_check_noreturn(func)
+    except Exception:
+        return None
+
+
+def _cn_get1(node: Any, subj: str) -> Optional[str]:
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{subj}.get"):
+        return None
+    args = node.get("args") or []
+    return _is_string(args[0]) if len(args) == 1 else None
+
+
+def _cn_not_call(node: Any, var: str) -> Optional[str]:
+    if not (isinstance(node, dict) and node.get("type") == "UnaryOp" and node.get("op") == "not"):
+        return None
+    c = node.get("expr")
+    if not (isinstance(c, dict) and c.get("type") == "Call"):
+        return None
+    fn = c.get("func")
+    if not (isinstance(fn, str) and "." not in fn):
+        return None
+    a = c.get("args") or []
+    return fn if (len(a) == 1 and _is_var(a[0], var)) else None
+
+
+def _recognize_check_noreturn(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_check_noreturn":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    fp = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    s1, s2, s3, s4, s5, s6 = body
+
+    def is_ret(s): return isinstance(s, dict) and s.get("stmt") == "Return"
+    def is_raise(s): return (isinstance(s, dict) and s.get("stmt") == "Raise"
+                             and s.get("exc_type") == "PyCSLSemanticError")
+
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If" and not s1.get("orelse")):
+        return None
+    t1 = s1.get("test", {})
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp" and t1.get("op") == "not"):
+        return None
+    nr = _cn_get1(t1.get("expr"), fp)
+    if nr is None or not (len(s1.get("body", [])) == 1 and is_ret(s1["body"][0])):
+        return None
+    if not (isinstance(s2, dict) and s2.get("stmt") == "If" and not s2.get("orelse")):
+        return None
+    t2 = s2.get("test", {})
+    if not (isinstance(t2, dict) and t2.get("type") == "BinOp" and t2.get("op") == "or"):
+        return None
+    tk = _cn_get1(t2.get("left"), fp)
+    ak = _cn_get1(t2.get("right"), fp)
+    if tk is None or ak is None or not (len(s2.get("body", [])) == 1 and is_ret(s2["body"][0])):
+        return None
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign"
+            and _match_get_call(s3.get("value"), fp) is not None):
+        return None
+    if not (isinstance(s4, dict) and s4.get("stmt") == "Assign"):
+        return None
+    bvar = s4.get("target")
+    bkey = _or_empty_sget(s4.get("value"), fp)
+    if not (isinstance(bvar, str) and bkey is not None):
+        return None
+    if not (isinstance(s5, dict) and s5.get("stmt") == "If" and not s5.get("orelse")):
+        return None
+    t5 = s5.get("test", {})
+    if not (isinstance(t5, dict) and t5.get("type") == "Call" and isinstance(t5.get("func"), str)
+            and "." not in t5.get("func") and len(t5.get("args") or []) == 1
+            and _is_var(t5["args"][0], bvar)):
+        return None
+    hret = t5.get("func")
+    if not (len(s5.get("body", [])) == 1 and is_raise(s5["body"][0])):
+        return None
+    if not (isinstance(s6, dict) and s6.get("stmt") == "If" and not s6.get("orelse")):
+        return None
+    t6 = s6.get("test", {})
+    if not (isinstance(t6, dict) and t6.get("type") == "BinOp" and t6.get("op") == "and"):
+        return None
+    hr = _cn_not_call(t6.get("left"), bvar)
+    hd = _cn_not_call(t6.get("right"), bvar)
+    if hr is None or hd is None or not (len(s6.get("body", [])) == 1 and is_raise(s6["body"][0])):
+        return None
+    return {"name": "_check_noreturn", "func_param": fp, "is_noreturn_key": nr,
+            "trusted_key": tk, "abstract_key": ak, "body_key": bkey,
+            "has_return": hret, "has_raise": hr, "has_div": hd}
+
+
+def emit_check_noreturn_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    n = whyml_ident(desc["name"])
+    hret = whyml_ident(desc["has_return"])
+    hrai = whyml_ident(desc["has_raise"])
+    hdiv = whyml_ident(desc["has_div"])
+    nk, tk, ak, bk = (desc["is_noreturn_key"], desc["trusted_key"],
+                      desc["abstract_key"], desc["body_key"])
+    out: List[str] = []
+    out.append(f"  let rec {n}__gstmt (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append(f'    | DCons (K_dyn k) (PStr s) rest -> if pystr_eq k "stmt" then Some s else {n}__gstmt rest')
+    out.append(f"    | DCons _ _ rest -> {n}__gstmt rest end")
+    out.append(f"  let rec {n}__ps (node: pyval) : stmt_ir")
+    out.append("    variant { pv_size node }")
+    out.append("  = match node with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__gstmt d with")
+    out.append('         | Some tag ->')
+    out.append('             if pystr_eq tag "Return" then SReturn IrONone')
+    out.append(f'             else if pystr_eq tag "If" then SIf (IrNum 0) ({n}__psl (pget_list "body" d)) ({n}__psl (pget_list "orelse" d))')
+    out.append(f'             else if pystr_eq tag "While" then SWhile (IrNum 0) ({n}__psl (pget_list "body" d))')
+    out.append(f'             else if pystr_eq tag "For" then SFor (IrNum 0) ({n}__psl (pget_list "body" d))')
+    out.append(f'             else if pystr_eq tag "Try" then STry ({n}__psl (pget_list "body" d)) ({n}__phl (pget_list "handlers" d)) ({n}__psl (pget_list "orelse" d)) ({n}__psl (pget_list "finalbody" d))')
+    out.append(f'             else if pystr_eq tag "Match" then SMatch (IrNum 0) ({n}__pmcl (pget_list "cases" d))')
+    out.append(f'             else if pystr_eq tag "CriticalSection" then SCriticalSection "" ({n}__psl (pget_list "body" d)) (IrNum 0) (IrNum 0)')
+    out.append("             else SPass")
+    out.append("         | None -> SPass end)")
+    out.append("    | _ -> SPass end")
+    out.append(f"  with {n}__psl (xs: list pyval) : stmt_list")
+    out.append("    variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> SLNil | Cons h t -> SLCons ({n}__ps h) ({n}__psl t) end")
+    out.append(f"  with {n}__phl (xs: list pyval) : handler_list")
+    out.append("    variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> HLNil | Cons h t -> HLCons ({n}__ph h) ({n}__phl t) end")
+    out.append(f"  with {n}__ph (node: pyval) : except_handler")
+    out.append("    variant { pv_size node }")
+    out.append("  = match node with")
+    out.append(f'    | PDict d -> {{ eh_exc_type = IrSNone; eh_name = IrSNone; eh_body = {n}__psl (pget_list "body" d) }}')
+    out.append("    | _ -> { eh_exc_type = IrSNone; eh_name = IrSNone; eh_body = SLNil } end")
+    out.append(f"  with {n}__pmcl (xs: list pyval) : match_case_list")
+    out.append("    variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> MCNil | Cons h t -> MCCons ({n}__pmc h) ({n}__pmcl t) end")
+    out.append(f"  with {n}__pmc (node: pyval) : match_case")
+    out.append("    variant { pv_size node }")
+    out.append("  = match node with")
+    out.append(f'    | PDict d -> {{ mc_pattern = IrNum 0; mc_guard = IrONone; mc_body = {n}__psl (pget_list "body" d) }}')
+    out.append("    | _ -> { mc_pattern = IrNum 0; mc_guard = IrONone; mc_body = SLNil } end")
+    out.append(f"  let {n}__truthy (o: option pyval) : bool")
+    out.append("  = match o with Some (PBool b) -> b | Some (PInt k) -> k <> 0")
+    out.append('    | Some (PStr s) -> not (pystr_eq s "")')
+    out.append("    | Some (PList xs) -> (match xs with Nil -> false | Cons _ _ -> true end) | _ -> false end")
+    out.append(f"  let {n} ({whyml_ident(desc['func_param'])}: pyval) : unit")
+    out.append("    requires { true } ensures { true } raises { PyCSLSemanticError }")
+    out.append(f"  = match {whyml_ident(desc['func_param'])} with")
+    out.append("    | PDict fd ->")
+    out.append(f'        if not ({n}__truthy (pget_dyn "{nk}" fd)) then ()')
+    out.append(f'        else if ({n}__truthy (pget_dyn "{tk}" fd)) || ({n}__truthy (pget_dyn "{ak}" fd)) then ()')
+    out.append("        else begin")
+    out.append(f'          let bd = pget_list "{bk}" fd in')
+    out.append(f"          if {hret} ({n}__psl bd) then raise PyCSLSemanticError")
+    out.append(f"          else if (not ({hrai} bd)) && (not ({hdiv} bd)) then raise PyCSLSemanticError")
+    out.append("          else ()")
+    out.append("        end")
+    out.append("    | _ -> () end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`

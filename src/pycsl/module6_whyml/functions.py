@@ -2922,6 +2922,7 @@ class FunctionEmissionMixin:
             recognize_check_mutex_invariants, emit_check_mutex_invariants_group,
             recognize_check_callable_params, emit_check_callable_params_group,
             recognize_check_fresh_globals, emit_check_fresh_globals_group,
+            recognize_check_noreturn, emit_check_noreturn_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
@@ -3414,6 +3415,9 @@ class FunctionEmissionMixin:
         _cfg = recognize_check_fresh_globals(func)
         if _cfg is not None:
             return emit_check_fresh_globals_group(_cfg, whyml_ident)
+        _cnr = recognize_check_noreturn(func)
+        if _cnr is not None:
+            return emit_check_noreturn_group(_cnr, whyml_ident)
         _csc = recognize_cs_clause(func)
         if _csc is not None:
             from module6_whyml.generic_fold import emit_pb_trio_group

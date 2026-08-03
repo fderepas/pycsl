@@ -2071,6 +2071,7 @@ class PreambleEmissionMixin:
             recognize_check_mutex_invariants,
             recognize_check_callable_params,
             recognize_check_fresh_globals,
+            recognize_check_noreturn,
             recognize_cs_clause, recognize_check_contract_exprs,
             recognize_check_body_walk,
             recognize_check_subscript_assignments,
@@ -2114,6 +2115,7 @@ class PreambleEmissionMixin:
             or recognize_check_mutex_invariants(f) is not None
             or recognize_check_callable_params(f) is not None
             or recognize_check_fresh_globals(f) is not None
+            or recognize_check_noreturn(f) is not None
             or recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
             or recognize_check_subscript_assignments(f) is not None
@@ -2150,6 +2152,7 @@ class PreambleEmissionMixin:
             or recognize_check_mutex_invariants(f) is not None
             or recognize_check_callable_params(f) is not None
             or recognize_check_fresh_globals(f) is not None
+            or recognize_check_noreturn(f) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
@@ -3426,6 +3429,7 @@ class PreambleEmissionMixin:
             "  (* dynamic-string-key readers (constructor `K_dyn` match, never irkey `=`) *)",
             "  let rec pget_dyn (name: string) (d: pydict) : option pyval",
             "    variant { d }",
+            "    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }",
             "  = match d with",
             "    | DNil -> None",
             "    | DCons (K_dyn s) v rest -> if pystr_eq name s then Some v else pget_dyn name rest",
@@ -3433,6 +3437,7 @@ class PreambleEmissionMixin:
             "    end",
             "",
             "  let pget_list (name: string) (d: pydict) : list pyval",
+            "    ensures { size_list result <= size_dict d }",
             "  = match pget_dyn name d with Some (PList xs) -> xs | _ -> Nil end",
             "",
             "  (* irkey -> string: TOTAL pure literal map (K_dyn carries its runtime string; *)",

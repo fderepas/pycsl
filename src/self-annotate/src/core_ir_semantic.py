@@ -647,12 +647,57 @@ def _body_has_return(body: list) -> bool:
                 return True
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_noreturn(func) -> None:
-    pass
+    """NR2a (typing-engagement ty1 / 28-0000-typing-spec-4 §1.0) — a function
+    declared ``-> NoReturn`` carries the postcondition ``false`` (NR1): it never
+    returns normally. The body MUST support that claim — every path must raise or
+    diverge (call a NoReturn function, loop forever). A body that CAN return
+    normally (contains a ``Return``, or falls off the end without raising) is a
+    STATIC ERROR: the ``false`` postcondition would be genuinely unprovable (not
+    vacuous, just wrong — the two-plane spec §1.0 NR2a).
+
+    This is a CONSERVATIVE sound under-approximation (stricter than S1 is
+    permitted): any ``Return`` statement anywhere in the body is rejected
+    (even one inside a provably-dead branch — sound, since a dead ``Return``
+    indicates a logic error). A body with neither a ``Raise`` nor a diverging
+    construct (``While``/``For``/``CriticalSection``/``Call``) is rejected too
+    (it falls off the end → normal exit). Why3 provides defense-in-depth: if a
+    normal-exit path slips past this check, the ``ensures { false }`` VC fails
+    at proof time."""
+    if not func.get("is_noreturn"):
+        return
+    # A `\trusted` / `#@ \abstract` stub emits as a bodyless WhyML `val`: its `ensures
+    # { false }` (NR1) is a reviewer-vouched INTERFACE assumption, not a claim about the
+    # placeholder body (`pass`). The NR2a body-justification is meaningless there — it
+    # exists to catch a REAL body that can return normally yet claims NoReturn. The trust
+    # boundary is where the never-returns fact is discharged out of band (e.g. the live
+    # `_ContractParser._err` body is an unconditional `raise`, mirrored here as a trusted
+    # stub). Exempt both, exactly as the emitter treats them as assumption-only vals.
+    if func.get("trusted") or func.get("abstract"):
+        return
+    name = func.get("name", "<anonymous>")
+    body = func.get("body", []) or []
+    if _body_has_return(body):
+        raise PyCSLSemanticError(
+            f"`-> NoReturn` on function '{name}' is not justified: its body "
+            f"contains a `return` statement (a normal-exit path). A NoReturn "
+            f"function must never return normally — every path must raise or "
+            f"diverge (NR2a / PEP 484). Remove `-> NoReturn`, or eliminate the "
+            f"normal return (raise instead, or call another NoReturn function).",
+            code="PYCSL-SEM-NORETURN",
+        )
+    if not _body_has_raise(body) and not _body_has_diverging_construct(body):
+        raise PyCSLSemanticError(
+            f"`-> NoReturn` on function '{name}' is not justified: its body has "
+            f"no `raise` and no potentially-diverging construct (no loop, no call, "
+            f"no critical section) — it provably falls off the end (a normal exit). "
+            f"A NoReturn function must raise or diverge on every path (NR2a / "
+            f"PEP 484). Remove `-> NoReturn`, or give the body a raise/divergence.",
+            code="PYCSL-SEM-NORETURN",
+        )
 
 #@ requires True
 #@ ensures True
