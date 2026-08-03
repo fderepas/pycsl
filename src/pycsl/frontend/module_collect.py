@@ -299,6 +299,65 @@ def collect_module_const_compound_dicts(node: ast.Module) -> Dict[str, Dict[str,
             and n not in written_via_global}
 
 
+def collect_module_const_str_pairs(node: ast.Module) -> Dict[str, list]:
+    """Module-level constant LIST-of-str-pair literals: a top-level
+    `NAME = [("s1", "d1"), ("s2", "d2"), ...]` (or annotated) whose every element is a
+    2-tuple of PLAIN STRING literals, bound EXACTLY ONCE at module scope, not a
+    `#@ shared` global and never written via `global`. Returns `{name: [(s, d), ...]}`
+    preserving source order (AST element order == Python list order).
+
+    This is the ordered-lookup-table shape (`_PREFIX_STRIPS` in
+    `proof2why3/from_lean_json.py`, a `List[Tuple[str, str]]` scanned by
+    `for src, dst in _PREFIX_STRIPS: if name == src: return dst`). It lowers
+    FAITHFULLY at a linear first-match lookup site to a chained string if-then-else
+    (`if name = "s1" then "d1" else if ... else name`) — the same reflection device the
+    str->str const *dict* uses, but for the ordered *list-of-pairs* shape where element
+    ORDER (first match wins) is semantically load-bearing. Fail-closed: any non-2-tuple
+    element, any non-string component, an empty list, or a reassigned name excludes the
+    whole const (keeps the opaque fallback). Consumed by Module 5 (IR emission) and,
+    when a `_strip_const_name`-style first-match scan reflects it, Module 6.
+
+    Additive by construction: the field is set only when this tightly-gated collector
+    returns non-empty, so it is ABSENT for every program without such a const literal
+    (byte-identical emission), exactly like the sibling `collect_module_const_*`
+    collectors."""
+    counts: Dict[str, int] = {}
+    candidates: Dict[str, list] = {}
+    for child in getattr(node, "body", []):
+        target = None
+        value = None
+        if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                and isinstance(child.targets[0], ast.Name)):
+            target, value = child.targets[0].id, child.value
+        elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+            target, value = child.target.id, child.value
+        if target is None:
+            continue
+        counts[target] = counts.get(target, 0) + 1
+        if not (isinstance(value, ast.List) and value.elts):
+            continue
+        pairs = []
+        ok = True
+        for elt in value.elts:
+            if not (isinstance(elt, ast.Tuple) and len(elt.elts) == 2):
+                ok = False
+                break
+            a, b = elt.elts
+            if not (isinstance(a, ast.Constant) and isinstance(a.value, str)
+                    and isinstance(b, ast.Constant) and isinstance(b.value, str)):
+                ok = False
+                break
+            pairs.append((a.value, b.value))
+        if ok and pairs:
+            candidates[target] = pairs
+    shared = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+    written_via_global = {n for g in ast.walk(node) if isinstance(g, ast.Global)
+                          for n in g.names}
+    return {n: v for n, v in candidates.items()
+            if counts.get(n, 0) == 1 and n not in shared
+            and n not in written_via_global}
+
+
 def collect_module_globals(node: ast.Module, class_names: set) -> Dict[str, ast.Call]:
     """inline.md Phase 1 — module-level global OBJECT instances: a top-level
     `g = C(<args>)` where `C` is a class defined in the module, bound EXACTLY ONCE at

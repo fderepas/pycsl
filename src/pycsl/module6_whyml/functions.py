@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from module6_whyml.identifiers import whyml_ident, safe_exc_name
+from module6_whyml.identifiers import whyml_ident, safe_exc_name, whyml_string_literal
 from module6_whyml.ir_scanner import IRScanner
 from module6_whyml.scc import emits_as_logic_symbol
 
@@ -2413,6 +2413,112 @@ class FunctionEmissionMixin:
             "    is_final_ann_prog ann_expr",
         ]
 
+    def _recognize_str_pair_lookup(self, func: Dict[str, Any]):
+        """module-const-str-pairs first-match lookup recognizer (self-tcb-reduction):
+        recognize the ORDERED linear-scan lookup over a module-level constant
+        list-of-str-pairs (`module_const_str_pairs`, collected front-end):
+
+            def f(name: str) -> str:
+                for src, dst in NAME:
+                    if name == src:
+                        return dst
+                return name
+
+        Returns `(param, pairs)` for the faithful chained-if lowering, else None
+        (fail-closed). Requires EXACTLY a `For`-over-the-const then a `return <param>`,
+        a single `str` param, a 2-var tuple target `(src, dst)`, and a For body that is
+        exactly `if <param> == <src>: return <dst>` (no `orelse`). Any other shape keeps
+        its existing lowering. The const's ORDER is load-bearing (first match wins), so
+        the chained `if` mirrors the list order. Fires only on this exact shape over a
+        collected str-pair const → byte-identical for every corpus program."""
+        pairs_map = getattr(self, "ir", {}) or {}
+        pairs_map = pairs_map.get("module_const_str_pairs") or {}
+        if not pairs_map:
+            return None
+        body = func.get("body") or []
+        if len(body) != 2:
+            return None
+        s_for, s_ret = body[0], body[1]
+        if not (isinstance(s_for, dict) and s_for.get("stmt") == "For"
+                and isinstance(s_ret, dict) and s_ret.get("stmt") == "Return"):
+            return None
+        formals = func.get("formal_params") or []
+        if len(formals) != 1:
+            return None
+        param = formals[0]
+        if (func.get("param_annotations") or {}).get(param) != "str":
+            return None
+
+        def _is_var(n, nm):
+            return (isinstance(n, dict) and n.get("type") == "Var"
+                    and n.get("name") == nm)
+
+        # final `return <param>`
+        if not _is_var(s_ret.get("value"), param):
+            return None
+        # For over a collected str-pair const, tuple target (src, dst)
+        it = s_for.get("iter") or {}
+        if not (isinstance(it, dict) and it.get("type") == "Var"):
+            return None
+        pairs = pairs_map.get(it.get("name"))
+        if pairs is None:
+            return None
+        tts = s_for.get("tuple_targets") or []
+        if len(tts) != 2:
+            return None
+        src_name, dst_name = tts
+        fb = s_for.get("body") or []
+        if len(fb) != 1 or not (isinstance(fb[0], dict) and fb[0].get("stmt") == "If"):
+            return None
+        iff = fb[0]
+        if iff.get("orelse"):
+            return None
+        test = iff.get("test") or {}
+        if not (isinstance(test, dict) and test.get("type") == "BinOp"
+                and test.get("op") == "=="):
+            return None
+        l, r = test.get("left") or {}, test.get("right") or {}
+        if not ((_is_var(l, param) and _is_var(r, src_name))
+                or (_is_var(l, src_name) and _is_var(r, param))):
+            return None
+        ifbody = iff.get("body") or []
+        if len(ifbody) != 1 or not (isinstance(ifbody[0], dict)
+                                    and ifbody[0].get("stmt") == "Return"):
+            return None
+        if not _is_var(ifbody[0].get("value"), dst_name):
+            return None
+        return (param, pairs)
+
+    def _emit_str_pair_lookup_bespoke(self, func: Dict[str, Any],
+                                      param: str, pairs) -> List[str]:
+        """module-const-str-pairs first-match lookup: emit the FAITHFUL whole-body
+        lowering as a chained string if-then-else over the captured const pairs
+        (`if str_eq_op <param> "s1" then "d1" else ... else <param>`) — the ordered
+        first-match scan, default = the param (the loop falls through to `return name`).
+        String equality bridges the abstract `str_eq_op` (native `=` on strings is
+        program-illegal), exactly as the module-const-dict `.get` lowering does.
+        `assigns \\nothing` (pure). Corpus-inert (recognizer-gated)."""
+        name = whyml_ident(func["name"])
+        self._add_abstract_op(
+            "val str_eq_op (a: string) (b: string) : bool\n"
+            "    ensures { result <-> (a = b) }")
+        self_part = ""
+        if (func.get("self_type")
+                and not (func.get("is_static") or func.get("staticmethod"))):
+            self_part = f"(self: {whyml_ident(func['self_type'].lower())}) "
+        p = whyml_ident(param)
+        chain = p
+        for s, d in reversed(list(pairs)):
+            chain = (f"(if str_eq_op {p} {whyml_string_literal(s)} "
+                     f"then {whyml_string_literal(d)} else {chain})")
+        return [
+            f"  let {name} {self_part}({p}: string) : string",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            f"    {chain}",
+        ]
+
     def _is_py_expr_dict(self, func: Dict[str, Any]) -> bool:
         nm = str(func.get("name", ""))
         return (func.get("kind") == "method" and nm.endswith("_py_expr_dict")
@@ -2844,6 +2950,13 @@ class FunctionEmissionMixin:
         # _is_final_annotation bool-recognizer -> is_final_ann_prog. Corpus-inert.
         if self._is_final_annotation(func):
             return self._emit_is_final_annotation_bespoke(func)
+        # module-const-str-pairs first-match lookup (self-tcb-reduction): a
+        # `for src, dst in NAME: if x == src: return dst; return x` scan over a
+        # collected str-pair const -> the faithful chained-if string lowering.
+        # Corpus-inert (recognizer-gated on the exact shape over a str-pair const).
+        _spl = self._recognize_str_pair_lookup(func)
+        if _spl is not None:
+            return self._emit_str_pair_lookup_bespoke(func, _spl[0], _spl[1])
         # dict/comprehension increments (gated-emit_ir-ctor): IrDictLit (dual compaction) /
         # IrListComp / IrSetComp / IrDictComp (fixed-child + trusted generators). Corpus-inert.
         if self._is_py_expr_dict(func):

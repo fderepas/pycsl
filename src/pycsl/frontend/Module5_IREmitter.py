@@ -11,6 +11,7 @@ from frontend.module_collect import (collect_module_constants,
                                       collect_module_const_dicts,
                                       collect_module_const_int_dicts,
                                       collect_module_const_compound_dicts,
+                                      collect_module_const_str_pairs,
                                       collect_module_globals)
 from frontend.Module2_Parser import (
     CSLNode, ContractWrapper,
@@ -265,6 +266,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         module_const_compound_dicts = collect_module_const_compound_dicts(node)
         if module_const_compound_dicts:
             self.program_ir["module_const_compound_dicts"] = module_const_compound_dicts
+
+        # module-const-str-pairs: module-level constant list-of-str-pair literals
+        # (`_PREFIX_STRIPS = [("Nat.gcd", "gcd"), ...]`) → recognized at a linear
+        # first-match scan site (`for s, d in NAME: if x == s: return d`) in Module 6
+        # as a chained string if-then-else. Additive: the field is set only when the
+        # tightly-gated collector returns non-empty, so it is absent for every program
+        # without such a const literal (byte-identical emission).
+        module_const_str_pairs = collect_module_const_str_pairs(node)
+        if module_const_str_pairs:
+            self.program_ir["module_const_str_pairs"] = module_const_str_pairs
 
         # inline.md Phase 1: module-level global object instances `g = C(...)`. Modeled
         # in Module 6 as a Why3 mutable-record global `let g : c = <ctor>`; the ctor

@@ -18,12 +18,14 @@ _PREFIX_STRIPS: List[int] = [('Nat.gcd', 'gcd'), ('Nat.modulo', 'mod'), ('Nat.ad
 def _body_references_bvar_0(ast: Any, depth: int=0) -> bool:
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _strip_const_name(name: str) -> str:
-    return ""
+    for src, dst in _PREFIX_STRIPS:
+        if name == src:
+            return dst
+    return name
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
