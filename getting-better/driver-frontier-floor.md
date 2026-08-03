@@ -267,3 +267,18 @@ The pget postcondition removes the VARIANT blocker, but these stubs' REAL blocke
 bases_closure/cross-call — NOT the variant. So the floor at 821 HOLDS for the measured reason: the remaining
 stubs hit VALUE-MODEL (self-state heterogeneous dicts), AXIOM (bases_closure), CROSS-CALL-on-trusted, or
 emit_ir-ADT walls. The pget/​__psl capabilities have no clean mirror follow-ons. CONFIRMED floor at 821.
+
+## 2026-08-03 — measured _substitute: LARGE-BESPOKE-BUILDABLE, not a hard boundary (821)
+Measure-first on the stateful/reconstruction class (ir_inline::_substitute, 191L): it is a pyval->pyval
+RECONSTRUCTION (functorial-map — rebuild the pydict via items() comprehension, Var->param_map[nm] pyval
+lookup / rename, self-name + string-op func rewrites startswith/slice/partition). The VALUE MODEL (pyval)
+SUPPORTS it; string-ops are modelable with the banked string-op primitives; termination via the pget
+postcondition. So it is NOT a hard value-model wall — it is a LARGE BESPOKE reconstruction-recognizer build
+(same category _check_noreturn turned out to be: a "boundary" that measurement revealed as buildable).
+REFINED frontier at 821: (a) GENUINE value-model walls — self-state heterogeneous dicts (types._field_type_*,
+auto_trust self-methods), IR-dropped nested-closures (Module5), CSL-dataclass-AST (Weaver), raw-ast
+(Ingestor), bases_closure axiom; vs (b) LARGE-BESPOKE-BUILDABLE — reconstruction/functorial-map walks
+(_substitute, monomorphize _specialize_*/_rewrite_*, ir_resolve _rewrite_ir_calls) that the pyval model +
+string-op primitives + pget termination CAN handle, each a big recognizer. Category (b) is the remaining
+AUTONOMOUS opportunity (fresh-context bespoke builds), NOT a floor. LESSON (n-th): "boundary" often means
+"large build I haven't measured" — measure (typecheck value-model + --fun termination) before concluding.
