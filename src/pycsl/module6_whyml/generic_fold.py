@@ -12600,6 +12600,81 @@ def emit_test_contains_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]
     return out
 
 
+# ---- `_is_linear_vc`: `all(_is_linear_expr(e) for e in ensures ++ requires)` -------------
+# `all` distributes over concatenation, so the two-list `list(a or []) + list(b or [])` reduces
+# to `fold(a) && fold(b)` — NO list-append needed. `_is_linear_expr` (trusted: nested-closure
+# boundary) is an opaque pyval->bool over-approximation. Non-vacuous, coupling-safe (bool ret).
+
+def recognize_is_linear_vc(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_is_linear_vc`. Never raises."""
+    try:
+        return _recognize_is_linear_vc(func)
+    except Exception:
+        return None
+
+
+def _recognize_is_linear_vc(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_is_linear_vc"):
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    a, b = params
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    asn = body[0]
+    if not (isinstance(asn, dict) and asn.get("stmt") == "Assign"):
+        return None
+    val = asn.get("value") or {}
+    if not (val.get("type") == "BinOp" and val.get("op") == "+"):
+        return None
+
+    def _list_or_var(node: Any) -> Optional[str]:
+        # `list(<var> or [])` -> <var>
+        if not (isinstance(node, dict) and node.get("type") == "Call"
+                and node.get("func") == "list"):
+            return None
+        arg = (node.get("args") or [None])[0] or {}
+        if not (isinstance(arg, dict) and arg.get("type") == "BinOp" and arg.get("op") == "or"):
+            return None
+        return _get_str(arg.get("left"), "name")
+
+    if _list_or_var(val.get("left")) != a or _list_or_var(val.get("right")) != b:
+        return None
+    ret = body[1]
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return None
+    call = ret.get("value") or {}
+    if not (call.get("type") == "Call" and call.get("func") == "all"):
+        return None
+    gen = (call.get("args") or [None])[0] or {}
+    if not (isinstance(gen, dict) and gen.get("type") == "GenExp"):
+        return None
+    pred = _get_str(gen.get("elt"), "func")
+    if not pred:
+        return None
+    return {"name": func["name"], "a": a, "b": b, "pred": pred}
+
+
+def emit_is_linear_vc_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_is_linear_vc` as `fold(ensures) && fold(requires)` over an opaque pyval->bool
+    predicate (`_is_linear_expr`, trusted nested-closure boundary). `all` distributes over the
+    `++` so no list-append is needed. Terminates on size_list. `ensures True`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    out: List[str] = []
+    out.append(f"  val {n}__pred (e: pyval) : bool")
+    out.append(f"  let rec {n}__fold (xs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append(f"  = match xs with Nil -> true | Cons h t -> {n}__pred h && {n}__fold t end")
+    out.append(f"  let {n} (ensures_exprs: list pyval) (requires_exprs: list pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__fold ensures_exprs && {n}__fold requires_exprs")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`

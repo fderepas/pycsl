@@ -2926,6 +2926,7 @@ class FunctionEmissionMixin:
             recognize_first_tuple_return, emit_first_tuple_return_group,
             recognize_find_assigned_vars, emit_find_assigned_vars_group,
             recognize_test_contains_map, emit_test_contains_map_group,
+            recognize_is_linear_vc, emit_is_linear_vc_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
@@ -3430,6 +3431,9 @@ class FunctionEmissionMixin:
         _tcm = recognize_test_contains_map(func)
         if _tcm is not None:
             return emit_test_contains_map_group(_tcm, whyml_ident)
+        _ilv = recognize_is_linear_vc(func)
+        if _ilv is not None:
+            return emit_is_linear_vc_group(_ilv, whyml_ident)
         _csc = recognize_cs_clause(func)
         if _csc is not None:
             from module6_whyml.generic_fold import emit_pb_trio_group

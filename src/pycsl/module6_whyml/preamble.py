@@ -2075,6 +2075,7 @@ class PreambleEmissionMixin:
             recognize_first_tuple_return,
             recognize_find_assigned_vars,
             recognize_test_contains_map,
+            recognize_is_linear_vc,
             recognize_cs_clause, recognize_check_contract_exprs,
             recognize_check_body_walk,
             recognize_check_subscript_assignments,
@@ -2122,6 +2123,7 @@ class PreambleEmissionMixin:
             or recognize_first_tuple_return(f) is not None
             or recognize_find_assigned_vars(f) is not None
             or recognize_test_contains_map(f) is not None
+            or recognize_is_linear_vc(f) is not None
             or recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
             or recognize_check_subscript_assignments(f) is not None
@@ -2162,6 +2164,7 @@ class PreambleEmissionMixin:
             or recognize_first_tuple_return(f) is not None
             or recognize_find_assigned_vars(f) is not None
             or recognize_test_contains_map(f) is not None
+            or recognize_is_linear_vc(f) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,

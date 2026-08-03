@@ -35,13 +35,22 @@ class AutoTrustMixin:
     def _is_linear_expr(expr: Any) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _is_linear_vc(ensures_exprs: List[Any], requires_exprs: Optional[List[Any]]=None) -> bool:
-        return False
+    def _is_linear_vc(ensures_exprs: List[Any],
+                      requires_exprs: Optional[List[Any]] = None) -> bool:
+        """Return True iff this VC (ensures + requires) is linear-arithmetic.
+
+        A VC is linear if every ensures clause and every requires clause
+        is a linear-arithmetic expression (see _is_linear_expr).
+
+        Linear VCs are candidates for direct omega proofs in Lean 4
+        (via `LinearArithVC.prf`) without routing through Why3/Alt-Ergo.
+        """
+        exprs = list(ensures_exprs or []) + list(requires_exprs or [])
+        return all(AutoTrustMixin._is_linear_expr(e) for e in exprs)
 
     #@ requires True
     #@ ensures True
