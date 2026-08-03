@@ -1159,3 +1159,55 @@ reflection ADT + axiom-free `Phase2*` cert, then converge on `_module_const_int`
 NOTE the worker#14 `num_of`-collapse claim did not reproduce: `is_num_or_float` (IrNum/IrNumF) and `is_num` (IrNum,
 excludes IrBoolC) already distinguish numeric-vs-string-vs-bool faithfully over emit_ir; the numeric `isinstance`
 tests that remain blocked (types.py:96-114) are gated by SELF-STATE writes, not by a value-model projector gap.
+
+---
+
+## `ir_scanner._collect_mutations` — CERTIFIED-BOUNDARY (whole-file proof-SCALE, NOT correctness) — worker#17, 2026-08-03
+
+**Verdict:** the conversion is fully BUILT and FEASIBLE (typechecks, non-facade, mutation-sensitive,
+proves in TRUE isolation, needs NO new ADT / cert / axiom, ledger stays 3, count 804→803) but the
+whole-file pycsl proof FAILS on a *sibling* — it is the whole-file E-matching SCALE wall predicted by
+[[isolation_spike_not_whole_file]]. Reverted to clean (HEAD ec17e1c5).
+
+**What was built (banked design, reconstructable):**
+- **Front-end additive collector** (`Module5_IREmitter.visit_ClassDef`): a FIELDLESS/BASELESS class
+  (a namespace of `@staticmethod`s like `IRScanner`) emits NO `type_decl` (`if fields or bases:` gate),
+  so its class-body str-set const `_MUTATING_METHODS = {...}` is LOST. Capture it into a new module-level
+  IR field `class_str_set_constants[ClassName] = {CONST: [members]}` in the `else` branch — additive,
+  read ONLY by the new recognizer → byte-inert corpus-wide. (`_collect_class_str_set_constants` already
+  exists; the gate is the blocker.)
+- **Recognizer** `recognize_collect_mutations(func, class_str_sets)` (generic_fold.py): structural match of
+  the 3-arg void walker; requires `out` in the `#@ assigns` frame (frame-fidelity, like recognize_generic_fold
+  — so the mirror contract changes `assigns \nothing`→`assigns out`, matching `find_named_expr_targets`);
+  extracts tags/keys/`Var`/`Call`/rsplit-sep positionally + members from `class_str_sets["IRScanner"]["_MUTATING_METHODS"]`.
+- **Emitter** `emit_collect_mutations_group`: a `ref (list pyval)` ref-accumulator that `Cons`es WHOLE
+  matching pyval stmt nodes (the ONE new element-shape vs the `find_assigned_vars` `map string bool`
+  accumulator — reuses `Cons`/`PList`, no new value model). Membership `method in _MUTATING_METHODS` →
+  `pystr_eq` disjunction over the resolved members; `func.rsplit(sep,1)`/`sep in func` → per-fn opaque
+  `val`s reflecting the sep (banked reflect-the-literal). All non-facade (0 int-hash markers, real pydict
+  readers), mutation-sensitive (perturbing a member / the sep / a tag moves the .mlw).
+
+**The wall (measured, decisive):**
+- `find_assigned_vars`' `_list_reader` size-postcondition goals (`Lbody`/`Lorelse`,
+  `ensures { size_list result <= size_dict d }`) are at the RAZOR'S EDGE at HEAD: `why3 prove -a split_vc
+  -P alt-ergo/z3 -t 30` on the HEAD-equivalent `.mlw` TIMES OUT both provers in ISOLATION, yet TRUE-HEAD
+  `pycsl` = **SUCCESS** — because pycsl's `_dispatch_provers` proves residual goals PER-GOAL
+  (`-g <file>:<line>`, best-of-N alt-ergo→z3), which barely clears them.
+- Adding ANY pydict-recursive function to the module (measured: even the readers+helpers alone, `cm_nowalk`)
+  tips BOTH provers on those two goals from 851 steps / 0.16 s to a 30 s / ~28M-step timeout — a ~33 000×
+  regression. `pycsl` then reports exactly `2 goal(s) remain unproven` = `find_assigned_vars__Lbody/Lorelse`.
+- Tried, did NOT clear it under pycsl split_vc: (a) size-postcond list-readers → +4 own timeouts (6 total);
+  (b) generic void-descent with `variant { pv_size v }` size-FUNCTION variants → still 2 (the size-fn
+  variant injects `pv_size (PDict d)=1+size_dict d` triggers globally); (c) **structural** variants
+  `variant { v }/{ d }/{ xs }` (fixes plain-`why3`, 0 timeouts there!) → still 2 under pycsl split_vc;
+  (d) footprint cut 16→11 symbols (one `__irk_eq`+`__get` vs 7 opt-readers) → still 2; (e) an explicit
+  `assert { size_list xs <= size_dict d }` HINT inside `find_assigned_vars`' own `_list_reader` → still 2.
+
+**Classification:** COST/SCALE, not CORRECTNESS (the build proves in true isolation; no ADT/cert/axiom).
+Per COST/SCALE≠floor it is NOT a terminal floor. **Reopening capability:** review-gated MODULAR
+verification (§10.10) — a `#@ no_inline`-style modular boundary that proves `find_assigned_vars`' readers
+(and/or the new walker) in a SEPARATE proof context so the shared-module E-matching stops summing; OR a
+robustification of the `find_assigned_vars` size-postcond readers that survives an enlarged module.
+**Ops lesson (cost real iterations):** an isolated `why3 prove` is NOT representative — pycsl proves
+residual goals PER-GOAL best-of-N; always validate whole-file provability with `pycsl` itself, and note a
+goal that is fast under plain `why3` (no `-a split_vc`) can still time out under pycsl's `split_vc`.
