@@ -951,3 +951,17 @@ emit AFTER pv_size/size_dict in _emit_pydict_theory). This is a NORMAL shared-em
 re-typecheck + mirror re-proofs + byte-diff 0), autonomously attemptable — NOT coupling-rule/corpus
 review-gated. ATTEMPTING per cost≠floor (measure the fix, don't assume). Open risk remains ONLY the
 E-matching: does the parser variant DISCHARGE using pget_list's ensures (measure via --fun).
+
+## 2026-08-03 — typing-check leaf family: warn-observable = vacuous-by-design (STAY trusted)
+The core_ir_semantic typing checks (_typeddict_check_subscript, _namedtuple_check_subscript,
+_check_typeddict_access, _check_union_narrowing) are OBSERVATIONALLY VACUOUS to convert: their only
+effect is `warnings.warn`, which the emitter lowers as effect-free (opaque unit). Per the generic_fold.py
+walk+leaf convention (note ~line 6786: "leaf ... observable is a warnings.warn (effect-free) ... STAYS
+trusted") + §10.7 (VALUE not count), converting a warn-only leaf proves the same trivial `ensures True`
+a `val` already gives — a count-only win that Gate C non-vacuity must reject. DO NOT convert warn-leaves.
+NON-VACUOUS subset = the RAISING checks (_namedtuple_check_call raises PyCSLSemanticError on wrong arity;
+_check_namedtuple_access reaches it via _namedtuple_walk_construction). Those ARE convertible (raise is a
+real observable, cf. the __anystr raise-consumer non-vacuity) BUT need a tuple-from-dict-value model
+(`nt_arities[callee]` → (nfields, field_names, defaulted) unpack + `len(defaulted)`/`len(args)` +
+arity-range raise) — a genuine value-model feature-build, not a cheap win.
+LESSON: before converting a check-leaf, ask "does it RAISE, or only warn?" — warn-only = vacuous boundary.
