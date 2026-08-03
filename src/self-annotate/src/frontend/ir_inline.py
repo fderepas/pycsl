@@ -61,12 +61,29 @@ def _global_call_target(call: Dict[str, Any], globals_set: Set[str], g_class: Di
         return _method_key(g_class[recv], method)
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _method_edges(func: int, names: int, self_cls: str, globals_set: int, g_class: int) -> int:
-    return set()
+def _method_edges(func: Dict[str, Any], names: Set[str], self_cls: str, globals_set: Set[str], g_class: Dict[str, str]) -> Set[str]:
+    """Outgoing method-call edges of a function: `self.X` -> `<self_cls>__X`, `g.X` ->
+    `<g_class>__X`, bare `f(...)` -> `f` (when those names exist)."""
+    out: Set[str] = set()
+    for node in _walk_dicts(func.get("body")):
+        if node.get("type") != "Call":
+            continue
+        func_name = node.get("func")
+        if not isinstance(func_name, str):
+            continue
+        if func_name.startswith("self.") and self_cls:
+            cand = _method_key(self_cls, func_name[len("self."):])
+        elif "." in func_name:
+            recv, _, m = func_name.partition(".")
+            cand = _method_key(g_class[recv], m) if recv in globals_set else None
+        else:
+            cand = func_name
+        if cand in names:
+            out.add(cand)
+    return out
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

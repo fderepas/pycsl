@@ -13139,6 +13139,305 @@ def emit_global_call_target_group(desc: Dict[str, Any], whyml_ident) -> List[str
     return out
 
 
+def _emit_pval_reader(name: str, key: str) -> List[str]:
+    """A `pydict -> option pyval` reader for a single literal KEY (typed irkey
+    constructor, or the K_dyn guard form for a dynamic key). Reflects the key
+    literal (mutation-sensitive)."""
+    ctor = _irkey_ctor(key)
+    out = [f"  let rec {name} (d: pydict) : option pyval",
+           "    variant { d }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {ctor} v _ -> Some v")
+    else:
+        out.append(f"    | DCons (K_dyn kk) v rest -> if pystr_eq kk \"{key}\" then Some v else {name} rest")
+    out.append(f"    | DCons _ _ rest -> {name} rest")
+    out.append("    end")
+    return out
+
+
+# ---- `_method_edges` (ir_inline): outgoing method-call edges of a function -----------
+# Live body (a `_walk_dicts(func.get("body"))` fold building a Set[str]):
+#   out = set()
+#   for node in _walk_dicts(func.get("body")):
+#       if node.get("type") != "Call": continue
+#       func_name = node.get("func")
+#       if not isinstance(func_name, str): continue
+#       if func_name.startswith("self.") and self_cls:
+#           cand = _method_key(self_cls, func_name[len("self."):])
+#       elif "." in func_name:
+#           recv,_,m = func_name.partition("."); cand = _method_key(g_class[recv], m) if recv in globals_set else None
+#       else: cand = func_name
+#       if cand in names: out.add(cand)
+#   return out
+# Emitted as a `size_list`-variant fold over `_walk_dicts (<func.body>)` (structural —
+# NOT a worklist BFS, so it discharges without an axiom, unlike `_recursive_methods`).
+# `cand` is an `option string` (None on the dotted-not-a-global branch, so `None in names`
+# = not added); the three cand cases reuse the string devices (startswith / prefix-strip /
+# containment / partition — private opaque vals reflecting "self."/"." ; `_method_key` the
+# converted module let; `g_class`/`globals_set` map applications). The membership-gated
+# `set_add` reuses the certified StrSet algebra. `ensures True`; corpus-inert; non-facade
+# (tags/keys/prefix/sep read off the body). Ledger 3.
+
+def recognize_method_edges(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_method_edges`. Never raises."""
+    try:
+        return _recognize_method_edges(func)
+    except Exception:
+        return None
+
+
+def _is_continue_only(stmts: Any) -> bool:
+    return (isinstance(stmts, list) and len(stmts) == 1
+            and isinstance(stmts[0], dict) and stmts[0].get("stmt") == "Continue")
+
+
+def _recognize_method_edges(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_method_edges"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 5:
+        return None
+    func_p, names_p, selfcls_p, gset_p, gclass_p = params
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    out_v = _match_setinit(body[0])
+    if out_v is None or out_v in params:
+        return None
+    if not (isinstance(body[2], dict) and body[2].get("stmt") == "Return"
+            and _is_var(body[2].get("value"), out_v)):
+        return None
+    loop = body[1]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For" and not loop.get("orelse")):
+        return None
+    nodev = loop.get("target")
+    if not isinstance(nodev, str) or nodev in params or nodev == out_v:
+        return None
+    it = loop.get("iter") or {}
+    if not (it.get("type") == "Call" and it.get("func") == "_walk_dicts"):
+        return None
+    wa = it.get("args") or []
+    if len(wa) != 1:
+        return None
+    wc = wa[0] or {}
+    if not (wc.get("type") == "Call" and wc.get("func") == f"{func_p}.get"):
+        return None
+    wca = wc.get("args") or []
+    body_key = _is_string(wca[0]) if wca else None
+    if body_key is None:
+        return None
+    lb = loop.get("body") or []
+    if len(lb) != 5:
+        return None
+    # lb[0]: if node.get(tk) != tag: continue
+    g0 = lb[0]
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If" and _is_continue_only(g0.get("body"))
+            and not g0.get("orelse")):
+        return None
+    t0 = g0.get("test") or {}
+    if not (t0.get("type") == "BinOp" and t0.get("op") == "!="):
+        return None
+    tk = _wd_node_get(t0.get("left"), nodev)
+    tag = _is_string(t0.get("right"))
+    if tk is None or tag is None:
+        return None
+    # lb[1]: func_name = node.get(fk)
+    a1 = lb[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign" and isinstance(a1.get("target"), str)):
+        return None
+    fnvar = a1["target"]
+    fk = _wd_node_get(a1.get("value"), nodev)
+    if fk is None or fnvar in params or fnvar in (out_v, nodev):
+        return None
+    # lb[2]: if not isinstance(func_name, str): continue
+    g2 = lb[2]
+    if not (isinstance(g2, dict) and g2.get("stmt") == "If" and _is_continue_only(g2.get("body"))
+            and not g2.get("orelse")):
+        return None
+    t2 = g2.get("test") or {}
+    if not (t2.get("type") == "UnaryOp" and t2.get("op") == "not"
+            and _match_isinstance(t2.get("expr"), fnvar, "str")):
+        return None
+    # lb[3]: if func_name.startswith(prefix) and self_cls: cand=_method_key(self_cls, func_name[len(prefix):])
+    #        elif sep in func_name: recv,_,m=func_name.partition(sep); cand=IfExpr(recv in gset, _method_key(g_class[recv],m), None)
+    #        else: cand=func_name
+    g3 = lb[3]
+    if not (isinstance(g3, dict) and g3.get("stmt") == "If"):
+        return None
+    t3 = g3.get("test") or {}
+    if not (t3.get("type") == "BinOp" and t3.get("op") == "and"):
+        return None
+    sw = t3.get("left") or {}
+    if not (sw.get("type") == "Call" and sw.get("func") == f"{fnvar}.startswith"):
+        return None
+    swa = sw.get("args") or []
+    prefix = _is_string(swa[0]) if swa else None
+    if prefix is None or not _is_var(t3.get("right"), selfcls_p):
+        return None
+    candv = _me_assign_cand(g3.get("body"), selfcls_p, fnvar, prefix, gclass_p)
+    if candv is None:
+        return None
+    orelse = g3.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    e = orelse[0]
+    if not (isinstance(e, dict) and e.get("stmt") == "If"):
+        return None
+    te = e.get("test") or {}
+    if not (te.get("type") == "BinOp" and te.get("op") == "in"
+            and _is_string(te.get("left")) is not None and _is_var(te.get("right"), fnvar)):
+        return None
+    sep = _is_string(te.get("left"))
+    if sep is None:
+        return None
+    # dotted branch: recv,_,m = func_name.partition(sep) ; cand = IfExpr(...)
+    eb = e.get("body") or []
+    if len(eb) != 2:
+        return None
+    tu = eb[0]
+    if not (isinstance(tu, dict) and tu.get("stmt") == "TupleUnpack"):
+        return None
+    tt = tu.get("targets") or []
+    if len(tt) != 3:
+        return None
+    recv_v, _mid, m_v = tt
+    pc = tu.get("value") or {}
+    if not (pc.get("type") == "Call" and pc.get("func") == f"{fnvar}.partition"):
+        return None
+    if (_is_string((pc.get("args") or [None])[0])) != sep:
+        return None
+    ca = eb[1]
+    if not (isinstance(ca, dict) and ca.get("stmt") == "Assign" and ca.get("target") == candv):
+        return None
+    ie = ca.get("value") or {}
+    if not (ie.get("type") == "IfExpr"):
+        return None
+    iet = ie.get("test") or {}
+    if not (iet.get("type") == "BinOp" and iet.get("op") == "in"
+            and _is_var(iet.get("left"), recv_v) and _is_var(iet.get("right"), gset_p)):
+        return None
+    ieb = ie.get("body") or {}
+    if not (ieb.get("type") == "Call" and ieb.get("func") == "_method_key"):
+        return None
+    ieba = ieb.get("args") or []
+    if len(ieba) != 2 or not _is_var(ieba[1], m_v):
+        return None
+    sub = ieba[0] or {}
+    if not (sub.get("type") == "Subscript" and _is_var(sub.get("value"), gclass_p)
+            and _is_var(sub.get("index"), recv_v)):
+        return None
+    if (ie.get("orelse") or {}).get("type") != "None":
+        return None
+    # else: cand = func_name
+    eo = e.get("orelse") or []
+    if not (len(eo) == 1 and isinstance(eo[0], dict) and eo[0].get("stmt") == "Assign"
+            and eo[0].get("target") == candv and _is_var(eo[0].get("value"), fnvar)):
+        return None
+    # lb[4]: if cand in names: out.add(cand)
+    g4 = lb[4]
+    if not (isinstance(g4, dict) and g4.get("stmt") == "If" and not g4.get("orelse")):
+        return None
+    t4 = g4.get("test") or {}
+    if not (t4.get("type") == "BinOp" and t4.get("op") == "in"
+            and _is_var(t4.get("left"), candv) and _is_var(t4.get("right"), names_p)):
+        return None
+    ab = g4.get("body") or []
+    if not (len(ab) == 1 and isinstance(ab[0], dict) and ab[0].get("stmt") == "Expr"):
+        return None
+    addc = ab[0].get("value") or {}
+    if not (addc.get("type") == "Call" and addc.get("func") == f"{out_v}.add"
+            and _is_var((addc.get("args") or [None])[0], candv)):
+        return None
+    return {"name": func["name"], "method_key": "_method_key", "walk_name": "_walk_dicts",
+            "tk": tk, "tag": tag, "fk": fk, "prefix": prefix, "sep": sep, "body_key": body_key}
+
+
+def _me_assign_cand(stmts: Any, selfcls_p: str, fnvar: str, prefix: str,
+                    gclass_p: str) -> Optional[str]:
+    """Match `cand = _method_key(self_cls, func_name[len(prefix):])`; return cand var."""
+    if not (isinstance(stmts, list) and len(stmts) == 1):
+        return None
+    s = stmts[0]
+    if not (isinstance(s, dict) and s.get("stmt") == "Assign" and isinstance(s.get("target"), str)):
+        return None
+    v = s.get("value") or {}
+    if not (v.get("type") == "Call" and v.get("func") == "_method_key"):
+        return None
+    va = v.get("args") or []
+    if len(va) != 2 or not _is_var(va[0], selfcls_p):
+        return None
+    sl = va[1] or {}
+    if not (sl.get("type") == "SliceAccess" and _is_var(sl.get("value"), fnvar)):
+        return None
+    lo = (sl.get("slice") or {}).get("lower") or {}
+    if not (lo.get("type") == "Call" and lo.get("func") == "len"
+            and _is_string((lo.get("args") or [None])[0]) == prefix):
+        return None
+    return s["target"]
+
+
+def emit_method_edges_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_method_edges` per the module note. `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    mk = whyml_ident(desc["method_key"])
+    walk = whyml_ident(desc["walk_name"])
+    tag, prefix, sep = desc["tag"], desc["prefix"], desc["sep"]
+    out: List[str] = []
+    out += _emit_skey_reader(f"{n}__gtype", desc["tk"])
+    out += _emit_skey_reader(f"{n}__gfunc", desc["fk"])
+    out += _emit_pval_reader(f"{n}__gbody", desc["body_key"])
+    out.append(f"  val {n}__starts (s: string) (p: string) : bool")
+    out.append(f"  val {n}__strip (s: string) (p: string) : string")
+    out.append(f"  val {n}__has (s: string) (sub: string) : bool")
+    out.append(f"  val {n}__before (s: string) (sep: string) : string")
+    out.append(f"  val {n}__after (s: string) (sep: string) : string")
+    sig = ("(names: map string bool) (self_cls: string) "
+           "(globals_set: map string bool) (g_class: map string string)")
+    out.append(f"  let rec {n}__f (nodes: list pyval) {sig} : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list nodes }")
+    out.append("  = match nodes with")
+    out.append("    | Nil -> (const false)")
+    out.append("    | Cons node rest ->")
+    out.append(f"        let acc = {n}__f rest names self_cls globals_set g_class in")
+    out.append("        match node with")
+    out.append("        | PDict d ->")
+    out.append(f"            (match {n}__gtype d with")
+    out.append(f'             | Some ty -> if pystr_eq ty "{tag}" then')
+    out.append(f"                 (match {n}__gfunc d with")
+    out.append("                  | Some fn ->")
+    out.append("                      let cand =")
+    out.append(f'                        if ({n}__starts fn "{prefix}") && (not (pystr_eq self_cls "")) then')
+    out.append(f'                          Some ({mk} self_cls ({n}__strip fn "{prefix}"))')
+    out.append(f'                        else if {n}__has fn "{sep}" then')
+    out.append(f'                          (if globals_set ({n}__before fn "{sep}") then')
+    out.append(f'                             Some ({mk} (g_class ({n}__before fn "{sep}")) ({n}__after fn "{sep}"))')
+    out.append("                           else None)")
+    out.append("                        else Some fn")
+    out.append("                      in")
+    out.append("                      (match cand with Some c -> if names c then set_add acc c else acc")
+    out.append("                       | None -> acc end)")
+    out.append("                  | None -> acc end)")
+    out.append("                 else acc")
+    out.append("             | None -> acc end)")
+    out.append("        | _ -> acc")
+    out.append("        end")
+    out.append("    end")
+    out.append(f"  let {n} (func: pyval) {sig} : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match func with")
+    out.append(f"    | PDict d -> (match {n}__gbody d with")
+    out.append(f"                  | Some b -> {n}__f ({walk} b) names self_cls globals_set g_class")
+    out.append("                  | None -> (const false) end)")
+    out.append("    | _ -> (const false)")
+    out.append("    end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
