@@ -512,6 +512,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _none_ctor = self._optional_object_union_none_ctor(ir_expr)
         if _none_ctor is not None:
             return f"(match {whyml_str} with {_none_ctor} -> false | _ -> true end)"
+        # Optional[str]-truthiness (dict-value-nu lever): `if nu:` / `nu and …` on an
+        # `Optional[str]` (a `_union_*` with a single `str` Some-arm — the `Optional[str]`
+        # PARAM lowering) is Python-true iff `nu is not None AND nu != ""`. Option-unwrap
+        # to the string-emptiness test on the carried string, never the int `<> 0`
+        # coercion (a `_union_*` vs int L3-tc error, the observed `_dv_store_value`
+        # `.mlw` failure). Faithful (`Some "" ` stays falsy, like Python). Body context
+        # only (`str_eq_op` is a program val). Corpus-inert: no corpus program takes the
+        # truthiness of an `Optional[str]`.
+        _ostr_ctor = self._optional_str_union_ctor(ir_expr)
+        if _ostr_ctor is not None and not self._in_spec:
+            self._add_abstract_op(
+                "val str_eq_op (a: string) (b: string) : bool\n"
+                "    ensures { result <-> (a = b) }")
+            return (f'(match {whyml_str} with {_ostr_ctor} _s '
+                    f'-> (not (str_eq_op _s "")) | _ -> false end)')
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
 
@@ -5492,6 +5507,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         recv_ir, method = self._str_method_recv_and_tail(expr)
         if method not in ("startswith", "endswith", "find"):
             return None
+        # Optional[str] receiver (dict-value-nu lever): `nu.startswith(p)` /
+        # `nu.endswith(p)` where `nu` is an `Optional[str]` (a `_union_*` with a single
+        # `str` Some-arm) — option-unwrap the receiver and apply the SAME faithful
+        # substring op to the carried string, defaulting the None arm to 0 (Python guards
+        # None before the call, e.g. `nu and nu.startswith(...)`). Never the opaque
+        # `nu_startswith_1 <hash>` facade (receiver erased, literal int-hashed). Keeps the
+        # 0/1 int result (a truthiness/control-flow use). Body context only. Corpus-inert:
+        # no corpus program calls `.startswith`/`.endswith` on an `Optional[str]`.
+        if (method in ("startswith", "endswith") and not self._in_spec
+                and recv_ir is not None and not self._is_string_expr(recv_ir)):
+            _octor = self._optional_str_union_ctor(recv_ir)
+            if (_octor is not None and len(args) == 1
+                    and self._is_string_expr(expr["args"][0])):
+                _recv = self._expr_to_whyml(recv_ir, local_refs, invariant_ctx, subst)
+                _p = args[0]
+                if method == "startswith":
+                    self._add_abstract_op(
+                        "val str_startswith_op (s: string) (prefix: string) : int\n"
+                        "    ensures { (result = 0) || (result = 1) }\n"
+                        "    ensures { (result = 1) <->\n"
+                        "      (String.length prefix <= String.length s /\\\n"
+                        "       String.substring s 0 (String.length prefix) = prefix) }")
+                    _sop = f"(str_startswith_op _s {_p})"
+                else:
+                    self._add_abstract_op(
+                        "val str_endswith_op (s: string) (suffix: string) : int\n"
+                        "    ensures { (result = 0) || (result = 1) }\n"
+                        "    ensures { (result = 1) <->\n"
+                        "      (String.length suffix <= String.length s /\\\n"
+                        "       String.substring s (String.length s - String.length suffix)\n"
+                        "         (String.length suffix) = suffix) }")
+                    _sop = f"(str_endswith_op _s {_p})"
+                return f"(match {_recv} with {_octor} _s -> {_sop} | _ -> 0 end)"
         if recv_ir is None or not self._is_string_expr(recv_ir):
             return None
         if len(args) != 1 or not self._is_string_expr(expr["args"][0]):

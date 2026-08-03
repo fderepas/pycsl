@@ -220,12 +220,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(const (None: option {inner_v}))"
         return "0"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _dv_store_value(self, nu: Optional[str], val_expr: str) -> str:
-        return ""
+        """The value stored at `d[k] = val`: a `seq int` snapshots the array
+        (ownership-discipline §3), a string/nested-map value passes through
+        unhashed, otherwise int-coerce."""
+        if nu == "seq int":
+            self._add_abstract_op(
+                "val function array_to_seq (a: array int) : seq int\n"
+                "    ensures { Seq.length result = Array.length a }")
+            return f"(array_to_seq {self._array_coerce_arg(val_expr)})"
+        if nu == "string" or (nu and nu.startswith("map ")):
+            return val_expr
+        return self._coerce_to_int(val_expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
