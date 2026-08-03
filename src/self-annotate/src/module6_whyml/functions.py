@@ -131,11 +131,28 @@ class FunctionEmissionMixin:
     def _returns_string_seq(self, body_stmts: List[int]) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _first_tuple_return_elts(self, stmts: List[int]) -> Optional[List[int]]:
+    def _first_tuple_return_elts(self, stmts: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+        """The element list of the FIRST `return (a, b, …)` (mirrors
+        IRScanner.find_return_type's traversal so the per-slot types line up with
+        the arity it computed). None if no tuple-valued return is found."""
+        for stmt in stmts:
+            if stmt.get("stmt") == "Return" and stmt.get("value"):
+                val = stmt["value"]
+                if isinstance(val, dict) and val.get("type") == "Tuple":
+                    return val.get("elts", [])
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    r = self._first_tuple_return_elts(stmt[key])
+                    if r is not None:
+                        return r
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    r = self._first_tuple_return_elts(c.get("body", []))
+                    if r is not None:
+                        return r
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate

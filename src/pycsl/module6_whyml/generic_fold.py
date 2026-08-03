@@ -12030,6 +12030,176 @@ def emit_check_noreturn_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     return out
 
 
+# ---- `_first_tuple_return_elts`: value-returning first-match search (option list)
+#   for stmt in stmts:
+#       if stmt.get("stmt")=="Return" and stmt.get("value"):
+#           val=stmt["value"]; if isinstance(val,dict) and val.get("type")=="Tuple": return val.get("elts",[])
+#       for key in ("body","orelse"): if key in stmt: r=self(stmt[key]); if r!=None: return r
+#       if stmt.get("stmt")=="Match": for c in stmt.get("cases",[]): r=self(c.get("body",[])); if r!=None: return r
+#   return None
+# Returns `option (list pyval)` (None default, Some elts on first Return-Tuple). Descends via
+# pget_list (pget-postcondition termination). Coupling-clean (no converted callers). Category-(b).
+
+def recognize_first_tuple_return(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_first_tuple_return_elts`. Never raises."""
+    try:
+        return _recognize_first_tuple_return(func)
+    except Exception:
+        return None
+
+
+def _recognize_first_tuple_return(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_first_tuple_return_elts"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    stmts_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    outer, tail = body
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict) and tail["value"].get("type") == "None"):
+        return None
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For" and _is_var(outer.get("iter"), stmts_p)):
+        return None
+    sv = outer.get("target")
+    ob = outer.get("body") or []
+    if len(ob) != 3 or not isinstance(sv, str):
+        return None
+    # ob[0]: if sv.get("stmt")=="Return" and sv.get("value"): val=sv["value"]; if val.type=="Tuple": return val.get("elts",[])
+    a0 = ob[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "If"):
+        return None
+    t0 = a0.get("test", {})
+    if not (isinstance(t0, dict) and t0.get("type") == "BinOp" and t0.get("op") == "and"):
+        return None
+    tl = t0.get("left") or {}
+    if not (isinstance(tl, dict) and tl.get("type") == "BinOp" and tl.get("op") == "=="):
+        return None
+    stmt_key = _match_get_call(tl.get("left"), sv)
+    if stmt_key is None:
+        return None
+    a0b = a0.get("body") or []
+    # find the value_key, tuple_tag, type_key, elts_key from the nested inner If + return
+    inner_if = next((s for s in a0b if isinstance(s, dict) and s.get("stmt") == "If"), None)
+    val_assign = next((s for s in a0b if isinstance(s, dict) and s.get("stmt") == "Assign"), None)
+    if inner_if is None or val_assign is None:
+        return None
+    value_key = _match_get_call(val_assign.get("value"), sv) or _subscript_key(val_assign.get("value"), sv)
+    valvar = val_assign.get("target")
+    it = inner_if.get("test", {})
+    type_key = _cfg_first_get_key(it, valvar) if isinstance(valvar, str) else None
+    tuple_tag = _find_string_in(it, "Tuple")
+    iib = inner_if.get("body") or []
+    ret = next((s for s in iib if isinstance(s, dict) and s.get("stmt") == "Return"), None)
+    elts_key = _cci_get_or_empty(ret.get("value"), valvar) if (ret and isinstance(valvar, str)) else None
+    if not (value_key and type_key and tuple_tag and elts_key):
+        return None
+    # ob[1]: for key in ("body","orelse"): if key in stmt: r=self(stmt[key]); if r!=None: return r
+    kf = ob[1]
+    if not (isinstance(kf, dict) and kf.get("stmt") == "For"):
+        return None
+    kit = kf.get("iter") or {}
+    descend_keys = [_is_string(e) for e in (kit.get("elts") or [])] if kit.get("type") == "Tuple" else None
+    if not descend_keys or any(k is None for k in descend_keys):
+        return None
+    # ob[2]: if stmt=="Match": for c in cases: r=self(c.get("body")); return r
+    mf = ob[2]
+    case_for = next(_iter_fors(mf), None)
+    if case_for is None:
+        return None
+    cases_key = _cci_get_or_empty(case_for.get("iter"), sv)  # sv.get("cases"[,[]])
+    case_body_key = _cfg_first_get_key(case_for.get("body"), case_for.get("target"))
+    if not (cases_key and case_body_key):
+        return None
+    return {"name": func["name"], "stmts": stmts_p, "stmt_key": stmt_key, "value_key": value_key,
+            "type_key": type_key, "tuple_tag": tuple_tag, "elts_key": elts_key,
+            "descend_keys": descend_keys, "cases_key": cases_key, "case_body_key": case_body_key}
+
+
+def _subscript_key(node: Any, subj: str) -> Optional[str]:
+    """`<subj>["<lit>"]` (Subscript) -> lit."""
+    if (isinstance(node, dict) and node.get("type") == "Subscript"
+            and _is_var(node.get("value"), subj)):
+        return _is_string(node.get("index"))
+    return None
+
+
+def _find_string_in(node: Any, target: str) -> Optional[str]:
+    if isinstance(node, dict):
+        if node.get("type") == "String" and node.get("value") == target:
+            return target
+        for v in node.values():
+            r = _find_string_in(v, target)
+            if r is not None:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _find_string_in(x, target)
+            if r is not None:
+                return r
+    return None
+
+
+def _iter_fors(node: Any):
+    if isinstance(node, dict):
+        if node.get("stmt") == "For":
+            yield node
+        for v in node.values():
+            yield from _iter_fors(v)
+    elif isinstance(node, list):
+        for x in node:
+            yield from _iter_fors(x)
+
+
+def emit_first_tuple_return_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_first_tuple_return_elts`: option (list pyval) first-match search for a
+    Return whose value is a Tuple (returns its elts). Mutual `size_list` variant;
+    pget_list descent. `ensures True`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    sk, vk, tk, tt, ek = (desc["stmt_key"], desc["value_key"], desc["type_key"],
+                          desc["tuple_tag"], desc["elts_key"])
+    dks, ck, cbk = desc["descend_keys"], desc["cases_key"], desc["case_body_key"]
+    out: List[str] = []
+    out.append(f"  let rec {n}__gk (d: pydict) (name: string) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append(f"    | DCons (K_dyn s) v rest -> if pystr_eq name s then Some v else {n}__gk rest name")
+    out.append(f"    | DCons _ _ rest -> {n}__gk rest name end")
+    out.append(f"  let rec {n} (stmts: list pyval) : option (list pyval)")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list stmts }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> None")
+    out.append("    | Cons stmt rest ->")
+    out.append("        (match stmt with")
+    out.append("         | PDict d ->")
+    out.append(f'             if (match {n}__gk d "{sk}" with Some (PStr s) -> pystr_eq s "Return" | _ -> false end)')
+    out.append(f'                && (match {n}__gk d "{vk}" with Some (PDict vd) -> (match {n}__gk vd "{tk}" with Some (PStr t) -> pystr_eq t "{tt}" | _ -> false end) | _ -> false end)')
+    out.append(f'             then (match {n}__gk d "{vk}" with Some (PDict vd) -> Some (pget_list "{ek}" vd) | _ -> None end)')
+    out.append("             else")
+    # descend body/orelse then cases, short-circuit on Some
+    chain = f"{n}__cases (pget_list \"{ck}\" d)"
+    inner = f"(match {chain} with Some r -> Some r | None -> {n} rest end)"
+    for k in reversed(dks):
+        inner = f"(match {n} (pget_list \"{k}\" d) with Some r -> Some r | None -> {inner} end)"
+    out.append(f"               {inner}")
+    out.append(f"         | _ -> {n} rest end)")
+    out.append("    end")
+    out.append(f"  with {n}__cases (cs: list pyval) : option (list pyval)")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { size_list cs }")
+    out.append("  = match cs with")
+    out.append("    | Nil -> None")
+    out.append("    | Cons c rest ->")
+    out.append(f'         (match c with PDict cd -> (match {n} (pget_list "{cbk}" cd) with Some r -> Some r | None -> {n}__cases rest end)')
+    out.append(f"          | _ -> {n}__cases rest end)")
+    out.append("    end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
