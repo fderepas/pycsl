@@ -692,6 +692,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         val_ir = stmt.value.to_dict()
         val_whyml = self._expr_to_whyml(val_ir, local_refs)
         safe_targets = [whyml_ident(t) for t in targets]
+        # resync-campaign.md R2 (continuation): every discard target (`_`) maps to
+        # `whyml_ident("_") == "py_underscore"`. With MULTIPLE discards (`ret, _, _,
+        # _ = f()`) they collide into one `_tu_py_underscore` binder (a Why3
+        # duplicate-variable in the tuple pattern) AND one shared `py_underscore`
+        # ref that then receives heterogeneously-typed slots (`array string`, int)
+        # → an ill-typed `:=`. Give each SUBSEQUENT discard its own positional
+        # name so the pattern binders are unique and each discard becomes its own
+        # correctly-typed `let py_underscore_k = ref …`. Only repeated `_` slots
+        # rename — a single `_` (the only form the corpus emits today; multi-`_`
+        # was a hard Why3 error) is untouched, so emission is byte-identical there.
+        _du_seen = 0
+        for _du_i, _du_t in enumerate(targets):
+            if _du_t == "_":
+                if _du_seen > 0:
+                    safe_targets[_du_i] = f"py_underscore_{_du_seen}"
+                _du_seen += 1
         if val_ir.get("type") == "Call":
             func_name = val_ir.get("func", "")
             nargs = len(val_ir.get("args", []))
@@ -806,6 +822,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 code += "\n" + rest_code
             else:
                 code += ";\n" + rest_code
+        elif code.rstrip().endswith(" in"):
+            # No `rest`: the follow-on block's last line is a `let … = ref … in`
+            # with no body — a Why3 syntax error. This only arises when the unpack
+            # is the LAST statement of its block AND its final target is a fresh
+            # ref (e.g. the renamed 2nd+ discard `let py_underscore_k = ref …`).
+            # Any such shape was previously an unemittable hard error, so a unit
+            # `()` terminal here is byte-inert on the existing corpus.
+            code += f"\n{indent}()"
         return code
 
     def _handle_array_slice_set_stmt(self, stmt: ArraySliceSetStmt, rest: List[Dict[str, Any]],

@@ -173,10 +173,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         return
 
     # resync-campaign.md R0.3: sibling stubs the re-ported handlers call.
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
+    #@ assigns \nothing
     def _call_returns_string_collection(self, func_name: str) -> bool:
-        return False
+        """item34.md CF5: does the callee return a `string` NAME-collection? `IRScanner.find_*`/
+        `collect_*` (seq-ified at source) or a `self.<m>`/record method whose declared return
+        resolves to `array string`/`seq string` (the `_callee_raised_*` `List[str]` stubs)."""
+        if not isinstance(func_name, str):
+            return False
+        if (func_name.startswith("IRScanner.find_")
+                or func_name.startswith("IRScanner.collect_")):
+            return True
+        try:
+            ret, _, _, _ = self._resolve_dotted_signature(func_name)
+        except Exception:
+            return False
+        return ret in ("array string", "seq string")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
