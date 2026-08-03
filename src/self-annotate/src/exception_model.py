@@ -95,7 +95,6 @@ def bases_closure(exc: str) -> frozenset:
     return frozenset(seen)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

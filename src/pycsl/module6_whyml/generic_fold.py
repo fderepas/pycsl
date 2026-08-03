@@ -12675,6 +12675,69 @@ def emit_is_linear_vc_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     return out
 
 
+# ---- `handler_catches`: `h == r or h in bases_closure(r)` ---------------------------------
+# Two-string subclass-catch predicate. The `in bases_closure(r)` sub-computation (bases_closure
+# is trusted + emits the int-model `map int (option int)`, so a STRING membership can't call it)
+# is modelled as an opaque `string->string->bool` over-approximation (input-dependent, non-
+# facade). Returns INT (bool-as-int) to preserve the VERIFIED caller `_handle_try_stmt`
+# (stmt_control_flow.py) which was compiled against `handler_catches : int`.
+
+def recognize_handler_catches(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `handler_catches`. Never raises."""
+    try:
+        return _recognize_handler_catches(func)
+    except Exception:
+        return None
+
+
+def _recognize_handler_catches(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("handler_catches"):
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    h, r = params
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    # body[0]: `if h == r: return True`
+    eq_if = body[0]
+    et = eq_if.get("test") if isinstance(eq_if, dict) else None
+    if not (isinstance(et, dict) and et.get("type") == "BinOp" and et.get("op") == "=="
+            and _get_str(et.get("left"), "name") == h and _get_str(et.get("right"), "name") == r):
+        return None
+    # body[1]: `return h in <call>(r)`
+    ret = body[1]
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return None
+    rin = ret.get("value") or {}
+    if not (isinstance(rin, dict) and rin.get("type") == "BinOp" and rin.get("op") == "in"
+            and _get_str(rin.get("left"), "name") == h):
+        return None
+    call = rin.get("right") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    cargs = call.get("args") or []
+    if not (len(cargs) == 1 and _get_str(cargs[0], "name") == r):
+        return None
+    return {"name": func["name"], "h": h, "r": r}
+
+
+def emit_handler_catches_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `handler_catches` as `if (h == r || in_closure(h,r)) then 1 else 0` — INT return
+    (bool-as-int) to match the verified `_handle_try_stmt` caller. `in_closure` is an opaque
+    string->string->bool over-approximation of `h in bases_closure(r)`. `ensures True`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    out: List[str] = []
+    out.append(f"  val {n}__in_closure (h: string) (r: string) : bool")
+    out.append(f"  let {n} (handler_exc: string) (raised_exc: string) : int")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = if (pystr_eq handler_exc raised_exc || {n}__in_closure handler_exc raised_exc) then 1 else 0")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
