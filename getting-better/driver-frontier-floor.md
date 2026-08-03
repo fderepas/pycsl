@@ -282,3 +282,15 @@ auto_trust self-methods), IR-dropped nested-closures (Module5), CSL-dataclass-AS
 string-op primitives + pget termination CAN handle, each a big recognizer. Category (b) is the remaining
 AUTONOMOUS opportunity (fresh-context bespoke builds), NOT a floor. LESSON (n-th): "boundary" often means
 "large build I haven't measured" — measure (typecheck value-model + --fun termination) before concluding.
+
+## 2026-08-03 — _first_assign_value_ir: MEASURED caller-coupling blocker (821 holds)
+Built recognize_first_assign_value + emit (value-returning first-match search, string->list pyval->pyval,
+mutual size_list variant, pget-unblocked descent). Recognizer MATCHED, emit fixed (match-in-if needs `end`).
+But typecheck FAILS at a CONVERTED CALLER in the same file: `self._first_assign_value_ir(var, body_stmts)
+or self._first_assign_value_ir(...)` (stmt_control_flow line 379, inside a _handle_try-decl helper) — the
+caller's int-model call-site expects the OLD opaque int arity; converting the callee to string->list pyval
+->pyval breaks the caller's types (type int vs int->option int). Category-(b) CALLER-COUPLING boundary:
+converting this callee requires ALSO converting its caller(s) (leaf-first in reverse — here the CALLER is
+the leaf that must go first, or the callee's new signature is unusable). Reverted clean; pget postconditions
++ _check_noreturn intact. LESSON: a category-(b) reconstruction/search stub can still be blocked by a
+CONVERTED CALLER's call-site type-coupling — check callers before converting a called helper.
