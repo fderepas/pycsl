@@ -239,3 +239,19 @@ only proof-scale false boundary (_check_noreturn) is landed. Further conversion 
 (heterogeneous-dict ADT / self-state repr / CSL-dataclass ADT / ast ADT) + co-landing cert = coupling-rule
 (§5) REVIEW-GATED. Banked capabilities (__anystr, string-op-primitives, pget postconditions, __psl parser)
 are exhausted against the current pyval/pydict model. Session 883->821 (62 conv).
+
+## 2026-08-03 — pget-unblocked re-triage: 17 candidates (frontier NOT exhausted); count 821
+The pget postconditions (baaebd51) removed the pget_list-EXTRACTION variant blocker. A heuristic scan
+(self-recursive + specific-key `.get()` extraction descent, non-nested, non-ast) found 17 candidates whose
+PROOF blocker is now gone — each pending a BESPOKE recognizer (0/60 existing recognizers match them):
+  Module5::_scan_2d_in_expr/_scan_2d_in_stmt; expressions::_is_emit_ir_expr/_expr_to_whyml*/
+  _match_pattern_cond/_linear_form/_is_string_expr; ir_scanner::find_array_and_dict_vars/_collect_mutations*/
+  find_iteration_mutations*/collect_escaping_exceptions; stmt_control_flow::_render_match_pattern/
+  _callee_raised_in/_first_assign_value_ir; types::_collect_array_var_assigns/_collect_tuple_var_assigns;
+  functions::_first_tuple_return_elts.   (* = stateful, likely still boundary)
+CAVEAT (heuristic is loose, like the earlier flat-bool over-count): many operate on emit_ir (expression
+ADT, NOT pyval) or are stateful — MEASURE each (port + typecheck to confirm value-model-OK, then --fun for
+the variant) before claiming. The clean bool walks (_callee_raised_in, _is_string_expr, _scan_2d_in_*) are
+the first to measure. This CORRECTS "frontier exhausted at 821" AGAIN — the pget capability reopened a
+candidate set; each is a fresh-context bespoke-recognizer build. LESSON reinforced: "exhausted" is a
+recognizer-census artifact, not a true floor; new capabilities reopen candidates.
