@@ -13139,6 +13139,196 @@ def emit_global_call_target_group(desc: Dict[str, Any], whyml_ident) -> List[str
     return out
 
 
+# ============================================================================
+# self-tcb-reduction-driver — `monomorphize._type_str`: a FLAT (non-recursive)
+# `pyval -> Optional[str]` reader that dispatches None / isinstance-str /
+# isinstance-dict, reads the dict's `"type"`/`"name"` keys, and DELEGATES to the
+# already-verified `string -> Optional[str]` sibling `_sanitize_type_name`. This
+# is the `_global_call_target` template (typed-irkey `option string` readers +
+# an `Optional[str]` union whose arm ctors are `Arm_<idx>_0`/`Arm_<idx>_None`),
+# EXTENDED with a cross-function Optional-union REWRAP: the sibling returns its
+# OWN synthesized `_union_<sibling>_<j>` (structurally identical but nominally
+# distinct), so its result is re-injected into `_type_str`'s union arms
+# (`match sib s with Arm_j_0 x -> Arm_i_0 x | Arm_j_None -> Arm_i_None end`).
+# Non-facade: the field keys, tag strings, sibling name and default are all
+# extracted STRUCTURALLY from the body and reflected in the emit (a body change
+# moves the output). Fail-closed: any shape outside the fragment -> None ->
+# stays `\trusted`. `ensures True`; ledger 3 (reuses the certified pyval/pydict
+# ADT already present for `_subst_type_in_ir`).
+
+def _clean_lit(s: Any) -> Optional[str]:
+    """A string literal safe to embed verbatim in a WhyML string literal
+    (fail-closed on quote/backslash)."""
+    if not isinstance(s, str) or '"' in s or "\\" in s:
+        return None
+    return s
+
+
+def recognize_type_str_reader(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_type_str` flat pyval->Optional[str] reader.
+    Never raises. Returns a descriptor or None."""
+    try:
+        return _recognize_type_str_reader(func)
+    except Exception:
+        return None
+
+
+def _recognize_type_str_reader(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    union = func.get("return_annotation") or ""
+    if not union.startswith("_union"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 4:
+        return None
+    # body[0]: If (node == None): return None
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "If" and not b0.get("orelse")):
+        return None
+    t0 = b0.get("test") or {}
+    if not (t0.get("type") == "BinOp" and t0.get("op") == "=="
+            and _is_var(t0.get("left"), node_p)
+            and isinstance(t0.get("right"), dict)
+            and t0.get("right", {}).get("type") == "None"):
+        return None
+    if not _is_return_none_only(b0.get("body")):
+        return None
+    # body[1]: If isinstance(node, str): return <sibling>(node)
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "If" and not b1.get("orelse")):
+        return None
+    if not _match_isinstance(b1.get("test"), node_p, "str"):
+        return None
+    rb1 = b1.get("body") or []
+    if not (len(rb1) == 1 and isinstance(rb1[0], dict) and rb1[0].get("stmt") == "Return"):
+        return None
+    rv1 = rb1[0].get("value") or {}
+    if not (rv1.get("type") == "Call" and len(rv1.get("args", [])) == 1
+            and _is_var(rv1["args"][0], node_p)):
+        return None
+    sibling = rv1.get("func")
+    if not (isinstance(sibling, str) and sibling):
+        return None
+    # body[2]: If isinstance(node, dict): [Assign t=node.get(TYPE_KEY);
+    #            If t==VAR_TAG: return sibling(node.get(NAME_KEY, DEFAULT));
+    #            If t==SUB_TAG: return None]
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "If" and not b2.get("orelse")):
+        return None
+    if not _match_isinstance(b2.get("test"), node_p, "dict"):
+        return None
+    ib = b2.get("body") or []
+    if len(ib) != 3:
+        return None
+    a0 = ib[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    tvar = a0.get("target")
+    av = a0.get("value") or {}
+    if not (isinstance(tvar, str) and av.get("type") == "Call"
+            and av.get("func") == f"{node_p}.get"):
+        return None
+    aargs = av.get("args") or []
+    if len(aargs) != 1:
+        return None
+    type_key = _clean_lit(_is_string(aargs[0]))
+    if type_key is None:
+        return None
+    # ib[1]: If t==VAR_TAG: return sibling(node.get(NAME_KEY, DEFAULT))
+    i1 = ib[1]
+    if not (isinstance(i1, dict) and i1.get("stmt") == "If" and not i1.get("orelse")):
+        return None
+    ti1 = i1.get("test") or {}
+    if not (ti1.get("type") == "BinOp" and ti1.get("op") == "=="
+            and _is_var(ti1.get("left"), tvar)):
+        return None
+    var_tag = _clean_lit(_is_string(ti1.get("right")))
+    if var_tag is None:
+        return None
+    rbi1 = i1.get("body") or []
+    if not (len(rbi1) == 1 and isinstance(rbi1[0], dict) and rbi1[0].get("stmt") == "Return"):
+        return None
+    rvi1 = rbi1[0].get("value") or {}
+    if not (rvi1.get("type") == "Call" and rvi1.get("func") == sibling
+            and len(rvi1.get("args", [])) == 1):
+        return None
+    getname = rvi1["args"][0] or {}
+    if not (isinstance(getname, dict) and getname.get("type") == "Call"
+            and getname.get("func") == f"{node_p}.get"):
+        return None
+    gna = getname.get("args") or []
+    if len(gna) != 2:
+        return None
+    name_key = _clean_lit(_is_string(gna[0]))
+    name_default = _clean_lit(_is_string(gna[1]))
+    if name_key is None or name_default is None:
+        return None
+    # ib[2]: If t==SUB_TAG: return None
+    i2 = ib[2]
+    if not (isinstance(i2, dict) and i2.get("stmt") == "If" and not i2.get("orelse")):
+        return None
+    ti2 = i2.get("test") or {}
+    if not (ti2.get("type") == "BinOp" and ti2.get("op") == "=="
+            and _is_var(ti2.get("left"), tvar)):
+        return None
+    sub_tag = _clean_lit(_is_string(ti2.get("right")))
+    if sub_tag is None:
+        return None
+    if not _is_return_none_only(i2.get("body")):
+        return None
+    # body[3]: return None
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Return"
+            and isinstance(b3.get("value"), dict)
+            and b3.get("value", {}).get("type") == "None"):
+        return None
+    return {"name": func["name"], "union": union, "param": node_p,
+            "sibling": sibling, "type_key": type_key, "name_key": name_key,
+            "name_default": name_default, "var_tag": var_tag, "sub_tag": sub_tag}
+
+
+def emit_type_str_reader_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the flat `_type_str` reader. `desc` carries the resolved own/sibling
+    Optional[str] union arm constructors (filled at the dispatch site from
+    `self._variant_types`). `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    sib = whyml_ident(desc["sibling"])
+    some0, none0 = desc["some0"], desc["none0"]
+    some1, none1 = desc["some1"], desc["none1"]
+    tk, nk = desc["type_key"], desc["name_key"]
+    ndef, vtag, stag = desc["name_default"], desc["var_tag"], desc["sub_tag"]
+    mv = _pvw_mv(desc["param"])
+
+    def rewrap(arg: str) -> str:
+        return (f"(match {sib} {arg} with "
+                f"{some1} x -> {some0} x | {none1} -> {none0} end)")
+
+    out: List[str] = []
+    out += _emit_skey_reader(f"{P}gtype", tk)
+    out += _emit_skey_reader(f"{P}gname", nk)
+    out.append(f"  let {n} ({mv}: pyval) : {desc['union']}")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {mv} with")
+    out.append(f"    | PNone -> {none0}")
+    out.append(f"    | PStr s -> {rewrap('s')}")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append(f'         | Some t -> if pystr_eq t "{vtag}" then')
+    out.append(f'                       (let nm = (match {P}gname d with '
+               f'Some nn -> nn | None -> "{ndef}" end) in')
+    out.append(f"                        {rewrap('nm')})")
+    out.append(f'                     else if pystr_eq t "{stag}" then {none0}')
+    out.append(f"                     else {none0}")
+    out.append(f"         | None -> {none0} end)")
+    out.append(f"    | _ -> {none0}")
+    out.append("    end")
+    return out
+
+
 def _emit_pval_reader(name: str, key: str) -> List[str]:
     """A `pydict -> option pyval` reader for a single literal KEY (typed irkey
     constructor, or the K_dyn guard form for a dynamic key). Reflects the key

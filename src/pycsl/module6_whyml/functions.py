@@ -2932,6 +2932,7 @@ class FunctionEmissionMixin:
             recognize_classify, emit_classify_group,
             recognize_global_call_target, emit_global_call_target_group,
             recognize_method_edges, emit_method_edges_group,
+            recognize_type_str_reader, emit_type_str_reader_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
@@ -3454,6 +3455,47 @@ class FunctionEmissionMixin:
         _me = recognize_method_edges(func)
         if _me is not None:
             return emit_method_edges_group(_me, whyml_ident)
+        # self-tcb-reduction-driver: `monomorphize._type_str` — a flat pyval->
+        # Optional[str] reader that DELEGATES to the verified `string->Optional[str]`
+        # sibling `_sanitize_type_name`. Resolve BOTH functions' synthesized
+        # Optional[str] union arm ctors (own from `func`, sibling by name from
+        # `self._variant_types`); a cross-function Optional-union REWRAP re-injects
+        # the sibling's arms into this function's union. Fail-closed: if either
+        # union is not the 2-arm (string + None) Optional[str] shape, fall through
+        # (stays `\trusted`). Non-facade (reflects the keys/tags/sibling); ledger 3.
+        _tsr = recognize_type_str_reader(func)
+        if _tsr is not None:
+            _vts = getattr(self, "_variant_types", {})
+
+            def _opt_str_arms(_uname):
+                _vi = _vts.get(_uname)
+                if not _vi:
+                    return None
+                _ct = _vi.get("constructors", {})
+                if len(_ct) != 2:
+                    return None
+                _some = _none = None
+                for _cn, _cd in _ct.items():
+                    if _cd.get("arity") == 0:
+                        _none = _cn
+                    elif _cd.get("arity") == 1 and _cd.get("payload") in (
+                            ["str"], ["string"]):
+                        _some = _cn
+                return (_some, _none) if (_some and _none) else None
+
+            _own = _opt_str_arms(_tsr["union"])
+            _sib = _tsr["sibling"]
+            _sib_pref = f"_union_{_sib}_"
+            _sib_union = None
+            for _k in _vts:
+                if _k.startswith(_sib_pref) and _k[len(_sib_pref):].isdigit():
+                    _sib_union = _k
+                    break
+            _sibarms = _opt_str_arms(_sib_union) if _sib_union else None
+            if _own is not None and _sibarms is not None:
+                _tsr["some0"], _tsr["none0"] = _own
+                _tsr["some1"], _tsr["none1"] = _sibarms
+                return emit_type_str_reader_group(_tsr, whyml_ident)
         _csc = recognize_cs_clause(func)
         if _csc is not None:
             from module6_whyml.generic_fold import emit_pb_trio_group

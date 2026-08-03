@@ -62,11 +62,24 @@ def _find_subscript_calls(body: List[int], generic_names: int) -> List[int]:
 def _scan_node_for_subscript_calls(node: Any, generic_names: int) -> List[int]:
     return []
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _type_str(node: Any) -> Optional[str]:
+    """Render an IR type node (a Name/Subscript slice) as a concrete type
+    string we can substitute. Returns None for non-concrete / unrecognized."""
+    if node is None:
+        return None
+    if isinstance(node, str):
+        # Some IR shapes carry the slice as a bare string (the type name).
+        return _sanitize_type_name(node)
+    if isinstance(node, dict):
+        t = node.get("type")
+        if t == "Var":
+            return _sanitize_type_name(node.get("name", ""))
+        if t == "Subscript":
+            # nested generic instantiation — not supported in this delivery.
+            return None
     return None
 
 #@ requires True
