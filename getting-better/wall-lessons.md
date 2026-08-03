@@ -1211,3 +1211,45 @@ robustification of the `find_assigned_vars` size-postcond readers that survives 
 **Ops lesson (cost real iterations):** an isolated `why3 prove` is NOT representative — pycsl proves
 residual goals PER-GOAL best-of-N; always validate whole-file provability with `pycsl` itself, and note a
 goal that is fast under plain `why3` (no `-a split_vc`) can still time out under pycsl's `split_vc`.
+
+---
+
+## `ir_scanner._collect_mutations` — `#@ no_inline` REFUTED (worker#18, 2026-08-03) — CERTIFIED-BOUNDARY stands
+
+**Task:** apply the `#@ no_inline` modular-verification reopening worker#17 named for the `_collect_mutations`
+whole-file E-matching SCALE wall (adding a pydict-recursive walker tips `find_assigned_vars`' `__Lbody`/`__Lorelse`
+size-postcond readers, `ensures { size_list result <= size_dict d }`, from 0.16s → 30s timeout under pycsl split_vc).
+
+**Verdict: `#@ no_inline` CANNOT clear this wall — spike REFUTED before any rebuild (Gate S / measure-before-build).**
+The `_collect_mutations` conversion is NOT rebuilt (it would produce WhyML byte-identical to worker#17's, which already
+FAILS). Count stays 804, HEAD 69d4b6e6, tree clean, ledger 3.
+
+**Decisive falsifier (cheap, empirical — no rebuild):** applied `#@ no_inline` to `find_assigned_vars` in the mirror
+at HEAD and re-emitted; the WhyML is **BYTE-IDENTICAL** to HEAD (`diff` empty). `#@ no_inline` is a **no-op on emission**
+here. Root causes, all structural:
+1. **`#@ no_inline` is a Python-method call-site *splicing* directive** (`ir_inline.py` `_Inliner`): it changes whether a
+   caller gets the callee's Python body spliced in vs a contract-`val`. It NEVER removes a function's definition from the
+   emitted Why3 module.
+2. **The E-matching pollution is module-level *definition presence*, not call-site splicing** (worker#17's measurement;
+   independently the expr-grammar progress-log lesson: "#@ no_inline does NOT help = module-level presence not call-site").
+   `find_assigned_vars`' size-postcond readers time out because the module gains another recursive walker's reader
+   definitions/triggers — which `no_inline` leaves fully in place.
+3. **Every method in `ir_scanner` is a *recursive* walker** → `ir_inline.py` already refuses to inline recursive methods →
+   `no_inline` is *universally inert* for this file (byte-identical emission confirmed). The polluting walker
+   `_collect_mutations` is itself recursive, so `no_inline` on it is likewise a no-op.
+4. **The size-postcond readers `__Lbody`/`__Lorelse` are recognizer-emitted WhyML helpers, NOT Python methods**
+   (confirmed: absent from the mirror source). The task's literal instruction — "mark the `_list_reader`-emitted
+   `Lbody`/`Lorelse` as `#@ no_inline` modular boundaries" — has **no applicable source site**; those readers have no
+   Python form to annotate, and the recognized-fold lowering path does not consult `#@ no_inline` at all.
+
+**Corrected reopening capability:** NOT `#@ no_inline`. The §10.10 mechanism that creates a **separate proof context**
+(what worker#17's note actually described) is **`#@ verify_module <name>`** — emit `find_assigned_vars` (and/or the new
+`_collect_mutations` walker) into its OWN top-level Why3 `module`, re-declaring the shared infra, so their recursive reader
+definitions are NOT co-resident and the shared-module E-matching stops summing. That is a deliberate, review-gated build
+(cross-module `self.<m>` calls lower to proven-interface `val`s via the Track-B narrowing VC), NOT a worker-scope
+annotation. Alternative reopening: robustify the `find_assigned_vars` size-postcond readers to survive an enlarged module
+(worker#17 tries a–e failed at this). CLASSIFICATION unchanged: COST/SCALE (fundable), not CORRECTNESS — no ADT/cert/axiom.
+
+**Ops lesson (carry-forward):** `#@ no_inline` addresses *per-caller body-splice blowup* (the os `sys_write` case); it is
+the WRONG tool for a *co-resident-recursive-definition E-matching* blowup. Distinguish the two before proposing it:
+splice-blowup ⇒ `#@ no_inline`; module-presence-blowup ⇒ `#@ verify_module` (separate module) or reader robustification.
