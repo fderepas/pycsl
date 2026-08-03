@@ -1307,3 +1307,63 @@ is first-`let`-only. Before proposing verify_module to isolate a RECOGNIZER-lowe
 gap must be fixed first. Chain of named reopenings for this wall is now: no_inline (#18 refuted) → verify_module
 as-is (#20 refuted, recognizer-group Sig bug) → `_sig_val_from_let` group-awareness fix (out-of-worker-scope,
 corpus-gated).
+
+---
+
+## `ir_scanner._collect_mutations` — `#@ verify_module` REFUTED **decisively** (worker#22, 2026-08-04) — CERTIFIED-BOUNDARY stands; verify_module is the WRONG reopening
+
+**Task:** the `_sig_val_from_let` public-entry Sig fix worker#21 named IS committed (HEAD 52c08479, os byte-diff 0).
+So rebuild worker#17's `_collect_mutations` recognizer, apply `#@ verify_module` to isolate `find_assigned_vars`'
+razor-edge `__Lbody`/`__Lorelse` size-postcond readers, and land the whole-file proof (804→803).
+
+**Everything BUILT and GREEN except the proof — the recognizer is NOT the blocker:**
+- Front-end collector (Module5 `visit_ClassDef` `else` branch → module-level `class_str_set_constants[Cls]={CONST:[members]}`
+  for a FIELDLESS class; captures `IRScanner._MUTATING_METHODS`'s 10 members, source order) — DONE, verified.
+- `recognize_collect_mutations(func, class_str_sets)` + `emit_collect_mutations_group` (generic_fold.py; dispatch
+  functions.py passing `self.ir["class_str_set_constants"]`; gate `needs_pydict` preamble.py) — DONE. The emitted
+  MutMod provider body is **BYTE-IDENTICAL to worker#17's banked `scratchpad/cm_structvar.mlw`** (`ref (list pyval)`
+  Cons-accumulator, generic `__walk/__walkd/__walkl` structural-variant descent, 3 branch checkers, `pystr_eq`
+  member disjunction, opaque `__hassep/__recv/__meth` reflecting the "." sep). **L3-tc ✓.** MUTATION TEST PASSES
+  (perturb a member `append→appendXY` → disjunction moves; perturb sep `.→/` → `__hassep f "/"` moves) — NON-FACADE,
+  `list pyval` model, no int-hash. The Sig fix works: `MutModSig`/`VarsModSig` correctly declare the PUBLIC entry.
+- Count 839→838 (grep-count; the "804" ledger is a different scope).
+
+**The wall (decisive 3-proof spike, Gate S / measure-before-build):** `find_assigned_vars`' two size-postcond reader
+goals (`__Lbody'vc`/`__Lorelse'vc`, `ensures { size_list result <= size_dict d }`) are the razor-edge, and
+**`#@ verify_module` modular emission ADVERSELY TIPS them — it is the WRONG tool, not a scale-vs-isolation win.**
+Three whole-file `pycsl` proofs, differing ONLY in the verify_module tags:
+| variant | find_assigned_vars tag | _collect_mutations | find_assigned_vars `__Lbody/Lorelse` | file verdict |
+|---|---|---|---|---|
+| **t3 = HEAD** | none (flat) | trusted stub | **Valid, 0.23s / 490K steps** | **SUCCESS** (all proven) |
+| t2 | `verify_module VarsMod` | trusted stub | **Timeout, 30s / 280M steps** | FAILED (2 goals) |
+| proof2 | `verify_module VarsMod` | converted (MutMod) | Timeout, 30s / 280M steps | FAILED (2 goals) |
+The t2-vs-t3 pair is decisive: with `_collect_mutations` still TRUSTED and the ONLY change being the
+`#@ verify_module VarsMod` tag on `find_assigned_vars`, its goals regress **Valid 0.23s → Timeout 30s/280M steps**
+(a ~6-order-of-magnitude search explosion). The modular scaffolding (`module VarsMod use Shared … clone VarsModSig
+with val …`'s `'refn'vc` context + the `use Shared` trigger set) perturbs the already-razor-edge E-matching past the
+cliff. So verify_module CANNOT rescue this wall — isolating find_assigned_vars makes it WORSE, not better. This
+supersedes the #17/#18/#20 chain's assumption that verify_module (once the Sig bug is fixed) is the reopening.
+
+**Classification:** COST/SCALE-adjacent CORRECTNESS wall (no ADT/cert/axiom; the razor-edge is a solver-search
+cliff). **Both landing paths that keep `find_assigned_vars`' current size-postcond emission FAIL:** flat+cm tips it
+(worker#17), modular tips it MORE (worker#22). **Corrected reopening — the ONLY remaining path:** make
+`find_assigned_vars` ROBUST by a **faithful selective-structural-variant rewrite** of `emit_find_assigned_vars_group`
+that eliminates the `__Lbody`/`__Lorelse` size-postcond readers entirely (recurse via mutual structural
+`{v}/{d}/{xs}` variants like `_collect_mutations` already does + proves robustly), THEN convert `_collect_mutations`
+FLAT (no verify_module). FEASIBILITY: the structural pattern is proven (_collect_mutations). RISK/CAVEAT: (a) it
+RE-EMITS an already-landed, already-proven function (regression risk; the mirror `.mlw` moves — corpus-inert since
+find_assigned_vars is mirror-only, but re-prove required) — "flag-not-auto per safe-bricks"; (b) FAITHFULNESS TRAP:
+a NAIVE generic structural descent over-collects (find_assigned_vars descends SELECTIVELY — While/For `body` only,
+NOT `orelse`; If `body`+`orelse`; Try `body`+handlers) so the structural rewrite must preserve per-tag selectivity
+(bind the descent list via a structural `match` on the parent's cells, NOT via a reader function that breaks the
+structural-order chain). Chain of reopenings is now: no_inline (#18 refuted) → verify_module-Sig-fix (#21 built) →
+verify_module-as-reopening (#22 REFUTED, decisive spike) → **find_assigned_vars faithful-structural-robustification
+(un-tried; the only remaining path, in-scope filewise but risky landed-fn re-emission).**
+
+**Ops lesson (carry-forward, general):** `#@ verify_module` isolation is NOT a universal "stop the E-matching
+summation" lever — for a goal already at the solver-search RAZOR EDGE (proves flat only via pycsl's per-goal
+best-of-N), the modular `use Shared`/`clone …'refn'vc` context is a PERTURBATION that can tip it OVER the cliff.
+Before proposing verify_module to rescue a razor-edge goal, spike it: tag the razor-edge function ALONE (leave the
+new walker trusted) and prove — if THAT regresses vs flat-HEAD, verify_module is refuted and the real fix is goal
+robustification (structural variants), not isolation. Reusable artifact: `scratchpad/cm_structvar.mlw` is the banked
+byte-identical `_collect_mutations` group emission for the next attempt (recognizer rebuild is a solved ~1h step).
