@@ -308,3 +308,17 @@ MEASURED the remaining coupling-clean candidates: each has a real complication (
 So the clean value-search was the low-hanging category-(b) fruit; the rest need more machinery (tuple-list
 model, self-state repr, ref+union mix) — larger fresh-context builds. Banked: value-returning-search
 recognizer (reusable for other first-match/collect searches). session 883→820 (63 conv, ~17 recognizers).
+
+## 2026-08-03 — find_assigned_vars: ref-accumulator model worked out (next build, 820)
+find_assigned_vars (ir_scanner, set-collect + mutating cross-call) is tractable via a REF-ACCUMULATOR:
+  let n stmts = let acc = ref (const false) in n__fold stmts acc; !acc
+  with n__fold (stmts) (acc: ref (map string bool)) : unit writes {acc} variant {size_list stmts}
+    per stmt tag: Assign/AugAssign -> acc := set_add !acc (get target); TupleUnpack -> fold get(targets)
+      list into acc; While/For -> (For also set_add target) n__fold (pget_list body) acc; If -> fold body
+      + orelse; Try -> fold body + each handler body; Match -> fold each case body; THEN
+      find_named_expr_targets s acc (converted mutating cross-call, writes acc).
+KEY SIMPLIFICATION: the ref model recurses the fold on the SHARED acc (sub-walks add directly) — NO
+set_union of recursive results needed (unlike the functional source `assigned.update(self(body))`).
+Reuses set_add + find_named_expr_targets (converted) + pget-postcondition termination. ir_scanner proves
+FAST. Intricate (8-tag dispatch + cross-call + sub-folds + targets-list) — a fresh-context build. This +
+the value-search recognizer are the concrete category-(b) next-harvest with worked-out designs.
