@@ -965,3 +965,13 @@ real observable, cf. the __anystr raise-consumer non-vacuity) BUT need a tuple-f
 (`nt_arities[callee]` → (nfields, field_names, defaulted) unpack + `len(defaulted)`/`len(args)` +
 arity-range raise) — a genuine value-model feature-build, not a cheap win.
 LESSON: before converting a check-leaf, ask "does it RAISE, or only warn?" — warn-only = vacuous boundary.
+
+### _namedtuple_check_call — INT-MODEL caller-coupling (measured from mlw, definitive)
+The current trusted val is `(call: map int (option int)) (nt_arities: map int (option int))` — the OLD
+int-model. Its VERIFIED caller _namedtuple_walk_construction is also int-model-typed and calls it as
+`_namedtuple_check_call (any map int (option int)) nt_arities fname` (passes `any` for the call node — the
+int-model can't represent it). A faithful pyval/pydict conversion of the leaf would CASCADE: re-model the
+whole namedtuple chain (walk_construction + _check_namedtuple_access) int→pyval simultaneously, re-porting +
+re-proving each VERIFIED function (§10.4). Coupled multi-function campaign, NOT an autonomous cheap win —
+the ebf9dfcb caller-coupling trap at chain scale. LESSON: before building a leaf, `grep` the current
+trusted-val SIGNATURE in the .mlw — an int-model val with a verified int-model caller = coupling boundary.
