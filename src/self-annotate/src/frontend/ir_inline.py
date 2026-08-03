@@ -45,11 +45,20 @@ def _method_key(cls: str, method: str) -> str:
     """The function-IR name for class `cls`'s method `method` (Module 5 mangling)."""
     return f"{cls.lower()}__{method}"
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _global_call_target(call: int, globals_set: int, g_class: int) -> Optional[str]:
+def _global_call_target(call: Dict[str, Any], globals_set: Set[str], g_class: Dict[str, str]) -> Optional[str]:
+    """If `call` is `g.m(args)` on a module global `g`, return the callee method key
+    `<class>__m`; else None."""
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    func = call.get("func")
+    if not isinstance(func, str) or "." not in func:
+        return None
+    recv, _, method = func.partition(".")
+    if recv in globals_set and "." not in method:
+        return _method_key(g_class[recv], method)
     return None
 
 #@ \trusted reviewer: pycsl-self-annotate

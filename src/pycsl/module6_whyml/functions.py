@@ -2930,6 +2930,7 @@ class FunctionEmissionMixin:
             recognize_handler_catches, emit_handler_catches_group,
             recognize_subclasses_of, emit_subclasses_of_group,
             recognize_classify, emit_classify_group,
+            recognize_global_call_target, emit_global_call_target_group,
             recognize_check_contract_exprs, emit_check_contract_exprs_group,
             recognize_check_body_walk, emit_check_body_walk_group,
             recognize_check_field_guard_raise, emit_check_field_guard_raise_group,
@@ -3446,6 +3447,9 @@ class FunctionEmissionMixin:
         _cls = recognize_classify(func)
         if _cls is not None:
             return emit_classify_group(_cls, whyml_ident)
+        _gct = recognize_global_call_target(func)
+        if _gct is not None:
+            return emit_global_call_target_group(_gct, whyml_ident)
         _csc = recognize_cs_clause(func)
         if _csc is not None:
             from module6_whyml.generic_fold import emit_pb_trio_group

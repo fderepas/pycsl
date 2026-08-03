@@ -12927,6 +12927,218 @@ def emit_classify_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     return out
 
 
+# ---- `_global_call_target` (ir_inline): a module-global method-call resolver ----------
+# Live body:
+#   if not (isinstance(call, dict) and call.get("type") == "Call"): return None
+#   func = call.get("func")
+#   if not isinstance(func, str) or "." not in func: return None
+#   recv, _, method = func.partition(".")
+#   if recv in globals_set and "." not in method: return _method_key(g_class[recv], method)
+#   return None
+# `call` is a pyval node; `call.get("type")`/`call.get("func")` are the TYPED irkey cells
+# (K_type/K_func) — read via direct-constructor `option string` readers (a K_dyn getk would
+# SILENTLY skip them, ref_accumulator lesson #1). `func.partition(".")` -> opaque
+# `(string,sep)->string` before/after projections reflecting the "." sep (mutation-sensitive);
+# `"." in <s>` -> a private opaque `(string,sub)->bool` containment (str_contains_op is not
+# in ir_inline's preamble, so a self-contained val keeps the file byte-inert); `recv in
+# globals_set` -> StrSet map application; `g_class[recv]` -> a `map string string` total
+# lookup; the success value is `_method_key (g_class recv) method` (the already-converted
+# module `let function`). Return is the `Optional[str]` union (`Arm_<idx>_0`/`Arm_<idx>_None`).
+# `ensures True`; the branches read the real node/set/sep => non-facade. Ledger 3.
+
+def recognize_global_call_target(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_global_call_target`. Never raises."""
+    try:
+        return _recognize_global_call_target(func)
+    except Exception:
+        return None
+
+
+def _is_return_none_only(stmts: Any) -> bool:
+    """`stmts` is exactly `[return None]`."""
+    if not (isinstance(stmts, list) and len(stmts) == 1):
+        return False
+    s = stmts[0]
+    return (isinstance(s, dict) and s.get("stmt") == "Return"
+            and isinstance(s.get("value"), dict) and s.get("value", {}).get("type") == "None")
+
+
+def _recognize_global_call_target(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_global_call_target"):
+        return None
+    union = func.get("return_annotation") or ""
+    if not union.startswith("_union"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 3:
+        return None
+    call_p, gset_p, gclass_p = params
+    body = func.get("body") or []
+    if len(body) != 6:
+        return None
+    # body[0]: If not (isinstance(call, dict) and call.get(<k1>) == <tag>): return None
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "If"):
+        return None
+    t0 = b0.get("test") or {}
+    if not (t0.get("type") == "UnaryOp" and t0.get("op") == "not"):
+        return None
+    inn = t0.get("expr") or {}
+    if not (inn.get("type") == "BinOp" and inn.get("op") == "and"):
+        return None
+    if not _match_isinstance(inn.get("left"), call_p, "dict"):
+        return None
+    eq = inn.get("right") or {}
+    if not (eq.get("type") == "BinOp" and eq.get("op") == "=="):
+        return None
+    gc = eq.get("left") or {}
+    if not (gc.get("type") == "Call" and gc.get("func") == f"{call_p}.get"):
+        return None
+    gca = gc.get("args") or []
+    k1 = _is_string(gca[0]) if gca else None
+    tag = _is_string(eq.get("right"))
+    if k1 is None or tag is None or not _is_return_none_only(b0.get("body")):
+        return None
+    # body[1]: func = call.get(<k2>)
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Assign"):
+        return None
+    fvar = b1.get("target")
+    fv = b1.get("value") or {}
+    if not (isinstance(fvar, str) and fv.get("type") == "Call" and fv.get("func") == f"{call_p}.get"):
+        return None
+    fva = fv.get("args") or []
+    k2 = _is_string(fva[0]) if fva else None
+    if k2 is None:
+        return None
+    # body[2]: If (not isinstance(func, str)) or (<sep> not in func): return None
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "If"):
+        return None
+    t2 = b2.get("test") or {}
+    if not (t2.get("type") == "BinOp" and t2.get("op") == "or"):
+        return None
+    l2 = t2.get("left") or {}
+    if not (l2.get("type") == "UnaryOp" and l2.get("op") == "not"
+            and _match_isinstance(l2.get("expr"), fvar, "str")):
+        return None
+    r2 = t2.get("right") or {}
+    if not (r2.get("type") == "BinOp" and r2.get("op") == "not in"
+            and _is_var(r2.get("right"), fvar)):
+        return None
+    sep = _is_string(r2.get("left"))
+    if sep is None or not _is_return_none_only(b2.get("body")):
+        return None
+    # body[3]: TupleUnpack recv, _, method = func.partition(<sep>)
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "TupleUnpack"):
+        return None
+    tgts = b3.get("targets") or []
+    if len(tgts) != 3:
+        return None
+    recv_v, _mid, meth_v = tgts
+    pc = b3.get("value") or {}
+    if not (pc.get("type") == "Call" and pc.get("func") == f"{fvar}.partition"):
+        return None
+    pca = pc.get("args") or []
+    if (_is_string(pca[0]) if pca else None) != sep:
+        return None
+    # body[4]: If (recv in globals_set) and (<sep> not in method):
+    #             return _method_key(g_class[recv], method)
+    b4 = body[4]
+    if not (isinstance(b4, dict) and b4.get("stmt") == "If"):
+        return None
+    t4 = b4.get("test") or {}
+    if not (t4.get("type") == "BinOp" and t4.get("op") == "and"):
+        return None
+    l4 = t4.get("left") or {}
+    if not (l4.get("type") == "BinOp" and l4.get("op") == "in"
+            and _is_var(l4.get("left"), recv_v) and _is_var(l4.get("right"), gset_p)):
+        return None
+    r4 = t4.get("right") or {}
+    if not (r4.get("type") == "BinOp" and r4.get("op") == "not in"
+            and _is_string(r4.get("left")) == sep and _is_var(r4.get("right"), meth_v)):
+        return None
+    rb = b4.get("body") or []
+    if not (len(rb) == 1 and isinstance(rb[0], dict) and rb[0].get("stmt") == "Return"):
+        return None
+    rv = rb[0].get("value") or {}
+    if not (rv.get("type") == "Call" and rv.get("func") == "_method_key"):
+        return None
+    ra = rv.get("args") or []
+    if len(ra) != 2 or not _is_var(ra[1], meth_v):
+        return None
+    sub = ra[0] or {}
+    if not (sub.get("type") == "Subscript" and _is_var(sub.get("value"), gclass_p)
+            and _is_var(sub.get("index"), recv_v)):
+        return None
+    # body[5]: return None
+    b5 = body[5]
+    if not (isinstance(b5, dict) and b5.get("stmt") == "Return"
+            and isinstance(b5.get("value"), dict) and b5.get("value", {}).get("type") == "None"):
+        return None
+    return {"name": func["name"], "union": union, "k1": k1, "tag": tag,
+            "k2": k2, "sep": sep, "method_key": rv.get("func")}
+
+
+def _emit_skey_reader(name: str, key: str) -> List[str]:
+    """A `pydict -> option string` reader for a single literal KEY, matching the
+    TYPED irkey constructor directly (K_type/K_func/…) or the K_dyn guard form for a
+    genuinely-dynamic key. Reflects the key literal (mutation-sensitive)."""
+    ctor = _irkey_ctor(key)
+    out = [f"  let rec {name} (d: pydict) : option string",
+           "    variant { d }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {ctor} (PStr s) _ -> Some s")
+    else:
+        out.append(f"    | DCons (K_dyn kk) (PStr s) rest -> if pystr_eq kk \"{key}\" then Some s else {name} rest")
+    out.append(f"    | DCons _ _ rest -> {name} rest")
+    out.append("    end")
+    return out
+
+
+def emit_global_call_target_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_global_call_target` per the module note. `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    union = desc["union"]
+    idx = union.rsplit("_", 1)[-1]
+    some, none = f"Arm_{idx}_0", f"Arm_{idx}_None"
+    mk = whyml_ident(desc["method_key"])
+    k1, tag, k2, sep = desc["k1"], desc["tag"], desc["k2"], desc["sep"]
+    out: List[str] = []
+    # typed-key string readers for call.get("type") / call.get("func")
+    out += _emit_skey_reader(f"{n}__gk1", k1)
+    out += _emit_skey_reader(f"{n}__gk2", k2)
+    # opaque partition projections + private containment (reflect the sep literal)
+    out.append(f"  val {n}__before (s: string) (sep: string) : string")
+    out.append(f"  val {n}__after (s: string) (sep: string) : string")
+    out.append(f"  val {n}__has (s: string) (sub: string) : bool")
+    out.append(f"  let {n} (call: pyval) (globals_set: map string bool) "
+               f"(g_class: map string string) : {union}")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match call with")
+    out.append("    | PDict d ->")
+    out.append(f'        (match {n}__gk1 d with')
+    out.append(f'         | Some ty -> if pystr_eq ty "{tag}" then')
+    out.append(f"             (match {n}__gk2 d with")
+    out.append("              | Some fn ->")
+    out.append(f'                  if {n}__has fn "{sep}" then')
+    out.append(f'                    let recv = {n}__before fn "{sep}" in')
+    out.append(f'                    let meth = {n}__after fn "{sep}" in')
+    out.append(f'                    if (globals_set recv) && (not ({n}__has meth "{sep}")) then')
+    out.append(f"                      {some} ({mk} (g_class recv) meth)")
+    out.append(f"                    else {none}")
+    out.append(f"                  else {none}")
+    out.append(f"              | None -> {none} end)")
+    out.append(f"             else {none}")
+    out.append(f"         | None -> {none} end)")
+    out.append(f"    | _ -> {none}")
+    out.append("    end")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`
