@@ -294,3 +294,17 @@ converting this callee requires ALSO converting its caller(s) (leaf-first in rev
 the leaf that must go first, or the callee's new signature is unusable). Reverted clean; pget postconditions
 + _check_noreturn intact. LESSON: a category-(b) reconstruction/search stub can still be blocked by a
 CONVERTED CALLER's call-site type-coupling — check callers before converting a called helper.
+
+## 2026-08-03 — category-(b) harvest: 1 landed (_first_tuple_return_elts 820), rest complicated
+Harvested the CLEAN category-(b) value-search (_first_tuple_return_elts, e027b8f4 — corrects "exhausted").
+MEASURED the remaining coupling-clean candidates: each has a real complication (not clean):
+  _scan_node_for_subscript_calls (monomorphize): returns List[Tuple[str,str]] — a TUPLE-PAIR value model
+    (pyval has no pair type) + _type_str cross-call (trusted string-op). Needs a tuple-list model.
+  _collect_array_var_assigns (types, 101L): reads SELF-STATE (self._call_return_whyml_type [itself a
+    self-state value-model boundary], self._mutable_state_classes) + fn.endswith string-op + transitive
+    var_assigns dict propagation. Self-state boundary.
+  find_assigned_vars (ir_scanner): set-collect (set_union of recursive results) + a MUTATING cross-call
+    (find_named_expr_targets, writes acc) — needs a ref-accumulator + functional-union mix.
+So the clean value-search was the low-hanging category-(b) fruit; the rest need more machinery (tuple-list
+model, self-state repr, ref+union mix) — larger fresh-context builds. Banked: value-returning-search
+recognizer (reusable for other first-match/collect searches). session 883→820 (63 conv, ~17 recognizers).
