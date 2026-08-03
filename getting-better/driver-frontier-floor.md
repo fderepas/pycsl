@@ -255,3 +255,15 @@ the variant) before claiming. The clean bool walks (_callee_raised_in, _is_strin
 the first to measure. This CORRECTS "frontier exhausted at 821" AGAIN — the pget capability reopened a
 candidate set; each is a fresh-context bespoke-recognizer build. LESSON reinforced: "exhausted" is a
 recognizer-census artifact, not a true floor; new capabilities reopen candidates.
+
+## 2026-08-03 (later) — the 17 candidates MEASURED: mostly genuine boundaries (over-count confirmed)
+Measured 2 of the 17 "pget-unblocked candidates" (measure-first, not assume): both are genuine boundaries,
+NOT clean pget-follow-ons — the heuristic over-counted (as cautioned, same as the earlier flat-bool census):
+  _callee_raised_in: handler_catches (=bases_closure AXIOM boundary) + self._module_func_raises (SELF-STATE)
+    + exc.split("|") (string-op) + set-building. Multiple walls.
+  _is_string_expr: 298L, heavy SELF-STATE reads (self._record_elem_field_py_type/_mutable_state_classes) +
+    cross-calls to trusted self-methods. Value-model/self-state wall.
+The pget postcondition removes the VARIANT blocker, but these stubs' REAL blocker is value-model/self-state/
+bases_closure/cross-call — NOT the variant. So the floor at 821 HOLDS for the measured reason: the remaining
+stubs hit VALUE-MODEL (self-state heterogeneous dicts), AXIOM (bases_closure), CROSS-CALL-on-trusted, or
+emit_ir-ADT walls. The pget/​__psl capabilities have no clean mirror follow-ons. CONFIRMED floor at 821.
