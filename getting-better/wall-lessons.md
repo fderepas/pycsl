@@ -1128,3 +1128,34 @@ NOT attempt `_is_linear_expr` as a worker build — it is a facade until both fl
 `.values()` collectors behind this same wall share floor (2) and additionally the untyped-dict `.values()`
 iterator model. This is the same single highest-leverage root this ledger names throughout: the emit_ir-typed
 sub-node / heterogeneous `Dict[str,Any]` value model + certified recursive fold.
+
+## 2026-08-03 (worker #15) — value-model "smallest-bounded-gap" census: NO bounded projector-over-existing-leaves remains
+
+MANDATE: MEASURE-FIRST for the SMALLEST byte-inert, axiom-free, ledger-3 value-model extension that unblocks ≥1
+trusted stub — a definitional `let function` over EXISTING certified ADT leaves (the `num_of` / `is_constant` /
+`is_num_or_float` shape, fixture 0924), NOT a new ADT/cert. Census over the tractable (non-parser, non-giant)
+files, live bodies read. VERDICT: **no such gap exists.** The last definitional-projector-over-existing-leaves
+additions (`num_of`/`is_constant`/`is_num_or_float`) were already built and their sole consumers (`_is_null_byte_lit`)
+converted. Every remaining value-model-blocked stub needs a NEW value shape / new-ADT+cert, self-state modeling,
+class-constant-splice, or string char-parsing. Per-stub measured blocker (each a distinct root, none a projector add):
+
+| stub (file) | exact gap | class |
+|---|---|---|
+| `_namedtuple_check_call` (core_ir_semantic) | `nt_arities: Dict[str,Tuple[int,list,list]]` param + `n,f,d = nt_arities[k]` unpack + `len(list)` COUNT (size_list is a size-MEASURE not a count) | NEW tuple-valued-dict shape + pyval-list length fn; >70min whole-file proof. new-shape+COST |
+| `_collect_tuple_var_assigns`, `_collect_array_var_assigns`, `_call_return_whyml_type` (types.py) | read `self._module_method_return_types` self-state map + `fn.rpartition(".")` string ops | SELF-STATE map boundary (not pyval) |
+| `_track_collection_metadata` (types.py) | writes 4 self-state maps (`_known_collection_elements/_sizes`, `_record_array_locals`) + dict-comprehension `elem_map` + `str(int(...))`/`repr(float)` construction | self-state + string-construction |
+| `_collect_mutations` (ir_scanner) | `method in IRScanner._MUTATING_METHODS` (10-elem Set[str] CLASS CONSTANT, invisible to a fn-level recognizer) | class-constant-splice feature |
+| `find_array_and_dict_vars` (ir_scanner) | huge value-classification elif + `Tuple[Set,Set]` return | multi-piece |
+| `_module_const_int` (module_collect) | `value: Any` param (int-erases) reflecting RAW `ast.Constant`/`ast.UnaryOp(USub)` — the emit_ir const model (is_constant/num_of) is over emit_ir LEAVES, there is NO raw-ast const-node model; needs `Any`→`ast.expr` live-source annotation + a raw-ast Constant/UnaryOp node-reflection ADT (`is_ast_const`/`ast_int_of`/`is_usub`/`operand_of`) | NEW raw-ast node-reflection ADT (L1-scale, tparam Phase2h precedent) + co-landing cert |
+| `parse_format`/`calcsize`/`slot_id` (struct_format) | char-by-char format-string cursor parse + native-size dict | string char-parsing |
+| auto_trust remaining 7 | nested-def dropped-closure / str+eval (per ref_accumulator memory) | closure / eval |
+
+**Smallest of the new-shape builds = `_module_const_int` raw-ast const-node reflection** (L1-scale ADT, one node
+family: Constant + UnaryOp/USub, plus the faithful `Any`→`ast.expr` source annotation). It is UNBOUNDED per the
+worker mandate (new ADT + co-landing formal-semantics cert), so recorded here as the reopening capability rather
+than built by a limited-context worker (orphan-avoidance: a session-scale ADT+cert+proof must run in a fresh window,
+never as a context tail). REOPENING CAPABILITY (fundable per COST/SCALE≠floor): raw-ast Constant/UnaryOp node
+reflection ADT + axiom-free `Phase2*` cert, then converge on `_module_const_int` (+ sibling `Module5._const_int_value`).
+NOTE the worker#14 `num_of`-collapse claim did not reproduce: `is_num_or_float` (IrNum/IrNumF) and `is_num` (IrNum,
+excludes IrBoolC) already distinguish numeric-vs-string-vs-bool faithfully over emit_ir; the numeric `isinstance`
+tests that remain blocked (types.py:96-114) are gated by SELF-STATE writes, not by a value-model projector gap.
