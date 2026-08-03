@@ -12738,6 +12738,81 @@ def emit_handler_catches_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     return out
 
 
+# ---- `subclasses_of`: `frozenset(c for c in candidates if handler_catches(base, c))` ------
+# A set-filter-fold: keep the candidates the (int-returning, already-converted) `handler_catches`
+# predicate accepts. Builds a StrSet (`map string bool`); the frozenset dedup IS set_add
+# idempotence. Non-vacuous, coupling-safe (no mirror caller).
+
+def recognize_subclasses_of(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `subclasses_of`. Never raises."""
+    try:
+        return _recognize_subclasses_of(func)
+    except Exception:
+        return None
+
+
+def _recognize_subclasses_of(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("subclasses_of"):
+        return None
+    if func.get("return_annotation") != "frozenset":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    base_p, cand_p = params
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    ret = body[0]
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return None
+    call = ret.get("value") or {}
+    if not (call.get("type") == "Call" and call.get("func") == "frozenset"):
+        return None
+    gen = (call.get("args") or [None])[0] or {}
+    if not (isinstance(gen, dict) and gen.get("type") == "GenExp"):
+        return None
+    gens = gen.get("generators") or []
+    if len(gens) != 1:
+        return None
+    g = gens[0]
+    eltvar = g.get("target")
+    if not eltvar or _get_str(gen.get("elt"), "name") != eltvar:
+        return None
+    if _get_str(g.get("iter"), "name") != cand_p:
+        return None
+    ifs = g.get("ifs") or []
+    if len(ifs) != 1:
+        return None
+    pred = ifs[0]
+    if not (isinstance(pred, dict) and pred.get("type") == "Call"):
+        return None
+    predname = pred.get("func")
+    pargs = pred.get("args") or []
+    if not (predname and len(pargs) == 2
+            and _get_str(pargs[0], "name") == base_p
+            and _get_str(pargs[1], "name") == eltvar):
+        return None
+    return {"name": func["name"], "base": base_p, "cand": cand_p, "elt": eltvar, "pred": predname}
+
+
+def emit_subclasses_of_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `subclasses_of` as a set-filter-fold over `candidates: list string`, keeping each
+    `c` for which the int-returning `handler_catches base c <> 0`. Builds `map string bool`
+    (StrSet); frozenset dedup = set_add idempotence. Terminates on the list. `ensures True`."""
+    n = whyml_ident(desc["name"])
+    pred = whyml_ident(desc["pred"])
+    out: List[str] = []
+    out.append(f"  let rec {n}__fold (base: string) (xs: list string) (acc: map string bool) : map string bool")
+    out.append("    requires { true } ensures { true } variant { xs }")
+    out.append("  = match xs with Nil -> acc")
+    out.append(f"    | Cons c rest -> {n}__fold base rest (if {pred} base c <> 0 then set_add acc c else acc) end")
+    out.append(f"  let {n} (base: string) (candidates: list string) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__fold base candidates (const false)")
+    return out
+
+
 # =========================================================================
 # CHECK-CONTRACT-EXPRS caller (`_check_contract_exprs(func, known)`) — the
 # heterogeneous-func CALLER of the already-converted `_pb_expr`/`_pb_body`

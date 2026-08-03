@@ -108,7 +108,6 @@ def handler_catches(handler_exc: str, raised_exc: str) -> bool:
     return handler_exc in bases_closure(raised_exc)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
