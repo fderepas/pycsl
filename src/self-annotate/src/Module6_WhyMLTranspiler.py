@@ -775,12 +775,37 @@ class Module6_WhyMLTranspiler(
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _sig_val_from_let(self, let_lines: List[str]) -> List[str]:
+    def _sig_val_from_let(self, let_lines: List[str],
+                          public_name: Optional[str] = None) -> List[str]:
         """Convert an emitted `let <fn> ... = <body>` block into a bodyless interface
         `val <fn> ...` carrying ONLY the contract (requires/ensures/writes), dropping the
         `variant` (illegal on a bodyless `val`) and everything from the `=` onward. This
         is the `<G>Sig` interface declaration the provider's `clone`-refinement proves and
-        the consumer module calls — the PROVEN cross-module boundary (no assumed `val`)."""
+        the consumer module calls — the PROVEN cross-module boundary (no assumed `val`).
+
+        A RECOGNIZER-emitted group (a stmt/pyval walker) emits its private helper
+        `let rec`s FIRST and the tagged method's PUBLIC entry `let <public_name>` LAST; the
+        Sig must expose the PUBLIC entry (the provider's `clone`-refinement substitutes
+        `<public_name>`), with the helper lets staying private inside the provider body —
+        never exported. When `public_name` is given AND the block has MORE THAN ONE
+        top-level `let` header, select the block starting at the public entry's header
+        (skipping the preceding helper lets). A SINGLE-body group has exactly one top-level
+        `let` and its public entry IS the first `let`, so the block is left untouched →
+        byte-identical for every existing (single-body) group."""
+        def _hdr_name(stripped: str) -> Optional[str]:
+            for kw in ("let rec ", "let function ", "let "):
+                if stripped.startswith(kw):
+                    rest = stripped[len(kw):].lstrip()
+                    return rest.split("(")[0].split()[0] if rest else ""
+            return None
+        if public_name is not None:
+            hdr_idxs = [i for i, ln in enumerate(let_lines)
+                        if _hdr_name(ln.strip()) is not None]
+            if len(hdr_idxs) > 1:
+                for i in hdr_idxs:
+                    if _hdr_name(let_lines[i].strip()) == public_name:
+                        let_lines = let_lines[i:]
+                        break
         out: List[str] = []
         for ln in let_lines:
             stripped = ln.strip()
@@ -913,7 +938,7 @@ class Module6_WhyMLTranspiler(
             self._current_emit_group = g
             for func in gfuncs:
                 let_block = self._emit_function(func, scc_info)
-                sig += self._sig_val_from_let(let_block)
+                sig += self._sig_val_from_let(let_block, whyml_ident(func["name"]))
                 sig.append("")
             self._current_emit_group = None
             sig.append("end")
