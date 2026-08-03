@@ -1021,3 +1021,34 @@ BOUNDARY — `_recursive_methods` = worklist-BFS over the abstract `edges: map s
 (`stack.pop()/seen.add/stack.extend(edges.get(n))`): SAME class as `bases_closure` — no dischargeable
 variant without a bounded-universe AXIOM (ledger-3 violation). Stays trusted. (The _method_edges fold is
 NOT this boundary — it's a bounded structural `_walk_dicts` descent.)
+
+## 2026-08-03 (worker cont.#4) — fast-file cheap frontier RE-SWEPT at 810: exhausted; find_self_method_calls BOUNDARY
+Full re-survey of the FAST/small mirror files (ir_inline, monomorphize, import_classifier, exception_model,
+auto_trust, scc, struct_format, types, functions, ConcurrencyChecker, module_collect, exec_splice,
+abstract_ops, expr_ghost_spec_ops) found NO clean single-build cheap win — every remaining stub sits in a
+MEASURED boundary class: nested-def-dropped-closure (functions._returns_string_seq, auto_trust family),
+self-state map read (types._field_type_*, _infer_tuple_slot_type, _param_type_str), string-construction
+(monomorphize._mangled_name/_rewrite_annotation_str, functions._callable_whyml_arrow), regex-whole-body
+(monomorphize._match_generic_annotation, struct_format.parse_format/calcsize), graph/BFS
+(scc.compute_sccs/sort_functions_by_scc, exception_model.bases_closure, ir_inline._recursive_methods),
+module-const reader (exception_model.predicate_definitions/all_phase1_exceptions), raw-ast/IO
+(import_classifier.collect_imports/check_imports, module_collect.*, ConcurrencyChecker.*, exec_splice.*),
+giants (ir_inline._Inliner.*, monomorphize._specialize_*, expr_ghost_spec_ops emitters), heterogeneous
+Dict[str,Any] value-model builders (functions._build_method_*_map).
+
+### SPIKED + REFUTED: scc.find_self_method_calls (recursive Set[str] pyval walker + string construction)
+Its sibling `find_calls_in_ir` (same file) converts cleanly via the generic pyval set-union walk recognizer
+(emits `PDict`/`PList` catamorphism + `__pre` with `set_add`, `Map.get func_names_set m`). find_self_method_calls
+LOOKS identical in shape but adds (a) early-return guard `if not self_type or not concrete_set`, (b)
+string construction of the collected element `prefix = self_type.lower()+"__"; resolved = prefix + f[len("self."):]`,
+(c) `isinstance(f,str)` + `f.startswith("self.")`. Ported verbatim (faithful Set[str] retype) + emitted
+`--no-proof --keep-mlw`: the set-walk recognizer does NOT fire — the body drops into the GENERIC imperative
+int-lowering, a total int-hash-erasure FACADE (`obj: int`; `typeof_op 315`, `obj_get_1 1138418396`,
+`(obj_get_1 1342639453)=502964910`, `f_startswith_1 1143254347` — all applied to HASH CONSTANTS not to obj/f;
+`func_names_set: map int (option int)` int-keyed) that additionally FAILS L3-tc (`scc.mlw:261` type error).
+Reverted clean (git checkout single path + rm scc.mlw); count/fidelity restored (mirror-check 52/52).
+BOUNDARY = the generic pyval set-union walk recognizer accepts only element-forwarding `__pre` bodies (add an
+EXISTING PStr value); it has no path for a CONSTRUCTED-string element (`.lower()`/concat/slice) nor an
+early-return guard nor `startswith`. Reopen = extend that recognizer (generic_fold.py) with faithful,
+mutation-sensitive string-op construction in the `__pre` + guard/startswith support — a Phase-2 recognizer
+build (facade-risk, needs the report->review->impl cycle), NOT a worker cheap win.
