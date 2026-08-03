@@ -1253,3 +1253,57 @@ annotation. Alternative reopening: robustify the `find_assigned_vars` size-postc
 **Ops lesson (carry-forward):** `#@ no_inline` addresses *per-caller body-splice blowup* (the os `sys_write` case); it is
 the WRONG tool for a *co-resident-recursive-definition E-matching* blowup. Distinguish the two before proposing it:
 splice-blowup ⇒ `#@ no_inline`; module-presence-blowup ⇒ `#@ verify_module` (separate module) or reader robustification.
+
+---
+
+## `ir_scanner._collect_mutations` — `#@ verify_module` REFUTED **within scope** (worker#20, 2026-08-03) — CERTIFIED-BOUNDARY stands, reopening NOW PRECISE
+
+**Task:** rebuild worker#17's PROVEN `_collect_mutations` recognizer AND use the `#@ verify_module <grp>` grouping
+(the reopening worker#18 named) to isolate `find_assigned_vars`' razor-edge `__Lbody`/`__Lorelse` size-postcond
+readers so the whole-file ir_scanner proof survives the added pydict walker.
+
+**Verdict: `#@ verify_module` CANNOT be applied to a RECOGNIZER-EMITTED function within this worker's additive
+scope — spike REFUTED before the `_collect_mutations` rebuild (Gate S / measure-before-build).** Count stays 804,
+HEAD b7c31eb4, tree clean, ledger 3. NO rebuild spent (the decisive falsifier is cheaper than the build).
+
+**Decisive falsifier (cheap, empirical):** tagged `find_assigned_vars` (already-converted, recognizer-emitted) with
+`#@ verify_module VarsMod` in the mirror and emitted (`pycsl … --no-proof --keep-mlw`). **L3-tc FAILS** at
+`ir_scanner.mlw:333`: `unbound program function or variable symbol 'irscanner__find_assigned_vars'` +
+`cloned theory VarsModSig does not contain any abstract symbol`. **Reproduced across groupings:** a second
+experiment putting BOTH `find_assigned_vars` and `find_named_expr_targets` in one group (`#@ verify_module FAVMod`
+on both) fails IDENTICALLY — `FAVModSig` declares the two helper first-lets (`…__gstmt`,
+`…__get_K_type`) and the clone substitutes the two public symbols the Sig never declared. Grouping is irrelevant;
+the blocker is per-function Sig extraction.
+
+**Root cause (READ, decisive — a NEW blocker #17/#18 never reached; they named verify_module as the *untested*
+reopening):** the modular emitter `_transpile_modular` builds each `<G>Sig` interface via
+`_sig_val_from_let(let_block)` (Module6_WhyMLTranspiler.py:1044), which converts the **first** `let`/`let rec` it
+sees to the interface `val` and **breaks at that let's body `=`**. This assumes a *single-body* method (correct for
+os `_dir_lookup`/`ReadMod`/`FindSlotMod`/`FindFreeMod` — one `let <fn> = body`, public-first). But a
+**recognizer-emitted** function is a CLUSTER of helper `let rec`s (`__gstmt`, `__Lbody`, `__Lorelse`, `__f`, `__nx`,
+…) with the PUBLIC `let irscanner__find_assigned_vars` emitted **last** (confirmed: `ir_scanner.mlw` helper at
+provider L241, public at L328). So `<G>Sig` declares the WRONG symbol (`…__gstmt`, the first helper) and the
+provider's trailing `clone {g}Sig with val <public> = <public>` (line 1201–1203) references the true public symbol
+the Sig never declared → the unbound/`refn'vc` failure. The bug is intrinsic to the provider's **self-clone**
+(`<fn>'refn'vc`), independent of whether any cross-module caller uses the Sig — so it hits `find_assigned_vars`
+AND (identically) a tagged `_collect_mutations` (also recognizer-emitted). verify_module is therefore unusable on
+EITHER walker in this file as-is.
+
+**Reopening capability — now NARROW and OWNED (was: vague "review-gated modular verification"):** teach
+`_sig_val_from_let` / `_transpile_modular` (Module6_WhyMLTranspiler.py) to select the group's **public entry**
+symbol `whyml_ident(f['name'])` for the `<G>Sig` `val` (keeping the helper `let rec`s private inside the provider
+`<G>` module) and substitute only that public symbol in the clone. Small, correctness-improving transpiler fix —
+BUT it is (a) OUTSIDE this worker's additive-only scope (edits `Module6_WhyMLTranspiler.py`, not
+module_collect/Module5/module6_whyml/), and (b) **corpus-relevant** (os's three `verify_module` groups are
+single-body and rely on the current first-let behavior; the fix MUST preserve their emission — byte-diff gated).
+CLASSIFICATION: CORRECTNESS-adjacent transpiler capability (a modular-emitter *bug* on multi-let groups), NOT a
+COST/SCALE grind. An in-scope alternative (restructure the recognizer to emit the public `let` FIRST in a mutual
+`let rec … with …` block, module6_whyml/) was NOT pursued: it changes the FLAT emission of the already-landed
+`find_assigned_vars` (byte-diff + re-prove the razor-edge goal) — a risky reorder, flag-not-auto per safe-bricks.
+
+**Ops lesson (carry-forward):** `#@ verify_module` modular emission was built + tested ONLY for single-body methods
+(os). It silently mis-emits any **recognizer-emitted** function (multi-`let` cluster) because `_sig_val_from_let`
+is first-`let`-only. Before proposing verify_module to isolate a RECOGNIZER-lowered walker, this Sig-generation
+gap must be fixed first. Chain of named reopenings for this wall is now: no_inline (#18 refuted) → verify_module
+as-is (#20 refuted, recognizer-group Sig bug) → `_sig_val_from_let` group-awareness fix (out-of-worker-scope,
+corpus-gated).
