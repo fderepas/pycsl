@@ -222,3 +222,20 @@ for new capability builds — and a "review-gated" verdict must be MEASURED (--f
 BANKED for re-triage: pget postconditions (size facts for any pget_list-descent) + the __psl parser
 (any stmt_list consumer from a list pyval). LESSON: I burned ~15 heartbeats holding on a false boundary;
 measure scale/proof-cost boundaries before concluding.
+
+## 2026-08-03 — refined MEASURED floor at 821: proof-scale vs value-model boundaries
+Applied the measure-first lesson to the boundary claims. KEY DISTINCTION (now confirmed):
+  - PROOF-SCALE boundary: typecheck PASSES, whole-file proof times out. A HYPOTHESIS — measure via
+    --fun on the local VC; may be a missing lemma. _check_noreturn was this (24 variant timeouts ->
+    pget postcondition -> 0 -> LANDED). This is the class where "review-gated" was FALSE.
+  - VALUE-MODEL boundary: typecheck FAILS (int vs string/option). GENUINE — the value isn't
+    representable as pyval. Re-examined types._field_type_for/_field_type_of/_call_return_whyml_type:
+    they read HETEROGENEOUS SELF-STATE nested dicts (self._record_types: Dict[str,Dict[str,Any]]) +
+    string ops -> genuine value-model wall (self-state maps not in pyval). CONFIRMED, not assumed.
+CONCLUSION: at 821, the remaining trusted stubs are VALUE-MODEL boundaries (heterogeneous-dict/self-state
+[types], CSL-dataclass-AST [Weaver], raw-ast [Ingestor/monomorphize], nested-closure-dropped-def
+[Module5 drops the def], stateful IR-mutation [ir_resolve]) — all TYPECHECK-FAILING, all genuine. The
+only proof-scale false boundary (_check_noreturn) is landed. Further conversion needs a NEW VALUE MODEL
+(heterogeneous-dict ADT / self-state repr / CSL-dataclass ADT / ast ADT) + co-landing cert = coupling-rule
+(§5) REVIEW-GATED. Banked capabilities (__anystr, string-op-primitives, pget postconditions, __psl parser)
+are exhausted against the current pyval/pydict model. Session 883->821 (62 conv).
