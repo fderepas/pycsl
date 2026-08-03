@@ -208,3 +208,17 @@ raw-ast (Ingestor text-parse / monomorphize _ast), heterogeneous-dict (types._fi
 IR-mutation (ir_resolve/monomorphize _rewrite_*/_specialize_*), or cross-call-on-trusted (leaf-first) —
 OR a large review-gated campaign (pyval->stmt_ir bridge cert; modular verification for core_ir_semantic).
 No more autonomous recognizer wins. Session 883->822 (61 conv).
+
+## 2026-08-03 — _check_noreturn LANDED (821); "review-gated" + "exhausted" claims CORRECTED
+MAJOR: the bridge I called review-gated for ~15 heartbeats was autonomously landable (baaebd51). MEASURING
+(cost≠floor) dissolved it: pget POSTCONDITIONS (pget_dyn: Some v -> pv_size v <= size_dict d; pget_list:
+size_list result <= size_dict d) are provable axiom-free, safely-additive, CORPUS-INERT (byte-diff 0) —
+a NORMAL shared-emitter change, not review-gated. They discharge the pget_list-extraction variant (--fun
+24 timeouts -> 0). The pyval->stmt_ir structural parser (__psl) is a sound abstraction for _body_has_return.
+Whole-file proof SUCCESS (1494 Valid 0 Timeout), §10c all-9, byte-diff 0, ledger 3.
+CORRECTION to the "0/60 recognizers = exhausted" claim: the census tests EXISTING recognizers; it does NOT
+find NEW-capability conversions (like this bridge). The frontier is exhausted for EXISTING recognizers, NOT
+for new capability builds — and a "review-gated" verdict must be MEASURED (--fun on the local VC) not assumed.
+BANKED for re-triage: pget postconditions (size facts for any pget_list-descent) + the __psl parser
+(any stmt_list consumer from a list pyval). LESSON: I burned ~15 heartbeats holding on a false boundary;
+measure scale/proof-cost boundaries before concluding.
