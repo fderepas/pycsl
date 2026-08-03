@@ -1052,3 +1052,6 @@ EXISTING PStr value); it has no path for a CONSTRUCTED-string element (`.lower()
 early-return guard nor `startswith`. Reopen = extend that recognizer (generic_fold.py) with faithful,
 mutation-sensitive string-op construction in the `__pre` + guard/startswith support — a Phase-2 recognizer
 build (facade-risk, needs the report->review->impl cycle), NOT a worker cheap win.
+
+## 2026-08-03 — OPERATIONAL: whole-file proof of BIG importer files can hang on a vacuity-diagnostic goal
+On statements.py/functions.py-scale whole-file proofs, the pycsl vacuity pass (separate `why3 prove … /tmp/.pycsl_vac_*.mlw` invocations AFTER the main goals) can leave ONE `why3`/Z3 worker running for minutes despite its own `--timelimit 5` (the solver ignores the wall-clock limit on a pathological goal). Symptom: output stalls at "Warnings/Errors from Why3:" with the main goals all Valid, one live `why3 prove …vac…` worker. FIX: `kill -9` that single hung worker — pycsl then prints the main verdict ("[+] Verification SUCCESS! All contracts formally proven.", the vacuity goal is best-effort/non-blocking). Confirm 0 non-Valid in the MAIN results (`grep 'Prover result is: Valid'` count vs Timeout/Unknown/Invalid=0). Non-vacuity is independently assured by the recognizer mutation-test (perturb each source literal → .mlw moves).
