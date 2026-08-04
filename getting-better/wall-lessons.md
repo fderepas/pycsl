@@ -1395,3 +1395,18 @@ walk (would cover the `_*returns_string_seq` pair + `_contract_referenced_names`
 FunctionDef + mutable-cell closure IR modeling + local-dict threading), NOT a single-session recognizer match,
 and its natural proof targets (preamble.py/functions.py) are the wedge-prone heavy mirror files. Ledger 3,
 tree unchanged, no facade/axiom. → advance to campaign (2) string-keyed-set κ-inference.
+
+## 2026-08-04 — 96h run, campaign (2) string-keyed-set κ-inference RE-MEASURED: CERTIFIED-BOUNDARY (mined out)
+
+Worker measured every residual StrSet-touching stub (membership + building). Verdict `no_feasible_candidate`,
+count unchanged 804. TWO sub-walls, decomposed:
+- **module-level compound-const front-end κ-gap: BROKEN + MINED OUT.** The additive-collector fix already
+  landed (6b90b307 `collect_module_const_str_pairs`→`_strip_const_name`; 0c258e45 `collect_module_const_str_sets`
+  →`all_phase1_exceptions`), byte-inert, ledger 3. A general `x in MODULE_SET` membership recognizer over the
+  existing collector has NO clean whole-body target left: every consumer is either already converted
+  (`_val_is_bool`,`_check_no_exception`) or embedded in a heavier boundary (regex-cursor parser struct_format;
+  set-difference-over-dict.keys() ir_schema; recursive Term-ADT canonical; raw-ast/token-cursor Ingestor/parser).
+- **worklist-BFS bounded-universe: BOUNDARY STANDS (ledger-3).** `bases_closure`/`_recursive_methods`/
+  `compute_sccs` build a set via BFS over an abstract `map string (list/set string)` with no dischargeable
+  variant absent a bounded-universe AXIOM → would violate ledger 3. Hard boundary. Plus I/O + stateful-mutation
+  residuals. All clean structural collect-walkers already converted. → advance to campaign (3) _check_noreturn/SRaise cert.
