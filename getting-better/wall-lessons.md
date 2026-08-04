@@ -1499,3 +1499,27 @@ constructs lower:
 CAVEAT (isolation_spike_not_whole_file): this proves FEASIBILITY only; the authoritative gate is the whole-file
 pycsl proof over preamble.py (E-matching over full wf_dict/wf_ir_binds may saturate — the trio-fusion risk).
 → build the recognizer, then supervisor runs the authoritative whole-file proof.
+
+## 2026-08-04 — 96h run, boundary A clean follow-ons DRAINED (804→801, 3 conversions)
+
+Both recognizer variants landed + drained the clean existing-device follow-ons:
+- `_func_returns_string_seq` (711c3b33, existence bool-fold, preamble.py)
+- `_contract_referenced_names` (c28e1b83, StrSet set-collect, ir_resolve.py)
+- `_contract_referenced_var_names` (0b335205, StrSet set-collect two-arm Var/Attribute, ir_resolve.py) —
+  NOTE: this fn is defined TWICE (dead first def + effective source-last def, Python shadowing); the emitter
+  dedups via scc.py::sort_functions_by_scc (keeps LAST). Convert ONLY the effective def; the dead def stays
+  trusted (never emitted) → count drops by exactly 1. Not a landmine.
+REMAINING boundary-A tier needs a NEW DEVICE (surveying + spiking next): de-Bruijn depth-threading int
+accumulator (`_body_references_bvar_0`); list-of-(str,str)-pairs accumulator (`_scan_node_for_subscript_calls`,
++ opaque `_type_str`); self-state pydict model (method-form folds `_returns_string_seq`/`_has_keywords_iteration`/
+etc. read `getattr(self,"_seq_value_types"/"ssf"/"_module_func_raises")` — self-state is a long-classified
+boundary; the mixin self is not a modeled value → likely REFUTE unless a faithful pydict source exists).
+`_collect_critical_mutexes` = self.ir + sorted() (no faithful StrSet-sort model) = boundary.
+
+## OPS HAZARD (recurred 2026-08-04) — byte-diff-sweep.sh MOVES corpus .mlw fixtures out of the tree
+`bin/byte-diff-sweep.sh` does `mv <corpus>/pycsl-reference/NAME.mlw <out>/NAME.mlw` for every 0*.py it emits,
+which DELETES the committed conformance fixtures (0893-0924*.mlw etc., the git-add-f fixtures) from the working
+tree. These show as ` D` in git status. SAFE because they're never staged (I git-add only the specific
+conversion files), so HEAD is intact — but the supervisor MUST `git checkout HEAD -- test-suite/corpus/pycsl-reference/`
+after EVERY sweep, and ALWAYS verify `git status --porcelain test-suite/corpus/pycsl-reference/ | grep -c '^ D'`
+is 0 before committing. Never `git add -A`/`git add .` (would stage the deletions). See feedback_parallel_sweep.
