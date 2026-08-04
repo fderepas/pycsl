@@ -2981,6 +2981,16 @@ class FunctionEmissionMixin:
         if _clx_desc is not None:
             from module6_whyml.generic_fold import emit_closure_existence_group
             return emit_closure_existence_group(func, _clx_desc, whyml_ident)
+        # `_func_returns_string_seq` (generic_fold.py boundary-A): the lifted `rec`
+        # sibling is SUPPRESSED; the wrapper emits the certified mutual
+        # pyval/pydict/list existence catamorphism with `svt` threaded as a real
+        # non-variant pydict param. Keyed on `id`; corpus-inert. See module note.
+        if id(func) in getattr(self, "_frss_walk_ids", set()):
+            return []
+        _frss_desc = getattr(self, "_frss_outer_ids", {}).get(id(func))
+        if _frss_desc is not None:
+            from module6_whyml.generic_fold import emit_func_returns_string_seq_group
+            return emit_func_returns_string_seq_group(func, _frss_desc, whyml_ident)
         # STRING first-match SEARCH closure (`_lemma_calls_trusted`): the lifted
         # `walk` sibling is SUPPRESSED; the wrapper emits the certified first-match
         # search catamorphism (`option string`, `map string bool` set-param

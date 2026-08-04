@@ -13936,6 +13936,378 @@ def emit_has_dynamic_exec_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     return out
 
 
+# ---- `_func_returns_string_seq` (preamble.py PreambleEmissionMixin): does a function's
+# body tree contain a `Return <Var>` whose returned local is STRING-typed
+# (`seq_value_types[name] == "string"`)? The LIVE body is a `found=[False]` nested-`def
+# rec` closure existence walk over `func.get("body")`, driven by a LEADING guard
+# `svt = func.get("seq_value_types", {}); if not svt: return False`. Module 5 lambda-lifts
+# the nested `rec` to an ADJACENT sibling function (`<cls>__rec`) sharing `found` as an
+# int-erased global — a vacuous facade under the generic lowering. This is boundary-A: it
+# differs from the plain `closure_existence` wrapper in TWO ways that make it its own
+# recognizer — (i) the outer has a 5-statement svt-guarded shape (not the bare
+# `[acc=[False], walk(subj), return acc[0]]`), and (ii) the discriminant is a NESTED
+# COMPUTED-KEY predicate `svt.get(v.get("name")) == "string"` that INSPECTS the value of
+# `svt` at a key drawn from a nested field. The DECISIVE non-vacuity rule: `svt` is
+# threaded as a real `pydict` and its value is read (`{P}gsv nm svt`), NOT an opaque
+# membership set — an opaque leaf would be a Gate-C facade. The pair emits the OUTER as a
+# mutual `list pyval`/`pyval`/`pydict` existence catamorphism (the `has_dynamic_exec`
+# skeleton) with `svt` threaded UNCHANGED as a non-variant parameter; the lifted `rec`
+# sibling is SUPPRESSED. `found[0]=True`-on-first-match is (trivially, under `ensures
+# True`) the `∃ matching node` disjunction. Non-facade: every field key and tag literal is
+# reflected structurally from the body (a body change moves the emitted .mlw). Fail-closed:
+# any deviation stays `\trusted`. `ensures True`; ledger 3 (reuses the certified
+# pyval/pydict ADT — no new type/axiom/cert).
+
+def _frss_dotget_key(node: Any, recv: str) -> Optional[str]:
+    """`<recv>.get("<k>"[, default])` -> clean literal k (first arg), else None.
+    Tolerates the optional `.get(key, default)` default arg (`func.get("body", [])`)."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{recv}.get"):
+        return None
+    args = node.get("args") or []
+    if len(args) < 1:
+        return None
+    return _clean_lit(_is_string(args[0]))
+
+
+def _recognize_frss_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_func_returns_string_seq` wrapper. Fail-closed; None on any
+    deviation. Returns {name, param, svt_v, svt_key, body_key, found_v, walker_name}."""
+    if not func.get("name", "").endswith("_func_returns_string_seq"):
+        return None
+    if func.get("return_annotation") not in ("bool", None):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    func_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 5:
+        return None
+    # [0] svt = func.get("<svt_key>", {})
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    svt_v = b0.get("target")
+    av = b0.get("value") or {}
+    if not (isinstance(av, dict) and av.get("type") == "Call"
+            and av.get("func") == f"{func_p}.get"):
+        return None
+    a0 = av.get("args") or []
+    if not a0:
+        return None
+    svt_key = _clean_lit(_is_string(a0[0]))
+    if svt_key is None or not isinstance(svt_v, str):
+        return None
+    # [1] if not svt: return False
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "If" and not b1.get("orelse")):
+        return None
+    t1 = b1.get("test") or {}
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp" and t1.get("op") == "not"
+            and _is_var(t1.get("expr"), svt_v)):
+        return None
+    g1 = b1.get("body") or []
+    if not (len(g1) == 1 and isinstance(g1[0], dict) and g1[0].get("stmt") == "Return"
+            and isinstance(g1[0].get("value"), dict)
+            and g1[0]["value"].get("type") == "Bool"
+            and g1[0]["value"].get("value") is False):
+        return None
+    # [2] found = [False]
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Assign"
+            and isinstance(b2.get("value"), dict)
+            and b2["value"].get("type") == "ArrayLit"):
+        return None
+    elts = b2["value"].get("elts") or []
+    if not (len(elts) == 1 and isinstance(elts[0], dict)
+            and elts[0].get("type") == "Bool" and elts[0].get("value") is False):
+        return None
+    found_v = b2.get("target")
+    if not isinstance(found_v, str):
+        return None
+    # [3] rec(func.get("<body_key>", []))
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Expr"):
+        return None
+    call = b3.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    walker_name = call["func"]
+    cargs = call.get("args") or []
+    if len(cargs) != 1:
+        return None
+    body_key = _frss_dotget_key(cargs[0], func_p)
+    if body_key is None:
+        return None
+    # [4] return found[0]
+    b4 = body[4]
+    if not (isinstance(b4, dict) and b4.get("stmt") == "Return"
+            and _clx_match_acc_subscript(b4.get("value"), found_v)):
+        return None
+    return {"name": func.get("name"), "param": func_p, "svt_v": svt_v,
+            "svt_key": svt_key, "body_key": body_key,
+            "found_v": found_v, "walker_name": walker_name}
+
+
+def _frss_iter_selfcall(node: Any, call_names: "set", subj: str, iter_ok) -> bool:
+    """`for <lv> in <iter>: <rec>(<lv>)` — a bare descent loop whose sole body stmt is a
+    self-call (func in `call_names`) on the bound var, iterable satisfying `iter_ok`.
+    Like `_clx_walk_iter_selfcall` but accepts a SET of acceptable call-func names
+    (the recursive call uses the UNQUALIFIED local name `rec`, the lifted def is
+    class-qualified)."""
+    if not (isinstance(node, dict) and node.get("stmt") == "For"):
+        return False
+    if not iter_ok(node.get("iter", {})):
+        return False
+    lv = node.get("target")
+    if not isinstance(lv, str):
+        return False
+    lb = node.get("body", [])
+    if len(lb) != 1:
+        return False
+    s = lb[0]
+    if not (isinstance(s, dict) and s.get("stmt") == "Expr"):
+        return False
+    call = s.get("value", {})
+    return (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") in call_names
+            and len(call.get("args", [])) == 1
+            and _is_var(call["args"][0], lv))
+
+
+def _recognize_frss_walk(walkfunc: Dict[str, Any], svt_v: str, acc: str,
+                         call_names: "set") -> Optional[Dict[str, Any]]:
+    """Match the lifted `rec(node)` walk and extract the leaf discriminant literals.
+    Fail-closed. `call_names` is the set of acceptable recursive-call func names (the
+    unqualified local `rec` and the class-qualified lifted def name). Returns
+    {stmt_key, stmt_val, value_key, type_key, type_val, name_key, svt_match_val}
+    or None."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 1:
+        return None
+    top = body[0]
+    # if isinstance(node, dict): <dict-arm> elif isinstance(node, list): ...
+    if not (isinstance(top, dict) and top.get("stmt") == "If"
+            and _match_isinstance(top.get("test"), node, "dict")):
+        return None
+    darm = top.get("body") or []
+    if len(darm) != 2:
+        return None
+    # darm[0]: if node.get(stmt_key) == stmt_val: [v = node.get(value_key), If <leaf>: found[0]=True]
+    g = darm[0]
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        return None
+    gt = g.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "=="):
+        return None
+    stmt_key = _frss_dotget_key(gt.get("left"), node)
+    stmt_val = _clean_lit(_is_string(gt.get("right")))
+    if stmt_key is None or stmt_val is None:
+        return None
+    gb = g.get("body") or []
+    if len(gb) != 2:
+        return None
+    # gb[0]: v = node.get(value_key)
+    a = gb[0]
+    if not (isinstance(a, dict) and a.get("stmt") == "Assign"):
+        return None
+    v_v = a.get("target")
+    value_key = _frss_dotget_key(a.get("value"), node)
+    if not isinstance(v_v, str) or value_key is None:
+        return None
+    # gb[1]: If (isinstance(v,dict) and v.get(type_key)==type_val
+    #            and svt.get(v.get(name_key))==svt_match_val): [found[0]=True]
+    lif = gb[1]
+    if not (isinstance(lif, dict) and lif.get("stmt") == "If" and not lif.get("orelse")):
+        return None
+    lt = lif.get("test") or {}
+    if not (isinstance(lt, dict) and lt.get("type") == "BinOp" and lt.get("op") == "and"):
+        return None
+    left = lt.get("left") or {}
+    right = lt.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "and"):
+        return None
+    # left.left: isinstance(v, dict)
+    if not _match_isinstance(left.get("left"), v_v, "dict"):
+        return None
+    # left.right: v.get(type_key) == type_val
+    lr = left.get("right") or {}
+    if not (isinstance(lr, dict) and lr.get("type") == "BinOp" and lr.get("op") == "=="):
+        return None
+    type_key = _frss_dotget_key(lr.get("left"), v_v)
+    type_val = _clean_lit(_is_string(lr.get("right")))
+    if type_key is None or type_val is None:
+        return None
+    # right: svt.get(v.get(name_key)) == svt_match_val
+    if not (isinstance(right, dict) and right.get("type") == "BinOp"
+            and right.get("op") == "=="):
+        return None
+    svt_match_val = _clean_lit(_is_string(right.get("right")))
+    sget = right.get("left") or {}
+    if not (isinstance(sget, dict) and sget.get("type") == "Call"
+            and sget.get("func") == f"{svt_v}.get"):
+        return None
+    sga = sget.get("args") or []
+    if len(sga) != 1:
+        return None
+    name_key = _frss_dotget_key(sga[0], v_v)
+    if name_key is None or svt_match_val is None:
+        return None
+    # anti-facade: the guard body sets the accumulator (its whole point)
+    if not _clx_has_acc_set(lif.get("body"), acc):
+        return None
+    # darm[1]: for x in node.values(): rec(x)
+    def _values_iter(it: Any) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{node}.values" and not it.get("args"))
+
+    if not _frss_iter_selfcall(darm[1], call_names, node, _values_iter):
+        return None
+    # elif isinstance(node, list): for x in node: rec(x)
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    lif2 = orelse[0]
+    if not (isinstance(lif2, dict) and lif2.get("stmt") == "If"
+            and not lif2.get("orelse")
+            and _match_isinstance(lif2.get("test"), node, "list")):
+        return None
+    lb = lif2.get("body") or []
+    if len(lb) != 1:
+        return None
+    if not _frss_iter_selfcall(lb[0], call_names, node, lambda it: _is_var(it, node)):
+        return None
+    return {"stmt_key": stmt_key, "stmt_val": stmt_val, "value_key": value_key,
+            "type_key": type_key, "type_val": type_val, "name_key": name_key,
+            "svt_match_val": svt_match_val}
+
+
+def recognize_func_returns_string_seq_pairs(functions: List[Dict[str, Any]]
+                                            ) -> Dict[str, Any]:
+    """Pair the `_func_returns_string_seq` OUTER wrapper with its lifted `rec` sibling
+    (by adjacency — the walk directly follows the wrapper). Returns
+    {"outer_ids": {id(outer): desc}, "walk_ids": {id(walk), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_frss_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            # the lifted `rec` def is class-qualified (`<cls>__rec`) while the outer's
+            # call + the recursive self-calls use the unqualified local name `rec`.
+            if not (isinstance(wf, dict)
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_frss_walk(wf, od["svt_v"], od["found_v"], call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"],
+                    "svt_key": od["svt_key"], "body_key": od["body_key"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_func_returns_string_seq_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                       whyml_ident) -> List[str]:
+    """Emit `_func_returns_string_seq` as a mutual `pyval`/`pydict`/`list pyval`
+    existence catamorphism (the `has_dynamic_exec` skeleton) with `svt` threaded
+    UNCHANGED as a non-variant `pydict` parameter and inspected by a real read
+    (`{P}gsv nm svt`). `ensures True`; ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    sv, tv, mval = desc["stmt_val"], desc["type_val"], desc["svt_match_val"]
+    out: List[str] = []
+    # literal-key readers (typed irkey ctor or the K_dyn guard, per key)
+    out += _emit_pval_reader(f"{P}gsvt", desc["svt_key"])    # option pyval: the svt dict
+    out += _emit_pval_reader(f"{P}gbody", desc["body_key"])  # option pyval: the body list
+    out += _emit_skey_reader(f"{P}gstmt", desc["stmt_key"])  # option string
+    out += _emit_pval_reader(f"{P}gval", desc["value_key"])  # option pyval: the value node
+    out += _emit_skey_reader(f"{P}gtype", desc["type_key"])  # option string
+    out += _emit_skey_reader(f"{P}gname", desc["name_key"])  # option string: the var name
+    # dynamic-string-keyed reader over svt: `svt.get(nm)` -> option string (K_dyn keys)
+    out.append(f"  let rec {P}gsv (nm: string) (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append(f"    | DCons (K_dyn s) (PStr t) rest -> "
+               f"if pystr_eq nm s then Some t else {P}gsv nm rest")
+    out.append(f"    | DCons _ _ rest -> {P}gsv nm rest")
+    out.append("    end")
+    # leaf: the `Return <string-typed Var>` discriminant (real svt value read)
+    out.append(f"  let {P}leaf (d: pydict) (svt: pydict) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f'  = (match {P}gstmt d with Some st -> pystr_eq st "{sv}" | None -> false end)')
+    out.append(f"    && (match {P}gval d with")
+    out.append("        | Some (PDict vd) ->")
+    out.append(f'            (match {P}gtype vd with Some ty -> pystr_eq ty "{tv}" '
+               f"| None -> false end)")
+    out.append(f"            && (match {P}gname vd with")
+    out.append(f"                | Some nm -> (match {P}gsv nm svt with "
+               f'Some tvv -> pystr_eq tvv "{mval}" | None -> false end)')
+    out.append("                | None -> false end)")
+    out.append("        | _ -> false end)")
+    # mutual existence fold; svt threaded UNCHANGED and OUT of the variant
+    out.append(f"  let rec {P}v (v: pyval) (svt: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {P}leaf d svt || {P}dfold d svt")
+    out.append(f"    | PList xs -> {P}lfold xs svt")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) (svt: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        {P}v v svt || {P}dfold rest svt end")
+    out.append(f"  with {P}lfold (xs: list pyval) (svt: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> false")
+    out.append(f"    | Cons h t -> {P}v h svt || {P}lfold t svt end")
+    # entry: extract svt + the body list from func, then fold the body list
+    out.append(f"  let {n} ({mv}: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {mv} with")
+    out.append("    | PDict fd ->")
+    out.append(f"        let svt = (match {P}gsvt fd with Some (PDict sd) -> sd "
+               "| _ -> DNil end) in")
+    out.append(f"        (match {P}gbody fd with Some (PList xs) -> {P}lfold xs svt "
+               "| _ -> false end)")
+    out.append("    | _ -> false")
+    out.append("    end")
+    return out
+
+
 # ---- `_method_edges` (ir_inline): outgoing method-call edges of a function -----------
 # Live body (a `_walk_dicts(func.get("body"))` fold building a Set[str]):
 #   out = set()

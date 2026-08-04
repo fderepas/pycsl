@@ -2184,6 +2184,7 @@ class PreambleEmissionMixin:
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
+            recognize_func_returns_string_seq_pairs,
             recognize_final_pair, recognize_check_final, recognize_conc_cluster)
         # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
         # / lock-order protected-access walk {_check_concurrency,
@@ -2235,7 +2236,8 @@ class PreambleEmissionMixin:
             or (self._conc_cluster is not None) \
             or (self._union_cluster is not None) or bool(
             recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
-            recognize_lemma_string_search_pairs(functions)["outer_ids"]) or any(
+            recognize_lemma_string_search_pairs(functions)["outer_ids"]) or bool(
+            recognize_func_returns_string_seq_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_self_method_calls(f) is not None
             or recognize_substmap(f) is not None
@@ -2346,6 +2348,18 @@ class PreambleEmissionMixin:
         _lss = recognize_lemma_string_search_pairs(functions)
         self._lss_outer_ids = _lss["outer_ids"]
         self._lss_walk_ids = _lss["walk_ids"]
+        # `_func_returns_string_seq` (generic_fold.py boundary-A): the svt-guarded
+        # `found=[False]` nested-`def rec` closure existence walk (Return-of-string-
+        # typed-Var). Same OUTER+lifted-`rec` adjacency pairing as closure_existence,
+        # but its own recognizer (5-stmt svt-guarded outer + a nested computed-key
+        # `svt.get(v.get("name"))=="string"` leaf that INSPECTS svt's value). The
+        # wrapper emits a mutual pyval/pydict/list existence catamorphism with `svt`
+        # threaded UNCHANGED as a non-variant pydict param; the lifted `rec` is
+        # SUPPRESSED. Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_func_returns_string_seq_pairs
+        _frss = recognize_func_returns_string_seq_pairs(functions)
+        self._frss_outer_ids = _frss["outer_ids"]
+        self._frss_walk_ids = _frss["walk_ids"]
         # MULTI-GUARD CASCADE `_check_*` caller (check-diverges-noreturn-impl.md):
         # the set of single-arg closure-existence-converted `list pyval -> bool`
         # predicate NAMES (`_body_has_diverging_construct`). A cascade guard that

@@ -9,13 +9,34 @@ class PreambleEmissionMixin:
     _CLASS_INV_AXIOMS: frozenset = frozenset({'UnixFs.Dir.empty_disk_slots_dead', 'UnixFs.Dir.ibv_intro', 'UnixFs.Dir.ibv_elim', 'UnixFs.Content.block_content_eq_intro', 'UnixFs.Content.block_content_eq_elim', 'UnixFs.Dir.establish_uniq', 'UnixFs.Dir.establish_slots_lt32', 'Pycsl.Reference.FieldPred.field_nonneg_intro', 'Pycsl.Reference.FieldPred.field_nonneg_elim'})
     _DEFINITIONAL_AXIOMS: frozenset = frozenset({'UnixFs.Dir.ibv_intro', 'UnixFs.Dir.ibv_elim', 'UnixFs.Content.block_content_eq_intro', 'UnixFs.Content.block_content_eq_elim', 'Pycsl.Reference.FieldPred.field_nonneg_intro', 'Pycsl.Reference.FieldPred.field_nonneg_elim'})
     _AXIOM_FUNCTIONS: Dict[str, List[str]] = {'Pycsl.Reference.Gcd.': ['function gcd (a : int) (b : int) : int'], 'Pycsl.Reference.FieldPred.': ['predicate field_nonneg (x: int)'], 'Pycsl.Strmod.Capwords.': ['val function capwords_def (s: string) : string'], 'UnixFs.Field.': ['val function field_to_str (d: array int) (off: int) (width: int) : string'], 'Pycsl.Reference.Perm.': ['predicate permut (a: array int) (b: array int)'], 'Pycsl.Reference.Perm.rev_permutation': ['val function array_rev (a: array int) : array int'], 'Pycsl.Reference.Json.': ['val function json_mirror (x: json) : json'], 'UnixFs.Bitmap.': ['val function bit_and (x : int) (y : int) : int'], 'UnixFs.Struct.i1a1.': ['val function struct_pack_i1a1 (fmt: int) (x0: int) (x1: array int) : array int\n    ensures { Array.length result = 32 }', 'val function struct_unpack_i1a1 (fmt: int) (data: array int) : (int, array int)'], 'UnixFs.Struct.i2.': ['val function struct_pack_i2 (fmt: int) (x0: int) (x1: int) : array int', 'val function struct_unpack_i2 (fmt: int) (data: array int) : (int, int)'], 'UnixFs.Struct.i18.': ['val function struct_pack_i18 (fmt: int) (x0: int) (x1: int) (x2: int) (x3: int) (x4: int) (x5: int) (x6: int) (x7: int) (x8: int) (x9: int) (x10: int) (x11: int) (x12: int) (x13: int) (x14: int) (x15: int) (x16: int) (x17: int) : array int\n    ensures { Array.length result = 64 }', 'val function struct_unpack_i18 (fmt: int) (data: array int) : (int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int)'], 'UnixFs.Content.': ['function inode_size (disk: array int) (ino: int) : int =\n    disk[512 + ino*64 + 0] * 16777216 + disk[512 + ino*64 + 1] * 65536\n    + disk[512 + ino*64 + 2] * 256 + disk[512 + ino*64 + 3]', 'predicate block_content_eq (d: array int) (blk: int) (data: array int)'], 'UnixFs.Dir.': ['val function slot_inode (disk: array int) (blk: int) (k: int) : int', 'val function slot_name  (disk: array int) (blk: int) (k: int) : string', 'val function dir_lookup (disk: array int) (blk: int) (name: string) : int', 'predicate uniq (d: array int)', 'predicate inode_bytes_valid (d: array int)', 'predicate slots_lt32 (d: array int)', 'predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)', 'predicate dir_scan_result (d: array int) (blk: int) (name: string) (r: int)', 'predicate dir_scan_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)'], 'UnixFs.Dir.dir_find_slot': ['predicate dir_find_slot_result (d: array int) (blk: int) (name: string) (r: int)', 'predicate dir_find_slot_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)'], 'UnixFs.Dir.dir_find_free': ['predicate dir_find_free_result (d: array int) (blk: int) (r: int)', 'predicate dir_find_free_prefix (d: array int) (blk: int) (i: int) (r: int)'], 'UnixFs.Dir.dir_blit_marker_at': ['predicate dir_blit_marker_at (d0 d1: array int) (blk s b0 b1: int) (name: string)']}
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _func_returns_string_seq(func: int) -> bool:
-        return False
+    def _func_returns_string_seq(func: Dict[str, Any]) -> bool:
+        """str-list-elements: does `func` return a seq local whose elements are STRING
+        (`seq_value_types[v] == "string"`)? Such a list is emitted as `array string` and
+        carried through the `Return_seq_str (seq string)` exception."""
+        svt = func.get("seq_value_types", {})
+        if not svt:
+            return False
+        found = [False]
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Return":
+                    v = node.get("value")
+                    if (isinstance(v, dict) and v.get("type") == "Var"
+                            and svt.get(v.get("name")) == "string"):
+                        found[0] = True
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(func.get("body", []))
+        return found[0]
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
