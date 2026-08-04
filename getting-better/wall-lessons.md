@@ -1424,3 +1424,21 @@ Worker (spike-first) found the campaign already landed in the current tree, ledg
 The only SRaise-ADJACENT residual is `_py_stmt_raise` (Module5_IREmitter) — held NOT by the value shape
 (SRaise exists) but by a callee Name-vs-Attribute distinguishability CORRECTNESS boundary (different campaign).
 → campaign (3) resolved COMPLETE; advance to campaign (4) string-parse modeling.
+
+## 2026-08-04 — 96h run, campaign (4) string-parse modeling: CERTIFIED-BOUNDARY (mined out)
+
+Worker measured the whole string-parse frontier. Verdict `no_feasible_candidate`, count unchanged 804.
+CORRECTION to faithful_string_op_project memory: the LIVE emitter (expressions.py:5505-5570) ships MORE than
+P1-P4 — it also has faithful, mutation-sensitive `str_startswith_op`/`str_endswith_op`/`str_find_op` (each with
+a real `(result=1)<->(len prefix<=len s /\ substring s 0 .. = prefix)` ensures). So every whole-body stub
+reachable with existing ops is ALREADY converted (`_clean`, `safe_mutex_name`, `_strip_const_name`, `_short_type`,
+`safe_exc_name`, `_call_returns_string_collection`). The two genuine missing ops that would each unlock >0 bodies
+CANNOT be added within ledger-3:
+- **regex-cursor model** (`_TOKEN_RE.match(s,pos)` / `re.sub`) — no sound WhyML model without heavy machinery;
+  an opaque match is a Gate-C facade. Blocks parse_format/calcsize/_strip_all_parens/_alpha_rename.
+- **`int(str)`/`float(str)` string→numeric parse** — the no-more-int wall; any lowering is an int-hash facade.
+  Blocks _parse_number/calcsize.
+Adding faithful `partition`/char-iteration would unlock NO single whole body (each such stub also needs a
+regex/int-parse op or touches heterogeneous IR-dict/self-state). `stable_hash` = irreducibly opaque sha256
+(not string-parse). `classify` residual membership = the separate collection value-model wall (int-hash facade).
+→ campaign (4) CERTIFIED-BOUNDARY; advance to campaign (5) opaque ast/IO.
