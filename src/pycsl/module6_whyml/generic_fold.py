@@ -14308,6 +14308,215 @@ def emit_func_returns_string_seq_group(func: Dict[str, Any], desc: Dict[str, Any
     return out
 
 
+# ---- `_returns_string_seq` (functions.py FunctionEmissionMixin INSTANCE method):
+# the SELF-STATE sibling of `_func_returns_string_seq`. BYTE-IDENTICAL body EXCEPT two
+# points: (i) `svt` is bound from the SELF field via `getattr(self,"_seq_value_types",{})`
+# (not the param `func.get("seq_value_types",{})`), and (ii) the walk is seeded with the
+# PARAM `body_stmts` DIRECTLY (`rec(body_stmts)`) — the subject is a real list, not
+# `func.get("body",[])`. Both wrappers share the SAME lifted `rec` leaf grammar, so the
+# walk is matched by the SHARED `_recognize_frss_walk`. Self-field modeling = strategy 2
+# (self-dict-as-real-source): `_seq_value_types` becomes an opaque-but-REAL
+# `val <n>__svt (self):pydict` returning a real pydict that is then REALLY walked by the
+# computed-key reader `<P>gsv nm svt` (`pystr_eq`) — NOT an opaque membership set. Strategy
+# 1 (self-as-record) does NOT fit: `FunctionEmissionMixin` is emitted as
+# `type functionemissionmixin = int` (an opaque int alias, no `_seq_value_types` field).
+# Non-facade: every field key and tag literal is reflected structurally from the body (a
+# body change moves the emitted .mlw) and svt is REALLY read cell-by-cell. Fail-closed: any
+# deviation stays `\trusted`. The lifted `rec` sibling is SUPPRESSED. `ensures True`;
+# ledger 3 (reuses the certified pyval/pydict ADT — no new type/axiom/cert).
+
+def _recognize_rss_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_returns_string_seq` wrapper. Like `_func_returns_string_seq`
+    EXCEPT body[0] is `svt = getattr(self,"_seq_value_types",{})` and body[3] is
+    `rec(<param>)` (the bare param Var, not `func.get(...)`). Fail-closed; None on any
+    deviation. Returns {name, param, self_type, svt_v, svt_field, found_v, walker_name}."""
+    nm = func.get("name", "")
+    # name-gate: `_returns_string_seq` but NOT its `_func_returns_string_seq` sibling
+    if not (nm.endswith("_returns_string_seq")
+            and not nm.endswith("_func_returns_string_seq")):
+        return None
+    if func.get("return_annotation") not in ("bool", None):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 5:
+        return None
+    # [0] svt = getattr(self, "_seq_value_types", {})
+    ga = _match_getattr_bind(body[0])
+    if ga is None:
+        return None
+    svt_v, svt_field = ga
+    # [1] if not svt: return False
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "If" and not b1.get("orelse")):
+        return None
+    t1 = b1.get("test") or {}
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp" and t1.get("op") == "not"
+            and _is_var(t1.get("expr"), svt_v)):
+        return None
+    g1 = b1.get("body") or []
+    if not (len(g1) == 1 and isinstance(g1[0], dict) and g1[0].get("stmt") == "Return"
+            and isinstance(g1[0].get("value"), dict)
+            and g1[0]["value"].get("type") == "Bool"
+            and g1[0]["value"].get("value") is False):
+        return None
+    # [2] found = [False]
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Assign"
+            and isinstance(b2.get("value"), dict)
+            and b2["value"].get("type") == "ArrayLit"):
+        return None
+    elts = b2["value"].get("elts") or []
+    if not (len(elts) == 1 and isinstance(elts[0], dict)
+            and elts[0].get("type") == "Bool" and elts[0].get("value") is False):
+        return None
+    found_v = b2.get("target")
+    if not isinstance(found_v, str):
+        return None
+    # [3] rec(body_stmts)  — the bare param Var (subject walked directly)
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Expr"):
+        return None
+    call = b3.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    walker_name = call["func"]
+    cargs = call.get("args") or []
+    if not (len(cargs) == 1 and _is_var(cargs[0], subj_p)):
+        return None
+    # [4] return found[0]
+    b4 = body[4]
+    if not (isinstance(b4, dict) and b4.get("stmt") == "Return"
+            and _clx_match_acc_subscript(b4.get("value"), found_v)):
+        return None
+    return {"name": func.get("name"), "param": subj_p,
+            "self_type": func.get("self_type"), "svt_v": svt_v, "svt_field": svt_field,
+            "found_v": found_v, "walker_name": walker_name}
+
+
+def recognize_returns_string_seq_pairs(functions: List[Dict[str, Any]]
+                                       ) -> Dict[str, Any]:
+    """Pair the `_returns_string_seq` OUTER wrapper with its lifted `rec` sibling (by
+    adjacency). Reuses the SHARED `_recognize_frss_walk` leaf grammar. Returns
+    {"outer_ids": {id(outer): desc}, "walk_ids": {id(walk), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_rss_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and isinstance(wf_name, str)
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_frss_walk(wf, od["svt_v"], od["found_v"], call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"],
+                    "self_type": od["self_type"], "svt_field": od["svt_field"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_returns_string_seq_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                  whyml_ident) -> List[str]:
+    """Emit `_returns_string_seq` as the SAME mutual pyval/pydict/list existence
+    catamorphism as `_func_returns_string_seq`, with two differences: (i) `svt` is sourced
+    from the self-state field `_seq_value_types` via an opaque-but-real
+    `val <n>__svt (self):pydict` (a real pydict, REALLY read by `<P>gsv`), and (ii) the
+    walk is seeded with the PARAM `body_stmts` (a real PList) directly. `ensures True`;
+    ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "functionemissionmixin"
+    sv, tv, mval = desc["stmt_val"], desc["type_val"], desc["svt_match_val"]
+    out: List[str] = []
+    # literal-key readers (typed irkey ctor or the K_dyn guard, per key)
+    out += _emit_skey_reader(f"{P}gstmt", desc["stmt_key"])  # option string
+    out += _emit_pval_reader(f"{P}gval", desc["value_key"])  # option pyval: the value node
+    out += _emit_skey_reader(f"{P}gtype", desc["type_key"])  # option string
+    out += _emit_skey_reader(f"{P}gname", desc["name_key"])  # option string: the var name
+    # dynamic-string-keyed reader over svt: `svt.get(nm)` -> option string (K_dyn keys)
+    out.append(f"  let rec {P}gsv (nm: string) (d: pydict) : option string")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append(f"    | DCons (K_dyn s) (PStr t) rest -> "
+               f"if pystr_eq nm s then Some t else {P}gsv nm rest")
+    out.append(f"    | DCons _ _ rest -> {P}gsv nm rest")
+    out.append("    end")
+    # self-field source (strategy 2): the `_seq_value_types` self-dict as an
+    # opaque-but-REAL pydict — no spec, so an arbitrary real pydict, REALLY read by gsv.
+    out.append(f"  val {P}svt (self: {self_type}) : pydict")
+    # leaf: the `Return <string-typed Var>` discriminant (real svt value read)
+    out.append(f"  let {P}leaf (d: pydict) (svt: pydict) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f'  = (match {P}gstmt d with Some st -> pystr_eq st "{sv}" | None -> false end)')
+    out.append(f"    && (match {P}gval d with")
+    out.append("        | Some (PDict vd) ->")
+    out.append(f'            (match {P}gtype vd with Some ty -> pystr_eq ty "{tv}" '
+               f"| None -> false end)")
+    out.append(f"            && (match {P}gname vd with")
+    out.append(f"                | Some nm -> (match {P}gsv nm svt with "
+               f'Some tvv -> pystr_eq tvv "{mval}" | None -> false end)')
+    out.append("                | None -> false end)")
+    out.append("        | _ -> false end)")
+    # mutual existence fold; svt threaded UNCHANGED and OUT of the variant
+    out.append(f"  let rec {P}v (v: pyval) (svt: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {P}leaf d svt || {P}dfold d svt")
+    out.append(f"    | PList xs -> {P}lfold xs svt")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) (svt: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        {P}v v svt || {P}dfold rest svt end")
+    out.append(f"  with {P}lfold (xs: list pyval) (svt: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> false")
+    out.append(f"    | Cons h t -> {P}v h svt || {P}lfold t svt end")
+    # entry: svt from self-state, then fold the PARAM body list directly
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let svt = {P}svt self in")
+    out.append(f"    match {mv} with")
+    out.append(f"    | PList xs -> {P}lfold xs svt")
+    out.append("    | _ -> false")
+    out.append("    end")
+    return out
+
+
 # ---- `_contract_referenced_names` (ir_resolve.py, boundary-A SET-COLLECT sibling of
 #      `_func_returns_string_seq`): collect every callee name applied inside the
 #      contracts (`requires`/`ensures`) of the injected dependency stubs. Live body:

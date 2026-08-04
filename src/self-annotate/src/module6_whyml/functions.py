@@ -142,12 +142,33 @@ class FunctionEmissionMixin:
              "emit_ir": "emit_ir"}
         return m.get(tag, "int")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _returns_string_seq(self, body_stmts: List[int]) -> bool:
-        return False
+    def _returns_string_seq(self, body_stmts: List[Dict[str, Any]]) -> bool:
+        """str-list-elements: does the function `return` a seq local that was inferred
+        to carry STRING elements (`_seq_value_types[v] == "string"`)? Such a list is
+        emitted as `array string` rather than the default `array int`."""
+        svt = getattr(self, "_seq_value_types", {})
+        if not svt:
+            return False
+        found = [False]
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Return":
+                    v = node.get("value")
+                    if (isinstance(v, dict) and v.get("type") == "Var"
+                            and svt.get(v.get("name")) == "string"):
+                        found[0] = True
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(body_stmts)
+        return found[0]
 
     #@ requires True
     #@ ensures True

@@ -2186,6 +2186,7 @@ class PreambleEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
             recognize_func_returns_string_seq_pairs,
+            recognize_returns_string_seq_pairs,
             recognize_contract_referenced_names_pairs,
             recognize_contract_referenced_var_names_pairs,
             recognize_final_pair, recognize_check_final, recognize_conc_cluster)
@@ -2241,6 +2242,7 @@ class PreambleEmissionMixin:
             recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
             recognize_lemma_string_search_pairs(functions)["outer_ids"]) or bool(
             recognize_func_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
+            recognize_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
@@ -2368,6 +2370,17 @@ class PreambleEmissionMixin:
         _frss = recognize_func_returns_string_seq_pairs(functions)
         self._frss_outer_ids = _frss["outer_ids"]
         self._frss_walk_ids = _frss["walk_ids"]
+        # `_returns_string_seq` (generic_fold.py): the SELF-STATE sibling of
+        # `_func_returns_string_seq` (FunctionEmissionMixin instance method). Same
+        # OUTER+lifted-`rec` adjacency pairing + shared walk grammar, but `svt` is sourced
+        # from the self field `getattr(self,"_seq_value_types",{})` (opaque-but-real
+        # `val <n>__svt (self):pydict`, REALLY read) and the walk is seeded with the PARAM
+        # `body_stmts` directly. The lifted `rec` is SUPPRESSED. Keyed on `id`;
+        # corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_returns_string_seq_pairs
+        _rss = recognize_returns_string_seq_pairs(functions)
+        self._rss_outer_ids = _rss["outer_ids"]
+        self._rss_walk_ids = _rss["walk_ids"]
         # `_contract_referenced_names` (generic_fold.py boundary-A SET-COLLECT): the
         # `Set[str]` sibling of `_func_returns_string_seq` — same OUTER+lifted-`_walk`
         # adjacency pairing, but the accumulator is a returned `map string bool` folded

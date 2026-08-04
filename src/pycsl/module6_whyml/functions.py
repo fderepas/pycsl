@@ -2991,6 +2991,17 @@ class FunctionEmissionMixin:
         if _frss_desc is not None:
             from module6_whyml.generic_fold import emit_func_returns_string_seq_group
             return emit_func_returns_string_seq_group(func, _frss_desc, whyml_ident)
+        # `_returns_string_seq` (generic_fold.py): the SELF-STATE sibling of
+        # `_func_returns_string_seq`. Same catamorphism, but `svt` is sourced from the
+        # self field `_seq_value_types` via an opaque-but-real `val <n>__svt (self):pydict`
+        # and the walk is seeded with the PARAM `body_stmts` directly. The lifted `rec` is
+        # SUPPRESSED. Keyed on `id`; corpus-inert. See generic_fold.py module note.
+        if id(func) in getattr(self, "_rss_walk_ids", set()):
+            return []
+        _rss_desc = getattr(self, "_rss_outer_ids", {}).get(id(func))
+        if _rss_desc is not None:
+            from module6_whyml.generic_fold import emit_returns_string_seq_group
+            return emit_returns_string_seq_group(func, _rss_desc, whyml_ident)
         # `_contract_referenced_names` (generic_fold.py boundary-A SET-COLLECT): the
         # lifted `_walk` sibling is SUPPRESSED; the wrapper emits the certified mutual
         # pyval/pydict/list set-UNION catamorphism (`map string bool`). Keyed on `id`;
