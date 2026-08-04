@@ -1410,3 +1410,17 @@ count unchanged 804. TWO sub-walls, decomposed:
   `compute_sccs` build a set via BFS over an abstract `map string (list/set string)` with no dischargeable
   variant absent a bounded-universe AXIOM → would violate ledger 3. Hard boundary. Plus I/O + stateful-mutation
   residuals. All clean structural collect-walkers already converted. → advance to campaign (3) _check_noreturn/SRaise cert.
+
+## 2026-08-04 — 96h run, campaign (3) _check_noreturn/SRaise cert: ALREADY COMPLETE (no work available)
+
+Worker (spike-first) found the campaign already landed in the current tree, ledger 3:
+- `_check_noreturn` is a VERIFIED body (mirror core_ir_semantic.py:653), landed baaebd51 via pget
+  size-postconditions on the EXISTING pydict theory — it only READS the IR dict, constructs no SRaise,
+  needed NO new value shape and NO cert. The whole noreturn family (551/600/653/705/720/731/761) is verified.
+- The SRaise stmt_ir value shape already exists independently (statements.py:37 `stmt_ir = ... | SRaise string`)
+  with axiom-free co-landing certs already built in BOTH provers: src/formal-semantics/rocq/Phase2d_StmtIR.v
+  ("Closed under the global context, NO axiom, nothing Admitted") + lean/PyCSL/StmtIR.lean (standard kernel
+  axioms only); no Axiom/Admitted/Parameter/sorry/admit in either. Ledger intact at 3.
+The only SRaise-ADJACENT residual is `_py_stmt_raise` (Module5_IREmitter) — held NOT by the value shape
+(SRaise exists) but by a callee Name-vs-Attribute distinguishability CORRECTNESS boundary (different campaign).
+→ campaign (3) resolved COMPLETE; advance to campaign (4) string-parse modeling.
