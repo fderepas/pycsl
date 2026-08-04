@@ -1442,3 +1442,40 @@ Adding faithful `partition`/char-iteration would unlock NO single whole body (ea
 regex/int-parse op or touches heterogeneous IR-dict/self-state). `stable_hash` = irreducibly opaque sha256
 (not string-parse). `classify` residual membership = the separate collection value-model wall (int-hash facade).
 → campaign (4) CERTIFIED-BOUNDARY; advance to campaign (5) opaque ast/IO.
+
+## 2026-08-04 — 96h run, campaign (5) opaque ast/IO modeling: CERTIFIED-BOUNDARY (Gate-C reject on the one candidate)
+
+Worker produced ONE candidate — `import_classifier.any_function_trusted` (raw-ast existence walk) — and
+honestly flagged it borderline. Supervisor ran the evidence-based Gate-C review (emitted WhyML + compared to
+the accepted precedent `_has_dynamic_exec`) and REJECTED it. Count returned 804, WIP reverted.
+
+DECISIVE DISTINCTION (banked, general — the opaque-ast non-vacuity line):
+- `_has_dynamic_exec` (ACCEPTED) descends a REAL modeled pyval: `match v with PDict d | PList xs`, reading
+  REAL accessors (`_gbody`/`_gtype`/`_gfunc` typed-key readers over the real pydict ADT), recursion over REAL
+  size measures (`pv_size`/`size_dict`/`size_list`); only the leaf exec-test rests on real `pystr_eq` string
+  compares. Non-vacuity SATISFIED — the proof establishes correct structural recursion over real modeled data.
+- `any_function_trusted` (REJECTED) has NO pyval model of the raw pure_ast tree, so `ast.walk(tree)` lowered to
+  a FULLY OPAQUE `val __walk (tree:pyval) : list pyval` that MANUFACTURES the list spine; the fold walks that
+  opaque list (`variant {xs}` terminates trivially), and BOTH leaf predicates (`__is_FunctionDef`/
+  `__getattr_csl_trusted`) are opaque `val`s too. Body reads ZERO real accessors; postcondition `ensures true`.
+  The verified skeleton is only "a fold over an opaque list terminates." `__walk`/`__is_`/`__getattr_` ARE the
+  opaque `_get_N`-style primitives Gate-C non-vacuity forbids. Count 804→803 but the TCB does NOT shrink — it
+  relocates from 1 stub into 3 opaque vals. Count-only win → Gate-C REJECT (skill §7 VALUE-not-count).
+
+RULE (carve-out): an opaque-ast/IO conversion is non-vacuous ONLY if the fold descends REAL modeled structure
+(real pyval constructors + real accessors, like _has_dynamic_exec) OR the postcondition constrains a real result
+(e.g. a StrSet the body builds with size bounds). A raw-ast tree with NO pyval model yields an all-opaque
+skeleton (opaque walk + opaque leaves + ensures true) = facade, stays \trusted. The residual ast/IO stubs
+(`collect_imports`/`check_imports`/`_stub_set`/`audit_proof._parse_*`/`_index_proofs_dir`) share this
+opaque-external-primitive root PLUS heavier obstacles (tuple/List construction over node reads, filesystem
+iterdir+path .stem/.suffix, unmodeled read_text() string parse, caller-coupling to verified classify) → boundary.
+
+=== ALL 5 AUTHORIZED CAMPAIGNS RESOLVED (2026-08-04 96h run) ===
+(1) Wall-2 .items()/.values() iterator model — CERTIFIED-BOUNDARY (recognizer frontier exhausted; residual root
+    = nested-def closure = boundary A, multi-session).
+(2) string-keyed-set κ-inference — CERTIFIED-BOUNDARY (module-const κ-gap BROKEN+mined out; worklist-BFS needs a
+    bounded-universe axiom = ledger-3 boundary).
+(3) cert (_check_noreturn/SRaise) — ALREADY COMPLETE (landed baaebd51 + Phase2d_StmtIR axiom-free certs, ledger 3).
+(4) string-parse modeling — CERTIFIED-BOUNDARY (str-op lib mined out; regex-cursor + int(str) parse both facades).
+(5) opaque ast/IO modeling — CERTIFIED-BOUNDARY (only candidate is an all-opaque vacuous skeleton, Gate-C reject).
+Count 804, ledger 3. Autonomous frontier at confirmed floor for this run — hold, do not spin.
