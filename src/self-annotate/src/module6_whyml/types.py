@@ -336,12 +336,42 @@ class TypeInferenceMixin:
     def _collect_struct_unpack_array_targets(self, stmts: List[int]) -> int:
         return set()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_struct_pack_assign_targets(self, stmts: List[int]) -> int:
-        return set()
+    def _collect_struct_pack_assign_targets(
+            self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Plain `X = struct.pack(fmt, ...)` assign targets — receive
+        an `array int` from struct.pack and must be pre-declared as
+        `ref (Array.make 0 0)`. Unlike the tuple-unpack-target case
+        these ARE hoisted (single-shot bindings used later in the
+        function body, typically outside any loop).
+        """
+        from module6_whyml.struct_format import parse_format
+
+        def _scan(stmts: List[Dict[str, Any]]) -> Set[str]:
+            found: Set[str] = set()
+            for s in stmts:
+                if s.get("stmt") == "Assign":
+                    val = s.get("value", {})
+                    if (isinstance(val, dict)
+                            and val.get("type") == "Call"
+                            and val.get("func", "") == "struct.pack"):
+                        fmt_arg = (val.get("args") or [{}])[0]
+                        if (fmt_arg.get("type") == "String"
+                                and parse_format(fmt_arg.get("value", "")) is not None):
+                            tgt = s.get("target", "")
+                            if tgt:
+                                found.add(tgt)
+                for k in ("body", "orelse"):
+                    if k in s:
+                        found |= _scan(s[k])
+                if s.get("stmt") == "Try":
+                    for h in s.get("handlers", []):
+                        found |= _scan(h.get("body", []))
+            return found
+
+        return _scan(stmts)
 
     #@ requires True
     #@ ensures True

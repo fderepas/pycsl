@@ -2187,6 +2187,7 @@ class PreambleEmissionMixin:
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
             recognize_func_returns_string_seq_pairs,
             recognize_returns_string_seq_pairs,
+            recognize_struct_pack_targets_pairs,
             recognize_contract_referenced_names_pairs,
             recognize_contract_referenced_var_names_pairs,
             recognize_final_pair, recognize_check_final, recognize_conc_cluster)
@@ -2243,6 +2244,7 @@ class PreambleEmissionMixin:
             recognize_lemma_string_search_pairs(functions)["outer_ids"]) or bool(
             recognize_func_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
             recognize_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
+            recognize_struct_pack_targets_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
@@ -2381,6 +2383,17 @@ class PreambleEmissionMixin:
         _rss = recognize_returns_string_seq_pairs(functions)
         self._rss_outer_ids = _rss["outer_ids"]
         self._rss_walk_ids = _rss["walk_ids"]
+        # `_collect_struct_pack_assign_targets` (generic_fold.py boundary-A SET-COLLECT):
+        # the self-free `Set[str]` collector of `X = struct.pack(fmt, …)` assign targets —
+        # same OUTER+lifted-`_scan` adjacency pairing, ref-accumulator `map string bool`.
+        # The REAL `struct.pack` func + `target` are read off the pydict; only
+        # `parse_format(fmt)!=None` is opaque. The lifted `_scan` is SUPPRESSED. Keyed on
+        # `id`; corpus-inert (self-annotate-mirror-only; sole caller `_emit_body_code` is
+        # `\trusted`, so the returned set never crosses into a converted caller).
+        from module6_whyml.generic_fold import recognize_struct_pack_targets_pairs
+        _spat = recognize_struct_pack_targets_pairs(functions)
+        self._spat_outer_ids = _spat["outer_ids"]
+        self._spat_walk_ids = _spat["walk_ids"]
         # `_contract_referenced_names` (generic_fold.py boundary-A SET-COLLECT): the
         # `Set[str]` sibling of `_func_returns_string_seq` — same OUTER+lifted-`_walk`
         # adjacency pairing, but the accumulator is a returned `map string bool` folded

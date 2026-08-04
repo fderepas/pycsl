@@ -3002,6 +3002,18 @@ class FunctionEmissionMixin:
         if _rss_desc is not None:
             from module6_whyml.generic_fold import emit_returns_string_seq_group
             return emit_returns_string_seq_group(func, _rss_desc, whyml_ident)
+        # `_collect_struct_pack_assign_targets` (generic_fold.py boundary-A SET-COLLECT):
+        # the lifted `_scan` sibling is SUPPRESSED; the wrapper emits the ref-accumulator
+        # `map string bool` fold that reads the REAL `struct.pack` func + `target` off the
+        # pydict and set_adds the target (only `parse_format(fmt)!=None` is opaque). The
+        # sole caller `_emit_body_code` is `\trusted` → coupling-free. Keyed on `id`;
+        # corpus-inert. See generic_fold.py module note.
+        if id(func) in getattr(self, "_spat_walk_ids", set()):
+            return []
+        _spat_desc = getattr(self, "_spat_outer_ids", {}).get(id(func))
+        if _spat_desc is not None:
+            from module6_whyml.generic_fold import emit_struct_pack_targets_group
+            return emit_struct_pack_targets_group(func, _spat_desc, whyml_ident)
         # `_contract_referenced_names` (generic_fold.py boundary-A SET-COLLECT): the
         # lifted `_walk` sibling is SUPPRESSED; the wrapper emits the certified mutual
         # pyval/pydict/list set-UNION catamorphism (`map string bool`). Keyed on `id`;

@@ -14517,6 +14517,347 @@ def emit_returns_string_seq_group(func: Dict[str, Any], desc: Dict[str, Any],
     return out
 
 
+# ---- `_collect_struct_pack_assign_targets` (types.py TypeInferenceMixin INSTANCE method,
+#      boundary-A SET-COLLECT, self-free): collect the assign TARGET of every
+#      `X = struct.pack(fmt, ...)` whose format string parses. Live body:
+#        return _scan(stmts)     with the lifted `_scan`:
+#        found = set()
+#        for s in stmts:
+#          if s.get("stmt") == "Assign":
+#            val = s.get("value", {})
+#            if isinstance(val,dict) and val.get("type")=="Call" and val.get("func","")=="struct.pack":
+#              fmt_arg = (val.get("args") or [{}])[0]
+#              if fmt_arg.get("type")=="String" and parse_format(fmt_arg.get("value",""))!=None:
+#                tgt = s.get("target","");
+#                if tgt: found.add(tgt)
+#          for k in ("body","orelse"):
+#            if k in s: found |= _scan(s[k])
+#          if s.get("stmt")=="Try":
+#            for h in s.get("handlers",[]): found |= _scan(h.get("body",[]))
+#        return found
+#      The OUTER delegates to the lifted `_scan` (SUPPRESSED). The wrapper emits a
+#      REF-accumulator (map string bool) fold: the REAL `struct.pack` func-literal and the
+#      REAL `target` are read off the pydict; only the `parse_format(fmt)!=None`
+#      format-validity check is an OPAQUE-but-sound over-approximation (`val <n>__pf_ok
+#      (v:pyval):bool`, the `_test_contains_map` opaque-predicate device). Non-facade:
+#      the stmt/type/func/target key+tag literals are reflected structurally from the body
+#      (mutation-sensitive), and the REAL target set-add is the anti-vacuity signal.
+#      Coupling-free: the sole caller `_emit_body_code` is a `\trusted` stub (its call is
+#      not emitted, so the returned `map string bool` never crosses into a converted
+#      caller). `set_add`/`const` come free with the pydict theory (needs_pydict). The
+#      lifted `_scan` is SUPPRESSED. Keyed on `id`; corpus-inert (name-gated). Ledger 3.
+
+def _spat_find_add_var(node: Any, acc: str) -> Optional[str]:
+    """The single Var name passed to `<acc>.add(<var>)` anywhere in `node`, else None."""
+    if isinstance(node, dict):
+        if (node.get("type") == "Call" and node.get("func") == f"{acc}.add"):
+            a = node.get("args") or []
+            if len(a) == 1 and isinstance(a[0], dict) and a[0].get("type") == "Var":
+                return a[0].get("name")
+        for v in node.values():
+            r = _spat_find_add_var(v, acc)
+            if r:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _spat_find_add_var(x, acc)
+            if r:
+                return r
+    return None
+
+
+def _spat_find_binding_key(node: Any, var: str, recv: str) -> Optional[str]:
+    """The literal key of the `<var> = <recv>.get("<k>"[, d])` Assign inside `node`."""
+    if isinstance(node, dict):
+        if (node.get("stmt") == "Assign" and node.get("target") == var):
+            return _frss_dotget_key(node.get("value"), recv)
+        for v in node.values():
+            r = _spat_find_binding_key(v, var, recv)
+            if r:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _spat_find_binding_key(x, var, recv)
+            if r:
+                return r
+    return None
+
+
+def _recognize_spat_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_collect_struct_pack_assign_targets` wrapper `return _scan(stmts)`.
+    Fail-closed. Returns {name, param, self_type, walker_name}."""
+    if not func.get("name", "").endswith("_collect_struct_pack_assign_targets"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    stmts_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Return"):
+        return None
+    call = b0.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    cargs = call.get("args") or []
+    if not (len(cargs) == 1 and _is_var(cargs[0], stmts_p)):
+        return None
+    return {"name": func.get("name"), "param": stmts_p,
+            "self_type": func.get("self_type"), "walker_name": call["func"]}
+
+
+def _recognize_spat_scan(walkfunc: Dict[str, Any],
+                         call_names: "set") -> Optional[Dict[str, Any]]:
+    """Match the lifted `_scan(stmts)` set-collect and extract the leaf discriminant
+    literals. Fail-closed. Returns the key/tag dict (stmt/value/type/func/target keys +
+    Assign/Call/struct.pack tags)."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    items_p = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 3:
+        return None
+    b0, forst, ret = body
+    # [0] found = set()
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    acc = b0.get("target")
+    iv = b0.get("value") or {}
+    if not (isinstance(acc, str) and isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    # [2] return found
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and _is_var(ret.get("value"), acc)):
+        return None
+    # [1] for s in stmts:
+    if not (isinstance(forst, dict) and forst.get("stmt") == "For"
+            and _is_var(forst.get("iter"), items_p)):
+        return None
+    sv = forst.get("target")
+    fb = forst.get("body") or []
+    if not (isinstance(sv, str) and fb):
+        return None
+    # fb[0]: if s.get("<stmt_key>") == "<assign_tag>": [val = s.get(..), if <pack-guard>: ..]
+    ag = fb[0]
+    if not (isinstance(ag, dict) and ag.get("stmt") == "If"):
+        return None
+    agt = ag.get("test") or {}
+    if not (isinstance(agt, dict) and agt.get("type") == "BinOp" and agt.get("op") == "=="):
+        return None
+    stmt_key = _frss_dotget_key(agt.get("left"), sv)
+    assign_tag = _clean_lit(_is_string(agt.get("right")))
+    if stmt_key is None or assign_tag is None:
+        return None
+    g = ag.get("body") or []
+    if len(g) != 2:
+        return None
+    g0, g1 = g
+    # g0: val = s.get("<value_key>", {})
+    if not (isinstance(g0, dict) and g0.get("stmt") == "Assign"):
+        return None
+    valvar = g0.get("target")
+    value_key = _frss_dotget_key(g0.get("value"), sv)
+    if not (isinstance(valvar, str) and value_key is not None):
+        return None
+    # g1: if (isinstance(val,dict) and val.get("<type_key>")=="<call_tag>")
+    #        and val.get("<func_key>","")=="<pack_func>": ...
+    if not (isinstance(g1, dict) and g1.get("stmt") == "If"):
+        return None
+    gt = g1.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"):
+        return None
+    left = gt.get("left") or {}
+    right = gt.get("right") or {}
+    # right: val.get("<func_key>") == "<pack_func>"
+    if not (isinstance(right, dict) and right.get("type") == "BinOp" and right.get("op") == "=="):
+        return None
+    func_key = _frss_dotget_key(right.get("left"), valvar)
+    pack_func = _clean_lit(_is_string(right.get("right")))
+    if func_key is None or pack_func is None:
+        return None
+    # left: isinstance(val, dict) and val.get("<type_key>") == "<call_tag>"
+    if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "and"):
+        return None
+    if not _match_isinstance(left.get("left"), valvar, "dict"):
+        return None
+    tycmp = left.get("right") or {}
+    if not (isinstance(tycmp, dict) and tycmp.get("type") == "BinOp" and tycmp.get("op") == "=="):
+        return None
+    type_key = _frss_dotget_key(tycmp.get("left"), valvar)
+    call_tag = _clean_lit(_is_string(tycmp.get("right")))
+    if type_key is None or call_tag is None:
+        return None
+    # anti-facade: inside g1 there is `found.add(<tgt>)` where `tgt = s.get("<target_key>")`
+    add_var = _spat_find_add_var(g1.get("body") or [], acc)
+    if add_var is None:
+        return None
+    target_key = _spat_find_binding_key(g1.get("body") or [], add_var, sv)
+    if target_key is None:
+        return None
+    # recursion keys must be present (fail-closed on a wholesale walk mutation); the
+    # lifted `_scan` self-call name must appear (a real recursive descent, not a stub).
+    strings = set(_all_strings(fb))
+    if not {"body", "orelse", "handlers"}.issubset(strings):
+        return None
+    if _find_self_call_name(fb, "") is None and not call_names:
+        return None
+    return {"stmt_key": stmt_key, "assign_tag": assign_tag, "value_key": value_key,
+            "type_key": type_key, "call_tag": call_tag, "func_key": func_key,
+            "pack_func": pack_func, "target_key": target_key,
+            "body_key": "body", "orelse_key": "orelse", "handlers_key": "handlers"}
+
+
+def recognize_struct_pack_targets_pairs(functions: List[Dict[str, Any]]
+                                        ) -> Dict[str, Any]:
+    """Pair the `_collect_struct_pack_assign_targets` OUTER wrapper with its lifted
+    `_scan` sibling (by adjacency). Returns {"outer_ids": {id(outer): desc}, "walk_ids":
+    {id(walk), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_spat_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and isinstance(wf_name, str)
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            try:
+                leaf = _recognize_spat_scan(wf, {wn, wf_name})
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"],
+                    "self_type": od["self_type"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_struct_pack_targets_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                   whyml_ident) -> List[str]:
+    """Emit `_collect_struct_pack_assign_targets` as a REF-accumulator (map string bool)
+    set-collect over the pyval stmt list: the REAL `struct.pack` func-literal and the REAL
+    `target` are read off the pydict (mutation-sensitive), and only the format-validity
+    (`parse_format(fmt)!=None`) is an opaque-but-sound `val <n>__pf_ok (v:pyval):bool`.
+    Body/orelse/handlers recursion reuses the `find_assigned_vars` typed list readers with
+    the `size_pos`/`size_dict_nonneg` termination pins. `ensures True`; ledger 3 (no new
+    type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "typeinferencemixin"
+    at = desc["assign_tag"]
+    ct = desc["call_tag"]
+    pf = desc["pack_func"]
+    acc_ty = "ref (map string bool)"
+    out: List[str] = []
+    # opaque format-validity over-approximation (sound under ensures-True; input-dependent)
+    out.append(f"  val {P}pf_ok (v: pyval) : bool")
+    # literal-key readers (typed irkey ctor or K_dyn guard, reflected per key)
+    out += _emit_skey_reader(f"{P}gstmt", desc["stmt_key"])   # "stmt" (K_dyn)
+    out += _emit_skey_reader(f"{P}gtgt", desc["target_key"])  # "target" (K_target)
+    out += _emit_pval_reader(f"{P}gval", desc["value_key"])   # "value" (K_value): the call node
+    out += _emit_skey_reader(f"{P}gtype", desc["type_key"])   # "type" (K_type)
+    out += _emit_skey_reader(f"{P}gfunc", desc["func_key"])   # "func" (K_func)
+
+    def _list_reader(rname: str, key: str) -> None:
+        # SPLIT into the proven `pget_dyn`/`pget_list` shape: a recursive option-returning
+        # key SEARCH whose OWN VC carries the `pv_size v <= size_dict d` bound, plus a tiny
+        # NON-recursive composer that projects the `PList`. This isolates the recursive
+        # size measures (and, on the K_dyn path, the `pystr_eq` string theory) inside the
+        # search function's self-contained VC, so the list-reader's `size_list result <=
+        # size_dict d` postcondition is a one-step consequence of the search postcondition
+        # instead of an E-matching blow-up over the whole nested match (the Lhandlers
+        # 30M-step timeout). Mirrors the already-proven `pget_dyn`+`pget_list` pair.
+        gname = f"{rname}_g"
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {gname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {gname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {gname} rest")
+        out.append("    end")
+        out.append(f"  let {rname} (d: pydict) : list pyval")
+        out.append("    ensures { size_list result <= size_dict d }")
+        out.append(f"  = match {gname} d with Some (PList xs) -> xs | _ -> Nil end")
+
+    _list_reader(f"{P}Lbody", desc["body_key"])
+    _list_reader(f"{P}Lorelse", desc["orelse_key"])
+    _list_reader(f"{P}Lhandlers", desc["handlers_key"])
+    # main mutual fold + handler-list sub-fold on the SHARED acc
+    out.append(f"  let rec {P}f (items: list pyval) (acc: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { size_list items }")
+    out.append("  = match items with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons s rest ->")
+    out.append("        (match s with")
+    out.append("         | PDict d ->")
+    out.append(f'             (match {P}gstmt d with')
+    out.append(f'              | Some tag -> if pystr_eq tag "{at}" then')
+    out.append(f"                  (match {P}gval d with")
+    out.append("                   | Some vv ->")
+    out.append("                       (match vv with")
+    out.append("                        | PDict vd ->")
+    out.append(f'                            let is_call = (match {P}gtype vd with Some t -> pystr_eq t "{ct}" | None -> false end) in')
+    out.append(f'                            let is_pack = (match {P}gfunc vd with Some fn -> pystr_eq fn "{pf}" | None -> false end) in')
+    out.append(f"                            if is_call && is_pack && {P}pf_ok vv then")
+    out.append(f"                              (match {P}gtgt d with Some t -> acc := set_add !acc t | None -> () end)")
+    out.append("                            else ()")
+    out.append("                        | _ -> () end)")
+    out.append("                   | None -> () end)")
+    out.append("                else ()")
+    out.append("              | None -> () end);")
+    out.append(f"             {P}f ({P}Lbody d) acc;")
+    out.append(f"             {P}f ({P}Lorelse d) acc;")
+    out.append(f"             {P}hf ({P}Lhandlers d) acc")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}f rest acc")
+    out.append("    end")
+    out.append(f"  with {P}hf (hs: list pyval) (acc: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { size_list hs }")
+    out.append("  = match hs with Nil -> ()")
+    out.append(f'    | Cons h rest -> (match h with PDict hd -> {P}f ({P}Lbody hd) acc | _ -> () end); {P}hf rest acc end')
+    # entry: self ignored (parse_format is a module function, modeled opaque); fold the
+    # PARAM stmt list (a real PList) directly.
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let acc = ref (const false) in")
+    out.append(f"    (match {mv} with PList xs -> {P}f xs acc | _ -> () end);")
+    out.append("    !acc")
+    return out
+
+
 # ---- `_contract_referenced_names` (ir_resolve.py, boundary-A SET-COLLECT sibling of
 #      `_func_returns_string_seq`): collect every callee name applied inside the
 #      contracts (`requires`/`ensures`) of the injected dependency stubs. Live body:
