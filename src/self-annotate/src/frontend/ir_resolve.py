@@ -82,12 +82,31 @@ def _contract_referenced_var_names(dep_funcs: List[int]) -> int:
 def _find_record_type_from_dep_imports(rec_name: str, dep_file: str, cache: int, deep: bool, processing_set: int) -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _contract_referenced_names(dep_funcs: List[int]) -> int:
-    return set()
+def _contract_referenced_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
+    """Collect every callee name applied inside the contracts (`requires`/`ensures`)
+    of the injected dependency stubs. Used by 11-0632-spec-8 Part 1 to scope inductive
+    propagation to predicate names the public contracts actually reference (so unrelated
+    internal predicates do not cross the import boundary)."""
+    referenced: Set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == "Call" and isinstance(node.get("func"), str):
+                referenced.add(node["func"])
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                _walk(v)
+
+    for func in dep_funcs:
+        contracts = func.get("contracts", {}) or {}
+        _walk(contracts.get("requires", []))
+        _walk(contracts.get("ensures", []))
+    return referenced
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

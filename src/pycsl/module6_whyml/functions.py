@@ -2991,6 +2991,16 @@ class FunctionEmissionMixin:
         if _frss_desc is not None:
             from module6_whyml.generic_fold import emit_func_returns_string_seq_group
             return emit_func_returns_string_seq_group(func, _frss_desc, whyml_ident)
+        # `_contract_referenced_names` (generic_fold.py boundary-A SET-COLLECT): the
+        # lifted `_walk` sibling is SUPPRESSED; the wrapper emits the certified mutual
+        # pyval/pydict/list set-UNION catamorphism (`map string bool`). Keyed on `id`;
+        # corpus-inert. See generic_fold.py module note.
+        if id(func) in getattr(self, "_crn_walk_ids", set()):
+            return []
+        _crn_desc = getattr(self, "_crn_outer_ids", {}).get(id(func))
+        if _crn_desc is not None:
+            from module6_whyml.generic_fold import emit_contract_referenced_names_group
+            return emit_contract_referenced_names_group(func, _crn_desc, whyml_ident)
         # STRING first-match SEARCH closure (`_lemma_calls_trusted`): the lifted
         # `walk` sibling is SUPPRESSED; the wrapper emits the certified first-match
         # search catamorphism (`option string`, `map string bool` set-param

@@ -14308,6 +14308,331 @@ def emit_func_returns_string_seq_group(func: Dict[str, Any], desc: Dict[str, Any
     return out
 
 
+# ---- `_contract_referenced_names` (ir_resolve.py, boundary-A SET-COLLECT sibling of
+#      `_func_returns_string_seq`): collect every callee name applied inside the
+#      contracts (`requires`/`ensures`) of the injected dependency stubs. Live body:
+#        referenced: Set[str] = set()
+#        def _walk(node):
+#          if isinstance(node, dict):
+#            if node.get("type") == "Call" and isinstance(node.get("func"), str):
+#              referenced.add(node["func"])
+#            for v in node.values(): _walk(v)
+#          elif isinstance(node, (list, tuple)):
+#            for v in node: _walk(v)
+#        for func in dep_funcs:
+#          contracts = func.get("contracts", {}) or {}
+#          _walk(contracts.get("requires", [])); _walk(contracts.get("ensures", []))
+#        return referenced
+#      Same OUTER+lifted-`_walk` adjacency pairing as `_func_returns_string_seq`, but the
+#      accumulator is a `Set[str]` (returned `map string bool`), not a `found=[False]`
+#      bool. The wrapper emits a mutual `pyval`/`pydict`/`list pyval` set-UNION
+#      catamorphism (`set_union` in place of `||`, `const false` the empty base) whose
+#      leaf reads the REAL `node["func"]` string off the real PDict and `set_add`s it
+#      (`isinstance(...,str)` -> `Some (PStr s)`); the OUTER folds `dep_funcs`, reading
+#      each func's `contracts` sub-dict and unioning the walk of its `requires`/`ensures`
+#      lists. Non-facade (tags/keys read off the body, mutation-sensitive; the set-add of
+#      the real func string is the anti-vacuity signal). `set_add`/`set_union`/`const`
+#      come free with the pydict theory (needs_pydict). The lifted `_walk` is SUPPRESSED.
+#      Keyed on `id`; corpus-inert (name-gated `_contract_referenced_names`). Ledger 3.
+
+def _match_isinstance_tuple(test: Any, subj: str, classes: Tuple[str, ...]) -> bool:
+    """`isinstance(<subj>, (<c0>, <c1>, ...))` — isinstance whose second arg is a
+    literal Tuple of bare class-name Vars, matched positionally against `classes`."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return False
+    args = test.get("args") or []
+    if len(args) != 2 or not _is_var(args[0], subj):
+        return False
+    tup = args[1]
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return False
+    elts = tup.get("elts") or []
+    names = [e.get("name") for e in elts
+             if isinstance(e, dict) and e.get("type") == "Var"]
+    return tuple(names) == tuple(classes)
+
+
+def _recognize_crn_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_contract_referenced_names` wrapper. Fail-closed; None on any
+    deviation. Returns {name, param, acc, contracts_key, requires_key, ensures_key,
+    walker_name}."""
+    if not func.get("name", "").endswith("_contract_referenced_names"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    dep_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    b0, b1, b2 = body
+    # [0] referenced = set()
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    acc = b0.get("target")
+    iv = b0.get("value") or {}
+    if not (isinstance(acc, str) and isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    # [2] return referenced
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Return"
+            and _is_var(b2.get("value"), acc)):
+        return None
+    # [1] for func in dep_funcs: contracts = func.get("<ck>",{}) or {};
+    #     _walk(contracts.get("<rk>",[])); _walk(contracts.get("<ek>",[]))
+    if not (isinstance(b1, dict) and b1.get("stmt") == "For"
+            and _is_var(b1.get("iter"), dep_p)):
+        return None
+    lv = b1.get("target")
+    if not isinstance(lv, str):
+        return None
+    fb = b1.get("body") or []
+    if len(fb) != 3:
+        return None
+    fa, fw1, fw2 = fb
+    # contracts = func.get("<ck>", {}) or {}
+    if not (isinstance(fa, dict) and fa.get("stmt") == "Assign"):
+        return None
+    cvar = fa.get("target")
+    orexpr = fa.get("value") or {}
+    if not (isinstance(cvar, str) and isinstance(orexpr, dict)
+            and orexpr.get("type") == "BinOp" and orexpr.get("op") == "or"):
+        return None
+    contracts_key = _frss_dotget_key(orexpr.get("left"), lv)
+    if contracts_key is None:
+        return None
+
+    def _walkcall_key(stmt: Any):
+        if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+            return None, None
+        call = stmt.get("value") or {}
+        if not (isinstance(call, dict) and call.get("type") == "Call"
+                and isinstance(call.get("func"), str)):
+            return None, None
+        cargs = call.get("args") or []
+        if len(cargs) != 1:
+            return None, None
+        return call["func"], _frss_dotget_key(cargs[0], cvar)
+
+    wn1, rk = _walkcall_key(fw1)
+    wn2, ek = _walkcall_key(fw2)
+    if rk is None or ek is None or wn1 is None or wn1 != wn2:
+        return None
+    return {"name": func.get("name"), "param": dep_p, "acc": acc,
+            "contracts_key": contracts_key, "requires_key": rk,
+            "ensures_key": ek, "walker_name": wn1}
+
+
+def _recognize_crn_walk(walkfunc: Dict[str, Any], acc: str,
+                        call_names: "set") -> Optional[Dict[str, Any]]:
+    """Match the lifted `_walk(node)` set-collect walk and extract the leaf
+    discriminant literals. Fail-closed. Returns {type_key, type_val, func_key}."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 1:
+        return None
+    top = body[0]
+    if not (isinstance(top, dict) and top.get("stmt") == "If"
+            and _match_isinstance(top.get("test"), node, "dict")):
+        return None
+    darm = top.get("body") or []
+    if len(darm) != 2:
+        return None
+    # darm[0]: if node.get("<tk>")=="<tv>" and isinstance(node.get("<fk>"),str):
+    #              referenced.add(node["<fk>"])
+    g = darm[0]
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        return None
+    gt = g.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"):
+        return None
+    left = gt.get("left") or {}
+    right = gt.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "=="):
+        return None
+    type_key = _frss_dotget_key(left.get("left"), node)
+    type_val = _clean_lit(_is_string(left.get("right")))
+    if type_key is None or type_val is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "Call"
+            and right.get("func") == "isinstance"):
+        return None
+    rargs = right.get("args") or []
+    if len(rargs) != 2 or not _is_var(rargs[1], "str"):
+        return None
+    func_key = _frss_dotget_key(rargs[0], node)
+    if func_key is None:
+        return None
+    # anti-facade: the guard body set_adds the REAL subscript read node["<fk>"]
+    gb = g.get("body") or []
+    if len(gb) != 1:
+        return None
+    addst = gb[0]
+    if not (isinstance(addst, dict) and addst.get("stmt") == "Expr"):
+        return None
+    addcall = addst.get("value") or {}
+    if not (isinstance(addcall, dict) and addcall.get("type") == "Call"
+            and addcall.get("func") == f"{acc}.add"):
+        return None
+    aargs = addcall.get("args") or []
+    if len(aargs) != 1:
+        return None
+    sub = aargs[0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), node)
+            and _clean_lit(_is_string(sub.get("index"))) == func_key):
+        return None
+    # darm[1]: for x in node.values(): _walk(x)
+    def _values_iter(it: Any) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{node}.values" and not it.get("args"))
+
+    if not _frss_iter_selfcall(darm[1], call_names, node, _values_iter):
+        return None
+    # orelse: elif isinstance(node, (list, tuple)): for x in node: _walk(x)
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    lif2 = orelse[0]
+    if not (isinstance(lif2, dict) and lif2.get("stmt") == "If"
+            and not lif2.get("orelse")
+            and _match_isinstance_tuple(lif2.get("test"), node, ("list", "tuple"))):
+        return None
+    lb = lif2.get("body") or []
+    if len(lb) != 1:
+        return None
+    if not _frss_iter_selfcall(lb[0], call_names, node, lambda it: _is_var(it, node)):
+        return None
+    return {"type_key": type_key, "type_val": type_val, "func_key": func_key}
+
+
+def recognize_contract_referenced_names_pairs(functions: List[Dict[str, Any]]
+                                              ) -> Dict[str, Any]:
+    """Pair the `_contract_referenced_names` OUTER wrapper with its lifted `_walk`
+    sibling (by adjacency). Returns {"outer_ids": {id(outer): desc}, "walk_ids":
+    {id(walk), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_crn_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and wf_name is not None
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_crn_walk(wf, od["acc"], call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"],
+                    "contracts_key": od["contracts_key"],
+                    "requires_key": od["requires_key"],
+                    "ensures_key": od["ensures_key"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_contract_referenced_names_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                         whyml_ident) -> List[str]:
+    """Emit `_contract_referenced_names` as a mutual `pyval`/`pydict`/`list pyval`
+    set-UNION catamorphism (the `_func_returns_string_seq` skeleton with `set_union`
+    for `||`, `const false` the empty base, `map string bool` the result). The leaf
+    reads the real `node["func"]` string and `set_add`s it when `type=="Call"`; the
+    OUTER folds `dep_funcs`, unioning the walk of each func's `contracts`'
+    `requires`/`ensures` lists. `ensures True`; ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    tk, tv, fk = desc["type_key"], desc["type_val"], desc["func_key"]
+    ck, rk, ek = desc["contracts_key"], desc["requires_key"], desc["ensures_key"]
+    out: List[str] = []
+    # literal-key readers
+    out += _emit_skey_reader(f"{P}gtype", tk)       # option string: node["type"]
+    out += _emit_pval_reader(f"{P}gfunc", fk)       # option pyval: node["func"]
+    out += _emit_pval_reader(f"{P}gcontracts", ck)  # option pyval: func["contracts"]
+    out += _emit_pval_reader(f"{P}grequires", rk)   # option pyval: contracts["requires"]
+    out += _emit_pval_reader(f"{P}gensures", ek)    # option pyval: contracts["ensures"]
+    # leaf: set_add node["func"] when type=="Call" and func is a string
+    out.append(f"  let {P}leaf (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {P}gtype d with")
+    out.append(f'    | Some ty -> if pystr_eq ty "{tv}" then')
+    out.append(f"                   (match {P}gfunc d with "
+               "Some (PStr s) -> set_add (const false) s | _ -> const false end)")
+    out.append("                 else const false")
+    out.append("    | None -> const false end")
+    # mutual set-union existence catamorphism over the pyval spine
+    out.append(f"  let rec {P}v (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> set_union ({P}leaf d) ({P}dfold d)")
+    out.append(f"    | PList xs -> {P}lfold xs")
+    out.append("    | _ -> const false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        set_union ({P}v v) ({P}dfold rest) end")
+    out.append(f"  with {P}lfold (xs: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({P}v h) ({P}lfold t) end")
+    # per-func: read the contracts sub-dict, union the walk of requires + ensures
+    out.append(f"  let {P}perfunc (f: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match f with")
+    out.append("    | PDict fd ->")
+    out.append(f"        (match {P}gcontracts fd with")
+    out.append("         | Some (PDict cd) ->")
+    out.append("             set_union")
+    out.append(f"               (match {P}grequires cd with "
+               f"Some (PList rs) -> {P}lfold rs | _ -> const false end)")
+    out.append(f"               (match {P}gensures cd with "
+               f"Some (PList es) -> {P}lfold es | _ -> const false end)")
+    out.append("         | _ -> const false end)")
+    out.append("    | _ -> const false end")
+    # fold over the dep_funcs list
+    out.append(f"  let rec {P}ffold (fs: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list fs }")
+    out.append("  = match fs with Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({P}perfunc h) ({P}ffold t) end")
+    # entry: fold dep_funcs
+    out.append(f"  let {n} ({mv}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {mv} with PList fs -> {P}ffold fs | _ -> const false end")
+    return out
+
+
 # ---- `_method_edges` (ir_inline): outgoing method-call edges of a function -----------
 # Live body (a `_walk_dicts(func.get("body"))` fold building a Set[str]):
 #   out = set()

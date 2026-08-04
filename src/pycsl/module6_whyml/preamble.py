@@ -2185,6 +2185,7 @@ class PreambleEmissionMixin:
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
             recognize_func_returns_string_seq_pairs,
+            recognize_contract_referenced_names_pairs,
             recognize_final_pair, recognize_check_final, recognize_conc_cluster)
         # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
         # / lock-order protected-access walk {_check_concurrency,
@@ -2237,7 +2238,8 @@ class PreambleEmissionMixin:
             or (self._union_cluster is not None) or bool(
             recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
             recognize_lemma_string_search_pairs(functions)["outer_ids"]) or bool(
-            recognize_func_returns_string_seq_pairs(functions)["outer_ids"]) or any(
+            recognize_func_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
+            recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_self_method_calls(f) is not None
             or recognize_substmap(f) is not None
@@ -2360,6 +2362,15 @@ class PreambleEmissionMixin:
         _frss = recognize_func_returns_string_seq_pairs(functions)
         self._frss_outer_ids = _frss["outer_ids"]
         self._frss_walk_ids = _frss["walk_ids"]
+        # `_contract_referenced_names` (generic_fold.py boundary-A SET-COLLECT): the
+        # `Set[str]` sibling of `_func_returns_string_seq` — same OUTER+lifted-`_walk`
+        # adjacency pairing, but the accumulator is a returned `map string bool` folded
+        # with `set_union` (the leaf set_adds the real `node["func"]` string). The lifted
+        # `_walk` is SUPPRESSED. Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_contract_referenced_names_pairs
+        _crn = recognize_contract_referenced_names_pairs(functions)
+        self._crn_outer_ids = _crn["outer_ids"]
+        self._crn_walk_ids = _crn["walk_ids"]
         # MULTI-GUARD CASCADE `_check_*` caller (check-diverges-noreturn-impl.md):
         # the set of single-arg closure-existence-converted `list pyval -> bool`
         # predicate NAMES (`_body_has_diverging_construct`). A cascade guard that
