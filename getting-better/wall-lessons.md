@@ -1479,3 +1479,23 @@ iterdir+path .stem/.suffix, unmodeled read_text() string parse, caller-coupling 
 (4) string-parse modeling — CERTIFIED-BOUNDARY (str-op lib mined out; regex-cursor + int(str) parse both facades).
 (5) opaque ast/IO modeling — CERTIFIED-BOUNDARY (only candidate is an all-opaque vacuous skeleton, Gate-C reject).
 Count 804, ledger 3. Autonomous frontier at confirmed floor for this run — hold, do not spin.
+
+## 2026-08-04 — 96h run, boundary A (nested-def closure walk) SPIKE PASSES → build greenlit
+
+Make-or-break isolation spike on `_func_returns_string_seq` (preamble.py) — the cleanest nested-`def`+
+`found=[False]` closure that threads a local dict `svt`. Result: FEASIBLE, non-vacuous, axiom-free (7/7 VCs
+Valid <0.2s, ledger 3, only device = blessed VC-free `val pystr_eq`). This OVERTURNS the repeated boundary-A
+"un-modelable" classification — it was a COST/SCALE hypothesis, not a correctness wall. How the 3 feared
+constructs lower:
+1. nested `def rec` closure → standard mutual `frss/frss__v/frss__d` catamorphism (SAME shape as the landed
+   `emit_bool_existence_group`/`_has_dynamic_exec`); nested-def-vs-while-worklist is pure surface difference.
+2. `found=[False]` out-of-scope mutable cell → `||` short-circuit disjunction (`leaf(d) || descend children`).
+   NO heap ref, NO opaque val — the existence fold subsumes the cell exactly.
+3. local dict `svt` + `svt.get(v.get("name"))=="string"` → `svt` threads as a REAL `pydict` param (extracted
+   once via pget_dyn "seq_value_types", passed unchanged, kept OUT of the variant), leaf is REAL nested field
+   navigation (pget_dyn "stmt"/"value"/"type"/"name") + a computed-key read `pget_dyn nm svt`. pystr_eq only at
+   terminal string compares. CRITICAL build note: `svt`'s VALUE is inspected → thread it as a real pydict read,
+   NOT as the opaque membership-set `map string bool` (that would drop the leaf to a facade / Gate-C reject).
+CAVEAT (isolation_spike_not_whole_file): this proves FEASIBILITY only; the authoritative gate is the whole-file
+pycsl proof over preamble.py (E-matching over full wf_dict/wf_ir_binds may saturate — the trio-fusion risk).
+→ build the recognizer, then supervisor runs the authoritative whole-file proof.
