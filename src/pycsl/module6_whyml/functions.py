@@ -3037,6 +3037,29 @@ class FunctionEmissionMixin:
                 emit_contract_referenced_var_names_group
             return emit_contract_referenced_var_names_group(
                 func, _crvn_desc, whyml_ident)
+        # `_collect_map_typed_locals` (generic_fold.py boundary-A SET-COLLECT): the lifted
+        # `walk` sibling is SUPPRESSED; the wrapper emits the ref-accumulator `map string
+        # bool` fold that reads the REAL `target` off the pydict and set_adds it under the
+        # opaque `_rhs_yields_map(value)` gate. Its sole caller `_should_auto_trust_set_op`
+        # uses the ABSTRACT self-call val (coupling-free). Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_cmtl_walk_ids", set()):
+            return []
+        _cmtl_desc = getattr(self, "_cmtl_outer_ids", {}).get(id(func))
+        if _cmtl_desc is not None:
+            from module6_whyml.generic_fold import emit_collect_map_typed_locals_group
+            return emit_collect_map_typed_locals_group(func, _cmtl_desc, whyml_ident)
+        # `_has_set_op_on_map` (generic_fold.py): the recursive bool-existence predicate
+        # over pyval. The lifted `yields_map` sibling is SUPPRESSED; the wrapper emits the
+        # certified mutual bool-fold (real `map_locals` membership on the real operand;
+        # `_rhs_yields_map` + the forward-ref `_test_contains_map` opaque). Its sole caller
+        # `_should_auto_trust_set_op` uses the ABSTRACT self-call val (coupling-free).
+        # Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_hsom_walk_ids", set()):
+            return []
+        _hsom_desc = getattr(self, "_hsom_outer_ids", {}).get(id(func))
+        if _hsom_desc is not None:
+            from module6_whyml.generic_fold import emit_has_set_op_on_map_group
+            return emit_has_set_op_on_map_group(func, _hsom_desc, whyml_ident)
         # `_body_references_bvar_0` (generic_fold.py boundary-A DE-BRUIJN DEPTH-THREADING):
         # a single self-recursive kind-dispatch walk over the real dict tree with an INT
         # `depth` threaded OUT of the `pv_size ast` structural variant (incremented only on
@@ -5501,6 +5524,17 @@ class FunctionEmissionMixin:
                 if (name in _formal and name in _pann
                         and getattr(self, "_mutable_state_classes", None)):
                     symtype = _pann[name]
+                # self-tcb-reduction (auto_trust coupling): `_has_set_op_on_map`'s
+                # `map_locals` param is `Optional[Set[str]]` (a synthesized union →
+                # int). Its sibling `_collect_map_typed_locals` (annotated `-> Set[T]`)
+                # abstracts its RETURN as `map int (option int)` (the set-return rule),
+                # and `_should_auto_trust_set_op` threads that return straight into this
+                # param — so the abstract-call param must agree. Name-gated (mirror-only)
+                # → corpus byte-identical.
+                if (name == "map_locals"
+                        and str(func.get("name", "")).endswith("_has_set_op_on_map")):
+                    param_types.append("map int (option int)")
+                    continue
                 if symtype == "dict" and (name in _kt or name in _vt):
                     param_types.append(
                         self._dict_param_whyml_type(name, _kt, _vt))

@@ -2190,6 +2190,8 @@ class PreambleEmissionMixin:
             recognize_struct_pack_targets_pairs,
             recognize_contract_referenced_names_pairs,
             recognize_contract_referenced_var_names_pairs,
+            recognize_collect_map_typed_locals_pairs,
+            recognize_has_set_op_on_map_pairs,
             recognize_final_pair, recognize_check_final, recognize_conc_cluster)
         # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
         # / lock-order protected-access walk {_check_concurrency,
@@ -2246,7 +2248,9 @@ class PreambleEmissionMixin:
             recognize_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
             recognize_struct_pack_targets_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
-            recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or any(
+            recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
+            recognize_collect_map_typed_locals_pairs(functions)["outer_ids"]) or bool(
+            recognize_has_set_op_on_map_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_self_method_calls(f) is not None
             or recognize_substmap(f) is not None
@@ -2414,6 +2418,23 @@ class PreambleEmissionMixin:
         _crvn = recognize_contract_referenced_var_names_pairs(functions)
         self._crvn_outer_ids = _crvn["outer_ids"]
         self._crvn_walk_ids = _crvn["walk_ids"]
+        # `_collect_map_typed_locals` (auto_trust.py, boundary-A SET-COLLECT): the
+        # map-typed-local pre-pass — same OUTER+lifted-`walk` adjacency pairing as
+        # `_collect_struct_pack_assign_targets`, but the leaf gate is `tgt and
+        # _rhs_yields_map(value)` and the accumulator is a returned `map string bool`.
+        # The lifted `walk` is SUPPRESSED. Keyed on `id`; corpus-inert (mirror-only).
+        from module6_whyml.generic_fold import recognize_collect_map_typed_locals_pairs
+        _cmtl = recognize_collect_map_typed_locals_pairs(functions)
+        self._cmtl_outer_ids = _cmtl["outer_ids"]
+        self._cmtl_walk_ids = _cmtl["walk_ids"]
+        # `_has_set_op_on_map` (auto_trust.py): the recursive bool-existence predicate
+        # over pyval — same OUTER+lifted-`yields_map` adjacency pairing; the flag-branches
+        # test the real `left`/`right`/`iter` node with real `map_locals` membership. The
+        # lifted `yields_map` is SUPPRESSED. Keyed on `id`; corpus-inert (mirror-only).
+        from module6_whyml.generic_fold import recognize_has_set_op_on_map_pairs
+        _hsom = recognize_has_set_op_on_map_pairs(functions)
+        self._hsom_outer_ids = _hsom["outer_ids"]
+        self._hsom_walk_ids = _hsom["walk_ids"]
         # MULTI-GUARD CASCADE `_check_*` caller (check-diverges-noreturn-impl.md):
         # the set of single-arg closure-existence-converted `list pyval -> bool`
         # predicate NAMES (`_body_has_diverging_construct`). A cascade guard that

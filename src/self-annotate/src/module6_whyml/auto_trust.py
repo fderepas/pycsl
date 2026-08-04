@@ -66,12 +66,34 @@ class AutoTrustMixin:
             return False
         return func.get("return_annotation") in ("set", "dict", "frozenset")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_map_typed_locals(self, stmts: List[int]) -> int:
-        return set()
+    def _collect_map_typed_locals(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Single static pre-pass: find every body-local variable
+        whose first assignment yields a map. Used by
+        `_should_auto_trust_set_op` because the body-emission-time
+        `_dict_locals` tracker isn't populated yet."""
+        result: Set[str] = set()
+        def walk(items: List[Dict[str, Any]]) -> None:
+            for s in items:
+                if s.get("stmt") == "Assign":
+                    tgt = s.get("target", "")
+                    if tgt and self._rhs_yields_map(s.get("value", {})):
+                        result.add(tgt)
+                for k in ("body", "orelse"):
+                    if k in s:
+                        walk(s[k])
+                if s.get("stmt") == "While":
+                    walk(s.get("body", []))
+                if s.get("stmt") == "For":
+                    walk(s.get("body", []))
+                if s.get("stmt") == "Try":
+                    walk(s.get("body", []))
+                    for h in s.get("handlers", []):
+                        walk(h.get("body", []))
+        walk(stmts)
+        return result
 
     #@ requires True
     #@ ensures True
@@ -109,11 +131,58 @@ class AutoTrustMixin:
                         return True
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _has_set_op_on_map(self, obj: Any, map_locals: int=None) -> bool:
+    def _has_set_op_on_map(self, obj: Any, map_locals: Optional[Set[str]] = None) -> bool:
+        """Detect any IR shape that combines a map-typed value with an
+        int-typed operation, anywhere in the subtree. Triggers when:
+
+        - **Set operator**: `BinOp(|/&/^/-)` with a map operand. Python
+          set union/intersect/xor/diff lower to `bit_or`/... typed
+          `int -> int -> int`, mismatched against the map.
+        - **For-iteration**: `For` whose iter expression yields a map.
+          WhyML maps don't have a natural iteration model (they're
+          functions, not collections); `iter_length`/`iter_get` are
+          typed `int -> int`.
+        - **Truthiness**: `If` whose test is a map-typed Var / field
+          / call. Python `if d:` lowers to `(X <> 0)` which can't
+          compare a map to int.
+
+        There is no clean reduction to int because the map semantics
+        are lost in any of these shapes; the only sound option is to
+        auto-trust the enclosing function."""
+        if map_locals is None:
+            map_locals = set()
+        def yields_map(node: Any) -> bool:
+            if (isinstance(node, dict) and node.get("type") == "Var"
+                    and node.get("name") in map_locals):
+                return True
+            return self._rhs_yields_map(node)
+        if isinstance(obj, dict):
+            t = obj.get("type", "")
+            # Set operator on a map operand.
+            if t == "BinOp" and obj.get("op") in ("|", "&", "^", "-"):
+                if yields_map(obj.get("left", {})) or yields_map(obj.get("right", {})):
+                    return True
+            # `for x in map_val:` — iter expression is a map.
+            if obj.get("stmt") == "For":
+                if yields_map(obj.get("iter", {})):
+                    return True
+            # `if map_val:` / `if not map_val:` / `if X and map_val:` —
+            # any map-typed subexpression appearing in an If test needs
+            # auto-trust because Python truthiness on a map lowers to
+            # `(M <> 0)` which Why3 rejects.
+            if obj.get("stmt") == "If":
+                if self._test_contains_map(obj.get("test", {}), map_locals):
+                    return True
+            for v in obj.values():
+                if self._has_set_op_on_map(v, map_locals):
+                    return True
+        elif isinstance(obj, list):
+            for item in obj:
+                if self._has_set_op_on_map(item, map_locals):
+                    return True
         return False
 
     #@ requires True

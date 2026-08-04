@@ -12980,6 +12980,621 @@ def emit_test_contains_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]
     return out
 
 
+# ---- `_collect_map_typed_locals` (auto_trust.py, boundary-A SET-COLLECT sibling of
+#      `_collect_struct_pack_assign_targets`): the OUTER wrapper
+#        result: Set[str] = set(); walk(stmts); return result
+#      and its lifted `walk(items)` sibling
+#        for s in items:
+#          if s.get("stmt") == "Assign":
+#            tgt = s.get("target", "")
+#            if tgt and self._rhs_yields_map(s.get("value", {})): result.add(tgt)
+#          for k in ("body","orelse"):
+#            if k in s: walk(s[k])
+#          if s.get("stmt") == "While": walk(s.get("body", []))
+#          if s.get("stmt") == "For":   walk(s.get("body", []))
+#          if s.get("stmt") == "Try":   walk(s.get("body", []))
+#                                       for h in s.get("handlers", []): walk(h.get("body", []))
+#      Same OUTER+lifted-walk adjacency pairing as `_collect_struct_pack_assign_targets`,
+#      but the leaf gate is `tgt and _rhs_yields_map(value)` (only `_rhs_yields_map` is the
+#      opaque-but-sound `val <n>__rhsmap (v:pyval):bool`; the REAL `target` string is read
+#      off the pydict and `set_add`-ed — the anti-vacuity signal). The wrapper emits the
+#      ref-accumulator `map string bool` fold over the pyval stmt list; body/orelse/handler
+#      recursion reuses the split search+project `pget`-shape list readers with the
+#      `size_list`/`size_dict` termination pins. The lifted `walk` is SUPPRESSED. Keyed on
+#      `id`; corpus-inert (name-gated). `set_add`/`const` come with the pydict theory. Ledger 3.
+
+def _recognize_cmtl_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_collect_map_typed_locals` wrapper
+    `result = set(); walk(stmts); return result`. Fail-closed.
+    Returns {name, param, self_type, walker_name, acc}."""
+    if not func.get("name", "").endswith("_collect_map_typed_locals"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    stmts_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    b0, b1, b2 = body
+    # [0] result = set()
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    acc = b0.get("target")
+    iv = b0.get("value") or {}
+    if not (isinstance(acc, str) and isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    # [1] walk(stmts)
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Expr"):
+        return None
+    call = b1.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    cargs = call.get("args") or []
+    if not (len(cargs) == 1 and _is_var(cargs[0], stmts_p)):
+        return None
+    # [2] return result
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Return"
+            and _is_var(b2.get("value"), acc)):
+        return None
+    return {"name": func.get("name"), "param": stmts_p,
+            "self_type": func.get("self_type"), "walker_name": call["func"], "acc": acc}
+
+
+def _recognize_cmtl_walk(walkfunc: Dict[str, Any],
+                         call_names: "set") -> Optional[Dict[str, Any]]:
+    """Match the lifted `walk(items)` map-typed-local collect and extract the leaf
+    discriminant literals. Fail-closed. Returns the key/tag dict."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    items_p = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 1:
+        return None
+    forst = body[0]
+    # for s in items:
+    if not (isinstance(forst, dict) and forst.get("stmt") == "For"
+            and _is_var(forst.get("iter"), items_p)):
+        return None
+    sv = forst.get("target")
+    fb = forst.get("body") or []
+    if not (isinstance(sv, str) and fb):
+        return None
+    # fb[0]: if s.get("<stmt_key>") == "<assign_tag>": [tgt = s.get("<target_key>", ""),
+    #                                                   if tgt and _rhs_yields_map(...): result.add(tgt)]
+    ag = fb[0]
+    if not (isinstance(ag, dict) and ag.get("stmt") == "If"):
+        return None
+    agt = ag.get("test") or {}
+    if not (isinstance(agt, dict) and agt.get("type") == "BinOp" and agt.get("op") == "=="):
+        return None
+    stmt_key = _frss_dotget_key(agt.get("left"), sv)
+    assign_tag = _clean_lit(_is_string(agt.get("right")))
+    if stmt_key is None or assign_tag is None:
+        return None
+    gbody = ag.get("body") or []
+    # anti-facade: `result.add(<tgt>)` with `tgt = s.get("<target_key>", "")`, gated by
+    # a `self._rhs_yields_map(s.get("<value_key>", {}))` predicate. Recover the acc name
+    # and the added var directly from the `<acc>.add(<var>)` call.
+    found_add = _cmtl_find_add_var(gbody)
+    if found_add is None:
+        return None
+    add_var, acc_name = found_add
+    target_key = _spat_find_binding_key(gbody, add_var, sv)
+    if target_key is None:
+        return None
+    # the value passed to `_rhs_yields_map` must come from `s.get("<value_key>", {})`
+    rhs_call = _find_call_by_suffix(gbody, "_rhs_yields_map")
+    if rhs_call is None:
+        return None
+    rargs = rhs_call.get("args") or []
+    value_key = _frss_dotget_key(rargs[0], sv) if rargs else None
+    if value_key is None:
+        return None
+    # recursion keys must be present (fail-closed on a wholesale walk mutation); the
+    # lifted `walk` self-call name must appear (a real recursive descent, not a stub).
+    strings = set(_all_strings(fb))
+    if not {"body", "orelse", "handlers"}.issubset(strings):
+        return None
+    if _find_self_call_name(fb, "") is None and not call_names:
+        return None
+    return {"stmt_key": stmt_key, "assign_tag": assign_tag, "target_key": target_key,
+            "value_key": value_key, "acc": acc_name,
+            "body_key": "body", "orelse_key": "orelse", "handlers_key": "handlers"}
+
+
+def _cmtl_find_add_var(node: Any) -> Optional["Tuple[str, str]"]:
+    """First `<acc>.add(<Var>)` anywhere in `node` -> (var_name, acc_name), else None."""
+    if isinstance(node, dict):
+        f = node.get("func")
+        if (node.get("type") == "Call" and isinstance(f, str) and f.endswith(".add")):
+            a = node.get("args") or []
+            if len(a) == 1 and isinstance(a[0], dict) and a[0].get("type") == "Var":
+                return (a[0].get("name"), f[:-len(".add")])
+        for v in node.values():
+            r = _cmtl_find_add_var(v)
+            if r:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _cmtl_find_add_var(x)
+            if r:
+                return r
+    return None
+
+
+def _find_call_by_suffix(node: Any, suffix: str) -> Optional[Dict[str, Any]]:
+    """First Call node whose `func` string ends with `suffix`, else None."""
+    if isinstance(node, dict):
+        f = node.get("func")
+        if node.get("type") == "Call" and isinstance(f, str) and f.endswith(suffix):
+            return node
+        for v in node.values():
+            r = _find_call_by_suffix(v, suffix)
+            if r:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _find_call_by_suffix(x, suffix)
+            if r:
+                return r
+    return None
+
+
+def recognize_collect_map_typed_locals_pairs(functions: List[Dict[str, Any]]
+                                             ) -> Dict[str, Any]:
+    """Pair the `_collect_map_typed_locals` OUTER wrapper with its lifted `walk`
+    sibling (by adjacency). Returns {"outer_ids": {id(outer): desc}, "walk_ids":
+    {id(walk), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_cmtl_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and isinstance(wf_name, str)
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            try:
+                leaf = _recognize_cmtl_walk(wf, {wn, wf_name})
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"],
+                    "self_type": od["self_type"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_collect_map_typed_locals_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                        whyml_ident) -> List[str]:
+    """Emit `_collect_map_typed_locals` as a REF-accumulator (map string bool) set-collect
+    over the pyval stmt list: the REAL `target` string is read off the pydict (mutation-
+    sensitive) and `set_add`-ed under the `_rhs_yields_map(value)` gate (the only opaque-but-
+    sound `val <n>__rhsmap (v:pyval):bool`). Body/orelse/handler recursion reuses the split
+    search+project `pget`-shape list readers with the `size_list`/`size_dict` termination
+    pins. `ensures True`; ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    at = desc["assign_tag"]
+    acc_ty = "ref (map string bool)"
+    out: List[str] = []
+    # opaque map-yielding-RHS over-approximation (sound under ensures-True; input-dependent)
+    out.append(f"  val {P}rhsmap (v: pyval) : bool")
+    # literal-key readers (typed irkey ctor or K_dyn guard, reflected per key)
+    out += _emit_skey_reader(f"{P}gstmt", desc["stmt_key"])   # "stmt" (K_dyn)
+    out += _emit_skey_reader(f"{P}gtgt", desc["target_key"])  # "target" (K_target)
+    out += _emit_pval_reader(f"{P}gval", desc["value_key"])   # "value" (K_value)
+
+    def _list_reader(rname: str, key: str) -> None:
+        gname = f"{rname}_g"
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {gname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {gname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {gname} rest")
+        out.append("    end")
+        out.append(f"  let {rname} (d: pydict) : list pyval")
+        out.append("    ensures { size_list result <= size_dict d }")
+        out.append(f"  = match {gname} d with Some (PList xs) -> xs | _ -> Nil end")
+
+    _list_reader(f"{P}Lbody", desc["body_key"])
+    _list_reader(f"{P}Lorelse", desc["orelse_key"])
+    _list_reader(f"{P}Lhandlers", desc["handlers_key"])
+    # main mutual fold + handler-list sub-fold on the SHARED acc
+    out.append(f"  let rec {P}f (items: list pyval) (acc: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { size_list items }")
+    out.append("  = match items with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons s rest ->")
+    out.append("        (match s with")
+    out.append("         | PDict d ->")
+    out.append(f'             (match {P}gstmt d with')
+    out.append(f'              | Some tag -> if pystr_eq tag "{at}" then')
+    out.append(f"                  (match {P}gtgt d with")
+    out.append("                   | Some t ->")
+    out.append(f"                       (match {P}gval d with")
+    out.append(f"                        | Some vv -> if {P}rhsmap vv then acc := set_add !acc t else ()")
+    out.append("                        | None -> () end)")
+    out.append("                   | None -> () end)")
+    out.append("                else ()")
+    out.append("              | None -> () end);")
+    out.append(f"             {P}f ({P}Lbody d) acc;")
+    out.append(f"             {P}f ({P}Lorelse d) acc;")
+    out.append(f"             {P}hf ({P}Lhandlers d) acc")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}f rest acc")
+    out.append("    end")
+    out.append(f"  with {P}hf (hs: list pyval) (acc: {acc_ty}) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { size_list hs }")
+    out.append("  = match hs with Nil -> ()")
+    out.append(f'    | Cons h rest -> (match h with PDict hd -> {P}f ({P}Lbody hd) acc | _ -> () end); {P}hf rest acc end')
+    # entry: self ignored (the collect is a pure structural pre-pass); fold the PARAM
+    # stmt list (a real PList) directly.
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let acc = ref (const false) in")
+    out.append(f"    (match {mv} with PList xs -> {P}f xs acc | _ -> () end);")
+    out.append("    !acc")
+    return out
+
+
+# ---- `_has_set_op_on_map` (auto_trust.py, recursive bool-existence predicate over pyval):
+#      the OUTER wrapper (map-typed-value-in-int-context detector) + its lifted `yields_map`
+#      sibling (`(node.get("type")=="Var" and node.get("name") in map_locals) or
+#      self._rhs_yields_map(node)`). Three flag-branches over a real PDict:
+#        - BinOp set-op (`op in ("|","&","^","-")`) with a `yields_map` operand,
+#        - `stmt == "For"` with a `yields_map` iter,
+#        - `stmt == "If"` with a `_test_contains_map(test, map_locals)` truthiness,
+#      then a GENERIC descent over the dict values / list items. Emitted as the certified
+#      mutual bool-fold skeleton (walk/dfold/lfold over pyval/pydict/list; variants
+#      pv_size/size_dict/size_list — the `_test_contains_map` device). Non-vacuous: the
+#      `yields_map` operand check is REAL `map_locals nm` map application over the real
+#      `left`/`right`/`iter` node read off the pydict; only `_rhs_yields_map` (`<n>__rhsmap`)
+#      and the already-verified but textually-LATER (forward-ref) `_test_contains_map`
+#      (`<n>__tcm`) are opaque `val`s. The lifted `yields_map` is SUPPRESSED. Keyed on `id`;
+#      corpus-inert (name-gated). Ledger 3 (no new type/axiom/cert).
+
+def _recognize_hsom_ym(ymfunc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the lifted `yields_map(node)` sibling and extract its discriminant literals.
+    Fail-closed. Returns {var_tag, type_key, name_key} or None."""
+    params = ymfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node_p = params[0]
+    body = ymfunc.get("body") or []
+    if len(body) != 2:
+        return None
+    guard, ret = body
+    # guard: if (isinstance(node,dict) and node.get("type")=="Var") and node.get("name") in map_locals: return True
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"):
+        return None
+    t = guard.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "BinOp" and t.get("op") == "and"):
+        return None
+    left = t.get("left") or {}
+    right = t.get("right") or {}
+    # left: isinstance(node,dict) and node.get("type") == "<var_tag>"
+    if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "and"):
+        return None
+    if not _match_isinstance(left.get("left"), node_p, "dict"):
+        return None
+    tycmp = left.get("right") or {}
+    if not (isinstance(tycmp, dict) and tycmp.get("type") == "BinOp" and tycmp.get("op") == "=="):
+        return None
+    type_key = _frss_dotget_key(tycmp.get("left"), node_p)
+    var_tag = _clean_lit(_is_string(tycmp.get("right")))
+    if type_key is None or var_tag is None:
+        return None
+    # right: node.get("<name_key>") in map_locals
+    if not (isinstance(right, dict) and right.get("type") == "BinOp" and right.get("op") == "in"):
+        return None
+    name_key = _frss_dotget_key(right.get("left"), node_p)
+    if name_key is None:
+        return None
+    # ret: return self._rhs_yields_map(node)
+    if _find_call_by_suffix(ret, "_rhs_yields_map") is None:
+        return None
+    return {"var_tag": var_tag, "type_key": type_key, "name_key": name_key}
+
+
+def _recognize_hsom_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_has_set_op_on_map`. Fail-closed. Returns
+    {name, self_type, obj_param, stmt_key, binop_tag, set_ops, op_key, for_tag, if_tag,
+     type_key, iter_key, test_key, left_key, right_key, ym_call}."""
+    if not func.get("name", "").endswith("_has_set_op_on_map"):
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    obj_p = params[0]
+    body = func.get("body") or []
+    # locate the isinstance(obj, dict) If (the dict-branch carrying the three flags)
+    dict_if = None
+    for s in body:
+        if (isinstance(s, dict) and s.get("stmt") == "If"
+                and _match_isinstance(s.get("test"), obj_p, "dict")):
+            dict_if = s
+            break
+    if dict_if is None:
+        return None
+    dbody = dict_if.get("body") or []
+    # set-op tuple: a `BinOp op="in"` whose left is `<obj>.get("<op_key>")` and right a
+    # Tuple of string literals.
+    inn = _hsom_find_setop_in(dbody, obj_p)
+    if inn is None:
+        return None
+    op_key, set_ops = inn
+    if not set_ops:
+        return None
+    # the BinOp tag: `<t> == "<binop_tag>"` — the sibling of the op-in test under `and`.
+    binop_tag = _hsom_find_binop_tag(dbody)
+    if binop_tag is None:
+        return None
+    # stmt-keyed For / If tags
+    stmt_hits = _hsom_stmt_tags(dbody, obj_p)
+    for_tag = stmt_hits.get("For")
+    if_tag = stmt_hits.get("If")
+    stmt_key = stmt_hits.get("_key")
+    if not (for_tag and if_tag and stmt_key):
+        return None
+    # anti-facade: the truthiness branch calls `_test_contains_map`; operands go through
+    # `yields_map`; and the descent self-calls `_has_set_op_on_map`.
+    if _find_call_by_suffix(dbody, "_test_contains_map") is None:
+        return None
+    ym_call = _hsom_find_ym_call(dbody)
+    if ym_call is None:
+        return None
+    if _find_self_call_name(body, "_has_set_op_on_map") is None:
+        return None
+    return {"name": func.get("name"), "self_type": func.get("self_type"),
+            "obj_param": obj_p, "stmt_key": stmt_key, "binop_tag": binop_tag,
+            "set_ops": set_ops, "op_key": op_key, "for_tag": for_tag, "if_tag": if_tag,
+            "type_key": "type", "iter_key": "iter", "test_key": "test",
+            "left_key": "left", "right_key": "right", "ym_call": ym_call}
+
+
+def _hsom_find_setop_in(node: Any, obj_p: str) -> Optional["Tuple[str, List[str]]"]:
+    """First `<obj>.get("<op_key>") in (<str-tuple>)` -> (op_key, [ops]), else None."""
+    if isinstance(node, dict):
+        if (node.get("type") == "BinOp" and node.get("op") == "in"):
+            op_key = _frss_dotget_key(node.get("left"), obj_p)
+            tags = _tcm_str_elts(node.get("right"))
+            if op_key is not None and tags:
+                return (op_key, tags)
+        for v in node.values():
+            r = _hsom_find_setop_in(v, obj_p)
+            if r:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _hsom_find_setop_in(x, obj_p)
+            if r:
+                return r
+    return None
+
+
+def _hsom_find_binop_tag(node: Any) -> Optional[str]:
+    """First `<Var> == "<tag>"` whose Var name is a plain local (the `t` binding) whose
+    literal is not a stmt/collection key -> the tag. Here we simply take the literal from
+    the `and`-guard sibling of the op-in test: `t == "BinOp"`. Returns the string tag."""
+    if isinstance(node, dict):
+        if (node.get("type") == "BinOp" and node.get("op") == "and"):
+            left = node.get("left") or {}
+            right = node.get("right") or {}
+            # right is the op-in test; left is `<Var> == "<tag>"`
+            if (isinstance(right, dict) and right.get("type") == "BinOp"
+                    and right.get("op") == "in"
+                    and isinstance(left, dict) and left.get("type") == "BinOp"
+                    and left.get("op") == "=="
+                    and isinstance(left.get("left"), dict)
+                    and left.get("left", {}).get("type") == "Var"):
+                tag = _clean_lit(_is_string(left.get("right")))
+                if tag is not None:
+                    return tag
+        for v in node.values():
+            r = _hsom_find_binop_tag(v)
+            if r:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _hsom_find_binop_tag(x)
+            if r:
+                return r
+    return None
+
+
+def _hsom_stmt_tags(node: Any, obj_p: str) -> Dict[str, str]:
+    """Collect `<obj>.get("<stmt_key>") == "<tag>"` comparisons -> {tag: tag, "_key": key}."""
+    out: Dict[str, str] = {}
+
+    def rec(nd: Any) -> None:
+        if isinstance(nd, dict):
+            if (nd.get("type") == "BinOp" and nd.get("op") == "=="):
+                k = _frss_dotget_key(nd.get("left"), obj_p)
+                tag = _clean_lit(_is_string(nd.get("right")))
+                if k is not None and tag is not None:
+                    out[tag] = tag
+                    out["_key"] = k
+            for v in nd.values():
+                rec(v)
+        elif isinstance(nd, list):
+            for x in nd:
+                rec(x)
+
+    rec(node)
+    return out
+
+
+def _hsom_find_ym_call(node: Any) -> Optional[str]:
+    """First bare (non-dotted) Call other than the pydict readers / builtins whose arg is
+    an `<obj>.get(...)` — the lifted `yields_map` call. Returns its func name, else None."""
+    if isinstance(node, dict):
+        f = node.get("func")
+        if (node.get("type") == "Call" and isinstance(f, str) and "." not in f
+                and f not in ("set", "len", "isinstance", "str")):
+            args = node.get("args") or []
+            if args and isinstance(args[0], dict) and args[0].get("type") == "Call" \
+                    and isinstance(args[0].get("func"), str) and args[0]["func"].endswith(".get"):
+                return f
+        for v in node.values():
+            r = _hsom_find_ym_call(v)
+            if r:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _hsom_find_ym_call(x)
+            if r:
+                return r
+    return None
+
+
+def recognize_has_set_op_on_map_pairs(functions: List[Dict[str, Any]]
+                                      ) -> Dict[str, Any]:
+    """Pair the `_has_set_op_on_map` OUTER wrapper with its lifted `yields_map` sibling
+    (by adjacency). Returns {"outer_ids": {id(outer): desc}, "walk_ids": {id(ym), ...}}.
+    Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_hsom_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["ym_call"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and isinstance(wf_name, str)
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            try:
+                ymd = _recognize_hsom_ym(wf)
+            except Exception:
+                ymd = None
+            if ymd is None:
+                continue
+            desc = dict(od)
+            desc.update(ymd)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_has_set_op_on_map_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                 whyml_ident) -> List[str]:
+    """Emit `_has_set_op_on_map` as the certified mutual bool-existence fold over the
+    pyval/pydict/list ADT (variants pv_size/size_dict/size_list). The set-op / for-iter
+    flag-branches read the REAL `left`/`right`/`iter` node off the pydict and test it with
+    `<n>__ym` (real `map_locals nm` map application over the real `Var` name); only
+    `_rhs_yields_map` (`<n>__rhsmap`) and the textually-LATER already-verified sibling
+    `_test_contains_map` (`<n>__tcm`, opaque to avoid a forward reference) are opaque `val`s.
+    `ensures True`; ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    ml = "map string bool"
+    setops = desc["set_ops"]
+    out: List[str] = []
+    # opaque cross-mixin predicates (sound over-approx; input-dependent, non-facade)
+    out.append(f"  val {P}rhsmap (v: pyval) : bool")
+    out.append(f"  val {P}tcm (self: autotrustmixin) (e: pyval) (ml: {ml}) : bool")
+    # literal-key readers
+    out += _emit_skey_reader(f"{P}gtype", desc["type_key"])   # "type" (K_type)
+    out += _emit_skey_reader(f"{P}gname", desc["name_key"])   # "name" (K_name)
+    out += _emit_skey_reader(f"{P}gstmt", desc["stmt_key"])   # "stmt" (K_dyn)
+    out += _emit_skey_reader(f"{P}gop", desc["op_key"])       # "op" (K_op)
+    out += _emit_pval_reader(f"{P}gleft", desc["left_key"])   # "left" (K_left)
+    out += _emit_pval_reader(f"{P}gright", desc["right_key"]) # "right" (K_right)
+    out += _emit_pval_reader(f"{P}giter", desc["iter_key"])   # "iter" (K_dyn)
+    out += _emit_pval_reader(f"{P}gtest", desc["test_key"])   # "test" (K_dyn)
+    # yields_map helper (non-recursive): (isVar && name in map_locals) || _rhs_yields_map(node)
+    out.append(f"  let {P}ym (self: autotrustmixin) (node: pyval) (map_locals: {ml}) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = (match node with")
+    out.append("     | PDict d ->")
+    out.append(f'         (match {P}gtype d with Some t -> pystr_eq t "{desc["var_tag"]}" | None -> false end)')
+    out.append(f"         && (match {P}gname d with Some nm -> map_locals nm | None -> false end)")
+    out.append("     | _ -> false end)")
+    out.append(f"    || {P}rhsmap node")
+    # main mutual bool fold
+    set_or = " || ".join(f'pystr_eq op "{o}"' for o in setops)
+    out.append(f"  let rec {n} (self: autotrustmixin) (obj: pyval) (map_locals: {ml}) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size obj }")
+    out.append("  = match obj with")
+    out.append("    | PDict d ->")
+    out.append(f'        let binhit = (match {P}gtype d with Some t -> pystr_eq t "{desc["binop_tag"]}" | None -> false end)')
+    out.append(f"                     && (match {P}gop d with Some op -> ({set_or}) | None -> false end)")
+    out.append(f"                     && ((match {P}gleft d with Some v -> {P}ym self v map_locals | None -> false end)")
+    out.append(f"                         || (match {P}gright d with Some v -> {P}ym self v map_locals | None -> false end)) in")
+    out.append(f'        let forhit = (match {P}gstmt d with Some st -> pystr_eq st "{desc["for_tag"]}" | None -> false end)')
+    out.append(f"                     && (match {P}giter d with Some v -> {P}ym self v map_locals | None -> false end) in")
+    out.append(f'        let ifhit = (match {P}gstmt d with Some st -> pystr_eq st "{desc["if_tag"]}" | None -> false end)')
+    out.append(f"                     && (match {P}gtest d with Some v -> {P}tcm self v map_locals | None -> false end) in")
+    out.append("        if binhit || forhit || ifhit then true")
+    out.append(f"        else {P}dfold self d map_locals")
+    out.append(f"    | PList xs -> {P}lfold self xs map_locals")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (self: autotrustmixin) (d: pydict) (map_locals: {ml}) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        (match v with PDict _ -> {n} self v map_locals | PList xs -> {P}lfold self xs map_locals | _ -> false end)")
+    out.append(f"        || {P}dfold self rest map_locals end")
+    out.append(f"  with {P}lfold (self: autotrustmixin) (xs: list pyval) (map_locals: {ml}) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> false")
+    out.append(f"    | Cons h t -> {n} self h map_locals || {P}lfold self t map_locals end")
+    return out
+
+
 # ---- `_is_linear_vc`: `all(_is_linear_expr(e) for e in ensures ++ requires)` -------------
 # `all` distributes over concatenation, so the two-list `list(a or []) + list(b or [])` reduces
 # to `fold(a) && fold(b)` — NO list-append needed. `_is_linear_expr` (trusted: nested-closure
