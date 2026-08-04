@@ -3014,6 +3014,17 @@ class FunctionEmissionMixin:
                 emit_contract_referenced_var_names_group
             return emit_contract_referenced_var_names_group(
                 func, _crvn_desc, whyml_ident)
+        # `_body_references_bvar_0` (generic_fold.py boundary-A DE-BRUIJN DEPTH-THREADING):
+        # a single self-recursive kind-dispatch walk over the real dict tree with an INT
+        # `depth` threaded OUT of the `pv_size ast` structural variant (incremented only on
+        # binder-body descents). Emitted as a `let rec` over the certified pyval/pydict ADT;
+        # every child read via the certified size-bounded dynamic-key reader, the `idx` leaf
+        # comparing the real int field to `depth`. Name-gated + fail-closed; corpus-inert.
+        from module6_whyml.generic_fold import (
+            recognize_refs_bvar, emit_refs_bvar_group)
+        _rb_desc = recognize_refs_bvar(func)
+        if _rb_desc is not None:
+            return emit_refs_bvar_group(func, _rb_desc, whyml_ident)
         # STRING first-match SEARCH closure (`_lemma_calls_trusted`): the lifted
         # `walk` sibling is SUPPRESSED; the wrapper emits the certified first-match
         # search catamorphism (`option string`, `map string bool` set-param

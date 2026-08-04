@@ -2082,6 +2082,7 @@ class PreambleEmissionMixin:
             recognize_classify,
             recognize_global_call_target,
             recognize_method_edges,
+            recognize_refs_bvar,
             recognize_cs_clause, recognize_check_contract_exprs,
             recognize_check_body_walk,
             recognize_check_subscript_assignments,
@@ -2271,6 +2272,9 @@ class PreambleEmissionMixin:
             # #3/#4 the walker + caller fold pyval/pydict/list with `pv_size`.
             or recognize_noreturn_walk_stmts(f) is not None
             or recognize_check_noreturn_successors(f, self._nrw_names) is not None
+            # `_body_references_bvar_0` de-Bruijn depth-threading walk folds
+            # pyval/pydict with `pv_size`/`size_dict` + `pystr_eq`.
+            or recognize_refs_bvar(f) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only

@@ -15049,6 +15049,288 @@ def emit_contract_referenced_var_names_group(func: Dict[str, Any], desc: Dict[st
     return out
 
 
+# ---- `_body_references_bvar_0` (from_lean_json.py, boundary-A de-Bruijn DEPTH-THREADING
+#      ACCUMULATOR): does a Lean `Expr` JSON tree reference the de-Bruijn variable `bvar(depth)`
+#      of the innermost binder? Live body (a kind-dispatched recursive walk over the real dict
+#      tree with an INT `depth` threaded OUT of the structural recursion, incremented ONLY on
+#      binder-body descents):
+#        if not isinstance(ast, dict): return False
+#        kind = ast.get("kind", "")
+#        if kind == "bvar":  return ast.get("idx", -1) == depth
+#        if kind == "app":   return (self(ast.get("fn"), depth) or self(ast.get("arg"), depth))
+#        if kind in ("forall","lam"):
+#                            return self(ast.get("body"), depth+1) or self(ast.get("ty"), depth)
+#        if kind == "let":   return (self(ast.get("val"), depth) or self(ast.get("ty"), depth)
+#                                    or self(ast.get("body"), depth+1))
+#        if kind == "proj":  return self(ast.get("expr"), depth)
+#        return False
+#      This is the ONLY value model in the mirror that threads a NON-STRUCTURAL inherited attribute
+#      (`depth`) alongside the structural recursion: `depth` is a bare `int` parameter, OUT of the
+#      `variant { pv_size ast }`, incremented `depth + 1` on binder-body descents and passed
+#      UNCHANGED elsewhere — the faithful de-Bruijn semantics. The emit lowers the kind-if-chain to
+#      a `pystr_eq`-dispatched `else if` cascade over the real `kind` field read off the real
+#      PDict; each named child (`fn`/`arg`/`body`/`ty`/`val`/`expr`) is obtained by a REAL dynamic-
+#      key read (`{P}rd "<field>" d`, the certified `pget_dyn` reader carrying the structural size
+#      postcondition `pv_size v <= size_dict d`), and recursion at the right depth discharges the
+#      `pv_size ast` variant via `pv_size (PDict d) = 1 + size_dict d`. The bvar leaf reads the REAL
+#      int field `idx` (`Some (PInt i) -> i = depth`) — `depth` is materially load-bearing (a real
+#      `i = depth` compare), so this is NON-VACUOUS by construction (spike bvar_spike.mlw 6/6 Valid,
+#      axiom-free, non-vacuous). Non-facade: every kind literal, field name, depth-increment and the
+#      `idx` default are reflected structurally from the body (a body change moves the emitted .mlw).
+#      Name-gated on `_body_references_bvar_0` (byte-inert: no corpus function bears the name) and
+#      fail-closed on any shape deviation. `ensures True`; ledger 3 (reuses the certified
+#      pyval/pydict ADT + `pystr_eq` — NO new type/axiom/cert).
+
+def _rb_is_bool_false(node: Any) -> bool:
+    return (isinstance(node, dict) and node.get("type") == "Bool"
+            and node.get("value") is False)
+
+
+def _rb_returns_false(stmts: Any) -> bool:
+    return (isinstance(stmts, list) and len(stmts) == 1
+            and isinstance(stmts[0], dict) and stmts[0].get("stmt") == "Return"
+            and _rb_is_bool_false(stmts[0].get("value")))
+
+
+def _rb_int_lit(node: Any) -> Optional[int]:
+    """A signed integer literal -> its int value (Number, or a unary-minus Number)."""
+    if not isinstance(node, dict):
+        return None
+    if node.get("type") == "Number" and isinstance(node.get("value"), int):
+        return node.get("value")
+    if (node.get("type") == "UnaryOp" and node.get("op") == "-"
+            and isinstance(node.get("expr"), dict)
+            and node["expr"].get("type") == "Number"
+            and isinstance(node["expr"].get("value"), int)):
+        return -node["expr"]["value"]
+    return None
+
+
+def _rb_dotget_key(node: Any, recv: str) -> Optional[str]:
+    """`<recv>.get("<k>"[, default])` -> clean literal k (first arg), else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{recv}.get"):
+        return None
+    args = node.get("args") or []
+    if len(args) < 1:
+        return None
+    return _clean_lit(_is_string(args[0]))
+
+
+def _rb_depth_inc(node: Any, depth_v: str) -> Optional[int]:
+    """The depth argument of a recursive call -> 0 for `depth`, 1 for `depth + 1`, else None."""
+    if _is_var(node, depth_v):
+        return 0
+    if (isinstance(node, dict) and node.get("type") == "BinOp" and node.get("op") == "+"
+            and _is_var(node.get("left"), depth_v)
+            and isinstance(node.get("right"), dict)
+            and node["right"].get("type") == "Number" and node["right"].get("value") == 1):
+        return 1
+    return None
+
+
+def _rb_selfcall(node: Any, name: str, ast_v: str, depth_v: str) -> Optional[Tuple[str, int]]:
+    """`<name>(<ast>.get("<field>"), <depth-expr>)` -> (field, inc) or None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == name):
+        return None
+    args = node.get("args") or []
+    if len(args) != 2:
+        return None
+    field = _rb_dotget_key(args[0], ast_v)
+    if field is None:
+        return None
+    inc = _rb_depth_inc(args[1], depth_v)
+    if inc is None:
+        return None
+    return (field, inc)
+
+
+def _rb_disjunction(node: Any, name: str, ast_v: str,
+                    depth_v: str) -> Optional[List[Tuple[str, int]]]:
+    """A single self-call, or a left-nested `or` chain of self-calls, in source order."""
+    if isinstance(node, dict) and node.get("type") == "BinOp" and node.get("op") == "or":
+        left = _rb_disjunction(node.get("left"), name, ast_v, depth_v)
+        right = _rb_disjunction(node.get("right"), name, ast_v, depth_v)
+        if left is None or right is None:
+            return None
+        return left + right
+    sc = _rb_selfcall(node, name, ast_v, depth_v)
+    return [sc] if sc is not None else None
+
+
+def _rb_leaf_idx(node: Any, ast_v: str, depth_v: str) -> Optional[Tuple[str, int]]:
+    """`<ast>.get("<idx>", <default>) == depth` -> (idx_key, default_int) or None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "==" and _is_var(node.get("right"), depth_v)):
+        return None
+    l = node.get("left") or {}
+    if not (isinstance(l, dict) and l.get("type") == "Call"
+            and l.get("func") == f"{ast_v}.get"):
+        return None
+    args = l.get("args") or []
+    if len(args) != 2:
+        return None
+    key = _clean_lit(_is_string(args[0]))
+    default = _rb_int_lit(args[1])
+    if key is None or default is None:
+        return None
+    return (key, default)
+
+
+def _rb_arm_kinds(test: Any, kind_v: str) -> Optional[List[str]]:
+    """`kind == "<lit>"` -> ["<lit>"], `kind in ("<a>","<b>",...)` -> ["<a>",...], else None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and _is_var(test.get("left"), kind_v)):
+        return None
+    op = test.get("op")
+    if op == "==":
+        lit = _clean_lit(_is_string(test.get("right")))
+        return [lit] if lit is not None else None
+    if op == "in":
+        tup = test.get("right") or {}
+        if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+            return None
+        lits: List[str] = []
+        for e in tup.get("elts") or []:
+            lit = _clean_lit(_is_string(e))
+            if lit is None:
+                return None
+            lits.append(lit)
+        return lits or None
+    return None
+
+
+def recognize_refs_bvar(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the `_body_references_bvar_0` de-Bruijn depth-threading walk.
+    Never raises. Returns a descriptor or None."""
+    try:
+        return _recognize_refs_bvar(func)
+    except Exception:
+        return None
+
+
+def _recognize_refs_bvar(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_body_references_bvar_0":
+        return None
+    if func.get("return_annotation") not in ("bool", None):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    ast_v, depth_v = params[0], params[1]
+    if not (isinstance(ast_v, str) and isinstance(depth_v, str)):
+        return None
+    name = func.get("name")
+    body = func.get("body") or []
+    if len(body) < 4:
+        return None
+    # body[0]: if not isinstance(ast, dict): return False
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "If" and not b0.get("orelse")):
+        return None
+    t0 = b0.get("test") or {}
+    if not (isinstance(t0, dict) and t0.get("type") == "UnaryOp" and t0.get("op") == "not"
+            and _match_isinstance(t0.get("expr"), ast_v, "dict")):
+        return None
+    if not _rb_returns_false(b0.get("body")):
+        return None
+    # body[1]: kind = ast.get("<kind_key>", "")
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Assign"):
+        return None
+    kind_v = b1.get("target")
+    kind_key = _rb_dotget_key(b1.get("value"), ast_v)
+    if not isinstance(kind_v, str) or kind_key is None:
+        return None
+    # body[-1]: return False
+    blast = body[-1]
+    if not (isinstance(blast, dict) and blast.get("stmt") == "Return"
+            and _rb_is_bool_false(blast.get("value"))):
+        return None
+    # body[2 .. -2]: the kind-dispatch arms
+    arms: List[Dict[str, Any]] = []
+    for arm in body[2:-1]:
+        if not (isinstance(arm, dict) and arm.get("stmt") == "If" and not arm.get("orelse")):
+            return None
+        kinds = _rb_arm_kinds(arm.get("test"), kind_v)
+        if kinds is None:
+            return None
+        ab = arm.get("body") or []
+        if not (len(ab) == 1 and isinstance(ab[0], dict)
+                and ab[0].get("stmt") == "Return"):
+            return None
+        rv = ab[0].get("value")
+        leaf = _rb_leaf_idx(rv, ast_v, depth_v)
+        if leaf is not None:
+            arms.append({"kinds": kinds, "leaf_idx": leaf})
+            continue
+        disj = _rb_disjunction(rv, name, ast_v, depth_v)
+        if disj is None:
+            return None
+        arms.append({"kinds": kinds, "recurse": disj})
+    if not arms:
+        return None
+    return {"name": name, "ast_v": ast_v, "depth_v": depth_v,
+            "kind_key": kind_key, "arms": arms}
+
+
+def emit_refs_bvar_group(func: Dict[str, Any], desc: Dict[str, Any],
+                         whyml_ident) -> List[str]:
+    """Emit `_body_references_bvar_0` as a kind-dispatched `let rec` walk over the certified
+    pyval/pydict ADT with an INT `depth` threaded OUT of the `pv_size ast` variant (incremented
+    only on the recognized binder-body descents). Every field is read by the certified dynamic-key
+    reader (`{P}rd`, carrying the structural size postcondition that discharges termination); the
+    `idx` leaf compares the REAL int field to `depth`. `ensures True`; ledger 3 (no new
+    type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    av = _pvw_mv(desc["ast_v"])
+    dv = _pvw_mv(desc["depth_v"])
+    out: List[str] = []
+    # certified dynamic-string-key reader carrying the structural size bound (verbatim the
+    # `pget_dyn` shape) — its size postcondition is load-bearing for the `pv_size ast` variant.
+    out.append(f"  let rec {P}rd (name: string) (d: pydict) : option pyval")
+    out.append("    variant { d }")
+    out.append("    ensures { match result with Some v -> pv_size v <= size_dict d "
+               "| None -> true end }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append(f"    | DCons (K_dyn s) v rest -> "
+               f"if pystr_eq name s then Some v else {P}rd name rest")
+    out.append(f"    | DCons _ _ rest -> {P}rd name rest")
+    out.append("    end")
+    # the depth-threading kind-dispatch walk
+    out.append(f"  let rec {n} ({av}: pyval) ({dv}: int) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant {{ pv_size {av} }}")
+    out.append(f"  = match {av} with")
+    out.append("    | PDict d ->")
+    out.append(f'        let kind = (match {P}rd "{desc["kind_key"]}" d with '
+               "Some (PStr k) -> k | _ -> \"\" end) in")
+    first = True
+    for arm in desc["arms"]:
+        cond = " || ".join(f'pystr_eq kind "{k}"' for k in arm["kinds"])
+        head = "if" if first else "        else if"
+        first = False
+        out.append(f"        {head} ({cond}) then")
+        if "leaf_idx" in arm:
+            idx_key, default = arm["leaf_idx"]
+            out.append(f'          (match {P}rd "{idx_key}" d with '
+                       f"Some (PInt i) -> i = {dv} | _ -> ({default}) = {dv} end)")
+        else:
+            terms = []
+            for field, inc in arm["recurse"]:
+                depth_arg = dv if inc == 0 else f"({dv} + {inc})"
+                terms.append(f'(match {P}rd "{field}" d with '
+                             f"Some c -> {n} c {depth_arg} | None -> false end)")
+            out.append("          " + ("\n          || ".join(terms)))
+    out.append("        else false")
+    out.append("    | _ -> false")
+    out.append("    end")
+    return out
+
+
 # ---- `_method_edges` (ir_inline): outgoing method-call edges of a function -----------
 # Live body (a `_walk_dicts(func.get("body"))` fold building a Set[str]):
 #   out = set()

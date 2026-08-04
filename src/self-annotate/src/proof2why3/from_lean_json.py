@@ -11,11 +11,33 @@ from proof2why3.ir import App, BinOp, BoolLit, Exists, Forall, IntLit, Term, Una
 _OP_TABLE_BINOP: int = {'HAdd.hAdd': ('+', 4), 'HSub.hSub': ('-', 4), 'HMul.hMul': ('*', 4), 'HDiv.hDiv': ('/', 4), 'LE.le': ('>=', 2), 'LT.lt': ('>', 2), 'GE.ge': ('>=', 2), 'GT.gt': ('>', 2), 'Eq': ('=', 1), 'Ne': ('<>', 1), 'And': ('/\\\\', 0), 'Or': ('\\/', 0), 'Iff': ('iff', 0)}
 _FLIP_DIRECTION = {'LE.le': True, 'LT.lt': True, 'GE.ge': False, 'GT.gt': False}
 _PREFIX_STRIPS: List[int] = [('Nat.gcd', 'gcd'), ('Nat.modulo', 'mod'), ('Nat.add', 'add'), ('Nat.mul', 'mul'), ('Nat.sub', 'sub'), ('Nat.le', '<='), ('Nat.lt', '<'), ('Iff', 'iff')]
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _body_references_bvar_0(ast: Any, depth: int=0) -> bool:
+    """Recursively check whether a Lean Expr JSON tree references
+    bvar(depth) — the de Bruijn index corresponding to the innermost
+    binder. If unused, the enclosing Forall is a logical arrow
+    hypothesis (not a value-level quantifier)."""
+    if not isinstance(ast, dict):
+        return False
+    kind = ast.get("kind", "")
+    if kind == "bvar":
+        return ast.get("idx", -1) == depth
+    if kind == "app":
+        return (_body_references_bvar_0(ast.get("fn"), depth)
+                or _body_references_bvar_0(ast.get("arg"), depth))
+    if kind in ("forall", "lam"):
+        # Entering a new binder increases the depth of our target.
+        return _body_references_bvar_0(ast.get("body"), depth + 1) \
+               or _body_references_bvar_0(ast.get("ty"), depth)
+    if kind == "let":
+        return (_body_references_bvar_0(ast.get("val"), depth)
+                or _body_references_bvar_0(ast.get("ty"), depth)
+                or _body_references_bvar_0(ast.get("body"), depth + 1))
+    if kind == "proj":
+        return _body_references_bvar_0(ast.get("expr"), depth)
+    # const, fvar, lit, sort, mvar, unsupported — no bvar refs
     return False
 
 #@ requires True
