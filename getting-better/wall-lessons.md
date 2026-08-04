@@ -1367,3 +1367,31 @@ Before proposing verify_module to rescue a razor-edge goal, spike it: tag the ra
 new walker trusted) and prove — if THAT regresses vs flat-HEAD, verify_module is refuted and the real fix is goal
 robustification (structural variants), not isolation. Reusable artifact: `scratchpad/cm_structvar.mlw` is the banked
 byte-identical `_collect_mutations` group emission for the next attempt (recognizer rebuild is a solved ~1h step).
+
+---
+
+## 2026-08-04 — 96h run, campaign (1) Wall-2 iterator model RE-MEASURED: CERTIFIED-BOUNDARY (exhausted)
+
+Worker measured every residual `\trusted` mirror stub whose LIVE body uses `.items()`/`.values()` and
+emitted the tractable ones in isolation. Verdict `no_feasible_candidate` — the recognizer-addressable
+`.items()`/`.values()` frontier is exhausted at the 804 floor. The residual walkers share ONE root: the
+**nested-`def` closure idiom** (boundary A) — the existing recognizers were built for module-level /
+self-recursive walks and do NOT match a nested `def rec` + mutable-cell (`found=[False]`) closure.
+Residual list + concrete first blockers:
+- `preamble.py::_func_returns_string_seq` / `functions.py::_returns_string_seq` — nested `def rec` +
+  `found=[False]` closure over `.values()`, threads a LOCAL second dict `svt`; isolation emission is a
+  broken facade (closure→top-level `py_rec` writing `found` out of scope, int-hash erasure); functions.py
+  variant also reads `getattr(self,"_seq_value_types",{})` (self-state).
+- `core_ir_semantic.py::_check_typeddict_access/_check_namedtuple_access/_check_union_narrowing` — walkers
+  already converted, but blocked: `.items()` set-comp int-key-erases the `set` param to `map int (option int)`,
+  and their leaf checkers are warn-only facades (`_namedtuple_check_call` also tuple-unpacks a heterogeneous
+  dict value `nt_arities[callee]=(int,list,set)`).
+- `ir_scanner.py::find_array_and_dict_vars/collect_escaping_exceptions/_collect_mutations/find_iteration_mutations`,
+  `ir_resolve.py::_contract_referenced_names`, `preamble.py::_collect_critical_mutexes` — hard boundaries
+  (Tuple[Set,Set], cross-module split, out-param append, record-of-dict, nested-def closure, self-state+sorted).
+The single buildable-in-principle target is a NEW recognizer for the nested-`def` closure existence/collect
+walk (would cover the `_*returns_string_seq` pair + `_contract_referenced_names` + `_collect_critical_mutexes`
++ the core_ir_semantic collector family) = boundary A, a deliberate multi-session build (faithful nested
+FunctionDef + mutable-cell closure IR modeling + local-dict threading), NOT a single-session recognizer match,
+and its natural proof targets (preamble.py/functions.py) are the wedge-prone heavy mirror files. Ledger 3,
+tree unchanged, no facade/axiom. → advance to campaign (2) string-keyed-set κ-inference.
