@@ -1523,3 +1523,25 @@ tree. These show as ` D` in git status. SAFE because they're never staged (I git
 conversion files), so HEAD is intact — but the supervisor MUST `git checkout HEAD -- test-suite/corpus/pycsl-reference/`
 after EVERY sweep, and ALWAYS verify `git status --porcelain test-suite/corpus/pycsl-reference/ | grep -c '^ D'`
 is 0 before committing. Never `git add -A`/`git add .` (would stage the deletions). See feedback_parallel_sweep.
+
+## 2026-08-04 — 96h run, _scan_node_for_subscript_calls (list-of-pairs device): CERTIFIED-BOUNDARY (whole-file E-matching scale wall)
+
+The list-of-(string,string)-pairs accumulator device is FEASIBLE in isolation (spike 17/17 Valid) and my own
+goals prove (`--fun` 32/32; the whole-file run's ONLY timeout is a SIBLING, never a `_scan`/`_type_str` goal).
+But the conversion is BLOCKED at whole-file scale by a razor-edge sibling in the same module,
+`_subst_type_in_ir__list'vc` (a heavy pyval-recursion IR rewriter that proves clean at HEAD):
+- Attempt 1 (list-concat `++`): added `use list.Append` to the shared theory → 5 sibling goals timeout (77M steps).
+- Attempt 2 (threaded-accumulator, Cons/Nil only, `use` block BYTE-IDENTICAL to HEAD): 5→1 timeout, but
+  `_subst_type_in_ir__list'vc` STILL times out (324M steps). So it is NOT the theory import — merely ADDING my
+  new recursive pyval functions (`__scan`/`__dfold`/`__lfold` + inlined `_type_str`/`_sanitize`) to the module
+  expands the E-matching search space enough to tip the razor-edge sibling over. monomorphize.py proves clean at
+  HEAD; +my conversion → the sibling saturates.
+This is the isolation_spike_not_whole_file / trio-fusion terminus class: an isolation spike proves FEASIBILITY,
+not whole-file PROVABILITY; a sibling goal already at the solver-search razor edge is tipped by ANY module
+addition. The re-encode (contamination-free) is the right autonomous fix and it HELPED (5→1) but cannot clear the
+last razor-edge goal. Reopening needs modular verification (verify_module to isolate the new functions from the
+sibling's proof context — but verify_module is review-gated AND can make razor-edge goals worse, per the driver
+frontier floor lesson) — OUTSIDE the autonomous envelope. LEFT TRUSTED. Device banked for a review-gated retry.
+This CLOSES the boundary-A drain: 4 converted (804→800: _func_returns_string_seq, _contract_referenced_names,
+_contract_referenced_var_names, _body_references_bvar_0); _scan = whole-file-scale boundary; the rest of the
+tier is self-state (hard boundary). Autonomous boundary-A floor = 800.
