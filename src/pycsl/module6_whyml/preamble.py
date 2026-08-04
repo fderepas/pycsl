@@ -2186,6 +2186,7 @@ class PreambleEmissionMixin:
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
             recognize_func_returns_string_seq_pairs,
             recognize_contract_referenced_names_pairs,
+            recognize_contract_referenced_var_names_pairs,
             recognize_final_pair, recognize_check_final, recognize_conc_cluster)
         # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
         # / lock-order protected-access walk {_check_concurrency,
@@ -2239,7 +2240,8 @@ class PreambleEmissionMixin:
             recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
             recognize_lemma_string_search_pairs(functions)["outer_ids"]) or bool(
             recognize_func_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
-            recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or any(
+            recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
+            recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_self_method_calls(f) is not None
             or recognize_substmap(f) is not None
@@ -2371,6 +2373,17 @@ class PreambleEmissionMixin:
         _crn = recognize_contract_referenced_names_pairs(functions)
         self._crn_outer_ids = _crn["outer_ids"]
         self._crn_walk_ids = _crn["walk_ids"]
+        # `_contract_referenced_var_names` (generic_fold.py boundary-A SET-COLLECT): the
+        # bare-variable-NAME sibling of `_contract_referenced_names` — same OUTER+lifted-
+        # `_walk` adjacency pairing + `set_union` skeleton, EXTENDED with a third folded
+        # contract list (`assigns`) and a two-arm leaf (`Var`->`node["name"]`; `Attribute`
+        # -> the nested `node["object"]`'s `["name"]`). The lifted `_walk` is SUPPRESSED.
+        # Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import \
+            recognize_contract_referenced_var_names_pairs
+        _crvn = recognize_contract_referenced_var_names_pairs(functions)
+        self._crvn_outer_ids = _crvn["outer_ids"]
+        self._crvn_walk_ids = _crvn["walk_ids"]
         # MULTI-GUARD CASCADE `_check_*` caller (check-diverges-noreturn-impl.md):
         # the set of single-arg closure-existence-converted `list pyval -> bool`
         # predicate NAMES (`_body_has_diverging_construct`). A cascade guard that

@@ -108,12 +108,41 @@ def _contract_referenced_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
         _walk(contracts.get("ensures", []))
     return referenced
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _contract_referenced_var_names(dep_funcs: List[int]) -> int:
-    return set()
+def _contract_referenced_var_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
+    """Collect every bare-variable name read inside the contracts
+    (`requires`/`ensures`/`assigns`) of the injected dependency stubs — both
+    plain `Var` references and the `object` of an `Attribute` projection
+    (`_filesystem.disk` → `_filesystem`). Used by 11-1039-spec-10 to scope
+    module-global propagation to ONLY the globals an injected public contract
+    actually references (so unrelated dependency globals do not cross the import
+    boundary, keeping the propagation byte-additive)."""
+    referenced: Set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            ntype = node.get("type")
+            if ntype == "Var" and isinstance(node.get("name"), str):
+                referenced.add(node["name"])
+            elif ntype == "Attribute":
+                obj = node.get("object")
+                if isinstance(obj, dict) and obj.get("type") == "Var" \
+                        and isinstance(obj.get("name"), str):
+                    referenced.add(obj["name"])
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                _walk(v)
+
+    for func in dep_funcs:
+        contracts = func.get("contracts", {}) or {}
+        _walk(contracts.get("requires", []))
+        _walk(contracts.get("ensures", []))
+        _walk(contracts.get("assigns", []))
+    return referenced
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

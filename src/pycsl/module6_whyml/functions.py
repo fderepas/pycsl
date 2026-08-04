@@ -3001,6 +3001,19 @@ class FunctionEmissionMixin:
         if _crn_desc is not None:
             from module6_whyml.generic_fold import emit_contract_referenced_names_group
             return emit_contract_referenced_names_group(func, _crn_desc, whyml_ident)
+        # `_contract_referenced_var_names` (generic_fold.py boundary-A SET-COLLECT): the
+        # bare-variable-NAME sibling of `_contract_referenced_names` — the lifted `_walk`
+        # sibling is SUPPRESSED; the wrapper emits the certified mutual pyval/pydict/list
+        # set-UNION catamorphism (`map string bool`) with a two-arm (Var/Attribute) leaf
+        # and a third folded contract list (`assigns`). Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_crvn_walk_ids", set()):
+            return []
+        _crvn_desc = getattr(self, "_crvn_outer_ids", {}).get(id(func))
+        if _crvn_desc is not None:
+            from module6_whyml.generic_fold import \
+                emit_contract_referenced_var_names_group
+            return emit_contract_referenced_var_names_group(
+                func, _crvn_desc, whyml_ident)
         # STRING first-match SEARCH closure (`_lemma_calls_trusted`): the lifted
         # `walk` sibling is SUPPRESSED; the wrapper emits the certified first-match
         # search catamorphism (`option string`, `map string bool` set-param
