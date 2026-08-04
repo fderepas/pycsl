@@ -1545,3 +1545,33 @@ frontier floor lesson) — OUTSIDE the autonomous envelope. LEFT TRUSTED. Device
 This CLOSES the boundary-A drain: 4 converted (804→800: _func_returns_string_seq, _contract_referenced_names,
 _contract_referenced_var_names, _body_references_bvar_0); _scan = whole-file-scale boundary; the rest of the
 tier is self-state (hard boundary). Autonomous boundary-A floor = 800.
+
+## 2026-08-04 — 96h run: AUTONOMOUS FLOOR CONFIRMED at 796 (8 conversions this run, 804→796)
+
+After breaking boundary A (nested-def closure walks) and the self-state tier, the clean banked-device frontier
+is drained. Final string-op-gated vein MEASURED and confirmed BOUNDARY:
+- `collect_escaping_exceptions` (ir_scanner.py) — gated on the trusted opaque `handler_catches` predicate which
+  IS the classification (modeling it opaque swallows the classification → non-vacuity violation) + split-ITERATION
+  (`for ep in exc.split("|")`, not an element-index read; str_split_op is an abstract over-approx). BOUNDARY.
+- `find_array_and_dict_vars` (ir_scanner.py) — needs a `rsplit(".",1)[-1]` last-component op that DOESN'T EXIST
+  (str_split_op splits forward into an abstract array; `[-1]` of unknown-length split not expressible) + a
+  Tuple[Set,Set] 2-tuple-of-sets return (unbuilt shape). BOUNDARY.
+Available faithful string ops (confirmed): startswith/endswith/find/split_elem/split(abstract)/strip/replace/case/
+join. MISSING: rsplit/rpartition/last-component; int(str)/regex-cursor (known boundaries).
+
+CONVERSIONS THIS RUN (all axiom-free ledger-3, full supervisor battery):
+1 _func_returns_string_seq (711c3b33) 2 _contract_referenced_names (c28e1b83) 3 _contract_referenced_var_names
+(0b335205) 4 _body_references_bvar_0 (b2ea3474, de-Bruijn depth) 5 _returns_string_seq (a851f95f, self-state)
+6 _collect_struct_pack_assign_targets (9a5ed0ef, +E-matching fix) 7+8 _collect_map_typed_locals + _has_set_op_on_map
+(fec790cb, auto_trust cluster). REJECTED (whole-file-scale wall): _scan_node_for_subscript_calls (tips razor-edge
+_subst_type_in_ir sibling). BOUNDARY records: any_function_trusted (facade), string-op vein (above).
+
+RESIDUAL ~796 = genuine floor for the AUTONOMOUS single-session envelope. Every remaining value-fold stub is:
+heterogeneous value-model ROOT (find_iteration_mutations/_collect_mutations — accumulate whole IR dicts; needs new
+ADT + §10.5 co-landing cert + Gate-R review = MULTI-SESSION, review-gated), OR self-mutation frame
+(_collect_tuple_var_assigns — writes self.field, self=opaque int not a record), OR facade (_call_return_whyml_type),
+OR fixpoint-invariant (_collect_array_var_assigns while-changed — new device), OR string-op boundary (above), OR
+whole-file-scale E-matching (review-gated modular verification). The ~780 rest = raw-ast parser (pure_ast 223),
+surface parsers (Module2/proof2why3 sexp), subprocess I/O (sertop/coqc/lean), hashlib, string-builder/stateful
+emitters. NONE in the autonomous envelope → HOLD at 796, do not spin. Reopening any needs user authorization
+(value-model root / self-as-record modeling / modular verification are the standing review-gated reopenings).
