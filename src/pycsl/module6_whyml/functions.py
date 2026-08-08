@@ -3217,6 +3217,7 @@ class FunctionEmissionMixin:
             recognize_check_noreturn, emit_check_noreturn_group,
             recognize_first_tuple_return, emit_first_tuple_return_group,
             recognize_find_assigned_vars, emit_find_assigned_vars_group,
+            recognize_collect_mutations, emit_collect_mutations_group,
             recognize_test_contains_map, emit_test_contains_map_group,
             recognize_is_linear_vc, emit_is_linear_vc_group,
             recognize_handler_catches, emit_handler_catches_group,
@@ -3736,6 +3737,12 @@ class FunctionEmissionMixin:
         _fav = recognize_find_assigned_vars(func)
         if _fav is not None:
             return emit_find_assigned_vars_group(_fav, whyml_ident)
+        _cm = recognize_collect_mutations(func)
+        if _cm is not None:
+            _cm_members = (self.ir.get("class_str_set_constants", {})
+                           .get(_cm["class_name"], {}).get(_cm["attr_name"]))
+            if _cm_members:
+                return emit_collect_mutations_group(_cm, _cm_members, whyml_ident)
         _tcm = recognize_test_contains_map(func)
         if _tcm is not None:
             return emit_test_contains_map_group(_tcm, whyml_ident)

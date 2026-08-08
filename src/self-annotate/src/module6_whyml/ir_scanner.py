@@ -562,13 +562,35 @@ class IRScanner:
         return result
 
     _MUTATING_METHODS: int = {'append', 'pop', 'clear', 'add', 'remove', 'discard', 'update', 'extend', 'insert', 'setdefault'}
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns out
     @staticmethod
-    def _collect_mutations(stmts: List[int], target_name: str, out: List[int]) -> None:
-        pass
+    def _collect_mutations(stmts: List[Dict[str, Any]], target_name: str, out: List[Dict[str, Any]]) -> None:
+        for stmt in stmts:
+            stype = stmt.get("stmt")
+            if stype == "ArraySet":
+                arr = stmt.get("array", {})
+                if arr.get("type") == "Var" and arr.get("name") == target_name:
+                    out.append(stmt)
+            elif stype == "Expr":
+                val = stmt.get("value", {})
+                if val.get("type") == "Call":
+                    func = val.get("func", "")
+                    if "." in func:
+                        recv, method = func.rsplit(".", 1)
+                        if recv == target_name and method in IRScanner._MUTATING_METHODS:
+                            out.append(stmt)
+            elif stype in ("Delete", "DelSubscript"):
+                arr = stmt.get("array", {}) or stmt.get("target", {})
+                if isinstance(arr, dict) and arr.get("type") == "Var" and arr.get("name") == target_name:
+                    out.append(stmt)
+            for key in ("body", "orelse", "finalbody"):
+                if key in stmt and isinstance(stmt[key], list):
+                    IRScanner._collect_mutations(stmt[key], target_name, out)
+            if stype == "Match":
+                for c in stmt.get("cases", []):
+                    IRScanner._collect_mutations(c.get("body", []), target_name, out)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

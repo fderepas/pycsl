@@ -12733,22 +12733,29 @@ def emit_find_assigned_vars_group(desc: Dict[str, Any], whyml_ident) -> List[str
         out.append(f"    | DCons _ _ rest -> {rname} rest end")
 
     def _list_reader(rname: str, ctor: str, key: str) -> None:
-        """A `pydict -> list pyval` reader carrying the size postcondition needed for the
-        outer fold's `variant { size_list stmts }` decrease (mirrors `pget_list`). The
-        `size_pos`/`size_dict_nonneg` lemma calls PIN the two nonnegativity facts the bound
-        needs so the SMT solver stops unfolding the recursive size measures (a 30M-step
-        E-matching blow-up otherwise — the whole-file proof's only two timeouts)."""
-        out.append(f"  let rec {rname} (d: pydict) : list pyval")
-        out.append("    ensures { size_list result <= size_dict d }")
+        """SPLIT into the proven `pget_dyn`/`pget_list` shape: a recursive option-returning
+        key SEARCH whose OWN VC carries the `pv_size v <= size_dict d` bound, plus a tiny
+        NON-recursive composer that projects the `PList`. This isolates the recursive size
+        measures (and, on the K_dyn path, the `pystr_eq` string theory) inside the search
+        function's self-contained VC, so the list-reader's `size_list result <= size_dict d`
+        postcondition is a one-step consequence of the search postcondition instead of an
+        E-matching blow-up over the whole nested match (the razor-edge whole-file timeout).
+        Mirrors the already-proven `pget_dyn`+`pget_list` pair (see struct-pack `_list_reader`)."""
+        gname = f"{rname}_g"
+        out.append(f"  let rec {gname} (d: pydict) : option pyval")
         out.append("    variant { d }")
-        out.append("  = match d with DNil -> Nil")
-        out.append("    | DCons k v rest ->")
-        out.append("        size_pos v; size_dict_nonneg rest;")
+        out.append("    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
         if ctor.startswith("(K_dyn"):
-            out.append(f'        (match k with K_dyn s -> if pystr_eq s "{key}" then (match v with PList xs -> xs | _ -> Nil end) else {rname} rest | _ -> {rname} rest end)')
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {gname} rest')
         else:
-            out.append(f"        (match k with {ctor} -> (match v with PList xs -> xs | _ -> Nil end) | _ -> {rname} rest end)")
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {gname} rest")
         out.append("    end")
+        out.append(f"  let {rname} (d: pydict) : list pyval")
+        out.append("    ensures { size_list result <= size_dict d }")
+        out.append(f"  = match {gname} d with Some (PList xs) -> xs | _ -> Nil end")
 
     # ---- literal-key readers ----
     _opt_reader(f"{n}__gstmt", _irkey_ctor(sk), sk)          # "stmt" (K_dyn)
@@ -12822,6 +12829,241 @@ def emit_find_assigned_vars_group(desc: Dict[str, Any], whyml_ident) -> List[str
     out.append("  = let acc = ref (const false) in")
     out.append(f"    {n}__f stmts acc;")
     out.append("    !acc")
+    return out
+
+
+# ---- `_collect_mutations`: ref-accumulator WHOLE-STMT append (list pyval) ----
+# The UB-7.1 mutation collector — a tag-dispatch stmt-walker that APPENDS the whole
+# pyval stmt node to the `out` accumulator when the stmt mutates `target_name`:
+#   * `ArraySet` whose `array` is `Var(name=target_name)`
+#   * `Expr`/`Call` whose `func` last-component is in `IRScanner._MUTATING_METHODS`
+#     AND whose receiver == `target_name`
+#   * `Delete`/`DelSubscript` whose `array`(-or-`target`) is `Var(name=target_name)`
+# then RECURSES body/orelse/finalbody + Match cases. Modelled as a REF-accumulator:
+# `out : ref (list pyval)`, appended via a DEFINED total list-append `__app`. The
+# `method in IRScanner._MUTATING_METHODS` membership is a FAITHFUL `pystr_eq`
+# disjunction over the ACTUAL 10 members (threaded from Module 5's
+# `class_str_set_constants` registry — mutation-sensitive: perturb a member and its
+# disjunct's literal moves). The `func.rsplit(".",1)` receiver/method split is the
+# banked opaque-string primitive (`__last`/`__recv`, each reflecting the "." literal;
+# result VC-free -> NOT an axiom). Body/orelse/finalbody use the proven split
+# `_list_reader` size-postcond shape; cases via `pget_list`. `ensures True`. Ledger 3.
+
+def _cm_find_class_attr_membership(node: Any) -> Optional[tuple]:
+    """First `<x> in <Attribute object=Var(C) attr=A>` membership -> (C, A), else None."""
+    if isinstance(node, dict):
+        if (node.get("type") == "BinOp" and node.get("op") == "in"):
+            r = node.get("right")
+            if (isinstance(r, dict) and r.get("type") == "Attribute"
+                    and isinstance(r.get("object"), dict)
+                    and r["object"].get("type") == "Var"
+                    and isinstance(r["object"].get("name"), str)
+                    and isinstance(r.get("attr"), str)):
+                return (r["object"]["name"], r["attr"])
+        for v in node.values():
+            got = _cm_find_class_attr_membership(v)
+            if got is not None:
+                return got
+    elif isinstance(node, list):
+        for x in node:
+            got = _cm_find_class_attr_membership(x)
+            if got is not None:
+                return got
+    return None
+
+
+def _cm_has_call_func(node: Any, fname: str) -> bool:
+    """True iff a `Call` node with `func == fname` appears anywhere in `node`."""
+    if isinstance(node, dict):
+        if node.get("type") == "Call" and node.get("func") == fname:
+            return True
+        return any(_cm_has_call_func(v, fname) for v in node.values())
+    elif isinstance(node, list):
+        return any(_cm_has_call_func(x, fname) for x in node)
+    return False
+
+
+def recognize_collect_mutations(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_collect_mutations`. Never raises."""
+    try:
+        return _recognize_collect_mutations(func)
+    except Exception:
+        return None
+
+
+def _recognize_collect_mutations(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_collect_mutations"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 3:
+        return None
+    stmts_p, target_p, out_p = params
+    if func.get("return_annotation") != "None":
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    outer = body[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For"
+            and _is_var(outer.get("iter"), stmts_p)):
+        return None
+    if not isinstance(outer.get("target"), str):
+        return None
+    ob = outer.get("body") or []
+    # the `method in <Class>.<CONST>` membership provides the member-set SOURCE.
+    attr = _cm_find_class_attr_membership(ob)
+    if attr is None:
+        return None
+    cls_name, attr_name = attr
+    # mutation-sensitive tag gate: every dispatch tag / read key / split char must be
+    # present (a body change that drops or renames any of them fails the recognizer,
+    # falling back to the trusted `val` — fail-closed / byte-inert).
+    tags = set(_all_strings(ob))
+    required = {"ArraySet", "Expr", "Call", "Delete", "DelSubscript", "Match",
+                "stmt", "array", "type", "name", "value", "func", "cases",
+                "body", "orelse", "finalbody", "."}
+    if not required.issubset(tags):
+        return None
+    if not _cm_has_call_func(ob, f"{out_p}.append"):
+        return None
+    if not _cm_has_call_func(ob, "func.rsplit"):
+        return None
+    if _find_self_call_name(ob, "_collect_mutations") is None:
+        return None
+    return {"name": func["name"], "stmts": stmts_p, "target": target_p, "out": out_p,
+            "class_name": cls_name, "attr_name": attr_name}
+
+
+def emit_collect_mutations_group(desc: Dict[str, Any], members: List[str],
+                                 whyml_ident) -> List[str]:
+    """Emit `_collect_mutations` as a REF-accumulator WHOLE-STMT append fold.
+    `out : ref (list pyval)`; each mutating stmt is appended via the DEFINED total
+    `__app`. The `_MUTATING_METHODS` membership is a real `pystr_eq` disjunction over
+    `members` (mutation-sensitive). Opaque `val function`s (`__hasdot`/`__last`/`__recv`)
+    model the `"." in func` / `func.rsplit(".",1)` string ops (result VC-free -> NO
+    axiom). Termination via the split `_list_reader` size postcond + `pget_list` + the
+    `size_list`/`size_dict`/`pv_size` measures. `ensures True`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    tp = whyml_ident(desc["target"])
+    op = whyml_ident(desc["out"])
+    out: List[str] = []
+
+    def _opt_reader(rname: str, ctor: str, key: str) -> None:
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    def _list_reader(rname: str, ctor: str, key: str) -> None:
+        gname = f"{rname}_g"
+        out.append(f"  let rec {gname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {gname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {gname} rest")
+        out.append("    end")
+        out.append(f"  let {rname} (d: pydict) : list pyval")
+        out.append("    ensures { size_list result <= size_dict d }")
+        out.append(f"  = match {gname} d with Some (PList xs) -> xs | _ -> Nil end")
+
+    # ---- opaque per-fn string ops (each reflects the "." split literal) ----
+    out.append(f"  val function {n}__hasdot (s: string) (sep: string) : bool")
+    out.append(f"  val function {n}__last (s: string) (sep: string) : string")
+    out.append(f"  val function {n}__recv (s: string) (sep: string) : string")
+    # ---- DEFINED total list append (the ref-accumulator snoc) ----
+    out.append(f"  let rec function {n}__app (a b: list pyval) : list pyval")
+    out.append("    variant { a }")
+    out.append(f"  = match a with Nil -> b | Cons h t -> Cons h ({n}__app t b) end")
+    # ---- literal-key readers ----
+    _opt_reader(f"{n}__gstmt", _irkey_ctor("stmt"), "stmt")
+    _opt_reader(f"{n}__garray", _irkey_ctor("array"), "array")
+    _opt_reader(f"{n}__gtarget", _irkey_ctor("target"), "target")
+    _opt_reader(f"{n}__gtype", _irkey_ctor("type"), "type")
+    _opt_reader(f"{n}__gname", _irkey_ctor("name"), "name")
+    _opt_reader(f"{n}__gvalue", _irkey_ctor("value"), "value")
+    _opt_reader(f"{n}__gfunc", _irkey_ctor("func"), "func")
+    _list_reader(f"{n}__Lbody", _irkey_ctor("body"), "body")
+    _list_reader(f"{n}__Lorelse", _irkey_ctor("orelse"), "orelse")
+    _list_reader(f"{n}__Lfinalbody", _irkey_ctor("finalbody"), "finalbody")
+
+    disj = " || ".join(f'pystr_eq method "{m}"' for m in members)
+    appnd = f"{op} := {n}__app !{op} (Cons stmt Nil)"
+    acc_ty = "ref (list pyval)"
+
+    # ---- main fold + Match-case sub-fold (mutual) ----
+    out.append(f"  let rec {n} (stmts: list pyval) ({tp}: string) ({op}: {acc_ty}) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} writes {{ {op} }} variant {{ size_list stmts }}")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons stmt rest ->")
+    out.append("        (match stmt with")
+    out.append("         | PDict d ->")
+    out.append(f"             (match {n}__gstmt d with")
+    out.append("              | Some (PStr stype) ->")
+    # ArraySet
+    out.append('                  (if pystr_eq stype "ArraySet" then')
+    out.append(f"                     (match {n}__garray d with")
+    out.append("                      | Some (PDict ad) ->")
+    out.append(f"                          (match {n}__gtype ad with")
+    out.append("                           | Some (PStr ty) ->")
+    out.append(f"                               (match {n}__gname ad with")
+    out.append(f'                                | Some (PStr nm) -> if pystr_eq ty "Var" && pystr_eq nm {tp} then {appnd} else ()')
+    out.append("                                | _ -> () end)")
+    out.append("                           | _ -> () end)")
+    out.append("                      | _ -> () end)")
+    # Expr / Call / membership
+    out.append('                   else if pystr_eq stype "Expr" then')
+    out.append(f"                     (match {n}__gvalue d with")
+    out.append("                      | Some (PDict vd) ->")
+    out.append(f"                          (match {n}__gtype vd with")
+    out.append('                           | Some (PStr vty) -> if pystr_eq vty "Call" then')
+    out.append(f"                               (match {n}__gfunc vd with")
+    out.append("                                | Some (PStr fs) ->")
+    out.append(f'                                    if {n}__hasdot fs "." then')
+    out.append(f'                                      (let method = {n}__last fs "." in')
+    out.append(f'                                       let recv = {n}__recv fs "." in')
+    out.append(f"                                       if pystr_eq recv {tp} && ({disj}) then {appnd} else ())")
+    out.append("                                    else ()")
+    out.append("                                | _ -> () end)")
+    out.append("                             else ()")
+    out.append("                           | _ -> () end)")
+    out.append("                      | _ -> () end)")
+    # Delete / DelSubscript
+    out.append('                   else if pystr_eq stype "Delete" || pystr_eq stype "DelSubscript" then')
+    out.append(f"                     (match (match {n}__garray d with Some (PDict a) -> Some a"
+               f" | _ -> (match {n}__gtarget d with Some (PDict b) -> Some b | _ -> None end) end) with")
+    out.append("                      | Some ad ->")
+    out.append(f"                          (match {n}__gtype ad with")
+    out.append("                           | Some (PStr ty) ->")
+    out.append(f"                               (match {n}__gname ad with")
+    out.append(f'                                | Some (PStr nm) -> if pystr_eq ty "Var" && pystr_eq nm {tp} then {appnd} else ()')
+    out.append("                                | _ -> () end)")
+    out.append("                           | _ -> () end)")
+    out.append("                      | None -> () end)")
+    out.append("                   else ());")
+    # recurse body/orelse/finalbody, then Match cases
+    out.append(f"                  {n} ({n}__Lbody d) {tp} {op};")
+    out.append(f"                  {n} ({n}__Lorelse d) {tp} {op};")
+    out.append(f"                  {n} ({n}__Lfinalbody d) {tp} {op};")
+    out.append(f'                  if pystr_eq stype "Match" then {n}__cf (pget_list "cases" d) {tp} {op} else ()')
+    out.append("              | _ -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {n} rest {tp} {op}")
+    out.append("    end")
+    out.append(f"  with {n}__cf (cs: list pyval) ({tp}: string) ({op}: {acc_ty}) : unit")
+    out.append(f"    requires {{ true }} ensures {{ true }} writes {{ {op} }} variant {{ size_list cs }}")
+    out.append("  = match cs with Nil -> ()")
+    out.append(f"    | Cons c rest -> (match c with PDict cd -> {n} ({n}__Lbody cd) {tp} {op} | _ -> () end);"
+               f" {n}__cf rest {tp} {op} end")
     return out
 
 

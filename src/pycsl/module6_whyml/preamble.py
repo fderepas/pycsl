@@ -2075,6 +2075,7 @@ class PreambleEmissionMixin:
             recognize_check_noreturn,
             recognize_first_tuple_return,
             recognize_find_assigned_vars,
+            recognize_collect_mutations,
             recognize_test_contains_map,
             recognize_is_linear_vc,
             recognize_handler_catches,
@@ -2129,6 +2130,7 @@ class PreambleEmissionMixin:
             or recognize_check_noreturn(f) is not None
             or recognize_first_tuple_return(f) is not None
             or recognize_find_assigned_vars(f) is not None
+            or recognize_collect_mutations(f) is not None
             or recognize_test_contains_map(f) is not None
             or recognize_is_linear_vc(f) is not None
             or recognize_handler_catches(f) is not None
@@ -2175,6 +2177,7 @@ class PreambleEmissionMixin:
             or recognize_check_noreturn(f) is not None
             or recognize_first_tuple_return(f) is not None
             or recognize_find_assigned_vars(f) is not None
+            or recognize_collect_mutations(f) is not None
             or recognize_test_contains_map(f) is not None
             or recognize_is_linear_vc(f) is not None
             or recognize_handler_catches(f) is not None
@@ -2283,6 +2286,9 @@ class PreambleEmissionMixin:
             # `_body_references_bvar_0` de-Bruijn depth-threading walk folds
             # pyval/pydict with `pv_size`/`size_dict` + `pystr_eq`.
             or recognize_refs_bvar(f) is not None
+            # `_collect_mutations` ref-accumulator whole-stmt append folds
+            # pyval/pydict/list (`pv_size`/`size_dict`/`size_list`) + `pystr_eq`.
+            or recognize_collect_mutations(f) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only

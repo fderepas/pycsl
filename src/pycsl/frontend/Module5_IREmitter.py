@@ -3115,6 +3115,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # type_decl scan too) → this is additive-only (duplicate, harmless) there.
         if self._is_mutable_state_decorated(node):
             self.program_ir.setdefault("mutable_state_class_names", []).append(node.name)
+        # self-tcb-reduction (_collect_mutations): class-body string-SET constants must
+        # reach Module 6 even for a fields-less/bases-less UTILITY class (`IRScanner`,
+        # which holds `_MUTATING_METHODS = {...}` but has no instance fields, so it never
+        # becomes a record type_decl and its str-set constant was otherwise dropped). A
+        # program-level `class_str_set_constants` registry — keyed by class name — is the
+        # class-scope analogue of `module_const_str_sets`, letting a Module-6 recognizer
+        # lower `<x> in IRScanner._MUTATING_METHODS` to a FAITHFUL `str_eq_op` disjunction
+        # over the ACTUAL members. Additive: populated only when the (tightly-gated)
+        # collector returns non-empty, so ABSENT for every class without such a constant
+        # (byte-identical emission — consumed only by a name-gated mirror-only recognizer).
+        _class_ssc = self._collect_class_str_set_constants(
+            node, {f["name"] for f in fields})
+        if _class_ssc:
+            self.program_ir.setdefault("class_str_set_constants", {})[node.name] = {
+                k: list(v) for k, v in _class_ssc.items()}
         if fields or bases:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]
