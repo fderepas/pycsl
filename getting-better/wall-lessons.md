@@ -1575,3 +1575,26 @@ whole-file-scale E-matching (review-gated modular verification). The ~780 rest =
 surface parsers (Module2/proof2why3 sexp), subprocess I/O (sertop/coqc/lean), hashlib, string-builder/stateful
 emitters. NONE in the autonomous envelope → HOLD at 796, do not spin. Reopening any needs user authorization
 (value-model root / self-as-record modeling / modular verification are the standing review-gated reopenings).
+
+## 2026-08-08 — 96h run #2, value-model ROOT feasibility SPIKE: PASSES (axiom-free-feasible)
+
+Scratchpad make-or-break spike on the biggest review-gated lever (ir_scanner._collect_mutations +
+find_iteration_mutations). VERDICT: axiom-free-feasible; corrects a prior ledger over-statement.
+- (a) RECORD embedding a full pyval node (find_iteration_mutations `{loop_target,iterable_name,mutating_stmt:pyval,
+  loop_line}`) — CLEARED. A NON-recursive record over already-certified pyval+string+int carries NO independent
+  well-foundedness obligation → NO new ADT, NO new §10.5 co-landing cert (ledger line ~1570 was imprecise).
+- (b) class-constant splice `method in IRScanner._MUTATING_METHODS` (10-elem Set[str] class const) — CLEARED.
+  pystr_eq disjunction over the literal members via the already-built class_str_set_constants collector;
+  axiom-free, mutation-sensitive, non-facade (NOT opaque-membership).
+- (c) whole-file E-matching SCALE — the ONLY real wall. Size-postcond reader encoding (`get_list_field`'s
+  `size_list result <= pv_size stmt`) times out in isolation (worker#17's __Lbody/__Lorelse razor-edge, reproduced
+  exactly, 60s/65M steps). The STRUCTURAL-variant encoding proves 16/16 fast under Z3+Alt-Ergo, zero axioms —
+  removes the size-postcond reader entirely. But clearing it requires re-emitting the LANDED find_assigned_vars.
+KEY INSIGHT (contained path): the razor-edge goal shape (`size_list result <= size_dict d` on a K_dyn typed-key
+list reader) is EXACTLY what the banked pget_dyn+pget_list reader-SPLIT (option-search + non-recursive composer)
+cleared for struct-pack's Lhandlers last run (9a5ed0ef). Applying that split to find_assigned_vars' readers is
+PROOF-ENGINEERING (body unchanged, verbatim mirror, byte-inert, re-proven per §10.4) — NOT the risky structural
+rewrite with the per-tag-selectivity faithfulness trap. If the reader-split clears find_assigned_vars' razor-edge
+whole-file without tipping a sibling, _collect_mutations + find_iteration_mutations convert within the autonomous
+envelope. If it does NOT clear it → flag the structural-rewrite build (re-emits a landed proven fn + Gate-R review)
+for user authorization. MEASURING the contained path next.
