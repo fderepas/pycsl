@@ -1598,3 +1598,26 @@ rewrite with the per-tag-selectivity faithfulness trap. If the reader-split clea
 whole-file without tipping a sibling, _collect_mutations + find_iteration_mutations convert within the autonomous
 envelope. If it does NOT clear it → flag the structural-rewrite build (re-emits a landed proven fn + Gate-R review)
 for user authorization. MEASURING the contained path next.
+
+## 2026-08-09 — 96h run #2: value-model ROOT BROKEN (796→794); _scan boundary reconfirmed
+
+VALUE-MODEL ROOT (deepest documented wall) BROKEN, 2 conversions axiom-free ledger-3:
+- _collect_mutations (c6557971): ref (list pyval) whole-node accumulator + class-const-splice
+  (_MUTATING_METHODS → pystr_eq disjunction) + reader-split. ENABLER: reader-split on the LANDED
+  find_assigned_vars cleared its whole-file razor-edge (de-risk gate: Timeout→Valid, no regression,
+  §10.4 re-prove). CAPABILITY: class_str_set_constants Module5 registry for fields-less classes (byte-inert).
+- find_iteration_mutations (fdbccc77): NON-recursive record embedding a WHOLE pyval node (mrec) — NO new
+  §10.5 cert (the ledger's "needs new cert" was an over-statement, corrected by the spike); calls the
+  converted _collect_mutations; caller-coupling free (consumer is a live-only trusted stub).
+METHOD BANKED: spike→de-risk-gate→build. A "review-gated multi-session" verdict is a HYPOTHESIS — spike the
+CONTAINED path (banked reader-split on the razor-edge sibling) before flagging for authorization; it turned an
+autonomous win out of what run #1 had flagged as needing user auth.
+
+_scan_node_for_subscript_calls RE-MEASURED (reader-split does NOT generalize): its whole-file blocker
+`_subst_type_in_ir__list'vc` is a structural-PRESERVATION VC (`ensures wf_list_deep result /\ frag_list result`),
+NOT a `size_list result <= size_dict d` list reader — no key-projection reader to split, and _subst_type_in_ir
+comes from general body-lowering (not a recognizer group) so its VC can't be reshaped byte-inertly. The 324M-step
+blow-up is E-matching SCALE over the recursive wf_*/frag_*/size_* predicate family enlarged by _scan's new
+functions. LESSON: the pget_dyn+pget_list reader-split clears size-postcond list-reader razor-edges (find_assigned_vars,
+struct-pack Lhandlers) but does NOT apply to structural-preservation VCs from general body-lowering. _scan stays
+CERTIFIED-BOUNDARY → review-gated modular verification (isolate _scan's recursion from the sibling's proof context).
