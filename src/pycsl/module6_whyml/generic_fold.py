@@ -13237,6 +13237,172 @@ def emit_find_iteration_mutations_group(desc: Dict[str, Any], whyml_ident) -> Li
     return out
 
 
+# ---- `_build_method_writes_map`: method-name -> self-field-writes accumulation ----
+# gap7 map-builder: a flat DOUBLE loop reading `func["contracts"]["assigns"][i]
+# ["type"/"object"/"field"]` (all strings, string-eq), dedup-appending the FIELD strings
+# of every `self.<field>` FieldGet/Attribute `assigns` target into a result
+# `map string (list string)` KEYED BY the method name (`func["name"]`). NO nested `def`,
+# NO whole-node/rename, NO recursion into the stmt body — a pure structural fold over the
+# REAL modeled pyval `functions` list (func -> contracts -> assigns list -> each entry's
+# type/object/field). Certifies the `map string (list string)` string-keyed list-valued
+# accumulation device (Map.set out name fields over the real pyval structure) that the
+# sibling `_collect_mutations` (list-append) and `find_iteration_mutations` (pyval-node
+# record-embedding) did NOT yet prove. Non-vacuous: the result map embeds REAL field
+# strings under REAL method-name keys via REAL typed/K_dyn readers; NO opaque manufacture.
+# `ensures True`; termination via structural list variants + the split `_list_reader`
+# size postcond. Ledger 3 (no new type/axiom/cert).
+
+def recognize_build_method_writes_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_writes_map`. Never raises."""
+    try:
+        return _recognize_build_method_writes_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_writes_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_writes_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    body = func.get("body") or []
+    # mutation-sensitive tag gate: every read key / dispatch tag / string literal the body
+    # discriminates on must be present (a body change that drops or renames any of them
+    # fails the recognizer, falling back to the trusted `val` — fail-closed / byte-inert).
+    tags = set(_all_strings(body))
+    required = {"contracts", "assigns", "type", "FieldGet", "Attribute",
+                "object", "self", "field", "name"}
+    if not required.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0],
+            "self_type": func.get("self_type")}
+
+
+def emit_build_method_writes_map_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                       whyml_ident) -> List[str]:
+    """Emit `_build_method_writes_map` as a pure structural fold building
+    `map string (list string)`. The outer fold walks the `functions` pyval list; for each
+    `func` (PDict) it reads `contracts` (PDict) -> `assigns` (list pyval) and folds the
+    inner list, dedup-appending every `self.<field>` FieldGet/Attribute target's REAL field
+    string into a `list string`; if non-empty it `Map.set`s that list under the REAL
+    `func["name"]` key. `ensures True`. Ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+
+    def _opt_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    def _list_reader(rname: str, key: str) -> None:
+        gname = f"{rname}_g"
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {gname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {gname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {gname} rest")
+        out.append("    end")
+        out.append(f"  let {rname} (d: pydict) : list pyval")
+        out.append("    ensures { size_list result <= size_dict d }")
+        out.append(f"  = match {gname} d with Some (PList xs) -> xs | _ -> Nil end")
+
+    # ---- dedup membership + order-preserving append (the `if f not in fields: append`) ----
+    out.append(f"  let rec function {P}mem (x: string) (l: list string) : bool")
+    out.append("    variant { l }")
+    out.append(f'  = match l with Nil -> false | Cons h t -> if pystr_eq h x then true else {P}mem x t end')
+    out.append(f"  let rec function {P}snoc (l: list string) (x: string) : list string")
+    out.append("    variant { l }")
+    out.append(f"  = match l with Nil -> Cons x Nil | Cons h t -> Cons h ({P}snoc t x) end")
+    # ---- literal-key readers ----
+    _opt_reader(f"{P}gcontracts", "contracts")
+    _opt_reader(f"{P}gtype", "type")
+    _opt_reader(f"{P}gobject", "object")
+    _opt_reader(f"{P}gfield", "field")
+    _opt_reader(f"{P}gname", "name")
+    _list_reader(f"{P}Lassigns", "assigns")
+    # ---- inner fold over `assigns` -> `list string` of dedup'd self-field names ----
+    # PROGRAM `let rec` (calls the program-world readers `__gtype`/`__gobject`/`__gfield`);
+    # effect-free (no writes), terminating on the structural list variant.
+    out.append(f"  let rec {P}flds (assigns: list pyval) (acc: list string) : list string")
+    out.append("    requires { true } ensures { true } variant { assigns }")
+    out.append("  = match assigns with")
+    out.append("    | Nil -> acc")
+    out.append("    | Cons a rest ->")
+    out.append("        let acc2 =")
+    out.append("          (match a with")
+    out.append("           | PDict ad ->")
+    out.append(f"               (match {P}gtype ad with")
+    out.append("                | Some (PStr ty) ->")
+    out.append('                    if pystr_eq ty "FieldGet" || pystr_eq ty "Attribute" then')
+    out.append(f"                      (match {P}gobject ad with")
+    out.append("                       | Some (PStr ob) ->")
+    out.append('                           if pystr_eq ob "self" then')
+    out.append(f"                             (match {P}gfield ad with")
+    out.append("                              | Some (PStr fs) ->")
+    out.append('                                  if pystr_eq fs "" then acc')
+    out.append(f"                                  else if {P}mem fs acc then acc")
+    out.append(f"                                  else {P}snoc acc fs")
+    out.append("                              | _ -> acc end)")
+    out.append("                           else acc")
+    out.append("                       | _ -> acc end)")
+    out.append("                    else acc")
+    out.append("                | _ -> acc end)")
+    out.append("           | _ -> acc end) in")
+    out.append(f"        {P}flds rest acc2")
+    out.append("    end")
+    # program map-set wrapper (list-valued analogue of the `set_add` string-set primitive):
+    # a `map` value can only be updated in PROGRAM code through such a `val`, not the logic
+    # `Map.set` directly — the ensures pins it to `Map.set` so the result is faithful.
+    out.append(f"  val {P}setk (m: map string (list string)) (k: string) (v: list string)"
+               " : map string (list string)")
+    out.append("    ensures { result = Map.set m k v }")
+    # ---- outer fold over `functions`: REF-accumulate into `map string (list string)` ----
+    out.append(f"  let rec {P}f (funcs: list pyval) (acc: ref (map string (list string))) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { funcs }")
+    out.append("  = match funcs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons fnc rest ->")
+    out.append("        (match fnc with")
+    out.append("         | PDict fd ->")
+    out.append(f"             let flds = (match {P}gcontracts fd with")
+    out.append(f"                         | Some (PDict cd) -> {P}flds ({P}Lassigns cd) Nil")
+    out.append("                         | _ -> Nil end) in")
+    out.append("             (match flds with")
+    out.append("              | Nil -> ()")
+    out.append("              | Cons _ _ ->")
+    out.append(f"                  (match {P}gname fd with")
+    out.append(f"                   | Some (PStr nm) -> acc := {P}setk !acc nm flds")
+    out.append("                   | _ -> () end)")
+    out.append("              end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}f rest acc")
+    out.append("    end")
+    # ---- entry: fold the PARAM `functions` list (a real PList) ----
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string (list string)")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let acc = ref (const Nil) in")
+    out.append(f"    (match {mv} with PList xs -> {P}f xs acc | _ -> () end);")
+    out.append("    !acc")
+    return out
+
+
 # ---- `_test_contains_map`: recursive bool predicate (map/array truthiness in a test) ----
 # A short-circuiting bool fold over the pyval IR tree: Subscript-family nodes recurse ONLY
 # their index children; a `Var` whose name is in the (param) map-locals set is a hit; the two

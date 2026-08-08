@@ -2077,6 +2077,7 @@ class PreambleEmissionMixin:
             recognize_find_assigned_vars,
             recognize_collect_mutations,
             recognize_find_iteration_mutations,
+            recognize_build_method_writes_map,
             recognize_test_contains_map,
             recognize_is_linear_vc,
             recognize_handler_catches,
@@ -2293,6 +2294,10 @@ class PreambleEmissionMixin:
             # pyval/pydict/list (`pv_size`/`size_dict`/`size_list`) + `pystr_eq`.
             or recognize_collect_mutations(f) is not None
             or recognize_find_iteration_mutations(f) is not None
+            # `_build_method_writes_map` folds pyval/pydict/list into a
+            # `map string (list string)` result (`pv_size`/`size_dict`/`size_list`
+            # + `Map.set`/`const`) + `pystr_eq`.
+            or recognize_build_method_writes_map(f) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only

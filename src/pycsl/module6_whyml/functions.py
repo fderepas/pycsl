@@ -3219,6 +3219,7 @@ class FunctionEmissionMixin:
             recognize_find_assigned_vars, emit_find_assigned_vars_group,
             recognize_collect_mutations, emit_collect_mutations_group,
             recognize_find_iteration_mutations, emit_find_iteration_mutations_group,
+            recognize_build_method_writes_map, emit_build_method_writes_map_group,
             recognize_test_contains_map, emit_test_contains_map_group,
             recognize_is_linear_vc, emit_is_linear_vc_group,
             recognize_handler_catches, emit_handler_catches_group,
@@ -3747,6 +3748,9 @@ class FunctionEmissionMixin:
         _fim = recognize_find_iteration_mutations(func)
         if _fim is not None:
             return emit_find_iteration_mutations_group(_fim, whyml_ident)
+        _bmwm = recognize_build_method_writes_map(func)
+        if _bmwm is not None:
+            return emit_build_method_writes_map_group(func, _bmwm, whyml_ident)
         _tcm = recognize_test_contains_map(func)
         if _tcm is not None:
             return emit_test_contains_map_group(_tcm, whyml_ident)

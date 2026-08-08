@@ -271,12 +271,26 @@ class FunctionEmissionMixin:
     def _build_method_field_param_result_ensures_map(self, functions: List[int]) -> Dict[str, List[int]]:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_method_writes_map(self, functions: List[int]) -> Dict[str, List[str]]:
-        return {}
+    def _build_method_writes_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """gap7-spec-rev2 (O1/O2): map method name → the self-field names it `assigns`
+        (`assigns self.x` → `["x"]`). Derived from the SAME `contracts.assigns` the method's
+        `let` is verified against, so the abstract op's `writes {self.x}` cannot drift from the
+        method's frame. Only `self.<field>` targets are collected (a non-self / `\nothing`
+        assigns yields no writes — the call needs no `writes` clause)."""
+        out: Dict[str, List[str]] = {}
+        for func in functions:
+            fields: List[str] = []
+            for a in (func.get("contracts", {}).get("assigns", []) or []):
+                if (isinstance(a, dict) and a.get("type") in ("FieldGet", "Attribute")
+                        and a.get("object") == "self" and a.get("field")):
+                    if a["field"] not in fields:
+                        fields.append(a["field"])
+            if fields:
+                out[func["name"]] = fields
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
