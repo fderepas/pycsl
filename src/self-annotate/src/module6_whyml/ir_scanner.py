@@ -592,13 +592,40 @@ class IRScanner:
                 for c in stmt.get("cases", []):
                     IRScanner._collect_mutations(c.get("body", []), target_name, out)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def find_iteration_mutations(stmts: List[int]) -> List[int]:
-        return []
+    def find_iteration_mutations(stmts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
+        for stmt in stmts:
+            if stmt.get("stmt") == "For":
+                if stmt.get("allow_iteration_mutation"):
+                    out.extend(IRScanner.find_iteration_mutations(stmt.get("body", [])))
+                    continue
+                iter_expr = stmt.get("iter", {})
+                iterable_name: str = ""
+                if iter_expr.get("type") == "Var":
+                    iterable_name = iter_expr.get("name", "")
+                if iterable_name:
+                    mutations: List[Dict[str, Any]] = []
+                    IRScanner._collect_mutations(stmt.get("body", []), iterable_name, mutations)
+                    for m in mutations:
+                        out.append({
+                            "loop_target": stmt.get("target", ""),
+                            "iterable_name": iterable_name,
+                            "mutating_stmt": m,
+                            "loop_line": stmt.get("lineno", 0),
+                        })
+                out.extend(IRScanner.find_iteration_mutations(stmt.get("body", [])))
+            else:
+                for key in ("body", "orelse", "finalbody"):
+                    if key in stmt and isinstance(stmt[key], list):
+                        out.extend(IRScanner.find_iteration_mutations(stmt[key]))
+                if stmt.get("stmt") == "Match":
+                    for c in stmt.get("cases", []):
+                        out.extend(IRScanner.find_iteration_mutations(c.get("body", [])))
+        return out
 
     #@ requires True
     #@ ensures True

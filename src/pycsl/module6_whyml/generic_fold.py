@@ -13067,6 +13067,176 @@ def emit_collect_mutations_group(desc: Dict[str, Any], members: List[str],
     return out
 
 
+# ---- `find_iteration_mutations`: UB-7.1 violation collector (record over pyval) ----
+# The CALLER of `_collect_mutations`. Walks loop stmts; for each `For` whose `iter` is a
+# `Var(name=C)` (and not opted out via a truthy `allow_iteration_mutation` marker), it
+# runs the converted `_collect_mutations` over the loop body accumulating the mutating
+# stmt nodes, then wraps each into a RECORD `{loop_target; iterable_name; mutating_stmt;
+# loop_line}` that EMBEDS the whole `pyval` mutating-stmt node + the real string/int
+# field reads. Modelled with a NON-recursive WhyML record `type <n>_rec` over the already-
+# certified pyval+string+int carriers (no independent well-foundedness obligation, no new
+# §10.5 cert). The `_collect_mutations` call binds the emitted sibling by its canonical
+# mangled name (captured from the body call node); the topological SCC sort emits the
+# callee before this caller, so it is in scope. The result is `list <n>_rec`, appended via
+# a DEFINED total `__app`. `ensures True`; termination via the split `_list_reader` size
+# postcond + `pget_list`'s `size_dict` postcond + the `size_list` measure. Ledger 3.
+
+def recognize_find_iteration_mutations(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `find_iteration_mutations`. Never raises."""
+    try:
+        return _recognize_find_iteration_mutations(func)
+    except Exception:
+        return None
+
+
+def _recognize_find_iteration_mutations(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("find_iteration_mutations"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    if func.get("return_annotation") != "list":
+        return None
+    body = func.get("body") or []
+    # mutation-sensitive tag gate: every dispatch tag / read key / built record field
+    # must be present (a body change that drops or renames any of them fails the
+    # recognizer, falling back to the trusted `val` — fail-closed / byte-inert).
+    tags = set(_all_strings(body))
+    required = {"For", "allow_iteration_mutation", "iter", "type", "Var", "name",
+                "loop_target", "iterable_name", "mutating_stmt", "loop_line", "lineno",
+                "target", "body", "orelse", "finalbody", "Match", "cases", "stmt"}
+    if not required.issubset(tags):
+        return None
+    # must self-recurse and must call the converted `_collect_mutations`.
+    if _find_self_call_name(body, "find_iteration_mutations") is None:
+        return None
+    collect = _find_self_call_name(body, "_collect_mutations")
+    if collect is None:
+        return None
+    return {"name": func["name"], "stmts": params[0], "collect": collect}
+
+
+def emit_find_iteration_mutations_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `find_iteration_mutations` as a pyval-tree walk building `list <n>_rec`
+    UB-7.1 violation records. Each `For` with a `Var` iterable runs the converted
+    `_collect_mutations` (imperative ref-accumulator) over the loop body, then maps each
+    mutating stmt node into a record embedding the REAL pyval node + real target/iterable/
+    lineno reads. `ensures True`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    cn = whyml_ident(desc["collect"])
+    rt = f"{n}_rec"
+    f_lt, f_in, f_ms, f_ll = f"{n}_lt", f"{n}_in", f"{n}_ms", f"{n}_ll"
+    out: List[str] = []
+
+    def _opt_reader(rname: str, ctor: str, key: str) -> None:
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    def _list_reader(rname: str, ctor: str, key: str) -> None:
+        gname = f"{rname}_g"
+        out.append(f"  let rec {gname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {gname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {gname} rest")
+        out.append("    end")
+        out.append(f"  let {rname} (d: pydict) : list pyval")
+        out.append("    ensures { size_list result <= size_dict d }")
+        out.append(f"  = match {gname} d with Some (PList xs) -> xs | _ -> Nil end")
+
+    # ---- record type carrying the WHOLE pyval mutating-stmt node ----
+    # Emitted on ONE line so the abstract-val-block insertion anchor
+    # (`_find_abstract_val_insert_idx`, keyed on the last `type ` line) treats it
+    # as a complete declaration rather than splicing the block between the record
+    # header and its fields.
+    out.append(f"  type {rt} = {{ {f_lt}: string; {f_in}: string; {f_ms}: pyval; {f_ll}: int }}")
+    # ---- DEFINED total list append (the record-list snoc) ----
+    out.append(f"  let rec function {n}__app (a b: list {rt}) : list {rt}")
+    out.append("    variant { a }")
+    out.append(f"  = match a with Nil -> b | Cons h t -> Cons h ({n}__app t b) end")
+    # ---- literal-key readers ----
+    _opt_reader(f"{n}__gstmt", _irkey_ctor("stmt"), "stmt")
+    _opt_reader(f"{n}__gallow", _irkey_ctor("allow_iteration_mutation"), "allow_iteration_mutation")
+    _opt_reader(f"{n}__giter", _irkey_ctor("iter"), "iter")
+    _opt_reader(f"{n}__gtype", _irkey_ctor("type"), "type")
+    _opt_reader(f"{n}__gname", _irkey_ctor("name"), "name")
+    _opt_reader(f"{n}__gtarget", _irkey_ctor("target"), "target")
+    _opt_reader(f"{n}__glineno", _irkey_ctor("lineno"), "lineno")
+    _list_reader(f"{n}__Lbody", _irkey_ctor("body"), "body")
+    _list_reader(f"{n}__Lorelse", _irkey_ctor("orelse"), "orelse")
+    _list_reader(f"{n}__Lfinalbody", _irkey_ctor("finalbody"), "finalbody")
+    # ---- map a list of mutating-stmt pyval nodes into record entries ----
+    out.append(f"  let rec function {n}__mk (ms: list pyval) (lt: string) (inm: string) (ll: int) : list {rt}")
+    out.append("    variant { ms }")
+    out.append("  = match ms with")
+    out.append("    | Nil -> Nil")
+    out.append(f"    | Cons m rest -> Cons {{ {f_lt} = lt; {f_in} = inm; {f_ms} = m; {f_ll} = ll }}"
+               f" ({n}__mk rest lt inm ll)")
+    out.append("    end")
+
+    # ---- main walk + Match-case sub-fold (mutual) ----
+    out.append(f"  let rec {n} (stmts: list {'pyval'}) : list {rt}")
+    out.append(f"    requires {{ true }} ensures {{ true }} variant {{ size_list stmts }}")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> Nil")
+    out.append("    | Cons stmt rest ->")
+    out.append("        let here =")
+    out.append("          (match stmt with")
+    out.append("           | PDict d ->")
+    out.append(f"               (match {n}__gstmt d with")
+    out.append("                | Some (PStr stype) ->")
+    out.append('                    if pystr_eq stype "For" then')
+    out.append(f"                      (let allow = (match {n}__gallow d with Some (PBool b) -> b | _ -> false end) in")
+    out.append(f"                       if allow then {n} ({n}__Lbody d)")
+    out.append("                       else")
+    out.append("                          let iname =")
+    out.append(f"                            (match {n}__giter d with")
+    out.append("                             | Some (PDict itd) ->")
+    out.append(f"                                 (match {n}__gtype itd with")
+    out.append('                                  | Some (PStr ty) -> if pystr_eq ty "Var" then')
+    out.append(f"                                      (match {n}__gname itd with Some (PStr nm) -> nm | _ -> \"\" end)")
+    out.append('                                      else ""')
+    out.append('                                  | _ -> "" end)')
+    out.append('                             | _ -> "" end) in')
+    out.append("                          let recs =")
+    out.append('                            if pystr_eq iname "" then Nil')
+    out.append("                            else")
+    out.append(f"                              (let lt = (match {n}__gtarget d with Some (PStr t) -> t | _ -> \"\" end) in")
+    out.append(f"                               let ll = (match {n}__glineno d with Some (PInt k) -> k | _ -> 0 end) in")
+    out.append("                               let muts = ref Nil in")
+    out.append(f"                               {cn} ({n}__Lbody d) iname muts;")
+    out.append(f"                               {n}__mk !muts lt iname ll) in")
+    out.append(f"                          {n}__app recs ({n} ({n}__Lbody d)))")
+    out.append("                    else")
+    out.append(f"                      {n}__app ({n} ({n}__Lbody d))")
+    out.append(f"                        ({n}__app ({n} ({n}__Lorelse d))")
+    out.append(f"                          ({n}__app ({n} ({n}__Lfinalbody d))")
+    out.append(f'                            (if pystr_eq stype "Match" then {n}__cf (pget_list "cases" d) else Nil)))')
+    out.append("                | _ -> Nil end)")
+    out.append("           | _ -> Nil end) in")
+    out.append(f"        {n}__app here ({n} rest)")
+    out.append("    end")
+    out.append(f"  with {n}__cf (cs: list pyval) : list {rt}")
+    out.append(f"    requires {{ true }} ensures {{ true }} variant {{ size_list cs }}")
+    out.append("  = match cs with")
+    out.append("    | Nil -> Nil")
+    out.append(f"    | Cons c rest -> {n}__app (match c with PDict cd -> {n} ({n}__Lbody cd) | _ -> Nil end)"
+               f" ({n}__cf rest)")
+    out.append("    end")
+    return out
+
+
 # ---- `_test_contains_map`: recursive bool predicate (map/array truthiness in a test) ----
 # A short-circuiting bool fold over the pyval IR tree: Subscript-family nodes recurse ONLY
 # their index children; a `Var` whose name is in the (param) map-locals set is a hit; the two
