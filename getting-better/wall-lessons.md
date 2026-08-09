@@ -1872,3 +1872,22 @@ proofs, apply_inheritance/composition, _inject_functions), ir_inline (_substitut
 and every other heterogeneous-dict-CONSTRUCTION boundary (Module5 record-building, functions._build_method_*_map).
 The pyval value model currently READS the heterogeneous dict; the missing half is a SOUND WRITE/construct op with a
 co-landing §10.5 cert (ledger stays 3). This is the single highest-leverage authorize-first build identified this run.
+
+## functions.py ensures-map param vein — REACHABLE (was "census artifact" boundary) (ac705a0a, 774->770, run #3)
+The "WhyML string-emitters / value-model wall" verdict for functions.py was a CENSUS ARTIFACT. 4 of a 5-stub
+param-referencing ensures-map vein converted (774->770): _build_method_param_result / _field_param_result /
+_field_param_post / _result_frame_ensures_map (#5 w/ Forall/Exists/ForallItems binder threading + propagate_frame gate).
+NEW DEVICE (banked): **param-threaded ensures-map scaffold** _emit_ensures_map_scaffold_pt + _emit_lmem — reads
+formal_params off the func dict as a `list pyval`, threads it through a real mutual cv/cdf/clf catamorphism, uses a
+real __lmem string-membership to decide param-vs-local. KEY DISCIPLINE (the unlock): the live bodies' `rename` closure
+rebuilds pydict nodes (= the pydict-construction boundary) BUT that value transform is NEVER OBSERVED by the `ensures
+True` output — so the recognizer emits the FILTERED clauses VERBATIM while faithfully computing the SPINE (which clauses
+kept). Over-approximation: drop the unobserved construction, model the observed filter. This is why "value-model-wall"
+files still have reachable veins — the wall's construction step may be output-irrelevant. Ledger 3 (only pv_size/size_*/
+pystr_eq + pinned setk). BUILD NOTE: _BMEM_KINDS entries must list ALL nested-def bases (incl. rename/refs_param) so every
+hoisted sibling is suppressed via walk_ids — an un-suppressed nested def emits as generic int-model code and fails proof.
+BOUNDARY: #4 _build_method_field_param_frame_ensures_map — cross-mixin blocker (body calls self._frame_trigger_term
+living in expressions.py, absent from mirror functions.py; verbatim port would break mirror-sync; needs a declared
+#@ requires_method/opaque-val interface). Secondary unmeasured functions.py candidates: _build_method_param_whyml_types
+_by_name (nested map string (map string string) construction — needs nested-map recognizer), _compute_scope_sets
+(3-StrSet-return set-collect). RUN #3: 783->770 (13 conv).
