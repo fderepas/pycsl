@@ -15207,6 +15207,192 @@ def emit_collect_escaping_exceptions_group(func: Dict[str, Any], desc: Dict[str,
     return out
 
 
+# ---- `find_array_and_dict_vars`: two-set Assign-classification stmt-tree fold --------------
+# A recursive walk over a `list pyval` statement tree returning `Tuple[Set[str], Set[str]]`
+# (the array-typed and dict/set-typed body locals). At each `Assign` it classifies the bound
+# `value` node by its real `type`/`func`/`op`/`left`/`right`/`args` discriminants (a 14-arm
+# ORDER-SENSITIVE if/elif chain) and `set_add`s the REAL `target` string into the array-set or
+# the dict-set; every compound stmt descends into its real body/orelse/handlers subtrees. The
+# two-set return is a WhyML PAIR `(map string bool, map string bool)` (two characteristic-map
+# StrSets), unioned field-wise at every recursion — the certified `set_union`/`const false`
+# `map string bool` algebra, doubled. The MAIN walk + the target-adds + every `type`/`op`/`left`/
+# `right`/`args` read are REAL structural accessors (faithful readers over the real `pydict`);
+# the ONLY opacity is a small family of string leaf-gates over the REAL `func` string:
+#   * `func.rsplit(".",1)[-1] in {encode,ljust,rjust,zfill}` -> a `val function __last_component
+#     (s:string):string` (the last dotted component) + a REAL `pystr_eq` disjunction over the
+#     four member literals (the membership is real, mutation-sensitive on the members) — the
+#     task-preferred "component + disjunction" faithful form;
+#   * `func.startswith("IRScanner.find_"|"IRScanner.collect_")` / `func.endswith(".split")` ->
+#     opaque-but-real `val function __sw_find`/`__sw_collect`/`__ends_split` (the precedented
+#     per-fn `startswith`/`endswith` leaf-gate, reflect-the-literal, mutation-sensitive).
+# All other memberships (`func in {list,sorted,bytes,bytearray}`, `{dict,defaultdict,Counter,
+# OrderedDict}`, `{set,frozenset,sorted,list}`, `{set,frozenset}`) are REAL `pystr_eq`
+# disjunctions — NOT opaque. Termination mirrors the certified `size_list`/`pv_size`/`size_dict`
+# measure family (dict-recursion entered only from `__v` at `pv_size`). NO axiom (abstract
+# logic-fn signatures + val decls + pure recursion, ledger 3); NON-VACUOUS (real two-set
+# accumulation of real target strings gated on real type discriminants; the recognizer requires
+# the real classification literals, so dropping an arm fails the match). Name-gated -> byte-inert.
+
+def recognize_find_array_and_dict_vars(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `find_array_and_dict_vars`. Never raises."""
+    try:
+        return _recognize_find_array_and_dict_vars(func)
+    except Exception:
+        return None
+
+
+def _recognize_find_array_and_dict_vars(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("find_array_and_dict_vars"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("param_annotations", {}).get(subj) != "list":
+        return None
+    # Decisive coupling to the REAL classification: the body must carry the
+    # distinctive discriminant literals (mutation-sensitive — rename/remove an
+    # arm and the match fails, so the stub stays `\trusted` rather than being
+    # silently mis-converted).
+    blob = repr(func.get("body") or [])
+    for lit in ("OrderedDict", "SliceAccess", "rsplit", "ListComp", "SetLit"):
+        if lit not in blob:
+            return None
+    return {"name": func["name"], "subject": subj}
+
+
+def emit_find_array_and_dict_vars_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                        whyml_ident,
+                                        top_ensures: Optional[List[str]] = None) -> List[str]:
+    """Emit the two-set Assign-classification stmt-tree fold (see the module note).
+    Faithful, axiom-free (ledger 3), `ensures True`. Return is a WhyML pair of StrSets."""
+    n = whyml_ident(func["name"])
+    out: List[str] = []
+    _te = list(top_ensures or ["true"])
+    _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
+    _none2 = "(const false, const false)"
+
+    def _reader(key: str, rname: str) -> None:
+        # Structural faithful reader over pydict -> `option pyval` (no opaque per-receiver val).
+        out.append(f"  let rec function {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if key in _NAMED_KEYS:
+            out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> Some v")
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        else:
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        out.append("    end")
+
+    # Faithful structural readers over the real pydict.
+    _reader("stmt", f"{n}__get_stmt")
+    _reader("value", f"{n}__get_value")
+    _reader("target", f"{n}__get_target")
+    _reader("type", f"{n}__get_type")
+    _reader("func", f"{n}__get_func")
+    _reader("op", f"{n}__get_op")
+    _reader("left", f"{n}__get_left")
+    _reader("right", f"{n}__get_right")
+    _reader("args", f"{n}__get_args")
+    _reader("body", f"{n}__get_body")
+    _reader("orelse", f"{n}__get_orelse")
+
+    # option pyval -> string projection ("" default; only inspected under a real `type`/`func`
+    # tag, so the default is never a live classification input).
+    out.append(f"  let function {n}__strf (o: option pyval) : string")
+    out.append('  = match o with Some (PStr s) -> s | _ -> "" end')
+
+    # Opaque-but-real string leaf-gates over the REAL `func` string.
+    out.append(f"  val function {n}__last_component (s: string) : string")
+    out.append(f"  val function {n}__sw_find (s: string) : bool")
+    out.append(f"  val function {n}__sw_collect (s: string) : bool")
+    out.append(f"  val function {n}__ends_split (s: string) : bool")
+
+    # Pair constructors (add the real target to the array-set / the dict-set).
+    out.append(f"  let function {n}__arr (t: string) : (map string bool, map string bool)")
+    out.append("  = (set_add (const false) t, const false)")
+    out.append(f"  let function {n}__dct (t: string) : (map string bool, map string bool)")
+    out.append("  = (const false, set_add (const false) t)")
+
+    # `<val>["args"]` is a singleton list whose sole elem is a Call/Var node.
+    out.append(f"  let function {n}__args1_ok (vd: pydict) : bool")
+    out.append(f"  = match {n}__get_args vd with")
+    out.append("    | Some (PList (Cons a0 Nil)) ->")
+    out.append("        (match a0 with")
+    out.append(f"         | PDict ad -> let aty = {n}__strf ({n}__get_type ad) in")
+    out.append('             pystr_eq aty "Call" || pystr_eq aty "Var"')
+    out.append("         | _ -> false end)")
+    out.append("    | _ -> false end")
+
+    # `<val>["left"|"right"]["type"]` (empty when absent).
+    out.append(f"  let function {n}__left_type (vd: pydict) : string")
+    out.append(f'  = match {n}__get_left vd with Some (PDict ld) -> {n}__strf ({n}__get_type ld) | _ -> "" end')
+    out.append(f"  let function {n}__right_type (vd: pydict) : string")
+    out.append(f'  = match {n}__get_right vd with Some (PDict rd) -> {n}__strf ({n}__get_type rd) | _ -> "" end')
+
+    # `_ifexpr_arm_is_array`: an IfExpr arm node is a list-literal/comp OR a `<str>.split(...)`.
+    out.append(f"  let function {n}__arm_arr (o: option pyval) : bool")
+    out.append("  = match o with")
+    out.append("    | Some (PDict dd) ->")
+    out.append(f"        let t = {n}__strf ({n}__get_type dd) in")
+    out.append('        (pystr_eq t "ArrayLit" || pystr_eq t "ListLit" || pystr_eq t "ListComp")')
+    out.append(f'        || (pystr_eq t "Call" && {n}__ends_split ({n}__strf ({n}__get_func dd)))')
+    out.append("    | _ -> false end")
+
+    # The ORDER-SENSITIVE 14-arm classification of an Assign's bound value node.
+    out.append(f"  let function {n}__classify (vd: pydict) (tgt: string) : (map string bool, map string bool)")
+    out.append(f"  = let vt = {n}__strf ({n}__get_type vd) in")
+    out.append(f"    let f = {n}__strf ({n}__get_func vd) in")
+    out.append(f"    let op = {n}__strf ({n}__get_op vd) in")
+    out.append(f'    if pystr_eq vt "Call" && (pystr_eq f "list" || pystr_eq f "sorted" || pystr_eq f "bytes" || pystr_eq f "bytearray") then {n}__arr tgt')
+    out.append(f'    else if pystr_eq vt "Call" && (let lc = {n}__last_component f in pystr_eq lc "encode" || pystr_eq lc "ljust" || pystr_eq lc "rjust" || pystr_eq lc "zfill") then {n}__arr tgt')
+    out.append(f'    else if pystr_eq vt "ListLit" || pystr_eq vt "ArrayLit" then {n}__arr tgt')
+    out.append(f'    else if pystr_eq vt "ListComp" then {n}__arr tgt')
+    out.append(f'    else if pystr_eq vt "DictLit" then {n}__dct tgt')
+    out.append(f'    else if pystr_eq vt "Call" && (pystr_eq f "dict" || pystr_eq f "defaultdict" || pystr_eq f "Counter" || pystr_eq f "OrderedDict") then {n}__dct tgt')
+    out.append(f'    else if pystr_eq vt "Call" && ({n}__sw_find f || {n}__sw_collect f || {n}__ends_split f) then {n}__arr tgt')
+    out.append(f'    else if pystr_eq vt "Call" && (pystr_eq f "set" || pystr_eq f "frozenset" || pystr_eq f "sorted" || pystr_eq f "list") && {n}__args1_ok vd then {n}__arr tgt')
+    out.append(f'    else if pystr_eq vt "BinOp" && pystr_eq op "+" && (let lt = {n}__left_type vd in pystr_eq lt "ArrayLit" || pystr_eq lt "ListLit" || pystr_eq lt "ListComp") then {n}__arr tgt')
+    out.append(f'    else if pystr_eq vt "IfExpr" && {n}__arm_arr ({n}__get_body vd) && {n}__arm_arr ({n}__get_orelse vd) then {n}__arr tgt')
+    out.append(f'    else if pystr_eq vt "SetLit" || (pystr_eq vt "Call" && (pystr_eq f "set" || pystr_eq f "frozenset")) then {n}__dct tgt')
+    out.append(f'    else if pystr_eq vt "BinOp" && pystr_eq op "|" && pystr_eq ({n}__right_type vd) "SetLit" then {n}__dct tgt')
+    out.append(f'    else if pystr_eq vt "SliceAccess" then {n}__arr tgt')
+    out.append(f'    else if pystr_eq vt "BinOp" && pystr_eq op "*" && pystr_eq ({n}__left_type vd) "ArrayLit" then {n}__arr tgt')
+    out.append(f"    else {_none2}")
+
+    # The program fold: full-subtree two-`Set[str]` catamorphism with the faithful Assign arm.
+    out.append(f"  let rec {n} (stmts: list pyval) : (map string bool, map string bool)")
+    out.append(f"    requires {{ true }}{_ens_line}")
+    out.append("    variant { size_list stmts }")
+    out.append("  = match stmts with")
+    out.append(f"    | Nil -> {_none2}")
+    out.append(f"    | Cons h t -> let (a1, d1) = {n}__v h in let (a2, d2) = {n} t in (set_union a1 a2, set_union d1 d2) end")
+    out.append(f"  with {n}__v (v: pyval) : (map string bool, map string bool)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        let cls = (match {n}__get_stmt d with")
+    out.append("                   | Some (PStr tg) ->")
+    out.append('                       if pystr_eq tg "Assign" then')
+    out.append(f"                         (match {n}__get_value d with")
+    out.append(f"                          | Some (PDict vd) -> {n}__classify vd ({n}__strf ({n}__get_target d))")
+    out.append(f"                          | _ -> {_none2} end)")
+    out.append(f"                       else {_none2}")
+    out.append(f"                   | _ -> {_none2} end) in")
+    out.append(f"        let (da, dd) = {n}__descend d in")
+    out.append("        let (ca, cd) = cls in")
+    out.append("        (set_union ca da, set_union cd dd)")
+    out.append(f"    | PList xs -> {n} xs")
+    out.append(f"    | _ -> {_none2} end")
+    out.append(f"  with {n}__descend (d: pydict) : (map string bool, map string bool)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> {_none2}")
+    out.append(f"    | DCons _ v rest -> let (a1, d1) = {n}__v v in let (a2, d2) = {n}__descend rest in (set_union a1 a2, set_union d1 d2) end")
+    return out
+
+
 # ---- `classify`: split-first-component + two StrSet memberships + 3-way const return ------
 # `top = module_name.split(".",1)[0]; if m in deny or top in deny: C0; if m in stubs or top in
 # stubs: C1; else C2`. The split-first is an opaque `(string,sep)->string` (reflect the sep),

@@ -134,13 +134,86 @@ class IRScanner:
                 found |= IRScanner.collection_binder_kinds(x)
         return found
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def find_array_and_dict_vars(stmts: List[int]) -> int:
-        return ([], {})
+    def find_array_and_dict_vars(stmts: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str]]:
+        array_vars = set()
+        dict_vars = set()
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign":
+                val = stmt.get("value", {})
+                target = stmt.get("target", "")
+                if isinstance(val, dict):
+                    vt = val.get("type", "")
+                    if vt == "Call" and val.get("func") in (
+                            "list", "sorted", "bytes", "bytearray"):
+                        array_vars.add(target)
+                    elif (vt == "Call" and val.get("func", "").rsplit(".", 1)[-1]
+                            in ("encode", "ljust", "rjust", "zfill")):
+                        array_vars.add(target)
+                    elif vt in ("ListLit", "ArrayLit"):
+                        array_vars.add(target)
+                    elif vt == "ListComp":
+                        array_vars.add(target)
+                    elif vt == "DictLit":
+                        dict_vars.add(target)
+                    elif vt == "Call" and val.get("func") in (
+                            "dict", "defaultdict", "Counter", "OrderedDict"):
+                        dict_vars.add(target)
+                    elif (vt == "Call" and isinstance(val.get("func"), str)
+                          and (val["func"].startswith("IRScanner.find_")
+                               or val["func"].startswith("IRScanner.collect_")
+                               or val["func"].endswith(".split"))):
+                        array_vars.add(target)
+                    elif (vt == "Call" and val.get("func") in ("set", "frozenset", "sorted", "list")
+                          and len(val.get("args", [])) == 1
+                          and isinstance(val["args"][0], dict)
+                          and val["args"][0].get("type") in ("Call", "Var")):
+                        array_vars.add(target)
+                    elif (vt == "BinOp" and val.get("op") == "+"
+                          and isinstance(val.get("left"), dict)
+                          and val["left"].get("type") in ("ArrayLit", "ListLit", "ListComp")):
+                        array_vars.add(target)
+                    elif (vt == "IfExpr"
+                          and IRScanner._ifexpr_arm_is_array(val.get("body"))
+                          and IRScanner._ifexpr_arm_is_array(val.get("orelse"))):
+                        array_vars.add(target)
+                    elif vt == "SetLit" or (vt == "Call" and val.get("func") in ("set", "frozenset")):
+                        dict_vars.add(target)
+                    elif (vt == "BinOp" and val.get("op") == "|"
+                          and isinstance(val.get("right"), dict)
+                          and val["right"].get("type") == "SetLit"):
+                        dict_vars.add(target)
+                    elif vt == "SliceAccess":
+                        array_vars.add(target)
+                    elif (vt == "BinOp" and val.get("op") == "*"
+                          and isinstance(val.get("left"), dict)
+                          and val["left"].get("type") == "ArrayLit"):
+                        array_vars.add(target)
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    a, d = IRScanner.find_array_and_dict_vars(stmt[key])
+                    array_vars |= a
+                    dict_vars |= d
+            if stmt.get("stmt") == "While":
+                a, d = IRScanner.find_array_and_dict_vars(stmt.get("body", []))
+                array_vars |= a
+                dict_vars |= d
+            if stmt.get("stmt") == "For":
+                a, d = IRScanner.find_array_and_dict_vars(stmt.get("body", []))
+                array_vars |= a
+                dict_vars |= d
+            if stmt.get("stmt") == "Try":
+                a, d = IRScanner.find_array_and_dict_vars(stmt.get("body", []))
+                array_vars |= a
+                dict_vars |= d
+                for h in stmt.get("handlers", []):
+                    a, d = IRScanner.find_array_and_dict_vars(h.get("body", []))
+                    array_vars |= a
+                    dict_vars |= d
+        return array_vars, dict_vars
 
     #@ requires True
     #@ ensures True
