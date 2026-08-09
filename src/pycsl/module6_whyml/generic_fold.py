@@ -14324,6 +14324,426 @@ def emit_build_method_field_old_ensures_map_group(desc: Dict[str, Any], whyml_id
     return out
 
 
+# ---- param-THREADED `_build_method_*_ensures_map` twins ------------------------------------
+# The `*_param_*` / `*_frame_*` maps' filters classify a formal-param `Var` as ALLOWED (it is
+# renamable to `x_i` at the call site) and a non-param `Var` as a disallowed local. So the
+# classifier must know the method's `formal_params`; these twins read that list off each func
+# dict and thread it through the `(nd, hr, hf, hp)` catamorphism as a `list pyval` on which a
+# `{P}lmem` string-membership decides param-vs-local. The emitted output is `ensures True`, so
+# the value transform `rename` performs is never OBSERVED — the recognizer reflects the FILTERED
+# SPINE verbatim (which clauses survive), exactly as the filter-only siblings above do.
+
+
+def _emit_lmem(P: str) -> List[str]:
+    """`{P}lmem s l`: `s ∈ l` over a `list pyval` of `PStr` param names (the formal_params list).
+    Emitted BEFORE the classifier that uses it (WhyML has no forward reference)."""
+    return [
+        f"  let rec {P}lmem (s: string) (l: list pyval) : bool",
+        "    requires { true } ensures { true } variant { l }",
+        "  = match l with Nil -> false",
+        f'    | Cons (PStr x) t -> (if pystr_eq x s then true else {P}lmem s t)',
+        f"    | Cons _ t -> {P}lmem s t end",
+    ]
+
+
+def _emit_ensures_map_scaffold_pt(n: str, P: str, self_type: str, mv: str,
+                                  keep_expr: str, frame_gated: bool = False) -> List[str]:
+    """Param-threaded twin of `_emit_ensures_map_scaffold`: additionally reads each method's
+    `formal_params` off the func dict as a `list pyval` and threads it through the per-clause
+    filter as `ps` (the caller's `{P}cv`/`{P}lmem` use it to tell a formal-param `Var` from a
+    local). `keep_expr` is a WhyML bool over the free node `e`, the threaded param list `ps`, and
+    the caller-emitted `{P}cv` catamorphism. When `frame_gated`, only methods whose
+    `propagate_frame` field is true contribute (the M4 opt-in `#@ propagate_frame`). Pins the
+    same `Map.set`/`size_list` primitives as the base scaffold; `ensures True`; ledger 3."""
+    out: List[str] = []
+    out += _emit_pval_reader(f"{P}gcontracts", "contracts")  # option pyval: func["contracts"]
+    out += _emit_pval_reader(f"{P}gensures", "ensures")      # option pyval: contracts["ensures"]
+    out += _emit_skey_reader(f"{P}gname", "name")             # option string: func["name"]
+    out += _emit_pval_reader(f"{P}gparams", "formal_params")  # option pyval: func["formal_params"]
+    if frame_gated:
+        out += _emit_pval_reader(f"{P}gpf", "propagate_frame")  # option pyval: func["propagate_frame"]
+    # program map-set wrapper pinned to `Map.set`
+    out.append(f"  val {P}setk (m: map string (list pyval)) (k: string) (v: list pyval)"
+               " : map string (list pyval)")
+    out.append("    ensures { result = Map.set m k v }")
+    # order-preserving filter over the ensures list, threading the param list `ps`
+    out.append(f"  let rec {P}filt (es: list pyval) (ps: list pyval) : list pyval")
+    out.append("    requires { true } ensures { true } variant { size_list es }")
+    out.append("  = match es with")
+    out.append("    | Nil -> Nil")
+    out.append(f"    | Cons e rest -> if ({keep_expr}) then Cons e ({P}filt rest ps) "
+               f"else {P}filt rest ps")
+    out.append("    end")
+    # outer fold over `functions`: REF-accumulate into `map string (list pyval)`
+    out.append(f"  let rec {P}f (funcs: list pyval) (acc: ref (map string (list pyval))) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { funcs }")
+    out.append("  = match funcs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons fnc rest ->")
+    out.append("        (match fnc with")
+    out.append("         | PDict fd ->")
+    out.append(f"             let ps = (match {P}gparams fd with "
+               "Some (PList pl) -> pl | _ -> Nil end) in")
+    if frame_gated:
+        out.append(f"             let gated = (match {P}gpf fd with "
+                   "Some (PBool b) -> b | _ -> false end) in")
+    out.append(f"             let kept = (match {P}gcontracts fd with")
+    out.append(f"                         | Some (PDict cd) -> "
+               f"(match {P}gensures cd with Some (PList es) -> {P}filt es ps | _ -> Nil end)")
+    out.append("                         | _ -> Nil end) in")
+    if frame_gated:
+        out.append("             (match (if gated then kept else Nil) with")
+    else:
+        out.append("             (match kept with")
+    out.append("              | Nil -> ()")
+    out.append("              | Cons _ _ ->")
+    out.append(f"                  (match {P}gname fd with")
+    out.append(f"                   | Some nm -> acc := {P}setk !acc nm kept")
+    out.append("                   | None -> () end)")
+    out.append("              end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}f rest acc")
+    out.append("    end")
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string (list pyval)")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let acc = ref (const Nil) in")
+    out.append(f"    (match {mv} with PList xs -> {P}f xs acc | _ -> () end);")
+    out.append("    !acc")
+    return out
+
+
+def recognize_build_method_param_result_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_param_result_ensures_map`. Never raises."""
+    try:
+        return _recognize_build_method_param_result_ensures_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_param_result_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_param_result_ensures_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    tags = set(_all_strings(func.get("body") or []))
+    if not {"contracts", "ensures", "name"}.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0], "self_type": func.get("self_type")}
+
+
+def emit_build_method_param_result_ensures_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_build_method_param_result_ensures_map`. Filter =
+    `classify(e, pset) is True and refs_param(e, pset)`, encoded as the param-threaded
+    `(nd, hr, hp)` catamorphism (nd = no disallowed leaf; hr = references \\result; hp =
+    references a formal param). `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    bs = "\\\\"
+    out: List[str] = []
+    out += _emit_lmem(P)
+    out += _emit_skey_reader(f"{P}gtype", "type")
+    out += _emit_skey_reader(f"{P}gnm", "name")
+    out += _emit_skey_reader(f"{P}gvar", "var")
+    out.append(f"  let rec {P}cv (v: pyval) (ps: list pyval) : (bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some t ->")
+    out.append('             if pystr_eq t "FieldGet" || pystr_eq t "Attribute"')
+    out.append('                || pystr_eq t "OldVar" || pystr_eq t "OldField" then (false, false, false)')
+    out.append('             else if pystr_eq t "Var" then')
+    out.append(f'                 let ok = (match {P}gnm d with Some nm -> {P}lmem nm ps | None -> false end) in')
+    out.append("                 (ok, false, ok)")
+    out.append('             else if pystr_eq t "Result" then (true, true, false)')
+    out.append('             else if pystr_eq t "ArrayLen" then')
+    out.append(f"                 (match {P}gvar d with")
+    out.append(f'                  | Some s -> if pystr_eq s "{bs}result" then (true, true, false)')
+    out.append(f"                              else let ok = {P}lmem s ps in (ok, false, ok)")
+    out.append("                  | None -> (false, false, false) end)")
+    out.append(f"             else {P}cdf d ps")
+    out.append(f"         | None -> {P}cdf d ps end)")
+    out.append(f"    | PList xs -> {P}clf xs ps")
+    out.append("    | _ -> (true, false, false)")
+    out.append("    end")
+    out.append(f"  with {P}cdf (d: pydict) (ps: list pyval) : (bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> (true, false, false)")
+    out.append("    | DCons _ v rest -> size_pos v;")
+    out.append(f"        let (a1, b1, c1) = {P}cv v ps in let (a2, b2, c2) = {P}cdf rest ps in "
+               "(a1 && a2, b1 || b2, c1 || c2) end")
+    out.append(f"  with {P}clf (xs: list pyval) (ps: list pyval) : (bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> (true, false, false)")
+    out.append(f"    | Cons h t -> let (a1, b1, c1) = {P}cv h ps in let (a2, b2, c2) = {P}clf t ps in "
+               "(a1 && a2, b1 || b2, c1 || c2) end")
+    keep = f"let (a, b, c) = {P}cv e ps in a && b && c"
+    out += _emit_ensures_map_scaffold_pt(n, P, self_type, mv, keep)
+    return out
+
+
+def recognize_build_method_field_param_result_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_field_param_result_ensures_map`. Never raises."""
+    try:
+        return _recognize_build_method_field_param_result_ensures_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_field_param_result_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_field_param_result_ensures_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    tags = set(_all_strings(func.get("body") or []))
+    if not {"contracts", "ensures", "name"}.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0], "self_type": func.get("self_type")}
+
+
+def emit_build_method_field_param_result_ensures_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_build_method_field_param_result_ensures_map`. Filter =
+    `classify(e, pset) is not False and saw(e,"result") and saw(e,"field") and refs_param(e,pset)`,
+    encoded as the param-threaded `(nd, hr, hf, hp)` catamorphism. `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    bs = "\\\\"
+    out: List[str] = []
+    out += _emit_lmem(P)
+    out += _emit_skey_reader(f"{P}gtype", "type")
+    out += _emit_skey_reader(f"{P}gnm", "name")
+    out += _emit_skey_reader(f"{P}gvar", "var")
+    out += _emit_skey_reader(f"{P}gobject", "object")
+    out.append(f"  let {P}selfobj (d: pydict) : bool = "
+               f'match {P}gobject d with Some s -> pystr_eq s "self" | None -> false end')
+    out.append(f"  let rec {P}cv (v: pyval) (ps: list pyval) : (bool, bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some t ->")
+    out.append('             if pystr_eq t "OldVar" || pystr_eq t "OldField" then (false, false, false, false)')
+    out.append('             else if pystr_eq t "FieldGet" || pystr_eq t "Attribute" then')
+    out.append(f"                 let s = {P}selfobj d in (s, false, s, false)")
+    out.append('             else if pystr_eq t "Var" then')
+    out.append(f'                 let ok = (match {P}gnm d with Some nm -> {P}lmem nm ps | None -> false end) in')
+    out.append("                 (ok, false, false, ok)")
+    out.append('             else if pystr_eq t "Result" then (true, true, false, false)')
+    out.append('             else if pystr_eq t "ArrayLen" then')
+    out.append(f"                 (match {P}gvar d with")
+    out.append(f'                  | Some s -> if pystr_eq s "{bs}result" then (true, true, false, false)')
+    out.append(f"                              else let ok = {P}lmem s ps in (ok, false, false, ok)")
+    out.append("                  | None -> (false, false, false, false) end)")
+    out.append(f"             else {P}cdf d ps")
+    out.append(f"         | None -> {P}cdf d ps end)")
+    out.append(f"    | PList xs -> {P}clf xs ps")
+    out.append("    | _ -> (true, false, false, false)")
+    out.append("    end")
+    out.append(f"  with {P}cdf (d: pydict) (ps: list pyval) : (bool, bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> (true, false, false, false)")
+    out.append("    | DCons _ v rest -> size_pos v;")
+    out.append(f"        let (a1, b1, c1, d1) = {P}cv v ps in let (a2, b2, c2, d2) = {P}cdf rest ps in "
+               "(a1 && a2, b1 || b2, c1 || c2, d1 || d2) end")
+    out.append(f"  with {P}clf (xs: list pyval) (ps: list pyval) : (bool, bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> (true, false, false, false)")
+    out.append(f"    | Cons h t -> let (a1, b1, c1, d1) = {P}cv h ps in let (a2, b2, c2, d2) = {P}clf t ps in "
+               "(a1 && a2, b1 || b2, c1 || c2, d1 || d2) end")
+    keep = f"let (a, b, c, d0) = {P}cv e ps in a && b && c && d0"
+    out += _emit_ensures_map_scaffold_pt(n, P, self_type, mv, keep)
+    return out
+
+
+def recognize_build_method_field_param_post_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_field_param_post_ensures_map`. Never raises."""
+    try:
+        return _recognize_build_method_field_param_post_ensures_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_field_param_post_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_field_param_post_ensures_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    tags = set(_all_strings(func.get("body") or []))
+    if not {"contracts", "ensures", "name"}.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0], "self_type": func.get("self_type")}
+
+
+def emit_build_method_field_param_post_ensures_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_build_method_field_param_post_ensures_map`. Filter =
+    `classify(e, pset) is not False and saw_field(e) and refs_param(e, pset)`, encoded as the
+    param-threaded `(nd, hf, hp)` catamorphism. NON-QUANTIFIED clauses only (Forall/Exists/
+    ForallItems => nd=false); a `Subscript` whose `value` is a bare `Var` => nd=false; every
+    other `Subscript` recurses. `\\old` IS permitted (no OldVar/OldField reject). `ensures True`;
+    ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+    out += _emit_lmem(P)
+    out += _emit_skey_reader(f"{P}gtype", "type")
+    out += _emit_skey_reader(f"{P}gnm", "name")
+    out += _emit_skey_reader(f"{P}gvar", "var")
+    out += _emit_skey_reader(f"{P}gobject", "object")
+    out += _emit_pval_reader(f"{P}gvalue", "value")
+    out.append(f"  let {P}selfobj (d: pydict) : bool = "
+               f'match {P}gobject d with Some s -> pystr_eq s "self" | None -> false end')
+    # ArrayLen `var` may be a self-referencing DICT (`\len(self.f)`); read it as pyval.
+    out += _emit_pval_reader(f"{P}gvarpv", "var")
+    out.append(f"  let rec {P}cv (v: pyval) (ps: list pyval) : (bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some t ->")
+    out.append('             if pystr_eq t "Result" || pystr_eq t "Forall"')
+    out.append('                || pystr_eq t "Exists" || pystr_eq t "ForallItems" then (false, false, false)')
+    out.append('             else if pystr_eq t "FieldGet" || pystr_eq t "Attribute" then')
+    out.append(f"                 let s = {P}selfobj d in (s, s, false)")
+    out.append('             else if pystr_eq t "Var" then')
+    out.append(f'                 let ok = (match {P}gnm d with Some nm -> {P}lmem nm ps | None -> false end) in')
+    out.append("                 (ok, false, ok)")
+    out.append('             else if pystr_eq t "ArrayLen" then')
+    out.append(f"                 (match {P}gvarpv d with")
+    out.append(f'                  | Some (PStr s) -> let ok = (pystr_eq s "self") || {P}lmem s ps in (ok, false, false)')
+    out.append(f"                  | Some (PDict vd) -> let ok = {P}selfobj vd in (ok, false, false)")
+    out.append("                  | _ -> (false, false, false) end)")
+    out.append('             else if pystr_eq t "Subscript" then')
+    out.append(f"                 (match {P}gvalue d with")
+    out.append(f"                  | Some (PDict vd) -> (match {P}gtype vd with")
+    out.append(f'                                        | Some vt -> if pystr_eq vt "Var" then (false, false, false) else {P}cdf d ps')
+    out.append(f"                                        | None -> {P}cdf d ps end)")
+    out.append(f"                  | _ -> {P}cdf d ps end)")
+    out.append(f"             else {P}cdf d ps")
+    out.append(f"         | None -> {P}cdf d ps end)")
+    out.append(f"    | PList xs -> {P}clf xs ps")
+    out.append("    | _ -> (true, false, false)")
+    out.append("    end")
+    out.append(f"  with {P}cdf (d: pydict) (ps: list pyval) : (bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> (true, false, false)")
+    out.append("    | DCons _ v rest -> size_pos v;")
+    out.append(f"        let (a1, b1, c1) = {P}cv v ps in let (a2, b2, c2) = {P}cdf rest ps in "
+               "(a1 && a2, b1 || b2, c1 || c2) end")
+    out.append(f"  with {P}clf (xs: list pyval) (ps: list pyval) : (bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> (true, false, false)")
+    out.append(f"    | Cons h t -> let (a1, b1, c1) = {P}cv h ps in let (a2, b2, c2) = {P}clf t ps in "
+               "(a1 && a2, b1 || b2, c1 || c2) end")
+    keep = f"let (a, b, c) = {P}cv e ps in a && b && c"
+    out += _emit_ensures_map_scaffold_pt(n, P, self_type, mv, keep)
+    return out
+
+
+def recognize_build_method_result_frame_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_result_frame_ensures_map`. Never raises."""
+    try:
+        return _recognize_build_method_result_frame_ensures_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_result_frame_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_result_frame_ensures_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    tags = set(_all_strings(func.get("body") or []))
+    if not {"contracts", "ensures", "name"}.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0], "self_type": func.get("self_type")}
+
+
+def emit_build_method_result_frame_ensures_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_build_method_result_frame_ensures_map` — the `\\result`-referencing quantified
+    single-cell FRAME twin. Filter (over `propagate_frame` opt-in methods only) =
+    `classify(e, pset, {}) is not False and saw(e,"field") and saw(e,"forall") and saw(e,"result")`,
+    encoded as the param-AND-bound-threaded `(nd, hf, hforall, hr)` catamorphism: a `Forall`/
+    `Exists`/`ForallItems` node adds its binder to the bound set `bd` before descending, so a bound
+    `k` is not mistaken for a local; `\\result` is PERMITTED (nd stays true). `ensures True`;
+    frame-gated; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+    out += _emit_lmem(P)
+    out += _emit_skey_reader(f"{P}gtype", "type")
+    out += _emit_skey_reader(f"{P}gnm", "name")
+    out += _emit_skey_reader(f"{P}gvar", "var")
+    out += _emit_skey_reader(f"{P}gobject", "object")
+    out += _emit_pval_reader(f"{P}gvalue", "value")
+    out += _emit_pval_reader(f"{P}gvarpv", "var")
+    out.append(f"  let {P}selfobj (d: pydict) : bool = "
+               f'match {P}gobject d with Some s -> pystr_eq s "self" | None -> false end')
+    out.append(f"  let rec {P}cv (v: pyval) (ps: list pyval) (bd: list pyval) : (bool, bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some t ->")
+    out.append('             if pystr_eq t "OldVar" then (false, false, false, false)')
+    out.append('             else if pystr_eq t "Result" then (true, false, false, true)')
+    out.append('             else if pystr_eq t "FieldGet" || pystr_eq t "Attribute"')
+    out.append('                     || pystr_eq t "OldField" then')
+    out.append(f"                 let s = {P}selfobj d in (s, s, false, false)")
+    out.append('             else if pystr_eq t "Var" then')
+    out.append(f'                 let ok = (match {P}gnm d with Some nm -> {P}lmem nm ps || {P}lmem nm bd | None -> false end) in')
+    out.append("                 (ok, false, false, false)")
+    out.append('             else if pystr_eq t "ArrayLen" then')
+    out.append(f"                 (match {P}gvarpv d with")
+    out.append(f'                  | Some (PStr s) -> let ok = (pystr_eq s "self") || {P}lmem s ps || {P}lmem s bd in (ok, false, false, false)')
+    out.append(f"                  | Some (PDict vd) -> let ok = {P}selfobj vd in (ok, false, false, false)")
+    out.append("                  | _ -> (false, false, false, false) end)")
+    out.append('             else if pystr_eq t "Subscript" then')
+    out.append(f"                 (match {P}gvalue d with")
+    out.append(f"                  | Some (PDict vd) -> (match {P}gtype vd with")
+    out.append(f'                                        | Some vt -> if pystr_eq vt "Var" then (false, false, false, false) else {P}cdf d ps bd')
+    out.append(f"                                        | None -> {P}cdf d ps bd end)")
+    out.append(f"                  | _ -> {P}cdf d ps bd end)")
+    out.append('             else if pystr_eq t "Forall" || pystr_eq t "Exists"')
+    out.append('                     || pystr_eq t "ForallItems" then')
+    out.append(f"                 let nb = (match {P}gvar d with Some s -> Cons (PStr s) bd | None -> bd end) in")
+    out.append(f"                 let (a, b, _, r) = {P}cdf d ps nb in (a, b, true, r)")
+    out.append(f"             else {P}cdf d ps bd")
+    out.append(f"         | None -> {P}cdf d ps bd end)")
+    out.append(f"    | PList xs -> {P}clf xs ps bd")
+    out.append("    | _ -> (true, false, false, false)")
+    out.append("    end")
+    out.append(f"  with {P}cdf (d: pydict) (ps: list pyval) (bd: list pyval) : (bool, bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> (true, false, false, false)")
+    out.append("    | DCons _ v rest -> size_pos v;")
+    out.append(f"        let (a1, b1, c1, d1) = {P}cv v ps bd in let (a2, b2, c2, d2) = {P}cdf rest ps bd in "
+               "(a1 && a2, b1 || b2, c1 || c2, d1 || d2) end")
+    out.append(f"  with {P}clf (xs: list pyval) (ps: list pyval) (bd: list pyval) : (bool, bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> (true, false, false, false)")
+    out.append(f"    | Cons h t -> let (a1, b1, c1, d1) = {P}cv h ps bd in let (a2, b2, c2, d2) = {P}clf t ps bd in "
+               "(a1 && a2, b1 || b2, c1 || c2, d1 || d2) end")
+    keep = f"let (a, b, c, d0) = {P}cv e ps Nil in a && b && c && d0"
+    out += _emit_ensures_map_scaffold_pt(n, P, self_type, mv, keep, frame_gated=True)
+    return out
+
+
 def _bmem_base(nm: str) -> str:
     return nm.rsplit("__", 1)[-1] if "__" in (nm or "") else (nm or "")
 
@@ -14341,6 +14761,32 @@ _BMEM_KINDS = [
      {"classify": {"Result", "FieldGet", "Attribute", "OldField", "OldVar", "Var",
                    "ArrayLen", "var", "self", "object"},
       "refs_self_field_or_old": {"FieldGet", "Attribute", "OldField", "self", "object"}}),
+    ("param_result", recognize_build_method_param_result_ensures_map,
+     {"classify": {"FieldGet", "Attribute", "OldVar", "OldField", "Var", "name",
+                   "Result", "ArrayLen", "var", "\\result"},
+      "refs_param": {"Var", "name", "ArrayLen", "var"},
+      "rename": {"Var", "name"}}),
+    ("field_param_result", recognize_build_method_field_param_result_ensures_map,
+     {"classify": {"OldVar", "OldField", "FieldGet", "Attribute", "object", "self",
+                   "Var", "name", "ArrayLen", "var", "\\result"},
+      "saw": {"result", "Result", "field", "FieldGet", "Attribute", "self", "object",
+              "\\result", "ArrayLen", "var"},
+      "rename": {"Var", "name"},
+      "refs_param": {"Var", "name", "ArrayLen", "var"}}),
+    ("field_param_post", recognize_build_method_field_param_post_ensures_map,
+     {"classify": {"Result", "Forall", "Exists", "ForallItems", "FieldGet", "Attribute",
+                   "object", "self", "Subscript", "value", "Var", "name", "ArrayLen", "var"},
+      "saw_field": {"FieldGet", "Attribute", "object", "self"},
+      "refs_param": {"Var", "name"},
+      "rename": {"Var", "name"}}),
+    ("result_frame", recognize_build_method_result_frame_ensures_map,
+     {"classify": {"Result", "FieldGet", "Attribute", "OldField", "object", "self", "OldVar",
+                   "Subscript", "value", "Var", "name", "ArrayLen", "var",
+                   "Forall", "Exists", "ForallItems"},
+      "saw": {"field", "FieldGet", "Attribute", "OldField", "self", "object", "forall",
+              "Forall", "Exists", "ForallItems", "result", "Result", "\\result",
+              "ArrayLen", "var"},
+      "rename": {"Var", "name"}}),
 ]
 
 
