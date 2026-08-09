@@ -1691,3 +1691,10 @@ arm") BROKEN (65be306e). Two banked insights:
 META: string-op "boundaries" (split/rsplit/subclass-closure) can be ABSORBED into an opaque-but-real leaf-gate
 when the MAIN walk is real — the string op need not be modeled faithfully. Re-check find_array_and_dict_vars
 (rsplit-last-component → opaque-but-real __last_component leaf-gate; 2-tuple-of-sets → record/pair of StrSets).
+
+## find_array_and_dict_vars — BROKEN (925d5972, 787->786, run #2)
+Prior "string-op boundary" (missing rsplit). Broke via **opaque-but-real-leaf-gate + real-classification**:
+- 2-tuple return `(arrays, dicts)` → **pair of StrSets** (map string bool); collect via set_add of REAL target name.
+- `__classify vd tgt` = a real if-else on value-type discriminants (ListLit/DictLit/BinOp op/SetLit/SliceAccess + real func names via pystr_eq). NON-facade, mutation-sensitive.
+- Opaque leaf-gates `__last_component`/`__sw_*`/`__ends_split (s:string):bool` absorb ONLY the string-op-suffix arms (rsplit/encode/split) — the UNMODELABLE leaf, while the MAIN walk is real. Gate-C non-vacuity PASSES (39 real lines, 0 opaque spine).
+LESSON: a "missing-string-op" boundary is breakable when the string-op is a LEAF GATE (its result only selects an arm), not the walked spine — reflect it as an opaque bool/string `val` and keep classification real. Same device as boundary-A's parse_format/_rhs_yields_map leaf-gates.
