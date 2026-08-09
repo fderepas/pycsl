@@ -1698,3 +1698,12 @@ Prior "string-op boundary" (missing rsplit). Broke via **opaque-but-real-leaf-ga
 - `__classify vd tgt` = a real if-else on value-type discriminants (ListLit/DictLit/BinOp op/SetLit/SliceAccess + real func names via pystr_eq). NON-facade, mutation-sensitive.
 - Opaque leaf-gates `__last_component`/`__sw_*`/`__ends_split (s:string):bool` absorb ONLY the string-op-suffix arms (rsplit/encode/split) — the UNMODELABLE leaf, while the MAIN walk is real. Gate-C non-vacuity PASSES (39 real lines, 0 opaque spine).
 LESSON: a "missing-string-op" boundary is breakable when the string-op is a LEAF GATE (its result only selects an arm), not the walked spine — reflect it as an opaque bool/string `val` and keep classification real. Same device as boundary-A's parse_format/_rhs_yields_map leaf-gates.
+
+## _collect_struct_unpack_array_targets — BROKEN via spike->build (6533e681, 785->784, run #2)
+Twin of the landed pack collector but a genuinely different shape: `for tgt,slot_t in zip(targets, parsed.slots)` (a ZIP over a targets LIST + a slots list). Prior classified "needs new zip-catamorphism + list-of-strings parse_format model = multi-session".
+BROKEN via a make-or-break isolation spike (24 goals Valid) that found the CONTAINED encoding:
+- Walk the REAL `targets: list pyval` spine (reuse the pack twin's certified pyval catamorphism + size-bounded list reader), thread a plain `int` zip-index.
+- Model the per-target decision `slot_t=="array int"` as an OPAQUE per-index leaf-gate PREDICATE `val __is_array_slot (fmt:string) (i:int) : bool` — NOT a list-of-strings model of `.slots`. The slots parse is unmodelable; reflecting the per-index BOOL is enough (over-approx under ensures True).
+- Both live branches (struct.unpack format path + the _call_return_whyml_type/_split_tuple_type else path) collapse to the same nested-fold shape; self-calls modeled opaquely (not emitted) => no coupling to the verified _split_tuple_type.
+NEW DEVICE BANKED: **per-index leaf-gate predicate over a real zipped spine** — extends the scalar leaf-gate (parse_format/pf_ok) to a ZIP context. The zip's second operand need NOT be modeled as a list; model the per-index DECISION as `val __g (ctx) (i:int):bool`. NO new ADT/cert/axiom; sole new element = a nested index-threaded set-fold (structural variant).
+META: "needs zip-catamorphism / list-of-strings model = multi-session" was a HYPOTHESIS; the spike found a contained per-index-predicate encoding. Spike the contained path before flagging multi-session.
