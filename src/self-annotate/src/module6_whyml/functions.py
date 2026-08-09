@@ -85,12 +85,25 @@ class FunctionEmissionMixin:
                 stack.extend(node)
         return found
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _compute_scope_sets(self, func: int):
-        pass
+    def _compute_scope_sets(self, func: Dict[str, Any]):
+        """07-1839 P3: (params, must-assigned, all-assigned) for `\\in_scope`."""
+        params = set(func.get("formal_params", []) or [])
+        body = func.get("body", []) or []
+        control = {"If", "While", "For", "Try", "Return", "Raise", "Match", "With"}
+        must = set(params)
+        for st in body:
+            if not isinstance(st, dict):
+                continue
+            if st.get("stmt") in control:
+                break
+            if st.get("stmt") in ("Assign", "AugAssign") and isinstance(st.get("target"), str):
+                must.add(st["target"])
+        alla: Set[str] = set()
+        self._collect_assign_targets(body, alla)
+        return params, must, alla
 
     #@ requires True
     #@ ensures True

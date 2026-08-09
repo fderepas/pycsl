@@ -16517,6 +16517,132 @@ def emit_find_array_and_dict_vars_group(func: Dict[str, Any], desc: Dict[str, An
     return out
 
 
+# ---- `_compute_scope_sets`: 3-tuple-of-StrSet (params, must, all-assigned) set-collect ----
+# The LIVE body computes, for `\in_scope` scope classification, a 3-tuple of `Set[str]`:
+#   params = set(func["formal_params"])                       -- the real formal-param names
+#   must   = params ∪ {top-level Assign/AugAssign targets that PRECEDE the first control stmt}
+#            (order-sensitive: a `for st in body:` scan that BREAKS at the first stmt whose
+#             `st["stmt"]` ∈ {If,While,For,Try,Return,Raise,Match,With})
+#   all    = every Assign/AugAssign target ANYWHERE in the body subtree (`_collect_assign_targets`,
+#            the certified recursive pyval catamorphism: check the dict's own stmt/target, then
+#            descend ALL values).
+# Lowered to a Why3 `(map string bool, map string bool, map string bool)` triple over the certified
+# axiom-free StrSet algebra (`set_add`/`set_union`/`const false`, Map.get membership) — the pair-of-
+# StrSet `find_array_and_dict_vars` device promoted to a triple. The `must` break-scan is a straight
+# `size_list` recursion returning `const false` at/after the first control stmt (nothing added past
+# the break); `all` is the size_list/pv_size/size_dict mutual catamorphism (the proven descent shape).
+# Non-vacuous: params embed REAL formal-param strings, must/all embed REAL Assign targets read off
+# the real pydict via typed/K_dyn readers gated on the REAL `stmt` discriminant + the REAL control-kind
+# / Assign-tag literals; NO opaque manufacture. The recognizer REQUIRES every control-kind + Assign
+# literal (mutation-sensitive: drop one -> no match -> stub stays `\trusted`). `ensures True`; ledger 3
+# (no new type/axiom/cert). No caller in the mirror -> no caller-coupling. Name-gated -> byte-inert.
+
+def recognize_compute_scope_sets(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_compute_scope_sets`. Never raises."""
+    try:
+        return _recognize_compute_scope_sets(func)
+    except Exception:
+        return None
+
+
+def _recognize_compute_scope_sets(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_compute_scope_sets"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    tags = set(_all_strings(func.get("body") or []))
+    # Decisive coupling to the real classification: the body must carry the
+    # distinctive schema keys + EVERY control-kind literal + both assign tags.
+    for lit in ("formal_params", "body", "stmt", "target", "Assign", "AugAssign",
+                "If", "While", "For", "Try", "Return", "Raise", "Match", "With"):
+        if lit not in tags:
+            return None
+    return {"name": func["name"], "param": subj, "self_type": func.get("self_type")}
+
+
+def emit_compute_scope_sets_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_compute_scope_sets` as a `(map string bool, map string bool, map string bool)`
+    triple of StrSets (params, must, all-assigned). `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+    # Faithful structural readers over the real func / stmt pydict.
+    out += _emit_pval_reader(f"{P}gfp", "formal_params")   # option pyval: func["formal_params"]
+    out += _emit_pval_reader(f"{P}gbody", "body")          # option pyval: func["body"]
+    out += _emit_skey_reader(f"{P}gstmt", "stmt")          # option string: st["stmt"]
+    out += _emit_skey_reader(f"{P}gtarget", "target")      # option string: st["target"]
+
+    # params StrSet: set_add every real formal-param name string.
+    out.append(f"  let rec {P}params (l: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list l }")
+    out.append("  = match l with Nil -> const false")
+    out.append(f"    | Cons h t -> (match h with PStr s -> set_add ({P}params t) s "
+               f"| _ -> {P}params t end) end")
+
+    # is-control: REAL mutation-sensitive membership over the 8 control-kind literals.
+    out.append(f"  let function {P}isctrl (s: string) : bool")
+    out.append('  = pystr_eq s "If" || pystr_eq s "While" || pystr_eq s "For"'
+               ' || pystr_eq s "Try" || pystr_eq s "Return" || pystr_eq s "Raise"'
+               ' || pystr_eq s "Match" || pystr_eq s "With"')
+
+    # must-scan: top-level stmts; STOP (const false) at the first control stmt; else set_add the
+    # Assign/AugAssign string target and continue (the order-sensitive `break` semantics).
+    out.append(f"  let rec {P}must (l: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list l }")
+    out.append("  = match l with Nil -> const false")
+    out.append("    | Cons h t ->")
+    out.append("        (match h with")
+    out.append(f"         | PDict d -> (match {P}gstmt d with")
+    out.append(f"                       | Some tg -> if {P}isctrl tg then const false")
+    out.append('                                     else if pystr_eq tg "Assign" || pystr_eq tg "AugAssign" then')
+    out.append(f"                                       (match {P}gtarget d with Some ts -> set_add ({P}must t) ts")
+    out.append(f"                                        | None -> {P}must t end)")
+    out.append(f"                                     else {P}must t")
+    out.append(f"                       | None -> {P}must t end)")
+    out.append(f"         | _ -> {P}must t end) end")
+
+    # all-assigned: full recursive `_collect_assign_targets` catamorphism over the body subtree.
+    out.append(f"  let rec {P}alist (l: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list l }")
+    out.append(f"  = match l with Nil -> const false"
+               f" | Cons h t -> set_union ({P}av h) ({P}alist t) end")
+    out.append(f"  with {P}av (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        let here = (match {P}gstmt d with")
+    out.append('                    | Some tg -> if pystr_eq tg "Assign" || pystr_eq tg "AugAssign" then')
+    out.append(f"                                   (match {P}gtarget d with Some ts -> set_add (const false) ts")
+    out.append("                                    | None -> const false end)")
+    out.append("                                 else const false")
+    out.append("                    | None -> const false end) in")
+    out.append(f"        set_union here ({P}adesc d)")
+    out.append(f"    | PList xs -> {P}alist xs")
+    out.append("    | _ -> const false end")
+    out.append(f"  with {P}adesc (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append(f"  = match d with DNil -> const false"
+               f" | DCons _ v rest -> set_union ({P}av v) ({P}adesc rest) end")
+
+    # Top: (params, params ∪ must-scan, all-assigned) over the real func pydict.
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval)"
+               " : (map string bool, map string bool, map string bool)")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {mv} with")
+    out.append("    | PDict fd ->")
+    out.append(f"        let ps = (match {P}gfp fd with Some (PList fps) -> {P}params fps"
+               " | _ -> const false end) in")
+    out.append(f"        let bd = (match {P}gbody fd with Some (PList bs) -> bs | _ -> Nil end) in")
+    out.append(f"        (ps, set_union ps ({P}must bd), {P}alist bd)")
+    out.append("    | _ -> (const false, const false, const false) end")
+    return out
+
+
 # ---- `classify`: split-first-component + two StrSet memberships + 3-way const return ------
 # `top = module_name.split(".",1)[0]; if m in deny or top in deny: C0; if m in stubs or top in
 # stubs: C1; else C2`. The split-first is an opaque `(string,sep)->string` (reflect the sep),

@@ -3314,6 +3314,7 @@ class FunctionEmissionMixin:
             emit_collect_escaping_exceptions_group,
             recognize_find_array_and_dict_vars,
             emit_find_array_and_dict_vars_group,
+            recognize_compute_scope_sets, emit_compute_scope_sets_group,
             recognize_classify, emit_classify_group,
             recognize_global_call_target, emit_global_call_target_group,
             recognize_method_edges, emit_method_edges_group,
@@ -3894,6 +3895,9 @@ class FunctionEmissionMixin:
         if _fadv is not None:
             return emit_find_array_and_dict_vars_group(
                 func, _fadv, whyml_ident, self._lower_fold_ensures(func))
+        _css = recognize_compute_scope_sets(func)
+        if _css is not None:
+            return emit_compute_scope_sets_group(_css, whyml_ident)
         _cls = recognize_classify(func)
         if _cls is not None:
             return emit_classify_group(_cls, whyml_ident)
