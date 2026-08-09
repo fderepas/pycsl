@@ -1891,3 +1891,23 @@ living in expressions.py, absent from mirror functions.py; verbatim port would b
 #@ requires_method/opaque-val interface). Secondary unmeasured functions.py candidates: _build_method_param_whyml_types
 _by_name (nested map string (map string string) construction — needs nested-map recognizer), _compute_scope_sets
 (3-StrSet-return set-collect). RUN #3: 783->770 (13 conv).
+
+## statements.py — GENUINE BOUNDARY confirmed structurally (run #3, at 770)
+No reachable cheap vein (REFUTE). Three sub-classes, all boundary:
+1. ~20 CROSS-MIXIN stubs — real bodies live in expressions.py/types.py/preamble.py (_expr_to_whyml/_e/_coerce_to_int/
+   _field_type_for/_const_dict_value_seq). check-self-annotate-mirror-sync.py enforces un-\trusted mirror funcs be
+   byte-identical to a live func at the SAME relative path; giving these bodies = mirror-only funcs with no live anchor
+   = unsound. Needs declared-interface (#@ requires_method / opaque-val) machinery.
+2. 3 SELF-MUTATION collectors (_collect_string_elem_read_locals/_collect_field_decode_str_locals/_typed_local_vars) —
+   write self._current_symbol_table[v]="str" (+ _typed_local_vars mutates ~8 heterogeneous self fields). **The
+   output-irrelevant-construction lens does NOT apply here** — it works only when the dropped construction is a LOCAL
+   value; here the write is OBSERVED self-state (callers read it) + verbatim-body can't drop it. Self-collection-
+   mutation-frame boundary (ties [[trusted_val_frame_unsoundness]]).
+3. ~13 STRING-EMITTERS (_seq_init_expr/_handle_*/_emit_*/_stmts_to_whyml/_emit_frame_condition) — output IS the observed
+   WhyML string. Root-caused to TWO emitter-CORE string-model limits (spike REFUTE on _emit_frame_condition, the cleanest):
+   (a) `x not in field_targets` over a List[str] lowers to `contains_check (str_hash_op x) field_targets` = int vs seq
+   string type clash; (b) f-string literal segments lower to hashed INTS (str_concat type error). Both need either
+   src/pycsl emitter-core changes (out of mirror-only scope) or forbidden source divergence.
+LESSON (output-irrelevant lens LIMIT): applies to dropped LOCAL-value construction, NOT to observed-self-state writes
+or observed-string-output. TWO NEW FLAGGED emitter-core levers (would reopen the ~13 string-emitters cross-file):
+faithful string-membership lowering (List[str] contains without int-hash) + f-string-literal string preservation.
