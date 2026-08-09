@@ -1204,12 +1204,18 @@ def _check_mutex_invariants(ir) -> None:
                 code="PYCSL-SEM-MUTEXINV",
             )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_typeddict_access(func: Any, td_record_names: set) -> None:
-    pass
+    if not td_record_names:
+        return
+    symtab = func.get("symbol_table", {}) or {}
+    td_vars = {v for v, t in symtab.items() if t in td_record_names}
+    if not td_vars:
+        return
+    _typeddict_walk_subscripts(func.get("body", []) or [], td_vars,
+                               func.get("name", "?"))
 
 #@ requires True
 #@ ensures True
@@ -1239,12 +1245,20 @@ def _typeddict_walk_subscripts(stmts: list, td_vars: set, fname: str) -> None:
 def _typeddict_check_subscript(sub: dict, td_vars: set, fname: str) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_namedtuple_access(func: Any, nt_record_names: set, nt_record_arities: dict) -> None:
-    pass
+    if not nt_record_names:
+        return
+    symtab = func.get("symbol_table", {}) or {}
+    nt_vars = {v for v, t in symtab.items() if t in nt_record_names}
+    fname = func.get("name", "?")
+    body = func.get("body", []) or []
+    if nt_vars:
+        _namedtuple_walk_subscripts(body, nt_vars, fname)
+    if nt_record_arities:
+        _namedtuple_walk_construction(body, nt_record_arities, fname)
 
 #@ requires True
 #@ ensures True
@@ -1303,12 +1317,16 @@ def _namedtuple_walk_subscripts(stmts: list, nt_vars: set, fname: str) -> None:
 def _namedtuple_check_subscript(sub: dict, nt_vars: set, fname: str) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_union_narrowing(func: Any) -> None:
-    pass
+    symtab = func.get("symbol_table", {}) or {}
+    union_vars = {v for v, t in symtab.items()
+                  if t and isinstance(t, str) and t.startswith("_union_")}
+    if not union_vars:
+        return
+    _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
 
 #@ requires True
 #@ ensures True

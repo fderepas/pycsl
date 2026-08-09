@@ -2209,7 +2209,7 @@ class PreambleEmissionMixin:
             recognize_is_linear_expr_pairs,
             recognize_extract_array_lengths_pairs,
             recognize_final_pair, recognize_check_final, recognize_conc_cluster,
-            recognize_scan2d_trio)
+            recognize_scan2d_trio, recognize_symtab_set_dispatch)
         # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
         # / lock-order protected-access walk {_check_concurrency,
         # _conc_check_shared_access, _conc_check_reads, _conc_stmts, _conc_stmt}
@@ -2333,6 +2333,12 @@ class PreambleEmissionMixin:
             or recognize_build_method_result_ensures_map(f) is not None
             or recognize_build_method_field_result_ensures_map(f) is not None
             or recognize_build_method_field_old_ensures_map(f) is not None
+            # symtab-set-dispatch typing drivers (`_check_typeddict_access`/
+            # `_check_namedtuple_access`/`_check_union_narrowing`): the pydict
+            # `.items()` set-collect (`pget_dyn`/`pget_list`/`set_add`/`const`/
+            # `Map.get`) then void-dispatch to a converted walker.
+            or recognize_symtab_set_dispatch(
+                f, {g.get("name"): g for g in functions if isinstance(g, dict)}) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only
@@ -2391,6 +2397,22 @@ class PreambleEmissionMixin:
             if recognize_check_body_walk(f) is not None]
         self._cbw_names = {f.get("name") for f, _ in self._cbw_funcs}
         self._cbw_emitted = set()
+        # SYMTAB-SET-DISPATCH typing drivers (`_check_typeddict_access`/
+        # `_check_namedtuple_access`/`_check_union_narrowing`): each BUILDS a
+        # typed-var StrSet from `func["symbol_table"].items()` (membership/
+        # startswith gate) then void-dispatches to an already-converted walker.
+        # FORWARD REFERENCES (textually before their walker(s)), so emitted AFTER
+        # all their walker deps (the `_check_final`/CSA precedent). `_ssd_funcs`
+        # holds (caller, descriptor); `_ssd_walkers_seen` accumulates emitted
+        # walker canon-names; `_ssd_emitted` gates each once-only append.
+        from module6_whyml.generic_fold import recognize_symtab_set_dispatch
+        _ssd_by_name = {f.get("name"): f for f in functions if isinstance(f, dict)}
+        self._ssd_funcs = [
+            (f, recognize_symtab_set_dispatch(f, _ssd_by_name)) for f in functions
+            if recognize_symtab_set_dispatch(f, _ssd_by_name) is not None]
+        self._ssd_names = {f.get("name") for f, _ in self._ssd_funcs}
+        self._ssd_emitted = set()
+        self._ssd_walkers_seen = set()
         # CLOSURE-FORM existence walk (`_body_has_diverging_construct`/
         # `_lemma_returns_value`): a `found=[False]` nested `def walk` existence
         # predicate whose lifted `walk` sibling shares the accumulator as an

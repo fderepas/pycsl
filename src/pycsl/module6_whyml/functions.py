@@ -2860,6 +2860,30 @@ class FunctionEmissionMixin:
                 self._cbw_emitted.add(nm)
         return out
 
+    def _emit_deferred_ssd(self, walker_names, whyml_ident) -> List[str]:
+        """Record the just-emitted walker canon-name(s) into `_ssd_walkers_seen`,
+        then append any SYMTAB-SET-DISPATCH driver group whose ALL walker deps are
+        now emitted (forward-reference resolution — each driver lands after the
+        LAST of its walkers). Each driver emitted once."""
+        from module6_whyml.generic_fold import (
+            _canon_call, emit_symtab_set_dispatch_group)
+        if not getattr(self, "_ssd_funcs", None):
+            return []
+        if isinstance(walker_names, str):
+            walker_names = [walker_names]
+        for wn in walker_names:
+            if wn is not None:
+                self._ssd_walkers_seen.add(_canon_call(wn))
+        out: List[str] = []
+        for f, desc in self._ssd_funcs:
+            nm = f.get("name")
+            if nm in self._ssd_emitted:
+                continue
+            if desc["walker_deps"] <= self._ssd_walkers_seen:
+                out += emit_symtab_set_dispatch_group(desc, whyml_ident)
+                self._ssd_emitted.add(nm)
+        return out
+
     def _note_emitted_walker(self, walker_name) -> None:
         """Record a just-emitted `_sa_walk`/`_cp_walk`-family walker's canonical
         name (drives the multi-walker CHECK-SUBSCRIPT-ASSIGNMENTS deferral)."""
@@ -2920,7 +2944,12 @@ class FunctionEmissionMixin:
                 return []
             from module6_whyml.generic_fold import emit_union_cluster_group
             self._union_emitted = True
-            return emit_union_cluster_group(self._union_cluster, whyml_ident)
+            lines = emit_union_cluster_group(self._union_cluster, whyml_ident)
+            # SYMTAB-SET-DISPATCH driver (`_check_union_narrowing`) whose walker
+            # is the `_union_c8_walk` just emitted here is appended once its deps
+            # are satisfied.
+            lines = lines + self._emit_deferred_ssd("_union_c8_walk", whyml_ident)
+            return lines
         # FINAL PAIR FUSION (preamble/generic_fold): the `{_final_walk_body,
         # _final_check_stmt}` pair emits as ONE `let rec` group — self-contained
         # (calls nothing external), so the whole group is emitted at whichever
@@ -2955,6 +2984,12 @@ class FunctionEmissionMixin:
         # `_final_walk_body` — DEFERRED, emitted with the pair group above. Its
         # own slot emits nothing.
         if getattr(self, "_check_final_name", None) and func.get("name") == self._check_final_name:
+            return []
+        # SYMTAB-SET-DISPATCH drivers (`_check_typeddict_access`/`_check_namedtuple_
+        # access`/`_check_union_narrowing`): FORWARD REFERENCES to their converted
+        # walker(s) — DEFERRED, emitted after all walker deps (see the wall2 /
+        # union-cluster branches below). Own slot emits nothing.
+        if getattr(self, "_ssd_names", None) and func.get("name") in self._ssd_names:
             return []
         # CHECK-CONTRACT-EXPRS caller (pdict-to-sdict-impl.md): the heterogeneous
         # `_check_contract_exprs` caller is DEFERRED (forward reference) — emitted
@@ -3974,7 +4009,11 @@ class FunctionEmissionMixin:
         # discipline.
         _w2a = recognize_wall2_items_walk(func)
         if _w2a is not None:
-            return emit_wall2_items_walk_group(func, _w2a, whyml_ident)
+            lines = emit_wall2_items_walk_group(func, _w2a, whyml_ident)
+            # SYMTAB-SET-DISPATCH driver(s) whose walker is THIS just-emitted
+            # wall2 walker are appended once all their walker deps are emitted.
+            lines = lines + self._emit_deferred_ssd(func.get("name"), whyml_ident)
+            return lines
         # R-W2b: the `.values()` GENERATOR-walker family (ir_inline.py). The
         # generator `_walk_dicts(obj): if isinstance(obj,dict): yield obj; for v
         # in obj.values(): yield from self(v); elif isinstance(obj,list): for x

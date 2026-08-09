@@ -19717,6 +19717,375 @@ def emit_check_body_walk_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
 
 
 # =========================================================================
+# SYMTAB-SET-DISPATCH drivers (`_check_typeddict_access`, `_check_namedtuple_
+# access`, `_check_union_narrowing`) — the typing-check driver family whose
+# body BUILDS a typed-var StrSet from `func["symbol_table"].items()` (a pydict
+# `.items()` set-collect GATED by a membership/startswith test on the type
+# value), early-returns on empty, then VOID-DISPATCHES the built set into an
+# ALREADY-CONVERTED body walker. Shared shape:
+#
+#     [if not <record_param>: return]                       # optional gate
+#     symtab   = func.get("symbol_table", {}) or {}
+#     <setvar> = {v for v, t in symtab.items() if <GATE>}   # key-collect on gate
+#     [fname = func.get("name","?"); body = func.get("body",[]) or []]  # temps
+#     [if not <setvar>: return]                             # optional empty-return
+#     WALKER(func.get("body",[]) or [] | body, <setvar>, func.get("name","?")|fname)
+#     [if <arities_param>: WALKER2(body, <arities_param>, fname)]        # namedtuple
+#
+# GATE is either `t in <record_param>` (membership -> `Map.get rn s`) or
+# `t and isinstance(t,str) and t.startswith("<lit>")` (the OPAQUE STRING-OP
+# LEAF-GATE — `t.startswith` reflected as `val …__startswith (s p:string):bool`,
+# the `_pb_expr__startswith` / self-prefix precedent; the "_union_" literal is
+# READ OFF the body so a prefix mutation moves the emitted call).
+#
+# The set-collect lowers to a pydict fold over the REAL `symbol_table` (`DCons
+# (K_dyn v) tval …` — the key IS the variable NAME, the value IS its type)
+# building the certified L1 `map string bool` set (`const false` + `set_add`);
+# the empty-set early-returns are (`ensures True`) semantics-preserving folds of
+# the empty path (the `_check_final` precedent — an empty set makes the walker
+# a no-op). The void-dispatch calls the REAL converted walker over the REAL
+# `pget_list "body"`. IR-EROSION HONESTY: the `for v, t in .items()` tuple
+# unpack erases to a `_comp_var` target, so the elt-var=key / gate-var=value
+# correspondence is the fixed `.items()` semantics, not recovered from the IR
+# (an elt/gate swap is IR-invisible — an inherent limitation, not a facade).
+#
+# COERCION: the wall2-emitted walkers (`_typeddict_walk_subscripts` /
+# `_namedtuple_walk_*`) type their (verification-IRRELEVANT — forwarded only to
+# a \trusted leaf) set param as `map int (option int)`, so the built
+# `map string bool` flows through an effect-free `val …__coerce` (result
+# unconstrained -> NOT an axiom); the `_union_c8_walk` cluster walker types
+# `union_vars` as `map string bool` (a genuine consumer — `Map.get union_vars
+# nm`), so its set flows in directly, no coercion. The `nt_record_arities` param
+# is passed to `_namedtuple_walk_construction` UNCHANGED (its own `map int
+# (option int)` param). ensures True; assigns \nothing (functional set_add, no
+# writes); ledger 3; no new type/cert/axiom. Corpus-inert (TypedDict/NamedTuple/
+# Union annotations appear in 0 corpus programs). Emission is DEFERRED (forward
+# reference — each driver is textually BEFORE its walker(s)): appended once ALL
+# its walker deps have been emitted (the `_check_final` / CSA precedent).
+# =========================================================================
+
+def _ssd_symtab_field(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<KEY>", {}) or {}` (empty-dict default + or {}) -> KEY."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "or"):
+        return None
+    right = node.get("right") or {}
+    if not (isinstance(right, dict) and right.get("type") == "DictLit"
+            and not (right.get("keys") or [])):
+        return None
+    return _sget_key(node.get("left"), subj)
+
+
+def _ssd_get_name_default(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("name", "?")` (a String default) -> the default literal."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{subj}.get"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 2 or _is_string(args[0]) != "name":
+        return None
+    return _is_string(args[1])
+
+
+def _ssd_match_setcomp(node: Any, symtab_var: str, params: List[str]
+                       ) -> Optional[Dict[str, Any]]:
+    """`<setvar> = {v for v, t in <symtab>.items() if <GATE>}` -> descriptor of
+    the built set + gate (membership on a param, or startswith on a literal)."""
+    if not (isinstance(node, dict) and node.get("stmt") == "Assign"):
+        return None
+    setvar = node.get("target")
+    sc = node.get("value") or {}
+    if not (isinstance(setvar, str) and isinstance(sc, dict)
+            and sc.get("type") == "SetComp"):
+        return None
+    gens = sc.get("generators") or []
+    if len(gens) != 1:
+        return None
+    g = gens[0]
+    it = g.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{symtab_var}.items" and not (it.get("args") or [])):
+        return None
+    if not _is_var(sc.get("elt")):
+        return None
+    ifs = g.get("ifs") or []
+    if len(ifs) != 1:
+        return None
+    gate = ifs[0]
+    # membership: `t in <record_param>`
+    if (isinstance(gate, dict) and gate.get("type") == "BinOp"
+            and gate.get("op") == "in" and _is_var(gate.get("left"))
+            and _is_var(gate.get("right"))
+            and gate["right"].get("name") in params):
+        return {"setvar": setvar, "gate": "membership",
+                "record_param": gate["right"].get("name"), "startswith_lit": None}
+    # startswith: `t and isinstance(t,str) and t.startswith("<lit>")`
+    sw = _ssd_find_startswith(gate)
+    if sw is not None and _ssd_has_isinstance_str(gate):
+        return {"setvar": setvar, "gate": "startswith",
+                "record_param": None, "startswith_lit": sw}
+    return None
+
+
+def _ssd_find_startswith(node: Any) -> Optional[str]:
+    """Find a `<var>.startswith("<lit>")` call anywhere in the gate -> lit."""
+    if isinstance(node, dict):
+        if (node.get("type") == "Call" and isinstance(node.get("func"), str)
+                and node["func"].endswith(".startswith")):
+            a = node.get("args") or []
+            if len(a) == 1:
+                return _is_string(a[0])
+        for v in node.values():
+            r = _ssd_find_startswith(v)
+            if r is not None:
+                return r
+    elif isinstance(node, list):
+        for x in node:
+            r = _ssd_find_startswith(x)
+            if r is not None:
+                return r
+    return None
+
+
+def _ssd_has_isinstance_str(node: Any) -> bool:
+    """True iff an `isinstance(<var>, str)` call appears in the gate."""
+    if isinstance(node, dict):
+        if (node.get("type") == "Call" and node.get("func") == "isinstance"):
+            a = node.get("args") or []
+            if len(a) == 2 and _is_var(a[1], "str"):
+                return True
+        return any(_ssd_has_isinstance_str(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_ssd_has_isinstance_str(x) for x in node)
+    return False
+
+
+def _ssd_walker_call(cv: Any, subj: str, setvar: str, temps: Dict[str, str],
+                     params: List[str], by_name: Dict[str, Any]
+                     ) -> Optional[Dict[str, Any]]:
+    """A `WALKER(body_arg, set_arg, name_arg)` Call where WALKER is a top-level
+    (non-dotted, non-self) function -> {walker, arg, coerce}. `body_arg` is the
+    inline `func.get("body",...) or []` or the `body` temp; `name_arg` the
+    inline `func.get("name","?")` or the `fname` temp; `set_arg` is `<setvar>`
+    (arg="setvar") or an `arities` param (arg="arities")."""
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"):
+        return None
+    walker = cv.get("func")
+    if not isinstance(walker, str) or "." in walker or walker not in by_name:
+        return None
+    args = cv.get("args") or []
+    if len(args) != 3:
+        return None
+    # body arg
+    if not (_ssd_is_body(args[0], subj) or
+            (_is_var(args[0]) and temps.get(args[0].get("name")) == "body")):
+        return None
+    # name arg
+    if not (_ssd_get_name_default(args[2], subj) == "?" or
+            (_is_var(args[2]) and temps.get(args[2].get("name")) == "name")):
+        return None
+    # set arg
+    a1 = args[1]
+    if _is_var(a1, setvar):
+        arg_kind = "setvar"
+    elif _is_var(a1) and a1.get("name") in params:
+        arg_kind = "arities"
+    else:
+        return None
+    coerce = (arg_kind == "setvar"
+              and recognize_wall2_items_walk(by_name[walker]) is not None)
+    return {"walker": _canon_call(walker), "arg": arg_kind, "coerce": coerce,
+            "arities_param": (a1.get("name") if arg_kind == "arities" else None)}
+
+
+def _ssd_is_body(node: Any, subj: str) -> bool:
+    """`<subj>.get("body", []) or []` (or bare `.get("body")`)."""
+    return _or_empty_sget(node, subj) == "body"
+
+
+def _ssd_is_empty_return_guard(node: Any) -> bool:
+    """`if not <var>: return` (empty orelse) — a semantics-preserving fold."""
+    if not (isinstance(node, dict) and node.get("stmt") == "If"
+            and not node.get("orelse")):
+        return False
+    t = node.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "UnaryOp"
+            and t.get("op") == "not" and _is_var(t.get("expr"))):
+        return False
+    b = node.get("body") or []
+    return len(b) == 1 and isinstance(b[0], dict) and b[0].get("stmt") == "Return"
+
+
+def recognize_symtab_set_dispatch(func: Dict[str, Any],
+                                  by_name: Dict[str, Any]
+                                  ) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of a symtab-set-dispatch driver (see module note).
+    `by_name` maps function name -> func dict (to type the walker calls).
+    Returns a descriptor or None; never raises."""
+    try:
+        return _recognize_symtab_set_dispatch(func, by_name)
+    except Exception:
+        return None
+
+
+def _recognize_symtab_set_dispatch(func: Dict[str, Any],
+                                   by_name: Dict[str, Any]
+                                   ) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if not params:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") not in ("None", None):
+        return None
+    body = func.get("body") or []
+    symtab_var = None
+    symtab_field = None
+    sc = None
+    temps: Dict[str, str] = {}
+    walker_calls: List[Dict[str, Any]] = []
+    arities_param = None
+    for stmt in body:
+        if not isinstance(stmt, dict):
+            return None
+        # empty-set / record-names early-return guard (folded away)
+        if _ssd_is_empty_return_guard(stmt):
+            continue
+        if stmt.get("stmt") == "Assign":
+            tgt = stmt.get("target")
+            val = stmt.get("value")
+            # symtab = func.get("symbol_table", {}) or {}
+            f = _ssd_symtab_field(val, subj)
+            if f is not None and symtab_var is None:
+                symtab_var, symtab_field = tgt, f
+                continue
+            # setcomp
+            if symtab_var is not None and sc is None:
+                m = _ssd_match_setcomp(stmt, symtab_var, params)
+                if m is not None:
+                    sc = m
+                    continue
+            # fname = func.get("name","?")  /  body = func.get("body",[]) or []
+            if _ssd_get_name_default(val, subj) == "?" and isinstance(tgt, str):
+                temps[tgt] = "name"
+                continue
+            if _ssd_is_body(val, subj) and isinstance(tgt, str):
+                temps[tgt] = "body"
+                continue
+            return None
+        if stmt.get("stmt") == "Expr":
+            if sc is None:
+                return None
+            wc = _ssd_walker_call(stmt.get("value"), subj, sc["setvar"],
+                                  temps, params, by_name)
+            if wc is None:
+                return None
+            walker_calls.append(wc)
+            continue
+        if stmt.get("stmt") == "If":
+            # `if <setvar>: WALKER(...)` or `if <arities>: WALKER2(...)`
+            test = stmt.get("test") or {}
+            ifbody = stmt.get("body") or []
+            if not (stmt.get("orelse") == [] or stmt.get("orelse") is None):
+                return None
+            if not (len(ifbody) == 1 and isinstance(ifbody[0], dict)
+                    and ifbody[0].get("stmt") == "Expr"):
+                return None
+            if sc is None or not _is_var(test):
+                return None
+            tn = test.get("name")
+            if not (tn == sc["setvar"] or tn in params):
+                return None
+            wc = _ssd_walker_call(ifbody[0].get("value"), subj, sc["setvar"],
+                                  temps, params, by_name)
+            if wc is None:
+                return None
+            if wc["arg"] == "arities":
+                arities_param = wc["arities_param"]
+            walker_calls.append(wc)
+            continue
+        return None
+    if symtab_var is None or sc is None or not walker_calls:
+        return None
+    deps = {wc["walker"] for wc in walker_calls}
+    return {"name": func.get("name"), "subj": subj,
+            "symtab_field": symtab_field, "setvar": sc["setvar"],
+            "gate": sc["gate"], "record_param": sc["record_param"],
+            "startswith_lit": sc["startswith_lit"],
+            "arities_param": arities_param, "params": list(params),
+            "walker_calls": walker_calls, "walker_deps": deps}
+
+
+def emit_symtab_set_dispatch_group(desc: Dict[str, Any], whyml_ident
+                                   ) -> List[str]:
+    """Emit a symtab-set-dispatch driver group (see module note). MUST be emitted
+    AFTER its walker(s). The set-collect folds the real `symbol_table` pydict
+    with the real membership/startswith gate onto the certified `map string bool`
+    set; the void-dispatch calls the real converted walker over `pget_list
+    "body"`. ensures True; assigns \\nothing; no new type/cert/axiom."""
+    n = whyml_ident(desc["name"])
+    subj = desc["subj"]
+    membership = desc["gate"] == "membership"
+    needs_coerce = any(wc["coerce"] for wc in desc["walker_calls"])
+    # driver param typing
+    record_param = desc["record_param"]
+    arities_param = desc["arities_param"]
+    sig_params = [f"({subj}: pyval)"]
+    for p in desc["params"][1:]:
+        if p == record_param:
+            sig_params.append(f"({p}: map string bool)")
+        elif p == arities_param:
+            sig_params.append(f"({p}: map int (option int))")
+        else:
+            # a set/dict param the body never dispatches (kept for arity/typing)
+            sig_params.append(f"({p}: map string bool)")
+    out: List[str] = []
+    if desc["gate"] == "startswith":
+        out.append(f"  val {n}__startswith (s p: string) : bool")
+    if needs_coerce:
+        out.append(f"  val {n}__coerce (s: map string bool) : map int (option int)")
+    # the pydict set-collect fold
+    if membership:
+        out.append(f"  let rec {n}__collect (d: pydict) (rn: map string bool) : map string bool")
+    else:
+        out.append(f"  let rec {n}__collect (d: pydict) : map string bool")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> const false")
+    out.append("    | DCons (K_dyn v) tval rest ->")
+    if membership:
+        out.append(f"        let acc = {n}__collect rest rn in")
+        out.append("        (match tval with PStr s -> if Map.get rn s then set_add acc v else acc | _ -> acc end)")
+        out.append(f"    | DCons _ _ rest -> {n}__collect rest rn")
+    else:
+        lit = desc["startswith_lit"]
+        out.append(f"        let acc = {n}__collect rest in")
+        out.append(f'        (match tval with PStr s -> if {n}__startswith s "{lit}" then set_add acc v else acc | _ -> acc end)')
+        out.append(f"    | DCons _ _ rest -> {n}__collect rest")
+    out.append("    end")
+    # the driver
+    out.append(f"  let {n} {' '.join(sig_params)} : unit")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {subj} with")
+    out.append("    | PDict d ->")
+    out.append(f'        let symtab = (match pget_dyn "{desc["symtab_field"]}" d with Some (PDict sd) -> sd | _ -> DNil end) in')
+    if membership:
+        out.append(f"        let {desc['setvar']} = {n}__collect symtab {record_param} in")
+    else:
+        out.append(f"        let {desc['setvar']} = {n}__collect symtab in")
+    out.append(f'        let nm = (match pget_dyn "name" d with Some (PStr s) -> s | _ -> "?" end) in')
+    for i, wc in enumerate(desc["walker_calls"]):
+        w = whyml_ident(wc["walker"])
+        if wc["arg"] == "setvar":
+            setarg = f"({n}__coerce {desc['setvar']})" if wc["coerce"] else desc["setvar"]
+        else:
+            setarg = wc["arities_param"]
+        sep = ";" if i < len(desc["walker_calls"]) - 1 else ""
+        out.append(f'        {w} (pget_list "body" d) {setarg} nm{sep}')
+    out.append("    | _ -> () end")
+    return out
+
+
+# =========================================================================
 # CHECK-SUBSCRIPT-ASSIGNMENTS caller (`_check_subscript_assignments(func)`) —
 # the body-only heterogeneous-`func` caller that runs TWO `_sa_walk`-family body
 # walks with an annotation-emptiness GATE between them (driver target #2). Shape:
