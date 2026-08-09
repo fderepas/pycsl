@@ -1819,3 +1819,19 @@ BANKED DEVICE: **compose landed primitives into a new recognizer for a compound 
 recognizer matches but every sub-pattern is already landed+proven, the composition is a CONTAINED build (ledger 3,
 no new ADT/cert). META: a "no cheap verbatim win" survey verdict is NOT a boundary if the primitives exist —
 measure-by-building the composition. OPS: this file needs proof timeout >=7200s (48-stub scale, ~134min).
+
+## core_ir_semantic typing-check trio — CONTAINED build, parked-pending-device (89a1c05c, 778->775, run #3)
+_check_typeddict_access / _check_namedtuple_access / _check_union_narrowing: each collects a typed-var StrSet
+over func["symbol_table"].items() gated by membership (or `startswith("_union_")`), then void-dispatches to an
+ALREADY-CONVERTED walker (_typeddict_walk_subscripts/_namedtuple_walk_*/_union_c8_walk). NEW composed recognizer
+recognize_symtab_set_dispatch reuses: pydict .items() set-collect + StrSet Map.get membership + opaque string-op
+leaf-gate (startswith) + forward-ref deferred emission. LEDGER 3 (no new ADT/cert/axiom; effect-free no-ensures
+vals for the irrelevant map param + startswith leaf). _namedtuple_check_call stays \trusted (int-model leaf).
+DECISIVE: in-tree comments (generic_fold.py:10445, preamble.py:2227) had EXPLICITLY parked _check_union_narrowing
+"pending exactly the opaque-string-op device" — now landed. So a "parked pending device X" note + device X landing
+= a reopened candidate; grep the emitter for such park-comments after banking a new device.
+OPS: whole-file proof SUCCESS 1506 Valid 0 non-Valid INCLUDING the vacuity phase, cleared within 7200s (this
+file's known >70min scale wall — use timeout 7200; the vacuity re-proof phase is the slow part, sometimes needs
+the ensures{false} per-driver fallback if it stalls, but here it completed). Corpus-inert (TypedDict/NamedTuple/
+Union in 0 corpus programs).
+RUN #3 so far: 783->775 (8 conv): pure_ast expect_op/expect_kw + Module5 _scan_2d trio + this typing-check trio.
