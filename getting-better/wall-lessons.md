@@ -1767,3 +1767,21 @@ Also: converting `_scan` never creates a `_subst` call site (`_scan` calls `_typ
 is STABLE under the full conversion. CONCLUSION: `_scan` whole-file E-matching scale wall = genuine CERTIFIED-BOUNDARY
 needing review-gated modular verification (verify_module) infra; no_inline is NOT that infra. FLAGGED for authorization.
 This is the LAST named lever — GENUINE confirmed floor at 783.
+
+## _scan verify_module isolation REFUTE (run #2, DEFINITIVELY closes the _scan lever at 783)
+Spiked the mechanism the no_inline spike pointed to: `#@ verify_module` (separate-module scope isolation) on the
+razor-edge. REFUTE on both halves:
+- **Victim-isolation (tag `_subst_type_in_ir`)**: FAILS TO TYPECHECK — `unbound function or predicate symbol
+  'wf_ir_deep'`. verify_module emits 4 modules (Shared / <G>Sig abstract-val interface / <G> provider / Program),
+  but the Sig-generation does NOT hoist a function's LOCALLY-defined deep contract predicates (wf_ir_deep,
+  in_emitted_fragment — defined inside the provider) into `Shared` (which has only the shallow wf_ir). So
+  verify_module cannot emit a well-typed isolation of `_subst` at all.
+- **Aggressor-isolation (tag `_scan`)**: not autonomously reachable — needs the banked pyval-walker device (unsaved)
+  + the SAME Sig-hoisting emitter fix + whole-call-graph co-tagging ({_scan,_type_str,_sanitize_type_name}).
+- verify_module is EMISSION-CHANGING (4-module split) ⇒ review-gated regardless of proof outcome.
+Corroborates worker#22 precedent (tagging a razor-edge victim find_assigned_vars regressed Valid 0.23s/490K →
+Timeout 30s/280M) — verify_module WORSENS razor-edge goals, as memory warned. Soundness OK (Variant V never
+typechecked ⇒ no proven-by-dropping; ledger 3). REOPEN path (review-gated §10.10): Sig-generation must hoist deep
+contract predicates to Shared + resolve isolated→flat cross-module calls. FLAGGED for authorization.
+NOW: every named lever spiked THIS run (no_inline + verify_module both REFUTE for _scan) ⇒ EXHAUSTIVELY-confirmed
+autonomous floor at 783.
