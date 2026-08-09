@@ -266,12 +266,13 @@ class _Parser:
             return self.advance()
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def expect_op(self, val):
-        pass
+    def expect_op(self, val: str) -> _Tok:
+        if not self.at_op(val):
+            self.error(f"expected {val!r}")
+        return self.advance()
 
     #@ requires True
     #@ ensures True
@@ -281,18 +282,19 @@ class _Parser:
             return self.advance()
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def expect_kw(self, val):
-        pass
+    def expect_kw(self, val: str) -> _Tok:
+        if not self.at_kw(val):
+            self.error(f"expected keyword {val!r}")
+        return self.advance()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def error(self, msg):
+    def error(self, msg: str):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
