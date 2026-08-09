@@ -1675,3 +1675,19 @@ META: cost_scale_not_floor VALIDATED again — a MEASURED proof-scale wall fell 
 EVERY "proof-scale/E-matching-timeout" boundary for opaque-vals-in-VC before concluding floor. Candidates to
 re-check with this device: collect_escaping_exceptions (opaque per-receiver stmt_get_N = the SAME opaque-val
 pattern → faithful readers; + set-difference fold over the CONVERTED handler_catches).
+
+## 2026-08-09 — 96h run #2: collect_escaping_exceptions BROKEN (788→787) — pointwise set-difference device
+
+Another prior boundary (opaque per-receiver Gate-C reject + hierarchy-aware set-difference "needs new recognizer
+arm") BROKEN (65be306e). Two banked insights:
+1. FAITHFUL READERS beat opaque per-receiver (the re-encoding device, d032860e): inner_raised from
+   __get_stmt/__get_exc/__handlers_of structural readers, not opaque stmt_get_N.
+2. SET-DIFFERENCE over a characteristic-map is POINTWISE, not enumerated. Set[str] = map string bool
+   (non-enumerable), so `{e in S : not P(e)}` = `fun e -> andb (Map.get S e) (notb (P e))` — no enumeration,
+   mirrors the certified free_vars set_diff (andb/notb). The predicate P (here handler_catches, absorbing
+   exc.split("|") + subclass closure) = an opaque-but-real leaf-gate `val function P (a b: string): bool`
+   (same legitimacy as parse_format's __pf_ok / handler_catches' __in_closure). NON-facade because the MAIN
+   walk (inner_raised extraction via real fold) is real + the recognizer requires a real handler_catches call.
+META: string-op "boundaries" (split/rsplit/subclass-closure) can be ABSORBED into an opaque-but-real leaf-gate
+when the MAIN walk is real — the string op need not be modeled faithfully. Re-check find_array_and_dict_vars
+(rsplit-last-component → opaque-but-real __last_component leaf-gate; 2-tuple-of-sets → record/pair of StrSets).
