@@ -68,12 +68,36 @@ _DIR_CLASS_INV_AXIOMS = frozenset({'UnixFs.Dir.empty_disk_slots_dead', 'UnixFs.D
 def _strip_dir_scan_proofs(func: int) -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _contract_referenced_var_names(dep_funcs: List[int]) -> int:
-    return set()
+def _contract_referenced_var_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
+    """Collect every Var/object NAME referenced inside the contracts of the
+    injected stubs — including the object of an `Attribute`/`FieldGet`
+    (`_filesystem.disk` → `_filesystem`). Used to scope module-global
+    propagation to globals the injected contracts actually touch (gap-9)."""
+    referenced: Set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            t = node.get("type")
+            if t == "Var" and isinstance(node.get("name"), str):
+                referenced.add(node["name"])
+            obj = node.get("object")
+            if isinstance(obj, str):
+                referenced.add(obj)
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                _walk(v)
+
+    for func in dep_funcs:
+        contracts = func.get("contracts", {}) or {}
+        _walk(contracts.get("requires", []))
+        _walk(contracts.get("ensures", []))
+        _walk(contracts.get("assigns", []))
+    return referenced
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
