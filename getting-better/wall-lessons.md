@@ -1785,3 +1785,19 @@ typechecked ⇒ no proven-by-dropping; ledger 3). REOPEN path (review-gated §10
 contract predicates to Shared + resolve isolated→flat cross-module calls. FLAGGED for authorization.
 NOW: every named lever spiked THIS run (no_inline + verify_module both REFUTE for _scan) ⇒ EXHAUSTIVELY-confirmed
 autonomous floor at 783.
+
+## pure_ast.py — THIN reopenable seam then genuine boundary (run #3, from floor 783)
+The 223-stub in-tree Python ast-clone + lexer + recursive-descent parser. Measured per parser_vein_broken
+precedent (raw-AST "boundary" can be false). Finding: the cheap cursor-reader layer is ALREADY spent (40 defs
+converted: peek/cur/advance/at_op/at_name/at_kw/accept_op/accept_kw + _stmt_end/_testlist_end/
+_looks_like_type_alias + ~28 _Unparser visitors). Thin remaining seam: `expect_op` + `expect_kw` convert (+2,
+mirror-only, whole-file proof 186/186, frame `assigns self.i` load-bearing via self.advance()). Past that:
+- ~130 node-building parse methods (return_stmt/test/atom/funcdef...) depend on the ast-clone NODE MACHINERY
+  `_N(name)(...)` / self.node / self._fin — mutable AST objects with settable lineno/col via a METACLASS
+  (_build_nodes / _ABC.__instancecheck__ / _new / mutable_state) = genuine reflection/metaclass boundary.
+- lexer `_lex` / `comments` = char-level string scanning over tokenize = string-op boundary.
+- _Unparser visit_* = string-building over node fields.
+FLAGGED emitter-gap (would unblock +2 more: _line_ends_with_colon, _looks_like_match): a None-initialized
+`Optional[record]` LOCAL later reassigned to the record lowers None->int 0 then conflicts (`last_sig=None; last_sig=tk`
+=> "type _tok but expected int"). ASYMMETRY: Optional RETURN of None works (accept_op is green); only a
+None-init Optional-record LOCAL reassigned fails. Isolated emitter feature (option _tok local), flag-for-authorization.
