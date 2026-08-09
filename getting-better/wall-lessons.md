@@ -1801,3 +1801,21 @@ FLAGGED emitter-gap (would unblock +2 more: _line_ends_with_colon, _looks_like_m
 `Optional[record]` LOCAL later reassigned to the record lowers None->int 0 then conflicts (`last_sig=None; last_sig=tk`
 => "type _tok but expected int"). ASYMMETRY: Optional RETURN of None works (accept_op is green); only a
 None-init Optional-record LOCAL reassigned fails. Isolated emitter feature (option _tok local), flag-for-authorization.
+
+## Module5 _scan_2d trio — CONTAINED build via COMPOSED recognizer (58cbf3e7, 781->778, run #3)
+The 48-stub Module5_IREmitter is mostly raw-AST/self-mutation BOUNDARY, but the `_scan_2d` trio
+(_scan_2d_in_expr/_scan_2d_in_stmt/_collect_2d_params) operates on IR DICTS (not raw ast) = pyval-addressable.
+No verbatim-into-existing win (generic lowering type-failed — Set params modeled inconsistently), but a NEW
+recognizer that COMPOSES three ALREADY-LANDED axiom-free primitives cleared it:
+- set-ref-param void mutation `assigns result` (from find_named_expr_targets)
+- set-membership READ `x in param_names` (from _test_contains_map)
+- typed IR-dict dispatch + mutual expr/stmt recursion (from find_assigned_vars)
+for the COMPOUND shape: "typed IR-dict descent whose set_add into a ref-param is gated by a set-membership
+test, across mutually-recursive expr/stmt walkers." Emitted `let rec {expr} with {expr_list} with {stmt}
+with {stmt_list}` + `let {collect}`, real typed-vs-K_dyn key readers w/ size-postcondition termination, real
+Map.get membership gate, one effect-free no-ensures `val __sorted : List.list string` (sorted() over-approx,
+NOT axiom). Dead in mirror (no callers) = zero coupling. mirror-only effective change (name-gated) => byte-diff 0.
+BANKED DEVICE: **compose landed primitives into a new recognizer for a compound shape** — when no single
+recognizer matches but every sub-pattern is already landed+proven, the composition is a CONTAINED build (ledger 3,
+no new ADT/cert). META: a "no cheap verbatim win" survey verdict is NOT a boundary if the primitives exist —
+measure-by-building the composition. OPS: this file needs proof timeout >=7200s (48-stub scale, ~134min).
