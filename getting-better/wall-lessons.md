@@ -1652,3 +1652,26 @@ REMAINING (each measured, BUILD-tested where reachable):
 HOLD at 789. Reopenings need new recognizer capability / proof-scale modular verification / self-as-record model —
 outside the autonomous verbatim-conversion envelope. Meta-lesson banked (value_model_root_broken.md): breaking a
 ROOT wall CASCADES; re-survey after each break; a "review-gated" verdict is a hypothesis — spike the contained path.
+
+## 2026-08-09 — 96h run #2: _extract_array_lengths PROOF-SCALE WALL BROKEN by re-encoding (789→788) — NEW DEVICE
+
+The measure+build survey classified _extract_array_lengths FLOOR/proof-scale (emitted+typechecked clean but 2
+goals timed out 132M/369M steps; 90s+ split why3 no convergence in 10min). BROKEN (d032860e) by an ALTERNATIVE
+EMIT ENCODING (body verbatim-unchanged) — a ~500× E-matching reduction (369M→701k steps, 0.53s). THE DEVICE
+(banked, reusable — this is why "proof-scale boundary" is a HYPOTHESIS, not a floor):
+1. OPAQUE VALS CAUSE E-MATCHING EXPLOSION. Abstracting a nested closure / helper as an opaque `val f (x):t`
+   the solver keeps re-instantiating (firing its triggers) blows up. FIX: emit it as a FAITHFUL structural
+   reader (pget_dyn/pystr_eq → option string/option int gated on the real discriminant tags). The solver stops
+   firing the opaque val. This is the general form of the reader-split lesson.
+2. PINNED MAP PRIMITIVE for option/map arithmetic. A manual option-int union-unwrap over a `map string (option
+   int)` unfolds Map/option theory at EVERY fold step → explosion. FIX: capture the whole update in ONE pinned
+   `val __setdefault (m) k nn : map string (option int) ensures { result = Map.set m k (match Map.get m k with
+   None -> Some nn | Some x -> Some x end) }` (the __setk device generalized). The walker VC then carries an
+   OPAQUE UPDATE and never unfolds the theory per step. Sound (conservative realization of total Map ops), NOT
+   an axiom, ledger 3.
+3. Module5-LIFTED closures → a PAIRS recognizer (mirror recognize_collect_map_typed_locals_pairs) pairs the outer
+   wrapper with its adjacent lifted siblings by adjacency + suppresses them.
+META: cost_scale_not_floor VALIDATED again — a MEASURED proof-scale wall fell to a re-encoding spike. Re-examine
+EVERY "proof-scale/E-matching-timeout" boundary for opaque-vals-in-VC before concluding floor. Candidates to
+re-check with this device: collect_escaping_exceptions (opaque per-receiver stmt_get_N = the SAME opaque-val
+pattern → faithful readers; + set-difference fold over the CONVERTED handler_catches).
