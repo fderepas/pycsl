@@ -2201,6 +2201,7 @@ class PreambleEmissionMixin:
             recognize_func_returns_string_seq_pairs,
             recognize_returns_string_seq_pairs,
             recognize_struct_pack_targets_pairs,
+            recognize_struct_unpack_targets_pairs,
             recognize_contract_referenced_names_pairs,
             recognize_contract_referenced_var_names_pairs,
             recognize_collect_map_typed_locals_pairs,
@@ -2261,6 +2262,7 @@ class PreambleEmissionMixin:
             recognize_func_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
             recognize_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
             recognize_struct_pack_targets_pairs(functions)["outer_ids"]) or bool(
+            recognize_struct_unpack_targets_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
             recognize_collect_map_typed_locals_pairs(functions)["outer_ids"]) or bool(
@@ -2440,6 +2442,16 @@ class PreambleEmissionMixin:
         _spat = recognize_struct_pack_targets_pairs(functions)
         self._spat_outer_ids = _spat["outer_ids"]
         self._spat_walk_ids = _spat["walk_ids"]
+        # `_collect_struct_unpack_array_targets` (generic_fold.py boundary-A SET-COLLECT):
+        # the TUPLE-UNPACK twin of the pack collector — same OUTER+lifted-`_scan` adjacency
+        # pairing, ref-accumulator `map string bool` with an index-threaded per-slot
+        # set-fold over the REAL `targets` spine (BOTH branches reflected; only the per-slot
+        # `array int` decision is opaque). The lifted `_scan` is SUPPRESSED. Keyed on `id`;
+        # corpus-inert (self-annotate-mirror-only; sole callers are `\trusted` stubs).
+        from module6_whyml.generic_fold import recognize_struct_unpack_targets_pairs
+        _suat = recognize_struct_unpack_targets_pairs(functions)
+        self._suat_outer_ids = _suat["outer_ids"]
+        self._suat_walk_ids = _suat["walk_ids"]
         # `_contract_referenced_names` (generic_fold.py boundary-A SET-COLLECT): the
         # `Set[str]` sibling of `_func_returns_string_seq` — same OUTER+lifted-`_walk`
         # adjacency pairing, but the accumulator is a returned `map string bool` folded

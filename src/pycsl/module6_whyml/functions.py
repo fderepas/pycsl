@@ -3019,6 +3019,18 @@ class FunctionEmissionMixin:
         if _spat_desc is not None:
             from module6_whyml.generic_fold import emit_struct_pack_targets_group
             return emit_struct_pack_targets_group(func, _spat_desc, whyml_ident)
+        # `_collect_struct_unpack_array_targets` (generic_fold.py boundary-A SET-COLLECT,
+        # the TUPLE-UNPACK twin of the pack collector): the lifted `_scan` sibling is
+        # SUPPRESSED; the wrapper emits the ref-accumulator `map string bool` fold that
+        # walks the REAL `targets` spine and set_adds the REAL target name, BOTH branches
+        # reflected (only the per-slot `array int` decision is opaque). Coupling-free
+        # (self type-lookups modeled opaque). Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_suat_walk_ids", set()):
+            return []
+        _suat_desc = getattr(self, "_suat_outer_ids", {}).get(id(func))
+        if _suat_desc is not None:
+            from module6_whyml.generic_fold import emit_struct_unpack_targets_group
+            return emit_struct_unpack_targets_group(func, _suat_desc, whyml_ident)
         # `_contract_referenced_names` (generic_fold.py boundary-A SET-COLLECT): the
         # lifted `_walk` sibling is SUPPRESSED; the wrapper emits the certified mutual
         # pyval/pydict/list set-UNION catamorphism (`map string bool`). Keyed on `id`;

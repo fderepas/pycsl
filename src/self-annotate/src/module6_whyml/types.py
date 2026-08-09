@@ -354,12 +354,52 @@ class TypeInferenceMixin:
             inner = inner[1:-1]
         return [p.strip() for p in inner.split(",")]
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_struct_unpack_array_targets(self, stmts: List[int]) -> int:
-        return set()
+    def _collect_struct_unpack_array_targets(
+            self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Phase 2.3b: tuple-unpack LHS slots whose slot type is `array int`. From
+        `(a, b) = struct.unpack(fmt, data)` (slot type from the format string) AND
+        (body-gate gap-3) from `(a, b) = func(...)` where `func`'s cross-method return
+        type is a tuple with an `array int` slot — e.g. `inode_num, name_bytes =
+        _unpack_direntry(entry)` with `_unpack_direntry : (int, array int)`. These are
+        NOT hoisted — they get let-bound inside the loop iteration so Why3's region
+        inference doesn't collapse fresh-region arrays across iterations.
+        """
+        from module6_whyml.struct_format import parse_format
+
+        def _scan(stmts: List[Dict[str, Any]]) -> Set[str]:
+            found: Set[str] = set()
+            for s in stmts:
+                if s.get("stmt") == "TupleUnpack":
+                    val = s.get("value", {})
+                    if isinstance(val, dict) and val.get("type") == "Call":
+                        fn = val.get("func", "")
+                        targets = s.get("targets", [])
+                        if fn == "struct.unpack":
+                            fmt_arg = (val.get("args") or [{}])[0]
+                            if fmt_arg.get("type") == "String":
+                                parsed = parse_format(fmt_arg.get("value", ""))
+                                if parsed is not None:
+                                    for tgt, slot_t in zip(targets, parsed.slots):
+                                        if slot_t == "array int":
+                                            found.add(tgt)
+                        else:
+                            rt = self._call_return_whyml_type(fn)
+                            if isinstance(rt, str) and rt.startswith("(") and "," in rt:
+                                for tgt, slot_t in zip(targets, self._split_tuple_type(rt)):
+                                    if slot_t == "array int":
+                                        found.add(tgt)
+                for k in ("body", "orelse"):
+                    if k in s:
+                        found |= _scan(s[k])
+                if s.get("stmt") == "Try":
+                    for h in s.get("handlers", []):
+                        found |= _scan(h.get("body", []))
+            return found
+
+        return _scan(stmts)
 
     #@ requires True
     #@ ensures True
