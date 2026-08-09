@@ -65,13 +65,80 @@ class AutoTrustMixin:
     def _check_witness_vals(self, vals: int, invs: List[Any], field_names: List[str]) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _is_linear_expr(expr: Any) -> bool:
-        return False
+        """Return True iff *expr* is a linear-arithmetic IR expression.
+
+        An expression is linear if it contains only:
+          - Integer/boolean constants
+          - Variable references
+          - Arithmetic: +, - (binary and unary)
+          - Comparisons: <, <=, >, >=, ==, !=
+          - Logical: and, or, not
+          - Multiplication by a constant (one operand is Num/Constant)
+          - \\result, \\old(v) references
+
+        An expression is NOT linear if it contains:
+          - Function calls (Call nodes)
+          - Division, modulo (/, //, %)
+          - Multiplication of two non-constant sub-expressions
+          - Float literals, string literals
+          - Subscript, attribute access
+        """
+        def _check(e: Any) -> bool:
+            if e is None:
+                return True
+            if not isinstance(e, dict):
+                return True
+            t = e.get("type", "")
+
+            # Constants
+            # Integer/boolean constants — "Number" is the IR type from Module5.
+            # Values may be int, bool, or float (e.g. 0.0); accept all numeric types.
+            if t in ("Num", "Number", "Constant", "Int"):
+                val = e.get("value", e.get("n", 0))
+                return isinstance(val, (int, float, bool))
+
+            # Variable references (including \result, \old)
+            if t in ("Name", "Var", "Result", "OldVar", "OldName"):
+                return True
+
+            if t == "BinOp":
+                op = e.get("op", "")
+                left = e.get("left")
+                right = e.get("right")
+                if op in ("+", "-", "<", "<=", ">", ">=", "==", "!=",
+                          "and", "or", "==>", "<==>"):
+                    return _check(left) and _check(right)
+                if op == "*":
+                    _CONST = ("Num", "Number", "Constant", "Int")
+                    left_const = isinstance(left, dict) and left.get("type") in _CONST
+                    right_const = isinstance(right, dict) and right.get("type") in _CONST
+                    if left_const:
+                        return _check(right)
+                    if right_const:
+                        return _check(left)
+                    return False   # non-constant * non-constant
+                return False       # /, //, % — not linear
+
+            if t == "UnaryOp":
+                op = e.get("op", "")
+                # Module5 uses "expr" key for UnaryOp child (not "operand")
+                if op in ("-", "not", "~"):
+                    return _check(e.get("expr") or e.get("operand"))
+                return False
+
+            # \old(x) ghost references — treat as linear
+            if t in ("Old", "OldExpr"):
+                return _check(e.get("expr"))
+
+            # Anything else (Call, Subscript, Attribute, Lambda, …)
+            return False
+
+        return _check(expr)
 
     #@ requires True
     #@ ensures True

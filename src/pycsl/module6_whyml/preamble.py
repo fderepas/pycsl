@@ -2206,6 +2206,7 @@ class PreambleEmissionMixin:
             recognize_contract_referenced_var_names_pairs,
             recognize_collect_map_typed_locals_pairs,
             recognize_has_set_op_on_map_pairs,
+            recognize_is_linear_expr_pairs,
             recognize_extract_array_lengths_pairs,
             recognize_final_pair, recognize_check_final, recognize_conc_cluster)
         # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
@@ -2267,6 +2268,7 @@ class PreambleEmissionMixin:
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
             recognize_collect_map_typed_locals_pairs(functions)["outer_ids"]) or bool(
             recognize_has_set_op_on_map_pairs(functions)["outer_ids"]) or bool(
+            recognize_is_linear_expr_pairs(functions)["outer_ids"]) or bool(
             recognize_extract_array_lengths_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_self_method_calls(f) is not None
@@ -2489,6 +2491,15 @@ class PreambleEmissionMixin:
         _hsom = recognize_has_set_op_on_map_pairs(functions)
         self._hsom_outer_ids = _hsom["outer_ids"]
         self._hsom_walk_ids = _hsom["walk_ids"]
+        # `_is_linear_expr` (auto_trust.py): the nested `def _check(e)` linear-arith
+        # classifier + its `return _check(expr)` staticmethod wrapper — OUTER+lifted-`_check`
+        # adjacency pairing. The wrapper emits ONE recursive bool catamorphism over pyval
+        # (every discriminant reflected from the real body); the lifted `_check` is
+        # SUPPRESSED. Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_is_linear_expr_pairs
+        _ile = recognize_is_linear_expr_pairs(functions)
+        self._ile_outer_ids = _ile["outer_ids"]
+        self._ile_walk_ids = _ile["walk_ids"]
         # `_extract_array_lengths` (auto_trust.py): OUTER for-loop over `invs` paired with
         # its two lifted closures `_field_of`/`_int_of` (i+1, i+2). Builds
         # `map string (option int)` via a pinned `__setdefault` + faithful readers. The

@@ -14908,6 +14908,331 @@ def emit_is_linear_vc_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     return out
 
 
+# ---- `_is_linear_expr` (auto_trust.py): the nested `def _check(e)` linear-arithmetic ------
+#      classifier + its `return _check(expr)` staticmethod wrapper. The lifted `_check`
+#      sibling (adjacency i+1) is SUPPRESSED; the wrapper emits ONE self-contained
+#      recursive bool catamorphism over the certified pyval/pydict ADT. Every discriminant
+#      is REFLECTED from the real body (const-tag set, var-tag set, arith-op set, `*`, the
+#      unary-op set, the Old-tag set, and the `type`/`value`/`n`/`op`/`left`/`right`/`expr`/
+#      `operand` keys) so a body change moves the emit (mutation-sensitive). Non-vacuous:
+#      the fold descends REAL child dicts read off the pydict with the size-bounded readers
+#      (termination via `pv_size`); the `op == "*"` const-detection branch reads the REAL
+#      `type` off the real `left`/`right` child (wrinkle #2 — a genuine typed-node
+#      projection, not an opaque gate). `ensures True`; ledger 3 (no new type/axiom/cert).
+
+def _ile_membership(test: Any, var: str) -> Optional[List[str]]:
+    """`<var> in (S...)` -> [S...] or `<var> == "S"` -> ["S"]. Fail-closed None."""
+    if not isinstance(test, dict) or test.get("type") != "BinOp":
+        return None
+    if not _is_var(test.get("left"), var):
+        return None
+    op = test.get("op")
+    if op == "in":
+        tags = _tcm_str_elts(test.get("right"))
+        return [t for t in tags] if tags else None
+    if op == "==":
+        s = _clean_lit(_is_string(test.get("right")))
+        return [s] if s is not None else None
+    return None
+
+
+def _recognize_ile_check(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the lifted `_check(e)` linear-arith classifier body and extract every
+    discriminant literal / dict key. Fail-closed; None on any deviation."""
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    e = params[0]
+    body = func.get("body") or []
+    if len(body) != 9:
+        return None
+    # [0] if e is None: return True   [1] if not isinstance(e, dict): return True
+    if not all(isinstance(body[i], dict) and body[i].get("stmt") == "If" for i in (0, 1)):
+        return None
+    # [2] t = e.get("<type_key>", "")
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Assign"):
+        return None
+    t_var = b2.get("target")
+    type_key = _frss_dotget_key(b2.get("value"), e)
+    if not (isinstance(t_var, str) and type_key):
+        return None
+    # [3] if t in (<const_tags>): val = e.get("<value_key>", e.get("<n_key>", 0)); return isinstance(...)
+    b3 = body[3]
+    const_tags = _ile_membership(b3.get("test") if isinstance(b3, dict) else None, t_var)
+    if not const_tags:
+        return None
+    gb3 = b3.get("body") or []
+    if not (gb3 and isinstance(gb3[0], dict) and gb3[0].get("stmt") == "Assign"):
+        return None
+    av = gb3[0].get("value") or {}
+    value_key = _frss_dotget_key(av, e)
+    n_default = (av.get("args") or [None, None])[1]
+    n_key = _frss_dotget_key(n_default, e)
+    if not (value_key and n_key):
+        return None
+    # [4] if t in (<var_tags>): return True
+    b4 = body[4]
+    var_tags = _ile_membership(b4.get("test") if isinstance(b4, dict) else None, t_var)
+    if not var_tags:
+        return None
+    # [5] if t == "<binop_tag>": op = e.get(..); left = e.get(..); right = e.get(..); ...
+    b5 = body[5]
+    bt = _ile_membership(b5.get("test") if isinstance(b5, dict) else None, t_var)
+    if not (bt and len(bt) == 1):
+        return None
+    binop_tag = bt[0]
+    gb5 = b5.get("body") or []
+    if len(gb5) < 5:
+        return None
+    op_key = _frss_dotget_key(gb5[0].get("value") if isinstance(gb5[0], dict) else None, e)
+    op_var = gb5[0].get("target") if isinstance(gb5[0], dict) else None
+    left_key = _frss_dotget_key(gb5[1].get("value") if isinstance(gb5[1], dict) else None, e)
+    left_var = gb5[1].get("target") if isinstance(gb5[1], dict) else None
+    right_key = _frss_dotget_key(gb5[2].get("value") if isinstance(gb5[2], dict) else None, e)
+    right_var = gb5[2].get("target") if isinstance(gb5[2], dict) else None
+    if not (op_key and op_var and left_key and left_var and right_key and right_var):
+        return None
+    arith_ops = _ile_membership(gb5[3].get("test") if isinstance(gb5[3], dict) else None, op_var)
+    if not arith_ops:
+        return None
+    # mult If: `op == "<mult_op>"`; body[0] Assign _CONST = (<const_tags2>)
+    mif = gb5[4]
+    mt = _ile_membership(mif.get("test") if isinstance(mif, dict) else None, op_var)
+    if not (mt and len(mt) == 1):
+        return None
+    mult_op = mt[0]
+    mbody = mif.get("body") or []
+    if not (mbody and isinstance(mbody[0], dict) and mbody[0].get("stmt") == "Assign"):
+        return None
+    const_tags2 = _tcm_str_elts(mbody[0].get("value"))
+    if not const_tags2:
+        return None
+    # [6] if t == "<unaryop_tag>": op = e.get(..); if op in (<unary_ops>): return _check(e.get(expr) or e.get(operand))
+    b6 = body[6]
+    ut = _ile_membership(b6.get("test") if isinstance(b6, dict) else None, t_var)
+    if not (ut and len(ut) == 1):
+        return None
+    unaryop_tag = ut[0]
+    gb6 = b6.get("body") or []
+    if len(gb6) < 2:
+        return None
+    uop_var = gb6[0].get("target") if isinstance(gb6[0], dict) else None
+    uif = gb6[1]
+    unary_ops = _ile_membership(uif.get("test") if isinstance(uif, dict) else None, uop_var)
+    if not unary_ops:
+        return None
+    uret = (uif.get("body") or [None])[0]
+    ucall = uret.get("value") if isinstance(uret, dict) else None
+    uor = (ucall.get("args") or [None])[0] if isinstance(ucall, dict) else None
+    if not (isinstance(uor, dict) and uor.get("type") == "BinOp" and uor.get("op") == "or"):
+        return None
+    expr_key = _frss_dotget_key(uor.get("left"), e)
+    operand_key = _frss_dotget_key(uor.get("right"), e)
+    if not (expr_key and operand_key):
+        return None
+    # [7] if t in (<old_tags>): return _check(e.get("<old_key>"))
+    b7 = body[7]
+    old_tags = _ile_membership(b7.get("test") if isinstance(b7, dict) else None, t_var)
+    if not old_tags:
+        return None
+    oret = (b7.get("body") or [None])[0]
+    ocall = oret.get("value") if isinstance(oret, dict) else None
+    oarg = (ocall.get("args") or [None])[0] if isinstance(ocall, dict) else None
+    old_key = _frss_dotget_key(oarg, e)
+    if not old_key:
+        return None
+    return {"e": e, "type_key": type_key, "const_tags": const_tags,
+            "value_key": value_key, "n_key": n_key, "var_tags": var_tags,
+            "binop_tag": binop_tag, "op_key": op_key, "left_key": left_key,
+            "right_key": right_key, "arith_ops": arith_ops, "mult_op": mult_op,
+            "const_tags2": const_tags2, "unaryop_tag": unaryop_tag,
+            "unary_ops": unary_ops, "expr_key": expr_key, "operand_key": operand_key,
+            "old_tags": old_tags, "old_key": old_key}
+
+
+def _recognize_ile_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the `_is_linear_expr(expr)` wrapper `return _check(expr)`. Fail-closed.
+    Returns {name, expr, check_name}."""
+    if not func.get("name", "").endswith("_is_linear_expr"):
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    expr_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    ret = body[0]
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return None
+    call = ret.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    cargs = call.get("args") or []
+    if not (len(cargs) == 1 and _is_var(cargs[0], expr_p)):
+        return None
+    return {"name": func["name"], "expr": expr_p, "check_name": call["func"]}
+
+
+def recognize_is_linear_expr_pairs(functions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Pair the `_is_linear_expr` wrapper with its lifted `_check` sibling (adjacency).
+    Returns {"outer_ids": {id(outer): desc}, "walk_ids": {id(check), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_ile_outer(f)
+            except Exception:
+                od = None
+            if od is None or i + 1 >= n:
+                continue
+            cf = functions[i + 1]
+            cn = od["check_name"]
+            cf_name = cf.get("name") if isinstance(cf, dict) else None
+            if not (isinstance(cf, dict) and isinstance(cf_name, str)
+                    and (cf_name == cn or cf_name.endswith("__" + cn))):
+                continue
+            if id(cf) in walk_ids:
+                continue
+            try:
+                chk = _recognize_ile_check(cf)
+            except Exception:
+                chk = None
+            if chk is None:
+                continue
+            desc = {"name": od["name"], "expr": od["expr"]}
+            desc.update(chk)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(cf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def _ile_num_check(reader_v: str) -> str:
+    """`isinstance(<val>,(int,float,bool))` faithfully: PInt/PBool are numeric,
+    every other pyval constructor is not (the ADT has no float ctor)."""
+    return f"(match {reader_v} with PInt _ -> true | PBool _ -> true | _ -> false end)"
+
+
+def _ile_str_reader(name: str, key: str) -> List[str]:
+    """A `pydict -> option string` reader for `key` (typed irkey ctor or K_dyn guard);
+    None when the key is absent OR present-but-not-a-PStr (so the caller defaults to "")."""
+    ctor = _irkey_ctor(key)
+    out = [f"  let rec {name} (d: pydict) : option string",
+           "    variant { d }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {ctor} (PStr s) _ -> Some s")
+        out.append(f"    | DCons {ctor} _ _ -> None")
+    else:
+        out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then '
+                   f"(match v with PStr z -> Some z | _ -> None end) else {name} rest")
+    out.append(f"    | DCons _ _ rest -> {name} rest")
+    out.append("    end")
+    return out
+
+
+def _ile_pval_reader(name: str, key: str) -> List[str]:
+    """A size-bounded `pydict -> option pyval` reader for `key` (child-node projection).
+    The `pv_size v <= size_dict d` postcondition feeds the caller's `pv_size` variant."""
+    ctor = _irkey_ctor(key)
+    out = [f"  let rec {name} (d: pydict) : option pyval",
+           "    variant { d }",
+           "    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }",
+           "  = match d with",
+           "    | DNil -> None"]
+    if key in _NAMED_KEYS:
+        out.append(f"    | DCons {ctor} v _ -> Some v")
+    else:
+        out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {name} rest')
+    out.append(f"    | DCons _ _ rest -> {name} rest")
+    out.append("    end")
+    return out
+
+
+def emit_is_linear_expr_group(func: Dict[str, Any], desc: Dict[str, Any],
+                              whyml_ident) -> List[str]:
+    """Emit `_is_linear_expr` as ONE recursive bool catamorphism over pyval. Every
+    discriminant literal + dict key is reflected from `desc` (mutation-sensitive). The
+    numeric-const branch reads the real `value`/`n` off the dict and tests the real
+    constructor; the `*` branch reads the real `type` off the real `left`/`right` child.
+    Terminates on `pv_size` via the size-bounded child readers. `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    C = f"{n}__chk"
+
+    def _members(var: str, tags: List[str]) -> str:
+        return "(" + " || ".join(f'pystr_eq {var} "{t}"' for t in tags) + ")"
+
+    out: List[str] = []
+    # size-bounded child-node readers (option pyval) + string readers (option string)
+    out += _ile_str_reader(f"{C}_gtype", desc["type_key"])
+    out += _ile_str_reader(f"{C}_gop", desc["op_key"])
+    out += _ile_pval_reader(f"{C}_gvalue", desc["value_key"])
+    out += _ile_pval_reader(f"{C}_gn", desc["n_key"])
+    out += _ile_pval_reader(f"{C}_gleft", desc["left_key"])
+    out += _ile_pval_reader(f"{C}_gright", desc["right_key"])
+    out += _ile_pval_reader(f"{C}_gexpr", desc["expr_key"])
+    out += _ile_pval_reader(f"{C}_goperand", desc["operand_key"])
+
+    def _const_of(reader: str) -> str:
+        # `isinstance(<child>, dict) and <child>.get("type") in _CONST` on a real child
+        return (f"(match {reader} with Some (PDict cd) -> "
+                f'(match {C}_gtype cd with Some tt -> {_members("tt", desc["const_tags2"])} '
+                f"| None -> false end) | _ -> false end)")
+
+    out.append(f"  let rec {C} (e: pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size e }")
+    out.append("  = match e with")
+    out.append("    | PDict d ->")
+    out.append(f'        let t = (match {C}_gtype d with Some s -> s | None -> "" end) in')
+    out.append(f"        if {_members('t', desc['const_tags'])} then")
+    # numeric const: val = e.get(value, e.get(n, 0)); isinstance(val,(int,float,bool))
+    out.append(f"          (match {C}_gvalue d with")
+    out.append(f"           | Some vv -> {_ile_num_check('vv')}")
+    out.append(f"           | None -> (match {C}_gn d with Some vv -> {_ile_num_check('vv')} | None -> true end) end)")
+    out.append(f"        else if {_members('t', desc['var_tags'])} then true")
+    out.append(f'        else if pystr_eq t "{desc["binop_tag"]}" then')
+    out.append(f'          let op = (match {C}_gop d with Some s -> s | None -> "" end) in')
+    out.append(f"          if {_members('op', desc['arith_ops'])} then")
+    out.append(f"            (match {C}_gleft d with Some lv -> {C} lv | None -> true end)")
+    out.append(f"            && (match {C}_gright d with Some rv -> {C} rv | None -> true end)")
+    out.append(f'          else if pystr_eq op "{desc["mult_op"]}" then')
+    out.append(f"            let lc = {_const_of(f'{C}_gleft d')} in")
+    out.append(f"            let rc = {_const_of(f'{C}_gright d')} in")
+    out.append(f"            if lc then (match {C}_gright d with Some rv -> {C} rv | None -> true end)")
+    out.append(f"            else if rc then (match {C}_gleft d with Some lv -> {C} lv | None -> true end)")
+    out.append("            else false")
+    out.append("          else false")
+    out.append(f'        else if pystr_eq t "{desc["unaryop_tag"]}" then')
+    out.append(f'          let op = (match {C}_gop d with Some s -> s | None -> "" end) in')
+    out.append(f"          if {_members('op', desc['unary_ops'])} then")
+    out.append(f"            (match {C}_gexpr d with Some v -> {C} v")
+    out.append(f"             | None -> (match {C}_goperand d with Some v -> {C} v | None -> true end) end)")
+    out.append("          else false")
+    out.append(f"        else if {_members('t', desc['old_tags'])} then")
+    out.append(f"          (match {C}_gexpr d with Some v -> {C} v | None -> true end)")
+    out.append("        else false")
+    out.append("    | _ -> true")
+    out.append("    end")
+    # staticmethod wrapper: `return _check(expr)`
+    out.append(f"  let {n} (expr: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {C} expr")
+    return out
+
+
 # ---- `handler_catches`: `h == r or h in bases_closure(r)` ---------------------------------
 # Two-string subclass-catch predicate. The `in bases_closure(r)` sub-computation (bases_closure
 # is trusted + emits the int-model `map int (option int)`, so a STRING membership can't call it)

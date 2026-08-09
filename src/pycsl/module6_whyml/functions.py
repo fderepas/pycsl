@@ -3077,6 +3077,18 @@ class FunctionEmissionMixin:
         if _hsom_desc is not None:
             from module6_whyml.generic_fold import emit_has_set_op_on_map_group
             return emit_has_set_op_on_map_group(func, _hsom_desc, whyml_ident)
+        # `_is_linear_expr` (auto_trust.py): the nested `def _check(e)` linear-arith
+        # classifier. The lifted `_check` sibling is SUPPRESSED; the wrapper emits ONE
+        # recursive bool catamorphism over pyval (discriminants reflected from the real
+        # body; the `*` branch reads the real `type` off the real left/right child). Its
+        # caller `_is_linear_vc` uses an ABSTRACT self-call val (coupling-free). Keyed on
+        # `id`; corpus-inert.
+        if id(func) in getattr(self, "_ile_walk_ids", set()):
+            return []
+        _ile_desc = getattr(self, "_ile_outer_ids", {}).get(id(func))
+        if _ile_desc is not None:
+            from module6_whyml.generic_fold import emit_is_linear_expr_group
+            return emit_is_linear_expr_group(func, _ile_desc, whyml_ident)
         # `_body_references_bvar_0` (generic_fold.py boundary-A DE-BRUIJN DEPTH-THREADING):
         # a single self-recursive kind-dispatch walk over the real dict tree with an INT
         # `depth` threaded OUT of the `pv_size ast` structural variant (incremented only on
