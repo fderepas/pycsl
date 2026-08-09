@@ -1911,3 +1911,16 @@ No reachable cheap vein (REFUTE). Three sub-classes, all boundary:
 LESSON (output-irrelevant lens LIMIT): applies to dropped LOCAL-value construction, NOT to observed-self-state writes
 or observed-string-output. TWO NEW FLAGGED emitter-core levers (would reopen the ~13 string-emitters cross-file):
 faithful string-membership lowering (List[str] contains without int-hash) + f-string-literal string preservation.
+
+## functions._compute_scope_sets — 3-StrSet set-collect (9f06039f, 770->769, run #3)
+Secondary functions.py candidate #1 landed via a new recognizer emitting a (map string bool)^3 triple:
+params StrSet (set_add real PStr formal-param names), must-assigned (top-level stmts, const-false STOP at first
+control stmt via isctrl, else set_add real gtarget), all-assigned (set_union over assigned-vars list). Real
+catamorphism, real gtarget/isctrl accessors, no opaque manufacture. Ledger 3. OPS NOTE: this landed from a SPIKE
+agent's WIP that ended mid-proof (completion != dead) — supervisor took over, INSPECTED the recognizer diff to confirm
+non-vacuity (real set_add/set_union, not opaque val) BEFORE trusting it, then ran the full battery. A spike's dirty
+WIP can be promoted IF the supervisor independently verifies Gate-C by reading the emitted recognizer, not just the proof.
+#2 `_build_method_param_whyml_types_by_name` (nested map string (map string string) construction) UNMEASURED — the
+flat _recognize_flat_strdictfold is single-level; needs a new nested-map-construction recognizer (flagged build).
+RUN #3: 783->769 (14 conv). functions.py now well-drained: 5 landed (4 ensures-map + compute_scope_sets); residual
+= WhyML-string-emitters + heterogeneous-dict construction + cross-mixin + the nested-map #2.
