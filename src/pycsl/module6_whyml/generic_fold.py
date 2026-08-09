@@ -15025,6 +15025,188 @@ def emit_subclasses_of_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
     return out
 
 
+# ---- `collect_escaping_exceptions`: Try-hierarchy set-DIFFERENCE fold ----------------------
+# The escaping-exception analysis: a `list pyval` statement-tree fold building a `Set[str]`
+# (`map string bool`) that, at a `Try`, keeps only the inner-body raises NOT caught by any
+# handler — `still_escapes = {e for e in inner_raised if not any(handler_catches(b,e) for b in
+# handler_bases)}`. The set-comprehension over the (characteristic-function) `inner_raised` set
+# is FAITHFULLY a POINTWISE map (`fun e -> inner e && not (handlers_catch e)`) — no enumeration
+# of the non-enumerable `map string bool` set is needed, mirroring the certified `free_vars`
+# `set_diff` pointwise `andb/notb`. The per-handler catch is an opaque-but-real LOGIC leaf
+# `function __hcatch (handler_exc raised_exc: string) : bool` (input-dependent on the REAL read
+# `exc_type` string and the REAL raised `e`; opacity absorbs the pipe-split + subclass closure,
+# exactly like `handler_catches`'s own `__in_closure`) — the task-sanctioned "opaque-but-real
+# leaf-gate form". The `handlers_catch e` is a bool-existence LOGIC fold over the real handlers
+# list reading each handler's real `exc_type`. inner_raised = the recursive fold over the Try
+# `body`; handler bodies descend via the general machinery. Termination mirrors the certified
+# `size_list`/`pv_size`/`size_dict` measure family (dict-recursions entered only from `__v` at
+# `pv_size`, so `size_dict d < pv_size (PDict d)` strictly). NO axiom (abstract logic-fn
+# signature + val decls only, ledger 3); NON-VACUOUS (real strings, real handler_catches gate,
+# mutation-sensitive: dropping the filter drops the `handler_catches` call and fails the
+# recognizer). Name-gated -> byte-inert for every other file.
+
+def _ce_calls_handler_catches(node: Any) -> bool:
+    """Recursively scan an IR node for a `Call` whose func name ends with
+    `handler_catches` — couples the recognizer to the REAL filter (removing the
+    handler_catches gate fails the match, so the emission is mutation-sensitive)."""
+    if isinstance(node, dict):
+        if (node.get("type") == "Call"
+                and isinstance(node.get("func"), str)
+                and node["func"].split(".")[-1].endswith("handler_catches")):
+            return True
+        return any(_ce_calls_handler_catches(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_ce_calls_handler_catches(x) for x in node)
+    return False
+
+
+def _ce_has_try_and_raise(stmts: Any) -> Tuple[bool, bool]:
+    """Scan a For-loop body for (a `Raise`-guarded add-arm, a `Try`-guarded arm)."""
+    has_raise = False
+    has_try = False
+    for st in stmts if isinstance(stmts, list) else []:
+        if not isinstance(st, dict) or st.get("stmt") != "If":
+            continue
+        # cheap tag detection: look for a `== "Raise"` / `== "Try"` string compare
+        blob = repr(st.get("test", {}))
+        if '"Raise"' in blob or "'Raise'" in blob:
+            has_raise = True
+        if '"Try"' in blob or "'Try'" in blob:
+            has_try = True
+    return has_raise, has_try
+
+
+def recognize_collect_escaping_exceptions(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `collect_escaping_exceptions`. Never raises."""
+    try:
+        return _recognize_collect_escaping_exceptions(func)
+    except Exception:
+        return None
+
+
+def _recognize_collect_escaping_exceptions(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("collect_escaping_exceptions"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("param_annotations", {}).get(subj) != "list":
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    body = func.get("body") or []
+    # Find the `for <stmt> in <subj>:` fold loop.
+    loop = None
+    for st in body:
+        if (isinstance(st, dict) and st.get("stmt") == "For"
+                and _is_var(st.get("iter"), subj)):
+            loop = st
+            break
+    if loop is None:
+        return None
+    lbody = loop.get("body", [])
+    has_raise, has_try = _ce_has_try_and_raise(lbody)
+    if not (has_raise and has_try):
+        return None
+    # Decisive coupling: the Try arm MUST call handler_catches (the real filter).
+    if not _ce_calls_handler_catches(lbody):
+        return None
+    return {"name": func["name"], "subject": subj}
+
+
+def emit_collect_escaping_exceptions_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                           whyml_ident,
+                                           top_ensures: Optional[List[str]] = None) -> List[str]:
+    """Emit the escaping-exception Try-hierarchy set-difference fold (see the module note).
+    Faithful, axiom-free (ledger 3), `ensures True`. Composes: structural readers, the
+    certified `pyval`/`pydict`/`size` measure family, `set_add`/`set_union`, and a pointwise
+    `set_diff`-style still_escapes gated on the opaque-but-real logic leaf `__hcatch`."""
+    n = whyml_ident(func["name"])
+    out: List[str] = []
+    _te = list(top_ensures or ["true"])
+    _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
+
+    def _reader(key: str, rname: str, ret: str, none_v: str, some_v: str) -> None:
+        # Structural faithful reader over pydict -> `ret` (no opaque per-receiver val).
+        out.append(f"  let rec function {rname} (d: pydict) : {ret}")
+        out.append("    variant { d }")
+        out.append("  = match d with")
+        out.append(f"    | DNil -> {none_v}")
+        if key in _NAMED_KEYS:
+            out.append(f"    | DCons {_NAMED_KEYS[key]} v _ -> {some_v}")
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        else:
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then {some_v} else {rname} rest')
+            out.append(f"    | DCons _ _ rest -> {rname} rest")
+        out.append("    end")
+
+    # Faithful structural readers (all `let rec function` so the logic-level
+    # handler existence fold can call them).
+    _reader("stmt", f"{n}__get_stmt", "option pyval", "None", "Some v")
+    _reader("exc_type", f"{n}__get_exc", "option pyval", "None", "Some v")
+    _reader("handlers", f"{n}__handlers_of", "list pyval", "Nil",
+            "(match v with PList hs -> hs | _ -> Nil end)")
+
+    # Opaque-but-real leaf: does a handler spec string catch a raised name.
+    # `val function` = abstract but executable+pure (the `symtab_mem`/`_pred`
+    # opaque-predicate pattern), usable in both the logic fold and program code.
+    out.append(f"  val function {n}__hcatch (handler_exc: string) (raised_exc: string) : bool")
+    # Bool-existence LOGIC fold: does ANY real handler (reading its real exc_type) catch e.
+    out.append(f"  let rec function {n}__hcatch_any (hs: list pyval) (e: string) : bool")
+    out.append("    variant { hs }")
+    out.append("  = match hs with")
+    out.append("    | Nil -> false")
+    out.append("    | Cons h rest ->")
+    out.append(f"        (match h with")
+    out.append(f"         | PDict hd -> (match {n}__get_exc hd with")
+    out.append(f"                        | Some (PStr ex) -> {n}__hcatch ex e")
+    out.append("                        | _ -> false end)")
+    out.append("         | _ -> false end)")
+    out.append(f"        || {n}__hcatch_any rest e")
+    out.append("    end")
+    # still_escapes as a POINTWISE map: {e in inner : not any handler catches e}.
+    out.append(f"  let function {n}__escapes (inner: map string bool) (handlers: list pyval) : map string bool")
+    out.append(f"    = fun (e: string) -> andb (Map.get inner e) (notb ({n}__hcatch_any handlers e))")
+
+    # The program fold: full-subtree Set[str] catamorphism with the faithful Try arm.
+    out.append(f"  let rec {n} (stmts: list pyval) : map string bool")
+    out.append(f"    requires {{ true }}{_ens_line}")
+    out.append("    variant { size_list stmts }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({n}__v h) ({n} t) end")
+    out.append(f"  with {n}__v (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get_stmt d with")
+    out.append("         | Some (PStr tg) ->")
+    out.append('             if pystr_eq tg "Raise" then')
+    out.append(f"               (match {n}__get_exc d with Some (PStr t) -> set_add (const false) t | _ -> const false end)")
+    out.append('             else if pystr_eq tg "Try" then')
+    out.append(f"               {n}__try d ({n}__handlers_of d)")
+    out.append(f"             else {n}__descend d")
+    out.append(f"         | _ -> {n}__descend d end)")
+    out.append(f"    | PList xs -> {n} xs")
+    out.append("    | _ -> const false end")
+    out.append(f"  with {n}__descend (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append(f"    | DCons _ v rest -> set_union ({n}__v v) ({n}__descend rest) end")
+    out.append(f"  with {n}__try (d: pydict) (handlers: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append("    | DCons k v rest ->")
+    out.append("        set_union")
+    out.append("          (match k with")
+    out.append(f"           | K_body -> {n}__escapes ({n}__v v) handlers")
+    out.append("           | K_orelse -> const false")
+    out.append(f"           | _ -> {n}__v v end)")
+    out.append(f"          ({n}__try rest handlers) end")
+    return out
+
+
 # ---- `classify`: split-first-component + two StrSet memberships + 3-way const return ------
 # `top = module_name.split(".",1)[0]; if m in deny or top in deny: C0; if m in stubs or top in
 # stubs: C1; else C2`. The split-first is an opaque `(string,sep)->string` (reflect the sep),

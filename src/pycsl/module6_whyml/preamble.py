@@ -2086,6 +2086,7 @@ class PreambleEmissionMixin:
             recognize_is_linear_vc,
             recognize_handler_catches,
             recognize_subclasses_of,
+            recognize_collect_escaping_exceptions,
             recognize_classify,
             recognize_global_call_target,
             recognize_method_edges,
@@ -2271,6 +2272,7 @@ class PreambleEmissionMixin:
             or recognize_bool_multiway(f) is not None
             or recognize_frt(f) is not None
             or recognize_stmt_setfold(f) is not None
+            or recognize_collect_escaping_exceptions(f) is not None
             or recognize_void_generic_descend(f) is not None
             or recognize_wall2_items_walk(f) is not None
             or recognize_walk_dicts_generator(f) is not None

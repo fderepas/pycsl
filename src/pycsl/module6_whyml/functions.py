@@ -3237,6 +3237,8 @@ class FunctionEmissionMixin:
             recognize_is_linear_vc, emit_is_linear_vc_group,
             recognize_handler_catches, emit_handler_catches_group,
             recognize_subclasses_of, emit_subclasses_of_group,
+            recognize_collect_escaping_exceptions,
+            emit_collect_escaping_exceptions_group,
             recognize_classify, emit_classify_group,
             recognize_global_call_target, emit_global_call_target_group,
             recognize_method_edges, emit_method_edges_group,
@@ -3801,6 +3803,10 @@ class FunctionEmissionMixin:
         _sco = recognize_subclasses_of(func)
         if _sco is not None:
             return emit_subclasses_of_group(_sco, whyml_ident)
+        _cee = recognize_collect_escaping_exceptions(func)
+        if _cee is not None:
+            return emit_collect_escaping_exceptions_group(
+                func, _cee, whyml_ident, self._lower_fold_ensures(func))
         _cls = recognize_classify(func)
         if _cls is not None:
             return emit_classify_group(_cls, whyml_ident)
