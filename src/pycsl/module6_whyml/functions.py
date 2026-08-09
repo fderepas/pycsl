@@ -3225,6 +3225,7 @@ class FunctionEmissionMixin:
             recognize_collect_mutations, emit_collect_mutations_group,
             recognize_find_iteration_mutations, emit_find_iteration_mutations_group,
             recognize_build_method_writes_map, emit_build_method_writes_map_group,
+            emit_extract_array_lengths_group,
             recognize_collect_record_fields, emit_collect_record_fields_group,
             recognize_build_method_result_ensures_map,
             emit_build_method_result_ensures_map_group,
@@ -3763,6 +3764,15 @@ class FunctionEmissionMixin:
         _bmwm = recognize_build_method_writes_map(func)
         if _bmwm is not None:
             return emit_build_method_writes_map_group(func, _bmwm, whyml_ident)
+        # `_extract_array_lengths` (generic_fold.py pairs): the two lifted closures
+        # `_field_of`/`_int_of` are SUPPRESSED; the outer emits the self-contained
+        # `map string (option int)` fold with FAITHFUL field/int readers + a PINNED
+        # `__setdefault` Map primitive. Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_eal_walk_ids", set()):
+            return []
+        _eal_desc = getattr(self, "_eal_outer_ids", {}).get(id(func))
+        if _eal_desc is not None:
+            return emit_extract_array_lengths_group(func, _eal_desc, whyml_ident)
         _crf = recognize_collect_record_fields(func)
         if _crf is not None:
             return emit_collect_record_fields_group(_crf, whyml_ident)

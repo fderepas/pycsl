@@ -13403,6 +13403,211 @@ def emit_build_method_writes_map_group(func: Dict[str, Any], desc: Dict[str, Any
     return out
 
 
+# ---- `_extract_array_lengths`: field-name -> length `map string (option int)` builder ----
+# A flat single loop over the REAL modeled `invs` list: for each `inv` (PDict) whose
+# `type == "BinOp"` and `op in {==,=,>=,<=}`, read the `left`/`right` sub-nodes, extract the
+# array-field name via a FAITHFUL `_field_of` reader (`type == "ArrayLen"` -> `var` string with
+# the `self.` prefix stripped) and the constant via a FAITHFUL `_int_of` reader
+# (`type in {Number,Num,Constant}` -> `value` else `n` int), and `setdefault` the field->N binding.
+#
+# SPIKE encoding (auto_trust `_extract_array_lengths`): unlike the prior attempt, the two nested
+# closures `_field_of`/`_int_of` are modeled as FAITHFUL structural pydict readers (NOT opaque
+# `int -> int` vals the solver keeps instantiating), and the `setdefault` option-union-unwrap is
+# PINNED inside ONE `val __setdefault` primitive whose pure `ensures` captures the whole
+# `Map.set m k (match Map.get m k with None -> Some n | Some x -> Some x end)` — so the walker VC
+# carries an OPAQUE update and never unfolds Map/option theory at each fold step. This is exactly
+# the proven `_build_method_writes_map.__setk` device generalized to an option-int value, so the
+# E-matching explosion (132M/369M steps on the inline union-unwrap + opaque closures) is avoided.
+# Non-vacuous: the result map embeds REAL constant ints under REAL `self.`-stripped field-name
+# keys read off the real PDict via typed/K_dyn readers gated on the REAL `BinOp`/`ArrayLen`/
+# `Number` discriminants; NO opaque manufacture of the value. `ensures True`; termination via
+# structural list/dict variants. Ledger 3 (no new type/axiom/cert; `__setdefault`/`pystr_startswith`/
+# `__strip_self` are pinned/reflect-the-literal `val`s, mutation-sensitive via the required tags).
+
+def _recognize_eal_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_extract_array_lengths` wrapper (the for-loop over `invs`
+    building the `out` dict). The two nested closures `_field_of`/`_int_of` are LIFTED
+    out, so the outer body carries only the loop-level discriminant tags. Fail-closed."""
+    if not func.get("name", "").endswith("_extract_array_lengths"):
+        return None
+    if func.get("return_annotation") != "dict":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    body = func.get("body") or []
+    # mutation-sensitive tag gate on the OUTER body: the loop-level dispatch tags
+    # (the `_field_of`/`_int_of` closure tags live in the lifted siblings, checked there).
+    tags = set(_all_strings(body))
+    required = {"BinOp", "==", "=", ">=", "<=", "type", "op", "left", "right"}
+    if not required.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0],
+            "self_type": func.get("self_type")}
+
+
+def recognize_extract_array_lengths_pairs(functions: List[Dict[str, Any]]
+                                          ) -> Dict[str, Any]:
+    """Pair the `_extract_array_lengths` OUTER wrapper with its two lifted closures
+    `_field_of` (i+1) and `_int_of` (i+2), by adjacency, verifying each sibling's
+    discriminant tags. Returns {"outer_ids": {id(outer): desc}, "walk_ids": {ids}}.
+    Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_eal_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 2 >= n:
+                continue
+            sib_field = functions[i + 1]
+            sib_int = functions[i + 2]
+            if not (isinstance(sib_field, dict) and isinstance(sib_int, dict)):
+                continue
+            fn_field = sib_field.get("name") or ""
+            fn_int = sib_int.get("name") or ""
+            if not (fn_field.endswith("_field_of") and fn_int.endswith("_int_of")):
+                continue
+            # sibling tag gates (the lifted closure discriminants).
+            ft = set(_all_strings(sib_field.get("body") or []))
+            it = set(_all_strings(sib_int.get("body") or []))
+            if not {"ArrayLen", "self.", "var", "type"}.issubset(ft):
+                continue
+            if not {"Number", "Num", "Constant", "value", "n", "type"}.issubset(it):
+                continue
+            if id(sib_field) in walk_ids or id(sib_int) in walk_ids:
+                continue
+            outer_ids[id(f)] = od
+            walk_ids.add(id(sib_field))
+            walk_ids.add(id(sib_int))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_extract_array_lengths_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                     whyml_ident) -> List[str]:
+    """Emit `_extract_array_lengths` as a pure structural fold building
+    `map string (option int)`. See the module note for the encoding rationale.
+    `ensures True`. Ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+
+    def _opt_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    # ---- opaque reflect-the-literal string ops (`var.startswith("self.")`, `var[5:]`) ----
+    out.append(f"  val {P}startswith (s pfx: string) : bool")
+    out.append(f"  val {P}strip_self (s: string) : string")
+    # ---- literal-key readers ----
+    _opt_reader(f"{P}gtype", "type")
+    _opt_reader(f"{P}gop", "op")
+    _opt_reader(f"{P}gleft", "left")
+    _opt_reader(f"{P}gright", "right")
+    _opt_reader(f"{P}gvar", "var")
+    _opt_reader(f"{P}gvalue", "value")
+    _opt_reader(f"{P}gn", "n")
+    # ---- faithful `_field_of`: ArrayLen node -> stripped `self.<field>` name ----
+    out.append(f"  let {P}field_of (node: pyval) : option string")
+    out.append("  = match node with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some (PStr ty) ->")
+    out.append('             if pystr_eq ty "ArrayLen" then')
+    out.append(f"               (let v = (match {P}gvar d with Some (PStr s) -> s | _ -> \"\" end) in")
+    out.append(f'                if {P}startswith v "self." then Some ({P}strip_self v) else Some v)')
+    out.append("             else None")
+    out.append("         | _ -> None end)")
+    out.append("    | _ -> None end")
+    # ---- faithful `_int_of`: Number/Num/Constant node -> its int value (value else n) ----
+    out.append(f"  let {P}int_of (node: pyval) : option int")
+    out.append("  = match node with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some (PStr ty) ->")
+    out.append('             if pystr_eq ty "Number" || pystr_eq ty "Num" || pystr_eq ty "Constant" then')
+    out.append(f"               (match {P}gvalue d with")
+    out.append("                | Some (PInt k) -> Some k")
+    out.append(f"                | _ -> (match {P}gn d with Some (PInt k) -> Some k | _ -> None end) end)")
+    out.append("             else None")
+    out.append("         | _ -> None end)")
+    out.append("    | _ -> None end")
+    # ---- setdefault pinned into ONE Map primitive (option-union-unwrap in the pure ensures) ----
+    out.append(f"  val {P}setdefault (m: map string (option int)) (k: string) (nn: int)"
+               " : map string (option int)")
+    out.append("    ensures { result = Map.set m k"
+               " (match Map.get m k with None -> Some nn | Some x -> Some x end) }")
+    # ---- outer fold over `invs`: REF-accumulate into `map string (option int)` ----
+    out.append(f"  let rec {P}f (invs: list pyval) (acc: ref (map string (option int))) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { invs }")
+    out.append("  = match invs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons inv rest ->")
+    out.append("        (match inv with")
+    out.append("         | PDict d ->")
+    out.append(f"             (match {P}gtype d with")
+    out.append("              | Some (PStr ty) ->")
+    out.append('                  if pystr_eq ty "BinOp" then')
+    out.append(f"                    (match {P}gop d with")
+    out.append("                     | Some (PStr op) ->")
+    out.append('                         if pystr_eq op "==" || pystr_eq op "=" || pystr_eq op ">=" || pystr_eq op "<=" then')
+    out.append(f"                           (let left = (match {P}gleft d with Some v -> v | None -> PNone end) in")
+    out.append(f"                            let right = (match {P}gright d with Some v -> v | None -> PNone end) in")
+    out.append(f"                            let fl = {P}field_of left in")
+    out.append(f"                            let fr = {P}field_of right in")
+    out.append("                            let use_left =")
+    out.append('                              (match fl with Some _ -> (pystr_eq op "==" || pystr_eq op "=" || pystr_eq op ">=") | None -> false end) in')
+    out.append("                            if use_left then")
+    out.append("                              (match fl with")
+    out.append("                               | Some fls ->")
+    out.append(f"                                   (match {P}int_of right with")
+    out.append(f"                                    | Some nn -> acc := {P}setdefault !acc fls nn")
+    out.append("                                    | None -> () end)")
+    out.append("                               | None -> () end)")
+    out.append("                            else")
+    out.append("                              (match fr with")
+    out.append("                               | Some frs ->")
+    out.append('                                   if pystr_eq op "==" || pystr_eq op "=" || pystr_eq op "<=" then')
+    out.append(f"                                     (match {P}int_of left with")
+    out.append(f"                                      | Some nn -> acc := {P}setdefault !acc frs nn")
+    out.append("                                      | None -> () end)")
+    out.append("                                   else ()")
+    out.append("                               | None -> () end))")
+    out.append("                         else ()")
+    out.append("                     | _ -> () end)")
+    out.append("                  else ()")
+    out.append("              | _ -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}f rest acc")
+    out.append("    end")
+    # ---- entry: fold the PARAM `invs` list (a real PList) ----
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string (option int)")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let acc = ref (const None) in")
+    out.append(f"    (match {mv} with PList xs -> {P}f xs acc | _ -> () end);")
+    out.append("    !acc")
+    return out
+
+
 # ---- `_collect_record_fields`: StrSet set-collect over the type_decls pyval list ----
 # A flat double `while` over the REAL modeled `type_decls` list: for each `td` (PDict) whose
 # `td["kind"] == "record"`, fold `td["fields"]` (list pyval), `set_add`ing each field dict's

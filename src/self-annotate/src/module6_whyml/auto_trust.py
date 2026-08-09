@@ -12,13 +12,51 @@ class AutoTrustMixin:
     def _build_witness_str(field_names: List[str], vals: int, field_types: int=None, array_lengths: int=None) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _extract_array_lengths(invs: List[Any]) -> int:
-        return {}
+    def _extract_array_lengths(invs: List[Any]) -> Dict[str, int]:
+        """Scan class invariants for a length constraint on an array field
+        and return {field: N}, the length to give that field's witness in
+        the record `by` clause. Handles `\\length(self.f) == N`,
+        `\\length(self.f) >= N`, and the reversed `N <= \\length(self.f)`:
+        an `Array.make N 0` witness (length exactly N) satisfies all three
+        (N == N, N >= N, N <= N). Tolerates the constant on either side."""
+        out: Dict[str, int] = {}
+
+        def _field_of(node: Any) -> Optional[str]:
+            if isinstance(node, dict) and node.get("type") == "ArrayLen":
+                var = str(node.get("var", ""))
+                return var[len("self."):] if var.startswith("self.") else var
+            return None
+
+        def _int_of(node: Any) -> Optional[int]:
+            if isinstance(node, dict) and node.get("type") in ("Number", "Num", "Constant"):
+                v = node.get("value", node.get("n"))
+                if isinstance(v, (int, float)):
+                    return int(v)
+            return None
+
+        for inv in invs:
+            if not isinstance(inv, dict) or inv.get("type") != "BinOp":
+                continue
+            op = inv.get("op")
+            if op not in ("==", "=", ">=", "<="):
+                continue
+            left, right = inv.get("left"), inv.get("right")
+            f_left, f_right = _field_of(left), _field_of(right)
+            # field-on-left forms: `len(f) == N`, `len(f) >= N`.
+            if f_left is not None and op in ("==", "=", ">="):
+                n = _int_of(right)
+                if n is not None:
+                    out.setdefault(f_left, n)
+            # field-on-right forms: `N == len(f)`, `N <= len(f)`.
+            elif f_right is not None and op in ("==", "=", "<="):
+                n = _int_of(left)
+                if n is not None:
+                    out.setdefault(f_right, n)
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

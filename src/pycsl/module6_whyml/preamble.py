@@ -2203,6 +2203,7 @@ class PreambleEmissionMixin:
             recognize_contract_referenced_var_names_pairs,
             recognize_collect_map_typed_locals_pairs,
             recognize_has_set_op_on_map_pairs,
+            recognize_extract_array_lengths_pairs,
             recognize_final_pair, recognize_check_final, recognize_conc_cluster)
         # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
         # / lock-order protected-access walk {_check_concurrency,
@@ -2261,7 +2262,8 @@ class PreambleEmissionMixin:
             recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
             recognize_collect_map_typed_locals_pairs(functions)["outer_ids"]) or bool(
-            recognize_has_set_op_on_map_pairs(functions)["outer_ids"]) or any(
+            recognize_has_set_op_on_map_pairs(functions)["outer_ids"]) or bool(
+            recognize_extract_array_lengths_pairs(functions)["outer_ids"]) or any(
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_self_method_calls(f) is not None
             or recognize_substmap(f) is not None
@@ -2471,6 +2473,14 @@ class PreambleEmissionMixin:
         _hsom = recognize_has_set_op_on_map_pairs(functions)
         self._hsom_outer_ids = _hsom["outer_ids"]
         self._hsom_walk_ids = _hsom["walk_ids"]
+        # `_extract_array_lengths` (auto_trust.py): OUTER for-loop over `invs` paired with
+        # its two lifted closures `_field_of`/`_int_of` (i+1, i+2). Builds
+        # `map string (option int)` via a pinned `__setdefault` + faithful readers. The
+        # lifted closures are SUPPRESSED. Keyed on `id`; corpus-inert (mirror-only).
+        from module6_whyml.generic_fold import recognize_extract_array_lengths_pairs
+        _eal = recognize_extract_array_lengths_pairs(functions)
+        self._eal_outer_ids = _eal["outer_ids"]
+        self._eal_walk_ids = _eal["walk_ids"]
         # MULTI-GUARD CASCADE `_check_*` caller (check-diverges-noreturn-impl.md):
         # the set of single-arg closure-existence-converted `list pyval -> bool`
         # predicate NAMES (`_body_has_diverging_construct`). A cascade guard that
