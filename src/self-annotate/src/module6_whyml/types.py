@@ -295,12 +295,37 @@ class TypeInferenceMixin:
                     found.update(self._collect_tuple_array_locals(h.get("body", [])))
         return found
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _collect_tuple_var_assigns(self, stmts: List[int]) -> int:
-        return {}
+    #@ assigns self._tuple_var_slot_types
+    def _collect_tuple_var_assigns(self, stmts: List[Dict[str, Any]]) -> Dict[str, int]:
+        """0442.md C2: locals bound to a tuple-returning call (`p = mk(x)` where `mk`'s
+        return type is `(int, …)`) → {name: arity}."""
+        found: Dict[str, int] = {}
+        rets = getattr(self, "_module_method_return_types", {})
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                tgt = s.get("target", "")
+                if isinstance(val, dict) and val.get("type") == "Call" and tgt:
+                    _fn = val.get("func", "")
+                    rt = rets.get(_fn)
+                    if rt is None and isinstance(_fn, str) and _fn.startswith("self."):
+                        _cls = getattr(self, "_current_self_type", None)
+                        rt = rets.get(f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn)
+                    if isinstance(rt, str) and rt.startswith("(") and "," in rt:
+                        found[tgt] = rt.count(",") + 1
+                        if not hasattr(self, "_tuple_var_slot_types"):
+                            self._tuple_var_slot_types = {}
+                        self._tuple_var_slot_types[tgt] = [
+                            s.strip() for s in rt[1:-1].split(",")]
+            for k in ("body", "orelse"):
+                if k in s:
+                    found.update(self._collect_tuple_var_assigns(s[k]))
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found.update(self._collect_tuple_var_assigns(h.get("body", [])))
+        return found
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

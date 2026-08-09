@@ -6524,9 +6524,30 @@ def _recognize_dictfold(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not params:
         return None
     body = func.get("body", [])
-    if len(body) != 3:
+    if len(body) < 3:
         return None
-    init, loop, ret = body
+    # The tail is always `<loop>; return <acc>`; the head is a PREFIX of {the
+    # `<acc> = {}` init, optional `<lv> = getattr(self,"<field>",{})` self-dict
+    # binds} in any order. A method with NO prefix beyond the init reduces
+    # EXACTLY to the historical 3-statement shape (byte-additive for every
+    # existing consumer). Mirrors `_recognize_stmt_setfold`'s prefix discipline
+    # (`_collect_tuple_var_assigns` reads `rets = getattr(self,...)` before its
+    # `for s in stmts:` fold).
+    loop, ret = body[-2], body[-1]
+    prefix = body[:-2]
+    init = None
+    for st in prefix:
+        if (init is None and isinstance(st, dict) and st.get("stmt") == "Assign"
+                and isinstance(st.get("value"), dict)
+                and st["value"].get("type") == "DictLit"
+                and not st["value"].get("keys") and not st["value"].get("values")):
+            init = st
+            continue
+        if _match_getattr_bind(st) is not None:
+            continue
+        return None
+    if init is None:
+        return None
 
     # init: `<acc> = {}`
     if not (isinstance(init, dict) and init.get("stmt") == "Assign"):
