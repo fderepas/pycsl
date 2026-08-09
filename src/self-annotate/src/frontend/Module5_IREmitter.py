@@ -1686,26 +1686,77 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _match_pattern_to_ir(self, pattern: Any) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _scan_2d_in_expr(self, expr: int, param_names: int, result: int) -> None:
-        pass
+    #@ assigns result
+    def _scan_2d_in_expr(self, expr: Dict[str, Any], param_names: Set[str], result: Set[str]) -> None:
+        """Recursively scan an IR expression dict for a[i][j] access patterns."""
+        if not isinstance(expr, dict):
+            return
+        t = expr.get("type", "")
+        if t == "Subscript":
+            inner = expr.get("value", {})
+            if inner.get("type") == "Subscript":
+                root = inner.get("value", {})
+                if root.get("type") == "Var" and root.get("name") in param_names:
+                    # Exclude dict-style access (string indices) from 2D array detection
+                    idx1 = inner.get("index", {})
+                    idx2 = expr.get("index", {})
+                    if idx1.get("type") != "String" and idx2.get("type") != "String":
+                        result.add(root["name"])
+            self._scan_2d_in_expr(inner, param_names, result)
+            self._scan_2d_in_expr(expr.get("index", {}), param_names, result)
+        elif t in ("BinOp",):
+            self._scan_2d_in_expr(expr.get("left", {}), param_names, result)
+            self._scan_2d_in_expr(expr.get("right", {}), param_names, result)
+        elif t in ("UnaryOp",):
+            self._scan_2d_in_expr(expr.get("expr", {}), param_names, result)
+        elif t in ("Call",):
+            for arg in expr.get("args", []):
+                self._scan_2d_in_expr(arg, param_names, result)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _scan_2d_in_stmt(self, stmt: int, param_names: int, result: int) -> None:
-        pass
+    #@ assigns result
+    def _scan_2d_in_stmt(self, stmt: Dict[str, Any], param_names: Set[str], result: Set[str]) -> None:
+        """Recursively scan an IR statement dict for a[i][j] access patterns."""
+        s = stmt.get("stmt", "")
+        if s == "ArraySet":
+            arr = stmt.get("array", {})
+            # a[i][j] = v  →  ArraySet(array=Subscript(Var(a), i), index=j, ...)
+            if arr.get("type") == "Subscript":
+                root = arr.get("value", {})
+                if root.get("type") == "Var" and root.get("name") in param_names:
+                    idx1 = arr.get("index", {})
+                    idx2 = stmt.get("index", {})
+                    if idx1.get("type") != "String" and idx2.get("type") != "String":
+                        result.add(root["name"])
+            self._scan_2d_in_expr(arr, param_names, result)
+            self._scan_2d_in_expr(stmt.get("index", {}), param_names, result)
+            self._scan_2d_in_expr(stmt.get("value", {}), param_names, result)
+        elif s in ("Assign", "AugAssign", "Return"):
+            self._scan_2d_in_expr(stmt.get("value", {}), param_names, result)
+        elif s in ("While", "For"):
+            self._scan_2d_in_expr(stmt.get("test", {}), param_names, result)
+            for child in stmt.get("body", []):
+                self._scan_2d_in_stmt(child, param_names, result)
+        elif s == "If":
+            self._scan_2d_in_expr(stmt.get("test", {}), param_names, result)
+            for child in stmt.get("body", []):
+                self._scan_2d_in_stmt(child, param_names, result)
+            for child in stmt.get("orelse", []):
+                self._scan_2d_in_stmt(child, param_names, result)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_2d_params(self, body_ir: List[int], param_names: int) -> List[str]:
-        return []
+    def _collect_2d_params(self, body_ir: List[Dict[str, Any]],
+                           param_names: Set[str]) -> List[str]:
+        """Return sorted list of param names used as a[i][j] in the body IR."""
+        result: Set[str] = set()
+        for stmt in body_ir:
+            self._scan_2d_in_stmt(stmt, param_names, result)
+        return sorted(result)
 
     # value-model campaign increment 10 (loop-over-irlist + banked primitives): field-annotation
     # -> IR tag. Same shape as `_m5_get_type_name_legacy` — is_var/name_of, Subscript head via

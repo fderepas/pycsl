@@ -2941,6 +2941,16 @@ class FunctionEmissionMixin:
                 lines = lines + emit_check_final_group(
                     self._check_final_desc, whyml_ident)
             return lines
+        # SCAN-2D TRIO FUSION (preamble/generic_fold): the mutually-recursive
+        # `{_scan_2d_in_expr,_scan_2d_in_stmt,_collect_2d_params}` triad emits as
+        # ONE self-contained `let rec` group at whichever member slot is reached
+        # FIRST; the other two members emit nothing.
+        if getattr(self, "_scan2d_trio", None) and func.get("name") in self._scan2d_trio_names:
+            if self._scan2d_trio_emitted:
+                return []
+            from module6_whyml.generic_fold import emit_scan2d_trio_group
+            self._scan2d_trio_emitted = True
+            return emit_scan2d_trio_group(self._scan2d_trio, whyml_ident)
         # CHECK-FINAL CALLER: `_check_final` is a forward reference to the pyval
         # `_final_walk_body` — DEFERRED, emitted with the pair group above. Its
         # own slot emits nothing.

@@ -9534,6 +9534,338 @@ def _match_cf_loop(node: Any, subj: str, walk_name: str, mf_var: str,
             "body_key": body_key}
 
 
+# =========================================================================
+# SCAN-2D TRIO — the `{_scan_2d_in_expr,_scan_2d_in_stmt,_collect_2d_params}`
+# 2-D-array-access walker triad (Module5_IREmitter self-annotation). A typed
+# IR-dict descent whose `result.add(root["name"])` into a ref-param
+# `result: Set[str]` is GATED by a set-membership test (`root.get("name") in
+# param_names`), across the MUTUALLY-RECURSIVE expr/stmt walkers, plus the
+# `_collect_2d_params` collector (`result=set(); for s in body: stmt(s,..);
+# return sorted(result)`). Fused into ONE `let rec … with …` group (real cross-
+# calls between the lifted siblings) so the whole trio un-trusts together.
+#
+# COMPOSITION OF LANDED DEVICES (ledger 3, no new ADT/cert/axiom):
+#   * ref-param void set mutation `writes { res }` + `set_add` — the
+#     find_named_expr_targets / find_assigned_vars ref-accumulator shape.
+#   * set-membership READ of a param set (`x in param_names`) -> `Map.get pn x`
+#     — the certified L1 set repr (final_pair's `target in module_finals`).
+#   * typed IR-dict child readers with the `pv_size w < 1 + size_dict d` /
+#     `size_list result < 1 + size_dict d` size postconditions — the pb-trio's
+#     `__dget`/`__list_child`; typed-vs-K_dyn ctor via `_irkey_ctor`.
+#
+# Non-facade: the dispatch tags (Subscript/BinOp/UnaryOp/Call for the expr
+# walker; ArraySet/Assign/AugAssign/Return/While/For/If for the stmt walker),
+# the dict keys (type/value/index/name/stmt/array/test/args/body/orelse/left/
+# right/expr), the "Var"/"String" literals, and the `in param_names` membership
+# guard are all READ OFF the three bodies — a change to any either moves the
+# emitted arm/reader (mutation-faithful) or fails the fail-closed match and
+# reverts the trio to `\trusted` (loud count regression, never a false proof).
+# =========================================================================
+
+def _s2d_any(node: Any, pred) -> bool:
+    """True iff `pred(n)` for any dict node reachable in `node`."""
+    if isinstance(node, dict):
+        if pred(node):
+            return True
+        return any(_s2d_any(v, pred) for v in node.values())
+    if isinstance(node, list):
+        return any(_s2d_any(x, pred) for x in node)
+    return False
+
+
+def _s2d_is_membership(n: Any, pname: str) -> bool:
+    """`<x>.get("name") in <pname>` — the set-membership guard."""
+    if not (isinstance(n, dict) and n.get("type") == "BinOp"
+            and n.get("op") == "in"):
+        return False
+    left = n.get("left") or {}
+    right = n.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and isinstance(left.get("func"), str)
+            and left["func"].endswith(".get")):
+        return False
+    largs = left.get("args") or []
+    if not (largs and _is_string(largs[0]) == "name"):
+        return False
+    return _is_var(right, pname)
+
+
+def _s2d_is_set_add(n: Any) -> bool:
+    """`result.add(root["name"])` — a `<x>.add(Subscript(index=String "name"))`."""
+    if not (isinstance(n, dict) and n.get("type") == "Call"
+            and isinstance(n.get("func"), str) and n["func"].endswith(".add")):
+        return False
+    a = n.get("args") or []
+    if len(a) != 1 or not isinstance(a[0], dict):
+        return False
+    sub = a[0]
+    return (sub.get("type") == "Subscript"
+            and _is_string(sub.get("index")) == "name")
+
+
+def _s2d_has_sorted(n: Any) -> bool:
+    return (isinstance(n, dict) and n.get("type") == "Call"
+            and n.get("func") == "sorted")
+
+
+def recognize_scan2d_trio(functions: List[Dict[str, Any]]
+                          ) -> Optional[Dict[str, Any]]:
+    """Fail-closed module-level match of the scan-2D walker triad. Never raises."""
+    try:
+        return _recognize_scan2d_trio(functions)
+    except Exception:
+        return None
+
+
+def _recognize_scan2d_trio(functions: List[Dict[str, Any]]
+                           ) -> Optional[Dict[str, Any]]:
+    ef = sf = cf = None
+    for f in functions:
+        if not isinstance(f, dict):
+            continue
+        nm = f.get("name") or ""
+        if nm.endswith("_scan_2d_in_expr"):
+            ef = f
+        elif nm.endswith("_scan_2d_in_stmt"):
+            sf = f
+        elif nm.endswith("_collect_2d_params"):
+            cf = f
+    if ef is None or sf is None or cf is None:
+        return None
+    # --- expr walker: (expr, param_names, result) -> None --------------------
+    ep = ef.get("formal_params") or []
+    if len(ep) != 3 or ef.get("return_annotation") not in ("None", None):
+        return None
+    e_pn = ep[1]
+    e_body = ef.get("body") or []
+    e_strs = set(_all_strings(e_body))
+    if not {"Subscript", "BinOp", "UnaryOp", "Call", "type", "value", "index",
+            "name", "Var", "String", "args", "left", "right", "expr"} <= e_strs:
+        return None
+    if not _s2d_any(e_body, lambda n: _s2d_is_membership(n, e_pn)):
+        return None
+    if not _s2d_any(e_body, _s2d_is_set_add):
+        return None
+    # --- stmt walker: (stmt, param_names, result) -> None --------------------
+    sp = sf.get("formal_params") or []
+    if len(sp) != 3 or sf.get("return_annotation") not in ("None", None):
+        return None
+    s_pn = sp[1]
+    s_body = sf.get("body") or []
+    s_strs = set(_all_strings(s_body))
+    if not {"ArraySet", "Assign", "AugAssign", "Return", "While", "For", "If",
+            "stmt", "array", "value", "index", "test", "body", "orelse",
+            "Subscript", "Var", "String", "name"} <= s_strs:
+        return None
+    if not _s2d_any(s_body, lambda n: _s2d_is_membership(n, s_pn)):
+        return None
+    if not _s2d_any(s_body, _s2d_is_set_add):
+        return None
+    # --- collector: (body_ir, param_names) -> list ; sorted(result) ----------
+    cp = cf.get("formal_params") or []
+    if len(cp) != 2 or cf.get("return_annotation") != "list":
+        return None
+    c_body = cf.get("body") or []
+    if not _s2d_any(c_body, _s2d_has_sorted):
+        return None
+    return {
+        "expr_name": ef["name"],
+        "stmt_name": sf["name"],
+        "collect_name": cf["name"],
+        "names": {ef["name"], sf["name"], cf["name"]},
+    }
+
+
+def emit_scan2d_trio_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the fused scan-2D walker trio (see module note). Self-contained
+    (calls nothing external), so emitted once at the first-reached member slot.
+    All four mutual functions (`expr`/`expr_list`/`stmt`/`stmt_list`) descend the
+    REAL pyval spine via size-bounded typed-key readers; `set_add` is gated by
+    the `Map.get pn nm` membership + the non-`String`-typed index guards. The
+    collector opens a fresh `ref (const false)` set, folds the body list through
+    `stmt_list`, and returns `<sorted> !res`. `ensures True`; ledger 3."""
+    ne = whyml_ident(desc["expr_name"])
+    ns = whyml_ident(desc["stmt_name"])
+    nc = whyml_ident(desc["collect_name"])
+    nel = f"{ne}__el"
+    nsl = f"{ne}__sl"
+    P = ne
+    acc_ty = "ref (map string bool)"
+    ctx_sig = f" (pn: map string bool) (res: {acc_ty})"
+    ctx_args = " pn res"
+    out: List[str] = []
+
+    # ---- opaque `sorted(set) : list string` (a library call; ensures True).
+    #      `List.list` is qualified: THIS mirror file defines a `list` RECORD
+    #      type (the Python `List` AST node) that shadows the polymorphic list. --
+    out.append(f"  val {P}__sorted (m: map string bool) : List.list string")
+
+    # ---- string-valued key readers (type/stmt/name) ------------------------
+    def str_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {rname} (d: pydict) : option string")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) (PStr x) rest -> if pystr_eq s "{key}" then Some x else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} (PStr x) _ -> Some x")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    # ---- size-bounded single-child readers (recursion children) ------------
+    def child_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> size_pos v; size_dict_nonneg rest; if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v rest -> size_pos v; size_dict_nonneg rest; Some v")
+        out.append(f"    | DCons _ v rest -> size_pos v; size_dict_nonneg rest; {rname} rest end")
+
+    # ---- size-bounded list-child readers (args/body/orelse) ----------------
+    def list_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        g = f"{rname}_g"
+        out.append(f"  let rec {g} (d: pydict) : option pyval")
+        out.append("    ensures { match result with Some w -> pv_size w < 1 + size_dict d | None -> true end }")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> size_pos v; size_dict_nonneg rest; if pystr_eq s "{key}" then Some v else {g} rest')
+        else:
+            out.append(f"    | DCons {ctor} v rest -> size_pos v; size_dict_nonneg rest; Some v")
+        out.append(f"    | DCons _ v rest -> size_pos v; size_dict_nonneg rest; {g} rest end")
+        out.append(f"  let {rname} (d: pydict) : List.list pyval")
+        out.append("    ensures { size_list result < 1 + size_dict d }")
+        out.append("  = size_dict_nonneg d;")
+        out.append(f"    match {g} d with Some (PList xs) -> size_list_nonneg xs; xs | _ -> List.Nil end")
+
+    str_reader(f"{P}__gtype", "type")
+    str_reader(f"{P}__gstmt", "stmt")
+    str_reader(f"{P}__gname", "name")
+    child_reader(f"{P}__gvalue", "value")
+    child_reader(f"{P}__gindex", "index")
+    child_reader(f"{P}__garray", "array")
+    child_reader(f"{P}__gleft", "left")
+    child_reader(f"{P}__gright", "right")
+    child_reader(f"{P}__gexpr", "expr")
+    child_reader(f"{P}__gtest", "test")
+    list_reader(f"{P}__Largs", "args")
+    list_reader(f"{P}__Lbody", "body")
+    list_reader(f"{P}__Lorelse", "orelse")
+
+    # ---- non-String-typed index guard (idx.get("type") != "String") --------
+    out.append(f"  let {P}__strtyped (o: option pyval) : bool")
+    out.append("  = match o with")
+    out.append(f'    | Some (PDict d) -> (match {P}__gtype d with Some s -> pystr_eq s "String" | None -> false end)')
+    out.append("    | _ -> false end")
+
+    # ---- shared detection body (root name gated by membership + idx guards) -
+    #   dd = the enclosing dict (expr/stmt), inner_dd = the Subscript child dict.
+    def detect(inner_dd: str, outer_dd: str) -> List[str]:
+        return [
+            f"           (match {P}__gvalue {inner_dd} with",
+            "            | Some root ->",
+            "                (match root with",
+            "                 | PDict dr ->",
+            f"                     (match {P}__gtype dr with",
+            '                      | Some rt -> if pystr_eq rt "Var" then',
+            f"                          (match {P}__gname dr with",
+            "                           | Some nm -> if Map.get pn nm then",
+            f"                               (if (not ({P}__strtyped ({P}__gindex {inner_dd})))",
+            f"                                   && (not ({P}__strtyped ({P}__gindex {outer_dd}))) then",
+            "                                  res := set_add !res nm else ())",
+            "                             else ()",
+            "                           | None -> () end)",
+            "                        else ()",
+            "                      | None -> () end)",
+            "                 | _ -> () end)",
+            "            | None -> () end)",
+        ]
+
+    # ---- mutual recursion group --------------------------------------------
+    out.append(f"  let rec {ne} (e: pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true } writes { res } variant { pv_size e }")
+    out.append("  = match e with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}__gtype d with")
+    out.append("         | Some t ->")
+    out.append('             if pystr_eq t "Subscript" then begin')
+    out.append(f"               (match {P}__gvalue d with")
+    out.append("                | Some inner ->")
+    out.append("                    (match inner with")
+    out.append("                     | PDict di ->")
+    out.append(f"                         (match {P}__gtype di with")
+    out.append('                          | Some it -> if pystr_eq it "Subscript" then')
+    out += ["    " + ln for ln in detect("di", "d")]
+    out.append("                            else ()")
+    out.append("                          | None -> () end)")
+    out.append("                     | _ -> () end);")
+    out.append(f"                    {ne} inner{ctx_args}")
+    out.append("                | None -> () end);")
+    out.append(f"               (match {P}__gindex d with Some ix -> {ne} ix{ctx_args} | None -> () end)")
+    out.append('             end else if pystr_eq t "BinOp" then begin')
+    out.append(f"               (match {P}__gleft d with Some l -> {ne} l{ctx_args} | None -> () end);")
+    out.append(f"               (match {P}__gright d with Some r -> {ne} r{ctx_args} | None -> () end)")
+    out.append('             end else if pystr_eq t "UnaryOp" then')
+    out.append(f"               (match {P}__gexpr d with Some ex -> {ne} ex{ctx_args} | None -> () end)")
+    out.append('             else if pystr_eq t "Call" then')
+    out.append(f"               {nel} ({P}__Largs d){ctx_args}")
+    out.append("             else ()")
+    out.append("         | None -> () end)")
+    out.append("    | _ -> () end")
+    out.append(f"  with {nel} (xs: List.list pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true } writes { res } variant { size_list xs }")
+    out.append(f"  = match xs with List.Nil -> () | List.Cons h t -> {ne} h{ctx_args}; {nel} t{ctx_args} end")
+    out.append(f"  with {ns} (s: pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true } writes { res } variant { pv_size s }")
+    out.append("  = match s with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}__gstmt d with")
+    out.append("         | Some tag ->")
+    out.append('             if pystr_eq tag "ArraySet" then begin')
+    out.append(f"               (match {P}__garray d with")
+    out.append("                | Some arr ->")
+    out.append("                    (match arr with")
+    out.append("                     | PDict da ->")
+    out.append(f"                         (match {P}__gtype da with")
+    out.append('                          | Some atg -> if pystr_eq atg "Subscript" then')
+    out += ["    " + ln for ln in detect("da", "d")]
+    out.append("                            else ()")
+    out.append("                          | None -> () end)")
+    out.append("                     | _ -> () end);")
+    out.append(f"                    {ne} arr{ctx_args}")
+    out.append("                | None -> () end);")
+    out.append(f"               (match {P}__gindex d with Some ix -> {ne} ix{ctx_args} | None -> () end);")
+    out.append(f"               (match {P}__gvalue d with Some v -> {ne} v{ctx_args} | None -> () end)")
+    out.append('             end else if pystr_eq tag "Assign" || pystr_eq tag "AugAssign" || pystr_eq tag "Return" then')
+    out.append(f"               (match {P}__gvalue d with Some v -> {ne} v{ctx_args} | None -> () end)")
+    out.append('             else if pystr_eq tag "While" || pystr_eq tag "For" then begin')
+    out.append(f"               (match {P}__gtest d with Some tst -> {ne} tst{ctx_args} | None -> () end);")
+    out.append(f"               {nsl} ({P}__Lbody d){ctx_args}")
+    out.append('             end else if pystr_eq tag "If" then begin')
+    out.append(f"               (match {P}__gtest d with Some tst -> {ne} tst{ctx_args} | None -> () end);")
+    out.append(f"               {nsl} ({P}__Lbody d){ctx_args};")
+    out.append(f"               {nsl} ({P}__Lorelse d){ctx_args}")
+    out.append("             end else ()")
+    out.append("         | None -> () end)")
+    out.append("    | _ -> () end")
+    out.append(f"  with {nsl} (xs: List.list pyval){ctx_sig} : unit")
+    out.append("    requires { true } ensures { true } writes { res } variant { size_list xs }")
+    out.append(f"  = match xs with List.Nil -> () | List.Cons h t -> {ns} h{ctx_args}; {nsl} t{ctx_args} end")
+
+    # ---- collector (fresh set, fold body list, return sorted) --------------
+    out.append(f"  let {nc} (body_ir: List.list pyval) (pn: map string bool) : List.list string")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let res = ref (const false) in")
+    out.append(f"    {nsl} body_ir pn res;")
+    out.append(f"    {P}__sorted !res")
+    return out
+
+
 def recognize_check_final(func: Dict[str, Any], walk_name: str
                           ) -> Optional[Dict[str, Any]]:
     """Fail-closed match of the `_check_final(ir)` Final driver (see module

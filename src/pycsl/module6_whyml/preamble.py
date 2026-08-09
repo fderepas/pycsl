@@ -2208,7 +2208,8 @@ class PreambleEmissionMixin:
             recognize_has_set_op_on_map_pairs,
             recognize_is_linear_expr_pairs,
             recognize_extract_array_lengths_pairs,
-            recognize_final_pair, recognize_check_final, recognize_conc_cluster)
+            recognize_final_pair, recognize_check_final, recognize_conc_cluster,
+            recognize_scan2d_trio)
         # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
         # / lock-order protected-access walk {_check_concurrency,
         # _conc_check_shared_access, _conc_check_reads, _conc_stmts, _conc_stmt}
@@ -2240,6 +2241,17 @@ class PreambleEmissionMixin:
         self._final_pair_names = (
             set(self._final_pair["names"]) if self._final_pair else set())
         self._final_pair_emitted = False
+        # SCAN-2D TRIO FUSION (generic_fold.py): the mutually-recursive
+        # `{_scan_2d_in_expr,_scan_2d_in_stmt,_collect_2d_params}` 2-D-access
+        # walker triad emitted as ONE self-contained `let rec … with …` group at
+        # the first-reached member slot (real cross-calls between the lifted
+        # siblings); set_add gated by the `Map.get pn nm` membership. Module-level
+        # (needs all three). None (no trio) -> every other mirror + the whole
+        # corpus byte-identical.
+        self._scan2d_trio = recognize_scan2d_trio(functions)
+        self._scan2d_trio_names = (
+            set(self._scan2d_trio["names"]) if self._scan2d_trio else set())
+        self._scan2d_trio_emitted = False
         # CHECK-FINAL CALLER (generic_fold.py): the `_check_final(ir)` Final
         # driver, re-based onto pyval and emitted RIGHT AFTER the pair group it
         # calls into. Gated on the pair (needs its walk-body name); None -> the
@@ -2256,6 +2268,7 @@ class PreambleEmissionMixin:
         self._check_final_name = (
             self._check_final_desc["cf_name"] if self._check_final_desc else None)
         needs_pydict = needs_sdict or (self._final_pair is not None) \
+            or (self._scan2d_trio is not None) \
             or (self._conc_cluster is not None) \
             or (self._union_cluster is not None) or bool(
             recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
