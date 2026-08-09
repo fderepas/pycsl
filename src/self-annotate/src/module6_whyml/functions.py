@@ -41,12 +41,25 @@ class FunctionEmissionMixin:
         # application rather than admitting an unsound type.
         return "int"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_record_fields(self, type_decls: List[int]) -> int:
-        return set()
+    def _collect_record_fields(self, type_decls: List[Dict[str, Any]]) -> Set[str]:
+        """Collect all declared record field names for FieldGet resolution."""
+        fields: Set[str] = set()
+        n = len(type_decls)
+        i = 0
+        while i < n:
+            td = type_decls[i]
+            if td["kind"] == "record":
+                flds = td.get("fields", [])
+                nf = len(flds)
+                j = 0
+                while j < nf:
+                    fields.add(flds[j]["name"])
+                    j += 1
+            i += 1
+        return fields
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -243,12 +256,51 @@ class FunctionEmissionMixin:
     def _build_method_return_type_map(self, functions: List[int]) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_method_result_ensures_map(self, functions: List[int]) -> Dict[str, List[int]]:
-        return {}
+    def _build_method_result_ensures_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Map method name → the subset of its `ensures` clauses that
+        reference ONLY `\\result` and constants (no params, locals, or
+        self-fields). `_handle_dotted_call` converts these to WhyML and
+        attaches them to the abstract self-call stub, so a caller can
+        discharge bounds/length VCs on the returned value (e.g.
+        `\\length(\\result) == 18` for inode reads, or
+        `\\result >= -1 and \\result < 16` for slot finders). The stub
+        would otherwise lose the contract entirely. Param-referencing
+        ensures are excluded — the stub renames params to x0,x1,… so they
+        would emit unbound symbols."""
+        def result_only(node: Any) -> Optional[bool]:
+            # Returns True if the subtree references \result and contains
+            # no Var/FieldGet/param leaf; False if it references a
+            # disallowed leaf; None if it references neither (pure const).
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t in ("Var", "FieldGet", "Attribute", "OldVar", "OldField"):
+                return False
+            if t == "Result":
+                return True
+            if t == "ArrayLen":
+                return True if node.get("var") == "\\result" else False
+            saw_result = False
+            for v in node.values():
+                children = v if isinstance(v, list) else [v]
+                for c in children:
+                    r = result_only(c)
+                    if r is False:
+                        return False
+                    if r is True:
+                        saw_result = True
+            return True if saw_result else None
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            kept = [e for e in (func.get("contracts", {}).get("ensures", []) or [])
+                    if result_only(e) is True]
+            if kept:
+                out[func["name"]] = kept
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -257,12 +309,91 @@ class FunctionEmissionMixin:
     def _build_method_param_result_ensures_map(self, functions: List[int]) -> Dict[str, List[int]]:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_method_field_result_ensures_map(self, functions: List[int]) -> Dict[str, List[int]]:
-        return {}
+    def _build_method_field_result_ensures_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Map method name → its `ensures` clauses that reference `\\result`
+        AND self-fields (`self.x`) only — no params, `\\old`, locals, or
+        non-self objects. Clauses are kept VERBATIM (the `self.x` FieldGet is
+        preserved); the call site lowers them by giving the abstract op an
+        explicit leading receiver parameter `(self: <class>)` and passing the
+        receiver record, so `self.x` binds to the actual instance.
+
+        This is the third and last propagation map (no-more-int-3 A2c). It
+        closes the method-call contract gap that 0522 documented: a getter
+        `def get_x(self): #@ ensures \\result == self.x` whose postcondition
+        relates `\\result` to a self-FIELD. `_build_method_result_ensures_map`
+        (result+constants) and `_build_method_param_result_ensures_map`
+        (result+params) both drop `FieldGet`, so without this map such a
+        clause propagated nowhere and a `b.get_x()` call proved nothing.
+        Param-referencing field clauses (`\\result == self.x + k`) are excluded
+        — mixing a self-field with a param would collide the receiver param
+        with the positional `x_i`; those stay unpropagated (documented gap)."""
+        def classify(node: Any, params: Set[str]) -> Optional[bool]:
+            # Returns False if the subtree references a DISALLOWED leaf
+            # (param/old/local/non-self object); None/True otherwise. The
+            # `saw_*` flags are accumulated by the caller via the recursion.
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t == "OldVar":
+                return False
+            if t == "OldField":
+                # `\old(self.<plainfield>)` flattens to OldField (Module5), whereas
+                # `\old(self.arr[i])` stays an `Old` node — so a result-guarded counter
+                # exposed to a caller (`\result==0 ==> self.n == \old(self.n)+1`)
+                # propagated through NO map: field_old rejects \result; this map and
+                # field_param_result rejected OldField. Allow OldField OF SELF here (the
+                # shared field-ensures lowering already emits `old (self.f)`, as the
+                # field_old void-mutator clauses prove). Requires a CURRENT self-field too
+                # (the `saw("field")` gate below), so a pure `\result == \old(self.x)`
+                # getter — no current field — is unaffected (byte-identical).
+                return False if node.get("object") != "self" else None
+            if t in ("FieldGet", "Attribute"):
+                # Only `self.<field>` is allowed; `other.f` / a chained
+                # `self.a.b` (object is itself a dict) is rejected.
+                if node.get("object") != "self":
+                    return False
+                return None
+            if t == "Var":
+                # Any bare Var (param or local) is disallowed — a pure
+                # field/result clause names neither.
+                return False
+            if t == "ArrayLen":
+                v = node.get("var")
+                return None if v == "\\result" else False
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if classify(c, params) is False:
+                        return False
+            return None
+
+        def saw(node: Any, kind: str) -> bool:
+            if not isinstance(node, dict):
+                return False
+            t = node.get("type")
+            if kind == "result" and (t == "Result"
+                                     or (t == "ArrayLen" and node.get("var") == "\\result")):
+                return True
+            if kind == "field" and t in ("FieldGet", "Attribute") and node.get("object") == "self":
+                return True
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if saw(c, kind):
+                        return True
+            return False
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            params = set(func.get("formal_params", []) or [])
+            kept = [e for e in (func.get("contracts", {}).get("ensures", []) or [])
+                    if classify(e, params) is not False
+                    and saw(e, "result") and saw(e, "field")]
+            if kept:
+                out[func["name"]] = kept
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -292,12 +423,59 @@ class FunctionEmissionMixin:
                 out[func["name"]] = fields
         return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_method_field_old_ensures_map(self, functions: List[int]) -> Dict[str, List[int]]:
-        return {}
+    def _build_method_field_old_ensures_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """gap7-spec-rev2: map method name → its `ensures` clauses that reference self-fields
+        and/or `\\old(self.f)` (the MUTATING contract) but NO `\\result`, params, locals, or
+        non-self objects. These are exactly the clauses the existing field-RESULT map drops
+        (it rejects `OldVar`/`OldField`) — so a void mutating method (`inc`: `self.x ==
+        \\old(self.x)+1`) propagated nowhere. The call site lowers them by giving the abstract
+        op `(self: <class>)` + `writes {self.f}` and translating `\\old(self.f)` → `old self.f`.
+        Excludes any clause that also references `\\result` (that's the non-void case — kept in
+        the field-RESULT map) so each clause is filed by its kind (the rev2 partition)."""
+        def classify(node: Any) -> Optional[bool]:
+            # False if the subtree references a DISALLOWED leaf (param/local bare Var, \result,
+            # or non-self object field); None otherwise (self-field / old-self-field / const).
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t == "Result":
+                return False
+            if t in ("FieldGet", "Attribute", "OldField"):
+                return False if node.get("object") != "self" else None
+            if t == "OldVar":
+                return False
+            if t == "Var":
+                return False
+            if t == "ArrayLen":
+                v = node.get("var")
+                return None if (v == "self" or (isinstance(v, dict) and v.get("object") == "self")) else False
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if classify(c) is False:
+                        return False
+            return None
+
+        def refs_self_field_or_old(node: Any) -> bool:
+            if not isinstance(node, dict):
+                return False
+            if (node.get("type") in ("FieldGet", "Attribute", "OldField")
+                    and node.get("object") == "self"):
+                return True
+            return any(refs_self_field_or_old(c)
+                       for val in node.values()
+                       for c in (val if isinstance(val, list) else [val]))
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            kept = [e for e in (func.get("contracts", {}).get("ensures", []) or [])
+                    if classify(e) is not False and refs_self_field_or_old(e)]
+            if kept:
+                out[func["name"]] = kept
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

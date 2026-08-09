@@ -2078,6 +2078,10 @@ class PreambleEmissionMixin:
             recognize_collect_mutations,
             recognize_find_iteration_mutations,
             recognize_build_method_writes_map,
+            recognize_collect_record_fields,
+            recognize_build_method_result_ensures_map,
+            recognize_build_method_field_result_ensures_map,
+            recognize_build_method_field_old_ensures_map,
             recognize_test_contains_map,
             recognize_is_linear_vc,
             recognize_handler_catches,
@@ -2298,6 +2302,14 @@ class PreambleEmissionMixin:
             # `map string (list string)` result (`pv_size`/`size_dict`/`size_list`
             # + `Map.set`/`const`) + `pystr_eq`.
             or recognize_build_method_writes_map(f) is not None
+            # `_collect_record_fields` StrSet set-collect + the
+            # `_build_method_*_ensures_map` cluster fold pyval/pydict/list into a
+            # `map string bool` / `map string (list pyval)` result (`pv_size`/
+            # `size_dict`/`size_list` + `set_add`/`set_union`/`Map.set`/`const`) + `pystr_eq`.
+            or recognize_collect_record_fields(f) is not None
+            or recognize_build_method_result_ensures_map(f) is not None
+            or recognize_build_method_field_result_ensures_map(f) is not None
+            or recognize_build_method_field_old_ensures_map(f) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only
@@ -2402,6 +2414,15 @@ class PreambleEmissionMixin:
         _rss = recognize_returns_string_seq_pairs(functions)
         self._rss_outer_ids = _rss["outer_ids"]
         self._rss_walk_ids = _rss["walk_ids"]
+        # `_build_method_*_ensures_map` cluster (generic_fold.py): the map-valued propagation
+        # maps whose nested `def result_only/classify/saw/refs_self_field_or_old` Module5
+        # hoists to `<class>__<nested>` siblings (the two `classify` defs collide on ONE name).
+        # The group-emit is self-contained, so every lifted sibling is SUPPRESSED. Keyed on
+        # `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_build_method_ensures_map_pairs
+        _bmem = recognize_build_method_ensures_map_pairs(functions)
+        self._bmem_outer_ids = _bmem["outer_ids"]
+        self._bmem_walk_ids = _bmem["walk_ids"]
         # `_collect_struct_pack_assign_targets` (generic_fold.py boundary-A SET-COLLECT):
         # the self-free `Set[str]` collector of `X = struct.pack(fmt, …)` assign targets —
         # same OUTER+lifted-`_scan` adjacency pairing, ref-accumulator `map string bool`.

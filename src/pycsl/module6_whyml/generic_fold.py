@@ -13403,6 +13403,440 @@ def emit_build_method_writes_map_group(func: Dict[str, Any], desc: Dict[str, Any
     return out
 
 
+# ---- `_collect_record_fields`: StrSet set-collect over the type_decls pyval list ----
+# A flat double `while` over the REAL modeled `type_decls` list: for each `td` (PDict) whose
+# `td["kind"] == "record"`, fold `td["fields"]` (list pyval), `set_add`ing each field dict's
+# REAL `["name"]` string into a `Set[str]` result. NO nested `def`, NO recursion into the
+# stmt body. Lowered to the certified `map string bool` StrSet set-UNION catamorphism
+# (`set_add`/`set_union`/`const false`, the `_contract_referenced_names` device) over the real
+# pyval `type_decls` -> per-td `fields` list. Non-vacuous: the result set embeds REAL field
+# strings read off the real PDict via typed/K_dyn readers gated on the REAL `kind == "record"`
+# discriminant; NO opaque manufacture. `ensures True`; ledger 3 (no new type/axiom/cert).
+
+def recognize_collect_record_fields(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_collect_record_fields`. Never raises."""
+    try:
+        return _recognize_collect_record_fields(func)
+    except Exception:
+        return None
+
+
+def _recognize_collect_record_fields(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_collect_record_fields"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    tags = set(_all_strings(func.get("body") or []))
+    if not {"kind", "record", "fields", "name"}.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0],
+            "self_type": func.get("self_type")}
+
+
+def emit_collect_record_fields_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_collect_record_fields` as a `map string bool` StrSet set-collect over the pyval
+    `type_decls` list. `ensures True`; ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+    out += _emit_skey_reader(f"{P}gkind", "kind")     # option string: td["kind"]
+    out += _emit_skey_reader(f"{P}gname", "name")      # option string: fld["name"]
+    out += _emit_pval_reader(f"{P}gfields", "fields")  # option pyval: td["fields"]
+    # inner: set_add every real field-dict `["name"]` string
+    out.append(f"  let rec {P}flds (fs: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list fs }")
+    out.append("  = match fs with Nil -> const false")
+    out.append(f"    | Cons f rest -> set_union")
+    out.append(f"        (match f with PDict fd -> "
+               f"(match {P}gname fd with Some s -> set_add (const false) s "
+               "| None -> const false end) | _ -> const false end)")
+    out.append(f"        ({P}flds rest) end")
+    # outer: gate each td on kind=="record", union the fields set
+    out.append(f"  let rec {P}tfold (tds: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list tds }")
+    out.append("  = match tds with Nil -> const false")
+    out.append(f"    | Cons td rest -> set_union")
+    out.append("        (match td with PDict d ->")
+    out.append(f"           (match {P}gkind d with")
+    out.append('            | Some k -> if pystr_eq k "record" then')
+    out.append(f"                          (match {P}gfields d with "
+               f"Some (PList fs) -> {P}flds fs | _ -> const false end)")
+    out.append("                        else const false")
+    out.append("            | None -> const false end)")
+    out.append("         | _ -> const false end)")
+    out.append(f"        ({P}tfold rest) end")
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {mv} with PList xs -> {P}tfold xs | _ -> const false end")
+    return out
+
+
+# ---- the `_build_method_*_ensures_map` cluster: `map string (list pyval)` accumulation ----
+# Each maps a method NAME -> the subset of its `ensures` clauses passing a leaf-membership
+# filter (whole ensures NODES embedded VERBATIM into a `list pyval`, keyed by the real
+# `func["name"]`). Composes the certified `map string (list <t>)` `__setk`/Map.set map-
+# accumulation (from `_build_method_writes_map`) with a whole-node `list pyval` filter-fold,
+# the filter being a bool-catamorphism over the real ensures pyval tree (the certified
+# `_func_returns_string_seq` found=[False] shape). The tri-state `Optional[bool]` filters are
+# encoded FAITHFULLY as tuple-valued catamorphisms: `False` (a disallowed leaf, absorbing)
+# <-> the `nd` (no-disallowed) bit going false; the `saw_*`/`is True` existence checks <-> the
+# `hr`/`hf` OR-bits. `keep <-> nd && (existence bits)`. Non-vacuous: the map embeds REAL
+# ensures nodes under REAL method-name keys, the filter reads REAL `type`/`object`/`var`
+# fields off the real pyval; NO opaque manufacture. `ensures True`; ledger 3.
+
+def _emit_ensures_map_scaffold(n: str, P: str, self_type: str, mv: str,
+                               keep_expr: str) -> List[str]:
+    """Shared tail for the `_build_method_*_ensures_map` cluster: literal-key readers, the
+    `map string (list pyval)` `__setk` (pinned to Map.set), the per-method `ensures`
+    filter-fold (order-preserving, keeping every node for which `keep_expr` holds), and the
+    outer ref-accumulate over `functions`. `keep_expr` is a WhyML bool expression over the
+    free node `e` and the caller-emitted `{P}cv` classifier catamorphism."""
+    out: List[str] = []
+    out += _emit_pval_reader(f"{P}gcontracts", "contracts")  # option pyval: func["contracts"]
+    out += _emit_pval_reader(f"{P}gensures", "ensures")      # option pyval: contracts["ensures"]
+    out += _emit_skey_reader(f"{P}gname", "name")             # option string: func["name"]
+    # program map-set wrapper pinned to `Map.set` (the list-valued map-accumulation primitive)
+    out.append(f"  val {P}setk (m: map string (list pyval)) (k: string) (v: list pyval)"
+               " : map string (list pyval)")
+    out.append("    ensures { result = Map.set m k v }")
+    # order-preserving filter over the ensures list -> the kept `list pyval`
+    out.append(f"  let rec {P}filt (es: list pyval) : list pyval")
+    out.append("    requires { true } ensures { true } variant { size_list es }")
+    out.append("  = match es with")
+    out.append("    | Nil -> Nil")
+    out.append(f"    | Cons e rest -> if ({keep_expr}) then Cons e ({P}filt rest) "
+               f"else {P}filt rest")
+    out.append("    end")
+    # outer fold over `functions`: REF-accumulate into `map string (list pyval)`
+    out.append(f"  let rec {P}f (funcs: list pyval) (acc: ref (map string (list pyval))) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { funcs }")
+    out.append("  = match funcs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons fnc rest ->")
+    out.append("        (match fnc with")
+    out.append("         | PDict fd ->")
+    out.append(f"             let kept = (match {P}gcontracts fd with")
+    out.append(f"                         | Some (PDict cd) -> "
+               f"(match {P}gensures cd with Some (PList es) -> {P}filt es | _ -> Nil end)")
+    out.append("                         | _ -> Nil end) in")
+    out.append("             (match kept with")
+    out.append("              | Nil -> ()")
+    out.append("              | Cons _ _ ->")
+    out.append(f"                  (match {P}gname fd with")
+    out.append(f"                   | Some nm -> acc := {P}setk !acc nm kept")
+    out.append("                   | None -> () end)")
+    out.append("              end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}f rest acc")
+    out.append("    end")
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string (list pyval)")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let acc = ref (const Nil) in")
+    out.append(f"    (match {mv} with PList xs -> {P}f xs acc | _ -> () end);")
+    out.append("    !acc")
+    return out
+
+
+def recognize_build_method_result_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_result_ensures_map`. Never raises."""
+    try:
+        return _recognize_build_method_result_ensures_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_result_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_result_ensures_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    # The `result_only` discriminant literals live in the LIFTED nested def; the outer body
+    # retains only these. Full mutation-sensitivity is enforced by the pairs recognizer's
+    # sibling-tag check (`recognize_build_method_ensures_map_pairs`).
+    tags = set(_all_strings(func.get("body") or []))
+    if not {"contracts", "ensures", "name"}.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0],
+            "self_type": func.get("self_type")}
+
+
+def emit_build_method_result_ensures_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_build_method_result_ensures_map`. The filter is `result_only(e) is True`
+    encoded as the `(nd, hr)` catamorphism (nd = no disallowed leaf; hr = references
+    \\result). `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    bs = "\\\\"
+    out: List[str] = []
+    out += _emit_skey_reader(f"{P}gtype", "type")
+    out += _emit_skey_reader(f"{P}gvar", "var")
+    out.append(f"  let rec {P}cv (v: pyval) : (bool, bool)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some t ->")
+    out.append('             if pystr_eq t "Var" || pystr_eq t "FieldGet" || pystr_eq t "Attribute"')
+    out.append('                || pystr_eq t "OldVar" || pystr_eq t "OldField" then (false, false)')
+    out.append('             else if pystr_eq t "Result" then (true, true)')
+    out.append('             else if pystr_eq t "ArrayLen" then')
+    out.append(f'                 let ok = (match {P}gvar d with '
+               f'Some vv -> pystr_eq vv "{bs}result" | None -> false end) in')
+    out.append("                 (ok, ok)")
+    out.append(f"             else {P}cdf d")
+    out.append(f"         | None -> {P}cdf d end)")
+    out.append(f"    | PList xs -> {P}clf xs")
+    out.append("    | _ -> (true, false)")
+    out.append("    end")
+    out.append(f"  with {P}cdf (d: pydict) : (bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> (true, false)")
+    out.append("    | DCons _ v rest -> size_pos v;")
+    out.append(f"        let (a1, b1) = {P}cv v in let (a2, b2) = {P}cdf rest in "
+               "(a1 && a2, b1 || b2) end")
+    out.append(f"  with {P}clf (xs: list pyval) : (bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> (true, false)")
+    out.append(f"    | Cons h t -> let (a1, b1) = {P}cv h in let (a2, b2) = {P}clf t in "
+               "(a1 && a2, b1 || b2) end")
+    keep = f"let (a, b) = {P}cv e in a && b"
+    out += _emit_ensures_map_scaffold(n, P, self_type, mv, keep)
+    return out
+
+
+def recognize_build_method_field_result_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_field_result_ensures_map`. Never raises."""
+    try:
+        return _recognize_build_method_field_result_ensures_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_field_result_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_field_result_ensures_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    # Discriminant literals live in the LIFTED `classify`/`saw` siblings; the pairs recognizer
+    # enforces their presence (mutation-sensitivity).
+    tags = set(_all_strings(func.get("body") or []))
+    if not {"contracts", "ensures", "name"}.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0],
+            "self_type": func.get("self_type")}
+
+
+def emit_build_method_field_result_ensures_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_build_method_field_result_ensures_map`. Filter =
+    `classify(e) is not False and saw(e,"result") and saw(e,"field")`, encoded as the
+    `(nd, hr, hf)` catamorphism. `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    bs = "\\\\"
+    out: List[str] = []
+    out += _emit_skey_reader(f"{P}gtype", "type")
+    out += _emit_skey_reader(f"{P}gvar", "var")
+    out += _emit_skey_reader(f"{P}gobject", "object")
+    out.append(f"  let {P}selfobj (d: pydict) : bool = "
+               f'match {P}gobject d with Some s -> pystr_eq s "self" | None -> false end')
+    out.append(f"  let rec {P}cv (v: pyval) : (bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some t ->")
+    out.append('             if pystr_eq t "OldVar" || pystr_eq t "Var" then (false, false, false)')
+    out.append('             else if pystr_eq t "OldField" then')
+    out.append(f"                 let s = {P}selfobj d in (s, false, false)")
+    out.append('             else if pystr_eq t "FieldGet" || pystr_eq t "Attribute" then')
+    out.append(f"                 let s = {P}selfobj d in (s, false, s)")
+    out.append('             else if pystr_eq t "ArrayLen" then')
+    out.append(f'                 let ok = (match {P}gvar d with '
+               f'Some vv -> pystr_eq vv "{bs}result" | None -> false end) in')
+    out.append("                 (ok, ok, false)")
+    out.append('             else if pystr_eq t "Result" then (true, true, false)')
+    out.append(f"             else {P}cdf d")
+    out.append(f"         | None -> {P}cdf d end)")
+    out.append(f"    | PList xs -> {P}clf xs")
+    out.append("    | _ -> (true, false, false)")
+    out.append("    end")
+    out.append(f"  with {P}cdf (d: pydict) : (bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> (true, false, false)")
+    out.append("    | DCons _ v rest -> size_pos v;")
+    out.append(f"        let (a1, b1, c1) = {P}cv v in let (a2, b2, c2) = {P}cdf rest in "
+               "(a1 && a2, b1 || b2, c1 || c2) end")
+    out.append(f"  with {P}clf (xs: list pyval) : (bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> (true, false, false)")
+    out.append(f"    | Cons h t -> let (a1, b1, c1) = {P}cv h in let (a2, b2, c2) = {P}clf t in "
+               "(a1 && a2, b1 || b2, c1 || c2) end")
+    keep = f"let (a, b, c) = {P}cv e in a && b && c"
+    out += _emit_ensures_map_scaffold(n, P, self_type, mv, keep)
+    return out
+
+
+def recognize_build_method_field_old_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_field_old_ensures_map`. Never raises."""
+    try:
+        return _recognize_build_method_field_old_ensures_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_field_old_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_field_old_ensures_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    # Discriminant literals live in the LIFTED `classify`/`refs_self_field_or_old` siblings;
+    # the pairs recognizer enforces their presence (mutation-sensitivity).
+    tags = set(_all_strings(func.get("body") or []))
+    if not {"contracts", "ensures", "name"}.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0],
+            "self_type": func.get("self_type")}
+
+
+def emit_build_method_field_old_ensures_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_build_method_field_old_ensures_map`. Filter =
+    `classify(e) is not False and refs_self_field_or_old(e)`, encoded as the FULL-recursion
+    `(nd, hf)` catamorphism (hf must descend an ArrayLen's `var` sub-node, so — unlike the
+    result/field maps — the disallowed check and the field-existence check both recurse the
+    dict values). `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+    out += _emit_skey_reader(f"{P}gtype", "type")
+    out += _emit_skey_reader(f"{P}gobject", "object")
+    out += _emit_pval_reader(f"{P}gvar", "var")
+    out.append(f"  let {P}selfobj (d: pydict) : bool = "
+               f'match {P}gobject d with Some s -> pystr_eq s "self" | None -> false end')
+    out.append(f"  let rec {P}cv (v: pyval) : (bool, bool)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some t ->")
+    out.append('             if pystr_eq t "Result" || pystr_eq t "OldVar" || pystr_eq t "Var" '
+               'then (false, false)')
+    out.append('             else if pystr_eq t "FieldGet" || pystr_eq t "Attribute" '
+               '|| pystr_eq t "OldField" then')
+    out.append(f"                 let s = {P}selfobj d in "
+               f"let (cn, ch) = {P}cdf d in (s && cn, s || ch)")
+    out.append('             else if pystr_eq t "ArrayLen" then')
+    out.append(f"                 let ok = (match {P}gvar d with "
+               f'Some (PStr vv) -> pystr_eq vv "self" '
+               f"| Some (PDict vd) -> {P}selfobj vd | _ -> false end) in")
+    out.append(f"                 let (cn, ch) = {P}cdf d in (ok && cn, ch)")
+    out.append(f"             else {P}cdf d")
+    out.append(f"         | None -> {P}cdf d end)")
+    out.append(f"    | PList xs -> {P}clf xs")
+    out.append("    | _ -> (true, false)")
+    out.append("    end")
+    out.append(f"  with {P}cdf (d: pydict) : (bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> (true, false)")
+    out.append("    | DCons _ v rest -> size_pos v;")
+    out.append(f"        let (a1, b1) = {P}cv v in let (a2, b2) = {P}cdf rest in "
+               "(a1 && a2, b1 || b2) end")
+    out.append(f"  with {P}clf (xs: list pyval) : (bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> (true, false)")
+    out.append(f"    | Cons h t -> let (a1, b1) = {P}cv h in let (a2, b2) = {P}clf t in "
+               "(a1 && a2, b1 || b2) end")
+    keep = f"let (a, b) = {P}cv e in a && b"
+    out += _emit_ensures_map_scaffold(n, P, self_type, mv, keep)
+    return out
+
+
+def _bmem_base(nm: str) -> str:
+    return nm.rsplit("__", 1)[-1] if "__" in (nm or "") else (nm or "")
+
+
+# per-kind: (standalone recognizer, {nested-def base -> required discriminant tags in it})
+_BMEM_KINDS = [
+    ("result", recognize_build_method_result_ensures_map,
+     {"result_only": {"Var", "FieldGet", "Attribute", "OldVar", "OldField",
+                      "Result", "ArrayLen", "var", "\\result"}}),
+    ("field_result", recognize_build_method_field_result_ensures_map,
+     {"classify": {"OldVar", "OldField", "FieldGet", "Attribute", "Var", "ArrayLen",
+                   "var", "\\result", "object", "self"},
+      "saw": {"result", "field", "Result", "FieldGet", "Attribute", "self", "object"}}),
+    ("field_old", recognize_build_method_field_old_ensures_map,
+     {"classify": {"Result", "FieldGet", "Attribute", "OldField", "OldVar", "Var",
+                   "ArrayLen", "var", "self", "object"},
+      "refs_self_field_or_old": {"FieldGet", "Attribute", "OldField", "self", "object"}}),
+]
+
+
+def recognize_build_method_ensures_map_pairs(functions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Pair the `_build_method_*_ensures_map` cluster outers with their LIFTED nested-def
+    siblings. Module5 hoists each nested `def result_only/classify/saw/refs_self_field_or_old`
+    to a `<class>__<nested>` top-level pseudo-function (and the two `classify` defs of the
+    field_result / field_old maps hoist to the SAME name — a collision that disappears only
+    once BOTH are suppressed). The discriminant string literals therefore live in the SIBLINGS,
+    not the outer body, so the outer's mutation-sensitivity is enforced here by tag-checking the
+    ADJACENT siblings. A match records the outer id -> {kind,name,param,self_type} and the
+    sibling ids for SUPPRESSION (the group-emit is self-contained). Returns {outer_ids,
+    walk_ids}; fail-closed (never raises)."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids: set = set()
+    n = len(functions)
+    for i, f in enumerate(functions):
+        try:
+            desc = None
+            kind = None
+            nested_spec = None
+            for k, rec, spec in _BMEM_KINDS:
+                d = rec(f)
+                if d is not None:
+                    desc, kind, nested_spec = d, k, spec
+                    break
+            if desc is None:
+                continue
+            # collect the consecutive lifted nested-def siblings and their tag unions
+            sib_ids: List[int] = []
+            tags_by_base: Dict[str, set] = {}
+            j = i + 1
+            while j < n:
+                g = functions[j]
+                base = _bmem_base(g.get("name", ""))
+                if base not in nested_spec:
+                    break
+                sib_ids.append(id(g))
+                tags_by_base.setdefault(base, set()).update(_all_strings(g.get("body") or []))
+                j += 1
+            # every expected nested def must be present with its discriminant tags
+            ok = all(base in tags_by_base and req.issubset(tags_by_base[base])
+                     for base, req in nested_spec.items())
+            if not ok:
+                continue
+            desc = dict(desc)
+            desc["kind"] = kind
+            outer_ids[id(f)] = desc
+            walk_ids.update(sib_ids)
+        except Exception:
+            continue
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
 # ---- `_test_contains_map`: recursive bool predicate (map/array truthiness in a test) ----
 # A short-circuiting bool fold over the pyval IR tree: Subscript-family nodes recurse ONLY
 # their index children; a `Var` whose name is in the (param) map-locals set is a hit; the two

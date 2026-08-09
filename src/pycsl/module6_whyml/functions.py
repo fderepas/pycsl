@@ -3002,6 +3002,11 @@ class FunctionEmissionMixin:
         if _rss_desc is not None:
             from module6_whyml.generic_fold import emit_returns_string_seq_group
             return emit_returns_string_seq_group(func, _rss_desc, whyml_ident)
+        # `_build_method_*_ensures_map` cluster: the LIFTED nested-def siblings
+        # (`result_only`/`classify`/`saw`/`refs_self_field_or_old`) are SUPPRESSED — the
+        # group-emit for each recognized outer is self-contained. Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_bmem_walk_ids", set()):
+            return []
         # `_collect_struct_pack_assign_targets` (generic_fold.py boundary-A SET-COLLECT):
         # the lifted `_scan` sibling is SUPPRESSED; the wrapper emits the ref-accumulator
         # `map string bool` fold that reads the REAL `struct.pack` func + `target` off the
@@ -3220,6 +3225,13 @@ class FunctionEmissionMixin:
             recognize_collect_mutations, emit_collect_mutations_group,
             recognize_find_iteration_mutations, emit_find_iteration_mutations_group,
             recognize_build_method_writes_map, emit_build_method_writes_map_group,
+            recognize_collect_record_fields, emit_collect_record_fields_group,
+            recognize_build_method_result_ensures_map,
+            emit_build_method_result_ensures_map_group,
+            recognize_build_method_field_result_ensures_map,
+            emit_build_method_field_result_ensures_map_group,
+            recognize_build_method_field_old_ensures_map,
+            emit_build_method_field_old_ensures_map_group,
             recognize_test_contains_map, emit_test_contains_map_group,
             recognize_is_linear_vc, emit_is_linear_vc_group,
             recognize_handler_catches, emit_handler_catches_group,
@@ -3751,6 +3763,22 @@ class FunctionEmissionMixin:
         _bmwm = recognize_build_method_writes_map(func)
         if _bmwm is not None:
             return emit_build_method_writes_map_group(func, _bmwm, whyml_ident)
+        _crf = recognize_collect_record_fields(func)
+        if _crf is not None:
+            return emit_collect_record_fields_group(_crf, whyml_ident)
+        # `_build_method_{result,field_result,field_old}_ensures_map`: the pairs recognizer
+        # (preamble) verified the LIFTED nested-def siblings' discriminant tags and stored the
+        # emit `kind`; the standalone recognizers only name/param-gate (their discriminants are
+        # hoisted out of the outer body).
+        _bmem = getattr(self, "_bmem_outer_ids", {}).get(id(func))
+        if _bmem is not None:
+            _k = _bmem.get("kind")
+            if _k == "result":
+                return emit_build_method_result_ensures_map_group(_bmem, whyml_ident)
+            if _k == "field_result":
+                return emit_build_method_field_result_ensures_map_group(_bmem, whyml_ident)
+            if _k == "field_old":
+                return emit_build_method_field_old_ensures_map_group(_bmem, whyml_ident)
         _tcm = recognize_test_contains_map(func)
         if _tcm is not None:
             return emit_test_contains_map_group(_tcm, whyml_ident)
