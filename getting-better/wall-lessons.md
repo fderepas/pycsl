@@ -1725,3 +1725,27 @@ SPIKE = REFUTE for existing machinery, via THREE independent walls each sufficie
 3. **Heterogeneous Dict[str,Any]** value type (`"str"`/`"set"`/`"dict"`, tested `in (None,"Any")`).
 DECISIVE ARTIFACT: a positive-control .mlw (self-record + mutable map field + program `val` map-set device + framed post) proves Valid (0.03s) — and `Map.set`/`fmap.add` are logic-only (rejected in program code, need a program `val` device). So **Why3 CAN prove a framed self-map write; the wall is EMITTER CAPABILITY, not proof power.**
 CLASSIFICATION: COST / multi-session value-model build (FEASIBLE, not correctness-impossible). To PASS needs NEW emitter capability: (a) model `getattr(self,<field>,default)` as the mutable self field, (b) model local-alias mutation `st[v]=x` as a self-map-set via a program `val` device, (c) faithfully lower the Any map-value. Declaring `assigns \nothing` = unsound trusted-frame-drop (NOT a PASS). => FLAGGED for user authorization (getattr-self-mutable-field emitter capability); would unblock the whole self-collection-mutation-frame class. Ties to [[trusted_val_frame_unsoundness]].
+
+## CONFIRMED AUTONOMOUS FLOOR at 783 (run #2, from 796; 2026-08-09)
+Tree-wide read-only survey + auto_trust.py re-drain both return no_cheap_remaining. The value-model/
+recursive-tree-walker frontier reopened by the value-model-ROOT break is now EXHAUSTED: every recursive-Any-
+walker in the small utility files is already verified; the trusted residue is boundary-classed.
+Run #2 ledger (796->783, 14 conversions + boundaries), all axiom-free / ledger-3 / full supervisor battery:
+- BROKEN (converted): find_array_and_dict_vars, _collect_tuple_var_assigns, _collect_struct_unpack_array_targets
+  (Phase-2 spike->build, per-index-leaf-gate device), _is_linear_expr (bool-existence fold), + the value-model-
+  root cascade from the session's earlier window (_collect_mutations root, map-accum cluster, etc.).
+- CERTIFIED-BOUNDARY (measured this run): _collect_array_var_assigns (while-changed variant-decrease E-matching
+  flood), _collect_string_elem_read_locals + _collect_field_decode_str_locals (self-collection-mutation-frame:
+  getattr-self-alias not modeled as mutable field), _build_witness_str (int-hash string facade + heterogeneous
+  Dict[str,Any]), _should_auto_trust_tuple_return (set->int collapse, coupled to the array_var fixpoint boundary),
+  _check_witness_vals (runtime eval()).
+- FLAGGED FOR USER AUTHORIZATION (feasible but multi-session / production-rewrite / review-gated — NOT auto-built):
+  (1) the getattr-self-mutable-field EMITTER CAPABILITY (positive control proves Why3 can frame a self-map write;
+  unblocks the whole self-collection-mutation-frame class); (2) the fixpoint while->bounded-for LIVE-SOURCE rewrite
+  (array_var_assigns); (3) verify_module modular verification for the _scan whole-file E-matching scale wall
+  (memory: verify_module worsens razor-edge goals; 2 encodings already tried in prior runs).
+Residual ~755 stubs by class (survey): raw-AST/parser ~267 (pure_ast 222), emitter-core scale/value-model ~206,
+IO/prover-subprocess ~140, AST-visitor/desugar ~93, IR-resolution/fixpoint/scan ~45, opaque-stdlib/hash/regex/
+graph-fixpoint/eval ~30. All previously-measured, review-gated or multi-session.
+DECISION per driver ACTION (6): HOLD at floor; do NOT spin to burn clock; integrity-check each heartbeat until
+deadline (~87h). Do NOT auto-push (~786 unpushed commits ready; push only on explicit user "push").
