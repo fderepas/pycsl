@@ -1858,3 +1858,17 @@ park-notes that remain (map-element inner mutation, dict-literal element-by-elem
 NEW emitter capabilities = flag-for-authorization, not autonomous cheap wins. META (banked this run): (1) COMPOSE
 landed primitives into a new recognizer for a compound shape = contained build; (2) grep the emitter for
 "stays \trusted pending device X" park-comments after landing a new device X — they are pre-identified reopens.
+
+## ir_resolve/ir_inline cluster — 1 cheap win, rest = pydict-CONSTRUCTION boundary (run #3, 775->774)
+Measured the 28-stub IR-transformation cluster. ONE cheap win: _contract_referenced_var_names (certified
+contract-walker, mirror-only, duplicate/dead-but-real de-trust). The REST is a genuine boundary gated on ONE
+missing emitter capability. DECISIVE evidence: generic_fold.py exposes pydict READERS only (pget_dyn/pget_list/
+size_dict/pv_size/K_dyn) and ZERO copy/set/put/with-field CONSTRUCTION primitive. Every remaining stub must
+CONSTRUCT-or-mutate a heterogeneous Dict[str,Any] (dict(func)+set-field, {**a,**b} merge, deepcopy, insert/append),
+run a while-changed fixpoint (_recursive_methods), or do IO (open+ast.parse). 
+HIGH-LEVERAGE FLAGGED LEVER (authorize-first, multi-session): a CERTIFIED AXIOM-FREE pydict copy-and-set-field /
+list-insert CONSTRUCTION primitive. It would reopen a LARGE cross-file cluster at once: ir_resolve (_strip_dir_scan_
+proofs, apply_inheritance/composition, _inject_functions), ir_inline (_substitute, _Inliner.*, _inline_calls),
+and every other heterogeneous-dict-CONSTRUCTION boundary (Module5 record-building, functions._build_method_*_map).
+The pyval value model currently READS the heterogeneous dict; the missing half is a SOUND WRITE/construct op with a
+co-landing §10.5 cert (ledger stays 3). This is the single highest-leverage authorize-first build identified this run.
