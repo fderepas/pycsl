@@ -1621,3 +1621,34 @@ blow-up is E-matching SCALE over the recursive wf_*/frag_*/size_* predicate fami
 functions. LESSON: the pget_dyn+pget_list reader-split clears size-postcond list-reader razor-edges (find_assigned_vars,
 struct-pack Lhandlers) but does NOT apply to structural-preservation VCs from general body-lowering. _scan stays
 CERTIFIED-BOUNDARY → review-gated modular verification (isolate _scan's recursion from the sibling's proof context).
+
+## 2026-08-09 — 96h run #2: AUTONOMOUS FLOOR CONFIRMED at 789 (7 conversions this run, 796→789)
+
+After the value-model-root break + its map-accumulator cascade, a thorough measure+BUILD survey (2 candidates
+built and reverted after honest --fun failure) confirms the autonomous single-session floor at 789.
+CONVERSIONS THIS RUN (all axiom-free ledger-3, full supervisor battery): _collect_mutations (c6557971),
+find_iteration_mutations (fdbccc77), _build_method_writes_map (b161952d), and the cluster x4 _collect_record_fields
++ _build_method_result/field_result/field_old_ensures_map (967e1b79). Broke the DEEPEST documented wall
+(heterogeneous value-model root) via spike→de-risk-gate→build; banked __setk (map-to-list accumulation),
+class_str_set_constants Module5 registry, mrec record-embedding.
+
+REMAINING (each measured, BUILD-tested where reachable):
+- collect_escaping_exceptions — REACHABLE-BUT-REVIEW-GATED: BUILT+REVERTED; inner_raised extraction falls to the
+  opaque per-receiver stmt_get_N model (Gate-C reject) AND the Try arm is a hierarchy-aware SET-DIFFERENCE
+  {e in inner_raised : not any handler_catches(b,e)} — needs a NEW recognizer arm (opaque-predicate set-difference),
+  not a verbatim port. Review-gated recognizer build.
+- _extract_array_lengths (auto_trust.py, map string int builder) — REACHABLE-BUT-PROOF-SCALE-WALL: BUILT+REVERTED;
+  EMITS + TYPECHECKS CLEAN (str()/int() coercions, .setdefault, prefix-slice, map string (option int) all lower —
+  NOT blockers) but 2 goals TIMEOUT at 30s (132M/369M steps); a 90s+ why3 split run didn't converge in 10min.
+  Root: nested closures _field_of/_int_of → opaque int→int vals + option-int UNION-UNWRAP over the map =
+  E-matching explosion. reader-split N/A (not a size-postcond list reader). Genuine proof-scale wall → needs
+  review-gated modular verification / a targeted proof-engineering session (different closure encoding).
+- find_array_and_dict_vars (missing rsplit-last-component); _collect_struct_unpack_array_targets (opaque
+  StructFormat.slots int); _collect_tuple_var_assigns / _collect_string_elem_read_locals / _collect_field_decode_str_locals
+  / _typed_local_vars (self-mutation frame — self opaque int, not a record); _collect_array_var_assigns (fixpoint
+  while-loop + 10-arm classifier); Module5 _scan_2d_* (mutual-recursion + sorted + corpus-frontend); module_collect
+  collect_module_constants/globals (raw-AST ast.walk boundary, the 223-\trusted pure_ast wall); rename-using
+  _build_method_*_ensures_map (pyval structural rewrite, _subst_type_in_ir class). ALL boundary/review-gated.
+HOLD at 789. Reopenings need new recognizer capability / proof-scale modular verification / self-as-record model —
+outside the autonomous verbatim-conversion envelope. Meta-lesson banked (value_model_root_broken.md): breaking a
+ROOT wall CASCADES; re-survey after each break; a "review-gated" verdict is a hypothesis — spike the contained path.
