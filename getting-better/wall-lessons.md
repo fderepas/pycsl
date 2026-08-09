@@ -1835,3 +1835,26 @@ file's known >70min scale wall — use timeout 7200; the vacuity re-proof phase 
 the ensures{false} per-driver fallback if it stalls, but here it completed). Corpus-inert (TypedDict/NamedTuple/
 Union in 0 corpus programs).
 RUN #3 so far: 783->775 (8 conv): pure_ast expect_op/expect_kw + Module5 _scan_2d trio + this typing-check trio.
+
+## self-state bool recognizers (_is_emit_ir_expr/_is_string_expr) — CERTIFIED-BOUNDARY (run #3, at 775)
+Survey flagged them as possible opaque-self-source + bool-fold candidates; REFUTE. The core Attribute/FieldGet
+branch is a TWO-LEVEL heterogeneous-dict content inspection: `_current_symbol_table.get(name)` -> record-type
+string -> `_record_types.get(rec)` -> descriptor dict -> value-READS `rt["field_types"].get(attr)` and compares
+`in ("ExprIR","StmtIR",...)`. `_record_types: Dict[str,Any]` whose VALUES are the discriminant (not membership)
+= the documented heterogeneous value-model wall. Opaque-but-real-self-SOURCE device is INADMISSIBLE here (the
+field's CONTENTS are value-inspected, so opaquing = facade = Gate-C reject; `_record_types` is a self-collection
+built during transpile, so a faithful model IS the self-collection-content model = the boundary itself). Plus a
+15-helper self-state DAG (_record_get_field/_field_type_of/... absent from mirror). CENSUS NOTE: `_val_is_bool` is
+already VERIFIED (not a stub) — strike from trusted-pending census. NON-VACUITY LINE reconfirmed: opaque-self-source
+OK for MEMBERSHIP/read-source, NOT for value-INSPECTED content.
+
+## RUN #3 FLOOR at 775 (from 783; 8 conversions)
+Reachable veins drained via NEW devices this run: pure_ast expect_op/expect_kw (cursor seam, +2); Module5 _scan_2d
+trio (compose-landed-primitives recognizer, +3); core_ir_semantic typing-check trio (parked-pending-opaque-startswith
+cluster, +3). Boundaries confirmed this run: self-state bool recognizers (heterogeneous value-model wall). Remaining
+frontier = the same documented multi-session/review-gated boundaries (heterogeneous Dict[str,Any] value model,
+raw-CPython-ast readers, self-collection-mutation-frame, while-changed fixpoints, IO/s-expr/regex/hash/eval) — the
+park-notes that remain (map-element inner mutation, dict-literal element-by-element Map.set, "Part 1 shape") need
+NEW emitter capabilities = flag-for-authorization, not autonomous cheap wins. META (banked this run): (1) COMPOSE
+landed primitives into a new recognizer for a compound shape = contained build; (2) grep the emitter for
+"stays \trusted pending device X" park-comments after landing a new device X — they are pre-identified reopens.
