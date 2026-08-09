@@ -1749,3 +1749,21 @@ IO/prover-subprocess ~140, AST-visitor/desugar ~93, IR-resolution/fixpoint/scan 
 graph-fixpoint/eval ~30. All previously-measured, review-gated or multi-session.
 DECISION per driver ACTION (6): HOLD at floor; do NOT spin to burn clock; integrity-check each heartbeat until
 deadline (~87h). Do NOT auto-push (~786 unpushed commits ready; push only on explicit user "push").
+
+## _scan_node_for_subscript_calls — no_inline modular boundary REFUTE (run #2, reconfirmed CERTIFIED-BOUNDARY at 783)
+Spiked the ONE untested lever this run: does `#@ no_inline` on the razor-edge sibling `_subst_type_in_ir`
+(monomorphize.py:194) isolate its proof context from `_scan`'s added recursive helpers, clearing the
+E-matching saturation of `_subst_type_in_ir__list'vc`? **REFUTE — byte-inert.**
+ROOT CAUSE (banked): `#@ no_inline` governs ONLY whether a callee's BODY is spliced into CALLER contexts. It
+does NOT relocate a function's own body VC out of module scope, nor remove sibling definitions from a goal's
+proof scope. `_subst_type_in_ir`'s in-file callers are bodyless trusted stubs (nothing to inline) + self-recursion
+is never inlined ⇒ the annotation emits byte-IDENTICAL WhyML (verified: `#@ no_inline` parses/Weaver-sets/Module5-
+emits `"no_inline":True` but is a complete no-op here). The wall is proof-SCOPE saturation: converting `_scan` adds
+recursive pyval helpers (__scan/__dfold/__lfold) to the single flat `module PyCSL_Program`, expanding the
+E-matching space the sibling's structural-preservation VC proves within. no_inline leaves them all in scope.
+The ONLY mechanism that isolates scope = `#@ verify_module` (separate module) — memory driver-frontier-floor says
+it WORSENS razor-edge goals. Soundness OK (byte-identical ⇒ sibling VC fully retained, not dropped).
+Also: converting `_scan` never creates a `_subst` call site (`_scan` calls `_type_str`, not `_subst`) ⇒ byte-identity
+is STABLE under the full conversion. CONCLUSION: `_scan` whole-file E-matching scale wall = genuine CERTIFIED-BOUNDARY
+needing review-gated modular verification (verify_module) infra; no_inline is NOT that infra. FLAGGED for authorization.
+This is the LAST named lever — GENUINE confirmed floor at 783.
