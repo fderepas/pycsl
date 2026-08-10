@@ -2024,3 +2024,19 @@ constructor sweep is a count-reduction option but weak-contract — this run har
 further constructors need preconditions/emitter-work.
 
 ## RUN #3 FINAL: 783 -> 755 (28 conversions) — by far the strongest run.
+
+## Module3_Weaver _const_int — isinstance-typed-record FAITHFUL reader device (2ad3f29e, 755->754, run #3)
+ANTI-FALSE-FLOOR HIT at "confirmed floor" 755 — a periodic re-measure of Module3_Weaver (raw-ast dataclass weaver)
+found _const_int reachable. NEW DEVICE (banked): **single `isinstance(x, <TypedRecord>)` guard + typed-field read +
+scalar/int/bool return** slips through the raw-ast boundary — it's a REAL typed-record reader, not a raw-CPython-ast
+walk. Verbatim body + REAL value contract `ensures \result == node.value` (NOT weak-contract like constructors —
+mutation-tested: +1 REFUTES). The isinstance(Number) typed-record guard + int() truncation faithfully model
+int(value)==value. Mirror-only, coupling-safe. This device may generalize to OTHER isinstance-typed-record+scalar-return
+methods across the raw-ast files (Module5_IREmitter/Module2_Parser/etc.) — worth a targeted sweep.
+BOUNDARY (measured): _extract_happy_properties — `contracts_map[line]=kept` in-place MAP-PARAM mutation has no
+caller-visible by-ref frame ("in-place mutation of dict/set parameter out of scope") = emitter/tool-capability class;
+needs a src/pycsl dict/set-param-mutation-frame (ties the pydict-construction-primitive + getattr-self-mutable-field
+flagged levers). Module3_Weaver aggregate: ~34 boundary (raw-ast visitors + dataclass-reflection _subst_var/_dc_replace
++ output-record-construction + cross-module + string-op) / 3 constructors (done) / 1 isinstance-reader (_const_int, done).
+META: the anti-false-floor periodic re-measure has now paid off THREE times past a "confirmed floor" (constructor vein,
+then _const_int) — KEEP MEASURING in a funded window; each raw-ast/boundary file may hide a thin typed-reader/constructor seam.
