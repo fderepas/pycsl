@@ -2459,6 +2459,27 @@ class PreambleEmissionMixin:
         _rss = recognize_returns_string_seq_pairs(functions)
         self._rss_outer_ids = _rss["outer_ids"]
         self._rss_walk_ids = _rss["walk_ids"]
+        # `_class_inv_refs_axiom_func` (generic_fold.py): the nonlocal-scalar-`hit` twin of
+        # `_func_returns_string_seq`. Same OUTER+lifted-`_walk` adjacency pairing, but the
+        # accumulator is a SCALAR `hit` (lowered to `||` short-circuit) and the leaf is a
+        # `Map.get`-membership `node.get("func") in _axiom_logic_funcs` (opaque-but-real
+        # self-source `val <n>__axset (self):map string bool`). The REAL type_decls->
+        # class_invariants spine is walked. The lifted `_walk` is SUPPRESSED. Keyed on `id`;
+        # corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_class_inv_refs_axiom_pairs
+        _cira = recognize_class_inv_refs_axiom_pairs(functions)
+        self._cira_outer_ids = _cira["outer_ids"]
+        self._cira_walk_ids = _cira["walk_ids"]
+        # `_inductive_refs_global_or_axiom_func` (generic_fold.py): the globals-set EXTENSION
+        # of `_class_inv_refs_axiom_func`. Same nonlocal-scalar-`hit` walk, but an 8-stmt
+        # outer that also builds `globals_names` from `ir["module_globals"]`, a 3-disjunct
+        # leaf (axiom-fn membership + Var-name/object-name membership in globals_names), and a
+        # triple-loop seed. `axset` stays opaque-but-real; `gset` is REALLY built from
+        # `module_globals`. The lifted `_walk` is SUPPRESSED. Keyed on `id`; corpus-inert.
+        from module6_whyml.generic_fold import recognize_inductive_refs_pairs
+        _iroaf = recognize_inductive_refs_pairs(functions)
+        self._iroaf_outer_ids = _iroaf["outer_ids"]
+        self._iroaf_walk_ids = _iroaf["walk_ids"]
         # `_build_method_*_ensures_map` cluster (generic_fold.py): the map-valued propagation
         # maps whose nested `def result_only/classify/saw/refs_self_field_or_old` Module5
         # hoists to `<class>__<nested>` siblings (the two `classify` defs collide on ONE name).

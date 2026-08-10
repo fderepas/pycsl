@@ -3047,6 +3047,28 @@ class FunctionEmissionMixin:
         if _rss_desc is not None:
             from module6_whyml.generic_fold import emit_returns_string_seq_group
             return emit_returns_string_seq_group(func, _rss_desc, whyml_ident)
+        # `_class_inv_refs_axiom_func` (generic_fold.py): the nonlocal-scalar-`hit` twin of
+        # `_func_returns_string_seq`. The lifted `_walk` sibling is SUPPRESSED; the wrapper
+        # emits the mutual pyval/pydict/list existence catamorphism over the REAL type_decls
+        # ->class_invariants spine, leaf = `type=="Call" && Map.get axset func` (opaque-but-
+        # real `val <n>__axset (self):map string bool`). Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_cira_walk_ids", set()):
+            return []
+        _cira_desc = getattr(self, "_cira_outer_ids", {}).get(id(func))
+        if _cira_desc is not None:
+            from module6_whyml.generic_fold import emit_class_inv_refs_axiom_group
+            return emit_class_inv_refs_axiom_group(func, _cira_desc, whyml_ident)
+        # `_inductive_refs_global_or_axiom_func` (generic_fold.py): the globals-set EXTENSION
+        # of the class-inv twin. The lifted `_walk` sibling is SUPPRESSED; the wrapper emits
+        # the mutual pyval/pydict/list existence catamorphism threading both the opaque-real
+        # `axset` and the REAL `gset` (built from ir["module_globals"]), 3-disjunct leaf.
+        # Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_iroaf_walk_ids", set()):
+            return []
+        _iroaf_desc = getattr(self, "_iroaf_outer_ids", {}).get(id(func))
+        if _iroaf_desc is not None:
+            from module6_whyml.generic_fold import emit_inductive_refs_group
+            return emit_inductive_refs_group(func, _iroaf_desc, whyml_ident)
         # `_build_method_*_ensures_map` cluster: the LIFTED nested-def siblings
         # (`result_only`/`classify`/`saw`/`refs_self_field_or_old`) are SUPPRESSED — the
         # group-emit for each recognized outer is self-contained. Keyed on `id`; corpus-inert.

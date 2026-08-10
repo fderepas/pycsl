@@ -66,19 +66,74 @@ class PreambleEmissionMixin:
     def _emit_preamble_helpers(self, needs: int) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _inductive_refs_global_or_axiom_func(self, ir: int) -> bool:
-        return False
+    def _inductive_refs_global_or_axiom_func(self, ir: Dict[str, Any]) -> bool:
+        inds = ir.get("inductive_decls", [])
+        if not inds:
+            return False
+        axiom_fns = getattr(self, "_axiom_logic_funcs", set())
+        globals_names = {g["name"] for g in ir.get("module_globals", [])}
+        if not axiom_fns and not globals_names:
+            return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
+        hit = False
+
+        def _walk(node: Any) -> None:
+            nonlocal hit
+            if hit:
+                return
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") in axiom_fns:
+                    hit = True
+                    return
+                if node.get("type") == "Var" and node.get("name") in globals_names:
+                    hit = True
+                    return
+                if isinstance(node.get("object"), str) and node["object"] in globals_names:
+                    hit = True
+                    return
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _walk(v)
+
+        for ind in inds:
+            for m in [ind] + ind.get("members", []):
+                for (_rname, clause_ir) in m.get("rules", []):
+                    _walk(clause_ir)
+        return hit
+
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _class_inv_refs_axiom_func(self, ir: int) -> bool:
-        return False
+    def _class_inv_refs_axiom_func(self, ir: Dict[str, Any]) -> bool:
+        axiom_fns = getattr(self, "_axiom_logic_funcs", set())
+        if not axiom_fns:
+            return False
+
+        hit = False
+
+        def _walk(node: Any) -> None:
+            nonlocal hit
+            if hit:
+                return
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") in axiom_fns:
+                    hit = True
+                    return
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _walk(v)
+
+        for td in ir.get("type_decls", []):
+            for inv in td.get("class_invariants", []):
+                _walk(inv)
+        return hit
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

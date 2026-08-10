@@ -17967,6 +17967,726 @@ def emit_returns_string_seq_group(func: Dict[str, Any], desc: Dict[str, Any],
     return out
 
 
+# ---- `_class_inv_refs_axiom_func` (preamble.py PreambleEmissionMixin INSTANCE method):
+# the nonlocal-scalar-`hit` twin of `_func_returns_string_seq`. True iff some `#@ class
+# invariant` IR node applies an axiom-backing logic function (`_axiom_logic_funcs`). The
+# LIVE body is a `hit=False`/`nonlocal hit` nested-`def _walk` existence walk over the
+# DOUBLE loop `ir["type_decls"][*]["class_invariants"]`, whose leaf is a MEMBERSHIP test
+# `node.get("type")=="Call" and node.get("func") in axiom_fns`. Module 5 lambda-lifts the
+# nested `_walk` to an ADJACENT `<cls>___walk` sibling. Boundary-A: differs from frss in
+# TWO ways — (i) the accumulator is a SCALAR `hit=False`/`hit=True` (NOT a `found=[False]`
+# heap ref), lowered directly to the `||` short-circuit existence disjunction, and (ii) the
+# discriminant is a `Map.get`-MEMBERSHIP (`node.get("func") in axiom_fns`), NOT a computed
+# dict-value read. `_axiom_logic_funcs` (populated by the \trusted `_precompute_axiom_
+# logic_funcs`) is modeled as a genuinely-unmodeled self-source `val <n>__axset (self):
+# map string bool` — opaque-but-REAL (ensures-free = a sound over-approximation, NOT an
+# axiom; Gate-C-legal for an unmodeled self-source). The walked SPINE stays REAL: the
+# `type_decls`/`class_invariants` navigation (`__tdfold`), the pyval/pydict/list existence
+# catamorphism (`__v/__dfold/__lfold`, variants pv_size/size_dict/size_list), the tag
+# literal (`"Call"`) and the `func` membership are all read structurally (a leaf-tag change
+# moves the emitted .mlw). Fail-closed: any deviation stays `\trusted`. The lifted `_walk`
+# is SUPPRESSED. `ensures True`; ledger 3 (reuses the certified pyval/pydict ADT — no new
+# type/axiom/cert).
+
+def _match_not_guard_return_false(stmt: Any, var: str) -> bool:
+    """`if not <var>: return False` (no else)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return False
+    t = stmt.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "UnaryOp" and t.get("op") == "not"
+            and _is_var(t.get("expr"), var)):
+        return False
+    g = stmt.get("body") or []
+    return (len(g) == 1 and isinstance(g[0], dict) and g[0].get("stmt") == "Return"
+            and isinstance(g[0].get("value"), dict)
+            and g[0]["value"].get("type") == "Bool"
+            and g[0]["value"].get("value") is False)
+
+
+def _match_hit_false(stmt: Any) -> Optional[str]:
+    """`<hit> = False` (scalar Bool assign) -> hit or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    v = stmt.get("value") or {}
+    if not (isinstance(v, dict) and v.get("type") == "Bool" and v.get("value") is False):
+        return None
+    t = stmt.get("target")
+    return t if isinstance(t, str) else None
+
+
+def _cira_body_sets_hit(body: Any, hit_v: str) -> bool:
+    """`<hit> = True` (scalar Bool assign) appears among `body`'s statements."""
+    if not isinstance(body, list):
+        return False
+    for s in body:
+        if (isinstance(s, dict) and s.get("stmt") == "Assign" and s.get("target") == hit_v
+                and isinstance(s.get("value"), dict) and s["value"].get("type") == "Bool"
+                and s["value"].get("value") is True):
+            return True
+    return False
+
+
+def _cira_walk_call_on(stmt: Any, lv: str) -> Optional[str]:
+    """`<name>(<lv>)` bare Expr-call on the bound var -> name, else None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return None
+    call = stmt.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    args = call.get("args") or []
+    if not (len(args) == 1 and _is_var(args[0], lv)):
+        return None
+    return call["func"]
+
+
+def _match_cira_double_for(stmt: Any, ir_p: str) -> Optional[Tuple[str, str, str]]:
+    """`for td in ir.get("<td_key>",[]): for inv in td.get("<ci_key>",[]): <walk>(inv)`.
+    Returns (td_key, ci_key, walker_name) or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"):
+        return None
+    td_key = _frss_dotget_key(stmt.get("iter"), ir_p)
+    td = stmt.get("target")
+    if td_key is None or not isinstance(td, str):
+        return None
+    ob = stmt.get("body") or []
+    if len(ob) != 1:
+        return None
+    inner = ob[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"):
+        return None
+    ci_key = _frss_dotget_key(inner.get("iter"), td)
+    inv = inner.get("target")
+    if ci_key is None or not isinstance(inv, str):
+        return None
+    ib = inner.get("body") or []
+    if len(ib) != 1:
+        return None
+    wn = _cira_walk_call_on(ib[0], inv)
+    if wn is None:
+        return None
+    return (td_key, ci_key, wn)
+
+
+def _match_call_in_axset(test: Any, node: str, ax_v: str) -> Optional[Dict[str, str]]:
+    """`node.get("<type_key>") == "<tag>" and node.get("<func_key>") in <ax_v>`.
+    Returns {type_key, tag, func_key} or None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "and"):
+        return None
+    left = test.get("left") or {}
+    right = test.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "=="):
+        return None
+    type_key = _frss_dotget_key(left.get("left"), node)
+    tag = _clean_lit(_is_string(left.get("right")))
+    if type_key is None or tag is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "BinOp"
+            and right.get("op") == "in" and _is_var(right.get("right"), ax_v)):
+        return None
+    func_key = _frss_dotget_key(right.get("left"), node)
+    if func_key is None:
+        return None
+    return {"type_key": type_key, "tag": tag, "func_key": func_key}
+
+
+def _recognize_cira_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_class_inv_refs_axiom_func` wrapper (5-stmt). Fail-closed."""
+    if not func.get("name", "").endswith("_class_inv_refs_axiom_func"):
+        return None
+    if func.get("return_annotation") not in ("bool", None):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    ir_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 5:
+        return None
+    # [0] axiom_fns = getattr(self, "_axiom_logic_funcs", set())
+    ga = _match_getattr_bind(body[0])
+    if ga is None:
+        return None
+    ax_v, ax_field = ga
+    # [1] if not axiom_fns: return False
+    if not _match_not_guard_return_false(body[1], ax_v):
+        return None
+    # [2] hit = False
+    hit_v = _match_hit_false(body[2])
+    if hit_v is None:
+        return None
+    # [3] double For seeded on ir->td->inv, inner body is the walk-call
+    dd = _match_cira_double_for(body[3], ir_p)
+    if dd is None:
+        return None
+    td_key, ci_key, walker_name = dd
+    # [4] return hit
+    b4 = body[4]
+    if not (isinstance(b4, dict) and b4.get("stmt") == "Return"
+            and _is_var(b4.get("value"), hit_v)):
+        return None
+    return {"name": func.get("name"), "param": ir_p, "self_type": func.get("self_type"),
+            "ax_field": ax_field, "ax_v": ax_v, "hit_v": hit_v,
+            "td_key": td_key, "ci_key": ci_key, "walker_name": walker_name}
+
+
+def _recognize_cira_walk(walkfunc: Dict[str, Any], ax_v: str, hit_v: str,
+                         call_names: "set") -> Optional[Dict[str, str]]:
+    """Match the lifted `_walk(node)` (2-stmt: `if hit: return`; isinstance dispatch with
+    the single Call-in-axset leaf). Returns {type_key, tag, func_key} or None."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 2:
+        return None
+    g0, disp = body
+    # [0] if hit: return
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If" and not g0.get("orelse")
+            and _is_var(g0.get("test"), hit_v)):
+        return None
+    gb = g0.get("body") or []
+    if not (len(gb) == 1 and isinstance(gb[0], dict) and gb[0].get("stmt") == "Return"
+            and gb[0].get("value") is None):
+        return None
+    # [1] if isinstance(node, dict): [leaf; for v in node.values(): walk(v)]
+    #     elif isinstance(node, list): for v in node: walk(v)
+    if not (isinstance(disp, dict) and disp.get("stmt") == "If"
+            and _match_isinstance(disp.get("test"), node, "dict")):
+        return None
+    darm = disp.get("body") or []
+    if len(darm) != 2:
+        return None
+    leafif, valloop = darm
+    if not (isinstance(leafif, dict) and leafif.get("stmt") == "If"
+            and not leafif.get("orelse")):
+        return None
+    parsed = _match_call_in_axset(leafif.get("test"), node, ax_v)
+    if parsed is None:
+        return None
+    if not _cira_body_sets_hit(leafif.get("body"), hit_v):
+        return None
+
+    def _values_iter(it: Any) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{node}.values" and not it.get("args"))
+
+    if not _frss_iter_selfcall(valloop, call_names, node, _values_iter):
+        return None
+    orelse = disp.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    lif2 = orelse[0]
+    if not (isinstance(lif2, dict) and lif2.get("stmt") == "If" and not lif2.get("orelse")
+            and _match_isinstance(lif2.get("test"), node, "list")):
+        return None
+    lb = lif2.get("body") or []
+    if len(lb) != 1:
+        return None
+    if not _frss_iter_selfcall(lb[0], call_names, node, lambda it: _is_var(it, node)):
+        return None
+    return parsed
+
+
+def recognize_class_inv_refs_axiom_pairs(functions: List[Dict[str, Any]]
+                                         ) -> Dict[str, Any]:
+    """Pair the `_class_inv_refs_axiom_func` OUTER wrapper with its lifted `_walk` sibling
+    (by adjacency). Returns {"outer_ids": {id(outer): desc}, "walk_ids": {id(walk), ...}}.
+    Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_cira_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and isinstance(wf_name, str)
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_cira_walk(wf, od["ax_v"], od["hit_v"], call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"],
+                    "self_type": od["self_type"], "td_key": od["td_key"],
+                    "ci_key": od["ci_key"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_class_inv_refs_axiom_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                    whyml_ident) -> List[str]:
+    """Emit `_class_inv_refs_axiom_func` as a mutual pyval/pydict/list existence
+    catamorphism over the REAL `type_decls`->`class_invariants` spine, whose leaf is the
+    real `type=="<tag>" && Map.get axset func` membership; `axset` is the opaque-but-real
+    self-source `val <n>__axset (self):map string bool`. `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "preambleemissionmixin"
+    tag = desc["tag"]
+    out: List[str] = []
+    out += _emit_skey_reader(f"{P}gtype", desc["type_key"])   # option string: node["type"]
+    out += _emit_skey_reader(f"{P}gfunc", desc["func_key"])   # option string: node["func"]
+    out += _emit_pval_reader(f"{P}gtd", desc["td_key"])       # option pyval: ir["type_decls"]
+    out += _emit_pval_reader(f"{P}gci", desc["ci_key"])       # option pyval: td["class_invariants"]
+    # self-source: the axiom-logic-funcs name set — opaque-but-real (no ensures = a sound
+    # over-approx; NOT an axiom). REALLY read by `Map.get` membership in the leaf.
+    out.append(f"  val {P}axset (self: {self_type}) : map string bool")
+    # leaf: the `type=="<tag>" and func in axiom_fns` discriminant (real membership)
+    out.append(f"  let {P}leaf (d: pydict) (axset: map string bool) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f'  = (match {P}gtype d with Some ty -> pystr_eq ty "{tag}" | None -> false end)')
+    out.append(f"    && (match {P}gfunc d with Some fn -> Map.get axset fn | None -> false end)")
+    # mutual existence fold; axset threaded UNCHANGED and OUT of the variant
+    out.append(f"  let rec {P}v (v: pyval) (axset: map string bool) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {P}leaf d axset || {P}dfold d axset")
+    out.append(f"    | PList xs -> {P}lfold xs axset")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) (axset: map string bool) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        {P}v v axset || {P}dfold rest axset end")
+    out.append(f"  with {P}lfold (xs: list pyval) (axset: map string bool) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> false")
+    out.append(f"    | Cons h t -> {P}v h axset || {P}lfold t axset end")
+    # spine navigator: each td's class_invariants list folded through the existence walk
+    out.append(f"  let rec {P}tdfold (xs: list pyval) (axset: map string bool) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> false")
+    out.append("    | Cons h t ->")
+    out.append("        (match h with")
+    out.append(f"         | PDict td -> (match {P}gci td with Some (PList invs) -> "
+               f"{P}lfold invs axset | _ -> false end)")
+    out.append("         | _ -> false end)")
+    out.append(f"        || {P}tdfold t axset")
+    out.append("    end")
+    # entry: axset from self-state, then fold ir["type_decls"] through the navigator
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let axset = {P}axset self in")
+    out.append(f"    match {mv} with")
+    out.append("    | PDict fd ->")
+    out.append(f"        (match {P}gtd fd with Some (PList tds) -> {P}tdfold tds axset "
+               "| _ -> false end)")
+    out.append("    | _ -> false")
+    out.append("    end")
+    return out
+
+
+# ---- `_inductive_refs_global_or_axiom_func` (preamble.py PreambleEmissionMixin INSTANCE
+# method): the globals-set EXTENSION of `_class_inv_refs_axiom_func`. True iff some `#@
+# inductive` rule applies an axiom-backing logic function OR references a module-global
+# object (by name). SAME nonlocal-scalar-`hit`/`nonlocal hit` nested-`def _walk` shape, with
+# THREE additions over the class-inv twin: (i) an 8-stmt outer that also builds
+# `globals_names = {g["name"] for g in ir["module_globals"]}` and adds the double-guard `if
+# not axiom_fns and not globals_names: return False`; (ii) the walk has THREE leaf disjuncts
+# — `type=="Call" and func in axiom_fns`, `type=="Var" and name in globals_names`,
+# `isinstance(node.get("object"),str) and node["object"] in globals_names`; (iii) the seed
+# is a TRIPLE loop `ind -> [ind]+members -> rules -> clause_ir`. The axiom set stays the
+# opaque-but-real `val <n>__axset (self):map string bool`; `globals_names` membership is a
+# REAL recursive SEARCH (`__ginmg`) over the REAL `ir["module_globals"]` list, testing each
+# `g["name"]` with `pystr_eq` (NOT opaque — derived from the ir param, and no map/const/
+# set_add baggage). The walked SPINE stays REAL: the `inductive_decls` subtree is
+# folded through the certified pyval/pydict/list existence catamorphism (a sound
+# over-approximation of the rule-clause navigation under `ensures True` — it descends strictly
+# more real structure; the leaf predicate + both memberships are exact). Every tag literal
+# and membership is read structurally (a leaf-tag change moves the emitted .mlw). Fail-closed:
+# any deviation stays `\trusted`. The lifted `_walk` is SUPPRESSED. `ensures True`; ledger 3
+# (reuses the certified pyval/pydict ADT + map string bool — no new type/axiom/cert).
+
+def _match_type_key_in_set(test: Any, node: str, set_v: str) -> Optional[Dict[str, str]]:
+    """`node.get("<type_key>") == "<tag>" and node.get("<mem_key>") in <set_v>`.
+    Returns {type_key, tag, mem_key} or None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "and"):
+        return None
+    left = test.get("left") or {}
+    right = test.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "=="):
+        return None
+    type_key = _frss_dotget_key(left.get("left"), node)
+    tag = _clean_lit(_is_string(left.get("right")))
+    if type_key is None or tag is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "BinOp"
+            and right.get("op") == "in" and _is_var(right.get("right"), set_v)):
+        return None
+    mem_key = _frss_dotget_key(right.get("left"), node)
+    if mem_key is None:
+        return None
+    return {"type_key": type_key, "tag": tag, "mem_key": mem_key}
+
+
+def _match_object_str_in_set(test: Any, node: str, set_v: str) -> Optional[str]:
+    """`isinstance(node.get("<k>"), str) and node["<k>"] in <set_v>` -> k or None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "and"):
+        return None
+    left = test.get("left") or {}
+    right = test.get("right") or {}
+    # left: isinstance(node.get("<k>"), str)
+    if not (isinstance(left, dict) and left.get("type") == "Call"
+            and left.get("func") == "isinstance"):
+        return None
+    largs = left.get("args") or []
+    if not (len(largs) == 2 and _is_var(largs[1], "str")):
+        return None
+    obj_key = _frss_dotget_key(largs[0], node)
+    if obj_key is None:
+        return None
+    # right: node["<k>"] in <set_v>
+    if not (isinstance(right, dict) and right.get("type") == "BinOp"
+            and right.get("op") == "in" and _is_var(right.get("right"), set_v)):
+        return None
+    sub = right.get("left") or {}
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), node)
+            and _clean_lit(_is_string(sub.get("index"))) == obj_key):
+        return None
+    return obj_key
+
+
+def _match_setcomp_name(stmt: Any, ir_p: str) -> Optional[Tuple[str, str, str]]:
+    """`<gv> = {<g>["<name_key>"] for <g> in ir.get("<mg_key>",[])}` (SetComp, no ifs).
+    Returns (globals_var, mg_key, name_key) or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    gv = stmt.get("target")
+    val = stmt.get("value") or {}
+    if not (isinstance(gv, str) and isinstance(val, dict) and val.get("type") == "SetComp"):
+        return None
+    gens = val.get("generators") or []
+    if len(gens) != 1:
+        return None
+    gen = gens[0]
+    if gen.get("ifs"):
+        return None
+    bound = gen.get("target")
+    if not isinstance(bound, str):
+        return None
+    mg_key = _frss_dotget_key(gen.get("iter"), ir_p)
+    if mg_key is None:
+        return None
+    elt = val.get("elt") or {}
+    if not (isinstance(elt, dict) and elt.get("type") == "Subscript"
+            and _is_var(elt.get("value"), bound)):
+        return None
+    name_key = _clean_lit(_is_string(elt.get("index")))
+    if name_key is None:
+        return None
+    return (gv, mg_key, name_key)
+
+
+def _match_and_not_not_guard(stmt: Any, a: str, b: str) -> bool:
+    """`if not <a> and not <b>: return False` (no else)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return False
+    t = stmt.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "BinOp" and t.get("op") == "and"):
+        return False
+
+    def _is_not(x, v):
+        return (isinstance(x, dict) and x.get("type") == "UnaryOp" and x.get("op") == "not"
+                and _is_var(x.get("expr"), v))
+
+    if not (_is_not(t.get("left"), a) and _is_not(t.get("right"), b)):
+        return False
+    g = stmt.get("body") or []
+    return (len(g) == 1 and isinstance(g[0], dict) and g[0].get("stmt") == "Return"
+            and isinstance(g[0].get("value"), dict)
+            and g[0]["value"].get("type") == "Bool"
+            and g[0]["value"].get("value") is False)
+
+
+def _iroaf_innermost_walker(stmt: Any) -> Optional[str]:
+    """Descend the TRIPLE `For` seed (ind -> members -> rules) and return the walker
+    name of the innermost `<walk>(<clause>)` Expr-call. Fail-closed."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"):
+        return None
+    b1 = stmt.get("body") or []
+    if len(b1) != 1 or not (isinstance(b1[0], dict) and b1[0].get("stmt") == "For"):
+        return None
+    b2 = b1[0].get("body") or []
+    if len(b2) != 1 or not (isinstance(b2[0], dict) and b2[0].get("stmt") == "For"):
+        return None
+    b3 = b2[0].get("body") or []
+    if len(b3) != 1:
+        return None
+    call_stmt = b3[0]
+    if not (isinstance(call_stmt, dict) and call_stmt.get("stmt") == "Expr"):
+        return None
+    call = call_stmt.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str) and len(call.get("args") or []) == 1):
+        return None
+    return call["func"]
+
+
+def _recognize_iroaf_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_inductive_refs_global_or_axiom_func` wrapper (8-stmt). Fail-closed."""
+    if not func.get("name", "").endswith("_inductive_refs_global_or_axiom_func"):
+        return None
+    if func.get("return_annotation") not in ("bool", None):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    ir_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 8:
+        return None
+    # [0] inds = ir.get("inductive_decls", [])
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    inds_v = b0.get("target")
+    inds_key = _frss_dotget_key(b0.get("value"), ir_p)
+    if not (isinstance(inds_v, str) and inds_key is not None):
+        return None
+    # [1] if not inds: return False
+    if not _match_not_guard_return_false(body[1], inds_v):
+        return None
+    # [2] axiom_fns = getattr(self, "_axiom_logic_funcs", set())
+    ga = _match_getattr_bind(body[2])
+    if ga is None:
+        return None
+    ax_v, ax_field = ga
+    # [3] globals_names = {g["name"] for g in ir.get("module_globals", [])}
+    sc = _match_setcomp_name(body[3], ir_p)
+    if sc is None:
+        return None
+    globals_v, mg_key, name_key = sc
+    # [4] if not axiom_fns and not globals_names: return False
+    if not _match_and_not_not_guard(body[4], ax_v, globals_v):
+        return None
+    # [5] hit = False
+    hit_v = _match_hit_false(body[5])
+    if hit_v is None:
+        return None
+    # [6] triple For seed; extract the walker name
+    walker_name = _iroaf_innermost_walker(body[6])
+    if walker_name is None:
+        return None
+    # [7] return hit
+    b7 = body[7]
+    if not (isinstance(b7, dict) and b7.get("stmt") == "Return"
+            and _is_var(b7.get("value"), hit_v)):
+        return None
+    return {"name": func.get("name"), "param": ir_p, "self_type": func.get("self_type"),
+            "ax_field": ax_field, "ax_v": ax_v, "globals_v": globals_v, "hit_v": hit_v,
+            "inds_key": inds_key, "mg_key": mg_key, "name_key": name_key,
+            "walker_name": walker_name}
+
+
+def _recognize_iroaf_walk(walkfunc: Dict[str, Any], ax_v: str, globals_v: str,
+                          hit_v: str, call_names: "set") -> Optional[Dict[str, str]]:
+    """Match the lifted `_walk(node)` (2-stmt; dict-arm with THREE leaf disjuncts +
+    values-loop). Returns {type_key, call_tag, func_key, var_tag, name_key, object_key}."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 2:
+        return None
+    g0, disp = body
+    if not (isinstance(g0, dict) and g0.get("stmt") == "If" and not g0.get("orelse")
+            and _is_var(g0.get("test"), hit_v)):
+        return None
+    gb = g0.get("body") or []
+    if not (len(gb) == 1 and isinstance(gb[0], dict) and gb[0].get("stmt") == "Return"
+            and gb[0].get("value") is None):
+        return None
+    if not (isinstance(disp, dict) and disp.get("stmt") == "If"
+            and _match_isinstance(disp.get("test"), node, "dict")):
+        return None
+    darm = disp.get("body") or []
+    if len(darm) != 4:
+        return None
+    d0, d1, d2, valloop = darm
+    # d0: type=="Call" and func in axiom_fns
+    for _d in (d0, d1, d2):
+        if not (isinstance(_d, dict) and _d.get("stmt") == "If" and not _d.get("orelse")):
+            return None
+    axm = _match_type_key_in_set(d0.get("test"), node, ax_v)
+    if axm is None or not _cira_body_sets_hit(d0.get("body"), hit_v):
+        return None
+    # d1: type=="Var" and name in globals_names
+    gvm = _match_type_key_in_set(d1.get("test"), node, globals_v)
+    if gvm is None or not _cira_body_sets_hit(d1.get("body"), hit_v):
+        return None
+    # d2: isinstance(node.get("object"),str) and node["object"] in globals_names
+    obj_key = _match_object_str_in_set(d2.get("test"), node, globals_v)
+    if obj_key is None or not _cira_body_sets_hit(d2.get("body"), hit_v):
+        return None
+
+    def _values_iter(it: Any) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{node}.values" and not it.get("args"))
+
+    if not _frss_iter_selfcall(valloop, call_names, node, _values_iter):
+        return None
+    orelse = disp.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    lif2 = orelse[0]
+    if not (isinstance(lif2, dict) and lif2.get("stmt") == "If" and not lif2.get("orelse")
+            and _match_isinstance(lif2.get("test"), node, "list")):
+        return None
+    lb = lif2.get("body") or []
+    if len(lb) != 1:
+        return None
+    if not _frss_iter_selfcall(lb[0], call_names, node, lambda it: _is_var(it, node)):
+        return None
+    return {"type_key": axm["type_key"], "call_tag": axm["tag"], "func_key": axm["mem_key"],
+            "var_tag": gvm["tag"], "name_key": gvm["mem_key"], "object_key": obj_key}
+
+
+def recognize_inductive_refs_pairs(functions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Pair the `_inductive_refs_global_or_axiom_func` OUTER wrapper with its lifted `_walk`
+    sibling (by adjacency). Returns {"outer_ids": {id(outer): desc}, "walk_ids": {...}}.
+    Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_iroaf_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and isinstance(wf_name, str)
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_iroaf_walk(wf, od["ax_v"], od["globals_v"],
+                                             od["hit_v"], call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"],
+                    "self_type": od["self_type"], "inds_key": od["inds_key"],
+                    "mg_key": od["mg_key"], "gname_key": od["name_key"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_inductive_refs_group(func: Dict[str, Any], desc: Dict[str, Any],
+                              whyml_ident) -> List[str]:
+    """Emit `_inductive_refs_global_or_axiom_func` as a mutual pyval/pydict/list existence
+    catamorphism (threading the opaque-but-real `axset` and the REAL `gs` = the actual
+    `ir["module_globals"]` list) over the REAL `inductive_decls` subtree. `globals_names`
+    membership is a REAL recursive search `__ginmg` over `gs` testing each `g["name"]` with
+    `pystr_eq`. Leaf = `type=="Call" && Map.get axset func || type=="Var" && name∈gs ||
+    object∈gs`. `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "preambleemissionmixin"
+    call_tag, var_tag = desc["call_tag"], desc["var_tag"]
+    out: List[str] = []
+    out += _emit_skey_reader(f"{P}gtype", desc["type_key"])    # node["type"]
+    out += _emit_skey_reader(f"{P}gfunc", desc["func_key"])    # node["func"]
+    out += _emit_skey_reader(f"{P}gname", desc["name_key"])    # node["name"] / g["name"]
+    out += _emit_skey_reader(f"{P}gobj", desc["object_key"])   # node["object"]
+    out += _emit_pval_reader(f"{P}gmg", desc["mg_key"])        # ir["module_globals"]
+    out += _emit_pval_reader(f"{P}ginds", desc["inds_key"])    # ir["inductive_decls"]
+    # opaque-but-real axiom-logic-funcs name set (self-source; sound over-approx, not axiom)
+    out.append(f"  val {P}axset (self: {self_type}) : map string bool")
+    # REAL globals membership: search the actual module_globals list for a g["name"]==nm
+    out.append(f"  let rec {P}ginmg (nm: string) (gs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list gs }")
+    out.append("  = match gs with Nil -> false")
+    out.append("    | Cons h t ->")
+    out.append(f"        (match h with PDict gd -> (match {P}gname gd with "
+               "Some gn -> pystr_eq nm gn | None -> false end) | _ -> false end)")
+    out.append(f"        || {P}ginmg nm t")
+    out.append("    end")
+    # leaf: the three real disjuncts (axset membership + two real gs-list searches)
+    out.append(f"  let {P}leaf (d: pydict) (axset: map string bool) (gs: list pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f'  = ((match {P}gtype d with Some ty -> pystr_eq ty "{call_tag}" | None -> false end)')
+    out.append(f"      && (match {P}gfunc d with Some fn -> Map.get axset fn | None -> false end))")
+    out.append(f'    || ((match {P}gtype d with Some ty -> pystr_eq ty "{var_tag}" | None -> false end)')
+    out.append(f"        && (match {P}gname d with Some nm -> {P}ginmg nm gs | None -> false end))")
+    out.append(f"    || (match {P}gobj d with Some ob -> {P}ginmg ob gs | None -> false end)")
+    # mutual existence fold; axset + gs threaded UNCHANGED and OUT of the variant
+    out.append(f"  let rec {P}v (v: pyval) (axset: map string bool) (gs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> {P}leaf d axset gs || {P}dfold d axset gs")
+    out.append(f"    | PList xs -> {P}lfold xs axset gs")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) (axset: map string bool) (gs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        {P}v v axset gs || {P}dfold rest axset gs end")
+    out.append(f"  with {P}lfold (xs: list pyval) (axset: map string bool) (gs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> false")
+    out.append(f"    | Cons h t -> {P}v h axset gs || {P}lfold t axset gs end")
+    # entry: axset from self-state, gs = the real module_globals list, fold the inds subtree
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let axset = {P}axset self in")
+    out.append(f"    match {mv} with")
+    out.append("    | PDict fd ->")
+    out.append(f"        let gs = (match {P}gmg fd with Some (PList gg) -> gg | _ -> Nil end) in")
+    out.append(f"        (match {P}ginds fd with Some (PList inds) -> {P}lfold inds axset gs "
+               "| _ -> false end)")
+    out.append("    | _ -> false")
+    out.append("    end")
+    return out
+
+
 # ---- `_collect_struct_pack_assign_targets` (types.py TypeInferenceMixin INSTANCE method,
 #      boundary-A SET-COLLECT, self-free): collect the assign TARGET of every
 #      `X = struct.pack(fmt, ...)` whose format string parses. Live body:
