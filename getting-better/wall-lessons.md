@@ -1924,3 +1924,18 @@ WIP can be promoted IF the supervisor independently verifies Gate-C by reading t
 flat _recognize_flat_strdictfold is single-level; needs a new nested-map-construction recognizer (flagged build).
 RUN #3: 783->769 (14 conv). functions.py now well-drained: 5 landed (4 ensures-map + compute_scope_sets); residual
 = WhyML-string-emitters + heterogeneous-dict construction + cross-mixin + the nested-map #2.
+
+## preamble.py bool-fold vein — nonlocal-scalar frss twins (f511033b, 769->767, run #3)
+_class_inv_refs_axiom_func + _inductive_refs_global_or_axiom_func: bool-existence catamorphism, the
+NONLOCAL-SCALAR `hit` twin of _func_returns_string_seq (which used a liftable found=[False] list cell). nonlocal hit
+-> || short-circuit disjunction. Opaque-but-real StrSet self-source `val __axset(self):map string bool` (populated by
+\trusted _precompute_axiom_logic_funcs). #2 adds a globals-set built from ir["module_globals"] + real recursive
+__ginmg list search. LESSON: the nonlocal-scalar shape MASKS a stub as boundary — the DEFAULT lowering is semantically
+broken (ir->map int-leak, nested _walk->abstract val, hit severed into 2 refs) which READS as un-modelable, but a
+recognizer SUPPRESSES the broken default and emits the certified catamorphism. So "default lowering is broken" != boundary
+when a recognizer can suppress+replace it. preamble.py proves CHEAP (~28s wall — NOT a scale wall like core_ir_semantic).
+Remaining ~22 preamble stubs = genuine string-emitter (_emit_*) + observed-construction (_scan_preamble_needs) +
+self-mutation (_precompute_axiom_logic_funcs) + observed-list-output (_collect_critical_mutexes) boundaries.
+RUN #3 TOTAL: 783->767 (16 conv). Devices banked this run: compose-primitives, per-index-leaf-gate, param-threaded
+ensures-map scaffold, 3-StrSet set-collect, nonlocal-scalar bool-fold. Key META: "census artifact" — files classified
+"value-model wall / boundary" repeatedly reopen under fresh devices/lenses (Module5, functions.py, preamble.py all did).
