@@ -2040,3 +2040,17 @@ flagged levers). Module3_Weaver aggregate: ~34 boundary (raw-ast visitors + data
 + output-record-construction + cross-module + string-op) / 3 constructors (done) / 1 isinstance-reader (_const_int, done).
 META: the anti-false-floor periodic re-measure has now paid off THREE times past a "confirmed floor" (constructor vein,
 then _const_int) — KEEP MEASURING in a funded window; each raw-ast/boundary file may hide a thin typed-reader/constructor seam.
+
+## isinstance-reader device is INT-ONLY — _csl_to_str CERTIFIED-BOUNDARY (run #3, floor 754)
+Correction to the isinstance-typed-record-reader device: it works ONLY for INT-returning readers. The CSLNode ADT is
+modeled as opaque `int` with int-only auto-generated field accessors (get_name/get_op/get_value all :int) + opaque
+isinstance (isinstance_op 0 0, constant args). `_const_int` proved ONLY because it's int->int (`\result == get_value
+node`, faithful for the VALUE — mutation-tested, stands). `_csl_to_str` (recursive CSLNode->str) REFUTES: string-typed
+field reads (get_name/get_op needed as string) type-fail against the int accessors ("type int expected string",
+Module2_Parser.mlw:1566). The str-build lowering itself is fine (str_of_int/str_concat) — the wall is purely the
+opaque-int field-accessor model. FIX = authorized emitter build: (a) per-field typed accessors off the isinstance
+narrowing (get_name->string), OR (b) CSLNode-as-genuine-Why3-variant + route through recognize_term_string_pp
+(generic_fold.py:28069, but that's 2-param (term,prec) over a variant spec["ctors"] — CSLNode is 1-param, no variant).
+Both multi-session src/pycsl. FLAGGED authorize-first (typed-record-field-accessors / CSLNode-as-variant), ties the
+canonical.py Term-construction vein. So the isinstance-reader vein = _const_int ONLY (int-returning).
+FLOOR CONFIRMED at 754 (run #3, 29 conversions from 783).
