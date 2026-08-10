@@ -753,12 +753,17 @@ class LockOrder(CSLNode):
     'Represents `lock_order M1, M2, ...` — total order on mutex acquisition to prevent deadlock.'
     order: List[str]
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _csl_to_str(node: CSLNode) -> str:
-    return ""
+def _csl_to_str(node: "ExprIR") -> str:
+    if isinstance(node, Var):
+        return node.name
+    if isinstance(node, Number):
+        return str(int(node.value))
+    if isinstance(node, BinOp):
+        return f"{_csl_to_str(node.left)}{node.op}{_csl_to_str(node.right)}"
+    return "?"
 
 import os as _os
 import re as _re

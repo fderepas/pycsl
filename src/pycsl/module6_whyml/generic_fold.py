@@ -28539,6 +28539,213 @@ def emit_term_string_pp_group(func: Dict[str, Any], desc: Dict[str, Any],
 
 
 # ===========================================================================
+# seven-levers.md Lever 2 (option (b)): the 1-param CSL-node -> string
+# catamorphism (`_csl_to_str` in Module2_Parser). The CSL AST subclasses
+# Var/Number/BinOp are modeled on the ALREADY-CERTIFIED `emit_ir` variant ADT
+# (the same carrier BinOp.left/right were retyped to, preamble.py
+# `_emit_exprir_theory`): Var->IrVar (string leaf), Number->IrNum (int leaf),
+# BinOp->IrBinOp (op string + two emit_ir children). The reader is a structural
+# string BUILD over `emit_ir`, so the recursion decreases on the pattern-bound
+# sub-terms (`variant { <subj> }`, the same device `size` is proven against).
+# REUSES emit_ir -> NO new value shape, NO new certificate (ledger 3). Emitted as
+# a program `let rec` (not a pure `function`) so it may call the `val
+# str_concat_op` / `val str_of_int` string builders. Fail-closed & exact-
+# structural: only a 1-param `ExprIR`-annotated str-returning body whose arms are
+# EXACTLY {isinstance(subj,Var)->subj.name ; isinstance(subj,Number)->
+# str(int(subj.value)) ; isinstance(subj,BinOp)->f"{self(subj.left)}{subj.op}
+# {self(subj.right)}"} + a trailing `return "<lit>"` matches. NO corpus program
+# shares this shape (an `ExprIR` param + these exact CSL-subclass reads) -> the
+# emission is byte-inert everywhere but this recognized mirror reader.
+#
+# The CSL-subclass -> (emit_ir ctor, ordered field names) map. Each ctor's field
+# order matches its `type emit_ir` declaration (IrVar string | IrNum int |
+# IrBinOp string emit_ir emit_ir). `sub` marks a recursive emit_ir child.
+_CSL_STR_CTORS = {
+    "Var":    ("IrVar", [("name", "str")]),
+    "Number": ("IrNum", [("value", "int")]),
+    "BinOp":  ("IrBinOp", [("op", "str"), ("left", "sub"), ("right", "sub")]),
+}
+
+
+def recognize_csl_str_cata(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed recognizer for the `_csl_to_str` emit_ir string catamorphism.
+    Returns a desc {"param","name","arms":{ctor:(binders,val_ast)},"default"} or
+    None. Never raises."""
+    try:
+        return _recognize_csl_str_cata(func)
+    except _PVWBail:
+        return None
+    except Exception:
+        return None
+
+
+def _recognize_csl_str_cata(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    if func.get("return_annotation") != "str":
+        return None
+    if func.get("param_annotations", {}).get(subj) != "ExprIR":
+        return None
+    name = func.get("name")
+    body = func.get("body", [])
+    if not (isinstance(body, list) and len(body) >= 2):
+        return None
+    *arm_stmts, tail = body
+    # trailing `return "<lit>"` = the total-match catch-all.
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"):
+        return None
+    tv = tail.get("value")
+    if not (isinstance(tv, dict) and tv.get("type") == "String"):
+        return None
+    default = tv.get("value")
+    arms: Dict[str, Any] = {}
+    for st in arm_stmts:
+        if not (isinstance(st, dict) and st.get("stmt") == "If"
+                and not st.get("orelse")):
+            raise _PVWBail()
+        cls = _csl_isinstance_single_class(st.get("test"), subj)
+        if cls is None or cls not in _CSL_STR_CTORS:
+            raise _PVWBail()
+        ibody = st.get("body", [])
+        if not (isinstance(ibody, list) and len(ibody) == 1
+                and isinstance(ibody[0], dict)
+                and ibody[0].get("stmt") == "Return"):
+            raise _PVWBail()
+        ctor, fields = _CSL_STR_CTORS[cls]
+        if ctor in arms:
+            raise _PVWBail()
+        binders = [f"v_{fn}" for (fn, _t) in fields]
+        val_ast = _csl_str_arm_value(
+            ibody[0].get("value"), subj, name, cls, fields)
+        arms[ctor] = (binders, val_ast)
+    if not arms:
+        raise _PVWBail()
+    return {"param": subj, "name": name, "arms": arms, "default": default}
+
+
+def _csl_isinstance_single_class(test: Any, subj: str) -> Optional[str]:
+    """`isinstance(<subj>, X)` -> "X" (single class only), else None."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return None
+    args = test.get("args", [])
+    if len(args) != 2 or not _is_var(args[0], subj):
+        return None
+    tgt = args[1]
+    if isinstance(tgt, dict) and tgt.get("type") == "Var":
+        return tgt.get("name")
+    return None
+
+
+def _csl_field_read(node: Any, subj: str, fld: str) -> bool:
+    """True if `node` is `<subj>.<fld>`."""
+    return (isinstance(node, dict) and node.get("type") == "Attribute"
+            and _is_var(node.get("object"), subj) and node.get("attr") == fld)
+
+
+def _csl_str_arm_value(node: Any, subj: str, selfname: str, cls: str,
+                       fields: List) -> Any:
+    """Translate one arm's return value into a small render AST. Exact-structural
+    per CSL ctor; raises _PVWBail on any deviation."""
+    if cls == "Var":
+        # `return node.name`  (the string leaf, read verbatim)
+        if _csl_field_read(node, subj, "name"):
+            return ("binder", "v_name")
+        raise _PVWBail()
+    if cls == "Number":
+        # `return str(int(node.value))`  -> str_of_int of the int leaf
+        if not (isinstance(node, dict) and node.get("type") == "Call"
+                and node.get("func") == "str"):
+            raise _PVWBail()
+        sargs = node.get("args", [])
+        if len(sargs) != 1:
+            raise _PVWBail()
+        inner = sargs[0]
+        if not (isinstance(inner, dict) and inner.get("type") == "Call"
+                and inner.get("func") == "int"):
+            raise _PVWBail()
+        iargs = inner.get("args", [])
+        if len(iargs) == 1 and _csl_field_read(iargs[0], subj, "value"):
+            return ("str_of_int", "v_value")
+        raise _PVWBail()
+    if cls == "BinOp":
+        # `return f"{self(node.left)}{node.op}{self(node.right)}"`
+        if not (isinstance(node, dict) and node.get("type") == "FString"):
+            raise _PVWBail()
+        parts = node.get("parts", [])
+        if len(parts) != 3:
+            raise _PVWBail()
+        return ("concat", [
+            _csl_str_part(parts[0], subj, selfname, "left"),
+            _csl_str_binderfield(parts[1], subj, "op"),
+            _csl_str_part(parts[2], subj, selfname, "right"),
+        ])
+    raise _PVWBail()
+
+
+def _csl_str_part(node: Any, subj: str, selfname: str, fld: str) -> Any:
+    """`self(node.<fld>)` -> a recursive-render item on the emit_ir child binder."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == selfname):
+        raise _PVWBail()
+    args = node.get("args", [])
+    if len(args) == 1 and _csl_field_read(args[0], subj, fld):
+        return ("recurse", f"v_{fld}")
+    raise _PVWBail()
+
+
+def _csl_str_binderfield(node: Any, subj: str, fld: str) -> Any:
+    """`node.<fld>` (a string leaf read) -> the ctor-bound string binder."""
+    if _csl_field_read(node, subj, fld):
+        return ("binder", f"v_{fld}")
+    raise _PVWBail()
+
+
+def _csl_str_render(val_ast: Any, n: str) -> str:
+    """Render one arm's value AST to a WhyML string expression (`n` = the whyml
+    ident of the recursive self-call)."""
+    kind = val_ast[0]
+    if kind == "binder":
+        return val_ast[1]
+    if kind == "str_of_int":
+        return f"(str_of_int {val_ast[1]})"
+    if kind == "recurse":
+        return f"({n} {val_ast[1]})"
+    if kind == "concat":
+        items = [_csl_str_render(it, n) for it in val_ast[1]]
+        expr = items[-1]
+        for it in reversed(items[:-1]):
+            expr = f"(str_concat_op {it} {expr})"
+        return expr
+    raise _PVWBail()
+
+
+def emit_csl_str_cata_group(func: Dict[str, Any], desc: Dict[str, Any],
+                            whyml_ident) -> List[str]:
+    """Emit the `_csl_to_str` emit_ir string catamorphism as a program `let rec`
+    (may call `val str_concat_op`/`val str_of_int`). Structural `variant { <subj>
+    }` over the certified `emit_ir` inductive; NO axiom (ledger 3)."""
+    n = whyml_ident(func["name"])
+    subj = desc["param"]
+    out: List[str] = []
+    out.append(f"  let rec {n} ({subj}: emit_ir) : string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant  {{ {subj} }}")
+    out.append(f"  = match {subj} with")
+    for ctor in ("IrVar", "IrNum", "IrBinOp"):
+        if ctor not in desc["arms"]:
+            continue
+        binders, val_ast = desc["arms"][ctor]
+        pat = ctor + ((" " + " ".join(binders)) if binders else "")
+        out.append(f"    | {pat} -> {_csl_str_render(val_ast, n)}")
+    out.append(f'    | _ -> {_ppw_slit(desc["default"])}')
+    out.append("    end")
+    return out
+
+
+# ===========================================================================
 # class-variant-impl.md §OUTCOME-TS RESIDUAL: the RECORD⇄VARIANT BRIDGE for the
 # 5 `ir.py` per-class `.pp` METHODS (App/BinOp/UnaryOp/Forall/Exists .pp).
 #

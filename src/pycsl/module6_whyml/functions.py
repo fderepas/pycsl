@@ -3474,6 +3474,28 @@ class FunctionEmissionMixin:
                     and func.get("name") in _fam.get("method_names", set())):
                 return self._emit_term_pp_delegation(
                     func, _fam, _tspec, whyml_ident)
+        # seven-levers.md Lever 2 (option (b)): the 1-param `_csl_to_str` CSL-node
+        # -> string catamorphism over the certified `emit_ir` variant ADT (Var->
+        # IrVar / Number->IrNum / BinOp->IrBinOp). Fail-closed & exact-structural
+        # (needs an `ExprIR`-annotated single param + the precise CSL-subclass
+        # reads); a `\trusted` stub body (`return ""`) never matches -> emits
+        # `val`. REUSES emit_ir (no new value shape / no new cert). No corpus
+        # program shares the shape -> byte-inert.
+        from module6_whyml.generic_fold import (
+            recognize_csl_str_cata, emit_csl_str_cata_group)
+        _cslc = recognize_csl_str_cata(func)
+        if _cslc is not None:
+            # The catamorphism BUILDS a string with the same abstract ops the
+            # normal f-string / str() lowering registers; register them here since
+            # the recognizer bypasses that path (str_of_int only if a Number arm).
+            self._add_abstract_op(
+                "val str_concat_op (a: string) (b: string) : string\n"
+                "    ensures { result = (concat a b) }\n"
+                "    ensures { String.length result"
+                " = String.length a + String.length b }")
+            if "IrNum" in _cslc["arms"]:
+                self._add_abstract_op("val str_of_int (x: int) : string")
+            return emit_csl_str_cata_group(func, _cslc, whyml_ident)
         # FIELD-GUARD-RAISE `_check_*` caller (`_check_span`,
         # `_check_mutable_defaults`): a single-`If` field-guard whose only effect
         # is `raise PyCSLSemanticError`. Emitted inline (no walker, no forward
