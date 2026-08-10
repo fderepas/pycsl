@@ -295,15 +295,23 @@ class ControlFlowStmtMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _first_assign_value_ir(self, var: str, stmts: List[int]) -> int:
+    def _first_assign_value_ir(self, var: str, stmts: List["ExprIR"]) -> "ExprIR":
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _try_local_decl_kind(self, val_ir: int) -> str:
-        return ""
+    def _try_local_decl_kind(self, val_ir: "ExprIR") -> str:
+        """Reduced `_first_assign_kind` (IR-only, no val-string side effects)
+        for a try-body local's pre-declaration: `record` | `dict` | `default`."""
+        vt = val_ir.get("type", "")
+        if vt == "Call" and val_ir.get("func", "") in self._record_types:
+            return "record"
+        if (vt in ("DictLit", "SetLit")
+                or (vt == "Call" and val_ir.get("func") in ("dict", "set", "frozenset"))
+                or self._rhs_yields_map(val_ir)):
+            return "dict"
+        return "default"
 
     #@ requires True
     #@ ensures True

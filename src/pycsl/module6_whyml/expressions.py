@@ -1991,6 +1991,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         and _a[0].get("value") in _EMIT_IR_NODE_KEYS
                         and self._is_emit_ir_expr({"type": "Var", "name": _fn[:-len(".get")]})):
                     return True
+        # Lever 6: a `self.<method>(...)` / bare `<func>(...)` call whose DECLARED
+        # return type is the emit_ir IR-node sum (an `-> ExprIR`/`StmtIR`/`IRNode`/
+        # `ContractExprIR` annotation, which Module5 maps to "emit_ir" in
+        # `_module_method_return_types`) IS an emit_ir node. This is what lets the
+        # value-preserving `or`/`and` fire over structured operands — the
+        # `_first_assign_value_ir(...) or _first_assign_value_ir(...)` fed to
+        # `_try_local_decl_kind` from the verified `_handle_try_stmt`. Gated on the
+        # emit_ir return type: no CORPUS method carries an ExprIR-family return
+        # annotation (those types name the emitter's own AST/IR node classes), so
+        # `_module_method_return_types[...] == "emit_ir"` never holds on corpus code —
+        # this branch never fires there (byte-inert). Mirrors the `self.`-prefix key
+        # mangling used by `_rhs_yields_map`/`_rhs_yields_array`.
+        if t == "Call":
+            _mfn = ir.get("func")
+            if isinstance(_mfn, str):
+                if _mfn.startswith("self."):
+                    _mtail = _mfn[len("self."):]
+                    _mcls = getattr(self, "_current_self_type", None)
+                    _mkey = f"{_mcls}__{_mtail}" if _mcls else _mtail
+                else:
+                    _mkey = _mfn
+                if getattr(self, "_module_method_return_types", {}).get(_mkey) == "emit_ir":
+                    return True
         return False
 
     def _pyconst_val_field_read(self, ir: Any) -> Optional[Dict[str, Any]]:
@@ -3881,6 +3904,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             f"then {left} else {right})")
                 return (f"(if str_length_op {left} > 0 "
                         f"then {right} else {left})")
+            # Lever 6: value-preserving short-circuit `or`/`and` over STRUCTURED
+            # (emit_ir) operands. Python `A or B` returns the SELECTED operand (A if A
+            # is truthy, else B) — an emit_ir value — NOT the int-truthiness collapse
+            # `if (A<>0)||(B<>0) then 1 else 0` (which type-fails an emit_ir callee).
+            # This unblocks a verified caller passing `<emit_ir> or <emit_ir>` to a
+            # callee that requires an emit_ir param (`_try_local_decl_kind` fed by
+            # `_first_assign_value_ir(...) or _first_assign_value_ir(...)`). Truthiness
+            # is FAITHFUL Python dict-truthiness: a dict is truthy iff non-empty, and
+            # every real Module-5 IR node carries a non-empty `type` string while the
+            # live falsy sentinel `{}` is the kind-less node — so `truthy e` ==
+            # `kind_of e <> ""`. BODY context only (in spec, `and`/`or` stay the
+            # boolean connectives below). Gated on BOTH operands being emit_ir; the
+            # corpus has no emit_ir operand to an `and`/`or`, so int `or`/`and` output
+            # is byte-identical (this branch never fires on corpus code). Uses the
+            # existing `kind_of` (a definitional `let function`, both program+logic) and
+            # the `str_eq_op` bridge (decidable string `=` for the program `if`); no new
+            # ADT, no new axiom.
+            if (not self._in_spec
+                    and self._is_emit_ir_expr(expr["left"])
+                    and self._is_emit_ir_expr(expr["right"])):
+                self._add_abstract_op(
+                    "val str_eq_op (a b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                if op == "||":
+                    # `A or B`: A when A is truthy (present), else B.
+                    return (f"(let __or_l = {left} in "
+                            f'if (not (str_eq_op (kind_of __or_l) "")) '
+                            f"then __or_l else {right})")
+                # `A and B`: B when A is truthy (present), else A.
+                return (f"(let __and_l = {left} in "
+                        f'if (not (str_eq_op (kind_of __and_l) "")) '
+                        f"then {right} else __and_l)")
             left_b = self._to_bool(left, expr["left"])
             right_b = self._to_bool(right, expr["right"])
             if self._in_spec:
@@ -4501,6 +4556,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     or st.get(ident) in ("list", "tuple", "bytes", "bytearray")
                     or ident in getattr(self, "_array_locals", set())):
                 param_types[i] = "array int"
+                continue
+            # Lever 6: infer an `emit_ir` param for a forward-declared (cross-mixin,
+            # not-locally-defined) self-method whose signature the local registry
+            # can't supply — when the argument is an emit_ir-typed identifier (an
+            # `ExprIR`/`StmtIR`/... param or local). This types the
+            # `_try_local_decl_kind` -> `_rhs_yields_map(val_ir)` cross-mixin call
+            # (val_ir : emit_ir) that would otherwise default to `int` and fail L3-tc.
+            # Byte-inert: no CORPUS symbol is emit_ir-typed (those types name the
+            # emitter's own AST/IR node classes), so this never fires on corpus code.
+            if st.get(ident) in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                param_types[i] = "emit_ir"
         coerced = self._coerce_dotted_args(args, param_types)
         # W8 capability (vi): a call to a SAME-CLASS sibling method whose declared return
         # type is a RECORD lowers to the CONCRETE sibling application
