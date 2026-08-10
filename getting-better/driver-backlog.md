@@ -80,6 +80,19 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    _module_binding_names/_collect_map_typed_locals + the class-(a) tail) each need their own
    measure-then-per-method-gate increment as their consumer converts. Items 1b-B/1b-C: same discipline.
 
+   **Set[str]-RETURN frontier PER-METHOD-EXHAUSTED (measured 2026-08-11, post-CIE, count 749).** A robust AST
+   census of the 8 `\trusted` stubs that genuinely RETURN a set: ALL walled for the per-method device.
+   `_module_binding_names` + `bases_closure` = VERIFIED-CALLER cascade (consumed via `X in <stub>()` membership
+   by an un-trusted caller — `_handle_in_globals_expr` / `handler_catches`; the per-method device FORBIDS this);
+   `bases_closure` additionally = `while frontier:` worklist termination-variant wall. `_parse_rocq_file`/
+   `_parse_lean_file`/`_index_proofs_dir` = file I/O (read_text/iterdir) un-modelable. `_collect_shared_symbol_decls`
+   = nested `def _symbol` closure + `_AXIOM_FUNCTIONS.values()` heterogeneous walk. `_collect_string_elem_read_locals`/
+   `_collect_field_decode_str_locals`/`_typed_local_vars` = nested `def rec` closure + self-state mutation +
+   cross-collector calls. So item 1b-A's PER-METHOD wins = {CIE} only (landed); further Set progress needs a
+   COORDINATED caller+callee retype increment (measure the full `in`-membership consumer chain first) — a bigger
+   build — OR is blocked by orthogonal walls (I/O, nested-closure, while-termination). NEXT: measure 1b-B
+   (empty-collection-literal) for a bounded per-method sub-case (census-artifact discipline) before concluding cascade.
+
 2. **Recognizer-reach extensions (bounded, low-ROI but real).**
    - set-membership + subject-first-param discriminant for `recognize_type_existence` → unblocks
      `_union_c8_test_references_union_var` (measured: ~1 stub; over-engineering-adjacent, do it only
