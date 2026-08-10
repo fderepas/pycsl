@@ -1967,3 +1967,27 @@ verification) + audit the 3 illusory-verified methods. Raises-registry vein auto
 (_callee_raised_direct, landed fb3d60b3); #4 _callee_raised_in also lives in the try/except walk (own recognizer)
 but any Module6-file sibling shares the file blocker. DECISIVE OPS LESSON: when a build's whole-file proof won't
 go green, prove the file at CLEAN HEAD in a worktree FIRST — a RED-at-HEAD baseline = masked blocker (not your bug).
+
+## _try_local_decl_kind — CERTIFIED-BOUNDARY (or-int-collapse caller coupling) + RUN #3 FLOOR at 766
+Raises-registry vein sibling #2. Body is sound (subset of the converted _first_assign_kind; _record_types is
+MEMBERSHIP-only not value-inspected; _rhs_yields_map is a verified anchor). REFUTE via CALLER COUPLING: the verified
+caller _handle_try_stmt passes the arg as `_first_assign_value_ir(...) or _first_assign_value_ir(...)`. The emitter
+models Python `or` in body context as an INT truthiness collapse (expressions.py:1830-1834: `A or B` -> `if (A<>0)||
+(B<>0) then 1 else 0`). Once the converted callee requires an `emit_ir` param, the caller's `or`-int no longer
+type-matches -> whole-file type-fail "int expected emit_ir". Converting the feeder doesn't help (the wall is the
+or-lowering, not the feeder's trustedness). FIX = NEW emitter capability (value-preserving short-circuit or over
+emit_ir + emit_ir truthiness predicate) touching the and/or lowering every corpus file depends on = byte-diff-risk,
+authorize-first. LESSON: a verified caller passing the arg through an `and`/`or` collapses it to int; converting a
+callee to need a structured param then type-fails the caller = a distinct CALLER-COUPLING-via-truthiness-collapse
+boundary class.
+
+RUN #3 CONFIRMED FLOOR at 766 (from 783; 17 conversions). Reachable veins all mined: pure_ast cursor (2), Module5
+_scan_2d (3), core_ir_semantic typing-check (3), ir_resolve (1), functions.py ensures-map + compute_scope_sets (5),
+preamble.py bool-fold (2), stmt_control_flow raises-registry #1 (1). Boundaries this run: statements.py (cross-mixin/
+self-mut/string-emitter), self-state _is_emit_ir_expr (heterogeneous), ir_inline (construction/fixpoint), array_var
+(while-fixpoint), _try_local_decl_kind (or-collapse coupling). Residual ~730 = raw-ast (~111), proof2why3 (~140),
+IO (~67), string-emitters (~30), opaque-stdlib (~30), all boundary/review-gated. AUTHORIZE-FIRST flagged levers (each
+reopens a cluster): (a) pydict copy-and-set-field construction primitive; (b) faithful string-membership + f-string-
+literal preservation; (c) getattr-self-mutable-field; (d) cross-mixin declared-interface; (e) value-preserving or/and
+over structured types; (f) Module6_WhyMLTranspiler triple-masked package (byte-inert union-arm fix + proof-scale
+timeout + 3 illusory-verified methods audit).
