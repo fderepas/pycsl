@@ -19708,6 +19708,318 @@ def emit_contract_referenced_names_group(func: Dict[str, Any], desc: Dict[str, A
     return out
 
 
+# ---- `_callee_raised_direct` (stmt_control_flow.py ControlFlowStmtMixin, raises-registry
+#      SET-COLLECT sibling of `_contract_referenced_names`): collect every callee-declared
+#      `#@ raises` exception name reachable from a node's Call subtree, WITHOUT regard to any
+#      enclosing try/except. Live body:
+#        registry = getattr(self, "_module_func_raises", {}) or {}
+#        out: Set[str] = set()
+#        def walk(n):
+#          if isinstance(n, dict):
+#            if n.get("type") == "Call":
+#              fn = n.get("func", "")
+#              for rc in registry.get(fn, []):
+#                exc = rc.get("exc_type")
+#                if exc: out.add(exc)
+#            for v in n.values(): walk(v)
+#          elif isinstance(n, (list, tuple)):
+#            for v in n: walk(v)
+#        walk(node); return out
+#      Same OUTER+lifted-`walk` adjacency pairing as `_contract_referenced_names`, but the
+#      Call leaf, instead of set_adding node["func"], looks the func string up in the module
+#      raises registry (`_module_func_raises` — a `#@ raises`-populated SELF field, never a
+#      param). The registry is modeled as the OPAQUE-BUT-REAL self-source `val function
+#      <n>__mfr (fn:string):list pyval` == `registry.get(fn, [])` (ensures-free = sound
+#      over-approx, NOT an axiom — Gate-C-legal unmodeled self-source; ledger 3), and each
+#      real clause dict's REAL `exc_type` string is set-UNIONed in. The wrapper emits a mutual
+#      pyval/pydict/list set-UNION catamorphism (`set_union`/`const false`/`set_add`) over the
+#      REAL argument spine seeded with `node` directly; the lifted `walk` is SUPPRESSED.
+#      Non-facade (type/Call/func/exc_type literals read off the body, mutation-sensitive; the
+#      set-add of the real exc_type string off the real registry clause is the anti-vacuity
+#      signal — a value-INSPECT of the registry only through the typed `exc_type` field, so it
+#      stays clear of the heterogeneous-dict boundary). Keyed on `id`; corpus-inert (name-gated
+#      `_callee_raised_direct`). Its sole caller `_callee_raised_in` is itself `\trusted`, so
+#      the returned set never crosses into a converted caller. `ensures True`; ledger 3.
+
+def _recognize_crd_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_callee_raised_direct` wrapper. Fail-closed; None on any
+    deviation. Returns {name, param, acc, registry_var, registry_key, walker_name}."""
+    if not func.get("name", "").endswith("_callee_raised_direct"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 4:
+        return None
+    b0, b1, b2, b3 = body
+    # [0] registry = getattr(self, "<rk>", {}) or {}
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    reg = b0.get("target")
+    orv = b0.get("value") or {}
+    if not (isinstance(reg, str) and isinstance(orv, dict)
+            and orv.get("type") == "BinOp" and orv.get("op") == "or"):
+        return None
+    ga = orv.get("left") or {}
+    if not (isinstance(ga, dict) and ga.get("type") == "Call"
+            and ga.get("func") == "getattr"):
+        return None
+    gargs = ga.get("args") or []
+    if len(gargs) < 2 or not _is_var(gargs[0], "self"):
+        return None
+    registry_key = _clean_lit(_is_string(gargs[1]))
+    if registry_key is None:
+        return None
+    # [1] out = set()
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Assign"):
+        return None
+    acc = b1.get("target")
+    iv = b1.get("value") or {}
+    if not (isinstance(acc, str) and isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    # [2] walk(node)
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Expr"):
+        return None
+    wc = b2.get("value") or {}
+    if not (isinstance(wc, dict) and wc.get("type") == "Call"
+            and isinstance(wc.get("func"), str)):
+        return None
+    wargs = wc.get("args") or []
+    if len(wargs) != 1 or not _is_var(wargs[0], node_p):
+        return None
+    walker_name = wc["func"]
+    # [3] return out
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Return"
+            and _is_var(b3.get("value"), acc)):
+        return None
+    return {"name": func.get("name"), "param": node_p, "acc": acc,
+            "registry_var": reg, "registry_key": registry_key,
+            "walker_name": walker_name}
+
+
+def _recognize_crd_walk(walkfunc: Dict[str, Any], acc: str, registry_var: str,
+                        call_names: "set") -> Optional[Dict[str, Any]]:
+    """Match the lifted `walk(n)` raises-collect walk and extract the leaf
+    discriminant literals. Fail-closed. Returns {type_key, type_val, func_key,
+    exc_key} or None."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 1:
+        return None
+    top = body[0]
+    if not (isinstance(top, dict) and top.get("stmt") == "If"
+            and _match_isinstance(top.get("test"), node, "dict")):
+        return None
+    darm = top.get("body") or []
+    if len(darm) != 2:
+        return None
+    # darm[0]: if node.get("<tk>") == "<tv>": fn = node.get("<fk>",""); for rc in ...
+    g = darm[0]
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        return None
+    gt = g.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "=="):
+        return None
+    type_key = _frss_dotget_key(gt.get("left"), node)
+    type_val = _clean_lit(_is_string(gt.get("right")))
+    if type_key is None or type_val is None:
+        return None
+    gb = g.get("body") or []
+    if len(gb) != 2:
+        return None
+    fa, forst = gb
+    # fn = node.get("<fk>", "")
+    if not (isinstance(fa, dict) and fa.get("stmt") == "Assign"):
+        return None
+    fnvar = fa.get("target")
+    func_key = _frss_dotget_key(fa.get("value"), node)
+    if not isinstance(fnvar, str) or func_key is None:
+        return None
+    # for rc in registry.get(fn, []): exc = rc.get("<ek>"); if exc: out.add(exc)
+    if not (isinstance(forst, dict) and forst.get("stmt") == "For"):
+        return None
+    it = forst.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{registry_var}.get"):
+        return None
+    iargs = it.get("args") or []
+    if len(iargs) < 1 or not _is_var(iargs[0], fnvar):
+        return None
+    rcvar = forst.get("target")
+    if not isinstance(rcvar, str):
+        return None
+    fbody = forst.get("body") or []
+    if len(fbody) != 2:
+        return None
+    ea, eif = fbody
+    # exc = rc.get("<ek>")
+    if not (isinstance(ea, dict) and ea.get("stmt") == "Assign"):
+        return None
+    excvar = ea.get("target")
+    exc_key = _frss_dotget_key(ea.get("value"), rcvar)
+    if not isinstance(excvar, str) or exc_key is None:
+        return None
+    # if exc: out.add(exc)
+    if not (isinstance(eif, dict) and eif.get("stmt") == "If" and not eif.get("orelse")):
+        return None
+    if not _is_var(eif.get("test"), excvar):
+        return None
+    eb = eif.get("body") or []
+    if len(eb) != 1:
+        return None
+    addst = eb[0]
+    if not (isinstance(addst, dict) and addst.get("stmt") == "Expr"):
+        return None
+    addcall = addst.get("value") or {}
+    if not (isinstance(addcall, dict) and addcall.get("type") == "Call"
+            and addcall.get("func") == f"{acc}.add"):
+        return None
+    aargs = addcall.get("args") or []
+    if len(aargs) != 1 or not _is_var(aargs[0], excvar):
+        return None
+    # darm[1]: for v in node.values(): walk(v)
+    def _values_iter(ito: Any) -> bool:
+        return (isinstance(ito, dict) and ito.get("type") == "Call"
+                and ito.get("func") == f"{node}.values" and not ito.get("args"))
+
+    if not _frss_iter_selfcall(darm[1], call_names, node, _values_iter):
+        return None
+    # orelse: elif isinstance(node, (list, tuple)): for v in node: walk(v)
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    lif2 = orelse[0]
+    if not (isinstance(lif2, dict) and lif2.get("stmt") == "If"
+            and not lif2.get("orelse")
+            and _match_isinstance_tuple(lif2.get("test"), node, ("list", "tuple"))):
+        return None
+    lb = lif2.get("body") or []
+    if len(lb) != 1:
+        return None
+    if not _frss_iter_selfcall(lb[0], call_names, node, lambda ito: _is_var(ito, node)):
+        return None
+    return {"type_key": type_key, "type_val": type_val,
+            "func_key": func_key, "exc_key": exc_key}
+
+
+def recognize_callee_raised_direct_pairs(functions: List[Dict[str, Any]]
+                                         ) -> Dict[str, Any]:
+    """Pair the `_callee_raised_direct` OUTER wrapper with its lifted `walk` sibling
+    (by adjacency). Returns {"outer_ids": {id(outer): desc}, "walk_ids": {id(walk), ...}}.
+    Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_crd_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and wf_name is not None
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_crd_walk(wf, od["acc"], od["registry_var"], call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"],
+                    "registry_key": od["registry_key"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_callee_raised_direct_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                    whyml_ident) -> List[str]:
+    """Emit `_callee_raised_direct` as a mutual `pyval`/`pydict`/`list pyval` set-UNION
+    catamorphism (the `_contract_referenced_names` skeleton). The Call leaf reads the real
+    `node["func"]` string, looks it up in the opaque-but-real registry val `__mfr` (==
+    `registry.get(fn, [])`), and unions each real clause dict's real `exc_type` string.
+    `ensures True`; ledger 3 (no new type/axiom/cert — `__mfr` is an ensures-free `val`)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    tk, tv = desc["type_key"], desc["type_val"]
+    fk, ek = desc["func_key"], desc["exc_key"]
+    out: List[str] = []
+    # literal-key readers (mutation-sensitive)
+    out += _emit_skey_reader(f"{P}gtype", tk)   # option string: node["type"]
+    out += _emit_pval_reader(f"{P}gfunc", fk)   # option pyval: node["func"]
+    out += _emit_pval_reader(f"{P}gexc", ek)    # option pyval: rc["exc_type"]
+    # opaque-but-real self-source: registry.get(fn, []) (the `#@ raises`-populated
+    # `_module_func_raises` self field; ensures-free = sound over-approx, NOT an axiom).
+    out.append(f"  val function {P}mfr (fn: string) : list pyval")
+    # fold the registry clause list: set_add each real clause's real exc_type string
+    out.append(f"  let rec {P}rcfold (rcs: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list rcs }")
+    out.append("  = match rcs with Nil -> const false")
+    out.append("    | Cons rc rest ->")
+    out.append("        set_union")
+    out.append("          (match rc with")
+    out.append(f"           | PDict rd -> (match {P}gexc rd with "
+               "Some (PStr e) -> set_add (const false) e | _ -> const false end)")
+    out.append("           | _ -> const false end)")
+    out.append(f"          ({P}rcfold rest) end")
+    # leaf: when type=="Call", read func, look up registry, fold clauses
+    out.append(f"  let {P}leaf (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {P}gtype d with")
+    out.append(f'    | Some ty -> if pystr_eq ty "{tv}" then')
+    out.append(f"                   (match {P}gfunc d with "
+               f"Some (PStr fn) -> {P}rcfold ({P}mfr fn) | _ -> const false end)")
+    out.append("                 else const false")
+    out.append("    | None -> const false end")
+    # mutual set-union catamorphism over the pyval spine
+    out.append(f"  let rec {P}v (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> set_union ({P}leaf d) ({P}dfold d)")
+    out.append(f"    | PList xs -> {P}lfold xs")
+    out.append("    | _ -> const false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        set_union ({P}v v) ({P}dfold rest) end")
+    out.append(f"  with {P}lfold (xs: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({P}v h) ({P}lfold t) end")
+    # entry: seed the walk with `node` directly
+    out.append(f"  let {n} ({mv}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {P}v {mv}")
+    return out
+
+
 # ---- `_contract_referenced_var_names` (ir_resolve.py, boundary-A SET-COLLECT sibling of
 #      `_contract_referenced_names`): collect every bare-variable NAME read inside the
 #      contracts (`requires`/`ensures`/`assigns`) of the injected dependency stubs — a

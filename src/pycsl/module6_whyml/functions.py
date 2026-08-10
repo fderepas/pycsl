@@ -3108,6 +3108,18 @@ class FunctionEmissionMixin:
         if _crn_desc is not None:
             from module6_whyml.generic_fold import emit_contract_referenced_names_group
             return emit_contract_referenced_names_group(func, _crn_desc, whyml_ident)
+        # `_callee_raised_direct` (generic_fold.py raises-registry SET-COLLECT): the lifted
+        # `walk` sibling is SUPPRESSED; the wrapper emits the certified mutual pyval/pydict/
+        # list set-UNION catamorphism (`map string bool`) whose Call leaf looks the real
+        # `func` up in the opaque-but-real `_module_func_raises` registry val and unions each
+        # clause's real `exc_type` string. Keyed on `id`; corpus-inert. Sole caller
+        # `_callee_raised_in` is `\trusted`. See generic_fold.py module note.
+        if id(func) in getattr(self, "_crd_walk_ids", set()):
+            return []
+        _crd_desc = getattr(self, "_crd_outer_ids", {}).get(id(func))
+        if _crd_desc is not None:
+            from module6_whyml.generic_fold import emit_callee_raised_direct_group
+            return emit_callee_raised_direct_group(func, _crd_desc, whyml_ident)
         # `_contract_referenced_var_names` (generic_fold.py boundary-A SET-COLLECT): the
         # bare-variable-NAME sibling of `_contract_referenced_names` — the lifted `_walk`
         # sibling is SUPPRESSED; the wrapper emits the certified mutual pyval/pydict/list

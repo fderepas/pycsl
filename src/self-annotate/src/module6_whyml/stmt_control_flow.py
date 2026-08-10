@@ -305,12 +305,33 @@ class ControlFlowStmtMixin:
     def _try_local_decl_kind(self, val_ir: int) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _callee_raised_direct(self, node: Any) -> int:
-        return set()
+    def _callee_raised_direct(self, node: Any) -> Set[str]:
+        """Exceptions that calls anywhere within `node` may raise via the
+        callee's declared `#@ raises` contracts, WITHOUT regard to any
+        enclosing try/except in `node`. Walks every `Call`, looks the
+        function up in the module raises registry, unions declared names."""
+        registry = getattr(self, "_module_func_raises", {}) or {}
+        out: Set[str] = set()
+
+        def walk(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("type") == "Call":
+                    fn = n.get("func", "")
+                    for rc in registry.get(fn, []):
+                        exc = rc.get("exc_type")
+                        if exc:
+                            out.add(exc)
+                for v in n.values():
+                    walk(v)
+            elif isinstance(n, (list, tuple)):
+                for v in n:
+                    walk(v)
+
+        walk(node)
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

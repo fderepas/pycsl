@@ -2203,6 +2203,7 @@ class PreambleEmissionMixin:
             recognize_struct_pack_targets_pairs,
             recognize_struct_unpack_targets_pairs,
             recognize_contract_referenced_names_pairs,
+            recognize_callee_raised_direct_pairs,
             recognize_contract_referenced_var_names_pairs,
             recognize_collect_map_typed_locals_pairs,
             recognize_has_set_op_on_map_pairs,
@@ -2278,6 +2279,7 @@ class PreambleEmissionMixin:
             recognize_struct_pack_targets_pairs(functions)["outer_ids"]) or bool(
             recognize_struct_unpack_targets_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
+            recognize_callee_raised_direct_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
             recognize_collect_map_typed_locals_pairs(functions)["outer_ids"]) or bool(
             recognize_has_set_op_on_map_pairs(functions)["outer_ids"]) or bool(
@@ -2519,6 +2521,16 @@ class PreambleEmissionMixin:
         _crn = recognize_contract_referenced_names_pairs(functions)
         self._crn_outer_ids = _crn["outer_ids"]
         self._crn_walk_ids = _crn["walk_ids"]
+        # `_callee_raised_direct` (generic_fold.py raises-registry SET-COLLECT): the raises-
+        # registry sibling of `_contract_referenced_names` — same OUTER+lifted-`walk`
+        # adjacency pairing + `set_union` skeleton, but the Call leaf looks the real `func`
+        # up in the opaque-but-real self-source `_module_func_raises` registry val (`__mfr`,
+        # ensures-free) and unions each real clause dict's real `exc_type` string. The lifted
+        # `walk` is SUPPRESSED. Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_callee_raised_direct_pairs
+        _crd = recognize_callee_raised_direct_pairs(functions)
+        self._crd_outer_ids = _crd["outer_ids"]
+        self._crd_walk_ids = _crd["walk_ids"]
         # `_contract_referenced_var_names` (generic_fold.py boundary-A SET-COLLECT): the
         # bare-variable-NAME sibling of `_contract_referenced_names` — same OUTER+lifted-
         # `_walk` adjacency pairing + `set_union` skeleton, EXTENDED with a third folded
