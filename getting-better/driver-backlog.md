@@ -49,6 +49,25 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    re-proves), driver-verified, independent control agent. If a shape can't be certified axiom-free → THAT
    is the CERTIFIED-BOUNDARY (not the byte-diff).
 
+   **ATTEMPT #1 (2026-08-11) — REJECTED + reverted to clean HEAD 9a168329 (count back to 750). REFINE, do NOT
+   re-run the same way.** A full auto-authorized build wired all 6 (+1) surfaces, converted CIE, proved Module6
+   0 non-Valid, ledger 3 axiom-free (set_diff/set_comp_str = pure `let function`s; set_of_arr = val+postcond).
+   Two supervisor gates caught it: (1) byte-diff GATE LEAK — the set_diff/set_comp_str theory DEFS emitted
+   unconditionally into the shared pydict theory → 10 corpus files re-emitted (fixed with a `needs_set_op` gate,
+   then corpus byte-diff = 0). (2) FATAL: **SIBLING REGRESSION** — the `Set[str]`-return type-inference retype
+   (`map int (option int)` → `map string bool`, faithful/no-more-int) is GLOBAL; it changed the abstract `val`
+   signature of EVERY Set[str]-returning mirror stub, and VERIFIED CALLERS written against the OLD wrong int
+   type broke: `module6_whyml/auto_trust.py` + `module6_whyml/expressions.py` type-fail (`type string->bool but
+   expected int`), `frontend/monomorphize.py` → 6 non-Valid (Timeouts). 19 mirror files' emission changed; ≥3
+   regressed. **LESSON (banked): a value-model retype that changes a shared abstract-val SIGNATURE cascades into
+   every verified caller that consumed the old (wrong) type — landing it is NOT a +1 increment; it needs EITHER
+   (a) a per-CONSUMER-gated retype (retype a Set[str] stub's val ONLY in the file/context that actually reads it
+   as a set, leaving other callers' int view intact — measure caller-coupling FIRST), OR (b) a COORDINATED
+   retype + caller-fix across all affected mirror files in one increment (auto_trust/expressions/monomorphize +
+   sweep for more). Attempt #2 must measure the full verified-caller set of each retyped stub BEFORE building,
+   and either gate per-consumer or fix all callers. The value TYPE + ops are proven feasible + axiom-free; the
+   wall is the caller-coupling cascade, not the model.** Items 1b-B/1b-C are the SAME cascade class.
+
 2. **Recognizer-reach extensions (bounded, low-ROI but real).**
    - set-membership + subject-first-param discriminant for `recognize_type_existence` → unblocks
      `_union_c8_test_references_union_var` (measured: ~1 stub; over-engineering-adjacent, do it only
