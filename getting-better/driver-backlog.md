@@ -68,6 +68,18 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
    and either gate per-consumer or fix all callers. The value TYPE + ops are proven feasible + axiom-free; the
    wall is the caller-coupling cascade, not the model.** Items 1b-B/1b-C are the SAME cascade class.
 
+   **ATTEMPT #2 — LANDED (commit 02e652d4, 750->749).** A caller-coupling measurement found CIE reads no
+   Set[str] stub, has 0 verified callers, its state fields co-read only by a trusted method — so a PER-METHOD
+   (CIE-only) retype touches nothing else. Built exactly that (CIE's return+state modeled with the string-set
+   model LOCALLY; NO other Set[str] stub's abstract-val changed). Blast radius: attempt #1's 19 mirror files
+   (3 regressing) -> 2 (Module6+pycsl, BOTH re-proved 0 non-Valid). Corpus byte-diff 0, ledger 3
+   (set_diff/set_comp_str = pure let-functions, no cert), needs_set_op-gated. **BANKED DEVICE: PER-METHOD
+   value-model retype — retype a converted set-using method's OWN return+state locally, leave every sibling
+   stub's int view intact; measure caller-coupling first (a 0-verified-caller stub is safe to retype alone).**
+   REMAINING Set-model stubs (those WITH verified callers: find_assigned_vars/collect_escaping_exceptions/
+   _module_binding_names/_collect_map_typed_locals + the class-(a) tail) each need their own
+   measure-then-per-method-gate increment as their consumer converts. Items 1b-B/1b-C: same discipline.
+
 2. **Recognizer-reach extensions (bounded, low-ROI but real).**
    - set-membership + subject-first-param discriminant for `recognize_type_existence` → unblocks
      `_union_c8_test_references_union_var` (measured: ~1 stub; over-engineering-adjacent, do it only
