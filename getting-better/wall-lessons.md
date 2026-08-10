@@ -2006,3 +2006,21 @@ The 9 string-rewriters (2 canonical + 7 normalize) = char-level regex/str->str (
 boundary. FLAGGED authorize-first: term-transform recognizer grammar extensions (compound-guard arms / subscript-positional
 field builder / cross-ctor rebuild / arrow-chain-construction builder / 2-param+Dict threading) + faithful string-op model.
 FLOOR 766 DOUBLY-CONFIRMED (broad survey + this targeted deep-spike).
+
+## Constructor vein — 11 __init__ harvested (fb92b638 + c5852e8d, run #3, ->755)
+The floor-confirmation re-measure of Module1_Ingestor (raw-ast class) unexpectedly surfaced a CROSS-FILE
+CONSTRUCTOR VEIN: a class's `__init__` is convertible EVEN in a raw-ast/boundary file because the constructor
+only FIELD-INITS — it does NOT read the raw-ast node it stores (_Target stores an opaque `node` unread). Harvested
+11 total (Module1_Ingestor 3 + a cross-file sweep 8) matching the accepted _Tok/PyCSLError precedent: verbatim
+field-init + `#@ requires True / ensures True / assigns \nothing`, lowering to a record type-decl with NO standalone
+__init__ VC. WEAK-CONTRACT (str fields int-leak, no behavioral content) — legitimate de-trusts by precedent, recorded
+honestly per VALUE-not-count (NOT wall breaks). Files: Module1_Ingestor(3), pure_ast(1), Module3_Weaver(2), Module5(1),
+ir_inline(1), ConcurrencyChecker(1), parser.py(1), pycsl.py(1). SKIP criteria (left \trusted): constructor needs a
+PRECONDITION to establish a class invariant (_ContractParser EOF-inv, pure_ast._Parser i<len — can't prove under
+requires True); setattr/zip/raise (pure_ast.AST); curated non-verbatim Tier-5 stub (PyCSLToJSONEmitter); WhyML
+name-collision (Comment.text/_Unparser). BLOCKED: Module6_WhyMLTranspiler's __init__ (behind the file's RED-at-HEAD
+masked blocker). OPS: Module5_IREmitter whole-file proof ~76min (use timeout >=6000s). LEVER: a broader
+constructor sweep is a count-reduction option but weak-contract — this run harvested the clearly-reachable ones;
+further constructors need preconditions/emitter-work.
+
+## RUN #3 FINAL: 783 -> 755 (28 conversions) — by far the strongest run.
