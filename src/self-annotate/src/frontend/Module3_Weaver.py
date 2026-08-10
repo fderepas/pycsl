@@ -32,13 +32,17 @@ class PyCSLWeaver(ast.NodeVisitor):
     def _act_guard(act: Act) -> CSLNode:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == node.value
     #@ assigns \nothing
     @staticmethod
     def _const_int(node: Any, var: str) -> int:
-        return 0
+        if isinstance(node, Number) and float(node.value).is_integer():
+            return int(node.value)
+        raise PyCSLSemanticError(
+            f"`for {var} in range(...)`: range bound must be an integer literal "
+            f"(got {type(node).__name__}); named-constant bounds are not yet supported",
+            stage="Module3")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
