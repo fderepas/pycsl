@@ -1939,3 +1939,31 @@ self-mutation (_precompute_axiom_logic_funcs) + observed-list-output (_collect_c
 RUN #3 TOTAL: 783->767 (16 conv). Devices banked this run: compose-primitives, per-index-leaf-gate, param-threaded
 ensures-map scaffold, 3-StrSet set-collect, nonlocal-scalar bool-fold. Key META: "census artifact" — files classified
 "value-model wall / boundary" repeatedly reopen under fresh devices/lenses (Module5, functions.py, preamble.py all did).
+
+## Module6_WhyMLTranspiler.py — TRIPLE-MASKED review-gated package (run #3, CIE #3 blocked, at 766)
+Attempting the raises-registry vein sibling #3 `_callee_implicit_exceptions` (CIE) exposed that
+Module6_WhyMLTranspiler.py is RED AT HEAD (confirmed by a clean-worktree baseline proof: [-] Verification
+FAILED, "type int expected string"). CIE itself is SOUND (built complete, proven 42/42 in isolation with the
+blocker neutralized, mutation-tested, ledger 3) but CANNOT reach whole-file SUCCESS. Three stacked blockers:
+1. **`_union__hdr_name_5` type-error [BYTE-INERT FIX READY]**: `_sig_val_from_let`'s nested `def _hdr_name`
+   returns a string ternary lifted to Optional[str]=union `Arm_5_0 string|Arm_5_None`, but `_handle_ifexpr_expr`
+   (expressions.py) only str-typed ternary arms under `_str_ctx` (@mutable_state OR return=="string"); a `_union_*`
+   return hit neither, so `else ""` hashed to int 313406155 + arms unwrapped. FIX (characterized, byte-inert,
+   verified byte-identical on all 4 Optional[str] corpus files 0946/0947/0942/0892 + pure_ast no-regression):
+   add predicate `_func_ret_union_some_str()` OR-ed into the ternary `_str_ctx` gate + the IfExpr branch of
+   `_is_string_expr` → wrap the whole ternary in `Arm_5_0`, emit real `""`. RISKY-CLASS (conditional-lowering) so
+   FLAGGED not auto-landed; but this file had NEVER type-checked at HEAD so no solver goal had ever run.
+2. **`_collect_variant_var_assigns'vc` proof-scale TIMEOUT [REVIEW-GATED]**: once the type error clears, exactly
+   one goal times out (23.5s/5.59M steps) — recursive pydict/pyval fold variant-decrease E-matching saturation
+   (isolation_spike_not_whole_file terminus; needs modular verification, NOT a timelimit bump). types.py-sibling,
+   byte-inert to both CIE and the union fix.
+3. **SOUNDNESS FLAG**: this file (RED at HEAD, never solver-proven) has ~3 contracted-and-NOT-trusted
+   (claimed-CONVERTED) methods whose "verified" status is NOT backed by any passing whole-file proof = illusory-
+   verified (ties [[trusted_val_frame_unsoundness]]). Needs investigation (were they committed pre-bug, or is this
+   a latent gate hole?).
+NET: CIE (#3) + the whole ~17-stub Module6_WhyMLTranspiler.py file are gated behind this package. FLAGGED
+authorize-first: land the byte-inert union-arm fix + resolve the proof-scale timeout (review-gated modular
+verification) + audit the 3 illusory-verified methods. Raises-registry vein autonomous yield = #1 only
+(_callee_raised_direct, landed fb3d60b3); #4 _callee_raised_in also lives in the try/except walk (own recognizer)
+but any Module6-file sibling shares the file blocker. DECISIVE OPS LESSON: when a build's whole-file proof won't
+go green, prove the file at CLEAN HEAD in a worktree FIRST — a RED-at-HEAD baseline = masked blocker (not your bug).
