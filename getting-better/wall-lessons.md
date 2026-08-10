@@ -2054,3 +2054,16 @@ narrowing (get_name->string), OR (b) CSLNode-as-genuine-Why3-variant + route thr
 Both multi-session src/pycsl. FLAGGED authorize-first (typed-record-field-accessors / CSLNode-as-variant), ties the
 canonical.py Term-construction vein. So the isinstance-reader vein = _const_int ONLY (int-returning).
 FLOOR CONFIRMED at 754 (run #3, 29 conversions from 783).
+
+## pycsl.py — ALL BOUNDARY (run #3 anti-false-floor confirmation, floor 754 SOLID)
+Periodic re-measure of the 34-stub CLI file: 21 subprocess/file-IO (unmodelable) + 12 record-processors, ALL boundary.
+The ONE reachable model-addressable reader (`_record_is_valid`, bool over the proof-record pydict) is ALREADY converted.
+`_record_answer` (Dict[str,PyVal]->str) REFUTES at the documented int-vs-string ceiling (pyval read is int-modeled, str
+return type-fails). Everything else = str-build (_synthesize_*), container CONSTRUCTION (_record_key->Tuple, _json_goal
+_records->List[dict], _merge/_finalize), char-level str-parse (_parse_goal_blocks), nested-closure (_is_false_goal),
+or subprocess/IO. The campaign already optimally split reader(bool, converted) from value-layer(str, boundary).
+FLOOR 754 SOLID: three consecutive periodic re-measures (_csl_to_str opaque-int-accessor, _extract_happy_properties
+dict-param-mutation, pycsl.py str-construction+IO) all hit GENUINE CAPABILITY BOUNDARIES — the reachable autonomous
+frontier is exhausted. RECURRING CEILING across the tail: str-returning readers over int-modeled records/pyval need
+the typed-record-field-accessor emitter build (authorize-first lever #7); container/record CONSTRUCTION needs the
+pydict-construction primitive (lever #1). RUN #3 DEFINITIVE FLOOR: 754 (29 conversions from 783).
