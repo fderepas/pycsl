@@ -130,7 +130,6 @@ _SOFT = {'match', 'case', 'type', '_'}
 _SKIP = {_tokenize.COMMENT, _tokenize.NL, _tokenize.ENCODING}
 class _Tok:
     __slots__ = ('type', 'string', 'start', 'end')
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

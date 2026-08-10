@@ -10,12 +10,11 @@ from frontend.Module1_Ingestor import PyCSLContract
 ""  # pycsl
 class PyCSLWeaver(ast.NodeVisitor):
     '\n    Traverses the standard Python AST and injects parsed contract nodes \n    directly into the AST objects.\n    '
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, contracts_map: Dict[int, List[CSLNode]]) -> None:
-        pass
+        self.contracts_map = contracts_map
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -150,12 +149,13 @@ class PyCSLWeaver(ast.NodeVisitor):
 
 class Module3_Weaver:
     '\n    Coordinates the standard AST generation and the injection of contracts.\n    '
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, source_code: str, extracted_data: List[PyCSLContract], parser_module: Any) -> None:
-        pass
+        self.source_code = source_code
+        self.extracted_data = extracted_data
+        self.parser_module = parser_module
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -2615,12 +2615,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
 class Module5_IREmitter:
     'Consumes the validated AAST and outputs a JSON string.'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, tree: ast.AST) -> None:
-        pass
+        self.tree = tree
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

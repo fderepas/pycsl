@@ -60,7 +60,6 @@ def mutable_state(cls):
 #@ class invariant 0 <= self.pos
 @mutable_state
 class _Parser:
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

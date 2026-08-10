@@ -667,7 +667,6 @@ class _MergeConservationError(Exception):
     non-Valid one). It is a trust-free, fail-closed backstop: it depends on NO merge
     implementation being correct, so it survives any future rewrite of the merge.
     See soundness-issue.md (Tier 0)."""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

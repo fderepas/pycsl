@@ -24,12 +24,17 @@ class ConcurrencyWarning:
 
 class ConcurrencyChecker:
     'Walk the annotated AST and emit ConcurrencyWarning objects.'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, tree: ast.AST, *, strict_mode: bool=False, filename: str='<input>') -> None:
-        pass
+        self.tree = tree
+        self.warnings: List[ConcurrencyWarning] = []
+        self.strict_mode = bool(strict_mode)
+        self.filename = filename
+        self._shared_vars: Dict[str, Optional[str]] = {}
+        self._lock_order: Optional[List[str]] = None
+        self._thread_entries: Set[str] = set()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

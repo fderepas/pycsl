@@ -114,12 +114,16 @@ def _substitute(node: Any, self_name: str, param_map: int, rename: int) -> Any:
 
 ""  # pycsl
 class _Inliner:
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, funcs, globals_set, g_class, recursive, no_inline=None):
-        pass
+        self.fmap = {f["name"]: f for f in funcs}
+        self.globals_set = globals_set
+        self.g_class = g_class
+        self.recursive = recursive
+        self.no_inline = no_inline or set()
+        self.counter = 0
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
