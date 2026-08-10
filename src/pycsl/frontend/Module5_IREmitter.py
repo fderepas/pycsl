@@ -56,6 +56,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "functions": [],
         }
         self._current_class: Optional[str] = None
+        # Lever-7 (val-inherit): stack of the `#@ \trusted` status of the
+        # ENCLOSING functions currently on the visit path. A nested `def` is
+        # lifted (via `generic_visit`) to a standalone WhyML function; when it
+        # sits inside a `\trusted` parent (whose body is NOT verified), the lifted
+        # helper is semantically PART of that trusted body and must inherit the
+        # parent's trusted status — otherwise it acquires spurious verification
+        # goals (e.g. a `termination` VC) the trusted parent never has to discharge.
+        # `any(self._enclosing_trusted_stack)` is True exactly while building a def
+        # nested inside a trusted function; empty/all-False at module/top-method
+        # scope → the `trusted_parent` flag is ABSENT there (byte-inert).
+        self._enclosing_trusted_stack: List[bool] = []
         # scc3.md Phase B: the current function's symbol table, set while building its
         # contracts so `_csl_in` can dispatch `x in S` on the collection's type (a set
         # → key membership, a list → positional `exists`). Empty outside that window.
@@ -5136,8 +5147,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if self._current_class:
             func_ir["kind"] = "method"
             func_ir["self_type"] = self._current_class
+        # Lever-7 (val-inherit): a lifted nested `def` whose enclosing function is
+        # `#@ \trusted` inherits that trusted status — it is part of the parent's
+        # unverified body, so Module 6 emits it as a bodyless `val` (contract only,
+        # no goals) exactly as the trusted parent does, instead of a `let` that
+        # accretes spurious VCs (e.g. an unprovable `termination` goal). Set ONLY
+        # when an enclosing frame is trusted → the key is ABSENT for every
+        # top-level / non-nested function and every nested def of a NON-trusted
+        # parent (byte-identical emission there). This does NOT set `trusted` (the
+        # 0-trusted policy / --soundness-report bucket are unchanged); it is a
+        # distinct provenance consumed only by the emit-as-val gate.
+        if self._enclosing_trusted_stack and any(self._enclosing_trusted_stack):
+            func_ir["trusted_parent"] = True
         self.program_ir["functions"].append(func_ir)
-        self.generic_visit(node)
+        # Push THIS function's effective-trusted status (its own `\trusted`, or an
+        # already-trusted enclosing frame) so a def nested inside it inherits too.
+        self._enclosing_trusted_stack.append(
+            bool(getattr(node, 'csl_trusted', False))
+            or (bool(self._enclosing_trusted_stack) and any(self._enclosing_trusted_stack)))
+        try:
+            self.generic_visit(node)
+        finally:
+            self._enclosing_trusted_stack.pop()
 
     # typing-engagement ty2 / 31-1700-typing-spec-7 — @overload (PEP 484) helpers.
     # The static plane treats an @overload family as a guarded contract family

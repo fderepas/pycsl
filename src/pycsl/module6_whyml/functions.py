@@ -4210,7 +4210,18 @@ class FunctionEmissionMixin:
         # shape as a trusted stub (`val` + spec, no body) but distinct
         # provenance: it does NOT count as \trusted for the 0-trusted policy.
         func_abstract = func.get("abstract", False)
-        emit_as_val = func_trusted or func_abstract
+        # Lever-7 (val-inherit): a lifted nested `def` whose enclosing function is
+        # `#@ \trusted` (Module 5 stamps `trusted_parent: True`) is part of that
+        # trusted, UNVERIFIED body — emit it as a bodyless `val` (contract only, no
+        # goals), exactly as the trusted parent itself emits. Without this the
+        # lifted helper acquires spurious verification obligations (e.g. an
+        # unprovable `termination` VC from a nested `for`-loop) that the trusted
+        # parent never has to discharge. SOUND: not verifying a fully-trusted
+        # parent's helper verifies nothing LESS than intended. Fail-closed: the
+        # flag is absent for every non-nested function and every nested def of a
+        # NON-trusted parent → those stay byte-identical.
+        func_trusted_parent = func.get("trusted_parent", False)
+        emit_as_val = func_trusted or func_abstract or func_trusted_parent
         if self._should_auto_trust_map_return(func, func_trusted):
             func_trusted = True
             self._auto_trusted_map_returns = (

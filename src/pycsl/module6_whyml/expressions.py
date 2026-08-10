@@ -3164,6 +3164,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return getattr(self, "_record_types", {}).get(ecls, {}).get(
             "field_types", {}).get(attr)
 
+    def _func_ret_union_some_str(self) -> bool:
+        """True when the CURRENT function's return type is a synthesized
+        `_union_*` variant (an `Optional[...]`/`Union[...]`) that carries at
+        least one arm whose payload lowers to WhyML `string`. Used to route a
+        string ternary in such a function through the string-expression path so
+        (i) its literal arms emit real WhyML strings (not the int-hash of `""`)
+        and (ii) the whole ternary is recognized as string-typed and injected
+        into the variant's string arm (`Arm_N_0 …`) at the return site.
+        Fail-closed: a non-union return (every corpus ternary) returns False, so
+        normal ternaries stay byte-identical."""
+        frt = getattr(self, "_func_return_type", "") or ""
+        if not frt.startswith("_union_"):
+            return False
+        vinfo = getattr(self, "_variant_types", {}).get(frt)
+        if not vinfo:
+            return False
+        for ctor in vinfo.get("constructors", {}).values():
+            if ctor.get("arity", 0) == 0:
+                continue
+            payload = ctor.get("payload", [])
+            if payload and self._union_arm_whyml_type(payload[0]) == "string":
+                return True
+        return False
+
     def _is_string_expr(self, ir: Dict[str, Any]) -> bool:
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
@@ -3177,10 +3201,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return True
         # resync-campaign.md R2: a ternary whose BOTH arms are string-typed is string (the
         # emitter's `(if _poly then "<decl A>" else "<decl B>") + "…ensures…"` concat). Both
-        # arms must be string; @mutable_state (the emitter's string decls).
+        # arms must be string; @mutable_state (the emitter's string decls). Lever-7 extends the
+        # gate: a both-arms-string ternary in an `Optional[str]`/`Union[…, str]`-returning
+        # function (`_func_ret_union_some_str()`) is ALSO string-typed, so it injects into the
+        # variant's string arm (`Arm_N_0 …`) at the return site instead of type-clashing the bare
+        # ternary against the `_union_*` variant. Fail-closed on the union predicate → byte-inert.
         if (t == "IfExpr"
-                and getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())
+                and (getattr(self, "_current_self_type", None)
+                     in getattr(self, "_mutable_state_classes", set())
+                     or self._func_ret_union_some_str())
                 and self._is_string_expr(ir.get("body", {}))
                 and self._is_string_expr(ir.get("orelse", {}))):
             return True
@@ -8697,7 +8726,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # slot. Keyed on the SAME declared-string signal that lowers the return slot to
         # `string`, so a string arm is well-typed exactly where it fires; corpus-byte-inert
         # (no non-@mutable_state `-> str` corpus function currently returns such a ternary).
-        _str_ctx = _ms or (getattr(self, "_func_return_type", None) == "string")
+        # Lever-7: also a string context when the enclosing function returns an
+        # `Optional[str]`/`Union[…, str]` (`_func_ret_union_some_str()`), so the ternary's
+        # literal `""` arm emits a real WhyML string (not the int-hash) before it is injected
+        # into the variant's string arm at the return site. Fail-closed → normal ternaries
+        # (non-union return) are byte-identical.
+        _str_ctx = (_ms or (getattr(self, "_func_return_type", None) == "string")
+                    or self._func_ret_union_some_str())
         _b_str = self._is_string_expr(_bd)
         _o_str = self._is_string_expr(_od)
         _b_none = _bd.get("type") == "None"
