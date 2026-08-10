@@ -1991,3 +1991,18 @@ reopens a cluster): (a) pydict copy-and-set-field construction primitive; (b) fa
 literal preservation; (c) getattr-self-mutable-field; (d) cross-mixin declared-interface; (e) value-preserving or/and
 over structured types; (f) Module6_WhyMLTranspiler triple-masked package (byte-inert union-arm fix + proof-scale
 timeout + 3 illusory-verified methods audit).
+
+## proof2why3 canonical.py/normalize.py — GENUINE BOUNDARY (run #3 periodic re-measure, floor 766 HOLDS)
+Anti-false-floor re-measure of the SExp/Term-walker residual. REFUTE, 0 cheap wins. Nuance: the Term ADT IS modeled
+(ir.py frozen dataclasses Var/App/BinOp/Forall/...); Term-CONSTRUCTION works; 2 Term->Term rewriters already verified
+(_flip_comparisons, alpha_normalize via recognize_term_isinstance_transform, generic_fold.py:27054). So NOT a
+construction boundary — a RECOGNIZER-GRAMMAR boundary. The 10 remaining canonical.py Term-rewriters each use a
+capability OUTSIDE that recognizer's grammar: compound isinstance+field guards (isinstance(t,BinOp) and t.op=="->"),
+2-param / Dict-mapping signatures, side-condition arrow-chain CONSTRUCTION (mk_arrow_chain + fresh-BinOp comprehension),
+nested closures / while-spine loops, string-fn field transforms (_camel_to_snake(t.name)), cross-ctor value-guarded
+rewrites with subscript (App->BinOp on t.head=="iff", t.args[0]). SPIKE _iff_app_to_binop = REFUTE (canonical.mlw:127
+"type binop but expected int" — recognizer rejects the cross-ctor+field-guard+subscript shape, falls to Term=int model).
+The 9 string-rewriters (2 canonical + 7 normalize) = char-level regex/str->str (re.sub/re.split) = str_to_int-parser
+boundary. FLAGGED authorize-first: term-transform recognizer grammar extensions (compound-guard arms / subscript-positional
+field builder / cross-ctor rebuild / arrow-chain-construction builder / 2-param+Dict threading) + faithful string-op model.
+FLOOR 766 DOUBLY-CONFIRMED (broad survey + this targeted deep-spike).
