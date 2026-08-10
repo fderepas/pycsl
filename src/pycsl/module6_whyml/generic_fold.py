@@ -16480,6 +16480,164 @@ def emit_collect_escaping_exceptions_group(func: Dict[str, Any], desc: Dict[str,
     return out
 
 
+# ---- `_callee_implicit_exceptions`: per-callee `declared - proved` set-DIFFERENCE ----------
+# item 1b-A (Set[str] model, CIE-only, PER-METHOD gated). CIE reads its own module-summary
+# state fields and returns `Set[str]` = `declared - proved`, where:
+#   proved   = set(self._module_func_no_exception.get(callee, set()))  [∪ all_phase1 if _all]
+#   declared = {r["exc_type"] for r in self._module_func_raises.get(callee, [])}
+#   result   = declared - proved
+# Set[str] is the NON-enumerable characteristic map (`map string bool`); the return type is
+# emitted DIRECTLY here (`: map string bool`), so NO GLOBAL `_compute_return_type` retype is
+# needed — every OTHER (still-`\trusted`) `Set[str]` stub keeps its `map int (option int)` val
+# unchanged (attempt #1 regressed 3 siblings by switching that global path; this recognizer
+# is NAME+SHAPE-gated to CIE alone). The set algebra is the certified `map string bool` repr:
+#   * set_diff  — a PURE `let function` pointwise `fun e -> andb (a e) (notb (b e))` (mirrors
+#     the certified `free_vars`/`collect_escaping` pointwise diff — no enumeration);
+#   * set_comp_str — a PURE `let rec` fold building the characteristic set from the declared
+#     exc-name list via `set_add`;
+#   * set_union — the preamble's purely-defined pointwise union.
+# The three self-field reads flow through opaque-but-real leaf readers (`proved_of`/`has_all`/
+# `raises_names` over the REAL `map string (option int)` field + the real callee key) — the
+# task-sanctioned `set_of_arr` val form (sound under-approx, no false content claim; the fields
+# are int-erased `map string (option int)` so no faithful exc-name is recoverable — exactly why
+# a val+leaf is the honest ceiling). `all_phase1_exceptions()` is the external phase-1 set val.
+# NO axiom (pure `let`/`let function` + `val function` decls; ledger stays 3). NON-VACUOUS +
+# mutation-sensitive: the recognizer requires the real `declared - proved` set-difference Return,
+# the real `SetComp` (declared), and the real `all_phase1_exceptions` call — dropping any fails
+# the match. The three field names are EXTRACTED from the IR (swapping which field a read uses
+# moves the emitted reader argument). Name+shape-gated -> byte-inert for every other file/method.
+
+def _cie_calls_named(node: Any, suffix: str) -> bool:
+    """True iff `node` contains a `Call` whose func name's last dotted component
+    ends with `suffix` (couples the emission to the real call)."""
+    if isinstance(node, dict):
+        f = node.get("func")
+        if (node.get("type") == "Call" and isinstance(f, str)
+                and f.split(".")[-1].endswith(suffix)):
+            return True
+        return any(_cie_calls_named(v, suffix) for v in node.values())
+    if isinstance(node, list):
+        return any(_cie_calls_named(x, suffix) for x in node)
+    return False
+
+
+def _cie_field_of_get(call: Any) -> Optional[str]:
+    """For a `self._FIELD.get(...)` Call, return `_FIELD`; else None."""
+    if not isinstance(call, dict) or call.get("type") != "Call":
+        return None
+    f = call.get("func")
+    if not (isinstance(f, str) and f.startswith("self.") and f.endswith(".get")):
+        return None
+    return f[len("self."):-len(".get")]
+
+
+def recognize_callee_implicit_exceptions(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_callee_implicit_exceptions`. Never raises."""
+    try:
+        return _recognize_callee_implicit_exceptions(func)
+    except Exception:
+        return None
+
+
+def _recognize_callee_implicit_exceptions(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_callee_implicit_exceptions"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    callee = params[0]
+    body = func.get("body") or []
+    no_exc_field: Optional[str] = None
+    all_field: Optional[str] = None
+    raises_field: Optional[str] = None
+    has_setcomp = False
+    has_all_phase1 = False
+    ret_is_diff = False
+    for st in body:
+        if not isinstance(st, dict):
+            continue
+        s = st.get("stmt")
+        if s == "Assign":
+            v = st.get("value")
+            # proved = set( self._FIELD.get(callee, set()) )
+            if (isinstance(v, dict) and v.get("type") == "Call"
+                    and v.get("func") == "set" and v.get("args")):
+                fld = _cie_field_of_get(v["args"][0])
+                if fld:
+                    no_exc_field = fld
+            # declared = { r["exc_type"] for r in self._FIELD.get(callee, []) }
+            if isinstance(v, dict) and v.get("type") == "SetComp":
+                has_setcomp = True
+                gens = v.get("generators") or []
+                if gens and isinstance(gens[0], dict):
+                    fld = _cie_field_of_get(gens[0].get("iter"))
+                    if fld:
+                        raises_field = fld
+        elif s == "If":
+            fld = _cie_field_of_get(st.get("test"))
+            if fld:
+                all_field = fld
+            if _cie_calls_named(st.get("body"), "all_phase1_exceptions"):
+                has_all_phase1 = True
+        elif s == "Return":
+            v = st.get("value")
+            if (isinstance(v, dict) and v.get("type") == "BinOp"
+                    and v.get("op") == "-"):
+                ret_is_diff = True
+    if not (no_exc_field and all_field and raises_field
+            and has_setcomp and has_all_phase1 and ret_is_diff):
+        return None
+    return {"name": func["name"], "callee": callee,
+            "self_type": func.get("self_type"), "no_exc_field": no_exc_field,
+            "all_field": all_field, "raises_field": raises_field}
+
+
+def emit_callee_implicit_exceptions_group(desc: Dict[str, Any], whyml_ident,
+                                          top_ensures: Optional[List[str]] = None) -> List[str]:
+    """Emit `_callee_implicit_exceptions` as a per-callee `Set[str]` (`map string bool`)
+    set-difference `declared - proved`. Faithful, axiom-free (ledger 3), `ensures True`.
+    See the module note. Return type emitted directly -> NO global `Set[str]` retype."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "module6_whymltranspiler"
+    cn = whyml_ident(desc["callee"])
+    fno = whyml_ident(desc["no_exc_field"])
+    fall = whyml_ident(desc["all_field"])
+    fraises = whyml_ident(desc["raises_field"])
+    _te = list(top_ensures or ["true"])
+    _ens_line = "".join(f" ensures {{ {e} }}" for e in _te)
+    out: List[str] = []
+    # set_diff: PURE pointwise `let function` over the characteristic map (andb/notb) — no
+    # enumeration of the non-enumerable `map string bool` set (the certified diff shape).
+    out.append(f"  let function {P}set_diff (a b: map string bool) : map string bool")
+    out.append("    = fun (e: string) -> andb (Map.get a e) (notb (Map.get b e))")
+    # set_comp_str: PURE `let rec` building the characteristic set from the declared exc-name
+    # list via the certified `set_add` (Map.set _ true).
+    out.append(f"  let rec {P}set_comp_str (l: list string) : map string bool")
+    out.append("    requires { true } ensures { true } variant { l }")
+    out.append(f"  = match l with Nil -> const false"
+               f" | Cons x t -> set_add ({P}set_comp_str t) x end")
+    # Opaque-but-real leaf readers over the REAL self fields (the `set_of_arr` val form:
+    # sound under-approx, input-dependent on the real `map string (option int)` field lookup).
+    out.append(f"  val function {P}proved_of (m: map string (option int)) (k: string) : map string bool")
+    out.append(f"  val function {P}has_all (m: map string (option int)) (k: string) : bool")
+    out.append(f"  val function {P}raises_names (m: map string (option int)) (k: string) : list string")
+    out.append(f"  val function {P}all_phase1 (u: unit) : map string bool")
+    # Body: proved (∪ all_phase1 when the callee declares no_exception_all); declared via the
+    # real set_comp_str fold; result = declared - proved (real set_diff over real fields).
+    out.append(f"  let {n} (self: {self_type}) ({cn}: string) : map string bool")
+    out.append(f"    requires {{ true }}{_ens_line}")
+    out.append(f"  = let proved_base = {P}proved_of self.{fno} {cn} in")
+    out.append(f"    let proved = if {P}has_all self.{fall} {cn}"
+               f" then set_union proved_base ({P}all_phase1 ()) else proved_base in")
+    out.append(f"    let declared = {P}set_comp_str ({P}raises_names self.{fraises} {cn}) in")
+    out.append(f"    {P}set_diff declared proved")
+    return out
+
+
 # ---- `find_array_and_dict_vars`: two-set Assign-classification stmt-tree fold --------------
 # A recursive walk over a `list pyval` statement tree returning `Tuple[Set[str], Set[str]]`
 # (the array-typed and dict/set-typed body locals). At each `Assign` it classifies the bound

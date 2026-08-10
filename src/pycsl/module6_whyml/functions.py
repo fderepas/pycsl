@@ -3347,6 +3347,8 @@ class FunctionEmissionMixin:
             recognize_subclasses_of, emit_subclasses_of_group,
             recognize_collect_escaping_exceptions,
             emit_collect_escaping_exceptions_group,
+            recognize_callee_implicit_exceptions,
+            emit_callee_implicit_exceptions_group,
             recognize_find_array_and_dict_vars,
             emit_find_array_and_dict_vars_group,
             recognize_compute_scope_sets, emit_compute_scope_sets_group,
@@ -3960,6 +3962,14 @@ class FunctionEmissionMixin:
         if _cee is not None:
             return emit_collect_escaping_exceptions_group(
                 func, _cee, whyml_ident, self._lower_fold_ensures(func))
+        # item 1b-A: `_callee_implicit_exceptions` per-callee Set[str] set-difference
+        # (`declared - proved`). Return type emitted directly as `map string bool` ->
+        # NO global `_compute_return_type` retype (every other `Set[str]` \trusted stub
+        # keeps its `map int (option int)` val). Name+shape-gated -> byte-inert elsewhere.
+        _cie = recognize_callee_implicit_exceptions(func)
+        if _cie is not None:
+            return emit_callee_implicit_exceptions_group(
+                _cie, whyml_ident, self._lower_fold_ensures(func))
         _fadv = recognize_find_array_and_dict_vars(func)
         if _fadv is not None:
             return emit_find_array_and_dict_vars_group(

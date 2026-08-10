@@ -2087,6 +2087,7 @@ class PreambleEmissionMixin:
             recognize_handler_catches,
             recognize_subclasses_of,
             recognize_collect_escaping_exceptions,
+            recognize_callee_implicit_exceptions,
             recognize_find_array_and_dict_vars,
             recognize_classify,
             recognize_global_call_target,
@@ -2310,6 +2311,7 @@ class PreambleEmissionMixin:
             or recognize_frt(f) is not None
             or recognize_stmt_setfold(f) is not None
             or recognize_collect_escaping_exceptions(f) is not None
+            or recognize_callee_implicit_exceptions(f) is not None
             or recognize_find_array_and_dict_vars(f) is not None
             or recognize_void_generic_descend(f) is not None
             or recognize_wall2_items_walk(f) is not None

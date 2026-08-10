@@ -181,7 +181,6 @@ class Module6_WhyMLTranspiler(
             self._module_func_raises[name] = list(contracts.get("raises", []) or [])
             self._module_func_param_names[name] = list(func.get("formal_params", []) or [])
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
