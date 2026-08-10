@@ -191,6 +191,18 @@ START (standing), not as an interrupt. Rules:
 - **Full authority (current setting):** auto-pursue every item; the ONLY per-instance gates left are
   IRREVERSIBLE / OUTWARD actions — `git push`, anything destructive or externally-visible — never the
   build/verify. (If the user later narrows this, note the carve-out at the top of the backlog file.)
+- **CORPUS-AFFECTING VALUE-MODEL builds are IN SCOPE and AUTO-AUTHORIZED (2026-08-08 directive).** A build
+  whose spike shows it is *not byte-inert* — it changes global type-inference/lowering the corpus shares
+  (e.g. the `Set[str]` model + set ops, empty-collection-literal value-type inference, list-slice/concat
+  inference) — is NO LONGER a "flag for user authorization + hold" item. It is a normal backlog item pursued
+  autonomously under the **M1 discipline**: the corpus byte-diff is allowed to be non-zero PROVIDED (a) the
+  diff is EXACTLY the intended semantic correction (inspected, nothing incidental), AND (b) EVERY affected
+  corpus program still whole-file-proves 0 non-Valid (re-prove the changed set, no regression). A co-landing
+  axiom-free cert is still required for any genuinely new value shape; if the shape can't be certified
+  axiom-free, THAT (not the byte-diff) is the CERTIFIED-BOUNDARY. So a "spike PASSES → this is a big
+  corpus-affecting build" verdict now ESCALATES into the campaign (build → M1 byte-diff gate → control), it
+  does not stop the loop to ask. The floor is reached only when the backlog is truly exhausted (§A.3 / the
+  Exhaustion section of the backlog) — a not-yet-built corpus-affecting value-model item is NOT floor.
 - **The backlog is the escalation queue for Phase 2** (A.2.3): always take the top UNRESOLVED item. Mark items
   BROKEN / CERTIFIED-BOUNDARY as they resolve; a boundary records the capability that would reopen it.
 - **Seed + maintain it:** if the file is missing at A.1, create it from the measured walls in the impl docs +

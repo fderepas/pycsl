@@ -21,6 +21,34 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 1. **Cheap drain (always first, §P).** Any `\trusted` stub a fresh census rates `cheap_win==true`.
    Re-run after every wall breaks (a break may unlock cheap follow-ons).
 
+1b. **VALUE-MODEL builds — CURRENT FRONTIER at 750 (2026-08-08, PRE-AUTHORIZED, corpus-affecting → M1
+   discipline; see SKILL §A.6 "corpus-affecting value-model builds").** The seven-levers campaign
+   (754→750 + Module6 soundness un-mask, all committed 75747ae7/93e8b341/97e5690f/825772ec/d8169f2d)
+   exhausted the byte-inert capability gaps. The residual ~750 stubs are blocked behind three
+   mutually-entangled value-model capabilities. A post-campaign Set-model make-or-break spike CONFIRMED
+   feasibility of the value TYPE (axiom-free StrSet exists) but that wiring it is corpus-affecting (the
+   corpus uses the identical `Set[str]` shape, so no byte-inert gate) — i.e. an **M1-discipline build,
+   which is now AUTO-AUTHORIZED**, not a hold-and-ask. Pursue in this order:
+   - **(A) `Set[str]` type model + set ops** [highest leverage; unblocks CIE `_callee_implicit_exceptions`
+     + `_reset_module_accumulators` + the no-exception-summary cluster]. The value type EXISTS axiom-free
+     (executable `StrSet = clone set.SetApp`, proven by `getting-better/set-oracle.mlw`; value model
+     `set_add`=Map.set-true / `set_union`=orb-fold in preamble.py:3961/3970). MISSING: wire it through 6
+     emitter surfaces — return-type inference, field-value-type inference (`Dict[str,Set[str]]`), `set(x)`
+     copy-ctor, SetComp→set-building-fold (coupled to heterogeneous `pget` of `r["exc_type"]`), in-place
+     `.update`→`set_union` (+ array→set coercion), a new `set_diff` val (trivially axiom-free
+     `fun k->andb (Map.get a k)(notb (Map.get b k))`). GATE: M1 — the corpus Set[str] files
+     (0775/0940/0882/0883/0884/0941 + v2_setfold_spike + 0923_str_set_local) re-emit; the diff must be
+     EXACTLY the set-model correction AND each must re-prove 0 non-Valid.
+   - **(B) Empty-collection-literal value-type inference** [`{}`/`[]`/`set()` assigned to a typed field
+     infers the field's element type instead of the `option int` default]. Entangled with (A):
+     `_reset_module_accumulators` needs both. GATE: M1 (corpus empty-literal assignments re-emit).
+   - **(C) list-slice/concat type inference** [`x[1:]`, list-concat currently leak `int`/`array`].
+     GATE: M1.
+   Each: spike-first (census-p: does an existing model already cover it?), co-landing axiom-free cert for
+   any new value shape, three-plane battery with M1 byte-diff (exact diff + every affected program
+   re-proves), driver-verified, independent control agent. If a shape can't be certified axiom-free → THAT
+   is the CERTIFIED-BOUNDARY (not the byte-diff).
+
 2. **Recognizer-reach extensions (bounded, low-ROI but real).**
    - set-membership + subject-first-param discriminant for `recognize_type_existence` → unblocks
      `_union_c8_test_references_union_var` (measured: ~1 stub; over-engineering-adjacent, do it only
