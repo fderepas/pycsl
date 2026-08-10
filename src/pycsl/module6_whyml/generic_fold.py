@@ -29524,6 +29524,182 @@ def emit_collect_noreturn_names_group(desc: Dict[str, Any], whyml_ident) -> List
     return out
 
 
+def _match_self_recurse_for(stmt: Any, subj: str, fname: str,
+                            old_name: str, new_name: str,
+                            iter_is_values: bool) -> bool:
+    """`for <lv> in <subj>.values()/<subj>: <fname>(<lv>, <old_name>, <new_name>)`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For"):
+        return False
+    lv = stmt.get("target")
+    if not isinstance(lv, str):
+        return False
+    itr = stmt.get("iter")
+    if iter_is_values:
+        if not (isinstance(itr, dict) and itr.get("type") == "Call"
+                and itr.get("func") == f"{subj}.values" and not itr.get("args")):
+            return False
+    else:
+        if not _is_var(itr, subj):
+            return False
+    fb = stmt.get("body") or []
+    if len(fb) != 1:
+        return False
+    ex = fb[0]
+    if not (isinstance(ex, dict) and ex.get("stmt") == "Expr"):
+        return False
+    call = ex.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == fname):
+        return False
+    args = call.get("args") or []
+    return (len(args) == 3 and _is_var(args[0], lv)
+            and _is_var(args[1], old_name) and _is_var(args[2], new_name))
+
+
+def recognize_rewrite_ir_calls(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the recursive in-place Call-node rewriter
+    (`_rewrite_ir_calls` shape, seven-levers.md §1 — the canonical Lever-1
+    deep-dict-mutation target). Returns
+    {name, obj, old_name, new_name, type_key, call_tag, func_key} or None.
+    Never raises."""
+    try:
+        return _recognize_rewrite_ir_calls(func)
+    except Exception:
+        return None
+
+
+def _recognize_rewrite_ir_calls(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params") or []
+    if len(params) != 3:
+        return None
+    obj, old_name, new_name = params
+    if func.get("return_annotation") not in (None, "None"):
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    top = body[0]
+    # if isinstance(obj, dict): [inner-if, for-values]  else: [elif isinstance(obj,list)]
+    if not (isinstance(top, dict) and top.get("stmt") == "If"
+            and _match_isinstance(top.get("test"), obj, "dict")):
+        return None
+    tb = top.get("body") or []
+    if len(tb) != 2:
+        return None
+    inner_if, for_vals = tb
+    # inner if: obj.get("<type_key>") == "<call_tag>" and obj.get("<func_key>") == old_name
+    if not (isinstance(inner_if, dict) and inner_if.get("stmt") == "If"
+            and not inner_if.get("orelse")):
+        return None
+    test = inner_if.get("test")
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    left, right = test.get("left"), test.get("right")
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "=="):
+        return None
+    type_key = _match_get_call(left.get("left"), obj)
+    call_tag = _is_string(left.get("right"))
+    if type_key is None or call_tag is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "BinOp"
+            and right.get("op") == "=="):
+        return None
+    func_key = _match_get_call(right.get("left"), obj)
+    if func_key is None or not _is_var(right.get("right"), old_name):
+        return None
+    # inner body: obj["<func_key>"] = new_name  (ArraySet, the non-facade write signal)
+    ib = inner_if.get("body") or []
+    if len(ib) != 1:
+        return None
+    aset = ib[0]
+    if not (isinstance(aset, dict) and aset.get("stmt") == "ArraySet"
+            and _is_var(aset.get("array"), obj)
+            and _is_string(aset.get("index")) == func_key
+            and _is_var(aset.get("value"), new_name)):
+        return None
+    # for v in obj.values(): <self>(v, old_name, new_name)
+    if not _match_self_recurse_for(for_vals, obj, func.get("name"),
+                                   old_name, new_name, iter_is_values=True):
+        return None
+    # orelse: elif isinstance(obj, list): for item in obj: <self>(item, ...)
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    lif = orelse[0]
+    if not (isinstance(lif, dict) and lif.get("stmt") == "If"
+            and _match_isinstance(lif.get("test"), obj, "list")
+            and not lif.get("orelse")):
+        return None
+    lb = lif.get("body") or []
+    if len(lb) != 1:
+        return None
+    if not _match_self_recurse_for(lb[0], obj, func.get("name"),
+                                   old_name, new_name, iter_is_values=False):
+        return None
+    return {"name": func.get("name"), "obj": obj, "old_name": old_name,
+            "new_name": new_name, "type_key": type_key, "call_tag": call_tag,
+            "func_key": func_key}
+
+
+def emit_rewrite_ir_calls_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the recursive in-place Call-node rewriter over the certified
+    pyval/pydict bridge + the Lever-1 WRITE half (`pput_prog`): a mutual
+    `rw`/`rw_dict`/`rw_list` catamorphism that descends every dict value and
+    list element and, at a `type == "<call_tag>"` node whose `<func_key>`
+    equals `old_name`, replaces the `<func_key>` binding with `PStr new_name`
+    (`pput_prog`). Values are rebuilt FIRST (variant on the original `d`), then
+    the own-node put is applied to the rebuilt dict — equivalent to the Python
+    put-then-recurse (the func value is a string, inert under recursion) and
+    keeps the mutual variant trivial. The `#@ assigns <obj>` frame is realized
+    by the by-reference write-back wrapper (`obj := rw !obj`). Total +
+    terminating; `ensures true`. NO new type/axiom/cert (ledger 3); the write
+    half is certified in `Phase2c_PyValDict.v` / `PyValDict.lean`."""
+    n = whyml_ident(desc["name"])
+    old = whyml_ident(desc["old_name"])
+    new = whyml_ident(desc["new_name"])
+    obj = whyml_ident(desc["obj"])
+    tk = desc["type_key"]
+    tag = desc["call_tag"]
+    fk = desc["func_key"]
+    out: List[str] = []
+    out.append(f"  let rec {n}__rw (v: pyval) ({old}: string) ({new}: string) : pyval")
+    out.append("    variant { pv_size v } ensures { true }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        let d' = {n}__rw_dict d {old} {new} in")
+    out.append("        let d1 =")
+    out.append(f'          match pget_dyn "{tk}" d, pget_dyn "{fk}" d with')
+    out.append("          | Some (PStr t), Some (PStr f) ->")
+    out.append(f'              if pystr_eq t "{tag}" && pystr_eq f {old}')
+    out.append(f'              then pput_prog d\' (K_dyn "{fk}") (PStr {new})')
+    out.append("              else d'")
+    out.append("          | _ -> d'")
+    out.append("          end in")
+    out.append("        PDict d1")
+    out.append(f"    | PList xs -> PList ({n}__rw_list xs {old} {new})")
+    out.append("    | _ -> v")
+    out.append("    end")
+    out.append(f"  with {n}__rw_dict (d: pydict) ({old}: string) ({new}: string) : pydict")
+    out.append("    variant { size_dict d } ensures { true }")
+    out.append("  = match d with")
+    out.append("    | DNil -> DNil")
+    out.append(f"    | DCons k v rest -> DCons k ({n}__rw v {old} {new}) ({n}__rw_dict rest {old} {new})")
+    out.append("    end")
+    out.append(f"  with {n}__rw_list (xs: list pyval) ({old}: string) ({new}: string) : list pyval")
+    out.append("    variant { size_list xs } ensures { true }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> Nil")
+    out.append(f"    | Cons h t -> Cons ({n}__rw h {old} {new}) ({n}__rw_list t {old} {new})")
+    out.append("    end")
+    # top wrapper: `#@ assigns <obj>` realized by the by-reference write-back.
+    out.append(f"  let {n} ({obj}: ref pyval) ({old}: string) ({new}: string) : unit")
+    out.append(f"    writes {{ {obj} }} ensures {{ true }}")
+    out.append(f"  = {obj} := {n}__rw !{obj} {old} {new}")
+    return out
+
+
 def _match_not_isinstance(node: Any, subj: str, cls: str) -> bool:
     """`not isinstance(<subj>, <cls>)` (UnaryOp not over isinstance)."""
     return (isinstance(node, dict) and node.get("type") == "UnaryOp"

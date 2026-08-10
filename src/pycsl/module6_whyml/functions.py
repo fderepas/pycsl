@@ -3586,6 +3586,16 @@ class FunctionEmissionMixin:
         _cnn = recognize_collect_noreturn_names(func)
         if _cnn is not None:
             return emit_collect_noreturn_names_group(_cnn, whyml_ident)
+        # seven-levers §1 (Lever 1 — pydict WRITE half): the recursive in-place
+        # Call-node rewriter (`_rewrite_ir_calls`) — a deep-dict-mutation walk
+        # framed by the by-reference model (`#@ assigns obj`). Descends every
+        # dict value / list element over the certified pyval bridge and `pput`s
+        # `func` -> new_name at a matching Call node. Corpus-inert; fail-closed.
+        from module6_whyml.generic_fold import (
+            recognize_rewrite_ir_calls, emit_rewrite_ir_calls_group)
+        _ric = recognize_rewrite_ir_calls(func)
+        if _ric is not None:
+            return emit_rewrite_ir_calls_group(_ric, whyml_ident)
         # #2 the bool guard-cascade ending in read-only-set-param membership
         # (`_stmt_is_noreturn_call`) — nested `s.get(stmt/value/type/func)`
         # field reads terminating in `fn in <set_param>` (`Map.get`). The

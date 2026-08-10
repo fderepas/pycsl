@@ -408,10 +408,115 @@ Proof.
 Qed.
 
 (* ===================================================================== *)
+(* §10.5 — THE WRITE HALF (Lever 1): `pput` (Map.set over the assoc list)   *)
+(*      + `pappend` (list construct/append), with the characterizing law    *)
+(*      pack.  The read side (`get`/`pget_dyn`) already lands; this          *)
+(*      certificate is the missing construction primitive co-landing with    *)
+(*      the WhyML `pput`/`pappend` promoted into the emitter preamble        *)
+(*      (`module6_whyml/preamble.py::_pyput_theory_lines`).  It certifies —   *)
+(*      against the same pure inductive datatypes, NO axiom — exactly the     *)
+(*      laws the Lever-1 spike (`scratchpad/lever1_pput_spike.mlw`) proved    *)
+(*      on alt-ergo + z3, so the write value shape lands with a proof.        *)
+(*                                                                           *)
+(*      pput = the total structural Map.set: replace the value if the key is  *)
+(*      present, else cons the new binding.  Its realizability (totality)     *)
+(*      justifies the WhyML program `val pput_prog ... ensures {result=pput}` *)
+(*      wrapper (the established `set_add` realizable-spec pattern).          *)
+(* ===================================================================== *)
+
+Fixpoint pput (d : pydict) (k : irkey) (v : pyval) : pydict :=
+  match d with
+  | DNil => DCons k v DNil
+  | DCons k' v' rest =>
+      if irkey_eqb k k' then DCons k v rest else DCons k' v' (pput rest k v)
+  end.
+
+(* (W1) write-then-read the SAME key returns the written value (Map.set law). *)
+Lemma get_pput_same : forall d k v, get (pput d k v) k = Some v.
+Proof.
+  induction d as [| k' v' rest IH]; intros k v.
+  - simpl. rewrite irkey_eqb_refl. reflexivity.
+  - simpl. destruct (irkey_eqb k k') eqn:E.
+    + simpl. rewrite irkey_eqb_refl. reflexivity.
+    + simpl. rewrite E. apply IH.
+Qed.
+
+(* (W2) a write at k does NOT disturb any OTHER key's binding (frame law). *)
+Lemma get_pput_other :
+  forall d k k2 v, k2 <> k -> get (pput d k v) k2 = get d k2.
+Proof.
+  induction d as [| k' v' rest IH]; intros k k2 v Hne.
+  - simpl. destruct (irkey_eqb k2 k) eqn:E.
+    + apply irkey_eqb_eq in E. subst k2. contradiction.
+    + reflexivity.
+  - simpl. destruct (irkey_eqb k k') eqn:E.
+    + apply irkey_eqb_eq in E. subst k'. simpl.
+      destruct (irkey_eqb k2 k) eqn:E2.
+      * apply irkey_eqb_eq in E2. subst k2. contradiction.
+      * reflexivity.
+    + simpl. destruct (irkey_eqb k2 k') eqn:E2.
+      * reflexivity.
+      * apply IH. exact Hne.
+Qed.
+
+(* (W3) the key is a member after a write (feeds guarded reads). *)
+Lemma mem_pput_same : forall d k v, mem_key (pput d k v) k = true.
+Proof.
+  induction d as [| k' v' rest IH]; intros k v.
+  - simpl. rewrite irkey_eqb_refl. reflexivity.
+  - simpl. destruct (irkey_eqb k k') eqn:E.
+    + simpl. rewrite irkey_eqb_refl. reflexivity.
+    + simpl. rewrite E. simpl. apply IH.
+Qed.
+
+(* (W4) the SIZE composition law: a write grows the dict by at most
+   size v + 1 (exactly when the key is fresh; a replace can only shrink).
+   This is the crux fact the read-side pget_* `ensures` compose against. *)
+Theorem size_dict_pput :
+  forall d k v, size_dict (pput d k v) <= size_dict d + size v + 1.
+Proof.
+  induction d as [| k' v' rest IH]; intros k v.
+  - simpl. lia.
+  - simpl. destruct (irkey_eqb k k') eqn:E.
+    + simpl. lia.
+    + simpl. specialize (IH k v). lia.
+Qed.
+
+(* ---- pappend : list construct/append (d.append / insert-at-end) ---- *)
+Fixpoint pappend (l : list pyval) (x : pyval) : list pyval :=
+  match l with
+  | [] => x :: []
+  | h :: t => h :: pappend t x
+  end.
+
+(* (W5) append adds exactly one cell of weight (1 + size x). *)
+Theorem size_list_pappend :
+  forall l x, size_list (pappend l x) = size_list l + size x + 1.
+Proof.
+  induction l as [| h t IH]; intros x; simpl.
+  - lia.
+  - rewrite IH. lia.
+Qed.
+
+(* (W6) the appended element is a member of the result. *)
+Theorem mem_pappend : forall l x, In x (pappend l x).
+Proof.
+  induction l as [| h t IH]; intros x; simpl.
+  - left; reflexivity.
+  - right; apply IH.
+Qed.
+
+(* ===================================================================== *)
 (* VERDICT — assumption audit.  Every result Closed under the global       *)
 (*    context (NO axiom): the 3-axiom trust ledger is intact, +0.          *)
 (* ===================================================================== *)
 
+Print Assumptions get_pput_same.
+Print Assumptions get_pput_other.
+Print Assumptions mem_pput_same.
+Print Assumptions size_dict_pput.
+Print Assumptions size_list_pappend.
+Print Assumptions mem_pappend.
 Print Assumptions key_roundtrip.
 Print Assumptions string_of_key_inj.
 Print Assumptions irkey_eqb_eq.

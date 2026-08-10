@@ -2125,7 +2125,13 @@ class PreambleEmissionMixin:
         # to the env-threaded pyval/pydict group and additionally needs the
         # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
         # already-landed pydict-group mirrors stay byte-identical).
+        from module6_whyml.generic_fold import recognize_rewrite_ir_calls
         needs_sdict = any(
+            # seven-levers §1 (Lever 1): `_rewrite_ir_calls`'s `rw` reads
+            # `obj.get(...)` via the program-context `pget_dyn` reader (bridge
+            # theory, emitted with the sdict block); route sdict on so the reader
+            # is in scope.
+            recognize_rewrite_ir_calls(f) is not None or
             recognize_sawalk(f) is not None or recognize_dictfold(f) is not None
             or recognize_pbexpr(f) is not None
             or recognize_cs_clause(f) is not None
@@ -2162,7 +2168,8 @@ class PreambleEmissionMixin:
         # so every already-landed sdict mirror stays byte-identical; corpus-inert.
         from module6_whyml.generic_fold import (
             recognize_collect_noreturn_names, recognize_stmt_noreturn_call,
-            recognize_noreturn_walk_stmts, recognize_check_noreturn_successors)
+            recognize_noreturn_walk_stmts, recognize_check_noreturn_successors,
+            recognize_rewrite_ir_calls)
         needs_pdict_bridge = any(
             recognize_check_contract_exprs(f) is not None
             or recognize_check_body_walk(f) is not None
@@ -2195,6 +2202,16 @@ class PreambleEmissionMixin:
             or recognize_classify(f) is not None
             or recognize_global_call_target(f) is not None
             or recognize_method_edges(f) is not None
+            # Lever 1 (`_rewrite_ir_calls`): the `rw` walk reads `obj.get(...)`
+            # via `pget_dyn` (bridge theory).
+            or recognize_rewrite_ir_calls(f) is not None
+            for f in functions)
+        # seven-levers §1 (Lever 1): the pydict WRITE half (`pput`/`pappend` +
+        # the by-reference `#@ assigns` frame). Gated separately so every
+        # already-landed pydict mirror stays byte-identical; corpus-inert (only
+        # a construction recognizer sets it).
+        needs_pput = any(
+            recognize_rewrite_ir_calls(f) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
@@ -2341,6 +2358,10 @@ class PreambleEmissionMixin:
             # `Map.get`) then void-dispatch to a converted walker.
             or recognize_symtab_set_dispatch(
                 f, {g.get("name"): g for g in functions if isinstance(g, dict)}) is not None
+            # seven-levers §1 (Lever 1 — pydict WRITE half): `_rewrite_ir_calls`
+            # folds pyval/pydict/list (`pv_size`/`size_dict`/`size_list`) and
+            # `pput`s at Call nodes — needs the base pydict theory.
+            or recognize_rewrite_ir_calls(f) is not None
             for f in functions)
         # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
         # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only
@@ -2749,6 +2770,7 @@ class PreambleEmissionMixin:
             "needs_term_eq": needs_term_eq,
             "needs_sdict": needs_sdict,
             "needs_pdict_bridge": needs_pdict_bridge,
+            "needs_pput": needs_pput,
             "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
             "needs_matrix": needs_matrix,
@@ -3626,7 +3648,99 @@ class PreambleEmissionMixin:
         `_emit_preamble_uses` under the same gate."""
         if not needs.get("needs_pydict"):
             return []
-        return self._pydict_theory_lines() + self._sdict_theory_lines(needs)
+        return (self._pydict_theory_lines() + self._sdict_theory_lines(needs)
+                + self._pyput_theory_lines(needs))
+
+    def _pyput_theory_lines(self, needs: Dict[str, Any]) -> List[str]:
+        """LEVER 1 (seven-levers.md §1): the WRITE half of the pydict value model
+        — `pput` (Map.set over the certified assoc-list `pydict`) + `pappend`
+        (list construct/append), with the characterizing law pack and the program
+        wrappers/by-reference frames the emitter's construction recognizers call.
+
+        `pput`/`pappend` are pure LOGIC `function`s with total structural bodies,
+        so they add NO VC of their own; the laws (`get_pput_same`/`get_pput_other`/
+        `size_dict_pput`/`mem_pput_same`/`size_pappend`/`mem_pappend`) are each a
+        PROVEN `let rec lemma` (the recursion IS the induction) — NO `axiom`. The
+        program `val pput_prog`/`pappend_prog` and the by-reference `val`
+        `set_field_inplace`/`set_add_inplace` are realizable-by-construction (the
+        logic functions witness a result satisfying each `ensures` EXISTS — the
+        established `set_add` pattern), so they add no assumption a model couldn't
+        realize. The Rocq/Lean twins (`Phase2c_PyValDict.v::pput/pappend` +
+        `PyValDict.lean::pput/pappend`) certify the SAME laws axiom-free
+        (`Print Assumptions`/`#print axioms` == 3), so the ledger is UNCHANGED.
+
+        ADDITIVE / inert: gated on `needs_pput` (nothing in the reference corpus
+        sets it; only a Lever-1 construction recognizer routes it on), so the
+        emission is byte-diff-0 on the corpus. Requires the base `needs_pydict`
+        theory (pydict/get/mem_key/pv_size/size_list/size_dict) in scope."""
+        if not needs.get("needs_pput"):
+            return []
+        return [
+            "",
+            "  (* ==== seven-levers §1: the WRITE half — pput / pappend (construction) ==== *)",
+            "  (* pput = total structural Map.set over the assoc-list pydict: replace the *)",
+            "  (* value if the key is present, else cons the new binding. LOGIC function *)",
+            "  (* (structural body => no VC of its own); irkey `=` is LOGIC equality here. *)",
+            "  function pput (d: pydict) (k: irkey) (v: pyval) : pydict",
+            "  = match d with",
+            "    | DNil -> DCons k v DNil",
+            "    | DCons k' v' rest ->",
+            "        if k = k' then DCons k v rest else DCons k' v' (pput rest k v)",
+            "    end",
+            "",
+            "  (* pappend = list construct/append (d.append / insert-at-end). *)",
+            "  function pappend (l: list pyval) (x: pyval) : list pyval",
+            "  = match l with Nil -> Cons x Nil | Cons h t -> Cons h (pappend t x) end",
+            "",
+            "  (* ---- the characterizing law pack (each a PROVEN `let rec lemma`, no axiom); *)",
+            "  (* bodies match on the structure and recurse UNCONDITIONALLY, the SMT closes *)",
+            "  (* the `k = k'` case split inside each arm's VC. Certified in Phase2c_PyValDict.v. *)",
+            "  let rec lemma get_pput_same (d: pydict) (k: irkey) (v: pyval) : unit",
+            "    ensures { get (pput d k v) k = Some v } variant { d }",
+            "  = match d with DNil -> () | DCons _ _ rest -> get_pput_same rest k v end",
+            "",
+            "  let rec lemma get_pput_other (d: pydict) (k k2: irkey) (v: pyval) : unit",
+            "    requires { k2 <> k }",
+            "    ensures  { get (pput d k v) k2 = get d k2 } variant { d }",
+            "  = match d with DNil -> () | DCons _ _ rest -> get_pput_other rest k k2 v end",
+            "",
+            "  let rec lemma size_dict_pput (d: pydict) (k: irkey) (v: pyval) : unit",
+            "    ensures { size_dict (pput d k v) <= size_dict d + pv_size v + 1 }",
+            "    ensures { size_dict (pput d k v) >= 0 }",
+            "    variant { d }",
+            "  = match d with",
+            "    | DNil -> size_pos v",
+            "    | DCons _ v' rest ->",
+            "        size_pos v; size_pos v'; size_dict_nonneg rest; size_dict_pput rest k v",
+            "    end",
+            "",
+            "  let rec lemma mem_pput_same (d: pydict) (k: irkey) (v: pyval) : unit",
+            "    ensures { mem_key (pput d k v) k } variant { d }",
+            "  = match d with DNil -> () | DCons _ _ rest -> mem_pput_same rest k v end",
+            "",
+            "  let rec lemma size_pappend (l: list pyval) (x: pyval) : unit",
+            "    ensures { size_list (pappend l x) = size_list l + pv_size x + 1 }",
+            "    variant { l }",
+            "  = match l with Nil -> () | Cons _ t -> size_pappend t x end",
+            "",
+            "  (* ---- program wrappers (realizable-by-construction; the emitter calls THESE) *)",
+            "  val pput_prog (d: pydict) (k: irkey) (v: pyval) : pydict",
+            "    ensures { result = pput d k v }",
+            "  val pappend_prog (l: list pyval) (x: pyval) : list pyval",
+            "    ensures { result = pappend l x }",
+            "",
+            "  (* ---- by-reference mutation frames: the `#@ assigns d` (dict/set param) model. *)",
+            "  (* `d[k]=v` on a by-value dict param lowers to a `ref pydict` in-place set; *)",
+            "  (* `s.add e` on a Set[str] param to a `ref (map string bool)` bit-set. *)",
+            "  val set_field_inplace (r: ref pydict) (k: irkey) (v: pyval) : unit",
+            "    writes  { r }",
+            "    ensures { !r = pput (old !r) k v }",
+            "    ensures { get !r k = Some v }",
+            "  val set_add_inplace (s: ref (map string bool)) (e: string) : unit",
+            "    writes  { s }",
+            "    ensures { !s = Map.set (old !s) e true }",
+            "    ensures { Map.get !s e = true }",
+        ]
 
     def _sdict_theory_lines(self, needs: Dict[str, Any]) -> List[str]:
         """ir-traversal-residual T3 (plan §5): the string-keyed symbol table

@@ -293,6 +293,103 @@ theorem size_slookup_mem (s : SDict) (k : String) (v : PyVal)
         have := ih h
         simp only [sdictSize]; omega
 
+-- ===================================================================== --
+-- §10.5 — THE WRITE HALF (Lever 1): `pput` (Map.set over the assoc list)   --
+--   + `pappend` (list construct/append), with the characterizing law pack. --
+--   Co-lands with the WhyML `pput`/`pappend` promoted into the emitter      --
+--   preamble; certifies (NO 4th axiom) the laws the Lever-1 spike proved.   --
+-- ===================================================================== --
+
+/-- `pput` — total structural Map.set: replace the value if the key is
+    present, else cons the new binding.  Realizability (totality) justifies
+    the WhyML program `val pput_prog ... ensures {result = pput ...}` wrapper. -/
+def pput : PyDict → IrKey → PyVal → PyDict
+  | [], k, v => [(k, v)]
+  | (k', v') :: rest, k, v =>
+      if k == k' then (k, v) :: rest else (k', v') :: pput rest k v
+
+/-- (W1) write-then-read the SAME key returns the written value. -/
+theorem get_pput_same (d : PyDict) (k : IrKey) (v : PyVal) :
+    get (pput d k v) k = some v := by
+  induction d with
+  | nil => simp [pput, get]
+  | cons hd rest ih =>
+      obtain ⟨k', v'⟩ := hd
+      simp only [pput]
+      by_cases hk : k == k'
+      · simp [get, hk]
+      · simp only [hk, if_false, Bool.false_eq_true]
+        simp only [get, hk, if_false, Bool.false_eq_true]
+        exact ih
+
+/-- (W2) a write at `k` does not disturb any OTHER key's binding. -/
+theorem get_pput_other (d : PyDict) (k k2 : IrKey) (v : PyVal) (hne : k2 ≠ k) :
+    get (pput d k v) k2 = get d k2 := by
+  induction d with
+  | nil =>
+      simp only [pput, get]
+      have : ¬ (k2 == k) := by simpa using hne
+      simp [this]
+  | cons hd rest ih =>
+      obtain ⟨k', v'⟩ := hd
+      simp only [pput]
+      by_cases hk : k == k'
+      · simp only [hk, if_true]
+        have hkk : k = k' := by simpa using hk
+        subst hkk
+        simp only [get]
+        have hnk : ¬ (k2 == k) := by simpa using hne
+        simp only [hnk, if_false, Bool.false_eq_true]
+      · simp only [hk, if_false, Bool.false_eq_true]
+        simp only [get]
+        by_cases hk2 : k2 == k'
+        · simp only [hk2, if_true]
+        · simp only [hk2, if_false, Bool.false_eq_true]
+          exact ih
+
+/-- (W3) the key is a member after a write. -/
+theorem mem_pput_same (d : PyDict) (k : IrKey) (v : PyVal) :
+    memKey (pput d k v) k = true := by
+  induction d with
+  | nil => simp [pput, memKey]
+  | cons hd rest ih =>
+      obtain ⟨k', v'⟩ := hd
+      simp only [pput]
+      by_cases hk : k == k'
+      · simp [memKey, hk]
+      · simp only [hk, if_false, Bool.false_eq_true]
+        simp [memKey, hk, ih]
+
+/-- (W4) SIZE composition: a write grows the dict by at most `size v + 1`. -/
+theorem size_dict_pput (d : PyDict) (k : IrKey) (v : PyVal) :
+    sizeDict (pput d k v) ≤ sizeDict d + size v + 1 := by
+  induction d with
+  | nil => simp only [pput, sizeDict]; omega
+  | cons hd rest ih =>
+      obtain ⟨k', v'⟩ := hd
+      simp only [pput]
+      by_cases hk : k == k'
+      · simp only [hk, if_true, sizeDict]; omega
+      · simp only [hk, if_false, Bool.false_eq_true, sizeDict]; omega
+
+/-- `pappend` — list construct/append (d.append / insert-at-end). -/
+def pappend : List PyVal → PyVal → List PyVal
+  | [], x => [x]
+  | h :: t, x => h :: pappend t x
+
+/-- (W5) append adds exactly one cell of weight `1 + size x`. -/
+theorem size_list_pappend (l : List PyVal) (x : PyVal) :
+    sizeList (pappend l x) = sizeList l + size x + 1 := by
+  induction l with
+  | nil => simp only [pappend, sizeList]; omega
+  | cons h t ih => simp only [pappend, sizeList, ih]; omega
+
+/-- (W6) the appended element is a member of the result. -/
+theorem mem_pappend (l : List PyVal) (x : PyVal) : x ∈ pappend l x := by
+  induction l with
+  | nil => simp [pappend]
+  | cons h t ih => simp [pappend]; exact Or.inr ih
+
 end PyValDict
 
 -- ===================================================================== --
@@ -300,6 +397,12 @@ end PyValDict
 --   appear; NO 4th, extension-specific axiom (ledger intact, +0).         --
 -- ===================================================================== --
 
+#print axioms PyValDict.get_pput_same
+#print axioms PyValDict.get_pput_other
+#print axioms PyValDict.mem_pput_same
+#print axioms PyValDict.size_dict_pput
+#print axioms PyValDict.size_list_pappend
+#print axioms PyValDict.mem_pappend
 #print axioms PyValDict.key_roundtrip
 #print axioms PyValDict.stringOfKey_inj
 #print axioms PyValDict.get_hit_head

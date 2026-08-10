@@ -32,12 +32,19 @@ def _collect_calls(obj: Any) -> Set[str]:
             calls |= _collect_calls(item)
     return calls
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns obj
 def _rewrite_ir_calls(obj: Any, old_name: str, new_name: str) -> None:
-    pass
+    """Recursively rewrite Call nodes: func old_name → new_name."""
+    if isinstance(obj, dict):
+        if obj.get("type") == "Call" and obj.get("func") == old_name:
+            obj["func"] = new_name
+        for v in obj.values():
+            _rewrite_ir_calls(v, old_name, new_name)
+    elif isinstance(obj, list):
+        for item in obj:
+            _rewrite_ir_calls(item, old_name, new_name)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
