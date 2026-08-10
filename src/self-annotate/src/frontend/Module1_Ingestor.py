@@ -25,12 +25,19 @@ _HEADER_CONSUMERS = {'ClassDef', 'FunctionDef', 'While', 'For', 'With'}
 class _Target:
     'One statement in source order, as the harvester sees it.'
     __slots__ = ('node', 'node_type', 'node_name', 'start_line', 'report_line', 'indent', 'child_suites', 'leading', 'footer')
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, node, node_type, node_name, start_line, report_line, indent):
-        pass
+        self.node = node
+        self.node_type = node_type
+        self.node_name = node_name
+        self.start_line = start_line
+        self.report_line = report_line
+        self.indent = indent
+        self.child_suites = []
+        self.leading: List[str] = []
+        self.footer: List[str] = []
 
 
 #@ requires True
@@ -65,12 +72,11 @@ def _indent_width(body: str) -> int:
 
 class Module1_Ingestor:
     'Ingests source code and extracts `#@` annotations as PyCSLContracts.'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, source_code: str) -> None:
-        pass
+        self.source_code = source_code
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -81,12 +87,18 @@ class Module1_Ingestor:
 
 
 class _Harvester:
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, comments: List[ast.Comment]) -> None:
-        pass
+        self._coms = sorted(comments, key=lambda c: c.lineno)
+        self._out: List[PyCSLContract] = []
+        self._module_header: List[str] = []
+        self._module_contracts: List[str] = []
+        self._header_consumed = False
+        self._flat: List[_Target] = []
+        self._dec_ranges: List[tuple] = []
+        self._cur_class: Optional[str] = None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
