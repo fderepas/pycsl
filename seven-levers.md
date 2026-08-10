@@ -1,5 +1,27 @@
 # Seven Authorize-First Levers — Plan to Reduce the Self-TCB Below 754
 
+> ## ✅ OUTCOMES — campaign COMPLETE (all 7 levers processed; each built by a sub-agent then independently control-verified)
+>
+> **Net: 754 → 750 (4 conversions) + a soundness un-masking.** Ledger held at 3 throughout, no axiom
+> smuggled; every increment passed the full three-L-plane battery (whole-file proof 0 non-Valid ∧ corpus
+> byte-diff 0 ∧ fidelity 52/52 ∧ ledger==3 ∧ Gate-C non-vacuity), then an independent control agent re-verified it.
+>
+> | # | Outcome | Commit | Count |
+> |---|---------|--------|-------|
+> | **1** | ✅ **LANDED** — `_rewrite_ir_calls` via pput/pappend construction primitive + axiom-free co-landing cert | `75747ae7` | 754→753 |
+> | **2** | ✅ **LANDED** — `_csl_to_str` routed through the already-certified emit_ir variant ADT (option-(a) refuted, option-(b) landed; no new cert) | `93e8b341` | 753→752 |
+> | **3** | ⚖️ **CERTIFIED-BOUNDARY** — string fixes built + byte-inert but convert 0 stubs alone; sole carrier `_emit_frame_condition` blocked by an orthogonal emit_ir-dict-subscript value-model wall. Capability banked. | — | 752 |
+> | **4** | ⚖️ **CERTIFIED-BOUNDARY** — the getattr-self-map-set capability ALREADY EXISTS + is sound; the only 2 carriers gate the write behind a nested-closure-walker (capture-drop) + set-iteration lowering = separate veins. | — | 752 |
+> | **5** | ✅ **LANDED** — `_build_method_field_param_frame_ensures_map`; the `#@ requires_method` interface already existed (fidelity oracle untouched), resolved by faithfully INLINING `_frame_trigger_term` as a real pyval catamorphism (sibling modeled, not trusted). Broader ~20-stub payload refuted as unsound count-relocation. | `97e5690f` | 752→751 |
+> | **6** | ✅ **LANDED** — `_try_local_decl_kind`; value-preserving or/and over emit_ir operands, operand-type-gated so int or/and stays byte-identical (highest byte-diff risk → byte-diff 0 confirmed on 812 drivers). | `825772ec` | 751→750 |
+> | **7** | ✅ **LANDED (SOUNDNESS)** — un-masked Module6_WhyMLTranspiler.py (was RED at type-check → 3 illusory-verified methods). 7a union-arm fix + trusted-parent **val-inherit** (a `#@ \trusted` parent's lifted nested helper inherits trust → emits as `val`). File now whole-file-proves 0 non-Valid; 2 methods genuinely discharge; hole closed. **7b's predicted `_collect_variant_var_assigns` wall was REFUTED** (all Valid) — real blocker was `_hdr_name` termination. Count stays 750 (soundness win, no ledger method to re-trust). No sibling regression (pycsl.py/statements.py both re-proved). | `d8169f2d` | 750 |
+>
+> **Banked devices (reusable):** pput/pappend construction op (L1); reuse an existing certified variant ADT (emit_ir) to model a different opaque-int record via forward-ref retype (L2); inline a trusted-stub sibling's real pyval logic into a recognizer's catamorphism (L5); operand-type-gated lowering fix for a universal path (L6); trusted-parent val-inherit emitter capability (L7).
+>
+> **Post-campaign (frontier at floor):** a drain of the newly-unblocked clusters found **no cheap win**; a make-or-break Set[str]-model spike returned **CERTIFIED-BOUNDARY** (the Set value *type* exists axiom-free, but wiring it through 6 emitter surfaces is corpus-affecting + not byte-inert-gateable — the corpus uses the identical `Set[str]` shape). The three residual value-model capabilities — **(A) `Set[str]` model + set ops, (B) empty-collection-literal value-type inference, (C) list-slice/concat inference** — are mutually entangled, corpus-affecting, and require a deliberate multi-session build with a corpus byte-diff sweep as gate (same class as the heterogeneous-Dict value-model wall). They are the next authorize-first tier.
+>
+> ---
+
 **Context.** Run #3 of the self-tcb-reduction driver drove the self-annotation mirror's
 `#@ \trusted` count `783 → 754` (29 conversions) and then bottomed out. Every *reachable*
 vein was drained with the existing (ledger-3, no-new-axiom) device set; the residual ~754
@@ -25,6 +47,8 @@ in parallel.
 ---
 
 ## Lever 1 — Pydict copy-and-set-field / dict-param-mutation construction primitive
+> **STATUS: ✅ LANDED** (`75747ae7`, 754→753). pput/pappend built + axiom-free co-landing cert; `_rewrite_ir_calls` converted; control CONFIRMED. (The broader cluster's other stubs measured post-campaign = trusted-stub placeholder bodies needing full verbatim ports, not cheap peels.)
+
 **Gap.** The emitter models heterogeneous `Dict[str, Any]` as *readable* (pget_dyn / pget_list /
 size_dict / K_dyn) but has **no sound write/construct op**: `dict(func)` + `func["x"]=v`,
 `{**a, **b}` merge, `d.insert/append`, and in-place `m[k]=v` on a **by-value dict/set param**
@@ -55,6 +79,8 @@ recognizers, corpus programs don't use these self-annotation shapes). The cert i
 ---
 
 ## Lever 2 — Typed record-field accessors / CSLNode-as-variant
+> **STATUS: ✅ LANDED** (`93e8b341`, 753→752). Option (a) REFUTED by spike (opaque-int projectors can't discharge the recursive variant-decrease VC without a smuggled axiom); option (b) landed by routing `_csl_to_str` through the already-certified emit_ir variant ADT (no new cert). Term→Term rewriter half (canonical.py) remains — a different Term-ADT carrier, follow-on. Control CONFIRMED.
+
 **Gap.** The CSL-node and IR record ADTs (Var/Number/BinOp/… ~213 CSLNode subclasses; the Term
 ADT) are modeled as opaque `int` with **int-only** auto-generated field accessors
 (`get_name`/`get_op`/`get_value` all `: int`) and an opaque `isinstance_op` (constant args).
@@ -84,6 +110,8 @@ narrowing, prove the recursive str-catamorphism (size-measure variant) discharge
 ---
 
 ## Lever 3 — Faithful `List[str]` string-membership + f-string-literal preservation
+> **STATUS: ⚖️ CERTIFIED-BOUNDARY** (no commit, 0 conversions). Both string fixes (List[str] membership → `seq_mem_str`; f-string-literal preservation) BUILT + correct + byte-inert-gateable, but convert 0 stubs ALONE — the sole clean carrier `_emit_frame_condition` has a THIRD orthogonal blocker (`AssignsRegion` does `subscript_get !r <hash>` fed to `_expr_to_whyml` expecting `emit_ir` = the heterogeneous-dict/emit_ir value-model wall, un-guardable). The "~30 string-emitters" reopen claim was over-optimistic (gated behind the same value-model wall). Capability banked for a future co-land. Control CONFIRMED (no missed carrier).
+
 **Gap.** Two emitter-core string limits: (1) `x not in field_targets` over a `List[str]` lowers
 to `contains_check (str_hash_op x) field_targets` — int vs `seq string` clash; (2) f-string
 literal segments lower to hashed ints (`str_concat` type error). The str-build lowering itself
@@ -108,6 +136,8 @@ discipline, review-gated).
 ---
 
 ## Lever 4 — getattr-self-mutable-field emitter capability
+> **STATUS: ⚖️ CERTIFIED-BOUNDARY** (no commit, 0 conversions). POSITIVE sub-finding: the getattr-alias→self-map-set write capability ALREADY EXISTS + is sound (map-value type `string`, tight `writes { self._current_symbol_table }` frame, `map_update_some`). But the only 2 carriers (`_collect_string_elem_read_locals`, `_collect_field_decode_str_locals`) gate the write behind 4 orthogonal out-of-scope blockers: (1) nested-closure walker capture-drop = Gate-C facade [needs the nested-walker mutual-catamorphism vein]; (2) set-iteration lowered as array iteration; (3) nested-rec param type; (4) undeclared getattr field. Control CONFIRMED (getattr write itself framed+sound; no missed carrier).
+
 **Gap.** `st = getattr(self, "_current_symbol_table", None); st[v] = "str"` — the alias `st` is not
 modeled as the mutable self field, so the write can't be framed (`assigns self._current_symbol_table`),
 and declaring `assigns \nothing` would be an unsound trusted-frame-drop. A positive-control `.mlw`
@@ -130,6 +160,8 @@ prove whole-file. REFUTE if the heterogeneous `Any` map-value can't be faithfull
 ---
 
 ## Lever 5 — Cross-mixin declared-interface (`#@ requires_method`)
+> **STATUS: ✅ LANDED** (`97e5690f`, 752→751). FINDING: the `#@ requires_method` interface mechanism ALREADY EXISTS + is sound (Track B narrowing VC) — the fidelity oracle needed NO change and got none (no gate-loosening). The spike target `_build_method_field_param_frame_ensures_map` didn't need the interface; resolved by adding a name-keyed recognizer that faithfully INLINES `_frame_trigger_term` as a real pyval mutual catamorphism (0 opaque vals — sibling MODELED, not trusted; strictly stronger than requires_method). Broader ~20 statements.py re-declarations REFUTED as unsound (their home defs are all themselves `\trusted` → count-relocation, not TCB reduction). Control CONFIRMED.
+
 **Gap.** `bin/check-self-annotate-mirror-sync.py` requires an un-`\trusted` mirror function to be
 byte-identical to a live function at the **same relative path**. But ~20 `statements.py` stubs are
 *re-declarations* whose real bodies live in `expressions.py`/`types.py`/`preamble.py`
@@ -154,6 +186,8 @@ oracle can't be taught the interface check.
 ---
 
 ## Lever 6 — Value-preserving `or`/`and` over structured types
+> **STATUS: ✅ LANDED** (`825772ec`, 751→750). Spike PASSED: the value-preserving or/and is operand-type-gated (`not _in_spec and _is_emit_ir_expr(left) and _is_emit_ir_expr(right)`) so int or/and falls through the unchanged path → byte-identical. `_try_local_decl_kind` converted (reads real emit_ir); trusted stub `_first_assign_value_ir` retyped `-> "ExprIR"` (stays trusted) so the caller's `A or B` types as emit_ir. Byte-diff 0 on 812 drivers (the decisive gate — the corpus emit_ir test family has no emit_ir-operand or/and). Control CONFIRMED.
+
 **Gap.** Python `A or B` in body context lowers to an **int truthiness collapse**
 (`if (A<>0)||(B<>0) then 1 else 0`), regardless of operand type. So converting a callee to require
 a structured param (e.g. `emit_ir`) type-fails its *verified caller* that passes `A or B`
@@ -175,6 +209,8 @@ structured operands only → inert; if it changes int `or` → semantics-change,
 ---
 
 ## Lever 7 — Module6_WhyMLTranspiler.py triple-masked package  *(also a SOUNDNESS item)*
+> **STATUS: ✅ LANDED — SOUNDNESS** (`d8169f2d`, count stays 750). **7a** union-arm fix applied (byte-inert, `_func_ret_union_some_str()` gate) → file type-checks. **7b's predicted `_collect_variant_var_assigns` proof-scale wall DOES NOT EXIST** (all its sub-goals Valid) — the real 1 non-Valid was `_hdr_name'vc` termination (for-loop lifted to a while without a variant). ROOT FIX = **trusted-parent val-inherit** (a `#@ \trusted` parent's lifted nested helper inherits trust → emits as a bodyless `val`, no spurious goals; Module5_IREmitter.py + functions.py, fail-closed). Result: file whole-file-proves 0 non-Valid — un-masked. **7c**: 2 of 3 illusory-verified methods genuinely discharge (were only masked); `_hdr_name` correctly trusted-by-inheritance. Latent hole CLOSED. No sibling regression (pycsl.py 586V + statements.py 459V, byte-identical). Byte-diff 0 on 812 (incl. the Module5 IR seam). Control CONFIRMED.
+
 This file is **RED at HEAD** — a `_union__hdr_name_5` type error aborts its whole-file *type-check*,
 so **no solver goal has ever run on it**, yet **~3 of its methods are marked converted
 (illusory-verified — not backed by any passing whole-file proof).** Three sub-tasks:
