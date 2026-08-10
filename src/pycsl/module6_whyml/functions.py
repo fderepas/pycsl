@@ -3340,6 +3340,7 @@ class FunctionEmissionMixin:
             emit_build_method_field_param_result_ensures_map_group,
             emit_build_method_field_param_post_ensures_map_group,
             emit_build_method_result_frame_ensures_map_group,
+            emit_build_method_field_param_frame_ensures_map_group,
             recognize_test_contains_map, emit_test_contains_map_group,
             recognize_is_linear_vc, emit_is_linear_vc_group,
             recognize_handler_catches, emit_handler_catches_group,
@@ -3941,6 +3942,8 @@ class FunctionEmissionMixin:
                 return emit_build_method_field_param_post_ensures_map_group(_bmem, whyml_ident)
             if _k == "result_frame":
                 return emit_build_method_result_frame_ensures_map_group(_bmem, whyml_ident)
+            if _k == "field_param_frame":
+                return emit_build_method_field_param_frame_ensures_map_group(_bmem, whyml_ident)
         _tcm = recognize_test_contains_map(func)
         if _tcm is not None:
             return emit_test_contains_map_group(_tcm, whyml_ident)

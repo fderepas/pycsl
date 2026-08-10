@@ -14744,6 +14744,147 @@ def emit_build_method_result_frame_ensures_map_group(desc: Dict[str, Any], whyml
     return out
 
 
+def recognize_build_method_field_param_frame_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_field_param_frame_ensures_map`. Never raises."""
+    try:
+        return _recognize_build_method_field_param_frame_ensures_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_field_param_frame_ensures_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_field_param_frame_ensures_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    tags = set(_all_strings(func.get("body") or []))
+    # `contracts`/`ensures`/`name` drive the outer fold; `Call` is the discriminant of the
+    # `_frame_trigger_term(e).type == "Call"` gate (mutation-sensitive — dropping the Call
+    # gate from the body removes this literal and un-matches the recognizer).
+    if not {"contracts", "ensures", "name", "Call"}.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0], "self_type": func.get("self_type")}
+
+
+def emit_build_method_field_param_frame_ensures_map_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_build_method_field_param_frame_ensures_map` — the QUANTIFIED self-field FRAME map
+    (the boundary-dropped `\\forall k. guard -> X == \\old(X)` frames re-exposed for `propagate_frame`
+    opt-in methods). Filter (over `propagate_frame` methods only) =
+    `classify(e, pset, {}) is not False and saw(e,"field") and saw(e,"forall") and not saw(e,"result")
+    and refs_param(e, pset) and _frame_trigger_term(e) is a Call`. Encoded as the param-AND-bound-
+    threaded `(nd, hf, hforall, hp)` catamorphism (nd = no-disallowed leaf, hf = has self-field,
+    hforall = has quantifier, hp = references a formal param) PLUS a depth-first `{P}ftt` search that
+    returns the frame-trigger term X (the non-`\\old` side of a `BinOp ==` conjunct with exactly one
+    `\\old`/`\\old`-field side) whose `type == "Call"` is the last conjunct. `classify` REJECTS
+    `Result`/`OldVar` (nd=false), so `not saw(e,"result")` is subsumed by nd. `ensures True`;
+    frame-gated; ledger 3. Faithful lowering of the live body (the `\\result`-dropping twin of
+    `_build_method_result_frame_ensures_map`); mutation-pinned by the byte-identical mirror oracle."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+    out += _emit_lmem(P)
+    out += _emit_skey_reader(f"{P}gtype", "type")
+    out += _emit_skey_reader(f"{P}gnm", "name")
+    out += _emit_skey_reader(f"{P}gvar", "var")
+    out += _emit_skey_reader(f"{P}gobject", "object")
+    out += _emit_skey_reader(f"{P}gop", "op")
+    out += _emit_pval_reader(f"{P}gvalue", "value")
+    out += _emit_pval_reader(f"{P}gvarpv", "var")
+    out += _emit_pval_reader(f"{P}gleft", "left")
+    out += _emit_pval_reader(f"{P}gright", "right")
+    out.append(f"  let {P}selfobj (d: pydict) : bool = "
+               f'match {P}gobject d with Some s -> pystr_eq s "self" | None -> false end')
+    # (nd, has_field, has_forall, has_param) catamorphism — classify+saw(field)+saw(forall)+refs_param.
+    out.append(f"  let rec {P}cv (v: pyval) (ps: list pyval) (bd: list pyval) : (bool, bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append("         | Some t ->")
+    out.append('             if pystr_eq t "Result" || pystr_eq t "OldVar" then (false, false, false, false)')
+    out.append('             else if pystr_eq t "FieldGet" || pystr_eq t "Attribute"')
+    out.append('                     || pystr_eq t "OldField" then')
+    out.append(f"                 let s = {P}selfobj d in (s, s, false, false)")
+    out.append('             else if pystr_eq t "Var" then')
+    out.append(f'                 let inps = (match {P}gnm d with Some nm -> {P}lmem nm ps | None -> false end) in')
+    out.append(f'                 let inbd = (match {P}gnm d with Some nm -> {P}lmem nm bd | None -> false end) in')
+    out.append("                 (inps || inbd, false, false, inps)")
+    out.append('             else if pystr_eq t "ArrayLen" then')
+    out.append(f"                 (match {P}gvarpv d with")
+    out.append(f'                  | Some (PStr s) -> let inps = {P}lmem s ps in')
+    out.append(f'                                     let ok = (pystr_eq s "self") || inps || {P}lmem s bd in')
+    out.append("                                     (ok, false, false, inps)")
+    out.append(f"                  | Some (PDict vd) -> let ok = {P}selfobj vd in (ok, false, false, false)")
+    out.append("                  | _ -> (false, false, false, false) end)")
+    out.append('             else if pystr_eq t "Subscript" then')
+    out.append(f"                 (match {P}gvalue d with")
+    out.append(f"                  | Some (PDict vd) -> (match {P}gtype vd with")
+    out.append(f'                                        | Some vt -> if pystr_eq vt "Var" then (false, false, false, false) else {P}cdf d ps bd')
+    out.append(f"                                        | None -> {P}cdf d ps bd end)")
+    out.append(f"                  | _ -> {P}cdf d ps bd end)")
+    out.append('             else if pystr_eq t "Forall" || pystr_eq t "Exists"')
+    out.append('                     || pystr_eq t "ForallItems" then')
+    out.append(f"                 let nb = (match {P}gvar d with Some s -> Cons (PStr s) bd | None -> bd end) in")
+    out.append(f"                 let (a, b, _, p) = {P}cdf d ps nb in (a, b, true, p)")
+    out.append(f"             else {P}cdf d ps bd")
+    out.append(f"         | None -> {P}cdf d ps bd end)")
+    out.append(f"    | PList xs -> {P}clf xs ps bd")
+    out.append("    | _ -> (true, false, false, false)")
+    out.append("    end")
+    out.append(f"  with {P}cdf (d: pydict) (ps: list pyval) (bd: list pyval) : (bool, bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> (true, false, false, false)")
+    out.append("    | DCons _ v rest -> size_pos v;")
+    out.append(f"        let (a1, b1, c1, d1) = {P}cv v ps bd in let (a2, b2, c2, d2) = {P}cdf rest ps bd in "
+               "(a1 && a2, b1 || b2, c1 || c2, d1 || d2) end")
+    out.append(f"  with {P}clf (xs: list pyval) (ps: list pyval) (bd: list pyval) : (bool, bool, bool, bool)")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> (true, false, false, false)")
+    out.append(f"    | Cons h t -> let (a1, b1, c1, d1) = {P}cv h ps bd in let (a2, b2, c2, d2) = {P}clf t ps bd in "
+               "(a1 && a2, b1 || b2, c1 || c2, d1 || d2) end")
+    # `_frame_trigger_term`: first depth-first `BinOp ==` conjunct with EXACTLY one `\old`/`\old`-field
+    # side; returns the post-state (non-old) side X. `is_old` recognises `Old`/`OldField` heads.
+    out.append(f"  let {P}is_old (o: (option pyval)) : bool =")
+    out.append("    match o with")
+    out.append(f'    | Some (PDict dd) -> (match {P}gtype dd with Some t -> pystr_eq t "Old" || pystr_eq t "OldField" | None -> false end)')
+    out.append("    | _ -> false end")
+    out.append(f"  let rec {P}ftt (v: pyval) : (option pyval)")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {P}gtype d with")
+    out.append('         | Some t ->')
+    out.append(f'             if pystr_eq t "BinOp" && (match {P}gop d with Some o -> pystr_eq o "==" | None -> false end) then')
+    out.append(f"                 let l = {P}gleft d in let r = {P}gright d in")
+    out.append(f"                 let lo = {P}is_old l in let ro = {P}is_old r in")
+    out.append("                 if ro && (not lo) then l")
+    out.append("                 else if lo && (not ro) then r")
+    out.append(f"                 else {P}ftt_cdf d")
+    out.append(f"             else {P}ftt_cdf d")
+    out.append(f"         | None -> {P}ftt_cdf d end)")
+    out.append(f"    | PList xs -> {P}ftt_clf xs")
+    out.append("    | _ -> None")
+    out.append("    end")
+    out.append(f"  with {P}ftt_cdf (d: pydict) : (option pyval)")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> None")
+    out.append("    | DCons _ v rest -> size_pos v;")
+    out.append(f"        (match {P}ftt v with Some x -> Some x | None -> {P}ftt_cdf rest end) end")
+    out.append(f"  with {P}ftt_clf (xs: list pyval) : (option pyval)")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> None")
+    out.append(f"    | Cons h t -> (match {P}ftt h with Some x -> Some x | None -> {P}ftt_clf t end) end")
+    keep = (f"let (a, b, c, p) = {P}cv e ps Nil in a && b && c && p "
+            f'&& (match {P}ftt e with Some (PDict xd) -> '
+            f'(match {P}gtype xd with Some tt -> pystr_eq tt "Call" | None -> false end) | _ -> false end)')
+    out += _emit_ensures_map_scaffold_pt(n, P, self_type, mv, keep, frame_gated=True)
+    return out
+
+
 def _bmem_base(nm: str) -> str:
     return nm.rsplit("__", 1)[-1] if "__" in (nm or "") else (nm or "")
 
@@ -14786,6 +14927,14 @@ _BMEM_KINDS = [
       "saw": {"field", "FieldGet", "Attribute", "OldField", "self", "object", "forall",
               "Forall", "Exists", "ForallItems", "result", "Result", "\\result",
               "ArrayLen", "var"},
+      "rename": {"Var", "name"}}),
+    ("field_param_frame", recognize_build_method_field_param_frame_ensures_map,
+     {"classify": {"Result", "FieldGet", "Attribute", "OldField", "OldVar", "object", "self",
+                   "Subscript", "value", "Var", "name", "ArrayLen", "var",
+                   "Forall", "Exists", "ForallItems"},
+      "saw": {"field", "FieldGet", "Attribute", "OldField", "self", "object", "forall",
+              "Forall", "Exists", "ForallItems", "result", "Result"},
+      "refs_param": {"Var", "name", "ArrayLen", "var"},
       "rename": {"Var", "name"}}),
 ]
 
