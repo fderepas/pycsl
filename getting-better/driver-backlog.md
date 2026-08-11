@@ -913,3 +913,17 @@ regex (CORRECTNESS-floors).
    The recurring deep walls are: KeyError-freedom-proof-under-fixed-contract, map-KEY-ENUMERATION over option-maps,
    heterogeneous-Dict[str,Any], nested-closure, opaque-cross-file-import — all REVIEW-GATED (need forbidden contracts or new
    certifiable value models / enumeration primitives). HOLD per action (6); the anti-false-floor obligation is discharged.**
+
+   **FRESH BLIND CHEAP-WIN CENSUS (2026-08-11, independent read-only probe, count 749) — FLOOR RE-CONFIRMED.**
+   An independent census agent (blind to these priors, throwaway worktree) screened ~20 trusted stubs across every
+   pure/string/bool/list category and deep-tested the plausible few. Result: NO cheap win clears new semantic ground.
+   The one technically-passing candidate — `_deref` in `module6_whyml/expr_ghost_collections.py` — is a CROSS-MIXIN
+   PROTOCOL-STUB DUPLICATE, not a real method: live `expr_ghost_collections.py` defines NO `_deref` (the real one is
+   `expressions.py:646`, already verified); the mirror carries a `return ""` placeholder so `self._deref` resolves when
+   the mixin file verifies standalone. It "passes" the whole-file proof ONLY by importing `expressions.py`'s body into
+   this file's placeholder — NOT verbatim-faithful (no live counterpart here = drift/facade), clears no new ground →
+   REJECTED by the fidelity plane. Documented boundary: opaque cross-mixin reference (correctly `\trusted`).
+   New non-win pattern banked: **protocol-stub duplicate** — a mirror-only scaffolding method absent from its live file;
+   proving it requires a foreign sibling body = fidelity violation, do NOT count. Other rejects all fell in documented
+   classes ((a) heterogeneous-dict `.values()`, (e) opaque cross-file `re`/`unicodedata`, (g) while-worklist, raw-ast
+   Ingestor, `@property`-excluded). VERDICT: CONFIRMED MEASURED FLOOR at 749 holds under a fresh independent re-measure.
