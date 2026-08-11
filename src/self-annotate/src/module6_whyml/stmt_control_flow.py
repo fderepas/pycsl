@@ -291,11 +291,22 @@ class ControlFlowStmtMixin:
                 return full_code + ";\n" + rest_code
             return full_code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _first_assign_value_ir(self, var: str, stmts: List["ExprIR"]) -> "ExprIR":
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign" and stmt.get("target") == var:
+                return stmt.get("value", {}) or {}
+            for key in ("body", "orelse", "finalbody"):
+                if isinstance(stmt.get(key), list):
+                    r = self._first_assign_value_ir(var, stmt[key])
+                    if r:
+                        return r
+            for h in stmt.get("handlers", []):
+                r = self._first_assign_value_ir(var, h.get("body", []))
+                if r:
+                    return r
         return {}
 
     #@ requires True
@@ -832,7 +843,14 @@ class ControlFlowStmtMixin:
         # it into the first arm whose payload type matches (the injection
         # wrapper per arm). This lets `def f() -> Optional[int]: return x+x`
         # type-check (the int return is wrapped as `Arm_<idx>_0 (x+x)`).
-        val = self._maybe_inject_union_return(val, val_ir)
+        # LEVER F2: thread an `option string` value (`.get(k)` / None / IfExpr thereof)
+        # into the Optional[str] union arms BEFORE the generic arm injection — the raw
+        # option preserves None-propagation instead of the scalar `None -> 0` default.
+        _threaded = self._thread_optional_return(val_ir, local_refs)
+        if _threaded is not None:
+            val = _threaded
+        else:
+            val = self._maybe_inject_union_return(val, val_ir)
         if use_raise:
             func_ret = self._func_return_type
             if func_ret == "unit":

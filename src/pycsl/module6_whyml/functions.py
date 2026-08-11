@@ -3327,6 +3327,7 @@ class FunctionEmissionMixin:
             recognize_check_noreturn, emit_check_noreturn_group,
             recognize_first_tuple_return, emit_first_tuple_return_group,
             recognize_find_assigned_vars, emit_find_assigned_vars_group,
+            recognize_first_assign_value_ir, emit_first_assign_value_ir_group,
             recognize_collect_mutations, emit_collect_mutations_group,
             recognize_find_iteration_mutations, emit_find_iteration_mutations_group,
             recognize_build_method_writes_map, emit_build_method_writes_map_group,
@@ -3920,6 +3921,14 @@ class FunctionEmissionMixin:
         _fav = recognize_find_assigned_vars(func)
         if _fav is not None:
             return emit_find_assigned_vars_group(_fav, whyml_ident)
+        # `_first_assign_value_ir`: value-returning first-match SEARCH over the
+        # heterogeneous stmt tree (Any-tree-walker cluster). Emitted as the
+        # certified mutual pyval search catamorphism (first non-empty); reuses the
+        # pyval/pydict ADT + `pget_list`, NO axiom. Fail-closed; a template bug is a
+        # loud unprovable instance, never a false proof.
+        _favi = recognize_first_assign_value_ir(func)
+        if _favi is not None:
+            return emit_first_assign_value_ir_group(_favi, whyml_ident)
         _cm = recognize_collect_mutations(func)
         if _cm is not None:
             _cm_members = (self.ir.get("class_str_set_constants", {})
@@ -5852,6 +5861,20 @@ class FunctionEmissionMixin:
             if func.get("vararg_str_param"):
                 param_types = param_types + ["seq string"]
             result[func["name"]] = param_types
+        # self-tcb-reduction (F2 fidelity): `_handle_return_stmt` calls the cross-mixin
+        # helper `self._thread_optional_return(val_ir, local_refs)`, but that helper is
+        # NOT ported into the mirror module here, so it never enters `functions` and thus
+        # gets no registry entry — the auto-emitted abstract self-call val would default
+        # its `local_refs: Set[str]` argument to `int`, an L3 type error against the
+        # caller's `map int (option int)` term. Register the helper's signature under each
+        # present class's `<cls>___thread_optional_return` key (the shape
+        # `_resolve_dotted_signature` looks up for `self._thread_optional_return(...)`) so
+        # x1 types as `map int (option int)`. `setdefault` never shadows a real provider.
+        # Name-gated to this emitter-internal helper (never a corpus symbol) → corpus
+        # byte-identical.
+        for _cls in {n.split("__", 1)[0] for n in result if "__" in n}:
+            result.setdefault(f"{_cls}___thread_optional_return",
+                              ["emit_ir", "map int (option int)"])
         return result
 
     def _build_method_param_whyml_types_by_name(

@@ -1340,3 +1340,18 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   `_subst_var`/`_subst_csl_param` (CSLNode/Weaver — check), `_first_assign_value_ir` (search variant), param-mut ones
   (`_hoist_calls_in_expr`/`inline_stmts`/`_collect_protect_index_sites` — mutate a param list, harder), bool-returning
   (`_is_emit_ir_expr`/`_is_string_expr` — bool-existence, different family). Continue draining next heartbeat.
+
+- **`_first_assign_value_ir` CONVERTED + F2 FIDELITY-DRIFT REPAIRED (2026-08-11, 743→742).** §P cluster-drain: converted
+  `_first_assign_value_ir` (value-search over a stmt tree returning a pydict) via a new fail-closed `recognize_first_
+  assign_value_ir` reusing the pyval first-match SEARCH catamorphism (mutual `let rec` over stmt spine + handler list,
+  pget_list/__get, size_list/size_dict variants; axiom-free). BUNDLED FIX: discovered (via `check-self-annotate-sync`,
+  which I'd not been running — only `mirror-check`) that my EARLIER F1+F2 landing introduced a §10.4 DRIFT — it edited
+  the CONVERTED `_handle_return_stmt`'s LIVE body (added the `_thread_optional_return` call) without re-porting the mirror
+  → check-self-annotate-sync went 2 (baseline)→3. REPAIRED count-neutrally: re-ported the mirror `_handle_return_stmt`
+  VERBATIM to match live + registered `_thread_optional_return`'s signature (functions.py, so its auto-emitted abstract
+  val types `local_refs:Set[str]`→`map int (option int)` instead of int — the re-port now typechecks + proves). DIVERGED
+  back to 2. FULL BATTERY GREEN: stmt_control_flow.py (964-line giant) whole-file proof SUCCESS 0 non-Valid; corpus
+  byte-diff 0; sibling-emission = ONLY stmt_control_flow.py; DIVERGED 2 (baseline); mirror-check 52/52; ledger 3; verbatim
+  (both bodies). PROCESS LESSON BANKED: run BOTH fidelity gates (`check-self-annotate-sync` ∧ `self-annotate-mirror-check`)
+  every battery — mirror-check does not catch a converted-method body drift from a live-emitter edit; §10.4 (a feature
+  editing a verified emitter method must re-port the mirror in the same commit) must be checked with the strict sync gate.

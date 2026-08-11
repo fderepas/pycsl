@@ -13945,6 +13945,327 @@ def emit_find_assigned_vars_group(desc: Dict[str, Any], whyml_ident) -> List[str
     return out
 
 
+# ---- `_first_assign_value_ir`: value-returning first-match SEARCH (Any-tree walker) ----
+# The try-body-local typing helper — a value-RETURNING search over a heterogeneous
+# `list pyval` stmt tree: at each PDict stmt, if `stmt.get("stmt")=="Assign" and
+# stmt.get("target")==var` RETURN `stmt.get("value",{}) or {}` (a pydict subtree, a
+# pyval — NOT a bool/string); else recurse into the `body`/`orelse`/`finalbody`
+# sub-lists then the `handlers` (each `h.get("body")`), returning the FIRST non-empty
+# result; default `{}` (PDict DNil). Emitted as the certified mutual pyval search
+# catamorphism (`{n}__f` over the spine `with {n}__hf` over the handler list) — the
+# same `emit_find_assigned_vars_group` sub-key-descent shape but VALUE-returning
+# (first non-empty) instead of ref-accumulating. Termination via the `size_list`/
+# `size_dict` measures + the split list-readers' `size_list result <= size_dict d`
+# postcondition (the sub-list is strictly smaller than the enclosing stmt). Reuses
+# the pyval/pydict ADT + `pget_list`; NO new axiom (ledger 3). `ensures True`.
+
+def recognize_first_assign_value_ir(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_first_assign_value_ir`. Never raises."""
+    try:
+        return _recognize_first_assign_value_ir(func)
+    except Exception:
+        return None
+
+
+def _fav2_empty_dictlit(node: Any) -> bool:
+    return (isinstance(node, dict) and node.get("type") == "DictLit"
+            and not node.get("keys") and not node.get("values"))
+
+
+def _fav2_selfcall(node: Any, var_p: str, second_ok, fname: str):
+    """`self._first_assign_value_ir(var, <2nd>)` — verify the self-recursion:
+    a Call whose func endswith `_first_assign_value_ir`, arg0 == Var(var_p), and
+    arg1 satisfies the `second_ok` predicate. Returns True/False."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and isinstance(node.get("func"), str)
+            and node["func"].endswith("_first_assign_value_ir")):
+        return False
+    args = node.get("args") or []
+    return (len(args) == 2 and _is_var(args[0], var_p) and second_ok(args[1]))
+
+
+def _fav2_subkey_for(for1: Any, sv: str, var_p: str, fname: str):
+    """`for <kv> in (<subkeys...>): if isinstance(<sv>.get(<kv>), list):
+    r = self.f(var, <sv>[<kv>]); if r: return r` -> the captured subkey list."""
+    if not (isinstance(for1, dict) and for1.get("stmt") == "For"):
+        return None
+    it = for1.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Tuple"):
+        return None
+    subkeys = [_is_string(e) for e in (it.get("elts") or [])]
+    if not subkeys or any(k is None for k in subkeys):
+        return None
+    kv = for1.get("target")
+    fb = for1.get("body") or []
+    if not (isinstance(kv, str) and len(fb) == 1):
+        return None
+    iff = fb[0]
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If" and not iff.get("orelse")):
+        return None
+    # test: isinstance(<sv>.get(<kv>), list)
+    t = iff.get("test", {})
+    if not (isinstance(t, dict) and t.get("type") == "Call" and t.get("func") == "isinstance"):
+        return None
+    ta = t.get("args") or []
+    if not (len(ta) == 2 and _is_var(ta[1], "list")):
+        return None
+    g = ta[0]
+    if not (isinstance(g, dict) and g.get("type") == "Call" and g.get("func") == f"{sv}.get"):
+        return None
+    ga = g.get("args") or []
+    if not (len(ga) == 1 and _is_var(ga[0], kv)):
+        return None
+    ib = iff.get("body") or []
+    if not (len(ib) == 2 and isinstance(ib[0], dict) and ib[0].get("stmt") == "Assign"):
+        return None
+    rvar = ib[0].get("target")
+    if not isinstance(rvar, str):
+        return None
+
+    def _sub_is_subscript(a):
+        return (isinstance(a, dict) and a.get("type") == "Subscript"
+                and _is_var(a.get("value"), sv) and _is_var(a.get("index"), kv))
+    if not _fav2_selfcall(ib[0].get("value"), var_p, _sub_is_subscript, fname):
+        return None
+    if not _fav2_return_if(ib[1], rvar):
+        return None
+    return subkeys
+
+
+def _fav2_handlers_for(for2: Any, sv: str, var_p: str, fname: str):
+    """`for <hv> in <sv>.get(<handlers_key>, []): r = self.f(var,
+    <hv>.get(<hbody_key>, [])); if r: return r` -> (handlers_key, hbody_key)."""
+    if not (isinstance(for2, dict) and for2.get("stmt") == "For"):
+        return None
+    it = for2.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{sv}.get"):
+        return None
+    ia = it.get("args") or []
+    if not ia:
+        return None
+    handlers_key = _is_string(ia[0])
+    if handlers_key is None:
+        return None
+    hv = for2.get("target")
+    fb = for2.get("body") or []
+    if not (isinstance(hv, str) and len(fb) == 2
+            and isinstance(fb[0], dict) and fb[0].get("stmt") == "Assign"):
+        return None
+    rvar = fb[0].get("target")
+    if not isinstance(rvar, str):
+        return None
+    hbody_box = []
+
+    def _hbody_ok(a):
+        if not (isinstance(a, dict) and a.get("type") == "Call"
+                and a.get("func") == f"{hv}.get"):
+            return False
+        aa = a.get("args") or []
+        if not aa:
+            return False
+        k = _is_string(aa[0])
+        if k is None:
+            return False
+        hbody_box.append(k)
+        return True
+    if not _fav2_selfcall(fb[0].get("value"), var_p, _hbody_ok, fname):
+        return None
+    if not _fav2_return_if(fb[1], rvar):
+        return None
+    return (handlers_key, hbody_box[0])
+
+
+def _fav2_return_if(node: Any, rvar: str) -> bool:
+    """`if <rvar>: return <rvar>` (no else)."""
+    return (isinstance(node, dict) and node.get("stmt") == "If" and not node.get("orelse")
+            and _is_var(node.get("test"), rvar)
+            and len(node.get("body") or []) == 1
+            and isinstance(node["body"][0], dict)
+            and node["body"][0].get("stmt") == "Return"
+            and _is_var(node["body"][0].get("value"), rvar))
+
+
+def _recognize_first_assign_value_ir(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_first_assign_value_ir"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    var_p, stmts_p = params
+    # pure search — the frame MUST be `\nothing` (fail-closed).
+    assigns = func.get("contracts", {}).get("assigns", []) or []
+    if not (len(assigns) == 1 and isinstance(assigns[0], dict)
+            and assigns[0].get("type") == "Nothing"):
+        return None
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    outer, tail = body
+    # tail: `return {}`
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and _fav2_empty_dictlit(tail.get("value"))):
+        return None
+    # outer: `for stmt in stmts: <3 stmts>`
+    if not (isinstance(outer, dict) and outer.get("stmt") == "For"
+            and _is_var(outer.get("iter"), stmts_p)):
+        return None
+    sv = outer.get("target")
+    ob = outer.get("body") or []
+    if not (isinstance(sv, str) and len(ob) == 3):
+        return None
+    # ob[0]: if <sv>.get(<stmt_key>) == "<ASSIGN>" and <sv>.get(<target_key>) == var:
+    #            return <sv>.get(<value_key>, {}) or {}
+    if0 = ob[0]
+    if not (isinstance(if0, dict) and if0.get("stmt") == "If" and not if0.get("orelse")):
+        return None
+    t0 = if0.get("test", {})
+    if not (isinstance(t0, dict) and t0.get("type") == "BinOp" and t0.get("op") == "and"):
+        return None
+    lc = t0.get("left", {})
+    if not (isinstance(lc, dict) and lc.get("type") == "BinOp" and lc.get("op") == "=="):
+        return None
+    stmt_key = _match_get_call(lc.get("left", {}), sv)
+    assign_tag = _is_string(lc.get("right"))
+    if stmt_key is None or assign_tag is None:
+        return None
+    rc = t0.get("right", {})
+    if not (isinstance(rc, dict) and rc.get("type") == "BinOp" and rc.get("op") == "=="):
+        return None
+    target_key = _match_get_call(rc.get("left", {}), sv)
+    if target_key is None or not _is_var(rc.get("right"), var_p):
+        return None
+    b0 = if0.get("body", [])
+    if not (len(b0) == 1 and isinstance(b0[0], dict) and b0[0].get("stmt") == "Return"):
+        return None
+    rv = b0[0].get("value", {})
+    if not (isinstance(rv, dict) and rv.get("type") == "BinOp" and rv.get("op") == "or"):
+        return None
+    value_key = _match_get_call(rv.get("left", {}), sv)
+    if value_key is None or not _fav2_empty_dictlit(rv.get("right")):
+        return None
+    # ob[1]: subkey descent (body/orelse/finalbody); ob[2]: handlers descent
+    subkeys = _fav2_subkey_for(ob[1], sv, var_p, func["name"])
+    if subkeys is None:
+        return None
+    hk = _fav2_handlers_for(ob[2], sv, var_p, func["name"])
+    if hk is None:
+        return None
+    handlers_key, hbody_key = hk
+    return {"name": func["name"], "var": var_p, "stmts": stmts_p,
+            "stmt_key": stmt_key, "assign_tag": assign_tag,
+            "target_key": target_key, "value_key": value_key,
+            "subkeys": subkeys, "handlers_key": handlers_key,
+            "hbody_key": hbody_key}
+
+
+def emit_first_assign_value_ir_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_first_assign_value_ir` as the certified value-returning first-match
+    pyval SEARCH catamorphism: option readers for the `stmt`/`target`/`value`
+    keys, split list-readers (size-postcond) for the `body`/`orelse`/`finalbody`
+    sub-lists + `pget_list` for `handlers`, then a mutual `{n}__f` (over the stmt
+    spine) `with {n}__hf` (over the handler list) returning the FIRST non-empty
+    result. Termination via `size_list`/`size_dict` + the readers'
+    `size_list result <= size_dict d` bound. `ensures True`. NO axiom (ledger 3)."""
+    n = whyml_ident(desc["name"])
+    var_p = "fav_var"      # local WhyML name for the searched var (avoid clash)
+    sk = desc["stmt_key"]
+    atag = desc["assign_tag"]
+    tk = desc["target_key"]
+    vk = desc["value_key"]
+    subkeys = desc["subkeys"]
+    hk = desc["handlers_key"]
+    hbk = desc["hbody_key"]
+
+    def _sanitize(k: str) -> str:
+        return "".join(c if c.isalnum() else "_" for c in k)
+
+    out: List[str] = []
+    out.append("")
+    out.append("  (* value-returning first-match SEARCH: `_first_assign_value_ir`. *)")
+    out.append("  (* real pyval/pydict tree walk (tag/target read + body/orelse/finalbody/ *)")
+    out.append("  (* handlers descent, first non-empty); NO axiom (pyval/pydict ADT + sizes). *)")
+
+    def _opt_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    def _list_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        gname = f"{rname}_g"
+        out.append(f"  let rec {gname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }")
+        out.append("  = match d with")
+        out.append("    | DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {gname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {gname} rest")
+        out.append("    end")
+        out.append(f"  let {rname} (d: pydict) : list pyval")
+        out.append("    ensures { size_list result <= size_dict d }")
+        out.append(f"  = match {gname} d with Some (PList xs) -> xs | _ -> Nil end")
+
+    # ---- literal-key readers ----
+    _opt_reader(f"{n}__gstmt", sk)
+    _opt_reader(f"{n}__gtgt", tk)
+    _opt_reader(f"{n}__gval", vk)
+    # list-readers for each sub-list key (union of subkeys and the handler-body key)
+    lkeys = list(subkeys)
+    if hbk not in lkeys:
+        lkeys.append(hbk)
+    for k in lkeys:
+        _list_reader(f"{n}__L_{_sanitize(k)}", k)
+    # nonempty predicate: an empty-dict result ({} / `or {}` default) is falsy.
+    out.append(f"  let {n}__ne (v: pyval) : bool = match v with PDict DNil -> false | _ -> true end")
+
+    # ---- main mutual search ----
+    out.append(f"  let rec {n}__f ({var_p}: string) (stmts: list pyval) : pyval")
+    out.append("    requires { true } ensures { true } variant { size_list stmts }")
+    out.append("  = match stmts with")
+    out.append("    | Nil -> PDict DNil")
+    out.append("    | Cons stmt rest ->")
+    out.append("        (match stmt with")
+    out.append("         | PDict d ->")
+    out.append(f'             if (match {n}__gstmt d with Some (PStr t) -> pystr_eq t "{atag}" | _ -> false end)')
+    out.append(f"                && (match {n}__gtgt d with Some (PStr t) -> pystr_eq t {var_p} | _ -> false end)")
+    out.append(f"             then (match {n}__gval d with Some v -> v | None -> PDict DNil end)")
+    out.append("             else")
+    # chained sub-list descents (body/orelse/finalbody) in source order, then handlers
+    idx = 0
+    for k in subkeys:
+        rv = f"r{idx}"
+        out.append(f"               let {rv} = {n}__f {var_p} ({n}__L_{_sanitize(k)} d) in")
+        out.append(f"               if {n}__ne {rv} then {rv} else")
+        idx += 1
+    out.append(f'               let rh = {n}__hf {var_p} (pget_list "{hk}" d) in')
+    out.append(f"               if {n}__ne rh then rh else {n}__f {var_p} rest")
+    out.append(f"         | _ -> {n}__f {var_p} rest end)")
+    out.append("    end")
+    out.append(f"  with {n}__hf ({var_p}: string) (hs: list pyval) : pyval")
+    out.append("    requires { true } ensures { true } variant { size_list hs }")
+    out.append("  = match hs with")
+    out.append("    | Nil -> PDict DNil")
+    out.append("    | Cons h hrest ->")
+    out.append(f"        let rh = (match h with PDict hd -> {n}__f {var_p} ({n}__L_{_sanitize(hbk)} hd) | _ -> PDict DNil end) in")
+    out.append(f"        if {n}__ne rh then rh else {n}__hf {var_p} hrest")
+    out.append("    end")
+    # ---- entry point (the mirror method name) ----
+    out.append(f"  let {n} ({var_p}: string) (stmts: list pyval) : pyval")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__f {var_p} stmts")
+    return out
+
+
 # ---- `_collect_mutations`: ref-accumulator WHOLE-STMT append (list pyval) ----
 # The UB-7.1 mutation collector — a tag-dispatch stmt-walker that APPENDS the whole
 # pyval stmt node to the `out` accumulator when the stmt mutates `target_name`:

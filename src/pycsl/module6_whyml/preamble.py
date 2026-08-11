@@ -2075,6 +2075,7 @@ class PreambleEmissionMixin:
             recognize_check_noreturn,
             recognize_first_tuple_return,
             recognize_find_assigned_vars,
+            recognize_first_assign_value_ir,
             recognize_collect_mutations,
             recognize_find_iteration_mutations,
             recognize_build_method_writes_map,
@@ -2146,6 +2147,7 @@ class PreambleEmissionMixin:
             or recognize_check_noreturn(f) is not None
             or recognize_first_tuple_return(f) is not None
             or recognize_find_assigned_vars(f) is not None
+            or recognize_first_assign_value_ir(f) is not None
             or recognize_collect_mutations(f) is not None
             or recognize_find_iteration_mutations(f) is not None
             or recognize_test_contains_map(f) is not None
@@ -2195,6 +2197,7 @@ class PreambleEmissionMixin:
             or recognize_check_noreturn(f) is not None
             or recognize_first_tuple_return(f) is not None
             or recognize_find_assigned_vars(f) is not None
+            or recognize_first_assign_value_ir(f) is not None
             or recognize_collect_mutations(f) is not None
             or recognize_find_iteration_mutations(f) is not None
             or recognize_test_contains_map(f) is not None
