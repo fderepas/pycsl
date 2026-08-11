@@ -963,3 +963,24 @@ regex (CORRECTNESS-floors).
    (typed closed-key values ∧ .values() enumeration), distinct from both the native-map (not enumerable) and the pydict
    (untyped-pyval values) devices — a review-gated multi-session build whose cert feasibility must be proven first.
    Floor 749 holds; this vein is review-gated.
+
+   **@property-EMISSION CLUSTER — BUILD-MEASURED, REVERTED, ROI-GATE STOP (2026-08-11, count 749).** Distinct NON-value-
+   model class: ~6 `@property` trusted stubs (arity/struct_format, _heap_var/Module6, ok/audit_proof_reverify,
+   all_agree+pairwise/crosscheck, pairwise/crosscheck_ir) are trusted purely because `Module5_IREmitter._should_skip_method`
+   (:3195-3197) DROPS @property methods from IR emission entirely (same tier as dunders). Removing that branch (4-line
+   delete) is BYTE-INERT corpus-wide (0 reference-corpus files use the @property decorator — 0962's "@property-derived" is
+   a plain method) and does NOT regress crosscheck_ir.py (its non-trusted `pairwise` emits as an honest abstract `val`,
+   file re-proves 0 non-Valid). BUT — BUILT the un-skip + attempted the cleanest member `arity` (`return len(self.slots)`)
+   with the field re-modeled `slots: int`->`list[str]`: whole-file proof FAILED. `len(self.slots)` lowers to the OPAQUE
+   `val iter_length (x:int):int` int-fallback (NOT a real list length), the list field emits as UNBOUND `array int` (no
+   `use array.Array` in this preamble + a no-more-int element leak: `list[str]`->`array int`). So `arity` needs a genuine
+   MULTI-SURFACE emitter build (list-typed frozen-@dataclass field theory import + real `len`->Seq.length + string-element
+   fix), not a spike-and-land. The other members each sit behind a SEPARATE co-located wall: `_heap_var` = property-read/
+   field-read decoupling inside the giant Module6_WhyMLTranspiler.py (readers use `self._heap_var` as a field; expensive
+   7200s proof + reader-coupling regression risk); `ok`/`all_agree` = list/list-of-tuples value-model; `pairwise` = dict-
+   valued-return value-model. ROI-GATE STOP (§10c): multi-surface build for a 1-stub clean yield, rest behind distinct
+   walls. REVERTED to clean HEAD (count 749). BANKED: the @property gate location (removable, byte-inert) + the finding
+   that list-typed @dataclass FIELDS lower to unbound `array`/opaque-iter_length (a real emitter gap = the NEXT build if
+   the arity/list-field vein is funded). SOUNDNESS NOTE ([[trusted_val_frame_unsoundness]] family): @property methods are
+   silently emission-skipped, so a NON-trusted @property method contributes 0 goals — a latent vacuity pattern (here
+   benign: pairwise proves either way), but worth the flag if a future @property method carries a real contract.
