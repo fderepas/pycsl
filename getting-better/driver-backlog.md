@@ -1593,3 +1593,18 @@ non-vacuity (real set_add on node[target], mutation test flips .mlw) + coupling-
 SIBLINGS** (now reachable via the same/extended recognizer, re-drain candidates): `_collect_str_call_result_locals`,
 `_collect_string_elem_read_locals` (two-pass fixpoint — needs the bounded-for-fixpoint device),
 `_collect_shared_symbol_decls` (Module6 giant, `_symbol` closure). MEASURE each next.
+
+## _collect_* sibling re-drain verdict (2026-08-11, count 740, HEAD 0fa202c9)
+- `_collect_str_call_result_locals`: NOT in the mirror (50-fn subset; not counted in 740) + semantic
+  string-typer (facade if mirrored). OUT OF SCOPE.
+- `_collect_shared_symbol_decls` (Module6_WhyMLTranspiler.py): NEW-SUBSTRATE BOUNDARY [CORRECTNESS-ish]
+  — tokenizes a `List[str]` of emitted WhyML text via `.split()` + cross-products the opaque
+  `self._AXIOM_FUNCTIONS.values()` registry; faithful lowering = opaque `val` over `_AXIOM_FUNCTIONS`
+  (returned set opaque = facade/Gate-C reject). The set-catamorphism vein does NOT apply. Skip.
+- `_collect_string_elem_read_locals` (statements.py:1040, still trusted): FOLLOW-ON BUILD [COST/SCALE] —
+  the only tractable candidate. Needs a NEW `recognize_string_elem_read_locals`: two-set outer (`if not
+  ssf: return set()` guard + double-`rec` + return-SECOND-set) → TWO SEQUENTIAL set catamorphisms:
+  fold-1 `str_arrays` (gated by opaque `in_ssf` reflect-the-literal predicate over the Call func name,
+  `whyml_ident(v.func) in _module_string_seq_funcs`) threaded as a `map string bool` into fold-2
+  `elem_reads` (gated on `Subscript` whose base ∈ str_arrays). Corpus-safe (0/893 nested defs),
+  axiom-free, caller-coupling-safe (`string_vars |= ...`). BUILDING NOW (740→739).
