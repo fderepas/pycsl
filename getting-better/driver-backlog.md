@@ -531,7 +531,23 @@ auto-reads THIS ledger each idle heartbeat, auto-ranks by ROI = (expected stubs 
 and LAUNCHES it as the next Phase-2 build — no asking. A REFUTED lever → CERTIFIED-BOUNDARY, struck, advance to
 next. Floor = this ledger empty (all BROKEN/CERTIFIED-BOUNDARY). Refresh after each lever resolves.
 
-Ranked 2026-08-11 (count 749). ROI-favorite = **L9** (L8 struck — refuted 2026-08-11).
+Ranked 2026-08-11 (count 749). ROI-favorite = **L10** (L8 struck; L9 capability-banked-but-0-yield — both 2026-08-11).
+- **L9 — str→int de-trust** [CAPABILITY BANKED + C3 CORRECTED, but 0 autonomous yield → struck from launch queue].
+  Auto-picked favorite #2, make-or-break spike PASSED(A): Why3's `string.String` stdlib ALREADY exposes
+  `to_int : string -> int` (SMT-LIB `str.to_int`, Z3/Alt-Ergo native, `to_int "123"=123`, `-1` on non-numeric),
+  proven Valid both solvers. LEDGER-SAFE: it's a stdlib theory IMPORT (same trust class as String.length/concat),
+  NOT an allowlist axiom, NOT a `#@ proof` cited proof — `proof_axiom_allowlist.py` untouched, ledger stays 3.
+  **This REFUTES memory C3's "faithful str→int needs a 4th cited axiom or the oracle" verdict** — the substrate
+  provides constrained `str.to_int` for free; the current `val str_to_int` (unconstrained any_1 at expressions.py:
+  6149) is unfaithful only because it isn't tied to stdlib `to_int`. BANKED CAPABILITY: replace `val str_to_int`
+  with constrained `val py_str_to_int (s:string):int ensures {result = to_int s}`, gated (byte-diff-0 for other
+  files). BUT autonomous COUNT-YIELD = 0: a census of every trusted stub with a genuine `int(<string>)` found ALL
+  co-blocked — the from_sexp-2 (`_find_construct_idx`/`_construct_indices`) need the sexp-TUPLE ADT (mirror is
+  `-> int`, live is `-> Optional[Tuple[str,int]]` walking `elem[0]`/`elem[1]` + `_flatten_tuples` cross-calls =
+  the documented sexp-carrier CERTIFIED-BOUNDARY); the rest are in the parser proof-scale terminus (pure_ast/
+  Module2_Parser/parser.py) or need base-N (`int(x,16)`, beyond to_int) or a token/AST-node model. So str→int is
+  necessary-but-not-sufficient everywhere. REOPENING: bundle the str→int fix WITH whichever parser/sexp vein's
+  OTHER blocker is cleared (co-land the faithfulness fix + conversion together, justifying the M1 byte-diff).
 - **L8 — Enumerable-typed-map ADT** [STRUCK — CERTIFIED-BOUNDARY, refuted 2026-08-11]. Auto-picked as favorite,
   make-or-break spike (assoc-list `list (string, RecordInfoView)` reframing to dodge the domain-less-map
   enumeration wall). THREE independent fatal refuters: (1) CASCADE — `_record_types`'s type is ONE shared record-
