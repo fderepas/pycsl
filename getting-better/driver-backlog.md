@@ -1300,3 +1300,15 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   F1/F2 are genuine faithfulness features for a FUTURE funded window (they'd co-land with the partition-host cluster's
   other walls), NOT autonomous yield. FLOOR 746 FIRM — spiking the unspiked partition host CONFIRMED the boundary
   (measure-first paid off: pinned the exact 2 features, corrected the reach) rather than breaking it.
+
+- **§P RE-DRAIN after F1+F2 (2026-08-11): DRY.** F1 (general partition-unpack) + F2 (option-return threading) unblocked
+  no additional stub — the other Optional[str]/partition trusted stubs each carry ANOTHER wall: `_region_bound_str` =
+  `getattr(node,…)` on a CSLNode dataclass + float ops; `_strip_rocq/lean_comments` = STRING CHAR-BY-CHAR INDEXING
+  (`text[i]` in a while loop — Why3 pure strings are OPAQUE, no char decomposition = a hard boundary, same as L9's
+  finding); `sertop_version`/`_coqc_version`/`_lean_version` = SUBPROCESS (external process, un-modelable); `_resolve_
+  module_path` = os.path file I/O; `whyml_ident`/`slot_id` = tuple-idx; `_synthesize_*` = trusted-producer/heterogeneous.
+  NEW boundary banked: STRING CHAR-INDEXING (`s[i]` char access in a loop) — the opaque-string wall, distinct from the
+  faithful string-OPS (split/join/strip/partition/get) which are all landed. `_call_return_whyml_type` was the F1+F2
+  cluster's sole member. NEXT lever to WORK (gather-pick-work): the recursive-IR-tree partition hosts (`_substitute`/
+  `_hoist_calls_in_expr`/`inline_stmts`, ir_inline.py — F1 now makes their partition faithful; residual = recursive IR-
+  tree rewrite+mutation) OR the heterogeneous-Dict cert build. Pick+work next heartbeat.
