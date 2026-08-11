@@ -105,12 +105,46 @@ def _assigned_locals(stmts: Any) -> Set[str]:
             out.add(node["target"])
     return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _substitute(node: Any, self_name: str, param_map: int, rename: int) -> Any:
-    return None
+def _substitute(node: Any, self_name: str, param_map: Dict[str, Any],
+                rename: Dict[str, str]) -> Any:
+    """Deep-copy `node`, applying, in one pass: a formal `Var`→its actual IR; a method
+    local→its freshened name; the `self` receiver→`self_name` in `FieldGet` /
+    `FieldAssign` / `FieldAugAssign` objects and in `self.X(...)` call funcs."""
+    if isinstance(node, list):
+        return [_substitute(x, self_name, param_map, rename) for x in node]
+    if not isinstance(node, dict):
+        return node
+    if node.get("type") == "Var":
+        nm = node.get("name")
+        if nm in param_map:
+            return copy.deepcopy(param_map[nm])
+        if nm in rename:
+            return {"type": "Var", "name": rename[nm]}
+        return dict(node)
+    new = {k: _substitute(v, self_name, param_map, rename) for k, v in node.items()}
+    t = new.get("type")
+    s = new.get("stmt")
+    if t == "FieldGet" and new.get("object") == "self":
+        new["object"] = self_name
+    if s in ("FieldAssign", "FieldAugAssign") and new.get("object") == "self":
+        new["object"] = self_name
+    if t == "Call" and isinstance(new.get("func"), str):
+        fn = new["func"]
+        if fn.startswith("self."):
+            new["func"] = self_name + fn[len("self"):]   # self.Y -> <self_name>.Y
+        elif "." in fn:
+            # Freshen local-variable receiver in dotted calls like
+            # `entries.append(x)` → `entries__inlN.append(x)`.
+            recv_part, _, method_part = fn.partition(".")
+            if recv_part in rename:
+                new["func"] = f"{rename[recv_part]}.{method_part}"
+    if s in ("Assign", "AugAssign", "For") and isinstance(new.get("target"), str):
+        if new["target"] in rename:
+            new["target"] = rename[new["target"]]
+    return new
 
 ""  # pycsl
 class _Inliner:

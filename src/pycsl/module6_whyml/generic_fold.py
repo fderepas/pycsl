@@ -2593,6 +2593,576 @@ def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
 
 
 # =========================================================================
+# ir-inline `_substitute` — the value-RETURNING pyval-tree deep-rewrite walk
+# (the DEEPEST self-tcb lever: a functorial `pyval -> pyval` rebuild that, in
+# ONE pass, replaces a formal `Var` by its actual IR (`param_map` read), a
+# method local by its freshened name (`rename`), and the `self` receiver by
+# `self_name` in FieldGet/FieldAssign/FieldAugAssign objects and `self.X(...)`
+# call funcs).  Signature `(node, self_name: str, param_map: Dict[str, Any],
+# rename: Dict[str, str]) -> Any`; contract `requires True / ensures True /
+# assigns \nothing`.
+#
+# Lowering (reuses the CERTIFIED pyval/pydict ADT + get/pput/pv_size — NO new
+# axiom, ledger 3):
+#   * `isinstance(node, list)`      -> the `__list` structural map;
+#   * `not isinstance(node, dict)`  -> scalar identity (the `_ -> node` arm);
+#   * `node.get("type") == "Var"`   -> read `node.get("name")`, look it up in
+#       `param_map` (`map string (option pyval)`; deepcopy = identity) then
+#       `rename` (`map string (option string)`; rebuild `{"type":"Var",
+#       "name":rename[nm]}` with pput), else `dict(node)` (= node unchanged);
+#   * else                          -> `__dict` value-recursion (pput-rebuild)
+#       then the self-receiver POST-processing.
+# Because the contract is `ensures True` no VC constrains the result, so the
+# post-processing string manipulations (`startswith`, `fn[len("self"):]`,
+# `.partition`, `self_name + "__" + ...`) lower to OPAQUE string-op `val`s
+# (typecheck only) while the STRUCTURE (list-map, dict pput-rebuild, `get`
+# "type"/"name" tag reads, `pystr_eq` guards, pput self-receiver writes,
+# `pv_size`/`size_dict`/`size_list` variant) is REAL and non-vacuous.
+# Fail-closed: the recognizer fires only on the exact 11-statement
+# isinstance-list/dict tree-rewrite shape -> corpus + every other mirror inert.
+# A template bug is a loud unprovable instance, never a false proof.
+# =========================================================================
+
+
+def _sub_get_eq(test: Any, subj: str, key: str) -> Optional[str]:
+    """`<subj>.get("<key>") == "<lit>"` -> "<lit>" (else None)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "=="):
+        return None
+    if _match_get_call(test.get("left", {}), subj) != key:
+        return None
+    return _is_string(test.get("right"))
+
+
+def _sub_str_tuple(node: Any) -> Optional[List[str]]:
+    """A `Tuple` of string literals -> the list of strings (else None)."""
+    if not (isinstance(node, dict) and node.get("type") == "Tuple"):
+        return None
+    out: List[str] = []
+    for e in node.get("elts", []):
+        s = _is_string(e)
+        if s is None:
+            return None
+        out.append(s)
+    return out
+
+
+def _sub_self_call4(node: Any, fname: str, first: str, p1: str, p2: str,
+                    p3: str) -> bool:
+    """`<fname>(<first>, <p1>, <p2>, <p3>)` — the 4-arg self-recursion whose
+    first arg is the recursion target and the other three thread the read-only
+    params UNCHANGED, in order."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == fname):
+        return False
+    args = node.get("args", [])
+    return (len(args) == 4 and _is_var(args[0], first) and _is_var(args[1], p1)
+            and _is_var(args[2], p2) and _is_var(args[3], p3))
+
+
+def _sub_get_object_self(test: Any, subj: str) -> Optional[Tuple[str, str]]:
+    """`<subj>.get("<okey>") == "<sval>"` -> (okey, sval)."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "=="):
+        return None
+    okey = _match_get_call(test.get("left", {}), subj)
+    sval = _is_string(test.get("right"))
+    if okey is None or sval is None:
+        return None
+    return (okey, sval)
+
+
+def _sub_isinstance_get_str(node: Any, subj: str) -> Optional[str]:
+    """`isinstance(<subj>.get("<key>"), str)` -> "<key>"."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "isinstance"):
+        return None
+    args = node.get("args", [])
+    if len(args) != 2 or not _is_var(args[1], "str"):
+        return None
+    return _match_get_call(args[0], subj)
+
+
+def recognize_substitute(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the ir-inline `_substitute` deep-rewrite walk.
+    Returns the captured literals (var tag, self-receiver post-processing tags)
+    when the IR body is *exactly* the 11-statement substitution shape; else
+    None. Never raises."""
+    try:
+        return _recognize_substitute(func)
+    except Exception:
+        return None
+
+
+def _recognize_substitute(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 4:
+        return None
+    node_p, self_p, pmap_p, rename_p = params
+    pa = func.get("param_annotations", {})
+    if pa.get(self_p) != "str" or pa.get(pmap_p) != "dict" or pa.get(rename_p) != "dict":
+        return None
+    if func.get("return_annotation") != "Any":
+        return None
+    # pure reconstruction — the frame MUST be `\nothing` (fail-closed).
+    assigns = func.get("contracts", {}).get("assigns", []) or []
+    if not (len(assigns) == 1 and isinstance(assigns[0], dict)
+            and assigns[0].get("type") == "Nothing"):
+        return None
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 11:
+        return None
+
+    # ---- stmt0: if isinstance(node, list): return [self(x, ...) for x in node]
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If" and not s0.get("orelse")
+            and _match_isinstance(s0.get("test", {}), node_p, "list")):
+        return None
+    b0 = s0.get("body", [])
+    if not (len(b0) == 1 and b0[0].get("stmt") == "Return"):
+        return None
+    lc = b0[0].get("value", {})
+    if not (isinstance(lc, dict) and lc.get("type") == "ListComp"
+            and _sub_self_call4(lc.get("elt"), fname, "x", self_p, pmap_p, rename_p)):
+        return None
+    g0 = lc.get("generators", [])
+    if not (len(g0) == 1 and g0[0].get("target") == "x"
+            and _is_var(g0[0].get("iter"), node_p) and not g0[0].get("ifs")):
+        return None
+
+    # ---- stmt1: if not isinstance(node, dict): return node
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If" and not s1.get("orelse")):
+        return None
+    t1 = s1.get("test", {})
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp" and t1.get("op") == "not"
+            and _match_isinstance(t1.get("expr", {}), node_p, "dict")):
+        return None
+    b1 = s1.get("body", [])
+    if not (len(b1) == 1 and b1[0].get("stmt") == "Return"
+            and _is_var(b1[0].get("value"), node_p)):
+        return None
+
+    # ---- stmt2: if node.get("type") == "Var": <var block>
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "If" and not s2.get("orelse")):
+        return None
+    var_tag = _sub_get_eq(s2.get("test", {}), node_p, "type")
+    if var_tag is None:
+        return None
+    vb = s2.get("body", [])
+    if len(vb) != 4:
+        return None
+    #   vb0: nm = node.get("name")
+    if not (vb[0].get("stmt") == "Assign" and vb[0].get("target") == "nm"
+            and _match_get_call(vb[0].get("value", {}), node_p) == "name"):
+        return None
+    #   vb1: if nm in param_map: return copy.deepcopy(param_map[nm])
+    v1 = vb[1]
+    if not (v1.get("stmt") == "If" and not v1.get("orelse")):
+        return None
+    tv1 = v1.get("test", {})
+    if not (isinstance(tv1, dict) and tv1.get("type") == "BinOp" and tv1.get("op") == "in"
+            and _is_var(tv1.get("left"), "nm") and _is_var(tv1.get("right"), pmap_p)):
+        return None
+    bv1 = v1.get("body", [])
+    if not (len(bv1) == 1 and bv1[0].get("stmt") == "Return"):
+        return None
+    dc1 = bv1[0].get("value", {})
+    if not (isinstance(dc1, dict) and dc1.get("type") == "Call"
+            and dc1.get("func") == "copy.deepcopy"):
+        return None
+    sub1 = (dc1.get("args") or [{}])[0]
+    if not (isinstance(sub1, dict) and sub1.get("type") == "Subscript"
+            and _is_var(sub1.get("value"), pmap_p) and _is_var(sub1.get("index"), "nm")):
+        return None
+    #   vb2: if nm in rename: return {"type":"Var","name":rename[nm]}
+    v2 = vb[2]
+    if not (v2.get("stmt") == "If" and not v2.get("orelse")):
+        return None
+    tv2 = v2.get("test", {})
+    if not (isinstance(tv2, dict) and tv2.get("type") == "BinOp" and tv2.get("op") == "in"
+            and _is_var(tv2.get("left"), "nm") and _is_var(tv2.get("right"), rename_p)):
+        return None
+    bv2 = v2.get("body", [])
+    if not (len(bv2) == 1 and bv2[0].get("stmt") == "Return"):
+        return None
+    dl = bv2[0].get("value", {})
+    if not (isinstance(dl, dict) and dl.get("type") == "DictLit"):
+        return None
+    dl_keys = [_is_string(k) for k in dl.get("keys", [])]
+    dl_vals = dl.get("values", [])
+    if dl_keys != ["type", "name"] or len(dl_vals) != 2:
+        return None
+    vd_type_val = _is_string(dl_vals[0])
+    if vd_type_val is None:
+        return None
+    if not (isinstance(dl_vals[1], dict) and dl_vals[1].get("type") == "Subscript"
+            and _is_var(dl_vals[1].get("value"), rename_p)
+            and _is_var(dl_vals[1].get("index"), "nm")):
+        return None
+    #   vb3: return dict(node)
+    v3 = vb[3]
+    if not (v3.get("stmt") == "Return" and isinstance(v3.get("value"), dict)
+            and v3["value"].get("type") == "Call" and v3["value"].get("func") == "dict"):
+        return None
+
+    # ---- stmt3: new = {k: self(v, ...) for _cv in node.items()}
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "Assign" and s3.get("target") == "new"):
+        return None
+    dcp = s3.get("value", {})
+    if not (isinstance(dcp, dict) and dcp.get("type") == "DictComp"
+            and _is_var(dcp.get("key"), "k")
+            and _sub_self_call4(dcp.get("value"), fname, "v", self_p, pmap_p, rename_p)):
+        return None
+    gd = dcp.get("generators", [])
+    if not (len(gd) == 1 and not gd[0].get("ifs")):
+        return None
+    it = gd[0].get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{node_p}.items"):
+        return None
+
+    # ---- stmt4/5: t = new.get("type") ; s = new.get("stmt")
+    if not (body[4].get("stmt") == "Assign" and body[4].get("target") == "t"
+            and _match_get_call(body[4].get("value", {}), "new") == "type"):
+        return None
+    if not (body[5].get("stmt") == "Assign" and body[5].get("target") == "s"
+            and _match_get_call(body[5].get("value", {}), "new") == "stmt"):
+        return None
+
+    # ---- stmt6: if t == "FieldGet" and new.get("object") == "self": new["object"]=self_name
+    s6 = body[6]
+    p6 = _sub_match_selfobj_write(s6, "t", node_p, self_p)
+    if p6 is None:
+        return None
+    fg_tag, obj_key6 = p6
+
+    # ---- stmt7: if s in ("FieldAssign","FieldAugAssign") and new.get("object")=="self": ...
+    s7 = body[7]
+    p7 = _sub_match_selfobj_tuple_write(s7, "s", self_p)
+    if p7 is None:
+        return None
+    fa_tags, obj_key7 = p7
+    if obj_key6 != obj_key7:
+        return None
+
+    # ---- stmt8: if t=="Call" and isinstance(new.get("func"),str): <func rewrite>
+    s8 = body[8]
+    p8 = _sub_match_func_rewrite(s8, "t", self_p, rename_p)
+    if p8 is None:
+        return None
+
+    # ---- stmt9: if s in ("Assign","AugAssign","For") and isinstance(new.get("target"),str):
+    s9 = body[9]
+    p9 = _sub_match_target_rewrite(s9, "s", rename_p)
+    if p9 is None:
+        return None
+
+    # ---- stmt10: return new
+    s10 = body[10]
+    if not (isinstance(s10, dict) and s10.get("stmt") == "Return"
+            and _is_var(s10.get("value"), "new")):
+        return None
+
+    return {
+        "node": node_p, "self": self_p, "pmap": pmap_p, "rename": rename_p,
+        "var_tag": var_tag, "vd_type_val": vd_type_val,
+        "fg_tag": fg_tag, "obj_key": obj_key6, "fa_tags": fa_tags,
+        "call_tag": p8["call_tag"], "func_key": p8["func_key"],
+        "self_prefix": p8["self_prefix"], "dot": p8["dot"],
+        "target_tags": p9["target_tags"], "target_key": p9["target_key"],
+    }
+
+
+def _sub_match_selfobj_write(stmt: Any, tvar: str, node_p: str,
+                             self_p: str) -> Optional[Tuple[str, str]]:
+    """`if <tvar> == "<TAG>" and new.get("<okey>") == "self": new["<okey>"]=self_name`
+    -> (TAG, okey)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "and"):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "=="
+            and _is_var(left.get("left"), tvar)):
+        return None
+    tag = _is_string(left.get("right"))
+    if tag is None:
+        return None
+    os = _sub_get_object_self(right, "new")
+    if os is None:
+        return None
+    okey, _ = os
+    okey2 = _sub_match_obj_set(stmt.get("body", []), okey, self_p)
+    if okey2 is None:
+        return None
+    return (tag, okey)
+
+
+def _sub_match_selfobj_tuple_write(stmt: Any, svar: str,
+                                   self_p: str) -> Optional[Tuple[List[str], str]]:
+    """`if <svar> in (<TAGS>) and new.get("<okey>") == "self": new["<okey>"]=self_name`
+    -> (TAGS, okey)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "and"):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "in"
+            and _is_var(left.get("left"), svar)):
+        return None
+    tags = _sub_str_tuple(left.get("right"))
+    if tags is None:
+        return None
+    os = _sub_get_object_self(right, "new")
+    if os is None:
+        return None
+    okey, _ = os
+    okey2 = _sub_match_obj_set(stmt.get("body", []), okey, self_p)
+    if okey2 is None:
+        return None
+    return (tags, okey)
+
+
+def _sub_match_obj_set(body: List[Any], okey: str, self_p: str) -> Optional[str]:
+    """`[ new["<okey>"] = self_name ]` (single ArraySet) -> okey."""
+    if not (len(body) == 1 and isinstance(body[0], dict)
+            and body[0].get("stmt") == "ArraySet"
+            and _is_var(body[0].get("array"), "new")
+            and _is_string(body[0].get("index")) == okey
+            and _is_var(body[0].get("value"), self_p)):
+        return None
+    return okey
+
+
+def _sub_match_func_rewrite(stmt: Any, tvar: str, self_p: str,
+                            rename_p: str) -> Optional[Dict[str, Any]]:
+    """stmt8: `if <tvar>=="Call" and isinstance(new.get("func"),str): fn=new["func"];
+    if fn.startswith("self."): new["func"]=self_name+fn[len("self"):]
+    elif "." in fn: (recv,_,meth)=fn.partition("."); if recv in rename: new["func"]=f"{rename[recv]}.{meth}"`.
+    Returns the captured literals; else None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "and"):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "=="
+            and _is_var(left.get("left"), tvar)):
+        return None
+    call_tag = _is_string(left.get("right"))
+    if call_tag is None:
+        return None
+    func_key = _sub_isinstance_get_str(right, "new")
+    if func_key is None:
+        return None
+    b = stmt.get("body", [])
+    if len(b) != 2:
+        return None
+    # fn = new["func"]
+    if not (b[0].get("stmt") == "Assign" and b[0].get("target") == "fn"):
+        return None
+    sub = b[0].get("value", {})
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), "new") and _is_string(sub.get("index")) == func_key):
+        return None
+    # if fn.startswith("self."): ... else: if "." in fn: ...
+    inner = b[1]
+    if not (inner.get("stmt") == "If"):
+        return None
+    it = inner.get("test", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "fn.startswith"):
+        return None
+    self_prefix = _is_string((it.get("args") or [{}])[0])
+    if self_prefix is None:
+        return None
+    # then-branch: new["func"] = self_name + fn[len("self"):]  (structure only; opaque)
+    tb = inner.get("body", [])
+    if not (len(tb) == 1 and tb[0].get("stmt") == "ArraySet"
+            and _is_var(tb[0].get("array"), "new")
+            and _is_string(tb[0].get("index")) == func_key):
+        return None
+    # else-branch: if "." in fn: TupleUnpack + rename write
+    eb = inner.get("orelse", [])
+    if not (len(eb) == 1 and eb[0].get("stmt") == "If"):
+        return None
+    et = eb[0].get("test", {})
+    if not (isinstance(et, dict) and et.get("type") == "BinOp" and et.get("op") == "in"
+            and _is_var(et.get("right"), "fn")):
+        return None
+    dot = _is_string(et.get("left"))
+    if dot is None:
+        return None
+    ebb = eb[0].get("body", [])
+    if not (len(ebb) == 2 and ebb[0].get("stmt") == "TupleUnpack"
+            and ebb[1].get("stmt") == "If"):
+        return None
+    if ebb[0].get("targets") != ["recv_part", "_", "method_part"]:
+        return None
+    inner2 = ebb[1].get("test", {})
+    if not (isinstance(inner2, dict) and inner2.get("type") == "BinOp" and inner2.get("op") == "in"
+            and _is_var(inner2.get("left"), "recv_part") and _is_var(inner2.get("right"), rename_p)):
+        return None
+    return {"call_tag": call_tag, "func_key": func_key,
+            "self_prefix": self_prefix, "dot": dot}
+
+
+def _sub_match_target_rewrite(stmt: Any, svar: str,
+                              rename_p: str) -> Optional[Dict[str, Any]]:
+    """stmt9: `if <svar> in (<TAGS>) and isinstance(new.get("<tkey>"),str):
+    if new["<tkey>"] in rename: new["<tkey>"]=rename[new["<tkey>"]]`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not stmt.get("orelse")):
+        return None
+    test = stmt.get("test", {})
+    if not (isinstance(test, dict) and test.get("type") == "BinOp" and test.get("op") == "and"):
+        return None
+    left, right = test.get("left", {}), test.get("right", {})
+    if not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "in"
+            and _is_var(left.get("left"), svar)):
+        return None
+    tags = _sub_str_tuple(left.get("right"))
+    if tags is None:
+        return None
+    tkey = _sub_isinstance_get_str(right, "new")
+    if tkey is None:
+        return None
+    b = stmt.get("body", [])
+    if not (len(b) == 1 and b[0].get("stmt") == "If"):
+        return None
+    it = b[0].get("test", {})
+    if not (isinstance(it, dict) and it.get("type") == "BinOp" and it.get("op") == "in"
+            and _is_var(it.get("right"), rename_p)):
+        return None
+    sub = it.get("left", {})
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), "new") and _is_string(sub.get("index")) == tkey):
+        return None
+    return {"target_tags": tags, "target_key": tkey}
+
+
+def emit_substitute_group(func: Dict[str, Any], sm: Dict[str, Any],
+                          whyml_ident) -> List[str]:
+    """Emit the `_substitute` value-returning deep-rewrite group over the
+    certified pyval/pydict ADT (get/pput/pv_size). Functional (`assigns
+    \\nothing`; no `writes`); the string-op self-receiver post-processing is
+    lowered to opaque `val`s (result VC-free -> NOT an axiom; ledger 3).
+    Congruent (modulo captured literals) to the proven substmap T1 group."""
+    n = whyml_ident(func["name"])
+    self_p = sm["self"]
+    var_tag = sm["var_tag"]
+    vd_type = sm["vd_type_val"]
+    obj = sm["obj_key"]
+    func_key = sm["func_key"]
+    tkey = sm["target_key"]
+    fg = sm["fg_tag"]
+    fa = sm["fa_tags"]
+    tt = sm["target_tags"]
+
+    def _k(key: str) -> str:
+        return _irkey_ctor(key)
+
+    out: List[str] = []
+    out.append("")
+    out.append(f"  (* ir-inline `_substitute`: value-returning pyval-tree deep-rewrite. *)")
+    out.append(f"  (* Structure REAL (list-map / dict pput-rebuild / get-tag / Var lookup); *)")
+    out.append(f"  (* the self-receiver string-ops are opaque `val`s (ensures True). NO axiom. *)")
+    # opaque string-op vals (result no VC constrains -> ledger 3)
+    out.append(f"  val {n}__startswith (s pre: string) : bool")
+    out.append(f"  val {n}__contains (sub s: string) : bool")
+    out.append(f"  val {n}__self_prefix (self_name fn: string) : string")
+    out.append(f"  val {n}__rewrite_dotted (fn: string) (rename: map string (option string)) : string")
+    out.append(f"  val {n}__rename_target (t0: string) (rename: map string (option string)) : string")
+    # real tag reader (program-context; constructor match — the pydict theory's
+    # LOGIC `get` clashes with `Map.get` in program code, so recognizers roll
+    # their own structural reader. Only the queried keys have arms; others fall
+    # through — faithful for the tag reads this walk performs).
+    out.append(f"  let rec {n}__get (d: pydict) (k: irkey) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append("    | DCons k' v rest ->")
+    out.append("        (match k, k' with")
+    out.append("        | K_type, K_type -> Some v")
+    out.append("        | K_name, K_name -> Some v")
+    out.append("        | K_func, K_func -> Some v")
+    out.append("        | K_target, K_target -> Some v")
+    out.append(f"        | K_dyn a, K_dyn b -> if pystr_eq a b then Some v else {n}__get rest k")
+    out.append(f"        | _, _ -> {n}__get rest k")
+    out.append("        end)")
+    out.append("    end")
+    out.append(f"  let {n}__tag_eq (d: pydict) (k: irkey) (lit: string) : bool")
+    out.append(f"  = match {n}__get d k with Some (PStr s) -> pystr_eq s lit | _ -> false end")
+    out.append(f"  let {n}__has_str (d: pydict) (k: irkey) : bool")
+    out.append(f"  = match {n}__get d k with Some (PStr _) -> true | _ -> false end")
+    out.append(f"  let {n}__get_str (d: pydict) (k: irkey) : string")
+    out.append(f'  = match {n}__get d k with Some (PStr s) -> s | _ -> "" end')
+    # the self-receiver post-processing (applied to the pput-rebuilt dict)
+    out.append(f"  let {n}__post (nw: pydict) ({self_p}: string) (rename: map string (option string)) : pydict")
+    out.append(f'  = let nw = if {n}__tag_eq nw K_type "{fg}" && {n}__tag_eq nw {_k(obj)} "self"')
+    out.append(f"             then pput_prog nw {_k(obj)} (PStr {self_p}) else nw in")
+    _stmt_or = " || ".join(f'{n}__tag_eq nw {_k("stmt")} "{t}"' for t in fa)
+    out.append(f"    let nw = if ({_stmt_or})")
+    out.append(f'                && {n}__tag_eq nw {_k(obj)} "self"')
+    out.append(f"             then pput_prog nw {_k(obj)} (PStr {self_p}) else nw in")
+    out.append(f'    let nw = if {n}__tag_eq nw K_type "{sm["call_tag"]}" && {n}__has_str nw {_k(func_key)}')
+    out.append(f"             then (let fn = {n}__get_str nw {_k(func_key)} in")
+    out.append(f'                   if {n}__startswith fn "{sm["self_prefix"]}"')
+    out.append(f"                   then pput_prog nw {_k(func_key)} (PStr ({n}__self_prefix {self_p} fn))")
+    out.append(f'                   else if {n}__contains "{sm["dot"]}" fn')
+    out.append(f"                   then pput_prog nw {_k(func_key)} (PStr ({n}__rewrite_dotted fn rename))")
+    out.append(f"                   else nw)")
+    out.append(f"             else nw in")
+    _stmt_or2 = " || ".join(f'{n}__tag_eq nw {_k("stmt")} "{t}"' for t in tt)
+    out.append(f"    let nw = if ({_stmt_or2}) && {n}__has_str nw {_k(tkey)}")
+    out.append(f"             then pput_prog nw {_k(tkey)} (PStr ({n}__rename_target ({n}__get_str nw {_k(tkey)}) rename))")
+    out.append(f"             else nw in")
+    out.append("    nw")
+    # the main value-returning walk group
+    out.append(f"  let rec {n} (node: pyval) ({self_p}: string) (param_map: map string (option pyval)) (rename: map string (option string)) : pyval")
+    out.append("    requires { true } ensures { true }")
+    out.append("    variant { pv_size node }")
+    out.append("  = match node with")
+    out.append(f"    | PList xs -> PList ({n}__list xs {self_p} param_map rename)")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get d K_type with")
+    out.append(f'         | Some (PStr ty) -> if pystr_eq ty "{var_tag}" then')
+    out.append(f"             (match {n}__get d K_name with")
+    out.append("              | Some (PStr nm) ->")
+    out.append("                  (match Map.get param_map nm with")
+    out.append("                   | Some pv -> pv")
+    out.append("                   | None ->")
+    out.append("                       (match Map.get rename nm with")
+    out.append(f'                        | Some rn -> PDict (DCons K_type (PStr "{vd_type}") (DCons K_name (PStr rn) DNil))')
+    out.append("                        | None -> PDict d end)")
+    out.append("                   end)")
+    out.append("              | _ -> PDict d end)")
+    out.append(f"             else PDict ({n}__post ({n}__dict d {self_p} param_map rename) {self_p} rename)")
+    out.append(f"         | _ -> PDict ({n}__post ({n}__dict d {self_p} param_map rename) {self_p} rename)")
+    out.append("        end)")
+    out.append("    | _ -> node")
+    out.append("    end")
+    out.append(f"  with {n}__dict (d: pydict) ({self_p}: string) (param_map: map string (option pyval)) (rename: map string (option string)) : pydict")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> DNil")
+    out.append(f"    | DCons k v rest -> DCons k ({n} v {self_p} param_map rename) ({n}__dict rest {self_p} param_map rename)")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval) ({self_p}: string) (param_map: map string (option pyval)) (rename: map string (option string)) : list pyval")
+    out.append("    variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> Nil")
+    out.append(f"    | Cons h t -> Cons ({n} h {self_p} param_map rename) ({n}__list t {self_p} param_map rename)")
+    out.append("    end")
+    return out
+
+
+# =========================================================================
 # ir-traversal-residual A-bool + T2 + D — the COMPOSED / SHORT-CIRCUIT shapes
 # (plan §3 T2 option/first-match, §4 D traversal outlining, plus the A-bool
 # existence-fold algebra — the smallest algebra: fold into `bool` with `||`).

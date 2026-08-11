@@ -1312,3 +1312,17 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   cluster's sole member. NEXT lever to WORK (gather-pick-work): the recursive-IR-tree partition hosts (`_substitute`/
   `_hoist_calls_in_expr`/`inline_stmts`, ir_inline.py — F1 now makes their partition faithful; residual = recursive IR-
   tree rewrite+mutation) OR the heterogeneous-Dict cert build. Pick+work next heartbeat.
+
+- **DEEPEST WALL BROKEN — value-producing heterogeneous-Dict tree-rewrite (2026-08-11, count 745→744, gather-pick-work).**
+  Picked the deepest lever (the `Any`-tree walkers = documented terminus) and WORKED it. Spike PROVED FEASIBLE+axiom-free
+  (pv_rewrite : pyval→pyval mutual `let rec function` group, all why3 goals Valid, reuses certified pyval/pydict ADT +
+  pput, NO new cert). BUILT `recognize_substitute`/`emit_substitute_group` (generic_fold.py) — a value-RETURNING
+  pyval-tree deep-rewrite walker: `PList`→list-map, `PDict`→ `match __get d "type" with Some(PStr "Var") -> substitute
+  from param_map/rename | _ -> PDict(rebuild via DCons value-recursion + pput_prog self-receiver writes)`, scalar→id;
+  `variant {pv_size v}`/`{size_dict d}`/`{size_list xs}` structural termination. Post-processing string-ops opaque (VC-free,
+  contract `ensures True`). Converted `_substitute` (verbatim). FULL BATTERY GREEN: ir_inline.py whole-file proof SUCCESS
+  0 non-Valid; corpus byte-diff 0; sibling-emission = ONLY ir_inline.py (needs_pput/needs_pydict gated on recognize_
+  substitute + fail-closed); non-vacuity (real tree rebuild + variant VCs + mutation test "Var"→"XXX"); ledger 3; verbatim.
+  **BANKED THE BIGGEST CAPABILITY: value-RETURNING pyval-tree-rewrite walker** — corrects the "heterogeneous-Dict is the
+  terminus" assumption for value-producing tree-rewrites. May now unblock the `Any`-tree-walker CLUSTER (`_hoist_calls_in_
+  expr`/`inline_stmts` + the ~85 Dict[str,Any] readers). §P RE-DRAIN NEXT — this is the highest-value re-drain of the run.

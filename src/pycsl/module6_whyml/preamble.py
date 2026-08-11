@@ -2212,8 +2212,10 @@ class PreambleEmissionMixin:
         # the by-reference `#@ assigns` frame). Gated separately so every
         # already-landed pydict mirror stays byte-identical; corpus-inert (only
         # a construction recognizer sets it).
+        from module6_whyml.generic_fold import recognize_substitute
         needs_pput = any(
             recognize_rewrite_ir_calls(f) is not None
+            or recognize_substitute(f) is not None
             for f in functions)
         from module6_whyml.generic_fold import (
             recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
@@ -2307,6 +2309,7 @@ class PreambleEmissionMixin:
             recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
             or recognize_self_method_calls(f) is not None
             or recognize_substmap(f) is not None
+            or recognize_substitute(f) is not None
             or recognize_bool_existence(f) is not None
             or recognize_bool_multiway(f) is not None
             or recognize_frt(f) is not None
