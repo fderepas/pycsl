@@ -798,3 +798,14 @@ Remaining classified: walker-FUSION (`_pb_stmt`/`_cs_stmt` — feasibility-PROVE
 attempting under airtight gates); string-keyed-set (session-scale cascade); heterogeneous Dict[str,Any]
 V1 / family-B node-ctors / char-lexer (needs new value-shape + §10.5 cert = authorization); str_to_int +
 regex (CORRECTNESS-floors).
+
+   **Item 1b-B (empty-collection-literal) — MEASURED FLOOR (2026-08-11, count 749): WALLED-OTHERWISE.** Census of
+   716 trusted stubs: 221 assign an empty literal; 117 are `[]`-only typed-local accumulators (already handled by
+   the value model, not 1b-B); of the 100 dict-`{}`/`set()`/field candidates, 0 have empty-literal typing as the
+   SOLE/primary blocker — every one carries >=1 orthogonal wall (Set model via `set()` empties, heterogeneous
+   Dict[str,Any], I/O/Path, raw-AST, map-of-seq-record mutation, nested-def, while). `_reset_module_accumulators`
+   = entangled-with-Set (2 `set()` assigns) AND field-cascade (fields read by _scan_preamble_needs/_emit_type_decls).
+   So 1b-B ALONE converts nothing; NOT the next build. Per-method value-model frontier is at measured floor after CIE.
+   NEXT auto-authorized progress = COORDINATED caller+callee Set-model retype (bounded 2-method, e.g.
+   _module_binding_names + its verified consumer _handle_in_globals_expr's `name in <set>()` membership), retyped +
+   caller-fixed in ONE increment; the rails catch any wider sibling regression.
