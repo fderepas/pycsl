@@ -850,3 +850,18 @@ regex (CORRECTNESS-floors).
    `_parse_why3_json` opaque, Gate-C vacuity risk); (v) int-model index/arity arithmetic (`_typeddict_check_subscript`/
    `_namedtuple_check_*`). NEXT SPIKES (per sub-wall, cheapest-first): (i) construction-as-return via pput/pappend is
    the most-promising autonomous candidate; the rest likely review-gated. The heartbeat loop pursues these per-sub-wall.
+
+   **Sub-wall (i) construction-as-return via pput = CERTIFIED-BOUNDARY (review-gated; spike 2026-08-11, count 749).**
+   `_build_soundness_report`'s returned records carry `trusted_dependencies = sorted((setA & setB) - setC)` — `set[str]`
+   VALUES with set-algebra (∩/∖/sort) flowing INTO a returned pyval dict. The pyval ADT (PInt|PStr|PBool|PNone|PList|
+   PDict) has NO PSet constructor, so a set VALUE inside a heterogeneous dict is unrepresentable; the landed StrSet
+   (`map string bool`, CIE) models a method's OWN LOCAL set but NOT a set stored as a pyval value. Faithful conversion
+   needs a NEW certified value shape (PSet-in-pyval + ∩/∖/sort laws) — outside spike/autonomous authority (a spike may
+   not add a cert; ledger stays 3). pput/pappend cover the dict-literal + list-of-dicts backbone but zero set model.
+   Also cross-calls trusted external `_collect_calls`. REVIEW-GATED. **CONCLUSION: the AUTONOMOUS (auto-authorizable,
+   no-new-cert, per-method/spike-and-land) value-model frontier is at a MEASURED FLOOR** — CIE is the one clean win;
+   every remaining reachable value-model stub needs either a NEW certified value shape (PSet-in-pyval; mutable-seq for
+   map-of-mutable-seq sub-wall (ii)) or is int-model-coupled / opaque-trusted-parser / cross-call-to-external. Those are
+   genuine REVIEW-GATED MULTI-SESSION builds (each co-lands a new axiom-free Rocq+Lean cert), NOT autonomous spike-and-
+   land. Per driver action (6): HOLD at this measured floor; the sub-walls (ii)-(v) each remain a review-gated build a
+   FUTURE authorized window (or an explicit user go-ahead to co-land the PSet-in-pyval / mutable-seq cert) can take.
