@@ -17473,6 +17473,200 @@ def emit_global_call_target_group(desc: Dict[str, Any], whyml_ident) -> List[str
     return out
 
 
+# ---- `_callable_whyml_arrow` (LEVER L19): a `"callable:<a1>,…-><r>"` tag → curried ----------
+# WhyML function-arrow renderer. Live body (VERBATIM in the mirror):
+#   body = symtype[len("callable:"):]
+#   arg_part, _, ret_part = body.partition("->")
+#   arg_tags = [t for t in arg_part.split(",") if t]
+#   whyml_args = [self._callable_tag_to_whyml(t) for t in arg_tags]
+#   whyml_ret = self._callable_tag_to_whyml(ret_part)
+#   parts = whyml_args + [whyml_ret]
+#   return " -> ".join(parts)
+# Lowering (the `_global_call_target` template): the constant-offset slice + `.partition`
+# projections are opaque `(string[,sep])->string` vals reflecting the "->" sep
+# (mutation-sensitive); `arg_part.split(",")` is the faithful `str_split_op … : array string`
+# reflecting the "," sep; the `if t` filter is an opaque length>=0 `array string -> array
+# string`; the `[self._callable_tag_to_whyml(t) for …]` map + `" -> ".join(parts+[ret])` fuse
+# into a recursive `str_concat_op` fold that CALLS THE VERIFIED SIBLING
+# `_callable_tag_to_whyml` on every arg tag AND on the return tag (non-facade: the emitted
+# body reads symtype, both seps, and the sibling), reflecting the " -> " join sep. Structural
+# `variant { Array.length a - i }`; `ensures True`; ledger 3.
+
+def recognize_callable_whyml_arrow(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_callable_whyml_arrow`. Never raises."""
+    try:
+        return _recognize_callable_whyml_arrow(func)
+    except Exception:
+        return None
+
+
+def _recognize_callable_whyml_arrow(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_callable_whyml_arrow"):
+        return None
+    if func.get("return_annotation") != "str":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    sym_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 7:
+        return None
+    # body[0]: <bodyvar> = <sym_p>[len(<prefix>):]
+    b0 = body[0]
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    bodyvar = b0.get("target")
+    sa = b0.get("value") or {}
+    if not (isinstance(bodyvar, str) and sa.get("type") == "SliceAccess"
+            and _is_var(sa.get("value"), sym_p)):
+        return None
+    sl = sa.get("slice") or {}
+    if not (sl.get("type") == "Slice" and sl.get("upper") is None):
+        return None
+    lo = sl.get("lower") or {}
+    if not (isinstance(lo, dict) and lo.get("type") == "Call" and lo.get("func") == "len"):
+        return None
+    loa = lo.get("args") or []
+    prefix = _is_string(loa[0]) if loa else None
+    if prefix is None:
+        return None
+    # body[1]: TupleUnpack argpart, _, retpart = <bodyvar>.partition(<psep>)
+    b1 = body[1]
+    if not (isinstance(b1, dict) and b1.get("stmt") == "TupleUnpack"):
+        return None
+    tgts = b1.get("targets") or []
+    if len(tgts) != 3:
+        return None
+    argpart_v, _mid, retpart_v = tgts
+    pc = b1.get("value") or {}
+    if not (pc.get("type") == "Call" and pc.get("func") == f"{bodyvar}.partition"):
+        return None
+    pca = pc.get("args") or []
+    psep = _is_string(pca[0]) if pca else None
+    if psep is None:
+        return None
+    # body[2]: argtags = [t for t in <argpart>.split(<ssep>) if t]
+    b2 = body[2]
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Assign"):
+        return None
+    argtags_v = b2.get("target")
+    lc2 = b2.get("value") or {}
+    if not (isinstance(argtags_v, str) and lc2.get("type") == "ListComp"):
+        return None
+    g2 = (lc2.get("generators") or [{}])
+    if len(g2) != 1:
+        return None
+    g2 = g2[0]
+    tvar = g2.get("target")
+    if not (isinstance(tvar, str) and _is_var(lc2.get("elt"), tvar)):
+        return None
+    it2 = g2.get("iter") or {}
+    if not (it2.get("type") == "Call" and it2.get("func") == f"{argpart_v}.split"):
+        return None
+    ita = it2.get("args") or []
+    ssep = _is_string(ita[0]) if ita else None
+    ifs2 = g2.get("ifs") or []
+    if ssep is None or len(ifs2) != 1 or not _is_var(ifs2[0], tvar):
+        return None
+    # body[3]: whymlargs = [self.<sib>(t) for t in <argtags>]
+    b3 = body[3]
+    if not (isinstance(b3, dict) and b3.get("stmt") == "Assign"):
+        return None
+    whymlargs_v = b3.get("target")
+    lc3 = b3.get("value") or {}
+    if not (isinstance(whymlargs_v, str) and lc3.get("type") == "ListComp"):
+        return None
+    elt3 = lc3.get("elt") or {}
+    if not (elt3.get("type") == "Call" and isinstance(elt3.get("func"), str)
+            and elt3.get("func").startswith("self.")):
+        return None
+    sib = elt3.get("func")[len("self."):]
+    ea3 = elt3.get("args") or []
+    g3 = (lc3.get("generators") or [{}])
+    if len(g3) != 1:
+        return None
+    g3 = g3[0]
+    t3 = g3.get("target")
+    if not (isinstance(t3, str) and len(ea3) == 1 and _is_var(ea3[0], t3)
+            and _is_var(g3.get("iter"), argtags_v)):
+        return None
+    # body[4]: whymlret = self.<sib>(retpart)
+    b4 = body[4]
+    if not (isinstance(b4, dict) and b4.get("stmt") == "Assign"):
+        return None
+    whymlret_v = b4.get("target")
+    cv4 = b4.get("value") or {}
+    if not (isinstance(whymlret_v, str) and cv4.get("type") == "Call"
+            and cv4.get("func") == f"self.{sib}"):
+        return None
+    ca4 = cv4.get("args") or []
+    if not (len(ca4) == 1 and _is_var(ca4[0], retpart_v)):
+        return None
+    # body[5]: parts = whymlargs + [whymlret]
+    b5 = body[5]
+    if not (isinstance(b5, dict) and b5.get("stmt") == "Assign"):
+        return None
+    parts_v = b5.get("target")
+    bo5 = b5.get("value") or {}
+    if not (isinstance(parts_v, str) and bo5.get("type") == "BinOp" and bo5.get("op") == "+"
+            and _is_var(bo5.get("left"), whymlargs_v)):
+        return None
+    rt5 = bo5.get("right") or {}
+    rt5e = rt5.get("elts") or []
+    if not (rt5.get("type") in ("ArrayLit", "ListLit") and len(rt5e) == 1
+            and _is_var(rt5e[0], whymlret_v)):
+        return None
+    # body[6]: return <jsep>.join(parts)
+    b6 = body[6]
+    if not (isinstance(b6, dict) and b6.get("stmt") == "Return"):
+        return None
+    jc = b6.get("value") or {}
+    if not (jc.get("type") == "Call" and jc.get("func") == "join"):
+        return None
+    jsep = _is_string(jc.get("receiver"))
+    jca = jc.get("args") or []
+    if jsep is None or len(jca) != 1 or not _is_var(jca[0], parts_v):
+        return None
+    return {"name": func["name"], "self_type": func.get("self_type"),
+            "sib": sib, "psep": psep, "ssep": ssep, "jsep": jsep}
+
+
+def emit_callable_whyml_arrow_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_callable_whyml_arrow` per the module note. The map+join fuse into a recursive
+    `str_concat_op` fold that CALLS the verified sibling `_callable_tag_to_whyml` on each arg
+    tag and on the return tag. `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    cls = n.split("__", 1)[0]
+    selfty = cls
+    sib = whyml_ident(f"{cls}__{desc['sib']}")
+    psep, ssep, jsep = desc["psep"], desc["ssep"], desc["jsep"]
+    out: List[str] = []
+    # opaque constant-offset slice + partition projections + empty-drop filter
+    out.append(f"  val {n}__strip (s: string) : string")
+    out.append(f"  val {n}__before (s: string) (sep: string) : string")
+    out.append(f"  val {n}__after (s: string) (sep: string) : string")
+    out.append(f"  val {n}__filter_ne (a: array string) : array string")
+    # map(sibling) fused with the join: recursive str_concat fold over the split array
+    out.append(f"  let rec {n}__args_join (self: {selfty}) (a: array string) (i: int) : string")
+    out.append("    requires { 0 <= i <= Array.length a }")
+    out.append("    variant { Array.length a - i }")
+    out.append('  = if i >= Array.length a then ""')
+    out.append(f"    else if i = Array.length a - 1 then {sib} self a[i]")
+    out.append(f'    else str_concat_op (str_concat_op ({sib} self a[i]) "{jsep}")')
+    out.append(f"                       ({n}__args_join self a (i + 1))")
+    out.append(f"  let {n} (self: {selfty}) (symtype: string) : string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let bd = {n}__strip symtype in")
+    out.append(f'    let arg_part = {n}__before bd "{psep}" in')
+    out.append(f'    let ret_part = {n}__after bd "{psep}" in')
+    out.append(f'    let arg_tags = {n}__filter_ne (str_split_op arg_part "{ssep}") in')
+    out.append(f"    let whyml_ret = {sib} self ret_part in")
+    out.append("    if Array.length arg_tags = 0 then whyml_ret")
+    out.append(f'    else str_concat_op (str_concat_op ({n}__args_join self arg_tags 0) "{jsep}") whyml_ret')
+    return out
+
+
 # ============================================================================
 # self-tcb-reduction-driver — `monomorphize._type_str`: a FLAT (non-recursive)
 # `pyval -> Optional[str]` reader that dispatches None / isinstance-str /

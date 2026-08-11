@@ -13,12 +13,17 @@ class FunctionEmissionMixin:
     def _param_type_str(self, arg: str, ref_params: int, array2d_params: int, array1d_params: int, symbol_table: int, int_type: str) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _callable_whyml_arrow(self, symtype: str) -> str:
-        return ""
+        body = symtype[len("callable:"):]
+        arg_part, _, ret_part = body.partition("->")
+        arg_tags = [t for t in arg_part.split(",") if t]
+        whyml_args = [self._callable_tag_to_whyml(t) for t in arg_tags]
+        whyml_ret = self._callable_tag_to_whyml(ret_part)
+        parts = whyml_args + [whyml_ret]
+        return " -> ".join(parts)
 
     #@ requires True
     #@ ensures True

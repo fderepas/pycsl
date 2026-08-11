@@ -1196,6 +1196,20 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   capabilities: `_cache_key` = crypto hash (`hashlib.sha256`/`_sha256_file`, opaque/un-modelable); `_synthesize_legacy_
   text` = join over generator calling trusted `_synthesize_block` (trusted-sub-producer); `_build_witness_str` =
   heterogeneous Dict/Optional params + array witnesses. L18's clean cluster was `_inductive_sig_whyml` ALONE (confirmed).
+- **L19 (=S4) — str.partition recognizer + listcomp-map-over-split** [BROKEN — LANDED 2026-08-11, count 747→746].
+  Converted `_callable_whyml_arrow` via `recognize_callable_whyml_arrow`/`emit_callable_whyml_arrow_group` (generic_fold.py,
+  mirroring the landed `recognize_global_call_target` partition precedent): opaque `__before`/`__after` partition
+  projections (no ensures), `__filter_ne` over `str_split_op`, a recursive `__args_join` fold (`variant {Array.length a-i}`)
+  fusing the `[_callable_tag_to_whyml(t) for t in tags]` map (calling the ALREADY-VERIFIED sibling) with the `" -> "` join,
+  `str_concat_op`. FULL BATTERY GREEN (supervisor-verified): functions.py (1081-line module6) whole-file proof SUCCESS 0
+  non-Valid; corpus byte-diff 0; sibling-emission diff = ONLY functions.py changed; non-vacuity (real partition/split/
+  sibling-map-fold/join + array-bounds/variant/postcond VCs + mutation test " -> "→" XX "); ledger 3 (str_split_op/
+  str_concat_op existing abstract vals, allowlist untouched); verbatim body (mirror-check 52/52). BANKED: bespoke
+  partition+listcomp-map-over-split-array-calling-verified-sibling recognizer pattern. Remaining partition hosts
+  (`_call_return_whyml_type` rpartition+heterogeneous-map, `_substitute`/`_hoist_calls_in_expr`/`inline_stmts` recursive
+  IR-tree) each need their own larger build.
+
+  (superseded promotion note:)
 - **L19 (=S4) — str.partition/rpartition recognizer** [PROMOTED TOP OPEN LEVER 2026-08-11, CONTAINED per L18 spike].
   9 sites emit opaque `s_partition_1(int):int` int-hash (receiver dropped, tuple-unpacked into int locals). A separate
   contained recognizer (partition → faithful tuple of 3 strings via str ops) lifts signature-parsing stubs (e.g.

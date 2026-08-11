@@ -3355,6 +3355,7 @@ class FunctionEmissionMixin:
             recognize_compute_scope_sets, emit_compute_scope_sets_group,
             recognize_classify, emit_classify_group,
             recognize_global_call_target, emit_global_call_target_group,
+            recognize_callable_whyml_arrow, emit_callable_whyml_arrow_group,
             recognize_method_edges, emit_method_edges_group,
             recognize_type_str_reader, emit_type_str_reader_group,
             recognize_has_dynamic_exec, emit_has_dynamic_exec_group,
@@ -3990,6 +3991,20 @@ class FunctionEmissionMixin:
         _gct = recognize_global_call_target(func)
         if _gct is not None:
             return emit_global_call_target_group(_gct, whyml_ident)
+        # LEVER L19: `_callable_whyml_arrow` — constant-offset slice + `.partition` +
+        # split-comp-map over the verified `_callable_tag_to_whyml` sibling + `" -> ".join`.
+        # Register the faithful split/concat ops the fused map-join fold uses (the recognizer
+        # bypasses the normal expression-lowering path that would register them). Ledger 3.
+        _cwa = recognize_callable_whyml_arrow(func)
+        if _cwa is not None:
+            self._add_abstract_op(
+                "val str_split_op (s: string) (sep: string) : array string\n"
+                "    ensures { Array.length result >= 0 }")
+            self._add_abstract_op(
+                "val str_concat_op (a: string) (b: string) : string\n"
+                "    ensures { result = (concat a b) }\n"
+                "    ensures { String.length result = String.length a + String.length b }")
+            return emit_callable_whyml_arrow_group(_cwa, whyml_ident)
         _me = recognize_method_edges(func)
         if _me is not None:
             return emit_method_edges_group(_me, whyml_ident)
