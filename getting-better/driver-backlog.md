@@ -1626,3 +1626,19 @@ mutation test) + coupling-safe caller. **BANKED:** the two-fold-with-cross-depen
 The 5 pycsl.py nested-def stubs = subprocess boundary. Nested-def set-catamorphism vein exhausted.
 SESSION TALLY (from 749): 749→739, 10 conversions (8 pv-tree-walker + field_decode + string_elem_read).
 NEXT: fresh census for the next vein (anti-false-floor).
+
+## Census verdict: current recognizer toolkit FLOOR at 739; next lever = typed-record-view value model (2026-08-11, HEAD ff9f58a1)
+Fresh independent census of all 739 stubs (50 files), ~15 candidates examined, the cleanest
+(`_field_type_for`, types.py) PORTED + measured to its exact `--fun` error: the `_record_types.values()`
+walk + `info.get("whyml_name")` string-compare LOWER correctly (wall-2), but `info.get("field_types",
+{}).get(field)` — a NESTED `Dict[str,str]` read — lowers to `int` (`get_1 field`) while the return union
+arm is `string` → `Verification FAILED` (line 974). = the documented **heterogeneous nested-typed-string-map
+value-model boundary**. Residuals all genuine boundaries: cross-mixin forward-decl stubs (no live body in
+the mirror file), nested-def closures (`_is_false_goal`), graph reachability (`compute_sccs`), linear-form
+coeff-maps, hashlib/string-char, raw-ast, filesystem I/O (`ir_resolve`), subprocess prover-drivers,
+forbidden allowlist, struct-format parsing.
+**NEXT LEVER (value-model, NOT floor per mandate): typed-record-view for a heterogeneous `Dict[str,Any]`
+record whose nested fields are typed maps (`field_types: Dict[str,str]`).** Spike whether typing the nested
+`field_types` value as `map string (option string)` (not int) — a typed-nested-map-view / pget-returns-
+string-on-nested-pydict — fixes `_field_type_for`'s `--fun` error, byte-inert + axiom-free. CONTAINED →
+build (739→738 + unblocks `_field_type_of` + the record-view cluster); full-heterogeneous-rework → size it.
