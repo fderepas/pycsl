@@ -1157,3 +1157,17 @@ CSL-Weaver / split-as-iterable int-leak). L10 (`_verify_module_groups`) was the 
 landed conversion. The recurring string-op INT-LEAK (split/join scaffolding dropping to int-model) is now the dominant
 co-blocker; breaking it = the whole-function value-semantic-string-inference build (multi-surface, review-gated). Floor
 748 firm; 3 axiom-free capabilities banked (str→int, literal-dict-table, map-of-list) for future bundled builds.
+
+- **L18 — whole-function value-semantic-string inference (BREAK THE STRING-OP INT-LEAK)** [PROMOTED TOP OPEN LEVER
+  2026-08-11, COST/SCALE — fundable under FULL authority]. The L14-L17 meta-lesson identified the string-op int-leak
+  (split/join scaffolding dropping string locals to the int-model) as the DOMINANT co-blocker, walling ~40 of 49
+  str-accumulate stubs. Unlike L12 (1-stub), breaking it is a CLUSTER unblock. Missing surfaces (from the L17 spike):
+  (1) `for x in s.split(sep):` faithful materialization (`str_split_op → array string`, iterate); (2) `s.split(sep)[-1]`
+  split-elem-neg-index + outer-strip composition (the str_split_elem_op recognizer EXISTS but does not fire in this
+  scaffolding); (3) whole-function value-semantic string-local inference so literals/ternary-else stay `string` not
+  int-hash. CONTAINMENT UNKNOWN — measure FIRST: is the value-semantic-string path a per-function GATE that can be
+  widened (contained), or genuinely-missing machinery (multi-surface)? The L17 spike noted the path is "OFF for this
+  function" (implying ON elsewhere) → a gate condition may be the lever. RISK: corpus-affecting (M1), byte-diff must be
+  EXACTLY the string-faithfulness correction + every affected program re-proves. NEXT: containment spike (gate vs
+  missing-machinery), then staged build if contained. Reuses banked literal-dict-table (L17) + str→int (L9) for the
+  str-accumulate cluster once the int-leak is broken.
