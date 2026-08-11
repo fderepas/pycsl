@@ -835,3 +835,18 @@ regex (CORRECTNESS-floors).
    / variant-AST IR-node WALKER model (the documented terminus; pyval/pydict ADT exists + broke CONTAINED cases per
    [[value_model_root_broken]], but the general list-of-dicts field-projection is the deepest part). Next: make-or-break
    SPIKE the contained heterogeneous-Dict path before concluding terminus-boundary.**
+
+   **Heterogeneous-Dict terminus DECOMPOSED (spike 2026-08-11, count 749) — the "deepest wall" is not one wall.**
+   The list-of-dicts field-PROJECTION READ (`{node.get("name") for node in ir.get("functions",[])}`) is ALREADY
+   BROKEN + committed: `core_ir_semantic._collect_noreturn_names`/`_check_class_invariants`/`_check_namedtuple_access`
+   are verified NON-trusted functions riding the certified pyval/pydict LIST-WALKER catamorphism (generic_fold.py:
+   PList/PDict arms, pget_dyn/pget_list, variant size_dict; no new axiom). So the projection-read vein is
+   exhausted-because-CONVERTED. The remaining `\trusted` list-of-dicts stubs are trusted for CO-LOCATED DIFFERENT
+   sub-walls — each its OWN measure/spike (NOT the projection): (i) heterogeneous-dict CONSTRUCTION-as-return
+   (`pycsl._build_soundness_report` builds nested `{"function":..,"bucket":..,"trusted_dependencies":[...]}` list-of-
+   dicts) — CANDIDATE for Lever-1 pput/pappend construction primitive; (ii) map-of-mutable-seq inner mutation
+   (`pycsl._verify_module_groups` `groups.setdefault(g,[]).append(...)`) — immutable-seq boundary; (iii) string-keyed
+   KeyError subscript (`f["name"]`); (iv) opaque trusted-string-parser dependency (`pycsl._json_goal_records` <-
+   `_parse_why3_json` opaque, Gate-C vacuity risk); (v) int-model index/arity arithmetic (`_typeddict_check_subscript`/
+   `_namedtuple_check_*`). NEXT SPIKES (per sub-wall, cheapest-first): (i) construction-as-return via pput/pappend is
+   the most-promising autonomous candidate; the rest likely review-gated. The heartbeat loop pursues these per-sub-wall.
