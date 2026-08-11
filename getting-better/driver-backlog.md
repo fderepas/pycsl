@@ -1381,3 +1381,18 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   Set[str]-return walkers via the landed StrSet per-method device + opaque-val for handler_catches (`_callee_raised_in`);
   (b) nested-`def`-closure support (would unblock `_iter_len_expr` + others); (c) the bool-existence walkers via
   recognize_bool_existence. Each a separate build. Continue next heartbeat.
+
+- **`_callee_raised_in` = SET-ENUMERATION BOUNDARY (2026-08-11).** Examined for the Set[str]-walker lever: its
+  `{e for e in inner if not any(handler_catches(b,e) for b in handler_bases)}` ENUMERATES the set (`for e in inner`
+  over a returned StrSet = `map string bool`, which has NO finite domain) — the same set/map-enumeration wall, and the
+  enumerable-set reframing was L8-REFUTED. So it's correctness-adjacent, NOT a clean StrSet-per-method build. Confirms
+  the pv-tree-walker clean vein is TRULY drained (4 conversions, floor 741) — every remaining Any-tree walker hits a
+  DOCUMENTED wall: set-enumeration (`_callee_raised_in`/`_collect_array_var_assigns`), nested-`def` (`_iter_len_expr`),
+  raw-ast object (`_max_end`/pure_ast), CSLNode-dataclass (`_subst_var`/`_subst_csl_param`), giant-cascade (`_expr_to_
+  whyml`/`_is_string_expr`).
+  **NEXT FUNDABLE LEVER = NESTED-`def`-CLOSURE SUPPORT in Module5** (the one remaining NOT-refuted capability). Module5
+  currently DROPS a nested `def` (the documented "Module5-drops-nested-def" limitation). Lowering a local `def` as a
+  Why3 local `let rec`/lifted function is feasible + axiom-free (a local function is just a scoped definition). Would
+  unblock `_iter_len_expr` (`def _operand_len`) + the broad nested-`def`-walled set across the mirror (a recurring wall
+  per [[boundary_a_nested_def_closure_broken]] family). Spike its feasibility (can Module5 emit a nested def as a local
+  let rec, or is closure-capture the blocker?) next heartbeat, then build if contained.
