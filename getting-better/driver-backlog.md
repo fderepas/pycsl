@@ -944,3 +944,22 @@ regex (CORRECTNESS-floors).
    duplicates (giant real body) already recorded. VERDICT: two independent censuses now agree (leaf-category +
    capability-reach) — CONFIRMED MEASURED FLOOR at 749 is genuine. Next reachable value-model work = the typed-self-
    state-view build (review-gated) or the giant `_expr_to_whyml` dispatcher.
+
+   **TYPED-SELF-STATE-VIEW BUILD — MAKE-OR-BREAK SPIKE = CERTIFIED-BOUNDARY (2026-08-11, count 749, Gate S refuted
+   BEFORE any emitter build).** The capability-reach census pointed at giving the transpiler's open `Dict[str,Any]`
+   self-state a typed record-value view (`map string RecordInfoView`) to convert `_field_type_for` + siblings. Spiked
+   it. RESULT: the closed-key VALUE view is FEASIBLE (2a: `_record_types` values are a FIXED 11-key shape built at
+   preamble.py:6997 — whyml_name/fields/field_types/…; 2c: `_field_type_for` reads only whyml_name+field_types, returns
+   Optional[str], NO cascade into `_expr_to_whyml`). The REAL wall (2b, decisive): the live body is a `.values()`
+   LINEAR SEARCH (`for info in self._record_types.values(): if info.get("whyml_name")==cls: …`), and a Why3 native
+   `map string _` (the model for all typed dict fields) is a TOTAL FUNCTION with NO finite domain — NOT ENUMERABLE. The
+   only enumerable certified device is the pydict ADT, whose values are heterogeneous `pyval` (→ back to the Dict[str,
+   Any] ROOT wall). Closed-key record VALUES and `.values()` enumeration are MUTUALLY EXCLUSIVE with existing machinery.
+   Converting needs a genuinely NEW value shape — an ENUMERABLE FINITE MAP WITH TYPED CLOSED-KEY RECORD VALUES
+   (association-list-style carrying typed records + a `.values()`-search lowering) — axiom-free-certifiability
+   UNESTABLISHED → CERTIFIED-BOUNDARY, NOT a clean +1. Caller-coupling: it is a `.values()`-over-typed-map CLUSTER
+   (consumers at types.py:287, expressions.py:2530, stmt_control_flow.py:1424/1447; mirror caller statements.py:725),
+   not an isolated stub. NEW BOUNDARY BANKED: the self-state facade wall is precisely the ENUMERABLE-TYPED-MAP gap
+   (typed closed-key values ∧ .values() enumeration), distinct from both the native-map (not enumerable) and the pydict
+   (untyped-pyval values) devices — a review-gated multi-session build whose cert feasibility must be proven first.
+   Floor 749 holds; this vein is review-gated.
