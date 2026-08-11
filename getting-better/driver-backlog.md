@@ -1123,3 +1123,14 @@ PROBED→CERTIFIED-BOUNDARY.** The ledger auto-regeneration surfaced 2 new candi
 by census/spike to co-blocked boundaries (map-enumeration; string-parse/trusted-dispatch/file-IO). Floor 748 holds
 firmly — L10 was the lone clean carrier its vein offered. HOLD per action (6); continue periodic re-measure for
 genuinely-new capability-reachable shapes (not value-type variants of the exhausted map-build vein).
+
+- **L16 — list-of-records construction** (`result=[]; for x in <list>: result.append({...})` → List[Dict]) [PROBED →
+  CERTIFIED-BOUNDARY, 2026-08-11]. Genuinely-NEW shape class (not map-build); would compose certified pyval-list-append
+  + pput. Probed the smallest candidate `_csl_list_to_ir` (Module5, 10 lines): co-blocked — a thin wrapper mapping the
+  TRUSTED `_csl_to_ir` (CSL-dataclass→heterogeneous Dict[str,Any] producer = the CSL-dataclass-Weaver boundary) over a
+  list, + `getattr(c,"act_name")` object reflection, + `d["act_name"]=an` heterogeneous-dict mutation, + CSLNode
+  dataclass model requirement, + int-simplified mirror sig (`List[int]`), + verified callers (1615/1616/1648). The
+  list-of-records builders all wrap a trusted heterogeneous-producer sub-method + need the source dataclass model.
+  Boundary = CSL-dataclass-Weaver / trusted-sub-producer, not the list-append capability. Re-measure round confirms:
+  the fresh shape classes (counter L14, map-scalar L15, list-of-records L16) all bottom at pre-documented boundaries
+  (map-enumeration, string-parse/trusted-dispatch, CSL-Weaver). Floor 748 firm.
