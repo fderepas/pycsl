@@ -531,7 +531,7 @@ auto-reads THIS ledger each idle heartbeat, auto-ranks by ROI = (expected stubs 
 and LAUNCHES it as the next Phase-2 build — no asking. A REFUTED lever → CERTIFIED-BOUNDARY, struck, advance to
 next. Floor = this ledger empty (all BROKEN/CERTIFIED-BOUNDARY). Refresh after each lever resolves.
 
-Ranked 2026-08-11 (count 748 after L10). ROI-favorite = **L11** (L8 struck; L9 banked-0-yield; L10 BROKEN — all 2026-08-11).
+Ranked 2026-08-11 (count 748 after L10). ROI-favorite = **L12** (L8 struck; L9 banked-0-yield; L10 BROKEN; L11 struck — 2026-08-11).
 - **L10 — Mutable-seq / map-of-list value model** [BROKEN — LANDED 2026-08-11, count 749→748]. Auto-picked favorite
   #3. Spike PASSED(A): `_verify_module_groups`'s `groups.setdefault(g,[]).append(x)` is a pure functional-accumulate
   (`Map.set groups g (snoc (get_or_nil groups g) x)`), NOT mutable-inner-seq aliasing → the type-rejection boundary
@@ -588,10 +588,15 @@ Ranked 2026-08-11 (count 748 after L10). ROI-favorite = **L11** (L8 struck; L9 b
 - **L10 — Mutable-seq value model** (map-of-mutable-seq). `d.setdefault(k,[]).append(...)` inner mutation.
   Unblocks `_verify_module_groups` + setdefault/append cluster. Cost: new shape → cert; axiom-free
   certifiability UNPROVEN → spike first. STATUS: OPEN (unproven half → ranked below L8/L9).
-- **L11 — PSet-in-pyval**. Set value inside a heterogeneous returned dict + ∩/∖/sort laws. Unblocks
-  `_build_soundness_report` `trusted_dependencies` — but that stub ALSO carries the `counts[bucket]+=1` int-dict
-  wall + opaque `_collect_calls`, so PSet ALONE converts 0. Cost: cert + co-located walls. STATUS: OPEN (low
-  standalone ROI — bundle only).
+- **L11 — PSet-in-pyval** [STRUCK — CERTIFIED-BOUNDARY, census-confirmed 0-yield 2026-08-11]. Auto-picked favorite
+  #4; led with the census-p spike (does PSet have ANY non-co-blocked beneficiary?). RESULT: no. The ONE set-as-pyval-
+  VALUE beneficiary `_build_soundness_report` stays co-blocked (`counts[bucket]+=1` int-dict + opaque `_collect_calls`).
+  The many `Set[str]`-RETURNING stubs are a DIFFERENT model (the landed StrSet `map string bool` per-method device, CIE)
+  — NOT PSet-in-pyval — and are per-method-exhausted: spot-checked `_stub_set` = FILE I/O (`iterdir`/`is_dir`, un-
+  modelable), `_collect_shared_symbol_decls` = NESTED-`def` closure (`def _symbol`, Module5-drops-nested-def) + verified
+  caller; `bases_closure` = while-termination + frozenset; `_parse_rocq/lean_file` = file I/O. So no stub's SOLE blocker
+  is the missing set-value shape. REOPENING: PSet-in-pyval only becomes worthwhile bundled with `_build_soundness_
+  report`'s int-dict + opaque-import fixes (a multi-wall coordinated build, review-gated).
 - **L12 — list-typed @dataclass field emitter build**. array/seq theory import + real `len`→Seq.length +
   string-element fix (currently `list[str]` field → unbound `array int` + opaque `iter_length`). Emitter-only,
   NO new cert, byte-inert. Unblocks `arity` ONLY (census-settled: rest are dict-reads / behind parser terminus).
