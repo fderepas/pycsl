@@ -1514,3 +1514,40 @@ a `StrSet` (certified `map string bool` + set_union, axiom-free). That unblocks 
 `_collect_*`; then the getattr-alias fix (#2) + the banked faithful frame land the conversion. StrSet
 model already certified axiom-free ([[pyval_value_model_built]]). SPIKE the set-accumulator catamorphism
 feasibility next (does it discharge the cross-decreasing variant over pv_size returning a StrSet?).
+
+## set-accumulator recognizer = CERTIFIED-BOUNDARY [COST/SCALE] — wall is Module5 lambda-lift, NOT the recognizer (2026-08-11, count 741, HEAD 6e012323)
+
+Make-or-break spike of the nested-def SET-ACCUMULATOR recognizer-fold (for the `_collect_*` cluster).
+The value-shape is NOT the blocker — the binding wall is a Module5 front-end lambda-lift policy:
+
+- **census-p:** no existing recognizer covers the shape (`recognize_setfold`/`recognize_stmt_setfold`
+  match a SELF-RECURSIVE top-level fn unioning `acc |= self(v)`; the found-flag closure recognizer only
+  does `pyval→bool` OR-fold). The `_collect_*` shape = outer method with a nested `def rec(node)` that
+  MUTATES a CAPTURED free-var set (`out.add(x)`) and returns None, outer returns the captured local.
+- **catamorphism FEASIBLE + already certified:** `emit_setfold_group` (StrSet mutual catamorphism
+  `pyval→map string bool` via `set_union`, cross-decreasing variant over pv_size/size_dict/size_list)
+  is proven axiom-free (v2_setfold_spike.mlw, Alt-Ergo+Z3, ledger 3). Value shape is NOT the wall.
+- **FATAL BLOCKER — lambda-lift NAME COLLISION.** `_collect_string_elem_read_locals` AND
+  `_collect_field_decode_str_locals` both name their nested closure `rec`. Module5 lifts both to the
+  SAME top-level IR func `statementemissionmixin__rec` (IR: `dup names: {'...__rec': 2}`, two DISTINCT
+  bodies). Harmless ONLY because both are `\trusted` → abstract `val ...__rec (self)(node:int):unit`,
+  and the emitter DEDUPS the identical signatures to ONE `val`. Converting EITHER to a real `let rec
+  function ...__rec` breaks dedup → two defs under one WhyML symbol → duplicate-symbol REJECTION. Can't
+  rename the closure (verbatim bodies only). Fix REQUIRES Module5 to qualify lifted-closure names by
+  enclosing method — a front-end change.
+- **SECONDARY BLOCKER — capture-drop.** The lift drops the captured mutable accumulator from `rec`'s
+  signature (`formal_params=['node']`, no acc); `.add`/`ssf`/`str_arrays` survive as UNBOUND free
+  names. Threading them needs a Module5 capture-analysis change — AND it turns nested-def abstract-vals
+  into must-prove `let`s, which risks REGRESSING corpus programs whose nested defs currently emit as
+  assumed abstract-vals (corpus-regression risk = why this is review-gated, not auto-buildable).
+- **Target-1 confounds:** `_collect_string_elem_read_locals` has TWO order-dependent accumulators + a
+  captured self-field set + a double `rec()` call — not a clean single catamorphism even absent the
+  lift blockers.
+
+**TAG [COST/SCALE]. REOPENING CONDITION:** a flagged, byte-diff-swept **Module5 lambda-lift campaign** —
+(1) qualify lifted-closure names by enclosing method (semantics-preserving rename, M1-authorizable) +
+(2) thread captured mutable free vars as by-ref params (SEMANTIC change, corpus-regression risk, needs
+per-program re-proof). THEN adapt the certified `emit_setfold_group` to the free-var-accumulator shape.
+This is a review-gated multi-file front-end campaign, NOT a generic_fold.py-only spike. The banked
+faithful frame (assigns self.field) + the certified setfold catamorphism are both ready for when the
+lambda-lift wall falls. Count stays 741.
