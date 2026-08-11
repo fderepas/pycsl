@@ -1271,3 +1271,14 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   array_targets` already converted (re-verify on land). VERDICT: BOUNDARY for autonomous spike-and-land (2 emitter
   features), but F1+F2 are the concrete next FUNDABLE builds (cluster-scale, axiom-free) — the honest not-yet-built
   frontier after the string-op vein. Recommend containment-spiking F2 (option-return) first — broadest reach.
+
+  **L20 F2 CENSUS CORRECTION (2026-08-11): F2 "broad reach" was WRONG — 0 clean single-feature beneficiaries.**
+  Censused trusted `Optional[str]`-returning stubs using `dict.get` w/o partition: 13 found, the 1 heuristic-CLEAN
+  (`_recognize_field_decode_idiom`) is ALSO walled (3 trusted-sub-producer `self._` calls — census dropped the self._
+  check). ALL 13 co-walled (map-enum / reflect / trusted-sub-producer). So option-return threading (F2) is a real
+  FAITHFULNESS gap but converts 0 stubs alone; likewise F1 (general partition) — its only beneficiaries are the
+  partition hosts, which carry heterogeneous-map/recursive-IR walls. CONCLUSION: `_call_return_whyml_type` needs BOTH
+  F1+F2 COORDINATED (2 emitter features for 1 stub) = ROI-gated multi-surface, no other single-feature beneficiary.
+  F1/F2 are genuine faithfulness features for a FUTURE funded window (they'd co-land with the partition-host cluster's
+  other walls), NOT autonomous yield. FLOOR 746 FIRM — spiking the unspiked partition host CONFIRMED the boundary
+  (measure-first paid off: pinned the exact 2 features, corrected the reach) rather than breaking it.
