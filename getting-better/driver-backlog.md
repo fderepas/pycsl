@@ -809,3 +809,15 @@ regex (CORRECTNESS-floors).
    NEXT auto-authorized progress = COORDINATED caller+callee Set-model retype (bounded 2-method, e.g.
    _module_binding_names + its verified consumer _handle_in_globals_expr's `name in <set>()` membership), retyped +
    caller-fixed in ONE increment; the rails catch any wider sibling regression.
+
+   **Coordinated Set-model target `_module_binding_names` = CERTIFIED-BOUNDARY (2026-08-11, count 749).** Measured
+   its live body: reads `self.ir` (undeclared field = the whole heterogeneous IR Dict[str,Any]) + set-comprehensions
+   over `ir.get("functions")`/`ir.get("classes")` (LISTS OF Dict[str,Any] IR-node dicts) projecting `.get("name")`.
+   The SET-side ops (|=, set(dict)->keys, .discard) ARE covered by the landed model; the blocker is the comprehension
+   SOURCES = the heterogeneous-Dict[str,Any] IR-node value model (THE deepest documented wall). So the coordinated
+   caller+callee retype can't convert it (body wall is orthogonal to the caller coupling). CONCLUSION: the Set-model
+   convertible frontier = {CIE} only (landed 02e652d4); every OTHER set-returner's BODY hits an orthogonal wall
+   (heterogeneous-Dict / while-fixpoint / file-I/O / nested-closure). The Set VALUE MODEL is landed + reusable, but
+   there are no more stubs whose only-missing-piece was the Set model. Remaining value-model progress = the deep
+   heterogeneous-Dict[str,Any] IR-node walker model (a genuine large multi-session build / documented terminus),
+   NOT a bounded per-method or 2-method coordinated increment.
