@@ -203,23 +203,35 @@ START (standing), not as an interrupt. Rules:
   corpus-affecting build" verdict now ESCALATES into the campaign (build → M1 byte-diff gate → control), it
   does not stop the loop to ask. The floor is reached only when the backlog is truly exhausted (§A.3 / the
   Exhaustion section of the backlog) — a not-yet-built corpus-affecting value-model item is NOT floor.
-- **SESSION-SCALE LEVERS — AUTO-LIST + AUTO-PICK THE FAVORITE, NEVER ASK (2026-08-11 directive).** When the
-  spike-and-land backlog is drained and only *session-scale not-yet-BUILT levers* remain (a new value-model
-  ADT + co-landing cert, a cited-proof de-trust, a multi-surface emitter build), the driver does NOT hold and
-  does NOT surface a "which lever / shall I launch?" decision to the user. Instead, EACH such idle heartbeat it:
-  (1) **auto-lists** the current levers — maintained as a ranked **LEVERS ledger** at the top of the backlog's
-  Exhaustion section (`getting-better/driver-backlog.md`), one entry per lever with {what, unblocks (stub
-  cluster), cost (new cert / cited-proof / emitter-only), gate/risk}; refresh it from the latest measurements
-  each time a lever resolves or a new one is discovered; (2) **auto-ranks** by ROI = (expected stubs unblocked
-  × landing-confidence) ÷ build-cost, with ties broken toward *no-new-cert* (emitter-only or cited-proof) over
-  *new-cert*, and toward a *proven-feasible* half (e.g. a spike already validated the value-view) over an
-  *unproven* one; (3) **auto-picks the top-ranked lever and LAUNCHES it** as the next Phase-2 build (spike-first
-  → co-landing axiom-free cert if a new shape → full three-plane battery + M1 byte-diff + independent control),
-  exactly as any backlog item — no user confirmation. A lever that a spike REFUTES (can't be certified
-  axiom-free / needs a forbidden contract) becomes a CERTIFIED-BOUNDARY, is struck from the ledger, and the
-  driver auto-advances to the next-ranked lever the SAME turn if budget allows. The user picking a lever
-  manually still overrides; absent that, the ROI ranking IS the pick. Holding is reserved for when the LEVERS
-  ledger itself is empty (every lever BROKEN or CERTIFIED-BOUNDARY) — that, and only that, is the true floor.
+- **LEVERS — GATHER, PICK ONE, WORK IT; NEVER IDLE (2026-08-11 directive, strengthened).** The driver NEVER sits
+  idle while any lever remains un-BUILT — not even the big session-scale ones. The standing rule is exactly three
+  words: **gather the possible levers, pick one, then work.** When the cheap spike-and-land backlog is drained and
+  only *session-scale not-yet-BUILT levers* remain (a new value-model ADT + co-landing cert, a cited-proof de-trust,
+  a multi-surface / multi-feature emitter build, a large corpus-affecting value-model build), the driver does NOT
+  hold and does NOT surface a "which lever / shall I launch?" decision to the user. Each idle heartbeat:
+  (1) **GATHER / auto-list** the current levers — the ranked **LEVERS ledger** at the top of the backlog's
+  Exhaustion section (`getting-better/driver-backlog.md`), one entry per lever {what, unblocks (stub cluster), cost
+  (new cert / cited-proof / emitter-only), gate/risk}; refresh from the latest measurements each time a lever
+  resolves or a new one is discovered; (2) **RANK** by ROI = (expected stubs unblocked × landing-confidence) ÷
+  build-cost, ties → *no-new-cert* over *new-cert*, *proven-feasible* over *unproven*; (3) **PICK the top lever and
+  WORK IT — end to end**: spike-first (make-or-break), and IF the spike does NOT refute on CORRECTNESS grounds,
+  BUILD it to completion through the full three-plane battery + M1 byte-diff + independent control, across as many
+  heartbeats as it takes. A session-scale / multi-feature build is NORMAL WORK carried over successive heartbeats
+  (drive it like any WIP: spike this heartbeat, build next, battery-gate, commit), NOT a reason to defer. No user
+  confirmation.
+  **CRITICAL — what does and does NOT strike a lever (do not conflate):** ONLY a **CORRECTNESS/SOUNDNESS** boundary
+  removes a lever — a spike that proves the build IMPOSSIBLE/UNSOUND: the new value shape cannot be certified
+  axiom-free; it needs a forbidden contract (e.g. KeyError-freedom under `requires True`); Why3 type-rejection. A
+  **COST/SCALE** verdict — "multi-surface", "session-scale", "N features for M stubs", "ROI-gated", "review-gated",
+  "needs a funded window", "converts only 1 stub", "multi-session" — is **NOT a boundary, does NOT strike the lever,
+  and is NEVER a reason to hold** ([[feedback_cost_scale_not_floor]]); the funded window IS the budget that pays it,
+  so PICK it and BUILD it. A lever refuted on CORRECTNESS → CERTIFIED-BOUNDARY, struck, auto-advance to the
+  next-ranked lever the SAME turn. The user picking a lever manually overrides; absent that, the ROI ranking IS the
+  pick.
+  **HOLDING is the true floor ONLY when EVERY lever is a CORRECTNESS CERTIFIED-BOUNDARY** — i.e. not one remains
+  that a build could complete. A single not-yet-BUILT lever — however session-scale, however low its per-stub ROI —
+  means the driver is WORKING it, not holding. "I measured it and it's ROI-gated / needs-a-session, so I hold" is a
+  BUG, not a floor.
 - **The backlog is the escalation queue for Phase 2** (A.2.3): always take the top UNRESOLVED item. Mark items
   BROKEN / CERTIFIED-BOUNDARY as they resolve; a boundary records the capability that would reopen it.
 - **Seed + maintain it:** if the file is missing at A.1, create it from the measured walls in the impl docs +
