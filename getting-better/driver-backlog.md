@@ -1202,3 +1202,18 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   `_callable_whyml_arrow` `body.partition("->")`), independent of S1/S3. Reuses the str-op substrate (no new axiom
   expected — partition is expressible via str_index/str_slice or a faithful 3-tuple val with length ensures). NEXT:
   spike containment (existing str-slice/index ops vs new val) + cluster estimate, then battery-gated build.
+
+  **L19 CONTAINMENT SPIKE DONE (2026-08-11): CONTAINED, target `_callable_whyml_arrow` (~1 conversion, bundled).**
+  DECISIVE: partition was ALREADY converted once — `recognize_global_call_target`/`emit_global_call_target_group`
+  (generic_fold.py:17264+, LANDED ledger 3) lowers `.partition` axiom-free via opaque `__before`/`__after` projections
+  (NO ensures — enclosing `ensures True`) + `__has` guard; the 3-tuple unpack is RECOGNIZER-DESTRUCTURED (reads the
+  TupleUnpack IR node, emits `let recv=__before.. let meth=__after..`) → NO emitter/Module5 gap. rpartition = identical
+  with last-sep projections. But NO partition-ONLY stub remains — each host has a co-resident wall. CLEANEST =
+  `_callable_whyml_arrow` (functions.py:207, 20 lines): partition trivial; co-resident = `[self._callable_tag_to_whyml(t)
+  for t in arg_part.split(",") if t]` + `" -> ".join(...)` — split/join ends ALREADY landed by L18, sibling
+  `_callable_tag_to_whyml` ALREADY verified; the ONE new piece = a filtered-listcomp-map-over-split-array calling a
+  verified sibling → `array string` (a recursive fold, axiom-free). Other hosts heavier: `_call_return_whyml_type`
+  (rpartition + 4 heterogeneous instance-map reads), `_substitute`/`_hoist_calls_in_expr`/`inline_stmts` (recursive
+  IR-tree rewrite = MULTI-SURFACE). BUILD PLAN (next heartbeat): `recognize_callable_whyml_arrow` + `emit_..._group`
+  (opaque before/after, recursive fold over str_split_op array mapping the verified sibling, str_join_arr " -> "),
+  convert `_callable_whyml_arrow`, full battery + mutation test. Ledger 3, byte-inert (fail-closed).
