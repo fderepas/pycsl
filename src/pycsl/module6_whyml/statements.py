@@ -691,6 +691,46 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         m = _re.match(r"val\s+" + _re.escape(arity_fn) + r"\s+(\(self:[^)]*\)\s*)", head[0])
         return (m.group(1) if m else ""), tail
 
+    def _partition_unpack_projs(self, val_ir: Dict[str, Any], targets: List[str],
+                                 local_refs: Set[str]) -> Optional[List[str]]:
+        """LEVER F1: a 3-target tuple-unpack whose RHS is `<str>.partition(<sep>)` /
+        `<str>.rpartition(<sep>)` → the 3 faithful string projections
+        `(<op>_before recv sep)`, `(<op>_sep recv sep)`, `(<op>_after recv sep)`, where
+        the 3 ops are opaque `string→string→string` `val`s WITH NO ensures (axiom-free,
+        the same trust class as the landed `__before`/`__after` in
+        `emit_global_call_target_group`; rpartition = the last-separator variant). The
+        expression-level, shape-driven counterpart of that whole-function facade. Returns
+        None (fail-closed) unless the exact shape holds AND the receiver is string-typed
+        AND we are in a @mutable_state emitter method → corpus byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return None
+        if len(targets) != 3:
+            return None
+        if val_ir.get("type") != "Call":
+            return None
+        func = val_ir.get("func")
+        if not (isinstance(func, str) and "." in func):
+            return None
+        recv_name, method = func.rsplit(".", 1)
+        if method not in ("partition", "rpartition"):
+            return None
+        args_ir = val_ir.get("args") or []
+        if len(args_ir) != 1:
+            return None
+        recv_ir = {"type": "Var", "name": recv_name}
+        if not self._is_string_expr(recv_ir):
+            return None
+        recv_w = self._expr_to_whyml(recv_ir, local_refs)
+        sep_w = self._expr_to_whyml(args_ir[0], local_refs)
+        op = "str_rpartition" if method == "rpartition" else "str_partition"
+        for suffix in ("before", "sep", "after"):
+            self._add_abstract_op(
+                f"val {op}_{suffix} (s: string) (sep: string) : string")
+        return [f"({op}_before {recv_w} {sep_w})",
+                f"({op}_sep {recv_w} {sep_w})",
+                f"({op}_after {recv_w} {sep_w})"]
+
     def _handle_tuple_unpack_stmt(self, stmt: TupleUnpackStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
@@ -698,6 +738,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         val_ir = stmt.value.to_dict()
         val_whyml = self._expr_to_whyml(val_ir, local_refs)
         safe_targets = [whyml_ident(t) for t in targets]
+        # LEVER F1: string-triple partition/rpartition unpack — bypass the opaque
+        # `<fn>_rpartition_1 (int):(int,int,int)` abstract-op path below and emit the
+        # 3 faithful string projections instead (see `_partition_unpack_projs`).
+        _partition_projs = self._partition_unpack_projs(val_ir, targets, local_refs)
         # resync-campaign.md R2 (continuation): every discard target (`_`) maps to
         # `whyml_ident("_") == "py_underscore"`. With MULTIPLE discards (`ret, _, _,
         # _ = f()`) they collide into one `_tu_py_underscore` binder (a Why3
@@ -714,7 +758,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if _du_seen > 0:
                     safe_targets[_du_i] = f"py_underscore_{_du_seen}"
                 _du_seen += 1
-        if val_ir.get("type") == "Call":
+        if _partition_projs is None and val_ir.get("type") == "Call":
             func_name = val_ir.get("func", "")
             nargs = len(val_ir.get("args", []))
             safe_fn = whyml_ident(func_name)
@@ -793,7 +837,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             val_whyml = f"({sg_fn} {self._coerce_to_int(inner)} {self._coerce_to_int(idx)})"
         tmp_names = [f"_tu_{t}" for t in safe_targets]
         _mt_recv = self._mktuple_elts_recv_ir(val_ir)
-        if _mt_recv is not None:
+        if _partition_projs is not None:
+            # LEVER F1: per-slot `let _tu_<t> = (<op>_before/sep/after recv sep) in` — the
+            # 3 faithful string projections replace the opaque int-tuple destructure.
+            lines = [f"{indent}let {tmp_names[i]} = {_partition_projs[i]} in"
+                     for i in range(len(tmp_names))]
+        elif _mt_recv is not None:
             # value-model campaign incr7 (primitive #2): `_a, _b = <emit_ir>.elts` in a dict
             # walker → per-index `irnth i (elts_of recv)` (the MODELLED IrMkTupleN element),
             # NOT the opaque `args_of` tuple-destructure the generic path emits. Each `_tu_<t>`
@@ -2239,6 +2288,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                     and _tg not in seen):
                                 seen.add(_tg)
                                 tuple_str.add(_tg)
+                # LEVER F1 (string-triple-unpack): `a, _, b = <str>.rpartition(<sep>)` (and
+                # `.partition`) — every one of the 3 targets is a `string` slice (the before /
+                # separator / after projection). Pre-decl `ref ""` (not `ref 0`) so the later
+                # `==`/f-string/`.get`-key reads route through `str_eq_op`/`str_concat_op`
+                # (never `int_to_string`/int-hash). @mutable_state-gated → corpus inert.
+                if (_ms_str and node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Call"
+                        and isinstance(node["value"].get("func"), str)
+                        and node["value"]["func"].rsplit(".", 1)[-1] in ("partition", "rpartition")
+                        and "." in node["value"]["func"]
+                        and len(node["value"].get("args", [])) == 1
+                        and len(node.get("targets", [])) == 3):
+                    for _tg in node.get("targets", []):
+                        if _tg not in seen:
+                            seen.add(_tg)
+                            tuple_str.add(_tg)
                 # cf6.md M1.6: a tuple-unpack from a TUPLE LOCAL (`_uvar, uinfo = union_info`) —
                 # each target whose slot type is `string` is a string local. @mutable_state.
                 if (_ms_str and node.get("stmt") == "TupleUnpack"

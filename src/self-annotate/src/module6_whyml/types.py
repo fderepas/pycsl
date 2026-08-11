@@ -327,12 +327,22 @@ class TypeInferenceMixin:
                     found.update(self._collect_tuple_var_assigns(h.get("body", [])))
         return found
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _call_return_whyml_type(self, fn: str) -> Optional[str]:
-        return None
+        rmap = self._module_method_return_types
+        if "." not in fn:
+            return rmap.get(fn)
+        obj, _, method = fn.rpartition(".")
+        if obj == "self":
+            cls = self._current_self_type
+            return rmap.get(f"{cls}__{method}") if cls else None
+        cls = (getattr(self, "_current_record_var_classes", {}).get(obj)
+               or getattr(self, "_module_global_classes", {}).get(obj))
+        if cls:
+            return rmap.get(f"{cls.lower()}__{method}")
+        return rmap.get(fn)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

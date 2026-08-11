@@ -6849,6 +6849,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 default = self._dv_missing_default(_field_nu)
             else:
                 default = args[1] if len(args) >= 2 else self._dv_missing_default(_field_nu)
+            # LEVER F2: a 1-arg `.get` (no explicit default) whose `option ν` is being
+            # threaded into an Optional[τ] union return — hand back the RAW `Map.get`
+            # (`option ν`) so the caller wraps `Some`/`None` into the variant arms
+            # (never the scalar `None -> <default>` unwrap that clashes at the slot).
+            if getattr(self, "_get_return_raw_option", False) and len(args) == 1:
+                return f"(Map.get {recv_whyml} {k})"
             return (f"(match Map.get {recv_whyml} {k} "
                     f"with | Some v_ -> v_ | None -> {default} end)")
         if not is_dict:
@@ -6870,6 +6876,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             default = args[1]
         else:
             default = self._dv_missing_default(nu)
+        # LEVER F2 (see the self-field-dict twin above): thread the raw `option ν` into
+        # an Optional[τ] union return instead of the scalar `None -> <default>` unwrap.
+        if getattr(self, "_get_return_raw_option", False) and len(args) == 1:
+            return f"(Map.get {recv_whyml} {k})"
         return (f"(match Map.get {recv_whyml} {k} "
                 f"with | Some v_ -> v_ | None -> {default} end)")
 

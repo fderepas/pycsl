@@ -1254,6 +1254,24 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   enumeration, trusted-sub-producers, recursive-IR-tree. All documented review-gated boundaries. FLOOR 746 FIRM — the
   contained (no-new-cert, spike-and-land) frontier is genuinely exhausted after 3 conversions (L10/L18/L19).
 
+- **L20 = F1+F2 — general partition-unpack + option-return threading** [BROKEN — LANDED 2026-08-11, count 746→745,
+  under the GATHER-PICK-WORK directive]. Previously HELD as "2 features for 1 stub / session-scale" — that was the BUG
+  the strengthened §A.6 fixed (COST/SCALE is not a hold-reason). PICKED it and WORKED it: both gaps were EMITTER-LEVEL
+  (no Module5 IR-shape change). BUILT: F1 = general partition/rpartition string-triple-unpack as a reusable EXPRESSION
+  lowering (`_partition_unpack_projs` in statements.py `_handle_tuple_unpack_stmt` + string-local pre-decl in
+  `_collect_str_call_result_locals`; opaque `val str_rpartition_before/sep/after (s sep:string):string` NO ensures,
+  axiom-free, same class as the landed `__before`/`__after`); F2 = option-return threading (`_thread_optional_return`
+  in stmt_control_flow.py `_handle_return_stmt` + `_get_return_raw_option` at the 2 `.get` return sites in
+  expressions.py — `.get` in `Optional[str]` return threads `match Map.get .. with Some v->Arm_N v | None->Arm_N_None`
+  instead of a scalar-int default). Converted `_call_return_whyml_type` (verbatim). FULL BATTERY GREEN: types.py
+  whole-file proof SUCCESS 0 non-Valid; corpus byte-diff 0; sibling-emission diff = ONLY types.py changed (3 emitter
+  files touched but @mutable_state-gated+fail-closed confines it); non-vacuity (real str_rpartition + option-threaded
+  Arm_N returns + mutation test `"."`→`"@"`); ledger 3 (3 bare no-ensures vals, allowlist untouched); verbatim body.
+  BANKED REUSABLE CAPABILITIES: general partition-unpack expression lowering (F1) + option-return threading (F2) — both
+  may now unblock the OTHER partition hosts / Optional[str]-via-get stubs previously co-blocked only by these. §P
+  re-drain next.
+
+  (superseded spike note:)
 - **L20 — general partition-unpack + option-return threading** [SPIKED 2026-08-11 → BOUNDARY (2 multi-surface features),
   but concrete + cluster-potential]. Spiked the unspiked partition host `_call_return_whyml_type` (measure-first, not
   assume). SURPRISE: the SUSPECTED gaps are ALREADY faithful — typed self-field dicts (`Dict[str,str]`→`map string

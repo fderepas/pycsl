@@ -1347,6 +1347,70 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    def _thread_optional_return(self, val_ir: Any,
+                                local_refs: Set[str]) -> Optional[str]:
+        """LEVER F2: thread an `option string` return VALUE — a 1-arg `.get` on a
+        `map _ (option string)`, a bare `None`, or an `IfExpr` built from those — into
+        the function's Optional[str] `_union_*` return: `Some v` → the string Some-arm
+        `(Arm_N_0 v)`, `None` → the nullary `_None` arm. This replaces the scalar
+        `None -> 0` unwrap the plain `.get` lowering picks (an int default that clashes
+        with the string Some-branch at the union return slot). Returns the union-typed
+        WhyML term, or None (fail-closed) when the return type is not a single-string-arm
+        Optional union, or the value is not one of the threadable shapes."""
+        if not isinstance(val_ir, dict):
+            return None
+        func_ret = getattr(self, "_func_return_type", "")
+        if not (isinstance(func_ret, str) and func_ret.startswith("_union_")):
+            return None
+        none_ctor, some_ctors = self._union_ctors(func_ret)
+        if none_ctor is None or len(some_ctors) != 1:
+            return None
+        some_ctor = some_ctors[0]
+        vinfo = getattr(self, "_variant_types", {}).get(func_ret) or {}
+        payload = vinfo.get("constructors", {}).get(some_ctor, {}).get("payload", [])
+        if not payload or self._union_arm_whyml_type(payload[0]) != "string":
+            return None
+        return self._thread_optional_return_rec(
+            val_ir, local_refs, none_ctor, some_ctor)
+
+    def _thread_optional_return_rec(self, val_ir: Any, local_refs: Set[str],
+                                    none_ctor: str, some_ctor: str) -> Optional[str]:
+        """Recursive core of `_thread_optional_return`: `None`, a 1-arg `.get` (raw
+        `option string`), and an `IfExpr` over those. Any other shape → None (fail-closed)."""
+        if not isinstance(val_ir, dict):
+            return None
+        t = val_ir.get("type")
+        if t == "None":
+            return none_ctor
+        if t == "IfExpr":
+            _then = self._thread_optional_return_rec(
+                val_ir.get("body"), local_refs, none_ctor, some_ctor)
+            _else = self._thread_optional_return_rec(
+                val_ir.get("orelse"), local_refs, none_ctor, some_ctor)
+            if _then is None or _else is None:
+                return None
+            _test_ir = val_ir.get("test", {})
+            _test = self._to_bool(
+                self._expr_to_whyml(_test_ir, local_refs), _test_ir)
+            return f"(if {_test} then {_then} else {_else})"
+        if (t == "Call" and isinstance(val_ir.get("func"), str)
+                and val_ir["func"].endswith(".get")
+                and len(val_ir.get("args") or []) == 1):
+            _prev = getattr(self, "_get_return_raw_option", False)
+            self._get_return_raw_option = True
+            try:
+                raw = self._expr_to_whyml(val_ir, local_refs)
+            finally:
+                self._get_return_raw_option = _prev
+            # The flag fires only on a resolvable dict `.get`; if the receiver was not
+            # a tracked map the lowering falls back to its scalar form (no `Map.get`
+            # prefix) — reject then (fail-closed) rather than mis-wrap a scalar.
+            if raw.startswith("(Map.get "):
+                return (f"(match {raw} with | Some v_ -> {some_ctor} v_ "
+                        f"| None -> {none_ctor} end)")
+            return None
+        return None
+
     def _maybe_inject_union_return(self, val: str, val_ir: Any) -> str:
         """typing-engagement ty1 §0/§2.2 C2 — if the function's return type is a
         synthesized `_union_*` variant, auto-inject the return value into the
@@ -1583,7 +1647,14 @@ class ControlFlowStmtMixin:
         # it into the first arm whose payload type matches (the injection
         # wrapper per arm). This lets `def f() -> Optional[int]: return x+x`
         # type-check (the int return is wrapped as `Arm_<idx>_0 (x+x)`).
-        val = self._maybe_inject_union_return(val, val_ir)
+        # LEVER F2: thread an `option string` value (`.get(k)` / None / IfExpr thereof)
+        # into the Optional[str] union arms BEFORE the generic arm injection — the raw
+        # option preserves None-propagation instead of the scalar `None -> 0` default.
+        _threaded = self._thread_optional_return(val_ir, local_refs)
+        if _threaded is not None:
+            val = _threaded
+        else:
+            val = self._maybe_inject_union_return(val, val_ir)
         if use_raise:
             func_ret = self._func_return_type
             if func_ret == "unit":
