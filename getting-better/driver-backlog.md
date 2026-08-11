@@ -1191,3 +1191,14 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   EXACTLY the string-faithfulness correction + every affected program re-proves. NEXT: containment spike (gate vs
   missing-machinery), then staged build if contained. Reuses banked literal-dict-table (L17) + str→int (L9) for the
   str-accumulate cluster once the int-leak is broken.
+
+- **§P RE-DRAIN after L18 (2026-08-11): DRY.** Checked the clean-no-dep str-accumulate candidates with L18's new
+  capabilities: `_cache_key` = crypto hash (`hashlib.sha256`/`_sha256_file`, opaque/un-modelable); `_synthesize_legacy_
+  text` = join over generator calling trusted `_synthesize_block` (trusted-sub-producer); `_build_witness_str` =
+  heterogeneous Dict/Optional params + array witnesses. L18's clean cluster was `_inductive_sig_whyml` ALONE (confirmed).
+- **L19 (=S4) — str.partition/rpartition recognizer** [PROMOTED TOP OPEN LEVER 2026-08-11, CONTAINED per L18 spike].
+  9 sites emit opaque `s_partition_1(int):int` int-hash (receiver dropped, tuple-unpacked into int locals). A separate
+  contained recognizer (partition → faithful tuple of 3 strings via str ops) lifts signature-parsing stubs (e.g.
+  `_callable_whyml_arrow` `body.partition("->")`), independent of S1/S3. Reuses the str-op substrate (no new axiom
+  expected — partition is expressible via str_index/str_slice or a faithful 3-tuple val with length ensures). NEXT:
+  spike containment (existing str-slice/index ops vs new val) + cluster estimate, then battery-gated build.
