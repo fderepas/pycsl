@@ -1243,3 +1243,13 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   stubs. STRING-OP VEIN EXHAUSTED. Remaining OPEN levers are HEAVIER: partition hosts `_call_return_whyml_type`
   (rpartition+heterogeneous-map), `_substitute`/`_hoist_calls_in_expr`/`inline_stmts` (recursive IR-tree rewrite =
   multi-surface); + the review-gated cert builds (enumerable-typed-map, PSet-in-pyval, mutable-seq). Floor now 746.
+
+- **Iterator-form for-loop re-measure (2026-08-11): NOT a fresh vein — co-blocked.** Probed whether `enumerate`/`zip`/
+  `reversed`/`sorted` for-iterables have the L18-style missing-`_classify_iterable`-branch int-leak. 55 stubs; the
+  13 heuristic-CLEAN all co-walled on inspection: `_function_body_eqs` = regex (`_LET_FN_RE.match`) + `Tuple[List[Tuple
+  [str,int]],..]` int-tuple return; `_extract_directives` = file I/O (`read_text`) + `_Directive` dataclass; the sorted-
+  form ones = dict/file-IO/set. The enumerate/zip lowering is NOT the sole blocker anywhere clean. META: the dominant
+  remaining walls across ALL fresh-class re-measures (L14-L19 + iterator-form) are: `re` REGEX module, FILE I/O
+  (read_text/iterdir), DATACLASS models (_Directive/CSLNode), heterogeneous Dict[str,Any], int-model-tuples, map-key-
+  enumeration, trusted-sub-producers, recursive-IR-tree. All documented review-gated boundaries. FLOOR 746 FIRM — the
+  contained (no-new-cert, spike-and-land) frontier is genuinely exhausted after 3 conversions (L10/L18/L19).
