@@ -984,3 +984,17 @@ regex (CORRECTNESS-floors).
    the arity/list-field vein is funded). SOUNDNESS NOTE ([[trusted_val_frame_unsoundness]] family): @property methods are
    silently emission-skipped, so a NON-trusted @property method contributes 0 goals — a latent vacuity pattern (here
    benign: pairwise proves either way), but worth the flag if a future @property method carries a real contract.
+
+   **LIST-FIELD-EMITTER BUILD — ROI SETTLED BY CENSUS (2026-08-11, count 749): NO CLEAN CLUSTER, stays ROI-gated.**
+   The @property build-measurement banked "list-typed @dataclass field theory + real len->Seq.length" as a possible next
+   build. Censused every trusted-stub live body using `len(self.<field>)` or `self.<field>[...]` (80 hits) to size it.
+   VERDICT: the vast majority are DICT/MAP subscripts (`self.program_ir["functions"]`, `self.contracts_map[lineno]`,
+   `self.binop[cls]`, `self._module_func_raises[name]`) — the heterogeneous-Dict / map-read veins, NOT list-field-len.
+   The genuine list-typed-field reads (`len(self.toks)`, `self.toks[i]`, `self._lines[r-1]`) cluster almost entirely in
+   `frontend/pure_ast.py` — the ALREADY-WORKED parser vein ([[parser_vein_broken]]: 29 stubs converted, TERMINUS =
+   solver-context-saturation PROOF-SCALE wall, reopen needs review-gated modular proof), so the list-field capability is
+   NOT their blocker. Residual genuine list-field cases are scattered singletons (`audit_proof_reverify.summary` =
+   string-builder; `Module3_Weaver._happy_predicate` = list-slice `self.f[a:]`; struct_format `arity`). So the list-field-
+   emitter build has NO clean multi-stub cluster it alone unblocks — `arity` stays a lone fresh case behind a multi-surface
+   build. ROI-GATE CONFIRMED BY MEASUREMENT (not assertion): list-field-emitter build = deferred/review-gated, VEIN CLOSED
+   for autonomous pursuit. Floor 749 holds.
