@@ -531,12 +531,23 @@ auto-reads THIS ledger each idle heartbeat, auto-ranks by ROI = (expected stubs 
 and LAUNCHES it as the next Phase-2 build — no asking. A REFUTED lever → CERTIFIED-BOUNDARY, struck, advance to
 next. Floor = this ledger empty (all BROKEN/CERTIFIED-BOUNDARY). Refresh after each lever resolves.
 
-Ranked 2026-08-11 (count 749). ROI-favorite = **L8**.
-- **L8 — Enumerable-typed-map ADT** [FAVORITE]. Typed closed-key record values + `.values()`-search lowering
-  (value-view half PROVEN feasible by the typed-self-view spike; gap = enumeration over a native domain-less
-  Why3 map). Unblocks the `.values()`-over-typed-map cluster (`_field_type_for`, `_module_binding_names`,
-  consumers expressions.py:2530 / stmt_control_flow.py:1424/1447 ≈4–6 stubs). Cost: new value shape → co-landing
-  axiom-free cert; corpus-affecting (M1). Gate: axiom-free certifiability (else CERTIFIED-BOUNDARY). STATUS: OPEN.
+Ranked 2026-08-11 (count 749). ROI-favorite = **L9** (L8 struck — refuted 2026-08-11).
+- **L8 — Enumerable-typed-map ADT** [STRUCK — CERTIFIED-BOUNDARY, refuted 2026-08-11]. Auto-picked as favorite,
+  make-or-break spike (assoc-list `list (string, RecordInfoView)` reframing to dodge the domain-less-map
+  enumeration wall). THREE independent fatal refuters: (1) CASCADE — `_record_types`'s type is ONE shared record-
+  field declaration (`map string (option int)`); re-typing it re-lowers the CURRENTLY-GREEN `_first_assign_kind`
+  (`x in self._record_types` membership, emitted `let` proving via `match Map.get`) + `_field_type_of` +
+  cross-file consumers (statements.py:1172/1255, expressions.py:716, stmt_control_flow.py:308/765) — disturbs
+  proven code to convert 1 stub. (2) VACUITY — the heterogeneous `Dict[str,Any]` values are already ERASED to
+  opaque `option int`; the 11-key RecordInfoView (whyml_name/field_types/…) does not exist in the model, so any
+  assoc-list search reads opaque sentinels → fails non-vacuity. This is the underlying heterogeneous-value floor,
+  which L8 does not touch. (3) RELOCATES-NOT-DODGES — building the enumerable assoc-list still requires first
+  enumerating the total map's `.values()` (the exact domain-less enumeration the typed-self-view spike already
+  refuted); re-typing the mirror field to `List[...]` to sidestep diverges from real dict subscript-assign/`in`
+  semantics → violates L-plane-1 mirror-sync fidelity. Also: the certified pyval/list catamorphism does NOT cover
+  a native record-element list (needs its own inductive type). REOPENING CAPABILITY: a faithful domain-carrying
+  typed-map value model (RecordInfoView values actually carrying string/map data) + modular enumeration support —
+  review-gated (the heterogeneous-value floor + the map-enumeration primitive together), NOT this reframing.
 - **L9 — str→int via cited-proof** (`#@ proof rocq/lean`). De-trusts `str_to_int`-oracle stubs WITHOUT a new SMT
   axiom (ledger stays 3, sanctioned de-trust-via-proof path). Unblocks from_sexp final 2 (`_find_construct_idx`,
   `_construct_indices`) + int-via-string-atom carriers. Cost: hand Rocq/Lean proof, no emitter shape. Gate: cited
