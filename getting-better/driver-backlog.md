@@ -865,3 +865,19 @@ regex (CORRECTNESS-floors).
    genuine REVIEW-GATED MULTI-SESSION builds (each co-lands a new axiom-free Rocq+Lean cert), NOT autonomous spike-and-
    land. Per driver action (6): HOLD at this measured floor; the sub-walls (ii)-(v) each remain a review-gated build a
    FUTURE authorized window (or an explicit user go-ahead to co-land the PSet-in-pyval / mutable-seq cert) can take.
+
+   **CORRECTION (cert-feasibility spike 2026-08-11): sub-wall (i) is FEASIBLE for `_build_soundness_report` (axiom-free,
+   ledger 3) — NOT the CERTIFIED-BOUNDARY the pput-spike concluded.** The decisive fact: `deps = sorted((setA & setB) -
+   setC)` is ONLY packed into the returned dict + returned; NOTHING downstream reads its order/elements. So `sorted` =
+   a BARE opaque `val sorted : map string bool -> list string` with NO postcondition (same status as landed bare vals
+   proved_of/has_all/all_phase1; axiom-free, ledger 3), FAITHFUL (claims nothing false about order) + mutation-sensitive
+   via its ARGUMENT (the real set_diff(set_inter(walked-callset, trusted_names), {name})). Pieces: `set_inter` = new pure
+   let-function `fun k->andb (Map.get a k)(Map.get b k)` (same shape as landed set_diff, axiom-free); landed set_diff +
+   singleton set_add; opaque-sorted; pput/pappend for the record construction (`{"function":..,"bucket":..,"trusted_
+   dependencies":deps}` -> vcs list -> `{"file":..,"summary":counts,"vcs":vcs}`). Deps: `_collect_calls` (ir_resolve, a
+   .values()-set-walker in the already-broken Wall-2 vein, set_add/set_union fold) + `trusted_names` (set_add fold). All
+   axiom-free, landed-machinery + one new let-function + one bare val. Isolation .mlw proved the set laws Valid z3+alt-ergo,
+   evil-twin fails. **The GENERAL provably-sorted-permutation over map string bool IS a CERTIFIED-BOUNDARY (un-anchorable
+   axiom — no finite enumeration of a total-function set); escape = repr-switch to sorted-dedup-list (sorted=identity,
+   merge ops as let rec functions, Isolation C VC Valid) = a review-gated authorized build.** BUILDING _build_soundness_
+   report now (opaque-sorted path, no repr-switch needed).
