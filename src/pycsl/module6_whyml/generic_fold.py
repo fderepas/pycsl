@@ -14266,6 +14266,325 @@ def emit_first_assign_value_ir_group(desc: Dict[str, Any], whyml_ident) -> List[
     return out
 
 
+# ---- `_frame_trigger_term`: value-returning first-match `.values()` SEARCH ----
+# The frame-trigger locator (Any-tree-walker cluster): for a BinOp `==` node whose
+# ONE side is an `Old`/`OldField` term, return the OTHER (post-state) side; else a
+# depth-first `.values()` descend (each dict VALUE that is a list is iterated
+# elementwise, else recursed as-is), returning the FIRST non-None match, else None.
+# Modelled as the certified value-returning `option pyval` SEARCH catamorphism over
+# the pyval/pydict ADT: literal-key `option pyval` readers (`type`/`op`/`left`/
+# `right`) + a mutual `{n}` (over `pyval`, variant `pv_size`) `with {n}__vals` (over
+# the dict-VALUE spine, variant `size_dict`) `with {n}__lst` (over a list VALUE,
+# variant `size_list`), short-circuiting on the first `Some`. The `.values()` walk
+# is the new sub-capability — a pydict-VALUES search (recurse into each value / its
+# list elements). Termination is the certified cross-decreasing structural measure
+# (`pv_size`/`size_dict`/`size_list` cert), NO new axiom (ledger 3). `ensures True`.
+
+def recognize_frame_trigger_term(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_frame_trigger_term`. Never raises."""
+    try:
+        return _recognize_frame_trigger_term(func)
+    except Exception:
+        return None
+
+
+def _ftt_in_old_tuple(node: Any, subj: str):
+    """`<subj>.get("<K>") in (<S0>, <S1>, ...)` -> (type_key, [tags]) or None."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "in"):
+        return None
+    tk = _match_get_call(node.get("left", {}), subj)
+    if tk is None:
+        return None
+    tup = node.get("right", {})
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    tags = [_is_string(e) for e in (tup.get("elts") or [])]
+    if not tags or any(t is None for t in tags):
+        return None
+    return (tk, tags)
+
+
+def _ftt_old_val(val: Any, subj: str):
+    """`isinstance(<subj>, dict) and <subj>.get("<K>") in (<tags>)` -> (tk, tags)."""
+    if not (isinstance(val, dict) and val.get("type") == "BinOp"
+            and val.get("op") == "and"):
+        return None
+    if not _match_isinstance(val.get("left", {}), subj, "dict"):
+        return None
+    return _ftt_in_old_tuple(val.get("right", {}), subj)
+
+
+def _ftt_return_if(stmt: Any, a: str, b: str, retvar: str) -> bool:
+    """`if <a> and not <b>: return <retvar>` (no else)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not stmt.get("orelse")):
+        return False
+    t = stmt.get("test", {})
+    if not (isinstance(t, dict) and t.get("type") == "BinOp" and t.get("op") == "and"
+            and _is_var(t.get("left"), a)):
+        return False
+    rn = t.get("right", {})
+    if not (isinstance(rn, dict) and rn.get("type") == "UnaryOp"
+            and rn.get("op") == "not" and _is_var(rn.get("expr"), b)):
+        return False
+    bd = stmt.get("body", [])
+    return (len(bd) == 1 and isinstance(bd[0], dict) and bd[0].get("stmt") == "Return"
+            and _is_var(bd[0].get("value"), retvar))
+
+
+def _match_ftt_binblock(binif: Any, node_p: str):
+    """The `if node.get("type")=="BinOp" and node.get("op")=="==": <5 stmts>` block.
+    Returns the extracted literals (keys/tags) or None (fail-closed)."""
+    if not (isinstance(binif, dict) and binif.get("stmt") == "If"
+            and not binif.get("orelse")):
+        return None
+    t = binif.get("test", {})
+    if not (isinstance(t, dict) and t.get("type") == "BinOp" and t.get("op") == "and"):
+        return None
+    lc, rc = t.get("left", {}), t.get("right", {})
+    if not (isinstance(lc, dict) and lc.get("type") == "BinOp" and lc.get("op") == "=="):
+        return None
+    type_key = _match_get_call(lc.get("left", {}), node_p)
+    binop_tag = _is_string(lc.get("right"))
+    if type_key is None or binop_tag is None:
+        return None
+    if not (isinstance(rc, dict) and rc.get("type") == "BinOp" and rc.get("op") == "=="):
+        return None
+    op_key = _match_get_call(rc.get("left", {}), node_p)
+    eq_tag = _is_string(rc.get("right"))
+    if op_key is None or eq_tag is None:
+        return None
+    bb = binif.get("body", [])
+    if len(bb) != 5:
+        return None
+    # [0] l, r = (node.get(left_key), node.get(right_key))
+    tu = bb[0]
+    if not (isinstance(tu, dict) and tu.get("stmt") == "TupleUnpack"):
+        return None
+    tgts = tu.get("targets") or []
+    if len(tgts) != 2 or not all(isinstance(x, str) for x in tgts):
+        return None
+    lvar, rvar = tgts
+    tv = tu.get("value", {})
+    if not (isinstance(tv, dict) and tv.get("type") == "Tuple"):
+        return None
+    elts = tv.get("elts") or []
+    if len(elts) != 2:
+        return None
+    left_key = _match_get_call(elts[0], node_p)
+    right_key = _match_get_call(elts[1], node_p)
+    if left_key is None or right_key is None:
+        return None
+    # [1] l_old = isinstance(l,dict) and l.get(tk) in (tags); [2] r_old similarly
+    if not (isinstance(bb[1], dict) and bb[1].get("stmt") == "Assign"):
+        return None
+    lold = bb[1].get("target")
+    la = _ftt_old_val(bb[1].get("value"), lvar)
+    if not (isinstance(bb[2], dict) and bb[2].get("stmt") == "Assign"):
+        return None
+    rold = bb[2].get("target")
+    ra = _ftt_old_val(bb[2].get("value"), rvar)
+    if la is None or ra is None or not isinstance(lold, str) or not isinstance(rold, str):
+        return None
+    if la != ra:  # same old-type key + same tuple of tags on both sides
+        return None
+    old_type_key, old_tags = la
+    # [3] if r_old and not l_old: return l ; [4] if l_old and not r_old: return r
+    if not _ftt_return_if(bb[3], rold, lold, lvar):
+        return None
+    if not _ftt_return_if(bb[4], lold, rold, rvar):
+        return None
+    return {"type_key": type_key, "binop_tag": binop_tag, "op_key": op_key,
+            "eq_tag": eq_tag, "left_key": left_key, "right_key": right_key,
+            "old_type_key": old_type_key, "old_tags": old_tags}
+
+
+def _match_ftt_values(forv: Any, node_p: str, fname: str) -> bool:
+    """`for v in node.values(): for c in (v if isinstance(v,list) else [v]):
+           res = self._frame_trigger_term(c); if res is not None: return res`."""
+    if not (isinstance(forv, dict) and forv.get("stmt") == "For"):
+        return False
+    it = forv.get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{node_p}.values" and not it.get("args")):
+        return False
+    vv = forv.get("target")
+    ob = forv.get("body", [])
+    if not (isinstance(vv, str) and len(ob) == 1):
+        return False
+    inner = ob[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"):
+        return False
+    ie = inner.get("iter", {})
+    # iter = (v if isinstance(v, list) else [v])
+    if not (isinstance(ie, dict) and ie.get("type") == "IfExpr"
+            and _match_isinstance(ie.get("test", {}), vv, "list")
+            and _is_var(ie.get("body"), vv)):
+        return False
+    orelse = ie.get("orelse", {})
+    if not (isinstance(orelse, dict) and orelse.get("type") == "ArrayLit"):
+        return False
+    oe = orelse.get("elts", [])
+    if not (len(oe) == 1 and _is_var(oe[0], vv)):
+        return False
+    cv = inner.get("target")
+    ib = inner.get("body", [])
+    if not (isinstance(cv, str) and len(ib) == 2):
+        return False
+    # [0] res = self._frame_trigger_term(c)
+    a0 = ib[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return False
+    resvar = a0.get("target")
+    call = a0.get("value", {})
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)
+            and call["func"].endswith("_frame_trigger_term")):
+        return False
+    cargs = call.get("args", [])
+    if not (len(cargs) == 1 and _is_var(cargs[0], cv) and isinstance(resvar, str)):
+        return False
+    # [1] if res is not None: return res
+    a1 = ib[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "If" and not a1.get("orelse")):
+        return False
+    t = a1.get("test", {})
+    if not (isinstance(t, dict) and t.get("type") == "BinOp" and t.get("op") == "!="
+            and _is_var(t.get("left"), resvar)
+            and isinstance(t.get("right"), dict) and t["right"].get("type") == "None"):
+        return False
+    rb = a1.get("body", [])
+    return (len(rb) == 1 and isinstance(rb[0], dict) and rb[0].get("stmt") == "Return"
+            and _is_var(rb[0].get("value"), resvar))
+
+
+def _recognize_frame_trigger_term(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_frame_trigger_term"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node_p = params[0]
+    # pure search — the frame MUST be `\nothing` (fail-closed).
+    assigns = func.get("contracts", {}).get("assigns", []) or []
+    if not (len(assigns) == 1 and isinstance(assigns[0], dict)
+            and assigns[0].get("type") == "Nothing"):
+        return None
+    body = func.get("body") or []
+    if len(body) != 4:
+        return None
+    guard, binif, forv, ret = body
+    # [0] if not isinstance(node, dict): return None
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")):
+        return None
+    gt = guard.get("test", {})
+    if not (isinstance(gt, dict) and gt.get("type") == "UnaryOp" and gt.get("op") == "not"
+            and _match_isinstance(gt.get("expr", {}), node_p, "dict")):
+        return None
+    gb = guard.get("body", [])
+    if not (len(gb) == 1 and isinstance(gb[0], dict) and gb[0].get("stmt") == "Return"
+            and isinstance(gb[0].get("value"), dict)
+            and gb[0]["value"].get("type") == "None"):
+        return None
+    # [3] return None
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"
+            and isinstance(ret.get("value"), dict) and ret["value"].get("type") == "None"):
+        return None
+    # [1] the BinOp `==` Old-side block
+    bd = _match_ftt_binblock(binif, node_p)
+    if bd is None:
+        return None
+    # [2] the `.values()` descend
+    if not _match_ftt_values(forv, node_p, func["name"]):
+        return None
+    return {"name": func["name"], "node": node_p, **bd}
+
+
+def emit_frame_trigger_term_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_frame_trigger_term` as the certified value-returning first-match
+    `.values()` SEARCH catamorphism: literal-key `option pyval` readers for the
+    `type`/`op`/`left`/`right` keys, then a mutual `{n}` (over `pyval`) `with
+    {n}__vals` (over the dict-VALUE spine) `with {n}__lst` (over a list VALUE)
+    returning the FIRST non-None result. For a `BinOp ==` node with exactly one
+    `Old`/`OldField` side, returns the OTHER side (as an `option pyval` — faithful,
+    the absent-key case is `None`); else the `.values()` descend. Termination via
+    the certified `pv_size`/`size_dict`/`size_list` measure. `ensures True`. NO
+    axiom (ledger 3)."""
+    n = whyml_ident(desc["name"])
+    tk, btag = desc["type_key"], desc["binop_tag"]
+    ok, etag = desc["op_key"], desc["eq_tag"]
+    lk, rk = desc["left_key"], desc["right_key"]
+    otk, otags = desc["old_type_key"], desc["old_tags"]
+
+    out: List[str] = []
+    out.append("")
+    out.append("  (* value-returning first-match `.values()` SEARCH: `_frame_trigger_term`. *)")
+    out.append("  (* real pyval/pydict tree walk (BinOp==/Old-side read -> return the *)")
+    out.append("  (* non-Old side; then a `.values()` descend, lists elementwise, first *)")
+    out.append("  (* non-None); NO axiom (pyval/pydict ADT + sizes). *)")
+
+    def _opt_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    _opt_reader(f"{n}__gtype", tk)
+    _opt_reader(f"{n}__gop", ok)
+    _opt_reader(f"{n}__gleft", lk)
+    _opt_reader(f"{n}__gright", rk)
+    _opt_reader(f"{n}__gotype", otk)
+    # `isinstance(x, dict) and x.get(otk) in (otags)` on an `option pyval`.
+    old_disj = " || ".join(f'pystr_eq s "{t}"' for t in otags)
+    out.append(f"  let {n}__isold (o: option pyval) : bool")
+    out.append("  = match o with")
+    out.append(f"    | Some (PDict d) -> (match {n}__gotype d with Some (PStr s) -> {old_disj} | _ -> false end)")
+    out.append("    | _ -> false end")
+
+    # ---- main mutual search ----
+    out.append(f"  let rec {n} (node: pyval) : option pyval")
+    out.append("    requires { true } ensures { true } variant { pv_size node }")
+    out.append("  = match node with")
+    out.append("    | PDict d ->")
+    out.append(f'        if (match {n}__gtype d with Some (PStr t) -> pystr_eq t "{btag}" | _ -> false end)')
+    out.append(f'           && (match {n}__gop d with Some (PStr o) -> pystr_eq o "{etag}" | _ -> false end)')
+    out.append("        then")
+    out.append(f"          let l = {n}__gleft d in")
+    out.append(f"          let r = {n}__gright d in")
+    out.append(f"          let lo = {n}__isold l in")
+    out.append(f"          let ro = {n}__isold r in")
+    out.append("          if ro && not lo then l")
+    out.append("          else if lo && not ro then r")
+    out.append(f"          else {n}__vals d")
+    out.append(f"        else {n}__vals d")
+    out.append("    | _ -> None end")
+    out.append(f"  with {n}__vals (d: pydict) : option pyval")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v; size_dict_nonneg rest;")
+    out.append(f"        let res = (match v with PList xs -> {n}__lst xs | _ -> {n} v end) in")
+    out.append(f"        (match res with Some w -> Some w | None -> {n}__vals rest end)")
+    out.append("    end")
+    out.append(f"  with {n}__lst (xs: list pyval) : option pyval")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> None")
+    out.append("    | Cons c rest ->")
+    out.append("        size_pos c; size_list_nonneg rest;")
+    out.append(f"        (match {n} c with Some w -> Some w | None -> {n}__lst rest end)")
+    out.append("    end")
+    return out
+
+
 # ---- `_collect_mutations`: ref-accumulator WHOLE-STMT append (list pyval) ----
 # The UB-7.1 mutation collector — a tag-dispatch stmt-walker that APPENDS the whole
 # pyval stmt node to the `out` accumulator when the stmt mutates `target_name`:

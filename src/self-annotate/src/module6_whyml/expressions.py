@@ -366,12 +366,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return s[1:-1].strip() if i == len(s) - 1 else s
         return s
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _frame_trigger_term(self, node: Any) -> int:
-        return {}
+    def _frame_trigger_term(self, node: Any) -> Optional[Dict[str, Any]]:
+        if not isinstance(node, dict):
+            return None
+        if node.get("type") == "BinOp" and node.get("op") == "==":
+            l, r = node.get("left"), node.get("right")
+            l_old = isinstance(l, dict) and l.get("type") in ("Old", "OldField")
+            r_old = isinstance(r, dict) and r.get("type") in ("Old", "OldField")
+            if r_old and not l_old:
+                return l
+            if l_old and not r_old:
+                return r
+        for v in node.values():
+            for c in (v if isinstance(v, list) else [v]):
+                res = self._frame_trigger_term(c)
+                if res is not None:
+                    return res
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

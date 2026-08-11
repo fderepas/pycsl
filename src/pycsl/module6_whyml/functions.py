@@ -3328,6 +3328,7 @@ class FunctionEmissionMixin:
             recognize_first_tuple_return, emit_first_tuple_return_group,
             recognize_find_assigned_vars, emit_find_assigned_vars_group,
             recognize_first_assign_value_ir, emit_first_assign_value_ir_group,
+            recognize_frame_trigger_term, emit_frame_trigger_term_group,
             recognize_collect_mutations, emit_collect_mutations_group,
             recognize_find_iteration_mutations, emit_find_iteration_mutations_group,
             recognize_build_method_writes_map, emit_build_method_writes_map_group,
@@ -3929,6 +3930,15 @@ class FunctionEmissionMixin:
         _favi = recognize_first_assign_value_ir(func)
         if _favi is not None:
             return emit_first_assign_value_ir_group(_favi, whyml_ident)
+        # `_frame_trigger_term`: value-returning first-match `.values()` SEARCH over
+        # the heterogeneous IR tree (Any-tree-walker cluster). Emitted as the
+        # certified mutual pyval search catamorphism (BinOp==/Old-side read then a
+        # pydict-VALUES descend, first non-None); reuses the pyval/pydict ADT +
+        # size measures, NO axiom. Fail-closed; a template bug is a loud unprovable
+        # instance, never a false proof.
+        _fttm = recognize_frame_trigger_term(func)
+        if _fttm is not None:
+            return emit_frame_trigger_term_group(_fttm, whyml_ident)
         _cm = recognize_collect_mutations(func)
         if _cm is not None:
             _cm_members = (self.ir.get("class_str_set_constants", {})

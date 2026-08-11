@@ -1355,3 +1355,16 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   (both bodies). PROCESS LESSON BANKED: run BOTH fidelity gates (`check-self-annotate-sync` ∧ `self-annotate-mirror-check`)
   every battery — mirror-check does not catch a converted-method body drift from a live-emitter edit; §10.4 (a feature
   editing a verified emitter method must re-port the mirror in the same commit) must be checked with the strict sync gate.
+
+- **`_frame_trigger_term` CONVERTED (2026-08-11, 742→741) — pydict-VALUES search walk banked.** §P cluster-drain #3:
+  a depth-first search returning Optional[Dict] over a pydict IR tree. New sub-capability: the `.values()` WALK over a
+  pydict (iterate DCons VALUES, recurse into each value / its PList elements, first-Some wins) — a `{n}__vals (d:pydict)
+  variant {size_dict d}` mutual helper, distinct from the by-key readers. Plus tuple-literal membership `l.get("type")
+  in ("Old","OldField")` → `pystr_eq||pystr_eq`, and Optional[Dict] option-return. CALLER-COUPLING: `_build_method_field_
+  param_frame_ensures_map` (functions.py:888, non-trusted) consumes it — RE-VERIFIED (functions.py whole-file proof
+  SUCCESS with the new option-pyval return). FULL BATTERY GREEN: expressions.py + functions.py (caller) + Module6_
+  WhyMLTranspiler.py (mixin sibling) ALL whole-file proof SUCCESS 0 non-Valid; corpus byte-diff 0; BOTH fidelity gates
+  clean (mirror-check 52/52, DIVERGED 2); non-vacuity + mutation test ("BinOp"/"Old"→XXX); ledger 3; verbatim. NOTE:
+  `.values()` over a heterogeneous PYDICT is WALKABLE (finite DCons list) — distinct from the map-key-enumeration wall
+  which is over a domain-less TYPED option-map. Any-tree-walker cluster continues: `_iter_len_expr`, `_max_end`/`traverse`
+  (pure_ast), `_subst_var`/`_subst_csl_param` (CSLNode/Weaver = different wall), `_callee_raised_in`, param-mut ones.
