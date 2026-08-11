@@ -881,3 +881,19 @@ regex (CORRECTNESS-floors).
    axiom — no finite enumeration of a total-function set); escape = repr-switch to sorted-dedup-list (sorted=identity,
    merge ops as let rec functions, Isolation C VC Valid) = a review-gated authorized build.** BUILDING _build_soundness_
    report now (opaque-sorted path, no repr-switch needed).
+
+   **_build_soundness_report BUILD-MEASUREMENT = CERTIFIED-BOUNDARY (2026-08-11, count 749) — the cert-feasibility
+   spike OVER-COUNTED.** The set parts (set_inter/set_diff/set_add/opaque-sorted/pput) ARE feasible, but STEP-1 census
+   found 2 dominating un-landed walls the spike missed: (1) `counts[bucket] += 1` = int-valued dynamic-key dict increment
+   — NO `map string int` device exists (grep 0; whole model is `map string bool`), NO `+=1` recognizer (only `|=` set-union),
+   the PInt-0 placeholder = Gate-C facade (drops the count), faithful = new int-dict read-modify-write + a KeyError-freedom
+   VC the FIXED `ensures True` contract can't express (no_exception KeyError forbidden); (2) `_collect_calls` = dropped-body
+   opaque cross-file import (ir_resolve, no #@ contract) → set-walker can't fire → deps off a manufactured set = facade.
+   Either alone disqualifies. **CONCLUSION (exhaustively measured): the AUTONOMOUS (no-new-cert, spike-and-land) value-model
+   frontier is at a CONFIRMED MEASURED FLOOR after CIE.** Every remaining reachable value-model target needs a NEW certified
+   value shape (int-valued-dict `map string int`, mutable-seq, PSet-as-pyval-value) OR a forbidden contract (KeyError-freedom)
+   OR an opaque cross-file-import annotation — all REVIEW-GATED MULTI-SESSION cert builds, NOT autonomous. LESSON: a
+   cert-feasibility spike that validates the NAMED pieces can still over-count — the build worker's full STEP-1 construction
+   census (every sub-pattern, not just the flagged ones) is the load-bearing gate; it caught counts[bucket]+=1 before any
+   wasted build. Per driver action (6): HOLD at this measured floor; the review-gated cert builds (int-dict, mutable-seq,
+   PSet-value repr-switch) await an explicit user go-ahead or a future authorized window.
