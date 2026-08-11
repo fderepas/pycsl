@@ -1092,3 +1092,14 @@ regex (CORRECTNESS-floors).
    emitter build has NO clean multi-stub cluster it alone unblocks — `arity` stays a lone fresh case behind a multi-surface
    build. ROI-GATE CONFIRMED BY MEASUREMENT (not assertion): list-field-emitter build = deferred/review-gated, VEIN CLOSED
    for autonomous pursuit. Floor 749 holds.
+
+- **L14 — map-of-int counter via get-default** [PROBED → CERTIFIED-BOUNDARY (map-enumeration co-blocked), 2026-08-11].
+  Discovered by re-measure (per action 6): `d[k]=d.get(k,0)+1` is a functional-accumulate with NO subscript KeyError
+  (get-default), so hypothesized as an L10-analog (`map string int` via `Map.set k (get_or_0 k + 1)`). Census of 9
+  counter-build trusted stubs: ALL co-blocked. Smallest, `_static_width` (14 lines): depends on trusted `_linear_form`
+  (int-dict class), iterates `lv.items()` (MAP-KEY-ENUMERATION wall over a domain-less option-map), int-simplified
+  mirror signature. The rest are large embedded bodies (33–573 lines) or same enumeration wall. KEY BANKED DISTINCTION
+  (refines L10): L10's device works for a map BUILT FROM A LIST (`for f in <list>` → write-only, no enumeration = clean);
+  it does NOT extend to a map MERGED FROM A MAP (`for k,c in <map>.items()` → needs `.items()` enumeration = the
+  documented map-key-enumeration boundary). Counters merge-from-map → walled. No clean list-iterating counter-build
+  exists. Reopening = the enumerable-typed-map primitive (same as L8's struck root).
