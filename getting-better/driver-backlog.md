@@ -1608,3 +1608,21 @@ SIBLINGS** (now reachable via the same/extended recognizer, re-drain candidates)
   `whyml_ident(v.func) in _module_string_seq_funcs`) threaded as a `map string bool` into fold-2
   `elem_reads` (gated on `Subscript` whose base ∈ str_arrays). Corpus-safe (0/893 nested defs),
   axiom-free, caller-coupling-safe (`string_vars |= ...`). BUILDING NOW (740→739).
+
+## Two-fold set-catamorphism = LANDED (2026-08-11, 740→739, commit ce26efc7)
+
+`_collect_string_elem_read_locals` converted via a NEW two-sequential-catamorphism recognizer
+(recognize_string_elem_read_locals_pairs / emit_string_elem_read_locals_group): the double-`rec`
+two-pass fixpoint with cross-accumulator dependency → two sequential `map string bool` set-union
+catamorphisms (fold-1 str_arrays gated by opaque ensures-free `in_ssf` val, threaded via extra_args
+into fold-2 elem_reads gated on Subscript-base membership). Axiom-free (opaque val ≠ axiom, ledger 3),
+0 new stubs. Battery: statements.py SUCCESS + Module6_WhyMLTranspiler byte-identical (narrow gate, no
+transpiler propagation) + corpus byte-diff 0 + fidelity 52/52 + non-vacuity (both folds real let +
+mutation test) + coupling-safe caller. **BANKED:** the two-fold-with-cross-dependency device.
+
+**`_collect_*` nested-def set-collect cluster now DRAINED:** `_collect_field_decode_str_locals` +
+`_collect_string_elem_read_locals` CONVERTED; `_collect_str_call_result_locals` NOT-IN-MIRROR;
+`_collect_shared_symbol_decls` = NEW-SUBSTRATE BOUNDARY (opaque `_AXIOM_FUNCTIONS` string-token facade).
+The 5 pycsl.py nested-def stubs = subprocess boundary. Nested-def set-catamorphism vein exhausted.
+SESSION TALLY (from 749): 749→739, 10 conversions (8 pv-tree-walker + field_decode + string_elem_read).
+NEXT: fresh census for the next vein (anti-false-floor).
