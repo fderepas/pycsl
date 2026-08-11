@@ -1103,3 +1103,23 @@ regex (CORRECTNESS-floors).
   it does NOT extend to a map MERGED FROM A MAP (`for k,c in <map>.items()` → needs `.items()` enumeration = the
   documented map-key-enumeration boundary). Counters merge-from-map → walled. No clean list-iterating counter-build
   exists. Reopening = the enumerable-typed-map primitive (same as L8's struck root).
+
+- **L15 — map-from-list with SCALAR values** [PROBED → CERTIFIED-BOUNDARY (all-co-blocked), 2026-08-11]. Re-measure
+  extending L10's PROVEN clean pattern (map BUILT FROM A LIST, write-only, no enumeration) from `list string` values to
+  scalar `Dict[str,str]`/`Dict[str,int]` (a "swap value type + `__setappend`→`Map.set`" generalization). Spiked the 6
+  census candidates; NONE is a clean flat map-string-scalar build: `_split_rocq_check_output`/`_split_rocq_print_
+  assumptions` = stdout STRING-PARSERS (splitlines/find-scan, value=joined-lines/substring, not a list-of-records);
+  `_index_proofs_dir_by_file` = directory FILE I/O + trusted `_parse_rocq/lean_file`; `_build_method_return_type_map` =
+  ~90-line TRUSTED-SUB-PREDICATE dispatch (`_returns_stmt_ir`/`find_return_type`/`_refine_tuple_return_type`) for the
+  value (same class as L14); `_build_method_param_whyml_types_by_name` = NESTED `map string (map string string)` + 2
+  trusted sub-predicates; `_todict_routed_ir` = single heterogeneous NESTED-node construction (no list iteration).
+  CONCLUSION: **L10's `_verify_module_groups` was the SINGLE clean instance of the map-from-list shape in this repo**;
+  the scalar-value generalization has no clean carrier. Map-from-list vein EXHAUSTED (1 landed). The residual Dict-build
+  stubs are dominated by tool-output string-parsers + trusted-sub-predicate-dispatch value computers — distinct
+  boundaries, not a value-type-swap away.
+
+**RE-MEASURE ROUND 2026-08-11 (post-L10, floor 748): L14 (counter-get-default) + L15 (map-from-list-scalar) both
+PROBED→CERTIFIED-BOUNDARY.** The ledger auto-regeneration surfaced 2 new candidates from L10's success; both adjudicated
+by census/spike to co-blocked boundaries (map-enumeration; string-parse/trusted-dispatch/file-IO). Floor 748 holds
+firmly — L10 was the lone clean carrier its vein offered. HOLD per action (6); continue periodic re-measure for
+genuinely-new capability-reachable shapes (not value-type variants of the exhausted map-build vein).
