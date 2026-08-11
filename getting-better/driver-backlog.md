@@ -1448,3 +1448,33 @@ axiom-free via a compound recognizer) — it is a session-scale compound-recogni
 build target should be the SIMPLEST by-value-capturing trusted nested-def stub (compound-free), to
 land the nested-def-closure recognizer capability on an easy target before compounding it toward
 `_iter_len_expr`. Census that next.
+
+## nested-def-closure census → CO-BLOCKED (0 standalone yield); REAL next lever = SELF-STATE-MUTATION frame (2026-08-11, count 741, HEAD 5a67ce09)
+
+Censused the trusted nested-def stubs (canonical): only **9** exist (the spike's "53" counted
+non-trusted). Decomposition:
+- **4 `_collect_*`** (`_collect_field_decode_str_locals`, `_collect_string_elem_read_locals`,
+  `_collect_str_call_result_locals`, `_collect_shared_symbol_decls`): the nested `def rec/_symbol`
+  is a PURE walk adding to a captured LOCAL set (a StrSet-union accumulator fold — convertible via the
+  banked pyval-walker accumulator recognizer). BUT the OUTER method then does `st[v] = "str"` where
+  `st = self._current_symbol_table` — a SELF-STATE MUTATION. Faithful frame = `assigns
+  { self._current_symbol_table }`, NOT the fixed `\nothing`. With `\nothing` the Why3 frame VC fails
+  (or, if dropped, is the [[trusted_val_frame_unsoundness]] unsound-dropped-frame pattern). So the
+  nested-def-closure is NOT the blocker here — SELF-STATE MUTATION is.
+- **5 `pycsl.py`** (`_probe_one`, `_dispatch_provers`, `_run_vacuity_gate`, `_run_proofs`,
+  `_transpile_modular`, `_sig_val_from_let`): prover-driver / subprocess / Why3-invocation methods =
+  the subprocess/file-I/O boundary (definitely not convertible).
+
+**Therefore nested-def-closure support yields 0 standalone** — every trusted nested-def stub is
+co-blocked by self-state-mutation (the 4 `_collect_*`) or subprocess (the 5 pycsl.py). Same shape as
+str→int: a feasible capability with 0 standalone yield because every candidate is co-blocked. Do NOT
+build nested-def-closure support in isolation; bundle it with the self-state-frame lever (which is the
+actual gate for the `_collect_*` cluster).
+
+**REAL next lever = SELF-STATE-MUTATION faithful-frame** ([[trusted_val_frame_unsoundness]]). The
+`_collect_*` cluster converts IFF a mirror method can carry a faithful `assigns { self.<field> }`
+frame that Why3 discharges, byte-inert on the corpus, siblings intact, axiom-free. Per
+gather-pick-work this is NOT a CORRECTNESS-BOUNDARY (feasible in principle) — SPIKE it make-or-break
+next: port ONE self-state `_collect_*` with `assigns { self._current_symbol_table }`, run `--fun`, and
+classify CONTAINED (byte-inert + siblings-intact) vs frame-model-campaign (moves byte-diff / needs the
+flagged multi-method frame rework).
