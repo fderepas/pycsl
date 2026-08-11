@@ -531,7 +531,24 @@ auto-reads THIS ledger each idle heartbeat, auto-ranks by ROI = (expected stubs 
 and LAUNCHES it as the next Phase-2 build — no asking. A REFUTED lever → CERTIFIED-BOUNDARY, struck, advance to
 next. Floor = this ledger empty (all BROKEN/CERTIFIED-BOUNDARY). Refresh after each lever resolves.
 
-Ranked 2026-08-11 (count 749). ROI-favorite = **L10** (L8 struck; L9 capability-banked-but-0-yield — both 2026-08-11).
+Ranked 2026-08-11 (count 748 after L10). ROI-favorite = **L11** (L8 struck; L9 banked-0-yield; L10 BROKEN — all 2026-08-11).
+- **L10 — Mutable-seq / map-of-list value model** [BROKEN — LANDED 2026-08-11, count 749→748]. Auto-picked favorite
+  #3. Spike PASSED(A): `_verify_module_groups`'s `groups.setdefault(g,[]).append(x)` is a pure functional-accumulate
+  (`Map.set groups g (snoc (get_or_nil groups g) x)`), NOT mutable-inner-seq aliasing → the type-rejection boundary
+  does not apply. BUILT by generalizing the landed `emit_extract_array_lengths_group` template (`map string (option
+  int)` → `map string (list string)`) + `recognize_verify_module_groups` (fail-closed exact whole-body shape gate) +
+  a `val __setappend ... ensures {result = Map.set m k (__snoc (Map.get m k) v)}` primitive over a pure `let rec
+  function __snoc` list append. FULL BATTERY GREEN (supervisor-verified): Module6 giant whole-file proof SUCCESS 0
+  non-Valid; corpus byte-diff 0 (apples-to-apples manual-emit both sides — the byte-diff-sweep.sh `$flags` produce a
+  let/val confound, use IDENTICAL flags on both sides); mirror-check 52/52; ledger 3 (Map.set + `__snoc` axiom-free,
+  allowlist untouched); non-vacuity via `--fun` reject-`ensures false` + a decisive mutation test (key literal
+  "verify_module"→"XXX" tracked in the emitted reader); verbatim body; SIBLING-REGRESSION clean — `audit_proof.py`
+  (the only other `setdefault(...,[]).append` site) does NOT trigger the recognizer (`__setappend` count 0, fail-closed
+  correctly rejects the embedded-in-larger-body pattern) and re-proves SUCCESS. Commits: emitter (generic_fold/
+  preamble/functions) + mirror. BANKED DEVICE: functional-accumulate map-of-list recognizer (`setdefault(k,[]).append`
+  → `Map.set k (snoc (get k) v)`), axiom-free, reusable for the setdefault/append cluster. KEY OPS LESSON: byte-diff
+  MUST use identical emit flags on baseline+after (byte-diff-sweep.sh's extra `$flags` diverge from manual emits =
+  false let/val diffs); the giant-file proof must run detached (setsid+sentinel), exceeds the foreground limit.
 - **L9 — str→int de-trust** [CAPABILITY BANKED + C3 CORRECTED, but 0 autonomous yield → struck from launch queue].
   Auto-picked favorite #2, make-or-break spike PASSED(A): Why3's `string.String` stdlib ALREADY exposes
   `to_int : string -> int` (SMT-LIB `str.to_int`, Z3/Alt-Ergo native, `to_int "123"=123`, `-1` on non-numeric),

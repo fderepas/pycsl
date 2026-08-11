@@ -13961,6 +13961,204 @@ def emit_extract_array_lengths_group(func: Dict[str, Any], desc: Dict[str, Any],
     return out
 
 
+# ---- `_verify_module_groups`: build `map string (list string)` via setdefault().append() ----
+# A flat single loop over the REAL modeled `functions` list (a list pyval): for each `f` (PDict d),
+# read `g = f.get("verify_module")` (option pyval); when `if g:` is truthy (the landed
+# Optional-truthiness lowering: Some non-empty PStr / non-zero PInt / true PBool / non-empty PList),
+# `groups.setdefault(g, []).append(whyml_ident(f["name"]))`. The setdefault-then-append is PINNED
+# into ONE `val __setappend` primitive whose pure `ensures` captures the whole
+# `Map.set m k (snoc (Map.get m k) v)` (the inner value is the pure inductive `list string`, grown
+# at the end by the certified structural `__snoc`) — so the walker VC carries an OPAQUE update and
+# never unfolds Map/list theory at each fold step. Same device as `emit_extract_array_lengths_group`'s
+# `__setdefault`, generalized from `option int` to `list string`. `whyml_ident(...)` is an OPAQUE
+# `val __ident (s:string):string` (irrelevant to `ensures True`). Non-vacuous: the result map embeds
+# REAL `whyml_ident(f["name"])` strings under REAL `verify_module` keys read off the real PDict via
+# `pget_dyn` gated on the REAL truthiness of the REAL `verify_module` value; NO opaque manufacture.
+# The literal keys `verify_module`/`name` are READ from the source body (mutation-sensitive). The
+# recognizer emits its OWN `map string (list string)` return signature (bypasses the default
+# `dict -> ...` lowering), same as the template. `ensures True`; termination via the structural list
+# variant. Ledger 3 (no new type/axiom/cert; `__setappend`/`__snoc`/`__ident` are pinned/pure/opaque
+# `val`/`let function`s, mutation-sensitive via the required literal keys).
+
+def _recognize_verify_module_groups(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed structural gate for `_verify_module_groups`. Matches the EXACT
+    body shape `groups: Dict = {}` / `for f in <param>:` / `g = f.get(<lit1>)` /
+    `if g:` / `groups.setdefault(g, []).append(<helper>(f[<lit2>]))` / `return groups`.
+    Extracts the two literal keys + the helper name from the REAL body. Any deviation
+    -> None (stays `\\trusted`)."""
+    name = func.get("name", "")
+    if not name.endswith("_verify_module_groups"):
+        return None
+    if func.get("return_annotation") != "dict":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    param = params[0]
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    s0, s1, s2 = body
+    # s0: `groups = {}`
+    if s0.get("stmt") != "Assign":
+        return None
+    grp = s0.get("target")
+    if not isinstance(grp, str):
+        return None
+    v0 = s0.get("value") or {}
+    if v0.get("type") != "DictLit" or v0.get("keys") or v0.get("values"):
+        return None
+    # s2: `return groups`
+    if s2.get("stmt") != "Return" or not _is_var(s2.get("value"), grp):
+        return None
+    # s1: `for f in <param>:`
+    if s1.get("stmt") != "For":
+        return None
+    fvar = s1.get("target")
+    if not isinstance(fvar, str) or not _is_var(s1.get("iter"), param):
+        return None
+    fbody = s1.get("body") or []
+    if len(fbody) != 2:
+        return None
+    a1, iff = fbody
+    # `g = f.get("<lit1>")`
+    if a1.get("stmt") != "Assign":
+        return None
+    gvar = a1.get("target")
+    if not isinstance(gvar, str):
+        return None
+    av = a1.get("value") or {}
+    if av.get("type") != "Call" or av.get("func") != f"{fvar}.get":
+        return None
+    aargs = av.get("args") or []
+    if len(aargs) != 1:
+        return None
+    litkey1 = _is_string(aargs[0])
+    if litkey1 is None:
+        return None
+    # `if g: <append>`  (bare truthiness, no else)
+    if iff.get("stmt") != "If" or not _is_var(iff.get("test"), gvar) or iff.get("orelse"):
+        return None
+    ifb = iff.get("body") or []
+    if len(ifb) != 1 or ifb[0].get("stmt") != "Expr":
+        return None
+    call = ifb[0].get("value") or {}
+    if call.get("type") != "Call" or call.get("func") != "append":
+        return None
+    recv = call.get("receiver") or {}
+    if recv.get("type") != "Call" or recv.get("func") != f"{grp}.setdefault":
+        return None
+    rargs = recv.get("args") or []
+    if len(rargs) != 2 or not _is_var(rargs[0], gvar):
+        return None
+    empty = rargs[1] or {}
+    if empty.get("type") != "ArrayLit" or empty.get("elts"):
+        return None
+    cargs = call.get("args") or []
+    if len(cargs) != 1:
+        return None
+    inner = cargs[0] or {}
+    if inner.get("type") != "Call":
+        return None
+    helper = inner.get("func")
+    if not isinstance(helper, str):
+        return None
+    iargs = inner.get("args") or []
+    if len(iargs) != 1:
+        return None
+    sub = iargs[0] or {}
+    if sub.get("type") != "Subscript" or not _is_var(sub.get("value"), fvar):
+        return None
+    litkey2 = _is_string(sub.get("index"))
+    if litkey2 is None:
+        return None
+    return {"name": name, "param": param, "litkey1": litkey1,
+            "litkey2": litkey2, "helper": helper,
+            "self_type": func.get("self_type")}
+
+
+def recognize_verify_module_groups(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed wrapper. Never raises."""
+    try:
+        return _recognize_verify_module_groups(func)
+    except Exception:
+        return None
+
+
+def emit_verify_module_groups_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_verify_module_groups` as a pure structural fold building
+    `map string (list string)`. See the module note for the encoding rationale.
+    `ensures True`. Ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    vmk = desc["litkey1"]   # source literal, e.g. "verify_module"
+    nmk = desc["litkey2"]   # source literal, e.g. "name"
+    out: List[str] = []
+
+    def _opt_reader(rname: str, key: str) -> None:
+        # faithful structural pydict reader (`pget_dyn` is not in scope at this
+        # emission slot — the template `emit_extract_array_lengths_group` uses the
+        # same self-contained reader). Mutation-sensitive via the literal `key`.
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    # ---- opaque `whyml_ident` (irrelevant to `ensures True`) ----
+    out.append(f"  val {P}ident (s: string) : string")
+    # ---- faithful literal-key readers (`f.get("verify_module")` / `f["name"]`) ----
+    _opt_reader(f"{P}gvm", vmk)
+    _opt_reader(f"{P}gname", nmk)
+    # ---- certified pure structural list append-to-end (`snoc`) ----
+    out.append(f"  let rec function {P}snoc (l: list string) (v: string) : list string")
+    out.append("    variant { l }")
+    out.append(f"  = match l with Nil -> Cons v Nil | Cons h t -> Cons h ({P}snoc t v) end")
+    # ---- setdefault(k,[]).append(v) pinned into ONE Map primitive (pure ensures) ----
+    out.append(f"  val {P}setappend (m: map string (list string)) (k v: string)"
+               " : map string (list string)")
+    out.append(f"    ensures {{ result = Map.set m k ({P}snoc (Map.get m k) v) }}")
+    # ---- `if g:` optional-string truthiness (the landed Optional-truthiness lowering) ----
+    out.append(f"  let {P}truthy (o: option pyval) : bool")
+    out.append("  = match o with")
+    out.append("    | Some (PBool b) -> b")
+    out.append("    | Some (PInt k) -> k <> 0")
+    out.append('    | Some (PStr s) -> not (pystr_eq s "")')
+    out.append("    | Some (PList xs) -> (match xs with Nil -> false | Cons _ _ -> true end)")
+    out.append("    | _ -> false end")
+    # ---- outer fold over `functions`: REF-accumulate into `map string (list string)` ----
+    out.append(f"  let rec {P}f (fs: list pyval) (acc: ref (map string (list string))) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { fs }")
+    out.append("  = match fs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons f rest ->")
+    out.append("        (match f with")
+    out.append("         | PDict d ->")
+    out.append(f"             let g = {P}gvm d in")
+    out.append(f"             if {P}truthy g then")
+    out.append('               (let gs = (match g with Some (PStr s) -> s | _ -> "" end) in')
+    out.append(f'                let nm = (match {P}gname d with Some (PStr s) -> s | _ -> "" end) in')
+    out.append(f"                acc := {P}setappend !acc gs ({P}ident nm))")
+    out.append("             else ()")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}f rest acc")
+    out.append("    end")
+    # ---- entry: fold the PARAM `functions` list (a real PList) ----
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string (list string)")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let acc = ref (const Nil) in")
+    out.append(f"    (match {mv} with PList xs -> {P}f xs acc | _ -> () end);")
+    out.append("    !acc")
+    return out
+
+
 # ---- `_collect_record_fields`: StrSet set-collect over the type_decls pyval list ----
 # A flat double `while` over the REAL modeled `type_decls` list: for each `td` (PDict) whose
 # `td["kind"] == "record"`, fold `td["fields"]` (list pyval), `set_add`ing each field dict's

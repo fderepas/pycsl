@@ -2079,6 +2079,7 @@ class PreambleEmissionMixin:
             recognize_find_iteration_mutations,
             recognize_build_method_writes_map,
             recognize_collect_record_fields,
+            recognize_verify_module_groups,
             recognize_build_method_result_ensures_map,
             recognize_build_method_field_result_ensures_map,
             recognize_build_method_field_old_ensures_map,
@@ -2351,6 +2352,10 @@ class PreambleEmissionMixin:
             # `map string bool` / `map string (list pyval)` result (`pv_size`/
             # `size_dict`/`size_list` + `set_add`/`set_union`/`Map.set`/`const`) + `pystr_eq`.
             or recognize_collect_record_fields(f) is not None
+            # `_verify_module_groups` folds pyval/pydict/list into a
+            # `map string (list string)` result (`Map.set`/`Map.get`/`const`/`snoc`
+            # + `pget_dyn`) via a pinned `__setappend`.
+            or recognize_verify_module_groups(f) is not None
             or recognize_build_method_result_ensures_map(f) is not None
             or recognize_build_method_field_result_ensures_map(f) is not None
             or recognize_build_method_field_old_ensures_map(f) is not None

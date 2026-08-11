@@ -3330,6 +3330,7 @@ class FunctionEmissionMixin:
             recognize_build_method_writes_map, emit_build_method_writes_map_group,
             emit_extract_array_lengths_group,
             recognize_collect_record_fields, emit_collect_record_fields_group,
+            recognize_verify_module_groups, emit_verify_module_groups_group,
             recognize_build_method_result_ensures_map,
             emit_build_method_result_ensures_map_group,
             recognize_build_method_field_result_ensures_map,
@@ -3923,6 +3924,12 @@ class FunctionEmissionMixin:
         _crf = recognize_collect_record_fields(func)
         if _crf is not None:
             return emit_collect_record_fields_group(_crf, whyml_ident)
+        # `_verify_module_groups`: setdefault().append() -> `map string (list string)`
+        # built by a pinned `__setappend` (pure `snoc` ensures) over the real
+        # `functions` fold; keys read via `pget_dyn`. Corpus-inert.
+        _vmg = recognize_verify_module_groups(func)
+        if _vmg is not None:
+            return emit_verify_module_groups_group(_vmg, whyml_ident)
         # `_build_method_{result,field_result,field_old}_ensures_map`: the pairs recognizer
         # (preamble) verified the LIFTED nested-def siblings' discriminant tags and stored the
         # emit `kind`; the standalone recognizers only name/param-gate (their discriminants are

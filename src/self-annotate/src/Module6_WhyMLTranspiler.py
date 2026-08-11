@@ -645,7 +645,6 @@ class Module6_WhyMLTranspiler(
     # ------------------------------------------------------------------
     # module-emission.md — OPT-IN axiom isolation via separate Why3 modules
     # ------------------------------------------------------------------
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
