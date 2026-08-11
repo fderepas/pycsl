@@ -927,3 +927,20 @@ regex (CORRECTNESS-floors).
    proving it requires a foreign sibling body = fidelity violation, do NOT count. Other rejects all fell in documented
    classes ((a) heterogeneous-dict `.values()`, (e) opaque cross-file `re`/`unicodedata`, (g) while-worklist, raw-ast
    Ingestor, `@property`-excluded). VERDICT: CONFIRMED MEASURED FLOOR at 749 holds under a fresh independent re-measure.
+
+   **CAPABILITY-REACH RE-CENSUS (2026-08-11, independent read-only, count 749) — FLOOR IS REAL, NOT A CENSUS
+   ARTIFACT.** Highest-risk anti-false-floor lens per [[wall2_walkdicts_consumers]] (repeated "exhausted" verdicts
+   most often hide a newly-landed capability reaching an old-classified stub). An independent agent tested whether
+   ANY landed capability (pyval string/list/search/flatten walkers, pget_dyn/pget_list/size_dict, PList/PDict
+   projection, StrSet set_add/union/diff/inter, pput/pappend, __psl/.values() consumers) now reaches an unconverted
+   stub. RESULT: NONE. Deep-tested near-misses (`_field_type_for`, `_union_none_ctor_for`, `_tag_of_value`,
+   `_infer_return_value_type`, `_infer_tuple_slot_type`, `_seq_init_expr`) all fail on the SAME distinguishing line:
+   **flat string-maps / TypedDict-VIEWED ARGUMENTS already convert (the ValIRBoolView mechanism: closed-key
+   `x.get("type")`→real field read); reads that descend into the heterogeneous nested-dict VALUES of the transpiler's
+   OPEN `Dict[str,Any]` SELF-STATE (`self._record_types.values()`, `_variant_types.get("constructors",{}).items()`)
+   lower to OPAQUE FACADES (opaque nullary `self__X_values_0 ()`, `info_get_str` ignoring the loop-var binding) →
+   Gate-C vacuity reject + type error.** Crossing it is a BUILD (give the self-field a typed record/TypedDict view),
+   NOT a landed capability. The remaining small dict-arg stubs are the `_deref`-style cross-mixin protocol-stub
+   duplicates (giant real body) already recorded. VERDICT: two independent censuses now agree (leaf-category +
+   capability-reach) — CONFIRMED MEASURED FLOOR at 749 is genuine. Next reachable value-model work = the typed-self-
+   state-view build (review-gated) or the giant `_expr_to_whyml` dispatcher.
