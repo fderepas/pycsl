@@ -1478,3 +1478,39 @@ gather-pick-work this is NOT a CORRECTNESS-BOUNDARY (feasible in principle) — 
 next: port ONE self-state `_collect_*` with `assigns { self._current_symbol_table }`, run `--fun`, and
 classify CONTAINED (byte-inert + siblings-intact) vs frame-model-campaign (moves byte-diff / needs the
 flagged multi-method frame rework).
+
+## self-state faithful-frame SPIKE VERDICT: frame WORKS (banked) but NOT the binding constraint; real lever = nested-def SET-ACCUMULATOR recognizer-fold (2026-08-11, count 741, HEAD 1e3740f0)
+
+Spiked the self-state-mutation faithful-frame lever (target `_collect_string_elem_read_locals`).
+Result:
+- **Frame CONTAINED + BANKED:** `#@ assigns self._current_symbol_table` DISCHARGES faithfully for a
+  DIRECT field-map write (`self._current_symbol_table[k]=v`). Probe `_probe_ss_direct` proved
+  `Verification SUCCESS`, emitted a real `let` with `writes { self._current_symbol_table }` +
+  `self._current_symbol_table <- map_update_some self._current_symbol_table key "str"`. The field is
+  modeled as a `mutable map string (option string)` of the state record; the self-field-frame syntax
+  is pre-existing (`_handle_fieldassign_stmt`). BYTE-INERT (frame mechanism = pre-existing
+  `_emit_frame_condition`/`map_update_some`, zero new emitter code) and AXIOM-FREE (a `writes` VC, not
+  an axiom; `map_update_some` over Why3 stdlib `Map.set`, ledger stays 3). **BANK: the frame is ready.**
+- **But converts ZERO `_collect_*`** — each is DOUBLE-gated upstream of the frame:
+  1. **nested `def rec` closure walking a captured MUTABLE SET (`out.add(x)`) → abstract-val
+     emission** (dominant). generic_fold's `emit_closure_existence_group` recognizes the found-flag
+     `||` shape ([[boundary_a_nested_def_closure_broken]]) but NOT the SET-ACCUMULATOR shape, so the
+     method falls through to abstract-val. THIS is the binding wall.
+  2. **getattr-alias `st = getattr(self,"_current_symbol_table",None)` → `st := 0` (int-degenerate) →
+     `if st is not None` = false → the `st[k]=v` write is DEAD CODE** (proof succeeds vacuously, the
+     mutation is never modeled). Faithfulness needs the DIRECT `self._field[k]=v` form; fixing the
+     getattr-alias to alias the mutable self-field is a GLOBAL emitter change (byte-diff-swept before
+     landing).
+- **Integrity note (false alarm cleared):** the spike reported `_collect_string_elem_read_locals` as
+  "not trusted / abstract-val"; that was its OWN worktree marker-removal, not the clean state. Clean
+  mirror: all 4 `_collect_*` carry `#@ \trusted` honestly. Useful by-catch: removing a `\trusted`
+  marker WITHOUT a real lowering yields a VACUOUS abstract val — Gate-C non-vacuity must reject it
+  (a converted method MUST emit a real `let`, never abstract `val`).
+
+**NEXT LEVER (real binding constraint): nested-def SET-ACCUMULATOR recognizer-fold** in
+generic_fold.py — extend the certified pyval catamorphism / found-flag `||` recognizer to the
+"walk-a-pyval-tree accumulating a StrSet (`out.add(target)` on matching Assign nodes)" shape, returning
+a `StrSet` (certified `map string bool` + set_union, axiom-free). That unblocks blocker #1 for all 4
+`_collect_*`; then the getattr-alias fix (#2) + the banked faithful frame land the conversion. StrSet
+model already certified axiom-free ([[pyval_value_model_built]]). SPIKE the set-accumulator catamorphism
+feasibility next (does it discharge the cross-decreasing variant over pv_size returning a StrSet?).
