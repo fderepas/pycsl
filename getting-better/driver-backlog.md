@@ -1551,3 +1551,30 @@ per-program re-proof). THEN adapt the certified `emit_setfold_group` to the free
 This is a review-gated multi-file front-end campaign, NOT a generic_fold.py-only spike. The banked
 faithful frame (assigns self.field) + the certified setfold catamorphism are both ready for when the
 lambda-lift wall falls. Count stays 741.
+
+## Module5 capture-threading = PROMOTED [COST/SCALE]→CONTAINED (2026-08-11, count 741, HEAD 5de618dc) — building
+
+Spiked the reopening capability (Module5 lambda-lift capture-threading). The DECISIVE falsifier:
+**ZERO of 893 corpus reference programs contain a nested `def`** (AST-authoritative). So the
+"corpus-regression risk" that tagged this [COST/SCALE]/review-gated CANNOT occur — the corpus-only
+byte-diff gate has nothing to regress on. **PROMOTE to CONTAINED.** (Anti-false-floor payoff: the
+boundary rested on a false premise — MEASURE beats the memory tag.)
+- **M2 surface (multi-site but tractable):** nested def lifted by `generic_visit` (Module5:5169),
+  captures dropped at `formal_params=[a.arg ...]` (:4645). Fix = free-var analysis + qualify
+  lifted-closure name by enclosing method (blocker #1) + prepend immutable captures to formal_params +
+  rewrite enclosing-body call sites via a lift-registry, ALL narrowly gated (the `_vararg_str` pattern
+  :4656) so non-capturing/non-nested funcs stay byte-identical (trivial: 0 corpus nested defs). Emit
+  side ALREADY threads extra params (`emit_setfold_group` extra_args :1175) — only the Module5 binding
+  is missing.
+- **M3 feasibility CONTAINED:** discharge via the ALREADY-CERTIFIED functional catamorphism (re-express
+  void-mutate-and-recurse `out.add` closure as a `map string bool`-returning `set_union` fold — NOT a
+  by-ref mutable effect, which would hit the variant/E-matching wall). Clean minimal target =
+  `_collect_field_decode_str_locals` (single `out` accumulator). `_collect_string_elem_read_locals` =
+  confounded (two-pass fixpoint) → separate follow-on.
+- **M4 axiom-free CONFIRMED** (structural binding change, no new value shape; ledger 3).
+- getattr-alias NOTE: the target's `self._current_symbol_table[v]="str"` reflection stays dead-code
+  (getattr degenerates) → `assigns \nothing` honored; the RETURN set (via the catamorphism) is the
+  non-vacuous content. No new unsoundness (the trusted stub already had `assigns \nothing`).
+
+BUILDING NOW: Module5 capture-threading + name-qualification (narrowly gated) + emit_setfold_group
+adaptation + convert `_collect_field_decode_str_locals` (target 741→740). Supervisor M1-byte-diff (exp 0).
