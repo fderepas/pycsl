@@ -212,12 +212,38 @@ class PreambleEmissionMixin:
     def _emit_uncited_axiom_func_decls(self) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _inductive_sig_whyml(self, signature: str) -> str:
-        return ""
+        """inductive.md: a predicate's WhyML arg-type list (Why3 `inductive p t1 t2`
+        takes UNNAMED arg types). From a source signature `"(n: int, x: Json)"`
+        extract the types and map them (scalars stay, a datatype/class lowercases):
+        `int json`."""
+        inner = signature.strip().lstrip("(").rstrip(")").strip()
+        if not inner:
+            return ""
+        scalars = {"int": "int", "bool": "bool", "str": "string", "float": "real"}
+        # Collection params lower to their value-semantic Why3 type, matching the
+        # rule-body lowering (a `disk: list` binder appears as `array int` in the
+        # forall) — without this the header emits the unbound source type `list`.
+        # A multi-word type (e.g. `array int`) must be parenthesised in the
+        # space-separated Why3 inductive arg-type list.
+        collections = {
+            "list": "(array int)", "tuple": "(array int)",
+            "bytes": "(array int)", "bytearray": "(array int)",
+            "dict": "(map int (option int))",
+        }
+        types = []
+        for part in inner.split(","):
+            ty = part.split(":")[-1].strip() if ":" in part else "int"
+            if ty in scalars:
+                types.append(scalars[ty])
+            elif ty in collections:
+                types.append(collections[ty])
+            else:
+                types.append(whyml_ident(ty.lower()))
+        return " ".join(types)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

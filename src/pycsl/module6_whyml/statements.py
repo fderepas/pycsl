@@ -2169,6 +2169,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     in getattr(self, "_mutable_state_classes", set())
                     and self._is_string_expr(v)):
                 return True
+            # L18 S3 (ternary string-local): a ternary whose BOTH arms are string-valued
+            # binds a string local (`ty = part.split(":")[-1].strip() if ":" in part else
+            # "int"`) → pre-decl `ref ""`. An arm counts as string via `_is_str_val` (a
+            # split-elem / str-method / fixpoint-dependency arm) OR `_is_string_expr` (a
+            # string literal / genuine string expr). Fail-closed on BOTH arms being string
+            # → a non-string ternary keeps its int/opaque typing (byte-inert). Ungated (a
+            # non-@mutable_state method's both-string ternary — the 2177 case below requires
+            # @mutable_state, so it does not cover this).
+            if t == "IfExpr":
+                _b18, _o18 = v.get("body", {}), v.get("orelse", {})
+                if ((_is_str_val(_b18) or self._is_string_expr(_b18))
+                        and (_is_str_val(_o18) or self._is_string_expr(_o18))):
+                    return True
             # typed-ir-for-b-ceiling.md §18 (ghost_assign): a ternary `<str> if cond
             # else <str>` binds a string local — the emitter's `init_val = f"(…)"
             # if val == "Nil" else val`. Both arms must be string-valued; recurse via
@@ -2194,6 +2207,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                    in getattr(self, "_mutable_state_classes", set()))
 
         tuple_str: Set[str] = set()
+        # L18 S1c: (target, iter_ir) of every `for … in …` loop, evaluated in the fixpoint
+        # below (a split iterable's receiver may only be typed `str` after an earlier pass).
+        for_iters: List[Tuple[str, Any]] = []
 
         def rec(node: Any) -> None:
             if isinstance(node, dict):
@@ -2262,6 +2278,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         and node["target"] not in seen):
                     seen.add(node["target"])
                     tuple_str.add(node["target"])
+                # L18 S1c: record every for-loop's (target, iterable) for the fixpoint.
+                if (node.get("stmt") == "For"
+                        and isinstance(node.get("iter"), dict)
+                        and isinstance(node.get("target"), str)):
+                    for_iters.append((node["target"], node["iter"]))
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
@@ -2290,11 +2311,110 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if st is not None and st.get(tgt) in (None, "Any"):
                         st[tgt] = "str"
                     changed = True
+            # L18 S1c: a for-target over a `<string>.split(sep)`/`.rsplit` iterable is a
+            # string local (split yields string ELEMENTS) — so a dependent classification
+            # (`ty = part.split(":")[-1].strip() if … else "int"`) sees `part : str`. Run in
+            # the fixpoint because the split RECEIVER may only become `str`-typed (seeded
+            # into `st`) on an earlier pass. Fail-closed on `_split_call_recv_sep` → inert.
+            for _ftg, _fit in for_iters:
+                if _ftg in out or _ftg in seen:
+                    continue
+                if self._split_call_recv_sep(_fit) is not None:
+                    out.add(_ftg)
+                    seen.add(_ftg)
+                    if st is not None and st.get(_ftg) in (None, "Any"):
+                        st[_ftg] = "str"
+                    changed = True
         for _tg in tuple_str:
             out.add(_tg)
             if st is not None and st.get(_tg) in (None, "Any"):
                 st[_tg] = "str"
         return out
+
+    def _mark_string_seq_locals(self, body_stmts: List[Dict[str, Any]]) -> None:
+        """L18 S1c-join: for each Module5 seq-promoted local (`_seq_locals`) whose EVERY
+        element source is string-valued, record `_seq_value_types[v] = "string"` so a
+        `sep.join(v)` recognizes it as a `seq string` (`str_join_seq`) rather than the
+        opaque int `join_1`. Element sources = a `.append(x)` arg, or a `v = [e0, e1, …]`
+        literal init's elements, or a non-literal `v = <expr>` reassignment. Fail-closed:
+        at least one source, and ALL string-valued (via `_is_string_expr`, a string-valued
+        Call return, or a `<str-dict>[k]` read of a local all-string-literal-valued dict).
+        Byte-inert: a corpus seq built from non-string sources is untouched (stays int)."""
+        seqs = getattr(self, "_seq_locals", set())
+        if not seqs:
+            return
+        svt = self._seq_value_types
+        ann = getattr(self, "_module_method_return_annotations", {})
+        rt = getattr(self, "_module_method_return_types", {})
+        # local dict vars bound to a DictLit whose VALUES are all string literals
+        # (`scalars = {"int":"int",…}`) → a `<dict>[k]` read is a string.
+        str_dicts: Set[str] = set()
+
+        def _scan_dicts(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    _v = n.get("value", {})
+                    if isinstance(_v, dict) and _v.get("type") == "DictLit":
+                        _vals = _v.get("values", []) or []
+                        if _vals and all(isinstance(x, dict) and x.get("type") == "String"
+                                         for x in _vals):
+                            str_dicts.add(n["target"])
+                for x in n.values():
+                    _scan_dicts(x)
+            elif isinstance(n, list):
+                for x in n:
+                    _scan_dicts(x)
+        _scan_dicts(body_stmts)
+
+        def _src_is_str(src: Any) -> bool:
+            if not isinstance(src, dict):
+                return False
+            if self._is_string_expr(src):
+                return True
+            if src.get("type") == "Call":
+                _fn = src.get("func", "")
+                if ann.get(_fn) == "str" or rt.get(_fn) == "string":
+                    return True
+            if src.get("type") in ("Subscript", "SliceAccess"):
+                _b = src.get("value", {})
+                if (isinstance(_b, dict) and _b.get("type") == "Var"
+                        and _b.get("name") in str_dicts):
+                    return True
+            return False
+
+        srcs: Dict[str, List[Any]] = {v: [] for v in seqs}
+
+        def _scan_srcs(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Expr":
+                    _c = n.get("value", {})
+                    if (isinstance(_c, dict) and _c.get("type") == "Call"
+                            and isinstance(_c.get("func"), str)
+                            and _c["func"].endswith(".append")):
+                        _tv = _c["func"][:-len(".append")]
+                        if _tv in srcs:
+                            _args = _c.get("args") or []
+                            srcs[_tv].append(_args[0] if _args else {})
+                if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)
+                        and n["target"] in srcs):
+                    _v = n.get("value", {})
+                    if isinstance(_v, dict) and _v.get("type") in ("ArrayLit", "ListLit"):
+                        for e in _v.get("elts", []) or []:
+                            srcs[n["target"]].append(e)
+                    elif isinstance(_v, dict):
+                        srcs[n["target"]].append(_v)
+                for x in n.values():
+                    _scan_srcs(x)
+            elif isinstance(n, list):
+                for x in n:
+                    _scan_srcs(x)
+        _scan_srcs(body_stmts)
+
+        for _v, _elems in srcs.items():
+            if svt.get(_v):
+                continue
+            if _elems and all(_src_is_str(e) for e in _elems):
+                svt[_v] = "string"
 
     def _collect_keyword_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """J2/J3 convergence (Call-internals): locals whose value is a keyword string read
@@ -2938,6 +3058,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `pre_decl_vars` and is shadowed at function entry.
         string_vars -= set(self._formal_params)
         self._string_local_vars = string_vars
+        # L18 S1c-join: a Module5 seq-promoted local (`types = []; types.append(<str>)`)
+        # whose EVERY element source is string-valued is a `seq string` — record it in
+        # `_seq_value_types` so `" ".join(types)` recognizes it (`str_join_seq`, a string)
+        # rather than the opaque int `join_1`. Must run AFTER the string-local collectors
+        # above (so a split-elem/str-method/dict-value append source is seen as string).
+        self._mark_string_seq_locals(body_stmts)
         # typed-ir §19: emit_ir locals — excluded from the int `ref 0` pre-decl (they get
         # a `ref (IrOther "")` pre-decl in `_emit_body_code`), so their `:=` typechecks.
         self._emit_ir_local_vars = self._collect_emit_ir_result_locals(body_stmts)

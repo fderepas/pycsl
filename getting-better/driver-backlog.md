@@ -1158,8 +1158,28 @@ landed conversion. The recurring string-op INT-LEAK (split/join scaffolding drop
 co-blocker; breaking it = the whole-function value-semantic-string-inference build (multi-surface, review-gated). Floor
 748 firm; 3 axiom-free capabilities banked (str→int, literal-dict-table, map-of-list) for future bundled builds.
 
-- **L18 — whole-function value-semantic-string inference (BREAK THE STRING-OP INT-LEAK)** [PROMOTED TOP OPEN LEVER
-  2026-08-11, COST/SCALE — fundable under FULL authority]. The L14-L17 meta-lesson identified the string-op int-leak
+- **L18 — break the string-op int-leak (split-as-for-iterable + ternary/join string-local)** [BROKEN — LANDED
+  2026-08-11, count 748→747]. Containment spike CORRECTED the L17 framing: the value-semantic path is per-MODULE (ON),
+  not per-function; the int-leak was ONE missing recognizer in `_classify_iterable` (a `for` over `<str>.split(sep)`
+  fell through to opaque `iter_length`/`_coerce_to_int`). BUILT (2 emitter files, fail-closed, no new axiom): S1 =
+  split-as-for-iterable in stmt_control_flow.py `_classify_iterable` (materialize `str_split_op → array string` once as
+  a `let`, `Array.length`/`arr[!idx]` + loop variant; register loop-target symtype `str` for the body); S3 = IfExp
+  ternary-string-local in statements.py `_is_str_val` (both arms string → `ref ""`); + a join lever `_mark_string_seq_
+  locals` (append-grown all-string seq → `seq string` so `" ".join` → `str_join_seq` not opaque int). Converted
+  `_inductive_sig_whyml` (verbatim body diff-identical to live). FULL BATTERY GREEN (supervisor-verified): preamble.py
+  whole-file proof SUCCESS 0 non-Valid; corpus byte-diff 0 (apples-to-apples, fail-closed → inert despite the worker's
+  precautionary flag); sibling-regression clean (mirror-emission diff: ONLY preamble.py changed, re-proves); non-vacuity
+  (real str_split/str_join + loop invariant/variant/index-bounds VCs + mutation test decisive "  "→"XX"); ledger 3
+  (str_split_op/str_join_seq pre-existing sound val-patterns, allowlist untouched); verbatim body. DEVIATION BANKED:
+  the spike's "two small adds / join already works" UNDER-scoped it — seq-string-element + string-valued-dict typing were
+  `@mutable_state`-gated, so the join/variant levers were also needed; trust-but-verify caught it. BANKED CAPABILITIES
+  (reusable for the str-accumulate cluster): split-as-for-iterable, ternary-string-local, append-join-seq-string.
+  FOLLOW-ONS measured: the 4 sampled candidates each hit a DIFFERENT wall (param-list/Optional, heterogeneous-Dict,
+  @mutable_state-f-string+dataclass-self, `re.split`+re-module) — so L18's clean cluster is SMALL (~1-3, not ~40; the
+  49 over-counted). BONUS UNBUILT: S4 = `str.partition`/`rpartition` (9 sites, opaque int-hash) — separate contained
+  recognizer lifting signature-parsing stubs (e.g. `_callable_whyml_arrow`), independent of S1/S3.
+
+  ORIGINAL PROMOTION NOTE (superseded by the LANDING above): The L14-L17 meta-lesson identified the string-op int-leak
   (split/join scaffolding dropping string locals to the int-model) as the DOMINANT co-blocker, walling ~40 of 49
   str-accumulate stubs. Unlike L12 (1-stub), breaking it is a CLUSTER unblock. Missing surfaces (from the L17 spike):
   (1) `for x in s.split(sep):` faithful materialization (`str_split_op → array string`, iterate); (2) `s.split(sep)[-1]`

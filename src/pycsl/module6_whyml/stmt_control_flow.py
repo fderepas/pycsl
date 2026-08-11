@@ -247,6 +247,7 @@ class ControlFlowStmtMixin:
         """
         self._for_idx_init = "0"
         self._pyast_loop_variant_len = None
+        self._for_iter_materialize = None
         # self-tcb-reduction giants (generic class-body lowering): `for child in
         # <classdef>.body` over a `py_classdef_node` param iterates the MODELLED
         # `class_body_ast node` psl cons-list — bound `psl_len (class_body_ast node)`,
@@ -312,6 +313,33 @@ class ControlFlowStmtMixin:
             _recv_w = self._expr_to_whyml(_mt_recv, local_refs)
             return (f"(irlen (elts_of {_recv_w}))",
                     f"(irnth !{idx} (elts_of {_recv_w}))", False)
+        # L18 S1 (split-as-for-iterable): `for part in <string>.split(sep)` /`.rsplit`
+        # iterates the faithful `str_split_op … : array string` (NOT the opaque
+        # `iter_length`/`iter_get`+`_coerce_to_int` int fallback below). The split array
+        # is MATERIALISED ONCE as a `let` (recorded in `_for_iter_materialize`, emitted by
+        # `_handle_for_stmt`) so the loop bound `Array.length arr` and the element read
+        # `arr[!idx]` hit the SAME array — a plain `val str_split_op` re-evaluated twice
+        # yields two distinct arrays and the element-bounds VC would not connect. The
+        # element `arr[i]` is a substring → the loop target is a string local (registered
+        # for the body in `_handle_for_stmt` + by `_collect_str_call_result_locals`). Gated
+        # on `_value_semantic` + the exact `.split`/`.rsplit`-on-string shape → corpus-inert.
+        _ssr = self._split_call_recv_sep(iter_ir) if self._value_semantic else None
+        if _ssr is not None:
+            _recv_ir, _sep_ir = _ssr
+            _recvw = self._expr_to_whyml(_recv_ir, local_refs)
+            _sepw = (self._expr_to_whyml(_sep_ir, local_refs)
+                     if _sep_ir is not None else '" "')
+            self._add_abstract_op(
+                "val str_split_op (s: string) (sep: string) : array string\n"
+                "    ensures { Array.length result >= 0 }")
+            _sv = f"_split{idx}"
+            self._for_iter_materialize = (_sv, f"(str_split_op {_recvw} {_sepw})")
+            # Arithmetic termination variant: the counter runs 0..Array.length _sv,
+            # incrementing by 1 (a pure LOGIC `Array.length`, legal in a `variant` term),
+            # so `_handle_for_stmt` emits `invariant { 0 <= !idx }` + `variant { len - !idx }`
+            # (this mirror class is not @mutable_state, so it has no variant otherwise).
+            self._pyast_loop_variant_len = f"(Array.length {_sv})"
+            return (f"Array.length {_sv}", f"{_sv}[!{idx}]", False)
         is_range = (iter_ir.get("type") == "Call" and
                     iter_ir.get("func") == "range")
         if is_range and len(iter_ir.get("args", [])) == 1:
@@ -515,6 +543,12 @@ class ControlFlowStmtMixin:
         # body's `type(tp).__name__` / `tp.name` / `tp.bound` lower to the certified tparam
         # projectors, not the opaque int path.
         _is_tparambody = self._tparam_iter_recv(iter_ir) is not None
+        # L18 S1: a `for part in <string>.split(sep)`/`.rsplit` loop binds `part` to a real
+        # substring (`arr[!idx]`) per iteration → register it symbol-type "str" for the
+        # body's duration so the body's `":" in part` / `part.split(":")[-1].strip()` lower
+        # through the faithful string ops, not the opaque int path. Restored after the body.
+        _is_splitbody = (self._value_semantic
+                         and self._split_call_recv_sep(iter_ir) is not None)
         if _is_classbody:
             self._pyast_stmt_locals.add(target)
             _st = getattr(self, "_current_symbol_table", None)
@@ -550,10 +584,15 @@ class ControlFlowStmtMixin:
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "ExprIR"
+        elif _is_splitbody:
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_symtype = _st.get(target, _MISSING)
+                _st[target] = "str"
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
         if (_saved_symtype is not _MISSING or _is_classbody or _is_kwbody
-                or _is_tparambody
+                or _is_tparambody or _is_splitbody
                 or self._mktuple_elts_recv_ir(iter_ir) is not None
                 or self._tparam_bases_recv(iter_ir) is not None):
             _st = getattr(self, "_current_symbol_table", None)
@@ -691,6 +730,12 @@ class ControlFlowStmtMixin:
             idx_decl = f"{loop_indent}let {idx} = ref ({idx_init} : int{self._bounded_int}) in\n{while_code}"
         else:
             idx_decl = f"{loop_indent}let {idx} = ref {idx_init} in\n{while_code}"
+        # L18 S1: materialise the split iterable ONCE as a `let` wrapping the loop, so the
+        # loop bound `Array.length arr` and the element `arr[!idx]` reference the SAME array.
+        _mat = getattr(self, "_for_iter_materialize", None)
+        if _mat is not None:
+            _mv, _mexpr = _mat
+            idx_decl = f"{loop_indent}let {_mv} = {_mexpr} in\n{idx_decl}"
 
         if has_direct_ret and not self._has_early_ret and not in_loop:
             rest_code = self._stmts_to_whyml(
