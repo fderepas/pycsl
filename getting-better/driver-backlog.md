@@ -1231,3 +1231,15 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   IR-tree rewrite = MULTI-SURFACE). BUILD PLAN (next heartbeat): `recognize_callable_whyml_arrow` + `emit_..._group`
   (opaque before/after, recursive fold over str_split_op array mapping the verified sibling, str_join_arr " -> "),
   convert `_callable_whyml_arrow`, full battery + mutation test. Ledger 3, byte-inert (fail-closed).
+
+- **§P RE-DRAIN after L19 (2026-08-11): DRY — string-op vein EXHAUSTED at 746.** Re-censused str-returning trusted
+  stubs with the L18+L19 capability set (split-as-for-iterable/ternary/join/partition/listcomp-map). 67 str-op stubs;
+  9 heuristic-"CLEAN?" all FALSE-clean on inspection: `_camel_to_snake`/`_preprocess_whyml`/`_strip_rocq_comments`/
+  `_strip_lean_comments` = `re.sub` (aliased `import re as _re` — the opaque cross-module REGEX wall); `_synthesize_
+  legacy_text`/`_synthesize_block` = generator/module-level trusted-producer + heterogeneous Dict; `_build_witness_str`
+  = heterogeneous Dict/Optional params; `_coerce_to_int` = int-model internal; `_resolve_module_path` = file I/O. The
+  DOMINANT remaining wall for string-transform stubs is the `re` REGEX MODULE (modeling Python regex = huge, not
+  contained/axiom-free = boundary). L18(`_inductive_sig_whyml`)+L19(`_callable_whyml_arrow`) were the clean string-op
+  stubs. STRING-OP VEIN EXHAUSTED. Remaining OPEN levers are HEAVIER: partition hosts `_call_return_whyml_type`
+  (rpartition+heterogeneous-map), `_substitute`/`_hoist_calls_in_expr`/`inline_stmts` (recursive IR-tree rewrite =
+  multi-surface); + the review-gated cert builds (enumerable-typed-map, PSet-in-pyval, mutable-seq). Floor now 746.
