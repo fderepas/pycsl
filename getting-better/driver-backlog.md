@@ -531,7 +531,7 @@ auto-reads THIS ledger each idle heartbeat, auto-ranks by ROI = (expected stubs 
 and LAUNCHES it as the next Phase-2 build — no asking. A REFUTED lever → CERTIFIED-BOUNDARY, struck, advance to
 next. Floor = this ledger empty (all BROKEN/CERTIFIED-BOUNDARY). Refresh after each lever resolves.
 
-Ranked 2026-08-11 (count 748 after L10). ROI-favorite = **L12** (L8 struck; L9 banked-0-yield; L10 BROKEN; L11 struck — 2026-08-11).
+Ranked 2026-08-11 (count 748 after L10). LEDGER EXHAUSTED (L10 landed; L8/L11/L12 boundary; L9 banked; L13 moot) — floor 748.
 - **L10 — Mutable-seq / map-of-list value model** [BROKEN — LANDED 2026-08-11, count 749→748]. Auto-picked favorite
   #3. Spike PASSED(A): `_verify_module_groups`'s `groups.setdefault(g,[]).append(x)` is a pure functional-accumulate
   (`Map.set groups g (snoc (get_or_nil groups g) x)`), NOT mutable-inner-seq aliasing → the type-rejection boundary
@@ -597,12 +597,24 @@ Ranked 2026-08-11 (count 748 after L10). ROI-favorite = **L12** (L8 struck; L9 b
   caller; `bases_closure` = while-termination + frozenset; `_parse_rocq/lean_file` = file I/O. So no stub's SOLE blocker
   is the missing set-value shape. REOPENING: PSet-in-pyval only becomes worthwhile bundled with `_build_soundness_
   report`'s int-dict + opaque-import fixes (a multi-wall coordinated build, review-gated).
-- **L12 — list-typed @dataclass field emitter build**. array/seq theory import + real `len`→Seq.length +
-  string-element fix (currently `list[str]` field → unbound `array int` + opaque `iter_length`). Emitter-only,
-  NO new cert, byte-inert. Unblocks `arity` ONLY (census-settled: rest are dict-reads / behind parser terminus).
-  STATUS: ROI-GATED (1-stub yield behind multi-surface build). Pairs with L13.
-- **L13 — @property emission un-skip** (4-line delete, byte-inert, no crosscheck_ir regression — verified).
-  Enabler only: converts nothing alone (each member behind a 2nd wall). Prereq for L12's `arity`. STATUS: ENABLER.
+- **L12 — list-typed @dataclass field emitter build** [STRUCK — CERTIFIED-BOUNDARY (COST/SCALE, ROI-gated),
+  re-spiked post-L10 2026-08-11]. Re-spiked after L10 landed `list string` (hoping L10's plumbing shrank it). REFUTED:
+  L10's `list string` is LOCAL-SCOPE-ONLY (per-function inductive `snoc`/`mem` helpers), NEVER a record-field type.
+  Record field types (preamble.py:7114-7166) emit only `array string` (gated on @mutable_state/IR-node) or `array int`
+  (default) — a frozen `@dataclass` field `list[str]` trips neither gate → still unbound `array int` (no-more-int leak);
+  `len(self.slots)` still routes to opaque `iter_length` (the real-`Array.length` branch requires record-element +
+  the same gate). Converting `arity` still needs ≥3 disjoint surfaces (Module5 field-type inference + a new len-
+  dispatch branch + preamble theory), none provided by L10. 1-stub yield (census-settled, no cluster). ROI-gate stands.
+- **L13 — @property emission un-skip** [MOOT as standalone — enabler for L12's `arity`, which is CERTIFIED-BOUNDARY].
+  4-line delete, byte-inert, no crosscheck_ir regression (verified). Converts nothing alone. Only revived if L12's
+  3-surface field/len build is funded.
+
+**LEDGER EXHAUSTED 2026-08-11 (new floor 748): L10 LANDED (749→748); L8/L11/L12 CERTIFIED-BOUNDARY; L9 banked-0-yield;
+L13 enabler-moot.** The auto-pick mechanism (SKILL §A.6) worked through every ranked lever: 1 real conversion + 5
+rigorously adjudicated. No OPEN lever with autonomous standalone yield remains. Per driver action (6): HOLD at floor
+748; periodically re-measure to DISCOVER NEW levers (L10 itself was found by census — the ledger auto-regenerates as new
+capabilities/measurements surface fresh candidates). Reopening the struck levers needs review-gated multi-wall/multi-
+surface builds (enumerable-typed-map + heterogeneous-value; PSet-bundle with int-dict+opaque-import; L12's 3 surfaces).
 - **BLOCKED (not a raisable lever autonomously): int-valued-dict** `map string int` — lowering exists; wall =
   KeyError-freedom under `requires True` = FORBIDDEN CONTRACT. Movable only via an L9-style cited proof.
 
