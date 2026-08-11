@@ -524,6 +524,39 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
      Net: fidelity gate greener (5→4), count-neutral 942, tree clean, no axiom. The 4 residuals are the V1
      `Dict[str,Any]`/genexp-list-field value-model wall (census-known), not a bounded transcription backlog.
 
+## LEVERS LEDGER (auto-ranked, session-scale — SKILL §A.6 "auto-list + auto-pick the favorite, never ask")
+When the spike-and-land backlog is drained and only session-scale not-yet-BUILT levers remain, the driver
+auto-reads THIS ledger each idle heartbeat, auto-ranks by ROI = (expected stubs unblocked × landing-confidence)
+÷ build-cost (ties → no-new-cert over new-cert; proven-feasible half over unproven), auto-picks the TOP lever,
+and LAUNCHES it as the next Phase-2 build — no asking. A REFUTED lever → CERTIFIED-BOUNDARY, struck, advance to
+next. Floor = this ledger empty (all BROKEN/CERTIFIED-BOUNDARY). Refresh after each lever resolves.
+
+Ranked 2026-08-11 (count 749). ROI-favorite = **L8**.
+- **L8 — Enumerable-typed-map ADT** [FAVORITE]. Typed closed-key record values + `.values()`-search lowering
+  (value-view half PROVEN feasible by the typed-self-view spike; gap = enumeration over a native domain-less
+  Why3 map). Unblocks the `.values()`-over-typed-map cluster (`_field_type_for`, `_module_binding_names`,
+  consumers expressions.py:2530 / stmt_control_flow.py:1424/1447 ≈4–6 stubs). Cost: new value shape → co-landing
+  axiom-free cert; corpus-affecting (M1). Gate: axiom-free certifiability (else CERTIFIED-BOUNDARY). STATUS: OPEN.
+- **L9 — str→int via cited-proof** (`#@ proof rocq/lean`). De-trusts `str_to_int`-oracle stubs WITHOUT a new SMT
+  axiom (ledger stays 3, sanctioned de-trust-via-proof path). Unblocks from_sexp final 2 (`_find_construct_idx`,
+  `_construct_indices`) + int-via-string-atom carriers. Cost: hand Rocq/Lean proof, no emitter shape. Gate: cited
+  proof discharges + audits clean. STATUS: OPEN (no-new-cert → ROI tie-break favors it if L8 refutes).
+- **L10 — Mutable-seq value model** (map-of-mutable-seq). `d.setdefault(k,[]).append(...)` inner mutation.
+  Unblocks `_verify_module_groups` + setdefault/append cluster. Cost: new shape → cert; axiom-free
+  certifiability UNPROVEN → spike first. STATUS: OPEN (unproven half → ranked below L8/L9).
+- **L11 — PSet-in-pyval**. Set value inside a heterogeneous returned dict + ∩/∖/sort laws. Unblocks
+  `_build_soundness_report` `trusted_dependencies` — but that stub ALSO carries the `counts[bucket]+=1` int-dict
+  wall + opaque `_collect_calls`, so PSet ALONE converts 0. Cost: cert + co-located walls. STATUS: OPEN (low
+  standalone ROI — bundle only).
+- **L12 — list-typed @dataclass field emitter build**. array/seq theory import + real `len`→Seq.length +
+  string-element fix (currently `list[str]` field → unbound `array int` + opaque `iter_length`). Emitter-only,
+  NO new cert, byte-inert. Unblocks `arity` ONLY (census-settled: rest are dict-reads / behind parser terminus).
+  STATUS: ROI-GATED (1-stub yield behind multi-surface build). Pairs with L13.
+- **L13 — @property emission un-skip** (4-line delete, byte-inert, no crosscheck_ir regression — verified).
+  Enabler only: converts nothing alone (each member behind a 2nd wall). Prereq for L12's `arity`. STATUS: ENABLER.
+- **BLOCKED (not a raisable lever autonomously): int-valued-dict** `map string int` — lowering exists; wall =
+  KeyError-freedom under `requires True` = FORBIDDEN CONTRACT. Movable only via an L9-style cited proof.
+
 ## Exhaustion = STOP (the ONLY early-stop condition now)
 The loop stops before the deadline ONLY when EVERY item 1–8 is either BROKEN or a **CORRECTNESS/SOUNDNESS
 CERTIFIED-BOUNDARY** — a spike that proved the build IMPOSSIBLE/UNSOUND for reasons a bigger budget cannot

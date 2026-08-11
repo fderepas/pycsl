@@ -203,6 +203,23 @@ START (standing), not as an interrupt. Rules:
   corpus-affecting build" verdict now ESCALATES into the campaign (build → M1 byte-diff gate → control), it
   does not stop the loop to ask. The floor is reached only when the backlog is truly exhausted (§A.3 / the
   Exhaustion section of the backlog) — a not-yet-built corpus-affecting value-model item is NOT floor.
+- **SESSION-SCALE LEVERS — AUTO-LIST + AUTO-PICK THE FAVORITE, NEVER ASK (2026-08-11 directive).** When the
+  spike-and-land backlog is drained and only *session-scale not-yet-BUILT levers* remain (a new value-model
+  ADT + co-landing cert, a cited-proof de-trust, a multi-surface emitter build), the driver does NOT hold and
+  does NOT surface a "which lever / shall I launch?" decision to the user. Instead, EACH such idle heartbeat it:
+  (1) **auto-lists** the current levers — maintained as a ranked **LEVERS ledger** at the top of the backlog's
+  Exhaustion section (`getting-better/driver-backlog.md`), one entry per lever with {what, unblocks (stub
+  cluster), cost (new cert / cited-proof / emitter-only), gate/risk}; refresh it from the latest measurements
+  each time a lever resolves or a new one is discovered; (2) **auto-ranks** by ROI = (expected stubs unblocked
+  × landing-confidence) ÷ build-cost, with ties broken toward *no-new-cert* (emitter-only or cited-proof) over
+  *new-cert*, and toward a *proven-feasible* half (e.g. a spike already validated the value-view) over an
+  *unproven* one; (3) **auto-picks the top-ranked lever and LAUNCHES it** as the next Phase-2 build (spike-first
+  → co-landing axiom-free cert if a new shape → full three-plane battery + M1 byte-diff + independent control),
+  exactly as any backlog item — no user confirmation. A lever that a spike REFUTES (can't be certified
+  axiom-free / needs a forbidden contract) becomes a CERTIFIED-BOUNDARY, is struck from the ledger, and the
+  driver auto-advances to the next-ranked lever the SAME turn if budget allows. The user picking a lever
+  manually still overrides; absent that, the ROI ranking IS the pick. Holding is reserved for when the LEVERS
+  ledger itself is empty (every lever BROKEN or CERTIFIED-BOUNDARY) — that, and only that, is the true floor.
 - **The backlog is the escalation queue for Phase 2** (A.2.3): always take the top UNRESOLVED item. Mark items
   BROKEN / CERTIFIED-BOUNDARY as they resolve; a boundary records the capability that would reopen it.
 - **Seed + maintain it:** if the file is missing at A.1, create it from the measured walls in the impl docs +
