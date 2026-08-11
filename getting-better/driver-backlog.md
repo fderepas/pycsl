@@ -1368,3 +1368,16 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   `.values()` over a heterogeneous PYDICT is WALKABLE (finite DCons list) — distinct from the map-key-enumeration wall
   which is over a domain-less TYPED option-map. Any-tree-walker cluster continues: `_iter_len_expr`, `_max_end`/`traverse`
   (pure_ast), `_subst_var`/`_subst_csl_param` (CSLNode/Weaver = different wall), `_callee_raised_in`, param-mut ones.
+
+- **PV-TREE-WALKER CLEAN VEIN DRAINED (2026-08-11, floor 741): 4 conversions, remaining co-blocked.** The value-
+  returning pyval-tree walker capability (deepest-wall break) converted the 4 CLEAN heterogeneous-dict/list tree walkers:
+  `_substitute`, `_subst_params`, `_first_assign_value_ir`, `_frame_trigger_term`. §P re-drain of the remaining 14
+  Any-tree walkers: EACH carries a SECOND wall requiring a separate capability — `_iter_len_expr` = nested-`def`
+  closure (`def _operand_len`, Module5-drops-nested-def) + trusted `_expr_to_whyml`; `_callee_raised_in` = opaque cross-
+  file `from exception_model import handler_catches` + Set[str]/set-ops; `_max_end`/`traverse`/pure_ast = RAW-ast object
+  model (`getattr(node,"end_lineno")` on ast.AST, not pyval dict); `_subst_var`/`_subst_csl_param` = CSLNode dataclass
+  reflection (`_is_dc`/`_dc_fields`/`copy.deepcopy`); `_collect_array_var_assigns` = Set[str] + self-state; `_is_emit_ir_
+  expr`/`_is_string_expr` = bool-existence family (different recognizer). NEXT levers to WORK (gather-pick-work): (a) the
+  Set[str]-return walkers via the landed StrSet per-method device + opaque-val for handler_catches (`_callee_raised_in`);
+  (b) nested-`def`-closure support (would unblock `_iter_len_expr` + others); (c) the bool-existence walkers via
+  recognize_bool_existence. Each a separate build. Continue next heartbeat.
