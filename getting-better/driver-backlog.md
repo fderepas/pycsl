@@ -897,3 +897,19 @@ regex (CORRECTNESS-floors).
    census (every sub-pattern, not just the flagged ones) is the load-bearing gate; it caught counts[bucket]+=1 before any
    wasted build. Per driver action (6): HOLD at this measured floor; the review-gated cert builds (int-dict, mutable-seq,
    PSet-value repr-switch) await an explicit user go-ahead or a future authorized window.
+
+   **Int-valued-dict class = WALLED (fresh-lens re-measure 2026-08-11, count 749).** IMPORTANT refinement: the int-dict
+   LOWERING is NOT missing — int dicts are modeled `map κ (option int)` (KeyError-faithful); write `d[k]=v`=map_update_some,
+   augassign `d[k]+=1` desugared at IR emission (Module5._py_stmt_augassign Subscript->ArraySet+BinOp), read `d[k]`=Map.get
+   (needs `<> None`), get-default=match. The residual blockers are PROOF walls: (a) KeyError-freedom on `d[k]` reads under
+   `requires True` (unprovable without a value-faithful precondition — forbidden), (b) map KEY-ENUMERATION (`.items()/.keys()/
+   .values()` over `map _ (option _)` has NO domain to enumerate). Only 3-4 int-dict producers exist, ALL walled: collect_
+   module_constants (heterogeneous int|str value + items-filter), _linear_form (compound Optional[Tuple] + items-merge + 2
+   verified callers), _collect_class_fields (heterogeneous-Dict payload), _build_soundness_report (KeyError-presence + Dict[str,
+   Any] return). The clean `counts.get(k,0)+1` pattern recurs only as an INTERNAL helper inside stubs whose ENCLOSING value model
+   is something else (heterogeneous/nested-closure/self-state/recursion). No (a)-class write-only/get-defaulted-return-directly
+   int-dict stub exists. **CONFIRMED MEASURED FLOOR — 7 distinct value-model classes independently re-measured this session
+   (Set-return, empty-literal, list-slice, projection-read, construction-as-return, PSet-value, int-dict), every one a boundary.
+   The recurring deep walls are: KeyError-freedom-proof-under-fixed-contract, map-KEY-ENUMERATION over option-maps,
+   heterogeneous-Dict[str,Any], nested-closure, opaque-cross-file-import — all REVIEW-GATED (need forbidden contracts or new
+   certifiable value models / enumeration primitives). HOLD per action (6); the anti-false-floor obligation is discharged.**
