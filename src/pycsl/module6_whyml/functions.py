@@ -3108,6 +3108,19 @@ class FunctionEmissionMixin:
         if _crn_desc is not None:
             from module6_whyml.generic_fold import emit_contract_referenced_names_group
             return emit_contract_referenced_names_group(func, _crn_desc, whyml_ident)
+        # `_collect_field_decode_str_locals` (generic_fold.py Module5 lambda-lift
+        # capture-threading SET-COLLECT): the lifted `rec` sibling keeps its own
+        # `\trusted` marker (emitted as a bodyless `val`, unused) so it never reaches the
+        # let-emitter — but suppress defensively if it ever does. The wrapper emits the
+        # certified mutual pyval/pydict/list set-UNION catamorphism (`map string bool`)
+        # whose leaf set_adds the REAL `node["target"]` under the concrete field-decode
+        # gate (only `_match_field_decode_idiom` is opaque). Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_fdsl_walk_ids", set()):
+            return []
+        _fdsl_desc = getattr(self, "_fdsl_outer_ids", {}).get(id(func))
+        if _fdsl_desc is not None:
+            from module6_whyml.generic_fold import emit_field_decode_str_locals_group
+            return emit_field_decode_str_locals_group(func, _fdsl_desc, whyml_ident)
         # `_callee_raised_direct` (generic_fold.py raises-registry SET-COLLECT): the lifted
         # `walk` sibling is SUPPRESSED; the wrapper emits the certified mutual pyval/pydict/
         # list set-UNION catamorphism (`map string bool`) whose Call leaf looks the real

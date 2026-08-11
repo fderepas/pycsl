@@ -1089,7 +1089,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     st[v] = "str"
         return elem_reads
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

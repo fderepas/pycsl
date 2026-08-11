@@ -2228,6 +2228,7 @@ class PreambleEmissionMixin:
             recognize_struct_pack_targets_pairs,
             recognize_struct_unpack_targets_pairs,
             recognize_contract_referenced_names_pairs,
+            recognize_field_decode_str_locals_pairs,
             recognize_callee_raised_direct_pairs,
             recognize_contract_referenced_var_names_pairs,
             recognize_collect_map_typed_locals_pairs,
@@ -2304,6 +2305,7 @@ class PreambleEmissionMixin:
             recognize_struct_pack_targets_pairs(functions)["outer_ids"]) or bool(
             recognize_struct_unpack_targets_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
+            recognize_field_decode_str_locals_pairs(functions)["outer_ids"]) or bool(
             recognize_callee_raised_direct_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
             recognize_collect_map_typed_locals_pairs(functions)["outer_ids"]) or bool(
@@ -2557,6 +2559,19 @@ class PreambleEmissionMixin:
         _crn = recognize_contract_referenced_names_pairs(functions)
         self._crn_outer_ids = _crn["outer_ids"]
         self._crn_walk_ids = _crn["walk_ids"]
+        # `_collect_field_decode_str_locals` (generic_fold.py Module5 lambda-lift
+        # capture-threading SET-COLLECT): the field-decode-idiom local collector — same
+        # OUTER+lifted-`rec` adjacency pairing + `set_union` skeleton as
+        # `_contract_referenced_names`, but the nested `def rec` captures a mutable `out`
+        # (re-expressed as the returned `map string bool`, NOT a by-ref effect) + the
+        # immutable `self` (idiom self-call modeled OPAQUE). The lifted `rec` keeps its own
+        # `\trusted` marker (bodyless `val`, unused) — the outer's group-emit is
+        # self-contained. Keyed on `id`; corpus-inert (name-gated; sole caller
+        # `_typed_local_vars` is `\trusted`).
+        from module6_whyml.generic_fold import recognize_field_decode_str_locals_pairs
+        _fdsl = recognize_field_decode_str_locals_pairs(functions)
+        self._fdsl_outer_ids = _fdsl["outer_ids"]
+        self._fdsl_walk_ids = _fdsl["walk_ids"]
         # `_callee_raised_direct` (generic_fold.py raises-registry SET-COLLECT): the raises-
         # registry sibling of `_contract_referenced_names` — same OUTER+lifted-`walk`
         # adjacency pairing + `set_union` skeleton, but the Call leaf looks the real `func`

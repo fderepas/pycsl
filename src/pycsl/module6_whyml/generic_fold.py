@@ -21807,6 +21807,343 @@ def emit_contract_referenced_names_group(func: Dict[str, Any], desc: Dict[str, A
     return out
 
 
+# ---- `_collect_field_decode_str_locals` (statements.py StatementEmissionMixin,
+#      Module5 lambda-lift capture-threading SET-COLLECT sibling of
+#      `_contract_referenced_names`): collect every local assigned the
+#      null-terminated-field NAME-decode idiom. Live body:
+#        out: Set[str] = set()
+#        def rec(node):
+#          if isinstance(node, dict):
+#            if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+#              v = node.get("value", {})
+#              if (isinstance(v, dict) and v.get("type") == "Call"
+#                      and v.get("func") == "decode"
+#                      and self._match_field_decode_idiom(v) is not None):
+#                out.add(node["target"])
+#            for x in node.values(): rec(x)
+#          elif isinstance(node, list):
+#            for x in node: rec(x)
+#        rec(body_stmts); <dead getattr-reflect block>; return out
+#      Same OUTER+lifted-`rec` adjacency pairing as `_contract_referenced_names`,
+#      but the nested `def rec` captures a single mutable `out: Set[str]` (re-expressed
+#      as a returned `map string bool` set-UNION catamorphism — NEVER a by-ref mutable
+#      effect) + the immutable `self` (the idiom self-call is modeled OPAQUE). Module5
+#      already hoists the nested `rec` to `<class>__rec` (its own `\trusted` marker keeps
+#      it a bodyless `val` — harmless/unused; the outer's group-emit is self-contained).
+#      The leaf set_adds the REAL `node["target"]` string under the concrete gate
+#      (`stmt`=="Assign" & `target` is str & `value.type`=="Call" & `value.func`=="decode"
+#      & the opaque `_match_field_decode_idiom(value)`). The idiom self-call becomes the
+#      OPAQUE-BUT-REAL `val <n>__fdi (v:pyval):bool` (ensures-free = sound over-approx of
+#      `is not None`, NOT an axiom — Gate-C-legal unmodeled self-source; the callee is
+#      itself `\trusted`). Non-facade (every tag/key literal read off the body,
+#      mutation-sensitive; the set-add of the real `target` string is the anti-vacuity
+#      signal). The trailing `getattr(self,"_current_symbol_table",...)` reflection is dead
+#      (getattr degenerates) and IGNORED by the self-contained emit -> `assigns \nothing`.
+#      `set_add`/`set_union`/`const`/`pystr_eq` come free with the pydict theory. Keyed on
+#      `id`; corpus-inert (name-gated; sole caller `_typed_local_vars` is `\trusted` ->
+#      coupling-free). Ledger 3 (reuses the certified pyval/pydict ADT + set-union).
+
+def _fdsl_flatten_and(node: Any) -> List[Any]:
+    """Flatten a left-assoc `and` BinOp chain into its conjunct list."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "and"):
+        return _fdsl_flatten_and(node.get("left")) + _fdsl_flatten_and(node.get("right"))
+    return [node]
+
+
+def _recognize_fdsl_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_collect_field_decode_str_locals` wrapper. Fail-closed;
+    None on any deviation. Returns {name, param, acc, walker_name}. The dead
+    reflection block ([2],[3]) is not inspected (name-gated + emit-ignored)."""
+    if not func.get("name", "").endswith("_collect_field_decode_str_locals"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    body = func.get("body") or []
+    if len(body) != 5:
+        return None
+    b0, b1, _b2, _b3, b4 = body
+    # [0] out = set()
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    acc = b0.get("target")
+    iv = b0.get("value") or {}
+    if not (isinstance(acc, str) and isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    # [1] Expr: rec(body_stmts)
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Expr"):
+        return None
+    call = b1.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    cargs = call.get("args") or []
+    if len(cargs) != 1 or not _is_var(cargs[0], subj):
+        return None
+    walker_name = call["func"]
+    # [4] return out
+    if not (isinstance(b4, dict) and b4.get("stmt") == "Return"
+            and _is_var(b4.get("value"), acc)):
+        return None
+    return {"name": func.get("name"), "param": subj, "acc": acc,
+            "walker_name": walker_name}
+
+
+def _recognize_fdsl_walk(walkfunc: Dict[str, Any], acc: str,
+                         call_names: "set") -> Optional[Dict[str, Any]]:
+    """Match the lifted `rec(node)` set-collect walk and extract every leaf
+    discriminant literal. Fail-closed. Returns the discriminant descriptor."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 1:
+        return None
+    top = body[0]
+    if not (isinstance(top, dict) and top.get("stmt") == "If"
+            and _match_isinstance(top.get("test"), node, "dict")):
+        return None
+    darm = top.get("body") or []
+    if len(darm) != 2:
+        return None
+    # darm[0]: if node.get(stmt_key)==stmt_val and isinstance(node.get(target_key),str):
+    g = darm[0]
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        return None
+    gt = g.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"):
+        return None
+    left = gt.get("left") or {}
+    right = gt.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "=="):
+        return None
+    stmt_key = _frss_dotget_key(left.get("left"), node)
+    stmt_val = _clean_lit(_is_string(left.get("right")))
+    if stmt_key is None or stmt_val is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "Call"
+            and right.get("func") == "isinstance"):
+        return None
+    rargs = right.get("args") or []
+    if len(rargs) != 2 or not _is_var(rargs[1], "str"):
+        return None
+    target_key = _frss_dotget_key(rargs[0], node)
+    if target_key is None:
+        return None
+    # g.body: [ v = node.get(value_key, {}) ; if <4-conjunct>: out.add(node[target_key]) ]
+    gb = g.get("body") or []
+    if len(gb) != 2:
+        return None
+    va, gif = gb
+    if not (isinstance(va, dict) and va.get("stmt") == "Assign"):
+        return None
+    vloc = va.get("target")
+    value_key = _frss_dotget_key(va.get("value"), node)
+    if not (isinstance(vloc, str) and value_key is not None):
+        return None
+    if not (isinstance(gif, dict) and gif.get("stmt") == "If" and not gif.get("orelse")):
+        return None
+    conj = _fdsl_flatten_and(gif.get("test") or {})
+    if len(conj) != 4:
+        return None
+    c_isinst, c_type, c_func, c_idiom = conj
+    if not _match_isinstance(c_isinst, vloc, "dict"):
+        return None
+    if not (isinstance(c_type, dict) and c_type.get("type") == "BinOp"
+            and c_type.get("op") == "=="):
+        return None
+    vtype_key = _frss_dotget_key(c_type.get("left"), vloc)
+    vtype_val = _clean_lit(_is_string(c_type.get("right")))
+    if vtype_key is None or vtype_val is None:
+        return None
+    if not (isinstance(c_func, dict) and c_func.get("type") == "BinOp"
+            and c_func.get("op") == "=="):
+        return None
+    vfunc_key = _frss_dotget_key(c_func.get("left"), vloc)
+    vfunc_val = _clean_lit(_is_string(c_func.get("right")))
+    if vfunc_key is None or vfunc_val is None:
+        return None
+    # c_idiom: self.<method>(v) != None  (the opaque field-decode-idiom self-call)
+    if not (isinstance(c_idiom, dict) and c_idiom.get("type") == "BinOp"
+            and c_idiom.get("op") == "!="):
+        return None
+    ic = c_idiom.get("left") or {}
+    rn = c_idiom.get("right") or {}
+    if not (isinstance(rn, dict) and rn.get("type") == "None"):
+        return None
+    if not (isinstance(ic, dict) and ic.get("type") == "Call"
+            and isinstance(ic.get("func"), str)):
+        return None
+    iargs = ic.get("args") or []
+    if len(iargs) != 1 or not _is_var(iargs[0], vloc):
+        return None
+    # anti-facade: the guard body set_adds the REAL subscript read node[target_key]
+    ib = gif.get("body") or []
+    if len(ib) != 1:
+        return None
+    addst = ib[0]
+    if not (isinstance(addst, dict) and addst.get("stmt") == "Expr"):
+        return None
+    addcall = addst.get("value") or {}
+    if not (isinstance(addcall, dict) and addcall.get("type") == "Call"
+            and addcall.get("func") == f"{acc}.add"):
+        return None
+    aargs = addcall.get("args") or []
+    if len(aargs) != 1:
+        return None
+    sub = aargs[0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), node)
+            and _clean_lit(_is_string(sub.get("index"))) == target_key):
+        return None
+    # darm[1]: for x in node.values(): rec(x)
+    def _values_iter(it: Any) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{node}.values" and not it.get("args"))
+
+    if not _frss_iter_selfcall(darm[1], call_names, node, _values_iter):
+        return None
+    # orelse: elif isinstance(node, list): for x in node: rec(x)
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    lif2 = orelse[0]
+    if not (isinstance(lif2, dict) and lif2.get("stmt") == "If"
+            and not lif2.get("orelse")
+            and _match_isinstance(lif2.get("test"), node, "list")):
+        return None
+    lb = lif2.get("body") or []
+    if len(lb) != 1:
+        return None
+    if not _frss_iter_selfcall(lb[0], call_names, node, lambda it: _is_var(it, node)):
+        return None
+    return {"stmt_key": stmt_key, "stmt_val": stmt_val, "target_key": target_key,
+            "value_key": value_key, "vtype_key": vtype_key, "vtype_val": vtype_val,
+            "vfunc_key": vfunc_key, "vfunc_val": vfunc_val}
+
+
+def recognize_field_decode_str_locals_pairs(functions: List[Dict[str, Any]]
+                                            ) -> Dict[str, Any]:
+    """Pair the `_collect_field_decode_str_locals` OUTER wrapper with its lifted
+    `rec` sibling (by adjacency). Returns {"outer_ids": {id(outer): desc},
+    "walk_ids": {id(rec), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_fdsl_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and wf_name is not None
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_fdsl_walk(wf, od["acc"], call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_field_decode_str_locals_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                       whyml_ident) -> List[str]:
+    """Emit `_collect_field_decode_str_locals` as a mutual `pyval`/`pydict`/
+    `list pyval` set-UNION catamorphism (the `_contract_referenced_names` skeleton).
+    The leaf reads the real `node["target"]` string and `set_add`s it under the
+    concrete field-decode gate (`stmt`=="Assign" & `target` is str & `value.type`==
+    "Call" & `value.func`=="decode" & the OPAQUE `<n>__fdi value`). The mutable `out`
+    accumulator is the returned set; the immutable `self` idiom-call is the opaque
+    val. `ensures True`; ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    sv = desc["stmt_val"]
+    vtv, vfv = desc["vtype_val"], desc["vfunc_val"]
+    out: List[str] = []
+    # literal-key readers (each reflects its key -> mutation-sensitive)
+    out += _emit_skey_reader(f"{P}gstmt", desc["stmt_key"])    # node["stmt"] : opt string
+    out += _emit_pval_reader(f"{P}gtarget", desc["target_key"])  # node["target"] : opt pyval
+    out += _emit_pval_reader(f"{P}gvalue", desc["value_key"])    # node["value"] : opt pyval
+    out += _emit_skey_reader(f"{P}gvtype", desc["vtype_key"])   # value["type"] : opt string
+    out += _emit_skey_reader(f"{P}gvfunc", desc["vfunc_key"])   # value["func"] : opt string
+    # opaque field-decode-idiom predicate == `self._match_field_decode_idiom(v) is not None`
+    out.append(f"  val {P}fdi (v: pyval) : bool")
+    # leaf: set_add node["target"] when the full concrete gate holds
+    out.append(f"  let {P}leaf (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {P}gstmt d with")
+    out.append(f'    | Some st -> if pystr_eq st "{sv}" then')
+    out.append(f"                   (match {P}gtarget d with")
+    out.append("                    | Some (PStr tname) ->")
+    out.append(f"                        (match {P}gvalue d with")
+    out.append("                         | Some (PDict vd) ->")
+    out.append(f"                             (match {P}gvtype vd with")
+    out.append(f'                              | Some vt -> if pystr_eq vt "{vtv}" then')
+    out.append(f"                                  (match {P}gvfunc vd with")
+    out.append(f'                                   | Some vf ->')
+    out.append(f'                                       if (pystr_eq vf "{vfv}") && ({P}fdi (PDict vd)) then')
+    out.append("                                         set_add (const false) tname")
+    out.append("                                       else const false")
+    out.append("                                   | None -> const false end)")
+    out.append("                                else const false")
+    out.append("                              | None -> const false end)")
+    out.append("                         | _ -> const false end)")
+    out.append("                    | _ -> const false end)")
+    out.append("                 else const false")
+    out.append("    | None -> const false end")
+    # mutual set-union existence catamorphism over the pyval spine
+    out.append(f"  let rec {P}v (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> set_union ({P}leaf d) ({P}dfold d)")
+    out.append(f"    | PList xs -> {P}lfold xs")
+    out.append("    | _ -> const false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        set_union ({P}v v) ({P}dfold rest) end")
+    out.append(f"  with {P}lfold (xs: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({P}v h) ({P}lfold t) end")
+    # entry: descend the whole argument through the catamorphism
+    out.append(f"  let {n} ({mv}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {P}v {mv}")
+    return out
+
+
 # ---- `_callee_raised_direct` (stmt_control_flow.py ControlFlowStmtMixin, raises-registry
 #      SET-COLLECT sibling of `_contract_referenced_names`): collect every callee-declared
 #      `#@ raises` exception name reachable from a node's Call subtree, WITHOUT regard to any
