@@ -1134,3 +1134,26 @@ genuinely-new capability-reachable shapes (not value-type variants of the exhaus
   Boundary = CSL-dataclass-Weaver / trusted-sub-producer, not the list-append capability. Re-measure round confirms:
   the fresh shape classes (counter L14, map-scalar L15, list-of-records L16) all bottom at pre-documented boundaries
   (map-enumeration, string-parse/trusted-dispatch, CSL-Weaver). Floor 748 firm.
+
+- **L17 — literal-dict lookup-table + string-accumulate** (`_inductive_sig_whyml`) [REFUTE(multi-surface) 2026-08-11;
+  BANKED a real axiom-free capability]. Spiked the most promising str-accumulate candidate (faithful `str->str` sig, 0
+  callers, no trusted-dep). CENSUS-P by BUILDING: (a) strip/lstrip/rstrip = EXISTS faithful (str_strip_op); (b) the two
+  LITERAL DICTS `{lit:lit,...}` + `k in d` membership + guarded `d[k]` = **CONFIRMED feasible, faithful, AXIOM-FREE** —
+  lowers to `map string (option string)` via `map_update_some (const None) k v`, membership → `match Map.get`, guarded
+  subscript → Some/None match, mutation-tracked. **BANKED CAPABILITY: literal-dict-as-lookup-table lowering (axiom-free,
+  ledger 3).** BUT REFUTE — the string-op SCAFFOLDING around the dict falls to the LEGACY INT-MODEL: `inner.split(",")`
+  as for-iterable → opaque `val inner_split_1(x0:int):int` (receiver dropped = VACUOUS), `part.split(":")[-1].strip()` →
+  nullary opaque, ternary-else `"int"` → int-hash → `ty` typed int → TYPE ERROR against the string-keyed dict. Non-vacuous
+  conversion needs 3 coordinated surfaces (split-as-iterable → `array string` faithful materialize; split-elem-neg-index
+  + outer-strip composition; whole-function value-semantic string-local inference) for 1 stub = multi-surface. FOLLOW-ON
+  (L17b, banked): the literal-dict device WILL convert a stub whose lookup KEY is ALREADY string-typed (not from
+  `.split()`) + scaffolding on the value-semantic path — future census filter "literal-dict lookup, string-typed loop var,
+  no split-as-iterable".
+
+**META-LESSON (L14-L17, 4 fresh-class re-measures post-L10):** the value-model PIECES are individually feasible
+(functional-accumulate L10-landed, str→int-stdlib L9-banked, literal-dict-table L17-banked) but each candidate stub
+COMPOSES a feasible piece with a CO-LOCATED WALL (map-enumeration / string-parse-int-leak / trusted-sub-producer /
+CSL-Weaver / split-as-iterable int-leak). L10 (`_verify_module_groups`) was the RARE clean composition — hence the lone
+landed conversion. The recurring string-op INT-LEAK (split/join scaffolding dropping to int-model) is now the dominant
+co-blocker; breaking it = the whole-function value-semantic-string-inference build (multi-surface, review-gated). Floor
+748 firm; 3 axiom-free capabilities banked (str→int, literal-dict-table, map-of-list) for future bundled builds.
