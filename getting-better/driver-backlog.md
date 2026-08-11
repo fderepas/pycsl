@@ -1396,3 +1396,55 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   unblock `_iter_len_expr` (`def _operand_len`) + the broad nested-`def`-walled set across the mirror (a recurring wall
   per [[boundary_a_nested_def_closure_broken]] family). Spike its feasibility (can Module5 emit a nested def as a local
   let rec, or is closure-capture the blocker?) next heartbeat, then build if contained.
+
+---
+
+## nested-`def`-closure lever — SPIKE VERDICT: FEASIBLE-BIG-BUILD (via RECOGNIZER, not front-end) + a LATENT SOUNDNESS HOLE found (2026-08-11, count 741, HEAD 0f16360b)
+
+Spiked the top fundable lever (nested-`def`-closure support, target `_iter_len_expr`). Verdict + a
+soundness by-catch:
+
+**Q1 — Module5 does NOT drop the nested def; it LIFTS it, but capture is BROKEN + silently UNSOUND.**
+`visit_FunctionDef` emits a nested `def` as a sibling top-level WhyML function via `generic_visit`,
+but the nested def's FREE VARIABLES (captured enclosing locals) are NOT threaded — each captured
+local becomes an abstract module-level `val constant name : τ`, decoupled from the parent's real
+value. Control test (`def top(items, base): def inner(x): return x+base`) emitted `val constant base`
+at module scope and `inner` read that abstract constant, NOT `top`'s argument — and it TYPECHECKS
+GREEN while being unsound. (`self` is threaded only incidentally via method-context, not capture
+analysis.)
+
+**Q2 — verdict FEASIBLE-BIG-BUILD, but the RIGHT build is a RECOGNIZER, not a front-end change.**
+A global front-end closure-capture-analysis fix (free-var analysis + param threading + call-site
+rewrite across comprehensions) cascades across the front-end AND would move corpus byte-diff (every
+nested-def program re-emits) = a RISKY brick. The byte-inert, axiom-free path is a RECOGNIZER
+(`emit_*_group`) that models the specific nested-def-closure faithfully — lower the captured nested
+def as a local `let`/`let rec` threading the captured locals as params, exactly as the certified
+pyval/pydict catamorphism already does. That fires ONLY for the recognized method ⇒ byte-inert on the
+corpus (no such shape there) ⇒ this is HOW all existing nested-def conversions were done. For the
+NAMED target `_iter_len_expr` the recognizer must be COMPOUND: nested-def-closure + genexpr-join-with-
+closure-call (`" + ".join(_operand_len(s) for s in args_ir)`) + `Optional[str]`-union-return + rsplit
++ opaque `_expr_to_whyml` val. Session-scale; closure support ALONE converts nothing here.
+
+**Q3 — cluster 53 trusted nested-def stubs**, but many capture MUTABLE accumulators
+(`rec`/`walk`/`strongconnect`/`found`-flag over a list/ref) → need mutable-ref threading = a further
+escalation beyond by-value. Clean by-value-capture subset is a fraction of 53.
+
+**Q4 — axiom-free YES** (structural; lowered local fn needs no new axiom; ledger stays 3).
+
+**SOUNDNESS BY-CATCH (flagged, independent of the count campaign): the generic-lift capture
+decoupling is a LATENT hole — but existing conversions are VERIFIED SOUND.** The decoupling
+(`val constant <local>`) typechecks green-but-unsound, and is masked ONLY because (a) trusted methods
+emit as bodyless `val`s (no proof obligation) and (b) CONVERTED methods match a RECOGNIZER, not the
+generic lift. VERIFIED (b): emitted `ir_scanner.mlw` has ZERO `val constant` decls, and the converted
+`uses_divmod`'s nested `_check` is a proper `let rec`/`let function` pyval-catamorphism group
+(`irscanner___check__type_is` etc., threading `pydict`/`pyval` structurally) — recognizer-emitted, NOT
+decoupled. So NONE of the 28 converted-nested-def methods is unsound. The hole would bite only a
+FUTURE generic-path conversion of a capturing method (which the recognizer path avoids). It is NOT an
+early-stop / active bug — it is a front-end footnote: if the front-end closure lift is ever relied on
+for a conversion (instead of a recognizer), it MUST thread captures first.
+
+**gather-pick-work disposition:** nested-def-closure is NOT a CORRECTNESS-BOUNDARY (it's feasible +
+axiom-free via a compound recognizer) — it is a session-scale compound-recognizer build. The next
+build target should be the SIMPLEST by-value-capturing trusted nested-def stub (compound-free), to
+land the nested-def-closure recognizer capability on an easy target before compounding it toward
+`_iter_len_expr`. Census that next.
