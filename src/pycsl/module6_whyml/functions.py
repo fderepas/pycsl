@@ -3292,6 +3292,7 @@ class FunctionEmissionMixin:
             recognize_stmt_setfold, emit_stmt_setfold_group,
             recognize_substmap, emit_substmap_group,
             recognize_substitute, emit_substitute_group,
+            recognize_subst_params, emit_subst_params_group,
             recognize_bool_existence, emit_bool_existence_group,
             recognize_stmt_has, emit_stmt_has_group,
             recognize_bool_multiway, emit_bool_multiway_group,
@@ -3832,6 +3833,15 @@ class FunctionEmissionMixin:
         _sub = recognize_substitute(func)
         if _sub is not None:
             return emit_substitute_group(func, _sub, whyml_ident)
+        # ir-inline `_subst_params`: the value-RETURNING pyval-tree deep-rewrite
+        # walk with a SINGLE substitution map + membership-guarded Var lookup (a
+        # simplified sibling of `_substitute`; no self-receiver post-processing).
+        # Real list-map + dict DCons-rebuild + get-tag/Var lookup structure.
+        # Fail-closed; a template bug is a loud unprovable instance, never a
+        # false proof.
+        _subp = recognize_subst_params(func)
+        if _subp is not None:
+            return emit_subst_params_group(func, _subp, whyml_ident)
         # ir-traversal-residual T3: the context-threading walk `_sa_walk`
         # (env-threaded fold + `sdict` string-keyed symbol table + source-level
         # raise). Same fail-closed discipline; a template bug is a loud

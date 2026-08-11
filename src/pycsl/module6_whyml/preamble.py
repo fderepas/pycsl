@@ -2213,6 +2213,7 @@ class PreambleEmissionMixin:
         # already-landed pydict mirror stays byte-identical; corpus-inert (only
         # a construction recognizer sets it).
         from module6_whyml.generic_fold import recognize_substitute
+        from module6_whyml.generic_fold import recognize_subst_params
         needs_pput = any(
             recognize_rewrite_ir_calls(f) is not None
             or recognize_substitute(f) is not None
@@ -2310,6 +2311,7 @@ class PreambleEmissionMixin:
             or recognize_self_method_calls(f) is not None
             or recognize_substmap(f) is not None
             or recognize_substitute(f) is not None
+            or recognize_subst_params(f) is not None
             or recognize_bool_existence(f) is not None
             or recognize_bool_multiway(f) is not None
             or recognize_frt(f) is not None

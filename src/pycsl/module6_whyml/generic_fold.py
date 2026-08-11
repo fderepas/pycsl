@@ -3162,6 +3162,196 @@ def emit_substitute_group(func: Dict[str, Any], sm: Dict[str, Any],
     return out
 
 
+def _sub_self_call2(node: Any, fname: str, first: str, p1: str) -> bool:
+    """`<self.meth>(<first>, <p1>)` — the 2-arg self-recursion whose first arg is
+    the recursion target and the second threads the read-only param UNCHANGED."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and _call_is_self(node.get("func"), fname)):
+        return False
+    args = node.get("args", [])
+    return len(args) == 2 and _is_var(args[0], first) and _is_var(args[1], p1)
+
+
+def recognize_subst_params(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the ir-inline `_subst_params` deep-rewrite walk — a
+    near-clone of `_substitute` with a SINGLE substitution map, a
+    membership-guarded (`name in arg_nodes`) Var lookup, a dict pput-free rebuild,
+    a list-map, and scalar id. NO self-receiver post-processing. Returns the
+    captured var tag when the IR body is *exactly* the 3-statement shape; else
+    None. Never raises."""
+    try:
+        return _recognize_subst_params(func)
+    except Exception:
+        return None
+
+
+def _recognize_subst_params(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    ir_p, arg_p = params
+    pa = func.get("param_annotations", {})
+    if pa.get(arg_p) != "dict":
+        return None
+    if func.get("return_annotation") != "Any":
+        return None
+    # pure reconstruction — the frame MUST be `\nothing` (fail-closed).
+    assigns = func.get("contracts", {}).get("assigns", []) or []
+    if not (len(assigns) == 1 and isinstance(assigns[0], dict)
+            and assigns[0].get("type") == "Nothing"):
+        return None
+    fname = func["name"]
+    body = func.get("body", [])
+    if len(body) != 3:
+        return None
+
+    # ---- stmt0: if isinstance(ir, dict): <dict block>
+    s0 = body[0]
+    if not (isinstance(s0, dict) and s0.get("stmt") == "If" and not s0.get("orelse")
+            and _match_isinstance(s0.get("test", {}), ir_p, "dict")):
+        return None
+    db = s0.get("body", [])
+    if len(db) != 2:
+        return None
+    #   db0: if ir.get("type")=="Var" and ir.get("name") in arg_nodes:
+    #            return arg_nodes[ir["name"]]
+    d0 = db[0]
+    if not (isinstance(d0, dict) and d0.get("stmt") == "If" and not d0.get("orelse")):
+        return None
+    t0 = d0.get("test", {})
+    if not (isinstance(t0, dict) and t0.get("type") == "BinOp" and t0.get("op") == "and"):
+        return None
+    var_tag = _sub_get_eq(t0.get("left", {}), ir_p, "type")
+    if var_tag is None:
+        return None
+    rt = t0.get("right", {})
+    if not (isinstance(rt, dict) and rt.get("type") == "BinOp" and rt.get("op") == "in"
+            and _match_get_call(rt.get("left", {}), ir_p) == "name"
+            and _is_var(rt.get("right"), arg_p)):
+        return None
+    db0b = d0.get("body", [])
+    if not (len(db0b) == 1 and db0b[0].get("stmt") == "Return"):
+        return None
+    rv = db0b[0].get("value", {})
+    if not (isinstance(rv, dict) and rv.get("type") == "Subscript"
+            and _is_var(rv.get("value"), arg_p)):
+        return None
+    idx = rv.get("index", {})
+    if not (isinstance(idx, dict) and idx.get("type") == "Subscript"
+            and _is_var(idx.get("value"), ir_p)
+            and _is_string(idx.get("index")) == "name"):
+        return None
+    #   db1: return {k: self._subst_params(v, arg_nodes) for k, v in ir.items()}
+    d1 = db[1]
+    if not (isinstance(d1, dict) and d1.get("stmt") == "Return"):
+        return None
+    dc = d1.get("value", {})
+    if not (isinstance(dc, dict) and dc.get("type") == "DictComp"
+            and _is_var(dc.get("key"), "k")
+            and _sub_self_call2(dc.get("value"), fname, "v", arg_p)):
+        return None
+    gd = dc.get("generators", [])
+    if not (len(gd) == 1 and not gd[0].get("ifs")):
+        return None
+    it = gd[0].get("iter", {})
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{ir_p}.items"):
+        return None
+
+    # ---- stmt1: if isinstance(ir, list): return [self._subst_params(x, ...) for x in ir]
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If" and not s1.get("orelse")
+            and _match_isinstance(s1.get("test", {}), ir_p, "list")):
+        return None
+    lb = s1.get("body", [])
+    if not (len(lb) == 1 and lb[0].get("stmt") == "Return"):
+        return None
+    lc = lb[0].get("value", {})
+    if not (isinstance(lc, dict) and lc.get("type") == "ListComp"
+            and _sub_self_call2(lc.get("elt"), fname, "x", arg_p)):
+        return None
+    gl = lc.get("generators", [])
+    if not (len(gl) == 1 and gl[0].get("target") == "x"
+            and _is_var(gl[0].get("iter"), ir_p) and not gl[0].get("ifs")):
+        return None
+
+    # ---- stmt2: return ir
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Return"
+            and _is_var(s2.get("value"), ir_p)):
+        return None
+
+    return {"ir": ir_p, "arg": arg_p, "var_tag": var_tag}
+
+
+def emit_subst_params_group(func: Dict[str, Any], sm: Dict[str, Any],
+                            whyml_ident) -> List[str]:
+    """Emit the `_subst_params` value-returning deep-rewrite group over the
+    certified pyval/pydict ADT (get/pv_size). A simplified sibling of
+    `emit_substitute_group`: a SINGLE substitution map `arg_nodes`, a
+    membership-guarded Var lookup, a dict DCons rebuild, a list-map, scalar id.
+    Functional (`assigns \\nothing`; no `writes`). NO self-receiver
+    post-processing, NO axiom (reuses the pyval/pydict ADT); ledger 3.
+    Congruent (modulo the captured var tag) to the proven `_substitute` group."""
+    n = whyml_ident(func["name"])
+    ir_p = sm["ir"]
+    arg_p = sm["arg"]
+    var_tag = sm["var_tag"]
+
+    out: List[str] = []
+    out.append("")
+    out.append(f"  (* ir-inline `_subst_params`: value-returning pyval-tree deep-rewrite. *)")
+    out.append(f"  (* Structure REAL (list-map / dict DCons-rebuild / get-tag / Var lookup); *)")
+    out.append(f"  (* single substitution map, membership-guarded lookup. NO axiom. *)")
+    # real tag reader (program-context; constructor match — same shape as the
+    # `_substitute` reader; only the queried keys (type/name) have arms).
+    out.append(f"  let rec {n}__get (d: pydict) (k: irkey) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append("    | DCons k' v rest ->")
+    out.append("        (match k, k' with")
+    out.append("        | K_type, K_type -> Some v")
+    out.append("        | K_name, K_name -> Some v")
+    out.append(f"        | K_dyn a, K_dyn b -> if pystr_eq a b then Some v else {n}__get rest k")
+    out.append(f"        | _, _ -> {n}__get rest k")
+    out.append("        end)")
+    out.append("    end")
+    # the main value-returning walk group
+    out.append(f"  let rec {n} ({ir_p}: pyval) ({arg_p}: map string (option pyval)) : pyval")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"    variant {{ pv_size {ir_p} }}")
+    out.append(f"  = match {ir_p} with")
+    out.append("    | PDict d ->")
+    out.append(f"        (match {n}__get d K_type with")
+    out.append(f'         | Some (PStr ty) -> if pystr_eq ty "{var_tag}" then')
+    out.append(f"             (match {n}__get d K_name with")
+    out.append("              | Some (PStr nm) ->")
+    out.append(f"                  (match Map.get {arg_p} nm with")
+    out.append("                   | Some pv -> pv")
+    out.append(f"                   | None -> PDict ({n}__dict d {arg_p}) end)")
+    out.append(f"              | _ -> PDict ({n}__dict d {arg_p}) end)")
+    out.append(f"             else PDict ({n}__dict d {arg_p})")
+    out.append(f"         | _ -> PDict ({n}__dict d {arg_p})")
+    out.append("        end)")
+    out.append(f"    | PList xs -> PList ({n}__list xs {arg_p})")
+    out.append(f"    | _ -> {ir_p}")
+    out.append("    end")
+    out.append(f"  with {n}__dict (d: pydict) ({arg_p}: map string (option pyval)) : pydict")
+    out.append("    variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> DNil")
+    out.append(f"    | DCons k v rest -> DCons k ({n} v {arg_p}) ({n}__dict rest {arg_p})")
+    out.append("    end")
+    out.append(f"  with {n}__list (xs: list pyval) ({arg_p}: map string (option pyval)) : list pyval")
+    out.append("    variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> Nil")
+    out.append(f"    | Cons h t -> Cons ({n} h {arg_p}) ({n}__list t {arg_p})")
+    out.append("    end")
+    return out
+
+
 # =========================================================================
 # ir-traversal-residual A-bool + T2 + D — the COMPOSED / SHORT-CIRCUIT shapes
 # (plan §3 T2 option/first-match, §4 D traversal outlining, plus the A-bool

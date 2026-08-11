@@ -1326,3 +1326,17 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   **BANKED THE BIGGEST CAPABILITY: value-RETURNING pyval-tree-rewrite walker** — corrects the "heterogeneous-Dict is the
   terminus" assumption for value-producing tree-rewrites. May now unblock the `Any`-tree-walker CLUSTER (`_hoist_calls_in_
   expr`/`inline_stmts` + the ~85 Dict[str,Any] readers). §P RE-DRAIN NEXT — this is the highest-value re-drain of the run.
+
+- **§P RE-DRAIN after deepest-wall: `_subst_params` CONVERTED (2026-08-11, 744→743) — cluster-unlock VALIDATED.** The
+  value-returning pyval-tree-rewrite capability (recognize_substitute family) immediately unblocked a sibling Any-tree
+  walker: `_subst_params` (expressions.py, a simpler 1-map variant of `_substitute`). Test-as-is showed recognize_
+  substitute does NOT fire (different shape: 2 params, membership-guard, no post-proc), so added a fail-closed sibling
+  `recognize_subst_params`/`emit_subst_params_group` REUSING emit_substitute_group's exact pyval-tree machinery (variant
+  triple + DCons rebuild + __get reader; single `arg_nodes:map string (option pyval)`, membership-guarded Var lookup,
+  pure DCons rebuild — no pput needed). FULL BATTERY GREEN: expressions.py (1320-line giant) whole-file proof SUCCESS 0
+  non-Valid AND Module6_WhyMLTranspiler.py (1038-line giant, the mixin-composing sibling whose emission ALSO changed —
+  SAME conversion propagating, not a regression) whole-file proof SUCCESS 0 non-Valid; corpus byte-diff 0; mirror-check
+  52/52; non-vacuity + mutation test "Var"→"XXX"; ledger 3; verbatim. REMAINING Any-tree-walker cluster (18 census'd):
+  `_subst_var`/`_subst_csl_param` (CSLNode/Weaver — check), `_first_assign_value_ir` (search variant), param-mut ones
+  (`_hoist_calls_in_expr`/`inline_stmts`/`_collect_protect_index_sites` — mutate a param list, harder), bool-returning
+  (`_is_emit_ir_expr`/`_is_string_expr` — bool-existence, different family). Continue draining next heartbeat.

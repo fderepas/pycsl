@@ -571,12 +571,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
     def _handle_isinstance(self, expr: int) -> str:
         return ""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:
-        return ""
+        if isinstance(ir, dict):
+            if ir.get("type") == "Var" and ir.get("name") in arg_nodes:
+                return arg_nodes[ir["name"]]
+            return {k: self._subst_params(v, arg_nodes) for k, v in ir.items()}
+        if isinstance(ir, list):
+            return [self._subst_params(x, arg_nodes) for x in ir]
+        return ir
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
