@@ -1253,3 +1253,21 @@ co-blocker; breaking it = the whole-function value-semantic-string-inference bui
   (read_text/iterdir), DATACLASS models (_Directive/CSLNode), heterogeneous Dict[str,Any], int-model-tuples, map-key-
   enumeration, trusted-sub-producers, recursive-IR-tree. All documented review-gated boundaries. FLOOR 746 FIRM — the
   contained (no-new-cert, spike-and-land) frontier is genuinely exhausted after 3 conversions (L10/L18/L19).
+
+- **L20 — general partition-unpack + option-return threading** [SPIKED 2026-08-11 → BOUNDARY (2 multi-surface features),
+  but concrete + cluster-potential]. Spiked the unspiked partition host `_call_return_whyml_type` (measure-first, not
+  assume). SURPRISE: the SUSPECTED gaps are ALREADY faithful — typed self-field dicts (`Dict[str,str]`→`map string
+  (option string)`, `.get`=Map.get) AND `getattr(self,"<literal>",{})`→field-read recognizer BOTH fire. The REAL
+  blockers (2, each review-gated multi-surface):
+  (F1) GENERAL partition/rpartition string-triple-unpack as a REUSABLE EXPRESSION LOWERING — L19's partition is a
+  BESPOKE whole-function facade (`recognize_global_call_target`, matches only `*_global_call_target`/3-param); a general
+  `fn.rpartition(".")` falls to opaque `fn_rpartition_1(int):int` → obj/method typed int → hash-`==` + `int_to_string`
+  nonsense. F1 = generalize the bespoke partition into an expression-level recognizer emitting `__rbefore`/`__rafter :
+  string→string` (axiom-free, precedent exists). Would unblock the partition-host cluster.
+  (F2) OPTION-RETURN THREADING — `.get()` on a typed map in an `Optional[str]` RETURN position picks a scalar-int
+  default (`None->0`) instead of threading `option string` into the return union (`Arm_N string | Arm_N_None`); this is
+  the actual typecheck failure. Distinct from the landed option-unwrap-COMPARISON (reflection_front). F2 has BROAD
+  cluster potential (many `Optional[str]`-via-`dict.get` stubs). Caller-coupling: single caller `_collect_struct_unpack_
+  array_targets` already converted (re-verify on land). VERDICT: BOUNDARY for autonomous spike-and-land (2 emitter
+  features), but F1+F2 are the concrete next FUNDABLE builds (cluster-scale, axiom-free) — the honest not-yet-built
+  frontier after the string-op vein. Recommend containment-spiking F2 (option-return) first — broadest reach.
