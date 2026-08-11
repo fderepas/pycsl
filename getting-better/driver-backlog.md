@@ -821,3 +821,17 @@ regex (CORRECTNESS-floors).
    there are no more stubs whose only-missing-piece was the Set model. Remaining value-model progress = the deep
    heterogeneous-Dict[str,Any] IR-node walker model (a genuine large multi-session build / documented terminus),
    NOT a bounded per-method or 2-method coordinated increment.
+
+   **Item 1b-C (list-slice/concat) — MEASURED FLOOR (2026-08-11, count 749): WALLED-OTHERWISE.** Census funnel:
+   676 trusted stubs -> 161 use slice-or-`+` -> 94 slice/list-concat -> 26 List-typed-param -> 2 coarse-clean ->
+   **0** with list-slice/concat as the SOLE blocker + 0 verified-caller coupling. The 2 survivors collapse:
+   `from_sexp::_project_app` = false-positive (string slice + int `+`; real blocker = sexp/Term ADT), `Module3_Weaver::
+   _desugar_acts` = CSL-dataclass variant-AST (slice incidental). Every genuine list-slice/concat sits on top of an
+   already-mapped wall (heterogeneous-Dict[str,Any] IR-node lists [dominant], CSL-dataclass variant-AST, raw-ast,
+   sexp/Term ADT, string-parse+IO, emitter List[str] helper cascade). SliceAccess is already partially modeled
+   (types.py:141 -> "slice") so the leak is a refinement, never a primary blocker. **ALL 3 value-model items
+   (1b-A/B/C) now MEASURED: the bounded per-method value-model frontier is a CONFIRMED MEASURED FLOOR — CIE is the
+   only landable per-method/coordinated win. Remaining reachable value-model work = the deep heterogeneous-Dict[str,Any]
+   / variant-AST IR-node WALKER model (the documented terminus; pyval/pydict ADT exists + broke CONTAINED cases per
+   [[value_model_root_broken]], but the general list-of-dicts field-projection is the deepest part). Next: make-or-break
+   SPIKE the contained heterogeneous-Dict path before concluding terminus-boundary.**
