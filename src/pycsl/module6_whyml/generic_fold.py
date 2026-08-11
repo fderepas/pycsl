@@ -22144,6 +22144,542 @@ def emit_field_decode_str_locals_group(func: Dict[str, Any], desc: Dict[str, Any
     return out
 
 
+# ---- `_collect_string_elem_read_locals` (statements.py, TWO-SEQUENTIAL-CATAMORPHISM
+#      SET-COLLECT sibling of `_collect_field_decode_str_locals`): the outer wraps the SAME
+#      lambda-lifted `rec` adjacency, but the nested walk carries a CROSS-ACCUMULATOR
+#      dependency between two sets. Live body:
+#        ssf = getattr(self, "_module_string_seq_funcs", set())
+#        if not ssf: return set()
+#        str_arrays = set(); elem_reads = set()
+#        def rec(node):
+#          if isinstance(node, dict):
+#            if node.get("stmt")=="Assign" and isinstance(node.get("target"), str):
+#              v = node.get("value", {})
+#              if isinstance(v, dict):
+#                if v.get("type")=="Call" and isinstance(v.get("func"),str) \
+#                        and whyml_ident(v["func"]) in ssf:
+#                  str_arrays.add(node["target"])                       # fold-1 accumulator
+#                elif v.get("type")=="Subscript" and isinstance(v.get("value"),dict) \
+#                        and v["value"].get("type")=="Var" \
+#                        and v["value"].get("name") in str_arrays:      # membership READ on fold-1
+#                  elem_reads.add(node["target"])                       # fold-2 accumulator
+#            for x in node.values(): rec(x)
+#          elif isinstance(node, list):
+#            for x in node: rec(x)
+#        rec(body_stmts); rec(body_stmts)                              # two-pass fixpoint
+#        ... (dead getattr-degenerate symbol-table reflection; assigns \nothing honored) ...
+#        return elem_reads                                             # the SECOND set
+#      The two-pass fixpoint over the two cross-dependent sets is lowered to TWO SEQUENTIAL
+#      TOTAL set-UNION catamorphisms over the SAME `map string bool` repr: fold-1 collects
+#      `str_arrays` (set_add of the REAL `node["target"]` gated by the concrete `Assign` +
+#      `value.type=="Call"` shape and the OPAQUE reflect-the-literal `in_ssf` predicate over
+#      the REAL `v["func"]` string — the `_module_string_seq_funcs` membership, an ensures-free
+#      sound over-approx, NOT an axiom); fold-2 threads fold-1's result as an extra
+#      `map string bool` param and set_adds the REAL `node["target"]` gated by `Subscript` +
+#      inner `Var` + a `Map.get str_arrays <base-name>` membership READ on the threaded set.
+#      The outer composes them as `{f2} body ({f1} body)` — pure & total, so both fixpoint
+#      passes coincide. The lifted `rec` is SUPPRESSED. Non-facade: every discriminant literal
+#      ("Assign"/"Call"/"Subscript"/"Var") + every key ("stmt"/"target"/"value"/"type"/"func"/
+#      "name") is read off the body and reflected (mutation-sensitive); the anti-vacuity signal
+#      is the set-add of the real target string under the cross-set membership. Keyed on `id`;
+#      corpus-inert (name-gated; 0/893 corpus nested defs). `ensures True`; ledger 3.
+
+
+def _serl_isinstance_call(test: Any, recv: str, key: str, cls: str) -> bool:
+    """`isinstance(<recv>.get("<key>"), <cls>)` — first arg is a `.get` read."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return False
+    args = test.get("args") or []
+    if len(args) != 2 or not _is_var(args[1], cls):
+        return False
+    return _frss_dotget_key(args[0], recv) == key
+
+
+def _serl_sub_get_key(node: Any, base: str, sub: str) -> Optional[str]:
+    """`<base>["<sub>"].get("<k>")` — the `.get` whose receiver is a Subscript
+    (`v["value"].get("type")`). Returns the clean literal k, else None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "get"):
+        return None
+    recv = node.get("receiver") or {}
+    if not (isinstance(recv, dict) and recv.get("type") == "Subscript"
+            and _is_var(recv.get("value"), base)
+            and _clean_lit(_is_string(recv.get("index"))) == sub):
+        return None
+    args = node.get("args") or []
+    if len(args) < 1:
+        return None
+    return _clean_lit(_is_string(args[0]))
+
+
+def _serl_add_target(stmt: Any, acc: str, node: str) -> Optional[str]:
+    """`<acc>.add(<node>["<k>"])` — the set-add of the REAL subscript read.
+    Returns the subscript key literal, else None (fail-closed)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return None
+    call = stmt.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == f"{acc}.add"):
+        return None
+    args = call.get("args") or []
+    if len(args) != 1:
+        return None
+    sub = args[0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), node)):
+        return None
+    return _clean_lit(_is_string(sub.get("index")))
+
+
+def _recognize_serl_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_collect_string_elem_read_locals` wrapper. Fail-closed;
+    None on any deviation. Returns {name, param, ssf_var, str_arrays, elem_reads,
+    walker_name}. The dead symbol-table reflection tail ([6],[7]) is not inspected
+    (name-gated + emit-ignored; `assigns \\nothing`)."""
+    if not func.get("name", "").endswith("_collect_string_elem_read_locals"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    body = func.get("body") or []
+    if len(body) != 9:
+        return None
+    b0, b1, b2, b3, b4, b5, _b6, _b7, b8 = body
+    # [0] ssf = getattr(self, "_module_string_seq_funcs", set())
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    ssf_var = b0.get("target")
+    gv = b0.get("value") or {}
+    if not (isinstance(ssf_var, str) and isinstance(gv, dict)
+            and gv.get("type") == "Call" and gv.get("func") == "getattr"):
+        return None
+    gargs = gv.get("args") or []
+    if len(gargs) < 2 or not _is_var(gargs[0], "self"):
+        return None
+    if _clean_lit(_is_string(gargs[1])) != "_module_string_seq_funcs":
+        return None
+    # [1] if not ssf: return set()
+    if not (isinstance(b1, dict) and b1.get("stmt") == "If" and not b1.get("orelse")):
+        return None
+    t1 = b1.get("test") or {}
+    if not (isinstance(t1, dict) and t1.get("type") == "UnaryOp"
+            and t1.get("op") == "not" and _is_var(t1.get("expr"), ssf_var)):
+        return None
+    gb = b1.get("body") or []
+    if not (len(gb) == 1 and isinstance(gb[0], dict) and gb[0].get("stmt") == "Return"):
+        return None
+    gret = gb[0].get("value") or {}
+    if not (isinstance(gret, dict) and gret.get("type") == "Call"
+            and gret.get("func") == "set" and not gret.get("args")):
+        return None
+    # [2] str_arrays = set()  ;  [3] elem_reads = set()
+    def _empty_set_assign(st: Any) -> Optional[str]:
+        if not (isinstance(st, dict) and st.get("stmt") == "Assign"):
+            return None
+        iv = st.get("value") or {}
+        if not (isinstance(iv, dict) and iv.get("type") == "Call"
+                and iv.get("func") == "set" and not iv.get("args")):
+            return None
+        tgt = st.get("target")
+        return tgt if isinstance(tgt, str) else None
+
+    str_arrays = _empty_set_assign(b2)
+    elem_reads = _empty_set_assign(b3)
+    if str_arrays is None or elem_reads is None or str_arrays == elem_reads:
+        return None
+    # [4],[5] Expr: rec(body_stmts) TWICE (two-pass fixpoint)
+    def _rec_call(st: Any) -> Optional[str]:
+        if not (isinstance(st, dict) and st.get("stmt") == "Expr"):
+            return None
+        call = st.get("value") or {}
+        if not (isinstance(call, dict) and call.get("type") == "Call"
+                and isinstance(call.get("func"), str)):
+            return None
+        cargs = call.get("args") or []
+        if len(cargs) != 1 or not _is_var(cargs[0], subj):
+            return None
+        return call["func"]
+
+    wn0 = _rec_call(b4)
+    wn1 = _rec_call(b5)
+    if wn0 is None or wn0 != wn1:
+        return None
+    # [8] return elem_reads (the SECOND set)
+    if not (isinstance(b8, dict) and b8.get("stmt") == "Return"
+            and _is_var(b8.get("value"), elem_reads)):
+        return None
+    return {"name": func.get("name"), "param": subj, "ssf_var": ssf_var,
+            "str_arrays": str_arrays, "elem_reads": elem_reads,
+            "walker_name": wn0}
+
+
+def _recognize_serl_walk(walkfunc: Dict[str, Any], od: Dict[str, Any],
+                         call_names: "set") -> Optional[Dict[str, Any]]:
+    """Match the lifted `rec(node)` two-branch cross-accumulator walk and extract
+    every leaf discriminant literal. Fail-closed. Returns the descriptor."""
+    ssf_var = od["ssf_var"]
+    str_arrays = od["str_arrays"]
+    elem_reads = od["elem_reads"]
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 1:
+        return None
+    top = body[0]
+    if not (isinstance(top, dict) and top.get("stmt") == "If"
+            and _match_isinstance(top.get("test"), node, "dict")):
+        return None
+    darm = top.get("body") or []
+    if len(darm) != 2:
+        return None
+    # darm[0]: if node.get(stmt_key)==stmt_val and isinstance(node.get(target_key),str):
+    g = darm[0]
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        return None
+    gt = g.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp"
+            and gt.get("op") == "and"):
+        return None
+    left = gt.get("left") or {}
+    right = gt.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "=="):
+        return None
+    stmt_key = _frss_dotget_key(left.get("left"), node)
+    stmt_val = _clean_lit(_is_string(left.get("right")))
+    if stmt_key is None or stmt_val is None:
+        return None
+    if not _serl_isinstance_call(right, node, "target", "str"):
+        return None
+    # g.body: [ v = node.get(value_key, {}) ; if isinstance(v, dict): <strIf> ]
+    gb = g.get("body") or []
+    if len(gb) != 2:
+        return None
+    va, vif = gb
+    if not (isinstance(va, dict) and va.get("stmt") == "Assign"):
+        return None
+    vloc = va.get("target")
+    value_key = _frss_dotget_key(va.get("value"), node)
+    if not (isinstance(vloc, str) and value_key is not None):
+        return None
+    if not (isinstance(vif, dict) and vif.get("stmt") == "If"
+            and not vif.get("orelse")
+            and _match_isinstance(vif.get("test"), vloc, "dict")):
+        return None
+    vb = vif.get("body") or []
+    if len(vb) != 1:
+        return None
+    strif = vb[0]
+    # strIf.test: (v.get("type")==call_val and isinstance(v.get("func"),str))
+    #             and (whyml_ident(v["func"]) in ssf)
+    if not (isinstance(strif, dict) and strif.get("stmt") == "If"):
+        return None
+    st_test = strif.get("test") or {}
+    if not (isinstance(st_test, dict) and st_test.get("type") == "BinOp"
+            and st_test.get("op") == "and"):
+        return None
+    st_l = st_test.get("left") or {}
+    st_r = st_test.get("right") or {}
+    if not (isinstance(st_l, dict) and st_l.get("type") == "BinOp"
+            and st_l.get("op") == "and"):
+        return None
+    ce = st_l.get("left") or {}
+    if not (isinstance(ce, dict) and ce.get("type") == "BinOp"
+            and ce.get("op") == "=="):
+        return None
+    vtype_key = _frss_dotget_key(ce.get("left"), vloc)
+    call_val = _clean_lit(_is_string(ce.get("right")))
+    if vtype_key is None or call_val is None:
+        return None
+    if not _serl_isinstance_call(st_l.get("right"), vloc, "func", "str"):
+        return None
+    # (whyml_ident(v["func"]) in ssf)
+    if not (isinstance(st_r, dict) and st_r.get("type") == "BinOp"
+            and st_r.get("op") == "in" and _is_var(st_r.get("right"), ssf_var)):
+        return None
+    wid = st_r.get("left") or {}
+    if not (isinstance(wid, dict) and wid.get("type") == "Call"
+            and wid.get("func") == "whyml_ident"):
+        return None
+    widargs = wid.get("args") or []
+    if len(widargs) != 1:
+        return None
+    fsub = widargs[0]
+    if not (isinstance(fsub, dict) and fsub.get("type") == "Subscript"
+            and _is_var(fsub.get("value"), vloc)):
+        return None
+    func_key = _clean_lit(_is_string(fsub.get("index")))
+    if func_key is None:
+        return None
+    # strIf.body: str_arrays.add(node[target_key])
+    sb = strif.get("body") or []
+    if len(sb) != 1:
+        return None
+    sa_key = _serl_add_target(sb[0], str_arrays, node)
+    if sa_key is None:
+        return None
+    # strIf.orelse: [ subIf ]
+    st_orelse = strif.get("orelse") or []
+    if len(st_orelse) != 1:
+        return None
+    subif = st_orelse[0]
+    if not (isinstance(subif, dict) and subif.get("stmt") == "If"
+            and not subif.get("orelse")):
+        return None
+    # subIf.test: ((v.get("type")==sub_val and isinstance(v.get("value"),dict))
+    #              and v["value"].get("type")==var_val) and (v["value"].get("name") in str_arrays)
+    sb_test = subif.get("test") or {}
+    if not (isinstance(sb_test, dict) and sb_test.get("type") == "BinOp"
+            and sb_test.get("op") == "and"):
+        return None
+    sb_l = sb_test.get("left") or {}
+    sb_r = sb_test.get("right") or {}
+    # sb_r: v["value"].get("name") in str_arrays
+    if not (isinstance(sb_r, dict) and sb_r.get("type") == "BinOp"
+            and sb_r.get("op") == "in" and _is_var(sb_r.get("right"), str_arrays)):
+        return None
+    name_key = _serl_sub_get_key(sb_r.get("left"), vloc, value_key)
+    if name_key is None:
+        return None
+    # sb_l: (v.get("type")==sub_val and isinstance(v.get("value"),dict))
+    #       and v["value"].get("type")==var_val
+    if not (isinstance(sb_l, dict) and sb_l.get("type") == "BinOp"
+            and sb_l.get("op") == "and"):
+        return None
+    sb_ll = sb_l.get("left") or {}
+    sb_lr = sb_l.get("right") or {}
+    if not (isinstance(sb_ll, dict) and sb_ll.get("type") == "BinOp"
+            and sb_ll.get("op") == "and"):
+        return None
+    tce = sb_ll.get("left") or {}
+    if not (isinstance(tce, dict) and tce.get("type") == "BinOp"
+            and tce.get("op") == "=="):
+        return None
+    if _frss_dotget_key(tce.get("left"), vloc) != vtype_key:
+        return None
+    sub_val = _clean_lit(_is_string(tce.get("right")))
+    if sub_val is None:
+        return None
+    if not _serl_isinstance_call(sb_ll.get("right"), vloc, value_key, "dict"):
+        return None
+    if not (isinstance(sb_lr, dict) and sb_lr.get("type") == "BinOp"
+            and sb_lr.get("op") == "=="):
+        return None
+    inner_type_key = _serl_sub_get_key(sb_lr.get("left"), vloc, value_key)
+    var_val = _clean_lit(_is_string(sb_lr.get("right")))
+    if inner_type_key is None or var_val is None:
+        return None
+    # subIf.body: elem_reads.add(node[target_key])
+    eb = subif.get("body") or []
+    if len(eb) != 1:
+        return None
+    er_key = _serl_add_target(eb[0], elem_reads, node)
+    if er_key is None:
+        return None
+    # darm[1]: for x in node.values(): rec(x)
+    def _values_iter(it: Any) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{node}.values" and not it.get("args"))
+
+    if not _frss_iter_selfcall(darm[1], call_names, node, _values_iter):
+        return None
+    # orelse: elif isinstance(node, list): for x in node: rec(x)
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    lif2 = orelse[0]
+    if not (isinstance(lif2, dict) and lif2.get("stmt") == "If"
+            and not lif2.get("orelse")
+            and _match_isinstance(lif2.get("test"), node, "list")):
+        return None
+    lb = lif2.get("body") or []
+    if len(lb) != 1:
+        return None
+    if not _frss_iter_selfcall(lb[0], call_names, node, lambda it: _is_var(it, node)):
+        return None
+    return {"stmt_key": stmt_key, "stmt_val": stmt_val, "value_key": value_key,
+            "vtype_key": vtype_key, "call_val": call_val, "func_key": func_key,
+            "sa_key": sa_key, "sub_val": sub_val, "inner_type_key": inner_type_key,
+            "var_val": var_val, "name_key": name_key, "er_key": er_key}
+
+
+def recognize_string_elem_read_locals_pairs(functions: List[Dict[str, Any]]
+                                            ) -> Dict[str, Any]:
+    """Pair the `_collect_string_elem_read_locals` OUTER wrapper with its lifted
+    `rec` sibling (by adjacency). Returns {"outer_ids": {id(outer): desc},
+    "walk_ids": {id(rec), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_serl_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and wf_name is not None
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_serl_walk(wf, od, call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_string_elem_read_locals_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                       whyml_ident) -> List[str]:
+    """Emit `_collect_string_elem_read_locals` as TWO SEQUENTIAL `map string bool`
+    set-UNION catamorphisms over the SAME pyval spine. Fold-1 (`str_arrays`)
+    set_adds the REAL `node["target"]` gated by the `Assign` + `value.type==call_val`
+    shape and the OPAQUE reflect-the-literal `in_ssf` predicate over the REAL
+    `v["func"]` string. Fold-2 (`elem_reads`) takes fold-1's result as an extra
+    `map string bool` param (`sa`) and set_adds `node["target"]` gated by
+    `value.type==sub_val`, inner `type==var_val`, and a `Map.get sa <base-name>`
+    membership READ. The outer composes `= {f2} body ({f1} body)` — pure & total, so
+    both fixpoint passes coincide. `ensures True`; ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    stmt_v = desc["stmt_val"]
+    call_v = desc["call_val"]
+    sub_v = desc["sub_val"]
+    var_v = desc["var_val"]
+    out: List[str] = []
+    # literal-key readers (each reflects its key -> mutation-sensitive)
+    out += _emit_skey_reader(f"{P}gstmt", desc["stmt_key"])       # node["stmt"]  : opt string
+    out += _emit_pval_reader(f"{P}gtarget", desc["sa_key"])       # node["target"]: opt pyval
+    out += _emit_pval_reader(f"{P}gvalue", desc["value_key"])     # node["value"] : opt pyval
+    out += _emit_skey_reader(f"{P}gvtype", desc["vtype_key"])     # v["type"]     : opt string
+    out += _emit_skey_reader(f"{P}gvfunc", desc["func_key"])      # v["func"]     : opt string
+    out += _emit_pval_reader(f"{P}gvvalue", desc["value_key"])    # v["value"]    : opt pyval
+    out += _emit_skey_reader(f"{P}givtype", desc["inner_type_key"])  # v["value"]["type"] : opt string
+    out += _emit_skey_reader(f"{P}givname", desc["name_key"])        # v["value"]["name"] : opt string
+    # opaque `_module_string_seq_funcs` membership == `whyml_ident(v["func"]) in ssf`
+    # (ensures-free over-approx, NOT an axiom; reflects the REAL func string).
+    out.append(f"  val {P}in_ssf (s: string) : bool")
+    # ---- fold-1 leaf: set_add node["target"] when Assign + Call + in_ssf(func) ----
+    out.append(f"  let {P}leaf1 (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {P}gstmt d with")
+    out.append(f'    | Some st -> if pystr_eq st "{stmt_v}" then')
+    out.append(f"                   (match {P}gtarget d with")
+    out.append("                    | Some (PStr tname) ->")
+    out.append(f"                        (match {P}gvalue d with")
+    out.append("                         | Some (PDict vd) ->")
+    out.append(f"                             (match {P}gvtype vd with")
+    out.append(f'                              | Some vt -> if pystr_eq vt "{call_v}" then')
+    out.append(f"                                  (match {P}gvfunc vd with")
+    out.append(f"                                   | Some vf ->")
+    out.append(f"                                       if {P}in_ssf vf then")
+    out.append("                                         set_add (const false) tname")
+    out.append("                                       else const false")
+    out.append("                                   | None -> const false end)")
+    out.append("                                else const false")
+    out.append("                              | None -> const false end)")
+    out.append("                         | _ -> const false end)")
+    out.append("                    | _ -> const false end)")
+    out.append("                 else const false")
+    out.append("    | None -> const false end")
+    # ---- fold-2 leaf: set_add node["target"] when Assign + Subscript + Var + membership ----
+    out.append(f"  let {P}leaf2 (d: pydict) (sa: map string bool) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {P}gstmt d with")
+    out.append(f'    | Some st -> if pystr_eq st "{stmt_v}" then')
+    out.append(f"                   (match {P}gtarget d with")
+    out.append("                    | Some (PStr tname) ->")
+    out.append(f"                        (match {P}gvalue d with")
+    out.append("                         | Some (PDict vd) ->")
+    out.append(f"                             (match {P}gvtype vd with")
+    out.append(f'                              | Some vt -> if pystr_eq vt "{sub_v}" then')
+    out.append(f"                                  (match {P}gvvalue vd with")
+    out.append("                                   | Some (PDict ivd) ->")
+    out.append(f"                                       (match {P}givtype ivd with")
+    out.append(f'                                        | Some it -> if pystr_eq it "{var_v}" then')
+    out.append(f"                                            (match {P}givname ivd with")
+    out.append("                                             | Some nm ->")
+    out.append("                                                 if Map.get sa nm then")
+    out.append("                                                   set_add (const false) tname")
+    out.append("                                                 else const false")
+    out.append("                                             | None -> const false end)")
+    out.append("                                          else const false")
+    out.append("                                        | None -> const false end)")
+    out.append("                                   | _ -> const false end)")
+    out.append("                                else const false")
+    out.append("                              | None -> const false end)")
+    out.append("                         | _ -> const false end)")
+    out.append("                    | _ -> const false end)")
+    out.append("                 else const false")
+    out.append("    | None -> const false end")
+    # ---- fold-1: mutual set-union catamorphism producing str_arrays ----
+    out.append(f"  let rec {P}f1 (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> set_union ({P}leaf1 d) ({P}f1d d)")
+    out.append(f"    | PList xs -> {P}f1l xs")
+    out.append("    | _ -> const false")
+    out.append("    end")
+    out.append(f"  with {P}f1d (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        set_union ({P}f1 v) ({P}f1d rest) end")
+    out.append(f"  with {P}f1l (xs: list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({P}f1 h) ({P}f1l t) end")
+    # ---- fold-2: mutual set-union catamorphism threading str_arrays (sa) ----
+    out.append(f"  let rec {P}f2 (v: pyval) (sa: map string bool) : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> set_union ({P}leaf2 d sa) ({P}f2d d sa)")
+    out.append(f"    | PList xs -> {P}f2l xs sa")
+    out.append("    | _ -> const false")
+    out.append("    end")
+    out.append(f"  with {P}f2d (d: pydict) (sa: map string bool) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        set_union ({P}f2 v sa) ({P}f2d rest sa) end")
+    out.append(f"  with {P}f2l (xs: list pyval) (sa: map string bool) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with Nil -> const false")
+    out.append(f"    | Cons h t -> set_union ({P}f2 h sa) ({P}f2l t sa) end")
+    # entry: two sequential total folds — the two-pass fixpoint composition.
+    out.append(f"  let {n} ({mv}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {P}f2 {mv} ({P}f1 {mv})")
+    return out
+
+
 # ---- `_callee_raised_direct` (stmt_control_flow.py ControlFlowStmtMixin, raises-registry
 #      SET-COLLECT sibling of `_contract_referenced_names`): collect every callee-declared
 #      `#@ raises` exception name reachable from a node's Call subtree, WITHOUT regard to any

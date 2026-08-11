@@ -1033,7 +1033,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return f"    try\n{body_code}\n    with Return_str r -> r end"
         return f"    try\n{body_code}\n    with Return r -> r end"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

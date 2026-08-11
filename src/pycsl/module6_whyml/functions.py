@@ -3121,6 +3121,18 @@ class FunctionEmissionMixin:
         if _fdsl_desc is not None:
             from module6_whyml.generic_fold import emit_field_decode_str_locals_group
             return emit_field_decode_str_locals_group(func, _fdsl_desc, whyml_ident)
+        # `_collect_string_elem_read_locals` (generic_fold.py TWO-SEQUENTIAL-CATAMORPHISM
+        # SET-COLLECT): the lifted `rec` sibling is SUPPRESSED; the wrapper emits TWO
+        # sequential total `map string bool` set-UNION catamorphisms (fold-1 `str_arrays`
+        # gated by the opaque `in_ssf` func-name membership; fold-2 `elem_reads` threading
+        # fold-1's result and reading `Map.get sa <base-name>`), composed `= f2 body
+        # (f1 body)`. Keyed on `id`; corpus-inert. See generic_fold.py module note.
+        if id(func) in getattr(self, "_serl_walk_ids", set()):
+            return []
+        _serl_desc = getattr(self, "_serl_outer_ids", {}).get(id(func))
+        if _serl_desc is not None:
+            from module6_whyml.generic_fold import emit_string_elem_read_locals_group
+            return emit_string_elem_read_locals_group(func, _serl_desc, whyml_ident)
         # `_callee_raised_direct` (generic_fold.py raises-registry SET-COLLECT): the lifted
         # `walk` sibling is SUPPRESSED; the wrapper emits the certified mutual pyval/pydict/
         # list set-UNION catamorphism (`map string bool`) whose Call leaf looks the real

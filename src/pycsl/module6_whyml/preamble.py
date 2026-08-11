@@ -2229,6 +2229,7 @@ class PreambleEmissionMixin:
             recognize_struct_unpack_targets_pairs,
             recognize_contract_referenced_names_pairs,
             recognize_field_decode_str_locals_pairs,
+            recognize_string_elem_read_locals_pairs,
             recognize_callee_raised_direct_pairs,
             recognize_contract_referenced_var_names_pairs,
             recognize_collect_map_typed_locals_pairs,
@@ -2306,6 +2307,7 @@ class PreambleEmissionMixin:
             recognize_struct_unpack_targets_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
             recognize_field_decode_str_locals_pairs(functions)["outer_ids"]) or bool(
+            recognize_string_elem_read_locals_pairs(functions)["outer_ids"]) or bool(
             recognize_callee_raised_direct_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
             recognize_collect_map_typed_locals_pairs(functions)["outer_ids"]) or bool(
@@ -2572,6 +2574,16 @@ class PreambleEmissionMixin:
         _fdsl = recognize_field_decode_str_locals_pairs(functions)
         self._fdsl_outer_ids = _fdsl["outer_ids"]
         self._fdsl_walk_ids = _fdsl["walk_ids"]
+        # `_collect_string_elem_read_locals` (generic_fold.py TWO-SEQUENTIAL-CATAMORPHISM
+        # SET-COLLECT): same OUTER+lifted-`rec` adjacency pairing, but the walk carries a
+        # CROSS-ACCUMULATOR dependency between two sets (`str_arrays` feeds `elem_reads`'s
+        # membership test). Lowered to two sequential total `set_union` folds over the SAME
+        # `map string bool` repr; the outer composes `= f2 body (f1 body)`. The lifted `rec`
+        # is SUPPRESSED. Keyed on `id`; corpus-inert (name-gated).
+        from module6_whyml.generic_fold import recognize_string_elem_read_locals_pairs
+        _serl = recognize_string_elem_read_locals_pairs(functions)
+        self._serl_outer_ids = _serl["outer_ids"]
+        self._serl_walk_ids = _serl["walk_ids"]
         # `_callee_raised_direct` (generic_fold.py raises-registry SET-COLLECT): the raises-
         # registry sibling of `_contract_referenced_names` — same OUTER+lifted-`walk`
         # adjacency pairing + `set_union` skeleton, but the Call leaf looks the real `func`
