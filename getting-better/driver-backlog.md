@@ -1578,3 +1578,18 @@ boundary rested on a false premise — MEASURE beats the memory tag.)
 
 BUILDING NOW: Module5 capture-threading + name-qualification (narrowly gated) + emit_setfold_group
 adaptation + convert `_collect_field_decode_str_locals` (target 741→740). Supervisor M1-byte-diff (exp 0).
+
+## Module5 capture-threading = BROKEN-LANDED (2026-08-11, 741→740, commit 5357f8ba)
+
+The CONTAINED build LANDED. `_collect_field_decode_str_locals` converted. KEY: no Module5 change was
+needed — the existing recognizer family already lifts the nested `def rec` by adjacency; the build
+reduced to a generic_fold recognizer (`recognize_field_decode_str_locals_pairs` /
+`emit_field_decode_str_locals_group`) that re-expresses the void-mutate-and-recurse `out.add` closure
+as a `map string bool` `set_union` catamorphism via the already-certified `emit_setfold_group`.
+Axiom-free (ledger 3), 0 new stubs (generic_fold not mirrored). Battery: statements.py SUCCESS +
+Module6_WhyMLTranspiler.py (mixin-propagation) SUCCESS + corpus byte-diff 0 + fidelity 52/52 +
+non-vacuity (real set_add on node[target], mutation test flips .mlw) + coupling-free caller.
+**BANKED CAPABILITY:** the set-union-catamorphism-over-lifted-rec-closure recognizer. **FOLLOW-ON
+SIBLINGS** (now reachable via the same/extended recognizer, re-drain candidates): `_collect_str_call_result_locals`,
+`_collect_string_elem_read_locals` (two-pass fixpoint — needs the bounded-for-fixpoint device),
+`_collect_shared_symbol_decls` (Module6 giant, `_symbol` closure). MEASURE each next.
