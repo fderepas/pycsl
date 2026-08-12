@@ -1832,3 +1832,22 @@ LESSON: the "738 autonomous floor" was PARTIAL — the 6 confirmations focused m
 proof2why3/audit/frontend-helper files are a FRESH VEIN. BANKED: string-field record recognizer.
 NEXT: re-drive fresh-eyes over proof2why3/* + audit_* + frontend helpers for the next contained lever
 (record-field / small-predicate twins reusing certified recognizer architectures). SESSION: 749->737 (12 conv).
+
+## #@ no_inline campaign = NARROWER than framed (2026-08-11, count 736) — blocker is VALUE MODEL not inlining
+User AUTHORIZED the modular-verification campaign (skill f773e7b9). Spike measured its ACTUAL scope: `#@
+no_inline` does NOT unlock the general heterogeneous-Dict[str,Any] readers — two make-or-break --fun tests
+(`_match_field_decode_idiom`, `_handle_sum_call`) FAILED on VALUE-MODEL gaps, not caller-inlining:
+- `_match_field_decode_idiom`: emitted a NON-VACUOUS real `let` descending the certified IR value model
+  (args_of/kind_of/str_eq_op/typeof_op/recv_get_str) — only the RETURN SHAPE defeats it: `Optional[tuple]`
+  of IR-nodes `(slice,lower,width)` lowered to bare `(int,int,int)`, Optionality DROPPED, `return None`
+  emitted `raise (Return_3 0)` (bare int) vs the tuple arm.
+- `_handle_sum_call`: reads undeclared heterogeneous self-maps (`_known_collection_elements`) → unbound symbol.
+`#@ no_inline` only relocates a PROVABLE body to a boundary; it can't fix a value-model gap. It is viable
+ONLY for a reader that (a) returns a SIMPLE scalar (bool/str/int) AND (b) reads only already-declared mirror
+self-fields / its ir param.
+**REAL HIGHER-ROI LEVER (auto-authorized value-model, M1): Optional-tuple-of-IR RETURN LOWERING** — lower
+`Optional[Tuple[τ...]]` to a proper `option (τ...)` union with correctly-typed arms + `return None` -> the
+`Arm_None` ctor (the emitter currently synthesizes the union type but the `let` sig uses the raw tuple +
+None->bare-int). Unblocks `_match_field_decode_idiom` (body already proves modulo the return) + any
+Optional-tuple-returning reader. SPIKING it now. (Secondary: re-census for scalar-return + declared-field
+readers = the direct #@ no_inline scope.) SESSION: 749->736 (13 conv).
