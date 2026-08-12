@@ -1779,3 +1779,15 @@ trusted-helper chains that converge on the same proof-scale terminus). AUTONOMOU
 exhausted; the remaining path (modular verification) is REVIEW-GATED. => HOLD at 738 per driver §A.2 action
 (6); periodically re-measure a not-yet-spiked class (anti-false-floor). The review-gated modular-verification
 campaign is the fundable next step (needs authorization).
+
+## Anti-false-floor CONFIRMED: leaf-first/bottom-up path CLOSED (2026-08-11, count 738)
+Independent leaf-helper sweep (`_is_string_expr`/`_is_emit_ir_expr`/`_collect_array_var_assigns` + a broad
+module6 sweep): the "leaf" helpers are NOT leaves — mid-DAG recognizers over the general heterogeneous
+Dict[str,Any] IR-node model, each transitively dep on ≥8 trusted recognizers + self-state frames +
+string-op tag dispatch + (for `_collect_array_var_assigns`) a while-changed variant-decrease E-matching-
+flood boundary. NO trusted bool/Set/List module6 stub has a signature free of the IR-node model (stubs
+type the un-modeled Dict/ExprIR as int); the genuinely string-typed leaves (abstract_ops/identifiers/
+expr_ghost_collections) are ALL string-parsers over List[str] buffers (parser terminus). => bottom-up
+path CLOSED; floor 738 REAL (4 independent confirmations this session: census + 3 mirage-clusters + PIN
+refuted + leaf-helper sweep). Remaining path = review-gated modular verification (`#@ no_inline`), needs
+authorization. DRIVER HOLDS at 738.
