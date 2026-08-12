@@ -1866,3 +1866,23 @@ converged here; #@ no_inline + Optional-tuple spikes both bottomed out on it). A
 args_of certified built-ins) — type sub-node locals as emit_ir + add certified field accessors (receiver/
 value/slice/index/lower/upper). BIG value-model build (auto-authorized, M1), BROAD unblock (all IR-sub-node
 readers). BUNDLE with the banked return-lowering patch. SPIKING it as the root-wall build.
+
+## IR-sub-node value model = TWO LAYERS (2026-08-11, count 736) — Layer 1 contained/ready, Layer 2 = cert-touching Call-receiver extension
+Root-wall drill on `_match_field_decode_idiom` (banked Optional-tuple return CONFIRMED active + not the wall):
+- **LAYER 1 (auto-authorized, axiom-free, BYTE-INERT, ready):** `_is_emit_ir_expr` (expressions.py:1902)
+  classifies `<emit_ir>.get(k)` as emit_ir only for k in `_EMIT_IR_NODE_KEYS` (value/object/index/pattern/
+  guard/left/right). Add `slice/lower/upper/step` + certified `slice_of`/`lower_of`/`upper_of` over the
+  existing IrSlice/IrSliceAccess ADT ctors (svalue_of/sindex_of precedent) → fixes split_call/slice_node/
+  sl/lower_ir/upper_ir/idx. Byte-inert (gated on emit_ir-typed local in a @mutable_state class; corpus
+  `x=d.get("value")` never satisfies). Converts `_match_field_decode_idiom`? NO (it also reads receiver).
+  Possible Layer-1-ONLY yield = other trusted sub-node readers touching only value/index/slice/lower/upper
+  (NO receiver) — UNMEASURED, the next contained census.
+- **LAYER 2 (the boundary — cert-touching, corpus-affecting, FLAG):** the recognizer spine reads the
+  METHOD-CALL RECEIVER (`recv=expr.get("receiver")`, `slice_node=split_call.get("receiver")`). The certified
+  emit_ir ADT models a call as `IrCall string emit_ir int` (func,arg0,arity) and DROPS the receiver — no
+  receiver_of, no IrMethodCall. A sentinel receiver_of → always-None vacuous facade (Gate-C reject).
+  Faithful = EXTEND the Call ctor to carry the receiver sub-node: touches every IrCall reader (func_of/
+  arg0_of/nargs_of/is_call/kind_of/size) + every reflected-method-call CONSTRUCTION + a co-landing axiom-free
+  Rocq+Lean cert re-proving the extended ADT (LEDGER STAYS 3). M1-corpus-affecting (every reflected method
+  call re-emits). Axiom-free IN PRINCIPLE. = the next BIG cert-co-landing build; spike the cert-feasibility
+  + byte-diff scope first. NEXT: Layer-1-only census (contained), then Layer-2 cert-spike.
