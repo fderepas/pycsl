@@ -1791,3 +1791,33 @@ expr_ghost_collections) are ALL string-parsers over List[str] buffers (parser te
 path CLOSED; floor 738 REAL (4 independent confirmations this session: census + 3 mirage-clusters + PIN
 refuted + leaf-helper sweep). Remaining path = review-gated modular verification (`#@ no_inline`), needs
 authorization. DRIVER HOLDS at 738.
+
+## FRESH-EYES anti-false-floor probe #2: proof2why3/crosscheck.py string-field twin = distinct wall (2026-08-12, count 738, HEAD 01f32bb8)
+Independent census (NOT primed by the module6-centric prior framing): swept the less-mined proof2why3/*,
+audit_*, frontend-helper files. Best NEW candidate the prior census under-named = **CrossCheckResult.all_agree**
+(proof2why3/crosscheck.py) — a `@property -> bool`, `assigns \nothing`, callers trusted (`main`/`crosscheck_file`
+stubs), small non-giant file (proves whole-file green as-is). It is the STRING-FIELD TWIN of the ALREADY-CONVERTED
+`IRCrossCheckResult.all_agree` (crosscheck_ir.py, in-suite, green): same `canons=[...]; if not canons: False;
+all(c==canons[0])` idiom, but over `str` fields (rocq_norm/lean_norm/registry_norm) with a **truthiness filter
+`if n`** and **string `==`** instead of `Optional[Term]` fields with `if c is not None` + `term_eq`.
+PROBED BY BUILDING (port verbatim body, drop `@property` per the crosscheck_ir precedent, remove `\trusted`):
+- Emission is NON-VACUOUS (emits a real `let` — Array.make 3 of the fields, `list_content_comp_0` filter,
+  `_all_fold`), but whole-file proof **FAILS**: the generic string-filter-comprehension path lowers
+  `present = [n for n in norms if n]` to an **int** (`!present <> 0`; return type `int`), losing list content
+  so `present[0]`/`all(...)` are meaningless. A real lowering GAP, not a missing invariant.
+- The recognizer that makes the crosscheck_ir twin prove (`recognize_crosscheck_term_method` /
+  `emit_crosscheck_term_method_group`, generic_fold.py ~32220-32520) is DELIBERATELY fail-closed &
+  dispatch-gated on `_has_opaque_term_fields` -> fires on 0 corpus + only IRCrossCheckResult. It hard-codes:
+  option is-not-None filter (`_cc_isnotnone_filter`), inline **Tuple** iter source (`_cc_canon_tuple_fields`),
+  and `term_eq`/`Some/None` emission. crosscheck.py all_agree needs (1) a NEW shape for the double-indirection
+  `norms=[list]; present=[x for x in norms if x]` (4-stmt, not the 3-stmt tuple-comprehension), (2) string
+  truthiness-filter recognition, (3) string-`=` emission, (4) a NEW byte-inert dispatch gate (strings are common
+  -> the `x=[...]; y=[e for e in x if e]; if not y: False; all(e==y[0])` idiom can appear in corpus, so
+  byte-inertness is NOT free) + a full corpus byte-diff sweep to prove it.
+VERDICT: NOT an existing-capability lever — a fundable recognizer-EXTENSION build (new shape + string emission +
+scoped gate + corpus sweep). BUT it is a MORE CONTAINED / more tractable residual than the prior "general
+heterogeneous Dict[str,Any] E-matching proof-scale wall" framing: it reuses an EXISTING, certified, axiom-free
+(ledger-3) recognizer ARCHITECTURE over a CLEAN string-field record (no Dict[str,Any], no E-matching flood, no
+stateful frame). Highest-ROI NEXT fundable lever = "string-field twin of the crosscheck term recognizer"
+(unlocks all_agree + likely all_present-style siblings across CrossCheckResult). FLOOR HOLDS at 738 autonomously
+(5th independent confirmation this campaign); the cheap/existing-capability frontier stays exhausted.
