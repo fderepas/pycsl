@@ -1659,3 +1659,17 @@ ratio + high regression risk. [COST/SCALE, NOT correctness]. REOPENING = the hva
 NEXT: SPIKE the REGRESSION RISK (retype `_record_types`→hval, re-emit the 6 files, count how many of the
 ~97 read-site methods still PROVE) before committing to the full build. If sites survive → build; if they
 cascade → genuine multi-session, decompose or record as the funded-window big-build.
+
+## hval-retype = LOW-REGRESSION, tractable (2026-08-11, count 739, HEAD 48c6ad78) — building
+Regression spike REFUTED the "~97 sites" scare: raw-grep artifact (comments/docstrings). REAL code read
+sites = only **5** across 4 files, ALL membership (`x in self._record_types`) or pass-through (into
+`IRScanner.find_record_vars`, itself membership-only) — NONE materializes the Any codomain. Retyping
+`_record_types`→hval is **body-term-INERT** (0 method-body terms change; only the field decl option
+int→option hval + the certified hval theory block). Survival: types.py whole-file proof SUCCESS + 2
+sample --fun SUCCESS = 3/3, zero regressions, ledger 3. Corpus byte-inert (emitter-internal field, hval
+sentinel corpus-absent). BUILD residuals: (1) retype at the single IR source point (or the spike's
+name-keyed preamble overrides ~7127 + _uses_pyval ~6455); (2) propagate the type through
+`IRScanner.find_record_vars`'s record_types param (2 statements.py call sites, mechanical); (3) DECISIVE
+supervisor gate = the assembled Module6_WhyMLTranspiler giant proof (spike skipped it; expected green).
+MAKE-OR-BREAK of the build = does `_field_type_for`/`_field_type_of` lower NON-VACUOUSLY under hval (real
+HMap→HStr projections, not the abstract reader)? BUILDING now (739→737 if both convert).
