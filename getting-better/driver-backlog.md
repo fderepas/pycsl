@@ -1756,3 +1756,26 @@ theory bound the stmt_control_flow hval-reader VC below the 3200 budget? If yes 
 un-gates general heterogeneous-dict reads. If no -> the E-matching saturation is fundamental =
 review-gated modular-verification CERTIFIED-BOUNDARY. SESSION: 749->738 (11 conv), frontier comprehensively
 measured.
+
+## E-matching PIN = REFUTED (PIN-INSUFFICIENT); general heterogeneous-dict wall = REVIEW-GATED proof-scale CERTIFIED-BOUNDARY (2026-08-11, count 738)
+Spiked the E-matching PIN (the root-wall reopening capability): added an AXIOM-FREE size_hval/size_hpairs
+measure + proven non-negativity `let rec lemma` pack to the hval theory (analogous to the pydict size PINs,
+ledger stays 3). MEASURED: post-PIN stmt_control_flow hval whole-file proof = ~2350s SUCCESS vs the ~2400s
+no-PIN baseline = NEGLIGIBLE (~2%) — the size-PIN does NOT bound the hard hval-reader VC. The E-matching
+saturation on that VC is FUNDAMENTAL (not from missing size lemmas). REFUTED.
+=> The general heterogeneous Dict[str,Any] value-model wall (root of every remaining residual) is a
+PROOF-SCALE / E-MATCHING-SATURATION boundary whose only remaining reopening capability = REVIEW-GATED
+modular verification (`#@ no_inline` modular boundaries, per [[isolation_spike_not_whole_file]]) — NOT an
+autonomous size-PIN. The autonomous reopening capabilities are EXHAUSTED (PIN refuted; cheap clusters all
+mirages; value model expresses it but the proof saturates).
+
+## AUTONOMOUS FLOOR CONFIRMED at 738 (2026-08-11, comprehensively measured)
+This session: 749->738 (11 conversions), broke 3 documented walls (Module5 capture-threading, two-pass
+catamorphism, hval-record-view). Frontier THEN comprehensively measured: census (all 738) + 3 census
+"clusters" all MIRAGES (typed-map/tuple/by-ref-frame — topical mis-groupings, each residual a distinct
+wall) + the E-matching PIN REFUTED. Every remaining residual is behind the general heterogeneous-dict
+E-matching proof-scale wall (or string-parsers/[[parser_vein_broken]] terminus / stateful-frames /
+trusted-helper chains that converge on the same proof-scale terminus). AUTONOMOUS reopening capabilities
+exhausted; the remaining path (modular verification) is REVIEW-GATED. => HOLD at 738 per driver §A.2 action
+(6); periodically re-measure a not-yet-spiked class (anti-false-floor). The review-gated modular-verification
+campaign is the fundable next step (needs authorization).
