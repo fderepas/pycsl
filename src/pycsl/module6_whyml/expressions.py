@@ -527,6 +527,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { result <-> (a = b) }")
             return (f'(match {whyml_str} with {_ostr_ctor} _s '
                     f'-> (not (str_eq_op _s "")) | _ -> false end)')
+        # self-tcb-reduction (audit-report list-field truthiness): the truthiness of a
+        # record ARRAY-typed FIELD access (`if self.<listfield>:` — a `List[...]`/tuple
+        # field lowered to `array int`) is Python list-truthiness = NON-EMPTINESS,
+        # `Array.length x <> 0`, never the int `x <> 0` coercion (an `array int` vs int
+        # L3-tc type error — the observed `auditreport__exit_code` `.mlw` failure).
+        # Byte-inert: a corpus `if self.<arrayfield>:` would ALSO emit the ill-typed
+        # `<> 0` and fail L3-tc, so no passing corpus program can contain one. This is
+        # the record-field counterpart of the array-VAR truthiness rule above.
+        if t in ("Attribute", "FieldGet"):
+            _ft = self._field_type_of(ir_expr)
+            if _ft in ("list", "tuple"):
+                return f"(Array.length ({whyml_str}) <> 0)"
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
 

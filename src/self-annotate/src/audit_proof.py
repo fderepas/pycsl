@@ -37,8 +37,6 @@ class AuditReport:
     failures: List[str] = field(default_factory=list)
     skips: List[str] = field(default_factory=list)
 
-    @property
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
