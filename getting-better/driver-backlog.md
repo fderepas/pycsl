@@ -1713,3 +1713,14 @@ but the autonomous ROI has fallen to heavy-build-per-stub. NEXT fundable levers 
 caps: (1) by-ref-param-frame (`_emit_opaque_class_aliases`, reuses mutable-ref append); (2) tuple
 value-model (3 stubs); (3) typed-map codomain (4 stubs); (4) emit_ir sub-node value-model (`_field_type_of`,
 broadest). SESSION TALLY: 749->738 (11 conversions).
+
+## typed-map codomain "cluster" = MIRAGE (2026-08-11, count 738) — CORRECTION
+Spike REFUTED the 4-stub grouping: the 4 share NO fix, each a distinct wall — #1
+`_build_method_param_whyml_types_by_name` = nested-map `map string (map string string)` + missing mirror
+helper `_dict_param_whyml_type`; #2 `_emit_subtyping_goals` = heterogeneous-dict-valued comprehension
+(Dict[str,Any]); #3 `_mutex_inv_params` = string-op wall (`sorted`+f-string+substring `in`); #4
+`_fresh_globals_facts` = frame save/restore + giant `_expr_to_whyml` proof-cost. Only #1 is map-shaped.
+LESSON: verify cluster REALITY (per-stub live-body measure) before a "cluster" build — the census's
+type-tag grouping was inaccurate. Frontier confirmed heavy-build-per-stub, NO cheap cluster. NEXT: verify
+the TUPLE cluster reality (`_parse_mixin_sig`/`_refine_tuple_return_type`/`_infer_tuple_slot_type` — do
+they SHARE a tuple-value-model fix, or 3 distinct walls?) before building.
