@@ -1821,3 +1821,14 @@ heterogeneous Dict[str,Any] E-matching proof-scale wall" framing: it reuses an E
 stateful frame). Highest-ROI NEXT fundable lever = "string-field twin of the crosscheck term recognizer"
 (unlocks all_agree + likely all_present-style siblings across CrossCheckResult). FLOOR HOLDS at 738 autonomously
 (5th independent confirmation this campaign); the cheap/existing-capability frontier stays exhausted.
+
+## FRESH-EYES DELEGATION BROKE THE FALSE FLOOR: string-field crosscheck LANDED (2026-08-11, 738->737, commit 9b79b509)
+The 96h delegated fresh-eyes driver (not primed by the 6 prior floor confirmations) mined the LESS-EXPLORED
+proof2why3/* files and found `CrossCheckResult.all_agree` — the string-field TWIN of the converted
+IRCrossCheckResult.all_agree term recognizer. BUILT via a new string-field crosscheck recognizer
+(recognize_crosscheck_str_agree, real nested-if over string fields, pystr_eq val, axiom-free, ledger 3,
+dispatch-gated byte-inert). Full battery green (crosscheck.py proof SUCCESS, corpus byte-diff 0, drift 2).
+LESSON: the "738 autonomous floor" was PARTIAL — the 6 confirmations focused module6/functions/types; the
+proof2why3/audit/frontend-helper files are a FRESH VEIN. BANKED: string-field record recognizer.
+NEXT: re-drive fresh-eyes over proof2why3/* + audit_* + frontend helpers for the next contained lever
+(record-field / small-predicate twins reusing certified recognizer architectures). SESSION: 749->737 (12 conv).
