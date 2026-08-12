@@ -203,6 +203,31 @@ START (standing), not as an interrupt. Rules:
   corpus-affecting build" verdict now ESCALATES into the campaign (build → M1 byte-diff gate → control), it
   does not stop the loop to ask. The floor is reached only when the backlog is truly exhausted (§A.3 / the
   Exhaustion section of the backlog) — a not-yet-built corpus-affecting value-model item is NOT floor.
+- **MODULAR VERIFICATION via `#@ no_inline` is IN SCOPE and AUTO-AUTHORIZED (2026-08-11 user directive).** The
+  general heterogeneous `Dict[str,Any]` E-matching *proof-scale* wall — and ANY whole-file-proof-SATURATION wall,
+  where a stub's body proves in ISOLATION (`--fun`) but the whole-file proof times out on cross-function
+  E-matching — is NO LONGER a review-gated hold. Its reopening capability is now an authorized autonomous
+  campaign: convert the stub with the `#@ no_inline` directive so its verified body proves MODULARLY (in
+  isolation, so the whole-file proof no longer inlines it and no longer saturates). **Why it is SOUND — the
+  soundness review that gated it, now discharged:** the target is a currently-`\trusted` stub, so it ALREADY
+  emits as an abstract `val` with `ensures True` and every caller ALREADY consumes that vacuous contract, NOT
+  an inlined body. Converting it to `#@ no_inline` + a verified body therefore changes NOTHING on the caller
+  side (ZERO caller regression by construction) while upgrading the body from ASSUMED (trusted) to PROVED — a
+  STRICT soundness improvement over the trusted baseline, never a weakening. **The full battery is UNCHANGED
+  and applies in full:** the body must (a) prove 0 non-Valid MODULARLY (`--fun`), (b) leave its home file's
+  whole-file proof at 0 non-Valid (now tractable — the saturation is gone), (c) pass Gate-C NON-VACUITY (the
+  emitted body descends REAL modeled structure, mutation-sensitive — a `no_inline` abstract-`val` FACADE that
+  proves vacuously is REJECTED, exactly as any facade is), (d) hold fidelity (verbatim body), (e) hold the
+  corpus byte-diff (a `#@ no_inline` on a mirror method is corpus-inert; verify it), and (f) keep LEDGER == 3
+  (no new axiom — `no_inline` is a proof-modularity directive, not an assumption). **FORBIDDEN (the one real
+  soundness edge):** never add `#@ no_inline` to a method that is NOT currently `\trusted` and whose callers'
+  proofs DEPEND on its inlined body — that would strip those callers of information and regress them. Because
+  the campaign only ever targets currently-`\trusted` stubs (already non-inlined), this is satisfied by
+  construction; the NO-sibling-regression plane (prove EVERY mirror file whose emission the change alters)
+  enforces it as a hard gate regardless. So a "whole-file E-matching saturation / review-gated modular
+  verification" verdict now ESCALATES into the `#@ no_inline` campaign — it does NOT hold the loop, and it is
+  NOT a CERTIFIED-BOUNDARY (the value model is expressive; only the whole-file proof-scale was the obstacle,
+  and modular verification is its sanctioned, sound resolution).
 - **LEVERS — GATHER, PICK ONE, WORK IT; NEVER IDLE (2026-08-11 directive, strengthened).** The driver NEVER sits
   idle while any lever remains un-BUILT — not even the big session-scale ones. The standing rule is exactly three
   words: **gather the possible levers, pick one, then work.** When the cheap spike-and-land backlog is drained and
