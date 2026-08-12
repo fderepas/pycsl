@@ -1691,3 +1691,25 @@ read capability** (unblocks record-view readers of heterogeneous Dict[str,Any] r
 - **SIBLING `_field_type_of`:** blocked NOT by hval but by an orthogonal emit_ir receiver-reflection
   feature (`attr.get('value') or attr.get('object') or {}` + getattr-with-default lowering → int-vs-option
   mismatch). Separate build. SESSION TALLY: 749->738 (11 conversions).
+
+## Re-drain after hval wall: NO-CHEAP-REMAINING; frontier = HEAVY-BUILD-PER-STUB (2026-08-11, count 738, HEAD d74c3a2a)
+Independent census confirms the hval-record-view vein is EXHAUSTED (only `_field_type_for` [landed] +
+`_field_type_of` [orthogonally blocked] had the clean `for info in _record_types.values()` idiom). 10
+frame-clean (`assigns \nothing`) small residuals measured, EACH blocked by a DISTINCT wall — none contained:
+- `_field_type_of` (types.py): emit_ir receiver-reflection chained-`or` → int-truthiness collapse; needs a
+  VALUE-TYPED chained-or SELECT over emit_ir sub-node reads yielding the selected pyval/hval sub-node (the
+  emit_ir sub-node value-model — BROAD, orthogonal to hval; patch-only-`{}` = Gate-C vacuous).
+- `_parse_mixin_sig`, `_refine_tuple_return_type`, `_infer_tuple_slot_type` (functions.py): heterogeneous
+  tuple return (string-vs-int / int-vs-option) — the tuple value-model.
+- `_build_method_param_whyml_types_by_name`, `_mutex_inv_params`, `_fresh_globals_facts`,
+  `_emit_subtyping_goals` (functions/preamble): nested-map / `array`(string) codomain mismatch — typed-map
+  codomain feature.
+- `_emit_opaque_class_aliases` (preamble.py): BY-REF PARAM MUTATION (`declared_types.add`/`out.append` need
+  caller-visible `writes {param}` frame) — the by-ref-param-frame feature.
+- `_render_refinement_goal`: pipeline error (unsupported).
+**FRONTIER STATE:** each further cut = a distinct session-scale value-model/frame feature build for ~1
+stub (like hval-record-view: ~5h + proof-cost + fidelity-debt). NOT floor (COST/SCALE, not correctness),
+but the autonomous ROI has fallen to heavy-build-per-stub. NEXT fundable levers ranked by reuse of banked
+caps: (1) by-ref-param-frame (`_emit_opaque_class_aliases`, reuses mutable-ref append); (2) tuple
+value-model (3 stubs); (3) typed-map codomain (4 stubs); (4) emit_ir sub-node value-model (`_field_type_of`,
+broadest). SESSION TALLY: 749->738 (11 conversions).
