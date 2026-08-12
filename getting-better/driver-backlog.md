@@ -1741,3 +1741,18 @@ the E-matching PIN device FIRST); (b) faithful string-parsers; (c) stateful self
 still-trusted helper chains. Highest-leverage reopening capability = the E-matching PIN (bound hval VC
 cost) — enables cheaper general heterogeneous-dict reads. Last un-measured ranked lever = by-ref-param
 -frame (`_emit_opaque_class_aliases`); spiking it now.
+
+## by-ref-frame lever = MIRAGE too; ROOT WALL = general heterogeneous Dict[str,Any] (E-matching proof-scale) (2026-08-11, count 738)
+Spike REFUTED: the by-ref mutable-param frame (`assigns out`/`assigns declared_types`) ALREADY discharges
+widely in verified mirror methods — NOT the blocker. `_emit_opaque_class_aliases`'s real blocker is
+`func.get("kind")`/`func["self_type"]` over `List[Dict[str,Any]]` = the general heterogeneous-dict value
+model + `.lower()`/f-string + trusted `whyml_ident`. **ALL 3 census "levers" (typed-map, tuple,
+by-ref-frame) were topical mis-diagnoses.** CONCLUSIVE: every remaining residual is gated behind the ROOT
+WALL = general heterogeneous Dict[str,Any] value model, which is E-MATCHING PROOF-SCALE-WALLED (hval on
+ONE field cost ~2400s; per [[isolation_spike_not_whole_file]] the E-matching-saturation wall =
+review-gated modular verification). Reopening capability = the E-MATCHING PIN device (size/wf triggers to
+bound the hval VC cost). SPIKING the PIN now (measure-first): does a size/wf trigger on the hval/hpairs
+theory bound the stmt_control_flow hval-reader VC below the 3200 budget? If yes -> banked capability
+un-gates general heterogeneous-dict reads. If no -> the E-matching saturation is fundamental =
+review-gated modular-verification CERTIFIED-BOUNDARY. SESSION: 749->738 (11 conv), frontier comprehensively
+measured.
