@@ -3832,7 +3832,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 self._add_abstract_op(
                     "val str_eq_op (a: string) (b: string) : bool\n"
                     "    ensures { result <-> (a = b) }")
-                eq = f"(str_eq_op {left} {right})"
+                # hval-retype (self-tcb-reduction Tier-5): a pyval `.get` operand
+                # (`info.get("whyml_name")`) is an `hval`, not a `string` — project its
+                # string carrier via `hstr_of` before `str_eq_op` (which is string-typed).
+                # Descends the real hval (non-vacuous). Gated on `_expr_is_pyval` -> inert.
+                _leftw = (f"(hstr_of {left})"
+                          if self._expr_is_pyval(expr["left"]) else left)
+                _rightw = (f"(hstr_of {right})"
+                           if self._expr_is_pyval(expr["right"]) else right)
+                eq = f"(str_eq_op {_leftw} {_rightw})"
                 return eq if raw_op == "==" else f"(not {eq})"
             if ls != rs:
                 # Mixed string/int: a string compared against a genuine int (e.g. an opaque
@@ -6658,6 +6666,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _rv = self._expr_to_whyml(_rcv, local_refs or set(),
                                                   invariant_ctx, subst)
                         return f"({_proj} {_rv})"
+        # hval-retype (self-tcb-reduction Tier-5): the DOUBLED hval-map read
+        # `info.get("field_types", {}).get(field)` — the OUTER `.get(field)` whose
+        # RECEIVER is itself a pyval `.get` producing an `hval` (an `HMap`). Lower to a
+        # nested `pairs_get` over the receiver's assoc-list carrier, projecting the leaf
+        # `HStr` to an `option string` (the `Optional[str]` result). Descends the REAL
+        # hval structure (non-vacuous), NOT the opaque `get_1` facade. When threaded into
+        # an Optional[str] union return (`_get_return_raw_option`) the raw `option string`
+        # is handed back for the caller's `Some/None` arm wrap; otherwise the scalar
+        # `""`-defaulted string. Gated on a pyval `.get` receiver -> corpus/mirror inert.
+        if func_name == "get":
+            _rcv2 = expr.get("receiver")
+            _a2 = expr.get("args") or []
+            if (isinstance(_rcv2, dict) and self._expr_is_pyval(_rcv2)
+                    and len(_a2) == 1):
+                _rvw = self._expr_to_whyml(_rcv2, local_refs or set(),
+                                           invariant_ctx, subst)
+                _kw = self._expr_to_whyml(_a2[0], local_refs or set(),
+                                          invariant_ctx, subst)
+                _optstr = (f"(match {_rvw} with HMap m_k8 -> "
+                           f"(match pairs_get m_k8 {_kw} with "
+                           f"Some (HStr s) -> Some s | _ -> None end) "
+                           f"| _ -> None end)")
+                if getattr(self, "_get_return_raw_option", False):
+                    return _optstr
+                return (f"(match {_optstr} with Some s -> s | None -> \"\" end)")
         # ghost-handler-wall Q3a (self-tcb-reduction, ghost-handler-wall-response.md
         # §Q3a/gh-spike.mlw::Q3Arity): a bare `.get("arity", <default>)` call (2 args)
         # whose receiver the tool cannot resolve to a concrete dict type — e.g. a

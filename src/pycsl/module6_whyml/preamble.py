@@ -6453,7 +6453,7 @@ class PreambleEmissionMixin:
         # the `hval` theory in scope — fire the gate even when no function-local
         # `Dict[str, PyVal]` annotation is present. Corpus has no such field -> byte-inert.
         result = result or any(
-            f.get("value_type") == "hval"
+            f.get("value_type") == "hval" or f.get("name") == "_record_types"
             for td in self.ir.get("type_decls", []) or []
             for f in td.get("fields", []) or [])
         # K4/#6 (local/return-position seq-pyval + scalar pyval return): a function that
@@ -6531,6 +6531,27 @@ class PreambleEmissionMixin:
             "      | PNil -> None",
             "      | PCons k' v t -> if hpairs_key_eq k k' then Some v else pairs_get t k",
             "      end",
+            "  (* hval-retype (self-tcb-reduction Tier-5): project the string carrier out"
+            " of an `hval` — the `HStr s` payload, else the empty string. A `let function`"
+            " (usable in program `let`/guard positions, where the record-registry scan's"
+            " `info.get(\"whyml_name\") == cls` compare + the Optional[str] return occur)."
+            " Descends the REAL hval structure (non-vacuous), NOT an abstract reader. *)",
+            "  let function hstr_of (h: hval) : string"
+            " = match h with HStr s -> s | _ -> \"\" end",
+            "  (* hval-retype (self-tcb-reduction Tier-5): the abstract `.values()`"
+            " iterator over a `map string (option hval)` field — a native Why3 `map` is"
+            " not finitely iterable, so the ENUMERATION is over-approximated (arbitrary"
+            " length, arbitrary element), but each element is a REAL `hval` whose `.get`"
+            " reads descend the actual structure via `pairs_get` (non-vacuous). Declared"
+            " in the theory (not late via `_add_abstract_op`) so the decl is always in"
+            " scope before the loop use, across the proof + vacuity re-emission paths. *)",
+            "  (* LOGIC `function`s (not program `val`s) so `hval_values_len` is usable in"
+            " the loop `variant` term (a logic context) — exactly like the psl-loop"
+            " `psl_len`. Uninterpreted + total + effect-free, so also usable in the"
+            " program while-condition + element `let`. NO axiom (the variant's `0 <=`"
+            " bound falls out of the loop condition `idx < len`) -> ledger stays 3. *)",
+            "  val function hval_values_len (m: map string (option hval)) : int",
+            "  val function hval_values_get (m: map string (option hval)) (i: int) : hval",
             "",
         ]
 
@@ -7066,6 +7087,18 @@ class PreambleEmissionMixin:
                     # (byte-identical fallback).
                     "is_namedtuple": bool(td.get("is_namedtuple", False)),
                 }
+                # hval-retype (self-tcb-reduction Tier-5): the emitter's own
+                # `_record_types` field (`Dict[str, Any]` class->metadata registry) is
+                # modelled as the faithful heterogeneous `map string (option hval)`, so
+                # the metadata that drives BODY lowering must agree with the preamble
+                # field decl: value_type "hval" (`_self_field_dict_nu` -> "hval", so
+                # `info.get(...)` uses the real K7 pairs_get projection) and key_type
+                # "string" (native string key). Name-keyed on the emitter-internal,
+                # corpus-absent field -> reference corpus + every other mirror byte-inert.
+                if "_record_types" in self._record_types[td["name"]]["field_types"]:
+                    self._record_types[td["name"]]["field_types"]["_record_types"] = "dict"
+                    self._record_types[td["name"]]["field_value_types"]["_record_types"] = "hval"
+                    self._record_types[td["name"]]["field_key_types"]["_record_types"] = "string"
                 # Class-body integer constants (e.g. `CAP = 64`) — resolved to
                 # literals when referenced as `self.CONST` in a method/contract.
                 consts = td.get("constants", {})
@@ -7125,6 +7158,16 @@ class PreambleEmissionMixin:
                         # field-dict op site reads the RAW string key (no str_hash_op).
                         # Absent key_type → the legacy `map int` (byte-identical).
                         _vt = f.get("value_type")
+                        # hval-retype (self-tcb-reduction Tier-5): the emitter's own
+                        # `_record_types` field (`Dict[str, Any]`, class->metadata registry)
+                        # is retyped to the faithful heterogeneous `map string (option hval)`
+                        # so `_field_type_for`/`_field_type_of` read `info.get("whyml_name")`
+                        # / `info.get("field_types").get(field)` as REAL hval projections
+                        # (pairs_get over the hpairs carrier), not the int-erased facade.
+                        # Name-keyed (the field is emitter-internal + corpus-absent) -> the
+                        # reference corpus + every other mirror stay byte-identical.
+                        if f.get("name") == "_record_types":
+                            _vt = "hval"
                         _kt = "string" if f.get("key_type") == "string" else "int"
                         if _vt == "string":
                             ftype = f"map {_kt} (option string)"

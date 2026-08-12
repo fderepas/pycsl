@@ -231,11 +231,18 @@ class TypeInferenceMixin:
                 return "string"
         return ghost_type
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _field_type_for(self, obj: str, field: str) -> Optional[str]:
+        if obj != "self":
+            return None
+        cls = self._current_self_type
+        if not cls:
+            return None
+        for info in self._record_types.values():
+            if info.get("whyml_name") == cls:
+                return info.get("field_types", {}).get(field)
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate

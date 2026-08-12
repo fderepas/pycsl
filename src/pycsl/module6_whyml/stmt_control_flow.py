@@ -248,6 +248,32 @@ class ControlFlowStmtMixin:
         self._for_idx_init = "0"
         self._pyast_loop_variant_len = None
         self._for_iter_materialize = None
+        self._for_target_is_pyval = False
+        # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
+        # (the `_field_type_for`/`_field_type_of` record-registry scan over
+        # `self._record_types.values()`, retyped to `map string (option hval)`) iterates
+        # an abstract-but-hval-TYPED over-approximation — each `info` is a real `hval`, so
+        # the body's `info.get("whyml_name")` / `info.get("field_types").get(field)` lower
+        # to the certified K7 `pairs_get` projections (NOT the int-erased `info_get_str`
+        # facade). The iterator itself is abstract (a native Why3 `map` is not finitely
+        # iterable), but the ELEMENT structure is real. `_for_target_is_pyval` tells
+        # `_handle_for_stmt` to tag the loop var `_pyval_locals` for the body's duration.
+        # Gated on a pyval self-field `.values()` receiver -> corpus + other mirrors inert.
+        if (self._value_semantic and iter_ir.get("type") == "Call"
+                and isinstance(iter_ir.get("func"), str)
+                and iter_ir.get("func").endswith(".values")):
+            _recv = iter_ir.get("func")[:-len(".values")]
+            if self._self_field_dict_nu(_recv) == "hval" and "." in _recv:
+                _obj, _fld = _recv.rsplit(".", 1)
+                _mapw = self._expr_to_whyml(
+                    {"type": "FieldGet", "object": _obj, "field": _fld},
+                    local_refs)
+                # hval_values_len/get are declared in the hval theory block
+                # (_emit_pyval_theory) so they are always in scope on every emission path.
+                self._for_target_is_pyval = True
+                self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
+                return (f"(hval_values_len {_mapw})",
+                        f"(hval_values_get {_mapw} !{idx})", False)
         # self-tcb-reduction giants (generic class-body lowering): `for child in
         # <classdef>.body` over a `py_classdef_node` param iterates the MODELLED
         # `class_body_ast node` psl cons-list — bound `psl_len (class_body_ast node)`,
@@ -549,6 +575,29 @@ class ControlFlowStmtMixin:
         # through the faithful string ops, not the opaque int path. Restored after the body.
         _is_splitbody = (self._value_semantic
                          and self._split_call_recv_sep(iter_ir) is not None)
+        # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
+        # binds `info` to a real `hval` per iteration — register it in `_pyval_locals`
+        # for the body's duration so `info.get("whyml_name")` /
+        # `info.get("field_types").get(field)` lower to the certified K7 `pairs_get`
+        # projections, not the int-erased `info_get_str` facade. Restored after the body.
+        # Gated on a pyval self-field `.values()` receiver -> corpus/other-mirror inert.
+        _is_pyval_values = (
+            self._value_semantic and iter_ir.get("type") == "Call"
+            and isinstance(iter_ir.get("func"), str)
+            and iter_ir.get("func").endswith(".values")
+            and self._self_field_dict_nu(iter_ir.get("func")[:-len(".values")]) == "hval")
+        _saved_pyval_member = None
+        _saved_for_pyval_flag = getattr(self, "_for_target_is_pyval", False)
+        # The element `let` binding (`_loop_var_bindings`) is emitted DURING body
+        # emission — before `_classify_iterable` runs — so set the immutable-bind flag
+        # here (pre-body) too, else the loop var stays `ref hval` and the K7 `match info`
+        # projection type-clashes against a `ref`.
+        self._for_target_is_pyval = _is_pyval_values or _saved_for_pyval_flag
+        if _is_pyval_values:
+            if not hasattr(self, "_pyval_locals"):
+                self._pyval_locals = set()
+            _saved_pyval_member = target in self._pyval_locals
+            self._pyval_locals.add(target)
         if _is_classbody:
             self._pyast_stmt_locals.add(target)
             _st = getattr(self, "_current_symbol_table", None)
@@ -607,6 +656,9 @@ class ControlFlowStmtMixin:
             self._tparam_locals.discard(target)
         if _is_kwbody:
             self._keyword_locals.discard(target)
+        if _is_pyval_values and _saved_pyval_member is False:
+            self._pyval_locals.discard(target)
+        self._for_target_is_pyval = _saved_for_pyval_flag
         if not inner_body:
             inner_body = f"{inner_indent}()"
         if saved_str_locals is not None:
@@ -705,6 +757,12 @@ class ControlFlowStmtMixin:
                     lines.append(f"{bind_indent}let {whyml_ident(_ch_name)} = "
                                  f"ref (str_sub_op {_op} !{idx} 1) in")
                 return lines
+            # hval-retype (self-tcb-reduction Tier-5): a pyval `.values()` loop var
+            # binds an IMMUTABLE `hval` (`let info = <elem>`, no `ref`) so the body's
+            # K7 `match info with HMap ...` projection matches an `hval` (not a `ref hval`).
+            # Gated on `_for_target_is_pyval` (set by `_classify_iterable`) -> inert.
+            if getattr(self, "_for_target_is_pyval", False):
+                return [f"{bind_indent}let {safe_target} = ({elem_expr}) in"]
             return [f"{bind_indent}let {safe_target} = ref ({elem_expr}) in"]
 
         if has_cont:
@@ -1393,9 +1451,18 @@ class ControlFlowStmtMixin:
             _test = self._to_bool(
                 self._expr_to_whyml(_test_ir, local_refs), _test_ir)
             return f"(if {_test} then {_then} else {_else})"
-        if (t == "Call" and isinstance(val_ir.get("func"), str)
+        # hval-retype (self-tcb-reduction Tier-5): the doubled hval read
+        # `info.get("field_types", {}).get(field)` returned as `Optional[str]` — the outer
+        # `.get(field)` has func bare "get" with a pyval `.get` RECEIVER. `_get_return_raw_option`
+        # makes `_lower_dict_get_call` hand back the raw `option string` (a real nested
+        # `pairs_get` + `HStr` projection over `info`); wrap it into the union arms.
+        _chained_pyval = (t == "Call" and val_ir.get("func") == "get"
+                          and isinstance(val_ir.get("receiver"), dict)
+                          and self._expr_is_pyval(val_ir.get("receiver"))
+                          and len(val_ir.get("args") or []) == 1)
+        if ((t == "Call" and isinstance(val_ir.get("func"), str)
                 and val_ir["func"].endswith(".get")
-                and len(val_ir.get("args") or []) == 1):
+                and len(val_ir.get("args") or []) == 1) or _chained_pyval):
             _prev = getattr(self, "_get_return_raw_option", False)
             self._get_return_raw_option = True
             try:
@@ -1404,8 +1471,10 @@ class ControlFlowStmtMixin:
                 self._get_return_raw_option = _prev
             # The flag fires only on a resolvable dict `.get`; if the receiver was not
             # a tracked map the lowering falls back to its scalar form (no `Map.get`
-            # prefix) — reject then (fail-closed) rather than mis-wrap a scalar.
-            if raw.startswith("(Map.get "):
+            # prefix) — reject then (fail-closed) rather than mis-wrap a scalar. The
+            # chained hval read hands back a `(match <hval> ... -> Some s | ... None)`
+            # raw `option string` (starts with "(match ") — accept that too.
+            if raw.startswith("(Map.get ") or (_chained_pyval and raw.startswith("(match ")):
                 return (f"(match {raw} with | Some v_ -> {some_ctor} v_ "
                         f"| None -> {none_ctor} end)")
             return None
