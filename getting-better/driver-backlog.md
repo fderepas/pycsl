@@ -1886,3 +1886,16 @@ Root-wall drill on `_match_field_decode_idiom` (banked Optional-tuple return CON
   Rocq+Lean cert re-proving the extended ADT (LEDGER STAYS 3). M1-corpus-affecting (every reflected method
   call re-emits). Axiom-free IN PRINCIPLE. = the next BIG cert-co-landing build; spike the cert-feasibility
   + byte-diff scope first. NEXT: Layer-1-only census (contained), then Layer-2 cert-spike.
+
+## Layer-1-only census = CLOSED, NO consumer (2026-08-11, count 736) -> Layer 2 is the sole path
+Measured: every trusted sub-node reader touching slice/lower/upper (6 stubs) is gated on the Layer-2
+method-call RECEIVER first, OR is a different value model (Python-AST `.values()` walker in monomorphize.py;
+HAPPY write-site dict in Module3_Weaver). The 2 already-green emit_ir slice readers (_handle_slice_access_
+expr, _slice_array_or_opaque) verify WITHOUT Layer-1 accessors (they pass bounds to trusted int-param
+_expr_to_whyml, never descending the bound's sub-structure). So Layer 1 (slice_of/lower_of/upper_of) has NO
+standalone consumer = no-unused-facade, NOT landed. **IR-sub-node floor = LAYER 2 only: extend the certified
+emit_ir Call ctor to carry the method receiver** (IrMethodCall / receiver_of). High-leverage (unblocks the
+BROAD method-receiver-reading recognizer class), axiom-free IN PRINCIPLE (ADT variant + total accessor +
+co-landing Rocq+Lean cert re-proof, ledger 3), corpus-affecting (M1 — every reflected method call re-emits).
+SPIKING cert-feasibility (make-or-break: does the emit_ir ADT extend + the cert re-prove axiom-free, is the
+byte-diff M1-tractable?) before the full multi-session build.
