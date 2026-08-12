@@ -433,15 +433,57 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _static_width(self, lower_ir: int, upper_ir: int) -> int:
+    def _static_width(self, lower_ir: "ExprIR", upper_ir: "ExprIR") -> Optional[int]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _match_field_decode_idiom(self, expr: int) -> Optional[tuple]:
-        return None
+    #@ no_inline
+    def _match_field_decode_idiom(self, expr: "ExprIR") -> Optional[tuple]:
+        # (1) outer decode('utf-8', ...)
+        if not isinstance(expr, dict):
+            return None
+        dargs = expr.get("args", [])
+        if not dargs or dargs[0].get("type") != "String" \
+                or dargs[0].get("value") != "utf-8":
+            return None
+        recv = expr.get("receiver")
+        if not isinstance(recv, dict):
+            return None
+        # (2) receiver is Subscript[0]
+        if recv.get("type") != "Subscript":
+            return None
+        idx = recv.get("index", {})
+        if idx.get("type") != "Number" or idx.get("value") != 0:
+            return None
+        split_call = recv.get("value", {})
+        # (3) ... over a `split(b'\x00')` Call
+        if split_call.get("type") != "Call":
+            return None
+        sfunc = split_call.get("func", "")
+        if not (sfunc == "split" or (isinstance(sfunc, str) and sfunc.endswith(".split"))):
+            return None
+        sargs = split_call.get("args", [])
+        if len(sargs) != 1 or not self._is_null_byte_lit(sargs[0]):
+            return None
+        slice_node = split_call.get("receiver", {})
+        # (4) ... whose receiver is a genuine `arr[a:b]` slice
+        if slice_node.get("type") != "SliceAccess":
+            return None
+        sl = slice_node.get("slice", {})
+        if sl.get("type") != "Slice" or sl.get("step") is not None:
+            return None
+        lower_ir = sl.get("lower")
+        upper_ir = sl.get("upper")
+        if lower_ir is None or upper_ir is None:
+            return None
+        # (5) statically-known field WIDTH (upper - lower), even though both bounds
+        # carry the loop variable: the affine difference cancels it to the constant.
+        width = self._static_width(lower_ir, upper_ir)
+        if width is None or width <= 0:
+            return None
+        return (slice_node, lower_ir, width)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

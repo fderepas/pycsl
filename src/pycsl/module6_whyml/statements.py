@@ -1971,6 +1971,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         arity = self._current_tuple_arity
         if return_type == "unit":
             return f"    try\n{body_code}\n    with Return_void -> () end"
+        if return_type.startswith("option ("):
+            # Optional-tuple return: catch the dedicated `Return_opttuple_<arity>`
+            # exception, whose `option (τ...)` payload is handed straight back
+            # (immutable — no materialize). Parallel to the `Return_<arity>` tuple arm.
+            suffix = return_type[len("option "):].replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+            return f"    try\n{body_code}\n    with Return_opttuple_{suffix} r -> r end"
         if arity > 0:
             return f"    try\n{body_code}\n    with Return_{arity} r -> r end"
         if return_type == "array int":

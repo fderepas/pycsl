@@ -39,5 +39,6 @@ import PyCSL.PyVal              -- self-tcb-reduction Tier-5: pyval heterogeneou
 import PyCSL.TermIR             -- self-tcb-reduction item 3: class-instance-variant `term` ADT cert, axiom-free
 import PyCSL.CallKw             -- self-tcb-reduction Tier-5 J1: emit_ir Call-internals value model cert, axiom-free
 import PyCSL.TParam             -- self-tcb-reduction L1: tparam PEP-695 reflection-node value model cert, axiom-free
+import PyCSL.MethodRecv          -- self-tcb-reduction Layer-2: emit_ir Call-receiver value model cert (IrMethodCall/receiver_of), axiom-free
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus

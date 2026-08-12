@@ -1817,6 +1817,9 @@ class PreambleEmissionMixin:
         needs_return_str = False
         needs_return_emit_ir = False
         tuple_return_arities: Set[int] = set()
+        # Optional-tuple return: the refined `(τ...)` tuple types of `Optional[Tuple]`
+        # readers, each emitted as an `exception Return_opttuple_<arity> (option (τ...))`.
+        opt_tuple_return_types: Set[str] = set()
         # value-model campaign incr5 (primitive c): synthesized-union (`Optional[X]`) return
         # types that need a dedicated `Return_<variant>` exception — a function returning a
         # `_union_*` variant WITH an early/in-loop return can't carry the variant through the
@@ -1832,6 +1835,18 @@ class PreambleEmissionMixin:
                 ann = func.get("return_annotation")
                 if ret_type == "unit":
                     needs_return_void = True
+                elif (isinstance(ann, str) and ann.startswith("_union_")
+                        and ret_type.startswith("(") and "," in ret_type
+                        and IRScanner.has_none_return(func["body"])):
+                    # Optional-tuple return: an `Optional[Tuple[τ...]]` reader carries
+                    # either `Some (τ...)` or `None` through a dedicated
+                    # `Return_opttuple_<arity>` exception whose payload is the built-in
+                    # `option (τ...)`. Parallel to the raw-tuple `Return_<arity>` branch
+                    # below, but option-wrapped so the `return None` value model is
+                    # faithful. The refined slot types match `_compute_return_type`'s
+                    # `option (τ...)` return type. Byte-inert (see `_compute_return_type`).
+                    opt_tuple_return_types.add(
+                        self._refine_tuple_return_type(func, func["body"], ret_type))
                 elif ret_type.startswith("(") and "," in ret_type:
                     # Tuple return — needs a dedicated Return_<arity> exception
                     # so the value carries through; the plain `exception Return int`
@@ -2847,6 +2862,7 @@ class PreambleEmissionMixin:
             "needs_return_void": needs_return_void,
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
+            "opt_tuple_return_types": opt_tuple_return_types,
             "union_return_types": union_return_types,
             "needs_string": needs_string,
             "needs_char": needs_char,
@@ -3075,6 +3091,25 @@ class PreambleEmissionMixin:
             parts = ", ".join(["int"] * arity)
             out.append("")
             out.append(f"  exception Return_{arity} ({parts})")
+        for ot in sorted(needs.get("opt_tuple_return_types", set())):
+            # Optional-tuple return: carry `Some (τ...)` / `None` through a dedicated
+            # exception whose payload is the built-in `option (τ...)`. `ot` is the
+            # refined `(τ...)` tuple type (from `_compute_return_type`); named by arity
+            # to match the `raise (Return_opttuple_<arity> ...)` / catch sites.
+            # self-tcb-reduction Layer-2: an opttuple whose slot type references `emit_ir`
+            # (a receiver/slice recognizer returning `Optional[Tuple[ExprIR, ...]]`) CANNOT
+            # be declared here — `emit_ir` is not in scope until the ADT theory below. Those
+            # are deferred and appended to `_exprir_theory` (see the transpiler, the
+            # `Return_emit_ir` precedent). Skip them here so the top-of-module block stays in
+            # scope. Byte-inert: no existing opttuple return has an emit_ir slot.
+            if "emit_ir" in ot:
+                continue
+            # Name the exception by its PAYLOAD TYPE, not just arity: two same-arity
+            # opttuples with distinct element types (e.g. `(int,int,int)` vs
+            # `(emit_ir,emit_ir,int)`) would collide on `Return_opttuple_<arity>`.
+            suffix = ot.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+            out.append("")
+            out.append(f"  exception Return_opttuple_{suffix} (option {ot})")
         # NOTE (value-model incr5, primitive c): the `Return_<variant>` exceptions are NOT
         # declared here — they reference synthesized `_union_*` types that are emitted LATER by
         # `_emit_type_decls`, so they are emitted just AFTER it (see `_emit_union_return_exceptions`,
@@ -4635,6 +4670,18 @@ class PreambleEmissionMixin:
             # the standalone types on `_uses_call_kw` → byte-inert elsewhere.
             + (" | IrCallKw string keyword_list emit_ir int"
                if self._uses_call_kw() else "")
+            # self-tcb-reduction Layer-2 (method-call RECEIVER value model): the
+            # receiver-carrying method-call ctor — receiver sub-node, func-name, arg0,
+            # arity — PARALLEL to the existing `IrCall string emit_ir int` (kind_of returns
+            # "Call" for both; non-injective kind_of is sound, the IrCall/IrCallKw
+            # precedent). UNLIKE IrCall it carries the RECEIVER as a strictly-positive
+            # recursive emit_ir occurrence, read back by the total `receiver_of`; size
+            # counts BOTH the receiver AND arg0 children (the receiver child is then
+            # strictly smaller — certified axiom-free in Phase2j_MethodRecv.v / MethodRecv
+            # .lean). Gated on `_uses_method_recv` (a `.get("receiver")` read on an emit_ir,
+            # a NEW shape in 0 corpus programs / other mirrors) -> byte-inert elsewhere.
+            + (" | IrMethodCall emit_ir string emit_ir int"
+               if self._uses_method_recv() else "")
             # self-tcb-reduction family-B (parser clause parsers): the CONTRACT-CLAUSE
             # node ctors the recursive-descent `_ContractParser._parse_*` methods
             # construct. IrProofDecl carries the `#@ proof <prover> <qualname>` node's two
@@ -4931,6 +4978,11 @@ class PreambleEmissionMixin:
             # (non-injective kind_of is sound — the IrCall/IrCallN precedent).
             *(["    | IrCallKw _ _ _ _ -> \"Call\""]
               if self._uses_call_kw() else []),
+            # Layer-2: IrMethodCall's "Call" tag (gated WITH the ctor so kind_of stays
+            # exhaustive — kind_of has NO wildcard). Shares "Call" with IrCall/IrCallKw
+            # (non-injective kind_of is sound — the IrCall/IrCallKw precedent).
+            *(["    | IrMethodCall _ _ _ _ -> \"Call\""]
+              if self._uses_method_recv() else []),
             # self-tcb-reduction family-B: the clause-node kind_of arms (gated WITH the
             # ctors so kind_of stays exhaustive in both configs — kind_of has NO wildcard,
             # so the arm is REQUIRED when the ctor is present and ABSENT when it is not).
@@ -5005,9 +5057,16 @@ class PreambleEmissionMixin:
             "  let function is_attribute (e: emit_ir) : bool =",
             "    match e with IrAttr _ _ -> true | _ -> false end",
             "  let function is_call (e: emit_ir) : bool =",
-            ("    match e with IrCall _ _ _ -> true | IrCallKw _ _ _ _ -> true"
-             " | _ -> false end" if self._uses_call_kw() else
-             "    match e with IrCall _ _ _ -> true | _ -> false end"),
+            # Layer-2: IrMethodCall is also a "Call" (matches kind_of). The gate combinations
+            # are enumerated so is_call stays a single total match in every configuration.
+            (("    match e with IrCall _ _ _ -> true | IrCallKw _ _ _ _ -> true"
+              " | IrMethodCall _ _ _ _ -> true | _ -> false end"
+              if self._uses_method_recv() else
+              "    match e with IrCall _ _ _ -> true | IrCallKw _ _ _ _ -> true"
+              " | _ -> false end") if self._uses_call_kw() else
+             ("    match e with IrCall _ _ _ -> true | IrMethodCall _ _ _ _ -> true"
+              " | _ -> false end" if self._uses_method_recv() else
+              "    match e with IrCall _ _ _ -> true | _ -> false end")),
             "  let function is_tuple (e: emit_ir) : bool =",
             "    match e with IrTuple _ _ -> true | _ -> false end",
             "  let function is_fieldget (e: emit_ir) : bool =",
@@ -5175,6 +5234,13 @@ class PreambleEmissionMixin:
             # (arg0_of e) < size e`) stays VALID now that `is_call` also matches IrCallKw.
             # Without this arm IrCallKw falls to `| _ -> 1` and the lemma is FALSE.
             *(["    | IrCallKw _ _ a _ -> 1 + size a"] if self._uses_call_kw() else []),
+            # Layer-2: IrMethodCall's size counts BOTH its receiver AND arg0 children, so a
+            # recursive receiver-descending fold's `variant { size e }` is discharged (the
+            # receiver child is strictly smaller — Phase2j `recv_size_lt`). Without a
+            # dedicated arm it would fall to `| _ -> 1` and any receiver-size-decrease law
+            # would be FALSE (the IrCallKw arg0 precedent).
+            *(["    | IrMethodCall r _ a _ -> 1 + size r + size a"]
+              if self._uses_method_recv() else []),
             # self-tcb-reduction family-B: IrClassInvariant recurses its single emit_ir
             # child (`1 + size e`), gated WITH the ctor so the measure stays faithful in
             # Module2_Parser.mlw and byte-inert elsewhere. The IrForallItems-body precedent.
@@ -5290,18 +5356,52 @@ class PreambleEmissionMixin:
             "    match e with IrAttr o _ -> o | IrSub v _ -> v | _ -> IrOther \"\" end",
             "",
             "  let function func_of (e: emit_ir) : string =",
-            ("    match e with IrCall f _ _ -> f | IrCallKw f _ _ _ -> f"
-             " | _ -> \"\" end" if self._uses_call_kw() else
-             "    match e with IrCall f _ _ -> f | _ -> \"\" end"),
+            ("    match e with IrCall f _ _ -> f"
+             + (" | IrCallKw f _ _ _ -> f" if self._uses_call_kw() else "")
+             + (" | IrMethodCall _ f _ _ -> f" if self._uses_method_recv() else "")
+             + " | _ -> \"\" end"),
             "",
             "  let function nargs_of (e: emit_ir) : int =",
-            "    match e with IrCall _ _ n -> n | _ -> 0 end",
+            ("    match e with IrCall _ _ n -> n"
+             + (" | IrMethodCall _ _ _ n -> n" if self._uses_method_recv() else "")
+             + " | _ -> 0 end"),
             "",
             "  let function arg0_of (e: emit_ir) : emit_ir =",
-            ("    match e with IrCall _ a _ -> a | IrCallKw _ _ a _ -> a"
-             " | _ -> IrOther \"\" end" if self._uses_call_kw() else
-             "    match e with IrCall _ a _ -> a | _ -> IrOther \"\" end"),
+            ("    match e with IrCall _ a _ -> a"
+             + (" | IrCallKw _ _ a _ -> a" if self._uses_call_kw() else "")
+             + (" | IrMethodCall _ _ a _ -> a" if self._uses_method_recv() else "")
+             + " | _ -> IrOther \"\" end"),
             "",
+            # Layer-2: the total method-call RECEIVER projector — reads back the receiver
+            # sub-node of an IrMethodCall, the absent-sentinel `IrOther ""` for every other
+            # node (real discrimination: a non-method-call reads the sentinel; the EVIL TWIN
+            # reading a WRONG receiver is provably UNprovable — Phase2j `receiver_of_evil`).
+            # Gated WITH the ctor on `_uses_method_recv` -> byte-inert elsewhere.
+            *((["  let function receiver_of (e: emit_ir) : emit_ir =",
+                "    match e with IrMethodCall r _ _ _ -> r | _ -> IrOther \"\" end",
+                "",
+                # Layer-1 slice accessors (gated WITH the receiver model — their sole
+                # consumer, `_match_field_decode_idiom`, also reads the receiver). `slice_of`
+                # projects an IrSliceAccess's slice sub-node (the IrSliceN `_py_expr_slice`
+                # emits). `lower_of`/`upper_of`/`step_of` unwrap IrSliceN's THREE
+                # `iropt_ir` bounds — an ABSENT bound reads back the honest `IrNone` (so the
+                # recognizer's `lower is None`/`step is not None` guards discriminate REAL
+                # presence), a present one its real emit_ir sub-node. Total over the sum.
+                "  let function slice_of (e: emit_ir) : emit_ir =",
+                "    match e with IrSliceAccess _ s -> s | _ -> IrOther \"\" end",
+                "  let function lower_of (e: emit_ir) : emit_ir =",
+                "    match e with IrSliceN lo _ _ ->"
+                " (match lo with IrOSome x -> x | IrONone -> IrNone end)"
+                " | _ -> IrOther \"\" end",
+                "  let function upper_of (e: emit_ir) : emit_ir =",
+                "    match e with IrSliceN _ up _ ->"
+                " (match up with IrOSome x -> x | IrONone -> IrNone end)"
+                " | _ -> IrOther \"\" end",
+                "  let function step_of (e: emit_ir) : emit_ir =",
+                "    match e with IrSliceN _ _ st ->"
+                " (match st with IrOSome x -> x | IrONone -> IrNone end)"
+                " | _ -> IrOther \"\" end",
+                ""]) if self._uses_method_recv() else []),
             # J1: the Call-internals projectors (gated WITH the ctor on `_uses_call_kw`).
             # `call_keywords` reads an IrCallKw's keyword_list (`call.keywords`); the kwval
             # discriminant/projector pair (`is_kwname`/`kwname_id`/`is_kwattr`/`kwattr_of`)
@@ -6424,6 +6524,76 @@ class PreambleEmissionMixin:
             for fn in self.ir.get("functions", []) or [])
         self._uses_call_kw_cache = result
         return result
+
+    def _uses_method_recv(self) -> bool:
+        """self-tcb-reduction Layer-2 method-call RECEIVER value model: True iff some
+        function in this file READS `<x>.get("receiver")` — the receiving context that
+        needs the receiver-carrying method-call ctor (`IrMethodCall`) + its `receiver_of`
+        projector + the Layer-1 slice accessors. Only then are those symbols emitted into
+        the emit_ir theory, so the certified receiver value model stays OUT of every other
+        mirror's SMT context AND the whole reference corpus (`.get("receiver")` appears in
+        0 corpus programs and 0 other mirror files -> byte-identical). The byte-inert gate,
+        mirroring `_uses_call_kw`'s `.keywords`-iteration trigger. Cached."""
+        cached = getattr(self, "_uses_method_recv_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._reads_receiver_get(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_method_recv_cache = result
+        return result
+
+    def _reads_receiver_get(self, func: Dict[str, Any]) -> bool:
+        """Layer-2: True iff `func` contains a `<x>.get("receiver")` call WHOSE BASE `<x>`
+        is emit_ir-typed — the DEMAND-DRIVEN trigger for the receiver value model. The base
+        check is the make-or-break: a purely-syntactic `.get("receiver")` scan over-fires,
+        because `ir_schema._expr_from_dict_inner` reads `d.get("receiver")` on a raw
+        `Dict[str, Any]` param `d` (NOT emit_ir) and the twin emits it as an ordinary map
+        read — never as `receiver_of` — so injecting the IrMethodCall/receiver_of/slice
+        extension into that file's emit_ir theory is PURE UNUSED BLOAT that balloons every
+        VC's E-matching (stmt_control_flow.py timed out). We reuse the SAME predicate the
+        twin's lowering site uses to decide `receiver_of` (`_is_emit_ir_expr` on the
+        `.get` receiver, expressions.py §B-C3), evaluated in the function's OWN symbol-table
+        context. Only `expressions.py::_match_field_decode_idiom` reads `.get("receiver")`
+        on an ExprIR (emit_ir) base, so ONLY there does the extension actually get emitted
+        (and USED) — every other mirror + the whole corpus stays byte-identical to baseline."""
+        found = [False]
+        _saved_st = getattr(self, "_current_symbol_table", None)
+        self._current_symbol_table = func.get("symbol_table", {}) or {}
+
+        def rec(n: Any) -> None:
+            if found[0]:
+                return
+            if isinstance(n, dict):
+                if n.get("type") == "Call":
+                    _f = n.get("func", "")
+                    if isinstance(_f, str) and _f.endswith(".get"):
+                        _a = n.get("args") or []
+                        if (_a and isinstance(_a[0], dict)
+                                and _a[0].get("type") == "String"
+                                and _a[0].get("value") == "receiver"
+                                # DEMAND-DRIVEN: only count the read whose base `<x>` is
+                                # emit_ir-typed (the exact `.get`-projection precondition at
+                                # the expressions.py §B-C3 lowering site) — a `d.get(...)`
+                                # on a plain-dict base does NOT lower to `receiver_of`.
+                                and self._is_emit_ir_expr(
+                                    {"type": "Var", "name": _f[:-len(".get")]})):
+                            found[0] = True
+                            return
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        try:
+            rec(func.get("body"))
+        finally:
+            if _saved_st is None:
+                if hasattr(self, "_current_symbol_table"):
+                    delattr(self, "_current_symbol_table")
+            else:
+                self._current_symbol_table = _saved_st
+        return found[0]
 
     def _has_keywords_iteration(self, func: Dict[str, Any]) -> bool:
         """J2/J3: True iff `func` iterates `for <x> in <y>.keywords` — the syntactic

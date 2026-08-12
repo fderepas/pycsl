@@ -118,7 +118,14 @@ _EMIT_IR_PROJ = {
 # `pattern` is CONTEXT-DEPENDENT: SUBSCRIPT `c["pattern"]` → a sub-NODE (below); `.get("pattern")`
 # → the KIND string (here). Different code paths read each tuple, so it appears in both.
 _EMIT_IR_STR_KEYS = ("type", "name", "attr", "field", "func", "ctor", "pattern", "op")   # via `.get`
-_EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard", "left", "right")   # via subscript → node
+_EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard", "left", "right",
+                      # self-tcb-reduction Layer-2: the method-call RECEIVER (`receiver_of`,
+                      # over the certified IrMethodCall ctor) and the SliceAccess `slice`
+                      # sub-node (`slice_of`) — so a local bound from `<emit_ir>.get("receiver")`
+                      # / `.get("slice")` flow-types as emit_ir (the recognizer twin). Both are
+                      # NEW keys read by 0 corpus programs and 0 other mirror handlers, so the
+                      # flow-typing is byte-inert everywhere except the receiver recognizer.
+                      "receiver", "slice")   # via subscript → node
 # self-tcb-reduction T1.a: STRING-valued attribute reads on a base-`ExprIR` emit_ir node
 # (`node.kind`/`node.var`/`node.op`/…, where the handler annotates `node: "ExprIR"` but accesses a
 # concrete subclass's str field) → the discriminant/name projection. Non-listed attrs fall to the
@@ -311,6 +318,33 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
     "_collect_type_params": {"slice": "sindex_of"},
 })
+# self-tcb-reduction Layer-2: SCOPED `.get(key)`-projectors for the method-receiver /
+# slice recognizer `_match_field_decode_idiom`. `receiver`->receiver_of (the certified
+# Layer-2 method-call receiver), `slice`->slice_of (an IrSliceAccess's slice sub-node),
+# `lower`/`upper`/`step`->the IrSliceN optional-bound unwrappers (an ABSENT bound reads
+# back the honest `IrNone` so the recognizer's `lower is None` / `step is not None`
+# guards discriminate REAL presence). SCOPED via `_current_emitting_func` so the GLOBAL
+# `lower`/`upper`->svalue_of (the R4 SliceExpr bound readers `_slice_array_or_opaque` /
+# `_handle_slice_access_expr`, which pass bounds to the trusted int-param `_expr_to_whyml`)
+# stay byte-identical. This is a `.get`-KEY table (distinct from `_EMIT_IR_HANDLER_ATTR_PROJ`,
+# which scopes ATTRIBUTE reads); consulted at the dotted-`.get` emit_ir projection site.
+_EMIT_IR_GET_KEY_PROJ_BY_FUNC = {
+    "_match_field_decode_idiom": {
+        "receiver": "receiver_of", "slice": "slice_of",
+        "lower": "lower_of", "upper": "upper_of", "step": "step_of",
+    },
+}
+# self-tcb-reduction Layer-2: SCOPED extra emit_ir-NODE keys for the recognizer's
+# flow-typing. Globally `lower`/`upper`/`step` are NOT node keys (the R4 SliceExpr readers
+# `_slice_array_or_opaque`/`_handle_slice_access_expr` read `sl.get("lower")` as a bare
+# truthiness test / pass `sl["lower"]` to the trusted int-param `_expr_to_whyml`, and must
+# stay byte-identical). But inside `_match_field_decode_idiom` a `lower_ir = sl.get("lower")`
+# local IS an emit_ir sub-node (unwrapped from IrSliceN via `lower_of`, checked `is None`,
+# passed to `_static_width(ExprIR)`). Scoped via `_current_emitting_func` so the flow-typing
+# extension is confined to this recognizer.
+_EMIT_IR_EXTRA_NODE_KEYS_BY_FUNC = {
+    "_match_field_decode_idiom": ("lower", "upper", "step"),
+}
 # value-model campaign increment 5 (primitive a — faithful IrMkTupleN element access): a
 # `Dict[K,V]` annotation slice lowers to an **`IrMkTupleN`** (the variadic tuple carrying the
 # MODELLED `elts_of` irlist), NOT the binary `IrTuple`. So the typed `.elts` reads route to the
@@ -1899,6 +1933,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return _pred
         return f"(if {_pred} then 1 else 0)"
 
+    def _effective_emit_ir_node_keys(self) -> Tuple[str, ...]:
+        """self-tcb-reduction Layer-2: the emit_ir sub-NODE keys in effect for the CURRENT
+        handler — the global `_EMIT_IR_NODE_KEYS` plus any `_EMIT_IR_EXTRA_NODE_KEYS_BY_FUNC`
+        entry scoped to `_current_emitting_func`. Keeps the `lower`/`upper`/`step` node-key
+        extension confined to `_match_field_decode_idiom` (byte-inert elsewhere)."""
+        _cef = getattr(self, "_current_emitting_func", None) or ""
+        for _h, _extra in _EMIT_IR_EXTRA_NODE_KEYS_BY_FUNC.items():
+            if _cef == _h or _cef.endswith("__" + _h):
+                return _EMIT_IR_NODE_KEYS + tuple(_extra)
+        return _EMIT_IR_NODE_KEYS
+
     def _is_emit_ir_expr(self, ir: Any) -> bool:
         """typed-ir-for-b-ceiling.md B-C2: True if `ir` lowers to the `emit_ir` sum — an
         inline `{"type": K}` construction, an ExprIR-valued record field read
@@ -1982,7 +2027,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # NAME string (`name_of ∘ object_of`), not a sub-node (see `_handle_subscript`).
             _kir = ir.get("index", {})
             if (isinstance(_kir, dict) and _kir.get("type") == "String"
-                    and _kir.get("value") in _EMIT_IR_NODE_KEYS and _kir.get("value") != "object"
+                    and _kir.get("value") in self._effective_emit_ir_node_keys()
+                    and _kir.get("value") != "object"
                     and self._is_emit_ir_expr(ir.get("value", {}))):
                 return True
         # item34.md CF1: `<x>.to_dict()` (no args) is an emit_ir node (to_dict is identity on
@@ -2000,7 +2046,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _a = ir.get("args") or []
                 if (len(_a) >= 1 and isinstance(_a[0], dict)
                         and _a[0].get("type") == "String"
-                        and _a[0].get("value") in _EMIT_IR_NODE_KEYS
+                        and _a[0].get("value") in self._effective_emit_ir_node_keys()
                         and self._is_emit_ir_expr({"type": "Var", "name": _fn[:-len(".get")]})):
                     return True
         # Lever 6: a `self.<method>(...)` / bare `<func>(...)` call whose DECLARED
@@ -3705,6 +3751,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _oe_none is not None:
                 _oes = self._expr_to_whyml(_oe_none, local_refs, invariant_ctx, subst)
                 _chk = f"(match {_oes} with None -> true | Some _ -> false end)"
+                return _chk if raw_op == "==" else f"(not {_chk})"
+            # self-tcb-reduction Layer-2: inside the receiver/slice recognizer, an emit_ir
+            # `is None` / `is not None` is a FAITHFUL IrSliceN optional-bound presence test,
+            # NOT the always-present model below — `lower_of`/`upper_of`/`step_of` read back
+            # the honest `IrNone` for an ABSENT bound, so `lower is None` -> `(<e> = IrNone)`
+            # and `step is not None` -> `(<e> <> IrNone)`, both REACHABLE (a bound may be
+            # present or absent) so the tuple-return path is LIVE (non-vacuous). Emitted as a
+            # match-based discriminant (Why3 has no derived program `=` on the ADT). SCOPED
+            # via `_current_emitting_func` so every other emit_ir `is None` (the always-present
+            # model at the tail) stays byte-identical.
+            _cef_none = getattr(self, "_current_emitting_func", None) or ""
+            if (self._is_emit_ir_expr(_nn)
+                    and any(_cef_none == _h or _cef_none.endswith("__" + _h)
+                            for _h in _EMIT_IR_EXTRA_NODE_KEYS_BY_FUNC)):
+                _es = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
+                _chk = f"(match {_es} with IrNone -> true | _ -> false end)"
                 return _chk if raw_op == "==" else f"(not {_chk})"
             if self._is_emit_ir_expr(_nn):
                 return "false" if raw_op == "==" else "true"
@@ -6852,11 +6914,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _kir = (expr.get("args") or [{}])[0]
             if isinstance(_kir, dict) and _kir.get("type") == "String":
                 _k2 = _kir.get("value")
+                # self-tcb-reduction Layer-2: a SCOPED `.get`-key projector override for the
+                # receiver/slice recognizer (`receiver`/`slice`/`lower`/`upper`/`step`),
+                # keyed by `_current_emitting_func` so the global bindings stay byte-inert.
+                _cef2 = getattr(self, "_current_emitting_func", None) or ""
+                _scoped2 = next(
+                    (t for h, t in _EMIT_IR_GET_KEY_PROJ_BY_FUNC.items()
+                     if _cef2 == h or _cef2.endswith("__" + h)), None)
+                # self-tcb-reduction Layer-2: inside the scoped receiver/slice recognizer,
+                # a `.get("value")` is AMBIGUOUS — `recv.get("value", {})` reads the
+                # Subscript's ARRAY sub-node (`svalue_of`, signalled by the empty-dict
+                # default), while `idx.get("value")` (no default, `!= 0`) reads a Number
+                # leaf's INT payload (`num_of`). Disambiguated by the default-arg shape,
+                # exactly like the `body`/`body_of` case below.
+                _scoped_val = None
+                if _scoped2 is not None and _k2 == "value":
+                    _scoped_val = ("svalue_of" if self._get_default_is_empty_dict(expr)
+                                   else "num_of")
                 # orelse_of mini-M1: same "body" disambiguation as the subscript-receiver
                 # site above — an empty-dict `{}` default routes to the IfExpr scalar
                 # `body_of`, everything else keeps the table's `stmts_of`.
-                _proj = ("body_of" if (_k2 == "body" and self._get_default_is_empty_dict(expr))
-                         else _EMIT_IR_PROJ.get(_k2))
+                _proj = (_scoped_val or (_scoped2 or {}).get(_k2)
+                         or ("body_of" if (_k2 == "body" and self._get_default_is_empty_dict(expr))
+                             else _EMIT_IR_PROJ.get(_k2)))
                 if _proj:
                     _rv = self._expr_to_whyml(_recv_ir, local_refs or set(),
                                               invariant_ctx, subst)

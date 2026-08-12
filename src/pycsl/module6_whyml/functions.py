@@ -1083,6 +1083,7 @@ class FunctionEmissionMixin:
         # caller's unpack types the string slot as int (mirror of the P1 let-vs-val agreement).
         _saved_st = getattr(self, "_current_symbol_table", None)
         _saved_cs = getattr(self, "_current_self_type", None)
+        _saved_cef = getattr(self, "_current_emitting_func", None)
         _st = dict(symtab)
         for _k, _ty in (func.get("param_annotations") or {}).items():
             if _st.get(_k) in (None, "Any"):
@@ -1091,11 +1092,25 @@ class FunctionEmissionMixin:
         _nm = func.get("name", "")
         if "__" in _nm:
             self._current_self_type = _nm.split("__", 1)[0]
+        # self-tcb-reduction Layer-2: set the emitting-func context so any per-handler-scoped
+        # emit_ir flow-typing (`_effective_emit_ir_node_keys`, e.g. the receiver/slice
+        # recognizer's `lower`/`upper`/`step` node keys) fires here too — else a scoped
+        # emit_ir tuple slot mis-types as int and the `let` unpack fails to type-check.
+        self._current_emitting_func = _nm
+        _saved_teisl = getattr(self, "_tuple_emit_ir_slot_locals", None)
         try:
+            # tuple-return-of-emit_ir: a tuple slot bound to an emit_ir LOCAL (`slice_node`/
+            # `lower_ir`, first-assigned from an emit_ir `.get(...)` projection) is not in the
+            # func's symbol_table — collect the body's emit_ir locals so `_infer_tuple_slot_type`
+            # types those slots `emit_ir` (matching the `ref (IrOther "")` body pre-decl), else
+            # the `option (τ...)` return type mis-types them `int` and the unpack fails L3.
+            self._tuple_emit_ir_slot_locals = self._collect_emit_ir_result_locals(body_stmts)
             slots = [self._infer_tuple_slot_type(e, array_vars, dict_vars, _st) for e in elts]
         finally:
             self._current_symbol_table = _saved_st
             self._current_self_type = _saved_cs
+            self._current_emitting_func = _saved_cef
+            self._tuple_emit_ir_slot_locals = _saved_teisl
         if len(slots) == return_type.count(",") + 1 and any(s != "int" for s in slots):
             return "(" + ", ".join(slots) + ")"
         return return_type
@@ -1782,6 +1797,20 @@ class FunctionEmissionMixin:
         return_type = IRScanner.find_return_type(body_stmts)
         return_type = self._refine_tuple_return_type(func, body_stmts, return_type)
         ann = func.get("return_annotation")
+        # Optional-tuple return (self-tcb-reduction Tier-5 value model): a function
+        # whose return annotation is a synthesized `_union_*` (an `Optional[X]`
+        # normalized by Module5) AND whose body BOTH returns a tuple AND returns the
+        # `None` literal is an `Optional[Tuple[τ...]]` reader. Its faithful WhyML type
+        # is the BUILT-IN `option (τ...)` — not the raw tuple `(τ...)` (which cannot
+        # carry `None`) and not the `Arm_i_0 int` union (whose synthesized payload is
+        # a scalar `int`, not the tuple). Gated on an ACTUAL `return None`: such a
+        # function currently emits `raise (Return_<arity> 0)` (bare int) against a
+        # `(τ...)` tuple slot — an L3 type error — so NO passing corpus baseline
+        # contains one (byte-inert). `option` + tuples are Why3 built-ins → no axiom.
+        if (isinstance(ann, str) and ann.startswith("_union_")
+                and return_type.startswith("(") and "," in return_type
+                and IRScanner.has_none_return(body_stmts)):
+            return f"option {return_type}"
         # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): two statement-IR
         # return-type overrides in the emitter model. (1) The trusted sub-body
         # dispatcher `_py_stmts_to_ir` — its result feeds `seq_to_sl` at an

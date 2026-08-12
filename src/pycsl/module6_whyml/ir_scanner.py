@@ -802,6 +802,31 @@ class IRScanner:
         return "int"
 
     @staticmethod
+    def has_none_return(stmts: List[Dict[str, Any]]) -> bool:
+        """Optional-tuple value model: True if some `return` in `stmts` (including
+        nested in If/For/While/Try/Match bodies) returns the `None` literal
+        (`return None`). This is the signal that a tuple-returning `Optional[...]`
+        function's WhyML type must be the built-in `option (τ...)` (which can carry
+        the absent case), NOT the raw tuple `(τ...)` (which cannot)."""
+        for stmt in stmts:
+            if stmt.get("stmt") == "Return":
+                v = stmt.get("value")
+                if isinstance(v, dict) and v.get("type") == "None":
+                    return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.has_none_return(stmt[key]):
+                    return True
+            if stmt.get("stmt") == "Try":
+                for h in stmt.get("handlers", []):
+                    if IRScanner.has_none_return(h.get("body", [])):
+                        return True
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    if IRScanner.has_none_return(c.get("body", [])):
+                        return True
+        return False
+
+    @staticmethod
     def returns_emit_ir_literal(stmts: List[Dict[str, Any]]) -> bool:
         """Return_emit_ir infra: True if some `return` in `stmts` (including inside an
         If/For/While/Try body, matching find_return_type's own traversal) returns a

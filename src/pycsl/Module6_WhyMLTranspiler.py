@@ -604,6 +604,20 @@ class Module6_WhyMLTranspiler(
             if needs.get("needs_return_emit_ir"):
                 _exprir_theory = list(_exprir_theory) + [
                     "", "  exception Return_emit_ir emit_ir"]
+            # self-tcb-reduction Layer-2: opttuple returns whose slot type references
+            # `emit_ir` (a receiver/slice recognizer returning `Optional[Tuple[ExprIR, ...]]`)
+            # are declared HERE — after the emit_ir ADT (just emitted) — not in
+            # `_emit_preamble_exceptions` (which runs before the ADT). The `Return_emit_ir`
+            # precedent above. Byte-inert: no existing opttuple return has an emit_ir slot.
+            _emit_ir_opttuples = sorted(
+                ot for ot in needs.get("opt_tuple_return_types", set())
+                if "emit_ir" in ot)
+            for _ot in _emit_ir_opttuples:
+                # Name by payload type (not arity) — see `_emit_preamble_exceptions`:
+                # a same-arity all-int opttuple would otherwise collide with this one.
+                _suffix = _ot.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+                _exprir_theory = list(_exprir_theory) + [
+                    "", f"  exception Return_opttuple_{_suffix} (option {_ot})"]
             # parser-primitives-wall-impl-3.md capability (i) — LOW-BLAST-RADIUS
             # record-element class-field gate. `_mutable_state_classes` is the COARSE
             # disjunct above: it fires for ANY @mutable_state class, including one whose

@@ -1726,6 +1726,19 @@ class ControlFlowStmtMixin:
             val = self._maybe_inject_union_return(val, val_ir)
         if use_raise:
             func_ret = self._func_return_type
+            if func_ret.startswith("option ("):
+                # Optional-tuple return: the built-in `option (τ...)` carries either
+                # `Some (a,b,c)` (a `return (a,b,c)`) or `None` (a `return None`),
+                # through the dedicated `Return_opttuple_<arity>` exception. Faithful
+                # to Python's `Optional[Tuple]` — `None` and `(0,…)` stay DISTINCT
+                # (the raw-tuple `Return_<arity>` path had to collapse `None` to a bare
+                # int and could not represent the absent case). The tuple value is
+                # lowered directly from `val_ir` (no `_coerce_to_int`, no union arm).
+                suffix = func_ret[len("option "):].replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+                if val_ir is not None and val_ir.get("type") == "Tuple":
+                    tup = self._expr_to_whyml(val_ir, local_refs)
+                    return f"{indent}raise (Return_opttuple_{suffix} (Some {tup}))"
+                return f"{indent}raise (Return_opttuple_{suffix} None)"
             if func_ret == "unit":
                 return f"{indent}raise Return_void"
             arity = self._current_tuple_arity
@@ -1808,6 +1821,13 @@ class ControlFlowStmtMixin:
                 val = self._bool_ir_to_int_wrap(val, val_ir)
             val = self._coerce_to_int(val)
             return f"{indent}raise (Return {val})"
+        # Optional-tuple TAIL (non-raise) return: mirror the raise-path option wrap
+        # for a function whose only exits are tail returns (`Some (a,b,c)` / `None`).
+        if self._func_return_type.startswith("option ("):
+            if val_ir is not None and val_ir.get("type") == "Tuple":
+                return f"{indent}(Some {self._expr_to_whyml(val_ir, local_refs)})"
+            if val_ir is None or val_ir.get("type") == "None":
+                return f"{indent}None"
         # W8 (vii): TAIL-return bool→int coercion. A `-> bool` Python function lowers to
         # a WhyML `int`-returning `let` (Python `bool` is modelled as `int` throughout —
         # `bool` params, `bool` fields and the early/in-loop `raise (Return …)` path above
