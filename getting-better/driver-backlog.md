@@ -1724,3 +1724,20 @@ LESSON: verify cluster REALITY (per-stub live-body measure) before a "cluster" b
 type-tag grouping was inaccurate. Frontier confirmed heavy-build-per-stub, NO cheap cluster. NEXT: verify
 the TUPLE cluster reality (`_parse_mixin_sig`/`_refine_tuple_return_type`/`_infer_tuple_slot_type` — do
 they SHARE a tuple-value-model fix, or 3 distinct walls?) before building.
+
+## tuple "cluster" = MIRAGE too (2026-08-11, count 738) — frontier comprehensively measured
+Spike REFUTED the tuple grouping (same topical-grouping error as typed-map): NONE of the 3 returns a
+heterogeneous tuple value — #1 `_parse_mixin_sig` returns `(List[Tuple[str,str]], str)` = faithful
+string-PARSER + seq-of-pairs; #2 `_refine_tuple_return_type -> str` = stateful self-field save/restore +
+Dict[str,Any] + 2 still-trusted helpers; #3 `_infer_tuple_slot_type -> str` = Dict[str,Any] pyval +
+getattr + trusted `_is_string_expr`/`_is_emit_ir_expr`. The tuple value SHAPE is axiom-free (Why3 tuples
+built-in) — NOT the blocker anywhere; the real blockers are heterogeneous-dict + string-parser +
+trusted-helper chains. **BOTH census "clusters" (typed-map, tuple) were MIRAGES.**
+FRONTIER COMPREHENSIVELY MEASURED (this session, 749->738, 11 conv): the cheap/cluster frontier is
+EXHAUSTED. Remaining residuals are each a distinct SESSION-SCALE build, gated behind: (a) the GENERAL
+heterogeneous Dict[str,Any] value model (broke the record-READ case via hval, but the general case is
+E-matching PROOF-SCALE-walled — hval on ONE field pushed stmt_control_flow to ~2400s; generalizing needs
+the E-matching PIN device FIRST); (b) faithful string-parsers; (c) stateful self-field frames; (d)
+still-trusted helper chains. Highest-leverage reopening capability = the E-matching PIN (bound hval VC
+cost) — enables cheaper general heterogeneous-dict reads. Last un-measured ranked lever = by-ref-param
+-frame (`_emit_opaque_class_aliases`); spiking it now.
