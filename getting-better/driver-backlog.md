@@ -1899,3 +1899,24 @@ BROAD method-receiver-reading recognizer class), axiom-free IN PRINCIPLE (ADT va
 co-landing Rocq+Lean cert re-proof, ledger 3), corpus-affecting (M1 — every reflected method call re-emits).
 SPIKING cert-feasibility (make-or-break: does the emit_ir ADT extend + the cert re-prove axiom-free, is the
 byte-diff M1-tractable?) before the full multi-session build.
+
+## 2026-08-12 — Call-receiver wall BROKEN (a221599f, 736->735) + opttuple naming-collision bug fixed
+- The general heterogeneous Dict[str,Any] / Call-receiver root wall is BROKEN via a certified
+  axiom-free emit_ir ADT extension (`| IrMethodCall emit_ir string emit_ir int` + total
+  receiver_of/slice_of/lower_of/upper_of/step_of accessors, gated `_uses_method_recv`). Phase2j
+  certs (Rocq 10/10 closed, Lean {propext,Quot.sound}). `_match_field_decode_idiom` (returns
+  Optional[Tuple[ExprIR,ExprIR,int]]) converted. Coupled to the opttuple return lowering (the
+  method returns Optional[tuple], so the two changes are inseparable — proven by attempting to
+  split them and breaking expressions.mlw).
+- PROCESS LESSON (banked): the authoritative set of "changed-emission mirror files" that a build
+  must whole-file-prove is NOT a worker's claimed file list — it is a MIRROR-WIDE .mlw emission
+  diff (emit all 52 mirror files at HEAD vs build, md5 diff). This caught a REAL emitter defect the
+  per-file work missed: the opttuple exception was named by ARITY alone, so Module6_WhyMLTranspiler
+  (which composes an `option (int,int,int)` method AND `_match_field_decode`'s `option
+  (emit_ir,emit_ir,int)`) emitted two `Return_opttuple_3` decls -> "Symbol already defined" ->
+  whole-file proof FAILED. so-wt only proved expressions/stmt_control_flow (each has ONE arity-3
+  opttuple), never the giant. Fix: key the exception name on the PAYLOAD TYPE
+  (Return_opttuple_int_int_int vs Return_opttuple_emit_ir_emit_ir_int) at both decl sites + raise +
+  catch. The collision only surfaces at whole-module COMPOSITION scale.
+- Next (user standing request "keep converting the receiver-reading class"): _is_string_expr /
+  _call_named_builtins / _handle_join_call / _infer_tuple_slot_type — now unblockable via receiver_of.
