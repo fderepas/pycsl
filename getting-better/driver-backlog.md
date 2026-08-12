@@ -1642,3 +1642,20 @@ record whose nested fields are typed maps (`field_types: Dict[str,str]`).** Spik
 `field_types` value as `map string (option string)` (not int) — a typed-nested-map-view / pget-returns-
 string-on-nested-pydict — fixes `_field_type_for`'s `--fun` error, byte-inert + axiom-free. CONTAINED →
 build (739→738 + unblocks `_field_type_of` + the record-view cluster); full-heterogeneous-rework → size it.
+
+## typed-record-view = FULL-REWORK-NEEDED [COST/SCALE, axiom-free] (2026-08-11, count 739, HEAD 3eba3466)
+Spiked `_field_type_for`. Root cause MEASURED: `_record_types` is a heterogeneous `Dict[str,Any]`
+self-field emitted `map string (option int)` (Any→int fallthrough preamble.py:7148); `info` is a scalar
+int with NO fields, so the existing nested-map path (Dict[str,Dict[str,int]]) can't fire — no place to
+hang the nested `field_types` string-map. `_field_type_for` fell to the ABSTRACT-READER path (opaque
+`get_1 field` int reader → the string-vs-int arm failure). Abstract-reader shortcut = Gate-C facade reject.
+FAITHFUL FIX (certified, axiom-free): retype `_record_types` value_type → the banked `hval` heterogeneous
+model (`map string (option hval)`, Phase2f_PyVal cert, hpairs assoc-list, ledger 3). BUT it retypes a
+SHARED field across **~97 read sites in 6 files** (types/statements/expressions/functions/stmt_control_flow/
+preamble), re-lowering every access + re-proving types.py + every giant composing typeinferencemixin.
+NOT byte-inert WITHIN the mirror (changes many green methods' terms; corpus byte-identical — hval sentinel
+corpus-absent). Yield only ~2-3 stubs (`_field_type_for`, `_field_type_of`, ~`_emit_body_code`). = poor
+ratio + high regression risk. [COST/SCALE, NOT correctness]. REOPENING = the hval shared-field retype.
+NEXT: SPIKE the REGRESSION RISK (retype `_record_types`→hval, re-emit the 6 files, count how many of the
+~97 read-site methods still PROVE) before committing to the full build. If sites survive → build; if they
+cascade → genuine multi-session, decompose or record as the funded-window big-build.
