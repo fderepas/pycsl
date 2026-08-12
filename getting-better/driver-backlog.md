@@ -1673,3 +1673,21 @@ name-keyed preamble overrides ~7127 + _uses_pyval ~6455); (2) propagate the type
 supervisor gate = the assembled Module6_WhyMLTranspiler giant proof (spike skipped it; expected green).
 MAKE-OR-BREAK of the build = does `_field_type_for`/`_field_type_of` lower NON-VACUOUSLY under hval (real
 HMap→HStr projections, not the abstract reader)? BUILDING now (739→737 if both convert).
+
+## hval-record-view = LANDED (2026-08-11, 739->738, commit a3785a13)
+`_field_type_for` converted by retyping the shared `_record_types` Dict[str,Any] field to the certified
+hval heterogeneous value model + 4 composable axiom-free emitter features (values()-recognizer w/ hval
+iterator, hstr_of compare, doubled pairs_get nested read, option-string union thread). Ledger 3, 0 new
+stubs, corpus byte-diff 0. Whole-file proofs SUCCESS: types.py, expressions.py, Module6_WhyMLTranspiler
+(giant), stmt_control_flow (@7200 — HEAVY hval E-matching ~2400s), ir_resolve; theory-only files inert.
+Non-vacuity confirmed (real HMap/pairs_get/HStr descent + mutation test). **BANKED: the hval typed-record
+read capability** (unblocks record-view readers of heterogeneous Dict[str,Any] registries).
+- **FLAG 1 (proof-cost):** the hval retype makes stmt_control_flow's `_record_types`-reader VCs E-matching
+  heavy (whole-file ~2400s, needs the 7200 timeout). Future hval-field retypes should bank an E-matching
+  PIN (size/wf trigger) to bound the cost (wall2 device).
+- **FLAG 2 (fidelity debt):** the load-bearing live `_handle_for_stmt` loop-var-tagging edit WIDENS its
+  PRE-EXISTING mirror divergence (baseline drift-2 = `_handle_var_expr` + `_handle_for_stmt`; count
+  unchanged, drift stays 2). A dedicated fidelity-cleanup pass should re-port BOTH stale mirror bodies.
+- **SIBLING `_field_type_of`:** blocked NOT by hval but by an orthogonal emit_ir receiver-reflection
+  feature (`attr.get('value') or attr.get('object') or {}` + getattr-with-default lowering → int-vs-option
+  mismatch). Separate build. SESSION TALLY: 749->738 (11 conversions).
