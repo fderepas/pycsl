@@ -1920,3 +1920,20 @@ byte-diff M1-tractable?) before the full multi-session build.
   catch. The collision only surfaces at whole-module COMPOSITION scale.
 - Next (user standing request "keep converting the receiver-reading class"): _is_string_expr /
   _call_named_builtins / _handle_join_call / _infer_tuple_slot_type — now unblockable via receiver_of.
+
+## 2026-08-12 (cont.) — frontier RE-MEASURED at walls (no_cheap_remaining); next wall precisely characterized
+After a221599f the receiver-reading class is DRAINED (fresh base-loop probe, 735). No cheap win remains.
+Top receiver-shaped candidates measured as walls:
+- `_field_type_of` (types.py:292, ~59ln) — TWO-part wall: (1) NEW node-type-aware routing of `.get("value")`
+  for an `IrAttr` base. `object_of` ALREADY reads the IrAttr base correctly (`match e with IrAttr o _ -> o`),
+  but the projection map `expressions.py:96` is FIELD-NAME-keyed globally: `"value"->svalue_of` (matches only
+  IrSub, returns `IrOther ""` for IrAttr) vs `"object"->object_of`. Module5 emits an Attribute base under BOTH
+  `value` (spec ctx) and `object` (body ctx), so `.get("value")` must route to the IrAttr-base accessor when the
+  base is IrAttr-typed — a structural change to a field-name-keyed map, NOT a new ctor. (2) THEN the banked
+  hval-record-view (per `_field_type_for`/a3785a13) for the `self._record_types.values()` walk + nested
+  `.get("field_types",{}).get(field_name)` — E-matching HEAVY (giant timeout, needs 7200; widened a fidelity
+  drift in the _field_type_for precedent). = heavy 2-part Phase-2 build, NOT a spike-sized win.
+- `_infer_return_value_type` (stmt_control_flow.py:1529, ~54ln) — cascade on unmodeled helper
+  `_record_valued_expr_whyml_type` (lowers to opaque int val) flowing into an `Optional[str]` union -> int/union clash.
+CHECKPOINT rationale: flagship (a221599f) landed+fully-verified this stretch; escalate-not-thrash + the heavy
+giant-proof cost of the next wall make a fresh context the right place to build it. Wall-signal recorded above.
