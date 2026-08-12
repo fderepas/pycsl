@@ -2786,6 +2786,25 @@ class PreambleEmissionMixin:
             for td in self.ir.get("type_decls", [])
             if td.get("kind") == "record"
             for f in td.get("fields", []))
+        # driver-backlog "string-field twin": gate for the STRING-FIELD
+        # crosscheck `all_agree` recognizer. TIGHT record-shape predicate (the
+        # `_has_opaque_term_fields` analog): a record whose EVERY field is a
+        # `str` (>= 3 fields). `CrossCheckResult` (7 str fields) qualifies;
+        # `IRCrossCheckResult` (Optional[Term] canon fields) does NOT, and no
+        # corpus program carries an all-string record + this exact 4-stmt
+        # `norms/present/all` idiom -> byte-inert everywhere but crosscheck.py.
+        from module6_whyml.generic_fold import recognize_crosscheck_str_agree
+        self._has_crosscheck_str_record = any(
+            td.get("kind") == "record"
+            and len(td.get("fields", [])) >= 3
+            and all(f.get("type") in ("str", "string")
+                    for f in td.get("fields", []))
+            for td in self.ir.get("type_decls", []))
+        needs_crosscheck_str_agree = bool(
+            self._has_crosscheck_str_record and any(
+                recognize_crosscheck_str_agree(f) is not None
+                for f in functions))
+        self._needs_crosscheck_str_agree = needs_crosscheck_str_agree
         needs_selfstate_streq = self._has_opaque_term_fields and any(
             recognize_crosscheck_selfstate_bool(f) is not None
             and _uses_str_empty(recognize_crosscheck_selfstate_bool(f)["expr"])
@@ -2809,6 +2828,7 @@ class PreambleEmissionMixin:
             "needs_term_setfold": needs_term_setfold,
             "needs_term_strbuild": needs_term_strbuild,
             "needs_selfstate_streq": needs_selfstate_streq,
+            "needs_crosscheck_str_agree": needs_crosscheck_str_agree,
             "needs_term_eq": needs_term_eq,
             "needs_sdict": needs_sdict,
             "needs_pdict_bridge": needs_pdict_bridge,
@@ -3108,7 +3128,8 @@ class PreambleEmissionMixin:
         # term-carrier precedent). Gated on the self-state recognizer; never
         # double-declared (pydict/term declare their own, and this file has
         # neither). Corpus/other-mirror byte-inert (needs_selfstate_streq False).
-        if (needs.get("needs_selfstate_streq")
+        if ((needs.get("needs_selfstate_streq")
+                or needs.get("needs_crosscheck_str_agree"))
                 and not needs.get("needs_pydict")
                 and not needs.get("needs_term_streq")):
             out.append("")

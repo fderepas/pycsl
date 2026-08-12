@@ -25,13 +25,15 @@ class CrossCheckResult:
     rocq_norm: str = ''
     lean_norm: str = ''
     registry_norm: str = ''
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def all_agree(self) -> bool:
-        return False
+        norms = [self.rocq_norm, self.lean_norm, self.registry_norm]
+        present = [n for n in norms if n]
+        if not present:
+            return False
+        return all(n == present[0] for n in present)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

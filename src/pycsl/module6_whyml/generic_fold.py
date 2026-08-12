@@ -32530,6 +32530,164 @@ def _cc_emit_eq_first(fields: List[str]) -> str:
     return "match " + scrut + " with " + " ".join(arms) + " end"
 
 
+# ============================================================================
+# STRING-FIELD twin of the crosscheck term `all_agree` (driver-backlog:
+# "string-field twin"). `CrossCheckResult.all_agree` (proof2why3/crosscheck.py)
+# is the string-field analog of the certified `IRCrossCheckResult.all_agree`:
+# same "collect canons; if none present -> False; all equal the first present"
+# idiom, but over `str` record fields with a TRUTHINESS filter (`if n`,
+# non-empty) + string `==`, vs the term twin's `Optional[Term]` fields with
+# `if c is not None` + `term_eq`. Live 4-stmt body:
+#     norms   = [self.<F1>, self.<F2>, ...]          # array/list of str fields
+#     present = [n for n in norms if n]              # non-empty (truthy) filter
+#     if not present: return False
+#     return all(n == present[0] for n in present)
+# Reuses the term-twin ARCHITECTURE (fields tuple + "first-present anchor,
+# rest must agree" fold) but string-typed: presence = `not (pystr_eq f "")`,
+# equality = the abstract `val pystr_eq` (result VC-free -> NOT an axiom;
+# ledger 3, the term-carrier precedent). Emits a REAL nested-`if` over the
+# actual string fields (NOT the generic string-filter-comprehension int-
+# collapse). STRICT / fail-closed: any shape outside the grammar -> None (the
+# stub keeps `\trusted`). DISPATCH-gated on `_has_crosscheck_str_record` (a
+# record whose EVERY field is `str`) -> fires on 0 corpus programs + only
+# `CrossCheckResult` among the mirror files.
+# ============================================================================
+
+def _cc_strfields_of_seqlit(node: Any) -> Optional[List[str]]:
+    """`[self.F1, self.F2, ...]` (Array/List literal of >=1 self-fields, ALL
+    self-fields) -> [F1, F2, ...] or None (fail-closed)."""
+    if not (isinstance(node, dict)
+            and node.get("type") in ("ArrayLit", "List", "ListLit", "Tuple")):
+        return None
+    fields: List[str] = []
+    for e in node.get("elts", []):
+        f = _cc_field_of(e)
+        if f is None:
+            return None
+        fields.append(f)
+    return fields or None
+
+
+def recognize_crosscheck_str_agree(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Recognize the STRING-FIELD `all_agree` (4-stmt listcomp shape above).
+    Returns {"shape":"str_agree","fields":[...]} or None. Never raises."""
+    if func.get("formal_params"):
+        return None
+    if "__" not in (func.get("name") or ""):
+        return None
+    body = func.get("body", [])
+    if len(body) != 4:
+        return None
+    s_norms, s_present, s_if, s_ret = body
+    # [0] norms = [self.F1, self.F2, ...]
+    if not (isinstance(s_norms, dict) and s_norms.get("stmt") == "Assign"):
+        return None
+    nvar = s_norms.get("target")
+    if not isinstance(nvar, str):
+        return None
+    fields = _cc_strfields_of_seqlit(s_norms.get("value"))
+    if fields is None:
+        return None
+    # [1] present = [n for n in norms if n]   (bare-var truthiness filter)
+    if not (isinstance(s_present, dict) and s_present.get("stmt") == "Assign"):
+        return None
+    pvar = s_present.get("target")
+    lc = s_present.get("value")
+    if not (isinstance(pvar, str) and isinstance(lc, dict)
+            and lc.get("type") == "ListComp"):
+        return None
+    gens = lc.get("generators", [])
+    if len(gens) != 1:
+        return None
+    bv = gens[0].get("target")
+    ifs = gens[0].get("ifs")
+    if not (_is_var(lc.get("elt"), bv) and _is_var(gens[0].get("iter"), nvar)
+            and isinstance(ifs, list) and len(ifs) == 1 and _is_var(ifs[0], bv)):
+        return None
+    # [2] if not present: return False   (no orelse)
+    if not (isinstance(s_if, dict) and s_if.get("stmt") == "If"):
+        return None
+    test = s_if.get("test")
+    if not (isinstance(test, dict) and test.get("type") == "UnaryOp"
+            and test.get("op") == "not" and _is_var(test.get("expr"), pvar)
+            and not s_if.get("orelse")):
+        return None
+    thenb = s_if.get("body", [])
+    if not (len(thenb) == 1 and isinstance(thenb[0], dict)
+            and thenb[0].get("stmt") == "Return"
+            and isinstance(thenb[0].get("value"), dict)
+            and thenb[0]["value"].get("type") == "Bool"
+            and thenb[0]["value"].get("value") is False):
+        return None
+    # [3] return all(n == present[0] for n in present)
+    if not (isinstance(s_ret, dict) and s_ret.get("stmt") == "Return"):
+        return None
+    call = s_ret.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == "all"):
+        return None
+    args = call.get("args", [])
+    if not (len(args) == 1 and isinstance(args[0], dict)
+            and args[0].get("type") == "GenExp"):
+        return None
+    ge = args[0]
+    ggens = ge.get("generators", [])
+    if len(ggens) != 1:
+        return None
+    bv2 = ggens[0].get("target")
+    if not (_is_var(ggens[0].get("iter"), pvar) and not ggens[0].get("ifs")):
+        return None
+    elt = ge.get("elt")
+    if not (isinstance(elt, dict) and elt.get("type") == "BinOp"
+            and elt.get("op") == "==" and _is_var(elt.get("left"), bv2)):
+        return None
+    r = elt.get("right")
+    if not (isinstance(r, dict) and r.get("type") == "Subscript"
+            and _is_var(r.get("value"), pvar)
+            and isinstance(r.get("index"), dict)
+            and r["index"].get("type") == "Number"
+            and r["index"].get("value") == 0):
+        return None
+    return {"shape": "str_agree", "fields": fields}
+
+
+def _cc_emit_str_agree(fields: List[str]) -> str:
+    """`all(n == present[0] for n in [f for f in <fields> if f])` over the
+    string fields: the FIRST non-empty field is the anchor; every later field
+    must be empty OR string-equal the anchor; all-empty -> false. Presence =
+    `not (pystr_eq self.<f> "")`; equality = `pystr_eq`. Descends the REAL
+    string fields (mutation-flowing: field names + the `=` appear literally)."""
+    def present(f: str) -> str:
+        return f'(not (pystr_eq self.{f} ""))'
+
+    def rest_agree(anchor: str, later: List[str]) -> str:
+        if not later:
+            return "true"
+        return " && ".join(
+            f'((pystr_eq self.{f} "") || (pystr_eq self.{f} self.{anchor}))'
+            for f in later)
+    expr = "false"
+    for i in range(len(fields) - 1, -1, -1):
+        anchor = fields[i]
+        expr = (f'(if {present(anchor)} then '
+                f'({rest_agree(anchor, fields[i + 1:])}) else {expr})')
+    return expr
+
+
+def emit_crosscheck_str_agree_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                    whyml_ident) -> List[str]:
+    """Emit the STRING-FIELD `all_agree` as a total `let` over the string
+    record fields. `ensures True` (type-safety + termination only)."""
+    n = whyml_ident(func["name"])
+    self_type = n.split("__")[0]
+    body = _cc_emit_str_agree(desc["fields"])
+    return [
+        f"  let {n} (self: {self_type}) : bool",
+        "    requires { true } ensures { true }",
+        f"  = {body}",
+    ]
+
+
 # =========================================================================
 # string-keyed-set NoReturn cluster (check-noreturn-successors driver):
 # the two standalone leaf helpers of `_check_noreturn_successors`, both over

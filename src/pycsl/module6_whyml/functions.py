@@ -3448,6 +3448,21 @@ class FunctionEmissionMixin:
                 if _ctm is not None:
                     return emit_crosscheck_term_method_group(
                         func, _ctm, _tspec_cc, whyml_ident)
+        # driver-backlog "string-field twin": the STRING-FIELD analog of the
+        # crosscheck term `all_agree` (`CrossCheckResult.all_agree` over `str`
+        # record fields with a truthiness filter + string `==`). Disjoint from
+        # the term carrier (no opaque_term fields here). Gated on
+        # `_has_crosscheck_str_record` (a record whose EVERY field is `str`) ->
+        # fires on 0 corpus programs + only `CrossCheckResult` among the
+        # mirrors. Fail-closed: a `\trusted` stub body never matches -> `val`.
+        if getattr(self, "_has_crosscheck_str_record", False):
+            from module6_whyml.generic_fold import (
+                recognize_crosscheck_str_agree,
+                emit_crosscheck_str_agree_group)
+            _csa = recognize_crosscheck_str_agree(func)
+            if _csa is not None:
+                return emit_crosscheck_str_agree_group(
+                    func, _csa, whyml_ident)
         _tspec = getattr(self, "_term_adt_spec", None)
         if _tspec:
             # class-variant-impl.md T-transform: a Term->Term (constructor-rebuild)
