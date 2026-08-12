@@ -1,0 +1,172 @@
+diff --git a/src/pycsl/module6_whyml/functions.py b/src/pycsl/module6_whyml/functions.py
+index ffaed05d..26c1437a 100644
+--- a/src/pycsl/module6_whyml/functions.py
++++ b/src/pycsl/module6_whyml/functions.py
+@@ -1782,6 +1782,20 @@ class FunctionEmissionMixin:
+         return_type = IRScanner.find_return_type(body_stmts)
+         return_type = self._refine_tuple_return_type(func, body_stmts, return_type)
+         ann = func.get("return_annotation")
++        # Optional-tuple return (self-tcb-reduction Tier-5 value model): a function
++        # whose return annotation is a synthesized `_union_*` (an `Optional[X]`
++        # normalized by Module5) AND whose body BOTH returns a tuple AND returns the
++        # `None` literal is an `Optional[Tuple[τ...]]` reader. Its faithful WhyML type
++        # is the BUILT-IN `option (τ...)` — not the raw tuple `(τ...)` (which cannot
++        # carry `None`) and not the `Arm_i_0 int` union (whose synthesized payload is
++        # a scalar `int`, not the tuple). Gated on an ACTUAL `return None`: such a
++        # function currently emits `raise (Return_<arity> 0)` (bare int) against a
++        # `(τ...)` tuple slot — an L3 type error — so NO passing corpus baseline
++        # contains one (byte-inert). `option` + tuples are Why3 built-ins → no axiom.
++        if (isinstance(ann, str) and ann.startswith("_union_")
++                and return_type.startswith("(") and "," in return_type
++                and IRScanner.has_none_return(body_stmts)):
++            return f"option {return_type}"
+         # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): two statement-IR
+         # return-type overrides in the emitter model. (1) The trusted sub-body
+         # dispatcher `_py_stmts_to_ir` — its result feeds `seq_to_sl` at an
+diff --git a/src/pycsl/module6_whyml/ir_scanner.py b/src/pycsl/module6_whyml/ir_scanner.py
+index 2b62990f..7a01d5c1 100644
+--- a/src/pycsl/module6_whyml/ir_scanner.py
++++ b/src/pycsl/module6_whyml/ir_scanner.py
+@@ -801,6 +801,31 @@ class IRScanner:
+                         return result
+         return "int"
+ 
++    @staticmethod
++    def has_none_return(stmts: List[Dict[str, Any]]) -> bool:
++        """Optional-tuple value model: True if some `return` in `stmts` (including
++        nested in If/For/While/Try/Match bodies) returns the `None` literal
++        (`return None`). This is the signal that a tuple-returning `Optional[...]`
++        function's WhyML type must be the built-in `option (τ...)` (which can carry
++        the absent case), NOT the raw tuple `(τ...)` (which cannot)."""
++        for stmt in stmts:
++            if stmt.get("stmt") == "Return":
++                v = stmt.get("value")
++                if isinstance(v, dict) and v.get("type") == "None":
++                    return True
++            for key in ("body", "orelse"):
++                if key in stmt and IRScanner.has_none_return(stmt[key]):
++                    return True
++            if stmt.get("stmt") == "Try":
++                for h in stmt.get("handlers", []):
++                    if IRScanner.has_none_return(h.get("body", [])):
++                        return True
++            if stmt.get("stmt") == "Match":
++                for c in stmt.get("cases", []):
++                    if IRScanner.has_none_return(c.get("body", [])):
++                        return True
++        return False
++
+     @staticmethod
+     def returns_emit_ir_literal(stmts: List[Dict[str, Any]]) -> bool:
+         """Return_emit_ir infra: True if some `return` in `stmts` (including inside an
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index 85ff5dbc..9fe010b7 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -1817,6 +1817,9 @@ class PreambleEmissionMixin:
+         needs_return_str = False
+         needs_return_emit_ir = False
+         tuple_return_arities: Set[int] = set()
++        # Optional-tuple return: the refined `(τ...)` tuple types of `Optional[Tuple]`
++        # readers, each emitted as an `exception Return_opttuple_<arity> (option (τ...))`.
++        opt_tuple_return_types: Set[str] = set()
+         # value-model campaign incr5 (primitive c): synthesized-union (`Optional[X]`) return
+         # types that need a dedicated `Return_<variant>` exception — a function returning a
+         # `_union_*` variant WITH an early/in-loop return can't carry the variant through the
+@@ -1832,6 +1835,18 @@ class PreambleEmissionMixin:
+                 ann = func.get("return_annotation")
+                 if ret_type == "unit":
+                     needs_return_void = True
++                elif (isinstance(ann, str) and ann.startswith("_union_")
++                        and ret_type.startswith("(") and "," in ret_type
++                        and IRScanner.has_none_return(func["body"])):
++                    # Optional-tuple return: an `Optional[Tuple[τ...]]` reader carries
++                    # either `Some (τ...)` or `None` through a dedicated
++                    # `Return_opttuple_<arity>` exception whose payload is the built-in
++                    # `option (τ...)`. Parallel to the raw-tuple `Return_<arity>` branch
++                    # below, but option-wrapped so the `return None` value model is
++                    # faithful. The refined slot types match `_compute_return_type`'s
++                    # `option (τ...)` return type. Byte-inert (see `_compute_return_type`).
++                    opt_tuple_return_types.add(
++                        self._refine_tuple_return_type(func, func["body"], ret_type))
+                 elif ret_type.startswith("(") and "," in ret_type:
+                     # Tuple return — needs a dedicated Return_<arity> exception
+                     # so the value carries through; the plain `exception Return int`
+@@ -2847,6 +2862,7 @@ class PreambleEmissionMixin:
+             "needs_return_void": needs_return_void,
+             "needs_body_dict": needs_body_dict,
+             "tuple_return_arities": tuple_return_arities,
++            "opt_tuple_return_types": opt_tuple_return_types,
+             "union_return_types": union_return_types,
+             "needs_string": needs_string,
+             "needs_char": needs_char,
+@@ -3075,6 +3091,14 @@ class PreambleEmissionMixin:
+             parts = ", ".join(["int"] * arity)
+             out.append("")
+             out.append(f"  exception Return_{arity} ({parts})")
++        for ot in sorted(needs.get("opt_tuple_return_types", set())):
++            # Optional-tuple return: carry `Some (τ...)` / `None` through a dedicated
++            # exception whose payload is the built-in `option (τ...)`. `ot` is the
++            # refined `(τ...)` tuple type (from `_compute_return_type`); named by arity
++            # to match the `raise (Return_opttuple_<arity> ...)` / catch sites.
++            arity = ot.count(",") + 1
++            out.append("")
++            out.append(f"  exception Return_opttuple_{arity} (option {ot})")
+         # NOTE (value-model incr5, primitive c): the `Return_<variant>` exceptions are NOT
+         # declared here — they reference synthesized `_union_*` types that are emitted LATER by
+         # `_emit_type_decls`, so they are emitted just AFTER it (see `_emit_union_return_exceptions`,
+diff --git a/src/pycsl/module6_whyml/statements.py b/src/pycsl/module6_whyml/statements.py
+index f508f324..4585019a 100644
+--- a/src/pycsl/module6_whyml/statements.py
++++ b/src/pycsl/module6_whyml/statements.py
+@@ -1971,6 +1971,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+         arity = self._current_tuple_arity
+         if return_type == "unit":
+             return f"    try\n{body_code}\n    with Return_void -> () end"
++        if return_type.startswith("option ("):
++            # Optional-tuple return: catch the dedicated `Return_opttuple_<arity>`
++            # exception, whose `option (τ...)` payload is handed straight back
++            # (immutable — no materialize). Parallel to the `Return_<arity>` tuple arm.
++            opt_arity = return_type[len("option "):].count(",") + 1
++            return f"    try\n{body_code}\n    with Return_opttuple_{opt_arity} r -> r end"
+         if arity > 0:
+             return f"    try\n{body_code}\n    with Return_{arity} r -> r end"
+         if return_type == "array int":
+diff --git a/src/pycsl/module6_whyml/stmt_control_flow.py b/src/pycsl/module6_whyml/stmt_control_flow.py
+index 12f2f7cc..fe8e381c 100644
+--- a/src/pycsl/module6_whyml/stmt_control_flow.py
++++ b/src/pycsl/module6_whyml/stmt_control_flow.py
+@@ -1726,6 +1726,19 @@ class ControlFlowStmtMixin:
+             val = self._maybe_inject_union_return(val, val_ir)
+         if use_raise:
+             func_ret = self._func_return_type
++            if func_ret.startswith("option ("):
++                # Optional-tuple return: the built-in `option (τ...)` carries either
++                # `Some (a,b,c)` (a `return (a,b,c)`) or `None` (a `return None`),
++                # through the dedicated `Return_opttuple_<arity>` exception. Faithful
++                # to Python's `Optional[Tuple]` — `None` and `(0,…)` stay DISTINCT
++                # (the raw-tuple `Return_<arity>` path had to collapse `None` to a bare
++                # int and could not represent the absent case). The tuple value is
++                # lowered directly from `val_ir` (no `_coerce_to_int`, no union arm).
++                arity = func_ret[len("option "):].count(",") + 1
++                if val_ir is not None and val_ir.get("type") == "Tuple":
++                    tup = self._expr_to_whyml(val_ir, local_refs)
++                    return f"{indent}raise (Return_opttuple_{arity} (Some {tup}))"
++                return f"{indent}raise (Return_opttuple_{arity} None)"
+             if func_ret == "unit":
+                 return f"{indent}raise Return_void"
+             arity = self._current_tuple_arity
+@@ -1808,6 +1821,13 @@ class ControlFlowStmtMixin:
+                 val = self._bool_ir_to_int_wrap(val, val_ir)
+             val = self._coerce_to_int(val)
+             return f"{indent}raise (Return {val})"
++        # Optional-tuple TAIL (non-raise) return: mirror the raise-path option wrap
++        # for a function whose only exits are tail returns (`Some (a,b,c)` / `None`).
++        if self._func_return_type.startswith("option ("):
++            if val_ir is not None and val_ir.get("type") == "Tuple":
++                return f"{indent}(Some {self._expr_to_whyml(val_ir, local_refs)})"
++            if val_ir is None or val_ir.get("type") == "None":
++                return f"{indent}None"
+         # W8 (vii): TAIL-return bool→int coercion. A `-> bool` Python function lowers to
+         # a WhyML `int`-returning `let` (Python `bool` is modelled as `int` throughout —
+         # `bool` params, `bool` fields and the early/in-loop `raise (Return …)` path above

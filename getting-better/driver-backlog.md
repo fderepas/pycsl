@@ -1851,3 +1851,18 @@ self-fields / its ir param.
 None->bare-int). Unblocks `_match_field_decode_idiom` (body already proves modulo the return) + any
 Optional-tuple-returning reader. SPIKING it now. (Secondary: re-census for scalar-return + declared-field
 readers = the direct #@ no_inline scope.) SESSION: 749->736 (13 conv).
+
+## Optional-tuple return lowering = BUILT+BANKED (byte-inert, axiom-free) but needs the IR-SUB-NODE ACCESSOR value model (2026-08-11, count 736)
+The Optional[Tuple[IR]] return-lowering fix WORKS (5 sites: _compute_return_type option-union sig,
+has_none_return scanner, Return_opttuple_N exception, return->raise Some/None, catch) — verified byte-inert
+(0 Return_opttuple with stub restored, L3-tc clean) + axiom-free (option+tuples built-in). Saved to
+getting-better/banked-opttuple-return-lowering.patch (converts NOTHING alone — no-unused-facade, so NOT
+landed solo). The ONLY Optional-tuple stub `_match_field_decode_idiom` hits a SECOND blocker AFTER the
+return fix: **IR-SUB-NODE ACCESSOR value model** — sub-node LOCALS (`recv=expr.get("value")`,
+`split_call`, `slice_node`) are typed `int` (ref 0) with opaque field-hash readers (`split_call_get_arr
+"args"` -> array int), so `split_call.get("args")[0]` = int clashes with the converted
+`_is_null_byte_lit(ir: emit_ir)`. **THIS IS THE GENERAL HETEROGENEOUS-DICT ROOT WALL** (the whole session
+converged here; #@ no_inline + Optional-tuple spikes both bottomed out on it). Axiom-free-fixable (emit_ir/
+args_of certified built-ins) — type sub-node locals as emit_ir + add certified field accessors (receiver/
+value/slice/index/lower/upper). BIG value-model build (auto-authorized, M1), BROAD unblock (all IR-sub-node
+readers). BUNDLE with the banked return-lowering patch. SPIKING it as the root-wall build.
