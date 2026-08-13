@@ -2153,3 +2153,20 @@ DictLit, (3) faithful zip + k,v tuple-unpack, (5) kv construction (set_kv, PROVE
 .get reads (gap-1/2), (6) set/key over-approx (missing/extra feed only the RAISE branch -> over-approx
 sound; returned record depends only on faithful kv.get(fname)), (7) not-in hval_str_mem, (8) raise
 f-string _err-divergence. ESCALATED to full build.
+
+## 2026-08-14 — _typeddict_record_literal build IN PROGRESS (uncommitted, count 731, NOT yet typechecking)
+Session-scale build, caps landing incrementally (blocker advancing). DONE: cap-1 (getattr-self-string-default
+read + string-local collector), cap-1b (.items()-key alias string-local), cap-2 (expr.get("keys"/"values",[])
+-> real irlist projections dictlit_keys_of/dictlit_values_of). cap-2 ARCH FIX: IrDictLit was _uses_stmt_ir-gated
+(Module5-only); added name-gated `_uses_dictlit()` (true iff file defines _typeddict_record_literal) to append
+IrDictLit + its kind_of arm (no wildcard) + the 2 projections into expressions.mlw ONLY -> Module5/stmt_ir path
+byte-identical (verified still L3-tc clean), corpus byte-inert. All definitional, LEDGER STAYS 3.
+REMAINING (blocker at cap-3 zip region mlw:2242-2244): cap-3 (faithful zip + k,v tuple-unpack — NO existing
+machinery; needs stmt_control_flow recognizer: index loop over min(irlen keys, irlen values), k=irnth i keys /
+v=irnth i values, both emit_ir; the dual-emit_ir twin of the .items() unpack; irlen/irnth exist; v currently
+NEVER bound). cap-5 (DOMINANT, spike-proven kv construction — REFINED: codomain is `map string (option emit_ir)`
+NOT option hval, since v is the DictLit value NODE; use set_kv/empty_kv non-ghost vals over that type, guarded
+insert on isinstance(k,dict)&k.get("type")=="String", kv[k.get("value","")]=v, kv.get(fname)=Map.get). cap-6
+(set over-approx, reuse __anystr .values() pattern, feeds raise branch). cap-7 (not-in hval_str_mem + list-comp,
+feeds raise branch). cap-8 (raise) DONE. BANKED reusable: cap-1/1b/2 (getattr-self-string, items-key alias,
+_uses_dictlit+DictLit-into-expr-mirror+child-list projections+irlist-predecl).
