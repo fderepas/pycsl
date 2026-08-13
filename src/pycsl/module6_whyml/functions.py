@@ -627,6 +627,37 @@ class FunctionEmissionMixin:
                 if _rhs_is_pyval(st.get("value") or {}):
                     pyval.add(tgt)
                     changed = True
+        # self-tcb-reduction _namedtuple_positional_access: a pyval local read as a
+        # COLLECTION — `len(X)` or `X[<Number>]` (an ordered hval sequence like
+        # `rec_info["fields"]`, not a string leaf) — must bind the RAW `hval` (so
+        # `hval_len`/`hval_nth_str` type-check), NOT the `HStr`-projected string that a
+        # string-consumed pyval local (`rec_info["whyml_name"]`) needs. Record such
+        # locals so the assign binder reads their `X = <owner>[key]` RHS raw. Byte-inert
+        # (empty when no pyval local is `len`/Number-index read).
+        coll: Set[str] = set()
+
+        def _scan_coll(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") == "len":
+                    _la = node.get("args") or []
+                    if (_la and isinstance(_la[0], dict) and _la[0].get("type") == "Var"
+                            and _la[0].get("name") in pyval):
+                        coll.add(_la[0]["name"])
+                if node.get("type") == "Subscript":
+                    _sv = node.get("value")
+                    _si = node.get("index")
+                    if (isinstance(_sv, dict) and _sv.get("type") == "Var"
+                            and _sv.get("name") in pyval
+                            and isinstance(_si, dict) and _si.get("type") == "Number"):
+                        coll.add(_sv["name"])
+                for _cv in node.values():
+                    _scan_coll(_cv)
+            elif isinstance(node, list):
+                for _cs in node:
+                    _scan_coll(_cs)
+
+        _scan_coll(body_stmts)
+        self._pyval_coll_locals = coll
         return pyval
 
     def _has_dynamic_exec(self, func: Dict[str, Any]) -> bool:

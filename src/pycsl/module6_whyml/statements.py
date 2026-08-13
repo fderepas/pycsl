@@ -272,7 +272,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _prev_dts = getattr(self, "_decode_to_string", False)
         if _str_target:
             self._decode_to_string = True
+        # self-tcb-reduction _namedtuple_positional_access: when the target is a
+        # collection-consumed pyval local (`fields = rec_info["fields"]`, later `len`/
+        # Number-index read), lower its subscript RHS to the RAW `hval` (not the HStr
+        # string projection) so `hval_len`/`hval_nth_str` type. Scoped to this single RHS.
+        _prev_pgrc = getattr(self, "_pyval_get_raw_coll", False)
+        if target in getattr(self, "_pyval_coll_locals", set()):
+            self._pyval_get_raw_coll = True
         val = self._expr_to_whyml(val_ir, local_refs)
+        self._pyval_get_raw_coll = _prev_pgrc
         self._decode_to_string = _prev_dts
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
         if vt in ("Tuple", "SetLit"):

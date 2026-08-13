@@ -31,6 +31,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _quant_scalar_binders: Set[str] = None
     _record_locals: Set[str] = None
     _record_types: Dict[str, Any] = None
+    # self-tcb-reduction _namedtuple_positional_access (WL-04b/c): the record-array
+    # PARAM/LOCAL name→whyml_name maps (live: functions.py `__init__`), modeled as
+    # string→string dict self-fields so `getattr(self, "_record_array_params",
+    # {}).get(_nm)` reads the real `map string (option string)`.
+    _record_array_params: Dict[str, str] = None
+    _record_array_locals: Dict[str, str] = None
     _shared_var_names: Set[str] = None
     _todict_aliases: Dict[str, str] = None
     _current_symbol_table: Dict[str, str] = None
@@ -689,12 +695,58 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _typeddict_record_literal(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
-    def _namedtuple_positional_access(self, value: int, index_ir: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
-        return None
+    def _namedtuple_positional_access(self, value: "ExprIR", index_ir: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        if index_ir.get("type") != "Number":
+            return None
+        idx_val = index_ir.get("value")
+        if not isinstance(idx_val, int) or idx_val < 0:
+            return None
+        rec_name = None
+        if value.get("type") == "Var":
+            sym = getattr(self, "_current_symbol_table", {}).get(value.get("name", ""))
+            if sym and sym in getattr(self, "_record_types", {}):
+                if self._record_types[sym].get("is_namedtuple"):
+                    rec_name = sym
+        if rec_name is None and value.get("type") in ("Attribute", "FieldGet"):
+            ft = self._field_type_of(value)
+            if ft and ft in getattr(self, "_record_types", {}):
+                if self._record_types[ft].get("is_namedtuple"):
+                    rec_name = ft
+        # WL-04b (record residual): `a[i][k]` on a flat `List[Tuple[…]]` param — the
+        # inner read `a[i]` is a namedtuple record (the synthesized `pytuple_<tags>`),
+        # so the outer integer subscript `[k]` is its k-th positional slot. Hoist the
+        # element read into a `let` (it may carry a body-context bounds-assert block).
+        _wrap_let = False
+        if (rec_name is None and value.get("type") == "Subscript"
+                and isinstance(value.get("value"), dict)
+                and value["value"].get("type") == "Var"):
+            _nm = value["value"].get("name", "")
+            # WL-04c: a record-array LOCAL (`a = [Pt(1,2), …]`) shares the WL-04b
+            # `a[i][k]` slot path with a record-array PARAM.
+            _rn = (getattr(self, "_record_array_params", {}).get(_nm)
+                   or getattr(self, "_record_array_locals", {}).get(_nm))
+            if _rn is not None:
+                # `_rn` is the whyml_name; find the record class whose whyml_name matches.
+                for _cls, _info in getattr(self, "_record_types", {}).items():
+                    if _info.get("whyml_name") == _rn and _info.get("is_namedtuple"):
+                        rec_name = _cls
+                        _wrap_let = True
+                        break
+        if rec_name is None:
+            return None
+        rec_info = self._record_types[rec_name]
+        fields = rec_info["fields"]
+        if idx_val >= len(fields):
+            return None
+        field_name = fields[idx_val]
+        rec_lower = rec_info["whyml_name"]
+        base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+        if _wrap_let:
+            return f"(let _rec_ = {base} in _rec_.{self._field_label(rec_lower, field_name)})"
+        return f"{base}.{self._field_label(rec_lower, field_name)}"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

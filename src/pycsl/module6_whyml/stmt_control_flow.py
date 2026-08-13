@@ -239,6 +239,28 @@ class ControlFlowStmtMixin:
             return self._expr_to_whyml(obj, local_refs)
         return None
 
+    def _hval_items_recv(self, iter_ir: Dict[str, Any]) -> Optional[str]:
+        """self-tcb-reduction _namedtuple_positional_access: if `iter_ir` is a `.items()`
+        call over an hval-typed dict self-field — either the dotted `self.<field>.items()`
+        OR the defensive `getattr(self, "<field>", {}).items()` form — return the dotted
+        `self.<field>` (whose `_self_field_dict_nu` == "hval"); else None. Gated on
+        `_value_semantic` + a resolvable hval self-field -> corpus/other-mirror inert."""
+        if not (self._value_semantic and isinstance(iter_ir, dict)
+                and iter_ir.get("type") == "Call"):
+            return None
+        _f = iter_ir.get("func")
+        _recv = None
+        if isinstance(_f, str) and _f.endswith(".items"):
+            _recv = _f[:-len(".items")]
+        elif _f == "items":
+            _rcv = iter_ir.get("receiver")
+            _fld = self._getattr_self_field(_rcv) if isinstance(_rcv, dict) else ""
+            if _fld:
+                _recv = f"self.{_fld}"
+        if _recv and "." in _recv and self._self_field_dict_nu(_recv) == "hval":
+            return _recv
+        return None
+
     def _classify_iterable(self, iter_ir: Dict[str, Any],
                             local_refs: Set[str], idx: str) -> Tuple[str, str, bool]:
         """Classify a For loop's iterable. Returns (len_expr, elem_expr, is_range).
@@ -249,6 +271,7 @@ class ControlFlowStmtMixin:
         self._pyast_loop_variant_len = None
         self._for_iter_materialize = None
         self._for_target_is_pyval = False
+        self._for_items_hval_map = None
         # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
         # (the `_field_type_for`/`_field_type_of` record-registry scan over
         # `self._record_types.values()`, retyped to `map string (option hval)`) iterates
@@ -274,6 +297,24 @@ class ControlFlowStmtMixin:
                 self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
                 return (f"(hval_values_len {_mapw})",
                         f"(hval_values_get {_mapw} !{idx})", False)
+        # self-tcb-reduction _namedtuple_positional_access: the `.items()` twin — `for k, v
+        # in <hval-field>.items()` iterates the same over-approx (bound `hval_values_len`,
+        # value `hval_values_get`); the KEY binding (an arbitrary `string`, `hval_keys_get`)
+        # is emitted by `_handle_for_stmt`'s tuple binder. Here we only return the VALUE
+        # element (the value target is the pyval loop var). Stash the map WhyML so the
+        # tuple binder can build the key read. Gated on a pyval self-field `.items()`
+        # receiver -> corpus/other-mirror inert.
+        _items_recv = self._hval_items_recv(iter_ir)
+        if _items_recv is not None:
+            _obj, _fld = _items_recv.rsplit(".", 1)
+            _mapw = self._expr_to_whyml(
+                {"type": "FieldGet", "object": _obj, "field": _fld},
+                local_refs)
+            self._for_target_is_pyval = True
+            self._for_items_hval_map = _mapw
+            self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
+            return (f"(hval_values_len {_mapw})",
+                    f"(hval_values_get {_mapw} !{idx})", False)
         # self-tcb-reduction giants (generic class-body lowering): `for child in
         # <classdef>.body` over a `py_classdef_node` param iterates the MODELLED
         # `class_body_ast node` psl cons-list — bound `psl_len (class_body_ast node)`,
@@ -586,7 +627,22 @@ class ControlFlowStmtMixin:
             and isinstance(iter_ir.get("func"), str)
             and iter_ir.get("func").endswith(".values")
             and self._self_field_dict_nu(iter_ir.get("func")[:-len(".values")]) == "hval")
+        # self-tcb-reduction _namedtuple_positional_access: the `.items()` twin — `for k, v
+        # in <hval-field>.items()` binds `k` to an arbitrary `string` (`hval_keys_get`) and
+        # `v` to a real `hval` (`hval_values_get`). Register the VALUE target `v`
+        # (tuple_targets[1]) in `_pyval_locals` for the body so `v.get("whyml_name")` /
+        # `v.get("is_namedtuple")` lower via the certified `pairs_get`/`hval_truthy`, not the
+        # int-erased facade. Gated on a pyval self-field `.items()` receiver -> corpus inert.
+        _is_pyval_items = (self._hval_items_recv(iter_ir) is not None
+                           and tuple_targets and len(tuple_targets) == 2)
+        _items_val_target = tuple_targets[1] if _is_pyval_items else None
+        if _is_pyval_items:
+            # both tuple components are in scope for the body (key `string`, value `hval`).
+            _items_extra = {t for t in tuple_targets if t and t != "_"}
+            body_local = body_local | _items_extra
+            body_declared = body_declared | _items_extra
         _saved_pyval_member = None
+        _saved_pyval_val_member = None
         _saved_for_pyval_flag = getattr(self, "_for_target_is_pyval", False)
         # The element `let` binding (`_loop_var_bindings`) is emitted DURING body
         # emission — before `_classify_iterable` runs — so set the immutable-bind flag
@@ -598,6 +654,11 @@ class ControlFlowStmtMixin:
                 self._pyval_locals = set()
             _saved_pyval_member = target in self._pyval_locals
             self._pyval_locals.add(target)
+        if _is_pyval_items and _items_val_target and _items_val_target != "_":
+            if not hasattr(self, "_pyval_locals"):
+                self._pyval_locals = set()
+            _saved_pyval_val_member = _items_val_target in self._pyval_locals
+            self._pyval_locals.add(_items_val_target)
         if _is_classbody:
             self._pyast_stmt_locals.add(target)
             _st = getattr(self, "_current_symbol_table", None)
@@ -658,6 +719,9 @@ class ControlFlowStmtMixin:
             self._keyword_locals.discard(target)
         if _is_pyval_values and _saved_pyval_member is False:
             self._pyval_locals.discard(target)
+        if (_is_pyval_items and _items_val_target and _items_val_target != "_"
+                and _saved_pyval_val_member is False):
+            self._pyval_locals.discard(_items_val_target)
         self._for_target_is_pyval = _saved_for_pyval_flag
         if not inner_body:
             inner_body = f"{inner_indent}()"
@@ -757,6 +821,23 @@ class ControlFlowStmtMixin:
                     lines.append(f"{bind_indent}let {whyml_ident(_ch_name)} = "
                                  f"ref (str_sub_op {_op} !{idx} 1) in")
                 return lines
+            # self-tcb-reduction _namedtuple_positional_access: an hval `.items()` loop
+            # binds BOTH tuple components — the KEY (an arbitrary `string`, `hval_keys_get`,
+            # IMMUTABLE) and the VALUE (a real `hval`, `elem_expr` = `hval_values_get`,
+            # IMMUTABLE so the body's `match v with HMap ...` matches an `hval`). Gated on
+            # `_is_pyval_items` -> corpus/other-mirror inert.
+            if _is_pyval_items:
+                _mapw = getattr(self, "_for_items_hval_map", None)
+                _kt, _vt = tuple_targets[0], tuple_targets[1]
+                _lines: List[str] = []
+                if _kt and _kt != "_" and _mapw is not None:
+                    # the KEY is a mutable `ref string` (in `body_declared`, so its reads
+                    # deref `!k`) — the VALUE is an immutable pyval `hval` (read bare).
+                    _lines.append(f"{bind_indent}let {whyml_ident(_kt)} = "
+                                  f"ref (hval_keys_get {_mapw} !{idx}) in")
+                if _vt and _vt != "_":
+                    _lines.append(f"{bind_indent}let {whyml_ident(_vt)} = ({elem_expr}) in")
+                return _lines
             # hval-retype (self-tcb-reduction Tier-5): a pyval `.values()` loop var
             # binds an IMMUTABLE `hval` (`let info = <elem>`, no `ref`) so the body's
             # K7 `match info with HMap ...` projection matches an `hval` (not a `ref hval`).

@@ -6759,6 +6759,24 @@ class PreambleEmissionMixin:
             "      end",
             "  let function hval_str_mem (h: hval) (x: string) : bool =",
             "    match h with HArr l -> hval_list_str_mem l x | _ -> false end",
+            "  (* self-tcb-reduction _namedtuple_positional_access: an hval collection"
+            " (`rec_info[\"fields\"]`, an `HArr` of `HStr`) viewed as an ordered SEQUENCE —"
+            " its LENGTH (`len(fields)`) and its i-th element as a `string` (`fields[idx]`)."
+            " Total definitional recursion over the bespoke `hval_list` carrier, descends"
+            " the REAL structure (non-vacuous), NO axiom. *)",
+            "  let rec function hval_list_len (l: hval_list) : int",
+            "    variant { l }",
+            "    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end",
+            "  let function hval_len (h: hval) : int =",
+            "    match h with HArr l -> hval_list_len l | _ -> 0 end",
+            "  let rec function hval_list_nth (l: hval_list) (i: int) : hval",
+            "    variant { l }",
+            "    = match l with",
+            "      | HNil -> HInt 0",
+            "      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)",
+            "      end",
+            "  let function hval_nth_str (h: hval) (i: int) : string =",
+            "    match h with HArr l -> hstr_of (hval_list_nth l i) | _ -> \"\" end",
             "  (* hval-retype (self-tcb-reduction Tier-5): the abstract `.values()`"
             " iterator over a `map string (option hval)` field — a native Why3 `map` is"
             " not finitely iterable, so the ENUMERATION is over-approximated (arbitrary"
@@ -6773,6 +6791,12 @@ class PreambleEmissionMixin:
             " bound falls out of the loop condition `idx < len`) -> ledger stays 3. *)",
             "  val function hval_values_len (m: map string (option hval)) : int",
             "  val function hval_values_get (m: map string (option hval)) (i: int) : hval",
+            "  (* self-tcb-reduction _namedtuple_positional_access: the `.items()` twin of"
+            " the `.values()` walk — a `for k, v in <hval-field>.items()` loop binds the"
+            " KEY `k` to an arbitrary `string` (over-approx enumeration, same length as"
+            " the values) alongside the real `hval` value. Uninterpreted + total +"
+            " effect-free; NO axiom. *)",
+            "  val function hval_keys_get (m: map string (option hval)) (i: int) : string",
             "",
         ]
 

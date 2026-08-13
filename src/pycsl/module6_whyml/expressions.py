@@ -342,6 +342,13 @@ _EMIT_IR_GET_KEY_PROJ_BY_FUNC = {
     # leaving these two entries to serve ONLY the FieldGet standalone reads. SCOPED via
     # `_current_emitting_func` so every other `.get("object")`/`.get("field")` is byte-inert.
     "_field_type_of": {"object": "fgobject_of", "field": "field_of"},
+    # self-tcb-reduction _namedtuple_positional_access: `index_ir.get("value")` (NO default)
+    # after a `type == "Number"` guard reads the Number leaf's INT payload (`num_of`), NOT
+    # the `svalue_of` emit_ir sub-node. An empty scoped entry is enough — it makes
+    # `_scoped2 is not None`, so the `.get("value")` disambiguation below routes to `num_of`
+    # (no empty-dict default). Every other key falls through to the global table. SCOPED via
+    # `_current_emitting_func` -> corpus/other-mirror byte-inert.
+    "_namedtuple_positional_access": {},
 }
 # self-tcb-reduction Layer-2: SCOPED extra emit_ir-NODE keys for the recognizer's
 # flow-typing. Globally `lower`/`upper`/`step` are NOT node keys (the R4 SliceExpr readers
@@ -2100,6 +2107,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _fn = ir.get("func")
             if isinstance(_fn, str) and _fn.endswith(".get"):
                 _a = ir.get("args") or []
+                # self-tcb-reduction _namedtuple_positional_access (gap-2b): inside a func
+                # whose `.get("value")` is SCOPED (in `_EMIT_IR_GET_KEY_PROJ_BY_FUNC`) to the
+                # Number-leaf INT payload (`num_of`, no empty-dict / str-literal default — see
+                # the `_scoped_val` routing in `_lower_dict_get_call`), the read is an `int`,
+                # NOT an emit_ir sub-node. Mirror that num_of routing here so the target local
+                # is typed `int` (not pre-declared `ref (IrOther "")`). Byte-inert: `_scoped2`
+                # only fires for the self-annotation emitter-method names.
+                _cef2b = getattr(self, "_current_emitting_func", None) or ""
+                _ent2b = next((_t for _h, _t in _EMIT_IR_GET_KEY_PROJ_BY_FUNC.items()
+                               if _cef2b == _h or _cef2b.endswith("__" + _h)), None)
+                # Only an EMPTY scoped entry (`{}`) is the num_of-value marker (added by
+                # `_namedtuple_positional_access`). A NON-empty entry (e.g. `_field_type_of`'s
+                # `{object,field}`) reads `.get("value")` via the receiver-IDIOM recognizer
+                # (`X.get("value") or X.get("object")` -> `avalue_of`, an emit_ir sub-node),
+                # so its operand MUST stay emit_ir — do NOT exclude it (that regressed
+                # `_field_type_of`, whose `receiver` local then mistyped `int`).
+                _routes_num = (_ent2b is not None and not _ent2b
+                               and _a and isinstance(_a[0], dict)
+                               and _a[0].get("value") == "value"
+                               and not self._get_default_is_empty_dict(ir)
+                               and not self._get_default_is_str_literal(ir))
                 if (len(_a) >= 1 and isinstance(_a[0], dict)
                         and _a[0].get("type") == "String"
                         and _a[0].get("value") in self._effective_emit_ir_node_keys()
@@ -2107,6 +2135,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         # default (`index_ir.get("value", "")`) means the string-content read
                         # (`value_of`, a `string`), NOT the emit_ir sub-node -> not emit_ir.
                         and not self._get_default_is_str_literal(ir)
+                        and not _routes_num
                         and self._is_emit_ir_expr({"type": "Var", "name": _fn[:-len(".get")]})):
                     return True
         # Lever 6: a `self.<method>(...)` / bare `<func>(...)` call whose DECLARED
@@ -4239,6 +4268,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (atype == "Var" and arg_ir.get("name")
                 and arg_ir.get("name") == getattr(self, "_vararg_str_param", None)):
             return f"(Seq.length {whyml_ident(arg_ir['name'])})"
+        # self-tcb-reduction _namedtuple_positional_access: `len(fields)` where `fields` is a
+        # pyval-local hval COLLECTION (`fields = rec_info["fields"]`, an HArr) is the
+        # hval-list length (`hval_len`), NOT the opaque `iter_length : int -> int` (which
+        # mistypes against hval). Gated on `_pyval_locals` -> corpus/mirror byte-inert.
+        if (atype == "Var" and arg_ir.get("name")
+                and arg_ir.get("name") in getattr(self, "_pyval_locals", set())):
+            return f"(hval_len {whyml_ident(arg_ir['name'])})"
         # §B′: len(d[k]) where d is a seq-valued dict (`Dict[_, List[int]]`) — the
         # read is a `seq int`, so its length is `Seq.length`.
         if atype == "Subscript":
@@ -6992,9 +7028,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # K6 self-field `.get`; Python `dict.get(k)` returns None on a missing key).
             # An `hval` value (not `option hval`) so the read composes uniformly — e.g.
             # `{"bound": info.get("bound")}` embeds it via `_pyval_wrap`.
-            return (f"(match {recv} with HMap m_k7 -> "
-                    f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
-                    f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
+            _k7_leaf = (f"(match {recv} with HMap m_k7 -> "
+                        f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
+                        f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
+            # self-tcb-reduction _namedtuple_positional_access: the leaf read is a RAW
+            # `hval`. A bool/if context (`for k, v in ...: if v.get("is_namedtuple"):`)
+            # must test its Python-truthiness via `hval_truthy`, NOT the `str_eq_op … ""`
+            # STRING truthiness the generic `_to_bool` would apply (an hval is not a
+            # string). Stash the raw form (string form == raw form here, since the read IS
+            # the hval) so `_to_bool`'s string-equality match swaps in `hval_truthy`.
+            self._last_hval_get_raw = _k7_leaf
+            self._last_hval_get_str = _k7_leaf
+            return _k7_leaf
         # §26: `X.get(k)` where X aliases a self dict-field → `self.<field>.get(k)`.
         _alias = self._alias_self_field(recv)
         if _alias:
@@ -8065,6 +8110,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (isinstance(value, dict) and value.get("type") == "Var"
                 and value.get("name") in getattr(self, "_pyval_locals", set())):
             _pv = whyml_ident(value.get("name"))
+            _iir = expr.get("index", {})
+            # self-tcb-reduction _namedtuple_positional_access: an INT-index subscript on a
+            # pyval-local hval COLLECTION (`fields[idx_val]`, `fields` = an HArr) reads the
+            # idx-th `HStr` as a `string` -> `hval_nth_str`. A String-KEY subscript
+            # (`rec_info["whyml_name"]`) is the DOUBLED map read (`pairs_get`). Disambiguated
+            # by the index IR node type.
+            # self-tcb-reduction _namedtuple_positional_access: an INT-index subscript on a
+            # pyval-local hval COLLECTION reads the idx-th `HStr` as a `string`
+            # (`hval_nth_str`). Fires for a Number literal (`fields[0]`) OR any index into a
+            # collection-consumed pyval local (`fields[idx_val]`, `idx_val` an int ref) —
+            # `fields` ∈ `_pyval_coll_locals`, so the index is an int, never a string key.
+            if ((isinstance(_iir, dict) and _iir.get("type") == "Number")
+                    or value.get("name") in getattr(self, "_pyval_coll_locals", set())):
+                return f"(hval_nth_str {_pv} {index})"
+            # self-tcb-reduction _namedtuple_positional_access: when this String-key read
+            # binds a COLLECTION-consumed pyval local (`fields = rec_info["fields"]`, flag
+            # set by the assign binder), return the RAW `hval` value (`Some v_ -> v_`) so
+            # the target types `hval` (for `hval_len`/`hval_nth_str`), NOT the HStr string
+            # projection a string-consumed read (`rec_info["whyml_name"]`) needs.
+            if getattr(self, "_pyval_get_raw_coll", False):
+                return (f"(match {_pv} with HMap m_pvs -> "
+                        f"(match pairs_get m_pvs {index} with Some v_ -> v_ "
+                        f"| None -> (HMap PNil) end) | _ -> (HMap PNil) end)")
             return (f"(match {_pv} with HMap m_pvs -> "
                     f"(match pairs_get m_pvs {index} with Some (HStr _s) -> _s "
                     f"| _ -> \"\" end) | _ -> \"\" end)")
