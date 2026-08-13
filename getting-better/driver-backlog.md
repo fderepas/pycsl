@@ -2136,3 +2136,20 @@ projection from DictLit; (3) faithful zip + k,v tuple-unpack binding; (4) loop-b
 string membership; (8) raise PyCSLSemanticError w/ f-string. Cap (5) (kv-local construction) is the
 dominant cost. ROOT 2 cheap/reusable members DRAINED (#1 #2 landed). This is the frontier's next
 funded build; caps are REUSABLE (construction-form heterogeneous-dict wall, likely cascades).
+
+## 2026-08-13 — _typeddict_record_literal SPIKE = FEASIBLE (cap-5 kv-local construction PROVEN)
+Make-or-break falsifier PASSED (scratchpad/spike_kvlocal.mlw, 4 VCs Valid/Z3; spike_falsifier.mlw
+non-vacuity FALSE-asserts correctly don't prove). The heterogeneous string->emit_ir dict LOCAL
+constructed imperatively then read back is modelable via the BANKED set_kv device: a NON-GHOST program
+`val set_kv (m:map string (option hval))(k:string)(v:option hval): ... ensures {result = Map.set m k v}`
++ `val empty_kv (): ... ensures {forall k. Map.get result k = None}`. Root cause it was blocked: Why3's
+built-in Map.set is a GHOST function (`kv := Map.set !kv k v` rejected non-ghost) — set_kv is the
+conservative non-ghost realization (SOUND, NOT an axiom; map string (option hval)+hval already certified
+Phase2f; LEDGER STAYS 3). Read-back proves via Map Select_eq/Select_neq; Z3 knows distinct string
+literals distinct. Alt-Ergo times out (no string theory) — Z3-only, matches mirror reality.
+FULL BUILD = session-scale ~8-cap, correctness DE-RISKED: new caps = (1) getattr-string-default local
+typing (was the L3-tc blocker @2210), (2) expr.get("keys"/"values",[]) emit_ir-list projection from
+DictLit, (3) faithful zip + k,v tuple-unpack, (5) kv construction (set_kv, PROVEN); reused = (4) IR-node
+.get reads (gap-1/2), (6) set/key over-approx (missing/extra feed only the RAISE branch -> over-approx
+sound; returned record depends only on faithful kv.get(fname)), (7) not-in hval_str_mem, (8) raise
+f-string _err-divergence. ESCALATED to full build.
