@@ -2121,3 +2121,18 @@ THREE hard-won PROCESS LESSONS (supervisor caught what the delegate's flow misse
 
 Next wall: ROOT 2 member #3 `_typeddict_record_literal` (has .items() LIVE + collection-iterate/set/zip/raise) —
 reuses the 6+ banked hval caps; measure via whole-file proof.
+
+## 2026-08-13 — _typeddict_record_literal = WALL (V1 heterogeneous-Dict-LOCAL-CONSTRUCTION), reverted clean at 732
+ROOT 2 member #3. Build-only measurement (verbatim port + whole-file --no-proof) FAILED L3-tc at
+expressions.mlw:2210 (`frt` getattr-string-default), and the emitted body is dominated by opaque
+input-blind facades (Gate-C reject regardless). Distinct from cluster members #1/#2: those READ hval
+self-fields/locals (banked caps cover); THIS method CONSTRUCTS a fresh heterogeneous string->emit_ir
+`kv` dict LOCAL + set-compares + list-comprehends + zip-unpacks + raises an f-string error. Needs a
+SESSION-SCALE ~8-cap definitional build (all over existing hval/emit_ir/map ADTs — NO new axiom/ADT,
+ledger stays 3): (1) getattr-string-default local typing; (2) expr.get("keys"/"values",[]) emit_ir-list
+projection from DictLit; (3) faithful zip + k,v tuple-unpack binding; (4) loop-bound-IR-node
+.get("type")/.get("value","") reads; (5) the kv heterogeneous string->emit_ir dict LOCAL
+(insert/.keys()/.get); (6) set() over hval collection + over kv keys; (7) list-comp with `not in`
+string membership; (8) raise PyCSLSemanticError w/ f-string. Cap (5) (kv-local construction) is the
+dominant cost. ROOT 2 cheap/reusable members DRAINED (#1 #2 landed). This is the frontier's next
+funded build; caps are REUSABLE (construction-form heterogeneous-dict wall, likely cascades).
