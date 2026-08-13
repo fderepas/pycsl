@@ -2202,3 +2202,15 @@ ROOT 2 hval cluster DRAINED (3 members). Next-wall ranking:
    _handle_call_expr) — scale walls, review-gated, banked caps get individual branches close.
 4. Raw CPython AST ingestion (_synthesize_typeddict_functional/_emit_typeddict_record + Module5 ast.* walkers) — distinct
    raw-ast Ingestor boundary class.
+
+## 2026-08-14 — Dict PARAM value-model SPIKE = REFINED/FEASIBLE (session-scale, no floor); escalating _infer_tuple_slot_type
+The literal param-codomain is SOLVED with existing machinery: `Dict[str,str]` param -> `map string (option string)`
+via _m5_get_dict_value_type + _dict_param_whyml_type (zero emitter changes, ledger 3). NECESSARY-NOT-SUFFICIENT.
+Converting `_infer_tuple_slot_type` = session-scale ~4-5 caps (NO correctness floor): (a) `elt` raw-Dict[str,Any]
+string-field READ (type/name/func read back as string); (b) string-local flow-typing for `x = strmap.get(k)` (locals
+currently `ref 0`); (c) string-membership/equality lowering replacing int-hash facades (`st in ("list",...)` ->
+str_eq_op, currently `!st = 1555321514` vacuous); (d) emit_ir-vs-raw-dict reconciliation (sibling _is_string_expr/
+_is_emit_ir_expr model the node as emit_ir while elt is raw dict); (e) Set[str] params (array_vars/dict_vars now
+map int(option int) -> want set/string). CAPS CASCADE (raw-dict string-read family = many stubs). Wall class =
+"heterogeneous IR-node-dict string READ + string flow-typing". _track_collection_metadata is DISTINCT/heavier (full
+hval HArr/HNode + self-state metadata mutation — separate wall). ESCALATED to build.
