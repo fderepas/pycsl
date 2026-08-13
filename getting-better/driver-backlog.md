@@ -1966,3 +1966,38 @@ or/and-chain local flow-typing (empty-dict sentinel); Attribute-receiver whole-i
 recognition. NEXT: re-drain Phase 1, then the next receiver/heterogeneous-dict-shaped wall
 (`_infer_return_value_type` stmt_control_flow.py:1529 = `_record_valued_expr_whyml_type` opaque-int→Optional[str]
 union clash was the other measured wall).
+
+## 2026-08-13 (cont.) — Phase 1 re-drain after _field_type_of = no_cheap_remaining; next walls REFINED into 2 roots
+Base-loop drain (foreground) landed 0 cheap wins; the 3 banked _field_type_of caps unblock no sibling with
+existing machinery. Residual walls split into TWO roots (measured, NOT the subagent's 1-cap hypothesis):
+- **ROOT 1 = RELOCATION/SIGNATURE BOUNDARY (not cheap).** `_field_type_for` (statements.py:229) +
+  `_field_type_of` (statements.py:276) are RELOCATED stubs in StatementEmissionMixin with signature `-> str`
+  (return `""`), whereas the LIVE method (types.py, just converted) is `-> Optional[str]`. There is NO live
+  `-> str` body to port verbatim → verbatim-porting is BLOCKED (a body adapting `return None`→`return ""` is a
+  REFACTOR = Gate reject). ALSO `_record_types` is UNDECLARED in the statements.py mirror model (so
+  `_self_field_dict_nu` can't resolve it → the `.values()` walk stays int-typed / get_1 facade). Reopening
+  capability = a signature-aware relocated-stub mechanism (port the origin body + adapt the return-type at the
+  relocation boundary WITHOUT it counting as a refactor) — a NEW driver capability, FLAG. `_field_type_of`@276
+  is additionally a DEAD stub (no mirror caller); `_field_type_for`@229 IS live (called by verified
+  `_handle_fieldassign_stmt`).
+- **ROOT 2 = MULTI-CAPABILITY hval build (session-scale, ExpressionEmissionMixin, non-relocated, verbatim-OK).**
+  Cluster: `_typeddict_field_access` (expressions.py:660, live 7622), `_typeddict_record_literal` (667, live
+  7683), `_namedtuple_positional_access` (674, live 7758). The subagent's "1 cap = string-truthiness" was an
+  UNDER-count; `_typeddict_field_access` alone needs FOUR new hval sub-caps:
+  (a) **hval-truthiness**: `if self._record_types[sym].get("is_typeddict"):` — the `.get` value is a BOOL, but
+     the certified DOUBLED read projects `Some (HStr s) -> s | _ -> ""` → string, then `if <string>:` lowers to
+     `<string> <> 0` (int) = TYPE ERROR (expressions.mlw:2028, whole-file only — `--fun`/`--no-proof` FALSE
+     GREEN, reconfirms 10.10). Faithful fix = an `hval_truthy : hval -> bool` total definitional `let function`
+     (HBool b->b | HStr s-> s<>"" | HInt i-> i<>0 | HNone->false | ...), axiom-free, + route the hval `.get` to
+     return the RAW hval (not string-project) in a bool/if context. (Not string-truthiness — hval-truthiness;
+     a string-projection would be VACUOUS for the bool key.)
+  (b) **hval-subscript-STRING-read on an hval LOCAL**: `rec_info["whyml_name"]` where `rec_info =
+     self._record_types[rec_name]` (an hval local) → `match rec_info with HMap m -> pairs_get m "whyml_name"
+     …`. (My banked Layer-C hval-subscript handles the self-FIELD `_record_types[rec_name]`; this is the
+     LOCAL-hval subscript twin.)
+  (c) **hval-collection-subscript**: `rec_info["fields"]` → an hval list/collection.
+  (d) **`not in` membership** on `rec_info["fields"]` (the hval collection).
+  = a genuine multi-cap session-scale value-model build (auto-authorized, M1). expressions.py is a GIANT
+  (whole-file proof 7200, setsid-detached). RECOMMENDED NEXT: build ROOT 2's (a)+(b) first (they gate the
+  typecheck), measure via WHOLE-FILE proof (NOT --fun — false green here), then (c)+(d). BANKED for reuse:
+  Layer-C hval self-field subscript; the DOUBLED hval `.get` read; the hval-record-view `.values()` walk.
