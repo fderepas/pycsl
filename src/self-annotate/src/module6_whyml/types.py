@@ -37,6 +37,7 @@ class TypeInferenceMixin:
     _module_method_return_types: Dict[str, str] = None
     _current_record_var_classes: Dict[str, str] = None
     _module_global_classes: Dict[str, str] = None
+    _record_param_classes: Dict[str, str] = None
     _array_locals: Set[str] = None
     _dict_locals: Set[str] = None
     _current_array1d_params: Set[str] = None
@@ -245,11 +246,42 @@ class TypeInferenceMixin:
                 return info.get("field_types", {}).get(field)
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _field_type_of(self, attr_ir: "ExprIR") -> Optional[str]:
+        receiver_name = None
+        field_name = None
+        if attr_ir.get("type") == "Attribute":
+            receiver = attr_ir.get("value") or attr_ir.get("object") or {}
+            if isinstance(receiver, dict) and receiver.get("type") == "Var":
+                receiver_name = receiver.get("name")
+            field_name = attr_ir.get("attr")
+        elif attr_ir.get("type") == "FieldGet":
+            receiver_name = attr_ir.get("object")
+            field_name = attr_ir.get("field")
+        if receiver_name is None or field_name is None:
+            return None
+        cls = None
+        if receiver_name == "self":
+            cls = self._current_self_type
+        else:
+            gcls = getattr(self, "_module_global_classes", {}).get(receiver_name)
+            if gcls is not None and gcls in self._record_types:
+                cls = self._record_types[gcls].get("whyml_name")
+            else:
+                rvcls = getattr(self, "_current_record_var_classes", {}).get(receiver_name)
+                if rvcls is not None and rvcls in self._record_types:
+                    cls = self._record_types[rvcls].get("whyml_name")
+                else:
+                    pcls = getattr(self, "_record_param_classes", {}).get(receiver_name)
+                    if pcls is not None:
+                        cls = pcls
+        if not cls:
+            return None
+        for info in self._record_types.values():
+            if info.get("whyml_name") == cls:
+                return info.get("field_types", {}).get(field_name)
         return None
 
     #@ requires True

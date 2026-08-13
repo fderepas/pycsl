@@ -333,6 +333,15 @@ _EMIT_IR_GET_KEY_PROJ_BY_FUNC = {
         "receiver": "receiver_of", "slice": "slice_of",
         "lower": "lower_of", "upper": "upper_of", "step": "step_of",
     },
+    # self-tcb-reduction _field_type_of: the FieldGet-branch reads `attr_ir.get("object")`
+    # / `attr_ir.get("field")` are the FieldGet LEAF STRINGS (`fgobject_of`/`field_of`) —
+    # the object NAME and field NAME, NOT the generic emit_ir sub-node `object_of` (which
+    # is the IrAttr receiver, the wrong type-class for FieldGet; risk-6 asymmetry). The
+    # Attribute-branch `.get("value") or .get("object")` receiver read is handled WHOLESALE
+    # by `_recognize_attr_receiver_idiom` (→ `avalue_of`), so it never hits this scope —
+    # leaving these two entries to serve ONLY the FieldGet standalone reads. SCOPED via
+    # `_current_emitting_func` so every other `.get("object")`/`.get("field")` is byte-inert.
+    "_field_type_of": {"object": "fgobject_of", "field": "field_of"},
 }
 # self-tcb-reduction Layer-2: SCOPED extra emit_ir-NODE keys for the recognizer's
 # flow-typing. Globally `lower`/`upper`/`step` are NOT node keys (the R4 SliceExpr readers
@@ -1966,6 +1975,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if isinstance(k, dict) and k.get("type") == "String" and k.get("value") == "type":
                     return True
             return False
+        # self-tcb-reduction _field_type_of: a value-preserving `A or B` / `A and B`
+        # over emit_ir operands (the `receiver = attr_ir.get("value") or
+        # attr_ir.get("object") or {}` idiom) is itself an emit_ir node — the Lever-6
+        # short-circuit at `_handle_binop` returns the SELECTED operand, an emit_ir
+        # value. Each operand must be emit_ir OR the falsy empty-dict `{}` (the absent
+        # sentinel, lowered to `IrOther ""`); at least ONE must be a real emit_ir node
+        # (a pure `{} or {}` is not one). Gated on `_is_emit_ir_expr` of the operands →
+        # a corpus `x or y` (int operands) never matches, so this is byte-inert.
+        if t in ("BinOp", "BoolOp") and ir.get("op") in ("or", "and"):
+            def _op_is_emit_ir_or_empty(o: Any) -> bool:
+                return (self._is_emit_ir_expr(o)
+                        or (isinstance(o, dict) and o.get("type") == "DictLit"
+                            and not o.get("keys")))
+            _lo = ir.get("left", {})
+            _ro = ir.get("right", {})
+            if (_op_is_emit_ir_or_empty(_lo) and _op_is_emit_ir_or_empty(_ro)
+                    and (self._is_emit_ir_expr(_lo) or self._is_emit_ir_expr(_ro))):
+                return True
+            return False
         if t in ("Attribute", "FieldGet"):
             obj = ir.get("object", {})
             if isinstance(obj, dict) and obj.get("type") == "Var":
@@ -3594,6 +3622,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _pd = self._recognize_pyval_or_default(expr, local_refs, invariant_ctx, subst)
             if _pd is not None:
                 return _pd
+            # _field_type_of: the `<emit_ir>.get("value") or <emit_ir>.get("object")
+            # or {}` Attribute-receiver idiom -> `avalue_of <node>` (handled whole so the
+            # `.get("object")` operand escapes the generic key projection). Byte-inert.
+            _ar = self._recognize_attr_receiver_idiom(expr, local_refs, invariant_ctx, subst)
+            if _ar is not None:
+                return _ar
         # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): the
         # `_py_stmt_expr` docstring-skip guard `isinstance(v, ast.Constant) and
         # isinstance(v.value, str)` (v an ExprIR child) collapses to `(is_str v)` — the
@@ -6664,6 +6698,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return True
                 if self._self_field_dict_nu(recv) == "hval":
                     return True
+        # self-tcb-reduction _field_type_of: a subscript `self.<field>[k]` on a
+        # `map string (option hval)` self-field produces an `hval` (unwrapped by the
+        # `_handle_subscript` hval-map path), so a chained `.get(...)` on it is the
+        # DOUBLED hval read. Mirrors the `.get`-on-hval-field case above.
+        if t == "Subscript":
+            _v = e.get("value")
+            if isinstance(_v, dict) and _v.get("type") in ("Attribute", "FieldGet"):
+                _vo = _v.get("object")
+                _va = _v.get("attr") or _v.get("field")
+                _dot = None
+                if isinstance(_vo, dict) and _vo.get("type") == "Var" and _va:
+                    _dot = f"{_vo.get('name')}.{_va}"
+                elif isinstance(_vo, str) and _va:
+                    _dot = f"{_vo}.{_va}"
+                if _dot is not None and self._self_field_dict_nu(_dot) == "hval":
+                    return True
         return False
 
     def _recognize_pyval_or_default(self, expr: Dict[str, Any],
@@ -6688,6 +6738,57 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _empty = "(HMap PNil)"  # R3: empty HMap carrier is the empty assoc list
         return (f"(match {_lw} with HMap m_or -> {_lw} "
                 f"| _ -> {_empty} end)")
+
+    def _recognize_attr_receiver_idiom(self, expr: Dict[str, Any],
+                                       local_refs: Optional[Set[str]],
+                                       invariant_ctx: bool,
+                                       subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """self-tcb-reduction _field_type_of: the Attribute-receiver extraction idiom
+        `<emit_ir>.get("value") or <emit_ir>.get("object") [or {}]`. Module5 emits an
+        Attribute's receiver under BOTH `value` (spec ctx) and `object` (body ctx), so
+        the idiom takes whichever is present. Over the `emit_ir` sum this IS
+        `avalue_of <node>` — the IrAttr∪IrSub unifier, which equals the IrAttr object
+        sub-node (`object_of`) on an Attribute. Lowering the WHOLE or-chain as a unit
+        keeps the `.get("object")` operand from reaching the generic key projection,
+        which is what lets `_field_type_of`'s SEPARATE FieldGet-branch `.get("object")`
+        scope to the leaf-string `fgobject_of` without a same-key type conflict. Gated on
+        the receiver being emit_ir and the exact `value`/`object` key pair (on the same
+        receiver) -> corpus byte-inert. Returns None (fall through) otherwise."""
+        def _flatten_or(n: Any) -> List[Any]:
+            if (isinstance(n, dict) and n.get("type") == "BinOp"
+                    and n.get("op") == "or"):
+                return _flatten_or(n.get("left", {})) + _flatten_or(n.get("right", {}))
+            return [n]
+
+        def _get_key_recv(n: Any) -> Optional[Tuple[str, str]]:
+            if not (isinstance(n, dict) and n.get("type") == "Call"):
+                return None
+            _fn = n.get("func")
+            if not (isinstance(_fn, str) and _fn.endswith(".get")):
+                return None
+            _a = n.get("args") or []
+            if not (len(_a) == 1 and isinstance(_a[0], dict)
+                    and _a[0].get("type") == "String"):
+                return None
+            return (_fn[:-len(".get")], _a[0].get("value"))
+
+        ops = _flatten_or(expr)
+        if (ops and isinstance(ops[-1], dict) and ops[-1].get("type") == "DictLit"
+                and not ops[-1].get("keys")):
+            ops = ops[:-1]
+        if len(ops) != 2:
+            return None
+        kv0 = _get_key_recv(ops[0])
+        kv1 = _get_key_recv(ops[1])
+        if kv0 is None or kv1 is None:
+            return None
+        if kv0[0] != kv1[0] or kv0[1] != "value" or kv1[1] != "object":
+            return None
+        recv_ir = {"type": "Var", "name": kv0[0]}
+        if not self._is_emit_ir_expr(recv_ir):
+            return None
+        _rw = self._expr_to_whyml(recv_ir, local_refs or set(), invariant_ctx, subst)
+        return f"(avalue_of {_rw})"
 
     def _lower_dict_get_call(self, expr: Dict[str, Any], args: List[str],
                               func_name: str, local_refs: Optional[Set[str]],
@@ -7908,6 +8009,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _key = self._coerce_to_int(index)
                 _dflt = '""' if _nu == "string" else "0"
                 return f"(match Map.get {_recv} {_key} with | Some _v -> _v | None -> {_dflt} end)"
+        # self-tcb-reduction _field_type_of: a subscript read `self.<field>[<key>]` on a
+        # heterogeneous `map string (option hval)` self-field (`_record_types[gcls]`) —
+        # UNWRAP the `option hval` to an `hval` (the missing-key default is the empty
+        # `HMap PNil`), so a chained `.get("whyml_name")` (the DOUBLED hval read) descends
+        # the REAL assoc-list structure instead of the opaque `get_1` facade. κ=string
+        # (matching the field store/membership) → the RAW native string key. Gated on the
+        # field being an hval map -> corpus byte-inert (no corpus `Dict[str, Any]` field).
+        if (isinstance(value, dict) and value.get("type") in ("Attribute", "FieldGet")):
+            _vo = value.get("object")
+            _va = value.get("attr") or value.get("field")
+            _dot = None
+            if isinstance(_vo, dict) and _vo.get("type") == "Var" and _va:
+                _dot = f"{_vo.get('name')}.{_va}"
+            elif isinstance(_vo, str) and _va:
+                _dot = f"{_vo}.{_va}"
+            if _dot is not None and self._self_field_dict_nu(_dot) == "hval":
+                _recv = self._expr_to_whyml(value, local_refs or set(), invariant_ctx, subst)
+                if self._self_field_dict_kappa(_dot) == "string":
+                    _key = index
+                else:
+                    self._add_abstract_op("val str_hash_op (s: string) : int")
+                    _key = f"(str_hash_op {index})"
+                return (f"(match Map.get {_recv} {_key} with "
+                        f"| Some _v -> _v | None -> (HMap PNil) end)")
         # faithful-string-op.md §3.4: `<string>.split(sep)[i]` / `.rsplit(sep,k)[i]` → the
         # i-th piece — a substring of the receiver (str_split_elem_op). Length law only;
         # content unmodeled, so `[0]`/`[1]`/`[-1]` share the op (the bound holds for any i).
