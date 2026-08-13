@@ -2187,3 +2187,18 @@ model missing/extra as typed abstract seq/list readers consuming rec_info["field
 (f not in present = Map.get kv f = None; k not in declared = hval_str_mem over fields) — sanctioned __anystr
 raise-consumer over-approx (wall2 memory). BANKED reusable: cap-3 (zip-over-irlists dual-emit_ir unpack), cap-4
 (isinstance-emit_ir + .get("value") string priority), cap-5 (emit_ir-valued LOCAL dict map string(option emit_ir)).
+
+## 2026-08-14 — post-wall-5 re-drain = no_cheap_remaining (731); next lever = heterogeneous Dict[str,Any] PARAM value-model
+The construction/hval/zip/DictLit banked caps unblock NONE of the residual 731 (4 candidates measured, all walls).
+ROOT 2 hval cluster DRAINED (3 members). Next-wall ranking:
+1. HETEROGENEOUS Dict[str,Any] PARAM value-model (DOMINANT residual) — a Dict/symtab PARAM types `map string (option
+   int)`, so string-valued reads (`symtab.get(nm)`, int->str `elem_map`) clash with string-literal compares
+   (`st in ("list",...)`). Blocks _infer_tuple_slot_type (functions.mlw:1815), _track_collection_metadata
+   (types.mlw:1443). DISTINCT from banked caps (self-field/LOCAL construction, not general PARAM codomain). Analogous
+   to the landed LOCAL kv construction but for a map PARAM read back with string/hval values. Session-scale; SPIKE the
+   param-codomain typing first.
+2. Missing/cross-mixin helpers (_coerce_dotted_args needs _is_seq_arg/_materialize_* not mirrored) — scope creep, low value.
+3. Giant hval/record dispatchers (_emit_membership/_to_bool/_handle_subscript/_expr_to_whyml/_handle_binop/
+   _handle_call_expr) — scale walls, review-gated, banked caps get individual branches close.
+4. Raw CPython AST ingestion (_synthesize_typeddict_functional/_emit_typeddict_record + Module5 ast.* walkers) — distinct
+   raw-ast Ingestor boundary class.
