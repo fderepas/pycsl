@@ -2099,3 +2099,25 @@ land `_namedtuple_positional_access` first (smaller: only needs `.items()` in a 
 may over-approx to a trivially-typed empty/opaque loop if dead-block emission can be made
 type-safe), then `_typeddict_record_literal` (LIVE `.items()` + collection-iterate + set +
 raise = the bigger build). Full battery each increment.
+
+## 2026-08-13 — _namedtuple_positional_access CONVERTED (797ec6d9, 733->732) + 3 PROCESS LESSONS
+ROOT 2 hval cluster member #2. hval-collection-as-sequence (hval_len/hval_nth_str, definitional
+total views over the already-certified hval_list, NO cert/axiom) + gap-2b narrowed + WL-04b
+.items()-over-hval-self-field dead-block. 8 changed-emission files, all whole-file VALID, byte-diff 0.
+
+THREE hard-won PROCESS LESSONS (supervisor caught what the delegate's flow missed):
+1. STALE-GATE TRAP: a delegate can report gates GREEN using outputs that PREDATE its latest source edit.
+   ALWAYS compare the proof/byte-diff sentinel mtime vs the source-file mtime before trusting a verdict;
+   if source is newer, the gate is STALE — re-run from scratch. (Here: source 18:09 but proofs 15:07 →
+   the "8 VALID" was for an earlier build that had a gap-2b regression mistyping _field_type_of.)
+2. CPU-STARVATION TIMEOUT ≠ SATURATION: launching 8 giant whole-file proofs concurrently on a 14-core box
+   (load 20) starves the heaviest one to a wall-clock EXIT=124 timeout even though its CPU work fits.
+   Re-run a lone timeout giant SOLO before concluding saturation / reaching for #@ no_inline. (Module5_IREmitter
+   timed out at 8-way, passed VALID solo.) Cap proof concurrency at ~cores/2, not all-at-once.
+3. SUB-AGENT PROCESS DEATH: a sub-agent's detached background jobs (proofs/waiters) are KILLED when it goes
+   dormant/completes — its whole process tree is torn down. Only the MAIN (supervisor) session persists long
+   jobs. ARCHITECTURE: the supervisor OWNS launching+tracking all long whole-file proofs (setsid + Monitor +
+   fresh uniquely-named sentinels + mtime freshness check); the delegate BUILDS + fast gates only, then stops.
+
+Next wall: ROOT 2 member #3 `_typeddict_record_literal` (has .items() LIVE + collection-iterate/set/zip/raise) —
+reuses the 6+ banked hval caps; measure via whole-file proof.
