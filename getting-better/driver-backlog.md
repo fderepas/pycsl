@@ -2170,3 +2170,20 @@ insert on isinstance(k,dict)&k.get("type")=="String", kv[k.get("value","")]=v, k
 (set over-approx, reuse __anystr .values() pattern, feeds raise branch). cap-7 (not-in hval_str_mem + list-comp,
 feeds raise branch). cap-8 (raise) DONE. BANKED reusable: cap-1/1b/2 (getattr-self-string, items-key alias,
 _uses_dictlit+DictLit-into-expr-mirror+child-list projections+irlist-predecl).
+
+## 2026-08-14 — _typeddict_record_literal build: caps 1-5 DONE, ONLY cap-6/7 remains (blocker mlw:2259)
+Everything through kv construction L3-typechecks (uncommitted, count 731). This turn: cap-3 (faithful zip +
+dual k,v emit_ir tuple-unpack via _zip_irlist_recv, min(irlen keys,irlen values) loop, v now BOUND), cap-4
+(isinstance(emit_ir,dict)->const true sound guard + k.get("value","") string-default PRIORITY over num_of ->
+value_of), cap-5 DOMINANT (kv `map string (option emit_ir)` — NO set_kv needed, existing polymorphic non-ghost
+`map_update_some (m:map 'k(option 'v))(k)(v) ensures{result=Map.set m k(Some v)}` + pure Map.get already realize
+imperative build+readback; readback proves via Map.Select; cap-5 was pure TYPING via _collect_emit_ir_valued_dict_locals
++ "emit_ir" cases in _dv_empty/_missing/_store). Re-ported 3 verified _dv_* mirror methods verbatim (drift 2).
+LEDGER 3 (zero axioms, all definitional over certified emit_ir/IrDictLit + polymorphic map_update_some). Module5
+mirror still L3-tc (gated). LAST cap = cap-6/7 (mlw:2259 set(rec_info["fields"])/set(kv.keys())/missing/extra/raise
+guard): currently facades set_1/kv_keys_0()[INPUT-BLIND]/list_content_comp_0/1. These feed ONLY the raise branch
+(returned record depends solely on faithful kv.get(fname)) -> SOUND over-approx permitted but must READ real inputs:
+model missing/extra as typed abstract seq/list readers consuming rec_info["fields"](hval-list) + kv-domain
+(f not in present = Map.get kv f = None; k not in declared = hval_str_mem over fields) — sanctioned __anystr
+raise-consumer over-approx (wall2 memory). BANKED reusable: cap-3 (zip-over-irlists dual-emit_ir unpack), cap-4
+(isinstance-emit_ir + .get("value") string priority), cap-5 (emit_ir-valued LOCAL dict map string(option emit_ir)).
