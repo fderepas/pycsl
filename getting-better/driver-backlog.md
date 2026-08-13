@@ -2001,3 +2001,56 @@ existing machinery. Residual walls split into TWO roots (measured, NOT the subag
   (whole-file proof 7200, setsid-detached). RECOMMENDED NEXT: build ROOT 2's (a)+(b) first (they gate the
   typecheck), measure via WHOLE-FILE proof (NOT --fun — false green here), then (c)+(d). BANKED for reuse:
   Layer-C hval self-field subscript; the DOUBLED hval `.get` read; the hval-record-view `.values()` walk.
+
+## 2026-08-13 — ROOT 2 member #1 `_typeddict_field_access` BROKEN (e531a377, 734->733); needed 6 caps (backlog under-counted by 2)
+The hval value-model cluster's FIRST member is CONVERTED. The `_typeddict_field_access`
+(ExpressionEmissionMixin) heterogeneous-`Dict[str,Any]` `_record_types` resolver
+(`p["x"]` on a TypedDict receiver -> record-field read) needed SIX composable emitter
+capabilities — TWO MORE than the itemized (a)-(d). All byte-inert, axiom-free (ledger 3;
+reuses certified hval/hpairs/pairs_get, NO new cert). BANKED (reusable for the ROOT 2
+siblings `_typeddict_record_literal` / `_namedtuple_positional_access`):
+1. **hval_truthy** — total definitional `let function` (HStr non-empty via certified
+   `hpairs_key_eq` / HInt<>0 / HArr,HMap non-empty / HNode present), in the preamble hval
+   block. + bool-context routing WITHOUT re-lowering: the DOUBLED `.get` read STASHES its
+   RAW hval form (`_last_hval_get_raw`/`_str`, computed with correct local_refs so ref
+   locals `!sym` deref right) and `_to_bool` matches it by STRING-EQUALITY. KEY LESSON:
+   `_to_bool(whyml_str, ir_expr)` has NO local_refs param; adding one CASCADES re-ports into
+   the converted `_handle_while/if_stmt` (Gate reject) — the stash-match sidesteps it.
+2. **hval_str_mem / hval_list_str_mem** — total definitional membership recursion over the
+   bespoke `hval_list` carrier (certified `hpairs_key_eq` element test) for `x not in
+   rec_info["fields"]`; a new `_emit_membership` Subscript-on-pyval-local branch reads the
+   RAW hval (NOT the opaque int-hashed `contains_check`).
+3. **local-hval pyval SUBSCRIPT** — `rec_info["whyml_name"]` on a pyval LOCAL projects HStr
+   -> string (`_handle_subscript` pyval-local Var branch); the membership consumer reads the
+   raw hval instead. Read-twin of Layer-C self-field subscript.
+4. **pyval-local SEEDING from hval-self-field subscript** — `_prescan_pyval_locals`
+   (`_rhs_is_pyval`) now seeds a Subscript on a `map string (option hval)` self-field (and on
+   a pyval local) as pyval, so `rec_info = self._record_types[rec_name]` is a pyval local.
+5. **gap-1 (NEW, NOT in backlog): STRING-default `.get("value","<str>")` -> `value_of`
+   string-content** (a String IR node's CONTENT), NOT the `svalue_of` emit_ir sub-node.
+   Disambiguated by the string-literal default via `_get_default_is_str_literal` in THREE
+   places: the get-projection (`_scoped_val = "value_of"`), the emit_ir classifier
+   `_is_emit_ir_expr` (EXCLUDE it so the target isn't typed emit_ir), and a new
+   `_collect_emit_ir_value_str_locals` (types the target `ref ""`, not `ref (IrOther "")`/
+   `ref 0`). This was the deepest gap — an emit_ir `.get("value")` is AMBIGUOUS between
+   sub-node and String-content; the string default is the disambiguator.
+6. (implicit) the Attribute/FieldGet branch goes control-flow-DEAD (`rec_name is None` ->
+   `false` on a string ref) — sound over-approx for the type-safety+frame contract (the Var
+   branch + all rec_info reads are live + non-vacuous). Not a facade (Gate-C mutation flips
+   the emitted pairs_get key).
+
+PROCESS: mirror-wide .mlw md5 diff -> EXACTLY 8 changed-emission files (the hval-theory set:
+expressions, Module6_WhyMLTranspiler giant, types, stmt_control_flow, Module5_IREmitter,
+ir_resolve, __init__, pycsl) — SAME set as a3785a13; all 8 whole-file-proved 0 non-Valid,
+corpus byte-diff 0, drift 2, mirror 52/52, ledger 3, Gate-C PASS. LESSON: whole-file
+`--no-proof` L3-tc IS a fast (~5min) type gate that catches the hval-truthy/field-name-type
+errors (the backlog's "--no-proof false green" was about `--fun`, not whole-file). Adding 2
+unused `let function`s to the shared hval block changed all 8 theory files' emission but they
+all inert-pass (unused fns add no VCs).
+
+NEXT (autonomous, deadline ~96h out 2026-08-17): re-drain Phase 1 (WHOLE-FILE proof, not
+--fun), then the ROOT 2 SIBLINGS `_typeddict_record_literal` (expressions.py:7662 — `.values()`
+record-scan + `info.get("is_typeddict")` truthy + zip over keys/values + missing/extra-key
+RAISE) and `_namedtuple_positional_access` (7733 — Number-index + WL-04b record-array-local
+path) — verbatim-OK, likely reuse caps 1-5. ROOT 1 relocated `_field_type_*` statements.py
+stubs stay FLAGGED (`-> str` vs live `-> Optional[str]` = refactor = reject).
