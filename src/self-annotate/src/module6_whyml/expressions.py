@@ -24,6 +24,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _current_params: Set[str] = None
     _current_self_type: str = ""
     _emit_record_ctx: str = ""
+    # self-tcb-reduction _typeddict_record_literal (cap-1): the current function's
+    # declared return type (live: functions.py sets it per emitted function). Modeled
+    # as a string self-field so `getattr(self, "_func_return_type", "")` reads the real
+    # `string`, not the folded "" default — the construction-context disambiguator.
+    _func_return_type: str = ""
     _lambda_locals: Set[str] = None
     _module_constants: Dict[str, str] = None
     _module_global_classes: Dict[str, str] = None
@@ -200,6 +205,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # hval-value-model-wall: a `Dict[str, PyVal]` heterogeneous dict is
             # `map string (option hval)`; the empty base is the everywhere-None map.
             return "(const (None: option hval))"
+        if nu == "emit_ir":
+            # self-tcb-reduction _typeddict_record_literal (cap-5): a `Dict[str, ExprIR]`
+            # local (`kv = {}` mapping field-name -> value IR node) is `map string (option
+            # emit_ir)`; the empty base is the everywhere-None map.
+            return "(const (None: option emit_ir))"
         if nu == "seq int":
             return "(const (None: option (seq int)))"
         if nu and nu.startswith("map "):
@@ -217,6 +227,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # hval-value-model-wall: the missing-key default for a `Dict[str, PyVal]`
             # read — an `hval` sentinel (proven dead under `#@ no_exception KeyError`).
             return "(HInt 0)"
+        if nu == "emit_ir":
+            # cap-5: the missing-key default for a `Dict[str, ExprIR]` read — the emit_ir
+            # absent sentinel `IrOther ""` (total; the `kv.get(fname)` fallback).
+            return '(IrOther "")'
         if nu and nu.startswith("seq "):
             # #15: `Dict[str, List[T]]` value (`seq string`/`seq int`) -> the empty seq default.
             return f"(Seq.empty: {nu})"
@@ -238,7 +252,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "val function array_to_seq (a: array int) : seq int\n"
                 "    ensures { Seq.length result = Array.length a }")
             return f"(array_to_seq {self._array_coerce_arg(val_expr)})"
-        if nu == "string" or (nu and nu.startswith("map ")):
+        if nu == "string" or nu == "emit_ir" or (nu and nu.startswith("map ")):
+            # cap-5: an emit_ir value (`kv[fname] = v`, v a value IR node) passes through
+            # unhashed, like the string / nested-map cases.
             return val_expr
         return self._coerce_to_int(val_expr)
 
@@ -688,12 +704,51 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
         return f"{base}.{self._field_label(rec_lower, field_name)}"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
-    def _typeddict_record_literal(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
-        return None
+    def _typeddict_record_literal(self, expr: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        frt = getattr(self, "_func_return_type", "")
+        if not frt:
+            return None
+        rec_name = None
+        for name, info in getattr(self, "_record_types", {}).items():
+            if info.get("whyml_name") == frt and info.get("is_typeddict"):
+                rec_name = name
+                break
+        if rec_name is None:
+            return None
+        rec_info = self._record_types[rec_name]
+        rec_lower = rec_info["whyml_name"]
+        keys = expr.get("keys", [])
+        values = expr.get("values", [])
+        kv: Dict[str, Dict[str, Any]] = {}
+        for k, v in zip(keys, values):
+            if isinstance(k, dict) and k.get("type") == "String":
+                kv[k.get("value", "")] = v
+        declared = set(rec_info["fields"])
+        present = set(kv.keys())
+        missing = [f for f in rec_info["fields"] if f not in present]
+        extra = [k for k in present if k not in declared]
+        if missing or extra:
+            from errors import PyCSLSemanticError
+            if missing:
+                raise PyCSLSemanticError(
+                    f"TypedDict construction is missing required key(s) "
+                    f"{missing!r} (T9 / PEP 589 — a total=True TypedDict "
+                    f"literal must provide every declared key).",
+                    stage="whyml-emit")
+            raise PyCSLSemanticError(
+                f"TypedDict construction has extra key(s) "
+                f"{extra!r} not declared on the TypedDict (T9 / PEP 589 — "
+                f"a literal must not provide keys outside the declared set).",
+                stage="whyml-emit")
+        parts: List[str] = []
+        for fname in rec_info["fields"]:
+            v = kv.get(fname)
+            val = self._expr_to_whyml(v, local_refs, invariant_ctx, subst)
+            parts.append(f"{self._field_label(rec_lower, fname)} = {val}")
+        return "{ " + "; ".join(parts) + " }"
 
     #@ requires True
     #@ ensures True

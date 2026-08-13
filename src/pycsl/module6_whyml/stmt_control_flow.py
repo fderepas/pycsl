@@ -261,6 +261,29 @@ class ControlFlowStmtMixin:
             return _recv
         return None
 
+    def _zip_irlist_recv(self, iter_ir: Dict[str, Any]):
+        """self-tcb-reduction _typeddict_record_literal (cap-3): if `iter_ir` is
+        `zip(<irlist-local>, <irlist-local>)` (both args a Var bound to a DictLit child
+        irlist — `_irlist_local_vars`), return the pair `(keys_ir, values_ir)` of the
+        two arg IR nodes; else None. Feeds the faithful dual-emit_ir tuple-unpack (`for
+        k, v in zip(keys, values)`): the loop runs `min(irlen keys, irlen values)` and
+        binds `k = irnth i keys` / `v = irnth i values` (both emit_ir). Gated on a
+        @mutable_state self + two irlist-local args -> corpus/other-mirror inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return None
+        if not (isinstance(iter_ir, dict) and iter_ir.get("type") == "Call"
+                and iter_ir.get("func") == "zip"):
+            return None
+        _a = iter_ir.get("args") or []
+        _il = getattr(self, "_irlist_local_vars", set())
+        if (len(_a) == 2 and isinstance(_a[0], dict) and _a[0].get("type") == "Var"
+                and _a[0].get("name") in _il
+                and isinstance(_a[1], dict) and _a[1].get("type") == "Var"
+                and _a[1].get("name") in _il):
+            return (_a[0], _a[1])
+        return None
+
     def _classify_iterable(self, iter_ir: Dict[str, Any],
                             local_refs: Set[str], idx: str) -> Tuple[str, str, bool]:
         """Classify a For loop's iterable. Returns (len_expr, elem_expr, is_range).
@@ -315,6 +338,25 @@ class ControlFlowStmtMixin:
             self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
             return (f"(hval_values_len {_mapw})",
                     f"(hval_values_get {_mapw} !{idx})", False)
+        # self-tcb-reduction _typeddict_record_literal (cap-6/7 completion): the field-emit
+        # loop `for fname in rec_info["fields"]` iterates the hval collection (`rec_info`'s
+        # `"fields"` HArr of HStr names) as an ordered SEQUENCE — bound `hval_len <proj>`,
+        # element `hval_nth_str <proj> !idx` (a real `string` per iteration, the certified
+        # `_namedtuple_positional_access` hval-sequence view), NOT the opaque
+        # `iter_length`/`iter_get` int fallback (which mis-projects `"fields"` as a scalar
+        # string). Scoped to `_typeddict_record_literal` + a `_pyval_locals` subscript
+        # receiver -> corpus/other-mirror byte-inert.
+        if ((getattr(self, "_current_emitting_func", None) or "").endswith(
+                "_typeddict_record_literal")
+                and iter_ir.get("type") == "Subscript"
+                and isinstance(iter_ir.get("value"), dict)
+                and iter_ir["value"].get("type") == "Var"
+                and iter_ir["value"].get("name") in getattr(self, "_pyval_locals", set())):
+            _proj = self._tdrl_hval_field_proj(iter_ir, local_refs, False, None)
+            if _proj is not None:
+                self._pyast_loop_variant_len = f"(hval_len {_proj})"
+                return (f"(hval_len {_proj})",
+                        f"(hval_nth_str {_proj} !{idx})", False)
         # self-tcb-reduction giants (generic class-body lowering): `for child in
         # <classdef>.body` over a `py_classdef_node` param iterates the MODELLED
         # `class_body_ast node` psl cons-list — bound `psl_len (class_body_ast node)`,
@@ -380,6 +422,19 @@ class ControlFlowStmtMixin:
             _recv_w = self._expr_to_whyml(_mt_recv, local_refs)
             return (f"(irlen (elts_of {_recv_w}))",
                     f"(irnth !{idx} (elts_of {_recv_w}))", False)
+        # self-tcb-reduction _typeddict_record_literal (cap-3): `for k, v in zip(keys,
+        # values)` over two DictLit-child irlists. The loop runs `min(irlen keys, irlen
+        # values)` (Python zip stops at the shorter); the per-iteration `k`/`v` bindings
+        # (`irnth !idx keys` / `irnth !idx values`, both emit_ir) are emitted by the
+        # `_bind_lines` `_is_zip_irlists` branch, NOT the single `elem_expr`. The min length
+        # is an arithmetic termination variant (`_pyast_loop_variant_len`).
+        _zip_recv = self._zip_irlist_recv(iter_ir)
+        if _zip_recv is not None:
+            _kw = self._expr_to_whyml(_zip_recv[0], local_refs)
+            _vw = self._expr_to_whyml(_zip_recv[1], local_refs)
+            _min = f"(if (irlen {_kw}) <= (irlen {_vw}) then (irlen {_kw}) else (irlen {_vw}))"
+            self._pyast_loop_variant_len = _min
+            return (_min, "(IrOther \"\")", False)
         # L18 S1 (split-as-for-iterable): `for part in <string>.split(sep)` /`.rsplit`
         # iterates the faithful `str_split_op … : array string` (NOT the opaque
         # `iter_length`/`iter_get`+`_coerce_to_int` int fallback below). The split array
@@ -641,6 +696,24 @@ class ControlFlowStmtMixin:
             _items_extra = {t for t in tuple_targets if t and t != "_"}
             body_local = body_local | _items_extra
             body_declared = body_declared | _items_extra
+        # self-tcb-reduction _typeddict_record_literal (cap-3): `for k, v in zip(keys,
+        # values)` binds BOTH tuple components as immutable emit_ir (`irnth`-projected).
+        # Register both symbol types "ExprIR" for the body's duration so `isinstance(k,
+        # dict)` / `k.get("type")` / `k.get("value","")` / the `kv[...] = v` insert lower
+        # via the emit_ir machinery (kind_of/value_of), not the opaque int path. Restored
+        # after the body. Gated on `_zip_irlist_recv` -> corpus/other-mirror inert.
+        _is_zip_irlists = (self._zip_irlist_recv(iter_ir) is not None
+                           and tuple_targets and len(tuple_targets) == 2)
+        _saved_zip_symtypes: Dict[str, Any] = {}
+        if _is_zip_irlists:
+            _zip_extra = {t for t in tuple_targets if t and t != "_"}
+            body_local = body_local | _zip_extra
+            body_declared = body_declared | _zip_extra
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                for _zt in _zip_extra:
+                    _saved_zip_symtypes[_zt] = _st.get(_zt, _MISSING)
+                    _st[_zt] = "ExprIR"
         _saved_pyval_member = None
         _saved_pyval_val_member = None
         _saved_for_pyval_flag = getattr(self, "_for_target_is_pyval", False)
@@ -722,6 +795,14 @@ class ControlFlowStmtMixin:
         if (_is_pyval_items and _items_val_target and _items_val_target != "_"
                 and _saved_pyval_val_member is False):
             self._pyval_locals.discard(_items_val_target)
+        if _is_zip_irlists and _saved_zip_symtypes:
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                for _zt, _sv in _saved_zip_symtypes.items():
+                    if _sv is _MISSING:
+                        _st.pop(_zt, None)
+                    else:
+                        _st[_zt] = _sv
         self._for_target_is_pyval = _saved_for_pyval_flag
         if not inner_body:
             inner_body = f"{inner_indent}()"
@@ -838,6 +919,25 @@ class ControlFlowStmtMixin:
                 if _vt and _vt != "_":
                     _lines.append(f"{bind_indent}let {whyml_ident(_vt)} = ({elem_expr}) in")
                 return _lines
+            # cap-3: `for k, v in zip(keys, values)` binds BOTH tuple components to the
+            # idx-th element of each irlist (`irnth !idx keys` / `irnth !idx values`, both
+            # IMMUTABLE emit_ir so the body's `match k with ...`/kind_of projections match
+            # an `emit_ir`, not a `ref`). Gated on `_is_zip_irlists` -> corpus inert.
+            if _is_zip_irlists:
+                _zr = self._zip_irlist_recv(iter_ir)
+                _kw = self._expr_to_whyml(_zr[0], body_local)
+                _vw = self._expr_to_whyml(_zr[1], body_local)
+                _kt, _vt = tuple_targets[0], tuple_targets[1]
+                # both are mutable `ref emit_ir` (in `body_declared`, so body reads deref
+                # `!k`/`!v`) — `irnth` returns a real emit_ir per iteration.
+                _lines2: List[str] = []
+                if _kt and _kt != "_":
+                    _lines2.append(f"{bind_indent}let {whyml_ident(_kt)} = "
+                                   f"ref (irnth !{idx} {_kw}) in")
+                if _vt and _vt != "_":
+                    _lines2.append(f"{bind_indent}let {whyml_ident(_vt)} = "
+                                   f"ref (irnth !{idx} {_vw}) in")
+                return _lines2
             # hval-retype (self-tcb-reduction Tier-5): a pyval `.values()` loop var
             # binds an IMMUTABLE `hval` (`let info = <elem>`, no `ref`) so the body's
             # K7 `match info with HMap ...` projection matches an `hval` (not a `ref hval`).
@@ -1621,6 +1721,16 @@ class ControlFlowStmtMixin:
             return _rec
         t = val_ir.get("type")
         if t in ("Number", "BinOp") or t == "UnaryOp":
+            # self-tcb-reduction _typeddict_record_literal (cap-6/7 completion): a string
+            # `+` concatenation return (`return "{ " + "; ".join(parts) + " }"`) is a
+            # STRING value — it must wrap into the Optional variant's string arm
+            # (`Arm_N_0 <concat>`), not fall through as int (no int arm exists -> the bare
+            # string type-clashes the `_union_*`). Mirrors the FString/`_is_string_expr`
+            # path; only BinOp is re-checked (Number/UnaryOp are always int). Byte-inert:
+            # a corpus union function with an unwrapped string-BinOp return would already
+            # fail L3-tc, so none exists (the wrap fires for no corpus program).
+            if t == "BinOp" and self._is_string_expr(val_ir):
+                return "string"
             return "int"
         if t == "String":
             return "string"

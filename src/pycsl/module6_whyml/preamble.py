@@ -4662,6 +4662,14 @@ class PreambleEmissionMixin:
                " | IrSetComp emit_ir emit_ir"
                " | IrDictComp emit_ir emit_ir emit_ir"
                if self._uses_stmt_ir() else "")
+            # self-tcb-reduction _typeddict_record_literal (cap-2): the DictLit-node reflector
+            # lives in the expression-emission mirror, whose emit_ir ADT does NOT carry the
+            # `_uses_stmt_ir` Module5 ctors — so `IrDictLit` is appended HERE for a
+            # `_uses_dictlit` file that is NOT already a stmt_ir file (no duplicate, and the
+            # stmt_ir mirror stays byte-identical). Corpus-inert (`_uses_dictlit` is
+            # name-gated on `_typeddict_record_literal`).
+            + (" | IrDictLit irlist irlist"
+               if (self._uses_dictlit() and not self._uses_stmt_ir()) else "")
             # J1: the Call-with-keyword-internals ctor — func-name, the standalone
             # keyword_list (declared above), arg0, arity — PARALLEL to the existing
             # `IrCall string emit_ir int` (kind_of returns "Call" for both; non-injective
@@ -4972,6 +4980,11 @@ class PreambleEmissionMixin:
                " | IrSetComp _ _ -> \"SetComp\""
                " | IrDictComp _ _ _ -> \"DictComp\""]
               if self._uses_stmt_ir() else []),
+            # cap-2: the IrDictLit kind_of arm for a dictlit-only (non-stmt_ir) file —
+            # REQUIRED for exhaustiveness (kind_of has no wildcard) when the ctor is
+            # appended above. No duplicate (the stmt_ir arm already covers stmt_ir files).
+            *(["    | IrDictLit _ _ -> \"DictLit\""]
+              if (self._uses_dictlit() and not self._uses_stmt_ir()) else []),
             # J1: IrCallKw's "Call" tag (gated WITH the ctor so kind_of stays exhaustive
             # in both configs — kind_of has NO wildcard, so the arm is REQUIRED when the
             # ctor is present and ABSENT when it is not). Shares "Call" with IrCall/IrCallN
@@ -5490,6 +5503,20 @@ class PreambleEmissionMixin:
             "  = match l with ILNil -> IrOther \"\""
             " | ILCons h t -> if i <= 0 then h else irnth (i - 1) t end",
             "",
+            # self-tcb-reduction _typeddict_record_literal (cap-2): the two child-list
+            # projections of an IrDictLit node — `expr.get("keys")` / `expr.get("values")`
+            # read the DictLit's key/value irlists directly (a total projection over the sum,
+            # ILNil for a non-DictLit). Definitional over the existing IrDictLit ctor + irlist
+            # (NO new axiom/ADT; ledger stays 3). Gated on the SAME condition that emits the
+            # IrDictLit ctor (`_uses_stmt_ir or _uses_dictlit`) so it references a bound ctor;
+            # absent (byte-inert) in every other emit_ir-theory file.
+            *(["  let function dictlit_keys_of (e: emit_ir) : irlist",
+               "  = match e with IrDictLit ks _ -> ks | _ -> ILNil end",
+               "",
+               "  let function dictlit_values_of (e: emit_ir) : irlist",
+               "  = match e with IrDictLit _ vs -> vs | _ -> ILNil end",
+               ""]
+              if self._uses_dictlit() else []),
             "  (* self-ir-schema.md IR1: the typed slice of `self.ir` the emitter reflects on —"
             " `self.ir.get(\"shared_vars\", [])` is an array of these records"
             " (`sv[\"name\"]`/`sv.get(\"mutex\")`). Only the string TYPE is modelled; the"
@@ -6494,6 +6521,23 @@ class PreambleEmissionMixin:
         self._uses_null_byte_num_reader_cache = result
         return result
 
+    def _uses_dictlit(self) -> bool:
+        """self-tcb-reduction _typeddict_record_literal (cap-2): True iff this file defines
+        `_typeddict_record_literal` — the sole DictLit-node reflector (`expr.get("keys")` /
+        `expr.get("values")` over an `IrDictLit` node). Gates the `IrDictLit` ctor + the
+        `dictlit_keys_of`/`dictlit_values_of` projections INTO the expression-emission mirror
+        (whose emit_ir ADT is otherwise the spec/reduced variant, without the `_uses_stmt_ir`
+        Module5 py-expr ctors). No corpus program defines a function by that name, so every
+        corpus file's emit_ir theory stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_dictlit_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_typeddict_record_literal")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_dictlit_cache = result
+        return result
+
     def _uses_call_kw(self) -> bool:
         """J1 Call-internals value model (self-tcb-reduction, callinternals-oracle.mlw
         Gate-R CONFIRMED): True iff some function in this file has a param/local annotated
@@ -6797,6 +6841,20 @@ class PreambleEmissionMixin:
             " the values) alongside the real `hval` value. Uninterpreted + total +"
             " effect-free; NO axiom. *)",
             "  val function hval_keys_get (m: map string (option hval)) (i: int) : string",
+            # self-tcb-reduction _typeddict_record_literal (cap-6/7): the raise-branch
+            # consumers `missing = [f for f in rec_info["fields"] if f not in present]` /
+            # `extra = [k for k in present if k not in declared]` are a SOUND OVER-APPROX
+            # (they feed ONLY the `if missing or extra: raise` guard — the returned record
+            # depends solely on the faithful `kv.get(fname)`), modelled as an arbitrary
+            # `array string` reader that CONSUMES both real inputs: the iterated hval
+            # collection (`rec_info["fields"]` / `declared`) AND the kv-domain map
+            # (`present`). Every emitted CALL passes a real term (an hval projection that
+            # descends `rec_info`, and `!present` = the `kv` map), so the emission is
+            # non-vacuous (Gate-C) — no input-blind `kv_keys_0 ()`/`set_1` facade.
+            # Uninterpreted + total + effect-free; NO axiom -> ledger stays 3. Gated on
+            # `_uses_dictlit` (the sole `_typeddict_record_literal` file) -> byte-inert.
+            *(["  val typeddict_str_overapprox (h: hval) (m: map string (option emit_ir)) : array string"]
+              if self._uses_dictlit() else []),
             "",
         ]
 

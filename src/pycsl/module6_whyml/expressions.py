@@ -349,6 +349,11 @@ _EMIT_IR_GET_KEY_PROJ_BY_FUNC = {
     # (no empty-dict default). Every other key falls through to the global table. SCOPED via
     # `_current_emitting_func` -> corpus/other-mirror byte-inert.
     "_namedtuple_positional_access": {},
+    # self-tcb-reduction _typeddict_record_literal (cap-2): `expr.get("keys", [])` /
+    # `expr.get("values", [])` on the DictLit emit_ir node project the two child irlists
+    # (`dictlit_keys_of`/`dictlit_values_of`), NOT the opaque `expr_get_2 <hash>` list-
+    # default facade. SCOPED via `_current_emitting_func` -> corpus/other-mirror inert.
+    "_typeddict_record_literal": {"keys": "dictlit_keys_of", "values": "dictlit_values_of"},
 }
 # self-tcb-reduction Layer-2: SCOPED extra emit_ir-NODE keys for the recognizer's
 # flow-typing. Globally `lower`/`upper`/`step` are NOT node keys (the R4 SliceExpr readers
@@ -772,6 +777,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # hval-value-model-wall: a `Dict[str, PyVal]` heterogeneous dict is
             # `map string (option hval)`; the empty base is the everywhere-None map.
             return "(const (None: option hval))"
+        if nu == "emit_ir":
+            # self-tcb-reduction _typeddict_record_literal (cap-5): a `Dict[str, ExprIR]`
+            # local (`kv = {}` mapping field-name -> value IR node) is `map string (option
+            # emit_ir)`; the empty base is the everywhere-None map.
+            return "(const (None: option emit_ir))"
         if nu == "seq int":
             return "(const (None: option (seq int)))"
         if nu and nu.startswith("map "):
@@ -787,6 +797,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # hval-value-model-wall: the missing-key default for a `Dict[str, PyVal]`
             # read — an `hval` sentinel (proven dead under `#@ no_exception KeyError`).
             return "(HInt 0)"
+        if nu == "emit_ir":
+            # cap-5: the missing-key default for a `Dict[str, ExprIR]` read — the emit_ir
+            # absent sentinel `IrOther ""` (total; the `kv.get(fname)` fallback).
+            return '(IrOther "")'
         if nu and nu.startswith("seq "):
             # #15: `Dict[str, List[T]]` value (`seq string`/`seq int`) -> the empty seq default.
             return f"(Seq.empty: {nu})"
@@ -805,7 +819,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "val function array_to_seq (a: array int) : seq int\n"
                 "    ensures { Seq.length result = Array.length a }")
             return f"(array_to_seq {self._array_coerce_arg(val_expr)})"
-        if nu == "string" or (nu and nu.startswith("map ")):
+        if nu == "string" or nu == "emit_ir" or (nu and nu.startswith("map ")):
+            # cap-5: an emit_ir value (`kv[fname] = v`, v a value IR node) passes through
+            # unhashed, like the string / nested-map cases.
             return val_expr
         return self._coerce_to_int(val_expr)
 
@@ -6568,6 +6584,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # relies on for `.get("type") == "K"`).
         _a0 = args_ir[0] if args_ir else None
         _a1 = args_ir[1] if len(args_ir) > 1 else None
+        # self-tcb-reduction _typeddict_record_literal (cap-3): `isinstance(<emit_ir>, dict)`
+        # — every reflected IR node IS a Python dict, so the test is always TRUE in the
+        # reflection model. Emit the constant true (a provably-satisfied type guard; the real
+        # discrimination is the conjoined `.get("type") == K` read of the same node). Gated on
+        # an emit_ir arg0 + a bare `dict` builtin arg1 -> corpus/other-mirror inert.
+        if (self._is_emit_ir_expr(_a0)
+                and isinstance(_a1, dict) and _a1.get("type") == "Var"
+                and _a1.get("name") == "dict"):
+            # isinstance returns a BOOL discriminant everywhere (like `(is_var x)`); the
+            # `not`/`&&`/`_to_bool` consumers expect a bool, so emit `true`, not the int `1`.
+            return "true"
         # self-tcb-reduction giants (generic class-body lowering): `isinstance(child,
         # ast.<K>)` where `child` is a `pyast_stmt`-typed class-body loop var lowers to
         # the ADT discriminant `(is_K_node child)`. Gated on `child in _pyast_stmt_locals`
@@ -7132,8 +7159,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # default), while `idx.get("value")` (no default, `!= 0`) reads a Number
                 # leaf's INT payload (`num_of`). Disambiguated by the default-arg shape,
                 # exactly like the `body`/`body_of` case below.
+                # self-tcb-reduction _typeddict_record_literal (cap-3/4): a STRING-literal
+                # default (`k.get("value", "")`) always reads the String node's CONTENT
+                # (`value_of`), even inside a scoped func — so it must take PRIORITY over the
+                # empty-dict/num_of disambiguation below (which is for the {}-default subscript
+                # / no-default Number-index shapes). Without this exclusion the non-empty
+                # scoped entry forces `num_of` (int), mistyping the string key insert.
                 _scoped_val = None
-                if _scoped2 is not None and _k2 == "value":
+                if (_scoped2 is not None and _k2 == "value"
+                        and not self._get_default_is_str_literal(expr)):
                     _scoped_val = ("svalue_of" if self._get_default_is_empty_dict(expr)
                                    else "num_of")
                 # self-tcb-reduction _typeddict_field_access (gap-1): `<emit_ir>.get("value",
@@ -7363,6 +7397,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if attr in fields:
                         rec_lower = obj_type.lower()
                         return f"{whyml_ident(obj_name)}.{self._field_label(rec_lower, attr)}"
+            # self-tcb-reduction _typeddict_record_literal (cap-1): `getattr(self,
+            # "<field>", <default>)` on a MODELED self record-field (the defensive
+            # self-field read) reads the REAL field, not the folded default — the same
+            # native `self.<label>` form as a direct `self.<field>` access (§8943).
+            # @mutable_state-gated (the self-annotation emission only) + only when the
+            # name is a declared self field, so a corpus `getattr(self, "_x", d)` on an
+            # UNMODELED field keeps the default fall-through -> byte-inert.
+            if (obj_name == "self"
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())
+                    and isinstance(name_ir, dict) and name_ir.get("type") == "String"
+                    and name_ir.get("value") in getattr(self, "_all_record_fields", set())
+                    and isinstance(default_ir, dict)
+                    and default_ir.get("type") == "String"):
+                return f"self.{self._field_label(self._current_self_type, name_ir['value'])}"
         # Dynamic-config / unknown-field path: emit the default. getattr returns
         # `default` for an absent attribute, so this is sound (the real runtime
         # value is opaque; any contract depending on it fails to prove).
@@ -10379,6 +10428,118 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             result = f"(map_update_some {result} {elt_w} 0)"
         return result
 
+    def _tdrl_hval_field_proj(self, arg: Any, local_refs: Set[str],
+                              invariant_ctx: bool,
+                              subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """self-tcb-reduction _typeddict_record_literal (cap-6/7): the RAW hval projection
+        of a `<pyval-local>["<key>"]` subscript (`rec_info["fields"]`, an `HArr` of field
+        names) — the `HMap`/`pairs_get` chain that descends the REAL structure, the SAME
+        form the `_typeddict_field_access (d)` membership recognizer emits. Returns None
+        unless the arg is a subscript on a `_pyval_locals` receiver."""
+        if not (isinstance(arg, dict) and arg.get("type") == "Subscript"):
+            return None
+        _sv = arg.get("value")
+        if not (isinstance(_sv, dict) and _sv.get("type") == "Var"
+                and _sv.get("name") in getattr(self, "_pyval_locals", set())):
+            return None
+        _pvm = whyml_ident(_sv.get("name"))
+        _kw = self._expr_to_whyml(arg.get("index", {}), local_refs or set(),
+                                  invariant_ctx, subst)
+        return (f"(match {_pvm} with HMap m_mem -> "
+                f"(match pairs_get m_mem {_kw} with Some v_ -> v_ "
+                f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
+
+    def _tdrl_present_map_term(self, node: Any) -> Optional[str]:
+        """cap-6/7: the real `present` map term. `present = set(kv.keys())` is modelled as
+        the `kv` map itself, so a Var read of a collected `present` local dereferences to
+        that `map string (option emit_ir)` ref (`!present`). Returns None otherwise."""
+        if not (isinstance(node, dict) and node.get("type") == "Var"):
+            return None
+        _nm = node.get("name")
+        if _nm in getattr(self, "_tdrl_present_locals", set()):
+            return f"!{whyml_ident(_nm)}"
+        return None
+
+    def _tdrl_declared_hval_term(self, node: Any) -> Optional[str]:
+        """cap-6/7: the real `declared` hval term. `declared = set(rec_info["fields"])` is
+        modelled as that fields hval, so a Var read of a collected `declared` local
+        dereferences to the `hval` ref (`!declared`). Returns None otherwise."""
+        if not (isinstance(node, dict) and node.get("type") == "Var"):
+            return None
+        _nm = node.get("name")
+        if _nm in getattr(self, "_tdrl_hval_locals", set()):
+            return f"!{whyml_ident(_nm)}"
+        return None
+
+    def _tdrl_overapprox_comp(self, expr: Dict[str, Any], local_refs: Set[str],
+                              invariant_ctx: bool,
+                              subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """cap-6/7: a `[<v> for <v> in <src> if <v> not in <container>]` raise-branch
+        comprehension (`missing`/`extra`) -> `(typeddict_str_overapprox <hval> <map>)`,
+        the SOUND over-approx reader that CONSUMES the real iterated hval collection AND
+        the real `present` kv-domain map (so no term is input-blind). Fail-closed (None)
+        unless the exact single-generator single-`not in`-filter shape matches and BOTH a
+        real hval and a real map term are recovered from the iter/filter sub-nodes."""
+        _gens = expr.get("generators") or []
+        if len(_gens) != 1:
+            return None
+        _g = _gens[0]
+        _iter = _g.get("iter") or {}
+        _ifs = _g.get("ifs") or []
+        if len(_ifs) != 1:
+            return None
+        _f = _ifs[0]
+        if not (isinstance(_f, dict) and _f.get("type") == "BinOp"
+                and _f.get("op") == "not in"):
+            return None
+        _container = _f.get("right") or {}
+        # the kv-domain map term (`present`) is whichever of iter / filter-container is a
+        # collected present local.
+        _map_term = (self._tdrl_present_map_term(_iter)
+                     or self._tdrl_present_map_term(_container))
+        # the iterated hval collection: `rec_info["fields"]` (subscript projection) when
+        # the iter is the fields subscript, else the `declared` hval local (in `extra`,
+        # where the iter is `present` and the filter-container is `declared`).
+        _hval_term = (self._tdrl_hval_field_proj(_iter, local_refs, invariant_ctx, subst)
+                      or self._tdrl_declared_hval_term(_iter)
+                      or self._tdrl_declared_hval_term(_container))
+        if _map_term is None or _hval_term is None:
+            return None
+        return f"(typeddict_str_overapprox {_hval_term} {_map_term})"
+
+    def _tdrl_raise_consumer_read(self, expr: Any, local_refs: Set[str],
+                                  invariant_ctx: bool,
+                                  subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """self-tcb-reduction _typeddict_record_literal (cap-6/7): lower the four
+        raise-branch consumers. They feed ONLY the `if missing or extra: raise` guard —
+        the returned record depends solely on the faithful `kv.get(fname)` — so a SOUND
+        OVER-APPROX is permitted, BUT every emitted term must READ a real input (the
+        `rec_info` hval or the `kv` map), never an input-blind `kv_keys_0 ()`/`set_1`
+        facade (Gate-C). Fail-closed (None) so nothing else in the method is perturbed."""
+        if not isinstance(expr, dict):
+            return None
+        t = expr.get("type")
+        # (a) set(rec_info["fields"]) -> the real fields hval;
+        # (b) set(kv.keys())         -> the real kv map.
+        if t == "Call" and expr.get("func") in ("set", "frozenset"):
+            _a = expr.get("args") or []
+            if len(_a) == 1 and isinstance(_a[0], dict):
+                _arg = _a[0]
+                _hv = self._tdrl_hval_field_proj(_arg, local_refs, invariant_ctx, subst)
+                if _hv is not None:
+                    return _hv
+                # set(kv.keys()) -> the kv map itself (its domain IS the key set).
+                _fn = _arg.get("func") if _arg.get("type") == "Call" else None
+                if (isinstance(_fn, str) and _fn.endswith(".keys")
+                        and not (_arg.get("args") or [])):
+                    _recv = _fn[:-len(".keys")]
+                    if getattr(self, "_dict_value_types", {}).get(_recv) == "emit_ir":
+                        return f"!{whyml_ident(_recv)}"
+        # (c)/(d) the missing/extra comprehensions.
+        if t == "ListComp":
+            return self._tdrl_overapprox_comp(expr, local_refs, invariant_ctx, subst)
+        return None
+
     def _expr_to_whyml(self, expr: "Union[Dict[str, Any], ExprIR]", local_refs: Set[str],
                        invariant_ctx: bool = False,
                        subst: Optional[Dict[str, str]] = None) -> str:
@@ -10462,6 +10623,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _kwr = self._keyword_read(expr, local_refs, invariant_ctx, subst)
             if _kwr is not None:
                 return _kwr
+        # self-tcb-reduction _typeddict_record_literal (cap-6/7): the four raise-branch
+        # consumers (`declared = set(rec_info["fields"])`, `present = set(kv.keys())`,
+        # `missing`/`extra` comprehensions) lower to typed readers that CONSUME the real
+        # `rec_info` hval + the `kv` map — a SOUND OVER-APPROX (they feed only the raise
+        # guard; the returned record depends solely on the faithful `kv.get(fname)`) that
+        # stays non-vacuous per Gate-C. Gated on `_current_emitting_func` -> inert.
+        if (getattr(self, "_current_emitting_func", None) or "").endswith(
+                "_typeddict_record_literal"):
+            _tdr = self._tdrl_raise_consumer_read(expr, local_refs, invariant_ctx, subst)
+            if _tdr is not None:
+                return _tdr
         # J2/J3 convergence (Call-internals): `<emit_ir call>.func.id` — the emit_ir model
         # collapses a call's callee to its Name-id STRING (`func_of`), so `.func.id` is
         # exactly `func_of call` (the trailing `.id` on the id-string is identity). Gated

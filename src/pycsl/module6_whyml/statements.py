@@ -2590,6 +2590,88 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         find_assigns(body_stmts)
         return out - set(self._formal_params)
 
+    def _collect_getattr_self_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction _typeddict_record_literal (cap-1): locals bound to a
+        `getattr(self, "<field>", "<str-literal>")` read of a MODELED self string
+        record-field (`frt = getattr(self, "_func_return_type", "")`) — the field's
+        `string` value (via the cap-1 `_lower_getattr` self-field branch), so the
+        local is a `string` (pre-declared `ref ""`, not `ref 0`). Gated on a
+        @mutable_state self + a declared self field + a string-literal default, so a
+        corpus `getattr(self, "_x", 0)` keeps its int fall-through -> byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return set()
+        arf = getattr(self, "_all_record_fields", set())
+        out: Set[str] = set()
+
+        def _is_getattr_self_str(v: Any) -> bool:
+            if not (isinstance(v, dict) and v.get("type") == "Call"
+                    and v.get("func") == "getattr"):
+                return False
+            a = v.get("args") or []
+            return (len(a) == 3 and isinstance(a[0], dict)
+                    and a[0].get("type") == "Var" and a[0].get("name") == "self"
+                    and isinstance(a[1], dict) and a[1].get("type") == "String"
+                    and a[1].get("value") in arf
+                    and isinstance(a[2], dict) and a[2].get("type") == "String")
+
+        def find_assigns(n: Any) -> None:
+            if isinstance(n, dict):
+                if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)
+                        and _is_getattr_self_str(n.get("value"))):
+                    out.add(n["target"])
+                for x in n.values():
+                    find_assigns(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_assigns(x)
+        find_assigns(body_stmts)
+        return out - set(self._formal_params)
+
+    def _collect_items_key_alias_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction _typeddict_record_literal (cap-1b): locals bound to the KEY
+        loop-var of a `for k, v in <hval-field>.items()` loop (`rec_name = name` inside
+        `for name, info in self._record_types.items()`). The `.items()` KEY is an arbitrary
+        `string` (`hval_keys_get`, the certified `.items()` walk), so a local aliased to it
+        is a `string` (pre-declared `ref ""`, not `ref 0`). Gated on a @mutable_state self
+        + a resolvable hval `.items()` receiver -> corpus/other-mirror byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return set()
+        key_vars: Set[str] = set()
+
+        def find_keys(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") in ("For", "ForStmt"):
+                    _tt = n.get("tuple_targets")
+                    if (isinstance(_tt, list) and len(_tt) == 2 and _tt[0]
+                            and self._hval_items_recv(n.get("iter", {})) is not None):
+                        key_vars.add(_tt[0])
+                for x in n.values():
+                    find_keys(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_keys(x)
+        find_keys(body_stmts)
+        if not key_vars:
+            return set()
+        out: Set[str] = set()
+
+        def find_assigns(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    _v = n.get("value")
+                    if (isinstance(_v, dict) and _v.get("type") == "Var"
+                            and _v.get("name") in key_vars):
+                        out.add(n["target"])
+                for x in n.values():
+                    find_assigns(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_assigns(x)
+        find_assigns(body_stmts)
+        return out - set(self._formal_params)
+
     def _collect_tparam_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """L1 tparam reflection-node ADT: locals whose value is a tparam string read —
         `type(<tp>).__name__` (`tp_kind_of`), `<tp>.name` (`tp_name`), or `<bnode>.id`/
@@ -2797,6 +2879,135 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         rec(body_stmts)
         return out
 
+    def _collect_emit_ir_valued_dict_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction _typeddict_record_literal (cap-5): dict locals subscript-stored
+        with an emit_ir VALUE — `kv[<key>] = v` where `v` is the VALUE target of a `for k, v
+        in zip(<irlist>, <irlist>)` loop (an `irnth`-projected emit_ir). Such a `kv` is
+        `map string (option emit_ir)` (string key, emit_ir value), so its `_dict_key_types` /
+        `_dict_value_types` are set to `string` / `emit_ir`. Gated on a @mutable_state self +
+        a zip-irlist loop present -> corpus/other-mirror byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return set()
+        # collect the VALUE targets of every zip-irlist loop in the body.
+        zip_val_targets: Set[str] = set()
+
+        def find_zip(n: Any) -> None:
+            if isinstance(n, dict):
+                if (n.get("stmt") in ("For", "ForStmt")
+                        and self._zip_irlist_recv(n.get("iter", {})) is not None):
+                    _tt = n.get("tuple_targets")
+                    if isinstance(_tt, list) and len(_tt) == 2 and _tt[1]:
+                        zip_val_targets.add(_tt[1])
+                for x in n.values():
+                    find_zip(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_zip(x)
+        find_zip(body_stmts)
+        if not zip_val_targets:
+            return set()
+        out: Set[str] = set()
+
+        def find_stores(n: Any) -> None:
+            if isinstance(n, dict):
+                # a subscript store `d[k] = v` is an `ArraySet` stmt (array=d, value=v).
+                if n.get("stmt") == "ArraySet":
+                    _arr = n.get("array")
+                    _val = n.get("value")
+                    if (isinstance(_arr, dict) and _arr.get("type") == "Var"
+                            and isinstance(_val, dict) and _val.get("type") == "Var"
+                            and _val.get("name") in zip_val_targets):
+                        out.add(_arr.get("name"))
+                for x in n.values():
+                    find_stores(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_stores(x)
+        find_stores(body_stmts)
+        return out
+
+    def _collect_tdrl_raise_locals(self, body_stmts: List[Dict[str, Any]]):
+        """self-tcb-reduction _typeddict_record_literal (cap-6/7): classify the two
+        raise-branch `set(...)` locals — `declared = set(rec_info["fields"])` (an hval
+        collection local) and `present = set(kv.keys())` (the kv-domain map local). The two
+        shapes are structurally distinct (`set(<Subscript>)` vs `set(<….keys()>)`), so the
+        `missing`/`extra` comprehension readers can dereference them by name. Gated on a
+        @mutable_state self + `_uses_dictlit` + the exact `set(...)` shapes -> corpus/
+        other-mirror byte-inert. Returns `(hval_locals, present_locals)`."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return set(), set()
+        if not self._uses_dictlit():
+            return set(), set()
+        hval_locals: Set[str] = set()
+        present_locals: Set[str] = set()
+
+        def find_assigns(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    _v = n.get("value")
+                    if (isinstance(_v, dict) and _v.get("type") == "Call"
+                            and _v.get("func") in ("set", "frozenset")
+                            and len(_v.get("args") or []) == 1
+                            and isinstance(_v["args"][0], dict)):
+                        _arg = _v["args"][0]
+                        if _arg.get("type") == "Subscript":
+                            hval_locals.add(n["target"])
+                        elif (_arg.get("type") == "Call"
+                              and isinstance(_arg.get("func"), str)
+                              and _arg["func"].endswith(".keys")
+                              and not (_arg.get("args") or [])):
+                            present_locals.add(n["target"])
+                for x in n.values():
+                    find_assigns(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_assigns(x)
+        find_assigns(body_stmts)
+        _fp = set(self._formal_params)
+        return hval_locals - _fp, present_locals - _fp
+
+    def _collect_dictlit_child_list_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction _typeddict_record_literal (cap-2): locals assigned a
+        `<emit_ir>.get("keys"|"values", [])` read of a DictLit node (`keys =
+        expr.get("keys", [])`) — the DictLit's child IRLIST (`dictlit_keys_of`/
+        `dictlit_values_of`), so the local is pre-declared `ref ILNil` (an `irlist`),
+        not the integer `ref 0`. Gated on a @mutable_state self + an emit_ir receiver +
+        the `keys`/`values` key + a list default -> corpus/other-mirror byte-inert."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return set()
+        out: Set[str] = set()
+
+        def _is_dictlit_child(v: Any) -> bool:
+            if not (isinstance(v, dict) and v.get("type") == "Call"):
+                return False
+            _fn = v.get("func")
+            if not (isinstance(_fn, str) and _fn.endswith(".get")):
+                return False
+            _a = v.get("args") or []
+            if not (len(_a) == 2 and isinstance(_a[0], dict)
+                    and _a[0].get("type") == "String"
+                    and _a[0].get("value") in ("keys", "values")
+                    and isinstance(_a[1], dict)
+                    and _a[1].get("type") in ("ArrayLit", "ListLit", "List")):
+                return False
+            return self._is_emit_ir_expr({"type": "Var", "name": _fn[:-len(".get")]})
+
+        def find_assigns(n: Any) -> None:
+            if isinstance(n, dict):
+                if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)
+                        and _is_dictlit_child(n.get("value"))):
+                    out.add(n["target"])
+                for x in n.values():
+                    find_assigns(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_assigns(x)
+        find_assigns(body_stmts)
+        return out - set(self._formal_params)
+
     def _collect_emit_ir_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """typed-ir-for-b-ceiling.md §19: locals whose FIRST assignment is an `emit_ir`
         value — an ExprIR field read (`assume_inv = stmt.assume_invariant`), an inline
@@ -2936,6 +3147,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _crt, _, _, _ = self._resolve_dotted_signature(_fn)
                 if _crt == "emit_ir":
                     return True
+            # self-tcb-reduction _typeddict_record_literal (cap-6/7 completion): a
+            # `<kv>.get(<key>)` read of an emit_ir-VALUED dict local (`v = kv.get(fname)`,
+            # `kv : map string (option emit_ir)`) projects an emit_ir, so the target is an
+            # emit_ir local (pre-declared `ref (IrOther "")`, not the int `ref 0`). Keyed on
+            # cap-5's `_dict_value_types` -> corpus/other-mirror byte-inert.
+            if (v.get("type") == "Call" and isinstance(_fn, str)
+                    and _fn.endswith(".get")
+                    and getattr(self, "_dict_value_types", {}).get(
+                        _fn[:-len(".get")]) == "emit_ir"):
+                return True
             # item34.md CF1: an `Optional[emit_ir]` ternary (`stmt.value.to_dict() if … else
             # None`) is an emit_ir local — one arm emit_ir, the other emit_ir/None.
             if v.get("type") == "IfExpr":
@@ -3059,6 +3280,24 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # local reclassifies (pass 2 is a no-op there and pass 3 == pass 1).
         self._array_elem_types = self._collect_array_elem_types(body_stmts)
         self._emit_ir_local_vars = self._collect_emit_ir_result_locals(body_stmts)
+        # self-tcb-reduction _typeddict_record_literal (cap-2): irlist locals (a DictLit
+        # child-list `.get("keys"/"values",[])` read) pre-declare `ref ILNil`, not `ref 0`.
+        self._irlist_local_vars = self._collect_dictlit_child_list_locals(body_stmts)
+        # self-tcb-reduction _typeddict_record_literal (cap-5): a dict local stored with a
+        # zip value-target (emit_ir) is `map string (option emit_ir)` — set its κ/ν so the
+        # `{}` init, the `map_update_some` store, and the `Map.get` read all type-agree.
+        for _kvn in self._collect_emit_ir_valued_dict_locals(body_stmts):
+            self._dict_key_types[_kvn] = "string"
+            self._dict_value_types[_kvn] = "emit_ir"
+        # self-tcb-reduction _typeddict_record_literal (cap-6/7): the two raise-branch
+        # set-locals — `declared = set(rec_info["fields"])` (an hval collection) and
+        # `present = set(kv.keys())` (the kv-domain map) — so the `missing`/`extra`
+        # comprehension over-approx readers can reference them by deref (`!declared`/
+        # `!present`). Structural (set-of-subscript vs set-of-.keys()) + @mutable_state +
+        # _uses_dictlit gated -> corpus/other-mirror byte-inert.
+        _tdrl_hval, _tdrl_present = self._collect_tdrl_raise_locals(body_stmts)
+        self._tdrl_hval_locals = _tdrl_hval
+        self._tdrl_present_locals = _tdrl_present
         self._array_elem_types = self._collect_array_elem_types(body_stmts)
         # seq-model-pivot.md SQ1: a REASSIGNED list-elem local (assigned >1×) is modeled as
         # an immutable `seq` (freely reassignable), not a mutable `array` — a `ref (array _)`
@@ -3167,6 +3406,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # self-tcb-reduction _typeddict_field_access (gap-1): a local from an
         # `<emit_ir>.get("value", "<str>")` read is the String node's string content.
         string_vars |= self._collect_emit_ir_value_str_locals(body_stmts)
+        # self-tcb-reduction _typeddict_record_literal (cap-1): a local from a
+        # `getattr(self, "<modeled-field>", "<str>")` read of a self string-field.
+        string_vars |= self._collect_getattr_self_str_locals(body_stmts)
+        # self-tcb-reduction _typeddict_record_literal (cap-1b): a local aliased to the
+        # KEY loop-var of a `for k, v in <hval-field>.items()` loop (`rec_name = name`).
+        string_vars |= self._collect_items_key_alias_locals(body_stmts)
         # A reassigned formal string PARAM (`s = s.strip()`) is NOT a fresh typed
         # local: it must follow the int-param entry-shadow path (`let s = ref s in`
         # + `s := …`), never a let-bind at first assign (which would deref `!s`
@@ -3588,6 +3833,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     in getattr(self, "_mutable_state_classes", set()))
         _str_predecl: Set[str] = set()
         _emit_ir_predecl: Set[str] = set()
+        _irlist_predecl: Set[str] = set()
         if _ms_body:
             _str_predecl = {v for v in getattr(self, "_string_local_vars", set())
                             if v in local_refs and v not in ghost_vars
@@ -3602,6 +3848,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 and v not in struct_array_targets and v not in struct_pack_targets
                                 and v not in _str_predecl}
             pre_decl_vars |= _emit_ir_predecl
+            # cap-2: irlist locals (DictLit child-list) pre-declare `ref ILNil`.
+            _irlist_predecl = {v for v in getattr(self, "_irlist_local_vars", set())
+                               if v in local_refs and v not in ghost_vars
+                               and v not in ref_params and v not in self._formal_params
+                               and v not in struct_array_targets and v not in struct_pack_targets
+                               and v not in _str_predecl and v not in _emit_ir_predecl}
+            pre_decl_vars |= _irlist_predecl
 
         # W8/W1: a local bound to an element of an `array <record>` self-field
         # (`t = self.toks[self.i]`, the token cursor's `advance`) is RECORD-typed, so
@@ -3690,6 +3943,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 init = '""'
             elif var in _emit_ir_predecl:
                 init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
+            elif var in _irlist_predecl:
+                init = 'ILNil'         # cap-2: irlist local pre-decl
             elif var in _rec_predecl:
                 # W8/W1: record-element local pre-decl (see above).
                 init = self._record_default_literal(_rec_predecl[var])
