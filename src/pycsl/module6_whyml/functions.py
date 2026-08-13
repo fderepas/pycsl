@@ -568,6 +568,28 @@ class FunctionEmissionMixin:
                     if self._self_field_dict_nu(recv) == "hval":
                         return True
                 return False
+            # self-tcb-reduction _typeddict_field_access (b): a SUBSCRIPT
+            # `self._record_types[rec_name]` on a `map string (option hval)` self-field
+            # (value_type "hval") unwraps the `option hval` to an `hval` (the Layer-C
+            # `_handle_subscript` path) -> the target local is pyval. Also a subscript on a
+            # pyval LOCAL (`rec_info[k]`) is itself pyval. Corpus-inert (no `Dict[str, Any]`
+            # subscript there).
+            if vt == "Subscript":
+                sv = v.get("value")
+                if isinstance(sv, dict):
+                    if sv.get("type") in ("Attribute", "FieldGet"):
+                        so = sv.get("object")
+                        sa = sv.get("attr") or sv.get("field")
+                        dot = None
+                        if isinstance(so, dict) and so.get("type") == "Var" and sa:
+                            dot = "{}.{}".format(so.get("name"), sa)
+                        elif isinstance(so, str) and sa:
+                            dot = "{}.{}".format(so, sa)
+                        if dot is not None and self._self_field_dict_nu(dot) == "hval":
+                            return True
+                    if sv.get("type") == "Var" and sv.get("name") in pyval:
+                        return True
+                return False
             # alias of a pyval local.
             if vt == "Var":
                 return v.get("name") in pyval

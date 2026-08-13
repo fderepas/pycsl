@@ -410,6 +410,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Other expressions (int) need `<> 0` coercion."""
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
+        # self-tcb-reduction _typeddict_field_access (a): truthiness of a DOUBLED hval
+        # `.get` read (`if self._record_types[sym].get("is_typeddict"):`) — the projected
+        # value is an `hval` whose Python-truthiness is `hval_truthy`, NEVER the int `<> 0`
+        # coercion (the DOUBLED read otherwise projects a `string`, and `<string> <> 0` is
+        # an L3-tc type error). Re-lower the `.get` with the raw-hval flag, then apply
+        # `hval_truthy`. Gated on a pyval `.get` receiver -> corpus/mirror byte-inert (no
+        # `Dict[str, PyVal]` `.get` in a corpus condition).
+        if (t == "Call" and getattr(self, "_last_hval_get_str", None) == whyml_str
+                and getattr(self, "_last_hval_get_raw", None)):
+            return f"(hval_truthy {self._last_hval_get_raw})"
         # opaque-nested-map-reader SPLIT form: truthiness of an inner-alias local
         # (`if _rt` / `_rt and …` where `_rt = getattr(self, "_record_types", {}).get(tag)`)
         # is membership of the OUTER key — `<base>_mem <tag> : bool` — not the int `<> 0`
@@ -861,6 +871,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         generic abstract `contains_check`."""
         negate = op == "not in"
         rhs = expr.get("right", {})
+        # self-tcb-reduction _typeddict_field_access (d): `<x> in rec_info["fields"]` /
+        # `not in` where the rhs is a SUBSCRIPT on a pyval LOCAL (`rec_info["fields"]`, an
+        # hval collection) -> faithful membership via `hval_str_mem` over the RAW hval (the
+        # `HArr` of `HStr` field names), descending the real structure (non-vacuous), NOT
+        # the opaque int-hashed `contains_check`. `left` is the raw native string needle.
+        # Gated on `_pyval_locals` -> corpus/mirror byte-inert.
+        if not self._in_spec and rhs.get("type") == "Subscript":
+            _sv = rhs.get("value")
+            if (isinstance(_sv, dict) and _sv.get("type") == "Var"
+                    and _sv.get("name") in getattr(self, "_pyval_locals", set())):
+                _pvm = whyml_ident(_sv.get("name"))
+                _kir = rhs.get("index", {})
+                _kw = self._expr_to_whyml(_kir, local_refs or set(), invariant_ctx, subst)
+                _rawh = (f"(match {_pvm} with HMap m_mem -> "
+                         f"(match pairs_get m_mem {_kw} with Some v_ -> v_ "
+                         f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
+                _mem = f"(hval_str_mem {_rawh} {left})"
+                return f"(not {_mem})" if negate else _mem
         # W8 capability (ii) — varargs-membership. `x in vals` where `vals` is the
         # `*vals: str` vararg parameter (a `seq string`) is a REAL membership test over
         # the actual argument sequence, NOT the opaque `contains_check (str_hash_op x)
@@ -2075,6 +2103,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if (len(_a) >= 1 and isinstance(_a[0], dict)
                         and _a[0].get("type") == "String"
                         and _a[0].get("value") in self._effective_emit_ir_node_keys()
+                        # self-tcb-reduction _typeddict_field_access (gap-1): a STRING-literal
+                        # default (`index_ir.get("value", "")`) means the string-content read
+                        # (`value_of`, a `string`), NOT the emit_ir sub-node -> not emit_ir.
+                        and not self._get_default_is_str_literal(ir)
                         and self._is_emit_ir_expr({"type": "Var", "name": _fn[:-len(".get")]})):
                     return True
         # Lever 6: a `self.<method>(...)` / bare `<func>(...)` call whose DECLARED
@@ -6680,6 +6712,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return (isinstance(_default, dict) and _default.get("type") == "DictLit"
                 and not _default.get("keys"))
 
+    @staticmethod
+    def _get_default_is_str_literal(expr: Dict[str, Any]) -> bool:
+        """self-tcb-reduction _typeddict_field_access (gap-1): True iff a `.get(key,
+        default)` Call's SECOND arg is a STRING literal — the shape
+        `index_ir.get("value", "")` uses after a `type == "String"` guard. A string
+        default signals the receiver is a String IR node whose `value` is its STRING
+        CONTENT (`value_of`), NOT the emit_ir `svalue` sub-node (`svalue_of`, the
+        empty-dict-default / no-default shapes). Byte-inert (no corpus/other-mirror
+        reflects an emit_ir `.get("value", "<str>")`)."""
+        _dargs = expr.get("args") or []
+        if len(_dargs) < 2:
+            return False
+        _d = _dargs[1]
+        return isinstance(_d, dict) and _d.get("type") == "String"
+
     def _expr_is_pyval(self, e: Dict[str, Any]) -> bool:
         """K7/#5 (self-tcb-reduction Tier-5): True iff `e` produces a heterogeneous
         `hval` — a `_pyval_locals` Var, a `.get` on a `map string (option hval)`
@@ -6859,13 +6906,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                            invariant_ctx, subst)
                 _kw = self._expr_to_whyml(_a2[0], local_refs or set(),
                                           invariant_ctx, subst)
+                # self-tcb-reduction _typeddict_field_access (a): stash the RAW `hval` form
+                # of this DOUBLED read (the absent-key default `HInt 0` is falsy), computed
+                # with the CORRECT local_refs (so ref locals like `!sym` deref right), so a
+                # bool/if context (`_to_bool`) can apply `hval_truthy` to the raw value
+                # instead of the string projection — WITHOUT re-lowering (which would lack
+                # local_refs). Matched by string-equality of the projected result below.
+                self._last_hval_get_raw = (
+                    f"(match {_rvw} with HMap m_k8 -> "
+                    f"(match pairs_get m_k8 {_kw} with Some v_ -> v_ "
+                    f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
                 _optstr = (f"(match {_rvw} with HMap m_k8 -> "
                            f"(match pairs_get m_k8 {_kw} with "
                            f"Some (HStr s) -> Some s | _ -> None end) "
                            f"| _ -> None end)")
                 if getattr(self, "_get_return_raw_option", False):
                     return _optstr
-                return (f"(match {_optstr} with Some s -> s | None -> \"\" end)")
+                _res_str = f"(match {_optstr} with Some s -> s | None -> \"\" end)"
+                self._last_hval_get_str = _res_str
+                return _res_str
         # ghost-handler-wall Q3a (self-tcb-reduction, ghost-handler-wall-response.md
         # §Q3a/gh-spike.mlw::Q3Arity): a bare `.get("arity", <default>)` call (2 args)
         # whose receiver the tool cannot resolve to a concrete dict type — e.g. a
@@ -7032,6 +7091,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _scoped2 is not None and _k2 == "value":
                     _scoped_val = ("svalue_of" if self._get_default_is_empty_dict(expr)
                                    else "num_of")
+                # self-tcb-reduction _typeddict_field_access (gap-1): `<emit_ir>.get("value",
+                # "<str>")` (STRING default) reads a String IR node's CONTENT -> `value_of`
+                # (a `string`), not the `svalue_of` sub-node. General (semantically the
+                # string-content read) + byte-inert. Overrides the default table below.
+                if _scoped_val is None and _k2 == "value" and self._get_default_is_str_literal(expr):
+                    _scoped_val = "value_of"
                 # orelse_of mini-M1: same "body" disambiguation as the subscript-receiver
                 # site above — an empty-dict `{}` default routes to the IfExpr scalar
                 # `body_of`, everything else keeps the table's `stmts_of`.
@@ -7990,6 +8055,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _proj = "svalue_of" if _kv == "pattern" else _EMIT_IR_PROJ.get(_kv)
             if _proj:
                 return f"({_proj} {self._expr_to_whyml(value, local_refs or set(), invariant_ctx, subst)})"
+        # self-tcb-reduction _typeddict_field_access (b): a subscript `rec_info["whyml_name"]`
+        # on a pyval LOCAL (`rec_info = self._record_types[rec_name]`, an `hval`) is the
+        # DOUBLED hval read — project the `HStr` leaf to a `string` (the `whyml_name`/
+        # scalar-string use). The `not in`-membership collection use (`rec_info["fields"]`)
+        # is intercepted upstream by `_emit_membership` (which reads the RAW hval), so this
+        # string projection only serves the scalar-string reads. κ=string RAW key. Gated on
+        # `_pyval_locals` -> corpus/mirror byte-inert.
+        if (isinstance(value, dict) and value.get("type") == "Var"
+                and value.get("name") in getattr(self, "_pyval_locals", set())):
+            _pv = whyml_ident(value.get("name"))
+            return (f"(match {_pv} with HMap m_pvs -> "
+                    f"(match pairs_get m_pvs {index} with Some (HStr _s) -> _s "
+                    f"| _ -> \"\" end) | _ -> \"\" end)")
         # §26: `X[k]` where X aliases a self dict-field → `Map.get self.<field> <k>` (the
         # getattr-bound-local read; `known_sizes[var_name]`). Mirrors the field-dict get.
         if isinstance(value, dict) and value.get("type") == "Var":

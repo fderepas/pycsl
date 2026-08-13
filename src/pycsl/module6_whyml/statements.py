@@ -2547,6 +2547,41 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         find_assigns(body_stmts)
         return out - set(self._formal_params)
 
+    def _collect_emit_ir_value_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction _typeddict_field_access (gap-1): locals whose value is an
+        `<emit_ir>.get("value", "<str-literal>")` read (`field_name = index_ir.get("value",
+        "")` after a `type == "String"` guard) — the String IR node's STRING CONTENT
+        (`value_of`, a `string`), NOT the emit_ir sub-node. They are `string` locals
+        (pre-declared `ref ""`, not `ref 0`), matching the `value_of` lowering. Gated on an
+        emit_ir receiver + a string-literal default -> corpus/other-mirror byte-inert."""
+        out: Set[str] = set()
+
+        def _is_emit_ir_value_str(v: Any) -> bool:
+            if not (isinstance(v, dict) and v.get("type") == "Call"):
+                return False
+            _fn = v.get("func")
+            if not (isinstance(_fn, str) and _fn.endswith(".get")):
+                return False
+            _a = v.get("args") or []
+            if not (len(_a) == 2 and isinstance(_a[0], dict)
+                    and _a[0].get("type") == "String" and _a[0].get("value") == "value"
+                    and isinstance(_a[1], dict) and _a[1].get("type") == "String"):
+                return False
+            return self._is_emit_ir_expr({"type": "Var", "name": _fn[:-len(".get")]})
+
+        def find_assigns(n: Any) -> None:
+            if isinstance(n, dict):
+                if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)
+                        and _is_emit_ir_value_str(n.get("value"))):
+                    out.add(n["target"])
+                for x in n.values():
+                    find_assigns(x)
+            elif isinstance(n, list):
+                for x in n:
+                    find_assigns(x)
+        find_assigns(body_stmts)
+        return out - set(self._formal_params)
+
     def _collect_tparam_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """L1 tparam reflection-node ADT: locals whose value is a tparam string read —
         `type(<tp>).__name__` (`tp_kind_of`), `<tp>.name` (`tp_name`), or `<bnode>.id`/
@@ -3121,6 +3156,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # L1 tparam reflection-node ADT: locals from a tparam string read
         # (`type(tp).__name__` / `tp.name` / `bnode.id`/`.attr`) are `string` locals.
         string_vars |= self._collect_tparam_str_locals(body_stmts)
+        # self-tcb-reduction _typeddict_field_access (gap-1): a local from an
+        # `<emit_ir>.get("value", "<str>")` read is the String node's string content.
+        string_vars |= self._collect_emit_ir_value_str_locals(body_stmts)
         # A reassigned formal string PARAM (`s = s.strip()`) is NOT a fresh typed
         # local: it must follow the int-param entry-shadow path (`let s = ref s in`
         # + `s := …`), never a let-bind at first assign (which would deref `!s`

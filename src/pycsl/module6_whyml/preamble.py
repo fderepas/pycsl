@@ -6729,6 +6729,36 @@ class PreambleEmissionMixin:
             " Descends the REAL hval structure (non-vacuous), NOT an abstract reader. *)",
             "  let function hstr_of (h: hval) : string"
             " = match h with HStr s -> s | _ -> \"\" end",
+            "  (* self-tcb-reduction _typeddict_field_access (a): Python truthiness of an"
+            " `hval` projected from a DOUBLED `.get` read used in a bool/if context"
+            " (`if self._record_types[sym].get(\"is_typeddict\"):`). Total definitional"
+            " `let function` over the hval ADT — HStr non-empty / HInt non-zero / HArr,HMap"
+            " non-empty / HNode present. The string-emptiness test reuses the certified"
+            " decidable key equality `hpairs_key_eq` (Why3 has no native program string `=`,"
+            " same reason `pairs_get` uses it). Descends the REAL structure (non-vacuous),"
+            " NO axiom -> ledger stays 3. *)",
+            "  let function hval_truthy (h: hval) : bool =",
+            "    match h with",
+            "    | HStr s -> not (hpairs_key_eq s \"\")",
+            "    | HInt i -> i <> 0",
+            "    | HArr l -> (match l with HNil -> false | _ -> true end)",
+            "    | HMap p -> (match p with PNil -> false | _ -> true end)",
+            "    | HNode _ -> true",
+            "    end",
+            "  (* self-tcb-reduction _typeddict_field_access (d): faithful membership of a"
+            " string in an hval collection (`field_name not in rec_info[\"fields\"]`, an"
+            " `HArr` of `HStr` field names). Total definitional recursion over the bespoke"
+            " `hval_list` carrier via the certified `hpairs_key_eq` element test — descends"
+            " the REAL structure (non-vacuous), NO axiom. *)",
+            "  let rec function hval_list_str_mem (l: hval_list) (x: string) : bool",
+            "    variant { l }",
+            "    = match l with",
+            "      | HNil -> false",
+            "      | HCons h t -> if (match h with HStr s -> hpairs_key_eq s x"
+            " | _ -> false end) then true else hval_list_str_mem t x",
+            "      end",
+            "  let function hval_str_mem (h: hval) (x: string) : bool =",
+            "    match h with HArr l -> hval_list_str_mem l x | _ -> false end",
             "  (* hval-retype (self-tcb-reduction Tier-5): the abstract `.values()`"
             " iterator over a `map string (option hval)` field — a native Why3 `map` is"
             " not finitely iterable, so the ENUMERATION is over-approximated (arbitrary"

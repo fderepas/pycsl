@@ -653,12 +653,34 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _call_bytes_methods(self, args: List[str], func_name: str) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
-    def _typeddict_field_access(self, value: int, index_ir: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
-        return None
+    def _typeddict_field_access(self, value: "ExprIR", index_ir: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        if index_ir.get("type") != "String":
+            return None
+        field_name = index_ir.get("value", "")
+        if not isinstance(field_name, str) or not field_name:
+            return None
+        rec_name = None
+        if value.get("type") == "Var":
+            sym = getattr(self, "_current_symbol_table", {}).get(value.get("name", ""))
+            if sym and sym in getattr(self, "_record_types", {}):
+                if self._record_types[sym].get("is_typeddict"):
+                    rec_name = sym
+        if rec_name is None and value.get("type") in ("Attribute", "FieldGet"):
+            ft = self._field_type_of(value)
+            if ft and ft in getattr(self, "_record_types", {}):
+                if self._record_types[ft].get("is_typeddict"):
+                    rec_name = ft
+        if rec_name is None:
+            return None
+        rec_info = self._record_types[rec_name]
+        if field_name not in rec_info["fields"]:
+            return None
+        rec_lower = rec_info["whyml_name"]
+        base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+        return f"{base}.{self._field_label(rec_lower, field_name)}"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
