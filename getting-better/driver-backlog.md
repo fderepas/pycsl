@@ -1937,3 +1937,32 @@ Top receiver-shaped candidates measured as walls:
   `_record_valued_expr_whyml_type` (lowers to opaque int val) flowing into an `Optional[str]` union -> int/union clash.
 CHECKPOINT rationale: flagship (a221599f) landed+fully-verified this stretch; escalate-not-thrash + the heavy
 giant-proof cost of the next wall make a fresh context the right place to build it. Wall-signal recorded above.
+
+## 2026-08-13 — _field_type_of wall BROKEN (2d55bf04, 734->733... count 735->734) + 3-layer heterogeneous-dict recipe banked
+The `_field_type_of` (types.py) wall — the general heterogeneous-dict node-type-aware Attribute/FieldGet
+field-type resolver — is BROKEN. The spike REFINED the backlog's 2-part characterization (avalue_of routing
++ hval-record-view) into 3 tractable, byte-inert, axiom-free emitter recognizer layers (ledger 3; the
+`.values()` walk REUSED `_field_type_for`'s certified hval-record-view, NO new cert):
+- LAYER A: `_is_emit_ir_expr` BinOp/BoolOp(or/and) branch → `receiver = A.get("value") or A.get("object")
+  or {}` flow-types emit_ir (empty-dict `{}` = absent sentinel `IrOther ""`); local pre-decls `ref (IrOther
+  "")`.
+- LAYER B: the SAME-KEY per-call-site conflict (`.get("object")` = `object_of`/emit_ir in the Attribute
+  branch vs `fgobject_of`/string in the FieldGet branch — one key, one receiver, two type-classes) is
+  resolved by a WHOLE-IDIOM recognizer `_recognize_attr_receiver_idiom` (`X.get("value") or X.get("object")
+  [or {}]` → `avalue_of X`) so the Attribute operands escape the generic projection, freeing func-scoped
+  `object→fgobject_of`/`field→field_of` for FieldGet.
+- LAYER C: hval-map self-field SUBSCRIPT read in `_handle_subscript` (`self._record_types[gcls]` → `match
+  Map.get … with Some _v -> _v | None -> HMap PNil`, κ=string raw key) + `_expr_is_pyval` Subscript branch,
+  so the chained `.get("whyml_name")` fires the certified DOUBLED hval read. = the `_record_types[key]`
+  heterogeneous-dict-by-string-key value model (read-twin of the DOUBLED `.get`).
+PROCESS: the mandatory mirror-wide .mlw md5 diff found EXACTLY 2 changed-emission files (types.py + the
+Module6_WhyMLTranspiler giant that composes the mixin) — both whole-file-proved 0 non-Valid (giant within
+7200; types.py within 3200, NO `#@ no_inline` needed despite the `--fun` alone taking ~13min). Corpus
+byte-diff 0. Gate-C non-vacuity PASS (mutation flips the emitted pairs_get key; zero opaque get_N). LESSON:
+a single-fn `--fun` running ~13min did NOT force `#@ no_inline` — the whole-file proof still closed within
+the giant/normal timeouts; measure the whole-file cost before assuming saturation. BANKED CAPS: emit_ir
+or/and-chain local flow-typing (empty-dict sentinel); Attribute-receiver whole-idiom recognizer
+(per-call-site same-key escape); hval-map self-field subscript value model + its `_expr_is_pyval`
+recognition. NEXT: re-drain Phase 1, then the next receiver/heterogeneous-dict-shaped wall
+(`_infer_return_value_type` stmt_control_flow.py:1529 = `_record_valued_expr_whyml_type` opaque-int→Optional[str]
+union clash was the other measured wall).
