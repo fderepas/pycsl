@@ -2054,3 +2054,48 @@ record-scan + `info.get("is_typeddict")` truthy + zip over keys/values + missing
 RAISE) and `_namedtuple_positional_access` (7733 — Number-index + WL-04b record-array-local
 path) — verbatim-OK, likely reuse caps 1-5. ROOT 1 relocated `_field_type_*` statements.py
 stubs stay FLAGGED (`-> str` vs live `-> Optional[str]` = refactor = reject).
+
+## 2026-08-13 (cont.) — ROOT 2 sibling `_namedtuple_positional_access` SPIKED + MEASURED; NEW wall = WL-04b `.items()` dead-block verbatim emission (checkpoint at 733)
+Spiked `_namedtuple_positional_access` (expressions.py:7798). It reuses the 6 banked
+`_typeddict_field_access` caps AND needs a NEW **hval-collection-as-SEQUENCE** capability
+(BUILT in the spike, saved to `getting-better/banked-namedtuple-positional-spike.patch`;
+reverted to keep 733 clean — no landed consumer yet):
+- **hval_len / hval_list_len** (preamble): `len(rec_info["fields"])` -> hval-list length.
+  `_handle_len_call` routes a `_pyval_locals` Var arg to `hval_len`.
+- **hval_nth_str / hval_list_nth** (preamble): `fields[idx_val]` (INT index) -> the idx-th
+  `HStr` as a string. `_handle_subscript` pyval-local branch now disambiguates by index IR
+  type (Number -> `hval_nth_str`; String key -> the `pairs_get` DOUBLED read).
+- **gap-2 (num_of)**: `index_ir.get("value")` (NO default) after a `type == "Number"` guard
+  reads the Number leaf's INT payload (`num_of`), not `svalue_of`. Fixed via an EMPTY scoped
+  entry in `_EMIT_IR_GET_KEY_PROJ_BY_FUNC` (makes `_scoped2` non-None -> the existing
+  `.get("value")` no-empty-dict-default disambiguation routes to `num_of`).
+
+REMAINING GAPS (measured via WHOLE-FILE `--no-proof` L3-tc, the ~5min fast gate):
+- **gap-2b (idx_val emit_ir-misclassification)**: `_is_emit_ir_expr` (expressions.py:2101)
+  still classifies `index_ir.get("value")` as emit_ir (it's a "value" node key), so idx_val
+  pre-declares `ref (IrOther "")` and `idx_val := num_of index_ir` (int) TYPE-CLASHES. FIX =
+  extend the gap-1 `_is_emit_ir_expr` exclusion to ALSO skip when the current func scopes
+  "value" to a non-emit_ir projection (num_of/value_of) — NOT yet built. (Same shape as
+  gap-1's `_get_default_is_str_literal` exclusion, but keyed on the func-scoped num_of.)
+- **THE REAL WALL — WL-04b `.items()` DEAD-BLOCK VERBATIM EMISSION**: the body's WL-04b
+  record-array residual (`for _cls, _info in self._record_types.items(): ...`) is
+  CONTROL-FLOW-DEAD in the model (`rec_name is None` -> `false` on a string ref, like the
+  Attribute branch), BUT the emitter has NO dead-code elimination — it STILL lowers the
+  `.items()` loop VERBATIM. The emission is an opaque `items_0()`/`iter_get`/`iter_length`
+  facade with an ill-formed `_cls`/`_info` tuple-unpack (`rec_name := _cls` where `_cls` is
+  not cleanly bound) -> almost certainly ill-typed / Gate-C facade. `.items()` over a
+  `map string (option hval)` self-field is UNSUPPORTED (only `.values()` is certified, via
+  `_field_type_for`/a3785a13). This dead-block `.items()` is SHARED by BOTH ROOT 2 siblings
+  (`_typeddict_record_literal` @7662 ALSO has `for name, info in ...items()` — LIVE there,
+  not dead). So `.items()`-over-hval-self-field is the next capability both siblings need.
+  `_typeddict_record_literal` additionally needs hval-collection ITERATION (`for fname in
+  rec_info["fields"]`), `set(rec_info["fields"])`, zip(keys,values)+dict-build, and RAISE.
+
+WALL-SIGNAL / NEXT (autonomous, deadline 2026-08-17): build (1) the gap-2b `_is_emit_ir_expr`
+scoped-num_of exclusion (small), THEN (2) `.items()`-over-hval-self-field iteration (the
+`(key, value)` twin of the certified `.values()` walk — key = the enumerated string, value =
+the hval; reuse hval_values_len/get + add a key projector). Apply the banked spike patch,
+land `_namedtuple_positional_access` first (smaller: only needs `.items()` in a DEAD block =
+may over-approx to a trivially-typed empty/opaque loop if dead-block emission can be made
+type-safe), then `_typeddict_record_literal` (LIVE `.items()` + collection-iterate + set +
+raise = the bigger build). Full battery each increment.
