@@ -2230,3 +2230,19 @@ generic svalue_of, no index_of/tuple_of). ESCALATED (start smallest = _handle_pr
 ROOT B (heavier, distinct) — _variant_types/_constructors nested-hval walk (union/match cluster _match_subject_union_info
 /_union_ctor_for_arm_tag/_union_none_ctor_for): nested constructors/payload lists off _variant_types (hval HMap->list),
 type-pinned by verified _handle_match_stmt. Same hval-HMap/HNode-list wall as _track_collection_metadata. Defer.
+
+## 2026-08-14 — ROOT A REFUTED (projectors already exist); frontier = 3 DISTINCT session-scale builds
+The re-drain's "ROOT A spike-close projector cascade" was WRONG: left_of/right_of/svalue_of/sindex_of/name_of/value_of/
+elt0_of/elt1_of/kind_of ALREADY exist in _emit_exprir_theory. The residual cluster needs NON-projector walls:
+- `_handle_proj_expr` (ProjExpr.index is a raw INT dataclass field) + `_handle_ctor_payload_expr` (CtorPayloadExpr.index)
+  need a NEW ctor **IrProj carrying an int** -> requires a co-landing axiom-free cert (the wall #1 IrMethodCall/Phase2j
+  pattern). _handle_proj_expr also needs a _deref str-return typing fix (mirror typed ->int, live ->str).
+  _handle_ctor_payload_expr ALSO reads `getattr(self,"_constructors",{})` nested Dict[str,Dict[str,Any]] (V1 wall) +
+  payload[idx] list-index -> 2 walls.
+- `_expr_to_whyml_string_ctx` (real method = mirror expressions.py:1502) calls module-level free fn `whyml_string_literal`
+  (identifiers.py) NOT modeled in mirror (auto-stubs ->int) -> a byte-op string-theory build (char-iter/ord/utf-8-encode).
+  StrConcat recursion also needs left_of/right_of extended to IrStrConcat (projector-extensible).
+- `_seq_init_expr` ALREADY converted (stale entry). [flag checked: drift still exactly 2, not _seq_init_expr — clean.]
+FRONTIER = 3 distinct funded builds (no cascade): (a) IrProj ctor+cert (ghost-node int-index family); (b)
+whyml_string_literal byte-op string theory; (c) ROOT B _variant_types/_constructors nested-hval union/match cluster.
+Spiking (a) IrProj first (most precedent-backed = wall #1 pattern).
