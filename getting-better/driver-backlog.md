@@ -2290,3 +2290,24 @@ verbatim (CLEANLY coupled — grep=0 other converted methods touch _variant_type
 730->728, giant stmt_control_flow whole-file proof = true gate. (2) expressions.py _union_none_ctor_for (retype
 _variant_types Dict[str,str]->Dict[str,PyVal], coupled to 2 already-converted key-membership methods @629/@906 - must
 re-prove - + hint_of), 728->727. ESCALATED sub-increment 1.
+
+## 2026-08-14 — union sub-increment 1 CHECKPOINT (uncommitted, count 728 but FACADE/not-L3-green — DO NOT commit)
+PLUMBING caps DONE (reusable): C1a functions.py::_dict_param_whyml_type nu=="hval"->map string(option hval);
+return option-wrap functions.py::_build_method_return_type_map (Optional-tuple override matching _compute_return_type,
+fixes bridge-val None-check clash); C2 expressions.py::_handle_call_expr .to_dict()->`stmt_to_pymap <recv>` uninterpreted
+projection (per-arg _todict_arg_wants_pymap when slot=map string(option hval); non-vacuous). Mirror stmt_control_flow.py:
+_current_symbol_table:Dict[str,str], _variant_types:Dict[str,Dict[str,PyVal]] (nested map string(option hval)); 2 markers
+removed. Ledger 3. Files: functions.py, expressions.py (live), stmt_control_flow.py (mirror). GOTCHA: L3-tc must use
+--import-path src/pycsl (NOT src/self-annotate/src -> spurious line-881 fail).
+REMAINING value-read caps (bulk; both bodies currently facade/input-blind -> Gate-C fail until done): C1b return tuple
+elem types option(int,int)->option(string, map string(option hval)) via _refine_tuple_return_type flow-typing of var_name
+(string)/vinfo(map) [also gates uinfo as _union_ctor_for_arm_tag param]; _match_subject_union_info body: subj=hval from
+stmt.get("subject"), subj.get("type")/.get("name")->pairs_get->hstr_of, isinstance(subj,dict)->true, vinfo:map string
+(option hval), not vinfo->sound (currently subj/vinfo ref 0 + subj_get_str/typeof_op facades); C3 _union_ctor_for_arm_tag
+.items() over hval-LOCAL vinfo.get("constructors") -> needs hval_as_map (h:hval):map string(option hval) view + .items()
+recognizer ext for hval local (key=hval_keys_get, val=hval_values_get) [currently items_0() input-blind]; C4
+ctor.get("payload",[])->hval, payload and payload[0]==arm_tag -> hval_truthy + hval_nth_str payload 0 vs arm_tag str_eq_op
+[currently ctor_get_arr/subscript_get facades]; C5 _handle_match_stmt coupling (verbatim) FIRST L3-tc err mlw:1115:
+union_info/py_match now option(τ) locals but `if X is not None` emits `!X<>0` + `a,b=X` bare-tuple unpack -> register
+option-tuple call-result locals, lower None-check as `match !X with None->false|Some _->true`, unpack as `match !X with
+Some(a,b)->`. All definitional, ledger 3. RESUME: fresh delegate on caps C1b->C5.
