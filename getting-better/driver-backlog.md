@@ -2353,3 +2353,19 @@ emit_ir. Session-scale ~4-5 caps, NO cert (definitional over certified hval), sp
 machinery), CASCADES to other hval-local readers. Both siblings verbatim-portable, caller-typing correct (blocker is pure
 value-model). Ranked #1 next build. (Lower: V1 Dict[str,Any] PARAM/_track_collection_metadata; boundaries IrProj/
 whyml_string_literal; review-gated giants.) ESCALATED lever #1.
+
+## 2026-08-14 — lever #1 spike: ~4-5 cap build, sub-increment split (measure-first reverted clean at 727)
+val_ir MUST annotate "ExprIR"(->emit_ir), NOT PyVal/Dict (clash at _handle_return_stmt call site which passes emit_ir).
+SUB-INC A (->726, _infer_return_value_type — CLOSER): most emits REAL (kind_of/name_of/func_of val_ir, Map.get
+_current_symbol_table, str_startswith_op "_union_", union_arm_whyml_type). 2 gaps: cap(d) CLOSEABLE = register
+_resolve_dotted_signature auto-stub return as `array string` (name-gated, mirror _thread_optional_return param reg at
+functions.py:6087) so subscript_get[0] yields string not int-hash 1776665034; cap(c) HARD = _record_valued_expr_whyml_type
+auto-stubs ->int, `if _rec is not None: return _rec` L3-tc FAIL (int vs synth _union__infer_return_value_type_2 variant
+Arm_2_0 string|Arm_2_None). Optional[str] return is a SYNTH per-fn _union_ variant NOT plain option string (option override
+functions.py:1923 fires only Optional[TUPLE]+None). _thread_optional_return (stmt_control_flow.py:1671-1718) does NOT thread
+a bare Var return (only None/IfExpr/1-arg-.get). BUILD: extend the return-threading recognizer to `return <option-string-var>
+-> union-arm`, OR model the resolver return as the synth variant. NOT a boundary.
+SUB-INC B (->725, depends on A, _maybe_inject_union_return): cap(a) extend _collect_union_hval_locals (statements.py:2236)
+to classify a local bound from a MAP-LOCAL's .get() yielding hval (vinfo is a local not self-field) + cap(b) hval_as_map-over
+-LOCAL .items() ext + ctor.get pairs_get/hint_of + payload[0] + val.startswith string op. Coupled: needs A's string return
+for arm_type==val_type. Baseline .mlw manifest at scratchpad/baseline_mlw/manifest.md5 (HEAD a35d46db). ESCALATED sub-inc A.
