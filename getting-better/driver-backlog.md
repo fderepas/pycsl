@@ -2444,3 +2444,12 @@ _emit_subtyping_goals dict-comp, _static_width via _linear_form tuple-of-dict); 
 BOUNDARY); (5) int-hash vacuity (_tag_of_value sum(ord) = wall-lesson-14 boundary); (6) string-parse/format
 (_parse_mixin_sig/_iter_len_expr = string-op boundary); standing boundaries (IrProj/whyml_string_literal/giants/
 pattern-walkers/raw-ast/_track_collection_metadata). Next: MEASURE the return-type dispatchers (most central, cascade).
+
+## 2026-08-14 (post-crash) — return-dispatchers measured V1-BOUNDARY (verbatim port, no caps applied); SPIKE-before-accepting
+_compute_return_type (functions.mlw:1657 `f"list {_cmg['elem_whyml']}"` string-valued-dict-field -> f-string/str_concat, int-erased)
++ _refine_tuple_return_type (functions.mlw:1965 nested Dict[str,Dict[str,str]] symbol_table). Delegate classified V1-BOUNDARY,
+724=autonomous floor. BUT the measurement was a VERBATIM PORT WITHOUT the banked hval-string-flow caps (hstr_of, str_concat_op,
+str_startswith_op, nested-hval — all built this session for the union cluster). Per "a boundary is a HYPOTHESIS — spike it"
+(and this session broke Call-receiver/union/_try_union all first-claimed boundaries), SPIKING _compute_return_type's first
+pattern (hval-string-field `_cmg['elem_whyml']` -> f-string) to decide buildable-vs-boundary before accepting the floor. Risk:
+int-hash vacuity on `ann.startswith` (must lower to real str_startswith_op on an hstr_of value, not ann_startswith_1 <hash>).
