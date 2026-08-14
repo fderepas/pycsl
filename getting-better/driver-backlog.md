@@ -2465,3 +2465,18 @@ methods + full byte-diff — LARGE/review-gated but PRECEDENTED by ControlFlowSt
 accessor caps (`getattr(self,FIELD)` bare read + Optional-map None-narrow + re-subscript on narrowed binder) — LIGHTER,
 session-scale. NOT a value-model boundary. 724 = autonomous floor pending (a) or (b). SPIKING (b) — does a targeted
 opaque-self field-accessor cap make _compute_return_type's self-field reads type non-vacuously without the whole-mixin flip?
+
+## 2026-08-14 (post-crash) — _compute_return_type PATH (b) = FEASIBLE COST/SCALE (not boundary, not floor); FUND multi-turn build
+Build-backed: NO read forces path (a) whole-mixin flip. All 7 self-fields have opaque-but-real accessor models (precedent:
+__svt(self):pydict / proved_of / __axset(self):map string bool — all live, non-vacuous, over int self-type). _compound_map_getter
+->option(map string(option string)); _current_self_type->option string; _mutable_state_classes->set string/map string bool;
+_record_types/_variant_types->nested map; _dict_key/value_types->map string(option string). COST/SCALE = largest dispatcher
+(~160 lines, ~15 branches, string-VALUE-computing). Needs: NEW generic opaque-self TYPED field-accessor cap (current
+_lower_getattr returns default 0 for opaque self — only bespoke recognizers synthesize typed accessors; ~128 recognize_* in
+generic_fold.py are the pattern) + pre-pass registering each `<local>=getattr(self,"_F",default)` with its faithful type +
+option None-narrow + map-membership + double-subscript + func.get pyval reads + return-VALUE str computation + correct val
+return types for 5 trusted-helper calls (_refine_tuple_return_type:string/_returns_stmt_ir:bool/_returns_emit_ir:bool/
+_returned_var_name:option string). MUST be per-method NAME+SHAPE-gated (_uses_* shape) — generic_fold.py:18088 warns a global
+_compute_return_type retype regressed 3 siblings. FUND: build the generic opaque-self typed field-accessor cap FIRST (reusable
+foundation, cascades to ALL FunctionEmissionMixin self-field readers), then _compute_return_type branch-by-branch (multi-turn,
+all-or-nothing L3-tc so checkpoint uncommitted). Per feedback_cost_scale_not_floor: COST/SCALE in a funded window is NOT a stop.
