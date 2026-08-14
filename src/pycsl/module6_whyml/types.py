@@ -500,6 +500,38 @@ class TypeInferenceMixin:
                     found.update(self._collect_option_tuple_locals(h.get("body", [])))
         return found
 
+    def _collect_option_str_return_locals(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction lever #1 sub-inc A cap (c): locals bound to a call whose
+        registered abstract-val return type is `option string` (`_rec = self._record_valued_
+        expr_whyml_type(val_ir)`). Such a local pre-declares `ref None` (an `option string`),
+        its `is not None` guard lowers to a `match … with None/Some` discriminant, and a bare
+        `return <local>` threads into the enclosing Optional[str] `_union_*` return arm — the
+        scalar-string analogue of `_collect_option_tuple_locals`. Live-only helper called
+        from the `\\trusted`-mirrored `_typed_local_vars`, so it needs no mirror body.
+        Byte-inert: no corpus method's abstract self-call return is registered `option
+        string` (only the lever-#1 emitter-internal helpers are)."""
+        found: Set[str] = set()
+        rets = getattr(self, "_module_method_return_types", {})
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                tgt = s.get("target", "")
+                if isinstance(val, dict) and val.get("type") == "Call" and tgt:
+                    _fn = val.get("func", "")
+                    rt = rets.get(_fn)
+                    if rt is None and isinstance(_fn, str) and _fn.startswith("self."):
+                        _cls = getattr(self, "_current_self_type", None)
+                        rt = rets.get(f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn)
+                    if rt == "option string":
+                        found.add(tgt)
+            for k in ("body", "orelse"):
+                if k in s:
+                    found.update(self._collect_option_str_return_locals(s[k]))
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found.update(self._collect_option_str_return_locals(h.get("body", [])))
+        return found
+
     def _collect_option_tuple_unpack_targets(self, stmts: List[Dict[str, Any]]) -> Set[str]:
         """self-tcb-reduction Tier-5 (union/match cluster C1b): the TARGET names of a
         `a, b = <option-tuple local>` unpack (`_uvar, uinfo = union_info`). These are

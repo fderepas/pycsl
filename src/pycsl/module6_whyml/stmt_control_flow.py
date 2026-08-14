@@ -1677,6 +1677,16 @@ class ControlFlowStmtMixin:
         t = val_ir.get("type")
         if t == "None":
             return none_ctor
+        # lever #1 sub-inc A cap (c): a bare `return <local>` where the local is an
+        # `option string`-returning-call result (`_rec = self._record_valued_expr_whyml_type
+        # (...)`, tracked in `_option_str_return_vars`) threads the raw `option string` into
+        # the Optional[str] union arms — `Some v` -> the string Some-arm `(Arm_N_0 v)`, `None`
+        # -> the nullary `_None` arm. Preserves None-propagation instead of the scalar default.
+        if (t == "Var"
+                and val_ir.get("name") in getattr(self, "_option_str_return_vars", set())):
+            _ov = f"!{whyml_ident(val_ir['name'])}"
+            return (f"(match {_ov} with | Some v_ -> {some_ctor} v_ "
+                    f"| None -> {none_ctor} end)")
         if t == "IfExpr":
             _then = self._thread_optional_return_rec(
                 val_ir.get("body"), local_refs, none_ctor, some_ctor)

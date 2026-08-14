@@ -3566,6 +3566,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         and _v.get("name") in getattr(self, "_pyval_locals", set())
                         and isinstance(_kir, dict) and _kir.get("type") == "Number"):
                     return True
+                # lever #1 sub-inc A cap (d): a subscript of a CALL whose registered
+                # abstract-val return type is `array string` (`self._resolve_dotted_
+                # signature(func)[0]`) projects a real STRING element (`subscript_get_str`),
+                # so a `== "string"` comparison routes through `str_eq_op` (a faithful
+                # string compare), not the int-hash `= 1776665034`. Name-gated on the
+                # `array string` ret-type -> byte-inert for every non-`array string` call.
+                if (_v.get("type") == "Call"
+                        and self._resolve_dotted_signature(_v.get("func", ""))[0] == "array string"):
+                    return True
             return self._is_string_expr(ir.get("value", {}))
         # `s + t` is a `BinOp(+)` node (string concatenation when both operands are
         # strings) — so a concat expression is itself string-typed. Required so e.g.
@@ -3867,6 +3876,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # unpack is NON-VACUOUS. Read the RAW `!x` (deref), NOT the projected read.
             if (isinstance(_nn, dict) and _nn.get("type") == "Var"
                     and _nn.get("name") in getattr(self, "_option_tuple_vars", {})):
+                _ov = f"!{whyml_ident(_nn.get('name'))}"
+                _chk = f"(match {_ov} with None -> true | Some _ -> false end)"
+                return _chk if raw_op == "==" else f"(not {_chk})"
+            # lever #1 sub-inc A cap (c): `<local> is None` / `is not None` on an
+            # `option string`-returning-call local (`_rec = self._record_valued_expr_whyml_type
+            # (...)`) is the FAITHFUL option presence test — a `match … None/Some` discriminant.
+            # Both arms reachable (the resolver genuinely returns None or a `Some <string>`) ->
+            # the guarded `return _rec` is NON-VACUOUS. Read the RAW `!x` (deref).
+            if (isinstance(_nn, dict) and _nn.get("type") == "Var"
+                    and _nn.get("name") in getattr(self, "_option_str_return_vars", set())):
                 _ov = f"!{whyml_ident(_nn.get('name'))}"
                 _chk = f"(match {_ov} with None -> true | Some _ -> false end)"
                 return _chk if raw_op == "==" else f"(not {_chk})"
@@ -8707,6 +8726,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return self._wrap_with_no_exception_assert(
                     ("map_get", None), [value_str, k], inner)
             else:
+                # lever #1 sub-inc A cap (d): a direct subscript of a CALL whose registered
+                # abstract-val return type is `array string` (`self._resolve_dotted_signature
+                # (func)[0]`) reads a real STRING element via an opaque, bounds-free
+                # `subscript_get_str` over-approximation — NOT the int-hash-erasing
+                # `subscript_get (x:int):int` (which collapses the downstream type-string
+                # compare to an int-hash literal). Sound (the [0] is *some* string of the
+                # resolver's returned tuple) and non-vacuous (it consumes the real
+                # `array string` receiver and the index). Fires only for a Call receiver
+                # whose ret-type resolves to `array string`; every other subscript is
+                # byte-identical.
+                if (isinstance(value, dict) and value.get("type") == "Call"
+                        and self._resolve_dotted_signature(value.get("func", ""))[0] == "array string"):
+                    self._add_abstract_op(
+                        "val subscript_get_str (a: array string) (i: int) : string")
+                    return f"(subscript_get_str {value_str} {self._coerce_to_int(index)})"
                 self._add_abstract_op("val subscript_get (x: int) (i: int) : int")
                 return f"(subscript_get {self._coerce_to_int(value_str)} {self._coerce_to_int(index)})"
         else:

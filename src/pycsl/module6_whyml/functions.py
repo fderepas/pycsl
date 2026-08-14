@@ -414,6 +414,11 @@ class FunctionEmissionMixin:
         # None` guard is a `match … with None/Some` discriminant and its tuple-unpack
         # unwraps the `Some`. name → the full `option (τ...)` WhyML type string.
         self._option_tuple_vars: Dict[str, str] = {}
+        # self-tcb-reduction lever #1 sub-inc A cap (c): locals bound to an
+        # `option string`-returning self-call (`_rec = self._record_valued_expr_whyml_type
+        # (val_ir)`). Pre-declared `ref None`; `is not None` guard is a `match … None/Some`
+        # discriminant; a bare `return <local>` threads into the Optional[str] union arm.
+        self._option_str_return_vars: Set[str] = set()
         self._known_collection_sizes = {}
         self._known_collection_elements = {}
         self._current_symbol_table = symbol_table
@@ -4892,6 +4897,24 @@ class FunctionEmissionMixin:
                     and IRScanner.has_none_return(func["body"])):
                 ret = f"option {ret}"
             result[func["name"]] = ret
+        # self-tcb-reduction lever #1 sub-inc A (_infer_return_value_type): two
+        # cross-mixin helpers it calls are NOT ported into this mirror module, so their
+        # abstract self-call vals default to `: int` and int-erase the type-string reads.
+        # Register their real WhyML return shapes (name-gated to these emitter-internal
+        # helpers, never a corpus symbol; `setdefault` never shadows a file that ports the
+        # helper for real) -> corpus byte-identical.
+        for _cls in {n.split("__", 1)[0] for n in result if "__" in n}:
+            # cap (d): `_resolve_dotted_signature(func)` really returns a
+            # `(ret_type, param_types, ...)` tuple whose [0] is the callee's WhyML
+            # return-type STRING — model it as `array string` so `[0]` yields a real
+            # `string` compared by `str_eq_op "string"` (not the int-hash 1776665034).
+            result.setdefault(f"{_cls}___resolve_dotted_signature", "array string")
+            # cap (c): `_record_valued_expr_whyml_type(val_ir)` returns `Optional[str]` —
+            # model as `option string` so `_rec = self._record_valued_expr_whyml_type(...)`
+            # types as an option local (`ref None`), its `is not None` guard lowers to a
+            # `match … None/Some` discriminant, and `return _rec` threads into the
+            # Optional[str] `_union_*` return arm.
+            result.setdefault(f"{_cls}___record_valued_expr_whyml_type", "option string")
         return result
 
     def _build_method_result_ensures_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
@@ -6087,6 +6110,13 @@ class FunctionEmissionMixin:
         for _cls in {n.split("__", 1)[0] for n in result if "__" in n}:
             result.setdefault(f"{_cls}___thread_optional_return",
                               ["emit_ir", "map int (option int)"])
+            # self-tcb-reduction lever #1 sub-inc A cap (d): `_infer_return_value_type`
+            # calls `self._resolve_dotted_signature(func)` with `func` a WhyML `string`
+            # (`func_of val_ir`), but the un-ported helper's abstract val defaults its param
+            # to `int`. Register the param as `["string"]` so the call type-checks. Paired
+            # with the `array string` RETURN registration in `_build_method_return_type_map`.
+            # Name-gated to this emitter-internal helper -> corpus byte-identical.
+            result.setdefault(f"{_cls}___resolve_dotted_signature", ["string"])
         return result
 
     def _build_method_param_whyml_types_by_name(

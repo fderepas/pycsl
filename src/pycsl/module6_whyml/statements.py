@@ -3450,6 +3450,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # (...)`) — a real `option (τ...)`, so its `is not None` guard and tuple-unpack
         # lower to `match … with None/Some` (not the bare always-present tuple model).
         self._option_tuple_vars = self._collect_option_tuple_locals(body_stmts)
+        # self-tcb-reduction lever #1 sub-inc A cap (c): locals bound to an `option
+        # string`-returning self-call (`_rec = self._record_valued_expr_whyml_type(...)`) —
+        # pre-declared `ref None`, guarded by a `match … None/Some`, returned into the
+        # Optional[str] union arm. The scalar-string sibling of `_option_tuple_vars`.
+        self._option_str_return_vars = self._collect_option_str_return_locals(body_stmts)
         # union/match cluster C1b: the unpack TARGETS of `a, b = <option-tuple local>` are
         # let-bound fresh (with the slot's real type) in the `Some` arm, so exclude them
         # from the integer `ref 0` pre-decl (a map/hval slot would int-clash).
@@ -4076,6 +4081,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _emit_ir_predecl: Set[str] = set()
         _irlist_predecl: Set[str] = set()
         _hvalmap_predecl: Set[str] = set()
+        _optstr_predecl: Set[str] = set()
         if _ms_body:
             _str_predecl = {v for v in getattr(self, "_string_local_vars", set())
                             if v in local_refs and v not in ghost_vars
@@ -4110,6 +4116,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 and v not in _str_predecl and v not in _emit_ir_predecl
                                 and v not in _irlist_predecl}
             pre_decl_vars |= _hvalmap_predecl
+            # lever #1 sub-inc A cap (c): an `option string`-returning-call local
+            # (`_rec = self._record_valued_expr_whyml_type(...)`) pre-declares `ref None`
+            # (typed `option string`), never `ref 0` (which option-clashes at the `:=`).
+            _optstr_predecl = {v for v in getattr(self, "_option_str_return_vars", set())
+                               if v in local_refs and v not in ghost_vars
+                               and v not in ref_params and v not in self._formal_params
+                               and v not in _uput
+                               and v not in struct_array_targets and v not in struct_pack_targets
+                               and v not in _str_predecl and v not in _emit_ir_predecl
+                               and v not in _irlist_predecl and v not in _hvalmap_predecl}
+            pre_decl_vars |= _optstr_predecl
 
         # W8/W1: a local bound to an element of an `array <record>` self-field
         # (`t = self.toks[self.i]`, the token cursor's `advance`) is RECORD-typed, so
@@ -4201,6 +4218,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
             elif var in _irlist_predecl:
                 init = 'ILNil'         # cap-2: irlist local pre-decl
+            elif var in _optstr_predecl:
+                # lever #1 sub-inc A cap (c): `option string` local pre-decl (`ref None`),
+                # the option-scalar counterpart of the string `ref ""` / hvalmap pre-decls.
+                init = '(None: option string)'
             elif var in _hvalmap_predecl:
                 # union/match cluster: nested-map local pre-decl (the ν-typed empty map).
                 init = self._dv_missing_default(

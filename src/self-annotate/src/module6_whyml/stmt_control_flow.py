@@ -769,11 +769,73 @@ class ControlFlowStmtMixin:
     def _maybe_inject_union_return(self, val: str, val_ir: "ExprIR") -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _infer_return_value_type(self, val_ir: Any) -> Optional[str]:
+    def _infer_return_value_type(self, val_ir: "ExprIR") -> Optional[str]:
+        """Infer the WhyML type of a return value IR node for Union injection."""
+        if not isinstance(val_ir, dict):
+            return None
+        # W8 capability (v): a RECORD-VALUED return (`return self.toks[idx]` /
+        # `return self.advance()` / a record-typed local) resolves to the record's
+        # Why3 type, so it is injected into the Optional variant's RECORD arm.
+        # Gated on the `List[<record>]`-field machinery -> None (byte-inert)
+        # everywhere else, so it may run first without perturbing any other shape.
+        _rec = self._record_valued_expr_whyml_type(val_ir)
+        if _rec is not None:
+            return _rec
+        t = val_ir.get("type")
+        if t in ("Number", "BinOp") or t == "UnaryOp":
+            # self-tcb-reduction _typeddict_record_literal (cap-6/7 completion): a string
+            # `+` concatenation return (`return "{ " + "; ".join(parts) + " }"`) is a
+            # STRING value — it must wrap into the Optional variant's string arm
+            # (`Arm_N_0 <concat>`), not fall through as int (no int arm exists -> the bare
+            # string type-clashes the `_union_*`). Mirrors the FString/`_is_string_expr`
+            # path; only BinOp is re-checked (Number/UnaryOp are always int). Byte-inert:
+            # a corpus union function with an unwrapped string-BinOp return would already
+            # fail L3-tc, so none exists (the wrap fires for no corpus program).
+            if t == "BinOp" and self._is_string_expr(val_ir):
+                return "string"
+            return "int"
+        if t == "String":
+            return "string"
+        if t == "Bool":
+            return "int"
+        if t == "Var":
+            name = val_ir.get("name", "")
+            symtab = getattr(self, "_current_symbol_table", {})
+            symtype = symtab.get(name)
+            if symtype:
+                return self._union_arm_whyml_type(symtype) \
+                    if not symtype.startswith("_union_") else symtype
+            return "int"
+        if t == "Call":
+            func = val_ir.get("func", "")
+            if isinstance(func, str):
+                if func in ("len", "int", "abs", "ord"):
+                    return "int"
+                if func in ("str",):
+                    return "string"
+                # value-model campaign incr5 (Optional-return-of-CALL wrapping): a string-
+                # returning METHOD call (`self._m5_get_type_name_legacy(...)`) resolves to
+                # "string" via the callee's declared signature, so `return self._m(...)` from
+                # an Optional[str] function wraps into the variant's string-arm ctor (`Arm_N_0
+                # <call>`), like a string LITERAL — previously it fell through to None
+                # (unwrapped) and Why3 rejected the bare string against the `_union_*` variant.
+                # Only the string case is added; int/other calls are unperturbed.
+                if self._resolve_dotted_signature(func)[0] == "string":
+                    return "string"
+        # value-model campaign incr7 (primitive #1 — generalized string-return wrapping): ANY
+        # string-typed return VALUE (a `name_of` attribute read `return elt.id`, a string
+        # ternary `return "a" if c else elt.id`, an f-string / string concat) wraps into the
+        # Optional-variant string-arm (`Arm_N_0 <val>`), mirroring the literal/String case and
+        # the incr5 string-CALL case. Reuses `_is_string_expr` (the emitter's string-typedness
+        # oracle). Reached ONLY for a union-returning function (via `_maybe_inject_union_return`)
+        # and only wraps when a matching string arm exists, so non-union / non-string returns
+        # (and every corpus function) are unperturbed. Placed last so the explicit int/Var/Call
+        # cases above still win (e.g. a `+` string-concat is FString/handled there, not here).
+        if self._is_string_expr(val_ir):
+            return "string"
         return None
 
     #@ requires True
