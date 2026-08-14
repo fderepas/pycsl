@@ -2393,3 +2393,17 @@ NESTED DOUBLE-SUBSCRIPT on map string(option hval); (iii) List[str] STRING-ARM A
 [-1] mutation + enumerate) + _stmts_to_whyml recursion + Optional/Any return. Caps reusable (match-code string-accumulation
 cascades). Other residuals: pattern-walkers (distinct pattern-value-model); return-type dispatchers (session-scale);
 boundaries IrProj/whyml_string_literal; review-gated giants; V1 _track_collection_metadata; raw-ast. ESCALATED.
+
+## 2026-08-14 (post-crash) — _try_union_is_none_match measured = ~6-cap build, MAKE-OR-BREAK = cap(iii) mutable-array-string [-1] store
+Reverted clean (single fn, no A/B partial-green). Correction: mirror already has stmt:"ExprIR"(=emit_ir) + pymap is WRONG
+here (stmt.get("body") feeds _stmts_to_whyml:array int -> only emit_ir body->stmts_of:array int matches). Dep-ordered caps:
+(i) emit_ir stmt/test-subtree threading — add "test"->test_of projector on SIf ctor to _EMIT_IR_PROJ + thread test/left/
+right/var_node emit_ir (op_of/kind_of/left_of/right_of/name_of) + route stmt.get("orelse",[])->stmts_of (fix
+_get_default_is_empty_dict expressions.py:6922); (X) var_name in _optional_union_locals Set[str] membership (contains_check
+str_hash facade); (Y) vinfo=_variant_types.get(symtype) as map string(option hval) — prescan BAILS here (vinfo used by BOTH
+.items() AND nested subscript); (Z) "None" in ctor_name -> str_contains_op; (ii) nested double-subscript vinfo["constructors"]
+[ctor_name] -> pairs_get twice; (iii) HARD/RISK = non_none_arms is List[str] with `non_none_arms[-1]` READ **and WRITE**
+(`[-1] = last + …`) -> Why3 seq immutable; needs MUTABLE array string with `arr[length arr -1] <- v` (needs length-1>=0,
+the IrProj array-store boundary risk) + `last + …`=str_concat_op + enumerate(other_ctors)->(int,string) + array-truthiness.
+SPIKE cap(iii) first: if the mutable-array-string [-1] store proves (array non-empty at store point), FUND the 6-cap build;
+if not, RECLASSIFY as CERTIFIED-BOUNDARY (like IrProj). Live body = stmt_control_flow.py:1312-1437, stub @:510.
