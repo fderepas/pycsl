@@ -2491,3 +2491,14 @@ _current_self_type (set-membership) — each a _uses_*/`_emitting_*`-gated unint
 _refine_tuple_return_type (sibling, same self-fields) + ANY FunctionEmissionMixin self-field reader. LESSON reaffirmed:
 delegate gated its accessors correctly this time (byte-diff 0, changed-emission 2) — the ungated-projector lesson stuck.
 Next: re-drain for the opaque-self-accessor cascade (_refine_tuple_return_type first).
+
+## 2026-08-14 (post-crash) — _refine_tuple_return_type NOT a cheap cascade (session-scale, reverted 723)
+The banked opaque-self accessor cap is READ-ONLY; _refine_tuple_return_type additionally CONSTRUCTS a nested symtab map +
+WRITES self-fields (self._current_symbol_table=_st — first converter to WRITE self-fields). Needs 5-6 NEW gated recognizers:
+func-field->string-map projector (banked _collect_optmap_getter_locals is SELF-field-only); dict()-copy-on-map identity;
+.items()-over-projected-func-field w/ tuple-unpack; option-string membership; subscript-assign map_update_some; typed
+self-WRITES (setattr on map-valued local — _coerce_to_int doesn't handle). Hard constraint: _st MUST be map string(option
+string) (feeds verified _infer_tuple_slot_type's 4th param). = contained multi-turn session-scale build (func-field->string-map
+projector + dict-copy-on-map = the 2 genuinely-new primitives). CASCADE SPLIT: READ-only FunctionEmissionMixin self-field
+readers = cheap (banked read accessors); WRITERS/CONSTRUCTORS = session-scale. Next: re-drain for cheap READ-ONLY cascade
+follow-ons; else fund _refine multi-turn build or the next documented wall.
