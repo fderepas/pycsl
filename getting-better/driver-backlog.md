@@ -2407,3 +2407,15 @@ str_hash facade); (Y) vinfo=_variant_types.get(symtype) as map string(option hva
 the IrProj array-store boundary risk) + `last + …`=str_concat_op + enumerate(other_ctors)->(int,string) + array-truthiness.
 SPIKE cap(iii) first: if the mutable-array-string [-1] store proves (array non-empty at store point), FUND the 6-cap build;
 if not, RECLASSIFY as CERTIFIED-BOUNDARY (like IrProj). Live body = stmt_control_flow.py:1312-1437, stub @:510.
+
+## 2026-08-14 (post-crash) — cap(iii) SPIKE = FEASIBLE (guard-dominated [-1] store proves); FUND _try_union_is_none_match 6-cap build
+The `non_none_arms[-1]` READ+WRITE are BOTH inside `if non_none_arms:` (live stmt_control_flow.py:1416-1418) -> GUARD-DOMINATED
+(not just append-dominated): `_to_bool` lowers the guard to `Seq.length/Array.length <> 0` -> length>=1 on then-path = the
+store's bounds VC. why3 prove: guarded seq store + guarded array store BOTH Valid (Z3+Alt-Ergo); unguarded falsifiers FAIL
+with empty-collection counterexample (non-vacuous). NOT a boundary (contrast IrProj arbitrary-index). Ledger 3 (seq/array
+built-in). Idiom: `ref (seq string)` `l := Seq.set !l (len-1) v` OR mutable `array string` `arr[len-1] <- v`; `+`=str_concat_op.
+cap(iii) = 2 bounded emitter additions: (1) WRITE-side negative-literal-index rewrite a[-1]=v -> a[len-1]<-v (the `_negk`
+rewrite exists only READ-side expressions.py:8689; statements.py:1156-1170 is_array store path must call it); (2)
+subscript-STORE path for a growable _seq_locals list local (emit `l := Seq.set !l idx v`) — OR classify the append-target
+into _array_locals so the existing `<-` path applies. FUND the full 6-cap build (i emit_ir-stmt/test-threading + X Set[str]
+membership + Y vinfo hval-map prescan-both-uses + Z str_contains_op + ii nested double-subscript + iii guarded [-1] store).
