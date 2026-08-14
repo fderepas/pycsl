@@ -2430,3 +2430,17 @@ MANDATORY (this one was 15 files / 12 perturbed vs the claimed 1/0). Every new e
 _uses_*-gated. BANKED caps: match-code List[str]-string-arm accumulation (guard-dominated negative-index mutable store +
 write-side neg-index rewrite), test_of/orelse_stmts_of If-stmt sub-node projectors. Next: re-drain for match-code cascade,
 else frontier = pattern-walkers (distinct) + return-dispatchers (session-scale) + boundaries + review-gated giants + V1.
+
+## 2026-08-14 (post-crash) — post-_try_union re-drain = no_cheap_remaining; 724 = AUTONOMOUS FLOOR for banked caps
+Union/match cascade DRAINED (all direct siblings converted). Every residual needs a NEW spike-gated session-scale build
+or is a boundary. Only contained lead = `_e` (Dict->ExprIR pure forwarder; LOW value per §10.7 — a forwarder that only
+proves ensures True; the Dict->ExprIR forwarding cap it needs might cascade but the stub itself is behaviorally empty).
+Ranked residual walls: (1) Dict->ExprIR forwarding reconciliation (_e — contained/distinct small cap, low value);
+(2) return-type dispatchers _refine_tuple_return_type/_compute_return_type (session-scale, chained through many trusted
+helpers _first_tuple_return_elts/_infer_tuple_slot_type/IRScanner — central return-type logic, cascade potential);
+(3) V1 generic Dict[str,Any]/nested-dict result (_build_method_param_whyml_types_by_name Dict[str,Dict[str,str]],
+_emit_subtyping_goals dict-comp, _static_width via _linear_form tuple-of-dict); (4) value-model reflection gap
+(_seq_operand _mutable_state_classes self-documented value-model-gapped + undeclared _seq_value_producing = V1-adjacent
+BOUNDARY); (5) int-hash vacuity (_tag_of_value sum(ord) = wall-lesson-14 boundary); (6) string-parse/format
+(_parse_mixin_sig/_iter_len_expr = string-op boundary); standing boundaries (IrProj/whyml_string_literal/giants/
+pattern-walkers/raw-ast/_track_collection_metadata). Next: MEASURE the return-type dispatchers (most central, cascade).
