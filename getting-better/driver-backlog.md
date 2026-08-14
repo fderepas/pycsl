@@ -2311,3 +2311,21 @@ ctor.get("payload",[])->hval, payload and payload[0]==arm_tag -> hval_truthy + h
 union_info/py_match now option(τ) locals but `if X is not None` emits `!X<>0` + `a,b=X` bare-tuple unpack -> register
 option-tuple call-result locals, lower None-check as `match !X with None->false|Some _->true`, unpack as `match !X with
 Some(a,b)->`. All definitional, ledger 3. RESUME: fresh delegate on caps C1b->C5.
+
+## 2026-08-14 — union sub-inc 1: C5 LANDED (blocker 1115->1130); C1b/body/C3/C4 remain (still facade @728)
+C5 DONE (option-tuple call-result local, reusable, gated on corpus-absent _option_tuple_vars -> byte-inert): _option_tuple_vars
+field (functions.py::_reset_function_state); _collect_option_tuple_locals + _split_tuple_slots (types.py live-only, called from
+\trusted-mirrored _typed_local_vars); pre-decl exclusion + let-bind (statements.py _emit_body_code/_handle_assign_stmt);
+None-check `X is not None`->`not(match !x with None->true|Some _->false)` (expressions.py binop); tuple-unpack `a,b=X`->
+`match !x with Some(a,b)->begin ...end|None->()` (statements.py::_emit_option_tuple_unpack). PROCESS NOTE: first draft edited
+un-trusted-mirrored _collect_tuple_var_assigns -> drift SPIKED to 3; refactored to live-only _collect_option_tuple_locals
+called from \trusted _typed_local_vars -> drift restored 2. LESSON: emitter helpers feeding option-tuple typing must be
+live-only or \trusted-mirrored, never edit an un-trusted-mirrored method (drift). Files (live): functions/expressions/
+statements/types.py; mirror stmt_control_flow.py (prior delegate). REMAINING blocker stmt_control_flow.mlw:1130
+`self__union_ctor_for_arm_tag_2 !uinfo` (val wants map string(option hval), uinfo=int facade): C1b flow-type return slots
+(_match_subject_union_info var_name->string/vinfo->map string(option hval) from _variant_types:map string(option(map string
+(option hval))) => option(string,map...); _union_ctor_for_arm_tag ctor_name->string/ctor->hval => option(string,hval)) via
+_refine_tuple_return_type/_infer_tuple_slot_type; then bodies (subj=hval from stmt.get("subject") -> pairs_get+hstr_of,
+isinstance->true, not vinfo->sound; C3 .items() over hval-LOCAL vinfo.get("constructors") -> hval_as_map view + .items()
+recognizer ext key=hval_keys_get/val=hval_values_get; C4 ctor.get("payload")->pairs_get, payload[0]==arm_tag -> hval_truthy+
+hval_nth_str+str_eq_op). Kill facades subj_get_str/typeof_op/items_0()/ctor_get_arr/subscript_get/str_hash_op. Ledger 3.
