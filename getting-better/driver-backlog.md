@@ -2528,3 +2528,16 @@ _collect_items_key_alias_locals exists today); cap2 option-string membership `_s
 Some s->str_eq_op s "Any"; cap3 subscript-assign `_st[_k]=_ty` -> map_update_some; cap4 list-comp slots=[_infer_tuple_slot_type(...)
 for e in elts] -> array string (verified helper 4th param already map string(option string)); cap5 _names/_s list-comps (.get("name")
 string proj over emit_ir elts + _slot_role.get). Resume fresh worker at cap1.
+
+## 2026-08-14 (post-crash) — _refine CHECKPOINT 2: drift FIXED 3->2, caps 1-3 DONE, caps 4-5 remain (blocker 2158)
+DRIFT re-port DONE (mirror statements.py _handle_fieldassign_stmt verbatim, drift back to 2). caps DONE (all _emitting_refine-gated,
+real accessors, byte-inert): cap1 keystone .items() over `func.get("param_annotations") or {}` (unwrap or-{} to pyval-get left +
+VALUE-string items variant hstr_of(hval_values_get) bound ref string); cap2 option-string membership match None->true|Some s->
+str_eq_op s "Any"; cap3 subscript-assign map_update_some !_st !_k !_ty. Supporting: dotted-func symmap reader, func.get("name")
+hval+string-default inside-match hstr_of, _collect_refine_str_get_locals (_nm split/contains). REMAINING caps 4-5 (blocker 2158):
+the 3 list-comps (slots/_names/_s) -> `array string` (elts is int from _first_tuple_return_elts stub collapse; comp locals ref 0).
+Needs REUSABLE gated array-string-local support (~5 variants + collector, cost/scale NOT boundary): (a) predecl category
+`ref (Array.make 0 "")`; (b) `list_comp_refine_string (src:'a):array string`; (c) _handle_len_call->Array.length; (d)
+_handle_join_call over array string; (e) _try_emit_any_all_fold element-typed array string. Files: expressions/statements/
+stmt_control_flow/preamble live + functions/statements mirror. Resume fresh worker at cap4/5 (array-string local support = reusable,
+cascades to any string-list builder). _refine is a 4+ turn build; write cap (turn1) already banked as the writer-class centerpiece.
