@@ -2579,3 +2579,8 @@ green-but-unsound decoupling) + heavy string-gen. _emit_contracts(102)/_reset_fu
 ## items-over-Dict[str,str] vein MEASURED = THIN (0 un-co-blocked); tuple-unpack frontier mined out
 - Census: 62 .items() trusted consumers, 1 faithful-scalar receiver (substitute, multi-blocked), ~54 Dict[str,Any]/hval. Un-co-blocked=0. NOT escalated.
 - FRONTIER READ: both adjacent shape-specific binders (pytuple-projection, native-map-items) measure 0 un-co-blocked consumers. Residual = deep capability builds: recursive variant-ADT walk (Term/AST), dict-comp CONSTRUCTION, Dict[str,Any] faithful-value threading, string/regex facade elimination, nested-def closures. Next: BROAD Phase-1 re-drain (all stub classes, not tuple-unpack) for any cheap vein + fresh residual-wall taxonomy to pick the highest-leverage deep wall.
+
+## BROAD re-drain = no_cheap_remaining (4 probes); ranked wall taxonomy banked
+- L3-tc sweep: all 52 mirror files GREEN at HEAD -> floor is REAL (no masked-blocker vein). int/bool readers, ctors, pure-string helpers ALL map to documented boundaries.
+- Ranked CONTAINED levers: #1 Term/AST recognizer-grammar arms (~8-10, per-arm additive, canonical.py); #2 pydict copy-and-set-field / dict-comp CONSTRUCTION (~10-15, single primitive). #3-#6 multi-session/mutually-co-blocked (near-0 un-co-blocked until pyval root #6). Terminal: ~49 subprocess/file-IO (unmodelable).
+- ESCALATING #2 (pydict-construct-set.md). Make-or-break = CONSUMER EXISTENCE (not primitive provability — Map.set is trivially faithful): find >=1 stub sole-blocked by dict-construction. RISK: overlap with #1 (substitute needs both) makes the ~10-15 optimistic.
