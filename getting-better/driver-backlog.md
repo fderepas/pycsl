@@ -2246,3 +2246,18 @@ elt0_of/elt1_of/kind_of ALREADY exist in _emit_exprir_theory. The residual clust
 FRONTIER = 3 distinct funded builds (no cascade): (a) IrProj ctor+cert (ghost-node int-index family); (b)
 whyml_string_literal byte-op string theory; (c) ROOT B _variant_types/_constructors nested-hval union/match cluster.
 Spiking (a) IrProj first (most precedent-backed = wall #1 pattern).
+
+## 2026-08-14 — comparative spike: (a) IrProj = best next build; CERT-DISCIPLINE clarified
+Ranked: (a) IrProj ctor [~3-4 caps, 1 stub _handle_proj_expr, cert-question below] >> (c) nested-hval union cluster
+[~6 caps, 3 stubs, NO cert, but COUPLED re-port of verified _handle_match_stmt — proven: porting _union_ctor_for_arm_tag
+breaks _handle_match_stmt L3-tc at stmt_control_flow.mlw:1113] >> (b) whyml_string_literal = DEFER (genuine correctness
+boundary: char-iter/ord ALREADY modeled but faithful UTF-8-byte-encode + `{b:02x}` hex need a certified byte model or
+stay trusted vals — leave trusted).
+CERT-DISCIPLINE (empirically verified — NOT every ctor needs a cert): IrMethodCall->Phase2j, IrCallKw->Phase2g have
+dedicated certs; IrCtorPayload(string string INT), IrCtorTest, IrSub have NONE. PRINCIPLE: a new emit_ir ctor needs a
+co-landing axiom-free cert IFF its recursive child is STRUCTURALLY RECURSED by the certified size/wf machinery (size-
+decrease + faithful-extraction proofs, as receiver_of/IrMethodCall). A ctor whose emit_ir child feeds only a TRUSTED val
+(not recursed) + whose int is a plain payload follows the uncertified-sound IrCtorPayload/IrFst pattern (NO new cert).
+IrProj emit_ir int: spike says its `tuple` feeds trusted `_e` (not recursed) + `index` is plain int -> IrCtorPayload
+pattern -> likely NO cert. MUST VERIFY during build (default to co-landing Phase2k if the child IS recursed anywhere).
+ESCALATED (a) IrProj with explicit cert-decision mandate. Ledger stays 3 either way (a cert is axiom-free).
