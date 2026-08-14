@@ -2541,3 +2541,13 @@ Needs REUSABLE gated array-string-local support (~5 variants + collector, cost/s
 _handle_join_call over array string; (e) _try_emit_any_all_fold element-typed array string. Files: expressions/statements/
 stmt_control_flow/preamble live + functions/statements mirror. Resume fresh worker at cap4/5 (array-string local support = reusable,
 cascades to any string-list builder). _refine is a 4+ turn build; write cap (turn1) already banked as the writer-class centerpiece.
+
+## 2026-08-14 (post-crash) — _refine_tuple_return_type CONVERTED (d6c8451f, 723->722); session 736->722 (14 conv); both return-dispatchers done
+4-turn build. BANKED (reusable, cascade): (1) TYPED SELF-FIELD WRITE cap `setattr_functionemissionmixin_poly` (polymorphic
+effect-free val, no _coerce_to_int, assigns \nothing) -> cascades to FunctionEmissionMixin WRITER class (_build_param_list/
+_emit_contracts/_emit_narrowing_vc/_render_refinement_goal/_reset_function_state); (2) SEQ-STRING-LOCAL support (reassigned
+list-comp local = ref (seq string) NOT array [reassign forbids array-region alias]; list_comp_refine_string/Seq.length/
+str_join_seq/any-all=satisfiable-spec val) -> cascades to string-list builders; (3) func-field->string-map projector, dict-copy,
+.items()-value-string variant, option-string membership, map_update_some subscript-assign. 3 changed-emission (functions +
+statements/stmt_control_flow re-ports), all whole-file VALID, byte-diff 0, ledger 3. Next: re-drain for the WRITER-class cascade
+(now unblocked by the write cap).
