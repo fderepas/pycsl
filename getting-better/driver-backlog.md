@@ -2329,3 +2329,15 @@ _refine_tuple_return_type/_infer_tuple_slot_type; then bodies (subj=hval from st
 isinstance->true, not vinfo->sound; C3 .items() over hval-LOCAL vinfo.get("constructors") -> hval_as_map view + .items()
 recognizer ext key=hval_keys_get/val=hval_values_get; C4 ctor.get("payload")->pairs_get, payload[0]==arm_tag -> hval_truthy+
 hval_nth_str+str_eq_op). Kill facades subj_get_str/typeof_op/items_0()/ctor_get_arr/subscript_get/str_hash_op. Ledger 3.
+
+## 2026-08-14 — union/match cluster COMPLETE (28b2eed0, 728->727); session 736->727 (9 conv / 8 walls)
+Sub-inc-2 _union_none_ctor_for landed (hint_of + pyval-int-compare + hstr_of-map-assign + union-hval-LOCAL +
+items-key-string caps; _variant_types Dict[str,str]->Dict[str,Dict[str,PyVal]] retype; 2 coupled key-membership methods
+re-emit BYTE-IDENTICAL + re-prove clean). 8 changed-emission files all whole-file VALID, byte-diff 0. LESSON reaffirmed:
+build-worker under-counted changed-emission set (claimed 4, authoritative=8 — the additive hint_of decl hit all pyval
+mirrors); SUPERVISOR must always re-run the mirror-wide md5 diff. Walls this run: Call-receiver a221599f, _field_type_of
+2d55bf04, ROOT2 hval cluster (typeddict_field_access e531a377 / namedtuple_positional_access 797ec6d9 /
+typeddict_record_literal 30053c21), raw-dict-string-read _infer_tuple_slot_type bcd80aa3, union/match cluster
+(38a46208 + 28b2eed0). Next: re-drain for union-cap cascade, else frontier = CERTIFIED-BOUNDARIES (IrProj array-store,
+whyml_string_literal byte-op) + review-gated giants (_emit_membership/_to_bool/_handle_subscript/_expr_to_whyml/
+_handle_binop/_handle_call_expr) + raw-ast Module5 walkers + _track_collection_metadata (V1 nested-hval+self-state).
