@@ -2111,6 +2111,47 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     st[v] = "str"
         return out
 
+    def _collect_dict_str_param_get_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction _infer_tuple_slot_type (cap-b): a local whose first
+        assignment reads a `string` off a `Dict[str,str]` param/local — `t =
+        elt.get("type")`, `nm = elt.get("name")`, `st = symtab.get(nm)`, or a `fn =
+        (elt.get("func") or "")` default — is a `string` local (pre-decl `ref ""`, not the
+        integer `ref 0`), so the `:=` typechecks and the follow-on `t == "Var"` /
+        `st in (...)` comparisons route through `str_eq_op` (via the `Var`→str branch of
+        `_is_string_expr`), never an int hash.
+
+        The string-ness of the RHS is decided by `_is_string_expr` over the cap-a
+        `_dict_value_types == "string"` `.get` model, resolved to a FIXPOINT (a later
+        `st = symtab.get(nm)` whose key is itself a marked string local is seen once the
+        symbol table has grown). Gated on the function actually declaring a `Dict[str,str]`
+        param/local (`_dict_value_types` carries a `"string"` codomain) → byte-inert for
+        every other function (the 627-corpus has no such `.get`-read pattern; measured)."""
+        dvt = getattr(self, "_dict_value_types", {}) or {}
+        if not any(v == "string" for v in dvt.values()):
+            return set()
+        st = getattr(self, "_current_symbol_table", None)
+        out: Set[str] = set()
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)
+                        and n["target"] not in out
+                        and self._is_string_expr(n.get("value") or {})):
+                    out.add(n["target"])
+                    if st is not None and st.get(n["target"]) in (None, "Any"):
+                        st[n["target"]] = "str"   # grow the table for the fixpoint
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+
+        prev = -1
+        while len(out) != prev:      # fixpoint: a later string RHS may depend on an
+            prev = len(out)          # earlier-marked local (`st = symtab.get(nm)`)
+            rec(body_stmts)
+        return out - set(self._formal_params)
+
     def _collect_str_call_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """no-more-int emitter L2/L3 (no-more-int-emitter-plan.md): a local whose
         first assignment is a `string`-VALUED expression must be a string-typed ref
@@ -3395,6 +3436,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         string_vars |= self._collect_field_decode_str_locals(body_stmts)
         # no-more-int emitter L2: locals bound from a `string`-returning call.
         string_vars |= self._collect_str_call_result_locals(body_stmts)
+        # self-tcb-reduction _infer_tuple_slot_type (cap-b): locals bound from a
+        # `Dict[str,str]`-param/local `.get` read (`t = elt.get("type")`, `st =
+        # symtab.get(nm)`, `fn = (elt.get("func") or "")`).
+        string_vars |= self._collect_dict_str_param_get_locals(body_stmts)
         # J2/J3 convergence (Call-internals): a local assigned a keyword string read
         # (`bound = kw.value.id` / `kw.value.attr`) or `call.func.id` is a `string` local
         # — so its `None` init lowers to `ref ""` and `{"bound": bound}` wraps `PStr bound`

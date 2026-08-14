@@ -3466,6 +3466,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # routes through `str_eq_op`, not an int hash.
                 if self._self_field_dict_nu(_fn[:-len(".get")]) == "string":
                     return True
+                # self-tcb-reduction _infer_tuple_slot_type (cap-a): a `<param/local
+                # dict[str,str]>.get(k)` read reads back a `string` — the map's `option
+                # string` value type recorded in `_dict_value_types` (from a `Dict[str,str]`
+                # param/local annotation). So `elt.get("type") == "Var"` and a `... or ""`
+                # default route through `str_eq_op`/string-concat, never an int hash.
+                # Corpus-inert: the only reference-corpus `Dict[str,str]` is a class-constant
+                # table, never read via `.get` into a string comparison (measured).
+                if getattr(self, "_dict_value_types", {}).get(
+                        _fn[:-len(".get")]) == "string":
+                    return True
                 # §26: `X.get(k)` where X aliases a `dict[str,str]` self-field reads a string.
                 _alias0 = self._alias_self_field(_fn[:-len(".get")])
                 if _alias0 and self._self_field_dict_nu(_alias0) == "string":
@@ -4796,6 +4806,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # emitter's own AST/IR node classes), so this never fires on corpus code.
             if st.get(ident) in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
                 param_types[i] = "emit_ir"
+            # self-tcb-reduction _infer_tuple_slot_type (cap-d): a bare `Dict[str,str]`
+            # param/local arg (a `_dict_value_types` string codomain) is a `map <k>
+            # (option <v>)`, so a cross-file `self.<m>(<dict>)` call — whose abstract-val
+            # default-types every parameter `int` — types the abstract val's parameter as
+            # that map, keeping the (dead-here) `self._is_string_expr(elt)` /
+            # `self._is_emit_ir_expr(elt)` call type-safe against elt's raw-dict type.
+            # Byte-inert: a map passed to an int-typed abstract stub was a prior L3-tc
+            # error, so no corpus/other-mirror call emits this shape.
+            if getattr(self, "_dict_value_types", {}).get(ident) == "string":
+                param_types[i] = self._dict_param_whyml_type(
+                    ident, getattr(self, "_dict_key_types", {}) or {},
+                    getattr(self, "_dict_value_types", {}) or {})
         coerced = self._coerce_dotted_args(args, param_types)
         # W8 capability (vi): a call to a SAME-CLASS sibling method whose declared return
         # type is a RECORD lowers to the CONCRETE sibling application

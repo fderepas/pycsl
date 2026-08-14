@@ -225,12 +225,55 @@ class FunctionEmissionMixin:
                         return r
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _infer_tuple_slot_type(self, elt: int, array_vars: int, dict_vars: int, symtab: int) -> str:
-        return ""
+    def _infer_tuple_slot_type(self, elt: Dict[str, str], array_vars: Set[str],
+                               dict_vars: Set[str], symtab: Dict[str, str]) -> str:
+        if not isinstance(elt, dict):
+            return "int"
+        t = elt.get("type")
+        if getattr(self, "_mutable_state_classes", None):
+            if self._is_string_expr(elt) or (t == "Var" and elt.get("name") in getattr(
+                    self, "_tuple_string_slot_locals", set())):
+                return "string"
+            if self._is_emit_ir_expr(elt) or (t == "Var" and elt.get("name") in getattr(
+                    self, "_tuple_emit_ir_slot_locals", set())):
+                return "emit_ir"
+        if t == "Var":
+            nm = elt.get("name")
+            if nm in array_vars:
+                return "array int"
+            if nm in dict_vars:
+                return "map int (option int)"
+            st = symtab.get(nm)
+            if st in ("list", "bytes", "bytearray"):
+                return "array int"
+            if st in ("set", "dict", "frozenset"):
+                return "map int (option int)"
+            if st == "str":
+                return "string"
+            if st == "float":
+                return "real"
+            if st in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                return "emit_ir"
+            return "int"
+        if t in ("ListLit", "ArrayLit", "ListComp", "SliceAccess"):
+            return "array int"
+        if t in ("DictLit", "SetLit"):
+            return "map int (option int)"
+        if t == "String":
+            return "string"
+        if t == "Call":
+            fn = (elt.get("func") or "")
+            base = fn.rsplit(".", 1)[-1]
+            if fn in ("list", "sorted", "bytes", "bytearray"):
+                return "array int"
+            if base in ("encode", "ljust", "rjust", "zfill"):
+                return "array int"
+            if fn in ("dict", "defaultdict", "Counter", "OrderedDict", "set", "frozenset"):
+                return "map int (option int)"
+        return "int"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
