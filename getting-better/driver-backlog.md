@@ -2551,3 +2551,15 @@ str_join_seq/any-all=satisfiable-spec val) -> cascades to string-list builders; 
 .items()-value-string variant, option-string membership, map_update_some subscript-assign. 3 changed-emission (functions +
 statements/stmt_control_flow re-ports), all whole-file VALID, byte-diff 0, ledger 3. Next: re-drain for the WRITER-class cascade
 (now unblocked by the write cap).
+
+## 2026-08-14 (post-crash) — writer-class re-drain = no_cheap_remaining (write cap necessary NOT sufficient); fund _build_param_list
+Write cap works (self.<field>=x lowers) but each WRITER needs 4-6 MORE caps. Smallest genuine writer = _build_param_list
+(functions.py:131, 66 lines, empirically built+reverted, blocker functions.mlw:1625 f"int{bounded_int}" hval-int f-string).
+Caps needed: (i) f-string-over-hval-int (f"int{bounded_int}" -> decimal-string of hval int, int_to_string(hint_of ...) or a
+str variant); (ii) EXTEND typed opaque-self read accessors to _current_symbol_table(map string(option string))/_array2d_params/
+_current_array1d_params/_formal_params(seq string) — the banked read cap covers _record_types/_variant_types/_dict_*/
+_compound_map_getter/_mutable_state_classes/_current_self_type only; (iii) set-comprehension over a map {v for v in symbol_table
+if ...v.startswith("obj_")} -> set string (emitted set_comp 0); (iv) tuple return (set string, string) (emitted mismatched
+(map int(option int),int)); (v) " ".join(param_parts)+list-comp. ~5-6 caps, high cascade (typed-read-accessor + f-string-int +
+set-comp cascade to other writers). _emit_narrowing_vc/_render_refinement_goal = nested-def closure BOUNDARY (Gate-C facade,
+green-but-unsound decoupling) + heavy string-gen. _emit_contracts(102)/_reset_function_state(303) = larger. FUND _build_param_list.
