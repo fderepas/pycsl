@@ -2419,3 +2419,14 @@ rewrite exists only READ-side expressions.py:8689; statements.py:1156-1170 is_ar
 subscript-STORE path for a growable _seq_locals list local (emit `l := Seq.set !l idx v`) — OR classify the append-target
 into _array_locals so the existing `<-` path applies. FUND the full 6-cap build (i emit_ir-stmt/test-threading + X Set[str]
 membership + Y vinfo hval-map prescan-both-uses + Z str_contains_op + ii nested double-subscript + iii guarded [-1] store).
+
+## 2026-08-14 (post-crash) — _try_union_is_none_match CONVERTED (70c6d6bd, 725->724); session 736->724 (12 conv)
+6-cap spike-cleared build (guard-dominated [-1] store + write-side negative-index rewrite + List[str] accumulation +
+nested double-subscript + emit_ir stmt/test threading). SUPERVISOR CAUGHT+FIXED a delegate defect: test_of/orelse_stmts_of
+projectors added UNGATED -> perturbed 12 corpus programs + fanned changed-emission to 15 files; gated on new name-sentinel
+_uses_stmt_if_test -> byte-diff 0, changed-emission shrunk to 2 (stmt_control_flow + statements). LESSON: a build delegate's
+"changed-emission=1, corpus-inert" claim is UNRELIABLE — the supervisor's mirror-wide .mlw diff + full corpus byte-diff are
+MANDATORY (this one was 15 files / 12 perturbed vs the claimed 1/0). Every new emit_ir projector/theory decl MUST be
+_uses_*-gated. BANKED caps: match-code List[str]-string-arm accumulation (guard-dominated negative-index mutable store +
+write-side neg-index rewrite), test_of/orelse_stmts_of If-stmt sub-node projectors. Next: re-drain for match-code cascade,
+else frontier = pattern-walkers (distinct) + return-dispatchers (session-scale) + boundaries + review-gated giants + V1.
