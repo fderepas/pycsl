@@ -373,6 +373,22 @@ class ControlFlowStmtMixin:
             self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
             return (f"(hval_values_len {_mapw})",
                     f"(hval_values_get {_mapw} !{idx})", False)
+        # self-tcb-reduction Tier-5 (union/match cluster, `_maybe_inject_union_return`): a
+        # bare `for ctor_name in <pyval-dict-local>` iterates the dict's KEYS (Python dict
+        # iteration yields keys). View the hval-LOCAL as its `map string (option hval)`
+        # carrier via `hval_as_map`, bound `hval_values_len`, element `hval_keys_get ...
+        # !idx` (a real `string` key per iteration), NOT the opaque `iter_length`/`iter_get`
+        # int fallback. Scoped to a bare-Var pyval-local that is NOT a collection/list-read
+        # local (`_pyval_coll_locals` = HArr sequences, which iterate as ELEMENTS) ->
+        # corpus/other-mirror byte-inert (no corpus loop bare-iterates a pyval dict local).
+        if (self._value_semantic and iter_ir.get("type") == "Var"
+                and iter_ir.get("name") not in getattr(self, "_pyval_coll_locals", set())
+                and self._expr_is_pyval(iter_ir)):
+            _hv = self._expr_to_whyml(iter_ir, local_refs)
+            _mapw = f"(hval_as_map {_hv})"
+            self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
+            return (f"(hval_values_len {_mapw})",
+                    f"(hval_keys_get {_mapw} !{idx})", False)
         # self-tcb-reduction _typeddict_record_literal (cap-6/7 completion): the field-emit
         # loop `for fname in rec_info["fields"]` iterates the hval collection (`rec_info`'s
         # `"fields"` HArr of HStr names) as an ordered SEQUENCE — bound `hval_len <proj>`,
@@ -706,6 +722,18 @@ class ControlFlowStmtMixin:
         # through the faithful string ops, not the opaque int path. Restored after the body.
         _is_splitbody = (self._value_semantic
                          and self._split_call_recv_sep(iter_ir) is not None)
+        # self-tcb-reduction Tier-5 (union/match cluster, `_maybe_inject_union_return`): a
+        # bare `for ctor_name in <pyval-dict-local>` binds `ctor_name` to a real dict KEY
+        # `string` (`hval_keys_get`) per iteration → register it symbol-type "str" for the
+        # body's duration so `val.startswith(ctor_name)` / `"None" in ctor_name` lower via
+        # the faithful `str_startswith_op` / `str_contains_op`, not the opaque int path.
+        # Restored after the body. Gated identically to the `_classify_iterable` recognizer
+        # (a bare-Var pyval-local that is NOT a collection/list-read local) -> corpus inert.
+        _is_pyval_keys = (self._value_semantic and iter_ir.get("type") == "Var"
+                          and not tuple_targets
+                          and iter_ir.get("name")
+                          not in getattr(self, "_pyval_coll_locals", set())
+                          and self._expr_is_pyval(iter_ir))
         # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
         # binds `info` to a real `hval` per iteration — register it in `_pyval_locals`
         # for the body's duration so `info.get("whyml_name")` /
@@ -821,10 +849,15 @@ class ControlFlowStmtMixin:
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "str"
+        elif _is_pyval_keys:
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_symtype = _st.get(target, _MISSING)
+                _st[target] = "str"
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
         if (_saved_symtype is not _MISSING or _is_classbody or _is_kwbody
-                or _is_tparambody or _is_splitbody
+                or _is_tparambody or _is_splitbody or _is_pyval_keys
                 or self._mktuple_elts_recv_ir(iter_ir) is not None
                 or self._tparam_bases_recv(iter_ir) is not None):
             _st = getattr(self, "_current_symbol_table", None)

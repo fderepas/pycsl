@@ -3775,6 +3775,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _disc = self._emit_ir_kind_discriminant(expr.get("left"), expr.get("right"))
             if _disc is not None:
                 return _disc if raw_op == "==" else f"(not {_disc})"
+        # sub-inc B (`_maybe_inject_union_return`): `<string> == <optstr-local>` — a `==`/
+        # `!=` between a string-typed operand and an `option string`-returning-call local
+        # (`arm_type == val_type`, `val_type = self._infer_return_value_type(val_ir)`).
+        # After the guarding `if val_type is None: return val`, `val_type` is a `str`, so
+        # the compare is a faithful string equality — option-UNWRAP the local and
+        # `str_eq_op` (Python `str == None` is False, so the `None` arm is `false`, correct
+        # even independent of the guard). Without this the string operand int-hashes
+        # against the raw option (`str_hash_op arm_type = !val_type`, an `int`/`option`
+        # type clash). Gated on `_option_str_return_vars` -> corpus/other-mirror byte-inert.
+        if raw_op in ("==", "!=") and not self._in_spec:
+            _osv = getattr(self, "_option_str_return_vars", set())
+            _bl, _br = expr.get("left"), expr.get("right")
+            _optv = _strv = None
+            if (isinstance(_br, dict) and _br.get("type") == "Var"
+                    and _br.get("name") in _osv and self._is_string_expr(_bl)):
+                _optv, _strv = _br, _bl
+            elif (isinstance(_bl, dict) and _bl.get("type") == "Var"
+                    and _bl.get("name") in _osv and self._is_string_expr(_br)):
+                _optv, _strv = _bl, _br
+            if _optv is not None:
+                _ov = f"!{whyml_ident(_optv.get('name'))}"
+                _sw = self._expr_to_whyml(_strv, local_refs, invariant_ctx, subst)
+                _chk = (f"(match {_ov} with Some _osv_s -> (str_eq_op {_sw} _osv_s) "
+                        f"| None -> false end)")
+                return _chk if raw_op == "==" else f"(not {_chk})"
         # [default] * size → Array.make size default
         if raw_op == "*" and expr["left"].get("type") == "ArrayLit":
             elts = expr["left"].get("elts", [])

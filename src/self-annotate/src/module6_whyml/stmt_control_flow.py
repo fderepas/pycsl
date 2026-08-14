@@ -762,12 +762,54 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _maybe_inject_union_return(self, val: str, val_ir: "ExprIR") -> str:
-        return ""
+        """typing-engagement ty1 §0/§2.2 C2 — if the function's return type is a
+        synthesized `_union_*` variant, auto-inject the return value into the
+        first arm whose payload type matches the value's type. If the value is
+        already a constructor application (starts with `Arm_`), leave it. If no
+        arm matches, leave the value (Why3 will flag the type error)."""
+        func_ret = getattr(self, "_func_return_type", "")
+        if not func_ret or not func_ret.startswith("_union_"):
+            return val
+        vinfo = getattr(self, "_variant_types", {}).get(func_ret)
+        if not vinfo:
+            return val
+        constructors = vinfo.get("constructors", {})
+        if not constructors:
+            return val
+        # If the value is already a constructor application, don't re-wrap.
+        for ctor_name in constructors:
+            if val.startswith(ctor_name):
+                return val
+        # GAP-004 (O3): `return None` from a function whose declared return type
+        # is a synthesized `_union_*` variant (= `Optional[X]` = `Union[X, None]`)
+        # must inject into the variant's nullary `Arm_*_None` constructor. None is
+        # always assignable to Optional[X] (spec clause O3, optional-twoplane-spec
+        # §1.1); without this arm the bare `0` (the Python-None singleton model)
+        # type-clashes against the variant. Symmetric to the int-arm injection
+        # below; fires BEFORE the type-based arm search so a None-typed return
+        # never falls through to the lossy `int` fallback.
+        if isinstance(val_ir, dict) and val_ir.get("type") == "None":
+            for ctor_name, ctor in constructors.items():
+                if ctor.get("arity") == 0 and "None" in ctor_name:
+                    return ctor_name
+        # Determine the value's WhyML type and find a matching arm.
+        val_type = self._infer_return_value_type(val_ir)
+        if val_type is None:
+            return val
+        for ctor_name, ctor in constructors.items():
+            if ctor.get("arity") == 0:
+                continue
+            payload = ctor.get("payload", [])
+            if not payload:
+                continue
+            arm_type = self._union_arm_whyml_type(payload[0])
+            if arm_type == val_type:
+                return f"({ctor_name} {val})"
+        return val
 
     #@ requires True
     #@ ensures True

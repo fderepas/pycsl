@@ -2250,7 +2250,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _cef = getattr(self, "_current_emitting_func", None) or ""
         if not (_cef.endswith("_match_subject_union_info")
                 or _cef.endswith("_union_ctor_for_arm_tag")
-                or _cef.endswith("_union_none_ctor_for")):
+                or _cef.endswith("_union_none_ctor_for")
+                or _cef.endswith("_maybe_inject_union_return")):
             return set(), {}
         pyval = getattr(self, "_pyval_locals", set())
         str_locals: Set[str] = set()

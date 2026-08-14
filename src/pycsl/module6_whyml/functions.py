@@ -561,6 +561,28 @@ class FunctionEmissionMixin:
         registry.get(..); bound = info.get(..)` all resolve. Returns the empty set for
         every function with no pyval self-field / pyval `.get` -> byte-inert."""
         pyval: Set[str] = set()
+        # self-tcb-reduction Tier-5 (union/match cluster, `_maybe_inject_union_return`):
+        # a LOCAL bound from a nested-map self-field `.get` (`vinfo =
+        # self._variant_types.get(func_ret)`, whose value type is `map string (option
+        # hval)`) is itself a `map string (option hval)` — so a chained `.get` on it
+        # (`constructors = vinfo.get("constructors", {})`) unwraps to a real `hval`. The
+        # `_dict_value_types` registration that carries this fact is set only at
+        # body-emission time (`_typed_local_vars`), TOO LATE for this setup-time prescan;
+        # seed `vmap` here directly off the field type. Byte-inert: no corpus function
+        # reads a `map string (option (map string (option hval)))` self-field.
+        vmap: Set[str] = set()
+
+        def _get_dotted_recv(v: Dict[str, Any]) -> Optional[str]:
+            if not (isinstance(v, dict) and v.get("type") == "Call"):
+                return None
+            fn = v.get("func", "")
+            if isinstance(fn, str) and fn.endswith(".get"):
+                return fn[:-len(".get")]
+            if fn == "get":
+                fld = self._getattr_self_field(v.get("receiver") or {})
+                if fld:
+                    return "self.{}".format(fld)
+            return None
 
         def _rhs_is_pyval(v: Dict[str, Any]) -> bool:
             if not isinstance(v, dict):
@@ -586,6 +608,11 @@ class FunctionEmissionMixin:
                     # Corpus-inert: no reference program has a `map string (option hval)`
                     # param/local `.get` receiver.
                     if getattr(self, "_dict_value_types", {}).get(recv) == "hval":
+                        return True
+                    # `_maybe_inject_union_return`: a `.get` on a `vmap` local (`vinfo`, a
+                    # `map string (option hval)` bound from `self._variant_types.get`)
+                    # unwraps the `option hval` to a real `hval` -> the target is pyval.
+                    if recv in vmap:
                         return True
                 return False
             # self-tcb-reduction _typeddict_field_access (b): a SUBSCRIPT
@@ -637,6 +664,23 @@ class FunctionEmissionMixin:
 
         _gather_assigns(body_stmts)
 
+        # self-tcb-reduction Tier-5 (union/match cluster, `_maybe_inject_union_return`):
+        # SEED `vmap` — a local bound from a `.get` on a nested-map self-field whose
+        # value type is a `map string (option hval)` (`vinfo = self._variant_types.get`).
+        # Such a local is a `map string (option hval)`, so a further `.get` on it yields
+        # an `hval` (handled in `_rhs_is_pyval`). Byte-inert (no corpus self-field is a
+        # `map string (option (map string (option hval)))`).
+        for _st in assigns:
+            _vt = _st.get("target")
+            if not isinstance(_vt, str) or _vt in vmap:
+                continue
+            _recv = _get_dotted_recv(_st.get("value") or {})
+            if _recv is None:
+                continue
+            _nu = self._self_field_dict_nu(_recv)
+            if isinstance(_nu, str) and _nu.startswith("map ") and "hval" in _nu:
+                vmap.add(_vt)
+
         # self-tcb-reduction Tier-5 (union/match cluster C4): SEED the VALUE target of a
         # `for k, v in <hval>.items()` loop as pyval — the loop var `v` (`ctor`) is a real
         # `hval` per iteration (bound `hval_values_get` in `_handle_for_stmt`), so a body
@@ -658,12 +702,23 @@ class FunctionEmissionMixin:
                 for _s in node:
                     _seed_items(_s)
 
-        if getattr(self, "_value_semantic", False):
-            _seed_items(body_stmts)
+        # Expose the GROWING `pyval` set as `self._pyval_locals` for the duration of the
+        # fixpoint so the `.items()`-over-pyval-LOCAL recognizer (`_hval_items_local_recv`
+        # -> `_expr_is_pyval`) sees a local that this same fixpoint just classified —
+        # `for ctor_name, ctor in constructors.items()` can only be seeded AFTER
+        # `constructors` (bound from `vinfo.get`) is itself recognized. Restored to the
+        # final set by the caller (`_reset_function_state`). Byte-inert for any function
+        # with no pyval self-field / union-map local (the set stays empty).
+        self._pyval_locals = pyval
 
         changed = True
         while changed:
             changed = False
+            if getattr(self, "_value_semantic", False):
+                _before = len(pyval)
+                _seed_items(body_stmts)
+                if len(pyval) != _before:
+                    changed = True
             for st in assigns:
                 tgt = st.get("target")
                 if not isinstance(tgt, str) or tgt in pyval:
@@ -4915,6 +4970,18 @@ class FunctionEmissionMixin:
             # `match … None/Some` discriminant, and `return _rec` threads into the
             # Optional[str] `_union_*` return arm.
             result.setdefault(f"{_cls}___record_valued_expr_whyml_type", "option string")
+            # sub-inc B (`_maybe_inject_union_return`): `_infer_return_value_type(val_ir)`
+            # returns `Optional[str]` (lowered as a per-fn synth `_union_*` variant, which
+            # IS isomorphic to `option string`). Its `self.<m>(...)` call site
+            # (`val_type = self._infer_return_value_type(val_ir)`) must abstract as
+            # `option string` — same model as the sibling `_record_valued_expr_whyml_type`
+            # — so `val_type` types as an option local (`ref None`), `if val_type is None`
+            # lowers to a `match … None/Some` discriminant, and `arm_type == val_type`
+            # option-unwraps to a faithful `str_eq_op` (not the int-hash facade). The map
+            # default computed from the body is `int` (the synth-variant `raise` shape),
+            # so an explicit OVERRIDE (not `setdefault`) is needed. Name-gated to this
+            # emitter-internal helper -> corpus byte-identical.
+            result[f"{_cls}___infer_return_value_type"] = "option string"
         return result
 
     def _build_method_result_ensures_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
