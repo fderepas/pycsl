@@ -2275,3 +2275,18 @@ L3-tc, which PASSED while the whole-body proof FAILED (§10.1 type-check != proo
 whole-body-PROVE, not just L3-tc. Frontier now: (a) IrProj/ctor-payload = BOUNDARY (array-store); (b) whyml_string_literal
 = BOUNDARY (byte-op); (c) nested-hval union/match cluster = last clearly-breakable (3 stubs, ~6 hval caps + COUPLED
 _handle_match_stmt re-port, no cert, revert-risk) -> escalating with whole-body-proof gating.
+
+## 2026-08-14 — union/match cluster (c) = BUILDABLE (not boundary), ~6-cap coupled session-scale; sub-increment split
+Measured concrete (spike reverted clean, ledger 3, NO cert — all definitional over certified hval). Cap stack C1-C5:
+C1 = PyVal param + Optional-(string,hval)-tuple RETURN lowering (currently int-erased — _uses_pyval/PyVal->map string
+(option hval) not firing for this file; build+gate FIRST). C2 = stmt.to_dict() emit_ir->map string (option hval)
+projection at the _handle_match_stmt call site (the coupled re-emission point, stmt_control_flow.mlw:1112). C3 = .items()
+over a NESTED hval LOCAL from vinfo.get("constructors") (landed _hval_items_recv only accepts hval self-FIELDS; needs
+uninterpreted hval_as_map (h:hval):map string (option hval) + recognizer ext). C4 = payload=ctor.get("payload",[]);
+payload[0]==arm_tag (HArr truthiness + hval_nth_str[exists] + string cmp). C5 = first-match-return-in-loop threading
+option (string,hval). (+stub#3: hint_of ctor.get("arity")==0 + str_contains_op[exists]).
+SUB-INCREMENT SPLIT: (1) stmt_control_flow.py _match_subject_union_info + _union_ctor_for_arm_tag + _handle_match_stmt
+verbatim (CLEANLY coupled — grep=0 other converted methods touch _variant_types/_current_symbol_table in that file),
+730->728, giant stmt_control_flow whole-file proof = true gate. (2) expressions.py _union_none_ctor_for (retype
+_variant_types Dict[str,str]->Dict[str,PyVal], coupled to 2 already-converted key-membership methods @629/@906 - must
+re-prove - + hint_of), 728->727. ESCALATED sub-increment 1.
