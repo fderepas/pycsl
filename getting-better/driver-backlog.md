@@ -2480,3 +2480,14 @@ _returned_var_name:option string). MUST be per-method NAME+SHAPE-gated (_uses_* 
 _compute_return_type retype regressed 3 siblings. FUND: build the generic opaque-self typed field-accessor cap FIRST (reusable
 foundation, cascades to ALL FunctionEmissionMixin self-field readers), then _compute_return_type branch-by-branch (multi-turn,
 all-or-nothing L3-tc so checkpoint uncommitted). Per feedback_cost_scale_not_floor: COST/SCALE in a funded window is NOT a stop.
+
+## 2026-08-14 (post-crash) — _compute_return_type CONVERTED (8d1d8b1a, 724->723); session 736->723 (13 conv); "V1-floor" REFUTED
+The largest dispatcher landed via the opaque-self TYPED field-accessor cap (PATH b, not the whole-mixin flip). The blocker
+was STRUCTURAL (FunctionEmissionMixin = opaque int self-type) not a value-model boundary. This REFUTES the earlier "724 =
+V1-BOUNDARY autonomous floor" — spike-then-build reclassified it COST/SCALE (per feedback_cost_scale_not_floor: not a stop).
+BANKED (cascades): opaque-self typed field accessors for _record_types/_variant_types (membership+double-subscript),
+_dict_key/value_types (.get), _compound_map_getter (option-of-map +None-narrow+subscript), _mutable_state_classes/
+_current_self_type (set-membership) — each a _uses_*/`_emitting_*`-gated uninterpreted val (corpus byte-inert). Now unblocks:
+_refine_tuple_return_type (sibling, same self-fields) + ANY FunctionEmissionMixin self-field reader. LESSON reaffirmed:
+delegate gated its accessors correctly this time (byte-diff 0, changed-emission 2) — the ungated-projector lesson stuck.
+Next: re-drain for the opaque-self-accessor cascade (_refine_tuple_return_type first).
