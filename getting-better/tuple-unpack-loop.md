@@ -65,3 +65,22 @@ proving termination + the bindings — WITHOUT a new axiom/ADT/cert and byte-ine
   (`.strip()`/`.startswith(tuple)`), nested-def closures — each its own wall.
 - Ledger stays 3; contract shape `requires True/ensures True/assigns <tight>`; corpus byte-diff 0
   (gate every new emitter branch on `_uses_/_emitting_<method>`); drift stays 2.
+
+---
+## VERDICT (2026-08-15): CERTIFIED-BOUNDARY (compound) — binder PROVEN + banked, ZERO consumers
+The pytuple-projection binder was BUILT + validated END-TO-END through the real emitter (probe
+`count_eq_pairs(params: List[Tuple[str,str]])` → faithful `.field0/.field1` bindings + faithful
+string compares (NOT int-hash) + arithmetic variant → Verification SUCCESS, no new axiom). But an
+exhaustive AST census of all 721 trusted stubs' LIVE bodies found: 105 have tuple-unpack, ZERO
+iterate a `List[Tuple[τ,τ]]`-typed array PARAM or list-of-record-literal LOCAL (the only shapes the
+pytuple binder recognizes). Every consumer's iterable is `.items()` (dict→hval), `zip()` (irlist),
+`enumerate()`, a `Set`, a module-level constant (already unrolled), or an opaque cross-call result
+(e.g. `_maybe_emit_no_exception_assert`'s `triggers = triggers_for(op_key)` → `array string`, binder
+never fires). Landing the binder standalone = unused-facade (Gate C reject) → REVERTED clean, count 721.
+The binder is BANKED for the day a `List[Tuple]`-param consumer appears.
+
+**NEXT actionable vein (different binder):** `.items()`-over-`Dict[str,str]` consumers. Review §5.2:
+`Dict[str,str]` ALREADY lowers to `map string (option string)` today; the residual is an ITEMS-binder
+over a NATIVE map (keys_get/values_get over-approx — the device already banked for hval items). This
+is a SEPARATE build from the pytuple projection and must itself be measured for un-co-blocked consumers
+before escalation (many `.items()` consumers also carry Dict[str,Any] int-erasure or nested facades).

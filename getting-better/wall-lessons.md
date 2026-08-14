@@ -2067,3 +2067,9 @@ dict-param-mutation, pycsl.py str-construction+IO) all hit GENUINE CAPABILITY BO
 frontier is exhausted. RECURRING CEILING across the tail: str-returning readers over int-modeled records/pyval need
 the typed-record-field-accessor emitter build (authorize-first lever #7); container/record CONSTRUCTION needs the
 pydict-construction primitive (lever #1). RUN #3 DEFINITIVE FLOOR: 754 (29 conversions from 783).
+## for-loop tuple-unpack (pytuple-projection form) — CERTIFIED-BOUNDARY 2026-08-15
+- WALL: `for a,b in <List[Tuple[τ,τ]]>` unpack targets emit UNBOUND.
+- SPIKE: PASSED (loop proves trivially; emitter already emits pytuple record + skeleton, only `.fieldK` bindings missing).
+- BUILD: binder built + proven end-to-end (no new axiom). BUT make-or-break END-TO-END gate FAILED: census of 721 stubs → 0 consumers iterate a `List[Tuple]` param / record-literal local (all `.items()`/`zip`/`enumerate`/`Set`/const/opaque-cross-call). REVERTED (unused-facade).
+- LESSON (trigger-tested): a proven binder with ZERO trusted consumers is a Gate-C reject, not a conversion — ALWAYS census consumer COUNT before building a shape-specific binder (the spike proving is necessary but NOT sufficient; the make-or-break is consumer existence, not loop provability). Bank the cap; do not land it.
+- NEXT VEIN: items-over-`Dict[str,str]` binder (native `map string (option string)` via keys_get/values_get over-approx) — SEPARATE build; measure un-co-blocked consumer count first.
