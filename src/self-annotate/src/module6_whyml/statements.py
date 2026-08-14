@@ -738,7 +738,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         else:
             hash_field = stable_hash(field)
             self_type = self._current_self_type
-            if obj == "self" and self_type:
+            # self-tcb-reduction typed-self-field-WRITE cap (FOUNDATION, reusable): a
+            # `self.<field> = <val>` whose RHS is NOT int-typed (a `map string (option
+            # string)` symbol table, a `string` self-type, an `option`/seq local) cannot go
+            # through `_coerce_to_int` (which erases a map to int -> an L3-tc error against a
+            # map RHS). FunctionEmissionMixin is opaque-int (not a @mutable_state record), so
+            # the field value is not observed after the write here (the method returns a
+            # string and the sibling readers take the local, not the self-field). Model the
+            # write as a POLYMORPHIC, EFFECT-FREE `val setattr_<self>_poly (v: 'a)` — it
+            # typechecks with ANY RHS type and carries no `writes` clause, so the method's
+            # `assigns \nothing` frame holds. Parametric over the RHS type -> reusable across
+            # the whole FunctionEmissionMixin writer class. Gated per-method -> byte-inert for
+            # the corpus and every other mirror (a real corpus `self.<field> = <int>` keeps
+            # the int `setattr` below).
+            if (obj == "self" and self_type
+                    and self._emitting_refine_tuple_return_type()):
+                self._add_abstract_op(
+                    f"val setattr_{self_type}_poly (x: {self_type}) (f: int) (v: 'a) : unit")
+                code = f"{indent}setattr_{self_type}_poly {obj} {hash_field} {val}"
+            elif obj == "self" and self_type:
                 self._add_abstract_op(f"val setattr_{self_type} (x: {self_type}) (f: int) (v: int) : unit")
                 code = f"{indent}setattr_{self_type} {obj} {hash_field} {self._coerce_to_int(val)}"
             else:

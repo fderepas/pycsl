@@ -276,6 +276,18 @@ class ControlFlowStmtMixin:
             _irecv = {"type": "Var", "name": _if[:-len(".items")]}
         elif _if == "items":
             _irecv = iter_ir.get("receiver")
+        # cap1 (self-tcb-reduction `_refine_tuple_return_type`): the `.items()` receiver may
+        # be `<pyval-get> or {}` — `(func.get("param_annotations") or {}).items()`, an `or`
+        # BinOp whose LEFT is the pyval `.get` and RIGHT an empty dict literal. Unwrap to the
+        # pyval-get left so `_expr_is_pyval` sees the real hval receiver. Gated on the method
+        # -> byte-inert for the corpus and every other mirror.
+        if (isinstance(_irecv, dict) and _irecv.get("type") in ("BinOp", "BoolOp")
+                and _irecv.get("op") == "or"
+                and self._emitting_refine_tuple_return_type()):
+            _r = _irecv.get("right")
+            if (isinstance(_r, dict) and _r.get("type") == "DictLit"
+                    and not (_r.get("keys") or _r.get("values"))):
+                _irecv = _irecv.get("left")
         if isinstance(_irecv, dict) and self._expr_is_pyval(_irecv):
             return _irecv
         return None
@@ -790,6 +802,15 @@ class ControlFlowStmtMixin:
                             or self._hval_items_local_recv(iter_ir) is not None)
                            and tuple_targets and len(tuple_targets) == 2)
         _items_val_target = tuple_targets[1] if _is_pyval_items else None
+        # cap1 value-string `.items()` variant (self-tcb-reduction `_refine_tuple_return_type`):
+        # `for _k, _ty in (func.get("param_annotations") or {}).items()` binds the VALUE `_ty`
+        # to a real `string` (`hstr_of (hval_values_get ...)`), NOT an `hval` — the map codomain
+        # is a Python type-annotation string stored into a `map string (option string)` symbol
+        # table (`_st[_k] = _ty`). Register `_ty` symbol-type "str" (not `_pyval_locals`). Gated
+        # on the method -> byte-inert (every other `.items()` value binds an `hval` as before).
+        _items_val_str = bool(_is_pyval_items
+                              and self._emitting_refine_tuple_return_type())
+        _saved_items_val_symtype = _MISSING
         if _is_pyval_items:
             # both tuple components are in scope for the body (key `string`, value `hval`).
             _items_extra = {t for t in tuple_targets if t and t != "_"}
@@ -826,7 +847,15 @@ class ControlFlowStmtMixin:
                 self._pyval_locals = set()
             _saved_pyval_member = target in self._pyval_locals
             self._pyval_locals.add(target)
-        if _is_pyval_items and _items_val_target and _items_val_target != "_":
+        if (_is_pyval_items and _items_val_target and _items_val_target != "_"
+                and _items_val_str):
+            # value-string variant: register `_ty` as a `string` local (symbol-type "str"),
+            # NOT a pyval hval — its `hstr_of`-projected binding is a real string.
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_items_val_symtype = _st.get(_items_val_target, _MISSING)
+                _st[_items_val_target] = "str"
+        elif _is_pyval_items and _items_val_target and _items_val_target != "_":
             if not hasattr(self, "_pyval_locals"):
                 self._pyval_locals = set()
             _saved_pyval_val_member = _items_val_target in self._pyval_locals
@@ -924,6 +953,14 @@ class ControlFlowStmtMixin:
         if _is_pyval_values and _saved_pyval_member is False:
             self._pyval_locals.discard(target)
         if (_is_pyval_items and _items_val_target and _items_val_target != "_"
+                and _items_val_str):
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                if _saved_items_val_symtype is _MISSING:
+                    _st.pop(_items_val_target, None)
+                else:
+                    _st[_items_val_target] = _saved_items_val_symtype
+        elif (_is_pyval_items and _items_val_target and _items_val_target != "_"
                 and _saved_pyval_val_member is False):
             self._pyval_locals.discard(_items_val_target)
         if _is_pyval_items and _items_key_target and _items_key_target != "_":
@@ -1090,7 +1127,12 @@ class ControlFlowStmtMixin:
                     _lines.append(f"{bind_indent}let {whyml_ident(_kt)} = "
                                   f"ref (hval_keys_get {_mapw} !{idx}) in")
                 if _vt and _vt != "_":
-                    _lines.append(f"{bind_indent}let {whyml_ident(_vt)} = ({elem_expr}) in")
+                    # cap1 value-string variant: bind the VALUE `_ty` to a real `string`
+                    # (`hstr_of (hval_values_get ...)`) — a mutable `ref string` (in
+                    # `body_declared`, so body reads deref `!_ty`), NOT an immutable `hval`.
+                    _vexpr = (f"ref (hstr_of {elem_expr})" if _items_val_str
+                              else f"({elem_expr})")
+                    _lines.append(f"{bind_indent}let {whyml_ident(_vt)} = {_vexpr} in")
                 return _lines
             # cap-3: `for k, v in zip(keys, values)` binds BOTH tuple components to the
             # idx-th element of each irlist (`irnth !idx keys` / `irnth !idx values`, both
@@ -1189,8 +1231,16 @@ class ControlFlowStmtMixin:
 
     def _try_local_decl_kind(self, val_ir: Dict[str, Any]) -> str:
         """Reduced `_first_assign_kind` (IR-only, no val-string side effects)
-        for a try-body local's pre-declaration: `record` | `dict` | `default`."""
+        for a try-body local's pre-declaration: `record` | `dict` | `array_string`
+        | `default`."""
         vt = val_ir.get("type", "")
+        # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): a try-body local
+        # first-assigned a list COMPREHENSION (`slots = [_infer_tuple_slot_type(…) for e
+        # in elts]`) is a `seq string` — pre-declare `ref (Seq.empty : seq string)`, not the
+        # integer `ref 0` (which int-clashes the `:=`). An immutable `seq` (not a mutable
+        # `array`) so the ref is freely reassignable (no Why3 region alias). Method-gated.
+        if vt == "ListComp" and self._emitting_refine_tuple_return_type():
+            return "seq_string"
         if vt == "Call" and val_ir.get("func", "") in self._record_types:
             return "record"
         if (vt in ("DictLit", "SetLit")
@@ -1302,6 +1352,13 @@ class ControlFlowStmtMixin:
                         var, [s for h in handlers for s in h.get("body", [])]))
                 if kind == "record":
                     pass  # let-bound inside the body; no outer ref
+                elif kind == "seq_string":
+                    # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): a `seq string`
+                    # comprehension local pre-declares the empty string seq so its `:=` (from
+                    # `list_comp_refine_string`) type-checks and stays reassignable.
+                    pre_decls += (f"{indent}let {safe_var} = "
+                                  f"ref (Seq.empty : seq string) in\n")
+                    declared_refs.add(safe_var)
                 elif kind == "dict":
                     pre_decls += (f"{indent}let {safe_var} = "
                                   f"ref (const (None: option int)) in\n")

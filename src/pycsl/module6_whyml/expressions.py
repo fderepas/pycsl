@@ -928,6 +928,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         generic abstract `contains_check`."""
         negate = op == "not in"
         rhs = expr.get("right", {})
+        # cap2 (self-tcb-reduction `_refine_tuple_return_type`): `_st.get(_k) in (None, "Any")`
+        # where `_st` is a `map string (option string)` local — an OPTION-string membership.
+        # `_st.get(_k)` is `Map.get !_st _k : option string`; the tuple mixes `None` (the option
+        # is absent) with string literals (the option is `Some <lit>`). Lower to a faithful
+        # option `match`, NOT the int-hash `= 0 || = <hash>` facade. Gated on the method ->
+        # byte-inert for the corpus and every other mirror.
+        if (not self._in_spec and self._emitting_refine_tuple_return_type()
+                and rhs.get("type") in ("Tuple", "ArrayLit", "SetLit")):
+            _lir = expr.get("left")
+            _elts = rhs.get("elts", []) or []
+            if (isinstance(_lir, dict) and _lir.get("type") == "Call"
+                    and isinstance(_lir.get("func"), str)
+                    and _lir.get("func").endswith(".get")
+                    and (_lir.get("args") or []) and _elts
+                    and all(isinstance(e, dict)
+                            and e.get("type") in ("None", "String") for e in _elts)
+                    and any(e.get("type") == "None" for e in _elts)):
+                _recv = _lir["func"][:-len(".get")]
+                if "." not in _recv:
+                    _rw = self._expr_to_whyml({"type": "Var", "name": _recv},
+                                              local_refs, invariant_ctx, subst)
+                    _kw = self._expr_to_whyml(_lir["args"][0], local_refs,
+                                              invariant_ctx, subst)
+                    self._add_abstract_op(
+                        "val str_eq_op (a: string) (b: string) : bool\n"
+                        "    ensures { result <-> (a = b) }")
+                    _strs = [e for e in _elts if e.get("type") == "String"]
+                    _disj = (" || ".join(
+                        f"(str_eq_op _mem_s {whyml_string_literal(e.get('value'))})"
+                        for e in _strs) if _strs else "false")
+                    _inner = (f"(match (Map.get {_rw} {_kw}) with "
+                              f"None -> true | Some _mem_s -> ({_disj}) end)")
+                    return f"(not {_inner})" if negate else _inner
         # self-tcb-reduction _typeddict_field_access (d): `<x> in rec_info["fields"]` /
         # `not in` where the rhs is a SUBSCRIPT on a pyval LOCAL (`rec_info["fields"]`, an
         # hval collection) -> faithful membership via `hval_str_mem` over the RAW hval (the
@@ -4484,6 +4517,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         `_handle_call_expr` via `_iter_len_expr`, before the inner args are lowered.)"""
         arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
         atype = arg_ir.get("type", "")
+        # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): `len(slots)` / `len(_s)`
+        # over a `seq string` refine list-comp local is `Seq.length`. Method-gated -> inert.
+        if (atype == "Var" and arg_ir.get("name")
+                in getattr(self, "_refine_str_comp_locals", set())):
+            return f"(Seq.length {args[0]})"
         # nested-list-mutable.md: a matrix-routed (in-place inner-mutated int-leaf)
         # nested list `a` is a built-in `matrix int`. `len(a)` = `a.rows` (outer row
         # count); `len(a[i])` = `a.columns` (the rectangular per-row length). Emit the
@@ -4621,6 +4659,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           local_refs=None, invariant_ctx=False, subst=None) -> str:
         """Handle str.join(iterable): pick join_array for arrays, join_1 otherwise."""
         arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
+        # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): `", ".join(slots)` /
+        # `", ".join(_s)` over a `seq string` refine list-comp local is `str_join_seq` (a
+        # `string`). Method-gated -> corpus/other-mirror byte-inert.
+        if (arg_ir.get("type") == "Var" and arg_ir.get("name")
+                in getattr(self, "_refine_str_comp_locals", set())):
+            _sepj = (self._expr_to_whyml(expr.get("receiver"), local_refs or set(),
+                                         invariant_ctx, subst)
+                     if expr.get("receiver") is not None else '" "')
+            self._add_abstract_op(
+                "val str_join_seq (sep: string) (xs: seq string) : string\n"
+                "    ensures { String.length result >= 0 }")
+            return f"(str_join_seq {_sepj} {args[0]})"
         # faithful-string-op.md §3.5: a LITERAL list/tuple of STRINGS joined by `sep`
         # lowers to nested `str_concat_op` (EXACT and faithful: `e0 ++ sep ++ e1 ++ …`),
         # not the opaque int `join_array`. `sep` is `expr['receiver']` (join reaches here
@@ -4704,6 +4754,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         t = arg_ir.get("type")
         if t == "Var":
             _n = arg_ir.get("name")
+            # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): a `seq string` refine
+            # list-comp local carries string elements (so `"(" + ",".join(slots) + ")"` routes
+            # `+` to str_concat_op). Method-gated -> inert.
+            if _n in getattr(self, "_refine_str_comp_locals", set()):
+                return True
             if getattr(self, "_array_elem_types", {}).get(_n) == "string":
                 return True
             if getattr(self, "_seq_value_types", {}).get(_n) == "string":
@@ -6193,6 +6248,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not arr or not arr.strip() or arr.strip() == "0":
             return None                      # iterable itself erased — nothing to fold over
         arr = arr.strip()
+        # cap5 (self-tcb-reduction `_refine_tuple_return_type`): a fold over an `array string`
+        # refine list-comp local (`any(s != "int" for s in slots)` / `all(x != "int" for x in
+        # _s)`) is typed `array string`, its predicate a FAITHFUL string comparison. Handled
+        # by a dedicated builder (below), which lowers the predicate in the logic plane
+        # (spec/invariant, polymorphic `<>`) and the program plane (loop body, `str_eq_op`)
+        # separately. Method-gated + an `array string` refine iterable -> corpus/mirror inert.
+        _it = gen.get("iter") or {}
+        if (self._emitting_refine_tuple_return_type()
+                and isinstance(_it, dict) and _it.get("type") == "Var"
+                and _it.get("name") in getattr(self, "_refine_str_comp_locals", set())):
+            return self._try_emit_refine_str_fold(
+                func_name, comp, target, arr, local_refs, invariant_ctx, subst)
         # The predicate, with the bound variable substituted by the element read. `subst` is
         # exactly the emitter's binder-substitution channel, so the predicate is lowered ONCE
         # per position rather than pattern-matched.
@@ -6251,6 +6318,72 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             f"      invariant {{ !_fr <-> ({inv}) }}\n"
             f"      {upd}\n"
             f"    done; !_fr")
+        return f"({name} {arr})"
+
+    def _try_emit_refine_str_fold(self, func_name, comp, target, arr,
+                                  local_refs, invariant_ctx, subst):
+        """cap5 (self-tcb-reduction `_refine_tuple_return_type`): the `seq string` fold for
+        `any(s != "int" for s in slots)` / `all(x != "int" for x in _s)`. Modeled as an
+        abstract `val` whose `ensures` is the FAITHFUL string quantifier over the element
+        predicate (the polymorphic logic `<>` — `a[_fk] <> "int"`, the seq mixfix Seq.get —
+        legal in a spec on any type). Same satisfiable-spec pattern as `sorted_1`/`str_split_elem_op`:
+        the ensures is a determinate, always-satisfiable property of `a`, so ASSUMING it is
+        sound and NON-VACUOUS (it names the `"int"` literal — mutation-visible), unlike the
+        old unconstrained `val any_1 (a: array int) : bool` oracle (predicate erased). A
+        PROVEN `let function` body would need the `str_eq_op` program bridge (Why3 forbids
+        `=`/`<>` on `string` in a program), which cannot be declared before a `let function`
+        abstract op in the alphabetical block — hence the abstract-`val` form. Returns the
+        fold call, or None to fall back to the oracle.
+
+        The predicate is lowered ONCE in the LOGIC plane (`_in_spec=True`), with the element
+        read (`a[_fk]`, the seq Seq.get mixfix) substituted for the bound variable and the
+        target typed `string` so the `!=` routes to the polymorphic string disequality, not
+        the int-hash. (A dotted `Seq.get` would be `whyml_ident`-mangled to `Seq_get`.)"""
+        if getattr(self, "_string_local_vars", None) is None:
+            self._string_local_vars = set()
+        _elem = "a[_fk]"
+        sub = dict(subst or {})
+        sub[target] = _elem
+        _sav_spec = self._in_spec
+        _had = target in self._string_local_vars
+        _saved_ops = dict(self._abstract_ops)
+        self._in_spec = True
+        self._string_local_vars.add(target)
+        try:
+            p_logic = self._expr_to_whyml(comp.get("elt") or {}, local_refs,
+                                          invariant_ctx, sub)
+        except Exception:
+            p_logic = None
+        finally:
+            self._in_spec = _sav_spec
+            if not _had:
+                self._string_local_vars.discard(target)
+        # Substituting the element read `a[_fk]` where a NAME is expected can register it as
+        # an unknown constant (`val constant a[_fk] : int`); drop those substitution
+        # artifacts. Any OTHER newly-registered op is unexpected (the logic predicate needs
+        # none) — bail rather than emit it.
+        for _k in [k for k in self._abstract_ops if k not in _saved_ops]:
+            if "[" in _k:
+                del self._abstract_ops[_k]
+            else:
+                self._abstract_ops.clear()
+                self._abstract_ops.update(_saved_ops)
+                return None
+        if not p_logic or not p_logic.strip() or _elem not in p_logic:
+            return None
+        # The substituted `a[_fk]` survives `whyml_ident` mangling, but the `[]` mixfix is
+        # AMBIGUOUS once both `array.Array` and `seq.Seq` are imported (Why3 resolves it to
+        # Array.get). Rewrite it to the explicit `Seq.get a _fk` now the spec string is fully
+        # built (the element token is unique, so the replace is exact).
+        p_logic = p_logic.strip().replace(_elem, "(Seq.get a _fk)")
+        if func_name == "any":
+            spec = "exists _fk. 0 <= _fk < Seq.length a /\\ " + p_logic
+        else:
+            spec = "forall _fk. 0 <= _fk < Seq.length a -> " + p_logic
+        name = f"strfold_{func_name}_{stable_hash(spec) % 100000}"
+        self._add_abstract_op(
+            f"val {name} (a: seq string) : bool\n"
+            f"    ensures {{ result <-> ({spec}) }}")
         return f"({name} {arr})"
 
     def _call_named_builtins(self, expr: Dict[str, Any], args: List[str],
@@ -6465,6 +6598,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Body dict: empty `map int (option int)`. Parallel to
             # `\empty_map` (`_handle_map_empty_expr`).
             return "(const (None: option int))"
+        if (func_name == "dict" and len(args) == 1
+                and self._emitting_refine_tuple_return_type()):
+            # self-tcb-reduction typed-self-field-WRITE cap (map-copy identity): `dict(symtab)`
+            # where `symtab` is the projected `map string (option string)` symbol table is a
+            # shallow COPY -> the value is identical to the source map (Why3 maps are pure/
+            # immutable, so a copy is the identity). Emit the source map unchanged rather than
+            # the int-erasing `dict_1` abstract. Gated on `_refine_tuple_return_type` -> inert.
+            return args[0]
         if (func_name in ("defaultdict", "Counter", "OrderedDict")
                 and func_name not in self._record_types):
             # collections-plan: the dict-family reduces to the empty
@@ -7171,6 +7312,52 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return True
         return False
 
+    def _refine_func_symmap_reader(self, node: Any,
+                                   local_refs: Optional[Set[str]],
+                                   invariant_ctx: bool,
+                                   subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """self-tcb-reduction typed-self-field-WRITE cap (func-field->string-map projector):
+        `<func-param>.get("symbol_table"|"param_annotations")` on a `Dict[str, PyVal]` func
+        param reads a nested `Dict[str, str]` symbol table -> the faithful reader
+        `<field>_symmap_of (f: map string (option hval)) : map string (option string)` over
+        the pyval func carrier (the banked opaque-self accessor cap is SELF-field-only; this
+        is the func-PARAM-field twin). The result feeds the verified `_infer_tuple_slot_type`
+        4th param (`map string (option string)`). Gated on `_refine_tuple_return_type` ->
+        byte-inert for the corpus and every other mirror. None if the shape does not match."""
+        if not self._emitting_refine_tuple_return_type():
+            return None
+        if not (isinstance(node, dict) and node.get("type") == "Call"):
+            return None
+        _fn = node.get("func") or ""
+        if not (_fn == "get" or str(_fn).endswith(".get")):
+            return None
+        _args = node.get("args") or []
+        if not (_args and isinstance(_args[0], dict) and _args[0].get("type") == "String"):
+            return None
+        _field = _args[0].get("value")
+        # Only `symbol_table` projects to a total `map string (option string)` (read via
+        # `.get`/subscript, passed to the verified `_infer_tuple_slot_type`). NOT
+        # `param_annotations` — that one is ITERATED via `.items()`, which needs the finite
+        # hval assoc-list carrier (`hval_as_map`/`hval_keys_get`), not a total map.
+        if _field != "symbol_table":
+            return None
+        _rcv = node.get("receiver")
+        if not (isinstance(_rcv, dict) and _rcv.get("type") == "Var"):
+            # dotted-func form `func.get("symbol_table", {})` encodes the receiver in the
+            # `func` string (`node["func"] == "func.get"`, receiver absent); recover the
+            # receiver Var from the `<recv>.get` prefix. `<recv>` is a plain param name
+            # (`func`), a `Dict[str, PyVal]` pydict — its value type is `hval`.
+            _pref = _fn[:-len(".get")] if str(_fn).endswith(".get") else ""
+            if _pref and "." not in _pref:
+                _rcv = {"type": "Var", "name": _pref}
+            else:
+                return None
+        _rw = self._expr_to_whyml(_rcv, local_refs or set(), invariant_ctx, subst)
+        self._add_abstract_op(
+            f"val function {_field}_symmap_of (f: map string (option hval)) "
+            ": map string (option string)")
+        return f"({_field}_symmap_of {_rw})"
+
     def _recognize_pyval_or_default(self, expr: Dict[str, Any],
                                     local_refs: Optional[Set[str]],
                                     invariant_ctx: bool,
@@ -7182,6 +7369,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         and the right is an empty dict/list literal -> corpus byte-inert."""
         left = expr.get("left") or {}
         right = expr.get("right") or {}
+        # typed-self-field-WRITE cap: `<func-param>.get("symbol_table"|"param_annotations")
+        # or {}` projects to a `map string (option string)` symbol table (the func-field
+        # twin of the banked opaque-self accessor). Gated on `_refine_tuple_return_type`.
+        _sm = self._refine_func_symmap_reader(left, local_refs, invariant_ctx, subst)
+        if _sm is not None:
+            return _sm
         if not self._expr_is_pyval(left):
             return None
         _empty_default = (isinstance(right, dict)
@@ -7634,6 +7827,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # so the `name := <string>` typechecks — the map-param twin of the pyval-local `.get`
         # string projection above. Scoped to `_pyval_get_as_string` (a string-classified
         # assignment target) + an hval codomain -> corpus/other-mirror byte-inert.
+        # cap1 (self-tcb-reduction `_refine_tuple_return_type`): `func.get("name", "")` on the
+        # `Dict[str, PyVal]` func param (hval codomain) with a STRING-literal default is a
+        # string read (`_nm` -> `"__" in _nm` / `_nm.split(...)` / self-type write). Project
+        # the hval `Some`-arm via `hstr_of` INSIDE the match so BOTH arms are `string` — the
+        # whole-match `hstr_of` (the `_pyval_get_as_string` path just below) cannot fix the
+        # already-ill-typed hval-`Some` vs string-`None` arms. Gated on the method -> byte-inert
+        # for the corpus and every other mirror. Runs BEFORE the `_pyval_get_as_string` path.
+        if (nu == "hval" and self._emitting_refine_tuple_return_type()
+                and len(args) >= 2 and self._get_default_is_str_literal(expr)):
+            return (f"(match Map.get {recv_whyml} {k} "
+                    f"with | Some v_ -> (hstr_of v_) | None -> {default} end)")
         if nu == "hval" and getattr(self, "_pyval_get_as_string", False):
             return f"(hstr_of {_res})"
         return _res
@@ -11445,8 +11649,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # like str_split_elem_op); only the type + length matter for the emitter's
             # `ensures True` + frame contracts. @mutable_state-gated → the corpus's opaque
             # `list_comp` path is byte-identical.
+            # cap4/cap5 (self-tcb-reduction `_refine_tuple_return_type`): the three
+            # comprehensions of the tuple-slot dispatcher —
+            #   slots  = [_infer_tuple_slot_type(e, …) for e in elts]   (elt -> string)
+            #   _names = [e.get("name") if … else None for e in elts]   (string-or-None)
+            #   _s     = [_slot_role.get(n, "int") for n in _names]      (map .get -> string)
+            # are all `array string` abstractions (length law over the source, content
+            # unmodeled — same faithful over-approx as `str_split_elem_op`). Enter the same
+            # opaque-array-of-<et> path even though FunctionEmissionMixin is opaque-int (not
+            # @mutable_state); `_et` is forced "string" just below. Gated on the method ->
+            # byte-inert for the corpus and every other mirror.
             if (getattr(self, "_current_self_type", None)
-                    in getattr(self, "_mutable_state_classes", set())):
+                    in getattr(self, "_mutable_state_classes", set())
+                    or self._emitting_refine_tuple_return_type()):
                 _d = node.to_dict()
                 _elt = _d.get("elt", {})
                 _gens = _d.get("generators", []) or []
@@ -11466,7 +11681,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _elt_todict = (isinstance(_elt, dict) and _elt.get("type") == "Call"
                                and isinstance(_elt.get("func"), str)
                                and _elt["func"].endswith(".to_dict"))
-                if self._is_string_expr(_elt):                    _et = "string"
+                if self._emitting_refine_tuple_return_type():     _et = "string"
+                elif self._is_string_expr(_elt):                  _et = "string"
                 elif _elt_todict or self._is_emit_ir_expr(_elt):  _et = "emit_ir"
                 else:                                             _et = "int"
                 for _tv, _old in _saved.items():
@@ -11488,6 +11704,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # (`seq 'a → seq <τ>`), so the result is a pure reassignable value.
                 _src_seq = (isinstance(_src, dict) and _src.get("type") == "Var"
                             and _src.get("name") in getattr(self, "_seq_locals", set()))
+                # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): the three
+                # tuple-slot comprehensions are `seq string` abstractions (an immutable,
+                # reassignable list model) over a source that may be int (`elts` is
+                # `_first_tuple_return_elts`'s opaque int stub) OR `seq string` (`_s`'s source
+                # is the `_names` comprehension result). A polymorphic-source variant
+                # (`src: 'a`) tolerates both (content unmodeled, length unconstrained — the
+                # same faithful over-approx as str_split_elem_op). Method-gated -> corpus/
+                # other-mirror byte-inert.
+                if self._emitting_refine_tuple_return_type():
+                    self._add_abstract_op(
+                        "val list_comp_refine_string (src: 'a) : seq string")
+                    return f"(list_comp_refine_string {_srcw})"
                 _coll = "seq" if _src_seq else "array"
                 _len = "Seq.length" if _src_seq else "Array.length"
                 _op = f"list_comp_{'seq_' if _src_seq else ''}{_et}" + ("_filt" if _has_if else "")

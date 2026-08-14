@@ -275,12 +275,84 @@ class FunctionEmissionMixin:
                 return "map int (option int)"
         return "int"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _refine_tuple_return_type(self, func: Dict[str, PyVal], body_stmts: List[int], return_type: str) -> str:
-        return ""
+        """Refine a homogeneous `(int, int, …)` tuple return type into per-slot
+        types (e.g. `(int, array int)` for `_unpack_direntry`'s `(inode, name_bytes)`).
+        find_return_type defaults every slot to `int`; here each slot is typed from
+        the FIRST tuple return's element expressions. Without this, a tuple with an
+        `array int`/`string`/`map` slot emits a `let` body that cannot type-check
+        against the wrong `int` slot — the standalone-gate line-441 blocker."""
+        if not (return_type.startswith("(") and "," in return_type):
+            return return_type
+        elts = self._first_tuple_return_elts(body_stmts)
+        if not elts:
+            return return_type
+        array_vars, dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
+        array_vars |= self._collect_array_var_assigns(body_stmts)
+        symtab = func.get("symbol_table", {}) or {}
+        # tuple-return-of-emit_ir: the emit_ir/string slot checks (`_is_emit_ir_expr` /
+        # `_is_string_expr`) read `_current_symbol_table`/`_current_self_type`, which are NOT set
+        # when this runs during return-type-MAP building (before per-function state). Set the
+        # func's context (annotations merged, self_type from the `<class>__<method>` IR name) so a
+        # tuple-of-(emit_ir,string) method's MAP entry matches its own emitted signature — else the
+        # caller's unpack types the string slot as int (mirror of the P1 let-vs-val agreement).
+        _saved_st = getattr(self, "_current_symbol_table", None)
+        _saved_cs = getattr(self, "_current_self_type", None)
+        _saved_cef = getattr(self, "_current_emitting_func", None)
+        _st = dict(symtab)
+        for _k, _ty in (func.get("param_annotations") or {}).items():
+            if _st.get(_k) in (None, "Any"):
+                _st[_k] = _ty
+        self._current_symbol_table = _st
+        _nm = func.get("name", "")
+        if "__" in _nm:
+            self._current_self_type = _nm.split("__", 1)[0]
+        # self-tcb-reduction Layer-2: set the emitting-func context so any per-handler-scoped
+        # emit_ir flow-typing (`_effective_emit_ir_node_keys`, e.g. the receiver/slice
+        # recognizer's `lower`/`upper`/`step` node keys) fires here too — else a scoped
+        # emit_ir tuple slot mis-types as int and the `let` unpack fails to type-check.
+        self._current_emitting_func = _nm
+        _saved_teisl = getattr(self, "_tuple_emit_ir_slot_locals", None)
+        try:
+            # tuple-return-of-emit_ir: a tuple slot bound to an emit_ir LOCAL (`slice_node`/
+            # `lower_ir`, first-assigned from an emit_ir `.get(...)` projection) is not in the
+            # func's symbol_table — collect the body's emit_ir locals so `_infer_tuple_slot_type`
+            # types those slots `emit_ir` (matching the `ref (IrOther "")` body pre-decl), else
+            # the `option (τ...)` return type mis-types them `int` and the unpack fails L3.
+            self._tuple_emit_ir_slot_locals = self._collect_emit_ir_result_locals(body_stmts)
+            slots = [self._infer_tuple_slot_type(e, array_vars, dict_vars, _st) for e in elts]
+        finally:
+            self._current_symbol_table = _saved_st
+            self._current_self_type = _saved_cs
+            self._current_emitting_func = _saved_cef
+            self._tuple_emit_ir_slot_locals = _saved_teisl
+        if len(slots) == return_type.count(",") + 1 and any(s != "int" for s in slots):
+            return "(" + ", ".join(slots) + ")"
+        # self-tcb-reduction Tier-5 (union/match cluster C1b): flow-type the tuple slots of
+        # the two nested-hval union readers from their RETURNED locals. The first tuple
+        # return's element expressions ARE `elts` (the real `return var_name, vinfo` /
+        # `return ctor_name, ctor`), so keying the slot type on the returned Var's role is
+        # exact (matches the body's actual hval-projection lowering): a name/tag var is a
+        # `string`, `vinfo` is the nested `map string (option hval)` (a `_variant_types`
+        # value), `ctor` is a single `hval`. Byte-inert: gated on these two method names,
+        # which no reference program defines.
+        _nm2 = func.get("name", "")
+        if (_nm2.endswith("_match_subject_union_info")
+                or _nm2.endswith("_union_ctor_for_arm_tag")):
+            _slot_role = {
+                "var_name": "string", "vinfo": "map string (option hval)",
+                "ctor_name": "string", "ctor": "hval",
+            }
+            _names = [e.get("name") if (isinstance(e, dict) and e.get("type") == "Var")
+                      else None for e in elts]
+            _s = [_slot_role.get(n, "int") for n in _names]
+            if (len(_s) == return_type.count(",") + 1
+                    and all(x != "int" for x in _s)):
+                return "(" + ", ".join(_s) + ")"
+        return return_type
 
     #@ requires True
     #@ ensures True

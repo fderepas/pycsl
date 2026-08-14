@@ -1240,6 +1240,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         _fn = self._self_field_dict_nu(_frecv)
                         if _fn is not None:
                             nu = _fn
+                    # cap3 (self-tcb-reduction `_refine_tuple_return_type`): `_st[_k] = _ty`
+                    # stores into the `map string (option string)` symbol-table local — the
+                    # RAW native string key `!_k` and the string value `!_ty`, NOT the int-hash
+                    # `str_hash_op` / `_coerce_to_int` facade. `_st` (`= dict(symtab)`, symtab =
+                    # the `symbol_table_symmap_of` projection) carries no `_dict_key_types`
+                    # entry, so kappa/nu are None here; force them string. Gated on the method +
+                    # a string index -> byte-inert for the corpus and every other mirror.
+                    if (kappa is None and self_field_name is None and var_name
+                            and self._emitting_refine_tuple_return_type()
+                            and self._is_string_expr(stmt.index.to_dict())):
+                        kappa = "string"
+                        nu = "string"
                     if kappa == "string":
                         k = index_expr
                     elif (not self._in_spec
@@ -1600,7 +1612,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         else:
             hash_field = stable_hash(field)
             self_type = self._current_self_type
-            if obj == "self" and self_type:
+            # self-tcb-reduction typed-self-field-WRITE cap (FOUNDATION, reusable): a
+            # `self.<field> = <val>` whose RHS is NOT int-typed (a `map string (option
+            # string)` symbol table, a `string` self-type, an `option`/seq local) cannot go
+            # through `_coerce_to_int` (which erases a map to int -> an L3-tc error against a
+            # map RHS). FunctionEmissionMixin is opaque-int (not a @mutable_state record), so
+            # the field value is not observed after the write here (the method returns a
+            # string and the sibling readers take the local, not the self-field). Model the
+            # write as a POLYMORPHIC, EFFECT-FREE `val setattr_<self>_poly (v: 'a)` — it
+            # typechecks with ANY RHS type and carries no `writes` clause, so the method's
+            # `assigns \nothing` frame holds. Parametric over the RHS type -> reusable across
+            # the whole FunctionEmissionMixin writer class. Gated per-method -> byte-inert for
+            # the corpus and every other mirror (a real corpus `self.<field> = <int>` keeps
+            # the int `setattr` below).
+            if (obj == "self" and self_type
+                    and self._emitting_refine_tuple_return_type()):
+                self._add_abstract_op(
+                    f"val setattr_{self_type}_poly (x: {self_type}) (f: int) (v: 'a) : unit")
+                code = f"{indent}setattr_{self_type}_poly {obj} {hash_field} {val}"
+            elif obj == "self" and self_type:
                 self._add_abstract_op(f"val setattr_{self_type} (x: {self_type}) (f: int) (v: int) : unit")
                 code = f"{indent}setattr_{self_type} {obj} {hash_field} {self._coerce_to_int(val)}"
             else:
@@ -2870,6 +2900,66 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         find_assigns(body_stmts)
         return out - set(self._formal_params)
 
+    def _collect_refine_str_get_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """cap1 (self-tcb-reduction `_refine_tuple_return_type`): a local assigned
+        `<func>.get("<key>", "<str-literal>")` on the `Dict[str, PyVal]` func param (hval
+        codomain, projected via `hstr_of` with a STRING default) is a `string` local —
+        `_nm = func.get("name", "")` feeds `"__" in _nm` / `_nm.split("__", 1)[0]` / the
+        self-type write. Gated on the method -> byte-inert for the corpus and every other
+        mirror."""
+        if not self._emitting_refine_tuple_return_type():
+            return set()
+        out: Set[str] = set()
+
+        def scan(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    _v = n.get("value")
+                    if (isinstance(_v, dict) and _v.get("type") == "Call"
+                            and isinstance(_v.get("func"), str)
+                            and _v.get("func").endswith(".get")):
+                        _a = _v.get("args") or []
+                        if (len(_a) >= 2 and isinstance(_a[0], dict)
+                                and _a[0].get("type") == "String"
+                                and isinstance(_a[1], dict)
+                                and _a[1].get("type") == "String"):
+                            out.add(n["target"])
+                for x in n.values():
+                    scan(x)
+            elif isinstance(n, list):
+                for x in n:
+                    scan(x)
+        scan(body_stmts)
+        return out - set(self._formal_params)
+
+    def _collect_refine_str_comp_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): locals first-assigned a
+        list COMPREHENSION (`slots = [_infer_tuple_slot_type(e, …) for e in elts]`,
+        `_names = [e.get("name") if … else None for e in elts]`, `_s = [_slot_role.get(n,
+        "int") for n in _names]`) are `array string` abstractions — opaque length-only
+        arrays whose content is unmodeled (the same faithful over-approx as
+        str_split_elem_op). Their element type feeds the join (`str_join_arr`), the `len`
+        (`Array.length`) and the any/all fold (`array string`); the local set feeds the
+        try pre-decl `ref (Array.make 0 "")`. Gated on the method -> byte-inert for the
+        corpus and every other mirror."""
+        if not self._emitting_refine_tuple_return_type():
+            return set()
+        out: Set[str] = set()
+
+        def scan(n: Any) -> None:
+            if isinstance(n, dict):
+                if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)
+                        and isinstance(n.get("value"), dict)
+                        and n["value"].get("type") == "ListComp"):
+                    out.add(n["target"])
+                for x in n.values():
+                    scan(x)
+            elif isinstance(n, list):
+                for x in n:
+                    scan(x)
+        scan(body_stmts)
+        return out - set(self._formal_params)
+
     def _collect_items_key_alias_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """self-tcb-reduction _typeddict_record_literal (cap-1b): locals bound to the KEY
         loop-var of a `for k, v in <hval-field>.items()` loop (`rec_name = name` inside
@@ -3622,6 +3712,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         self._tdrl_hval_locals = _tdrl_hval
         self._tdrl_present_locals = _tdrl_present
         self._array_elem_types = self._collect_array_elem_types(body_stmts)
+        # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): the three string list-comp
+        # locals (`slots`/`_names`/`_s`) are `seq string` — a REASSIGNED list local must be
+        # an immutable `seq` (freely reassignable through a `ref`), never a mutable `array`
+        # (`ref (array _)` cannot be reassigned — a Why3 region alias; `slots` is reassigned
+        # inside the try). The dedicated set drives the try pre-decl `ref (Seq.empty : seq
+        # string)`, the `len` (`Seq.length`), the join (`str_join_seq`, and `"(" + join + ")"`
+        # routes `+` to str_concat_op) and the any/all fold (`seq string`). Method-gated.
+        self._refine_str_comp_locals = self._collect_refine_str_comp_locals(body_stmts)
         # seq-model-pivot.md SQ1: a REASSIGNED list-elem local (assigned >1×) is modeled as
         # an immutable `seq` (freely reassignable), not a mutable `array` — a `ref (array _)`
         # cannot be reassigned to a slice (Why3 region alias). Promote it to `_seq_locals`
@@ -3737,6 +3835,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 self._dict_key_types.setdefault(_mv, "string")
                 self._dict_locals.add(_mv)
         string_vars |= self._collect_items_key_alias_locals(body_stmts)
+        # cap1 (self-tcb-reduction `_refine_tuple_return_type`): `_nm`/`_nm2` from
+        # `func.get("name", "")` (hval func param, string default) are string locals.
+        string_vars |= self._collect_refine_str_get_locals(body_stmts)
         self._string_local_vars = string_vars   # so _mark_string_seq_locals sees items-keys
         self._mark_string_seq_locals(body_stmts)
         string_vars |= self._collect_enum_str_elem_locals(body_stmts)

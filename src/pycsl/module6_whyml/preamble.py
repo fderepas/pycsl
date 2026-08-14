@@ -6405,6 +6405,37 @@ class PreambleEmissionMixin:
                 and str(getattr(self, "_current_emitting_func", "") or "")
                 .endswith("_compute_return_type"))
 
+    def _uses_refine_tuple_return_type(self) -> bool:
+        """self-tcb-reduction typed-self-field-WRITE cap: True iff this file defines
+        `_refine_tuple_return_type` — the tuple-slot dispatcher on the opaque-int
+        FunctionEmissionMixin that (unlike its read-only siblings) CONSTRUCTS a
+        `map string (option string)` symbol table AND WRITES self-fields
+        (`self._current_symbol_table = _st`). Gates the reusable typed self-field WRITE
+        (a polymorphic effect-free `setattr`), the func-param-field->string-map projector
+        (`func.get("symbol_table"|"param_annotations", {}) or {}`), the map-copy identity
+        (`dict(symtab)`), and the map `.items()`/`.get`/subscript-assign readers into that
+        ONE file's SMT context. No corpus program (and no other mirror) defines a method by
+        that name, so every other file's emission stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_refine_tuple_return_type_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_refine_tuple_return_type")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_refine_tuple_return_type_cache = result
+        return result
+
+    def _emitting_refine_tuple_return_type(self) -> bool:
+        """self-tcb-reduction typed-self-field-WRITE cap: True iff the method CURRENTLY
+        being emitted is `_refine_tuple_return_type`. Scopes the polymorphic self-field
+        WRITE, the func-field->string-map projector, the map-copy identity, and the
+        map-`.items()`/`.get`/subscript readers to that ONE method WITHOUT globally
+        registering FunctionEmissionMixin as @mutable_state (the documented PATH(a)
+        sibling regression). Per-method scoped -> byte-inert elsewhere."""
+        return (self._uses_refine_tuple_return_type()
+                and str(getattr(self, "_current_emitting_func", "") or "")
+                .endswith("_refine_tuple_return_type"))
+
     def _uses_pyast_stmt(self) -> bool:
         """pyast_stmt ADT (self-tcb-reduction giants): True iff some function in this file
         iterates a class-body — `for <x> in <p>.body` where `<p>` is a parameter annotated

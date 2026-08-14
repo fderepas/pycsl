@@ -333,8 +333,16 @@ class ControlFlowStmtMixin:
     #@ assigns \nothing
     def _try_local_decl_kind(self, val_ir: "ExprIR") -> str:
         """Reduced `_first_assign_kind` (IR-only, no val-string side effects)
-        for a try-body local's pre-declaration: `record` | `dict` | `default`."""
+        for a try-body local's pre-declaration: `record` | `dict` | `array_string`
+        | `default`."""
         vt = val_ir.get("type", "")
+        # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): a try-body local
+        # first-assigned a list COMPREHENSION (`slots = [_infer_tuple_slot_type(…) for e
+        # in elts]`) is a `seq string` — pre-declare `ref (Seq.empty : seq string)`, not the
+        # integer `ref 0` (which int-clashes the `:=`). An immutable `seq` (not a mutable
+        # `array`) so the ref is freely reassignable (no Why3 region alias). Method-gated.
+        if vt == "ListComp" and self._emitting_refine_tuple_return_type():
+            return "seq_string"
         if vt == "Call" and val_ir.get("func", "") in self._record_types:
             return "record"
         if (vt in ("DictLit", "SetLit")
@@ -425,6 +433,13 @@ class ControlFlowStmtMixin:
                         var, [s for h in handlers for s in h.get("body", [])]))
                 if kind == "record":
                     pass  # let-bound inside the body; no outer ref
+                elif kind == "seq_string":
+                    # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): a `seq string`
+                    # comprehension local pre-declares the empty string seq so its `:=` (from
+                    # `list_comp_refine_string`) type-checks and stays reassignable.
+                    pre_decls += (f"{indent}let {safe_var} = "
+                                  f"ref (Seq.empty : seq string) in\n")
+                    declared_refs.add(safe_var)
                 elif kind == "dict":
                     pre_decls += (f"{indent}let {safe_var} = "
                                   f"ref (const (None: option int)) in\n")
