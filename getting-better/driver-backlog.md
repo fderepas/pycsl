@@ -2341,3 +2341,15 @@ typeddict_record_literal 30053c21), raw-dict-string-read _infer_tuple_slot_type 
 (38a46208 + 28b2eed0). Next: re-drain for union-cap cascade, else frontier = CERTIFIED-BOUNDARIES (IrProj array-store,
 whyml_string_literal byte-op) + review-gated giants (_emit_membership/_to_bool/_handle_subscript/_expr_to_whyml/
 _handle_binop/_handle_call_expr) + raw-ast Module5 walkers + _track_collection_metadata (V1 nested-hval+self-state).
+
+## 2026-08-14 — post-union re-drain = no_cheap_remaining (727); next lever = hval-LOCAL-flow-typing (union-return siblings)
+Union cluster PARAM members drained (3 landed). Residual siblings _maybe_inject_union_return (stmt_control_flow.py:769)
++ _infer_return_value_type (:776) both bind hval .get() result to an INTERMEDIATE LOCAL (vinfo/constructors/ctor_name/
+payload -> ref 0 facades) — need the un-landed LEVER #1: (a) LOCAL flow-typing of an hval/map .get() result onto a local
+(the local analogue of the landed PARAM-projection cap); (b) hval_as_map-over-LOCAL (.items() currently only over
+self-FIELD/param); (c) _record_valued_expr_whyml_type resolver (currently auto-stubs ->int, clashes with the Optional[str]
+variant return for _infer_return_value_type); (d) _resolve_dotted_signature(func)[0] subscript typing + func projection off
+emit_ir. Session-scale ~4-5 caps, NO cert (definitional over certified hval), spike-close (reuses hval_as_map + union
+machinery), CASCADES to other hval-local readers. Both siblings verbatim-portable, caller-typing correct (blocker is pure
+value-model). Ranked #1 next build. (Lower: V1 Dict[str,Any] PARAM/_track_collection_metadata; boundaries IrProj/
+whyml_string_literal; review-gated giants.) ESCALATED lever #1.
