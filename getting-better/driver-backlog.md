@@ -2383,3 +2383,13 @@ mandate: delegates do SYNCHRONOUS build+fast-gate ONLY, hand off ALL long proofs
 supervisor. BANKED caps: optstr-== recognizer, hval-LOCAL flow-typing (map-local .get->hval-local), Var-return->union-arm
 threading, _resolve_dotted_signature array-string reader. Next: re-drain for union-return-cap cascade, else frontier =
 boundaries (IrProj/whyml_string_literal) + review-gated giants + V1 Dict[str,Any]/_track_collection_metadata + raw-ast.
+
+## 2026-08-14 (post-crash) — post-union-return re-drain = no_cheap_remaining (725); next lever = _try_union_is_none_match
+Union-return caps drained their sibling cluster. Next FUNDED build (spike-close, session-scale ~5-6 caps, NOT a boundary):
+`_try_union_is_none_match` (stmt_control_flow.py) — direct union-cluster sibling (same _variant_types/constructors/
+hval_as_map machinery in-file) + 3 NEW caps: (i) emit_ir `stmt` param reconciliation (caller _handle_if_stmt passes
+stmt.to_dict()=emit_ir; blocker stmt_control_flow.mlw:1059 emit_ir vs map param); (ii) vinfo["constructors"][ctor_name]
+NESTED DOUBLE-SUBSCRIPT on map string(option hval); (iii) List[str] STRING-ARM ACCUMULATION (other_ctors/non_none_arms
+[-1] mutation + enumerate) + _stmts_to_whyml recursion + Optional/Any return. Caps reusable (match-code string-accumulation
+cascades). Other residuals: pattern-walkers (distinct pattern-value-model); return-type dispatchers (session-scale);
+boundaries IrProj/whyml_string_literal; review-gated giants; V1 _track_collection_metadata; raw-ast. ESCALATED.
