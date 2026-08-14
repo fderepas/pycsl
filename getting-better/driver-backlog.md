@@ -2453,3 +2453,15 @@ str_startswith_op, nested-hval — all built this session for the union cluster)
 (and this session broke Call-receiver/union/_try_union all first-claimed boundaries), SPIKING _compute_return_type's first
 pattern (hval-string-field `_cmg['elem_whyml']` -> f-string) to decide buildable-vs-boundary before accepting the floor. Risk:
 int-hash vacuity on `ann.startswith` (must lower to real str_startswith_op on an hstr_of value, not ann_startswith_1 <hash>).
+
+## 2026-08-14 (post-crash) — return-dispatcher V1-BOUNDARY REFUTED; real blocker = FunctionEmissionMixin opaque-int self-type (structural)
+Spike: hval-string flow IS buildable non-vacuously (Pattern 2 func.get("return_annotation").startswith("_union_") ->
+hstr_of + str_startswith_op "_union_", real not ann_startswith_1 <hash>; caps = gate _compute_return_type into
+_collect_union_hval_locals + "return_annotation" string-scalar-key allowlist + func:Dict[str,PyVal] param). REAL blocker
+(Pattern 1 _compound_map_getter['elem_whyml']): FunctionEmissionMixin is modeled `type functionemissionmixin = int`
+(opaque, NOT @mutable_state @dataclass record like ControlFlowStmtMixin) -> ALL its self-field reads erase to int. Two
+paths: (a) flip FunctionEmissionMixin to a record self-type (243 fields, whole-mixin, re-prove all converted functions.py
+methods + full byte-diff — LARGE/review-gated but PRECEDENTED by ControlFlowStmtMixin); (b) targeted opaque-self per-field
+accessor caps (`getattr(self,FIELD)` bare read + Optional-map None-narrow + re-subscript on narrowed binder) — LIGHTER,
+session-scale. NOT a value-model boundary. 724 = autonomous floor pending (a) or (b). SPIKING (b) — does a targeted
+opaque-self field-accessor cap make _compute_return_type's self-field reads type non-vacuously without the whole-mixin flip?
