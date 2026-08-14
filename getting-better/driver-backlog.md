@@ -2214,3 +2214,19 @@ _is_emit_ir_expr model the node as emit_ir while elt is raw dict); (e) Set[str] 
 map int(option int) -> want set/string). CAPS CASCADE (raw-dict string-read family = many stubs). Wall class =
 "heterogeneous IR-node-dict string READ + string flow-typing". _track_collection_metadata is DISTINCT/heavier (full
 hval HArr/HNode + self-state metadata mutation — separate wall). ESCALATED to build.
+
+## 2026-08-14 — post-wall-6 re-drain = no_cheap_remaining (730); next lever = ROOT A emit_ir-NODE field projectors
+Flat-Dict[str,str] string-read cap DRAINED (converted _infer_tuple_slot_type only; no sibling matches the flat shape).
+Residual walls = 2 build-classes:
+ROOT A (DOMINANT, spike-close, RECOMMENDED) — emit_ir-NODE field projection. Stubs need NEW total projectors over the
+ALREADY-CERTIFIED emit_ir ADT ctors: index_of (IrSub->int), tuple_of/fst_of/snd_of (IrTuple sub-node), left_of/right_of
+(IrBinOp/IrStrConcat recursion), svalue/name string projections. Definitional views over existing certified ctors
+(like hval_len over hval_list, like receiver_of over IrMethodCall) — LEDGER STAYS 3, no new axiom/cert (per §10.8 +
+IrBinOp/IrIfExpr projector precedent). CASCADES: _handle_proj_expr (index_of+tuple_of), _expr_to_whyml_string_ctx
+(string kind-discriminant + left/right StrConcat + svalue/name), _handle_ctor_payload_expr, _seq_init_expr. Additive
+per-node-kind build, autonomous-authorizable. Blockers seen: expressions.mlw:962 (_expr_to_whyml_string_ctx ExprIR node
+reads string discriminant + nested sub-nodes), expr_ghost_spec_ops.mlw:402 (_handle_proj_expr node.index/node.tuple ->
+generic svalue_of, no index_of/tuple_of). ESCALATED (start smallest = _handle_proj_expr: just index_of+tuple_of).
+ROOT B (heavier, distinct) — _variant_types/_constructors nested-hval walk (union/match cluster _match_subject_union_info
+/_union_ctor_for_arm_tag/_union_none_ctor_for): nested constructors/payload lists off _variant_types (hval HMap->list),
+type-pinned by verified _handle_match_stmt. Same hval-HMap/HNode-list wall as _track_collection_metadata. Defer.
