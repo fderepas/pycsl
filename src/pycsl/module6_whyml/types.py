@@ -532,6 +532,40 @@ class TypeInferenceMixin:
                     found.update(self._collect_option_str_return_locals(h.get("body", [])))
         return found
 
+    def _collect_optmap_getter_locals(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction `_compute_return_type` PATH(b): local names bound from
+        `getattr(self, "_compound_map_getter", None)` — an `Optional[Dict[str, str]]`
+        self-field, modelled `option (map string (option string))`. Such a local
+        pre-declares `ref (None: option (map string (option string)))`, its `is not None`
+        guard lowers to a `match … None/Some` discriminant, and `<local>["<lit>"]` reads
+        the inner map. Gated on emitting `_compute_return_type` -> byte-inert elsewhere."""
+        if not self._emitting_compute_return_type():
+            return set()
+        out: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") in ("Assign", "assign") and isinstance(
+                        node.get("target"), str):
+                    _v = node.get("value") or {}
+                    if (isinstance(_v, dict) and _v.get("type") == "Call"
+                            and _v.get("func") == "getattr"):
+                        _a = _v.get("args") or []
+                        if (len(_a) >= 2 and isinstance(_a[0], dict)
+                                and _a[0].get("name") == "self"
+                                and isinstance(_a[1], dict)
+                                and _a[1].get("type") == "String"
+                                and _a[1].get("value") == "_compound_map_getter"):
+                            out.add(node["target"])
+                for _x in node.values():
+                    rec(_x)
+            elif isinstance(node, list):
+                for _x in node:
+                    rec(_x)
+
+        rec(stmts)
+        return out
+
     def _collect_option_tuple_unpack_targets(self, stmts: List[Dict[str, Any]]) -> Set[str]:
         """self-tcb-reduction Tier-5 (union/match cluster C1b): the TARGET names of a
         `a, b = <option-tuple local>` unpack (`_uvar, uinfo = union_info`). These are

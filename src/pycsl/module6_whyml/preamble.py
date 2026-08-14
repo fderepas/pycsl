@@ -6375,6 +6375,36 @@ class PreambleEmissionMixin:
         self._uses_tparam_cache = result
         return result
 
+    def _uses_compute_return_type(self) -> bool:
+        """self-tcb-reduction `_compute_return_type` PATH(b): True iff this file defines
+        `_compute_return_type` — the largest return-type dispatcher on the opaque-int
+        FunctionEmissionMixin. Gates every new opaque-self typed field-accessor `val`
+        (`record_types_mem`/`variant_types_whyml_name`/`mutable_state_classes_mem`/the
+        option-map `compound_map_getter_*` reader/the `dict_key_types`/`dict_value_types`
+        readers) plus the string-typed return of `IRScanner.find_return_type` and the
+        `option string` return of `_returned_var_name` into that ONE file's SMT context.
+        No corpus program (and no other mirror) defines a method by that name, so every
+        other file's emission stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_compute_return_type_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_compute_return_type")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_compute_return_type_cache = result
+        return result
+
+    def _emitting_compute_return_type(self) -> bool:
+        """self-tcb-reduction `_compute_return_type` PATH(b): True iff the method CURRENTLY
+        being emitted is `_compute_return_type`. Used to enable the typed-local pre-decls
+        (`ref None`/`ref ""` for its hoisted option/string locals) and the string
+        classification of its `or`/ternary locals WITHOUT globally registering
+        FunctionEmissionMixin as @mutable_state (which would perturb its sibling methods —
+        the documented PATH(a) regression). Per-method scoped -> byte-inert elsewhere."""
+        return (self._uses_compute_return_type()
+                and str(getattr(self, "_current_emitting_func", "") or "")
+                .endswith("_compute_return_type"))
+
     def _uses_pyast_stmt(self) -> bool:
         """pyast_stmt ADT (self-tcb-reduction giants): True iff some function in this file
         iterates a class-body — `for <x> in <p>.body` where `<p>` is a parameter annotated

@@ -2274,7 +2274,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # hval)` local) and consumes it BOTH via `.items()` (the constructor loop)
                 # AND a nested subscript `vinfo["constructors"][ctor_name]` — the same
                 # nested-hval classification the other union readers need.
-                or _cef.endswith("_try_union_is_none_match")):
+                or _cef.endswith("_try_union_is_none_match")
+                # self-tcb-reduction `_compute_return_type` PATH(b): binds
+                # `ann = func.get("return_annotation")` off the `Dict[str, PyVal]` param
+                # `func` (value type "hval") — a string-scalar leaf projected via `hstr_of`
+                # so its `ann.startswith("_union_")` / `ann == "str"` / `ann in (...)` /
+                # `ann in self._variant_types` all lower to the FAITHFUL string ops
+                # (str_startswith_op / str_eq_op / variant_types_mem) instead of the
+                # int-hash `ann = <hash>` facade. Gated on the method name -> byte-inert.
+                or _cef.endswith("_compute_return_type")):
             return set(), {}
         pyval = getattr(self, "_pyval_locals", set())
         str_locals: Set[str] = set()
@@ -2299,8 +2307,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         if _recv is not None:
                             _a = _v.get("args") or []
                             _k0 = _a[0] if _a else None
+                            # `_compute_return_type` (PATH(b)) also projects the
+                            # `return_annotation` string scalar off the `func` pyval param.
+                            _keys = (("type", "name", "return_annotation")
+                                     if _cef.endswith("_compute_return_type")
+                                     else ("type", "name"))
                             _kstr = (isinstance(_k0, dict) and _k0.get("type") == "String"
-                                     and _k0.get("value") in ("type", "name"))
+                                     and _k0.get("value") in _keys)
                             # string-scalar leaf off a pyval receiver
                             if (_recv in pyval or getattr(
                                     self, "_dict_value_types", {}).get(_recv) == "hval") and _kstr:
@@ -2421,6 +2434,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if t == "Call":
                 if _ret_of(v.get("func", "")) == "string":
                     return True
+                # `_compute_return_type` (PATH(b)): `return_type =
+                # IRScanner.find_return_type(...)` returns a WhyML type STRING, so
+                # `return_type` is a string local — its later `== "int"` / `.startswith("(")`
+                # / `"," in return_type` lower to the faithful str_eq_op/str_startswith_op/
+                # str_contains_op and the f-strings interpolating it to str_concat_op. Gated
+                # on the file defining `_compute_return_type` -> byte-inert elsewhere.
+                if (v.get("func") == "IRScanner.find_return_type"
+                        and self._uses_compute_return_type()):
+                    return True
             if t == "FString":
                 parts = v.get("parts", [])
                 if bool(parts) and all(self._is_string_expr(p) for p in parts):
@@ -2475,6 +2497,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         seen: Set[str] = set()
         _ms_str = (getattr(self, "_current_self_type", None)
                    in getattr(self, "_mutable_state_classes", set()))
+        # `_compute_return_type` PATH(b): classify its `_nu = <str-map>.get(_rv) or "int"`
+        # (`or`-of-strings) and `_nu_arg = f"({_nu})" if " " in _nu else _nu` (ternary)
+        # locals as strings so they pre-decl `ref ""`. Per-method scoped -> byte-inert.
+        _ms_str = _ms_str or self._emitting_compute_return_type()
 
         tuple_str: Set[str] = set()
         # L18 S1c: (target, iter_ir) of every `for … in …` loop, evaluated in the fixpoint
@@ -3550,6 +3576,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # pre-declared `ref None`, guarded by a `match … None/Some`, returned into the
         # Optional[str] union arm. The scalar-string sibling of `_option_tuple_vars`.
         self._option_str_return_vars = self._collect_option_str_return_locals(body_stmts)
+        # self-tcb-reduction `_compute_return_type` PATH(b): locals bound from
+        # `getattr(self, "_compound_map_getter", None)` — `option (map string (option
+        # string))` (pre-decl `ref None`, guarded `match … None/Some`, `<local>["<lit>"]`
+        # reads the inner map). Byte-inert off `_compute_return_type`.
+        self._optmap_getter_locals = self._collect_optmap_getter_locals(body_stmts)
         # union/match cluster C1b: the unpack TARGETS of `a, b = <option-tuple local>` are
         # let-bound fresh (with the slot's real type) in the `Some` arm, so exclude them
         # from the integer `ref 0` pre-decl (a map/hval slot would int-clash).
@@ -4184,6 +4215,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # pre-decl. Gated on @mutable_state → byte-identical for every other method.
         _ms_body = (is_method and getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set()))
+        # self-tcb-reduction `_compute_return_type` PATH(b): enable the typed-local
+        # pre-decls (option-string `_rv` -> `ref None`, string `_nu`/`_nu_arg` -> `ref ""`)
+        # for this ONE method without flipping the whole mixin to @mutable_state (PATH(a)
+        # regression). Per-method scoped -> byte-inert for every sibling and the corpus.
+        _ms_body = _ms_body or (is_method and self._emitting_compute_return_type())
         # union/match cluster C1b: option-tuple unpack targets are let-bound fresh in the
         # `Some (…)` arm — exclude them from EVERY typed pre-decl (string/emit_ir/map).
         _uput = getattr(self, "_option_tuple_unpack_targets", set())
@@ -4237,6 +4273,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                and v not in _str_predecl and v not in _emit_ir_predecl
                                and v not in _irlist_predecl and v not in _hvalmap_predecl}
             pre_decl_vars |= _optstr_predecl
+            # `_compute_return_type` PATH(b): an option-of-map getter local (`_cmg =
+            # getattr(self, "_compound_map_getter", None)`) pre-declares `ref None` (typed
+            # `option (map string (option string))`), never `ref 0`.
+            _optmap_predecl = {v for v in getattr(self, "_optmap_getter_locals", set())
+                               if v in local_refs and v not in ghost_vars
+                               and v not in ref_params and v not in self._formal_params
+                               and v not in _uput
+                               and v not in struct_array_targets and v not in struct_pack_targets
+                               and v not in _str_predecl and v not in _emit_ir_predecl
+                               and v not in _irlist_predecl and v not in _hvalmap_predecl
+                               and v not in _optstr_predecl}
+            pre_decl_vars |= _optmap_predecl
 
         # W8/W1: a local bound to an element of an `array <record>` self-field
         # (`t = self.toks[self.i]`, the token cursor's `advance`) is RECORD-typed, so
@@ -4332,6 +4380,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # lever #1 sub-inc A cap (c): `option string` local pre-decl (`ref None`),
                 # the option-scalar counterpart of the string `ref ""` / hvalmap pre-decls.
                 init = '(None: option string)'
+            elif var in getattr(self, "_optmap_getter_locals", set()):
+                # `_compute_return_type` PATH(b): option-of-map getter local pre-decl.
+                init = '(None: option (map string (option string)))'
             elif var in _hvalmap_predecl:
                 # union/match cluster: nested-map local pre-decl (the ν-typed empty map).
                 init = self._dv_missing_default(

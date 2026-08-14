@@ -1038,7 +1038,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         (07-03-refactor R2) from the `_sp` nested closure in `_handle_fstring_expr` so the
         segment logic types identically under proof mode and `--no-proof`."""
         w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
-        return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
+        if self._is_string_expr(pp):
+            return w
+        # `_compute_return_type` PATH(b): an `hval` interpolation (`f"int{bounded_int}"`,
+        # `bounded_int = func.get("bounded_int")`) projects its int carrier via `hint_of`
+        # before `int_to_string` (which is int-typed). Descends the real hval (non-vacuous).
+        if self._expr_is_pyval(pp):
+            return f"(int_to_string (hint_of {w}))"
+        return f"(int_to_string {self._coerce_to_int(w)})"
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

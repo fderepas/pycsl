@@ -4991,6 +4991,14 @@ class FunctionEmissionMixin:
             # so an explicit OVERRIDE (not `setdefault`) is needed. Name-gated to this
             # emitter-internal helper -> corpus byte-identical.
             result[f"{_cls}___infer_return_value_type"] = "option string"
+            # self-tcb-reduction `_compute_return_type` PATH(b): `_returned_var_name(
+            # body_stmts)` returns `Optional[str]` (the returned local's name, else None) —
+            # model as `option string` so `_rv = self._returned_var_name(...)` types as an
+            # option local (`ref None`), its `is not None` guard lowers to a `match …
+            # None/Some` discriminant, and the narrowed `_rv` is a real string map key.
+            # Gated on the `_compute_return_type` file -> corpus/other-mirror byte-inert.
+            if self._uses_compute_return_type():
+                result.setdefault(f"{_cls}___returned_var_name", "option string")
         return result
 
     def _build_method_result_ensures_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:

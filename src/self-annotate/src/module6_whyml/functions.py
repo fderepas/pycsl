@@ -279,15 +279,174 @@ class FunctionEmissionMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _refine_tuple_return_type(self, func: int, body_stmts: List[int], return_type: str) -> str:
+    def _refine_tuple_return_type(self, func: Dict[str, PyVal], body_stmts: List[int], return_type: str) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _compute_return_type(self, func: int, body_stmts: List[int]) -> str:
-        return ""
+    def _compute_return_type(self, func: Dict[str, PyVal], body_stmts: List[Dict[str, Any]]) -> str:
+        """Compute the WhyML return type for one function, applying the
+        `List[T] → array int`, `Set[T]`/`Dict[K, V]` → `map int (option int)`,
+        and bounded-int overrides."""
+        # compound-key const-map getter: `-> List[<tuple>]` returned as the map's
+        # value list `list <elem_whyml>` (a PURE, immutable list of native tuples —
+        # `array <record>` would be Why3-rejected for a mutable element). Gated on the
+        # recognized getter shape → byte-identical for every other function.
+        _cmg = getattr(self, "_compound_map_getter", None)
+        if _cmg is not None:
+            return f"list {_cmg['elem_whyml']}"
+        bounded_int = func.get("bounded_int")
+        return_type = IRScanner.find_return_type(body_stmts)
+        return_type = self._refine_tuple_return_type(func, body_stmts, return_type)
+        ann = func.get("return_annotation")
+        # Optional-tuple return (self-tcb-reduction Tier-5 value model): a function
+        # whose return annotation is a synthesized `_union_*` (an `Optional[X]`
+        # normalized by Module5) AND whose body BOTH returns a tuple AND returns the
+        # `None` literal is an `Optional[Tuple[τ...]]` reader. Its faithful WhyML type
+        # is the BUILT-IN `option (τ...)` — not the raw tuple `(τ...)` (which cannot
+        # carry `None`) and not the `Arm_i_0 int` union (whose synthesized payload is
+        # a scalar `int`, not the tuple). Gated on an ACTUAL `return None`: such a
+        # function currently emits `raise (Return_<arity> 0)` (bare int) against a
+        # `(τ...)` tuple slot — an L3 type error — so NO passing corpus baseline
+        # contains one (byte-inert). `option` + tuples are Why3 built-ins → no axiom.
+        if (isinstance(ann, str) and ann.startswith("_union_")
+                and return_type.startswith("(") and "," in return_type
+                and IRScanner.has_none_return(body_stmts)):
+            return f"option {return_type}"
+        # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): two statement-IR
+        # return-type overrides in the emitter model. (1) The trusted sub-body
+        # dispatcher `_py_stmts_to_ir` — its result feeds `seq_to_sl` at an
+        # SWhile/SIf/SFor ctor arg, so its LOGICAL return type is `seq stmt_ir`,
+        # not the `array int` its `-> List[int]` annotation implies. (2) A
+        # `_process_while`/`_process_if`/`_process_for` handler RETURNS a compound
+        # `{"stmt": While/If/For, ...}` node, so its return type is the `stmt_ir`
+        # sum. Both @mutable_state-gated → byte-identical for the corpus.
+        if (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            if func.get("name") == "_py_stmts_to_ir":
+                return "seq stmt_ir"
+            if self._returns_stmt_ir(body_stmts):
+                return "stmt_ir"
+        # dict-literal emit_ir construction: a method that RETURNS a constructed IR node
+        # (`node = {"type":"Var",…}; … return node`) is `emit_ir`, not the `map int (option int)`
+        # its `-> Dict[str, Any]` annotation would otherwise imply (the Python type of an IR-node
+        # dict is a dict; the MODEL type is the `emit_ir` sum). Overrides the `ann in
+        # ("set","dict",…)` branch below. @mutable_state-gated → byte-identical for the corpus.
+        if self._returns_emit_ir(body_stmts):
+            return "emit_ir"
+        # typing-engagement ty2 / 32-1700-typing-spec-8: a Protocol member is an
+        # `abstract: True` bodyless `val` (the refinement target). Its body is
+        # `...`/empty, so `find_return_type` returns "unit" — but the `-> T`
+        # annotation is authoritative for an abstract member (the contract's
+        # return type is the annotation, not the body). Promote the annotation
+        # to the return type when the body carries no return statement. This
+        # mirrors the existing `ann == "int" and return_type == "int"` override
+        # path, generalized to the `unit`-from-empty-body case for abstract vals.
+        if func.get("abstract") and return_type == "unit" and ann:
+            return_type = "int"
+        if ann in ("list", "bytes", "bytearray") and return_type == "int":
+            # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
+            return_type = "array int"
+            # str-list-elements: a list whose returned seq local carries STRING elements
+            # is `array string` (its elements stay string end-to-end, so a consumer's
+            # `names[i]` is a `string` feeding a string-typed callee like sys_stat).
+            if self._returns_string_seq(body_stmts):
+                return_type = "array string"
+            # item34.md CF5: a `-> List[str]` annotation is authoritative for the element type
+            # even when the body returns an empty list (`return []`).
+            if func.get("return_value_type") == "string":
+                return_type = "array string"
+            # WL-04a: a `-> List[float]` return is the faithful `array real` (the float leaf),
+            # so a float list-literal body type-checks and `\result[i] : real` is faithful.
+            elif func.get("return_value_type") == "real":
+                return_type = "array real"
+            # WL-04b (record residual): a `-> List[<record>]` return is `array <record>`,
+            # so a pass-through record-list return (`return a`) types coherently and
+            # `\result[i].field` projects the faithful field.
+            elif func.get("return_value_type") in self._record_types:
+                return_type = f"array {self._record_types[func['return_value_type']]['whyml_name']}"
+            # K4/#6 (local/return-position seq-pyval, self-tcb-reduction Tier-5): a
+            # `-> List[Dict[str, PyVal]]` / `-> List[PyVal]` return is the faithful
+            # growable `seq hval` (the K1 self-field analogue for a RETURNED local) —
+            # so a `fields.append({...}); return fields` builds+returns real `pyval`
+            # entries instead of the int-erased `array int` + `materialize` (seq int ->
+            # array int) bridge that drops the value carrier. `_emit_function` promotes
+            # the returned local to `_pyval_seq_locals` so its append is a real
+            # `Seq.snoc !fields (<pyval-wrap x>)` and the return is `!fields` (no
+            # materialize). `pyval` is a corpus-absent sentinel -> byte-inert.
+            elif func.get("return_value_type") == "hval":
+                return_type = "seq hval"
+        elif ann in ("set", "dict", "frozenset") and return_type == "int":
+            return_type = "map int (option int)"
+            # self-tcb-reduction giants (generic class-body lowering): a `-> Dict[str, int]`
+            # return whose returned dict LOCAL is string-keyed (`constants[target] = iv`,
+            # target a string) is the faithful `map string (option int)` — matching the
+            # `map_update_some`-built body local (κ=string, ν=int), not the fixed
+            # int-keyed default. Gated on a returned string-keyed dict local -> byte-safe.
+            _rv = self._returned_var_name(body_stmts)
+            if _rv is not None and getattr(self, "_dict_key_types", {}).get(_rv) == "string":
+                _nu = getattr(self, "_dict_value_types", {}).get(_rv) or "int"
+                # A compound value type (`seq string` for `Dict[str, List[str]]`) MUST be
+                # parenthesized inside `option`, else WhyML parses `option seq string` as
+                # the bare 0-arg `seq` ("Type symbol seq expects 1 argument but is applied
+                # to 0"). Mirrors the byte-safe guard in `_emit_dict_map_type`: a scalar
+                # `int` has no space -> no parens -> byte-identical for the corpus.
+                _nu_arg = f"({_nu})" if " " in _nu else _nu
+                return_type = f"map string (option {_nu_arg})"
+        elif ann == "PyVal" and return_type in ("int", "unit"):
+            # K7/#6 (scalar pyval return, self-tcb-reduction Tier-5): a `-> PyVal`
+            # method (`return info` where `info` is a `pyval` chained-`.get` local)
+            # returns the faithful heterogeneous `pyval` carrier, not the int-erased
+            # `_union_*`/`int` its opaque body would otherwise imply. `PyVal` is a
+            # corpus-absent annotation sentinel -> byte-inert.
+            return_type = "hval"
+        elif ann == "str" and (return_type == "int"
+                or (return_type == "unit" and func.get("trusted"))):
+            # self-tcb-reduction GAP #2 (unit-local type inference): a `\trusted`
+            # mirror stub whose placeholder body is a bare `pass` yields
+            # `find_return_type -> "unit"`, so the plain `return_type == "int"`
+            # override misses it and its `val` announces `: unit` — a CONVERTED
+            # caller's `ret = self._parse_mixin_type()` local (correctly typed
+            # `string` by `_collect_str_call_result_locals`) then fails to
+            # type-check against the `unit`-returning `val`. The DECLARED `-> str`
+            # annotation is the authority on what a trusted stub returns, so its
+            # `val` must announce `string` — the string-return counterpart of the
+            # `-> "ExprIR"` unit-stub → `emit_ir` promotion below. Gated on
+            # `func["trusted"]`: a real corpus `-> str` function has a return
+            # statement (`return_type` never "unit"), so this is byte-identical for
+            # the reference corpus (verified: full-corpus byte-diff 0).
+            return_type = "string"
+        elif ann == "float" and return_type == "int":
+            return_type = "real"  # no-more-int Stage D
+        elif ann in getattr(self, "_variant_types", {}) and return_type == "int":
+            # A4/A5: a `#@ datatype` return annotation (`-> Json`, `-> Option`)
+            # resolves to the variant's Why3 type — params already did (§_param_type_str).
+            return_type = self._variant_types[ann]["whyml_name"]
+        elif ann in getattr(self, "_record_types", {}) and return_type == "int":
+            return_type = self._record_types[ann]["whyml_name"]
+        # self-tcb-reduction spike (csl-ast-as-emit_ir): a `trusted` dispatcher whose
+        # declared return annotation is an IR-node tag (`-> "ExprIR"`) resolves to
+        # `emit_ir` — the return-side counterpart of `_symtype_to_whyml`'s param-side
+        # mapping (line ~2260). `_returns_emit_ir` only fires for a body that
+        # constructs a `{"type": K}` literal; a trusted stub's placeholder body
+        # (`return {}`) has none, so this ann-based fallback is needed for the
+        # dispatcher's `val` signature to type-check as `emit_ir -> emit_ir`. Only
+        # reachable when `ann` carries one of the 4 recognized IR-node tags — no
+        # corpus function outside a @mutable_state mirror uses them (byte-identical).
+        elif (ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
+                and return_type in ("int", "unit")):
+            # NODE-CTOR (self-tcb-reduction): `"unit"` covers a still-`\trusted` mirror
+            # stub whose placeholder body is a bare `pass` (find_return_type -> "unit")
+            # rather than `return {}` ("int"). Its DECLARED annotation is the authority
+            # on what it returns, so its `val` must announce `emit_ir` — otherwise a
+            # CONVERTED caller's concrete `(<cls>__<m> self)` call is typed `()` and the
+            # whole chain fails to type-check. Same 4 IR-node tags, which no corpus
+            # program outside a @mutable_state mirror ever uses (byte-identical).
+            return_type = "emit_ir"
+        if bounded_int and return_type == "int":
+            return_type = f"int{bounded_int}"
+        return return_type
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

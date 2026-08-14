@@ -441,6 +441,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (t == "Call" and getattr(self, "_last_hval_get_str", None) == whyml_str
                 and getattr(self, "_last_hval_get_raw", None)):
             return f"(hval_truthy {self._last_hval_get_raw})"
+        # `_compute_return_type` PATH(b): truthiness of an INLINE pyval `.get`
+        # (`if func.get("abstract")`) is `hval_truthy`, NEVER the int `<> 0` coercion
+        # (an hval has no int value -> `<hval> <> 0` is an L3-tc error). Per-method
+        # scoped -> byte-inert for the corpus and every other mirror.
+        if (self._emitting_compute_return_type()
+                and self._expr_is_pyval(ir_expr if isinstance(ir_expr, dict) else {})):
+            return f"(hval_truthy {whyml_str})"
         # opaque-nested-map-reader SPLIT form: truthiness of an inner-alias local
         # (`if _rt` / `_rt and …` where `_rt = getattr(self, "_record_types", {}).get(tag)`)
         # is membership of the OUTER key — `<base>_mem <tag> : bool` — not the int `<> 0`
@@ -938,6 +945,42 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                          f"(match pairs_get m_mem {_kw} with Some v_ -> v_ "
                          f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
                 _mem = f"(hval_str_mem {_rawh} {left})"
+                return f"(not {_mem})" if negate else _mem
+        # self-tcb-reduction `_compute_return_type` PATH(b): DIRECT-self map membership
+        # `K in self._record_types` / `K in getattr(self, "_variant_types", {})` -> the
+        # membership reader `<base>_mem <K> : bool` (the direct-access twin of the
+        # opaque-selfmap alias membership), NOT the int-hash `contains_check (str_hash_op
+        # K) 0` facade. The outer key `K` may be a pyval `.get`/subscript
+        # (`func['return_value_type']`), projected via `hstr_of`. Gated on the
+        # `_compute_return_type` file -> byte-inert for the corpus and other mirrors.
+        # self-tcb-reduction `_compute_return_type` PATH(b): the self-state guard
+        # `getattr(self, "_current_self_type", None) in getattr(self,
+        # "_mutable_state_classes", set())` -> `mutable_state_classes_mem
+        # (current_self_type_of self) : bool` — a REAL self-parameterized membership
+        # (the opaque set reader applied to the opaque current-self-type string), NOT the
+        # input-blind `contains_check 0 0` facade. Gated on the `_compute_return_type`
+        # file -> byte-inert for the corpus and other mirrors.
+        if (not self._in_spec and self._uses_compute_return_type()
+                and self._getattr_self_field(rhs) == "_mutable_state_classes"
+                and self._getattr_self_field(expr.get("left", {})) == "_current_self_type"):
+            _st = self._current_self_type or "functionemissionmixin"
+            self._add_abstract_op(
+                f"val current_self_type_of (self: {_st}) : string")
+            self._add_abstract_op(
+                "val function mutable_state_classes_mem (k: string) : bool")
+            _mem = "(mutable_state_classes_mem (current_self_type_of self))"
+            return f"(not {_mem})" if negate else _mem
+        if not self._in_spec:
+            _smb = self._self_map_field_base(rhs)
+            if _smb:
+                _kir = expr.get("left", {})
+                _kw = self._expr_to_whyml(
+                    _kir if isinstance(_kir, dict) else {}, local_refs or set(),
+                    invariant_ctx, subst)
+                if self._expr_is_pyval(_kir if isinstance(_kir, dict) else {}):
+                    _kw = f"(hstr_of {_kw})"
+                self._add_abstract_op(f"val function {_smb}_mem (k: string) : bool")
+                _mem = f"({_smb}_mem {_kw})"
                 return f"(not {_mem})" if negate else _mem
         # W8 capability (ii) — varargs-membership. `x in vals` where `vals` is the
         # `*vals: str` vararg parameter (a `seq string`) is a REAL membership test over
@@ -3389,6 +3432,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `This expression has type string, but is expected to have type int`).
         if self._record_elem_field_py_type(ir) == "str":
             return True
+        # self-tcb-reduction `_compute_return_type` PATH(b): a DIRECT-self nested read
+        # `self._record_types[K]["<lit>"]` / `self._variant_types[ann]["<lit>"]` is STRING
+        # (its `<base>_<lit> : string` reader), so an f-string interpolating it lowers via
+        # the all-string str_concat_op path. Gated inside `_self_map_field_base` on the
+        # `_compute_return_type` file -> byte-inert elsewhere.
+        if t == "Subscript":
+            _idx3 = ir.get("index", {})
+            _inner3 = ir.get("value", {})
+            if (isinstance(_idx3, dict) and _idx3.get("type") == "String"
+                    and isinstance(_inner3, dict) and _inner3.get("type") == "Subscript"
+                    and self._self_map_field_base(_inner3.get("value", {}))):
+                return True
+            # `_compute_return_type` PATH(b): `<optmap-getter>["<lit>"]` (`_cmg["elem_whyml"]`)
+            # reads a STRING value, so the f-string interpolating it lowers all-string.
+            if (isinstance(_idx3, dict) and _idx3.get("type") == "String"
+                    and isinstance(_inner3, dict) and _inner3.get("type") == "Var"
+                    and _inner3.get("name") in getattr(self, "_optmap_getter_locals", set())):
+                return True
         # resync-campaign.md R2: a ternary whose BOTH arms are string-typed is string (the
         # emitter's `(if _poly then "<decl A>" else "<decl B>") + "…ensures…"` concat). Both
         # arms must be string; @mutable_state (the emitter's string decls). Lever-7 extends the
@@ -3476,6 +3537,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         return True
                 _gf = self._getattr_self_field(ir.get("receiver"))
                 if _gf and self._self_field_dict_nu(f"self.{_gf}") == "string":
+                    return True
+                # `_compute_return_type` PATH(b): `getattr(self, "_dict_key_types"|
+                # "_dict_value_types", {}).get(K)` reads a `map string (option string)`
+                # self-field -> a STRING value (the `<base>_get : string` reader), so
+                # `... == "string"` routes through str_eq_op and `_nu`/`_nu_arg` classify
+                # as strings. Per-method scoped -> byte-inert elsewhere.
+                if (self._emitting_compute_return_type()
+                        and self._getattr_self_field(ir.get("receiver"))
+                        in ("_dict_key_types", "_dict_value_types")):
                     return True
             if _fn.endswith(".get"):
                 # item34.md CF5: `<handler>.get("exc_type")` — a 1-arg string-key `.get` on a
@@ -3949,6 +4019,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _ov = f"!{whyml_ident(_nn.get('name'))}"
                 _chk = f"(match {_ov} with None -> true | Some _ -> false end)"
                 return _chk if raw_op == "==" else f"(not {_chk})"
+            # `_compute_return_type` PATH(b): `<local> is None`/`is not None` on an
+            # option-of-map getter local (`_cmg = getattr(self, "_compound_map_getter",
+            # None)`) is the FAITHFUL option presence test — a `match … None/Some`
+            # discriminant. Both arms reachable -> the guarded `_cmg["elem_whyml"]` read is
+            # NON-VACUOUS. Per-method scoped -> byte-inert elsewhere.
+            if (isinstance(_nn, dict) and _nn.get("type") == "Var"
+                    and _nn.get("name") in getattr(self, "_optmap_getter_locals", set())):
+                _ov = f"!{whyml_ident(_nn.get('name'))}"
+                _chk = f"(match {_ov} with None -> true | Some _ -> false end)"
+                return _chk if raw_op == "==" else f"(not {_chk})"
             # option-of-record projection (boundary-1 G1 extension): `p is None` on an
             # `Optional[<record>]` param is the FAITHFUL option `None` test — a real
             # match, NOT the emit_ir always-present model. Both arms reachable (the
@@ -4149,6 +4229,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _pvw = left if _lpv else right
                     _otw = right if _lpv else left
                     eq = f"(hint_of {_pvw} = {_otw})"
+                    return eq if raw_op == "==" else f"(not {eq})"
+                # self-tcb-reduction `_compute_return_type` PATH(b): a pyval `.get` operand
+                # (`func.get("return_value_type")` / `func.get("name")`) compared to a STRING
+                # literal — project the hval's string carrier via `hstr_of` and compare as
+                # strings (the faithful op, not the int-hash `= <hash>` facade). Gated on the
+                # `_compute_return_type` file -> byte-inert for the corpus (no pyval operand)
+                # and every other mirror.
+                elif self._uses_compute_return_type():
+                    self._add_abstract_op(
+                        "val str_eq_op (a: string) (b: string) : bool\n"
+                        "    ensures { result <-> (a = b) }")
+                    _pvw = f"(hstr_of {left if _lpv else right})"
+                    _otw = right if _lpv else left
+                    eq = f"(str_eq_op {_pvw} {_otw})"
                     return eq if raw_op == "==" else f"(not {eq})"
             ls = self._is_string_expr(expr["left"])
             rs = self._is_string_expr(expr["right"])
@@ -5638,6 +5732,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `has_early_return`) is a bool predicate over a `array int` stmt list — its abstract
         # takes `array int` (matching the `list_comp_stmts` arg), not the default int.
         # @mutable_state-gated (the corpus's IRScanner calls, if any, keep the int param).
+        # self-tcb-reduction `_compute_return_type` PATH(b): `IRScanner.find_return_type`
+        # returns a WhyML type STRING (`"int"`/`"array string"`/…), so its abstract must
+        # yield `string` — the value `return_type` local is then a real `string` and every
+        # `return_type == "int"` / `return_type.startswith("(")` / `"," in return_type` and
+        # the f-strings interpolating it lower to the FAITHFUL str_eq_op/str_startswith_op/
+        # str_contains_op/str_concat_op rather than the int-hash facade. Scoped to the
+        # emitting method -> the other (trusted-stub) callers in this file are byte-inert.
+        if (isinstance(func_name, str) and func_name == "IRScanner.find_return_type"
+                and len(expr.get("args", [])) == 1
+                and str(getattr(self, "_current_emitting_func", "") or "")
+                .endswith("_compute_return_type")):
+            _mname = whyml_ident("IRScanner_find_return_type")
+            _aw = self._expr_to_whyml(expr["args"][0], local_refs or set(), invariant_ctx, subst)
+            self._add_abstract_op(f"val {_mname} (l: array int) : string")
+            return f"({_mname} {_aw})"
         if (isinstance(func_name, str) and func_name.startswith("IRScanner.")
                 and len(expr.get("args", [])) == 1
                 and getattr(self, "_current_self_type", None)
@@ -6173,6 +6282,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 expr["func"] = f"self.{_ga}.{func_name}"
                 func_name = expr["func"]
                 expr.pop("receiver", None)
+        # `_compute_return_type` PATH(b): `getattr(self, "_dict_key_types"|
+        # "_dict_value_types", {}).get(K)` reads a `map string (option string)` self-field
+        # -> the opaque reader `<base>_get <K> : string` ("" for absent), NOT the int-erased
+        # `get_1`. The key `K` may be the narrowed `option string` `_rv` -> unwrapped via a
+        # `match … Some s -> s | None -> ""`. Per-method scoped -> byte-inert elsewhere.
+        if (isinstance(func_name, str) and "." not in func_name
+                and self._emitting_compute_return_type()):
+            _dga = self._getattr_self_field(expr.get("receiver"))
+            if _dga in ("_dict_key_types", "_dict_value_types"):
+                _dgargs = expr.get("args") or []
+                _kir = _dgargs[0] if _dgargs else {}
+                _kw = self._expr_to_whyml(
+                    _kir if isinstance(_kir, dict) else {}, local_refs or set(),
+                    invariant_ctx, subst)
+                if (isinstance(_kir, dict) and _kir.get("type") == "Var"
+                        and _kir.get("name")
+                        in getattr(self, "_option_str_return_vars", set())):
+                    _kw = f"(match {_kw} with Some _s -> _s | None -> \"\" end)"
+                _base = _dga.lstrip("_")
+                self._add_abstract_op(f"val function {_base}_get (k: string) : string")
+                return f"({_base}_get {_kw})"
         get_low = self._lower_dict_get_call(expr, args, func_name, local_refs,
                                             invariant_ctx, subst)
         if get_low is not None:
@@ -7639,6 +7769,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         obj_ir = args_ir[0]
         name_ir = args_ir[1] if len(args_ir) > 1 else {}
         default_ir = args_ir[2] if len(args_ir) > 2 else {"type": "Number", "value": 0}
+        # `_compute_return_type` PATH(b): `getattr(self, "_compound_map_getter", None)`
+        # reads the opaque `Optional[Dict[str, str]]` self-field -> `compound_map_getter_of
+        # self : option (map string (option string))` (the option-of-map reader), NOT the
+        # folded `0` default. Per-method scoped -> byte-inert elsewhere.
+        if (self._emitting_compute_return_type()
+                and isinstance(obj_ir, dict) and obj_ir.get("name") == "self"
+                and isinstance(name_ir, dict) and name_ir.get("type") == "String"
+                and name_ir.get("value") == "_compound_map_getter"):
+            _st = self._current_self_type or "functionemissionmixin"
+            self._add_abstract_op(
+                f"val compound_map_getter_of (self: {_st}) "
+                ": option (map string (option string))")
+            return "(compound_map_getter_of self)"
         # Resolve `obj` to a known record-typed Var and `name` to a string literal.
         if isinstance(obj_ir, dict) and obj_ir.get("type") == "Var":
             obj_name = obj_ir.get("name", "")
@@ -8320,6 +8463,51 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val function {base}_mem (k: string) : bool")
         return f"({base}_mem {key})"
 
+    def _self_map_field_base(self, recv: Any) -> Optional[str]:
+        """self-tcb-reduction `_compute_return_type` PATH(b): if `recv` refers to a
+        FunctionEmissionMixin nested-map self-field DIRECTLY — `self.<field>` (FieldGet)
+        or `getattr(self, "<field>", {})` (Call) — for one of the known opaque nested
+        maps (`_record_types`/`_variant_types`), return the reader base (`<field>` with
+        leading underscores stripped, e.g. `record_types`). The DIRECT-access twin of
+        `_opaque_selfmap_aliases` (which requires an intermediate `X = getattr(...)`
+        alias local). Gated on the `_compute_return_type` file -> byte-inert elsewhere."""
+        if not self._uses_compute_return_type():
+            return None
+        fld: Optional[str] = None
+        if isinstance(recv, dict):
+            if recv.get("type") == "FieldGet" and recv.get("object") == "self":
+                fld = recv.get("field")
+            else:
+                fld = self._opaque_selfmap_getattr_field(recv)
+        if fld in ("_record_types", "_variant_types"):
+            return fld.lstrip("_")
+        return None
+
+    def _self_field_nested_read(self, expr: Dict[str, Any], local_refs: Set[str],
+                                invariant_ctx: bool,
+                                subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """`<self-map-field>[K]["<lit>"]` (`self._record_types[ann]["whyml_name"]`,
+        `self._variant_types[ann]["whyml_name"]`) -> the boundary reader
+        `<base>_<lit> <K> : string` — the SAME reader `_opaque_selfmap_nested_read`
+        uses for the alias form. The outer key `K` may be a pyval `.get`/subscript
+        (`func['return_value_type']`), projected to its string carrier via `hstr_of`.
+        None if the shape does not match a direct self-map-field nested read."""
+        idx = expr.get("index", {})
+        inner = expr.get("value", {})
+        if not (isinstance(idx, dict) and idx.get("type") == "String"
+                and isinstance(inner, dict) and inner.get("type") == "Subscript"):
+            return None
+        base = self._self_map_field_base(inner.get("value", {}))
+        if not base:
+            return None
+        lit = whyml_ident(idx.get("value", ""))
+        key_ir = inner.get("index", {})
+        key = self._expr_to_whyml(key_ir, local_refs, invariant_ctx, subst)
+        if self._expr_is_pyval(key_ir if isinstance(key_ir, dict) else {}):
+            key = f"(hstr_of {key})"
+        self._add_abstract_op(f"val function {base}_{lit} (k: string) : string")
+        return f"({base}_{lit} {key})"
+
     @staticmethod
     def _negative_literal_index(index_ir: object) -> Optional[int]:
         """W8 (iv): `k > 0` iff `index_ir` is the negative integer literal `-k`.
@@ -8357,6 +8545,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _osm = self._opaque_selfmap_nested_read(expr, local_refs, invariant_ctx, subst)
         if _osm is not None:
             return _osm
+        # DIRECT-self nested read: `self._record_types[K]["whyml_name"]` /
+        # `self._variant_types[ann]["whyml_name"]` -> `<base>_<lit> <K> : string` (the
+        # non-alias twin of the reader above). Byte-inert off `_compute_return_type`.
+        _dsn = self._self_field_nested_read(expr, local_refs, invariant_ctx, subst)
+        if _dsn is not None:
+            return _dsn
+        # `_compute_return_type` PATH(b): `<optmap-getter>["<lit>"]` (`_cmg["elem_whyml"]`)
+        # reads the inner `map string (option string)` of an `option (map ...)` getter local
+        # -> unwrap the Some arm, read the literal key, unwrap the `option string` value
+        # (`""` for None/absent). A REAL structural read (non-vacuous), not `subscript_get`.
+        _cmi = expr.get("index", {})
+        _cmv = expr.get("value", {})
+        if (isinstance(_cmv, dict) and _cmv.get("type") == "Var"
+                and _cmv.get("name") in getattr(self, "_optmap_getter_locals", set())
+                and isinstance(_cmi, dict) and _cmi.get("type") == "String"):
+            _cmn = f"!{whyml_ident(_cmv.get('name'))}"
+            _cmk = self._expr_to_whyml(_cmi, local_refs, invariant_ctx, subst)
+            return (f"(match {_cmn} with Some _m -> "
+                    f"(match Map.get _m {_cmk} with Some _v -> _v | None -> \"\" end) "
+                    f"| None -> \"\" end)")
         # opaque-nested-map-reader SPLIT form: `<inner-alias>["<lit>"]` → the boundary
         # reader `<base>_<lit> <outer-key> : string` (the split-binding twin of the
         # chained nested read above).
@@ -9299,7 +9507,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         (07-03-refactor R2) from the `_sp` nested closure in `_handle_fstring_expr` so the
         segment logic types identically under proof mode and `--no-proof`."""
         w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
-        return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
+        if self._is_string_expr(pp):
+            return w
+        # `_compute_return_type` PATH(b): an `hval` interpolation (`f"int{bounded_int}"`,
+        # `bounded_int = func.get("bounded_int")`) projects its int carrier via `hint_of`
+        # before `int_to_string` (which is int-typed). Descends the real hval (non-vacuous).
+        if self._expr_is_pyval(pp):
+            return f"(int_to_string (hint_of {w}))"
+        return f"(int_to_string {self._coerce_to_int(w)})"
 
     def _handle_fstring_expr(self, node: "ExprIR", local_refs: Set[str],
                               invariant_ctx: bool, subst: Dict[str, str]) -> str:
@@ -9333,8 +9548,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # a MIXED str/int f-string (e.g. a gensym `f"__x_{n}"`) is still a STRING — the
         # int segments convert via `int_to_string`. So an emitter local bound to it types
         # as `string`. Gated on @mutable_state → byte-identical for every other f-string.
-        if (not self._in_spec and getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())):
+        if (not self._in_spec and (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                or self._emitting_compute_return_type())):
             self._add_abstract_op("val int_to_string (n: int) : string")
             self._add_abstract_op(
                 "val str_concat_op (a: string) (b: string) : string\n"
