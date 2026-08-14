@@ -2369,3 +2369,17 @@ SUB-INC B (->725, depends on A, _maybe_inject_union_return): cap(a) extend _coll
 to classify a local bound from a MAP-LOCAL's .get() yielding hval (vinfo is a local not self-field) + cap(b) hval_as_map-over
 -LOCAL .items() ext + ctor.get pairs_get/hint_of + payload[0] + val.startswith string op. Coupled: needs A's string return
 for arm_type==val_type. Baseline .mlw manifest at scratchpad/baseline_mlw/manifest.md5 (HEAD a35d46db). ESCALATED sub-inc A.
+
+## 2026-08-14 (post-crash) — union-return lever COMPLETE (23c459a1 + 9adb26d3, 727->725); session 736->725 (11 conv)
+Sub-inc A _infer_return_value_type (cap-d _resolve_dotted_signature->array string + cap-c Var-return->union-arm
+threading via option-string model) + sub-inc B _maybe_inject_union_return (hval-LOCAL flow-typing: vinfo/constructors
+map-locals via _collect_union_hval_locals+_prescan_pyval_locals vmap seed, .items()/for-key over hval-local, ctor
+pairs_get/hint_of/hval_nth_str, val.startswith/str_contains, and the coupled optstr-== recognizer for arm_type==val_type
+where val_type=_infer_return_value_type modeled option string). Both = SOLE changed-emission stmt_control_flow.mlw
+(name-gated), whole-file VALID, byte-diff 0, ledger 3. CRASH-HARDENING LESSON: build delegates must NOT launch detached
+background procs (setsid/nohup/&/manifest-loops) — they survive dormancy as ZOMBIES that respawn + corrupt the tree
+(root-caused a crash this session; recovered by killing the loop root + committing the already-verified sub-inc A). New
+mandate: delegates do SYNCHRONOUS build+fast-gate ONLY, hand off ALL long proofs/byte-diff/commit to the persistent
+supervisor. BANKED caps: optstr-== recognizer, hval-LOCAL flow-typing (map-local .get->hval-local), Var-return->union-arm
+threading, _resolve_dotted_signature array-string reader. Next: re-drain for union-return-cap cascade, else frontier =
+boundaries (IrProj/whyml_string_literal) + review-gated giants + V1 Dict[str,Any]/_track_collection_metadata + raw-ast.
