@@ -458,6 +458,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and getattr(self, "_current_symbol_table", {}).get(ir_expr.get("name"))
                 in ("dict", "set", "frozenset")):
             return "true"
+        # self-tcb-reduction Tier-5 (union/match cluster): truthiness of a nested-map local
+        # (`if not vinfo:` where vinfo : `map string (option hval)`) — a `map` has no int
+        # value, so the default `<> 0` is a type error. Python's `not <empty map>` guards the
+        # None-return; a sound over-approx for the type-safety+frame contract is `true` (the
+        # real projection happens in the returned tuple). Gated on `_hvalmap_local_vars`.
+        if t == "Var" and ir_expr.get("name") in getattr(self, "_hvalmap_local_vars", {}):
+            return "true"
+        # self-tcb-reduction Tier-5 (union/match cluster C4): truthiness of a pyval LOCAL
+        # (`if payload and …` where payload : `hval` = `ctor.get("payload", [])`) is the
+        # heterogeneous value's Python-truthiness — `hval_truthy`, NEVER the int `<> 0`
+        # (an hval has no int value). Gated on `_pyval_locals`.
+        if t == "Var" and ir_expr.get("name") in getattr(self, "_pyval_locals", set()):
+            return f"(hval_truthy {whyml_ident(ir_expr['name'])})"
         # resync-campaign.md R1: `val_ir.get("args")` lowers to `(args_of …)` : `array emit_ir`
         # — a truthiness (`if not val_ir.get("args")` = "no args") is array-emptiness, never the
         # int `<> 0` coercion. @mutable_state emit_ir reflection only.
@@ -3545,6 +3558,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         and getattr(self, "_current_symbol_table", {}).get(_v.get("name")) == "sharedvar"
                         and _kir.get("value") in ("name", "mutex")):
                     return True
+                # self-tcb-reduction Tier-5 (union/match cluster C4): a Number-indexed read
+                # of a pyval collection local (`payload[0]`, payload : `hval`) projects the
+                # idx-th `HStr` as a `string` via `hval_nth_str`, so `payload[0] == arm_tag`
+                # routes through `str_eq_op` (a real string compare), not the int hash.
+                if (_v.get("type") == "Var"
+                        and _v.get("name") in getattr(self, "_pyval_locals", set())
+                        and isinstance(_kir, dict) and _kir.get("type") == "Number"):
+                    return True
             return self._is_string_expr(ir.get("value", {}))
         # `s + t` is a `BinOp(+)` node (string concatenation when both operands are
         # strings) — so a concat expression is itself string-typed. Required so e.g.
@@ -3837,6 +3858,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # The faithful `option emit_ir` (a real `Some/None` match) is the follow-on
             # when a value-faithful `ensures` over an optional sub-node is needed. §9.
             _nn = expr["right"] if expr["left"].get("type") == "None" else expr["left"]
+            # self-tcb-reduction Tier-5 (union/match cluster C5): `<local> is None` /
+            # `is not None` on an OPTION-tuple local (`union_info = self._match_subject_
+            # union_info(...)`, a real `option (τ...)`) is the FAITHFUL option presence
+            # test — a `match … with None/Some` discriminant (valid in a program `if`,
+            # unlike a derived `=` on the algebraic option). Both arms reachable (the
+            # converted callee genuinely `return None`s or returns a tuple) → the guarded
+            # unpack is NON-VACUOUS. Read the RAW `!x` (deref), NOT the projected read.
+            if (isinstance(_nn, dict) and _nn.get("type") == "Var"
+                    and _nn.get("name") in getattr(self, "_option_tuple_vars", {})):
+                _ov = f"!{whyml_ident(_nn.get('name'))}"
+                _chk = f"(match {_ov} with None -> true | Some _ -> false end)"
+                return _chk if raw_op == "==" else f"(not {_chk})"
             # option-of-record projection (boundary-1 G1 extension): `p is None` on an
             # `Optional[<record>]` param is the FAITHFUL option `None` test — a real
             # match, NOT the emit_ir always-present model. Both arms reachable (the
@@ -5443,6 +5476,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # an opaque abstract (content unmodeled; only the emit_ir TYPE matters).
             if self._is_emit_ir_expr(_rir):
                 return _rw
+            # self-tcb-reduction Tier-5 (union/match cluster C2): a `.to_dict()` whose
+            # CALLEE slot wants the faithful heterogeneous `map string (option hval)`
+            # (flag set by the arg-lowering in `_handle_call_expr`) projects the stmt
+            # record to that pymap via the uninterpreted `stmt_to_pymap` — a SOUND
+            # over-approx (the callee reads arbitrary hvals off the map) that CONSUMES
+            # the real receiver (`_rw`, non-vacuous). Gated on the flag (corpus-absent
+            # pymap param) -> byte-inert.
+            if getattr(self, "_todict_arg_wants_pymap", False):
+                self._add_abstract_op(
+                    "val stmt_to_pymap (x: 'a) : map string (option hval)")
+                return f"(stmt_to_pymap {_rw})"
             self._add_abstract_op("val to_emit_ir (x: 'a) : emit_ir")
             return f"(to_emit_ir {_rw})"
         # item34.md CF4: `<set/dict>.copy()` (`declared_refs.copy()`) is IDENTITY in the
@@ -5547,7 +5591,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _le = self._iter_len_expr(expr["args"][0], local_refs or set())
             if _le is not None:
                 return _le
-        args = [self._expr_to_whyml(a, local_refs, invariant_ctx, subst) for a in expr["args"]]
+        # self-tcb-reduction Tier-5 (union/match cluster C2): resolve the callee's
+        # param types so a `.to_dict()` argument whose CALLEE slot is the faithful
+        # heterogeneous `map string (option hval)` (e.g.
+        # `self._match_subject_union_info(stmt.to_dict())`) projects the stmt record to
+        # that pymap (`stmt_to_pymap`) instead of the emit_ir identity (`to_emit_ir`).
+        # Gated on a `map string (option hval)` param slot (corpus-absent) -> byte-inert.
+        _pt_for_args: List[str] = []
+        if isinstance(func_name, str) and "." in func_name:
+            try:
+                _, _pt_for_args, _, _ = self._resolve_dotted_signature(func_name)
+            except Exception:
+                _pt_for_args = []
+        args = []
+        for _ai, _airr in enumerate(expr["args"]):
+            _want_pymap = (_ai < len(_pt_for_args)
+                           and _pt_for_args[_ai] == "map string (option hval)")
+            _saved_wp = getattr(self, "_todict_arg_wants_pymap", False)
+            if _want_pymap:
+                self._todict_arg_wants_pymap = True
+            try:
+                args.append(self._expr_to_whyml(_airr, local_refs, invariant_ctx, subst))
+            finally:
+                self._todict_arg_wants_pymap = _saved_wp
 
         # faithful-string-op.md §3.1–3.3: `.replace`/`.lower`/`.upper`/`.strip` on a
         # string receiver → a faithful `string`-typed op, BEFORE the generic dotted-call
@@ -6617,6 +6683,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # isinstance returns a BOOL discriminant everywhere (like `(is_var x)`); the
             # `not`/`&&`/`_to_bool` consumers expect a bool, so emit `true`, not the int `1`.
             return "true"
+        # self-tcb-reduction Tier-5 (union/match cluster): `isinstance(<pyval-local>, dict)`
+        # — a heterogeneous `hval` subject (`subj = stmt.get("subject", {})`) IS a Python
+        # dict in the reflection model, so the guard is always TRUE (the real discrimination
+        # is the conjoined `subj.get("type") == "Var"` read of the same value). Gated on a
+        # pyval-local arg0 + a bare `dict` builtin arg1 -> corpus/other-mirror inert.
+        if (isinstance(_a0, dict) and _a0.get("type") == "Var"
+                and _a0.get("name") in getattr(self, "_pyval_locals", set())
+                and isinstance(_a1, dict) and _a1.get("type") == "Var"
+                and _a1.get("name") == "dict"):
+            return "true"
         # self-tcb-reduction giants (generic class-body lowering): `isinstance(child,
         # ast.<K>)` where `child` is a `pyast_stmt`-typed class-body loop var lowers to
         # the ADT discriminant `(is_K_node child)`. Gated on `child in _pyast_stmt_locals`
@@ -6829,6 +6905,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if recv in getattr(self, "_pyval_locals", set()):
                     return True
                 if self._self_field_dict_nu(recv) == "hval":
+                    return True
+                # union/match cluster C1b: a `.get` on a `Dict[str, PyVal]` param/local
+                # (`_dict_value_types` codomain "hval") unwraps to an `hval`.
+                if getattr(self, "_dict_value_types", {}).get(recv) == "hval":
                     return True
         # self-tcb-reduction _field_type_of: a subscript `self.<field>[k]` on a
         # `map string (option hval)` self-field produces an `hval` (unwrapped by the
@@ -7088,6 +7168,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # the hval) so `_to_bool`'s string-equality match swaps in `hval_truthy`.
             self._last_hval_get_raw = _k7_leaf
             self._last_hval_get_str = _k7_leaf
+            # union/match cluster: a STRING-consumed leaf (`var_name = subj.get("name")`,
+            # the target is a string local) projects the `hval` to its `HStr` content via
+            # `hstr_of` — a real `string` (map key / string tuple slot). Scoped to a
+            # string-classified assign target -> byte-inert for the raw-hval consumers.
+            if getattr(self, "_pyval_get_as_string", False):
+                _proj = f"(hstr_of {_k7_leaf})"
+                self._last_hval_get_str = _proj
+                return _proj
             return _k7_leaf
         # §26: `X.get(k)` where X aliases a self dict-field → `self.<field>.get(k)`.
         _alias = self._alias_self_field(recv)
@@ -7266,6 +7354,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # placeholder (parallel to the subscript read's `None ->` arm).
         if len(args) >= 2:
             default = args[1]
+            # self-tcb-reduction Tier-5 (union/match cluster C1b): an explicit
+            # `{}`/`[]`/`set()` default on an hval / nested-collection dict lowers to
+            # the WRONG shape (int-map / `array int`), clashing with the `Some v_`
+            # (inner hval/seq/map) arm. Use the ν-typed empty instead — the exact fix
+            # the self-field-dict twin above applies. Byte-inert: only nu in
+            # {hval, seq …, map …, array …} with an empty-collection literal default.
+            if isinstance(nu, str) and (nu == "hval"
+                    or nu.startswith(("seq ", "map ", "array "))):
+                _dfir = (expr.get("args") or [None, None])[1]
+                if (isinstance(_dfir, dict) and _dfir.get("type") in (
+                        "DictLit", "SetLit", "ListLit", "ArrayLit", "List")
+                        and not _dfir.get("keys") and not _dfir.get("elts")
+                        and not _dfir.get("values")):
+                    default = self._dv_missing_default(nu)
         else:
             default = self._dv_missing_default(nu)
         # LEVER F2 (see the self-field-dict twin above): thread the raw `option ν` into

@@ -650,6 +650,17 @@ class Module6_WhyMLTranspiler(
         # has none → byte-identical there. Co-landed with the Phase2f_PyVal cert.
         if self._uses_pyval():
             out += self._emit_pyval_theory()
+            # self-tcb-reduction Tier-5 (union/match cluster C1b): opttuple returns whose
+            # slot type references `hval` (the union readers' `Optional[Tuple[str, PyVal]]`)
+            # are declared HERE — after the `hval` ADT (just emitted) — not in
+            # `_emit_preamble_exceptions` (which runs before it). The emit_ir opttuple
+            # precedent. Byte-inert: no existing opttuple return has an hval slot.
+            _hval_opttuples = sorted(
+                ot for ot in needs.get("opt_tuple_return_types", set())
+                if "hval" in ot and "emit_ir" not in ot)
+            for _ot in _hval_opttuples:
+                _suffix = _ot.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+                out += ["", f"  exception Return_opttuple_{_suffix} (option {_ot})"]
 
         # set-value-model-wall (self-tcb-reduction, Tier-5 value-model wall): the
         # executable emitter-local `Set[str]` value model — a `set.SetApp[string]`

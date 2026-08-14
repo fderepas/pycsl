@@ -29,6 +29,17 @@ class ControlFlowStmtMixin:
     # nested-string-map (`map string (option string)`), not the int-erased `ref 0`.
     # Live: Module6_WhyMLTranspiler.__init__ (`self._record_types: Dict[str, Any] = {}`).
     _record_types: Dict[str, Dict[str, str]] = None
+    # self-tcb-reduction Tier-5 (union/match cluster): the emitter's
+    # `_current_symbol_table` (name -> type-string) is a native `Dict[str, str]` ->
+    # `map string (option string)`; `_variant_types` (symtype -> variant-metadata sub-
+    # dict, a heterogeneous `Dict[str, Any]`) is annotated `Dict[str, Dict[str, PyVal]]`
+    # so `_m5_get_dict_value_type` types it as the faithful nested `map string (option
+    # (map string (option hval)))` — thus `_variant_types.get(symtype)` reads a real
+    # `map string (option hval)` vinfo (the exact param type of `_union_ctor_for_arm_tag`),
+    # NOT the int-erased facade. Both are emitter-internal, corpus-absent -> reference
+    # corpus + every other mirror byte-identical. Live: Module6_WhyMLTranspiler.__init__.
+    _current_symbol_table: Dict[str, str] = None
+    _variant_types: Dict[str, Dict[str, PyVal]] = None
     # SOUNDNESS (frame audit): `_in_spec` is WRITTEN by the ported bodies
     # (`self._in_spec = True/False` around the invariant/variant emission in
     # `_handle_while_stmt` / `_handle_for_stmt`) but was undeclared, so no `assigns`
@@ -597,19 +608,31 @@ class ControlFlowStmtMixin:
     def _render_match_pattern(self, pat: "ExprIR", top: bool=False) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _match_subject_union_info(self, stmt: "ExprIR") -> Tuple[str, "ExprIR"]:
-        return ("", stmt)
+    def _match_subject_union_info(self, stmt: Dict[str, PyVal]) -> Optional[Tuple[str, PyVal]]:
+        subj = stmt.get("subject", {})
+        if not isinstance(subj, dict) or subj.get("type") != "Var":
+            return None
+        var_name = subj.get("name")
+        symtype = getattr(self, "_current_symbol_table", {}).get(var_name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        return var_name, vinfo
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _union_ctor_for_arm_tag(self, vinfo: "ExprIR", arm_tag: str) -> Tuple[str, "ExprIR"]:
-        return ("", vinfo)
+    def _union_ctor_for_arm_tag(self, vinfo: Dict[str, PyVal], arm_tag: str) -> Optional[Tuple[str, PyVal]]:
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            payload = ctor.get("payload", [])
+            if payload and payload[0] == arm_tag:
+                return ctor_name, ctor
+        return None
 
     #@ requires True
     #@ ensures True

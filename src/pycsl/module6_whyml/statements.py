@@ -279,7 +279,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _prev_pgrc = getattr(self, "_pyval_get_raw_coll", False)
         if target in getattr(self, "_pyval_coll_locals", set()):
             self._pyval_get_raw_coll = True
+        # union/match cluster: a STRING-typed target (`var_name = subj.get("name")`) forces
+        # the pyval `.get` leaf to project its `hval` to a `string` (`hstr_of`), so the
+        # `var_name := <string>` typechecks. Scoped to a string-classified target.
+        _prev_pgas = getattr(self, "_pyval_get_as_string", False)
+        if target in getattr(self, "_string_local_vars", set()):
+            self._pyval_get_as_string = True
         val = self._expr_to_whyml(val_ir, local_refs)
+        self._pyval_get_as_string = _prev_pgas
         self._pyval_get_raw_coll = _prev_pgrc
         self._decode_to_string = _prev_dts
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
@@ -325,6 +332,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     code += ";\n" + self._stmts_to_whyml(
                         rest, local_refs, declared_refs, indent, in_loop)
                 return code
+
+        # self-tcb-reduction Tier-5 (union/match cluster C5): a local bound to an
+        # OPTION-tuple-returning self-call (`union_info = self._match_subject_union_info
+        # (...)`, return `option (τ...)`) is `let`-bound `ref (<call>)` — the call already
+        # yields the option value, so `ref (option …)` type-checks directly. NOT the int
+        # `ref 0` + `:=` (which int-clashes). Its later `is not None` guard and tuple-unpack
+        # unwrap the option (`_option_tuple_vars`-gated → corpus byte-inert).
+        if (target in getattr(self, "_option_tuple_vars", {})
+                and target not in declared_refs):
+            declared_refs.add(target)
+            local_refs.add(target)
+            code = f"{indent}let {safe_target} = ref {val} in\n"
+            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            if not rest_code:
+                rest_code = f"{indent}()"
+            return code + rest_code
 
         # Assignment to a module-level shared variable (always a ref, never re-declared)
         if target in self._shared_var_names:
@@ -744,6 +767,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                    indent: str, in_loop: bool) -> str:
         targets = stmt.targets
         val_ir = stmt.value.to_dict()
+        # self-tcb-reduction Tier-5 (union/match cluster C5): `a, b = <option local>`
+        # unpacks the `Some` of an OPTION-tuple local (`_uvar, uinfo = union_info`,
+        # `union_info : option (τ...)`) — a real `match !X with Some (a,b) -> … | None
+        # -> ()`, NOT the bare `let (a,b) = !X` (ill-typed: `!X` is an `option`, not a
+        # tuple). Python already guards this unpack with `if X is not None:`, so the
+        # `None` arm is unreachable dead code (`()`); the `Some` arm carries the target
+        # assigns AND the rest of the block. `_option_tuple_vars`-gated → corpus byte-inert.
+        if (val_ir.get("type") == "Var"
+                and val_ir.get("name") in getattr(self, "_option_tuple_vars", {})):
+            return self._emit_option_tuple_unpack(
+                val_ir, targets, rest, local_refs, declared_refs, indent, in_loop)
         val_whyml = self._expr_to_whyml(val_ir, local_refs)
         safe_targets = [whyml_ident(t) for t in targets]
         # LEVER F1: string-triple partition/rpartition unpack — bypass the opaque
@@ -894,6 +928,53 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # `()` terminal here is byte-inert on the existing corpus.
             code += f"\n{indent}()"
         return code
+
+    def _emit_option_tuple_unpack(self, val_ir: Dict[str, Any], targets: List[str],
+                                  rest: List[Dict[str, Any]], local_refs: Set[str],
+                                  declared_refs: Set[str], indent: str,
+                                  in_loop: bool) -> str:
+        """self-tcb-reduction Tier-5 (union/match cluster C5): lower `a, b = <option
+        local>` to a `match !X with Some (…) -> … | None -> ()`. The Python guard
+        `if X is not None:` makes the `None` arm dead (`()`); the `Some` arm binds the
+        tuple slots to `_tu_<t>` temps, writes each declared target ref (or `let`-binds
+        a fresh one), then carries the REST of the block. Sound + faithful: the target
+        values are the REAL `Some`-payload projections, not opaque facades."""
+        safe_targets = [whyml_ident(t) for t in targets]
+        # resync-campaign.md R2: give repeated `_` discards unique binder names.
+        _du_seen = 0
+        for _i, _t in enumerate(targets):
+            if _t == "_":
+                if _du_seen > 0:
+                    safe_targets[_i] = f"py_underscore_{_du_seen}"
+                _du_seen += 1
+        tmp_names = [f"_tu_{t}" for t in safe_targets]
+        pattern = ", ".join(tmp_names)
+        ov = f"!{whyml_ident(val_ir.get('name'))}"
+        arm_lines: List[str] = []
+        for tmp, st in zip(tmp_names, safe_targets):
+            if st in local_refs:
+                arm_lines.append(f"{indent}  {st} := {tmp};")
+            else:
+                local_refs.add(st)
+                arm_lines.append(f"{indent}  let {st} = ref {tmp} in")
+        body = "\n".join(arm_lines)
+        rest_code = (self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+                     if rest else "")
+        if rest_code.strip():
+            stripped = body.rstrip()
+            if stripped.endswith(" in") or stripped.endswith(";"):
+                body += "\n" + rest_code
+            else:
+                body += ";\n" + rest_code
+        else:
+            # No rest: a trailing `:= …;` or `let … in` needs a unit terminal so the
+            # `Some` arm is a well-formed expression.
+            if body.rstrip().endswith(";") or body.rstrip().endswith(" in"):
+                body += f"\n{indent}  ()"
+        return (f"{indent}match {ov} with\n"
+                f"{indent}| Some ({pattern}) -> begin\n{body}\n{indent}  end\n"
+                f"{indent}| None -> ()\n"
+                f"{indent}end")
 
     def _handle_array_slice_set_stmt(self, stmt: ArraySliceSetStmt, rest: List[Dict[str, Any]],
                                       local_refs: Set[str], declared_refs: Set[str],
@@ -2152,6 +2233,66 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             rec(body_stmts)
         return out - set(self._formal_params)
 
+    def _collect_union_hval_locals(self, body_stmts: List[Dict[str, Any]]):
+        """self-tcb-reduction Tier-5 (union/match cluster C1b/body): classify the non-int
+        leaf locals of the two nested-hval union readers.
+
+          - STRING: a local bound from a `<pyval>.get("type"|"name")` string-scalar read
+            (`var_name = subj.get("name")`) — projected via `hstr_of`, used as a
+            `map string (...)` key and returned in the string tuple slot.
+          - HVALMAP (name -> `map string (option hval)`): a local bound from a
+            `self.<field>.get(...)` whose field value type is a nested `map string
+            (option hval)` (`vinfo = self._variant_types.get(symtype)`), so it pre-declares
+            `ref (const (None: option hval))` (not the int `ref 0`).
+
+        Returns `(str_locals, hvalmap_locals)`. Gated on the emitting function being one of
+        the two union readers -> every other function yields empty sets (byte-inert)."""
+        _cef = getattr(self, "_current_emitting_func", None) or ""
+        if not (_cef.endswith("_match_subject_union_info")
+                or _cef.endswith("_union_ctor_for_arm_tag")):
+            return set(), {}
+        pyval = getattr(self, "_pyval_locals", set())
+        str_locals: Set[str] = set()
+        map_locals: Dict[str, str] = {}
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    _t = n["target"]
+                    _v = n.get("value") or {}
+                    if isinstance(_v, dict) and _v.get("type") == "Call":
+                        _fn = _v.get("func", "")
+                        # resolve the receiver: dotted `X.get` OR the defensive
+                        # `getattr(self, "F", {}).get(...)` form (recv -> "self.F").
+                        _recv = None
+                        if isinstance(_fn, str) and _fn.endswith(".get"):
+                            _recv = _fn[:-len(".get")]
+                        elif _fn == "get":
+                            _fld = self._getattr_self_field(_v.get("receiver") or {})
+                            if _fld:
+                                _recv = f"self.{_fld}"
+                        if _recv is not None:
+                            _a = _v.get("args") or []
+                            _k0 = _a[0] if _a else None
+                            _kstr = (isinstance(_k0, dict) and _k0.get("type") == "String"
+                                     and _k0.get("value") in ("type", "name"))
+                            # string-scalar leaf off a pyval receiver
+                            if (_recv in pyval or getattr(
+                                    self, "_dict_value_types", {}).get(_recv) == "hval") and _kstr:
+                                str_locals.add(_t)
+                            # nested-map self-field `.get` -> the inner map type
+                            _nu = self._self_field_dict_nu(_recv)
+                            if isinstance(_nu, str) and _nu.startswith("map "):
+                                map_locals[_t] = _nu
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+
+        rec(body_stmts)
+        return str_locals - set(self._formal_params), map_locals
+
     def _collect_str_call_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """no-more-int emitter L2/L3 (no-more-int-emitter-plan.md): a local whose
         first assignment is a `string`-VALUED expression must be a string-typed ref
@@ -3303,6 +3444,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # pre-decl (let-bound at first assignment, like the other typed locals).
         tuple_vars = self._collect_tuple_var_assigns(body_stmts)
         self._ghost_tuple_vars.update(tuple_vars)
+        # self-tcb-reduction Tier-5 (union/match cluster C5): locals bound to an
+        # OPTION-tuple-returning self-call (`union_info = self._match_subject_union_info
+        # (...)`) — a real `option (τ...)`, so its `is not None` guard and tuple-unpack
+        # lower to `match … with None/Some` (not the bare always-present tuple model).
+        self._option_tuple_vars = self._collect_option_tuple_locals(body_stmts)
+        # union/match cluster C1b: the unpack TARGETS of `a, b = <option-tuple local>` are
+        # let-bound fresh (with the slot's real type) in the `Some` arm, so exclude them
+        # from the integer `ref 0` pre-decl (a map/hval slot would int-clash).
+        self._option_tuple_unpack_targets = self._collect_option_tuple_unpack_targets(body_stmts)
         # 07-0903 W1: locals bound to a list/array of tuples → element arity.
         self._tuple_array_locals.update(self._collect_tuple_array_locals(body_stmts))
         # arity2.md (2b): expose the array-local set to the per-operation
@@ -3465,7 +3615,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # deliberately excluded; restore that exclusion so the param reaches
         # `pre_decl_vars` and is shadowed at function entry.
         string_vars -= set(self._formal_params)
+        # self-tcb-reduction Tier-5 (union/match cluster): a local bound from a
+        # `<pyval>.get("type"|"name")` string-scalar read (`var_name = subj.get("name")`)
+        # is a `string` local (pre-decl `ref ""`, RHS projected via `hstr_of`). Scoped to
+        # the two nested-hval union readers -> corpus/other-mirror byte-inert.
+        _uh_str, _uh_map = self._collect_union_hval_locals(body_stmts)
+        string_vars |= _uh_str
         self._string_local_vars = string_vars
+        # union/match cluster: nested-map locals (`vinfo = self._variant_types.get(symtype)`)
+        # carry the inner `map string (option hval)` type — pre-declared `ref (const (None:
+        # option hval))`, excluded from the int `ref 0` and the pyval `let`-bind.
+        self._hvalmap_local_vars = _uh_map
+        # union/match cluster: a string-classified leaf (`var_name`) must NOT ALSO be a
+        # pyval local (which would double-declare it `let`-bound AND `ref ""`); string
+        # classification wins. Likewise a nested-map local is a map, not a pyval hval.
+        if getattr(self, "_pyval_locals", None):
+            self._pyval_locals = (self._pyval_locals - string_vars
+                                  - set(self._hvalmap_local_vars))
         # L18 S1c-join: a Module5 seq-promoted local (`types = []; types.append(<str>)`)
         # whose EVERY element source is string-valued is a `seq string` — record it in
         # `_seq_value_types` so `" ".join(types)` recognizes it (`str_join_seq`, a string)
@@ -3868,6 +4034,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # is `let`-bound immutable at its assignment (single-assignment SSA), never
             # an int `ref 0` pre-decl (which would int-erase it). Gated -> byte-inert.
             and v not in getattr(self, "_pyval_locals", set())
+            # self-tcb-reduction Tier-5 (union/match cluster C5): an option-tuple local
+            # (`union_info = self._match_subject_union_info(...)`) is `let`-bound `ref
+            # (<call>)` at its assignment (the call already yields the `option (τ...)`
+            # value), never the int `ref 0` pre-decl (which int-clashes with the option).
+            and v not in getattr(self, "_option_tuple_vars", {})
+            # union/match cluster C1b: an option-tuple UNPACK target is let-bound fresh in
+            # the `Some (…)` arm with its slot's real type — never the int `ref 0`.
+            and v not in getattr(self, "_option_tuple_unpack_targets", set())
         }
         # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
         # a string local is PRE-DECLARED `ref ""` (not let-bound at first assign), so a
@@ -3876,13 +4050,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # pre-decl. Gated on @mutable_state → byte-identical for every other method.
         _ms_body = (is_method and getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set()))
+        # union/match cluster C1b: option-tuple unpack targets are let-bound fresh in the
+        # `Some (…)` arm — exclude them from EVERY typed pre-decl (string/emit_ir/map).
+        _uput = getattr(self, "_option_tuple_unpack_targets", set())
         _str_predecl: Set[str] = set()
         _emit_ir_predecl: Set[str] = set()
         _irlist_predecl: Set[str] = set()
+        _hvalmap_predecl: Set[str] = set()
         if _ms_body:
             _str_predecl = {v for v in getattr(self, "_string_local_vars", set())
                             if v in local_refs and v not in ghost_vars
                             and v not in ref_params and v not in self._formal_params
+                            and v not in _uput
                             and v not in struct_array_targets and v not in struct_pack_targets}
             pre_decl_vars |= _str_predecl
             # typed-ir §19: emit_ir locals pre-declare `ref (IrOther "")` (the emit_ir
@@ -3890,6 +4069,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             _emit_ir_predecl = {v for v in getattr(self, "_emit_ir_local_vars", set())
                                 if v in local_refs and v not in ghost_vars
                                 and v not in ref_params and v not in self._formal_params
+                                and v not in _uput
                                 and v not in struct_array_targets and v not in struct_pack_targets
                                 and v not in _str_predecl}
             pre_decl_vars |= _emit_ir_predecl
@@ -3897,9 +4077,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             _irlist_predecl = {v for v in getattr(self, "_irlist_local_vars", set())
                                if v in local_refs and v not in ghost_vars
                                and v not in ref_params and v not in self._formal_params
+                               and v not in _uput
                                and v not in struct_array_targets and v not in struct_pack_targets
                                and v not in _str_predecl and v not in _emit_ir_predecl}
             pre_decl_vars |= _irlist_predecl
+            # union/match cluster: a nested-map local (`vinfo`) pre-declares `ref (const
+            # (None: option hval))` (the empty `map string (option hval)`), never `ref 0`.
+            _hvalmap_predecl = {v for v in getattr(self, "_hvalmap_local_vars", {})
+                                if v in local_refs and v not in ghost_vars
+                                and v not in ref_params and v not in self._formal_params
+                                and v not in _uput
+                                and v not in struct_array_targets and v not in struct_pack_targets
+                                and v not in _str_predecl and v not in _emit_ir_predecl
+                                and v not in _irlist_predecl}
+            pre_decl_vars |= _hvalmap_predecl
 
         # W8/W1: a local bound to an element of an `array <record>` self-field
         # (`t = self.toks[self.i]`, the token cursor's `advance`) is RECORD-typed, so
@@ -3948,10 +4139,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         body_code = self._stmts_to_whyml(
             body_stmts,
             (local_refs | {f"{t}_len" for t in append_targets} | seq_promoted_params)
-                - struct_array_targets - struct_pack_targets,
+                - struct_array_targets - struct_pack_targets - _uput,
             initial_declared
                 - {whyml_ident(v) for v in struct_array_targets}
-                - {whyml_ident(v) for v in struct_pack_targets},
+                - {whyml_ident(v) for v in struct_pack_targets}
+                - {whyml_ident(v) for v in _uput},
             "    ",
         )
 
@@ -3990,6 +4182,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
             elif var in _irlist_predecl:
                 init = 'ILNil'         # cap-2: irlist local pre-decl
+            elif var in _hvalmap_predecl:
+                # union/match cluster: nested-map local pre-decl (the ν-typed empty map).
+                init = self._dv_missing_default(
+                    getattr(self, "_hvalmap_local_vars", {}).get(var, "map string (option hval)"))
             elif var in _rec_predecl:
                 # W8/W1: record-element local pre-decl (see above).
                 init = self._record_default_literal(_rec_predecl[var])

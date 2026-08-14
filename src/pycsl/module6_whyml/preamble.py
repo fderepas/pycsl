@@ -3104,6 +3104,13 @@ class PreambleEmissionMixin:
             # scope. Byte-inert: no existing opttuple return has an emit_ir slot.
             if "emit_ir" in ot:
                 continue
+            # self-tcb-reduction Tier-5 (union/match cluster C1b): likewise an opttuple whose
+            # slot references `hval` (the union readers' `Optional[Tuple[str, PyVal]]`) CANNOT
+            # be declared here — `hval` is not in scope until `_emit_pyval_theory` below. Those
+            # are deferred and emitted right after the pyval theory (see the transpiler).
+            # Byte-inert: no existing opttuple return has an hval slot.
+            if "hval" in ot:
+                continue
             # Name the exception by its PAYLOAD TYPE, not just arity: two same-arity
             # opttuples with distinct element types (e.g. `(int,int,int)` vs
             # `(emit_ir,emit_ir,int)`) would collide on `Return_opttuple_<arity>`.
@@ -6841,6 +6848,13 @@ class PreambleEmissionMixin:
             " the values) alongside the real `hval` value. Uninterpreted + total +"
             " effect-free; NO axiom. *)",
             "  val function hval_keys_get (m: map string (option hval)) (i: int) : string",
+            "  (* self-tcb-reduction Tier-5 (union/match cluster C3): a NESTED `hval` viewed"
+            " as its `map string (option hval)` carrier — the `.items()` twin over an hval"
+            " LOCAL (`vinfo.get(\"constructors\", {}).items()`), not a self-field. Total +"
+            " uninterpreted (an `HMap` IS a `map string (option hval)`; a non-map hval views"
+            " as the empty map), so `hval_values_len/get`/`hval_keys_get` apply to the view."
+            " NO axiom -> ledger stays 3. *)",
+            "  val function hval_as_map (h: hval) : map string (option hval)",
             # self-tcb-reduction _typeddict_record_literal (cap-6/7): the raise-branch
             # consumers `missing = [f for f in rec_info["fields"] if f not in present]` /
             # `extra = [k for k in present if k not in declared]` are a SOUND OVER-APPROX

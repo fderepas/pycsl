@@ -407,6 +407,13 @@ class FunctionEmissionMixin:
         self._ghost_list_vars: Set[str] = set()
         self._ghost_set_vars: Set[str] = set()
         self._ghost_tuple_vars: Dict[str, int] = {}  # name → arity (2, 3, or 4)
+        # self-tcb-reduction Tier-5 (union/match cluster C5): a local bound to an
+        # OPTION-tuple-returning self-call (`union_info = self._match_subject_union_info
+        # (...)`, return type `option (τ...)`). Distinct from `_ghost_tuple_vars` (a
+        # BARE tuple, always-present) — this local is a real `option`, so its `is not
+        # None` guard is a `match … with None/Some` discriminant and its tuple-unpack
+        # unwraps the `Some`. name → the full `option (τ...)` WhyML type string.
+        self._option_tuple_vars: Dict[str, str] = {}
         self._known_collection_sizes = {}
         self._known_collection_elements = {}
         self._current_symbol_table = symbol_table
@@ -567,6 +574,14 @@ class FunctionEmissionMixin:
                     # a `map string (option hval)` self-field receiver.
                     if self._self_field_dict_nu(recv) == "hval":
                         return True
+                    # self-tcb-reduction Tier-5 (union/match cluster C1b): a `.get` on a
+                    # `Dict[str, PyVal]` PARAM/LOCAL (`_dict_value_types` codomain "hval",
+                    # e.g. `stmt.get("subject", {})` / `vinfo.get("constructors", {})`)
+                    # unwraps the `option hval` to a real `hval` -> the target is pyval.
+                    # Corpus-inert: no reference program has a `map string (option hval)`
+                    # param/local `.get` receiver.
+                    if getattr(self, "_dict_value_types", {}).get(recv) == "hval":
+                        return True
                 return False
             # self-tcb-reduction _typeddict_field_access (b): a SUBSCRIPT
             # `self._record_types[rec_name]` on a `map string (option hval)` self-field
@@ -616,6 +631,30 @@ class FunctionEmissionMixin:
                     _gather_assigns(_s)
 
         _gather_assigns(body_stmts)
+
+        # self-tcb-reduction Tier-5 (union/match cluster C4): SEED the VALUE target of a
+        # `for k, v in <hval>.items()` loop as pyval — the loop var `v` (`ctor`) is a real
+        # `hval` per iteration (bound `hval_values_get` in `_handle_for_stmt`), so a body
+        # `payload = v.get("payload", [])` is itself pyval. The `_handle_for_stmt` loop
+        # tagging happens only during BODY emission (too late for this setup-time prescan),
+        # so seed it here. Byte-inert: no corpus loop iterates an hval `.items()`.
+        def _seed_items(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "For":
+                    _tt = node.get("tuple_targets") or []
+                    _it = node.get("iter") or {}
+                    if (len(_tt) == 2 and isinstance(_tt[1], str) and _tt[1] != "_"
+                            and (self._hval_items_recv(_it) is not None
+                                 or self._hval_items_local_recv(_it) is not None)):
+                        pyval.add(_tt[1])
+                for _v in node.values():
+                    _seed_items(_v)
+            elif isinstance(node, list):
+                for _s in node:
+                    _seed_items(_s)
+
+        if getattr(self, "_value_semantic", False):
+            _seed_items(body_stmts)
 
         changed = True
         while changed:
@@ -1166,6 +1205,27 @@ class FunctionEmissionMixin:
             self._tuple_emit_ir_slot_locals = _saved_teisl
         if len(slots) == return_type.count(",") + 1 and any(s != "int" for s in slots):
             return "(" + ", ".join(slots) + ")"
+        # self-tcb-reduction Tier-5 (union/match cluster C1b): flow-type the tuple slots of
+        # the two nested-hval union readers from their RETURNED locals. The first tuple
+        # return's element expressions ARE `elts` (the real `return var_name, vinfo` /
+        # `return ctor_name, ctor`), so keying the slot type on the returned Var's role is
+        # exact (matches the body's actual hval-projection lowering): a name/tag var is a
+        # `string`, `vinfo` is the nested `map string (option hval)` (a `_variant_types`
+        # value), `ctor` is a single `hval`. Byte-inert: gated on these two method names,
+        # which no reference program defines.
+        _nm2 = func.get("name", "")
+        if (_nm2.endswith("_match_subject_union_info")
+                or _nm2.endswith("_union_ctor_for_arm_tag")):
+            _slot_role = {
+                "var_name": "string", "vinfo": "map string (option hval)",
+                "ctor_name": "string", "ctor": "hval",
+            }
+            _names = [e.get("name") if (isinstance(e, dict) and e.get("type") == "Var")
+                      else None for e in elts]
+            _s = [_slot_role.get(n, "int") for n in _names]
+            if (len(_s) == return_type.count(",") + 1
+                    and all(x != "int" for x in _s)):
+                return "(" + ", ".join(_s) + ")"
         return return_type
 
     # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): the COMPOUND
@@ -4818,6 +4878,19 @@ class FunctionEmissionMixin:
                 # field, i.e. exactly the parser-cursor shape. `_record_types` is populated
                 # by `_emit_type_decls`, which runs before this map is built.
                 ret = self._record_types[ann]["whyml_name"]
+            # Optional-tuple return (self-tcb-reduction Tier-5 value model): the
+            # self-call-site sibling of the `_compute_return_type` override
+            # (functions.py `option (τ...)` branch). A method whose annotation is a
+            # synthesized `_union_*` (an `Optional[Tuple[...]]` normalized by Module5)
+            # that BOTH returns a tuple AND returns `None` abstracts its `self.<m>(...)`
+            # call site as `option (τ...)`, so a caller's `if <call> is not None:`
+            # None-check type-checks against the real converted `let`'s `option`
+            # return (else the bare tuple `(τ...)` bridge cannot carry `None`). Gated
+            # on an ACTUAL `return None` against a `_union_*` annotation -> byte-inert.
+            if (isinstance(ann, str) and ann.startswith("_union_")
+                    and ret.startswith("(") and "," in ret
+                    and IRScanner.has_none_return(func["body"])):
+                ret = f"option {ret}"
             result[func["name"]] = ret
         return result
 
@@ -5575,6 +5648,13 @@ class FunctionEmissionMixin:
         k = "string" if kappa == "string" else "int"
         if nu == "string":
             v = "string"
+        elif nu == "hval":
+            # self-tcb-reduction Tier-5 (union/match cluster): a `Dict[str, PyVal]`
+            # param is the faithful heterogeneous `map string (option hval)` — the
+            # certified value carrier, NOT the int-erased default. `hval` is a
+            # corpus-absent sentinel (no reference program has a `Dict[str, PyVal]`
+            # param) -> byte-inert.
+            v = "hval"
         elif nu == "seq int":
             v = "seq int"
         elif nu and nu.startswith("map "):

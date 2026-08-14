@@ -401,6 +401,31 @@ class TypeInferenceMixin:
                     found.update(self._collect_tuple_array_locals(h.get("body", [])))
         return found
 
+    def _split_tuple_slots(self, inner: str) -> List[str]:
+        """Split a WhyML tuple body (`string, map string (option hval)`) on the
+        TOP-LEVEL commas only — a nested `(…)` (a `map`'s codomain, or a nested
+        tuple) is not split. Byte-identical to `inner.split(",")` (then `.strip()`)
+        when there are no nested parens, so the existing flat-`(int,int)` path is
+        unchanged."""
+        slots: List[str] = []
+        depth = 0
+        cur = ""
+        for ch in inner:
+            if ch == "(":
+                depth += 1
+                cur += ch
+            elif ch == ")":
+                depth -= 1
+                cur += ch
+            elif ch == "," and depth == 0:
+                slots.append(cur.strip())
+                cur = ""
+            else:
+                cur += ch
+        if cur.strip():
+            slots.append(cur.strip())
+        return slots
+
     def _collect_tuple_var_assigns(self, stmts: List[Dict[str, Any]]) -> Dict[str, int]:
         """0442.md C2: locals bound to a tuple-returning call (`p = mk(x)` where `mk`'s
         return type is `(int, …)`) → {name: arity}. The cross-method return-type map
@@ -437,6 +462,72 @@ class TypeInferenceMixin:
                 for h in s.get("handlers", []):
                     found.update(self._collect_tuple_var_assigns(h.get("body", [])))
         return found
+
+    def _collect_option_tuple_locals(self, stmts: List[Dict[str, Any]]) -> Dict[str, str]:
+        """self-tcb-reduction Tier-5 (union/match cluster C5): locals bound to an
+        OPTION-tuple-returning call (`union_info = self._match_subject_union_info(...)`
+        whose return type is `option (τ...)`) → {name: the full `option (τ...)` type}.
+        Distinct from `_collect_tuple_var_assigns` (a BARE always-present tuple): a real
+        option local's `is not None` guard and tuple-unpack lower to `match … with
+        None/Some`. Also records the per-slot INNER tuple types in `_tuple_var_slot_types`
+        so `a, b = <option local>` types its targets. This is a live-only helper called
+        from the `\\trusted`-mirrored `_typed_local_vars`, so it needs no mirror body.
+        Byte-inert: no corpus method returns `Optional[Tuple[...]]`."""
+        found: Dict[str, str] = {}
+        rets = getattr(self, "_module_method_return_types", {})
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                tgt = s.get("target", "")
+                if isinstance(val, dict) and val.get("type") == "Call" and tgt:
+                    _fn = val.get("func", "")
+                    rt = rets.get(_fn)
+                    if rt is None and isinstance(_fn, str) and _fn.startswith("self."):
+                        _cls = getattr(self, "_current_self_type", None)
+                        rt = rets.get(f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn)
+                    if (isinstance(rt, str) and rt.startswith("option (")
+                            and rt.rstrip().endswith(")") and "," in rt):
+                        _inner = rt[len("option "):].strip()
+                        found[tgt] = rt
+                        if not hasattr(self, "_tuple_var_slot_types"):
+                            self._tuple_var_slot_types = {}
+                        self._tuple_var_slot_types[tgt] = self._split_tuple_slots(_inner[1:-1])
+            for k in ("body", "orelse"):
+                if k in s:
+                    found.update(self._collect_option_tuple_locals(s[k]))
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found.update(self._collect_option_tuple_locals(h.get("body", [])))
+        return found
+
+    def _collect_option_tuple_unpack_targets(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction Tier-5 (union/match cluster C1b): the TARGET names of a
+        `a, b = <option-tuple local>` unpack (`_uvar, uinfo = union_info`). These are
+        let-bound FRESH inside the `Some (…)` arm with the SLOT's real type (string / map
+        string (option hval) / hval), so they must be EXCLUDED from the integer `ref 0`
+        pre-declaration (which would int-clash with a map/hval slot). Live-only helper
+        called from the `\\trusted`-mirrored `_typed_local_vars`. Byte-inert: no corpus
+        method unpacks an `Optional[Tuple[...]]`."""
+        opt = getattr(self, "_option_tuple_vars", {})
+        out: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "TupleUnpack":
+                    _v = node.get("value") or {}
+                    if (isinstance(_v, dict) and _v.get("type") == "Var"
+                            and _v.get("name") in opt):
+                        for _t in node.get("targets", []) or []:
+                            if isinstance(_t, str):
+                                out.add(_t)
+                for _x in node.values():
+                    rec(_x)
+            elif isinstance(node, list):
+                for _x in node:
+                    rec(_x)
+
+        rec(stmts)
+        return out - set(self._formal_params)
 
     def _call_return_whyml_type(self, fn: str) -> Optional[str]:
         """Resolve the declared WhyML return type of a call `fn` from the cross-method

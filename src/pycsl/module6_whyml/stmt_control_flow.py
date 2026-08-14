@@ -261,6 +261,25 @@ class ControlFlowStmtMixin:
             return _recv
         return None
 
+    def _hval_items_local_recv(self, iter_ir: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """self-tcb-reduction Tier-5 (union/match cluster C3): if `iter_ir` is `.items()`
+        over an hval-valued LOCAL/param expression (`vinfo.get("constructors", {}).items()`
+        — the `.items` receiver is a pyval `.get` producing a nested `hval`), return that
+        receiver IR (so the caller views it via `hval_as_map`); else None. Gated on
+        `_value_semantic` + a pyval `.items` receiver -> corpus/other-mirror inert."""
+        if not (self._value_semantic and isinstance(iter_ir, dict)
+                and iter_ir.get("type") == "Call"):
+            return None
+        _if = iter_ir.get("func")
+        _irecv = None
+        if isinstance(_if, str) and _if.endswith(".items"):
+            _irecv = {"type": "Var", "name": _if[:-len(".items")]}
+        elif _if == "items":
+            _irecv = iter_ir.get("receiver")
+        if isinstance(_irecv, dict) and self._expr_is_pyval(_irecv):
+            return _irecv
+        return None
+
     def _zip_irlist_recv(self, iter_ir: Dict[str, Any]):
         """self-tcb-reduction _typeddict_record_literal (cap-3): if `iter_ir` is
         `zip(<irlist-local>, <irlist-local>)` (both args a Var bound to a DictLit child
@@ -333,6 +352,22 @@ class ControlFlowStmtMixin:
             _mapw = self._expr_to_whyml(
                 {"type": "FieldGet", "object": _obj, "field": _fld},
                 local_refs)
+            self._for_target_is_pyval = True
+            self._for_items_hval_map = _mapw
+            self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
+            return (f"(hval_values_len {_mapw})",
+                    f"(hval_values_get {_mapw} !{idx})", False)
+        # self-tcb-reduction Tier-5 (union/match cluster C3): `.items()` over an hval-valued
+        # LOCAL — `for ctor_name, ctor in vinfo.get("constructors", {}).items()`. The `.items`
+        # RECEIVER is a pyval `.get` producing a nested `hval` (an `HMap`); view it as its
+        # `map string (option hval)` carrier via `hval_as_map`, then iterate the SAME
+        # over-approx (`hval_values_len`/`hval_values_get`, KEY via `hval_keys_get` in
+        # `_handle_for_stmt`). Gated on `_value_semantic` + a pyval `.items` receiver ->
+        # corpus/other-mirror byte-inert.
+        _items_local = self._hval_items_local_recv(iter_ir)
+        if _items_local is not None:
+            _hv = self._expr_to_whyml(_items_local, local_refs)
+            _mapw = f"(hval_as_map {_hv})"
             self._for_target_is_pyval = True
             self._for_items_hval_map = _mapw
             self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
@@ -688,7 +723,8 @@ class ControlFlowStmtMixin:
         # (tuple_targets[1]) in `_pyval_locals` for the body so `v.get("whyml_name")` /
         # `v.get("is_namedtuple")` lower via the certified `pairs_get`/`hval_truthy`, not the
         # int-erased facade. Gated on a pyval self-field `.items()` receiver -> corpus inert.
-        _is_pyval_items = (self._hval_items_recv(iter_ir) is not None
+        _is_pyval_items = ((self._hval_items_recv(iter_ir) is not None
+                            or self._hval_items_local_recv(iter_ir) is not None)
                            and tuple_targets and len(tuple_targets) == 2)
         _items_val_target = tuple_targets[1] if _is_pyval_items else None
         if _is_pyval_items:
