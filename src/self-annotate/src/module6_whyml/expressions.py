@@ -1011,6 +1011,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return self._field_label(self._emit_record_ctx, expr['field'])
         obj = expr['object']
         field = expr['field']
+        # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`):
+        # the opaque-int self-field READS this signature builder makes — the symbol table
+        # and the three source-ordered param sequences — are typed collections, NOT the
+        # int-erased `getattr_functionemissionmixin self <hash>`. A Why3 `map` has no
+        # iterable key-set and the body ITERATES these fields (`for arg in
+        # self._formal_params`, the `{v for v in symbol_table …}` comprehension), so the
+        # faithful model of what the method OBSERVES is the `seq string` of the keys/
+        # elements. Each an uninterpreted `val <field>_of (self): seq string` (sound
+        # over-approx, real structural descent). `_current_self_type` reads back the
+        # string it wrote (effect-free write cap) as a `string`. Per-method scoped ->
+        # byte-inert for the corpus and every other mirror.
+        if obj == "self" and self._emitting_build_param_list():
+            _bst = self._current_self_type or "functionemissionmixin"
+            if field == "_current_symbol_table":
+                self._add_abstract_op(
+                    f"val current_symbol_table_of (self: {_bst}) : seq string")
+                return "(current_symbol_table_of self)"
+            if field == "_array2d_params":
+                self._add_abstract_op(
+                    f"val array2d_params_of (self: {_bst}) : seq string")
+                return "(array2d_params_of self)"
+            if field == "_current_array1d_params":
+                self._add_abstract_op(
+                    f"val current_array1d_params_of (self: {_bst}) : seq string")
+                return "(current_array1d_params_of self)"
+            if field == "_formal_params":
+                self._add_abstract_op(
+                    f"val formal_params_of (self: {_bst}) : seq string")
+                return "(formal_params_of self)"
+            if field == "_current_self_type":
+                self._add_abstract_op(
+                    f"val current_self_type_of (self: {_bst}) : string")
+                return "(current_self_type_of self)"
         # Class-body integer constant referenced as `self.CONST` → its literal.
         self_type = self._current_self_type
         if (obj == "self" and self_type

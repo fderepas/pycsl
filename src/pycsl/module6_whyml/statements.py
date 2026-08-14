@@ -1626,7 +1626,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # the corpus and every other mirror (a real corpus `self.<field> = <int>` keeps
             # the int `setattr` below).
             if (obj == "self" and self_type
-                    and self._emitting_refine_tuple_return_type()):
+                    and (self._emitting_refine_tuple_return_type()
+                         or self._emitting_build_param_list())):
                 self._add_abstract_op(
                     f"val setattr_{self_type}_poly (x: {self_type}) (f: int) (v: 'a) : unit")
                 code = f"{indent}setattr_{self_type}_poly {obj} {hash_field} {val}"
@@ -3720,6 +3721,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # string)`, the `len` (`Seq.length`), the join (`str_join_seq`, and `"(" + join + ")"`
         # routes `+` to str_concat_op) and the any/all fold (`seq string`). Method-gated.
         self._refine_str_comp_locals = self._collect_refine_str_comp_locals(body_stmts)
+        # self-tcb-reduction WRITER class (`_build_param_list`): the `seq string` string-list
+        # builders (`param_parts` = `[f"(self: …)"]` + `.append`, `args` = a filtered
+        # list-comp) reuse the same `seq string` consumer stack (`str_join_seq` join,
+        # `Seq.length`, `_is_string_expr` element-string). Registering them here drives that
+        # stack without a bespoke set. Method-gated -> byte-inert for the corpus/other mirrors.
+        if self._emitting_build_param_list():
+            self._refine_str_comp_locals = (self._refine_str_comp_locals
+                                            | {"param_parts", "args"})
         # seq-model-pivot.md SQ1: a REASSIGNED list-elem local (assigned >1×) is modeled as
         # an immutable `seq` (freely reassignable), not a mutable `array` — a `ref (array _)`
         # cannot be reassigned to a slice (Why3 region alias). Promote it to `_seq_locals`
@@ -4321,6 +4330,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # for this ONE method without flipping the whole mixin to @mutable_state (PATH(a)
         # regression). Per-method scoped -> byte-inert for every sibling and the corpus.
         _ms_body = _ms_body or (is_method and self._emitting_compute_return_type())
+        # self-tcb-reduction WRITER class (`_build_param_list`): enable the typed-local
+        # pre-decls (string `int_type`/`args_str` -> `ref ""`, and the `seq string`
+        # symbol-table/param-sequence/ref-params locals below) for this ONE method without
+        # flipping the whole mixin to @mutable_state. Per-method scoped -> byte-inert.
+        _ms_body = _ms_body or (is_method and self._emitting_build_param_list())
         # union/match cluster C1b: option-tuple unpack targets are let-bound fresh in the
         # `Some (…)` arm — exclude them from EVERY typed pre-decl (string/emit_ir/map).
         _uput = getattr(self, "_option_tuple_unpack_targets", set())
@@ -4386,6 +4400,37 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                and v not in _irlist_predecl and v not in _hvalmap_predecl
                                and v not in _optstr_predecl}
             pre_decl_vars |= _optmap_predecl
+
+        # self-tcb-reduction WRITER class (`_build_param_list`): the symbol table, the two
+        # array-param sequences, and the set-comprehension result are `seq string` locals —
+        # pre-declared `ref (Seq.empty: seq string)`, never the int `ref 0` (which would
+        # seq-clash at the `:=` from the `<field>_of self : seq string` accessor / the
+        # comprehension). Method-gated -> byte-inert for the corpus and every other mirror.
+        _bpl_seqstr_predecl: Set[str] = set()
+        if is_method and self._emitting_build_param_list():
+            _bpl_seqstr_predecl = {
+                v for v in ("symbol_table", "array2d_params", "array1d_params", "ref_params")
+                if v in local_refs and v not in ghost_vars
+                and v not in ref_params and v not in self._formal_params
+                and v not in _uput
+                and v not in struct_array_targets and v not in struct_pack_targets
+                and v not in _str_predecl and v not in _emit_ir_predecl
+                and v not in _irlist_predecl and v not in _hvalmap_predecl
+                and v not in _optstr_predecl}
+            pre_decl_vars |= _bpl_seqstr_predecl
+            # `int_type = f"int{n}" if n else "int"` and `args_str = " ".join(…)` are
+            # STRING locals -> `ref ""` (the ternary arms / the join are strings).
+            _bpl_str = {
+                v for v in ("int_type", "args_str")
+                if v in local_refs and v not in ghost_vars
+                and v not in ref_params and v not in self._formal_params
+                and v not in _uput
+                and v not in struct_array_targets and v not in struct_pack_targets
+                and v not in _emit_ir_predecl and v not in _irlist_predecl
+                and v not in _hvalmap_predecl and v not in _optstr_predecl
+                and v not in _bpl_seqstr_predecl}
+            _str_predecl |= _bpl_str
+            pre_decl_vars |= _bpl_str
 
         # W8/W1: a local bound to an element of an `array <record>` self-field
         # (`t = self.toks[self.i]`, the token cursor's `advance`) is RECORD-typed, so
@@ -4488,6 +4533,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # union/match cluster: nested-map local pre-decl (the ν-typed empty map).
                 init = self._dv_missing_default(
                     getattr(self, "_hvalmap_local_vars", {}).get(var, "map string (option hval)"))
+            elif var in _bpl_seqstr_predecl:
+                # `_build_param_list` WRITER class: `seq string` local pre-decl.
+                init = '(Seq.empty: seq string)'
             elif var in _rec_predecl:
                 # W8/W1: record-element local pre-decl (see above).
                 init = self._record_default_literal(_rec_predecl[var])

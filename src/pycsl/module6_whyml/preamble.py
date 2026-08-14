@@ -6436,6 +6436,38 @@ class PreambleEmissionMixin:
                 and str(getattr(self, "_current_emitting_func", "") or "")
                 .endswith("_refine_tuple_return_type"))
 
+    def _uses_build_param_list(self) -> bool:
+        """self-tcb-reduction FunctionEmissionMixin WRITER class: True iff this file
+        defines `_build_param_list` — the smallest self-field-WRITING signature builder
+        on the opaque-int FunctionEmissionMixin. Gates the extended opaque-self typed
+        READ accessors (`current_symbol_table_of : map string (option string)`,
+        `array2d_params_of`/`current_array1d_params_of`/`formal_params_of : seq string`),
+        the `set string` set-comprehension over the symbol-table map, and the
+        `(set string, string)` tuple return into that ONE file's SMT context. Reuses the
+        banked write cap (`setattr_functionemissionmixin_poly`), the hval-int f-string
+        interpolation, the seq-string-local support, and `str_join_seq`. No corpus program
+        (and no other mirror) defines a method by that name, so every other file's emission
+        stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_build_param_list_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_build_param_list")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_build_param_list_cache = result
+        return result
+
+    def _emitting_build_param_list(self) -> bool:
+        """self-tcb-reduction FunctionEmissionMixin WRITER class: True iff the method
+        CURRENTLY being emitted is `_build_param_list`. Scopes the extended opaque-self
+        READ accessors, the set-comprehension-to-`set string`, the `(set string, string)`
+        tuple return, and the seq-string param-part locals to that ONE method WITHOUT
+        globally registering FunctionEmissionMixin as @mutable_state (the documented
+        PATH(a) sibling regression). Per-method scoped -> byte-inert elsewhere."""
+        return (self._uses_build_param_list()
+                and str(getattr(self, "_current_emitting_func", "") or "")
+                .endswith("_build_param_list"))
+
     def _uses_pyast_stmt(self) -> bool:
         """pyast_stmt ADT (self-tcb-reduction giants): True iff some function in this file
         iterates a class-body — `for <x> in <p>.body` where `<p>` is a parameter annotated

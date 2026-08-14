@@ -124,12 +124,39 @@ class FunctionEmissionMixin:
             for v in node:
                 self._collect_assign_targets(v, acc)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_param_list(self, func: int, local_refs: int, ghost_vars: int) -> int:
-        return ([], {})
+    def _build_param_list(self, func: Dict[str, PyVal], local_refs: Set[str], ghost_vars: Set[str]) -> Tuple[Set[str], str]:
+        """Compute WhyML parameter string. Returns (ref_params, args_str).
+        Mutates self._current_self_type."""
+        is_method = func.get("kind") == "method"
+        bounded_int = func.get("bounded_int")
+        int_type = f"int{bounded_int}" if bounded_int else "int"
+        symbol_table = self._current_symbol_table
+        array2d_params = self._array2d_params
+        array1d_params = self._current_array1d_params
+
+        if is_method:
+            self._current_self_type = whyml_ident(func["self_type"].lower())
+            param_parts = [f"(self: {self._current_self_type})"]
+            for arg in self._formal_params:
+                if arg in ghost_vars:
+                    continue
+                param_parts.append(
+                    self._param_type_str(arg, set(), array2d_params,
+                                         array1d_params, symbol_table, int_type))
+            return set(), " ".join(param_parts)
+        else:
+            self._current_self_type = None
+            ref_params = {v for v in symbol_table if v in local_refs and v.startswith("obj_")}
+            args = [v for v in self._formal_params if v not in ghost_vars]
+            args_str = " ".join(
+                self._param_type_str(arg, ref_params, array2d_params, array1d_params,
+                                     symbol_table, int_type)
+                for arg in args
+            )
+            return ref_params, args_str
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

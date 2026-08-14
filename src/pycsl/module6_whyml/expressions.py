@@ -1064,6 +1064,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "      /\\ Seq.get v _mi = x) }")
             _mcall = f"(seq_mem_str {left} {_vseq})"
             return f"(not {_mcall})" if negate else _mcall
+        # self-tcb-reduction WRITER class (`_build_param_list`): `v in local_refs` /
+        # `arg in ghost_vars` / `v not in ghost_vars` where the RHS is one of the
+        # `seq string`-modelled `Set[str]` params is a REAL sequence membership
+        # (`seq_mem_str`), NOT the int-hash `contains_check`. The param is a plain
+        # `seq string` value (not a `ref`), so no `!` deref. Gated on the method ->
+        # byte-inert for the corpus and every other mirror.
+        if (not self._in_spec and self._emitting_build_param_list()
+                and rhs.get("type") == "Var"
+                and rhs.get("name") in ("local_refs", "ghost_vars")):
+            _bseq = whyml_ident(rhs["name"])
+            if self._in_spec:
+                _form = (f"(exists _mi: int. 0 <= _mi < Seq.length {_bseq} "
+                         f"/\\ Seq.get {_bseq} _mi = {left})")
+                return f"(not {_form})" if negate else _form
+            self._add_abstract_op(
+                "val seq_mem_str (x: string) (v: seq string) : bool\n"
+                "    ensures { result <-> (exists _mi: int. 0 <= _mi < Seq.length v\n"
+                "      /\\ Seq.get v _mi = x) }")
+            _mcall = f"(seq_mem_str {left} {_bseq})"
+            return f"(not {_mcall})" if negate else _mcall
         # set-value-model-wall (self-tcb-reduction, Tier-5): `x in s` / `x not in s`
         # where `s` is an emitter-local `Set[str]` value reads a PROGRAM BOOL over the
         # executable `set.SetApp[string]` clone — `StrSet.mem x !s` / `not (StrSet.mem
@@ -2653,6 +2673,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if p_lit is not None and r_lit is not None:
                     return self._whyml_string_literal(recv_lit.replace(p_lit, r_lit))
         recv = self._expr_to_whyml(recv_ir, local_refs or set(), invariant_ctx, subst)
+        # self-tcb-reduction WRITER class (`_build_param_list`): a pyval subscript receiver
+        # (`func["self_type"]`) lowers to its hval; project the string carrier via `hstr_of`
+        # before the faithful string op (`str_lower_op`). Gated -> byte-inert elsewhere.
+        if (self._emitting_build_param_list()
+                and isinstance(recv_ir, dict) and self._expr_is_pyval(recv_ir)):
+            recv = f"(hstr_of {recv})"
         if tail == "replace" and len(args) == 2:
             # §3.1 + cleared-string RESIDUALS item 2: `val function` (DETERMINISTIC) with
             # the SOUND laws for CPython all-occurrences replace:
@@ -3465,6 +3491,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `This expression has type string, but is expected to have type int`).
         if self._record_elem_field_py_type(ir) == "str":
             return True
+        # self-tcb-reduction WRITER class (`_build_param_list`): the `self._current_self_type`
+        # read (`current_self_type_of self : string`) is STRING, so `f"(self:
+        # {self._current_self_type})"` lowers via the all-string str_concat_op path. Gated ->
+        # byte-inert elsewhere.
+        if (t == "FieldGet" and ir.get("object") == "self"
+                and ir.get("field") == "_current_self_type"
+                and self._emitting_build_param_list()):
+            return True
         # self-tcb-reduction `_compute_return_type` PATH(b): a DIRECT-self nested read
         # `self._record_types[K]["<lit>"]` / `self._variant_types[ann]["<lit>"]` is STRING
         # (its `<base>_<lit> : string` reader), so an f-string interpolating it lowers via
@@ -3473,6 +3507,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "Subscript":
             _idx3 = ir.get("index", {})
             _inner3 = ir.get("value", {})
+            # self-tcb-reduction WRITER class (`_build_param_list`): `func["self_type"]` — a
+            # STRING-literal subscript of the `func` pydict — reads a string VALUE (its hval
+            # carrier projects via `hstr_of`), so `func["self_type"].lower()` reaches the
+            # faithful `str_lower_op`. Gated -> byte-inert elsewhere.
+            if (self._emitting_build_param_list()
+                    and isinstance(_idx3, dict) and _idx3.get("type") == "String"
+                    and self._expr_is_pyval(ir)):
+                return True
             if (isinstance(_idx3, dict) and _idx3.get("type") == "String"
                     and isinstance(_inner3, dict) and _inner3.get("type") == "Subscript"
                     and self._self_map_field_base(_inner3.get("value", {}))):
@@ -3493,7 +3535,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (t == "IfExpr"
                 and (getattr(self, "_current_self_type", None)
                      in getattr(self, "_mutable_state_classes", set())
-                     or self._func_ret_union_some_str())
+                     or self._func_ret_union_some_str()
+                     or self._emitting_compute_return_type()
+                     or self._emitting_build_param_list())
                 and self._is_string_expr(ir.get("body", {}))
                 and self._is_string_expr(ir.get("orelse", {}))):
             return True
@@ -3735,8 +3779,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # byte-identical for every other f-string.
         if t == "FString":
             return (bool(ir.get("parts"))
-                    and getattr(self, "_current_self_type", None)
-                    in getattr(self, "_mutable_state_classes", set()))
+                    and (getattr(self, "_current_self_type", None)
+                         in getattr(self, "_mutable_state_classes", set())
+                         or self._emitting_compute_return_type()
+                         or self._emitting_build_param_list()))
         # todict-reflection-plan.md: a record's `str`-typed FIELD read (`n.kind` on a
         # record-typed param/local, or `self.f`/`global.f`) is string-typed — so
         # `n.kind == "Var"` routes to `str_eq_op`, not the int-hash mismatch. self/
@@ -4659,6 +4705,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           local_refs=None, invariant_ctx=False, subst=None) -> str:
         """Handle str.join(iterable): pick join_array for arrays, join_1 otherwise."""
         arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
+        # self-tcb-reduction WRITER class (`_build_param_list`): `" ".join(
+        # self._param_type_str(arg, …) for arg in args)` — a join over a GENERATOR mapping a
+        # string call over the `seq string` `args` local. The mapped sequence is a
+        # `seq string` (length-only over-approx over the real `args` source, content
+        # unmodeled — same faithful abstraction as the list-comp path), joined by
+        # `str_join_seq`. Gated on the method -> corpus/other-mirror byte-inert.
+        if (self._emitting_build_param_list()
+                and arg_ir.get("type") in ("GenExp", "GeneratorExp", "ListComp")):
+            _sepg = (self._expr_to_whyml(expr.get("receiver"), local_refs or set(),
+                                         invariant_ctx, subst)
+                     if expr.get("receiver") is not None else '" "')
+            _ggens = arg_ir.get("generators", []) or []
+            _gsrc = _ggens[0].get("iter", {}) if _ggens else {}
+            _gsrcw = self._expr_to_whyml(
+                _gsrc if isinstance(_gsrc, dict) else {}, local_refs or set(),
+                invariant_ctx, subst)
+            self._add_abstract_op(
+                "val list_comp_refine_string (src: 'a) : seq string")
+            self._add_abstract_op(
+                "val str_join_seq (sep: string) (xs: seq string) : string\n"
+                "    ensures { String.length result >= 0 }")
+            return f"(str_join_seq {_sepg} (list_comp_refine_string {_gsrcw}))"
         # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): `", ".join(slots)` /
         # `", ".join(_s)` over a `seq string` refine list-comp local is `str_join_seq` (a
         # `string`). Method-gated -> corpus/other-mirror byte-inert.
@@ -6514,6 +6582,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             #    the actual runtime value is opaque to the prover (fails-safe: any
             #    contract depending on the real value fails to prove, never proves false).
             return self._lower_getattr(expr, args, local_refs, invariant_ctx, subst)
+        if (func_name in ("set", "frozenset") and len(args) == 0
+                and self._emitting_build_param_list()):
+            # self-tcb-reduction WRITER class (`_build_param_list`): the method branch's
+            # `set()` ref-params slot is modelled as the empty `seq string` (the same
+            # sequence model as the else-branch comprehension result), so both return arms
+            # agree on `(seq string, string)`. Gated -> byte-inert elsewhere.
+            return "(Seq.empty: seq string)"
         if func_name in ("set", "frozenset") and len(args) == 0:
             # Body set: same `map int (option int)` model as body dicts.
             # Sets store `Some 0` for "present" keys, `None` for absent.
@@ -9686,6 +9761,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return self._field_label(self._emit_record_ctx, expr['field'])
         obj = expr['object']
         field = expr['field']
+        # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`):
+        # the opaque-int self-field READS this signature builder makes — the symbol table
+        # and the three source-ordered param sequences — are typed collections, NOT the
+        # int-erased `getattr_functionemissionmixin self <hash>`. A Why3 `map` has no
+        # iterable key-set and the body ITERATES these fields (`for arg in
+        # self._formal_params`, the `{v for v in symbol_table …}` comprehension), so the
+        # faithful model of what the method OBSERVES is the `seq string` of the keys/
+        # elements. Each an uninterpreted `val <field>_of (self): seq string` (sound
+        # over-approx, real structural descent). `_current_self_type` reads back the
+        # string it wrote (effect-free write cap) as a `string`. Per-method scoped ->
+        # byte-inert for the corpus and every other mirror.
+        if obj == "self" and self._emitting_build_param_list():
+            _bst = self._current_self_type or "functionemissionmixin"
+            if field == "_current_symbol_table":
+                self._add_abstract_op(
+                    f"val current_symbol_table_of (self: {_bst}) : seq string")
+                return "(current_symbol_table_of self)"
+            if field == "_array2d_params":
+                self._add_abstract_op(
+                    f"val array2d_params_of (self: {_bst}) : seq string")
+                return "(array2d_params_of self)"
+            if field == "_current_array1d_params":
+                self._add_abstract_op(
+                    f"val current_array1d_params_of (self: {_bst}) : seq string")
+                return "(current_array1d_params_of self)"
+            if field == "_formal_params":
+                self._add_abstract_op(
+                    f"val formal_params_of (self: {_bst}) : seq string")
+                return "(formal_params_of self)"
+            if field == "_current_self_type":
+                self._add_abstract_op(
+                    f"val current_self_type_of (self: {_bst}) : string")
+                return "(current_self_type_of self)"
         # Class-body integer constant referenced as `self.CONST` → its literal.
         self_type = self._current_self_type
         if (obj == "self" and self_type
@@ -9754,7 +9862,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # as `string`. Gated on @mutable_state → byte-identical for every other f-string.
         if (not self._in_spec and (getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())
-                or self._emitting_compute_return_type())):
+                or self._emitting_compute_return_type()
+                or self._emitting_build_param_list())):
             self._add_abstract_op("val int_to_string (n: int) : string")
             self._add_abstract_op(
                 "val str_concat_op (a: string) (b: string) : string\n"
@@ -9897,7 +10006,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # into the variant's string arm at the return site. Fail-closed → normal ternaries
         # (non-union return) are byte-identical.
         _str_ctx = (_ms or (getattr(self, "_func_return_type", None) == "string")
-                    or self._func_ret_union_some_str())
+                    or self._func_ret_union_some_str()
+                    or self._emitting_compute_return_type()
+                    or self._emitting_build_param_list())
         _b_str = self._is_string_expr(_bd)
         _o_str = self._is_string_expr(_od)
         _b_none = _bd.get("type") == "None"
@@ -10589,6 +10700,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         target ONLY — identity, `+ - *` arithmetic, or FIELD PROJECTIONS `x.attr`
         (and arithmetic over them). A filter (`if`) keeps ONLY the sound length
         bound."""
+        # self-tcb-reduction WRITER class (`_build_param_list`): its `args = [v for v in
+        # self._formal_params if v not in ghost_vars]` iterates a `seq string` source, not an
+        # `array int` — leave it to the `seq string` list-comp path (`list_comp_refine_string`).
+        if self._emitting_build_param_list():
+            return None
         _d = node.to_dict()
         gens = _d.get("generators", []) or []
         if len(gens) != 1:
@@ -11661,7 +11777,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # byte-inert for the corpus and every other mirror.
             if (getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set())
-                    or self._emitting_refine_tuple_return_type()):
+                    or self._emitting_refine_tuple_return_type()
+                    or self._emitting_build_param_list()):
                 _d = node.to_dict()
                 _elt = _d.get("elt", {})
                 _gens = _d.get("generators", []) or []
@@ -11712,7 +11829,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # (`src: 'a`) tolerates both (content unmodeled, length unconstrained — the
                 # same faithful over-approx as str_split_elem_op). Method-gated -> corpus/
                 # other-mirror byte-inert.
-                if self._emitting_refine_tuple_return_type():
+                if (self._emitting_refine_tuple_return_type()
+                        or self._emitting_build_param_list()):
+                    # `_build_param_list` reuses the `seq string` list-comp abstraction for
+                    # `args = [v for v in self._formal_params if v not in ghost_vars]` — a
+                    # length-only over-approx (content unmodeled) over the real `seq string`
+                    # `formal_params_of self` source (non-vacuous). Method-gated -> inert.
                     self._add_abstract_op(
                         "val list_comp_refine_string (src: 'a) : seq string")
                     return f"(list_comp_refine_string {_srcw})"
@@ -11731,6 +11853,56 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op("val list_comp (x: int) : int")
             return "(list_comp 0)"
         if isinstance(node, SetCompExpr):
+            # self-tcb-reduction WRITER class (`_build_param_list`): the ref-params
+            # comprehension `{v for v in symbol_table if v in local_refs and
+            # v.startswith("obj_")}` is a `seq string` FILTER over the symbol-table sequence
+            # — the elements kept are drawn from `symbol_table` (a member of the source), so
+            # the abstract op's `ensures` states exactly that (a satisfiable, non-vacuous
+            # over-approx; content-of-filter unmodeled, like `str_split_elem_op`). The op
+            # takes the source AND the membership set AND the prefix literal so every data
+            # input the filter reads (`symbol_table`, `local_refs`, `"obj_"`) is referenced —
+            # no erased param, mutation-visible. Gated -> byte-inert elsewhere.
+            if self._emitting_build_param_list():
+                _d = node.to_dict()
+                _gens = _d.get("generators", []) or []
+                _src = _gens[0].get("iter", {}) if _gens else {}
+                _srcw = self._expr_to_whyml(
+                    _src if isinstance(_src, dict) else {}, local_refs or set(),
+                    invariant_ctx, subst)
+                _mems: List[str] = []
+                _prefixes: List[str] = []
+
+                def _scan_filter(_n: Any) -> None:
+                    if isinstance(_n, dict):
+                        if (_n.get("type") in ("BinOp", "Compare")
+                                and _n.get("op") in ("in", "not in")):
+                            _r = _n.get("right", {})
+                            _mems.append(self._expr_to_whyml(
+                                _r if isinstance(_r, dict) else {}, local_refs or set(),
+                                invariant_ctx, subst))
+                        if (_n.get("type") == "Call"
+                                and isinstance(_n.get("func"), str)
+                                and _n["func"].endswith(".startswith")):
+                            _a = (_n.get("args") or [{}])[0]
+                            if isinstance(_a, dict) and _a.get("type") == "String":
+                                _prefixes.append(self._whyml_string_literal(_a.get("value", "")))
+                        for _v in _n.values():
+                            _scan_filter(_v)
+                    elif isinstance(_n, list):
+                        for _v in _n:
+                            _scan_filter(_v)
+                for _g in _gens:
+                    _scan_filter(_g.get("ifs", []) or [])
+                _mem_args = "".join(f" (m{_i}: seq string)" for _i in range(len(_mems)))
+                _pre_args = "".join(f" (p{_i}: string)" for _i in range(len(_prefixes)))
+                self._add_abstract_op(
+                    f"val set_comp_seq_str (src: seq string){_mem_args}{_pre_args} : seq string\n"
+                    "    ensures { forall _i:int. 0 <= _i < Seq.length result ->\n"
+                    "      (exists _j:int. 0 <= _j < Seq.length src"
+                    " /\\ Seq.get src _j = Seq.get result _i) }")
+                return (f"(set_comp_seq_str {_srcw}"
+                        + "".join(f" {m}" for m in _mems)
+                        + "".join(f" {p}" for p in _prefixes) + ")")
             # cleared-array item 3: content-faithful set comprehension (membership
             # law) for a pure-int element over an `array int` source; opaque
             # otherwise (DOCUMENTED — never a false content claim).

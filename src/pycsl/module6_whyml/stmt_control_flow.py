@@ -635,6 +635,30 @@ class ControlFlowStmtMixin:
                 self._for_idx_init = (self._expr_to_whyml(_sl.get("lower"), local_refs)
                                       if isinstance(_sl, dict) and _sl.get("lower") else "0")
                 return (f"Array.length {_base_expr}", f"{_base_expr}[!{idx}]", False)
+        # self-tcb-reduction WRITER class (`_build_param_list`): `for arg in
+        # self._formal_params` iterates the `seq string` source-ordered parameter sequence
+        # (`formal_params_of self`) — use `Seq.length`/`Seq.get` (a real `string` element per
+        # iteration), NOT the opaque int `iter_length`/`iter_get`. Gated -> byte-inert.
+        if (self._emitting_build_param_list()
+                and iter_ir.get("type") == "FieldGet"
+                and iter_ir.get("object") == "self"
+                and iter_ir.get("field") == "_formal_params"):
+            # `formal_params_of self` is an OPAQUE `val : seq string` returning an
+            # ARBITRARY seq per call, so re-reading it in the loop bound AND the element
+            # read makes `Seq.length (formal_params_of self)` UNSTABLE across iterations —
+            # the loop's termination VC then has no fixed measure and Alt-Ergo saturates
+            # (E-matching flood, 31M steps). Materialise the seq ONCE as a stable local
+            # `let _fp = formal_params_of self in` wrapping the whole loop (L18 S1
+            # `_for_iter_materialize`), so the bound `Seq.length _fp` and the element
+            # `Seq.get _fp !idx` reference the SAME fixed value, and carry the arithmetic
+            # termination variant `Seq.length _fp - !idx` (a pure LOGIC term, legal in a
+            # `variant`; the counter increments by 1 and is bounded by the loop condition,
+            # so it strictly decreases and stays >= 0 — SMT-trivial). Gated on
+            # `_emitting_build_param_list` -> byte-inert for the corpus and other mirrors.
+            iter_expr = self._expr_to_whyml(iter_ir, local_refs)
+            self._for_iter_materialize = ("_fp", iter_expr)
+            self._pyast_loop_variant_len = "(Seq.length _fp)"
+            return "(Seq.length _fp)", f"(Seq.get _fp !{idx})", False
         if not self._value_semantic:
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
             return f"{iter_expr}_len", f"Map.get !{self._heap_var} ({iter_expr} + !{idx})", False

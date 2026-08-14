@@ -752,7 +752,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # the corpus and every other mirror (a real corpus `self.<field> = <int>` keeps
             # the int `setattr` below).
             if (obj == "self" and self_type
-                    and self._emitting_refine_tuple_return_type()):
+                    and (self._emitting_refine_tuple_return_type()
+                         or self._emitting_build_param_list())):
                 self._add_abstract_op(
                     f"val setattr_{self_type}_poly (x: {self_type}) (f: int) (v: 'a) : unit")
                 code = f"{indent}setattr_{self_type}_poly {obj} {hash_field} {val}"
