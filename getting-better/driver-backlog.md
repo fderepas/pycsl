@@ -2514,3 +2514,17 @@ _refine_tuple_return_type = highest cascade (builds the write cap + func-field->
 _build_method_param_whyml_types_by_name = V1 nested-dict boundary; (6) _parse_mixin_sig string-parse / _emit_function giant =
 boundaries. FUND _refine_tuple_return_type (builds the reusable typed-self-field-WRITE cap as its foundation). Per
 feedback_cost_scale_not_floor: COST/SCALE in a funded window is NOT a stop.
+
+## 2026-08-14 (post-crash) — _refine_tuple_return_type CHECKPOINT (uncommitted 723 facade); WRITE CAP foundation DONE
+DONE (reusable, no rework): gates _uses/_emitting_refine_tuple_return_type; FOUNDATION typed self-field WRITE cap
+(statements.py _handle_fieldassign_stmt: polymorphic effect-free `val setattr_functionemissionmixin_poly (x)(f:int)(v:'a):unit`
+gated _emitting_refine_tuple_return_type, emitted WITHOUT _coerce_to_int -> all 4 self-field writes lower, assigns \nothing holds;
+THE CASCADE CENTERPIECE for the writer class); func-field->string-map projector (expressions.py _refine_func_symmap_reader:
+func.get("symbol_table") -> symbol_table_symmap_of : map string(option string), symbol_table-only); dict()-1-arg map-copy identity.
+Files: preamble/statements/expressions live + functions mirror. REMAINING (blocker functions.mlw:2139): cap1 .items() over
+`func.get("param_annotations") or {}` (KEYSTONE — unwrap `or {}` to pyval-get left; iterate hval_as_map/hval_keys_get; bind
+KEY _k:string + VALUE _ty:string via hstr_of on hval_values_get — a VALUE-string items variant, only key-string
+_collect_items_key_alias_locals exists today); cap2 option-string membership `_st.get(_k) in (None,"Any")` -> match None->true|
+Some s->str_eq_op s "Any"; cap3 subscript-assign `_st[_k]=_ty` -> map_update_some; cap4 list-comp slots=[_infer_tuple_slot_type(...)
+for e in elts] -> array string (verified helper 4th param already map string(option string)); cap5 _names/_s list-comps (.get("name")
+string proj over emit_ir elts + _slot_role.get). Resume fresh worker at cap1.
