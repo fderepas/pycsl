@@ -603,6 +603,9 @@ class TypeInferenceMixin:
         found: Set[str] = set(seed) if seed else set()
         # Map target → source var for transitive propagation
         var_assigns: dict = {}
+        # self-tcb-reduction (union/match cluster): target → (arm1_var, arm2_var) of a
+        # both-arms-Var ternary (`true_branch_stmts = body if … else orelse`).
+        ternary_assigns: dict = {}
         for s in stmts:
             if s.get("stmt") == "Assign":
                 val = s.get("value", {})
@@ -623,7 +626,7 @@ class TypeInferenceMixin:
                         _ga = val.get("args") or []
                         if (_ga and isinstance(_ga[0], dict)
                                 and _ga[0].get("type") == "String"
-                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts", "alternatives")):
+                                and _ga[0].get("value") in ("captures", "args", "body", "orelse", "parts", "elts", "alternatives")):
                             found.add(tgt)
                 # list-comprehension-lowering.md L1: a local first-assigned a list
                 # comprehension is an array local (its element-typed array from
@@ -645,10 +648,20 @@ class TypeInferenceMixin:
                         _ga = _vv.get("args") or []
                         if (_ga and isinstance(_ga[0], dict)
                                 and _ga[0].get("type") == "String"
-                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts", "alternatives")):
+                                and _ga[0].get("value") in ("captures", "args", "body", "orelse", "parts", "elts", "alternatives")):
                             found.add(tgt)
                 elif isinstance(val, dict) and val.get("type") == "Var" and tgt:
                     var_assigns[tgt] = val.get("name", "")
+                # self-tcb-reduction (union/match cluster): `X = A if C else B` where BOTH
+                # arms are array-local Vars (`true_branch_stmts = body if true_is_none else
+                # orelse`) → X is an array local. Recorded for the transitive fixpoint (both
+                # arm vars must be array-classified first). @mutable_state-gated.
+                elif (isinstance(val, dict) and val.get("type") == "IfExpr" and tgt
+                      and getattr(self, "_mutable_state_classes", None)):
+                    _av, _ov = val.get("body", {}), val.get("orelse", {})
+                    if (isinstance(_av, dict) and _av.get("type") == "Var"
+                            and isinstance(_ov, dict) and _ov.get("type") == "Var"):
+                        ternary_assigns[tgt] = (_av.get("name", ""), _ov.get("name", ""))
                 # i-feel-good.md I-E: a local first-assigned a `List`/`tuple` record-field
                 # read (`targets = stmt.targets`) is an array local — the list-local-from-
                 # field form. @mutable_state-gated → byte-identical for the corpus. The
@@ -678,12 +691,17 @@ class TypeInferenceMixin:
             if s.get("stmt") == "Try":
                 for h in s.get("handlers", []):
                     found |= self._collect_array_var_assigns(h.get("body", []))
-        # Transitive propagation: y = x where x is array → y is array
+        # Transitive propagation: y = x where x is array → y is array; and a both-arms-
+        # Var ternary target is array once BOTH arm vars are array-classified.
         changed = True
         while changed:
             changed = False
             for tgt, src in var_assigns.items():
                 if tgt not in found and src in found:
+                    found.add(tgt)
+                    changed = True
+            for tgt, (_a, _o) in ternary_assigns.items():
+                if tgt not in found and _a in found and _o in found:
                     found.add(tgt)
                     changed = True
         return found

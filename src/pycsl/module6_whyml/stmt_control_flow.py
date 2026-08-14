@@ -661,6 +661,29 @@ class ControlFlowStmtMixin:
             return (operand, None, target, False)
         return None
 
+    def _enumerate_seq_recv(self, iter_ir: Dict[str, Any],
+                            tuple_targets: Optional[List[str]]) -> Optional[Tuple[Dict[str, Any], bool]]:
+        """self-tcb-reduction (union/match cluster): recognise `for i, x in
+        enumerate(<seq-string local>)` (`for i, ctor_name in enumerate(other_ctors)`).
+        Return `(seq_ir, elem_is_str)` — the seq-Var IR node and whether its element type
+        is `string` (`_seq_value_types == "string"`) — else None. The loop binds the index
+        `i = !idx` (int) and the element `x = Seq.get !<seq> !idx` (string), with an
+        arithmetic `Seq.length` variant. Gated on `_value_semantic`, a single
+        `enumerate(<Var>)` arg, a 2-tuple target, and the Var being a seq local ->
+        corpus/other-mirror byte-inert."""
+        if not (self._value_semantic and isinstance(iter_ir, dict)
+                and iter_ir.get("type") == "Call" and iter_ir.get("func") == "enumerate"):
+            return None
+        _a = iter_ir.get("args") or []
+        if not (len(_a) == 1 and isinstance(_a[0], dict) and _a[0].get("type") == "Var"
+                and tuple_targets and len(tuple_targets) == 2):
+            return None
+        _nm = _a[0].get("name", "")
+        if _nm not in getattr(self, "_seq_locals", set()):
+            return None
+        _elem_str = getattr(self, "_seq_value_types", {}).get(_nm) == "string"
+        return (_a[0], _elem_str)
+
     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -676,6 +699,8 @@ class ControlFlowStmtMixin:
         tuple_targets = getattr(stmt, "tuple_targets", None)
         str_ci = (self._string_char_iter(iter_ir, target, tuple_targets, local_refs)
                   if self._value_semantic else None)
+        # self-tcb-reduction (union/match cluster): `for i, x in enumerate(<seq local>)`.
+        enum_seq = self._enumerate_seq_recv(iter_ir, tuple_targets)
         # W2: extra loop-bound names (a tuple target binds i AND ch) + typing the
         # char binding as a string so its `== "("` guards route through str_eq_op.
         extra_locals: Set[str] = set()
@@ -685,6 +710,16 @@ class ControlFlowStmtMixin:
             extra_locals = {n for n in (_idx_name, _ch_name) if n and n != "_"}
             saved_str_locals = getattr(self, "_string_local_vars", set())
             self._string_local_vars = set(saved_str_locals) | {_ch_name}
+        elif enum_seq is not None:
+            # enumerate(<seq>) binds the index i (int) and the element x. Both tuple
+            # targets are in scope for the body; a string-element seq types x as string.
+            _en_extra = {t for t in (tuple_targets or []) if t and t != "_"}
+            extra_locals = _en_extra
+            if enum_seq[1]:   # string-element seq -> the element target is a string local
+                saved_str_locals = getattr(self, "_string_local_vars", set())
+                _en_elem = tuple_targets[1] if tuple_targets and len(tuple_targets) == 2 else None
+                self._string_local_vars = set(saved_str_locals) | (
+                    {_en_elem} if _en_elem and _en_elem != "_" else set())
 
         body_local = local_refs | {target} | extra_locals
         body_declared = declared_refs.copy() | {target} | extra_locals
@@ -809,6 +844,20 @@ class ControlFlowStmtMixin:
             if _st is not None:
                 _saved_pyval_key_symtype = _st.get(_items_key_target, _MISSING)
                 _st[_items_key_target] = "str"
+        # self-tcb-reduction (union/match cluster): the ELEMENT target of a string-element
+        # `enumerate(<seq>)` loop (`ctor_name` in `for i, ctor_name in enumerate(other_ctors)`)
+        # is a real `string` (`Seq.get`), so register its symbol type "str" for the body's
+        # duration — the body's `f"{ctor_name} {bind}"` / `"None" in ctor_name` then lower via
+        # the faithful string ops, not `int_to_string`/`contains_check`.
+        _saved_enum_elem_symtype = _MISSING
+        _enum_elem_target = (tuple_targets[1]
+                             if (enum_seq is not None and enum_seq[1] and tuple_targets
+                                 and len(tuple_targets) == 2) else None)
+        if _enum_elem_target and _enum_elem_target != "_":
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_enum_elem_symtype = _st.get(_enum_elem_target, _MISSING)
+                _st[_enum_elem_target] = "str"
         if _is_classbody:
             self._pyast_stmt_locals.add(target)
             _st = getattr(self, "_current_symbol_table", None)
@@ -884,6 +933,13 @@ class ControlFlowStmtMixin:
                     _st.pop(_items_key_target, None)
                 else:
                     _st[_items_key_target] = _saved_pyval_key_symtype
+        if _enum_elem_target and _enum_elem_target != "_":
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                if _saved_enum_elem_symtype is _MISSING:
+                    _st.pop(_enum_elem_target, None)
+                else:
+                    _st[_enum_elem_target] = _saved_enum_elem_symtype
         if _is_zip_irlists and _saved_zip_symtypes:
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
@@ -908,6 +964,21 @@ class ControlFlowStmtMixin:
                 "val str_length_op (s: string) : int\n"
                 "    ensures { result = (String.length s) }")
             len_expr, elem_expr, is_range = f"(str_length_op {str_ci[0]})", None, False
+        elif enum_seq is not None:
+            # self-tcb-reduction (union/match cluster): `for i, x in enumerate(<seq>)` — the
+            # bound is `Seq.length !seq`; the counter runs 0..len, the index i = !idx and the
+            # element x = `Seq.get !seq !idx` (bound in `_bind_lines`). Bypasses
+            # `_classify_iterable` (enumerate is not a length iterable there). The
+            # @mutable_state arithmetic `Seq.length - !idx` variant (below) discharges
+            # termination — a pure LOGIC term, legal in a `variant`.
+            self._for_idx_init = "0"
+            # reset the OUTER loop's structural variant (this loop bypasses
+            # `_classify_iterable`, which is where it is normally cleared) so the
+            # @mutable_state arithmetic `Seq.length - !idx` variant fires instead of a
+            # stale `hval_values_len` term.
+            self._pyast_loop_variant_len = None
+            _enw = self._expr_to_whyml(enum_seq[0], local_refs)
+            len_expr, elem_expr, is_range = f"(Seq.length {_enw})", None, False
         else:
             len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
 
@@ -991,6 +1062,19 @@ class ControlFlowStmtMixin:
                     lines.append(f"{bind_indent}let {whyml_ident(_ch_name)} = "
                                  f"ref (str_sub_op {_op} !{idx} 1) in")
                 return lines
+            # self-tcb-reduction (union/match cluster): `for i, x in enumerate(<seq>)` binds
+            # the index i = ref !idx (int) and the element x = ref (Seq.get !seq !idx) (the
+            # seq's element type). Gated on `enum_seq` -> corpus/other-mirror inert.
+            if enum_seq is not None:
+                _enw = self._expr_to_whyml(enum_seq[0], body_local)
+                _it, _et = tuple_targets[0], tuple_targets[1]
+                _elines: List[str] = []
+                if _it and _it != "_":
+                    _elines.append(f"{bind_indent}let {whyml_ident(_it)} = ref !{idx} in")
+                if _et and _et != "_":
+                    _elines.append(f"{bind_indent}let {whyml_ident(_et)} = "
+                                   f"ref (Seq.get {_enw} !{idx}) in")
+                return _elines
             # self-tcb-reduction _namedtuple_positional_access: an hval `.items()` loop
             # binds BOTH tuple components — the KEY (an arbitrary `string`, `hval_keys_get`,
             # IMMUTABLE) and the VALUE (a real `hval`, `elem_expr` = `hval_values_get`,
@@ -2070,6 +2154,15 @@ class ControlFlowStmtMixin:
                 # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
                 # return raises `Return_str <string>` (caught by the `with Return_str r -> r`
                 # arm). `val` is already the lowered string expression — no int coercion.
+                # self-tcb-reduction (union/match cluster): a `return None` in a `string`-
+                # returning function (the sentinel `_try_union_is_none_match` uses to signal
+                # "pattern does not apply") lowers to the empty string `Return_str ""` — the
+                # None-singleton `0` (an int) type-clashes with the `string` payload. Byte-
+                # inert: a corpus `-> str` function that `return None` would already FAIL
+                # L3-tc on the old `Return_str 0`, so none exists in the passing corpus.
+                if val_ir is None or (isinstance(val_ir, dict)
+                                      and val_ir.get("type") == "None"):
+                    return f'{indent}raise (Return_str "")'
                 return f"{indent}raise (Return_str {val})"
             if func_ret == "emit_ir":
                 # Return_emit_ir infra: an emit_ir-returning function's early/in-loop

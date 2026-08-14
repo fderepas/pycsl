@@ -5465,6 +5465,23 @@ class PreambleEmissionMixin:
             " an `array int` (stmt-lists stay int-opaque, feeding `_stmts_to_whyml`), distinct"
             " from `args_of`'s reflected `array emit_ir`. *)",
             "  val stmts_of (e: emit_ir) : array int",
+            # self-tcb-reduction _try_union_is_none_match: gated on `_uses_stmt_if_test`
+            # (name-gated on the sole If-stmt-test reader) so these two opaque `val`s emit
+            # ONLY into that file's theory — corpus + every other mirror stays byte-identical.
+            *(["  (* self-tcb-reduction (union/match cluster): the TEST sub-node of an If-statement-"
+            " shaped reflected node (`stmt.get(\"test\")` in `_try_union_is_none_match`). An"
+            " If STATEMENT is not an emit_ir EXPRESSION constructor, so its test is projected"
+            " by an OPAQUE `val` returning `emit_ir` (like `stmts_of`/`args_of` — the ADT"
+            " carries no If-stmt ctor, so the sub-node content is unmodelled). A subsequent"
+            " `test.get(\"op\"/\"left\"/\"right\")` reflects over this abstract emit_ir via the"
+            " total op_of/left_of/right_of projectors (\"\" / IrOther for a non-BinOp). *)",
+            "  val test_of (e: emit_ir) : emit_ir",
+            "  (* self-tcb-reduction (union/match cluster): the ELSE statement-list of an"
+            " If-statement-shaped node (`stmt.get(\"orelse\", [])`). A DISTINCT opaque `val`"
+            " from `stmts_of` (the then-branch) so `body = stmts_of stmt` and `orelse ="
+            " orelse_stmts_of stmt` get SEPARATE Why3 regions — two `stmts_of stmt` calls"
+            " would alias the one result region and Why3 forbids using both. *)",
+            "  val orelse_stmts_of (e: emit_ir) : array int"] if self._uses_stmt_if_test() else []),
             "",
             "  let function svalue_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub v _ -> v | _ -> IrOther \"\" end",
@@ -6543,6 +6560,21 @@ class PreambleEmissionMixin:
             str(fn.get("name", "")).endswith("_typeddict_record_literal")
             for fn in self.ir.get("functions", []) or [])
         self._uses_dictlit_cache = result
+        return result
+
+    def _uses_stmt_if_test(self) -> bool:
+        """self-tcb-reduction _try_union_is_none_match: True iff this file defines
+        `_try_union_is_none_match` — the sole reader of an If-STATEMENT's `test`/`orelse`
+        sub-nodes off a reflected emit_ir node. Gates the opaque `test_of`/`orelse_stmts_of`
+        `val`s into that file's emit_ir theory only. No corpus program defines a function by
+        that name, so every corpus file's theory stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_stmt_if_test_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_try_union_is_none_match")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_stmt_if_test_cache = result
         return result
 
     def _uses_call_kw(self) -> bool:

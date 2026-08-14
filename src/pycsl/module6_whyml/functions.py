@@ -636,6 +636,15 @@ class FunctionEmissionMixin:
                             return True
                     if sv.get("type") == "Var" and sv.get("name") in pyval:
                         return True
+                    # self-tcb-reduction (union/match cluster): a NESTED subscript
+                    # `vinfo["constructors"][ctor]` — the base `vinfo["constructors"]` is a
+                    # subscript on a `vmap`/pyval hval-map local (`vinfo`), so it reads an
+                    # `hval`, and the outer subscript reads the value `hval` (cap ii).
+                    if sv.get("type") == "Subscript":
+                        _ssv = sv.get("value")
+                        if (isinstance(_ssv, dict) and _ssv.get("type") == "Var"
+                                and (_ssv.get("name") in vmap or _ssv.get("name") in pyval)):
+                            return True
                 return False
             # alias of a pyval local.
             if vt == "Var":

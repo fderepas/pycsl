@@ -40,6 +40,14 @@ class ControlFlowStmtMixin:
     # corpus + every other mirror byte-identical. Live: Module6_WhyMLTranspiler.__init__.
     _current_symbol_table: Dict[str, str] = None
     _variant_types: Dict[str, Dict[str, PyVal]] = None
+    # self-tcb-reduction Tier-5 (union/match cluster): the set of MUTABLE Optional
+    # locals (`x: Optional[τ] = None` → a `ref _union_*`), consulted by
+    # `_try_union_is_none_match` (`var_name in self._optional_union_locals`) to skip
+    # the value-narrowing match for a reassignable ref. A native `Set[str]` →
+    # `map string (option ...)` so membership is a faithful RAW-string-key map read,
+    # NOT the int-hashed `contains_check` facade. Live: Module6_WhyMLTranspiler /
+    # statements.py `self._optional_union_locals = _union_locals`.
+    _optional_union_locals: Set[str] = None
     # SOUNDNESS (frame audit): `_in_spec` is WRITTEN by the ported bodies
     # (`self._in_spec = True/False` around the invariant/variant emission in
     # `_handle_while_stmt` / `_handle_for_stmt`) but was undeclared, so no `assigns`
@@ -503,14 +511,145 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
+    # `self._in_spec`, so this caller's `\nothing` was false too.
+    #@ assigns self._in_spec
     def _try_union_is_none_match(self, stmt: "ExprIR", rest: List[Dict[str, Any]],
                                  local_refs: Set[str], declared_refs: Set[str],
                                  indent: str, in_loop: bool) -> str:
-        return ""
+        """typing-engagement ty1 C5 — detect `if x is None:` / `if x is not None:`
+        where `x` is a Union-typed variable, and lower to a constructor-pattern
+        `match` (Why3 forbids `=` on algebraic types in a program `if`). Returns
+        the match code string, or None if the pattern does not apply (caller falls
+        back to the normal `if` lowering)."""
+        test = stmt.get("test", {})
+        if not isinstance(test, dict) or test.get("type") != "BinOp":
+            return None
+        op = test.get("op")
+        if op not in ("==", "!="):
+            return None
+        left, right = test.get("left", {}), test.get("right", {})
+        var_node = None
+        is_none = False
+        if left.get("type") == "None" and right.get("type") == "Var":
+            var_node = right
+            is_none = True
+        elif right.get("type") == "None" and left.get("type") == "Var":
+            var_node = left
+            is_none = True
+        if not is_none or not var_node:
+            return None
+        var_name = var_node.get("name")
+        symtype = getattr(self, "_current_symbol_table", {}).get(var_name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        # tool-feature-5: a MUTABLE Optional local (`x: Optional[τ] = None`) is a
+        # `ref _union_*`. The value-narrowing match here (which SHADOWS `x` with the
+        # projected carrier) is for immutable union PARAMS — it is both ill-typed
+        # (`match x` vs the ref `match !x`) and unsound (narrowing a reassignable ref)
+        # for a mutable local. Fall through to the ordinary `if` lowering, whose test
+        # lowers to the match-boolean discriminant `(match !x with Arm_i_None -> true |
+        # _ -> false)` (expressions.py) with `x` staying a ref in both branches.
+        if var_name in getattr(self, "_optional_union_locals", set()):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        none_ctor = None
+        other_ctors = []
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            if ctor.get("arity") == 0 and "None" in ctor_name:
+                none_ctor = ctor_name
+            else:
+                other_ctors.append(ctor_name)
+        if none_ctor is None:
+            return None
+        body = stmt.get("body", []) or []
+        orelse = stmt.get("orelse", []) or []
+        body_str = self._stmts_to_whyml(body, local_refs, declared_refs.copy(),
+                                        indent + "    ", in_loop)
+        if not body_str.strip():
+            body_str = f"{indent}    ()"
+        orelse_str = self._stmts_to_whyml(orelse, local_refs, declared_refs.copy(),
+                                          indent + "    ", in_loop) if orelse else ""
+        if not orelse_str.strip():
+            orelse_str = f"{indent}    ()"
+        var_safe = whyml_ident(var_name)
+        if op == "==":
+            true_body, false_body = body_str, orelse_str
+            true_is_none = True   # `if x is None:` — True branch is the None arm
+        else:
+            true_body, false_body = orelse_str, body_str
+            true_is_none = False  # `if x is not None:` — True branch is non-None
+        # C5 (GAP-001): on the False branch of `if x is None:` the variable
+        # `x` narrows from `Union[A, None]` to the non-None arm's carrier type
+        # `A`. Why3 has no path-condition narrowing, so we lower the False
+        # branch as a constructor match that binds the carrier value and
+        # SHADOWS `x` with it: `| Arm_0_0 v -> let x = v in <false_body> end`.
+        # The match has exactly one arm per non-None constructor (no wildcard)
+        # so Why3's exhaustiveness check confirms the narrowing is total.
+        #
+        # `rest` handling: when the True branch returns (so `rest` is
+        # unreachable there), `rest` is inlined into the FALSE arm(s) so the
+        # narrowed `x` is in scope. When the True branch does not return,
+        # `rest` runs on both branches and is appended after the match.
+        true_branch_stmts = body if true_is_none else orelse
+        true_returns = bool(true_branch_stmts) and IRScanner.ends_with_return(
+            true_branch_stmts)
+        # Build the None arm.
+        none_arm = f"{indent}  | {none_ctor} ->\n{true_body}"
+        # Build the non-None arms (with carrier projection).
+        non_none_arms: List[str] = []
+        for i, ctor_name in enumerate(other_ctors):
+            ctor_info = vinfo["constructors"][ctor_name]
+            ctor_payload = ctor_info.get("payload", [])
+            # The bound carrier variable. Reuse the original variable name
+            # so a downstream `return x` resolves to the projected carrier.
+            bind = var_safe if len(other_ctors) == 1 else f"{var_safe}_{i}"
+            arm_pat = f"{ctor_name} {bind}" if ctor_payload else ctor_name
+            # Project `x` to the carrier on EVERY non-None arm so `x` is
+            # narrowed to `A` (C5). `let x = bind in <false_body>`.
+            if ctor_payload:
+                non_none_arms.append(
+                    f"{indent}  | {arm_pat} ->\n"
+                    f"{indent}    let {var_safe} = {bind} in\n"
+                    f"{false_body}")
+            else:
+                non_none_arms.append(f"{indent}  | {arm_pat} ->\n{false_body}")
+        # Decide where `rest` goes.
+        if true_returns and rest:
+            rest_str = self._stmts_to_whyml(
+                rest, local_refs, declared_refs,
+                indent + "    ", in_loop)
+            if true_is_none:
+                # `==`: True (None) returns → `rest` runs on the False
+                # (non-None) branch. Inline `rest` into the LAST non-None
+                # arm (after the projected body). Earlier non-None arms
+                # must return independently or the match is non-exhaustive.
+                if non_none_arms:
+                    last = non_none_arms[-1]
+                    non_none_arms[-1] = last + f";\n{rest_str}"
+            else:
+                # `!=`: True (non-None) returns → `rest` runs on the False
+                # (None) branch. Inline `rest` into the None arm. `x` is the
+                # variant on this arm (no projection — it IS None).
+                none_arm = f"{indent}  | {none_ctor} ->\n{true_body};\n{rest_str}"
+            arms = [none_arm] + non_none_arms
+            code = (f"{indent}match {var_safe} with\n" + "\n".join(arms) +
+                    f"\n{indent}  end")
+            return code
+        # True branch does not return (or no rest): `rest` runs on both
+        # branches — append after the match. The non-None arms still project
+        # `x` to the carrier for the False-branch body.
+        arms = [none_arm] + non_none_arms
+        code = (f"{indent}match {var_safe} with\n" + "\n".join(arms) +
+                f"\n{indent}  end")
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs,
+                                                indent, in_loop)
+        return code
 
     #@ requires True
     #@ ensures True
@@ -1034,6 +1173,15 @@ class ControlFlowStmtMixin:
                 # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
                 # return raises `Return_str <string>` (caught by the `with Return_str r -> r`
                 # arm). `val` is already the lowered string expression — no int coercion.
+                # self-tcb-reduction (union/match cluster): a `return None` in a `string`-
+                # returning function (the sentinel `_try_union_is_none_match` uses to signal
+                # "pattern does not apply") lowers to the empty string `Return_str ""` — the
+                # None-singleton `0` (an int) type-clashes with the `string` payload. Byte-
+                # inert: a corpus `-> str` function that `return None` would already FAIL
+                # L3-tc on the old `Return_str 0`, so none exists in the passing corpus.
+                if val_ir is None or (isinstance(val_ir, dict)
+                                      and val_ir.get("type") == "None"):
+                    return f'{indent}raise (Return_str "")'
                 return f"{indent}raise (Return_str {val})"
             if func_ret == "emit_ir":
                 # Return_emit_ir infra: an emit_ir-returning function's early/in-loop

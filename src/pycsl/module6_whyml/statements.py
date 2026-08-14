@@ -1124,6 +1124,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     var_name in getattr(self, "_array_locals", set()) or
                     var_name in getattr(self, "_inline_array_temps", set()) or
                     var_name in getattr(self, "_current_array1d_params", set()))
+                # self-tcb-reduction (union/match cluster): a subscript STORE into a
+                # growable SEQ local (`non_none_arms[-1] = last + …`, `non_none_arms` a
+                # `_seq_locals` `seq string`) lowers to `<name> := Seq.set !<name> <idx>
+                # <val>` — the seq is immutable, reassigned through its ref. A negative
+                # LITERAL index `a[-k]` is Python's from-the-end write `a[len-k]`
+                # (`Seq.length !<name> - k`), the WRITE-side twin of the
+                # `_negative_literal_index` READ rewrite. Guard-dominated by the enclosing
+                # `if non_none_arms:`, so the `0 <= idx < length` Seq.set VC discharges.
+                if (not is_dict and var_name
+                        and var_name in getattr(self, "_seq_locals", set())):
+                    safe = whyml_ident(var_name)
+                    _idx_ir = (stmt.index.to_dict()
+                               if hasattr(stmt.index, "to_dict") else stmt.index)
+                    _negk = self._negative_literal_index(_idx_ir)
+                    _sidx = (f"(Seq.length !{safe} - {_negk})"
+                             if _negk is not None else index_expr)
+                    return f"{indent}{safe} := Seq.set !{safe} {_sidx} {val_expr}"
                 if not is_array and not is_dict and var_name:
                     st = getattr(self, "_current_symbol_table", {})
                     if st.get(var_name) == "list":
@@ -2251,7 +2268,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if not (_cef.endswith("_match_subject_union_info")
                 or _cef.endswith("_union_ctor_for_arm_tag")
                 or _cef.endswith("_union_none_ctor_for")
-                or _cef.endswith("_maybe_inject_union_return")):
+                or _cef.endswith("_maybe_inject_union_return")
+                # self-tcb-reduction (union/match cluster): `_try_union_is_none_match`
+                # binds `vinfo = self._variant_types.get(symtype)` (a `map string (option
+                # hval)` local) and consumes it BOTH via `.items()` (the constructor loop)
+                # AND a nested subscript `vinfo["constructors"][ctor_name]` — the same
+                # nested-hval classification the other union readers need.
+                or _cef.endswith("_try_union_is_none_match")):
             return set(), {}
         pyval = getattr(self, "_pyval_locals", set())
         str_locals: Set[str] = set()
@@ -2524,10 +2547,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         and node["value"].get("type") == "Tuple"):
                     _elts = node["value"].get("elts", [])
                     for _i, _tg in enumerate(node.get("targets", [])):
-                        if (_i < len(_elts) and _tg not in seen
-                                and self._is_string_expr(_elts[_i])):
-                            seen.add(_tg)
-                            tuple_str.add(_tg)
+                        if _i < len(_elts) and _tg not in seen:
+                            if self._is_string_expr(_elts[_i]):
+                                seen.add(_tg)
+                                tuple_str.add(_tg)
+                            # self-tcb-reduction (union/match cluster): an elt that is a
+                            # string LOCAL (`true_body, false_body = body_str, orelse_str`)
+                            # may not yet be classified at rec-time — feed it through the
+                            # `firsts` fixpoint (its `_is_str_val` reclassifies once the
+                            # source var is known-string), the deferred analogue of the
+                            # immediate literal check above.
+                            elif isinstance(_elts[_i], dict) and _elts[_i].get("type") == "Var":
+                                seen.add(_tg)
+                                firsts.append((_tg, _elts[_i]))
                 # item34.md CF5: a for-loop target over a `string` name-collection (`for part
                 # in raw_parts`, `for tag in candidates`, `for var in sorted_assigned`) is a
                 # string local — so `part.strip()`/`whyml_ident(var)` type-check.
@@ -2828,8 +2860,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if isinstance(n, dict):
                 if n.get("stmt") in ("For", "ForStmt"):
                     _tt = n.get("tuple_targets")
+                    # self-tcb-reduction (union/match cluster): the `.items()` receiver may
+                    # be a self-FIELD (`_hval_items_recv`) OR an hval-valued LOCAL/param
+                    # `.get` (`_hval_items_local_recv`, e.g. `vinfo.get("constructors",{})`
+                    # in `_try_union_is_none_match`). The KEY loop-var is a `string` either
+                    # way (`hval_keys_get`), so a local aliased to it (`none_ctor = ctor_name`)
+                    # is a string local.
                     if (isinstance(_tt, list) and len(_tt) == 2 and _tt[0]
-                            and self._hval_items_recv(n.get("iter", {})) is not None):
+                            and (self._hval_items_recv(n.get("iter", {})) is not None
+                                 or self._hval_items_local_recv(n.get("iter", {})) is not None)):
                         key_vars.add(_tt[0])
                 for x in n.values():
                     find_keys(x)
@@ -2854,6 +2893,39 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 for x in n:
                     find_assigns(x)
         find_assigns(body_stmts)
+        # self-tcb-reduction (union/match cluster): include the KEY loop-var itself
+        # (`ctor_name`), not just its aliases — it is a real `string` (`hval_keys_get`), so
+        # marking it string at prescan lets `_mark_string_seq_locals` see an append source
+        # `other_ctors.append(ctor_name)` as string (-> `other_ctors : seq string`).
+        return (out | key_vars) - set(self._formal_params)
+
+    def _collect_enum_str_elem_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction (union/match cluster): the ELEMENT loop-var of a
+        `for i, x in enumerate(<seq-string local>)` loop (`ctor_name` in
+        `for i, ctor_name in enumerate(other_ctors)`) is a real `string` (`Seq.get`).
+        Return that set so the loop var is marked string at prescan (its `f"{x} ..."` /
+        `"None" in x` reads then lower via the faithful string ops). Requires
+        `_seq_value_types[<seq>]=="string"` (`_mark_string_seq_locals` run first). Gated on
+        `_value_semantic` + an `enumerate(<Var>)` iter with a 2-tuple target -> byte-inert."""
+        if not self._value_semantic:
+            return set()
+        out: Set[str] = set()
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") in ("For", "ForStmt"):
+                    _tt = n.get("tuple_targets")
+                    if self._enumerate_seq_recv(n.get("iter", {}), _tt) is not None:
+                        _es = self._enumerate_seq_recv(n.get("iter", {}), _tt)
+                        if _es[1] and isinstance(_tt, list) and len(_tt) == 2 and _tt[1]:
+                            out.add(_tt[1])
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+
+        rec(body_stmts)
         return out - set(self._formal_params)
 
     def _collect_tparam_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
@@ -3262,6 +3334,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         and self._mktuple_elts_recv_ir(node.get("value")) is not None):
                     for _tg in node.get("targets", []):
                         tuple_emit.add(_tg)
+                # self-tcb-reduction (union/match cluster): a tuple-unpack from a TUPLE
+                # LITERAL (`left, right = test.get("left", {}), test.get("right", {})`) —
+                # each target whose element is an emit_ir projection is an emit_ir local.
+                # Fed through `firsts` (not `tuple_emit`) so the fixpoint classifies it
+                # AFTER the receiver (`test`) is itself flagged emit_ir — the element
+                # `test.get("left")` is only recognized once `test` is typed ExprIR. The
+                # emit_ir twin of `_collect_string_result_locals`' Tuple-literal branch.
+                if (node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Tuple"):
+                    _uelts = node["value"].get("elts", [])
+                    for _i, _tg in enumerate(node.get("targets", [])):
+                        if _i < len(_uelts) and _tg not in seen:
+                            seen.add(_tg)
+                            firsts.append((_tg, _uelts[_i]))
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
@@ -3401,6 +3488,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         base = v.get("value", {})
                         if (isinstance(base, dict) and base.get("type") == "Var"
                                 and dvt.get(base.get("name")) == "hval"):
+                            out.add(node["target"])
+                        # self-tcb-reduction (union/match cluster): a NESTED hval subscript
+                        # (`ctor_info = vinfo["constructors"][ctor_name]`) — the base is
+                        # itself an hval-producing subscript (`_expr_is_pyval`), so the
+                        # target is an `hval` local (cap ii). The nested twin of `v = d[k]`.
+                        elif (isinstance(base, dict) and base.get("type") == "Subscript"
+                              and self._expr_is_pyval(base)):
                             out.add(node["target"])
                 for x in node.values():
                     rec(x)
@@ -3591,6 +3685,31 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # on, so the variable type and the assigned value stay consistent in
         # every context (annotated `_dir_lookup` AND un-annotated `listdir`).
         string_vars |= self._collect_field_decode_str_locals(body_stmts)
+        # self-tcb-reduction (union/match cluster): the loop-var string chain
+        # (items-key `ctor_name` -> `other_ctors : seq string` -> enumerate element
+        # `ctor_name`) must be classified BEFORE `_collect_str_call_result_locals` so its
+        # fixpoint sees `ctor_name` as string when typing `arm_pat = f"{ctor_name} {bind}"
+        # if ctor_payload else ctor_name` (a `_is_string_expr`-gated ternary). (1) register
+        # the nested-map local `vinfo` as hval (needed by `_hval_items_local_recv`); (2)
+        # mark items-keys string; (3) mark string seqs; (4) mark enumerate elements string.
+        _uh_str0, _uh_map0 = self._collect_union_hval_locals(body_stmts)
+        self._hvalmap_local_vars = _uh_map0
+        if _uh_map0:
+            if getattr(self, "_dict_value_types", None) is None:
+                self._dict_value_types = {}
+            if getattr(self, "_dict_key_types", None) is None:
+                self._dict_key_types = {}
+            if getattr(self, "_dict_locals", None) is None:
+                self._dict_locals = set()
+            for _mv in _uh_map0:
+                self._dict_value_types.setdefault(_mv, "hval")
+                self._dict_key_types.setdefault(_mv, "string")
+                self._dict_locals.add(_mv)
+        string_vars |= self._collect_items_key_alias_locals(body_stmts)
+        self._string_local_vars = string_vars   # so _mark_string_seq_locals sees items-keys
+        self._mark_string_seq_locals(body_stmts)
+        string_vars |= self._collect_enum_str_elem_locals(body_stmts)
+        self._string_local_vars = string_vars   # so _collect_str_call_result_locals sees them
         # no-more-int emitter L2: locals bound from a `string`-returning call.
         string_vars |= self._collect_str_call_result_locals(body_stmts)
         # self-tcb-reduction _infer_tuple_slot_type (cap-b): locals bound from a
@@ -3611,46 +3730,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # self-tcb-reduction _typeddict_record_literal (cap-1): a local from a
         # `getattr(self, "<modeled-field>", "<str>")` read of a self string-field.
         string_vars |= self._collect_getattr_self_str_locals(body_stmts)
-        # self-tcb-reduction _typeddict_record_literal (cap-1b): a local aliased to the
-        # KEY loop-var of a `for k, v in <hval-field>.items()` loop (`rec_name = name`).
-        string_vars |= self._collect_items_key_alias_locals(body_stmts)
-        # A reassigned formal string PARAM (`s = s.strip()`) is NOT a fresh typed
-        # local: it must follow the int-param entry-shadow path (`let s = ref s in`
-        # + `s := …`), never a let-bind at first assign (which would deref `!s`
-        # before the ref exists). The str-method collectors above re-added params
-        # that the `string_vars` comprehension above (`name not in _formal_params`)
-        # deliberately excluded; restore that exclusion so the param reaches
-        # `pre_decl_vars` and is shadowed at function entry.
+        # union/match cluster: `var_name = subj.get("name")` string-scalar leaf. (The
+        # nested-map hval registration + items-key + enum-element string classification is
+        # done EARLIER — before `_collect_str_call_result_locals` — see above.)
+        string_vars |= _uh_str0
+        # A reassigned formal string PARAM (`s = s.strip()`) is NOT a fresh typed local:
+        # it must follow the int-param entry-shadow path; restore the `_formal_params`
+        # exclusion the str-method collectors re-added.
         string_vars -= set(self._formal_params)
-        # self-tcb-reduction Tier-5 (union/match cluster): a local bound from a
-        # `<pyval>.get("type"|"name")` string-scalar read (`var_name = subj.get("name")`)
-        # is a `string` local (pre-decl `ref ""`, RHS projected via `hstr_of`). Scoped to
-        # the two nested-hval union readers -> corpus/other-mirror byte-inert.
-        _uh_str, _uh_map = self._collect_union_hval_locals(body_stmts)
-        string_vars |= _uh_str
         self._string_local_vars = string_vars
-        # union/match cluster: nested-map locals (`vinfo = self._variant_types.get(symtype)`)
-        # carry the inner `map string (option hval)` type — pre-declared `ref (const (None:
-        # option hval))`, excluded from the int `ref 0` and the pyval `let`-bind.
-        self._hvalmap_local_vars = _uh_map
-        # union/match cluster sub-increment 2: a nested-map LOCAL that is itself
-        # `.get`/`.items()`-projected (`vinfo.get("constructors", {}).items()` in
-        # `_union_none_ctor_for`) needs its codomain registered so `_expr_is_pyval`
-        # + the `.get`/`.items()`-over-hval-local recognizers fire — the LOCAL twin of
-        # the `Dict[str, PyVal]` PARAM path (`_union_ctor_for_arm_tag`'s `vinfo`). Scoped
-        # to the map locals `_collect_union_hval_locals` returns (only the union readers);
-        # `setdefault` never overrides an existing typing -> corpus/other-mirror byte-inert.
-        if _uh_map:
-            if getattr(self, "_dict_value_types", None) is None:
-                self._dict_value_types = {}
-            if getattr(self, "_dict_key_types", None) is None:
-                self._dict_key_types = {}
-            if getattr(self, "_dict_locals", None) is None:
-                self._dict_locals = set()
-            for _mv in _uh_map:
-                self._dict_value_types.setdefault(_mv, "hval")
-                self._dict_key_types.setdefault(_mv, "string")
-                self._dict_locals.add(_mv)
         # union/match cluster: a string-classified leaf (`var_name`) must NOT ALSO be a
         # pyval local (which would double-declare it `let`-bound AND `ref ""`); string
         # classification wins. Likewise a nested-map local is a map, not a pyval hval.
@@ -3688,6 +3776,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # are hval-typed refs (let-bound at first assign, not `ref 0`). Byte-inert.
         pyval_read_vars = self._collect_pyval_read_locals(body_stmts) - set(self._formal_params)
         self._pyval_local_vars = pyval_read_vars
+        # self-tcb-reduction (union/match cluster): an hval local bound from a subscript
+        # read (`ctor_info = vinfo["constructors"][ctor_name]`) is also a `_pyval_locals`
+        # member so `_expr_is_pyval` fires on it and `ctor_info.get("payload", [])` lowers
+        # via `pairs_get` (not the int-erased `ctor_info_get_arr` facade). Byte-inert
+        # (only a `Dict[str, PyVal]`-fed hval read, absent from the corpus, reaches here).
+        if pyval_read_vars:
+            if getattr(self, "_pyval_locals", None) is None:
+                self._pyval_locals = set()
+            self._pyval_locals |= pyval_read_vars
         # 7a (self-tcb-reduction L4b): a tparam_list-alias local is never a real value (its
         # assignment emits nothing; iteration resolves to `type_params_of node`) — exclude
         # it from the `ref 0` pre-declaration so no dead `let tparams = ref 0` is emitted.
@@ -3981,6 +4078,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if litkeys:
                 self._opaque_selfmap_aliases[local] = fld.lstrip("_")
         for local, fld, key_ir in inner_assigns:
+            # self-tcb-reduction (union/match cluster): a local bound from a self-field
+            # `.get` whose field carries a faithful nested `map ...` value type
+            # (`vinfo = self._variant_types.get(symtype)`, `_variant_types : map string
+            # (option (map string (option hval)))`) has a FAITHFUL hval-map model (cap Y,
+            # `_collect_union_hval_locals`) — do NOT register it as an opaque-selfmap inner
+            # alias, whose int-hashed `<base>_mem`/`<base>_<lit>` facade would preempt the
+            # faithful `hval_as_map`/`pairs_get` path (and its `<base>_mem` reads the outer
+            # key WITHOUT dereferencing the `symtype` ref — a `ref string` vs `string`
+            # type error). Byte-inert: only a nested-`map`-typed field reaches this guard.
+            _nu = self._self_field_dict_nu(f"self.{fld}")
+            if isinstance(_nu, str) and _nu.startswith("map "):
+                continue
             litkeys: Set[str] = set()
             self._inner_alias_str_reads(body_stmts, local, litkeys)
             if litkeys:

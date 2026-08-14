@@ -103,6 +103,11 @@ _EMIT_IR_PROJ = {
     # node-list family on the same footing as `captures` — reflected `array emit_ir`,
     # no theory change. Reference lock: corpus 0893 (positive) / 0894 (negative twin).
     "alternatives": "args_of",
+    # self-tcb-reduction (union/match cluster): the If-statement TEST sub-node
+    # (`stmt.get("test", {})` in `_try_union_is_none_match`) → the opaque `test_of`
+    # projector (emit_ir → emit_ir; see preamble.py). Byte-inert: no corpus program
+    # nor other mirror reflects `.get("test")` on an emit_ir node.
+    "test": "test_of",
     "body": "stmts_of", "guard": "svalue_of", "parts": "args_of", "elts": "args_of",
     "lower": "svalue_of", "upper": "svalue_of",   # 07-03-refactor R4: SliceExpr bound sub-nodes
     # tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections — `op` is the operator
@@ -125,7 +130,11 @@ _EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard", "left", "r
                       # / `.get("slice")` flow-types as emit_ir (the recognizer twin). Both are
                       # NEW keys read by 0 corpus programs and 0 other mirror handlers, so the
                       # flow-typing is byte-inert everywhere except the receiver recognizer.
-                      "receiver", "slice")   # via subscript → node
+                      # self-tcb-reduction (union/match cluster): the If-statement TEST
+                      # sub-node — `test = stmt.get("test", {})` flow-types `test` as
+                      # emit_ir so `test.get("op"/"left"/"right")` reflects (op_of/left_of/
+                      # right_of). Read by 0 corpus programs / 0 other mirror handlers.
+                      "receiver", "slice", "test")   # via subscript → node
 # self-tcb-reduction T1.a: STRING-valued attribute reads on a base-`ExprIR` emit_ir node
 # (`node.kind`/`node.var`/`node.op`/…, where the handler annotates `node: "ExprIR"` but accesses a
 # concrete subclass's str field) → the discriminant/name projection. Non-listed attrs fall to the
@@ -556,7 +565,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # self-ir-schema.md IR4 / list-comp: a comprehension-bound array local
                     # (`shared_for_mutex`) is truthy iff non-empty — recognized via the
                     # element-type map (@mutable_state; empty for the corpus).
-                    or name in getattr(self, "_array_elem_types", {})):
+                    or name in getattr(self, "_array_elem_types", {})
+                    # self-tcb-reduction (union/match cluster): an inline `array int` temp
+                    # (`orelse = stmt.get("orelse", []) or []`, from `_collect_array_var_
+                    # assigns`) is truthy iff non-empty — `if orelse:` before the else-arm
+                    # `_stmts_to_whyml`. Keyed on the SAME set that let-binds it `array int`.
+                    or name in getattr(self, "_inline_array_temps", set())):
                 return f"(Array.length {whyml_str} <> 0)"
             # typed-ir-for-b-ceiling.md §13: a STRING var (`rest_code = self._stmts_
             # to_whyml(...)`) is truthy iff non-empty — `String.length s <> 0`, the
@@ -3745,6 +3759,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _ar = self._recognize_attr_receiver_idiom(expr, local_refs, invariant_ctx, subst)
             if _ar is not None:
                 return _ar
+            # self-tcb-reduction (union/match cluster): `<emit_ir>.get("body"/"orelse", [])
+            # or []` (`body = stmt.get("body", []) or []` in `_try_union_is_none_match`) — the
+            # left projects the statement-list (`stmts_of`, an `array int` fed to
+            # `_stmts_to_whyml`), and the right is the empty-list fallback. For a present
+            # projected array the `or []` is a no-op; return the array so `body`/`orelse`
+            # stay `array int`, NOT the int-truthiness collapse (`if <arr> <> 0 || … then 1
+            # else 0`, an `array`-vs-`int` type error). Gated on a `.get(<stmt-list-key>)`
+            # left + empty-list right -> corpus/other-mirror byte-inert.
+            _lor, _ror = expr.get("left"), expr.get("right")
+            if (isinstance(_ror, dict)
+                    and _ror.get("type") in ("ArrayLit", "List", "ListLit", "MkList")
+                    and not _ror.get("elts")
+                    and isinstance(_lor, dict) and _lor.get("type") == "Call"
+                    and isinstance(_lor.get("func"), str) and _lor["func"].endswith(".get")):
+                _lga = _lor.get("args") or []
+                if (_lga and isinstance(_lga[0], dict)
+                        and _lga[0].get("type") == "String"
+                        and _lga[0].get("value") in ("body", "orelse", "captures",
+                                                     "args", "parts", "elts", "alternatives")):
+                    _lw = self._expr_to_whyml(_lor, local_refs, invariant_ctx, subst)
+                    return _lw
         # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): the
         # `_py_stmt_expr` docstring-skip guard `isinstance(v, ast.Constant) and
         # isinstance(v.value, str)` (v an ExprIR child) collapses to `(is_str v)` — the
@@ -6526,6 +6561,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if func_name == "str":
                 self._add_abstract_op("val str_of_int (x: int) : string")
                 return f"(str_of_int {args[0]})"
+            # self-tcb-reduction (union/match cluster): `bool(<array-int local>)`
+            # (`bool(true_branch_stmts)`, `true_branch_stmts = body if … else orelse`) is
+            # Python list-truthiness = non-emptiness, `(if Array.length arr <> 0 then 1 else
+            # 0)` (an int, feeding the `&& (… <> 0)` guard), NOT the `bool_conv (x:int):int`
+            # which type-clashes an array arg. Gated on the arg being a known array-int local.
+            if (func_name == "bool" and isinstance(arg_ir, dict)
+                    and arg_ir.get("type") == "Var"
+                    and (arg_ir.get("name") in getattr(self, "_inline_array_temps", set())
+                         or arg_ir.get("name") in getattr(self, "_array_elem_types", {}))):
+                return f"(if Array.length {args[0]} <> 0 then 1 else 0)"
             wf = whyml_ident(func_name)
             self._add_abstract_op(f"val {wf}_conv (x: int) : int")
             return f"({wf}_conv {args[0]})"
@@ -6987,6 +7032,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _dot = f"{_vo}.{_va}"
                 if _dot is not None and self._self_field_dict_nu(_dot) == "hval":
                     return True
+            # self-tcb-reduction (union/match cluster): a subscript on a `map string
+            # (option hval)` LOCAL (`vinfo["constructors"]`, `vinfo` an hval-map local)
+            # unwraps to an `hval` — so a chained subscript `vinfo["constructors"][ctor]`
+            # is the DOUBLED hval read (cap ii). The local twin of the self-field case.
+            if (isinstance(_v, dict) and _v.get("type") == "Var"
+                    and getattr(self, "_dict_value_types", {}).get(_v.get("name")) == "hval"):
+                return True
         return False
 
     def _recognize_pyval_or_default(self, expr: Dict[str, Any],
@@ -7350,8 +7402,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # orelse_of mini-M1: same "body" disambiguation as the subscript-receiver
                 # site above — an empty-dict `{}` default routes to the IfExpr scalar
                 # `body_of`, everything else keeps the table's `stmts_of`.
+                # self-tcb-reduction (union/match cluster): `orelse` is AMBIGUOUS the same
+                # way `body` is — an IfExpr's scalar else-node (`.get("orelse", {})`, empty-
+                # dict default → `orelse_of`, the table entry) vs an If/For/While STATEMENT's
+                # else STMT-LIST (`.get("orelse", [])`, list default → `stmts_of`, the array-
+                # int stmt-list feeding `_stmts_to_whyml`). Disambiguate by the default-arg
+                # shape, mirroring `body`/`body_of`. `_try_union_is_none_match` reads
+                # `stmt.get("orelse", [])` (list default) → `stmts_of`.
                 _proj = (_scoped_val or (_scoped2 or {}).get(_k2)
                          or ("body_of" if (_k2 == "body" and self._get_default_is_empty_dict(expr))
+                             else "orelse_stmts_of" if (_k2 == "orelse"
+                                                        and not self._get_default_is_empty_dict(expr))
                              else _EMIT_IR_PROJ.get(_k2)))
                 if _proj:
                     _rv = self._expr_to_whyml(_recv_ir, local_refs or set(),
@@ -8379,6 +8440,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return (f"(match {_pv} with HMap m_pvs -> "
                     f"(match pairs_get m_pvs {index} with Some (HStr _s) -> _s "
                     f"| _ -> \"\" end) | _ -> \"\" end)")
+        # self-tcb-reduction (union/match cluster): a subscript whose BASE is itself an
+        # hval-valued expression (`vinfo["constructors"][ctor_name]` — the inner
+        # `vinfo["constructors"]` reads an `hval` HMap off the `map string (option hval)`
+        # local `vinfo`) reads the key off that HMap carrier: `pairs_get (hval_as_map
+        # <base>) <key>` -> the value `hval` (cap ii, the nested double-subscript). Gated
+        # on `_expr_is_pyval(base)` being a Subscript -> corpus/mirror byte-inert.
+        if (isinstance(value, dict) and value.get("type") == "Subscript"
+                and self._expr_is_pyval(value)):
+            _bh = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+            return (f"(match {_bh} with HMap m_pcii -> "
+                    f"(match pairs_get m_pcii {index} with Some v_ -> v_ "
+                    f"| None -> (HMap PNil) end) | _ -> (HMap PNil) end)")
         # §26: `X[k]` where X aliases a self dict-field → `Map.get self.<field> <k>` (the
         # getattr-bound-local read; `known_sizes[var_name]`). Mirrors the field-dict get.
         if isinstance(value, dict) and value.get("type") == "Var":
@@ -8463,6 +8536,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and value.get("name") in getattr(self, "_seq_locals", set())
                 and not self._in_spec):
             base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)  # `!a`
+            # self-tcb-reduction (union/match cluster): a negative LITERAL index `a[-k]`
+            # on a seq local is Python's from-the-end read `a[len-k]` (`Seq.length !a -
+            # k`) — the READ-side twin of the seq-store negative-index rewrite. Emitting
+            # the literal `-k` was both unfaithful and unprovable (a negative Seq.get index
+            # never discharges the bounds VC).
+            _negk = self._negative_literal_index(expr.get("index", {}))
+            if _negk is not None:
+                index = f"(Seq.length {base} - {_negk})"
             return f"(Seq.get {base} {index})"
         # strings-plan Stage 2: s[i] on a str is the 1-char substring String.substring s i 1
         # (Why3 strings have no char type; a character is a length-1 string). Reuses the
@@ -9419,6 +9500,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # coercion. @mutable_state.
         if _ms and self._cf5_arr(_bd) and self._cf5_arr(_od):
             return self._ifexpr_seq_arm(test, _bd, _od, local_refs)
+        # self-tcb-reduction (union/match cluster): a ternary whose BOTH arms are mutable
+        # array-local Vars (`true_branch_stmts = body if c else orelse`, `body`/`orelse`
+        # the `array int` `stmts_of`/`orelse_stmts_of` reads) would ALIAS the two distinct
+        # array regions into the result — Why3 forbids `if c then !a else !b` merging them.
+        # Emit a fresh `Array.copy` of each arm so the result is a NEW region (read-only
+        # downstream: `bool(...)` length + `ends_with_return(...)`). @mutable_state + both-
+        # arm-array gated -> corpus/other-mirror byte-inert.
+        def _is_arr_var(_d: Any) -> bool:
+            return (isinstance(_d, dict) and _d.get("type") == "Var"
+                    and (_d.get("name") in getattr(self, "_inline_array_temps", set())
+                         or _d.get("name") in getattr(self, "_array_elem_types", {})))
+        if _ms and _is_arr_var(_bd) and _is_arr_var(_od):
+            return f"(if {test} then (Array.copy {body}) else (Array.copy {orelse}))"
         body = self._coerce_to_int(body)
         orelse = self._coerce_to_int(orelse)
         return f"(if {test} then {body} else {orelse})"
