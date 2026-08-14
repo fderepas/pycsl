@@ -2502,3 +2502,15 @@ string) (feeds verified _infer_tuple_slot_type's 4th param). = contained multi-t
 projector + dict-copy-on-map = the 2 genuinely-new primitives). CASCADE SPLIT: READ-only FunctionEmissionMixin self-field
 readers = cheap (banked read accessors); WRITERS/CONSTRUCTORS = session-scale. Next: re-drain for cheap READ-ONLY cascade
 follow-ons; else fund _refine multi-turn build or the next documented wall.
+
+## 2026-08-14 (post-crash) — read-only cascade DRAINED (723 floor for read cap); next lever = typed-self-field-WRITE cap via _refine
+Read-only accessor cap's cheap frontier consumed (_compute_return_type + _callable_tag_to_whyml). KEY: many residuals share
+ONE missing reusable primitive = TYPED SELF-FIELD WRITE support (setattr on map/option/string-valued self-fields; _coerce_to_int
+doesn't handle) — cascades to the WRITER class (_refine, _build_param_list, _emit_contracts, _emit_narrowing_vc,
+_render_refinement_goal, _reset_function_state, constructors). Ranked residuals (all session-scale/boundary): (1)
+_refine_tuple_return_type = highest cascade (builds the write cap + func-field->string-map projector + dict-copy-on-map;
+~5-6 caps); (2) _emit_union_arm_vc = contained ~2 caps (pydict .items() tuple-unpack + nested-map accessor) but LOW value;
+(3) self-field WRITERS (need the write cap); (4) constructors/dict-comps (map-construction caps); (5)
+_build_method_param_whyml_types_by_name = V1 nested-dict boundary; (6) _parse_mixin_sig string-parse / _emit_function giant =
+boundaries. FUND _refine_tuple_return_type (builds the reusable typed-self-field-WRITE cap as its foundation). Per
+feedback_cost_scale_not_floor: COST/SCALE in a funded window is NOT a stop.
