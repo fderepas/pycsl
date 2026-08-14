@@ -2261,3 +2261,17 @@ decrease + faithful-extraction proofs, as receiver_of/IrMethodCall). A ctor whos
 IrProj emit_ir int: spike says its `tuple` feeds trusted `_e` (not recursed) + `index` is plain int -> IrCtorPayload
 pattern -> likely NO cert. MUST VERIFY during build (default to co-landing Phase2k if the child IS recursed anywhere).
 ESCALATED (a) IrProj with explicit cert-decision mandate. Ledger stays 3 either way (a cert is axiom-free).
+
+## 2026-08-14 — IrProj = CERTIFIED-BOUNDARY (proof wall, not ctor/cert gap); L3-tc-spike over-ranked it
+IrProj ctor + proj_tuple_of/proj_index_of BUILT clean (L3-tc ✓, non-vacuous, CERT DECISION rigorously = NO cert needed:
+proj_tuple_of's result flows only to trusted _e + non-recursive name_of, never structurally recursed = IrFst/IrCtorPayload
+pattern, ledger 3). BUT whole-body --fun PROOF FAILS on the terminus: `slots[!idx] <- "z_"` needs `0 <= proj_index_of node`,
+FALSE for arbitrary node (IrProj _ (-1)); asserting it = unsound axiom. Root = WhyML Array.set model STRICTER than Python
+(Python negative-index wraps, no IndexError). SAME wall keeps _handle_ctor_payload_expr trusted (`binders[idx]="z_"`).
+CERTIFIED-BOUNDARY: needs a review-gated Python-faithful negative-wrap / bounded-index list-store model (demand-driven),
+NOT a ctor/cert. BANKED (in-report, reusable if boundary crossed): IrProj ctor+projectors (no cert); string-elem array
+index-store fix; string-key opaque-stub param inference. LESSON: the comparative spike RANKED IrProj #1 using --no-proof
+L3-tc, which PASSED while the whole-body proof FAILED (§10.1 type-check != proof) — spikes measuring convertibility MUST
+whole-body-PROVE, not just L3-tc. Frontier now: (a) IrProj/ctor-payload = BOUNDARY (array-store); (b) whyml_string_literal
+= BOUNDARY (byte-op); (c) nested-hval union/match cluster = last clearly-breakable (3 stubs, ~6 hval caps + COUPLED
+_handle_match_stmt re-port, no cert, revert-risk) -> escalating with whole-body-proof gating.
