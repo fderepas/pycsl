@@ -48,7 +48,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _mutable_state_classes: Set[str] = None
     _ambiguous_fields: Set[str] = None
     _getattr_self_dict_aliases: Dict[str, str] = None
-    _variant_types: Dict[str, str] = None
+    # self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): `_variant_types`
+    # (symtype -> variant-metadata sub-dict, a heterogeneous `Dict[str, Any]`) is annotated
+    # `Dict[str, Dict[str, PyVal]]` so the emitter types it as the faithful nested `map string
+    # (option (map string (option hval)))` — thus `_variant_types.get(symtype)` reads a real
+    # `map string (option hval)` vinfo whose `.get("constructors", {}).items()` descends the
+    # actual structure (NOT the int-erased facade). Matches the `stmt_control_flow.py` mirror's
+    # retype of the SAME emitter field. The two already-converted key-membership readers
+    # (`_tag_of_type`, `_handle_var_expr`'s `name in _variant_types`) survive: a `mem` test over
+    # a differently-VALUED map is value-type-agnostic. Emitter-internal, corpus-absent -> the
+    # reference corpus + every other mirror byte-identical. Live: Module6_WhyMLTranspiler.__init__.
+    _variant_types: Dict[str, Dict[str, PyVal]] = None
     _seq_value_types: Dict[str, str] = None
     _array_elem_types: Dict[str, str] = None
     _current_array1d_params: Set[str] = None
@@ -636,11 +646,48 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _tag_of_value(self, x_ir: Dict[str, Any]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _union_none_ctor_for(self, x_ir: int) -> Optional[str]:
+    def _union_none_ctor_for(self, x_ir: Dict[str, PyVal]) -> Optional[str]:
+        """typing-engagement ty1 C5 — if `x_ir` is a Var whose symbol-table type
+        is a synthesized `_union_*` variant that has a nullary `Arm_*_None`
+        constructor, return that constructor name (so `x is None` lowers to a
+        constructor check). Else None (caller falls back to `x = 0`)."""
+        if not isinstance(x_ir, dict):
+            return None
+        # GAP #1c (self-tcb-reduction parser vein): spec-position `\result` on a
+        # union return type. `\result != None` / `\result == None` in an `ensures`
+        # of an `-> Optional[<object>]` method (return lowered to a `_union_*` with
+        # a nullary `Arm_*_None`, e.g. `accept_op`) must lower to the is-None ctor
+        # DISCRIMINANT on `result`, not the `(result <> 0)` int coercion (a
+        # union-vs-int L3-tc error). `_union_none_ctor_for` on a `Var` reads the
+        # symbol table; for `\result` the union type is the CURRENT function's
+        # `_func_return_type` (set in functions.py before the body/spec are
+        # lowered). Same nullary-None-ctor lookup as the Var branch below.
+        if x_ir.get("type") == "Result":
+            frt = getattr(self, "_func_return_type", "")
+            if not isinstance(frt, str) or not frt.startswith("_union_"):
+                return None
+            vinfo = getattr(self, "_variant_types", {}).get(frt)
+            if not vinfo:
+                return None
+            for ctor_name, ctor in vinfo.get("constructors", {}).items():
+                if ctor.get("arity") == 0 and "None" in ctor_name:
+                    return ctor_name
+            return None
+        if x_ir.get("type") != "Var":
+            return None
+        name = x_ir.get("name")
+        symtype = getattr(self, "_current_symbol_table", {}).get(name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            if ctor.get("arity") == 0 and "None" in ctor_name:
+                return ctor_name
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate

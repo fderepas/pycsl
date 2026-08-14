@@ -768,6 +768,19 @@ class ControlFlowStmtMixin:
                 self._pyval_locals = set()
             _saved_pyval_val_member = _items_val_target in self._pyval_locals
             self._pyval_locals.add(_items_val_target)
+        # self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): the KEY target of
+        # a pyval `.items()` loop (`for ctor_name, ctor in ...`) is bound to a real `string`
+        # (`hval_keys_get`), so register its symbol type "str" for the body's duration — the
+        # body's `"None" in ctor_name` then lowers via the faithful `str_contains_op`, not the
+        # opaque int `contains_check`. Restored after the body. Corpus-inert (pyval `.items()`
+        # is emitter-internal only).
+        _saved_pyval_key_symtype = _MISSING
+        _items_key_target = tuple_targets[0] if _is_pyval_items else None
+        if _is_pyval_items and _items_key_target and _items_key_target != "_":
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_pyval_key_symtype = _st.get(_items_key_target, _MISSING)
+                _st[_items_key_target] = "str"
         if _is_classbody:
             self._pyast_stmt_locals.add(target)
             _st = getattr(self, "_current_symbol_table", None)
@@ -831,6 +844,13 @@ class ControlFlowStmtMixin:
         if (_is_pyval_items and _items_val_target and _items_val_target != "_"
                 and _saved_pyval_val_member is False):
             self._pyval_locals.discard(_items_val_target)
+        if _is_pyval_items and _items_key_target and _items_key_target != "_":
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                if _saved_pyval_key_symtype is _MISSING:
+                    _st.pop(_items_key_target, None)
+                else:
+                    _st[_items_key_target] = _saved_pyval_key_symtype
         if _is_zip_irlists and _saved_zip_symtypes:
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:

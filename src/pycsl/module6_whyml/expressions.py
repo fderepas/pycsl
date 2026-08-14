@@ -4054,6 +4054,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "    ensures { result <-> (a = b) }")
                 _inner = f"(match {right} with {_ru} _s -> (str_eq_op _s {left}) | _ -> false end)"
                 return _inner if raw_op == "==" else f"(not {_inner})"
+            # self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): `ctor.get(
+            # "arity") == 0` — exactly one operand is a pyval `.get` (an `hval`) and the
+            # other is int-valued (not a String). Project the hval's int carrier via
+            # `hint_of` and compare as ints. MUST precede the `_is_string_expr`
+            # classification below, which defaults a pyval `.get` to `string` and would
+            # wrongly `str_hash_op` the int field (the `str_hash_op ... : int` shape). Gated
+            # on `_expr_is_pyval` (only the union/match hval files) + a non-string other side
+            # -> corpus byte-inert.
+            _lpv = self._expr_is_pyval(expr.get("left") or {})
+            _rpv = self._expr_is_pyval(expr.get("right") or {})
+            if _lpv != _rpv:
+                _other = expr.get("right") if _lpv else expr.get("left")
+                if not self._is_string_expr(_other if isinstance(_other, dict) else {}):
+                    _pvw = left if _lpv else right
+                    _otw = right if _lpv else left
+                    eq = f"(hint_of {_pvw} = {_otw})"
+                    return eq if raw_op == "==" else f"(not {eq})"
             ls = self._is_string_expr(expr["left"])
             rs = self._is_string_expr(expr["right"])
             if ls and rs:
@@ -7374,8 +7391,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # an Optional[τ] union return instead of the scalar `None -> <default>` unwrap.
         if getattr(self, "_get_return_raw_option", False) and len(args) == 1:
             return f"(Map.get {recv_whyml} {k})"
-        return (f"(match Map.get {recv_whyml} {k} "
+        _res = (f"(match Map.get {recv_whyml} {k} "
                 f"with | Some v_ -> v_ | None -> {default} end)")
+        # self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): a STRING-typed
+        # target (`name = x_ir.get("name")`, `x_ir` a `Dict[str, PyVal]` param with hval
+        # codomain) forces the `.get` leaf to project its `hval` to a `string` (`hstr_of`),
+        # so the `name := <string>` typechecks — the map-param twin of the pyval-local `.get`
+        # string projection above. Scoped to `_pyval_get_as_string` (a string-classified
+        # assignment target) + an hval codomain -> corpus/other-mirror byte-inert.
+        if nu == "hval" and getattr(self, "_pyval_get_as_string", False):
+            return f"(hstr_of {_res})"
+        return _res
 
     def _const_dict_name(self, recv: str) -> Optional[str]:
         """`recv` names a genuine module-level constant str->str dict (in

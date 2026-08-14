@@ -2249,7 +2249,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         the two union readers -> every other function yields empty sets (byte-inert)."""
         _cef = getattr(self, "_current_emitting_func", None) or ""
         if not (_cef.endswith("_match_subject_union_info")
-                or _cef.endswith("_union_ctor_for_arm_tag")):
+                or _cef.endswith("_union_ctor_for_arm_tag")
+                or _cef.endswith("_union_none_ctor_for")):
             return set(), {}
         pyval = getattr(self, "_pyval_locals", set())
         str_locals: Set[str] = set()
@@ -3626,6 +3627,24 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # carry the inner `map string (option hval)` type — pre-declared `ref (const (None:
         # option hval))`, excluded from the int `ref 0` and the pyval `let`-bind.
         self._hvalmap_local_vars = _uh_map
+        # union/match cluster sub-increment 2: a nested-map LOCAL that is itself
+        # `.get`/`.items()`-projected (`vinfo.get("constructors", {}).items()` in
+        # `_union_none_ctor_for`) needs its codomain registered so `_expr_is_pyval`
+        # + the `.get`/`.items()`-over-hval-local recognizers fire — the LOCAL twin of
+        # the `Dict[str, PyVal]` PARAM path (`_union_ctor_for_arm_tag`'s `vinfo`). Scoped
+        # to the map locals `_collect_union_hval_locals` returns (only the union readers);
+        # `setdefault` never overrides an existing typing -> corpus/other-mirror byte-inert.
+        if _uh_map:
+            if getattr(self, "_dict_value_types", None) is None:
+                self._dict_value_types = {}
+            if getattr(self, "_dict_key_types", None) is None:
+                self._dict_key_types = {}
+            if getattr(self, "_dict_locals", None) is None:
+                self._dict_locals = set()
+            for _mv in _uh_map:
+                self._dict_value_types.setdefault(_mv, "hval")
+                self._dict_key_types.setdefault(_mv, "string")
+                self._dict_locals.add(_mv)
         # union/match cluster: a string-classified leaf (`var_name`) must NOT ALSO be a
         # pyval local (which would double-declare it `let`-bound AND `ref ""`); string
         # classification wins. Likewise a nested-map local is a map, not a pyval hval.

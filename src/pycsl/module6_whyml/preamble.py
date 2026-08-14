@@ -6780,6 +6780,15 @@ class PreambleEmissionMixin:
             " Descends the REAL hval structure (non-vacuous), NOT an abstract reader. *)",
             "  let function hstr_of (h: hval) : string"
             " = match h with HStr s -> s | _ -> \"\" end",
+            "  (* self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): project"
+            " the INT carrier out of an `hval` — the `HInt i` payload, else 0. The int twin"
+            " of `hstr_of`, for the `ctor.get(\"arity\") == 0` read in `_union_none_ctor_for`"
+            " (`.get` on an hval local produces an `hval`; compared against an int literal it"
+            " projects via `hint_of`). Total definitional `let function` over the certified"
+            " hval ADT (`HInt` already exists), descends the REAL structure (non-vacuous),"
+            " NO axiom -> ledger stays 3. *)",
+            "  let function hint_of (h: hval) : int"
+            " = match h with HInt i -> i | _ -> 0 end",
             "  (* self-tcb-reduction _typeddict_field_access (a): Python truthiness of an"
             " `hval` projected from a DOUBLED `.get` read used in a bool/if context"
             " (`if self._record_types[sym].get(\"is_typeddict\"):`). Total definitional"
