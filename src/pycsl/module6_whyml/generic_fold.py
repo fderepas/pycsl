@@ -13553,6 +13553,154 @@ def emit_collect_field_sites_group(desc: Dict[str, Any], whyml_ident) -> List[st
     return out
 
 
+# ---- import_classifier `any_function_trusted`: raw-`ast.walk` bool existence walk
+#   over the pyval VIEW. LIVE body:
+#       def any_function_trusted(tree):
+#           for node in ast.walk(tree):
+#               if isinstance(node, ast.FunctionDef):
+#                   if getattr(node, "csl_trusted", False):
+#                       return True
+#           return False
+#   `ast.walk(tree)` yields the root AND all descendants, so the faithful lowering is
+#   a ROOT-INCLUSIVE `__walk`/`__walkd`/`__walkl` catamorphism (`pv_size`/`size_dict`/
+#   `size_list` variants) whose per-node predicate reflects the recognised kind literal
+#   (`pystr_eq (pget_dyn "_type") "<Cls>"`) and the `getattr(node,"<key>",False)` bool
+#   field read (`pget_dyn "<key>"` -> `PBool b`), OR-folded with short-circuit (the
+#   `return True`). `ensures True`; NO new type/axiom/cert, ledger 3.
+# =========================================================================
+
+
+def recognize_any_function_trusted(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `any_function_trusted`. Never raises."""
+    try:
+        return _recognize_any_function_trusted(func)
+    except Exception:
+        return None
+
+
+def _recognize_any_function_trusted(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not str(func.get("name", "")).endswith("any_function_trusted"):
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    tree_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    loop, tail = body[0], body[1]
+    # tail: return False
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # loop: for node in ast.walk(tree): <1 stmt>
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and not (loop.get("orelse") or [])):
+        return None
+    nodev = loop.get("target")
+    if not isinstance(nodev, str):
+        return None
+    it = loop.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "ast.walk"):
+        return None
+    wargs = it.get("args") or []
+    if not (len(wargs) == 1 and _is_var(wargs[0], tree_p)):
+        return None
+    lb = loop.get("body") or []
+    if len(lb) != 1:
+        return None
+    # outer if: isinstance(node, ast.<Cls>)
+    outer = lb[0]
+    if not (isinstance(outer, dict) and outer.get("stmt") == "If"
+            and not (outer.get("orelse") or [])):
+        return None
+    ins = _match_isinstance_ast(outer.get("test") or {}, nodev)
+    if ins is None:
+        return None
+    cls = ins["cls"]
+    ob = outer.get("body") or []
+    if len(ob) != 1:
+        return None
+    # inner if: getattr(node, "<key>", False)
+    inner = ob[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "If"
+            and not (inner.get("orelse") or [])):
+        return None
+    gt = inner.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "Call"
+            and gt.get("func") == "getattr"):
+        return None
+    gargs = gt.get("args") or []
+    if len(gargs) != 3 or not _is_var(gargs[0], nodev):
+        return None
+    key = _is_string(gargs[1])
+    if key is None:
+        return None
+    dflt = gargs[2]
+    if not (isinstance(dflt, dict) and dflt.get("type") == "Bool"
+            and dflt.get("value") is False):
+        return None
+    # inner body: return True
+    ib = inner.get("body") or []
+    if not (len(ib) == 1 and isinstance(ib[0], dict) and ib[0].get("stmt") == "Return"
+            and isinstance(ib[0].get("value"), dict)
+            and ib[0]["value"].get("type") == "Bool"
+            and ib[0]["value"].get("value") is True):
+        return None
+    return {"name": func["name"], "cls": cls, "key": key}
+
+
+def emit_any_function_trusted_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `any_function_trusted` as a root-inclusive bool `ast.walk` existence
+    catamorphism over the pyval VIEW. Per-node: `_type == "<Cls>"` kind-check +
+    `getattr(node,"<key>",False)` bool field read, OR-folded. `ensures True`; NO new
+    type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    cls = desc["cls"]
+    key = desc["key"]
+    out: List[str] = []
+    out.append(f"  let {n}__node (nd: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f'         | Some (PStr t) -> if pystr_eq t "{cls}" then')
+    out.append(f'             (match pget_dyn "{key}" d with Some (PBool b) -> b | _ -> false end)')
+    out.append("           else false")
+    out.append("         | _ -> false end)")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  let rec {n}__walk (nd: pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size nd }")
+    out.append(f"  = if {n}__node nd then true else")
+    out.append("    (match nd with")
+    out.append(f"     | PDict d -> {n}__walkd d")
+    out.append(f"     | PList xs -> {n}__walkl xs")
+    out.append("     | _ -> false")
+    out.append("     end)")
+    out.append(f"  with {n}__walkd (d: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> false")
+    out.append(f"    | DCons _ v rest -> if {n}__walk v then true else {n}__walkd rest")
+    out.append("    end")
+    out.append(f"  with {n}__walkl (xs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> false")
+    out.append(f"    | Cons h t -> if {n}__walk h then true else {n}__walkl t")
+    out.append("    end")
+    out.append(f"  let {n} (tree: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__walk tree")
+    return out
+
+
 # ---- monomorphize `_scan_node_for_subscript_calls` / `_find_subscript_calls`:
 #   IR-dict recursive subscript-call collectors over the pyval VIEW.
 #     def _scan_node_for_subscript_calls(node, generic_names):

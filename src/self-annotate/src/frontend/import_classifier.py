@@ -42,11 +42,14 @@ def classify(module_name: str, stubs: Set[str],
 def collect_imports(tree: ast.AST) -> List[int]:
     return []
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def any_function_trusted(tree: ast.AST) -> bool:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef):
+            if getattr(node, "csl_trusted", False):
+                return True
     return False
 
 #@ \trusted reviewer: pycsl-self-annotate

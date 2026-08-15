@@ -2087,6 +2087,7 @@ class PreambleEmissionMixin:
             recognize_extract_ast_subscript,
             recognize_collect_instantiations_ast,
             recognize_collect_field_sites,
+            recognize_any_function_trusted,
             recognize_scan_node_for_subscript_calls,
             recognize_find_subscript_calls,
             recognize_collect_protect_sites,
@@ -2172,6 +2173,8 @@ class PreambleEmissionMixin:
             or recognize_collect_instantiations_ast(f) is not None
             # Weaver `_collect_field_sites`: raw-ast iter_child_nodes descent (pget_dyn).
             or recognize_collect_field_sites(f) is not None
+            # import_classifier `any_function_trusted`: raw-`ast.walk` bool existence walk (pget_dyn).
+            or recognize_any_function_trusted(f) is not None
             # monomorphize `_scan_node_for_subscript_calls`/`_find_subscript_calls`: IR-dict
             # subscript-call catamorphism reads via pget_dyn (+ membership via Map.get).
             or recognize_scan_node_for_subscript_calls(f) is not None
@@ -2240,6 +2243,8 @@ class PreambleEmissionMixin:
             or recognize_collect_instantiations_ast(f) is not None
             # Weaver `_collect_field_sites`: raw-ast iter_child_nodes descent reads via pget_dyn.
             or recognize_collect_field_sites(f) is not None
+            # import_classifier `any_function_trusted`: raw-`ast.walk` bool existence walk reads via pget_dyn.
+            or recognize_any_function_trusted(f) is not None
             # monomorphize `_scan_node_for_subscript_calls`/`_find_subscript_calls`: IR-dict
             # subscript-call catamorphism reads via pget_dyn.
             or recognize_scan_node_for_subscript_calls(f) is not None

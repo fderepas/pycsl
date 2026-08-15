@@ -3623,6 +3623,7 @@ class FunctionEmissionMixin:
             recognize_extract_ast_subscript, emit_extract_ast_subscript_group,
             recognize_collect_instantiations_ast, emit_collect_instantiations_ast_group,
             recognize_collect_field_sites, emit_collect_field_sites_group,
+            recognize_any_function_trusted, emit_any_function_trusted_group,
             recognize_scan_node_for_subscript_calls, emit_scan_node_for_subscript_calls_group,
             recognize_find_subscript_calls, emit_find_subscript_calls_group,
             recognize_collect_protect_sites, emit_collect_protect_sites_group,
@@ -4263,6 +4264,13 @@ class FunctionEmissionMixin:
         _cfsx = recognize_collect_field_sites(func)
         if _cfsx is not None:
             return emit_collect_field_sites_group(_cfsx, whyml_ident)
+        # import_classifier `any_function_trusted`: raw-`ast.walk` bool existence walk
+        # over the pyval VIEW (root-inclusive `__walk`/`__walkd`/`__walkl` catamorphism;
+        # `_type == "<Cls>"` kind-check via pystr_eq + `getattr(node,"<key>",False)` bool
+        # field read via pget_dyn, OR-folded). Name-gated + corpus-inert.
+        _aft = recognize_any_function_trusted(func)
+        if _aft is not None:
+            return emit_any_function_trusted_group(_aft, whyml_ident)
         # monomorphize `_scan_node_for_subscript_calls`: IR-dict recursive subscript-call
         # collector over the pyval VIEW — real "type"/"stmt"/"value"/"slice"/"name"/"func"
         # reads (pget_dyn) + "Subscript"/"Var"/"Call" kind-checks (pystr_eq) + `Set[str]`
