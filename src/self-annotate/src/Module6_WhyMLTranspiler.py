@@ -982,7 +982,6 @@ class Module6_WhyMLTranspiler(
 
         return "\n".join("\n".join(m) for m in out_modules)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -995,10 +994,6 @@ class Module6_WhyMLTranspiler(
         AXIOM (constraining the SHARED symbol) is still emitted. A module that `use Shared`
         must reference the SAME symbol — a local re-declaration would break the
         `clone`-refinement (body `dir_lookup` ≠ interface `dir_lookup`)."""
-        #@ \trusted reviewer: pycsl-self-annotate
-        #@ requires True
-        #@ ensures True
-        #@ assigns \nothing
         def _symbol(stripped: str):
             p = stripped.split()
             if len(p) >= 3 and p[0] == "val" and p[1] == "function":

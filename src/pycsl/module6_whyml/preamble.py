@@ -2259,6 +2259,7 @@ class PreambleEmissionMixin:
             recognize_field_decode_str_locals_pairs,
             recognize_str_decode_locals_pairs,
             recognize_string_elem_read_locals_pairs,
+            recognize_shared_symbol_decls_pairs,
             recognize_callee_raised_direct_pairs,
             recognize_contract_referenced_var_names_pairs,
             recognize_collect_map_typed_locals_pairs,
@@ -2338,6 +2339,7 @@ class PreambleEmissionMixin:
             recognize_field_decode_str_locals_pairs(functions)["outer_ids"]) or bool(
             recognize_str_decode_locals_pairs(functions)["outer_ids"]) or bool(
             recognize_string_elem_read_locals_pairs(functions)["outer_ids"]) or bool(
+            recognize_shared_symbol_decls_pairs(functions)["outer_ids"]) or bool(
             recognize_callee_raised_direct_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
             recognize_collect_map_typed_locals_pairs(functions)["outer_ids"]) or bool(
@@ -2645,6 +2647,16 @@ class PreambleEmissionMixin:
         _serl = recognize_string_elem_read_locals_pairs(functions)
         self._serl_outer_ids = _serl["outer_ids"]
         self._serl_walk_ids = _serl["walk_ids"]
+        # `_collect_shared_symbol_decls` (generic_fold.py, Module6_WhyMLTranspiler.py):
+        # lambda-lifted `_symbol` string-tokenizer + `self._AXIOM_FUNCTIONS.values()`
+        # catamorphism. Same OUTER+lifted-sibling adjacency pairing; the FAITHFUL `_symbol`
+        # parser (REAL split + `pystr_eq` on the extracted literals) drives two set-UNION
+        # folds. The lifted `_symbol` is SUPPRESSED. Keyed on `id`; corpus-inert
+        # (name-gated; sole caller `_transpile_modular` is `\trusted`).
+        from module6_whyml.generic_fold import recognize_shared_symbol_decls_pairs
+        _cssd = recognize_shared_symbol_decls_pairs(functions)
+        self._cssd_outer_ids = _cssd["outer_ids"]
+        self._cssd_walk_ids = _cssd["walk_ids"]
         # `_callee_raised_direct` (generic_fold.py raises-registry SET-COLLECT): the raises-
         # registry sibling of `_contract_referenced_names` — same OUTER+lifted-`walk`
         # adjacency pairing + `set_union` skeleton, but the Call leaf looks the real `func`

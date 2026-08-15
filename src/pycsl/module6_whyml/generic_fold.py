@@ -23560,6 +23560,458 @@ def emit_critical_mutexes_group(func: Dict[str, Any], desc: Dict[str, Any],
     return out
 
 
+# ---- `_collect_shared_symbol_decls` (Module6_WhyMLTranspiler.py, lambda-lifted
+#      `_symbol` string-tokenizer + `self._AXIOM_FUNCTIONS.values()` catamorphism).
+#      COMBINES banked devices — all composed, NO new machinery:
+#        (1) FAITHFUL string tokenizer: the lifted `_symbol` does `p = stripped.split()`
+#            then positional-index + literal-compare; lowered to a REAL split-to-`array
+#            string` + guarded `pystr_eq` on the REAL "val"/"function"/"predicate"
+#            literals + REAL positions (extracted off `_symbol`'s IR -> mutation-sensitive,
+#            NOT opaque);
+#        (2) the self opaque-pyval accessor (`val …__axfns (self) : pyval`, the
+#            `_mutex_inv_params`/`__ir` device applied to `self._AXIOM_FUNCTIONS` — that
+#            class-const is NOT modeled as a record field, exactly the `__ir` precedent);
+#        (3) the `.values()`->per-list catamorphism (dict-VALUES fold over `size_dict`,
+#            then per-value list fold over `size_list` — the 2-level structure of
+#            `for fn_decls in .values(): for d in fn_decls`);
+#        (4) `set_add`/`set_union`/`Map.get` set membership (the A-unit `map string bool`).
+#      Live body:
+#        def _symbol(stripped):
+#          p = stripped.split()
+#          if len(p)>=3 and p[0]=="val" and p[1]=="function": return p[2]
+#          if len(p)>=2 and p[0] in ("function","predicate"): return p[1]
+#          return None
+#        shared_syms=set()
+#        for ln in shared_lines:
+#          sym=_symbol(ln.strip())
+#          if sym: shared_syms.add(sym)
+#        raw=set()
+#        for fn_decls in self._AXIOM_FUNCTIONS.values():
+#          for d in fn_decls:
+#            if _symbol(d.strip()) in shared_syms: raw.add(d)
+#        return raw
+#      The two folds + `set_add` of the REAL `sym`/`d` strings under the REAL parse gate
+#      are the anti-vacuity signal; only `__axfns` (unmodeled self-const) and `__strip`/
+#      `__split0` (whitespace ops, inert — the parse LITERALS are reflected) are opaque,
+#      and NEITHER returns the `map string bool` accumulator (no decoupled abstract-val
+#      accumulator). The lifted `_symbol` is SUPPRESSED. Keyed on `id`; corpus-inert
+#      (name-gated; sole caller `_transpile_modular` is `\trusted`). `ensures True`;
+#      ledger 3 (no new type/axiom/cert).
+
+
+def _cssd_num(node: Any) -> Optional[int]:
+    if isinstance(node, dict) and node.get("type") == "Number":
+        v = node.get("value")
+        if isinstance(v, int):
+            return v
+    return None
+
+
+def _cssd_subidx(node: Any, var: str) -> Optional[int]:
+    """`<var>[<int>]` -> the int index (fail-closed)."""
+    if not (isinstance(node, dict) and node.get("type") == "Subscript"
+            and _is_var(node.get("value"), var)):
+        return None
+    return _cssd_num(node.get("index"))
+
+
+def _cssd_len(node: Any, var: str) -> bool:
+    """`len(<var>)`."""
+    return (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "len"
+            and len(node.get("args") or []) == 1
+            and _is_var((node.get("args") or [])[0], var))
+
+
+def _cssd_flatten_and(node: Any) -> List[Any]:
+    """Left-assoc flatten of an `and` BinOp chain into leaf conjuncts."""
+    if (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "and"):
+        return (_cssd_flatten_and(node.get("left"))
+                + _cssd_flatten_and(node.get("right")))
+    return [node]
+
+
+def _cssd_ge(node: Any, var: str) -> Optional[int]:
+    """`len(<var>) >= <int>` -> the int bound."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == ">="):
+        return None
+    if not _cssd_len(node.get("left"), var):
+        return None
+    return _cssd_num(node.get("right"))
+
+
+def _cssd_eq(node: Any, var: str) -> Optional[tuple]:
+    """`<var>[<i>] == "<lit>"` -> (i, lit)."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "=="):
+        return None
+    i = _cssd_subidx(node.get("left"), var)
+    lit = _clean_lit(_is_string(node.get("right")))
+    if i is None or lit is None:
+        return None
+    return (i, lit)
+
+
+def _cssd_intuple(node: Any, var: str) -> Optional[tuple]:
+    """`<var>[<i>] in (<lit>, <lit>, ...)` -> (i, [lits])."""
+    if not (isinstance(node, dict) and node.get("type") == "BinOp"
+            and node.get("op") == "in"):
+        return None
+    i = _cssd_subidx(node.get("left"), var)
+    if i is None:
+        return None
+    rt = node.get("right") or {}
+    if not (isinstance(rt, dict) and rt.get("type") == "Tuple"):
+        return None
+    lits: List[str] = []
+    for e in rt.get("elts") or []:
+        lit = _clean_lit(_is_string(e))
+        if lit is None:
+            return None
+        lits.append(lit)
+    if not lits:
+        return None
+    return (i, lits)
+
+
+def _recognize_cssd_symbol(symfunc: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the lifted `_symbol(stripped)` tokenizer and extract its parse literals.
+    Fail-closed. Returns {n1,i0,v0,i1,v1,r1, n2,ii,cs,r2}."""
+    params = symfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    stripped = params[0]
+    body = symfunc.get("body") or []
+    if len(body) != 4:
+        return None
+    a0, if1, if2, ret = body
+    # [0] p = stripped.split()
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"):
+        return None
+    p = a0.get("target")
+    sv = a0.get("value") or {}
+    if not (isinstance(p, str) and isinstance(sv, dict) and sv.get("type") == "Call"
+            and sv.get("func") == f"{stripped}.split" and not sv.get("args")):
+        return None
+    # [1] if len(p)>=n1 and p[i0]==v0 and p[i1]==v1: return p[r1]
+    if not (isinstance(if1, dict) and if1.get("stmt") == "If"
+            and not if1.get("orelse")):
+        return None
+    cj1 = _cssd_flatten_and(if1.get("test"))
+    if len(cj1) != 3:
+        return None
+    n1 = _cssd_ge(cj1[0], p)
+    e0 = _cssd_eq(cj1[1], p)
+    e1 = _cssd_eq(cj1[2], p)
+    if n1 is None or e0 is None or e1 is None:
+        return None
+    r1b = if1.get("body") or []
+    if len(r1b) != 1 or not (isinstance(r1b[0], dict)
+                             and r1b[0].get("stmt") == "Return"):
+        return None
+    r1 = _cssd_subidx(r1b[0].get("value"), p)
+    if r1 is None:
+        return None
+    # [2] if len(p)>=n2 and p[ii] in (cs...): return p[r2]
+    if not (isinstance(if2, dict) and if2.get("stmt") == "If"
+            and not if2.get("orelse")):
+        return None
+    cj2 = _cssd_flatten_and(if2.get("test"))
+    if len(cj2) != 2:
+        return None
+    n2 = _cssd_ge(cj2[0], p)
+    it = _cssd_intuple(cj2[1], p)
+    if n2 is None or it is None:
+        return None
+    r2b = if2.get("body") or []
+    if len(r2b) != 1 or not (isinstance(r2b[0], dict)
+                             and r2b[0].get("stmt") == "Return"):
+        return None
+    r2 = _cssd_subidx(r2b[0].get("value"), p)
+    if r2 is None:
+        return None
+    # [3] return None
+    if not (isinstance(ret, dict) and ret.get("stmt") == "Return"):
+        return None
+    rv = ret.get("value") or {}
+    if not (isinstance(rv, dict) and rv.get("type") == "None"):
+        return None
+    return {"n1": n1, "i0": e0[0], "v0": e0[1], "i1": e1[0], "v1": e1[1], "r1": r1,
+            "n2": n2, "ii": it[0], "cs": it[1], "r2": r2}
+
+
+def _recognize_cssd_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_collect_shared_symbol_decls`. Fail-closed; None on any
+    deviation. Returns {name, self_type, sym_name, field, lines_param}."""
+    if not str(func.get("name", "")).endswith("_collect_shared_symbol_decls"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    fps = func.get("formal_params") or []
+    if len(fps) != 1:
+        return None
+    lines_param = fps[0]
+    body = func.get("body") or []
+    if len(body) != 5:
+        return None
+    b0, b1, b2, b3, b4 = body
+    # [0] shared_syms = set()
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    ssyms = b0.get("target")
+    v0 = b0.get("value") or {}
+    if not (isinstance(ssyms, str) and isinstance(v0, dict)
+            and v0.get("type") == "Call" and v0.get("func") == "set"
+            and not v0.get("args")):
+        return None
+    # [1] for ln in shared_lines: sym=<symcall>(ln.strip()); if sym: shared_syms.add(sym)
+    if not (isinstance(b1, dict) and b1.get("stmt") == "For"
+            and _is_var(b1.get("iter"), lines_param)):
+        return None
+    ln = b1.get("target")
+    if not isinstance(ln, str):
+        return None
+    l1 = b1.get("body") or []
+    if len(l1) != 2:
+        return None
+    asg, iff = l1
+    if not (isinstance(asg, dict) and asg.get("stmt") == "Assign"):
+        return None
+    symv = asg.get("target")
+    ac = asg.get("value") or {}
+    if not (isinstance(symv, str) and isinstance(ac, dict)
+            and ac.get("type") == "Call"):
+        return None
+    sym_name = ac.get("func")
+    if not isinstance(sym_name, str):
+        return None
+    aargs = ac.get("args") or []
+    if len(aargs) != 1:
+        return None
+    if not (isinstance(aargs[0], dict) and aargs[0].get("type") == "Call"
+            and aargs[0].get("func") == f"{ln}.strip"
+            and not aargs[0].get("args")):
+        return None
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If"
+            and not iff.get("orelse") and _is_var(iff.get("test"), symv)):
+        return None
+    ib = iff.get("body") or []
+    if len(ib) != 1 or not (isinstance(ib[0], dict)
+                            and ib[0].get("stmt") == "Expr"):
+        return None
+    addc = ib[0].get("value") or {}
+    if not (isinstance(addc, dict) and addc.get("type") == "Call"
+            and addc.get("func") == f"{ssyms}.add"
+            and len(addc.get("args") or []) == 1
+            and _is_var((addc.get("args") or [])[0], symv)):
+        return None
+    # [2] raw = set()
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Assign"):
+        return None
+    raw = b2.get("target")
+    v2 = b2.get("value") or {}
+    if not (isinstance(raw, str) and isinstance(v2, dict)
+            and v2.get("type") == "Call" and v2.get("func") == "set"
+            and not v2.get("args")):
+        return None
+    # [3] for fn_decls in self.<field>.values(): for d in fn_decls:
+    #        if <symcall>(d.strip()) in shared_syms: raw.add(d)
+    if not (isinstance(b3, dict) and b3.get("stmt") == "For"):
+        return None
+    it3 = b3.get("iter") or {}
+    if not (isinstance(it3, dict) and it3.get("type") == "Call"
+            and isinstance(it3.get("func"), str)
+            and it3["func"].startswith("self.")
+            and it3["func"].endswith(".values") and not it3.get("args")):
+        return None
+    field = it3["func"][len("self."):-len(".values")]
+    fnd = b3.get("target")
+    if not isinstance(fnd, str):
+        return None
+    ob = b3.get("body") or []
+    if len(ob) != 1:
+        return None
+    inner = ob[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"
+            and _is_var(inner.get("iter"), fnd)):
+        return None
+    dvar = inner.get("target")
+    if not isinstance(dvar, str):
+        return None
+    dib = inner.get("body") or []
+    if len(dib) != 1:
+        return None
+    dif = dib[0]
+    if not (isinstance(dif, dict) and dif.get("stmt") == "If"
+            and not dif.get("orelse")):
+        return None
+    dt = dif.get("test") or {}
+    if not (isinstance(dt, dict) and dt.get("type") == "BinOp"
+            and dt.get("op") == "in"):
+        return None
+    dleft = dt.get("left") or {}
+    if not (isinstance(dleft, dict) and dleft.get("type") == "Call"
+            and dleft.get("func") == sym_name
+            and len(dleft.get("args") or []) == 1):
+        return None
+    da = (dleft.get("args") or [])[0]
+    if not (isinstance(da, dict) and da.get("type") == "Call"
+            and da.get("func") == f"{dvar}.strip" and not da.get("args")):
+        return None
+    if not _is_var(dt.get("right"), ssyms):
+        return None
+    dbody = dif.get("body") or []
+    if len(dbody) != 1 or not (isinstance(dbody[0], dict)
+                               and dbody[0].get("stmt") == "Expr"):
+        return None
+    daddc = dbody[0].get("value") or {}
+    if not (isinstance(daddc, dict) and daddc.get("type") == "Call"
+            and daddc.get("func") == f"{raw}.add"
+            and len(daddc.get("args") or []) == 1
+            and _is_var((daddc.get("args") or [])[0], dvar)):
+        return None
+    # [4] return raw
+    if not (isinstance(b4, dict) and b4.get("stmt") == "Return"
+            and _is_var(b4.get("value"), raw)):
+        return None
+    return {"name": func.get("name"), "self_type": func.get("self_type"),
+            "sym_name": sym_name, "field": field, "lines_param": lines_param}
+
+
+def recognize_shared_symbol_decls_pairs(functions: List[Dict[str, Any]]
+                                        ) -> Dict[str, Any]:
+    """Pair the `_collect_shared_symbol_decls` OUTER wrapper with its lifted
+    `_symbol` tokenizer sibling (by adjacency). Returns {"outer_ids":
+    {id(outer): desc}, "walk_ids": {id(symbol), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_cssd_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            sf = functions[i + 1]
+            sfn = sf.get("name") if isinstance(sf, dict) else None
+            wn = od["sym_name"]
+            if not (isinstance(sf, dict) and sfn is not None
+                    and (sfn == wn or sfn.endswith("__" + wn))):
+                continue
+            if id(sf) in walk_ids:
+                continue
+            try:
+                leaf = _recognize_cssd_symbol(sf)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "self_type": od["self_type"],
+                    "field": od["field"], "lines_param": od["lines_param"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(sf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_shared_symbol_decls_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                   whyml_ident) -> List[str]:
+    """Emit `_collect_shared_symbol_decls`: a FAITHFUL `_symbol` tokenizer (REAL split +
+    guarded `pystr_eq` on the extracted parse literals) driving TWO set-UNION folds — a
+    `shared_lines` array fold building `shared_syms` and a `self._AXIOM_FUNCTIONS`
+    `.values()`->per-list fold `set_add`ing the REAL decl string `d` under the REAL
+    `_symbol(d) in shared_syms` `Map.get` membership. `ensures True`; ledger 3."""
+    n = whyml_ident(desc["name"])
+    st = whyml_ident(str(desc["self_type"]).lower()) if desc.get("self_type") else None
+    P = f"{n}__"
+    lp = whyml_ident(desc["lines_param"])
+    sig_self = f" (self: {st})" if st else ""
+    arg_self = " self" if st else ""
+    n1, i0, v0 = desc["n1"], desc["i0"], desc["v0"]
+    i1, v1, r1 = desc["i1"], desc["v1"], desc["r1"]
+    n2, ii, cs, r2 = desc["n2"], desc["ii"], desc["cs"], desc["r2"]
+    out: List[str] = []
+    # opaque self-state accessor (self._AXIOM_FUNCTIONS not modeled as a record field —
+    # the `__ir` precedent) + opaque whitespace ops (.split()/.strip(), inert — the parse
+    # LITERALS below are REAL and mutation-sensitive).
+    out.append(f"  val {P}axfns{sig_self} : pyval")
+    out.append(f"  val {P}split0 (s: string) : array string")
+    out.append(f"  val {P}strip (s: string) : string")
+    # total bounds-safe array access
+    out.append(f"  let {P}at (a: array string) (i: int) : string")
+    out.append("    requires { true } ensures { true }")
+    out.append('  = if 0 <= i && i < Array.length a then a[i] else ""')
+    # FAITHFUL `_symbol` tokenizer — reflects the REAL parse literals + positions
+    out.append(f"  let {P}symbol (stripped: string) : option string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let p = {P}split0 stripped in")
+    intuple = " || ".join(f'pystr_eq ({P}at p {ii}) "{c}"' for c in cs)
+    out.append(f'    if Array.length p >= {n1} && pystr_eq ({P}at p {i0}) "{v0}"'
+               f' && pystr_eq ({P}at p {i1}) "{v1}"')
+    out.append(f"      then Some ({P}at p {r1})")
+    out.append(f"    else if Array.length p >= {n2} && ({intuple})")
+    out.append(f"      then Some ({P}at p {r2})")
+    out.append("    else None")
+    # fold over shared_lines -> shared_syms (map string bool)
+    out.append(f"  let rec {P}scan (a: array string) (i: int) (acc: map string bool)"
+               " : map string bool")
+    out.append("    requires { 0 <= i } ensures { true }"
+               " variant { Array.length a - i }")
+    out.append("  = if i >= Array.length a then acc")
+    out.append("    else")
+    out.append(f"      let ln = {P}at a i in")
+    out.append(f"      let acc2 = (match {P}symbol ({P}strip ln) with")
+    out.append("                  | Some sym -> set_add acc sym | None -> acc end) in")
+    out.append(f"      {P}scan a (i + 1) acc2")
+    # per-string leaf: set_add the REAL decl string when its symbol is in shared
+    out.append(f"  let {P}sleaf (h: pyval) (shared: map string bool) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match h with")
+    out.append(f"    | PStr s -> (match {P}symbol ({P}strip s) with")
+    out.append("                 | Some sym -> if Map.get shared sym"
+               " then set_add (const false) s")
+    out.append("                               else const false")
+    out.append("                 | None -> const false end)")
+    out.append("    | _ -> const false end")
+    # inner list fold (`for d in fn_decls`)
+    out.append(f"  let rec {P}lfold (xs: List.list pyval) (shared: map string bool)"
+               " : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with List.Nil -> const false")
+    out.append(f"    | List.Cons h t -> set_union ({P}sleaf h shared)"
+               f" ({P}lfold t shared) end")
+    # each dict value is a list
+    out.append(f"  let {P}vlist (v: pyval) (shared: map string bool) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match v with PList xs -> {P}lfold xs shared"
+               " | _ -> const false end")
+    # dict-VALUES fold (`for fn_decls in self._AXIOM_FUNCTIONS.values()`)
+    out.append(f"  let rec {P}dvals (d: pydict) (shared: map string bool)"
+               " : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append(f"    | DCons _ v rest -> set_union ({P}vlist v shared)"
+               f" ({P}dvals rest shared) end")
+    # entry
+    out.append(f"  let {n}{sig_self} ({lp}: array string) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let shared = {P}scan {lp} 0 (const false) in")
+    out.append(f"    match {P}axfns{arg_self} with")
+    out.append(f"    | PDict d -> {P}dvals d shared")
+    out.append("    | _ -> const false end")
+    return out
+
+
 # ---- `_collect_string_elem_read_locals` (statements.py, TWO-SEQUENTIAL-CATAMORPHISM
 #      SET-COLLECT sibling of `_collect_field_decode_str_locals`): the outer wraps the SAME
 #      lambda-lifted `rec` adjacency, but the nested walk carries a CROSS-ACCUMULATOR

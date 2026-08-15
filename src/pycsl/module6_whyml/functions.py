@@ -3380,6 +3380,21 @@ class FunctionEmissionMixin:
         if _ccm_desc is not None:
             from module6_whyml.generic_fold import emit_critical_mutexes_group
             return emit_critical_mutexes_group(func, _ccm_desc, whyml_ident)
+        # `_collect_shared_symbol_decls` (generic_fold.py, lambda-lifted `_symbol`
+        # string-tokenizer + `self._AXIOM_FUNCTIONS.values()` catamorphism): the lifted
+        # `_symbol` sibling is SUPPRESSED; the wrapper emits a FAITHFUL `_symbol` parser
+        # (REAL split + guarded `pystr_eq` on the extracted parse literals) driving TWO
+        # set-UNION folds — a `shared_lines` array fold building `shared_syms` and a
+        # `.values()`->per-list fold `set_add`ing the REAL decl string under the REAL
+        # `_symbol(d) in shared_syms` `Map.get` membership. Only `__axfns` (unmodeled
+        # self-const) + `__split0`/`__strip` (whitespace ops) are opaque. Keyed on `id`;
+        # corpus-inert (name-gated; sole caller `_transpile_modular` is `\trusted`).
+        if id(func) in getattr(self, "_cssd_walk_ids", set()):
+            return []
+        _cssd_desc = getattr(self, "_cssd_outer_ids", {}).get(id(func))
+        if _cssd_desc is not None:
+            from module6_whyml.generic_fold import emit_shared_symbol_decls_group
+            return emit_shared_symbol_decls_group(func, _cssd_desc, whyml_ident)
         # `_collect_string_elem_read_locals` (generic_fold.py TWO-SEQUENTIAL-CATAMORPHISM
         # SET-COLLECT): the lifted `rec` sibling is SUPPRESSED; the wrapper emits TWO
         # sequential total `map string bool` set-UNION catamorphisms (fold-1 `str_arrays`
