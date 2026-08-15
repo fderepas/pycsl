@@ -3623,6 +3623,8 @@ class FunctionEmissionMixin:
             recognize_extract_ast_subscript, emit_extract_ast_subscript_group,
             recognize_collect_instantiations_ast, emit_collect_instantiations_ast_group,
             recognize_collect_field_sites, emit_collect_field_sites_group,
+            recognize_scan_node_for_subscript_calls, emit_scan_node_for_subscript_calls_group,
+            recognize_find_subscript_calls, emit_find_subscript_calls_group,
             recognize_collect_protect_sites, emit_collect_protect_sites_group,
             recognize_collect_protect_index_sites, emit_collect_protect_index_sites_group,
             recognize_check_mutex_invariants, emit_check_mutex_invariants_group,
@@ -4261,6 +4263,28 @@ class FunctionEmissionMixin:
         _cfsx = recognize_collect_field_sites(func)
         if _cfsx is not None:
             return emit_collect_field_sites_group(_cfsx, whyml_ident)
+        # monomorphize `_scan_node_for_subscript_calls`: IR-dict recursive subscript-call
+        # collector over the pyval VIEW — real "type"/"stmt"/"value"/"slice"/"name"/"func"
+        # reads (pget_dyn) + "Subscript"/"Var"/"Call" kind-checks (pystr_eq) + `Set[str]`
+        # membership (Map.get) threading a `list (string,string)` accumulator (banked
+        # `__walk`/`__walkd`/`__walkl` catamorphism; the Call-func double-scan's variant
+        # discharges from `pget_dyn`'s `pv_size v <= size_dict d` postcondition).
+        # `_type_str` = opaque per-group `val …__type_str`. Name-gated + corpus-inert.
+        _snsc = recognize_scan_node_for_subscript_calls(func)
+        if _snsc is not None:
+            return emit_scan_node_for_subscript_calls_group(_snsc, whyml_ident)
+        # monomorphize `_find_subscript_calls`: folds `_scan_node_for_subscript_calls`
+        # over `body`. The scan callee is a FORWARD reference (defined later in the
+        # mirror) so it is INLINED, reflecting the certified sibling's descriptor —
+        # converts ONLY when that sibling is the recognised, certified scan walker.
+        _fsc = recognize_find_subscript_calls(func)
+        if _fsc is not None:
+            _scan_sib = next((recognize_scan_node_for_subscript_calls(g)
+                              for g in self.ir.get("functions", [])
+                              if g.get("name") == "_scan_node_for_subscript_calls"
+                              and recognize_scan_node_for_subscript_calls(g) is not None), None)
+            if _scan_sib is not None:
+                return emit_find_subscript_calls_group(_fsc, _scan_sib, whyml_ident)
         # Weaver `_collect_protect_sites`: raw-`ast.iter_child_nodes` recursive out-param
         # list-collector with a per-node target-list fold + `_target_dotted_path` opaque
         # cross-call + `p in protected` membership. Name-gated + corpus-inert.

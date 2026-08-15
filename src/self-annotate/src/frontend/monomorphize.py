@@ -48,19 +48,54 @@ def _check_gt3_schema_only(generics: Dict[str, Dict[str, Any]]) -> None:
 def _collect_instantiations(ir_data: int, generics: int) -> int:
     return set()
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _find_subscript_calls(body: List[int], generic_names: int) -> List[int]:
-    return []
+def _find_subscript_calls(
+    body: List[Dict[str, Any]], generic_names: Set[str]
+) -> List[Tuple[str, str]]:
+    """Walk IR statements for `Call(func=Subscript(value=Name(g), slice=<type>))`
+    patterns — the constructor `Stack[int]()` form. Returns the instantiation
+    pairs."""
+    out: List[Tuple[str, str]] = []
+    for stmt in body:
+        out.extend(_scan_node_for_subscript_calls(stmt, generic_names))
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _scan_node_for_subscript_calls(node: Any, generic_names: int) -> List[int]:
-    return []
+def _scan_node_for_subscript_calls(
+    node: Any, generic_names: Set[str]
+) -> List[Tuple[str, str]]:
+    """Recursively scan an IR node (dict or list) for subscript-call sites."""
+    out: List[Tuple[str, str]] = []
+    if isinstance(node, dict):
+        # The IR shape for `C[int]()` is:
+        # {"stmt": "Call", "func": {"type": "Subscript", "value": <Name>,
+        #  "slice": <type-str>}, ...} OR a Call whose func is a Subscript.
+        # The exact key varies; we look for any dict carrying a Subscript on a
+        # generic name.
+        if node.get("type") == "Subscript" or node.get("stmt") == "Subscript":
+            val = node.get("value")
+            slice_node = node.get("slice")
+            if isinstance(val, dict) and val.get("type") == "Var":
+                gname = val.get("name", "")
+                if gname in generic_names:
+                    ct = _type_str(slice_node)
+                    if ct is not None:
+                        out.append((gname, ct))
+        # A Call wrapping a Subscript (the `C[int]()` constructor).
+        if node.get("stmt") == "Call" or node.get("type") == "Call":
+            fnode = node.get("func")
+            sub = _scan_node_for_subscript_calls(fnode, generic_names)
+            out.extend(sub)
+        for v in node.values():
+            out.extend(_scan_node_for_subscript_calls(v, generic_names))
+    elif isinstance(node, list):
+        for item in node:
+            out.extend(_scan_node_for_subscript_calls(item, generic_names))
+    return out
 
 #@ requires True
 #@ ensures True

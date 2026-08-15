@@ -2496,6 +2496,37 @@ def _wf_deep_predicate_lines() -> List[str]:
     ]
 
 
+def _dcons_wf_frag_step_lemma_lines() -> List[str]:
+    """Proof-scale step-lemma emitted when BOTH the wf_ir_deep and the
+    in_emitted_fragment preservation families are active.
+
+    The __dict fold's postcondition is `(wf_dict_deep /\\ frag_dict) result`
+    where `result = DCons k v2 (<rec-call>)`.  Proving that conjunction directly
+    unfolds the recursive result through the wf_dict/size_dict/wf_ir_binds
+    E-matching pool; once that pool is polluted (e.g. by sibling walker
+    catamorphisms) both Alt-Ergo and Z3 flood (383M / 255M steps => timeout).
+    This lemma is NON-recursive (`= ()`): its own VC is a single predicate
+    unfold on a `DCons` with ABSTRACT `k`/`v2`/`rest2`, so it touches no
+    recursive pool and discharges in < 100 steps.  CALLED in the fold body, it
+    hands the prover the exact `(wf_dict_deep /\\ frag_dict) (DCons k v2 rest2)`
+    ground fact, collapsing the postcondition to a match.  Pure lemma, NO axiom;
+    the method BODY (still `DCons k v2 <rec>`) is unchanged."""
+    return [
+        "",
+        "  (* proof-scale step-lemma (gated on BOTH wf_ir_deep + in_emitted_fragment",
+        "     families): one unfold of wf_dict_deep/frag_dict on a DCons with ABSTRACT",
+        "     k/v2/rest2; non-recursive `= ()`, so its own VC touches no",
+        "     size_dict/recursive pool.  CALLED in the __dict fold body to hand the",
+        "     prover the exact postcondition ground fact WITHOUT unfolding the",
+        "     recursive result — kills the polluted-pool E-matching flood.  NO axiom. *)",
+        "  let lemma dcons_wf_frag_step (k: irkey) (v2: pyval) (rest2: pydict) : unit",
+        "    requires { wf_val k v2 /\\ wf_ir_deep v2 /\\ in_emitted_fragment v2 }",
+        "    requires { wf_dict_deep rest2 /\\ frag_dict rest2 }",
+        "    ensures  { wf_dict_deep (DCons k v2 rest2) /\\ frag_dict (DCons k v2 rest2) }",
+        "  = ()",
+    ]
+
+
 def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
                         whyml_ident, top_ensures: Optional[List[str]] = None,
                         top_requires: Optional[List[str]] = None) -> List[str]:
@@ -2556,9 +2587,16 @@ def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
     ]
     _active = [f for f in _families if any(f[0] in c for c in (_te + _tr))]
     _wf_preserve = any(f[0] == "wf_ir_deep" for f in _active)
+    _frag_preserve = any(f[0] == "in_emitted_fragment" for f in _active)
     if _active:
         for _top, _d, _l, _emit in _active:
             out.extend(_emit())
+        if _wf_preserve and _frag_preserve:
+            # Both preservation predicates are threaded: emit the non-recursive
+            # constructor-step lemma that relieves the __dict postcondition flood
+            # (see _dcons_wf_frag_step_lemma_lines). Gated => corpus byte-inert
+            # for any fold that threads only one (or neither) family.
+            out.extend(_dcons_wf_frag_step_lemma_lines())
         if _wf_preserve:
             _te = _te + [
                 f"match {subj} with PStr _ -> "
@@ -2603,7 +2641,19 @@ def emit_substmap_group(func: Dict[str, Any], sm: Dict[str, Any],
                    "(match v2 with PStr _ -> true | _ -> false end) | _ -> true end };")
         out.append("        wf_val_str_stable k v v2;")
         out.append("        assert { wf_ir_deep v2 };")
-    out.append(f"        DCons k v2 ({n}__dict rest {tvar} {concrete})")
+    if _wf_preserve and _frag_preserve:
+        # Proof-scale hardening for `ensures (wf_dict_deep /\\ frag_dict) result`:
+        # bind the recursive result to a symbol, assert the frag half of v2 (the
+        # wf half is asserted above), and CALL the non-recursive step-lemma that
+        # hands the prover the exact conjunction over `DCons k v2 rest2` — no
+        # unfolding of the recursive result through the polluted E-matching pool.
+        # Body semantics unchanged (still `DCons k v2 <rec>`).
+        out.append("        assert { in_emitted_fragment v2 };")
+        out.append(f"        let rest2 = {n}__dict rest {tvar} {concrete} in")
+        out.append("        dcons_wf_frag_step k v2 rest2;")
+        out.append("        DCons k v2 rest2")
+    else:
+        out.append(f"        DCons k v2 ({n}__dict rest {tvar} {concrete})")
     out.append("    end")
     out.append(f"  with {n}__list (xs: list pyval) ({tvar}: string) ({concrete}: string) : list pyval")
     out.append(_list_contract)
@@ -13500,6 +13550,482 @@ def emit_collect_field_sites_group(desc: Dict[str, Any], whyml_ident) -> List[st
     out.append(f"    | PList xs -> {n}__walkl xs field cur_func out")
     out.append("    | _ -> out")
     out.append("    end")
+    return out
+
+
+# ---- monomorphize `_scan_node_for_subscript_calls` / `_find_subscript_calls`:
+#   IR-dict recursive subscript-call collectors over the pyval VIEW.
+#     def _scan_node_for_subscript_calls(node, generic_names):
+#         out = []
+#         if isinstance(node, dict):
+#             if node.get("type")=="Subscript" or node.get("stmt")=="Subscript":
+#                 val = node.get("value"); slice_node = node.get("slice")
+#                 if isinstance(val, dict) and val.get("type")=="Var":
+#                     gname = val.get("name","")
+#                     if gname in generic_names:
+#                         ct = _type_str(slice_node)
+#                         if ct is not None: out.append((gname, ct))
+#             if node.get("stmt")=="Call" or node.get("type")=="Call":
+#                 fnode = node.get("func")
+#                 out.extend(_scan_node_for_subscript_calls(fnode, generic_names))
+#             for v in node.values():
+#                 out.extend(_scan_node_for_subscript_calls(v, generic_names))
+#         elif isinstance(node, list):
+#             for item in node:
+#                 out.extend(_scan_node_for_subscript_calls(item, generic_names))
+#         return out
+#     def _find_subscript_calls(body, generic_names):
+#         out = []
+#         for stmt in body: out.extend(_scan_node_for_subscript_calls(stmt, generic_names))
+#         return out
+# Unlike the raw-`ast` walkers, these consume the REAL Module-5 IR: the dict keys
+# are the concrete strings "type"/"stmt"/"value"/"slice"/"name"/"func" (reflected
+# via `pget_dyn "<key>"`), and the kind tags are "Subscript"/"Var"/"Call"
+# (`pystr_eq … "<tag>"`). `Set[str]` -> `map string bool` (membership = `Map.get`);
+# the returned `List[Tuple[str,str]]` -> a threaded `list (string,string)`
+# accumulator (`Cons` = `.append`/`.extend`). Recursive `.values()`/list descent =
+# the banked `__walk`/`__walkd`/`__walkl` catamorphism (pv_size/size_dict/size_list
+# measures); the explicit `Call`-`func` double-scan is a nested `__walk` on
+# `pget_dyn "func" d` (its variant discharges from `pget_dyn`'s `pv_size v <=
+# size_dict d` postcondition). `_type_str` cross-call = an opaque per-group
+# `val …__type_str : option string` (INLINE, no shared theory). `_find_subscript_calls`
+# is a FORWARD reference to `_scan…` (defined textually later), so it INLINES the
+# scan catamorphism (reflected from the sibling's certified descriptor). Contracts
+# are type-safety-only (`ensures True`) so the VIEW is a sound over-approximation;
+# NON-VACUITY = real "type"/"stmt"/"value"/"slice"/"name"/"func" reads + real
+# "Subscript"/"Var"/"Call" kind-checks + real `Map.get` membership + real `_type_str`
+# cross-call + a real `(gname, ct)` accumulator, all over the REAL structure. NO new
+# axiom/ADT/cert (reuses pyval/pget_dyn/pystr_eq + built-in list/tuple/option/map),
+# ledger 3.
+
+def _match_get_eq_or(test: Any, subj: str) -> Optional[Tuple[str, str, str]]:
+    """`(<subj>.get(K1) == V) or (<subj>.get(K2) == V)` -> (K1, K2, V) (V must
+    be equal on both arms), else None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "or"):
+        return None
+
+    def _one(e: Any) -> Optional[Tuple[str, str]]:
+        if not (isinstance(e, dict) and e.get("type") == "BinOp" and e.get("op") == "=="):
+            return None
+        k = _match_get_call(e.get("left"), subj)
+        v = _is_string(e.get("right"))
+        if k is None or v is None:
+            return None
+        return (k, v)
+
+    lft = _one(test.get("left"))
+    rgt = _one(test.get("right"))
+    if lft is None or rgt is None or lft[1] != rgt[1]:
+        return None
+    return (lft[0], rgt[0], lft[1])
+
+
+def _match_extend_scan_body(fb: Any, item_var: str, set_p: str, out_var: str) -> bool:
+    """`out.extend(_scan_node_for_subscript_calls(<item_var>, <set_p>))` as the
+    sole statement of a loop body list `fb`."""
+    if not (isinstance(fb, list) and len(fb) == 1):
+        return False
+    e = fb[0]
+    if not (isinstance(e, dict) and e.get("stmt") == "Expr"):
+        return False
+    ev = e.get("value") or {}
+    if not (isinstance(ev, dict) and ev.get("type") == "Call"
+            and ev.get("func") == f"{out_var}.extend"):
+        return False
+    args = ev.get("args") or []
+    if len(args) != 1:
+        return False
+    call = args[0]
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == "_scan_node_for_subscript_calls"):
+        return False
+    cargs = call.get("args") or []
+    return (len(cargs) == 2 and _is_var(cargs[0], item_var) and _is_var(cargs[1], set_p))
+
+
+def _recognize_scan_subscript_block(stmt: Any, node_p: str, set_p: str,
+                                    out_var: str) -> Optional[Dict[str, str]]:
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not (stmt.get("orelse") or [])):
+        return None
+    eq = _match_get_eq_or(stmt.get("test") or {}, node_p)
+    if eq is None:
+        return None
+    k1, k2, kind_sub = eq
+    b = stmt.get("body") or []
+    if len(b) != 3:
+        return None
+    # val = node.get(k_value)
+    a0 = b[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and isinstance(a0.get("target"), str)):
+        return None
+    val_var = a0["target"]
+    k_value = _match_get_call(a0.get("value"), node_p)
+    if k_value is None:
+        return None
+    # slice_node = node.get(k_slice)
+    a1 = b[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign" and isinstance(a1.get("target"), str)):
+        return None
+    slice_var = a1["target"]
+    k_slice = _match_get_call(a1.get("value"), node_p)
+    if k_slice is None:
+        return None
+    # if isinstance(val, dict) and val.get(k_vtype)==kind_var: ...
+    g = b[2]
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not (g.get("orelse") or [])):
+        return None
+    t = g.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "BinOp" and t.get("op") == "and"
+            and _match_isinstance(t.get("left") or {}, val_var, "dict")):
+        return None
+    rr = t.get("right") or {}
+    if not (isinstance(rr, dict) and rr.get("type") == "BinOp" and rr.get("op") == "=="):
+        return None
+    k_vtype = _match_get_call(rr.get("left"), val_var)
+    kind_var = _is_string(rr.get("right"))
+    if k_vtype is None or kind_var is None:
+        return None
+    gb = g.get("body") or []
+    if len(gb) != 2:
+        return None
+    # gname = val.get(k_name, "")
+    ga = gb[0]
+    if not (isinstance(ga, dict) and ga.get("stmt") == "Assign" and isinstance(ga.get("target"), str)):
+        return None
+    gname_var = ga["target"]
+    gv = ga.get("value") or {}
+    if not (isinstance(gv, dict) and gv.get("type") == "Call" and gv.get("func") == f"{val_var}.get"):
+        return None
+    gargs = gv.get("args") or []
+    if len(gargs) != 2:
+        return None
+    k_name = _is_string(gargs[0])
+    if k_name is None or _is_string(gargs[1]) != "":
+        return None
+    # if gname in generic_names: ct=_type_str(slice_node); if ct != None: out.append((gname,ct))
+    gg = gb[1]
+    if not (isinstance(gg, dict) and gg.get("stmt") == "If" and not (gg.get("orelse") or [])):
+        return None
+    tt = gg.get("test") or {}
+    if not (isinstance(tt, dict) and tt.get("type") == "BinOp" and tt.get("op") == "in"
+            and _is_var(tt.get("left"), gname_var) and _is_var(tt.get("right"), set_p)):
+        return None
+    ib = gg.get("body") or []
+    if len(ib) != 2:
+        return None
+    # ct = _type_str(slice_node)
+    ca = ib[0]
+    if not (isinstance(ca, dict) and ca.get("stmt") == "Assign" and isinstance(ca.get("target"), str)):
+        return None
+    ct_var = ca["target"]
+    cv = ca.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call" and isinstance(cv.get("func"), str)):
+        return None
+    typestr = cv["func"]
+    cargs = cv.get("args") or []
+    if not (len(cargs) == 1 and _is_var(cargs[0], slice_var)):
+        return None
+    # if ct != None: out.append((gname, ct))
+    ap = ib[1]
+    if not (isinstance(ap, dict) and ap.get("stmt") == "If" and not (ap.get("orelse") or [])):
+        return None
+    at = ap.get("test") or {}
+    if not (isinstance(at, dict) and at.get("type") == "BinOp" and at.get("op") == "!="
+            and _is_var(at.get("left"), ct_var) and (at.get("right") or {}).get("type") == "None"):
+        return None
+    apb = ap.get("body") or []
+    if len(apb) != 1:
+        return None
+    e = apb[0]
+    if not (isinstance(e, dict) and e.get("stmt") == "Expr"):
+        return None
+    ev = e.get("value") or {}
+    if not (isinstance(ev, dict) and ev.get("type") == "Call" and ev.get("func") == f"{out_var}.append"):
+        return None
+    eargs = ev.get("args") or []
+    if not (len(eargs) == 1 and isinstance(eargs[0], dict) and eargs[0].get("type") == "Tuple"):
+        return None
+    elts = eargs[0].get("elts") or []
+    if not (len(elts) == 2 and _is_var(elts[0], gname_var) and _is_var(elts[1], ct_var)):
+        return None
+    return {"k1": k1, "k2": k2, "kind": kind_sub, "k_value": k_value, "k_slice": k_slice,
+            "k_vtype": k_vtype, "kind_var": kind_var, "k_name": k_name, "typestr": typestr}
+
+
+def _recognize_scan_call_block(stmt: Any, node_p: str, set_p: str,
+                               out_var: str) -> Optional[Dict[str, str]]:
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If"
+            and not (stmt.get("orelse") or [])):
+        return None
+    eq = _match_get_eq_or(stmt.get("test") or {}, node_p)
+    if eq is None:
+        return None
+    k1, k2, kind_call = eq
+    b = stmt.get("body") or []
+    if len(b) != 3:
+        return None
+    # fnode = node.get(k_func)
+    a0 = b[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and isinstance(a0.get("target"), str)):
+        return None
+    fnode_var = a0["target"]
+    k_func = _match_get_call(a0.get("value"), node_p)
+    if k_func is None:
+        return None
+    # sub = _scan_node_for_subscript_calls(fnode, generic_names)
+    a1 = b[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign" and isinstance(a1.get("target"), str)):
+        return None
+    sub_var = a1["target"]
+    cv = a1.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"
+            and cv.get("func") == "_scan_node_for_subscript_calls"):
+        return None
+    cargs = cv.get("args") or []
+    if not (len(cargs) == 2 and _is_var(cargs[0], fnode_var) and _is_var(cargs[1], set_p)):
+        return None
+    # out.extend(sub)
+    e = b[2]
+    if not (isinstance(e, dict) and e.get("stmt") == "Expr"):
+        return None
+    ev = e.get("value") or {}
+    if not (isinstance(ev, dict) and ev.get("type") == "Call" and ev.get("func") == f"{out_var}.extend"
+            and len(ev.get("args") or []) == 1 and _is_var(ev["args"][0], sub_var)):
+        return None
+    return {"k1": k1, "k2": k2, "kind": kind_call, "k_func": k_func}
+
+
+def _match_values_scan_loop(stmt: Any, node_p: str, set_p: str, out_var: str) -> bool:
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "For" and isinstance(stmt.get("target"), str)):
+        return False
+    it = stmt.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == f"{node_p}.values" and not (it.get("args") or [])):
+        return False
+    return _match_extend_scan_body(stmt.get("body") or [], stmt["target"], set_p, out_var)
+
+
+def _match_list_scan_block(stmt: Any, node_p: str, set_p: str, out_var: str) -> bool:
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not (stmt.get("orelse") or [])):
+        return False
+    if not _match_isinstance(stmt.get("test") or {}, node_p, "list"):
+        return False
+    b = stmt.get("body") or []
+    if len(b) != 1:
+        return False
+    loop = b[0]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For" and isinstance(loop.get("target"), str)
+            and _is_var(loop.get("iter"), node_p)):
+        return False
+    return _match_extend_scan_body(loop.get("body") or [], loop["target"], set_p, out_var)
+
+
+def recognize_scan_node_for_subscript_calls(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_scan_node_for_subscript_calls`. Never raises."""
+    try:
+        return _recognize_scan_node_for_subscript_calls(func)
+    except Exception:
+        return None
+
+
+def _recognize_scan_node_for_subscript_calls(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_scan_node_for_subscript_calls":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    node_p, set_p = params[0], params[1]
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    # [0] out = []
+    a0 = body[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and isinstance(a0.get("target"), str)
+            and isinstance(a0.get("value"), dict) and a0["value"].get("type") == "ArrayLit"
+            and not (a0["value"].get("elts") or [])):
+        return None
+    out_var = a0["target"]
+    # [2] return out
+    r = body[2]
+    if not (isinstance(r, dict) and r.get("stmt") == "Return" and _is_var(r.get("value"), out_var)):
+        return None
+    # [1] if isinstance(node, dict): [subscript, call, values-loop]  else: [list-block]
+    top = body[1]
+    if not (isinstance(top, dict) and top.get("stmt") == "If"
+            and _match_isinstance(top.get("test") or {}, node_p, "dict")):
+        return None
+    tb = top.get("body") or []
+    if len(tb) != 3:
+        return None
+    sub = _recognize_scan_subscript_block(tb[0], node_p, set_p, out_var)
+    if sub is None:
+        return None
+    call = _recognize_scan_call_block(tb[1], node_p, set_p, out_var)
+    if call is None:
+        return None
+    if not _match_values_scan_loop(tb[2], node_p, set_p, out_var):
+        return None
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1 or not _match_list_scan_block(orelse[0], node_p, set_p, out_var):
+        return None
+    return {"name": func["name"],
+            "k_sub1": sub["k1"], "k_sub2": sub["k2"], "kind_sub": sub["kind"],
+            "k_value": sub["k_value"], "k_slice": sub["k_slice"],
+            "k_vtype": sub["k_vtype"], "kind_var": sub["kind_var"], "k_name": sub["k_name"],
+            "typestr": sub["typestr"],
+            "k_call1": call["k1"], "k_call2": call["k2"], "kind_call": call["kind"],
+            "k_func": call["k_func"]}
+
+
+def recognize_find_subscript_calls(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_find_subscript_calls`. Never raises."""
+    try:
+        return _recognize_find_subscript_calls(func)
+    except Exception:
+        return None
+
+
+def _recognize_find_subscript_calls(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_find_subscript_calls":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    body_p, set_p = params[0], params[1]
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    # [0] out = []
+    a0 = body[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and isinstance(a0.get("target"), str)
+            and isinstance(a0.get("value"), dict) and a0["value"].get("type") == "ArrayLit"
+            and not (a0["value"].get("elts") or [])):
+        return None
+    out_var = a0["target"]
+    # [2] return out
+    r = body[2]
+    if not (isinstance(r, dict) and r.get("stmt") == "Return" and _is_var(r.get("value"), out_var)):
+        return None
+    # [1] for stmt in body: out.extend(_scan_node_for_subscript_calls(stmt, generic_names))
+    fr = body[1]
+    if not (isinstance(fr, dict) and fr.get("stmt") == "For" and isinstance(fr.get("target"), str)
+            and _is_var(fr.get("iter"), body_p)):
+        return None
+    if not _match_extend_scan_body(fr.get("body") or [], fr["target"], set_p, out_var):
+        return None
+    return {"name": func["name"]}
+
+
+_SUBSCALL_TUP = "(string, string)"
+
+
+def _emit_scan_subscript_helpers(b: str, desc: Dict[str, Any]) -> List[str]:
+    """Emit `<b>__type_str` (opaque val) + `<b>__self` + the `<b>__walk`/`__walkd`/
+    `__walkl` catamorphism for the scan-node collector, threading a `list (string,
+    string)` accumulator. `b` is the base name (the scan entry name for the scan
+    group, or `<find>__scan` for the inlined copy). NO entry point (the caller adds it)."""
+    T = _SUBSCALL_TUP
+    ks1, ks2, kind_sub = desc["k_sub1"], desc["k_sub2"], desc["kind_sub"]
+    kv, ksl = desc["k_value"], desc["k_slice"]
+    kvt, kvar, kn = desc["k_vtype"], desc["kind_var"], desc["k_name"]
+    kc1, kc2, kind_call = desc["k_call1"], desc["k_call2"], desc["kind_call"]
+    kf = desc["k_func"]
+    out: List[str] = []
+    # opaque `_type_str` cross-call (INLINE, no shared theory)
+    out.append(f"  val {b}__type_str (node: pyval) : option string")
+    out.append("    ensures { true }")
+    out.append("")
+    # per-node self-pair (non-recursive)
+    out.append(f"  let {b}__self (nd: pyval) (gn: map string bool) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append(f'        let is_sub = (match pget_dyn "{ks1}" d with Some (PStr t) -> pystr_eq t "{kind_sub}" | _ -> false end)')
+    out.append(f'                     || (match pget_dyn "{ks2}" d with Some (PStr s) -> pystr_eq s "{kind_sub}" | _ -> false end) in')
+    out.append("        if is_sub then")
+    out.append(f'          (match pget_dyn "{kv}" d with')
+    out.append("           | Some (PDict vd) ->")
+    out.append(f'               (match pget_dyn "{kvt}" vd with')
+    out.append(f'                | Some (PStr vt) -> if pystr_eq vt "{kvar}" then')
+    out.append(f'                    (match pget_dyn "{kn}" vd with')
+    out.append("                     | Some (PStr gname) ->")
+    out.append("                         if Map.get gn gname then")
+    out.append(f'                           (let sn = (match pget_dyn "{ksl}" d with Some s -> s | None -> PNone end) in')
+    out.append(f"                            match {b}__type_str sn with")
+    out.append("                            | Some ct -> Cons (gname, ct) acc")
+    out.append("                            | None -> acc end)")
+    out.append("                         else acc")
+    out.append("                     | _ -> acc end)")
+    out.append("                  else acc")
+    out.append("                | _ -> acc end)")
+    out.append("           | _ -> acc end)")
+    out.append("        else acc")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    # recursive walk: self-pair, then the Call-func double-scan, then descend children
+    out.append(f"  let rec {b}__walk (nd: pyval) (gn: map string bool) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { pv_size nd }")
+    out.append(f"  = let acc = {b}__self nd gn acc in")
+    out.append("    let acc = (match nd with")
+    out.append("               | PDict d ->")
+    out.append(f'                   let is_call = (match pget_dyn "{kc1}" d with Some (PStr t) -> pystr_eq t "{kind_call}" | _ -> false end)')
+    out.append(f'                                || (match pget_dyn "{kc2}" d with Some (PStr s) -> pystr_eq s "{kind_call}" | _ -> false end) in')
+    out.append("                   if is_call then")
+    out.append(f'                     (match pget_dyn "{kf}" d with Some fn -> {b}__walk fn gn acc | None -> acc end)')
+    out.append("                   else acc")
+    out.append("               | _ -> acc end) in")
+    out.append("    match nd with")
+    out.append(f"    | PDict d -> {b}__walkd d gn acc")
+    out.append(f"    | PList xs -> {b}__walkl xs gn acc")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    out.append(f"  with {b}__walkd (d: pydict) (gn: map string bool) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> acc")
+    out.append(f"    | DCons _ v rest -> {b}__walkd rest gn ({b}__walk v gn acc)")
+    out.append("    end")
+    out.append(f"  with {b}__walkl (xs: list pyval) (gn: map string bool) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append(f"    | Cons h t -> {b}__walkl t gn ({b}__walk h gn acc)")
+    out.append("    end")
+    return out
+
+
+def emit_scan_node_for_subscript_calls_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_scan_node_for_subscript_calls` as the IR-dict pyval catamorphism (see the
+    block comment above). NO new axiom/ADT/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    T = _SUBSCALL_TUP
+    out = _emit_scan_subscript_helpers(n, desc)
+    out.append(f"  let {n} (node: pyval) (generic_names: map string bool) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__walk node generic_names Nil")
+    return out
+
+
+def emit_find_subscript_calls_group(desc: Dict[str, Any], scan_desc: Dict[str, Any],
+                                    whyml_ident) -> List[str]:
+    """Emit `_find_subscript_calls` as a fold of the (forward-referenced, hence INLINED)
+    `_scan_node_for_subscript_calls` catamorphism over `body`. NO new axiom/ADT/cert,
+    ledger 3."""
+    n = whyml_ident(desc["name"])
+    b = f"{n}__scan"
+    T = _SUBSCALL_TUP
+    out = _emit_scan_subscript_helpers(b, scan_desc)
+    out.append(f"  let rec {n}__fold (xs: list pyval) (gn: map string bool) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append(f"    | Cons stmt rest -> {n}__fold rest gn ({b}__walk stmt gn acc)")
+    out.append("    end")
+    out.append(f"  let {n} (body: list pyval) (generic_names: map string bool) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__fold body generic_names Nil")
     return out
 
 
