@@ -3588,6 +3588,10 @@ class FunctionEmissionMixin:
             recognize_collect_mutations, emit_collect_mutations_group,
             recognize_find_iteration_mutations, emit_find_iteration_mutations_group,
             recognize_build_method_writes_map, emit_build_method_writes_map_group,
+            recognize_build_method_param_whyml_by_name,
+            emit_build_method_param_whyml_by_name_group,
+            recognize_build_method_param_types_map,
+            emit_build_method_param_types_map_group,
             emit_extract_array_lengths_group,
             recognize_collect_record_fields, emit_collect_record_fields_group,
             recognize_verify_module_groups, emit_verify_module_groups_group,
@@ -4222,6 +4226,19 @@ class FunctionEmissionMixin:
         _bmwm = recognize_build_method_writes_map(func)
         if _bmwm is not None:
             return emit_build_method_writes_map_group(func, _bmwm, whyml_ident)
+        # `_build_method_param_whyml_types_by_name`: nested `map string (map string string)`
+        # fold — outer over `functions`, inner over each func's `formal_params`, looking each
+        # param's symtype up in the REAL `symbol_table` pydict (`__sget`) and mapping it through
+        # the type-safety-only `__wtype` leaf. Keys read off real structure (mutation-sensitive).
+        _bmpw = recognize_build_method_param_whyml_by_name(func)
+        if _bmpw is not None:
+            return emit_build_method_param_whyml_by_name_group(func, _bmpw, whyml_ident)
+        # `_build_method_param_types_map`: `map string (list string)` fold — outer over
+        # `functions`, inner over each func's REAL `symbol_table` pydict, appending a
+        # type-safety-only `__ptype` leaf per entry. Value list folded off real structure.
+        _bmpt = recognize_build_method_param_types_map(func)
+        if _bmpt is not None:
+            return emit_build_method_param_types_map_group(func, _bmpt, whyml_ident)
         # `_extract_array_lengths` (generic_fold.py pairs): the two lifted closures
         # `_field_of`/`_int_of` are SUPPRESSED; the outer emits the self-contained
         # `map string (option int)` fold with FAITHFUL field/int readers + a PINNED

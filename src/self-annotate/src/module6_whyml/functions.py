@@ -1353,19 +1353,156 @@ class FunctionEmissionMixin:
     def _mixin_dep_pseudo_functions(self, functions: List[int]) -> List[int]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_method_param_types_map(self, functions: List[int]) -> Dict[str, List[str]]:
-        return {}
+    def _build_method_param_types_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """Map function name → list of WhyML parameter types (excluding
+        self). Used by `_handle_dotted_call` to emit abstract `val` decls
+        with matching parameter types so cross-method calls type-check
+        when params are set/dict/list-typed."""
+        result: Dict[str, List[str]] = {}
+        for func in functions:
+            symtable = func.get("symbol_table", {})
+            body = func.get("body", [])
+            local_assignees = IRScanner.find_assigned_vars(body)
+            # no-more-int-3 A1 T1.2 (param-form): thread the per-param
+            # κ/ν so a `Dict[str, ...]`-typed callee parameter's abstract
+            # val matches the caller's string-keyed argument. Byte-
+            # identical when the callee has no `dict_key_types` /
+            # `dict_value_types` entries (every existing int dict).
+            _kt = func.get("dict_key_types", {}) or {}
+            _vt = func.get("dict_value_types", {}) or {}
+            _plet = func.get("param_list_elem_types", {}) or {}
+            param_types: List[str] = []
+            _formal = set(func.get("formal_params", []))
+            _pann = func.get("param_annotations", {}) or {}
+            _fname = str(func.get("name", "") or "")
+            for name, symtype in symtable.items():
+                if name in local_assignees and name not in _formal:
+                    continue
+                # self-tcb-reduction WRITER class (`_build_param_list`): the self-call
+                # abstract val for `self._param_type_str(...)` must declare its collection
+                # params `seq string` (matching the call-site args); `_build_param_list`'s
+                # own `local_refs`/`ghost_vars` are `seq string` too. Gated on the file
+                # sentinel + the exact method+param names -> byte-inert elsewhere.
+                if self._uses_build_param_list():
+                    if (_fname.endswith("_param_type_str")
+                            and name in ("ref_params", "array2d_params",
+                                         "array1d_params", "symbol_table")):
+                        param_types.append("seq string")
+                        continue
+                    if (_fname.endswith("_build_param_list")
+                            and name in ("local_refs", "ghost_vars")):
+                        param_types.append("seq string")
+                        continue
+                # i-feel-good.md I-B: a `List[str]` param → `array string` (not the
+                # collapsed `array int`), so a caller passing a string-list literal
+                # type-checks. @mutable_state-gated → byte-identical elsewhere.
+                if (_plet.get(name) == "string"
+                        and getattr(self, "_mutable_state_classes", None)):
+                    param_types.append("array string")
+                    continue
+                # typed-ir §16: prefer a formal param's declared ANNOTATION over its
+                # symbol-table type — the latter drifts to `Any`/int when the body
+                # REASSIGNS the param (`val = _empty` in `_emit_first_assign`), which
+                # would mistype the abstract self-call val. Gated on @mutable_state.
+                if (name in _formal and name in _pann
+                        and getattr(self, "_mutable_state_classes", None)):
+                    symtype = _pann[name]
+                # self-tcb-reduction (auto_trust coupling): `_has_set_op_on_map`'s
+                # `map_locals` param is `Optional[Set[str]]` (a synthesized union →
+                # int). Its sibling `_collect_map_typed_locals` (annotated `-> Set[T]`)
+                # abstracts its RETURN as `map int (option int)` (the set-return rule),
+                # and `_should_auto_trust_set_op` threads that return straight into this
+                # param — so the abstract-call param must agree. Name-gated (mirror-only)
+                # → corpus byte-identical.
+                if (name == "map_locals"
+                        and str(func.get("name", "")).endswith("_has_set_op_on_map")):
+                    param_types.append("map int (option int)")
+                    continue
+                if symtype == "dict" and (name in _kt or name in _vt):
+                    param_types.append(
+                        self._dict_param_whyml_type(name, _kt, _vt))
+                else:
+                    _wt = self._symtype_to_whyml(symtype)
+                    if _wt == "int" and symtype and getattr(self, "_mutable_state_classes", None):
+                        _rt = getattr(self, "_record_types", {})
+                        _rec = (_rt.get(symtype) or _rt.get(str(symtype).lower())
+                                or next((v for k, v in _rt.items() if k.lower() == str(symtype).lower()), None))
+                        if _rec: _wt = _rec.get("whyml_name", str(symtype).lower())
+                    param_types.append(_wt)
+            # K2 (self-tcb-reduction): the `_is_final_annotation` bool-recognizer is
+            # emitted by a BESPOKE handler (`_emit_is_final_annotation_bespoke`) whose
+            # signature is hardcoded `(ann_expr: emit_ir) : bool` — but its param
+            # `ann_expr: ast.expr` resolves to symtype `Any` (→ `int`) through the generic
+            # path above, so the ABSTRACT self-call stub (`self__is_final_annotation_1`)
+            # a sibling method emits would take `int` and REJECT an `emit_ir` argument
+            # (`stmt.annotation` → `stmt_annotation !stmt`). Align the stub's param type
+            # with the real bespoke signature so `self._is_final_annotation(stmt.annotation)`
+            # type-checks. Gated on the bespoke predicate (`_uses_stmt_ir` mirror only) ->
+            # corpus + every non-emitter mirror byte-identical. The stub RETURN stays `int`
+            # (the boolean call-site wraps it `(… <> 0)`); only the param is corrected.
+            if self._is_final_annotation(func):
+                param_types = ["emit_ir"]
+            # W8 capability (ii): the `*vals: str` vararg is a real trailing parameter
+            # of type `seq string`, but it is NOT in `symbol_table` (Module4 never sees
+            # a vararg), so the loop above misses it. Append it so the call-site
+            # coercion (`_coerce_dotted_args` zips args against this list) does not
+            # TRUNCATE the packed sequence argument away. Always last.
+            if func.get("vararg_str_param"):
+                param_types = param_types + ["seq string"]
+            result[func["name"]] = param_types
+        # self-tcb-reduction (F2 fidelity): `_handle_return_stmt` calls the cross-mixin
+        # helper `self._thread_optional_return(val_ir, local_refs)`, but that helper is
+        # NOT ported into the mirror module here, so it never enters `functions` and thus
+        # gets no registry entry — the auto-emitted abstract self-call val would default
+        # its `local_refs: Set[str]` argument to `int`, an L3 type error against the
+        # caller's `map int (option int)` term. Register the helper's signature under each
+        # present class's `<cls>___thread_optional_return` key (the shape
+        # `_resolve_dotted_signature` looks up for `self._thread_optional_return(...)`) so
+        # x1 types as `map int (option int)`. `setdefault` never shadows a real provider.
+        # Name-gated to this emitter-internal helper (never a corpus symbol) → corpus
+        # byte-identical.
+        for _cls in {n.split("__", 1)[0] for n in result if "__" in n}:
+            result.setdefault(f"{_cls}___thread_optional_return",
+                              ["emit_ir", "map int (option int)"])
+            # self-tcb-reduction lever #1 sub-inc A cap (d): `_infer_return_value_type`
+            # calls `self._resolve_dotted_signature(func)` with `func` a WhyML `string`
+            # (`func_of val_ir`), but the un-ported helper's abstract val defaults its param
+            # to `int`. Register the param as `["string"]` so the call type-checks. Paired
+            # with the `array string` RETURN registration in `_build_method_return_type_map`.
+            # Name-gated to this emitter-internal helper -> corpus byte-identical.
+            result.setdefault(f"{_cls}___resolve_dotted_signature", ["string"])
+        return result
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_method_param_whyml_types_by_name(self, functions: List[int]) -> int:
-        return {}
+    def _build_method_param_whyml_types_by_name(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, Dict[str, str]]:
+        """10-1732-gap (Gaps 2/3 shared infra): map function name →
+        {formal-param-name → WhyML param type}. Keyed by NAME (not position)
+        so a call-site default-fill can lower an omitted/`None` default at the
+        omitted parameter's faithful type (Gap 3). Derived from the same IR
+        source as the sibling `_module_method_*` tables (the function's
+        `formal_params` order + `symbol_table` py-type tags). Sorted by the
+        declared formal-param order — deterministic."""
+        result: Dict[str, Dict[str, str]] = {}
+        for func in functions:
+            symtable = func.get("symbol_table", {})
+            # no-more-int-3 A1 T1.2 (param-form): see _build_method_param_types_map.
+            _kt = func.get("dict_key_types", {}) or {}
+            _vt = func.get("dict_value_types", {}) or {}
+            by_name: Dict[str, str] = {}
+            for pname in func.get("formal_params", []):
+                symtype = symtable.get(pname)
+                if symtype == "dict" and (pname in _kt or pname in _vt):
+                    by_name[pname] = self._dict_param_whyml_type(pname, _kt, _vt)
+                else:
+                    by_name[pname] = self._symtype_to_whyml(symtype)
+            result[func["name"]] = by_name
+        return result
 
     #@ requires True
     #@ ensures True

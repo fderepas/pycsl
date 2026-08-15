@@ -15156,6 +15156,227 @@ def emit_build_method_writes_map_group(func: Dict[str, Any], desc: Dict[str, Any
     return out
 
 
+def recognize_build_method_param_whyml_by_name(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_param_whyml_types_by_name`. Never raises."""
+    try:
+        return _recognize_build_method_param_whyml_by_name(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_param_whyml_by_name(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_param_whyml_types_by_name"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    body = func.get("body") or []
+    # mutation-sensitive tag gate: every read key / dispatch literal the body
+    # discriminates on must be present (a body change that drops or renames any of
+    # them fails the recognizer, falling back to the trusted `val` — byte-inert).
+    tags = set(_all_strings(body))
+    required = {"symbol_table", "formal_params", "name", "dict",
+                "dict_key_types", "dict_value_types"}
+    if not required.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0],
+            "self_type": func.get("self_type")}
+
+
+def emit_build_method_param_whyml_by_name_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                                whyml_ident) -> List[str]:
+    """Emit `_build_method_param_whyml_types_by_name` as a pure structural fold building
+    `map string (map string string)`. The outer fold walks the `functions` pyval list; for
+    each `func` (PDict) it reads `symbol_table` (PDict) and `formal_params` (list pyval of
+    param-name PStr), then folds that param list: for each REAL param name `pn` it looks the
+    param's py-type tag up in the REAL `symbol_table` (dynamic-string-key `__sget`), maps it to
+    a WhyML type string through the over-approx leaf `__wtype` (the `_symtype_to_whyml` /
+    `_dict_param_whyml_type` type-string transform — a type-safety-only value; ensures True), and
+    `Map.set`s it under the REAL `pn` key into the inner `map string string`; the inner map is
+    then `Map.set` under the REAL `func["name"]` key. Non-vacuous: the keys AND the looked-up
+    symtype are read off the real heterogeneous pydict/list structure (mutation-sensitive), NOT
+    manufactured. `ensures True`. Ledger 3 (no new type/axiom/cert; `__wtype`/`__setk_*` are a
+    reflect-the-value / pinned-Map.set `val`)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+
+    def _opt_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    # ---- literal-key readers for the per-func sub-nodes ----
+    _opt_reader(f"{P}gsymtable", "symbol_table")
+    _opt_reader(f"{P}gformal", "formal_params")
+    _opt_reader(f"{P}gname", "name")
+    # ---- dynamic-string-key symbol-table reader (the `symtable.get(pname)` lookup) ----
+    out.append(f"  let rec {P}sget (d: pydict) (k: string) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> None")
+    out.append(f"    | DCons (K_dyn s) v rest -> if pystr_eq s k then Some v else {P}sget rest k")
+    out.append(f"    | DCons _ _ rest -> {P}sget rest k")
+    out.append("    end")
+    # ---- over-approx type-string leaf (`_symtype_to_whyml`/`_dict_param_whyml_type`); the *value*
+    #      is type-safety-only, but it READS the genuinely-looked-up symtype option ----
+    out.append(f"  val {P}wtype (s: option pyval) : string")
+    # ---- pinned Map.set wrappers (a `map` is updatable in PROGRAM code only through a `val`) ----
+    out.append(f"  val {P}setk_in (m: map string string) (k: string) (v: string) : map string string")
+    out.append("    ensures { result = Map.set m k v }")
+    out.append(f"  val {P}setk_out (m: map string (map string string)) (k: string)"
+               " (v: map string string) : map string (map string string)")
+    out.append("    ensures { result = Map.set m k v }")
+    # ---- inner fold over `formal_params` -> `map string string` keyed by REAL param name ----
+    out.append(f"  let rec {P}inner (ps: list pyval) (sd: pydict) (acc: ref (map string string)) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { ps }")
+    out.append("  = match ps with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons p rest ->")
+    out.append("        (match p with")
+    out.append(f"         | PStr pn -> acc := {P}setk_in !acc pn ({P}wtype ({P}sget sd pn))")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}inner rest sd acc")
+    out.append("    end")
+    # ---- outer fold over `functions`: REF-accumulate into `map string (map string string)` ----
+    out.append(f"  let rec {P}f (funcs: list pyval) (acc: ref (map string (map string string))) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { funcs }")
+    out.append("  = match funcs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons fnc rest ->")
+    out.append("        (match fnc with")
+    out.append("         | PDict fd ->")
+    out.append(f"             let sd = (match {P}gsymtable fd with Some (PDict s) -> s | _ -> DNil end) in")
+    out.append('             let inneracc = ref (const "") in')
+    out.append(f"             (match {P}gformal fd with")
+    out.append(f"              | Some (PList ps) -> {P}inner ps sd inneracc")
+    out.append("              | _ -> () end);")
+    out.append(f"             (match {P}gname fd with")
+    out.append(f"              | Some (PStr nm) -> acc := {P}setk_out !acc nm !inneracc")
+    out.append("              | _ -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}f rest acc")
+    out.append("    end")
+    # ---- entry: fold the PARAM `functions` list (a real PList) ----
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string (map string string)")
+    out.append("    requires { true } ensures { true }")
+    out.append('  = let acc = ref (const (const "")) in')
+    out.append(f"    (match {mv} with PList xs -> {P}f xs acc | _ -> () end);")
+    out.append("    !acc")
+    return out
+
+
+def recognize_build_method_param_types_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_param_types_map`. Never raises."""
+    try:
+        return _recognize_build_method_param_types_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_param_types_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_param_types_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    body = func.get("body") or []
+    # mutation-sensitive tag gate: the core read keys the body's iteration/dispatch
+    # depends on. A body change that drops or renames any fails the recognizer,
+    # falling back to the trusted `val` — fail-closed / byte-inert.
+    tags = set(_all_strings(body))
+    required = {"symbol_table", "formal_params", "name", "dict",
+                "dict_key_types", "dict_value_types"}
+    if not required.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0],
+            "self_type": func.get("self_type")}
+
+
+def emit_build_method_param_types_map_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                            whyml_ident) -> List[str]:
+    """Emit `_build_method_param_types_map` as a pure structural fold building
+    `map string (list string)`. The outer fold walks the `functions` pyval list; for each
+    `func` (PDict) it folds the REAL `symbol_table` (PDict) — appending, for every entry,
+    the over-approx type-string leaf `__ptype` applied to the entry's REAL py-type-tag VALUE
+    (the `_symtype_to_whyml`/`_dict_param_whyml_type` transform — a type-safety-only value;
+    ensures True) into a `list string` — then `Map.set`s that list under the REAL
+    `func["name"]` key. Non-vacuous: the value list is folded off the real `symbol_table`
+    pydict collection and filed under the real name key (mutation-sensitive), NOT
+    manufactured. `ensures True` makes list ORDER irrelevant, so entries accumulate by
+    O(1) `Cons` (no recursive-append logic function to unfold — keeps the fold VC linear).
+    Ledger 3 (no new type/axiom/cert; `__ptype` is a reflect-the-value `val`, `__setk` a
+    pinned-Map.set `val`)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+
+    def _opt_reader(rname: str, key: str) -> None:
+        ctor = _irkey_ctor(key)
+        out.append(f"  let rec {rname} (d: pydict) : option pyval")
+        out.append("    variant { d }")
+        out.append("  = match d with DNil -> None")
+        if ctor.startswith("(K_dyn"):
+            out.append(f'    | DCons (K_dyn s) v rest -> if pystr_eq s "{key}" then Some v else {rname} rest')
+        else:
+            out.append(f"    | DCons {ctor} v _ -> Some v")
+        out.append(f"    | DCons _ _ rest -> {rname} rest end")
+
+    _opt_reader(f"{P}gsymtable", "symbol_table")
+    _opt_reader(f"{P}gname", "name")
+    # ---- over-approx type-string leaf; READS the entry's genuinely-folded py-type value ----
+    out.append(f"  val {P}ptype (s: pyval) : string")
+    # ---- inner fold over the REAL `symbol_table` pydict -> `list string` of type strings.
+    #      `ensures True` makes the list ORDER irrelevant, so accumulate by O(1) `Cons`
+    #      (no recursive-append logic function to unfold — keeps the fold VC linear). ----
+    out.append(f"  let rec {P}ents (d: pydict) (acc: list string) : list string")
+    out.append("    requires { true } ensures { true } variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> acc")
+    out.append(f"    | DCons _ v rest -> {P}ents rest (Cons ({P}ptype v) acc)")
+    out.append("    end")
+    # ---- pinned Map.set wrapper (a `map` is updatable in PROGRAM code only through a `val`) ----
+    out.append(f"  val {P}setk (m: map string (list string)) (k: string) (v: list string)"
+               " : map string (list string)")
+    out.append("    ensures { result = Map.set m k v }")
+    # ---- outer fold over `functions`: REF-accumulate into `map string (list string)` ----
+    out.append(f"  let rec {P}f (funcs: list pyval) (acc: ref (map string (list string))) : unit")
+    out.append("    requires { true } ensures { true } writes { acc } variant { funcs }")
+    out.append("  = match funcs with")
+    out.append("    | Nil -> ()")
+    out.append("    | Cons fnc rest ->")
+    out.append("        (match fnc with")
+    out.append("         | PDict fd ->")
+    out.append(f"             let pts = (match {P}gsymtable fd with")
+    out.append(f"                        | Some (PDict s) -> {P}ents s Nil")
+    out.append("                        | _ -> Nil end) in")
+    out.append(f"             (match {P}gname fd with")
+    out.append(f"              | Some (PStr nm) -> acc := {P}setk !acc nm pts")
+    out.append("              | _ -> () end)")
+    out.append("         | _ -> () end);")
+    out.append(f"        {P}f rest acc")
+    out.append("    end")
+    # ---- entry: fold the PARAM `functions` list (a real PList) ----
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : map string (list string)")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = let acc = ref (const Nil) in")
+    out.append(f"    (match {mv} with PList xs -> {P}f xs acc | _ -> () end);")
+    out.append("    !acc")
+    return out
+
+
 # ---- `_extract_array_lengths`: field-name -> length `map string (option int)` builder ----
 # A flat single loop over the REAL modeled `invs` list: for each `inv` (PDict) whose
 # `type == "BinOp"` and `op in {==,=,>=,<=}`, read the `left`/`right` sub-nodes, extract the
