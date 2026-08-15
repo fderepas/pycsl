@@ -184,12 +184,16 @@ class PreambleEmissionMixin:
     def _emit_shared_state(self) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _mutex_inv_params(self, mutex: str, inv_str: str) -> List[str]:
-        return []
+        names = sorted(
+            sv["name"]
+            for sv in self.ir.get("shared_vars", [])
+            if sv.get("mutex") == mutex
+        )
+        return [v for v in names if f"!{whyml_ident(v)}" in inv_str]
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

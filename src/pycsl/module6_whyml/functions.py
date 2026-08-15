@@ -3596,6 +3596,7 @@ class FunctionEmissionMixin:
             recognize_check_callable_params, emit_check_callable_params_group,
             recognize_check_fresh_globals, emit_check_fresh_globals_group,
             recognize_module_binding_names, emit_module_binding_names_group,
+            recognize_mutex_inv_params, emit_mutex_inv_params_group,
             recognize_check_noreturn, emit_check_noreturn_group,
             recognize_first_tuple_return, emit_first_tuple_return_group,
             recognize_find_assigned_vars, emit_find_assigned_vars_group,
@@ -4214,6 +4215,16 @@ class FunctionEmissionMixin:
         _mbn = recognize_module_binding_names(func)
         if _mbn is not None:
             return emit_module_binding_names_group(_mbn, whyml_ident)
+        # `_mutex_inv_params`: per-stub opaque-self pyval descent over
+        # `self.ir["shared_vars"]` + a faithful string-containment guard — the
+        # `(mutex, inv_str)` accessor read via an uninterpreted `val …__ir : pyval`
+        # (no shared-field retype) then descended with `pget_list`/`pget_dyn`, keeping
+        # names whose `"mutex"` field == the param AND whose mangled `!ident` occurs as
+        # a substring of `inv_str` (`val …__contains`, pinned to the existential
+        # substring witness). Name-gated + corpus-inert.
+        _mip = recognize_mutex_inv_params(func)
+        if _mip is not None:
+            return emit_mutex_inv_params_group(_mip, whyml_ident)
         _cnr = recognize_check_noreturn(func)
         if _cnr is not None:
             return emit_check_noreturn_group(_cnr, whyml_ident)

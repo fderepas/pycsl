@@ -2088,6 +2088,7 @@ class PreambleEmissionMixin:
             recognize_check_callable_params,
             recognize_check_fresh_globals,
             recognize_module_binding_names,
+            recognize_mutex_inv_params,
             recognize_check_noreturn,
             recognize_first_tuple_return,
             recognize_find_assigned_vars,
@@ -2165,6 +2166,8 @@ class PreambleEmissionMixin:
             or recognize_check_fresh_globals(f) is not None
             # `_module_binding_names`: self.ir.functions/classes descent (pget_list/pget_dyn).
             or recognize_module_binding_names(f) is not None
+            # `_mutex_inv_params`: self.ir.shared_vars descent (pget_list/pget_dyn).
+            or recognize_mutex_inv_params(f) is not None
             or recognize_check_noreturn(f) is not None
             or recognize_first_tuple_return(f) is not None
             or recognize_find_assigned_vars(f) is not None
@@ -2217,6 +2220,8 @@ class PreambleEmissionMixin:
             or recognize_check_fresh_globals(f) is not None
             # `_module_binding_names`: self.ir.functions/classes descent (pget_list/pget_dyn).
             or recognize_module_binding_names(f) is not None
+            # `_mutex_inv_params`: self.ir.shared_vars descent (pget_list/pget_dyn).
+            or recognize_mutex_inv_params(f) is not None
             or recognize_check_noreturn(f) is not None
             or recognize_first_tuple_return(f) is not None
             or recognize_find_assigned_vars(f) is not None

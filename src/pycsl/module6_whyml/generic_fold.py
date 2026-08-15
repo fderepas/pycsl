@@ -13525,6 +13525,205 @@ def emit_module_binding_names_group(desc: Dict[str, Any], whyml_ident) -> List[s
     return out
 
 
+# ---- `_mutex_inv_params`: per-stub opaque-self pyval descent + str-containment
+# The `(mutex, inv_str)` accessor that reads `self.ir["shared_vars"]` (a list of
+# pydicts), keeps each element whose `"mutex"` field equals the `mutex` param AND
+# whose mangled `"!" ++ whyml_ident(name)` occurs as a SUBSTRING of `inv_str`, and
+# returns the matched `name`s. RETYPING the shared `self.ir` field breaks verified
+# sibling readers, so this stub gets its OWN opaque-self pyval view via an
+# uninterpreted `val …__ir` (a sound over-approx returning `self.ir` as a `pyval`),
+# then descends `pget_list "shared_vars"` element-wise, reading each `pget_dyn
+# "mutex"`/`pget_dyn "name"`. The `mutex`-equality guard is a `val …__streq`
+# (`ensures result <-> a = b` — satisfiable, non-`True`, NOT an axiom) and the
+# containment guard is a `val …__contains` pinned to the FAITHFUL existential
+# substring witness (the same spec as `str_contains_op` in expressions.py —
+# satisfiable, non-`True`, NOT an axiom); `whyml_ident` is an opaque `val …__wid`
+# (a legit abstraction). The source `sorted(...)` is a permutation, dropped under
+# the type-safety-only `ensures True` contract (the fused single-pass fold collects
+# exactly the names passing BOTH guards). The `"shared_vars"`/`"mutex"`/`"name"`/`"!"`
+# literals are EXTRACTED from the source IR (mutation-sensitive). No new type / axiom
+# / cert (ledger 3). Corpus-inert (name-gated). Fail-closed; a template bug is a loud
+# unprovable instance.
+
+def recognize_mutex_inv_params(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_mutex_inv_params`. Never raises."""
+    try:
+        return _recognize_mutex_inv_params(func)
+    except Exception:
+        return None
+
+
+def _recognize_mutex_inv_params(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not str(func.get("name", "")).endswith("_mutex_inv_params"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    mutex_p, inv_p = params[0], params[1]
+    if func.get("return_annotation") != "list":
+        return None
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    s1, s2 = body
+    # S1: names = sorted( sv["<namekey>"] for sv in self.ir.get("<svkey>",[])
+    #                     if sv.get("<mutexkey>") == mutex )
+    if not (isinstance(s1, dict) and s1.get("stmt") == "Assign"):
+        return None
+    names_var = s1.get("target")
+    if not isinstance(names_var, str):
+        return None
+    call = s1.get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") == "sorted"):
+        return None
+    cargs = call.get("args") or []
+    if len(cargs) != 1:
+        return None
+    ge = cargs[0]
+    if not (isinstance(ge, dict) and ge.get("type") == "GenExp"):
+        return None
+    elt = ge.get("elt")
+    if not (isinstance(elt, dict) and elt.get("type") == "Subscript"
+            and _is_var(elt.get("value"))):
+        return None
+    sv_name = elt["value"].get("name")
+    namekey = _is_string(elt.get("index"))
+    if namekey is None:
+        return None
+    gens = ge.get("generators") or []
+    if len(gens) != 1:
+        return None
+    g = gens[0]
+    if g.get("target") != sv_name:
+        return None
+    it = g.get("iter")
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "self.ir.get"):
+        return None
+    iargs = it.get("args") or []
+    if not iargs:
+        return None
+    svkey = _is_string(iargs[0])
+    if svkey is None:
+        return None
+    ifs = g.get("ifs") or []
+    if len(ifs) != 1:
+        return None
+    cond = ifs[0]
+    if not (isinstance(cond, dict) and cond.get("type") == "BinOp"
+            and cond.get("op") == "=="):
+        return None
+    lc = cond.get("left")
+    if not (isinstance(lc, dict) and lc.get("type") == "Call"
+            and lc.get("func") == f"{sv_name}.get"):
+        return None
+    largs = lc.get("args") or []
+    if not largs:
+        return None
+    mutexkey = _is_string(largs[0])
+    if mutexkey is None:
+        return None
+    if not _is_var(cond.get("right"), mutex_p):
+        return None
+    # S2: return [ v for v in names if f"<prefix>{whyml_ident(v)}" in inv_str ]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Return"):
+        return None
+    lcp = s2.get("value")
+    if not (isinstance(lcp, dict) and lcp.get("type") == "ListComp"):
+        return None
+    velt = lcp.get("elt")
+    if not _is_var(velt):
+        return None
+    v_name = velt.get("name")
+    lgens = lcp.get("generators") or []
+    if len(lgens) != 1:
+        return None
+    lg = lgens[0]
+    if lg.get("target") != v_name or not _is_var(lg.get("iter"), names_var):
+        return None
+    lifs = lg.get("ifs") or []
+    if len(lifs) != 1:
+        return None
+    inc = lifs[0]
+    if not (isinstance(inc, dict) and inc.get("type") == "BinOp"
+            and inc.get("op") == "in"):
+        return None
+    fs = inc.get("left")
+    if not (isinstance(fs, dict) and fs.get("type") == "FString"):
+        return None
+    fparts = fs.get("parts") or []
+    if len(fparts) != 2:
+        return None
+    prefix = _is_string(fparts[0])
+    if prefix is None:
+        return None
+    widcall = fparts[1]
+    if not (isinstance(widcall, dict) and widcall.get("type") == "Call"
+            and widcall.get("func") == "whyml_ident"):
+        return None
+    wargs = widcall.get("args") or []
+    if not (len(wargs) == 1 and _is_var(wargs[0], v_name)):
+        return None
+    if not _is_var(inc.get("right"), inv_p):
+        return None
+    return {"name": func["name"], "self_type": func.get("self_type"),
+            "mutex_p": mutex_p, "inv_p": inv_p,
+            "svkey": svkey, "mutexkey": mutexkey, "namekey": namekey,
+            "prefix": prefix}
+
+
+def emit_mutex_inv_params_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_mutex_inv_params`: per-stub opaque-self pyval accessor (`val …__ir`),
+    an opaque `whyml_ident` (`val …__wid`), a satisfiable string-equality (`val …__streq`)
+    and the FAITHFUL existential substring-containment (`val …__contains`), then a REAL
+    `pget_list "shared_vars"` fold that reads each element's `pget_dyn "mutex"`/`"name"`
+    and `Cons`es the name iff BOTH guards hold. `ensures True`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    st = whyml_ident(str(desc["self_type"]).lower()) if desc.get("self_type") else None
+    mp = whyml_ident(desc["mutex_p"])
+    ip = whyml_ident(desc["inv_p"])
+    svk, mk, nk, pfx = desc["svkey"], desc["mutexkey"], desc["namekey"], desc["prefix"]
+    sig = f" (self: {st})" if st else ""
+    arg = " self" if st else ""
+    out: List[str] = []
+    out.append(f"  val {n}__ir{sig} : pyval")
+    out.append(f"  val {n}__wid (s: string) : string")
+    out.append(f"  val {n}__concat (a: string) (b: string) : string")
+    out.append("    ensures { result = concat a b }")
+    out.append(f"  val {n}__streq (a: string) (b: string) : bool")
+    out.append("    ensures { result <-> a = b }")
+    out.append(f"  val {n}__contains (haystack: string) (needle: string) : bool")
+    out.append("    ensures { result <->")
+    out.append("      (exists i: int. 0 <= i /\\")
+    out.append("        i + String.length needle <= String.length haystack /\\")
+    out.append("        String.substring haystack i (String.length needle) = needle) }")
+    out.append(f"  let rec {n}__fold (xs: list pyval) ({mp}: string) ({ip}: string) (acc: list string) : list string")
+    out.append("    variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append("    | Cons e rest ->")
+    out.append("        let acc2 = (match e with")
+    out.append(f'          | PDict d -> (match pget_dyn "{mk}" d with')
+    out.append(f"              | Some (PStr m) ->")
+    out.append(f"                  if {n}__streq m {mp} then")
+    out.append(f'                    (match pget_dyn "{nk}" d with')
+    out.append(f"                     | Some (PStr nm) ->")
+    out.append(f'                         if {n}__contains {ip} ({n}__concat "{pfx}" ({n}__wid nm))')
+    out.append("                         then Cons nm acc else acc")
+    out.append("                     | _ -> acc end)")
+    out.append("                  else acc")
+    out.append("              | _ -> acc end)")
+    out.append("          | _ -> acc end) in")
+    out.append(f"        {n}__fold rest {mp} {ip} acc2")
+    out.append("    end")
+    out.append(f"  let {n}{sig} ({mp}: string) ({ip}: string) : list string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let ir = {n}__ir{arg} in")
+    out.append(f'    match ir with PDict d -> {n}__fold (pget_list "{svk}" d) {mp} {ip} Nil | _ -> Nil end')
+    return out
+
+
 # ---- `_check_noreturn`: NR2a guard + the pyval->stmt_ir body parser ----------
 # BRIDGE (needs pget_list's size-postcondition, added to the pydict theory): a total
 # structural parser `list pyval -> stmt_list` maps "Return"->SReturn + compound tags to

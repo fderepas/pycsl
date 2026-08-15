@@ -2648,3 +2648,9 @@ green-but-unsound decoupling) + heavy string-gen. _emit_contracts(102)/_reset_fu
   - _fresh_globals_facts/_emit_subtyping_goals/_emit_module_globals/_emit_shared_state/_emit_funcs/etc: descend self.ir to feed WhyML STRING EMITTERS + mutate self-state (heavy-string-gen boundary).
   - _recognize_str_pair_lookup/_recognize_sorted_const_set: raw-ast stmt-tree structural recognizer boundary.
 - NEXT: spike _mutex_inv_params with a FAITHFUL str-containment op (str_contains with satisfiable ensures, like str_split_op) — STRICT non-vacuity gate (real selection structure, mutation-sensitive; refute if the filter is purely opaque = facade).
+
+## _mutex_inv_params CONVERTED (716->715) — self.ir descent + faithful str-containment (6th refuted boundary)
+- Real self.ir.shared_vars descent (pget_list fold + pget_dyn "name"/"mutex" + conditional Cons) via the per-stub pyval-VIEW device + a FAITHFUL __contains op (ensures: exists i. 0<=i /\ i+length needle<=length haystack /\ String.substring haystack i (length needle) = needle — satisfiable, non-True, NOT an axiom) in a REAL per-element guard `__contains inv_str (__concat "!" (__wid nm))`. __streq faithful. NO new ADT/axiom/cert.
+- Inline group vals (self-contained uniquely-named __contains/__streq/__concat) => NO theory-registration ripple (changed-emission = ONLY preamble.py, unlike the needs_pdict_bridge case). Recompute confirmed.
+- GATES (fresh, supervisor): --fun SUCCESS; non-vacuity (real fold+guard descent, mutation test "shared_vars"->"shared_varsMUT"); preamble.py whole-file SUCCESS; corpus byte-diff 0; changed-emission={preamble.py}; mirror 52/52; drift 2; allowlist untouched; ledger 3; count 715.
+- BANKED: faithful str-containment (__contains existential-substring-witness) + __concat program-val — reopens string-containment-filtered stubs. Session 736->715 (21 conv).
