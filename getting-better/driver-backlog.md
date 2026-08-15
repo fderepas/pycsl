@@ -2640,3 +2640,11 @@ green-but-unsound decoupling) + heavy string-gen. _emit_contracts(102)/_reset_fu
 - GATES (fresh, supervisor): --fun SUCCESS; NON-VACUITY (real pget/plist/set_add descent, mutation test PASS "functions"->"functionsMUT"); expressions.py + Module6_WhyMLTranspiler.py (BOTH changed-emission via preamble needs_pdict_bridge registration) whole-file SUCCESS; corpus byte-diff 0; mirror 52/52; drift 2 (no new); allowlist untouched; ledger 3; count 716.
 - CHANGED-EMISSION UNDERCOUNT caught again (lesson 5): delegate claimed "only expressions.py"; supervisor mirror-wide md5 found Module6_WhyMLTranspiler.py too (preamble bridge registration). Both proved.
 - BANKED CASCADE DEVICE: per-stub opaque-self pyval VIEW of self.ir + real pyval descent — the incremental path INTO the heterogeneous IR-ROOT that avoids the shared-retype WALL. Reopens the many self.ir-reading trusted stubs. Session 736->716 (20 conv).
+
+## self.ir FLAT-descent pyval-VIEW device EXHAUSTED at 716 (no_cheap_remaining)
+- _module_binding_names was the last clean fit (only 3 getattr(self,"ir") sites: it + 2 raw-ast recognizers). Every other self.ir-reader needs a SECOND capability:
+  - _mutex_inv_params (preamble.py, 9L): REAL self.ir.shared_vars descent ALREADY, blocked ONLY by the filter `f"!{whyml_ident(v)}" in inv_str` (string-containment) + conditional sv["mutex"]==param. NEAREST reopening = a faithful str-containment op.
+  - _collect_critical_mutexes: nested-def closure + generic recursive .values() walk (both boundaries).
+  - _fresh_globals_facts/_emit_subtyping_goals/_emit_module_globals/_emit_shared_state/_emit_funcs/etc: descend self.ir to feed WhyML STRING EMITTERS + mutate self-state (heavy-string-gen boundary).
+  - _recognize_str_pair_lookup/_recognize_sorted_const_set: raw-ast stmt-tree structural recognizer boundary.
+- NEXT: spike _mutex_inv_params with a FAITHFUL str-containment op (str_contains with satisfiable ensures, like str_split_op) — STRICT non-vacuity gate (real selection structure, mutation-sensitive; refute if the filter is purely opaque = facade).
