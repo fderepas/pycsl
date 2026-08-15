@@ -2098,3 +2098,15 @@ pydict-construction primitive (lever #1). RUN #3 DEFINITIVE FLOOR: 754 (29 conve
 - FOUR contained capabilities measured, ALL 0 sole-blocked consumers: pytuple-projection binder, native-map-items binder, pydict-construct primitive, Term recognizer-arms. Each is capability-PROVABLE but consumer-EMPTY at single-capability granularity.
 - ROOT CAUSE: the residual 721 stubs are MUTUALLY co-blocked — each needs 2-5 deep capabilities at once (Term-theory + dict-comp + Dict[str,Any] faithful-value + raw-ast-variant + string-facade + method-param frame + nested-def). No SINGLE contained build converts anything; only a CLUSTER of caps landed together converts a mutually-co-blocked batch.
 - REMAINING = review-gated multi-session COST/SCALE builds (NOT correctness floors, per feedback_cost_scale_not_floor): #6 pyval-heterogeneous root (~97, existing ADT to EXTEND), #5 raw-ast-as-variant (~81, new ADT+cert), Term-theory cluster. Next per funded-window doctrine: SPIKE the highest-leverage deep vein (measure-before-build on the EXISTING certified pyval ADT = lower-risk than a new cert) before flagging the risky cert-build.
+
+## _callee_raised_in — CERTIFIED-BOUNDARY (correctness/caller-coupling) 2026-08-15
+- Sits on a MODEL SEAM: already-converted callee _callee_raised_direct is `map string bool` (non-enumerable); verified caller _handle_try_stmt consumes _callee_raised_in as `seq string` (snapshot/arr_union). Modeling on collect_escaping_exceptions emits map-string-bool -> type-clashes the VERIFIED caller (out of scope to edit); staying seq-string -> the core Try set-difference `{e in inner : not any(handler_catches(b,e) for b in exc_type.split("|"))}` needs set-diff/filter/split primitives absent in the seq-string plane -> opaque = Gate-C facade.
+- CORRECTNESS wall (not cost/scale). Reopen = flagged multi-method retype to ONE plane (convert _handle_try_stmt + collect_escaping + _callee_raised_direct to map-string-bool) OR a faithful enumerable seq-string set-primitive family. Both review-gated.
+
+## FRONTIER at 718 (2026-08-15, session 736->718 = 18 conv): autonomous single-stub floor; residual = review-gated campaigns
+- ALL banked-device + spike-able single-stub veins drained. Every residual lead SPIKED/MEASURED to a specific review-gated MULTI-METHOD campaign:
+  1. self-state-as-key-iterable-pydict retype (unlocks _module_binding_names/_collect_shared_symbol_decls; BROAD, sibling-regression risk)
+  2. lifted-def catamorphism / nested-def re-coupling (unlocks _collect_str_decode_locals + _collect_* family; Module5 decouples captured accumulator into abstract val = unsound-masked)
+  3. seq-string faithful set-primitive family OR map-string-bool plane consolidation (_callee_raised_in + Try cluster)
+  4. raw-AST Ingestor/CSL-Weaver IR-builder modeling (_build_function_ir/_csl_*/_py_expr_*/_match_pattern_to_ir; hardest)
+- 3 "review-gated/new-device" verdicts REFUTED this window by spiking contained paths (termination-VC, type-string producers, self-ref-map-key-enum) => always spike before flagging; but these 4 are now spike-confirmed as genuinely multi-method/review-gated.
