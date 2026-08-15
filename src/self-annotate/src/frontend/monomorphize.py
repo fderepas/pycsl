@@ -113,11 +113,28 @@ def _match_generic_annotation(type_str: Any, generic_names: int) -> int:
 def _collect_instantiations_ast(tree: Any, generics: int) -> int:
     return set()
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _extract_ast_subscript(node: Any, generic_names: int) -> int:
+def _extract_ast_subscript(node: Any, generic_names: Set[str]) -> Optional[Tuple[str, str]]:
+    """If `node` is `Generic[<concrete-type>]` on a generic name, return the
+    `(generic_name, concrete_type)` pair; else None. Recognizes:
+      - `Subscript(value=Name(C), slice=Name(int))` — the `C[int]` form.
+    Only the bare-Name concrete type is recognized (a nested generic
+    instantiation is not supported in this delivery)."""
+    if not isinstance(node, _ast.Subscript):
+        return None
+    val = node.value
+    if not isinstance(val, _ast.Name):
+        return None
+    gname = val.id
+    if gname not in generic_names:
+        return None
+    slice_node = node.slice
+    if isinstance(slice_node, _ast.Name):
+        ct = _sanitize_type_name(slice_node.id)
+        if ct is not None:
+            return (gname, ct)
     return None
 
 #@ \trusted reviewer: pycsl-self-annotate

@@ -3620,6 +3620,7 @@ class FunctionEmissionMixin:
             recognize_check_class_invariants, emit_check_class_invariants_group,
             recognize_check_gt3_schema_only, emit_check_gt3_schema_only_group,
             recognize_check_bounds, emit_check_bounds_group,
+            recognize_extract_ast_subscript, emit_extract_ast_subscript_group,
             recognize_check_mutex_invariants, emit_check_mutex_invariants_group,
             recognize_check_callable_params, emit_check_callable_params_group,
             recognize_check_fresh_globals, emit_check_fresh_globals_group,
@@ -4226,6 +4227,14 @@ class FunctionEmissionMixin:
         _cb = recognize_check_bounds(func)
         if _cb is not None:
             return emit_check_bounds_group(_cb, whyml_ident)
+        # `_extract_ast_subscript`: RAW-AST walk via the opaque-pyval VIEW —
+        # `isinstance(n, _ast.<Cls>)` -> synthetic `_type` tag-test, `n.<attr>` ->
+        # `pget_dyn`, `Set[str]` membership -> `Map.get`, `Optional[Tuple]` ->
+        # `option (string,string)`, `_sanitize_type_name` cross-call destructured.
+        # Name-gated + corpus-inert; fail-closed. Ledger 3 (reuses pyval).
+        _eas = recognize_extract_ast_subscript(func)
+        if _eas is not None:
+            return emit_extract_ast_subscript_group(_eas, whyml_ident)
         _cmi = recognize_check_mutex_invariants(func)
         if _cmi is not None:
             return emit_check_mutex_invariants_group(_cmi, whyml_ident)

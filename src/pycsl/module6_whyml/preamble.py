@@ -2084,6 +2084,7 @@ class PreambleEmissionMixin:
             recognize_check_class_invariants,
             recognize_check_gt3_schema_only,
             recognize_check_bounds,
+            recognize_extract_ast_subscript,
             recognize_check_mutex_invariants,
             recognize_check_callable_params,
             recognize_check_fresh_globals,
@@ -2161,6 +2162,7 @@ class PreambleEmissionMixin:
             or recognize_check_class_invariants(f) is not None
             or recognize_check_gt3_schema_only(f) is not None
             or recognize_check_bounds(f) is not None
+            or recognize_extract_ast_subscript(f) is not None
             or recognize_check_mutex_invariants(f) is not None
             or recognize_check_callable_params(f) is not None
             or recognize_check_fresh_globals(f) is not None
@@ -2215,6 +2217,8 @@ class PreambleEmissionMixin:
             or recognize_check_class_invariants(f) is not None
             or recognize_check_gt3_schema_only(f) is not None
             or recognize_check_bounds(f) is not None
+            # `_extract_ast_subscript`: raw-ast node descent reads via `pget_dyn`.
+            or recognize_extract_ast_subscript(f) is not None
             or recognize_check_mutex_invariants(f) is not None
             or recognize_check_callable_params(f) is not None
             or recognize_check_fresh_globals(f) is not None

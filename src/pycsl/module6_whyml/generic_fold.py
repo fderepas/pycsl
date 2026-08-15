@@ -12660,6 +12660,233 @@ def emit_check_gt3_schema_only_group(desc: Dict[str, Any], whyml_ident) -> List[
     return out
 
 
+# ---- `_extract_ast_subscript`: RAW-AST walk via the opaque-pyval VIEW ----------
+#   if not isinstance(node, _ast.Subscript): return None
+#   val = node.value
+#   if not isinstance(val, _ast.Name): return None
+#   gname = val.id
+#   if gname not in generic_names: return None
+#   slice_node = node.slice
+#   if isinstance(slice_node, _ast.Name):
+#       ct = _sanitize_type_name(slice_node.id)
+#       if ct is not None: return (gname, ct)
+#   return None
+# The raw `ast.AST` node is given an over-approximating pyval VIEW (`Any` -> pyval,
+# universally quantified): `isinstance(n, _ast.<Cls>)` -> a tag-test on a synthetic
+# `_type` key (`pystr_eq (pget_dyn "_type" d) "<Cls>"`, the driver-endorsed device),
+# and each attribute `n.<attr>` -> `pget_dyn "<attr>"`. The `Set[str]` param is the
+# faithful `map string bool` (membership = `Map.get`); the `Optional[Tuple[str,str]]`
+# return is `option (string, string)` built directly (no early-return exception); the
+# `_sanitize_type_name` cross-call is destructured over its `_union__sanitize_type_name_1`
+# arms. Contract is type-safety-only (`ensures True`) so the opaque VIEW is a sound
+# over-approximation; NON-VACUITY = the real ast kind literals (Subscript/Name) and
+# attribute keys (value/id/slice) are reflected mutation-sensitively + the membership,
+# sanitize cross-call and tuple build are all descended. NO new axiom/ADT/cert
+# (reuses pyval/pget_dyn/pystr_eq + the sibling's already-declared union), ledger 3.
+
+def _match_isinstance_ast(test: Any, subj: Optional[str]) -> Optional[Dict[str, str]]:
+    """`isinstance(<subj>, _ast.<Cls>)` -> {"subj": <var>, "cls": <Cls>} or None."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return None
+    args = test.get("args") or []
+    if len(args) != 2:
+        return None
+    a0, a1 = args[0], args[1]
+    if not _is_var(a0, subj):
+        return None
+    if not (isinstance(a1, dict) and a1.get("type") == "Attribute"
+            and _is_var(a1.get("object")) and isinstance(a1.get("attr"), str)):
+        return None
+    return {"subj": a0.get("name"), "cls": a1["attr"]}
+
+
+def _match_not_isinstance_return_none(stmt: Any, subj: Optional[str]) -> Optional[Dict[str, str]]:
+    """`if not isinstance(<subj>, _ast.<Cls>): return None`."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "If" and not (stmt.get("orelse") or [])):
+        return None
+    test = stmt.get("test") or {}
+    if not (isinstance(test, dict) and test.get("type") == "UnaryOp" and test.get("op") == "not"):
+        return None
+    ins = _match_isinstance_ast(test.get("expr") or {}, subj)
+    if ins is None:
+        return None
+    body = stmt.get("body") or []
+    if not (len(body) == 1 and isinstance(body[0], dict) and body[0].get("stmt") == "Return"
+            and (body[0].get("value") or {}).get("type") == "None"):
+        return None
+    return ins
+
+
+def _match_attr_assign(stmt: Any, obj_var: Optional[str]) -> Optional[Dict[str, str]]:
+    """`<tgt> = <obj>.<attr>` where <obj> is the Var `obj_var` (any if None)."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"
+            and isinstance(stmt.get("target"), str)):
+        return None
+    v = stmt.get("value") or {}
+    if not (isinstance(v, dict) and v.get("type") == "Attribute"
+            and _is_var(v.get("object"), obj_var) and isinstance(v.get("attr"), str)):
+        return None
+    return {"target": stmt["target"], "attr": v["attr"]}
+
+
+def recognize_extract_ast_subscript(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_extract_ast_subscript`. Returns the reflected
+    kind-literals + attribute-keys descriptor, or None. Never raises."""
+    try:
+        return _recognize_extract_ast_subscript(func)
+    except Exception:
+        return None
+
+
+def _recognize_extract_ast_subscript(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_extract_ast_subscript":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    node_p, set_p = params[0], params[1]
+    body = func.get("body") or []
+    if len(body) != 8:
+        return None
+    # [0] if not isinstance(node, _ast.Subscript): return None
+    s0 = _match_not_isinstance_return_none(body[0], node_p)
+    if s0 is None:
+        return None
+    cls0 = s0["cls"]
+    # [1] val = node.value
+    a1 = _match_attr_assign(body[1], node_p)
+    if a1 is None:
+        return None
+    val_var, attr_value = a1["target"], a1["attr"]
+    # [2] if not isinstance(val, _ast.Name): return None
+    s2 = _match_not_isinstance_return_none(body[2], val_var)
+    if s2 is None:
+        return None
+    cls1 = s2["cls"]
+    # [3] gname = val.id
+    a3 = _match_attr_assign(body[3], val_var)
+    if a3 is None:
+        return None
+    gname_var, attr_id1 = a3["target"], a3["attr"]
+    # [4] if gname not in generic_names: return None
+    s4 = body[4]
+    t4 = s4.get("test") if isinstance(s4, dict) else None
+    if not (isinstance(s4, dict) and s4.get("stmt") == "If" and not (s4.get("orelse") or [])
+            and isinstance(t4, dict) and t4.get("type") == "BinOp" and t4.get("op") == "not in"
+            and _is_var(t4.get("left"), gname_var) and _is_var(t4.get("right"), set_p)):
+        return None
+    b4 = s4.get("body") or []
+    if not (len(b4) == 1 and isinstance(b4[0], dict) and b4[0].get("stmt") == "Return"
+            and (b4[0].get("value") or {}).get("type") == "None"):
+        return None
+    # [5] slice_node = node.slice
+    a5 = _match_attr_assign(body[5], node_p)
+    if a5 is None:
+        return None
+    slice_var, attr_slice = a5["target"], a5["attr"]
+    # [6] if isinstance(slice_node, _ast.Name): ct = SAN(slice_node.id); if ct != None: return (gname, ct)
+    s6 = body[6]
+    if not (isinstance(s6, dict) and s6.get("stmt") == "If" and not (s6.get("orelse") or [])):
+        return None
+    ins6 = _match_isinstance_ast(s6.get("test") or {}, slice_var)
+    if ins6 is None:
+        return None
+    cls2 = ins6["cls"]
+    b6 = s6.get("body") or []
+    if len(b6) != 2:
+        return None
+    # b6[0]: ct = SAN(slice_node.id)
+    c0 = b6[0]
+    if not (isinstance(c0, dict) and c0.get("stmt") == "Assign" and isinstance(c0.get("target"), str)):
+        return None
+    ct_var = c0["target"]
+    cv = c0.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call" and isinstance(cv.get("func"), str)):
+        return None
+    san = cv["func"]
+    cargs = cv.get("args") or []
+    if len(cargs) != 1:
+        return None
+    ca = cargs[0]
+    if not (isinstance(ca, dict) and ca.get("type") == "Attribute"
+            and _is_var(ca.get("object"), slice_var) and isinstance(ca.get("attr"), str)):
+        return None
+    attr_id2 = ca["attr"]
+    # b6[1]: if ct != None: return (gname, ct)
+    g = b6[1]
+    gt = g.get("test") if isinstance(g, dict) else None
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not (g.get("orelse") or [])
+            and isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "!="
+            and _is_var(gt.get("left"), ct_var) and (gt.get("right") or {}).get("type") == "None"):
+        return None
+    gb = g.get("body") or []
+    if len(gb) != 1 or not (isinstance(gb[0], dict) and gb[0].get("stmt") == "Return"):
+        return None
+    rv = gb[0].get("value") or {}
+    if not (isinstance(rv, dict) and rv.get("type") == "Tuple"):
+        return None
+    elts = rv.get("elts") or []
+    if not (len(elts) == 2 and _is_var(elts[0], gname_var) and _is_var(elts[1], ct_var)):
+        return None
+    # [7] return None
+    s7 = body[7]
+    if not (isinstance(s7, dict) and s7.get("stmt") == "Return"
+            and (s7.get("value") or {}).get("type") == "None"):
+        return None
+    return {"name": func["name"], "cls0": cls0, "attr_value": attr_value,
+            "cls1": cls1, "attr_id1": attr_id1, "attr_slice": attr_slice,
+            "cls2": cls2, "attr_id2": attr_id2, "sanitize": san}
+
+
+def emit_extract_ast_subscript_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_extract_ast_subscript` as an over-approximating pyval descent (see the
+    block comment above). `ensures True`; NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    c0, av = desc["cls0"], desc["attr_value"]
+    c1, ai1 = desc["cls1"], desc["attr_id1"]
+    asl = desc["attr_slice"]
+    c2, ai2 = desc["cls2"], desc["attr_id2"]
+    san = whyml_ident(desc["sanitize"])
+    out: List[str] = []
+    out.append(f"  let {n} (node: pyval) (generic_names: map string bool) : option (string, string)")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match node with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f'         | Some (PStr t0) -> if pystr_eq t0 "{c0}" then')
+    out.append(f'             (match pget_dyn "{av}" d with')
+    out.append("              | Some (PDict vd) ->")
+    out.append('                  (match pget_dyn "_type" vd with')
+    out.append(f'                   | Some (PStr t1) -> if pystr_eq t1 "{c1}" then')
+    out.append(f'                       (match pget_dyn "{ai1}" vd with')
+    out.append("                        | Some (PStr gname) ->")
+    out.append("                            if not (Map.get generic_names gname) then None")
+    out.append("                            else")
+    out.append(f'                              (match pget_dyn "{asl}" d with')
+    out.append("                               | Some (PDict sd) ->")
+    out.append('                                   (match pget_dyn "_type" sd with')
+    out.append(f'                                    | Some (PStr t2) -> if pystr_eq t2 "{c2}" then')
+    out.append(f'                                        (match pget_dyn "{ai2}" sd with')
+    out.append("                                         | Some (PStr sid) ->")
+    out.append(f"                                             (match {san} sid with")
+    out.append("                                              | Arm_1_0 ct -> Some (gname, ct)")
+    out.append("                                              | Arm_1_None -> None end)")
+    out.append("                                         | _ -> None end)")
+    out.append("                                        else None")
+    out.append("                                    | _ -> None end)")
+    out.append("                               | _ -> None end)")
+    out.append("                        | _ -> None end)")
+    out.append("                       else None")
+    out.append("                   | _ -> None end)")
+    out.append("              | _ -> None end)")
+    out.append("           else None")
+    out.append("         | _ -> None end)")
+    out.append("    | _ -> None")
+    out.append("    end")
+    return out
+
+
 # ---- `_check_bounds`: instantiation-set raise-consumer (__anystr device) ------
 #   for gname, ct in instantiations:
 #       info = generics.get(gname)
