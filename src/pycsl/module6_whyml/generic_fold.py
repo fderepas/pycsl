@@ -13278,6 +13278,675 @@ def emit_collect_instantiations_ast_group(desc: Dict[str, Any], ext_desc: Dict[s
     return out
 
 
+# ---- Weaver `_collect_*_sites`: raw-`ast.iter_child_nodes` recursive out-param
+#   list-collector over the pyval VIEW. The live body is a mutual recursion:
+#       for child in ast.iter_child_nodes(node):
+#           if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+#               <per-child check> ; out.append((child, <site>, cur_func))
+#           inner = child.name if isinstance(child, ast.FunctionDef) else cur_func
+#           self._collect_*(child, ..., inner, out)
+# `ast.iter_child_nodes(node)` = the direct-child yield; the recursive self-call
+# turns it into a FULL descent. Emitted as the banked pyval catamorphism
+# (`__walk`/`__walkd`/`__walkl`, pv_size/size_dict/size_list measures) threading an
+# `option string` enclosing-func (`cf`, updated to the FunctionDef `name` on descent)
+# and a `list TUP` accumulator (Cons = `.append`). The `_field_write_site` cross-call
+# is an OPAQUE per-group `val …__fws` (legit trusted-stub abstraction). `ensures True`
+# so the VIEW is a sound over-approximation; NON-VACUITY = the real ast kind literals
+# (Assign/AnnAssign/AugAssign/FunctionDef) + the `name` attr are reflected mutation-
+# sensitively, the descent is over the REAL structure, and the accumulator snocs a REAL
+# `(child, site, cf)` tuple. NO new axiom/ADT/cert (reuses pyval/pget_dyn/pystr_eq +
+# built-in list/tuple/option), ledger 3.
+
+def recognize_collect_field_sites(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the Weaver `_collect_field_sites` method. Never raises."""
+    try:
+        return _recognize_collect_field_sites(func)
+    except Exception:
+        return None
+
+
+def _recognize_collect_field_sites(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("kind") != "method" or not str(func.get("name", "")).endswith(
+            "_collect_field_sites"):
+        return None
+    if str(func.get("name", "")).endswith("_collect_field_read_sites"):
+        return None
+    params = func.get("formal_params") or []
+    if params != ["node", "field", "cur_func", "out"]:
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    fr = body[0]
+    if not (isinstance(fr, dict) and fr.get("stmt") == "For"
+            and fr.get("target") == "child"):
+        return None
+    it = fr.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "ast.iter_child_nodes"
+            and _is_var((it.get("args") or [None])[0], "node")):
+        return None
+    fb = fr.get("body") or []
+    if len(fb) != 3:
+        return None
+    # fb[0]: if isinstance(child, (Assign, AnnAssign, AugAssign)): site=fws; if site!=None: out.append((child, site, cur_func))
+    guard = fb[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If" and not (guard.get("orelse") or [])):
+        return None
+    kinds = _match_isinstance_ast_tuple(guard.get("test") or {}, "child")
+    if not kinds:
+        return None
+    gb = guard.get("body") or []
+    if len(gb) != 2:
+        return None
+    # gb[0]: site = self._field_write_site(child, field)
+    a0 = gb[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and isinstance(a0.get("target"), str)):
+        return None
+    site_var = a0["target"]
+    cv = a0.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"
+            and isinstance(cv.get("func"), str) and cv.get("func").endswith("_field_write_site")):
+        return None
+    ca = cv.get("args") or []
+    if not (len(ca) == 2 and _is_var(ca[0], "child") and _is_var(ca[1], "field")):
+        return None
+    # gb[1]: if site != None: out.append((child, site, cur_func))
+    g1 = gb[1]
+    gt = g1.get("test") if isinstance(g1, dict) else None
+    if not (isinstance(g1, dict) and g1.get("stmt") == "If" and not (g1.get("orelse") or [])
+            and isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "!="
+            and _is_var(gt.get("left"), site_var) and (gt.get("right") or {}).get("type") == "None"):
+        return None
+    g1b = g1.get("body") or []
+    if len(g1b) != 1:
+        return None
+    ap = g1b[0]
+    if not (isinstance(ap, dict) and ap.get("stmt") == "Expr"):
+        return None
+    apc = ap.get("value") or {}
+    if not (isinstance(apc, dict) and apc.get("type") == "Call" and apc.get("func") == "out.append"):
+        return None
+    apa = apc.get("args") or []
+    if len(apa) != 1 or not (isinstance(apa[0], dict) and apa[0].get("type") == "Tuple"):
+        return None
+    elts = apa[0].get("elts") or []
+    if not (len(elts) == 3 and _is_var(elts[0], "child") and _is_var(elts[1], site_var)
+            and _is_var(elts[2], "cur_func")):
+        return None
+    # fb[1]: inner_func = child.name if isinstance(child, FunctionDef) else cur_func
+    fdk, natt = _match_funcdef_name_ifexpr(fb[1], "cur_func")
+    if fdk is None:
+        return None
+    # fb[2]: self._collect_field_sites(child, field, inner_func, out)  (recursive)
+    rec = fb[2]
+    if not (isinstance(rec, dict) and rec.get("stmt") == "Expr"):
+        return None
+    rc = rec.get("value") or {}
+    if not (isinstance(rc, dict) and rc.get("type") == "Call"
+            and str(rc.get("func", "")).endswith("_collect_field_sites")):
+        return None
+    return {"name": func["name"], "self_type": func.get("self_type"),
+            "assign_kinds": kinds, "funcdef_kind": fdk, "name_attr": natt}
+
+
+def _match_funcdef_name_ifexpr(stmt: Any, else_var: str):
+    """`inner = child.<name_attr> if isinstance(child, ast.<Cls>) else <else_var>`
+    -> (Cls, name_attr) or (None, None). Shared by the `_collect_*_sites` family."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return (None, None)
+    v = stmt.get("value") or {}
+    if not (isinstance(v, dict) and v.get("type") == "IfExpr"):
+        return (None, None)
+    ins = _match_isinstance_ast(v.get("test") or {}, "child")
+    if ins is None:
+        return (None, None)
+    b = v.get("body") or {}
+    if not (isinstance(b, dict) and b.get("type") == "Attribute"
+            and _is_var(b.get("object"), "child") and isinstance(b.get("attr"), str)):
+        return (None, None)
+    if not _is_var(v.get("orelse"), else_var):
+        return (None, None)
+    return (ins["cls"], b["attr"])
+
+
+_CFS_TUP = "(pyval, option pyval, option string)"
+
+
+def emit_collect_field_sites_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the Weaver `_collect_field_sites` as an `ast.iter_child_nodes` catamorphism
+    over the pyval VIEW threading an `option string` enclosing-func and a `list TUP`
+    accumulator. `_field_write_site` cross-call = opaque per-group `val …__fws`. NO new
+    axiom/ADT/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    cls = whyml_ident(str(desc["self_type"]).lower())
+    kd = " || ".join(f'(pystr_eq t "{k}")' for k in desc["assign_kinds"])
+    fdk, natt = desc["funcdef_kind"], desc["name_attr"]
+    T = _CFS_TUP
+    out: List[str] = []
+    out.append(f"  val {n}__fws (child: pyval) (field: string) : option pyval")
+    out.append("    ensures { true }")
+    out.append("")
+    out.append(f"  let {n}__node (nd: pyval) (field: string) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f"         | Some (PStr t) -> if {kd} then")
+    out.append(f"             (match {n}__fws nd field with")
+    out.append("              | Some s -> Cons (nd, Some s, cf) acc")
+    out.append("              | None -> acc end)")
+    out.append("           else acc")
+    out.append("         | _ -> acc end)")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    out.append(f"  let {n}__cf (nd: pyval) (cf: option string) : option string")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f'         | Some (PStr t) -> if pystr_eq t "{fdk}" then')
+    out.append(f'             (match pget_dyn "{natt}" d with Some (PStr nm) -> Some nm | _ -> cf end)')
+    out.append("           else cf")
+    out.append("         | _ -> cf end)")
+    out.append("    | _ -> cf")
+    out.append("    end")
+    out.append(f"  let rec {n}__walk (nd: pyval) (field: string) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { pv_size nd }")
+    out.append(f"  = let acc = {n}__node nd field cf acc in")
+    out.append(f"    let cf2 = {n}__cf nd cf in")
+    out.append("    match nd with")
+    out.append(f"    | PDict d -> {n}__walkd d field cf2 acc")
+    out.append(f"    | PList xs -> {n}__walkl xs field cf acc")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    out.append(f"  with {n}__walkd (d: pydict) (field: string) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> acc")
+    out.append(f"    | DCons _ v rest -> {n}__walkd rest field cf ({n}__walk v field cf acc)")
+    out.append("    end")
+    out.append(f"  with {n}__walkl (xs: list pyval) (field: string) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append(f"    | Cons h t -> {n}__walkl t field cf ({n}__walk h field cf acc)")
+    out.append("    end")
+    out.append(f"  let {n} (self: {cls}) (node: pyval) (field: string) (cur_func: option string) (out: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match node with")
+    out.append(f"    | PDict d -> {n}__walkd d field ({n}__cf node cur_func) out")
+    out.append(f"    | PList xs -> {n}__walkl xs field cur_func out")
+    out.append("    | _ -> out")
+    out.append("    end")
+    return out
+
+
+def _match_tgts_ifexpr(stmt: Any) -> Optional[Dict[str, str]]:
+    """`tgts = child.<A> if isinstance(child, ast.<Cls>) else [child.<B>]`
+    -> {assign_cls, targets_attr, target_attr} or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Assign"):
+        return None
+    v = stmt.get("value") or {}
+    if not (isinstance(v, dict) and v.get("type") == "IfExpr"):
+        return None
+    ins = _match_isinstance_ast(v.get("test") or {}, "child")
+    if ins is None:
+        return None
+    b = v.get("body") or {}
+    if not (isinstance(b, dict) and b.get("type") == "Attribute"
+            and _is_var(b.get("object"), "child") and isinstance(b.get("attr"), str)):
+        return None
+    o = v.get("orelse") or {}
+    if not (isinstance(o, dict) and o.get("type") == "ArrayLit"):
+        return None
+    oe = o.get("elts") or []
+    if len(oe) != 1:
+        return None
+    oe0 = oe[0]
+    if not (isinstance(oe0, dict) and oe0.get("type") == "Attribute"
+            and _is_var(oe0.get("object"), "child") and isinstance(oe0.get("attr"), str)):
+        return None
+    return {"assign_cls": ins["cls"], "targets_attr": b["attr"], "target_attr": oe0["attr"]}
+
+
+def recognize_collect_protect_sites(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the Weaver `_collect_protect_sites` method. Never raises."""
+    try:
+        return _recognize_collect_protect_sites(func)
+    except Exception:
+        return None
+
+
+def _recognize_collect_protect_sites(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("kind") != "method" or not str(func.get("name", "")).endswith(
+            "_collect_protect_sites"):
+        return None
+    params = func.get("formal_params") or []
+    if params != ["node", "protected", "cur_func", "out"]:
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    fr = body[0]
+    if not (isinstance(fr, dict) and fr.get("stmt") == "For" and fr.get("target") == "child"):
+        return None
+    it = fr.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "ast.iter_child_nodes"
+            and _is_var((it.get("args") or [None])[0], "node")):
+        return None
+    fb = fr.get("body") or []
+    if len(fb) != 3:
+        return None
+    guard = fb[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If" and not (guard.get("orelse") or [])):
+        return None
+    kinds = _match_isinstance_ast_tuple(guard.get("test") or {}, "child")
+    if not kinds:
+        return None
+    gb = guard.get("body") or []
+    if len(gb) != 2:
+        return None
+    tg = _match_tgts_ifexpr(gb[0])
+    if tg is None:
+        return None
+    inner_for = gb[1]
+    if not (isinstance(inner_for, dict) and inner_for.get("stmt") == "For"
+            and inner_for.get("target") == "tgt"
+            and _is_var(inner_for.get("iter"), "tgts")):
+        return None
+    ib = inner_for.get("body") or []
+    if len(ib) != 2:
+        return None
+    # ib[0]: p = self._target_dotted_path(tgt)
+    a0 = ib[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and a0.get("target") == "p"):
+        return None
+    cv = a0.get("value") or {}
+    if not (isinstance(cv, dict) and cv.get("type") == "Call"
+            and str(cv.get("func", "")).endswith("_target_dotted_path")
+            and len(cv.get("args") or []) == 1 and _is_var(cv["args"][0], "tgt")):
+        return None
+    # ib[1]: if p in protected: out.append((child, cur_func, p))
+    g1 = ib[1]
+    gt = g1.get("test") if isinstance(g1, dict) else None
+    if not (isinstance(g1, dict) and g1.get("stmt") == "If" and not (g1.get("orelse") or [])
+            and isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "in"
+            and _is_var(gt.get("left"), "p") and _is_var(gt.get("right"), "protected")):
+        return None
+    g1b = g1.get("body") or []
+    if len(g1b) != 1:
+        return None
+    ap = g1b[0]
+    if not (isinstance(ap, dict) and ap.get("stmt") == "Expr"):
+        return None
+    apc = ap.get("value") or {}
+    if not (isinstance(apc, dict) and apc.get("type") == "Call" and apc.get("func") == "out.append"):
+        return None
+    apa = apc.get("args") or []
+    if len(apa) != 1 or not (isinstance(apa[0], dict) and apa[0].get("type") == "Tuple"):
+        return None
+    elts = apa[0].get("elts") or []
+    if not (len(elts) == 3 and _is_var(elts[0], "child") and _is_var(elts[1], "cur_func")
+            and _is_var(elts[2], "p")):
+        return None
+    fdk, natt = _match_funcdef_name_ifexpr(fb[1], "cur_func")
+    if fdk is None:
+        return None
+    rec = fb[2]
+    if not (isinstance(rec, dict) and rec.get("stmt") == "Expr"):
+        return None
+    rc = rec.get("value") or {}
+    if not (isinstance(rc, dict) and rc.get("type") == "Call"
+            and str(rc.get("func", "")).endswith("_collect_protect_sites")):
+        return None
+    return {"name": func["name"], "self_type": func.get("self_type"),
+            "assign_kinds": kinds, "assign_cls": tg["assign_cls"],
+            "targets_attr": tg["targets_attr"], "target_attr": tg["target_attr"],
+            "funcdef_kind": fdk, "name_attr": natt}
+
+
+_CPS_TUP = "(pyval, option string, string)"
+
+
+def emit_collect_protect_sites_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the Weaver `_collect_protect_sites` as an `ast.iter_child_nodes` catamorphism
+    over the pyval VIEW: per node, if it is an assign kind, fold its target list (`child.
+    <targets_attr>` when Assign else the singleton `[child.<target_attr>]`), resolve each
+    target's dotted path via the opaque `_target_dotted_path` cross-call (`val …__tdp`) and
+    snoc `(child, cf, path)` when the path is in `protected` (`map string bool`). `option
+    string` enclosing-func threaded. NO new axiom/ADT/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    cls = whyml_ident(str(desc["self_type"]).lower())
+    kd = " || ".join(f'(pystr_eq t "{k}")' for k in desc["assign_kinds"])
+    acls = desc["assign_cls"]
+    tatt, oatt = desc["targets_attr"], desc["target_attr"]
+    fdk, natt = desc["funcdef_kind"], desc["name_attr"]
+    T = _CPS_TUP
+    out: List[str] = []
+    out.append(f"  val {n}__tdp (tgt: pyval) : option string")
+    out.append("    ensures { true }")
+    out.append("")
+    out.append(f"  let rec {n}__tgts (xs: list pyval) (protected: map string bool) (cf: option string) (nd: pyval) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append("    | Cons tgt rest ->")
+    out.append(f"        let acc = (match {n}__tdp tgt with")
+    out.append("                   | Some pp -> if Map.get protected pp then Cons (nd, cf, pp) acc else acc")
+    out.append("                   | None -> acc end) in")
+    out.append(f"        {n}__tgts rest protected cf nd acc")
+    out.append("    end")
+    out.append(f"  let {n}__node (nd: pyval) (protected: map string bool) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f"         | Some (PStr t) -> if {kd} then")
+    out.append(f'             let tgts = (if pystr_eq t "{acls}" then pget_list "{tatt}" d')
+    out.append(f'                         else (match pget_dyn "{oatt}" d with Some tv -> Cons tv Nil | None -> Nil end)) in')
+    out.append(f"             {n}__tgts tgts protected cf nd acc")
+    out.append("           else acc")
+    out.append("         | _ -> acc end)")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    out.append(f"  let {n}__cf (nd: pyval) (cf: option string) : option string")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f'         | Some (PStr t) -> if pystr_eq t "{fdk}" then')
+    out.append(f'             (match pget_dyn "{natt}" d with Some (PStr nm) -> Some nm | _ -> cf end)')
+    out.append("           else cf")
+    out.append("         | _ -> cf end)")
+    out.append("    | _ -> cf")
+    out.append("    end")
+    out.append(f"  let rec {n}__walk (nd: pyval) (protected: map string bool) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { pv_size nd }")
+    out.append(f"  = let acc = {n}__node nd protected cf acc in")
+    out.append(f"    let cf2 = {n}__cf nd cf in")
+    out.append("    match nd with")
+    out.append(f"    | PDict d -> {n}__walkd d protected cf2 acc")
+    out.append(f"    | PList xs -> {n}__walkl xs protected cf acc")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    out.append(f"  with {n}__walkd (d: pydict) (protected: map string bool) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> acc")
+    out.append(f"    | DCons _ v rest -> {n}__walkd rest protected cf ({n}__walk v protected cf acc)")
+    out.append("    end")
+    out.append(f"  with {n}__walkl (xs: list pyval) (protected: map string bool) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append(f"    | Cons h t -> {n}__walkl t protected cf ({n}__walk h protected cf acc)")
+    out.append("    end")
+    out.append(f"  let {n} (self: {cls}) (node: pyval) (protected: map string bool) (cur_func: option string) (out: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match node with")
+    out.append(f"    | PDict d -> {n}__walkd d protected ({n}__cf node cur_func) out")
+    out.append(f"    | PList xs -> {n}__walkl xs protected cur_func out")
+    out.append("    | _ -> out")
+    out.append("    end")
+    return out
+
+
+def recognize_collect_protect_index_sites(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of the Weaver `_collect_protect_index_sites` method. Never raises."""
+    try:
+        return _recognize_collect_protect_index_sites(func)
+    except Exception:
+        return None
+
+
+def _recognize_collect_protect_index_sites(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("kind") != "method" or not str(func.get("name", "")).endswith(
+            "_collect_protect_index_sites"):
+        return None
+    params = func.get("formal_params") or []
+    if params != ["node", "path", "cur_func", "out"]:
+        return None
+    body = func.get("body") or []
+    if len(body) != 1:
+        return None
+    fr = body[0]
+    if not (isinstance(fr, dict) and fr.get("stmt") == "For" and fr.get("target") == "child"):
+        return None
+    it = fr.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "ast.iter_child_nodes"
+            and _is_var((it.get("args") or [None])[0], "node")):
+        return None
+    fb = fr.get("body") or []
+    if len(fb) != 3:
+        return None
+    guard = fb[0]
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If" and not (guard.get("orelse") or [])):
+        return None
+    kinds = _match_isinstance_ast_tuple(guard.get("test") or {}, "child")
+    if not kinds:
+        return None
+    gb = guard.get("body") or []
+    if len(gb) != 2:
+        return None
+    tg = _match_tgts_ifexpr(gb[0])
+    if tg is None:
+        return None
+    inner_for = gb[1]
+    if not (isinstance(inner_for, dict) and inner_for.get("stmt") == "For"
+            and inner_for.get("target") == "tgt" and _is_var(inner_for.get("iter"), "tgts")):
+        return None
+    ib = inner_for.get("body") or []
+    if len(ib) != 1:
+        return None
+    sub_if = ib[0]
+    t = sub_if.get("test") if isinstance(sub_if, dict) else None
+    if not (isinstance(sub_if, dict) and sub_if.get("stmt") == "If" and not (sub_if.get("orelse") or [])
+            and isinstance(t, dict) and t.get("type") == "BinOp" and t.get("op") == "and"):
+        return None
+    subins = _match_isinstance_ast(t.get("left") or {}, "tgt")
+    if subins is None:
+        return None
+    eq = t.get("right") or {}
+    if not (isinstance(eq, dict) and eq.get("type") == "BinOp" and eq.get("op") == "=="
+            and _is_var(eq.get("right"), "path")):
+        return None
+    tdpc = eq.get("left") or {}
+    if not (isinstance(tdpc, dict) and tdpc.get("type") == "Call"
+            and str(tdpc.get("func", "")).endswith("_target_dotted_path")):
+        return None
+    tva = (tdpc.get("args") or [None])[0]
+    if not (isinstance(tva, dict) and tva.get("type") == "Attribute"
+            and _is_var(tva.get("object"), "tgt") and isinstance(tva.get("attr"), str)):
+        return None
+    value_attr = tva["attr"]
+    sib = sub_if.get("body") or []
+    if len(sib) != 3:
+        return None
+    # sib[0]: sl = tgt.slice
+    a0 = sib[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and a0.get("target") == "sl"):
+        return None
+    slv = a0.get("value") or {}
+    if not (isinstance(slv, dict) and slv.get("type") == "Attribute"
+            and _is_var(slv.get("object"), "tgt") and isinstance(slv.get("attr"), str)):
+        return None
+    slice_attr = slv["attr"]
+    # sib[1]: if isinstance(sl, ast.Index): sl = sl.value
+    i1 = sib[1]
+    if not (isinstance(i1, dict) and i1.get("stmt") == "If" and not (i1.get("orelse") or [])):
+        return None
+    idxins = _match_isinstance_ast(i1.get("test") or {}, "sl")
+    if idxins is None:
+        return None
+    i1b = i1.get("body") or []
+    if len(i1b) != 1:
+        return None
+    ia = i1b[0]
+    if not (isinstance(ia, dict) and ia.get("stmt") == "Assign" and ia.get("target") == "sl"):
+        return None
+    iav = ia.get("value") or {}
+    if not (isinstance(iav, dict) and iav.get("type") == "Attribute"
+            and _is_var(iav.get("object"), "sl") and isinstance(iav.get("attr"), str)):
+        return None
+    idx_value_attr = iav["attr"]
+    # sib[2]: if not isinstance(sl, ast.Slice): out.append((child, cur_func, sl))
+    i2 = sib[2]
+    t2 = i2.get("test") if isinstance(i2, dict) else None
+    if not (isinstance(i2, dict) and i2.get("stmt") == "If" and not (i2.get("orelse") or [])
+            and isinstance(t2, dict) and t2.get("type") == "UnaryOp" and t2.get("op") == "not"):
+        return None
+    slins = _match_isinstance_ast(t2.get("expr") or {}, "sl")
+    if slins is None:
+        return None
+    i2b = i2.get("body") or []
+    if len(i2b) != 1:
+        return None
+    ap = i2b[0]
+    apc = ap.get("value") if isinstance(ap, dict) else None
+    if not (isinstance(ap, dict) and ap.get("stmt") == "Expr" and isinstance(apc, dict)
+            and apc.get("type") == "Call" and apc.get("func") == "out.append"):
+        return None
+    apa = apc.get("args") or []
+    if len(apa) != 1 or not (isinstance(apa[0], dict) and apa[0].get("type") == "Tuple"):
+        return None
+    elts = apa[0].get("elts") or []
+    if not (len(elts) == 3 and _is_var(elts[0], "child") and _is_var(elts[1], "cur_func")
+            and _is_var(elts[2], "sl")):
+        return None
+    fdk, natt = _match_funcdef_name_ifexpr(fb[1], "cur_func")
+    if fdk is None:
+        return None
+    rec = fb[2]
+    rc = rec.get("value") if isinstance(rec, dict) else None
+    if not (isinstance(rec, dict) and rec.get("stmt") == "Expr" and isinstance(rc, dict)
+            and rc.get("type") == "Call"
+            and str(rc.get("func", "")).endswith("_collect_protect_index_sites")):
+        return None
+    return {"name": func["name"], "self_type": func.get("self_type"),
+            "assign_kinds": kinds, "assign_cls": tg["assign_cls"],
+            "targets_attr": tg["targets_attr"], "target_attr": tg["target_attr"],
+            "subscript_cls": subins["cls"], "value_attr": value_attr,
+            "slice_attr": slice_attr, "index_cls": idxins["cls"],
+            "idx_value_attr": idx_value_attr, "slice_cls": slins["cls"],
+            "funcdef_kind": fdk, "name_attr": natt}
+
+
+_CPIS_TUP = "(pyval, option string, pyval)"
+
+
+def emit_collect_protect_index_sites_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit the Weaver `_collect_protect_index_sites` as an `ast.iter_child_nodes`
+    catamorphism: per assign node, fold the target list, keep only `Subscript` targets
+    whose base dotted-path (opaque `_target_dotted_path`) equals `path`, unwrap the
+    pre-3.9 `Index` slice, and snoc `(child, cf, slice)` for non-`Slice` (point) writes.
+    NO new axiom/ADT/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    cls = whyml_ident(str(desc["self_type"]).lower())
+    kd = " || ".join(f'(pystr_eq t "{k}")' for k in desc["assign_kinds"])
+    acls = desc["assign_cls"]
+    tatt, oatt = desc["targets_attr"], desc["target_attr"]
+    subc, vatt = desc["subscript_cls"], desc["value_attr"]
+    slatt, idxc, ivatt, slc = (desc["slice_attr"], desc["index_cls"],
+                               desc["idx_value_attr"], desc["slice_cls"])
+    fdk, natt = desc["funcdef_kind"], desc["name_attr"]
+    T = _CPIS_TUP
+    out: List[str] = []
+    out.append(f"  val {n}__tdp (v: pyval) : option string")
+    out.append("    ensures { true }")
+    out.append("")
+    out.append(f"  let {n}__isslice (sl: pyval) : bool")
+    out.append("  = match sl with")
+    out.append('    | PDict d -> (match pget_dyn "_type" d with')
+    out.append(f'                  | Some (PStr t) -> pystr_eq t "{slc}" | _ -> false end)')
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  let rec {n}__tgts (xs: list pyval) (path: string) (cf: option string) (nd: pyval) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append("    | Cons tgt rest ->")
+    out.append("        let acc = (match tgt with")
+    out.append("                   | PDict td ->")
+    out.append('                       (match pget_dyn "_type" td with')
+    out.append(f'                        | Some (PStr tt) -> if pystr_eq tt "{subc}" then')
+    out.append(f'                            (let base = (match pget_dyn "{vatt}" td with Some bv -> bv | None -> tgt end) in')
+    out.append(f"                             match {n}__tdp base with")
+    out.append("                             | Some pp -> if pystr_eq pp path then")
+    out.append(f'                                 (let sl0 = (match pget_dyn "{slatt}" td with Some sv -> sv | None -> PNone end) in')
+    out.append("                                  let sl = (match sl0 with")
+    out.append("                                            | PDict sd ->")
+    out.append('                                                (match pget_dyn "_type" sd with')
+    out.append(f'                                                 | Some (PStr st) -> if pystr_eq st "{idxc}" then')
+    out.append(f'                                                     (match pget_dyn "{ivatt}" sd with Some v2 -> v2 | None -> sl0 end)')
+    out.append("                                                   else sl0")
+    out.append("                                                 | _ -> sl0 end)")
+    out.append("                                            | _ -> sl0 end) in")
+    out.append(f"                                  if not ({n}__isslice sl) then Cons (nd, cf, sl) acc else acc)")
+    out.append("                                 else acc")
+    out.append("                             | None -> acc end)")
+    out.append("                          else acc")
+    out.append("                        | _ -> acc end)")
+    out.append("                   | _ -> acc end) in")
+    out.append(f"        {n}__tgts rest path cf nd acc")
+    out.append("    end")
+    out.append(f"  let {n}__node (nd: pyval) (path: string) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f"         | Some (PStr t) -> if {kd} then")
+    out.append(f'             let tgts = (if pystr_eq t "{acls}" then pget_list "{tatt}" d')
+    out.append(f'                         else (match pget_dyn "{oatt}" d with Some tv -> Cons tv Nil | None -> Nil end)) in')
+    out.append(f"             {n}__tgts tgts path cf nd acc")
+    out.append("           else acc")
+    out.append("         | _ -> acc end)")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    out.append(f"  let {n}__cf (nd: pyval) (cf: option string) : option string")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f'         | Some (PStr t) -> if pystr_eq t "{fdk}" then')
+    out.append(f'             (match pget_dyn "{natt}" d with Some (PStr nm) -> Some nm | _ -> cf end)')
+    out.append("           else cf")
+    out.append("         | _ -> cf end)")
+    out.append("    | _ -> cf")
+    out.append("    end")
+    out.append(f"  let rec {n}__walk (nd: pyval) (path: string) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { pv_size nd }")
+    out.append(f"  = let acc = {n}__node nd path cf acc in")
+    out.append(f"    let cf2 = {n}__cf nd cf in")
+    out.append("    match nd with")
+    out.append(f"    | PDict d -> {n}__walkd d path cf2 acc")
+    out.append(f"    | PList xs -> {n}__walkl xs path cf acc")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    out.append(f"  with {n}__walkd (d: pydict) (path: string) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> acc")
+    out.append(f"    | DCons _ v rest -> {n}__walkd rest path cf ({n}__walk v path cf acc)")
+    out.append("    end")
+    out.append(f"  with {n}__walkl (xs: list pyval) (path: string) (cf: option string) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append(f"    | Cons h t -> {n}__walkl t path cf ({n}__walk h path cf acc)")
+    out.append("    end")
+    out.append(f"  let {n} (self: {cls}) (node: pyval) (path: string) (cur_func: option string) (out: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match node with")
+    out.append(f"    | PDict d -> {n}__walkd d path ({n}__cf node cur_func) out")
+    out.append(f"    | PList xs -> {n}__walkl xs path cur_func out")
+    out.append("    | _ -> out")
+    out.append("    end")
+    return out
+
+
 # ---- `_check_bounds`: instantiation-set raise-consumer (__anystr device) ------
 #   for gname, ct in instantiations:
 #       info = generics.get(gname)

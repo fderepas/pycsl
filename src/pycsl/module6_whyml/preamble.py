@@ -2086,6 +2086,9 @@ class PreambleEmissionMixin:
             recognize_check_bounds,
             recognize_extract_ast_subscript,
             recognize_collect_instantiations_ast,
+            recognize_collect_field_sites,
+            recognize_collect_protect_sites,
+            recognize_collect_protect_index_sites,
             recognize_check_mutex_invariants,
             recognize_check_callable_params,
             recognize_check_fresh_globals,
@@ -2165,6 +2168,12 @@ class PreambleEmissionMixin:
             or recognize_check_bounds(f) is not None
             or recognize_extract_ast_subscript(f) is not None
             or recognize_collect_instantiations_ast(f) is not None
+            # Weaver `_collect_field_sites`: raw-ast iter_child_nodes descent (pget_dyn).
+            or recognize_collect_field_sites(f) is not None
+            # Weaver `_collect_protect_sites`: iter_child_nodes descent + target fold (pget_dyn/pget_list).
+            or recognize_collect_protect_sites(f) is not None
+            # Weaver `_collect_protect_index_sites`: subscript point-write descent (pget_dyn/pget_list).
+            or recognize_collect_protect_index_sites(f) is not None
             or recognize_check_mutex_invariants(f) is not None
             or recognize_check_callable_params(f) is not None
             or recognize_check_fresh_globals(f) is not None
@@ -2223,6 +2232,12 @@ class PreambleEmissionMixin:
             or recognize_extract_ast_subscript(f) is not None
             # `_collect_instantiations_ast`: `_ast.walk` set-collect reads via pget_dyn/pget_list.
             or recognize_collect_instantiations_ast(f) is not None
+            # Weaver `_collect_field_sites`: raw-ast iter_child_nodes descent reads via pget_dyn.
+            or recognize_collect_field_sites(f) is not None
+            # Weaver `_collect_protect_sites`: iter_child_nodes descent + target fold reads via pget_dyn/pget_list.
+            or recognize_collect_protect_sites(f) is not None
+            # Weaver `_collect_protect_index_sites`: subscript point-write descent reads via pget_dyn/pget_list.
+            or recognize_collect_protect_index_sites(f) is not None
             or recognize_check_mutex_invariants(f) is not None
             or recognize_check_callable_params(f) is not None
             or recognize_check_fresh_globals(f) is not None

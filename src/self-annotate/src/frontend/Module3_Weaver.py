@@ -238,19 +238,37 @@ class Module3_Weaver:
     def _target_dotted_path(target: ast.AST):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns out
     def _collect_protect_sites(self, node: ast.AST, protected: set, cur_func, out: List[tuple]) -> None:
-        pass
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                tgts = child.targets if isinstance(child, ast.Assign) else [child.target]
+                for tgt in tgts:
+                    p = self._target_dotted_path(tgt)
+                    if p in protected:
+                        out.append((child, cur_func, p))
+            inner = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._collect_protect_sites(child, protected, inner, out)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns out
     def _collect_protect_index_sites(self, node: ast.AST, path: str, cur_func, out: List[tuple]) -> None:
-        pass
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                tgts = child.targets if isinstance(child, ast.Assign) else [child.target]
+                for tgt in tgts:
+                    if isinstance(tgt, ast.Subscript) and \
+                            self._target_dotted_path(tgt.value) == path:
+                        sl = tgt.slice
+                        if isinstance(sl, ast.Index):
+                            sl = sl.value
+                        if not isinstance(sl, ast.Slice):
+                            out.append((child, cur_func, sl))
+            inner = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._collect_protect_index_sites(child, path, inner, out)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -267,12 +285,17 @@ class Module3_Weaver:
     def _check_protect_aliasing(self, node: ast.AST, protected: set, except_set: set, cur_func, hp_name: str) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns out
     def _collect_field_sites(self, node: ast.AST, field: str, cur_func, out: List[tuple]) -> None:
-        pass
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                site = self._field_write_site(child, field)
+                if site is not None:
+                    out.append((child, site, cur_func))
+            inner_func = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._collect_field_sites(child, field, inner_func, out)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

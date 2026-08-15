@@ -3622,6 +3622,9 @@ class FunctionEmissionMixin:
             recognize_check_bounds, emit_check_bounds_group,
             recognize_extract_ast_subscript, emit_extract_ast_subscript_group,
             recognize_collect_instantiations_ast, emit_collect_instantiations_ast_group,
+            recognize_collect_field_sites, emit_collect_field_sites_group,
+            recognize_collect_protect_sites, emit_collect_protect_sites_group,
+            recognize_collect_protect_index_sites, emit_collect_protect_index_sites_group,
             recognize_check_mutex_invariants, emit_check_mutex_invariants_group,
             recognize_check_callable_params, emit_check_callable_params_group,
             recognize_check_fresh_globals, emit_check_fresh_globals_group,
@@ -4251,6 +4254,24 @@ class FunctionEmissionMixin:
                              and recognize_extract_ast_subscript(g) is not None), None)
             if _ext_sib is not None:
                 return emit_collect_instantiations_ast_group(_cia, _ext_sib, whyml_ident)
+        # Weaver `_collect_field_sites`: raw-`ast.iter_child_nodes` recursive out-param
+        # list-collector over the pyval VIEW (banked `__walk`/`__walkd`/`__walkl`
+        # catamorphism threading `option string` enclosing-func + `list TUP` accumulator;
+        # `_field_write_site` = opaque per-group `val …__fws`). Name-gated + corpus-inert.
+        _cfsx = recognize_collect_field_sites(func)
+        if _cfsx is not None:
+            return emit_collect_field_sites_group(_cfsx, whyml_ident)
+        # Weaver `_collect_protect_sites`: raw-`ast.iter_child_nodes` recursive out-param
+        # list-collector with a per-node target-list fold + `_target_dotted_path` opaque
+        # cross-call + `p in protected` membership. Name-gated + corpus-inert.
+        _cpsx = recognize_collect_protect_sites(func)
+        if _cpsx is not None:
+            return emit_collect_protect_sites_group(_cpsx, whyml_ident)
+        # Weaver `_collect_protect_index_sites`: like `_collect_protect_sites` but keeps
+        # only Subscript point-writes to `path` (Index unwrap + non-Slice guard).
+        _cpix = recognize_collect_protect_index_sites(func)
+        if _cpix is not None:
+            return emit_collect_protect_index_sites_group(_cpix, whyml_ident)
         _cmi = recognize_check_mutex_invariants(func)
         if _cmi is not None:
             return emit_check_mutex_invariants_group(_cmi, whyml_ident)
