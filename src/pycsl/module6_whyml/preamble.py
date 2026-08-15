@@ -2247,6 +2247,7 @@ class PreambleEmissionMixin:
             recognize_struct_unpack_targets_pairs,
             recognize_contract_referenced_names_pairs,
             recognize_field_decode_str_locals_pairs,
+            recognize_str_decode_locals_pairs,
             recognize_string_elem_read_locals_pairs,
             recognize_callee_raised_direct_pairs,
             recognize_contract_referenced_var_names_pairs,
@@ -2325,6 +2326,7 @@ class PreambleEmissionMixin:
             recognize_struct_unpack_targets_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
             recognize_field_decode_str_locals_pairs(functions)["outer_ids"]) or bool(
+            recognize_str_decode_locals_pairs(functions)["outer_ids"]) or bool(
             recognize_string_elem_read_locals_pairs(functions)["outer_ids"]) or bool(
             recognize_callee_raised_direct_pairs(functions)["outer_ids"]) or bool(
             recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
@@ -2601,6 +2603,18 @@ class PreambleEmissionMixin:
         _fdsl = recognize_field_decode_str_locals_pairs(functions)
         self._fdsl_outer_ids = _fdsl["outer_ids"]
         self._fdsl_walk_ids = _fdsl["walk_ids"]
+        # `_collect_str_decode_locals` (generic_fold.py Module5 lambda-lift
+        # capture-threading SET-COLLECT): the DECODE-CALL sibling of
+        # `_collect_field_decode_str_locals` — same OUTER+lifted-`rec` adjacency
+        # pairing + `set_union` skeleton, but the leaf gate is a SINGLE opaque
+        # self-call `self._is_decode_call(node.get("value"))` over the REAL value
+        # pyval (no 4-conjunct idiom, no post-`rec` symtab tail; outer body = 3
+        # statements). The lifted `rec` is SUPPRESSED. Keyed on `id`; corpus-inert
+        # (name-gated; sole caller `_detect_seq_promotion` is `\trusted`).
+        from module6_whyml.generic_fold import recognize_str_decode_locals_pairs
+        _sdl = recognize_str_decode_locals_pairs(functions)
+        self._sdl_outer_ids = _sdl["outer_ids"]
+        self._sdl_walk_ids = _sdl["walk_ids"]
         # `_collect_string_elem_read_locals` (generic_fold.py TWO-SEQUENTIAL-CATAMORPHISM
         # SET-COLLECT): same OUTER+lifted-`rec` adjacency pairing, but the walk carries a
         # CROSS-ACCUMULATOR dependency between two sets (`str_arrays` feeds `elem_reads`'s

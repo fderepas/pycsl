@@ -3352,6 +3352,21 @@ class FunctionEmissionMixin:
         if _fdsl_desc is not None:
             from module6_whyml.generic_fold import emit_field_decode_str_locals_group
             return emit_field_decode_str_locals_group(func, _fdsl_desc, whyml_ident)
+        # `_collect_str_decode_locals` (generic_fold.py Module5 lambda-lift
+        # capture-threading SET-COLLECT, the DECODE-CALL sibling of
+        # `_collect_field_decode_str_locals`): the lifted `rec` sibling is SUPPRESSED;
+        # the wrapper emits the certified mutual pyval/pydict/list set-UNION
+        # catamorphism (`map string bool`) whose leaf set_adds the REAL `node["target"]`
+        # under the `stmt=="Assign"` + str-target gate and the OPAQUE
+        # `self._is_decode_call(node.get("value"))` predicate over the REAL value pyval.
+        # The sole caller `_detect_seq_promotion` is `\trusted`. Keyed on `id`;
+        # corpus-inert. See generic_fold.py module note.
+        if id(func) in getattr(self, "_sdl_walk_ids", set()):
+            return []
+        _sdl_desc = getattr(self, "_sdl_outer_ids", {}).get(id(func))
+        if _sdl_desc is not None:
+            from module6_whyml.generic_fold import emit_str_decode_locals_group
+            return emit_str_decode_locals_group(func, _sdl_desc, whyml_ident)
         # `_collect_string_elem_read_locals` (generic_fold.py TWO-SEQUENTIAL-CATAMORPHISM
         # SET-COLLECT): the lifted `rec` sibling is SUPPRESSED; the wrapper emits TWO
         # sequential total `map string bool` set-UNION catamorphisms (fold-1 `str_arrays`

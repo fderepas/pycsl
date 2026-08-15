@@ -2550,12 +2550,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         fn = ir.get("func")
         return isinstance(fn, str) and (fn == "decode" or fn.endswith(".decode"))
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_str_decode_locals(self, body: Any) -> int:
-        return set()
+    def _collect_str_decode_locals(self, body: Any) -> Set[str]:
+        """str-list-elements: locals assigned a `.decode()` result — these are `str`."""
+        out: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    if self._is_decode_call(node.get("value")):
+                        out.add(node["target"])
+                for v in node.values():
+                    rec(v)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(body)
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

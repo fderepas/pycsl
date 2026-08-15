@@ -22552,6 +22552,289 @@ def emit_field_decode_str_locals_group(func: Dict[str, Any], desc: Dict[str, Any
     return out
 
 
+# ---- `_collect_str_decode_locals` (Module5_IREmitter.py, Module5 lambda-lift
+#      capture-threading SET-COLLECT — the DECODE-CALL sibling of
+#      `_collect_field_decode_str_locals`). Live body:
+#        out = set()
+#        def rec(node):
+#          if isinstance(node, dict):
+#            if node.get("stmt")=="Assign" and isinstance(node.get("target"), str):
+#              if self._is_decode_call(node.get("value")):
+#                out.add(node["target"])
+#            for v in node.values(): rec(v)
+#          elif isinstance(node, list):
+#            for x in node: rec(x)
+#        rec(body); return out
+#      SAME OUTER+lifted-`rec` adjacency + `set_union` skeleton as
+#      `_collect_field_decode_str_locals`, but the leaf gate is a SINGLE self-call
+#      `self._is_decode_call(node.get("value"))` (modeled OPAQUE `val <n>__idc
+#      (v:pyval):bool` over the REAL `node["value"]` pyval — the boolean membership
+#      decision only) instead of the 4-conjunct type/func idiom, and there is NO
+#      post-`rec` symbol-table reflection tail (outer body is exactly 3 statements).
+#      The mutable `out` accumulator is re-expressed as the returned `map string
+#      bool` (real `set_add` of the REAL `node["target"]` string over the REAL
+#      descended pyval spine — NOT a decoupled abstract-val accumulator). The lifted
+#      `rec` is SUPPRESSED. Non-facade: the "stmt"/"target"/"value" keys and the
+#      "Assign" literal are read off the body and reflected (mutation-sensitive).
+#      Keyed on `id`; corpus-inert (name-gated; 0/893 corpus nested defs).
+#      `ensures True`; ledger 3 (no new type/axiom/cert).
+
+
+def _recognize_sdl_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_collect_str_decode_locals` wrapper. Fail-closed; None on
+    any deviation. Returns {name, param, acc, walker_name}."""
+    if not func.get("name", "").endswith("_collect_str_decode_locals"):
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    subj = params[0]
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    b0, b1, b2 = body
+    # [0] out = set()
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    acc = b0.get("target")
+    iv = b0.get("value") or {}
+    if not (isinstance(acc, str) and isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    # [1] Expr: rec(body)
+    if not (isinstance(b1, dict) and b1.get("stmt") == "Expr"):
+        return None
+    call = b1.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    cargs = call.get("args") or []
+    if len(cargs) != 1 or not _is_var(cargs[0], subj):
+        return None
+    walker_name = call["func"]
+    # [2] return out
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Return"
+            and _is_var(b2.get("value"), acc)):
+        return None
+    return {"name": func.get("name"), "param": subj, "acc": acc,
+            "walker_name": walker_name}
+
+
+def _recognize_sdl_walk(walkfunc: Dict[str, Any], acc: str,
+                        call_names: "set") -> Optional[Dict[str, Any]]:
+    """Match the lifted `rec(node)` decode-call set-collect walk and extract the
+    leaf discriminant literals. Fail-closed. Returns
+    {stmt_key, stmt_val, target_key, value_key} or None."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 1:
+        return None
+    top = body[0]
+    if not (isinstance(top, dict) and top.get("stmt") == "If"
+            and _match_isinstance(top.get("test"), node, "dict")):
+        return None
+    darm = top.get("body") or []
+    if len(darm) != 2:
+        return None
+    # darm[0]: if node.get("stmt")=="Assign" and isinstance(node.get("target"),str):
+    g = darm[0]
+    if not (isinstance(g, dict) and g.get("stmt") == "If" and not g.get("orelse")):
+        return None
+    gt = g.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"):
+        return None
+    left = gt.get("left") or {}
+    right = gt.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "=="):
+        return None
+    stmt_key = _frss_dotget_key(left.get("left"), node)
+    stmt_val = _clean_lit(_is_string(left.get("right")))
+    if stmt_key is None or stmt_val is None:
+        return None
+    if not (isinstance(right, dict) and right.get("type") == "Call"
+            and right.get("func") == "isinstance"):
+        return None
+    rargs = right.get("args") or []
+    if len(rargs) != 2 or not _is_var(rargs[1], "str"):
+        return None
+    target_key = _frss_dotget_key(rargs[0], node)
+    if target_key is None:
+        return None
+    # g.body: [ if self.<method>(node.get(value_key)): out.add(node[target_key]) ]
+    gb = g.get("body") or []
+    if len(gb) != 1:
+        return None
+    gif = gb[0]
+    if not (isinstance(gif, dict) and gif.get("stmt") == "If" and not gif.get("orelse")):
+        return None
+    gtest = gif.get("test") or {}
+    # the opaque decode-call self-call gate: self.<m>(node.get("<value_key>"))
+    if not (isinstance(gtest, dict) and gtest.get("type") == "Call"
+            and isinstance(gtest.get("func"), str)):
+        return None
+    iargs = gtest.get("args") or []
+    if len(iargs) != 1:
+        return None
+    value_key = _frss_dotget_key(iargs[0], node)
+    if value_key is None:
+        return None
+    # anti-facade: the guard body set_adds the REAL subscript read node[target_key]
+    ib = gif.get("body") or []
+    if len(ib) != 1:
+        return None
+    addst = ib[0]
+    if not (isinstance(addst, dict) and addst.get("stmt") == "Expr"):
+        return None
+    addcall = addst.get("value") or {}
+    if not (isinstance(addcall, dict) and addcall.get("type") == "Call"
+            and addcall.get("func") == f"{acc}.add"):
+        return None
+    aargs = addcall.get("args") or []
+    if len(aargs) != 1:
+        return None
+    sub = aargs[0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), node)
+            and _clean_lit(_is_string(sub.get("index"))) == target_key):
+        return None
+    # darm[1]: for v in node.values(): rec(v)
+    def _values_iter(it: Any) -> bool:
+        return (isinstance(it, dict) and it.get("type") == "Call"
+                and it.get("func") == f"{node}.values" and not it.get("args"))
+
+    if not _frss_iter_selfcall(darm[1], call_names, node, _values_iter):
+        return None
+    # orelse: elif isinstance(node, list): for x in node: rec(x)
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    lif2 = orelse[0]
+    if not (isinstance(lif2, dict) and lif2.get("stmt") == "If"
+            and not lif2.get("orelse")
+            and _match_isinstance(lif2.get("test"), node, "list")):
+        return None
+    lb = lif2.get("body") or []
+    if len(lb) != 1:
+        return None
+    if not _frss_iter_selfcall(lb[0], call_names, node, lambda it: _is_var(it, node)):
+        return None
+    return {"stmt_key": stmt_key, "stmt_val": stmt_val,
+            "target_key": target_key, "value_key": value_key}
+
+
+def recognize_str_decode_locals_pairs(functions: List[Dict[str, Any]]
+                                      ) -> Dict[str, Any]:
+    """Pair the `_collect_str_decode_locals` OUTER wrapper with its lifted `rec`
+    sibling (by adjacency). Returns {"outer_ids": {id(outer): desc},
+    "walk_ids": {id(rec), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_sdl_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and wf_name is not None
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_sdl_walk(wf, od["acc"], call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "param": od["param"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_str_decode_locals_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                 whyml_ident) -> List[str]:
+    """Emit `_collect_str_decode_locals` as a mutual `pyval`/`pydict`/`list pyval`
+    set-UNION catamorphism (the `_collect_field_decode_str_locals` skeleton). The
+    leaf reads the real `node["target"]` string and `set_add`s it under the gate
+    (`stmt`=="Assign" & `target` is str & the OPAQUE `<n>__idc value`, i.e.
+    `self._is_decode_call(node.get("value"))`). The mutable `out` accumulator is the
+    returned set; the immutable `self` decode-call is the opaque val over the REAL
+    value pyval. `ensures True`; ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    sv = desc["stmt_val"]
+    out: List[str] = []
+    # literal-key readers (each reflects its key -> mutation-sensitive)
+    out += _emit_skey_reader(f"{P}gstmt", desc["stmt_key"])     # node["stmt"] : opt string
+    out += _emit_pval_reader(f"{P}gtarget", desc["target_key"])  # node["target"] : opt pyval
+    out += _emit_pval_reader(f"{P}gvalue", desc["value_key"])    # node["value"] : opt pyval
+    # opaque decode-call predicate == `self._is_decode_call(node.get("value"))`
+    out.append(f"  val {P}idc (v: pyval) : bool")
+    # leaf: set_add node["target"] when the concrete gate holds
+    out.append(f"  let {P}leaf (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {P}gstmt d with")
+    out.append(f'    | Some st -> if pystr_eq st "{sv}" then')
+    out.append(f"                   (match {P}gtarget d with")
+    out.append("                    | Some (PStr tname) ->")
+    out.append(f"                        (match {P}gvalue d with")
+    out.append(f"                         | Some vv -> if {P}idc vv then set_add (const false) tname else const false")
+    out.append("                         | None -> const false end)")
+    out.append("                    | _ -> const false end)")
+    out.append("                 else const false")
+    out.append("    | None -> const false end")
+    # mutual set-union existence catamorphism over the pyval spine
+    out.append(f"  let rec {P}v (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> set_union ({P}leaf d) ({P}dfold d)")
+    out.append(f"    | PList xs -> {P}lfold xs")
+    out.append("    | _ -> const false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        set_union ({P}v v) ({P}dfold rest) end")
+    # NOTE: qualify `List.list`/`List.Nil`/`List.Cons` — the emitter also emits a
+    # nullary record `type list` (Python `ast.List`) that shadows Why3's `List.list`
+    # at the flat-module level (bare `list pyval` -> "expects no arguments"). The
+    # pyval-theory readers above sit BEFORE that record decl, so they resolve `list`
+    # to `List.list`; this fold sits AFTER it and must qualify (as `_scan_2d_*` does).
+    out.append(f"  with {P}lfold (xs: List.list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with List.Nil -> const false")
+    out.append(f"    | List.Cons h t -> set_union ({P}v h) ({P}lfold t) end")
+    # entry: descend the whole argument through the catamorphism
+    out.append(f"  let {n} ({mv}: pyval) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {P}v {mv}")
+    return out
+
+
 # ---- `_collect_string_elem_read_locals` (statements.py, TWO-SEQUENTIAL-CATAMORPHISM
 #      SET-COLLECT sibling of `_collect_field_decode_str_locals`): the outer wraps the SAME
 #      lambda-lifted `rec` adjacency, but the nested walk carries a CROSS-ACCUMULATOR
