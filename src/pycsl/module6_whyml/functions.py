@@ -3588,6 +3588,8 @@ class FunctionEmissionMixin:
             recognize_collect_mutations, emit_collect_mutations_group,
             recognize_find_iteration_mutations, emit_find_iteration_mutations_group,
             recognize_build_method_writes_map, emit_build_method_writes_map_group,
+            recognize_build_method_return_type_map,
+            emit_build_method_return_type_map_group,
             recognize_build_method_param_whyml_by_name,
             emit_build_method_param_whyml_by_name_group,
             recognize_build_method_param_types_map,
@@ -4226,6 +4228,14 @@ class FunctionEmissionMixin:
         _bmwm = recognize_build_method_writes_map(func)
         if _bmwm is not None:
             return emit_build_method_writes_map_group(func, _bmwm, whyml_ident)
+        # `_build_method_return_type_map`: method-name -> WhyML-return-type `pydict` fold,
+        # closed by the SELF-REFERENTIAL key-enum final block (`for _cls in {n.split("__",1)[0]
+        # for n in result if "__" in n}: result.setdefault(...)`). `result` is a key-ITERABLE
+        # `pydict` (not a keyless `map string ...`) so the self-ref key-enum is a real
+        # structural fold + faithful split; corpus-inert (name-gated, mirror-only).
+        _bmrt = recognize_build_method_return_type_map(func)
+        if _bmrt is not None:
+            return emit_build_method_return_type_map_group(func, _bmrt, whyml_ident)
         # `_build_method_param_whyml_types_by_name`: nested `map string (map string string)`
         # fold — outer over `functions`, inner over each func's `formal_params`, looking each
         # param's symtype up in the REAL `symbol_table` pydict (`__sget`) and mapping it through

@@ -568,12 +568,152 @@ class FunctionEmissionMixin:
     def _render_refinement_goal(self, ov: int, sub_fn: int, base_fn: int) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_method_return_type_map(self, functions: List[int]) -> int:
-        return {}
+    def _build_method_return_type_map(self, functions: List[Dict[str, Any]]) -> Dict[str, str]:
+        """Map method name (un-prefixed, e.g. `_emit_contracts`) → declared
+        WhyML return type, used by `_handle_dotted_call` to pick the right
+        return-type for `self.<method>(...)` abstract vals. Without this,
+        every `self.foo(...)` is abstracted as `val self__foo_<n> ... :
+        int`, even when `foo` returns a list (→ `array int`) or a tuple,
+        producing downstream type mismatches at the call site."""
+        result: Dict[str, str] = {}
+        # SUB-BODY recursion (self-tcb-reduction M5, C-bucket): this class is the
+        # emitter mirror iff some handler RETURNS a compound `{"stmt": While/If/For}`
+        # node — the corpus-inert signal that keys the stmt_ir self-call retypes
+        # below (no corpus function builds such a node).
+        _emits_stmt_ir = any(
+            self._returns_stmt_ir(f.get("body", [])) for f in functions)
+        for func in functions:
+            # SUB-BODY recursion (C-bucket): the self-call return-type SIBLINGS of
+            # the `_compute_return_type` overrides (the emit_ir precedent at the
+            # `ann in (...) -> emit_ir` branch below). A `_process_*` handler that
+            # RETURNS a compound stmt node abstracts as `stmt_ir`; the trusted
+            # sub-body dispatcher `_py_stmts_to_ir` (whose result feeds `seq_to_sl`)
+            # abstracts as `seq stmt_ir` — so a `self.<m>(...)` call site sees the
+            # right type instead of the `int`/`array int` its shape/annotation implies.
+            if _emits_stmt_ir:
+                if self._returns_stmt_ir(func.get("body", [])):
+                    result[func["name"]] = "stmt_ir"
+                    continue
+                # `func["name"]` is the class-prefixed IR name
+                # (`<cls>___py_stmts_to_ir`), so match the un-prefixed tail.
+                if str(func.get("name", "")).endswith("_py_stmts_to_ir"):
+                    result[func["name"]] = "seq stmt_ir"
+                    continue
+            ret = IRScanner.find_return_type(func["body"])
+            # body-gate gap-3: refine a homogeneous `(int, int, …)` tuple into per-slot
+            # types so this map (consulted by `_call_return_whyml_type` for unpack-target
+            # typing) agrees with the emitted `let` signature — e.g. `_unpack_direntry`
+            # is `(int, array int)`, so `inode, name_bytes = _unpack_direntry(...)` types
+            # `name_bytes` as `array int`, not a `ref 0` int.
+            ret = self._refine_tuple_return_type(func, func["body"], ret)
+            ann = func.get("return_annotation")
+            if ann == "list" and ret == "int":
+                ret = "array int"
+                # item34.md CF5: `-> List[str]` (element in `return_value_type`) → `array
+                # string`, so a `self.<m>(...)` call site abstracts as `array string`.
+                if func.get("return_value_type") == "string":
+                    ret = "array string"
+            elif ann in ("set", "dict", "frozenset") and ret == "int":
+                # Functions annotated `-> Set[T]` / `-> Dict[K, V]` are
+                # auto-trusted via `_should_auto_trust_map_return`; their
+                # abstract `val` must announce the map return so callers
+                # don't pre-decl a `ref 0` (int) target and then `:=` a
+                # map.
+                ret = "map int (option int)"
+            elif ann == "str" and (ret == "int"
+                    or (ret == "unit" and func.get("trusted"))):
+                # no-more-int emitter campaign L1: a `-> str` function returns a
+                # WhyML `string`, not the legacy int hash — so a caller can type a
+                # `s = f(...)` local as string. (MEASUREMENT branch — gated.)
+                # self-tcb-reduction GAP #2: the `ret == "unit"` disjunct (gated on
+                # `func["trusted"]`) is the self-call-site sibling of the
+                # `_compute_return_type` GAP #2 fix — a `\trusted` `-> str` mirror
+                # stub with a bare `pass` body (`find_return_type -> "unit"`) must
+                # abstract its `self.<m>(...)` call site as `: string`, else a
+                # CONVERTED caller's `ret = self._parse_mixin_type()` local (typed
+                # `string`) fails to type-check against the `unit`-returning abstract
+                # `val`. Matches the `-> "ExprIR"` unit-stub → `emit_ir` disjunct
+                # below. Byte-identical for the corpus (a real `-> str` function has
+                # a return statement, so `ret` is never "unit").
+                ret = "string"
+            elif (ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
+                    and ret in ("int", "unit")):
+                # self-tcb-reduction spike (csl-ast-as-emit_ir): the `self.<method>(...)`
+                # SELF-CALL abstract-val sibling of `_compute_return_type`'s ann-based
+                # `emit_ir` fallback (line ~2260-2270) — a `trusted` IR-node dispatcher
+                # called from WITHIN the same @mutable_state class (e.g. `_csl_binop`
+                # calling `self._csl_to_ir(node.left)`) is abstracted here, not there, so
+                # this map needs the SAME recognition or the self-call site sees `int`.
+                ret = "emit_ir"
+            elif ret == "int" and ann in getattr(self, "_record_types", {}) \
+                    and getattr(self, "_record_array_fields", None):
+                # W8 capability (vi): a method DECLARED `-> <RecordClass>` (the token
+                # cursor's `def cur(self) -> _Tok`) returns the real record type, not the
+                # erased `int`. Without this the `self.cur()` call site abstracts as
+                # `val self_cur_0 () : int` and every projection off it (`self.cur().kind`)
+                # falls through to an opaque `get_kind : int -> int` getter — an int-erasing
+                # facade with no link to the receiver.
+                # GATE (low blast radius, the (i)/(iii) gate): `_record_array_fields` is
+                # non-empty only for a `@mutable_state` class carrying a `List[<record>]`
+                # field, i.e. exactly the parser-cursor shape. `_record_types` is populated
+                # by `_emit_type_decls`, which runs before this map is built.
+                ret = self._record_types[ann]["whyml_name"]
+            # Optional-tuple return (self-tcb-reduction Tier-5 value model): the
+            # self-call-site sibling of the `_compute_return_type` override
+            # (functions.py `option (τ...)` branch). A method whose annotation is a
+            # synthesized `_union_*` (an `Optional[Tuple[...]]` normalized by Module5)
+            # that BOTH returns a tuple AND returns `None` abstracts its `self.<m>(...)`
+            # call site as `option (τ...)`, so a caller's `if <call> is not None:`
+            # None-check type-checks against the real converted `let`'s `option`
+            # return (else the bare tuple `(τ...)` bridge cannot carry `None`). Gated
+            # on an ACTUAL `return None` against a `_union_*` annotation -> byte-inert.
+            if (isinstance(ann, str) and ann.startswith("_union_")
+                    and ret.startswith("(") and "," in ret
+                    and IRScanner.has_none_return(func["body"])):
+                ret = f"option {ret}"
+            result[func["name"]] = ret
+        # self-tcb-reduction lever #1 sub-inc A (_infer_return_value_type): two
+        # cross-mixin helpers it calls are NOT ported into this mirror module, so their
+        # abstract self-call vals default to `: int` and int-erase the type-string reads.
+        # Register their real WhyML return shapes (name-gated to these emitter-internal
+        # helpers, never a corpus symbol; `setdefault` never shadows a file that ports the
+        # helper for real) -> corpus byte-identical.
+        for _cls in {n.split("__", 1)[0] for n in result if "__" in n}:
+            # cap (d): `_resolve_dotted_signature(func)` really returns a
+            # `(ret_type, param_types, ...)` tuple whose [0] is the callee's WhyML
+            # return-type STRING — model it as `array string` so `[0]` yields a real
+            # `string` compared by `str_eq_op "string"` (not the int-hash 1776665034).
+            result.setdefault(f"{_cls}___resolve_dotted_signature", "array string")
+            # cap (c): `_record_valued_expr_whyml_type(val_ir)` returns `Optional[str]` —
+            # model as `option string` so `_rec = self._record_valued_expr_whyml_type(...)`
+            # types as an option local (`ref None`), its `is not None` guard lowers to a
+            # `match … None/Some` discriminant, and `return _rec` threads into the
+            # Optional[str] `_union_*` return arm.
+            result.setdefault(f"{_cls}___record_valued_expr_whyml_type", "option string")
+            # sub-inc B (`_maybe_inject_union_return`): `_infer_return_value_type(val_ir)`
+            # returns `Optional[str]` (lowered as a per-fn synth `_union_*` variant, which
+            # IS isomorphic to `option string`). Its `self.<m>(...)` call site
+            # (`val_type = self._infer_return_value_type(val_ir)`) must abstract as
+            # `option string` — same model as the sibling `_record_valued_expr_whyml_type`
+            # — so `val_type` types as an option local (`ref None`), `if val_type is None`
+            # lowers to a `match … None/Some` discriminant, and `arm_type == val_type`
+            # option-unwraps to a faithful `str_eq_op` (not the int-hash facade). The map
+            # default computed from the body is `int` (the synth-variant `raise` shape),
+            # so an explicit OVERRIDE (not `setdefault`) is needed. Name-gated to this
+            # emitter-internal helper -> corpus byte-identical.
+            result[f"{_cls}___infer_return_value_type"] = "option string"
+            # self-tcb-reduction `_compute_return_type` PATH(b): `_returned_var_name(
+            # body_stmts)` returns `Optional[str]` (the returned local's name, else None) —
+            # model as `option string` so `_rv = self._returned_var_name(...)` types as an
+            # option local (`ref None`), its `is not None` guard lowers to a `match …
+            # None/Some` discriminant, and the narrowed `_rv` is a real string map key.
+            # Gated on the `_compute_return_type` file -> corpus/other-mirror byte-inert.
+            if self._uses_compute_return_type():
+                result.setdefault(f"{_cls}___returned_var_name", "option string")
+        return result
 
     #@ requires True
     #@ ensures True

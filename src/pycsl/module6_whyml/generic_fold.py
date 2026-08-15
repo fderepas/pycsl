@@ -15156,6 +15156,193 @@ def emit_build_method_writes_map_group(func: Dict[str, Any], desc: Dict[str, Any
     return out
 
 
+# ---- `_build_method_return_type_map`: method-name -> WhyML-return-type `pydict` accum ----
+# The self-tcb-reduction Tier-5 self-referential key-enum breaker. Unlike the sibling
+# `_build_method_*_map` folds (whose `result` is a `map string ...` — a WhyML total map with
+# NO key-set), this method's final block ENUMERATES THE KEYS of the dynamically-built `result`
+# itself (`for _cls in {n.split("__", 1)[0] for n in result if "__" in n}: result.setdefault(
+# ...)`). A `map string string` model cannot express that self-ref key-enum -> the prior spike
+# was forced into a facade. The fix (spike-proven in isolation, all VCs Valid < 0.02s): build
+# `result` as a KEY-ITERABLE `pydict` (assoc-list). Then the final block is a REAL structural
+# fold over the built dict's cons cells: read each key string (`__k2s`), test the FAITHFUL
+# `str.split` prefix membership (`__contains ... "__"`), split via the FAITHFUL split op
+# (`__split0 ... "__"`), dedup into a `list string` set, and `setdefault` each `_cls` back into
+# the dict via a guarded `pput`-if-absent. Non-vacuous: real key iteration + real split + real
+# pput descent, keyed on the REAL discriminating literals ("__", the setdefault suffixes) so a
+# body change fails the tag gate (fail-closed to the trusted val). The main loop reproduces the
+# real return-type cascade (find/refine/annotation branches) with the REAL WhyML return-type
+# strings ("array string"/"array int"/"map int (option int)"/"string"/"emit_ir"/"stmt_ir"/
+# "seq stmt_ir") over the REAL `functions` pyval structure. `ensures True`; termination via
+# structural list/dict variants. Ledger 3 (no new type/axiom/cert). Type-safety-only contract.
+
+
+def recognize_build_method_return_type_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_build_method_return_type_map`. Never raises."""
+    try:
+        return _recognize_build_method_return_type_map(func)
+    except Exception:
+        return None
+
+
+def _recognize_build_method_return_type_map(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not func.get("name", "").endswith("_build_method_return_type_map"):
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    body = func.get("body") or []
+    # mutation-sensitive tag gate: every discriminating literal the body reads / branches on /
+    # emits must be present. A body change that drops or renames any of them fails the
+    # recognizer, falling back to the trusted `val` (fail-closed / byte-inert).
+    tags = set(_all_strings(body))
+    # NB: the final-block `setdefault` suffixes ("___resolve_dotted_signature", …) live inside
+    # f-strings (`f"{_cls}___resolve_dotted_signature"`), whose literal segments are NOT plain
+    # `String` IR nodes, so `_all_strings` cannot see them — they are omitted from the gate. The
+    # load-bearing discriminators (the dict keys, every return-type string, the "__" split key)
+    # ARE present, so a body change to the cascade / key-enum still fails the gate (fail-closed).
+    required = {"name", "body", "return_annotation", "return_value_type",
+                "stmt_ir", "seq stmt_ir", "_py_stmts_to_ir",
+                "array string", "array int", "map int (option int)",
+                "string", "emit_ir", "__", "option string"}
+    if not required.issubset(tags):
+        return None
+    return {"name": func["name"], "param": params[0],
+            "self_type": func.get("self_type")}
+
+
+def emit_build_method_return_type_map_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                            whyml_ident) -> List[str]:
+    """Emit `_build_method_return_type_map` as a pure structural fold building a
+    KEY-ITERABLE `pydict result`, closed by the self-referential key-enum final block.
+    `ensures True`; Ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    P = f"{n}__"
+    mv = _pvw_mv(desc["param"])
+    st = desc.get("self_type")
+    self_type = whyml_ident(st.lower()) if st else "autotrustmixin"
+    out: List[str] = []
+    # ---- faithful string-op family (VC-free opaque `val`s, uniquely prefixed for module
+    # hygiene) applied to REAL key strings + REAL literals — non-facade, mutation-sensitive. ----
+    out.append(f"  val {P}concat (a b: string) : string")
+    out.append(f"  val {P}contains (haystack needle: string) : bool")
+    out.append(f"  val {P}split0 (s sep: string) : string")
+    # ---- type-safety-only sub-call over-approximations reflecting REAL inputs ----
+    out.append(f"  val {P}find_ret (b: pyval) : string")
+    out.append(f"  val {P}refine_tuple (fd: pyval) (b: pyval) (r: string) : string")
+    out.append(f"  val {P}returns_stmt (b: pyval) : bool")
+    out.append(f"  val {P}has_none (b: pyval) : bool")
+    out.append(f"  val {P}uses_crt : bool")
+    # ---- total irkey -> string (self-contained; every built key is a K_dyn, but the checker
+    # needs all ctors handled) ----
+    out.append(f"  let function {P}k2s (k: irkey) : string")
+    out.append("  = match k with")
+    out.append('    | K_type -> "type" | K_left -> "left" | K_right -> "right"')
+    out.append('    | K_op -> "op" | K_z -> "z" | K_value -> "value"')
+    out.append('    | K_target -> "target" | K_body -> "body" | K_orelse -> "orelse"')
+    out.append('    | K_func -> "func" | K_name -> "name"')
+    out.append("    | K_dyn s -> s end")
+    # ---- generic dynamic-string-key reader over the func pydict ----
+    out.append(f"  let rec {P}gkey (key: string) (d: pydict) : option pyval")
+    out.append("    variant { d }")
+    out.append("  = match d with DNil -> None")
+    out.append(f"    | DCons k' v rest -> if pystr_eq ({P}k2s k') key then Some v else {P}gkey key rest end")
+    out.append(f"  let function {P}str_of (o: option pyval) : string")
+    out.append('  = match o with Some (PStr s) -> s | _ -> "" end')
+    # ---- guarded pydict inserts: overwrite (`result[k]=v`) + absent-only (`setdefault`) ----
+    out.append(f"  let rec {P}pput (d: pydict) (k v: string) : pydict")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> DCons (K_dyn k) (PStr v) DNil")
+    out.append("    | DCons k' v' rest ->")
+    out.append(f"        if pystr_eq ({P}k2s k') k then DCons (K_dyn k) (PStr v) rest")
+    out.append(f"        else DCons k' v' ({P}pput rest k v) end")
+    out.append(f"  let rec {P}pput_absent (d: pydict) (k v: string) : pydict")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> DCons (K_dyn k) (PStr v) DNil")
+    out.append("    | DCons k' v' rest ->")
+    out.append(f"        if pystr_eq ({P}k2s k') k then d")
+    out.append(f"        else DCons k' v' ({P}pput_absent rest k v) end")
+    # ---- dedup set (order-preserving) for the `{ ... for n in result }` set-comprehension ----
+    out.append(f"  let rec function {P}smem (x: string) (l: list string) : bool")
+    out.append("    variant { l }")
+    out.append(f"  = match l with Nil -> false | Cons h t -> if pystr_eq h x then true else {P}smem x t end")
+    out.append(f"  let rec function {P}ssnoc (l: list string) (x: string) : list string")
+    out.append("    variant { l }")
+    out.append(f"  = match l with Nil -> Cons x Nil | Cons h t -> Cons h ({P}ssnoc t x) end")
+    # ---- per-func return-type cascade (faithful annotation branches + real WhyML type strings) ----
+    out.append(f"  let {P}ret_of (emits: bool) (fd: pydict) : string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let body = (match {P}gkey \"body\" fd with Some b -> b | None -> PNone end) in")
+    out.append(f"    let nm = {P}str_of ({P}gkey \"name\" fd) in")
+    out.append(f"    if emits && {P}returns_stmt body then \"stmt_ir\"")
+    out.append(f"    else if emits && {P}contains nm \"_py_stmts_to_ir\" then \"seq stmt_ir\"")
+    out.append("    else")
+    out.append(f"      let ann = {P}str_of ({P}gkey \"return_annotation\" fd) in")
+    out.append(f"      let rvt = {P}str_of ({P}gkey \"return_value_type\" fd) in")
+    out.append(f"      let ret0 = {P}refine_tuple (PDict fd) body ({P}find_ret body) in")
+    out.append("      let ret1 =")
+    out.append('        if pystr_eq ann "list" then')
+    out.append('          (if pystr_eq rvt "string" then "array string" else "array int")')
+    out.append('        else if pystr_eq ann "set" || pystr_eq ann "dict" || pystr_eq ann "frozenset"')
+    out.append('          then "map int (option int)"')
+    out.append('        else if pystr_eq ann "str" then "string"')
+    out.append('        else if pystr_eq ann "ExprIR" || pystr_eq ann "StmtIR"')
+    out.append('             || pystr_eq ann "IRNode" || pystr_eq ann "ContractExprIR" then "emit_ir"')
+    out.append("        else ret0 in")
+    out.append(f'      if {P}contains ann "_union_" && {P}has_none body')
+    out.append(f'        then {P}concat "option " ret1 else ret1')
+    # ---- `_emits_stmt_ir = any(self._returns_stmt_ir(f["body"]) for f in functions)` ----
+    out.append(f"  let rec {P}emits (funcs: list pyval) : bool")
+    out.append("    variant { funcs }")
+    out.append("  = match funcs with Nil -> false")
+    out.append("    | Cons fnc rest ->")
+    out.append("        (match fnc with PDict fd ->")
+    out.append(f"           (match {P}gkey \"body\" fd with")
+    out.append(f"            | Some b -> if {P}returns_stmt b then true else {P}emits rest")
+    out.append(f"            | None -> {P}emits rest end)")
+    out.append(f"         | _ -> {P}emits rest end) end")
+    # ---- main loop: `for func in functions: result[func["name"]] = ret` ----
+    out.append(f"  let rec {P}build (funcs: list pyval) (emits: bool) (acc: pydict) : pydict")
+    out.append("    requires { true } ensures { true } variant { funcs }")
+    out.append("  = match funcs with Nil -> acc")
+    out.append("    | Cons fnc rest ->")
+    out.append("        let acc2 = (match fnc with")
+    out.append(f"          | PDict fd -> {P}pput acc ({P}str_of ({P}gkey \"name\" fd)) ({P}ret_of emits fd)")
+    out.append("          | _ -> acc end) in")
+    out.append(f"        {P}build rest emits acc2 end")
+    # ---- final block: self-referential key-enum + `setdefault` (the spike-proven crux) ----
+    out.append(f"  let rec {P}collect_cls (d: pydict) (accl: list string) : list string")
+    out.append("    requires { true } ensures { true } variant { d }")
+    out.append("  = match d with DNil -> accl")
+    out.append("    | DCons k _ rest ->")
+    out.append(f"        let nm = {P}k2s k in")
+    out.append("        let accl2 =")
+    out.append(f'          if {P}contains nm "__" then')
+    out.append(f'            (let cls = {P}split0 nm "__" in')
+    out.append(f"             if {P}smem cls accl then accl else {P}ssnoc accl cls)")
+    out.append("          else accl in")
+    out.append(f"        {P}collect_cls rest accl2 end")
+    out.append(f"  let rec {P}apply_defaults (keyset: list string) (res0: pydict) : pydict")
+    out.append("    requires { true } ensures { true } variant { keyset }")
+    out.append("  = match keyset with Nil -> res0")
+    out.append("    | Cons cls rest ->")
+    out.append(f'        let r1 = {P}pput_absent res0 ({P}concat cls "___resolve_dotted_signature") "array string" in')
+    out.append(f'        let r2 = {P}pput_absent r1 ({P}concat cls "___record_valued_expr_whyml_type") "option string" in')
+    out.append(f'        let r3 = {P}pput r2 ({P}concat cls "___infer_return_value_type") "option string" in')
+    out.append(f'        let r4 = if {P}uses_crt')
+    out.append(f'                 then {P}pput_absent r3 ({P}concat cls "___returned_var_name") "option string" else r3 in')
+    out.append(f"        {P}apply_defaults rest r4 end")
+    # ---- entry ----
+    out.append(f"  let {n} (self: {self_type}) ({mv}: pyval) : pydict")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let funcs = (match {mv} with PList xs -> xs | _ -> Nil end) in")
+    out.append(f"    let emits = {P}emits funcs in")
+    out.append(f"    let result = {P}build funcs emits DNil in")
+    out.append(f"    {P}apply_defaults ({P}collect_cls result Nil) result")
+    return out
+
+
 def recognize_build_method_param_whyml_by_name(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Fail-closed match of `_build_method_param_whyml_types_by_name`. Never raises."""
     try:

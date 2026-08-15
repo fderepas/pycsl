@@ -2094,6 +2094,7 @@ class PreambleEmissionMixin:
             recognize_collect_mutations,
             recognize_find_iteration_mutations,
             recognize_build_method_writes_map,
+            recognize_build_method_return_type_map,
             recognize_build_method_param_whyml_by_name,
             recognize_build_method_param_types_map,
             recognize_collect_record_fields,
@@ -2376,6 +2377,9 @@ class PreambleEmissionMixin:
             # `map string (list string)` result (`pv_size`/`size_dict`/`size_list`
             # + `Map.set`/`const`) + `pystr_eq`.
             or recognize_build_method_writes_map(f) is not None
+            # `_build_method_return_type_map` folds pyval/pydict into a KEY-ITERABLE
+            # `pydict` result (the self-referential key-enum breaker) + `pystr_eq`.
+            or recognize_build_method_return_type_map(f) is not None
             # `_build_method_param_whyml_types_by_name` folds pyval/pydict/list into a
             # `map string (map string string)` result (`Map.set`/`const` + `pystr_eq`).
             or recognize_build_method_param_whyml_by_name(f) is not None
