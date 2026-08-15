@@ -2625,6 +2625,16 @@ class PreambleEmissionMixin:
         _sdl = recognize_str_decode_locals_pairs(functions)
         self._sdl_outer_ids = _sdl["outer_ids"]
         self._sdl_walk_ids = _sdl["walk_ids"]
+        # `_collect_critical_mutexes` (generic_fold.py Module5 lambda-lift capture-threading
+        # SET-COLLECT over `self.ir`): COMBINES the `_collect_str_decode_locals` `.values()`
+        # pyval catamorphism (leaf-gate every dict), the converted `_mutex_inv_params` self.ir
+        # opaque-pyval + REAL `pget_list` fold, and the opaque `sorted(set) : list string`
+        # library op (permutation dropped). The lifted `walk` is SUPPRESSED. Keyed on `id`;
+        # corpus-inert (name-gated; sole caller `_emit_shared_state` is `\trusted`).
+        from module6_whyml.generic_fold import recognize_critical_mutexes_pairs
+        _ccm = recognize_critical_mutexes_pairs(functions)
+        self._ccm_outer_ids = _ccm["outer_ids"]
+        self._ccm_walk_ids = _ccm["walk_ids"]
         # `_collect_string_elem_read_locals` (generic_fold.py TWO-SEQUENTIAL-CATAMORPHISM
         # SET-COLLECT): same OUTER+lifted-`rec` adjacency pairing, but the walk carries a
         # CROSS-ACCUMULATOR dependency between two sets (`str_arrays` feeds `elem_reads`'s

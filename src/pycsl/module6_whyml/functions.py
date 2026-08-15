@@ -3367,6 +3367,19 @@ class FunctionEmissionMixin:
         if _sdl_desc is not None:
             from module6_whyml.generic_fold import emit_str_decode_locals_group
             return emit_str_decode_locals_group(func, _sdl_desc, whyml_ident)
+        # `_collect_critical_mutexes` (generic_fold.py Module5 lambda-lift capture-threading
+        # SET-COLLECT over `self.ir`): the lifted `walk` sibling is SUPPRESSED; the wrapper
+        # emits the certified mutual pyval/pydict/list set-UNION catamorphism (`map string
+        # bool`) whose leaf set_adds the REAL `s["mutex"]` under the `stmt=="CriticalSection"`
+        # + present-`mutex` gate, driven by the REAL `self.ir` opaque-pyval + `pget_list`
+        # fold, wrapped by the opaque `sorted(set) : list string`. The sole caller
+        # `_emit_shared_state` is `\trusted`. Keyed on `id`; corpus-inert.
+        if id(func) in getattr(self, "_ccm_walk_ids", set()):
+            return []
+        _ccm_desc = getattr(self, "_ccm_outer_ids", {}).get(id(func))
+        if _ccm_desc is not None:
+            from module6_whyml.generic_fold import emit_critical_mutexes_group
+            return emit_critical_mutexes_group(func, _ccm_desc, whyml_ident)
         # `_collect_string_elem_read_locals` (generic_fold.py TWO-SEQUENTIAL-CATAMORPHISM
         # SET-COLLECT): the lifted `rec` sibling is SUPPRESSED; the wrapper emits TWO
         # sequential total `map string bool` set-UNION catamorphisms (fold-1 `str_arrays`

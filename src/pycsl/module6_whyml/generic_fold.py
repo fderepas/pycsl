@@ -23206,6 +23206,360 @@ def emit_str_decode_locals_group(func: Dict[str, Any], desc: Dict[str, Any],
     return out
 
 
+# ---- `_collect_critical_mutexes` (preamble.py, Module5 lambda-lift capture-threading
+#      SET-COLLECT over `self.ir` — COMBINES three banked devices:
+#        (1) the lifted-def `.values()` pyval catamorphism (the `_collect_str_decode_locals`
+#            `v`/`dfold`/`lfold` skeleton — its walk semantics are IDENTICAL: leaf-gate
+#            EVERY dict node reachable through the value/list spine, descend all values and
+#            list elements),
+#        (2) the self.ir opaque-pyval accessor + REAL `pget_list` fold (the converted
+#            `_mutex_inv_params` device: `val …__ir (self) : pyval` then `pget_list "functions"`),
+#        (3) the opaque `sorted(set) : List.list string` library-op (the `scan_2d` device — the
+#            permutation is dropped; a SOUND over-approx under `ensures True`).
+#      Live body:
+#        mutexes = set()
+#        def walk(stmts):
+#          if not isinstance(stmts, list): return
+#          for s in stmts:
+#            if not isinstance(s, dict): continue
+#            if s.get("stmt")=="CriticalSection" and s.get("mutex"): mutexes.add(s["mutex"])
+#            for v in s.values():
+#              if isinstance(v, list): walk(v)
+#              elif isinstance(v, dict): walk([v])
+#        for func in self.ir.get("functions", []): walk(func.get("body", []))
+#        return sorted(mutexes)
+#      The nested `walk`'s `for s in stmts / for v in s.values(): list->walk(v) / dict->walk([v])`
+#      is exactly the `PDict -> leaf+descend-values / PList -> descend-elements` catamorphism:
+#      every dict reached anywhere in the tree is leaf-gated (scalars contribute nothing either
+#      way). The mutable `mutexes` accumulator is the returned set (REAL `set_add` of the REAL
+#      `s["mutex"]` string under the concrete `stmt=="CriticalSection"` + present-`mutex` gate —
+#      NOT a decoupled abstract-val accumulator). The lifted `walk` is SUPPRESSED. Non-facade:
+#      every discriminant literal ("CriticalSection") + key ("stmt"/"mutex"/"functions"/"body")
+#      is read off the body and reflected (mutation-sensitive). Keyed on `id`; corpus-inert
+#      (name-gated; sole caller `_emit_shared_state` is `\trusted`). `ensures True`; ledger 3
+#      (no new type/axiom/cert).
+
+
+def _recognize_ccm_outer(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Match the OUTER `_collect_critical_mutexes` wrapper. Fail-closed; None on any
+    deviation. Returns {name, self_type, acc, walker_name, func_key, body_key}."""
+    if not str(func.get("name", "")).endswith("_collect_critical_mutexes"):
+        return None
+    if func.get("return_annotation") != "list":
+        return None
+    if (func.get("formal_params") or []):
+        return None
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    b0, b1, b2 = body
+    # [0] mutexes = set()
+    if not (isinstance(b0, dict) and b0.get("stmt") == "Assign"):
+        return None
+    acc = b0.get("target")
+    iv = b0.get("value") or {}
+    if not (isinstance(acc, str) and isinstance(iv, dict) and iv.get("type") == "Call"
+            and iv.get("func") == "set" and not iv.get("args")):
+        return None
+    # [1] for func in self.ir.get("<func_key>", []): walk(func.get("<body_key>", []))
+    if not (isinstance(b1, dict) and b1.get("stmt") == "For"):
+        return None
+    fvar = b1.get("target")
+    if not isinstance(fvar, str):
+        return None
+    it = b1.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "self.ir.get"):
+        return None
+    iargs = it.get("args") or []
+    if not iargs:
+        return None
+    func_key = _clean_lit(_is_string(iargs[0]))
+    if func_key is None:
+        return None
+    fbody = b1.get("body") or []
+    if len(fbody) != 1:
+        return None
+    fx = fbody[0]
+    if not (isinstance(fx, dict) and fx.get("stmt") == "Expr"):
+        return None
+    call = fx.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and isinstance(call.get("func"), str)):
+        return None
+    walker_name = call["func"]
+    cargs = call.get("args") or []
+    if len(cargs) != 1:
+        return None
+    body_key = _frss_dotget_key(cargs[0], fvar)
+    if body_key is None:
+        return None
+    # [2] return sorted(mutexes)
+    if not (isinstance(b2, dict) and b2.get("stmt") == "Return"):
+        return None
+    sc = b2.get("value") or {}
+    if not (isinstance(sc, dict) and sc.get("type") == "Call"
+            and sc.get("func") == "sorted"):
+        return None
+    sargs = sc.get("args") or []
+    if len(sargs) != 1 or not _is_var(sargs[0], acc):
+        return None
+    return {"name": func.get("name"), "self_type": func.get("self_type"),
+            "acc": acc, "walker_name": walker_name,
+            "func_key": func_key, "body_key": body_key}
+
+
+def _ccm_not_isinstance(test: Any, subj: str, cls: str) -> bool:
+    """`not isinstance(<subj>, <cls>)`."""
+    return (isinstance(test, dict) and test.get("type") == "UnaryOp"
+            and test.get("op") == "not"
+            and _match_isinstance(test.get("expr"), subj, cls))
+
+
+def _recognize_ccm_walk(walkfunc: Dict[str, Any], acc: str,
+                        call_names: "set") -> Optional[Dict[str, Any]]:
+    """Match the lifted `walk(stmts)` critical-section set-collect walk and extract the
+    leaf discriminant literals. Fail-closed. Returns {stmt_key, stmt_val, mutex_key}."""
+    params = walkfunc.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    stmts = params[0]
+    body = walkfunc.get("body") or []
+    if len(body) != 2:
+        return None
+    guard, loop = body
+    # [0] if not isinstance(stmts, list): return
+    if not (isinstance(guard, dict) and guard.get("stmt") == "If"
+            and not guard.get("orelse")
+            and _ccm_not_isinstance(guard.get("test"), stmts, "list")):
+        return None
+    gb = guard.get("body") or []
+    if len(gb) != 1 or not (isinstance(gb[0], dict) and gb[0].get("stmt") == "Return"):
+        return None
+    # [1] for s in stmts: [ skip-non-dict, gate+add, descend-values ]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and _is_var(loop.get("iter"), stmts)):
+        return None
+    s = loop.get("target")
+    if not isinstance(s, str):
+        return None
+    lb = loop.get("body") or []
+    if len(lb) != 3:
+        return None
+    skip, gate, descend = lb
+    # skip: if not isinstance(s, dict): continue
+    if not (isinstance(skip, dict) and skip.get("stmt") == "If"
+            and not skip.get("orelse")
+            and _ccm_not_isinstance(skip.get("test"), s, "dict")):
+        return None
+    sb = skip.get("body") or []
+    if len(sb) != 1 or not (isinstance(sb[0], dict) and sb[0].get("stmt") == "Continue"):
+        return None
+    # gate: if s.get("stmt")=="CriticalSection" and s.get("mutex"): mutexes.add(s["mutex"])
+    if not (isinstance(gate, dict) and gate.get("stmt") == "If"
+            and not gate.get("orelse")):
+        return None
+    gt = gate.get("test") or {}
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"):
+        return None
+    left, right = gt.get("left") or {}, gt.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "=="):
+        return None
+    stmt_key = _frss_dotget_key(left.get("left"), s)
+    stmt_val = _clean_lit(_is_string(left.get("right")))
+    if stmt_key is None or stmt_val is None:
+        return None
+    mutex_key = _frss_dotget_key(right, s)
+    if mutex_key is None:
+        return None
+    gb2 = gate.get("body") or []
+    if len(gb2) != 1:
+        return None
+    addst = gb2[0]
+    if not (isinstance(addst, dict) and addst.get("stmt") == "Expr"):
+        return None
+    addcall = addst.get("value") or {}
+    if not (isinstance(addcall, dict) and addcall.get("type") == "Call"
+            and addcall.get("func") == f"{acc}.add"):
+        return None
+    aargs = addcall.get("args") or []
+    if len(aargs) != 1:
+        return None
+    sub = aargs[0]
+    if not (isinstance(sub, dict) and sub.get("type") == "Subscript"
+            and _is_var(sub.get("value"), s)
+            and _clean_lit(_is_string(sub.get("index"))) == mutex_key):
+        return None
+    # descend: for v in s.values(): if isinstance(v,list): walk(v) elif isinstance(v,dict): walk([v])
+    if not (isinstance(descend, dict) and descend.get("stmt") == "For"):
+        return None
+    dit = descend.get("iter") or {}
+    if not (isinstance(dit, dict) and dit.get("type") == "Call"
+            and dit.get("func") == f"{s}.values" and not dit.get("args")):
+        return None
+    vv = descend.get("target")
+    if not isinstance(vv, str):
+        return None
+    db = descend.get("body") or []
+    if len(db) != 1:
+        return None
+    lif = db[0]
+    if not (isinstance(lif, dict) and lif.get("stmt") == "If"
+            and _match_isinstance(lif.get("test"), vv, "list")):
+        return None
+    # then: walk(v)
+    lifb = lif.get("body") or []
+    if not (len(lifb) == 1 and _ccm_walk_call(lifb[0], call_names, vv, is_list=True)):
+        return None
+    # elif: isinstance(v, dict): walk([v])
+    orelse = lif.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    dif = orelse[0]
+    if not (isinstance(dif, dict) and dif.get("stmt") == "If"
+            and not dif.get("orelse")
+            and _match_isinstance(dif.get("test"), vv, "dict")):
+        return None
+    difb = dif.get("body") or []
+    if not (len(difb) == 1 and _ccm_walk_call(difb[0], call_names, vv, is_list=False)):
+        return None
+    return {"stmt_key": stmt_key, "stmt_val": stmt_val, "mutex_key": mutex_key}
+
+
+def _ccm_walk_call(stmt: Any, call_names: "set", var: str, is_list: bool) -> bool:
+    """`walk(v)` (is_list) or `walk([v])` (single-dict rewrap) as an Expr statement."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return False
+    call = stmt.get("value") or {}
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") in call_names):
+        return False
+    args = call.get("args") or []
+    if len(args) != 1:
+        return False
+    a = args[0]
+    if is_list:
+        return _is_var(a, var)
+    # walk([v]) — a one-element list literal of the bound var
+    if not (isinstance(a, dict) and a.get("type") == "ArrayLit"):
+        return False
+    elts = a.get("elts") or []
+    return len(elts) == 1 and _is_var(elts[0], var)
+
+
+def recognize_critical_mutexes_pairs(functions: List[Dict[str, Any]]
+                                     ) -> Dict[str, Any]:
+    """Pair the `_collect_critical_mutexes` OUTER wrapper with its lifted `walk`
+    sibling (by adjacency). Returns {"outer_ids": {id(outer): desc},
+    "walk_ids": {id(walk), ...}}. Never raises."""
+    outer_ids: Dict[int, Dict[str, Any]] = {}
+    walk_ids = set()
+    try:
+        n = len(functions)
+        for i, f in enumerate(functions):
+            if not isinstance(f, dict):
+                continue
+            try:
+                od = _recognize_ccm_outer(f)
+            except Exception:
+                od = None
+            if od is None:
+                continue
+            if i + 1 >= n:
+                continue
+            wf = functions[i + 1]
+            wn = od["walker_name"]
+            wf_name = wf.get("name") if isinstance(wf, dict) else None
+            if not (isinstance(wf, dict) and wf_name is not None
+                    and (wf_name == wn or wf_name.endswith("__" + wn))):
+                continue
+            if id(wf) in walk_ids:
+                continue
+            call_names = {wn, wf_name}
+            try:
+                leaf = _recognize_ccm_walk(wf, od["acc"], call_names)
+            except Exception:
+                leaf = None
+            if leaf is None:
+                continue
+            desc = {"name": od["name"], "self_type": od["self_type"],
+                    "func_key": od["func_key"], "body_key": od["body_key"]}
+            desc.update(leaf)
+            outer_ids[id(f)] = desc
+            walk_ids.add(id(wf))
+    except Exception:
+        return {"outer_ids": {}, "walk_ids": set()}
+    return {"outer_ids": outer_ids, "walk_ids": walk_ids}
+
+
+def emit_critical_mutexes_group(func: Dict[str, Any], desc: Dict[str, Any],
+                                whyml_ident) -> List[str]:
+    """Emit `_collect_critical_mutexes` as a mutual `pyval`/`pydict`/`list` set-UNION
+    catamorphism (the `_collect_str_decode_locals` `v`/`dfold`/`lfold` skeleton) whose
+    leaf `set_add`s the REAL `s["mutex"]` string under the concrete `stmt=="CriticalSection"`
+    + present-`mutex` gate, driven by the REAL `self.ir` (opaque pyval accessor) `pget_list
+    "functions"` -> per-func `pget_list "body"` fold, wrapped by the opaque library
+    `sorted(set) : List.list string`. `ensures True`; ledger 3 (no new type/axiom/cert)."""
+    n = whyml_ident(desc["name"])
+    st = whyml_ident(str(desc["self_type"]).lower()) if desc.get("self_type") else None
+    P = f"{n}__"
+    sk, sv, mk = desc["stmt_key"], desc["stmt_val"], desc["mutex_key"]
+    fk, bk = desc["func_key"], desc["body_key"]
+    sig = f" (self: {st})" if st else ""
+    arg = " self" if st else ""
+    out: List[str] = []
+    # opaque self.ir accessor (the converted `_mutex_inv_params` device)
+    out.append(f"  val {P}ir{sig} : pyval")
+    # opaque `sorted(set) : list string` library op (permutation dropped; sound over-approx)
+    out.append(f"  val {P}sorted (m: map string bool) : List.list string")
+    # literal-key readers (each reflects its key -> mutation-sensitive)
+    out += _emit_skey_reader(f"{P}gstmt", sk)     # s["stmt"]  : option string
+    out += _emit_skey_reader(f"{P}gmutex", mk)    # s["mutex"] : option string
+    # leaf: set_add s["mutex"] when the concrete critical-section gate holds
+    out.append(f"  let {P}leaf (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = match {P}gstmt d with")
+    out.append(f'    | Some stv -> if pystr_eq stv "{sv}" then')
+    out.append(f"                    (match {P}gmutex d with")
+    out.append("                     | Some m -> set_add (const false) m")
+    out.append("                     | None -> const false end)")
+    out.append("                  else const false")
+    out.append("    | None -> const false end")
+    # mutual set-union existence catamorphism over the pyval spine (leaf-gate every dict)
+    out.append(f"  let rec {P}v (v: pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { pv_size v }")
+    out.append("  = match v with")
+    out.append(f"    | PDict d -> set_union ({P}leaf d) ({P}dfold d)")
+    out.append(f"    | PList xs -> {P}lfold xs")
+    out.append("    | _ -> const false")
+    out.append("    end")
+    out.append(f"  with {P}dfold (d: pydict) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with DNil -> const false")
+    out.append("    | DCons _ v rest ->")
+    out.append("        size_pos v;")
+    out.append(f"        set_union ({P}v v) ({P}dfold rest) end")
+    # qualify `List.list`/`List.Nil`/`List.Cons` — a nullary record `type list` (Python
+    # `ast.List`) shadows Why3's polymorphic `List.list` at the flat-module level.
+    out.append(f"  with {P}lfold (xs: List.list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with List.Nil -> const false")
+    out.append(f"    | List.Cons h t -> set_union ({P}v h) ({P}lfold t) end")
+    # per-function fold: descend each function's "body" stmt-list
+    out.append(f"  let rec {P}ffold (xs: List.list pyval) : map string bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with List.Nil -> const false")
+    out.append("    | List.Cons h t ->")
+    out.append(f'        set_union (match h with PDict fd -> {P}lfold (pget_list "{bk}" fd) | _ -> const false end) ({P}ffold t) end')
+    # entry: sorted( fold over self.ir["functions"] )
+    out.append(f"  let {n}{sig} : List.list string")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let ir = {P}ir{arg} in")
+    out.append(f'    {P}sorted (match ir with PDict d -> {P}ffold (pget_list "{fk}" d) | _ -> const false end)')
+    return out
+
+
 # ---- `_collect_string_elem_read_locals` (statements.py, TWO-SEQUENTIAL-CATAMORPHISM
 #      SET-COLLECT sibling of `_collect_field_decode_str_locals`): the outer wraps the SAME
 #      lambda-lifted `rec` adjacency, but the nested walk carries a CROSS-ACCUMULATOR

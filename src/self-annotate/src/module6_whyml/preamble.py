@@ -170,12 +170,36 @@ class PreambleEmissionMixin:
     def _emit_preamble(self, needs: int, module_name: str='PyCSL_Program') -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _collect_critical_mutexes(self) -> List[str]:
-        return []
+        """Every mutex acquired by a `#@ critical`/`#@ acquires` section anywhere in
+        the program, sorted (deterministic — the repo forbids hash-order emission).
+
+        Used to declare the abstract diverging `acquire_<mutex>` operation per mutex:
+        a lock-acquire can block forever (deadlock/contention), so it is faithfully
+        modelled as a call that *may* diverge. This is what lets a worker carrying a
+        `#@ \\diverges` effect type-check — its body genuinely can fail to terminate."""
+        mutexes: Set[str] = set()
+
+        def walk(stmts: Any) -> None:
+            if not isinstance(stmts, list):
+                return
+            for s in stmts:
+                if not isinstance(s, dict):
+                    continue
+                if s.get("stmt") == "CriticalSection" and s.get("mutex"):
+                    mutexes.add(s["mutex"])
+                for v in s.values():
+                    if isinstance(v, list):
+                        walk(v)
+                    elif isinstance(v, dict):
+                        walk([v])
+
+        for func in self.ir.get("functions", []):
+            walk(func.get("body", []))
+        return sorted(mutexes)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
