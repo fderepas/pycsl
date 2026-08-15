@@ -2110,3 +2110,14 @@ pydict-construction primitive (lever #1). RUN #3 DEFINITIVE FLOOR: 754 (29 conve
   3. seq-string faithful set-primitive family OR map-string-bool plane consolidation (_callee_raised_in + Try cluster)
   4. raw-AST Ingestor/CSL-Weaver IR-builder modeling (_build_function_ir/_csl_*/_py_expr_*/_match_pattern_to_ir; hardest)
 - 3 "review-gated/new-device" verdicts REFUTED this window by spiking contained paths (termination-VC, type-string producers, self-ref-map-key-enum) => always spike before flagging; but these 4 are now spike-confirmed as genuinely multi-method/review-gated.
+
+## self-state field retype to key-iterable pydict — WALL (CERTIFIED-BOUNDARY) 2026-08-15
+- De-risk gate on the most-bounded target (_module_constants): retype Dict[str,str]->Dict[str,Any] makes the value non-string, breaking the VERIFIED reader _handle_var_expr at L3-tc (`_whyml_string_literal(_cv)` + f"({_cv})" expect string). String-valued self-fields FEED verified string-consuming readers -> a retype regresses the sibling at typecheck (harder than a proof failure).
+- SECOND obstacle: the target _module_binding_names's real block is `self.ir = json.loads(json_ir)` — the heterogeneous Dict[str,Any] IR ROOT, NOT modeled as a record field at all. Retyping the two small fields is necessary-not-sufficient.
+- The machinery (hval_keys_get/values/as_map) EXISTS; the obstacle is caller-coupling regression + the unmodeled self.ir IR-root.
+- VERDICT: WALL. Reopen = model self.ir as pyval (reuses existing cert, NO new cert) BUT it's read by many methods incl. verified _handle_var_expr -> a broad multi-method retype campaign (regression-heavy), OR the string-field-plane needs consistent retype of every string-consuming reader.
+
+## FRONTIER at 717 (2026-08-15): autonomous no-new-cert / no-verified-regression frontier EXHAUSTED (19 conv this window, 736->717)
+- Every remaining lead MEASURED to: (a) verified-method-regression retype (self-field, map-string-bool consolidation) — breaks siblings at L3-tc; or (b) big review-gated value-model campaign (self.ir heterogeneous IR-root modeling [reuses pyval cert but broad multi-method regression-heavy retype]; raw-AST-as-variant ADT for _py_stmts_to_ir/_process_dependency [likely new cert]).
+- These are the DOCUMENTED deep walls (frontier_exhaustion_map / isolation_spike_not_whole_file "authorize first"). NOT clean autonomous increments.
+- 4 boundaries REFUTED this window by spiking contained paths; the remaining 3 are now spike-confirmed as genuinely multi-method/regression-heavy/new-cert.
