@@ -12887,6 +12887,397 @@ def emit_extract_ast_subscript_group(desc: Dict[str, Any], whyml_ident) -> List[
     return out
 
 
+# ---- `_collect_instantiations_ast`: raw-`ast.walk` set-collect over the pyval VIEW --
+#   found = set(); generic_names = set(generics)
+#   for node in _ast.walk(tree):
+#       if isinstance(node, _ast.Call):        sub=_extract_ast_subscript(node.func, gn);        if sub!=None: found.add(sub)
+#       if isinstance(node, _ast.AnnAssign):   sub=_extract_ast_subscript(node.annotation, gn);   if sub!=None: found.add(sub)
+#       if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+#           for arg in node.args.args + node.args.posonlyargs + node.args.kwonlyargs:
+#               sub=_extract_ast_subscript(arg.annotation, gn); if sub!=None: found.add(sub)
+#           if node.returns is not None: sub=_extract_ast_subscript(node.returns, gn); if sub!=None: found.add(sub)
+#   return found
+# `_ast.walk(tree)` = the recursive `.values()`/list catamorphism (banked pv_size /
+# size_dict / size_list measure) applied to EVERY descendant node; each node runs the
+# 3 kind-branches, `set(generics)` = the pydict-keys `map string bool`, the returned
+# `Set[Tuple[str,str]]` = a threaded `map (string,string) bool` accumulator (`Map.set`).
+# The `_extract_ast_subscript` callee is a FORWARD reference (it is defined textually
+# LATER in the mirror) -> inlined as a local `__ext` reflecting its OWN certified
+# descriptor (fetched from the sibling functions list; the caller-side dispatch only
+# converts `_collect_instantiations_ast` when that sibling is the recognised, certified
+# `_extract_ast_subscript`). NO new type/axiom/cert, ledger 3 (reuses pyval + option).
+
+def _match_isinstance_ast_tuple(test: Any, subj: Optional[str]) -> Optional[List[str]]:
+    """`isinstance(<subj>, (_ast.<A>, _ast.<B>, ...))` -> ["A","B",...] or None."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return None
+    args = test.get("args") or []
+    if len(args) != 2 or not _is_var(args[0], subj):
+        return None
+    tup = args[1]
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    elts = tup.get("elts") or []
+    clss: List[str] = []
+    for e in elts:
+        if not (isinstance(e, dict) and e.get("type") == "Attribute"
+                and _is_var(e.get("object")) and isinstance(e.get("attr"), str)):
+            return None
+        clss.append(e["attr"])
+    return clss if clss else None
+
+
+def _match_extract_add_pair(assign_stmt: Any, if_stmt: Any, gn_var: Optional[str],
+                            add_target: str) -> Optional[Dict[str, str]]:
+    """`sub = _extract_ast_subscript(<obj>.<attr>, gn); if sub != None: <out>.add(sub)`
+    -> {"obj": <var>, "attr": <str>} (the first-arg Attribute), else None."""
+    if not (isinstance(assign_stmt, dict) and assign_stmt.get("stmt") == "Assign"
+            and isinstance(assign_stmt.get("target"), str)):
+        return None
+    sub_var = assign_stmt["target"]
+    v = assign_stmt.get("value") or {}
+    if not (isinstance(v, dict) and v.get("type") == "Call"
+            and v.get("func") == "_extract_ast_subscript"):
+        return None
+    a = v.get("args") or []
+    if len(a) != 2 or not _is_var(a[1], gn_var):
+        return None
+    ae = a[0]
+    if not (isinstance(ae, dict) and ae.get("type") == "Attribute"
+            and isinstance(ae.get("attr"), str) and _is_var(ae.get("object"))):
+        return None
+    if not (isinstance(if_stmt, dict) and if_stmt.get("stmt") == "If"
+            and not (if_stmt.get("orelse") or [])):
+        return None
+    t = if_stmt.get("test") or {}
+    if not (isinstance(t, dict) and t.get("type") == "BinOp" and t.get("op") == "!="
+            and _is_var(t.get("left"), sub_var)
+            and (t.get("right") or {}).get("type") == "None"):
+        return None
+    b = if_stmt.get("body") or []
+    if len(b) != 1:
+        return None
+    e = b[0]
+    if not (isinstance(e, dict) and e.get("stmt") == "Expr"):
+        return None
+    ev = e.get("value") or {}
+    if not (isinstance(ev, dict) and ev.get("type") == "Call"
+            and ev.get("func") == f"{add_target}.add"
+            and len(ev.get("args") or []) == 1 and _is_var(ev["args"][0], sub_var)):
+        return None
+    return {"obj": ae["object"]["name"], "attr": ae["attr"]}
+
+
+def recognize_collect_instantiations_ast(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_collect_instantiations_ast`. Returns the reflected
+    kind-literals + attribute-keys descriptor, or None. Never raises."""
+    try:
+        return _recognize_collect_instantiations_ast(func)
+    except Exception:
+        return None
+
+
+def _recognize_collect_instantiations_ast(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "_collect_instantiations_ast":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 2:
+        return None
+    tree_p, generics_p = params[0], params[1]
+    body = func.get("body") or []
+    if len(body) != 4:
+        return None
+    # [0] found = set()
+    a0 = body[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign" and isinstance(a0.get("target"), str)):
+        return None
+    found_var = a0["target"]
+    v0 = a0.get("value") or {}
+    if not (isinstance(v0, dict) and v0.get("type") == "Call" and v0.get("func") == "set"
+            and not (v0.get("args") or [])):
+        return None
+    # [1] generic_names = set(generics)
+    a1 = body[1]
+    if not (isinstance(a1, dict) and a1.get("stmt") == "Assign" and isinstance(a1.get("target"), str)):
+        return None
+    gn_var = a1["target"]
+    v1 = a1.get("value") or {}
+    if not (isinstance(v1, dict) and v1.get("type") == "Call" and v1.get("func") == "set"
+            and len(v1.get("args") or []) == 1 and _is_var(v1["args"][0], generics_p)):
+        return None
+    # [2] for node in _ast.walk(tree): <3 branches>
+    fr = body[2]
+    if not (isinstance(fr, dict) and fr.get("stmt") == "For"):
+        return None
+    node_var = fr.get("target")
+    it = fr.get("iter") or {}
+    if not (isinstance(node_var, str) and isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "_ast.walk"
+            and len(it.get("args") or []) == 1 and _is_var(it["args"][0], tree_p)):
+        return None
+    fb = fr.get("body") or []
+    if len(fb) != 3:
+        return None
+    # branch a: if isinstance(node, _ast.Call): sub=ext(node.func); if sub!=None: found.add
+    ba = fb[0]
+    if not (isinstance(ba, dict) and ba.get("stmt") == "If" and not (ba.get("orelse") or [])):
+        return None
+    insa = _match_isinstance_ast(ba.get("test") or {}, node_var)
+    if insa is None:
+        return None
+    bab = ba.get("body") or []
+    if len(bab) != 2:
+        return None
+    pa = _match_extract_add_pair(bab[0], bab[1], gn_var, found_var)
+    if pa is None or pa["obj"] != node_var:
+        return None
+    cls_a, attr_a = insa["cls"], pa["attr"]
+    # branch b: if isinstance(node, _ast.AnnAssign): sub=ext(node.annotation); ...
+    bb = fb[1]
+    if not (isinstance(bb, dict) and bb.get("stmt") == "If" and not (bb.get("orelse") or [])):
+        return None
+    insb = _match_isinstance_ast(bb.get("test") or {}, node_var)
+    if insb is None:
+        return None
+    bbb = bb.get("body") or []
+    if len(bbb) != 2:
+        return None
+    pb = _match_extract_add_pair(bbb[0], bbb[1], gn_var, found_var)
+    if pb is None or pb["obj"] != node_var:
+        return None
+    cls_b, attr_b = insb["cls"], pb["attr"]
+    # branch c: if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+    bc = fb[2]
+    if not (isinstance(bc, dict) and bc.get("stmt") == "If" and not (bc.get("orelse") or [])):
+        return None
+    clss = _match_isinstance_ast_tuple(bc.get("test") or {}, node_var)
+    if clss is None or len(clss) != 2:
+        return None
+    cls_c1, cls_c2 = clss[0], clss[1]
+    bcb = bc.get("body") or []
+    if len(bcb) != 2:
+        return None
+    # bcb[0]: for arg in node.args.args + node.args.posonlyargs + node.args.kwonlyargs:
+    inner = bcb[0]
+    if not (isinstance(inner, dict) and inner.get("stmt") == "For"):
+        return None
+    arg_var = inner.get("target")
+    iexpr = inner.get("iter") or {}
+    subs = _match_triple_attr_concat(iexpr, node_var)
+    if not (isinstance(arg_var, str) and subs is not None):
+        return None
+    args_attr, sub1, sub2, sub3 = subs
+    ib = inner.get("body") or []
+    if len(ib) != 2:
+        return None
+    pc = _match_extract_add_pair(ib[0], ib[1], gn_var, found_var)
+    if pc is None or pc["obj"] != arg_var:
+        return None
+    attr_c = pc["attr"]
+    # bcb[1]: if node.returns is not None: sub=ext(node.returns); if sub!=None: found.add
+    rif = bcb[1]
+    if not (isinstance(rif, dict) and rif.get("stmt") == "If" and not (rif.get("orelse") or [])):
+        return None
+    rt = rif.get("test") or {}
+    if not (isinstance(rt, dict) and rt.get("type") == "BinOp" and rt.get("op") == "!="
+            and isinstance(rt.get("left"), dict) and rt["left"].get("type") == "Attribute"
+            and _is_var(rt["left"].get("object"), node_var) and isinstance(rt["left"].get("attr"), str)
+            and (rt.get("right") or {}).get("type") == "None"):
+        return None
+    attr_ret = rt["left"]["attr"]
+    rib = rif.get("body") or []
+    if len(rib) != 2:
+        return None
+    pr = _match_extract_add_pair(rib[0], rib[1], gn_var, found_var)
+    if pr is None or pr["obj"] != node_var or pr["attr"] != attr_ret:
+        return None
+    # [3] return found
+    r3 = body[3]
+    if not (isinstance(r3, dict) and r3.get("stmt") == "Return" and _is_var(r3.get("value"), found_var)):
+        return None
+    return {"name": func["name"], "cls_a": cls_a, "attr_a": attr_a,
+            "cls_b": cls_b, "attr_b": attr_b, "cls_c1": cls_c1, "cls_c2": cls_c2,
+            "args_attr": args_attr, "sub1": sub1, "sub2": sub2, "sub3": sub3,
+            "attr_c": attr_c, "attr_ret": attr_ret}
+
+
+def _match_triple_attr_concat(expr: Any, base_var: Optional[str]) -> Optional[Tuple[str, str, str, str]]:
+    """`<base>.<A>.<x> + <base>.<A>.<y> + <base>.<A>.<z>` -> (A, x, y, z), else None.
+    Left-assoc `BinOp(+, BinOp(+, e1, e2), e3)`; each `ei` is `base.<A>.<subi>`."""
+    def _two_attr(e: Any) -> Optional[Tuple[str, str]]:
+        # <base>.<A>.<sub>  ->  (A, sub)
+        if not (isinstance(e, dict) and e.get("type") == "Attribute" and isinstance(e.get("attr"), str)):
+            return None
+        mid = e.get("object") or {}
+        if not (isinstance(mid, dict) and mid.get("type") == "Attribute" and isinstance(mid.get("attr"), str)
+                and _is_var(mid.get("object"), base_var)):
+            return None
+        return (mid["attr"], e["attr"])
+    if not (isinstance(expr, dict) and expr.get("type") == "BinOp" and expr.get("op") == "+"):
+        return None
+    left = expr.get("left") or {}
+    e3 = _two_attr(expr.get("right") or {})
+    if e3 is None or not (isinstance(left, dict) and left.get("type") == "BinOp" and left.get("op") == "+"):
+        return None
+    e1 = _two_attr(left.get("left") or {})
+    e2 = _two_attr(left.get("right") or {})
+    if e1 is None or e2 is None:
+        return None
+    a1, s1 = e1
+    a2, s2 = e2
+    a3, s3 = e3
+    if not (a1 == a2 == a3):
+        return None
+    return (a1, s1, s2, s3)
+
+
+def emit_collect_instantiations_ast_group(desc: Dict[str, Any], ext_desc: Dict[str, Any],
+                                          whyml_ident) -> List[str]:
+    """Emit `_collect_instantiations_ast` as an `_ast.walk` catamorphism over the pyval
+    VIEW threading a `map (string,string) bool` set. Inlines the certified
+    `_extract_ast_subscript` (reflected from `ext_desc`) as `__ext` (forward-ref). NO
+    new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    ca, aa = desc["cls_a"], desc["attr_a"]
+    cb, ab = desc["cls_b"], desc["attr_b"]
+    cc1, cc2 = desc["cls_c1"], desc["cls_c2"]
+    args_attr = desc["args_attr"]
+    s1, s2, s3 = desc["sub1"], desc["sub2"], desc["sub3"]
+    ac, aret = desc["attr_c"], desc["attr_ret"]
+    # extract descriptor (reflected literals of the certified `_extract_ast_subscript`)
+    e_c0, e_av = ext_desc["cls0"], ext_desc["attr_value"]
+    e_c1, e_ai1 = ext_desc["cls1"], ext_desc["attr_id1"]
+    e_asl = ext_desc["attr_slice"]
+    e_c2, e_ai2 = ext_desc["cls2"], ext_desc["attr_id2"]
+    e_san = whyml_ident(ext_desc["sanitize"])
+    out: List[str] = []
+    # -- inline pair-set membership helper (realizable-by-construction = Map.set, ledger 3;
+    #    kept INLINE in this group so it does NOT ripple the shared pydict theory) --
+    out.append("  val pair_set_add (m: map (string, string) bool) (e: (string, string)) : map (string, string) bool")
+    out.append("    ensures { result = Map.set m e true }")
+    out.append("")
+    # -- inlined `__ext` (certified `_extract_ast_subscript`, reflected) --
+    out.append(f"  let {n}__ext (node: pyval) (generic_names: map string bool) : option (string, string)")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match node with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f'         | Some (PStr t0) -> if pystr_eq t0 "{e_c0}" then')
+    out.append(f'             (match pget_dyn "{e_av}" d with')
+    out.append("              | Some (PDict vd) ->")
+    out.append('                  (match pget_dyn "_type" vd with')
+    out.append(f'                   | Some (PStr t1) -> if pystr_eq t1 "{e_c1}" then')
+    out.append(f'                       (match pget_dyn "{e_ai1}" vd with')
+    out.append("                        | Some (PStr gname) ->")
+    out.append("                            if not (Map.get generic_names gname) then None")
+    out.append("                            else")
+    out.append(f'                              (match pget_dyn "{e_asl}" d with')
+    out.append("                               | Some (PDict sd) ->")
+    out.append('                                   (match pget_dyn "_type" sd with')
+    out.append(f'                                    | Some (PStr t2) -> if pystr_eq t2 "{e_c2}" then')
+    out.append(f'                                        (match pget_dyn "{e_ai2}" sd with')
+    out.append("                                         | Some (PStr sid) ->")
+    out.append(f"                                             (match {e_san} sid with")
+    out.append("                                              | Arm_1_0 ct -> Some (gname, ct)")
+    out.append("                                              | Arm_1_None -> None end)")
+    out.append("                                         | _ -> None end)")
+    out.append("                                        else None")
+    out.append("                                    | _ -> None end)")
+    out.append("                               | _ -> None end)")
+    out.append("                        | _ -> None end)")
+    out.append("                       else None")
+    out.append("                   | _ -> None end)")
+    out.append("              | _ -> None end)")
+    out.append("           else None")
+    out.append("         | _ -> None end)")
+    out.append("    | _ -> None")
+    out.append("    end")
+    # -- keys of a pydict -> `map string bool` (= `set(generics)`) --
+    out.append(f"  let rec {n}__keys (d: pydict) (acc: map string bool) : map string bool")
+    out.append("    variant { d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> acc")
+    out.append(f"    | DCons (K_dyn s) _ rest -> {n}__keys rest (set_add acc s)")
+    out.append(f"    | DCons _ _ rest -> {n}__keys rest acc")
+    out.append("    end")
+    # -- fold of the concatenated arg list: each `arg.<attr_c>` -> __ext --
+    out.append(f"  let rec {n}__args (xs: list pyval) (gn: map string bool) (acc: map (string, string) bool) : map (string, string) bool")
+    out.append("    requires { true } ensures { true } variant { xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append("    | Cons a rest ->")
+    out.append("        let acc = (match a with")
+    out.append(f'                   | PDict ad -> (match pget_dyn "{ac}" ad with')
+    out.append(f"                                  | Some an -> (match {n}__ext an gn with Some pr -> pair_set_add acc pr | None -> acc end)")
+    out.append("                                  | None -> acc end)")
+    out.append("                   | _ -> acc end) in")
+    out.append(f"        {n}__args rest gn acc")
+    out.append("    end")
+    # -- per-node processing: the 3 kind-branches applied to THIS node --
+    out.append(f"  let {n}__node (nd: pyval) (gn: map string bool) (acc0: map (string, string) bool) : map (string, string) bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        let acc1 = (match pget_dyn "_type" d with')
+    out.append(f'                    | Some (PStr t) -> if pystr_eq t "{ca}" then')
+    out.append(f'                        (match pget_dyn "{aa}" d with')
+    out.append(f"                         | Some fn -> (match {n}__ext fn gn with Some pr -> pair_set_add acc0 pr | None -> acc0 end)")
+    out.append("                         | None -> acc0 end)")
+    out.append("                        else acc0")
+    out.append("                    | _ -> acc0 end) in")
+    out.append('        let acc2 = (match pget_dyn "_type" d with')
+    out.append(f'                    | Some (PStr t) -> if pystr_eq t "{cb}" then')
+    out.append(f'                        (match pget_dyn "{ab}" d with')
+    out.append(f"                         | Some an -> (match {n}__ext an gn with Some pr -> pair_set_add acc1 pr | None -> acc1 end)")
+    out.append("                         | None -> acc1 end)")
+    out.append("                        else acc1")
+    out.append("                    | _ -> acc1 end) in")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f'         | Some (PStr t) -> if (pystr_eq t "{cc1}") || (pystr_eq t "{cc2}") then')
+    out.append(f'             let acc3 = (match pget_dyn "{args_attr}" d with')
+    out.append("                         | Some (PDict ad) ->")
+    out.append(f'                             let acc = {n}__args (pget_list "{s1}" ad) gn acc2 in')
+    out.append(f'                             let acc = {n}__args (pget_list "{s2}" ad) gn acc in')
+    out.append(f'                             let acc = {n}__args (pget_list "{s3}" ad) gn acc in')
+    out.append("                             acc")
+    out.append("                         | _ -> acc2 end) in")
+    out.append(f'             (match pget_dyn "{aret}" d with')
+    out.append(f"              | Some ret -> (match ret with PNone -> acc3 | _ -> (match {n}__ext ret gn with Some pr -> pair_set_add acc3 pr | None -> acc3 end) end)")
+    out.append("              | None -> acc3 end)")
+    out.append("           else acc2")
+    out.append("         | _ -> acc2 end)")
+    out.append("    | _ -> acc0")
+    out.append("    end")
+    # -- `_ast.walk`: process node, then descend into every child (values / list) --
+    out.append(f"  let rec {n}__walk (nd: pyval) (gn: map string bool) (acc: map (string, string) bool) : map (string, string) bool")
+    out.append("    requires { true } ensures { true } variant { pv_size nd }")
+    out.append(f"  = let acc = {n}__node nd gn acc in")
+    out.append("    match nd with")
+    out.append(f"    | PDict d -> {n}__walkd d gn acc")
+    out.append(f"    | PList xs -> {n}__walkl xs gn acc")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    out.append(f"  with {n}__walkd (d: pydict) (gn: map string bool) (acc: map (string, string) bool) : map (string, string) bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> acc")
+    out.append(f"    | DCons _ v rest -> {n}__walkd rest gn ({n}__walk v gn acc)")
+    out.append("    end")
+    out.append(f"  with {n}__walkl (xs: list pyval) (gn: map string bool) (acc: map (string, string) bool) : map (string, string) bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append(f"    | Cons h t -> {n}__walkl t gn ({n}__walk h gn acc)")
+    out.append("    end")
+    # -- entry: generic_names = set(generics); walk tree threading the empty set --
+    out.append(f"  let {n} (tree: pyval) (generics: pyval) : map (string, string) bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let gn : map string bool = (match generics with PDict d -> {n}__keys d (const false) | _ -> const false end) in")
+    out.append(f"    {n}__walk tree gn (const false)")
+    return out
+
+
 # ---- `_check_bounds`: instantiation-set raise-consumer (__anystr device) ------
 #   for gname, ct in instantiations:
 #       info = generics.get(gname)

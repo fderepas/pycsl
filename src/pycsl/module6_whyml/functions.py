@@ -3621,6 +3621,7 @@ class FunctionEmissionMixin:
             recognize_check_gt3_schema_only, emit_check_gt3_schema_only_group,
             recognize_check_bounds, emit_check_bounds_group,
             recognize_extract_ast_subscript, emit_extract_ast_subscript_group,
+            recognize_collect_instantiations_ast, emit_collect_instantiations_ast_group,
             recognize_check_mutex_invariants, emit_check_mutex_invariants_group,
             recognize_check_callable_params, emit_check_callable_params_group,
             recognize_check_fresh_globals, emit_check_fresh_globals_group,
@@ -4235,6 +4236,21 @@ class FunctionEmissionMixin:
         _eas = recognize_extract_ast_subscript(func)
         if _eas is not None:
             return emit_extract_ast_subscript_group(_eas, whyml_ident)
+        # `_collect_instantiations_ast`: `_ast.walk` set-collect over the raw-ast
+        # pyval VIEW — the recursive `.values()`/list catamorphism (pv_size measure)
+        # runs the 3 kind-branches per descendant, threading a `map (string,string)
+        # bool` set. The `_extract_ast_subscript` callee is a FORWARD reference
+        # (defined later in the mirror) so it is INLINED, reflecting the certified
+        # sibling's descriptor — converts ONLY when that sibling is the recognised
+        # certified `_extract_ast_subscript`. Name-gated + corpus-inert; fail-closed.
+        _cia = recognize_collect_instantiations_ast(func)
+        if _cia is not None:
+            _ext_sib = next((recognize_extract_ast_subscript(g)
+                             for g in self.ir.get("functions", [])
+                             if g.get("name") == "_extract_ast_subscript"
+                             and recognize_extract_ast_subscript(g) is not None), None)
+            if _ext_sib is not None:
+                return emit_collect_instantiations_ast_group(_cia, _ext_sib, whyml_ident)
         _cmi = recognize_check_mutex_invariants(func)
         if _cmi is not None:
             return emit_check_mutex_invariants_group(_cmi, whyml_ident)

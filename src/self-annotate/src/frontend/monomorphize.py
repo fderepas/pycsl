@@ -106,12 +106,36 @@ def _sanitize_type_name(name: str) -> Optional[str]:
 def _match_generic_annotation(type_str: Any, generic_names: int) -> int:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _collect_instantiations_ast(tree: Any, generics: int) -> int:
-    return set()
+    found: Set[Tuple[str, str]] = set()
+    generic_names = set(generics)
+    for node in _ast.walk(tree):
+        # `C[int]()` constructor call: Call(func=Subscript(value=Name(C),
+        # slice=Name(int))).
+        if isinstance(node, _ast.Call):
+            sub = _extract_ast_subscript(node.func, generic_names)
+            if sub is not None:
+                found.add(sub)
+        # `x: C[int]` annotation on an AnnAssign / function arg.
+        if isinstance(node, _ast.AnnAssign):
+            sub = _extract_ast_subscript(node.annotation, generic_names)
+            if sub is not None:
+                found.add(sub)
+        # `def f(x: C[int]) -> C[int]` arg/return annotations.
+        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            for arg in (node.args.args + node.args.posonlyargs
+                        + node.args.kwonlyargs):
+                sub = _extract_ast_subscript(arg.annotation, generic_names)
+                if sub is not None:
+                    found.add(sub)
+            if node.returns is not None:
+                sub = _extract_ast_subscript(node.returns, generic_names)
+                if sub is not None:
+                    found.add(sub)
+    return found
 
 #@ requires True
 #@ ensures True
