@@ -13353,6 +13353,178 @@ def emit_check_fresh_globals_group(desc: Dict[str, Any], whyml_ident) -> List[st
     return out
 
 
+# ---- `_module_binding_names`: per-stub opaque-self pyval descent -------------
+# The `self`-only, param-less `Set[str]` accessor that reads `self.ir` (a pydict)
+# and unions the `functions`/`classes` element `name`s with the KEYSETS of two
+# self-dicts (`_module_global_classes`/`_module_constants`). RETYPING the shared
+# `self.ir`/`_module_*` fields breaks a verified sibling reader, so this stub gets
+# its OWN opaque-self pyval view of each field via an uninterpreted `val …__ir`
+# (a sound over-approx returning `self.ir` as a `pyval`), then descends it with
+# the certified `pget_list`/`pget_dyn` readers and `set_add`/`set_union`. The
+# `ir.functions`/`ir.classes` DESCENT is REAL and mutation-sensitive (the
+# `"functions"`/`"classes"`/`"name"` literals are extracted from the source IR);
+# the two self-dict keysets are opaque over-approx sets (type-safety-only
+# contract). `names.discard(None)` is faithful by construction (only `Some (PStr s)`
+# elements are `set_add`ed). No new type / axiom / cert (ledger 3). Corpus-inert
+# (name-gated). Fail-closed; a template bug is a loud unprovable instance.
+
+def _mbn_get_call(node: Any, subj: str) -> Optional[str]:
+    """`<subj>.get("<key>"[, default])` -> "<key>" or None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == f"{subj}.get"):
+        return None
+    args = node.get("args") or []
+    return _is_string(args[0]) if args else None
+
+
+def _mbn_setcomp(node: Any, ir_local: str) -> Optional[tuple]:
+    """`{<v>.get("<nk>") for <v> in <ir_local>.get("<coll>",[]) [if …]}`
+    -> ("<coll>", "<nk>") or None (the `ifs` filter is over-approximated by the
+    emit's `PDict d` guard, so it need not be matched here)."""
+    if not (isinstance(node, dict) and node.get("type") == "SetComp"):
+        return None
+    gens = node.get("generators") or []
+    if len(gens) != 1:
+        return None
+    g = gens[0]
+    v = g.get("target")
+    if not isinstance(v, str):
+        return None
+    coll = _mbn_get_call(g.get("iter"), ir_local)
+    nk = _mbn_get_call(node.get("elt"), v)
+    if coll is None or nk is None:
+        return None
+    return (coll, nk)
+
+
+def _mbn_set_of_getattr(node: Any) -> Optional[str]:
+    """`set(getattr(self, "<field>"[, default]))` -> "<field>" or None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "set"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 1:
+        return None
+    ga = args[0]
+    if not (isinstance(ga, dict) and ga.get("type") == "Call"
+            and ga.get("func") == "getattr"):
+        return None
+    gargs = ga.get("args") or []
+    if len(gargs) < 2 or not _is_var(gargs[0], "self"):
+        return None
+    return _is_string(gargs[1])
+
+
+def _mbn_augunion(st: Any, names_var: str) -> Any:
+    """`<names_var> |= <value>` -> <value> or None."""
+    if not (isinstance(st, dict) and st.get("stmt") == "AugAssign"
+            and st.get("op") == "|" and st.get("target") == names_var):
+        return None
+    return st.get("value")
+
+
+def recognize_module_binding_names(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_module_binding_names`. Never raises."""
+    try:
+        return _recognize_module_binding_names(func)
+    except Exception:
+        return None
+
+
+def _recognize_module_binding_names(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not str(func.get("name", "")).endswith("_module_binding_names"):
+        return None
+    if func.get("formal_params") or []:
+        return None
+    if func.get("return_annotation") != "set":
+        return None
+    body = func.get("body") or []
+    if len(body) != 7:
+        return None
+    a1, a2, a3, a4, a5, a6, a7 = body
+    # 1: ir = getattr(self, "<irf>", {})
+    gb = _match_getattr_bind(a1)
+    if gb is None:
+        return None
+    ir_local, _ir_field = gb
+    # 2: names = {f.get("<nk>") for f in ir.get("<funcs>",[])}
+    if not (isinstance(a2, dict) and a2.get("stmt") == "Assign"):
+        return None
+    names_var = a2.get("target")
+    if not isinstance(names_var, str):
+        return None
+    sc1 = _mbn_setcomp(a2.get("value"), ir_local)
+    if sc1 is None:
+        return None
+    funcs_key, fname_key = sc1
+    # 3 & 4: names |= set(getattr(self,"<field>",{}))
+    v3, v4 = _mbn_augunion(a3, names_var), _mbn_augunion(a4, names_var)
+    g1 = _mbn_set_of_getattr(v3) if v3 is not None else None
+    g2 = _mbn_set_of_getattr(v4) if v4 is not None else None
+    if g1 is None or g2 is None:
+        return None
+    # 5: names |= {c.get("<nk2>") for c in ir.get("<classes>",[]) if isinstance(c,dict)}
+    v5 = _mbn_augunion(a5, names_var)
+    if v5 is None:
+        return None
+    sc2 = _mbn_setcomp(v5, ir_local)
+    if sc2 is None:
+        return None
+    classes_key, cname_key = sc2
+    # 6: names.discard(None)
+    if not (isinstance(a6, dict) and a6.get("stmt") == "Expr"):
+        return None
+    dc = a6.get("value") or {}
+    if not (isinstance(dc, dict) and dc.get("type") == "Call"
+            and dc.get("func") == f"{names_var}.discard"):
+        return None
+    # 7: return names
+    if not (isinstance(a7, dict) and a7.get("stmt") == "Return"
+            and _is_var(a7.get("value"), names_var)):
+        return None
+    return {"name": func["name"], "self_type": func.get("self_type"),
+            "funcs_key": funcs_key, "fname_key": fname_key,
+            "classes_key": classes_key, "cname_key": cname_key}
+
+
+def emit_module_binding_names_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_module_binding_names`: per-stub opaque-self pyval accessors
+    (`val …__ir : pyval` + two opaque keyset sets) then a REAL `pget_list`/`pget_dyn`
+    descent that `set_add`s each element's `name` string over `functions`/`classes`,
+    `set_union`ed with the two self-dict keysets. `ensures True`. Ledger 3."""
+    n = whyml_ident(desc["name"])
+    st = whyml_ident(str(desc["self_type"]).lower()) if desc.get("self_type") else None
+    fk, nk = desc["funcs_key"], desc["fname_key"]
+    ck, nk2 = desc["classes_key"], desc["cname_key"]
+    sig = f" (self: {st})" if st else ""
+    arg = " self" if st else ""
+    out: List[str] = []
+    out.append(f"  val {n}__ir{sig} : pyval")
+    out.append(f"  val {n}__gclasses{sig} : map string bool")
+    out.append(f"  val {n}__mconstants{sig} : map string bool")
+
+    def _fold(fold_name: str, key: str) -> None:
+        out.append(f"  let rec {fold_name} (xs: list pyval) (acc: map string bool) : map string bool")
+        out.append("    variant { xs }")
+        out.append("  = match xs with")
+        out.append("    | Nil -> acc")
+        out.append("    | Cons e rest ->")
+        out.append(f'        let acc2 = (match e with PDict d -> (match pget_dyn "{key}" d with Some (PStr s) -> set_add acc s | _ -> acc end) | _ -> acc end) in')
+        out.append(f"        {fold_name} rest acc2")
+        out.append("    end")
+
+    _fold(f"{n}__ffold", nk)
+    _fold(f"{n}__cfold", nk2)
+    out.append(f"  let {n}{sig} : map string bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = let ir = {n}__ir{arg} in")
+    out.append(f'    let n0 = (match ir with PDict d -> {n}__ffold (pget_list "{fk}" d) (const false) | _ -> const false end) in')
+    out.append(f"    let n1 = set_union n0 ({n}__gclasses{arg}) in")
+    out.append(f"    let n2 = set_union n1 ({n}__mconstants{arg}) in")
+    out.append(f'    match ir with PDict d -> {n}__cfold (pget_list "{ck}" d) n2 | _ -> n2 end')
+    return out
+
+
 # ---- `_check_noreturn`: NR2a guard + the pyval->stmt_ir body parser ----------
 # BRIDGE (needs pget_list's size-postcondition, added to the pydict theory): a total
 # structural parser `list pyval -> stmt_list` maps "Return"->SReturn + compound tags to

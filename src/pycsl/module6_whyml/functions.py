@@ -3595,6 +3595,7 @@ class FunctionEmissionMixin:
             recognize_check_mutex_invariants, emit_check_mutex_invariants_group,
             recognize_check_callable_params, emit_check_callable_params_group,
             recognize_check_fresh_globals, emit_check_fresh_globals_group,
+            recognize_module_binding_names, emit_module_binding_names_group,
             recognize_check_noreturn, emit_check_noreturn_group,
             recognize_first_tuple_return, emit_first_tuple_return_group,
             recognize_find_assigned_vars, emit_find_assigned_vars_group,
@@ -4205,6 +4206,14 @@ class FunctionEmissionMixin:
         _cfg = recognize_check_fresh_globals(func)
         if _cfg is not None:
             return emit_check_fresh_globals_group(_cfg, whyml_ident)
+        # `_module_binding_names`: per-stub opaque-self pyval descent — the
+        # `self`-only Set[str] accessor whose `self.ir` is read via an
+        # uninterpreted `val …__ir : pyval` (no shared-field retype) then
+        # descended with `pget_list`/`pget_dyn`/`set_add`/`set_union`. Real
+        # `functions`/`classes`/`name` descent; name-gated + corpus-inert.
+        _mbn = recognize_module_binding_names(func)
+        if _mbn is not None:
+            return emit_module_binding_names_group(_mbn, whyml_ident)
         _cnr = recognize_check_noreturn(func)
         if _cnr is not None:
             return emit_check_noreturn_group(_cnr, whyml_ident)

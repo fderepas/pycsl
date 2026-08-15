@@ -1345,12 +1345,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      else "")
             return f"(Array.length {deref}{var})"
         return f"{node.var}_len"
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _module_binding_names(self) -> Set[str]:
-        return ""
+        """07-1839 P2: statically-declared module-level names — the sound lower bound for
+        `\\in_globals` (functions, module-global object instances, module constants, and
+        classes). The world is OPEN beyond this (import/exec), so a name's absence here is
+        *unknown*, never decided-false."""
+        ir = getattr(self, "ir", {})
+        names: Set[str] = {f.get("name") for f in ir.get("functions", [])}
+        names |= set(getattr(self, "_module_global_classes", {}))
+        names |= set(getattr(self, "_module_constants", {}))
+        names |= {c.get("name") for c in ir.get("classes", []) if isinstance(c, dict)}
+        names.discard(None)
+        return names
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
