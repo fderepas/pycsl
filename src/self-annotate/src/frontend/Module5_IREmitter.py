@@ -2318,13 +2318,57 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _normalize_literal_annotation(self, ann_expr: ast.expr, param_name: str) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `elt` is the general expr node,
+    # self-annotated as the emit_ir ADT ("ExprIR"). `isinstance(elt, ast.Constant)` -> `is_constant
+    # elt`; `v = elt.value` projects the constant leaf to a `pyconst_val` via `const_pyval_of`
+    # (preamble.py pyconst_val block) — the faithful inverse of `_py_expr_constant`. Each INPUT-side
+    # value-type test lowers to the matching pyconst_val discriminant: `v is None` -> is_pvnone,
+    # `isinstance(v, bool/int/str/bytes)` -> is_pvbool/is_pvint/is_pvstr/is_pvbytes. Each IR-node
+    # construction `{"type":"Number"/"String"/"Bool","value":v}` projects the pyconst_val at the
+    # IrNum/IrStr/IrBoolC ctor (pvint_of/pvstr_of/(if pvbool_of..)). The heterogeneous
+    # `Tuple[str, Any, Dict]` return retypes to the monomorphic `(string, pyconst_val, emit_ir)` slot
+    # triple. `isinstance(elt, ast.Name)` -> `is_var elt`, `elt.id` -> `name_of elt`. Verbatim body
+    # port of the LIVE `_classify_literal_value` (Module5_IREmitter.py). No new axiom/ADT/ctor/cert:
+    # `const_pyval_of` is a definitional projection, SAME class as svalue_of/num_of.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _classify_literal_value(elt: ast.expr) -> int:
-        return ([], {})
+    def _classify_literal_value(elt: "ExprIR") -> Tuple[str, Any, Dict[str, Any]]:
+        # ast.Constant covers `1`, `"a"`, `True`, `False`, `None`, `b"x"`.
+        if isinstance(elt, ast.Constant):
+            v = elt.value
+            if v is None:
+                return ("int", None, {"type": "Number", "value": 0})
+            if isinstance(v, bool):
+                return ("int", v, {"type": "Bool", "value": v})
+            if isinstance(v, int):
+                return ("int", v, {"type": "Number", "value": v})
+            if isinstance(v, str):
+                return ("str", v, {"type": "String", "value": v})
+            if isinstance(v, bytes):
+                raise PyCSLIRError(
+                    "Literal: bytes literals are not supported "
+                    "(L4a / PEP 586)", stage="ir-emit")
+            raise PyCSLIRError(
+                f"Literal: unsupported literal kind {type(v).__name__} "
+                "(L4 / PEP 586 — only int/str/bool/None supported)",
+                stage="ir-emit")
+        if isinstance(elt, ast.Name):
+            if elt.id == "None":
+                return ("int", None, {"type": "Number", "value": 0})
+            if elt.id == "True":
+                return ("int", True, {"type": "Bool", "value": True})
+            if elt.id == "False":
+                return ("int", False, {"type": "Bool", "value": False})
+            raise PyCSLIRError(
+                f"Literal: unsupported value '{elt.id}' "
+                "(L4 / L5c / PEP 586 — only int/str/bool/None literals supported)",
+                stage="ir-emit")
+        raise PyCSLIRError(
+            "Literal: only int/str/bool/None literals are supported "
+            "(L4 / L5c / PEP 586 — nested Literal and Enum members are not)",
+            stage="ir-emit")
 
     # value-model campaign increment 10 (loop-over-irlist + banked primitives): `annotation`
     # emit_ir; `isinstance(annotation, ast.Name)`->`is_var`, `annotation.id`->`name_of`;

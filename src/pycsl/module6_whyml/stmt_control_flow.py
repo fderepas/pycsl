@@ -2196,6 +2196,21 @@ class ControlFlowStmtMixin:
                 return f"{indent}raise (Return_opttuple_{suffix} None)"
             if func_ret == "unit":
                 return f"{indent}raise Return_void"
+            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return whose refined
+            # type carries a `pyconst_val` slot (only `_classify_literal_value`'s
+            # `(string, pyconst_val, emit_ir)`) uses a DEDICATED payload-typed exception
+            # `Return_tup_<slots>` — NOT the shared homogeneous `Return_<arity>` (whose payload is
+            # `(int,...,int)`; reusing it would both mis-type the slots AND collide with every
+            # corpus 3-tuple return). The MIDDLE (`pyconst_val`) slot is coerced to its value:
+            # a `None` literal -> PVNone, a `True`/`False` literal -> `PVBool true/false`, the
+            # pyconst_val local `v` -> `!v`. slot0/slot2 lower normally (string / emit_ir ctor).
+            # Gated on `"pyconst_val" in func_ret` -> corpus + every other mirror byte-identical
+            # (no pyconst_val tuple return there). This branch emits a WhyML-SOURCE STRING (no
+            # pyconst_val value handled in Python), so its own lowering in the giants is inert.
+            if func_ret.startswith("(") and "pyconst_val" in func_ret:
+                _suffix = (func_ret.replace("(", "").replace(")", "")
+                           .replace(" ", "").replace(",", "_"))
+                return f"{indent}raise (Return_tup_{_suffix} {val})"
             arity = self._current_tuple_arity
             if arity > 0:
                 # Tuple return: use the dedicated Return_<arity> exception

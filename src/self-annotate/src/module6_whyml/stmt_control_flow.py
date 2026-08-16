@@ -1149,6 +1149,15 @@ class ControlFlowStmtMixin:
                 return f"{indent}raise (Return_opttuple_{suffix} None)"
             if func_ret == "unit":
                 return f"{indent}raise Return_void"
+            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return whose refined
+            # type carries a `pyconst_val` slot uses a DEDICATED payload-typed exception
+            # `Return_tup_<slots>` (never the shared `Return_<arity>`); the MIDDLE slot is coerced
+            # to its pyconst_val value. Emits a WhyML-SOURCE STRING (no pyconst_val value handled
+            # in Python) -> dead-code / inert in the giants.
+            if func_ret.startswith("(") and "pyconst_val" in func_ret:
+                _suffix = (func_ret.replace("(", "").replace(")", "")
+                           .replace(" ", "").replace(",", "_"))
+                return f"{indent}raise (Return_tup_{_suffix} {val})"
             arity = self._current_tuple_arity
             if arity > 0:
                 # Tuple return: use the dedicated Return_<arity> exception

@@ -1820,6 +1820,10 @@ class PreambleEmissionMixin:
         # Optional-tuple return: the refined `(τ...)` tuple types of `Optional[Tuple]`
         # readers, each emitted as an `exception Return_opttuple_<arity> (option (τ...))`.
         opt_tuple_return_types: Set[str] = set()
+        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): refined tuple return types
+        # carrying a `pyconst_val` slot (`_classify_literal_value`) — each emitted as a
+        # `Return_tup_<slots> (<slots>)` exception DEFERRED into the emit_ir/pyconst_val theory.
+        pyconst_val_tuple_return_types: Set[str] = set()
         # value-model campaign incr5 (primitive c): synthesized-union (`Optional[X]`) return
         # types that need a dedicated `Return_<variant>` exception — a function returning a
         # `_union_*` variant WITH an early/in-loop return can't carry the variant through the
@@ -1848,10 +1852,27 @@ class PreambleEmissionMixin:
                     opt_tuple_return_types.add(
                         self._refine_tuple_return_type(func, func["body"], ret_type))
                 elif ret_type.startswith("(") and "," in ret_type:
-                    # Tuple return — needs a dedicated Return_<arity> exception
-                    # so the value carries through; the plain `exception Return int`
-                    # would force `_coerce_to_int` to hash the whole tuple.
-                    tuple_return_arities.add(ret_type.count(",") + 1)
+                    # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return whose
+                    # REFINED type carries a `pyconst_val` slot (`_classify_literal_value`'s
+                    # `(string, pyconst_val, emit_ir)`) needs a DEDICATED payload-typed exception
+                    # `Return_tup_<slots>` declared AFTER the pyconst_val/emit_ir theory (both slot
+                    # types are out of scope at top-of-module) — NOT the shared homogeneous
+                    # `Return_<arity>` (whose `(int,...,int)` payload mis-types the slots and
+                    # collides with corpus 3-tuples). Byte-inert: no corpus/other-mirror tuple
+                    # return refines to a pyconst_val slot.
+                    _pv_fn = func.get("name", "") or ""
+                    self._pyconst_val_tuple_slot = (
+                        _pv_fn == "_classify_literal_value"
+                        or _pv_fn.endswith("___classify_literal_value"))
+                    _refined_tup = self._refine_tuple_return_type(func, func["body"], ret_type)
+                    self._pyconst_val_tuple_slot = False
+                    if "pyconst_val" in _refined_tup:
+                        pyconst_val_tuple_return_types.add(_refined_tup)
+                    else:
+                        # Tuple return — needs a dedicated Return_<arity> exception
+                        # so the value carries through; the plain `exception Return int`
+                        # would force `_coerce_to_int` to hash the whole tuple.
+                        tuple_return_arities.add(ret_type.count(",") + 1)
                 elif ret_type == "array int" or ann in ("list", "bytes", "bytearray"):
                     # return-arr.md: an array-returning function with early/in-loop returns.
                     # Why3 forbids a mutable `array int` exception payload, so carry the value
@@ -2974,6 +2995,7 @@ class PreambleEmissionMixin:
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
             "opt_tuple_return_types": opt_tuple_return_types,
+            "pyconst_val_tuple_return_types": pyconst_val_tuple_return_types,
             "union_return_types": union_return_types,
             "needs_string": needs_string,
             "needs_char": needs_char,
@@ -5714,6 +5736,26 @@ class PreambleEmissionMixin:
                 " match v with PVBytes b -> b | _ -> Seq.empty end",
                 "  let function pvreal_of (v: pyconst_val) : real ="
                 " match v with PVComplex r -> r | _ -> 0.0 end",
+                # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the DEFINITIONAL
+                # projection of a CONSTANT-leaf emit_ir node to its `pyconst_val` value — the model
+                # of `elt.value` where `elt` is an `ast.Constant` self-annotated as `emit_ir` (the
+                # ADT, not a Constant-record; `_pyconst_val_field_read` handles the record case).
+                # `_py_expr_constant` sends a Python scalar to IrNum/IrStr/IrBoolC/IrNumF/IrNone by
+                # value; `const_pyval_of` is its FAITHFUL inverse (IrNum n -> PVInt n, IrStr s ->
+                # PVStr s, IrBoolC b -> PVBool (b<>0) matching the int-encoded bool leaf, IrNumF r ->
+                # PVComplex r, IrNone -> PVNone). Total `let function` over the EXISTING const leaves
+                # (the num_of/svalue_of precedent) — NO axiom, NO new ADT/ctor/cert; the pyconst_val
+                # variants it produces are exactly those the Phase2c_PyConstVal certificate pins to
+                # Python isinstance/`is None`. Gated on `_uses_pyconst_val` -> Module5 mirror only.
+                "  let function const_pyval_of (e: emit_ir) : pyconst_val =",
+                "    match e with",
+                "    | IrNone -> PVNone",
+                "    | IrBoolC b -> PVBool (b <> 0)",
+                "    | IrNum n -> PVInt n",
+                "    | IrStr s -> PVStr s",
+                "    | IrNumF r -> PVComplex r",
+                "    | _ -> PVNone",
+                "    end",
                 # complex branch of `_py_expr_constant`: `int(expr.value.real)` is a real->int
                 # truncation. Why3's `real.Truncate.truncate` is a LOGIC function (rejected in
                 # a program/ghost-free context), so expose a program-callable wrapper PINNED by
@@ -7222,6 +7264,20 @@ class PreambleEmissionMixin:
                             and _a0.get("attr") == "value"):
                         found[0] = True
                         return
+                    # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `isinstance(<x>,
+                    # ast.Constant)` — the compound const-node discriminant test — ALSO needs the
+                    # `is_constant` COMPOUND discriminant emitted into the emit_ir theory (the
+                    # recognizer at expressions.py `_handle_isinstance` branch (A), same gate). arg1
+                    # is the dotted `ast.Constant` class. Byte-inert (no corpus program does an
+                    # emit_ir `isinstance(_, ast.Constant)`).
+                    _a1 = _args[1] if len(_args) > 1 else None
+                    if (isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                            and isinstance(_a1.get("object"), dict)
+                            and _a1["object"].get("type") == "Var"
+                            and _a1["object"].get("name") == "ast"
+                            and _a1.get("attr") == "Constant"):
+                        found[0] = True
+                        return
                 for x in n.values():
                     rec(x)
             elif isinstance(n, list):
@@ -7292,11 +7348,36 @@ class PreambleEmissionMixin:
         some `type_decl`. Only then is the real-truncation wrapper `real_trunc` (and its
         `use real.Truncate`) emitted, so the real-arithmetic axioms stay OUT of every other
         full-theory mirror's SMT context. The pure pyconst_val type + its non-real accessors +
-        `bytes_content_comp` remain unconditional (axiom-free, cheap, unused-val-inert)."""
+        `bytes_content_comp` remain unconditional (axiom-free, cheap, unused-val-inert).
+
+        ALSO True when this file EMITS a function that makes the `pyconst_val` TYPE appear
+        in its lowered WhyML — so the type block is declared wherever it is referenced or
+        Why3 raises `unbound type symbol 'pyconst_val'`. Two such emitters exist beyond the
+        Constant-harvesting Module5:
+          (1) `_classify_literal_value` — the V1 pyconst-dispatch method whose REFINED tuple
+              return type carries a `pyconst_val` slot (`(string, pyconst_val, …)`). Files
+              that emit it as a cross-module dependency `val` + its dedicated
+              `Return_tup_…pyconst_val…` exception (`frontend/__init__.py`,
+              `frontend/ir_resolve.py`, `pycsl.py`) reference the type without harvesting a
+              Constant record. This is the SAME name signal the exception-declaration loop
+              uses (see `_pyconst_val_tuple_slot`, this file ~L1863).
+          (2) the synced verified methods `_infer_tuple_slot_type` / `_handle_return_stmt`,
+              whose (dead-branch-included) whole-body lowering references the type.
+        The whole block is axiom-free / unused-val-inert, so declaring it wherever these
+        functions are emitted is sound. The name matches methods the emitter DEFINES on
+        itself (`endswith` precedent = `_uses_compute_return_type`); no corpus program
+        defines/emits a function so-named, so the corpus stays byte-identical."""
         for td in self.ir.get("type_decls", []) or []:
             for f in td.get("fields", []) or []:
                 if f.get("type") == "PyConstVal":
                     return True
+        for fn in self.ir.get("functions", []) or []:
+            nm = str(fn.get("name", ""))
+            if (nm == "_classify_literal_value"
+                    or nm.endswith("___classify_literal_value")
+                    or nm.endswith("_infer_tuple_slot_type")
+                    or nm.endswith("_handle_return_stmt")):
+                return True
         return False
 
     def _reserved_exprir_symbols(self) -> Set[str]:

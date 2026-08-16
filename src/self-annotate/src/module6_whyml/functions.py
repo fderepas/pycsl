@@ -260,6 +260,16 @@ class FunctionEmissionMixin:
         if not isinstance(elt, dict):
             return "int"
         t = elt.get("type")
+        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): the MIDDLE tuple slot of
+        # `_classify_literal_value` is the Python constant VALUE — faithfully `pyconst_val`. Gated
+        # on the plain-BOOL flag `_pyconst_val_tuple_slot` (a getattr-bool + set-membership +
+        # tuple-`in`, the clean shape of the reads above) so it is `False`/dead-code elsewhere.
+        if getattr(self, "_pyconst_val_tuple_slot", False):
+            if (t == "Var" and elt.get("name")
+                    in getattr(self, "_pyconst_val_local_vars", set())):
+                return "pyconst_val"
+            if t in ("None", "Bool"):
+                return "pyconst_val"
         if getattr(self, "_mutable_state_classes", None):
             if self._is_string_expr(elt) or (t == "Var" and elt.get("name") in getattr(
                     self, "_tuple_string_slot_locals", set())):

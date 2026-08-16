@@ -2114,6 +2114,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # (immutable — no materialize). Parallel to the `Return_<arity>` tuple arm.
             suffix = return_type[len("option "):].replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
             return f"    try\n{body_code}\n    with Return_opttuple_{suffix} r -> r end"
+        if return_type.startswith("(") and "pyconst_val" in return_type:
+            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return with a
+            # `pyconst_val` slot (`_classify_literal_value`'s `(string, pyconst_val, emit_ir)`)
+            # is caught by the DEDICATED payload-typed `Return_tup_<slots>` exception (raised by
+            # `_handle_return_stmt`, declared in the pyconst_val theory), whose tuple payload is
+            # handed straight back. Gated on `pyconst_val in return_type` -> corpus + every other
+            # mirror byte-identical.
+            _suffix = (return_type.replace("(", "").replace(")", "")
+                       .replace(" ", "").replace(",", "_"))
+            return f"    try\n{body_code}\n    with Return_tup_{_suffix} r -> r end"
         if arity > 0:
             return f"    try\n{body_code}\n    with Return_{arity} r -> r end"
         if return_type == "array int":
@@ -3694,6 +3704,36 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # local reclassifies (pass 2 is a no-op there and pass 3 == pass 1).
         self._array_elem_types = self._collect_array_elem_types(body_stmts)
         self._emit_ir_local_vars = self._collect_emit_ir_result_locals(body_stmts)
+        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a local whose FIRST assignment
+        # is `<emit_ir>.value` inside `_classify_literal_value` (whose scoped `.value` projection
+        # is `const_pyval_of`, expressions.py `_EMIT_IR_HANDLER_ATTR_PROJ`) is a `pyconst_val`
+        # local — it pre-declares `ref PVNone` (never `ref (IrOther "")`) so its `:=`, its
+        # `is_pv*`/ctor projections, and the tuple slot it feeds all type-check against
+        # `pyconst_val`. Method-scoped via `_current_emitting_func` (the established scoped-
+        # lowering pattern) + the faithful `.value`-on-emit_ir structural test -> corpus + every
+        # other mirror byte-identical (no such scoped `.value` there). Inlined (no new mixin
+        # method — the zero-new-method device that dissolves the mirror-giant L3-tc collision).
+        self._pyconst_val_local_vars: Set[str] = set()
+        _cef_pv = getattr(self, "_current_emitting_func", None) or ""
+        if (_cef_pv == "_classify_literal_value"
+                or _cef_pv.endswith("___classify_literal_value")):
+            _pvset: Set[str] = set()
+
+            def _rec_pv(n: Any) -> None:
+                if isinstance(n, dict):
+                    if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)):
+                        _rv = n.get("value", {})
+                        if (isinstance(_rv, dict) and _rv.get("type") == "Attribute"
+                                and _rv.get("attr") == "value"
+                                and self._is_emit_ir_expr(_rv.get("object", {}))):
+                            _pvset.add(n["target"])
+                    for _x in n.values():
+                        _rec_pv(_x)
+                elif isinstance(n, list):
+                    for _x in n:
+                        _rec_pv(_x)
+            _rec_pv(body_stmts)
+            self._pyconst_val_local_vars = _pvset
         # self-tcb-reduction _typeddict_record_literal (cap-2): irlist locals (a DictLit
         # child-list `.get("keys"/"values",[])` read) pre-declare `ref ILNil`, not `ref 0`.
         self._irlist_local_vars = self._collect_dictlit_child_list_locals(body_stmts)
@@ -4339,6 +4379,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `Some (…)` arm — exclude them from EVERY typed pre-decl (string/emit_ir/map).
         _uput = getattr(self, "_option_tuple_unpack_targets", set())
         _str_predecl: Set[str] = set()
+        _pyconst_val_predecl: Set[str] = set()
         _emit_ir_predecl: Set[str] = set()
         _irlist_predecl: Set[str] = set()
         _hvalmap_predecl: Set[str] = set()
@@ -4350,6 +4391,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             and v not in _uput
                             and v not in struct_array_targets and v not in struct_pack_targets}
             pre_decl_vars |= _str_predecl
+            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `pyconst_val` locals
+            # (`v = elt.value` in `_classify_literal_value`) pre-declare `ref PVNone` (never the
+            # emit_ir `ref (IrOther "")`), so their `:=`, `is_pv*` tests and ctor projections
+            # type-check against `pyconst_val`. Computed FIRST and subtracted from the emit_ir
+            # set below (a `.value` read is also `_is_emit_ir_expr`-classifiable, but pyconst_val
+            # is the faithful type here). Byte-inert (`_pyconst_val_local_vars` empty elsewhere).
+            _pyconst_val_predecl = {v for v in getattr(self, "_pyconst_val_local_vars", set())
+                                    if v in local_refs and v not in ghost_vars
+                                    and v not in ref_params and v not in self._formal_params
+                                    and v not in _uput
+                                    and v not in struct_array_targets and v not in struct_pack_targets
+                                    and v not in _str_predecl}
+            pre_decl_vars |= _pyconst_val_predecl
             # typed-ir §19: emit_ir locals pre-declare `ref (IrOther "")` (the emit_ir
             # counterpart of the string `ref ""` pre-decl above).
             _emit_ir_predecl = {v for v in getattr(self, "_emit_ir_local_vars", set())
@@ -4357,7 +4411,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 and v not in ref_params and v not in self._formal_params
                                 and v not in _uput
                                 and v not in struct_array_targets and v not in struct_pack_targets
-                                and v not in _str_predecl}
+                                and v not in _str_predecl and v not in _pyconst_val_predecl}
             pre_decl_vars |= _emit_ir_predecl
             # cap-2: irlist locals (DictLit child-list) pre-declare `ref ILNil`.
             _irlist_predecl = {v for v in getattr(self, "_irlist_local_vars", set())
@@ -4518,6 +4572,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # R3: a @mutable_state string local pre-declares `ref ""` (see above).
             if var in _str_predecl:
                 init = '""'
+            elif var in _pyconst_val_predecl:
+                init = 'PVNone'        # V1 pyconst-dispatch: pyconst_val local pre-decl
             elif var in _emit_ir_predecl:
                 init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
             elif var in _irlist_predecl:

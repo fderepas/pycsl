@@ -618,6 +618,17 @@ class Module6_WhyMLTranspiler(
                 _suffix = _ot.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
                 _exprir_theory = list(_exprir_theory) + [
                     "", f"  exception Return_opttuple_{_suffix} (option {_ot})"]
+            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return carrying a
+            # `pyconst_val` slot (`_classify_literal_value`'s `(string, pyconst_val, emit_ir)`)
+            # needs its dedicated `Return_tup_<slots>` exception declared HERE — after the
+            # emit_ir ADT + the pyconst_val theory (both its slot types are only in scope now),
+            # never at top-of-module. Named by payload type (like the emit_ir opttuples) so it
+            # never collides with the homogeneous `Return_<arity>`. Byte-inert: no corpus /
+            # other-mirror tuple return refines to a pyconst_val slot.
+            for _pt in sorted(needs.get("pyconst_val_tuple_return_types", set())):
+                _psuffix = _pt.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+                _exprir_theory = list(_exprir_theory) + [
+                    "", f"  exception Return_tup_{_psuffix} {_pt}"]
             # parser-primitives-wall-impl-3.md capability (i) — LOW-BLAST-RADIUS
             # record-element class-field gate. `_mutable_state_classes` is the COARSE
             # disjunct above: it fires for ANY @mutable_state class, including one whose

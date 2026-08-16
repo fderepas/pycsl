@@ -327,6 +327,16 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
     "_collect_type_params": {"slice": "sindex_of"},
 })
+# V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `_classify_literal_value`'s
+# `v = elt.value` reads the CONSTANT-leaf VALUE off `elt` (an `ast.Constant` self-annotated
+# as the emit_ir ADT, established by the enclosing `isinstance(elt, ast.Constant)` guard).
+# `.value` on emit_ir defaults to `svalue_of` (the Subscript head sub-node, an emit_ir) —
+# WRONG here: a Constant's value is a Python SCALAR, faithfully the `pyconst_val` projection
+# `const_pyval_of elt`. SCOPED via `_current_emitting_func` so every other handler's `.value`
+# (the `svalue_of` default) is unperturbed — corpus + every other mirror byte-identical.
+_EMIT_IR_HANDLER_ATTR_PROJ.update({
+    "_classify_literal_value": {"value": "const_pyval_of"},
+})
 # self-tcb-reduction Layer-2: SCOPED `.get(key)`-projectors for the method-receiver /
 # slice recognizer `_match_field_decode_idiom`. `receiver`->receiver_of (the certified
 # Layer-2 method-call receiver), `slice`->slice_of (an IrSliceAccess's slice sub-node),
@@ -3217,8 +3227,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Returns the projected WhyML string, or None when the arg is not a pyconst_val
         `.value` read (the caller then lowers it generically). Corpus-inert: only fires on a
         pyconst_val field read, which the corpus never produces."""
-        if field != "value" or self._pyconst_val_field_read(arg_ir) is None:
+        _is_pv_local = (isinstance(arg_ir, dict) and arg_ir.get("type") == "Var"
+                        and arg_ir.get("name")
+                        in getattr(self, "_pyconst_val_local_vars", set()))
+        if field != "value" or (
+                self._pyconst_val_field_read(arg_ir) is None and not _is_pv_local):
             return None
+        # V1 pyconst-dispatch: the `value` arg is a pyconst_val record-field read OR a
+        # pyconst_val LOCAL (`v`) — project it through the matching total accessor so the
+        # `IrStr string`/`IrNum int`/`IrBoolC int` ctor arg is well-typed and value-faithful.
         _pvs = self._expr_to_whyml(arg_ir, local_refs, invariant_ctx, subst)
         _proj = {"String": "pvstr_of", "Number": "pvint_of"}.get(kind)
         if _proj is not None:
@@ -4127,7 +4144,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Both arms reachable (a Constant's `.value` may or may not be PVNone) -> the guarded
             # branch is NON-VACUOUS. Faithful per the Phase2c_PyConstVal certificate: the
             # abstraction map sends Python `None` to PVNone and `is_pvnone` decides exactly it.
+            # V1 pyconst-dispatch: the non-None side is a pyconst_val record-field read OR a
+            # pyconst_val LOCAL (`v = elt.value`) — either way `v is None` is `is_pvnone v`.
             _pv_none = self._pyconst_val_field_read(_nn)
+            if (_pv_none is None and isinstance(_nn, dict) and _nn.get("type") == "Var"
+                    and _nn.get("name") in getattr(self, "_pyconst_val_local_vars", set())):
+                _pv_none = _nn
             if _pv_none is not None:
                 _pvs = self._expr_to_whyml(_pv_none, local_refs, invariant_ctx, subst)
                 _chk = f"(is_pvnone {_pvs})"
@@ -7284,8 +7306,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                "bytes": "is_pvbytes", "complex": "is_pvcomplex"}
         if (isinstance(_a1, dict) and _a1.get("type") == "Var"
                 and _a1.get("name") in _PV_BUILTIN_DISCRIM
-                and self._pyconst_val_field_read(_a0) is not None):
-            _av = self._expr_to_whyml(_a0, set(), getattr(self, "_in_spec", False), None)
+                and (self._pyconst_val_field_read(_a0) is not None
+                     or (isinstance(_a0, dict) and _a0.get("type") == "Var"
+                         and _a0.get("name")
+                         in getattr(self, "_pyconst_val_local_vars", set())))):
+            # V1 pyconst-dispatch: arg0 is a pyconst_val record-field read OR a pyconst_val
+            # LOCAL (`v = elt.value`, `const_pyval_of elt`) — either way the value-type test
+            # `isinstance(v, bool/int/str)` is the pyconst_val discriminant `is_pv*`. A LOCAL
+            # ref needs `local_refs` so it derefs to `!v` (a field read is param-rooted, so
+            # `set()` — byte-identical to the pre-existing field-read path).
+            _pv_lr = (local_refs if (isinstance(_a0, dict) and _a0.get("type") == "Var"
+                                     and _a0.get("name")
+                                     in getattr(self, "_pyconst_val_local_vars", set()))
+                      else set())
+            _av = self._expr_to_whyml(_a0, _pv_lr, getattr(self, "_in_spec", False), None)
             return f"({_PV_BUILTIN_DISCRIM[_a1['name']]} {_av})"
         t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
         t_tag = self._tag_of_type(t_name)
@@ -11436,6 +11470,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if isinstance(node, StarredExpr):
             return self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
         if isinstance(node, TupleExpr):
+            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): inside
+            # `_classify_literal_value` the return tuple's MIDDLE slot is the Python constant
+            # VALUE — a DIRECT bare `None`/`True`/`False` literal element, faithfully the
+            # `PVNone`/`PVBool` variant (NOT the int 0/1). A DIRECT `NoneExpr`/`BoolExpr` tuple
+            # element is UNAMBIGUOUS: the IrBoolC ctor's `value` bool is nested inside a DictLit
+            # (`{"type":"Bool","value":True}`), never a direct tuple element, so it stays the
+            # int the `IrBoolC` payload expects. Method-gated via `_current_emitting_func` ->
+            # corpus + every other tuple byte-identical.
+            _cef_t = getattr(self, "_current_emitting_func", None) or ""
+            if (_cef_t == "_classify_literal_value"
+                    or _cef_t.endswith("___classify_literal_value")):
+                elts = []
+                for e in node.elts:
+                    if isinstance(e, NoneExpr):
+                        elts.append("PVNone")
+                    elif isinstance(e, BoolExpr):
+                        elts.append("(PVBool true)" if e.value else "(PVBool false)")
+                    else:
+                        elts.append(self._expr_to_whyml(e, local_refs, invariant_ctx, subst))
+                return f"({', '.join(elts)})"
             elts = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst) for e in node.elts]
             return f"({', '.join(elts)})"
         # --- legacy dict body (un-converted kinds) ---

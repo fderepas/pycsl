@@ -1188,6 +1188,23 @@ class FunctionEmissionMixin:
         if not isinstance(elt, dict):
             return "int"
         t = elt.get("type")
+        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): inside `_classify_literal_value`
+        # the MIDDLE tuple slot is the Python constant VALUE — faithfully `pyconst_val`. In the
+        # FIRST tuple return (`("int", None, {...})`, which `_refine_tuple_return_type` slots) the
+        # middle is a `None` literal; other returns use a `True`/`False` literal or the pyconst_val
+        # local `v`. Gated on the plain-BOOL flag `_pyconst_val_tuple_slot` (set only while emitting
+        # `_classify_literal_value`, from the TRUSTED `_emit_function`) — a getattr-bool + set-
+        # membership + tuple-`in`, the SAME clean shape as the `_mutable_state_classes` /
+        # `_tuple_*_slot_locals` reads above, so it lowers to `False`/dead-code in every other
+        # method incl. the giants (which never read `_current_emitting_func` as a string). Returns
+        # the type-name STRING "pyconst_val" (no pyconst_val VALUE constructed here). slot-0 String
+        # and slot-2 DictLit fall through to the string/emit_ir recognizers below.
+        if getattr(self, "_pyconst_val_tuple_slot", False):
+            if (t == "Var" and elt.get("name")
+                    in getattr(self, "_pyconst_val_local_vars", set())):
+                return "pyconst_val"
+            if t in ("None", "Bool"):
+                return "pyconst_val"
         # tuple-return-of-emit_ir feature: a slot that lowers to the `emit_ir` sum (an IR-node
         # sub-projection `expr["receiver"]`, an inline `{"type":K}` construction, an emit_ir local)
         # → `emit_ir`; a string-valued slot (a str attr projection / str local) → `string`. Checked
@@ -4726,6 +4743,17 @@ class FunctionEmissionMixin:
         # `symbol_table`). Only READ under the `_uses_build_param_list` gate -> byte-inert.
         self._current_sig_func_name = func.get("name")
         ref_params, args_str = self._build_param_list(func, local_refs, ghost_vars)
+
+        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): set the plain-BOOL flag that
+        # gates the `pyconst_val` MIDDLE-tuple-slot typing in `_infer_tuple_slot_type` (a verified
+        # method that must NOT read the int-modelled `_current_emitting_func` as a string). Set
+        # HERE — in the TRUSTED `_emit_function`, whose body is never lowered — so the flag is a
+        # clean `False` default everywhere else. Must precede `_compute_return_type` (its refine
+        # slots the return type). Byte-inert (True only for `_classify_literal_value`).
+        _pv_fn = func.get("name", "") or ""
+        self._pyconst_val_tuple_slot = (
+            _pv_fn == "_classify_literal_value"
+            or _pv_fn.endswith("___classify_literal_value"))
 
         return_type = self._compute_return_type(func, body_stmts)
         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`): its
