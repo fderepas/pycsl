@@ -35,12 +35,21 @@ def classify(module_name: str, stubs: Set[str],
         return TRUSTED_STUB
     return UNRESOLVED
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def collect_imports(tree: ast.AST) -> List[int]:
-    return []
+def collect_imports(tree: ast.AST) -> List[Tuple[str, int]]:
+    """Walk an AST and return ``(module_name, line)`` for every Import /
+    ImportFrom statement."""
+    out: List[Tuple[str, int]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                out.append((alias.name, node.lineno))
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                out.append((node.module, node.lineno))
+    return out
 
 #@ requires True
 #@ ensures True

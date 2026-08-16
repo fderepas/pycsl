@@ -13701,6 +13701,260 @@ def emit_any_function_trusted_group(desc: Dict[str, Any], whyml_ident) -> List[s
     return out
 
 
+# ---- import_classifier `collect_imports`: raw-`ast.walk` list-of-`(str,int)`
+#   collector over the pyval VIEW. LIVE body:
+#       def collect_imports(tree):
+#           out = []
+#           for node in ast.walk(tree):
+#               if isinstance(node, ast.Import):
+#                   for alias in node.names:
+#                       out.append((alias.name, node.lineno))
+#               elif isinstance(node, ast.ImportFrom):
+#                   if node.module:
+#                       out.append((node.module, node.lineno))
+#           return out
+#   `ast.walk(tree)` yields the root AND all descendants, so the faithful lowering is
+#   a ROOT-INCLUSIVE `__walk`/`__walkd`/`__walkl` catamorphism (`pv_size`/`size_dict`/
+#   `size_list` variants) threading a `list (string,int)` accumulator. Per node:
+#   `_type == "Import"` (pystr_eq) -> read `lineno` (pget_dyn -> PInt) + fold `names`
+#   (pget_dyn -> PList) building `(alias.name, node.lineno)` pairs; `_type ==
+#   "ImportFrom"` (pystr_eq) -> `if node.module:` truthiness (PStr non-empty via
+#   `not pystr_eq m ""`) building `(node.module, node.lineno)`. `ensures True`; NO new
+#   type/axiom/cert, ledger 3.
+# =========================================================================
+
+
+def recognize_collect_imports(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `collect_imports`. Never raises."""
+    try:
+        return _recognize_collect_imports(func)
+    except Exception:
+        return None
+
+
+def _match_out_append_attr_pair(stmt: Any, out_var: str):
+    """`<out_var>.append((<o0>.<a0>, <o1>.<a1>))` -> [(o0,a0),(o1,a1)] or None."""
+    if not (isinstance(stmt, dict) and stmt.get("stmt") == "Expr"):
+        return None
+    c = stmt.get("value") or {}
+    if not (isinstance(c, dict) and c.get("type") == "Call"
+            and c.get("func") == f"{out_var}.append"):
+        return None
+    args = c.get("args") or []
+    if len(args) != 1:
+        return None
+    tup = args[0]
+    if not (isinstance(tup, dict) and tup.get("type") == "Tuple"):
+        return None
+    elts = tup.get("elts") or []
+    if len(elts) != 2:
+        return None
+    res = []
+    for e in elts:
+        if not (isinstance(e, dict) and e.get("type") == "Attribute"
+                and _is_var(e.get("object")) and isinstance(e.get("attr"), str)):
+            return None
+        res.append((e["object"]["name"], e["attr"]))
+    return res
+
+
+def _recognize_collect_imports(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if func.get("name") != "collect_imports":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    tree_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 3:
+        return None
+    # [0] out = []
+    a0 = body[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and isinstance(a0.get("target"), str)
+            and isinstance(a0.get("value"), dict) and a0["value"].get("type") == "ArrayLit"
+            and not (a0["value"].get("elts") or [])):
+        return None
+    out_var = a0["target"]
+    # [2] return out
+    r = body[2]
+    if not (isinstance(r, dict) and r.get("stmt") == "Return" and _is_var(r.get("value"), out_var)):
+        return None
+    # [1] for node in ast.walk(tree): <1 If>
+    loop = body[1]
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and not (loop.get("orelse") or [])):
+        return None
+    nodev = loop.get("target")
+    if not isinstance(nodev, str):
+        return None
+    it = loop.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call" and it.get("func") == "ast.walk"):
+        return None
+    wargs = it.get("args") or []
+    if not (len(wargs) == 1 and _is_var(wargs[0], tree_p)):
+        return None
+    lb = loop.get("body") or []
+    if len(lb) != 1:
+        return None
+    top = lb[0]
+    if not (isinstance(top, dict) and top.get("stmt") == "If" and (top.get("orelse") or [])):
+        return None
+    # outer test: isinstance(node, ast.Import)
+    ins1 = _match_isinstance_ast(top.get("test") or {}, nodev)
+    if ins1 is None:
+        return None
+    import_cls = ins1["cls"]
+    # outer body: [ for alias in node.<names>: out.append((alias.<name>, node.<lineno>)) ]
+    ob = top.get("body") or []
+    if len(ob) != 1:
+        return None
+    inner_for = ob[0]
+    if not (isinstance(inner_for, dict) and inner_for.get("stmt") == "For"
+            and not (inner_for.get("orelse") or [])):
+        return None
+    aliasv = inner_for.get("target")
+    if not isinstance(aliasv, str):
+        return None
+    fit = inner_for.get("iter") or {}
+    if not (isinstance(fit, dict) and fit.get("type") == "Attribute"
+            and _is_var(fit.get("object"), nodev) and isinstance(fit.get("attr"), str)):
+        return None
+    names_attr = fit["attr"]
+    ifb = inner_for.get("body") or []
+    if len(ifb) != 1:
+        return None
+    t1 = _match_out_append_attr_pair(ifb[0], out_var)
+    if t1 is None:
+        return None
+    # t1[0] = (alias, alias_name_attr); t1[1] = (node, lineno_attr)
+    if not (t1[0][0] == aliasv and t1[1][0] == nodev):
+        return None
+    alias_name_attr = t1[0][1]
+    lineno_attr = t1[1][1]
+    # outer orelse: [ if isinstance(node, ast.ImportFrom): if node.<module>: ... ]
+    orelse = top.get("orelse") or []
+    if len(orelse) != 1:
+        return None
+    top2 = orelse[0]
+    if not (isinstance(top2, dict) and top2.get("stmt") == "If"
+            and not (top2.get("orelse") or [])):
+        return None
+    ins2 = _match_isinstance_ast(top2.get("test") or {}, nodev)
+    if ins2 is None:
+        return None
+    importfrom_cls = ins2["cls"]
+    ob2 = top2.get("body") or []
+    if len(ob2) != 1:
+        return None
+    inner_if = ob2[0]
+    if not (isinstance(inner_if, dict) and inner_if.get("stmt") == "If"
+            and not (inner_if.get("orelse") or [])):
+        return None
+    # test: node.<module> (truthiness)
+    mt = inner_if.get("test") or {}
+    if not (isinstance(mt, dict) and mt.get("type") == "Attribute"
+            and _is_var(mt.get("object"), nodev) and isinstance(mt.get("attr"), str)):
+        return None
+    module_attr = mt["attr"]
+    iib = inner_if.get("body") or []
+    if len(iib) != 1:
+        return None
+    t2 = _match_out_append_attr_pair(iib[0], out_var)
+    if t2 is None:
+        return None
+    # t2[0] = (node, module_attr); t2[1] = (node, lineno_attr) — faithful, same reads
+    if not (t2[0][0] == nodev and t2[0][1] == module_attr
+            and t2[1][0] == nodev and t2[1][1] == lineno_attr):
+        return None
+    return {"name": func["name"], "import_cls": import_cls,
+            "importfrom_cls": importfrom_cls, "names_attr": names_attr,
+            "alias_name_attr": alias_name_attr, "lineno_attr": lineno_attr,
+            "module_attr": module_attr}
+
+
+_CIMP_TUP = "(string, int)"
+
+
+def emit_collect_imports_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `collect_imports` as a root-inclusive `ast.walk` list-of-`(string,int)`
+    collector over the pyval VIEW. Import: fold `names` building `(alias.name,
+    node.lineno)`; ImportFrom: `if node.module:` (PStr non-empty) building
+    `(node.module, node.lineno)`. `ensures True`; NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    imp = desc["import_cls"]
+    impf = desc["importfrom_cls"]
+    names_a = desc["names_attr"]
+    aname_a = desc["alias_name_attr"]
+    line_a = desc["lineno_attr"]
+    mod_a = desc["module_attr"]
+    T = _CIMP_TUP
+    out: List[str] = []
+    # inner fold over node.<names>, threading the node's lineno
+    out.append(f"  let rec {n}__names (aliases: list pyval) (ln: int) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { aliases }")
+    out.append("  = match aliases with")
+    out.append("    | Nil -> acc")
+    out.append("    | Cons a rest ->")
+    out.append("        let acc = (match a with")
+    out.append(f'                   | PDict ad -> (match pget_dyn "{aname_a}" ad with')
+    out.append("                                  | Some (PStr nm) -> Cons (nm, ln) acc")
+    out.append("                                  | _ -> acc end)")
+    out.append("                   | _ -> acc end) in")
+    out.append(f"        {n}__names rest ln acc")
+    out.append("    end")
+    # per-node collector
+    out.append(f"  let {n}__node (nd: pyval) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f'         | Some (PStr t) -> if pystr_eq t "{imp}" then')
+    out.append(f'             (match pget_dyn "{line_a}" d with')
+    out.append("              | Some (PInt ln) ->")
+    out.append(f'                  (match pget_dyn "{names_a}" d with')
+    out.append(f"                   | Some (PList aliases) -> {n}__names aliases ln acc")
+    out.append("                   | _ -> acc end)")
+    out.append("              | _ -> acc end)")
+    out.append(f'           else if pystr_eq t "{impf}" then')
+    out.append(f'             (match pget_dyn "{mod_a}" d with')
+    out.append('              | Some (PStr m) -> if not (pystr_eq m "") then')
+    out.append(f'                  (match pget_dyn "{line_a}" d with')
+    out.append("                   | Some (PInt ln) -> Cons (m, ln) acc")
+    out.append("                   | _ -> acc end)")
+    out.append("                 else acc")
+    out.append("              | _ -> acc end)")
+    out.append("           else acc")
+    out.append("         | _ -> acc end)")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    # root-inclusive ast.walk catamorphism
+    out.append(f"  let rec {n}__walk (nd: pyval) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { pv_size nd }")
+    out.append(f"  = let acc = {n}__node nd acc in")
+    out.append("    match nd with")
+    out.append(f"    | PDict d -> {n}__walkd d acc")
+    out.append(f"    | PList xs -> {n}__walkl xs acc")
+    out.append("    | _ -> acc")
+    out.append("    end")
+    out.append(f"  with {n}__walkd (d: pydict) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> acc")
+    out.append(f"    | DCons _ v rest -> {n}__walkd rest ({n}__walk v acc)")
+    out.append("    end")
+    out.append(f"  with {n}__walkl (xs: list pyval) (acc: list {T}) : list {T}")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> acc")
+    out.append(f"    | Cons h t -> {n}__walkl t ({n}__walk h acc)")
+    out.append("    end")
+    out.append(f"  let {n} (tree: pyval) : list {T}")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__walk tree Nil")
+    return out
+
+
 # ---- monomorphize `_scan_node_for_subscript_calls` / `_find_subscript_calls`:
 #   IR-dict recursive subscript-call collectors over the pyval VIEW.
 #     def _scan_node_for_subscript_calls(node, generic_names):
