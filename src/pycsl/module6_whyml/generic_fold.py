@@ -13701,6 +13701,612 @@ def emit_any_function_trusted_group(desc: Dict[str, Any], whyml_ident) -> List[s
     return out
 
 
+# ---- Weaver `_is_trivial_new`: raw-ast STRAIGHT-LINE structural predicate over
+#   the pyval VIEW. LIVE body:
+#       def _is_trivial_new(fn):
+#           body = [s for s in fn.body
+#                   if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+#           if len(body) != 1 or not isinstance(body[0], ast.Return):
+#               return False
+#           val = body[0].value
+#           if not (isinstance(val, ast.Call) and isinstance(val.func, ast.Attribute)
+#                   and val.func.attr == "__new__"):
+#               return False
+#           recv = val.func.value
+#           if (isinstance(recv, ast.Call) and isinstance(recv.func, ast.Name)
+#                   and recv.func.id == "super"):
+#               return True
+#           if isinstance(recv, ast.Name) and recv.id == "object":
+#               return True
+#           return False
+#   Faithful lowering: a docstring FILTER (recursive `__filt` dropping `Expr`
+#   stmts whose `value` is a `Constant`) over `fn.body` (pget_dyn -> PList), then
+#   a concrete `Cons b0 Nil` singleton match (len == 1) + nested `_type`/attr
+#   reads (pystr_eq/pget_dyn): `Return` head -> its `value` is a `Call` whose
+#   `func` is an `Attribute` with `attr == "__new__"`, whose `func.value` (recv)
+#   is either a `super()`-`Call` (`func` `Name` id == "super") or a `Name` id ==
+#   "object". `ensures True`; NO new type/axiom/cert, ledger 3.
+# =========================================================================
+
+
+def _match_isinstance_of(test: Any, subj: Optional[str]):
+    """`isinstance(<subj>, _ast.<Cls>)` -> ("", Cls); or
+    `isinstance(<subj>.<attr>, _ast.<Cls>)` -> (attr, Cls); else None."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return None
+    args = test.get("args") or []
+    if len(args) != 2:
+        return None
+    a0, a1 = args[0], args[1]
+    if not (isinstance(a1, dict) and a1.get("type") == "Attribute"
+            and _is_var(a1.get("object")) and isinstance(a1.get("attr"), str)):
+        return None
+    cls = a1["attr"]
+    if _is_var(a0, subj):
+        return ("", cls)
+    if (isinstance(a0, dict) and a0.get("type") == "Attribute"
+            and _is_var(a0.get("object"), subj) and isinstance(a0.get("attr"), str)):
+        return (a0["attr"], cls)
+    return None
+
+
+def _match_attr_of(node: Any, subj: Optional[str], attr: str) -> bool:
+    """`<subj>.<attr>` (single Attribute over Var subj)."""
+    return (isinstance(node, dict) and node.get("type") == "Attribute"
+            and node.get("attr") == attr and _is_var(node.get("object"), subj))
+
+
+def recognize_is_trivial_new(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of Weaver `_is_trivial_new`. Never raises."""
+    try:
+        return _recognize_is_trivial_new(func)
+    except Exception:
+        return None
+
+
+def _recognize_is_trivial_new(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not str(func.get("name", "")).endswith("_is_trivial_new"):
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    fn_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 8:
+        return None
+    # [0] body = [s for s in fn.body if not (isinstance(s,Expr) and isinstance(s.value,Constant))]
+    a0 = body[0]
+    if not (isinstance(a0, dict) and a0.get("stmt") == "Assign"
+            and isinstance(a0.get("target"), str)):
+        return None
+    bvar = a0["target"]
+    lc = a0.get("value") or {}
+    if not (isinstance(lc, dict) and lc.get("type") == "ListComp" and _is_var(lc.get("elt"))):
+        return None
+    gens = lc.get("generators") or []
+    if len(gens) != 1:
+        return None
+    g = gens[0]
+    svar = g.get("target")
+    if not isinstance(svar, str) or lc["elt"].get("name") != svar:
+        return None
+    it = g.get("iter") or {}
+    if not _match_attr_of(it, fn_p, "body"):
+        return None
+    ifs = g.get("ifs") or []
+    if len(ifs) != 1:
+        return None
+    notf = ifs[0]
+    if not (isinstance(notf, dict) and notf.get("type") == "UnaryOp" and notf.get("op") == "not"):
+        return None
+    band = notf.get("expr") or {}
+    if not (isinstance(band, dict) and band.get("type") == "BinOp" and band.get("op") == "and"):
+        return None
+    li = _match_isinstance_of(band.get("left") or {}, svar)   # isinstance(s, Expr)
+    ri = _match_isinstance_of(band.get("right") or {}, svar)  # isinstance(s.value, Constant)
+    if li is None or ri is None or li[0] != "":
+        return None
+    expr_kind = li[1]
+    if ri[0] != "value":
+        return None
+    const_kind = ri[1]
+    # [1] if len(body) != 1 or not isinstance(body[0], Return): return False
+    s1 = body[1]
+    if not (isinstance(s1, dict) and s1.get("stmt") == "If" and not (s1.get("orelse") or [])):
+        return None
+    t1 = s1.get("test") or {}
+    if not (isinstance(t1, dict) and t1.get("type") == "BinOp" and t1.get("op") == "or"):
+        return None
+    ln = t1.get("left") or {}
+    if not (isinstance(ln, dict) and ln.get("type") == "BinOp" and ln.get("op") == "!="
+            and isinstance(ln.get("left"), dict) and ln["left"].get("type") == "Call"
+            and ln["left"].get("func") == "len"
+            and _is_var((ln["left"].get("args") or [{}])[0], bvar)
+            and isinstance(ln.get("right"), dict) and ln["right"].get("type") == "Number"
+            and ln["right"].get("value") == 1):
+        return None
+    rn = t1.get("right") or {}
+    if not (isinstance(rn, dict) and rn.get("type") == "UnaryOp" and rn.get("op") == "not"):
+        return None
+    # isinstance(body[0], Return): subj is Subscript body[0], not a Var — match manually
+    ri_call = rn.get("expr") or {}
+    if not (isinstance(ri_call, dict) and ri_call.get("type") == "Call"
+            and ri_call.get("func") == "isinstance"):
+        return None
+    ri_args = ri_call.get("args") or []
+    if len(ri_args) != 2 or not _is_subscript0(ri_args[0], bvar):
+        return None
+    ri_cls = ri_args[1]
+    if not (isinstance(ri_cls, dict) and ri_cls.get("type") == "Attribute"
+            and _is_var(ri_cls.get("object")) and isinstance(ri_cls.get("attr"), str)):
+        return None
+    return_kind = ri_cls["attr"]
+    if not _is_stmts_return_false(s1.get("body")):
+        return None
+    # [2] val = body[0].value
+    s2 = body[2]
+    if not (isinstance(s2, dict) and s2.get("stmt") == "Assign"
+            and isinstance(s2.get("target"), str)):
+        return None
+    vvar = s2["target"]
+    v2 = s2.get("value") or {}
+    if not (isinstance(v2, dict) and v2.get("type") == "Attribute"
+            and v2.get("attr") == "value" and _is_subscript0(v2.get("object"), bvar)):
+        return None
+    # [3] if not (isinstance(val,Call) and isinstance(val.func,Attribute) and val.func.attr=="__new__"): return False
+    s3 = body[3]
+    if not (isinstance(s3, dict) and s3.get("stmt") == "If" and not (s3.get("orelse") or [])):
+        return None
+    t3 = s3.get("test") or {}
+    if not (isinstance(t3, dict) and t3.get("type") == "UnaryOp" and t3.get("op") == "not"):
+        return None
+    b3 = t3.get("expr") or {}
+    if not (isinstance(b3, dict) and b3.get("type") == "BinOp" and b3.get("op") == "and"):
+        return None
+    b3l = b3.get("left") or {}
+    if not (isinstance(b3l, dict) and b3l.get("type") == "BinOp" and b3l.get("op") == "and"):
+        return None
+    ci0 = _match_isinstance_of(b3l.get("left") or {}, vvar)    # isinstance(val, Call)
+    ci1 = _match_isinstance_of(b3l.get("right") or {}, vvar)   # isinstance(val.func, Attribute)
+    if ci0 is None or ci1 is None or ci0[0] != "" or ci1[0] != "func":
+        return None
+    call_kind = ci0[1]
+    attr_kind = ci1[1]
+    aeq = _match_attr_attr_eq_str(b3.get("right") or {}, vvar)  # val.func.attr == "__new__"
+    if aeq is None or aeq[0] != "func":
+        return None
+    new_attr, new_val = aeq[1], aeq[2]
+    if not _is_stmts_return_false(s3.get("body")):
+        return None
+    # [4] recv = val.func.value
+    s4 = body[4]
+    if not (isinstance(s4, dict) and s4.get("stmt") == "Assign"
+            and isinstance(s4.get("target"), str)):
+        return None
+    rvar = s4["target"]
+    v4 = s4.get("value") or {}
+    if not (isinstance(v4, dict) and v4.get("type") == "Attribute" and v4.get("attr") == "value"
+            and isinstance(v4.get("object"), dict) and v4["object"].get("type") == "Attribute"
+            and v4["object"].get("attr") == "func" and _is_var(v4["object"].get("object"), vvar)):
+        return None
+    # [5] if isinstance(recv,Call) and isinstance(recv.func,Name) and recv.func.id=="super": return True
+    s5 = body[5]
+    if not (isinstance(s5, dict) and s5.get("stmt") == "If" and not (s5.get("orelse") or [])):
+        return None
+    t5 = s5.get("test") or {}
+    if not (isinstance(t5, dict) and t5.get("type") == "BinOp" and t5.get("op") == "and"):
+        return None
+    t5l = t5.get("left") or {}
+    if not (isinstance(t5l, dict) and t5l.get("type") == "BinOp" and t5l.get("op") == "and"):
+        return None
+    si0 = _match_isinstance_of(t5l.get("left") or {}, rvar)    # isinstance(recv, Call)
+    si1 = _match_isinstance_of(t5l.get("right") or {}, rvar)   # isinstance(recv.func, Name)
+    if si0 is None or si1 is None or si0[0] != "" or si1[0] != "func":
+        return None
+    super_call_kind = si0[1]
+    super_func_kind = si1[1]
+    seq = _match_attr_attr_eq_str(t5.get("right") or {}, rvar)  # recv.func.id == "super"
+    if seq is None or seq[0] != "func":
+        return None
+    super_id_attr, super_id_val = seq[1], seq[2]
+    if not _is_stmts_return_true(s5.get("body")):
+        return None
+    # [6] if isinstance(recv,Name) and recv.id=="object": return True   [7] return False
+    s6 = body[6]
+    desc = {
+        "name": func["name"], "expr_kind": expr_kind, "const_kind": const_kind,
+        "return_kind": return_kind, "call_kind": call_kind, "attr_kind": attr_kind,
+        "new_attr": new_attr, "new_val": new_val,
+        "super_call_kind": super_call_kind, "super_func_kind": super_func_kind,
+        "super_id_attr": super_id_attr, "super_id_val": super_id_val,
+    }
+    return _recognize_is_trivial_new_tail(func, desc, s6, rvar)
+
+
+def _recognize_is_trivial_new_tail(func, desc, s6, rvar):
+    # s6 = the object-Name branch (body[6]); body[7] = the final `return False`.
+    body = func.get("body") or []
+    if not (isinstance(s6, dict) and s6.get("stmt") == "If" and not (s6.get("orelse") or [])):
+        return None
+    t6 = s6.get("test") or {}
+    if not (isinstance(t6, dict) and t6.get("type") == "BinOp" and t6.get("op") == "and"):
+        return None
+    oi = _match_isinstance_of(t6.get("left") or {}, rvar)   # isinstance(recv, Name)
+    if oi is None or oi[0] != "":
+        return None
+    obj_kind = oi[1]
+    oeq = t6.get("right") or {}
+    if not (isinstance(oeq, dict) and oeq.get("type") == "BinOp" and oeq.get("op") == "=="):
+        return None
+    ol = oeq.get("left") or {}
+    ov = _is_string(oeq.get("right") or {})
+    if ov is None or not (isinstance(ol, dict) and ol.get("type") == "Attribute"
+                          and isinstance(ol.get("attr"), str) and _is_var(ol.get("object"), rvar)):
+        return None
+    obj_id_attr, obj_id_val = ol["attr"], ov
+    if not _is_stmts_return_true(s6.get("body")):
+        return None
+    # [7] return False
+    tail = body[7]
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict) and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    desc["obj_kind"] = obj_kind
+    desc["obj_id_attr"] = obj_id_attr
+    desc["obj_id_val"] = obj_id_val
+    return desc
+
+
+def _is_subscript0(node: Any, var: Optional[str]) -> bool:
+    """`<var>[0]` (Subscript of Var var with index 0)."""
+    return (isinstance(node, dict) and node.get("type") == "Subscript"
+            and _is_var(node.get("value"), var)
+            and isinstance(node.get("index"), dict)
+            and node["index"].get("type") == "Number"
+            and node["index"].get("value") == 0)
+
+
+def _is_stmts_return_false(stmts: Any) -> bool:
+    return (isinstance(stmts, list) and len(stmts) == 1 and isinstance(stmts[0], dict)
+            and stmts[0].get("stmt") == "Return" and isinstance(stmts[0].get("value"), dict)
+            and stmts[0]["value"].get("type") == "Bool"
+            and stmts[0]["value"].get("value") is False)
+
+
+def _is_stmts_return_true(stmts: Any) -> bool:
+    return (isinstance(stmts, list) and len(stmts) == 1 and isinstance(stmts[0], dict)
+            and stmts[0].get("stmt") == "Return" and isinstance(stmts[0].get("value"), dict)
+            and stmts[0]["value"].get("type") == "Bool"
+            and stmts[0]["value"].get("value") is True)
+
+
+def emit_is_trivial_new_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit Weaver `_is_trivial_new` as a docstring-FILTER + concrete singleton
+    structural predicate over the pyval VIEW. All kind-checks are pystr_eq on the
+    `_type` tag; all field reads are pget_dyn; the docstring filter is a concrete
+    recursive `__filt`. `ensures True`; NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    d = desc
+    out: List[str] = []
+    # docstring predicate: s is Expr whose value is Constant
+    out.append(f"  let {n}__isdoc (s: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match s with")
+    out.append("    | PDict sd ->")
+    out.append('        (match pget_dyn "_type" sd with')
+    out.append(f'         | Some (PStr t) -> if pystr_eq t "{d["expr_kind"]}" then')
+    out.append('             (match pget_dyn "value" sd with')
+    out.append("              | Some (PDict vd) ->")
+    out.append('                  (match pget_dyn "_type" vd with')
+    out.append(f'                   | Some (PStr vt) -> pystr_eq vt "{d["const_kind"]}"')
+    out.append("                   | _ -> false end)")
+    out.append("              | _ -> false end)")
+    out.append("           else false")
+    out.append("         | _ -> false end)")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  let rec {n}__filt (xs: list pyval) : list pyval")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> Nil")
+    out.append(f"    | Cons h t -> if {n}__isdoc h then {n}__filt t else Cons h ({n}__filt t)")
+    out.append("    end")
+    # recv predicate: super()-Call OR object-Name
+    out.append(f"  let {n}__recvok (recv: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match recv with")
+    out.append("    | PDict rc ->")
+    out.append('        (match pget_dyn "_type" rc with')
+    out.append("         | Some (PStr rt) ->")
+    out.append(f'             if pystr_eq rt "{d["super_call_kind"]}" then')
+    out.append(f'                 (match pget_dyn "func" rc with')
+    out.append("                  | Some (PDict rfc) ->")
+    out.append('                      (match pget_dyn "_type" rfc with')
+    out.append(f'                       | Some (PStr ft) -> if pystr_eq ft "{d["super_func_kind"]}" then')
+    out.append(f'                           (match pget_dyn "{d["super_id_attr"]}" rfc with')
+    out.append(f'                            | Some (PStr i) -> pystr_eq i "{d["super_id_val"]}"')
+    out.append("                            | _ -> false end)")
+    out.append("                         else false")
+    out.append("                       | _ -> false end)")
+    out.append("                  | _ -> false end)")
+    out.append(f'             else if pystr_eq rt "{d["obj_kind"]}" then')
+    out.append(f'                 (match pget_dyn "{d["obj_id_attr"]}" rc with')
+    out.append(f'                  | Some (PStr i) -> pystr_eq i "{d["obj_id_val"]}"')
+    out.append("                  | _ -> false end)")
+    out.append("             else false")
+    out.append("         | _ -> false end)")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  let {n} (fn: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match fn with")
+    out.append("    | PDict fd ->")
+    out.append('        (match pget_dyn "body" fd with')
+    out.append(f"         | Some (PList raw) ->")
+    out.append(f"             (match {n}__filt raw with")
+    out.append("              | Cons b0 Nil ->")
+    out.append("                  (match b0 with")
+    out.append("                   | PDict rd ->")
+    out.append('                       (match pget_dyn "_type" rd with')
+    out.append(f'                        | Some (PStr t0) -> if pystr_eq t0 "{d["return_kind"]}" then')
+    out.append('                            (match pget_dyn "value" rd with')
+    out.append("                             | Some (PDict vd) ->")
+    out.append('                                 (match pget_dyn "_type" vd with')
+    out.append(f'                                  | Some (PStr vt) -> if pystr_eq vt "{d["call_kind"]}" then')
+    out.append('                                      (match pget_dyn "func" vd with')
+    out.append("                                       | Some (PDict fnc) ->")
+    out.append('                                           (match pget_dyn "_type" fnc with')
+    out.append(f'                                            | Some (PStr ct) -> if pystr_eq ct "{d["attr_kind"]}" then')
+    out.append(f'                                                (match pget_dyn "{d["new_attr"]}" fnc with')
+    out.append(f'                                                 | Some (PStr na) -> if pystr_eq na "{d["new_val"]}" then')
+    out.append('                                                     (match pget_dyn "value" fnc with')
+    out.append(f"                                                      | Some recv -> {n}__recvok recv")
+    out.append("                                                      | None -> false end)")
+    out.append("                                                   else false")
+    out.append("                                                 | _ -> false end)")
+    out.append("                                              else false")
+    out.append("                                            | _ -> false end)")
+    out.append("                                       | _ -> false end)")
+    out.append("                                    else false")
+    out.append("                                  | _ -> false end)")
+    out.append("                             | _ -> false end)")
+    out.append("                          else false")
+    out.append("                        | _ -> false end)")
+    out.append("                   | _ -> false end)")
+    out.append("              | _ -> false")
+    out.append("              end)")
+    out.append("         | _ -> false end)")
+    out.append("    | _ -> false")
+    out.append("    end")
+    return out
+
+
+# ---- exec_splice `_contains_exec`: raw-`ast.walk` bool existence walk over the
+#   pyval VIEW. LIVE body:
+#       def _contains_exec(node):
+#           for sub in ast.walk(node):
+#               if isinstance(sub, ast.Call) \
+#                       and isinstance(getattr(sub, "func", None), ast.Name) \
+#                       and sub.func.id == "exec":
+#                   return True
+#           return False
+#   Like `any_function_trusted` (root-inclusive `__walk`/`__walkd`/`__walkl`
+#   catamorphism, `pv_size`/`size_dict`/`size_list` variants) but the per-node
+#   predicate is a NESTED-structure kind-check: `_type == "Call"` (pystr_eq) AND
+#   the `func` child (pget_dyn -> PDict) has `_type == "Name"` (pystr_eq) AND its
+#   `id` (pget_dyn -> PStr) equals the literal `"exec"` (pystr_eq). `ensures True`;
+#   NO new type/axiom/cert, ledger 3.
+# =========================================================================
+
+
+def _match_getattr_none(node: Any, subj: Optional[str]) -> Optional[str]:
+    """`getattr(<subj>, "<attr>", None)` -> "<attr>" or None."""
+    if not (isinstance(node, dict) and node.get("type") == "Call"
+            and node.get("func") == "getattr"):
+        return None
+    args = node.get("args") or []
+    if len(args) != 3 or not _is_var(args[0], subj):
+        return None
+    k = _is_string(args[1])
+    if k is None:
+        return None
+    d = args[2]
+    if not (isinstance(d, dict) and d.get("type") == "None"):
+        return None
+    return k
+
+
+def _match_isinstance_getattr(test: Any, subj: Optional[str]):
+    """`isinstance(getattr(<subj>,"<attr>",None), _ast.<Cls>)` -> (attr, Cls) or None."""
+    if not (isinstance(test, dict) and test.get("type") == "Call"
+            and test.get("func") == "isinstance"):
+        return None
+    args = test.get("args") or []
+    if len(args) != 2:
+        return None
+    attr = _match_getattr_none(args[0], subj)
+    if attr is None:
+        return None
+    a1 = args[1]
+    if not (isinstance(a1, dict) and a1.get("type") == "Attribute"
+            and _is_var(a1.get("object")) and isinstance(a1.get("attr"), str)):
+        return None
+    return (attr, a1["attr"])
+
+
+def _match_attr_attr_eq_str(test: Any, subj: Optional[str]):
+    """`<subj>.<attr>.<id_attr> == "<val>"` -> (attr, id_attr, val) or None."""
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "=="):
+        return None
+    lhs = test.get("left") or {}
+    val = _is_string(test.get("right") or {})
+    if val is None:
+        return None
+    if not (isinstance(lhs, dict) and lhs.get("type") == "Attribute"
+            and isinstance(lhs.get("attr"), str)):
+        return None
+    id_attr = lhs["attr"]
+    inner = lhs.get("object") or {}
+    if not (isinstance(inner, dict) and inner.get("type") == "Attribute"
+            and isinstance(inner.get("attr"), str) and _is_var(inner.get("object"), subj)):
+        return None
+    return (inner["attr"], id_attr, val)
+
+
+def recognize_contains_exec(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Fail-closed match of `_contains_exec`. Never raises."""
+    try:
+        return _recognize_contains_exec(func)
+    except Exception:
+        return None
+
+
+def _recognize_contains_exec(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not str(func.get("name", "")).endswith("_contains_exec"):
+        return None
+    if func.get("return_annotation") != "bool":
+        return None
+    params = func.get("formal_params") or []
+    if len(params) != 1:
+        return None
+    node_p = params[0]
+    body = func.get("body") or []
+    if len(body) != 2:
+        return None
+    loop, tail = body[0], body[1]
+    # tail: return False
+    if not (isinstance(tail, dict) and tail.get("stmt") == "Return"
+            and isinstance(tail.get("value"), dict)
+            and tail["value"].get("type") == "Bool"
+            and tail["value"].get("value") is False):
+        return None
+    # loop: for sub in ast.walk(node): <1 If>
+    if not (isinstance(loop, dict) and loop.get("stmt") == "For"
+            and not (loop.get("orelse") or [])):
+        return None
+    subv = loop.get("target")
+    if not isinstance(subv, str):
+        return None
+    it = loop.get("iter") or {}
+    if not (isinstance(it, dict) and it.get("type") == "Call"
+            and it.get("func") == "ast.walk"):
+        return None
+    wargs = it.get("args") or []
+    if not (len(wargs) == 1 and _is_var(wargs[0], node_p)):
+        return None
+    lb = loop.get("body") or []
+    if len(lb) != 1:
+        return None
+    # the If: test = (isinstance(sub, ast.<OCls>)
+    #                 and isinstance(getattr(sub,"<attr>",None), ast.<ICls>)
+    #                 and sub.<attr>.<id_attr> == "<val>")
+    #          body = [return True]
+    iff = lb[0]
+    if not (isinstance(iff, dict) and iff.get("stmt") == "If"
+            and not (iff.get("orelse") or [])):
+        return None
+    test = iff.get("test") or {}
+    # top-level: BinOp and { left: BinOp and {isinstance, isinstance-getattr}, right: eq }
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    left = test.get("left") or {}
+    eq = test.get("right") or {}
+    if not (isinstance(left, dict) and left.get("type") == "BinOp"
+            and left.get("op") == "and"):
+        return None
+    # op0: isinstance(sub, ast.<OCls>)
+    ins0 = _match_isinstance_ast(left.get("left") or {}, subv)
+    if ins0 is None:
+        return None
+    ocls = ins0["cls"]
+    # op1: isinstance(getattr(sub,"<attr>",None), ast.<ICls>)
+    ig = _match_isinstance_getattr(left.get("right") or {}, subv)
+    if ig is None:
+        return None
+    attr, icls = ig
+    # op2: sub.<attr>.<id_attr> == "<val>"
+    aae = _match_attr_attr_eq_str(eq, subv)
+    if aae is None:
+        return None
+    attr2, id_attr, id_val = aae
+    if attr2 != attr:
+        return None
+    # body: return True
+    ib = iff.get("body") or []
+    if not (len(ib) == 1 and isinstance(ib[0], dict) and ib[0].get("stmt") == "Return"
+            and isinstance(ib[0].get("value"), dict)
+            and ib[0]["value"].get("type") == "Bool"
+            and ib[0]["value"].get("value") is True):
+        return None
+    return {"name": func["name"], "ocls": ocls, "attr": attr,
+            "icls": icls, "id_attr": id_attr, "id_val": id_val}
+
+
+def emit_contains_exec_group(desc: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emit `_contains_exec` as a root-inclusive bool `ast.walk` existence
+    catamorphism over the pyval VIEW. Per-node NESTED kind-check: `_type ==
+    "<ocls>"` AND child `<attr>`'s `_type == "<icls>"` AND that child's
+    `<id_attr>` equals `"<id_val>"` (all pystr_eq/pget_dyn), OR-folded.
+    `ensures True`; NO new type/axiom/cert, ledger 3."""
+    n = whyml_ident(desc["name"])
+    ocls = desc["ocls"]
+    attr = desc["attr"]
+    icls = desc["icls"]
+    id_attr = desc["id_attr"]
+    id_val = desc["id_val"]
+    out: List[str] = []
+    out.append(f"  let {n}__node (nd: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append("  = match nd with")
+    out.append("    | PDict d ->")
+    out.append('        (match pget_dyn "_type" d with')
+    out.append(f'         | Some (PStr t) -> if pystr_eq t "{ocls}" then')
+    out.append(f'             (match pget_dyn "{attr}" d with')
+    out.append("              | Some (PDict fd) ->")
+    out.append('                  (match pget_dyn "_type" fd with')
+    out.append(f'                   | Some (PStr ft) -> if pystr_eq ft "{icls}" then')
+    out.append(f'                       (match pget_dyn "{id_attr}" fd with')
+    out.append(f'                        | Some (PStr i) -> pystr_eq i "{id_val}"')
+    out.append("                        | _ -> false end)")
+    out.append("                     else false")
+    out.append("                   | _ -> false end)")
+    out.append("              | _ -> false end)")
+    out.append("           else false")
+    out.append("         | _ -> false end)")
+    out.append("    | _ -> false")
+    out.append("    end")
+    out.append(f"  let rec {n}__walk (nd: pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { pv_size nd }")
+    out.append(f"  = if {n}__node nd then true else")
+    out.append("    (match nd with")
+    out.append(f"     | PDict d -> {n}__walkd d")
+    out.append(f"     | PList xs -> {n}__walkl xs")
+    out.append("     | _ -> false")
+    out.append("     end)")
+    out.append(f"  with {n}__walkd (d: pydict) : bool")
+    out.append("    requires { true } ensures { true } variant { size_dict d }")
+    out.append("  = match d with")
+    out.append("    | DNil -> false")
+    out.append(f"    | DCons _ v rest -> if {n}__walk v then true else {n}__walkd rest")
+    out.append("    end")
+    out.append(f"  with {n}__walkl (xs: list pyval) : bool")
+    out.append("    requires { true } ensures { true } variant { size_list xs }")
+    out.append("  = match xs with")
+    out.append("    | Nil -> false")
+    out.append(f"    | Cons h t -> if {n}__walk h then true else {n}__walkl t")
+    out.append("    end")
+    out.append(f"  let {n} (node: pyval) : bool")
+    out.append("    requires { true } ensures { true }")
+    out.append(f"  = {n}__walk node")
+    return out
+
+
 # ---- import_classifier `collect_imports`: raw-`ast.walk` list-of-`(str,int)`
 #   collector over the pyval VIEW. LIVE body:
 #       def collect_imports(tree):

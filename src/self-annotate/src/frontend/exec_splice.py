@@ -20,11 +20,14 @@ def _is_constant_exec(call: object) -> bool:
             and isinstance(call.args[0], ast.Constant)
             and isinstance(call.args[0].value, str))
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _contains_exec(node: object) -> bool:
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Call) and isinstance(getattr(sub, "func", None), ast.Name) \
+                and sub.func.id == "exec":
+            return True
     return False
 
 ""  # pycsl

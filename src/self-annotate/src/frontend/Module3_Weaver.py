@@ -113,12 +113,25 @@ class PyCSLWeaver(ast.NodeVisitor):
     def visit_With(self, node: ast.With) -> Any:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _is_trivial_new(fn: ast.FunctionDef) -> bool:
+        body = [s for s in fn.body
+                if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+        if len(body) != 1 or not isinstance(body[0], ast.Return):
+            return False
+        val = body[0].value
+        if not (isinstance(val, ast.Call) and isinstance(val.func, ast.Attribute)
+                and val.func.attr == "__new__"):
+            return False
+        recv = val.func.value
+        if (isinstance(recv, ast.Call) and isinstance(recv.func, ast.Name)
+                and recv.func.id == "super"):
+            return True
+        if isinstance(recv, ast.Name) and recv.id == "object":
+            return True
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate

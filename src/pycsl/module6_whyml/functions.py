@@ -3624,6 +3624,8 @@ class FunctionEmissionMixin:
             recognize_collect_instantiations_ast, emit_collect_instantiations_ast_group,
             recognize_collect_field_sites, emit_collect_field_sites_group,
             recognize_any_function_trusted, emit_any_function_trusted_group,
+            recognize_contains_exec, emit_contains_exec_group,
+            recognize_is_trivial_new, emit_is_trivial_new_group,
             recognize_collect_imports, emit_collect_imports_group,
             recognize_scan_node_for_subscript_calls, emit_scan_node_for_subscript_calls_group,
             recognize_find_subscript_calls, emit_find_subscript_calls_group,
@@ -4272,6 +4274,20 @@ class FunctionEmissionMixin:
         _aft = recognize_any_function_trusted(func)
         if _aft is not None:
             return emit_any_function_trusted_group(_aft, whyml_ident)
+        # exec_splice `_contains_exec`: raw-`ast.walk` bool existence walk over the
+        # pyval VIEW (root-inclusive `__walk`/`__walkd`/`__walkl` catamorphism; NESTED
+        # kind-check `_type == "Call"` + child `func`'s `_type == "Name"` + that child's
+        # `id == "exec"`, all pystr_eq/pget_dyn, OR-folded). Name-gated + corpus-inert.
+        _cex = recognize_contains_exec(func)
+        if _cex is not None:
+            return emit_contains_exec_group(_cex, whyml_ident)
+        # Weaver `_is_trivial_new`: raw-ast STRAIGHT-LINE structural predicate over the
+        # pyval VIEW (docstring `__filt` + concrete `Cons b0 Nil` singleton match + nested
+        # `_type`/attr reads: Return head -> Call `value` -> Attribute `func` attr "__new__"
+        # -> recv super()-Call or object-Name, all pystr_eq/pget_dyn). Name-gated + corpus-inert.
+        _itn = recognize_is_trivial_new(func)
+        if _itn is not None:
+            return emit_is_trivial_new_group(_itn, whyml_ident)
         # import_classifier `collect_imports`: raw-`ast.walk` list-of-`(str,int)`
         # collector over the pyval VIEW (root-inclusive `__walk`/`__walkd`/`__walkl`
         # catamorphism threading a `list (string,int)` accumulator; Import->fold `names`
