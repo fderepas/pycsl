@@ -2680,12 +2680,41 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _synthesize_overload_guard(self, node: ast.FunctionDef) -> List[int]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # functiondef-node cluster: the `for arg in node.args.args` isinstance-guard builder.
+    # Bespoke-emitted (Module6 functions.py `_emit_build_overload_param_guard_bespoke`) to the
+    # CONCRETE `build_overload_guard_acc None (func_args_ast node)` fold: `func_args_ast node`
+    # TAKES the node, each guard is `IrCallN "isinstance" [IrVar arg; IrVar tn]`, conjoined
+    # left-associated via `IrBinOp "and"` (matching the live `{and, left:acc, right:g}` order).
+    # `self._overload_type_name(ann)` -> the opaque `overload_type_name_op` sibling reader.
+    # NO new axiom / NO new variant ADT (list/option stdlib; guards reuse existing emit_ir
+    # ctors). Verbatim body port of the LIVE `_build_overload_param_guard`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _build_overload_param_guard(self, node: ast.FunctionDef) -> int:
-        return {}
+    def _build_overload_param_guard(self, node: ast.FunctionDef) -> Optional[Dict[str, Any]]:
+        guards: List[Dict[str, Any]] = []
+        for arg in node.args.args:
+            if arg.arg == 'self':
+                continue
+            ann = arg.annotation
+            if ann is None:
+                continue
+            t_name = self._overload_type_name(ann)
+            if t_name is None:
+                continue
+            guards.append({
+                "type": "Call", "func": "isinstance",
+                "args": [{"type": "Var", "name": arg.arg},
+                         {"type": "Var", "name": t_name}],
+            })
+        if not guards:
+            return None
+        if len(guards) == 1:
+            return guards[0]
+        acc = guards[0]
+        for g in guards[1:]:
+            acc = {"type": "BinOp", "op": "and", "left": acc, "right": g}
+        return acc
 
     # value-model campaign increment 9 (str-method receiver reconstruction + `.attr` str-leaf):
     # `ann` retyped `"ExprIR"`; `isinstance(ann, ast.Name)` -> `is_var`, `isinstance(ann,

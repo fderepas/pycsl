@@ -6378,6 +6378,56 @@ class PreambleEmissionMixin:
             ]) if self._uses_py_functiondef_node() else []),
             *(([
                 "",
+                "  (* py_arg_node + build_overload_guard_acc (self-tcb-reduction M5,"
+                " functiondef-node cluster): the typed AST readers for"
+                " `_build_overload_param_guard`'s `for arg in node.args.args` loop."
+                " `func_args_ast` reads `node.args.args` (a REAL list of arg nodes, TAKING"
+                " the node); `arg_name_ast a` reads `arg.arg` (the param-name string, tested"
+                " `= \"self\"`); `arg_annotation_ast a` reads `arg.annotation`"
+                " (`option emit_ir` — None iff un-annotated). `overload_type_name_op` is the"
+                " opaque sibling `_overload_type_name` reader (`emit_ir -> option string`) the"
+                " guard just CALLS. `build_overload_guard_acc` FAITHFULLY folds the loop"
+                " head-first with a left-associated accumulator: per typed non-self arg it"
+                " constructs the guard `IrCallN \"isinstance\" [IrVar arg; IrVar tn]`"
+                " (both args present, no erasure) and conjoins with `IrBinOp \"and\" acc g`"
+                " (matching the live `{and, left:acc, right:g}` order). Returns"
+                " `option emit_ir` (None iff no guard). Structural recursion on the arg list"
+                " (irlist/decorator_has_name fold precedent — no termination VC, no new ctor,"
+                " no new variant ADT: `list`/`option` are stdlib, the guards reuse the"
+                " EXISTING emit_ir ctors). Gated on `_uses_build_overload_param_guard`. *)",
+                "  type py_arg_node",
+                "  val function func_args_ast (n: py_functiondef_node) : list py_arg_node",
+                "  val function arg_name_ast (a: py_arg_node) : string",
+                "  val function arg_annotation_ast (a: py_arg_node) : option emit_ir",
+                "  val function overload_type_name_op (ann: emit_ir) : option string",
+                "  function build_overload_guard_acc (acc: option emit_ir)"
+                " (args: list py_arg_node) : option emit_ir =",
+                "    match args with",
+                "    | Nil -> acc",
+                "    | Cons a rest ->",
+                "      build_overload_guard_acc",
+                "        (if arg_name_ast a = \"self\" then acc",
+                "         else match arg_annotation_ast a with",
+                "              | None -> acc",
+                "              | Some ann ->",
+                "                match overload_type_name_op ann with",
+                "                | None -> acc",
+                "                | Some tn ->",
+                "                  let g = IrCallN \"isinstance\""
+                " (ILCons (IrVar (arg_name_ast a)) (ILCons (IrVar tn) ILNil)) in",
+                "                  (match acc with None -> Some g"
+                " | Some p -> Some (IrBinOp \"and\" p g) end)",
+                "                end",
+                "              end)",
+                "        rest",
+                "    end",
+                "  val function build_overload_guard_acc_prog (acc: option emit_ir)"
+                " (args: list py_arg_node) : option emit_ir",
+                "    ensures { result = build_overload_guard_acc acc args }",
+                "",
+            ]) if self._uses_build_overload_param_guard() else []),
+            *(([
+                "",
                 "  (* pyast_stmt ADT (self-tcb-reduction giants, generic class-body lowering):"
                 " the INPUT-side raw `ast.stmt` union a class-body iterator"
                 " (`_collect_class_constants`) isinstance-dispatches over. `PS*` prefix"
@@ -6812,8 +6862,26 @@ class PreambleEmissionMixin:
             return cached
         result = self._uses_stmt_ir() and any(
             str(fn.get("name", "")).endswith("_should_skip_method")
+            or str(fn.get("name", "")).endswith("_build_overload_param_guard")
             for fn in self.ir.get("functions", []) or [])
         self._uses_py_functiondef_node_cache = result
+        return result
+
+    def _uses_build_overload_param_guard(self) -> bool:
+        """functiondef-node cluster (self-tcb-reduction M5, C-bucket): True iff some function
+        in this file is the Module5 mirror's `_build_overload_param_guard` AND the
+        py_functiondef_node theory is emitted. Only then are the extra arg-node accessors
+        (`py_arg_node`/`func_args_ast`/`arg_name_ast`/`arg_annotation_ast`/
+        `overload_type_name_op`) + the `build_overload_guard_acc` isinstance-guard fold
+        emitted. Only the Module5 mirror has this method, so every other mirror + the whole
+        corpus stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_build_overload_param_guard_cache", None)
+        if cached is not None:
+            return cached
+        result = self._uses_py_functiondef_node() and any(
+            str(fn.get("name", "")).endswith("_build_overload_param_guard")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_build_overload_param_guard_cache = result
         return result
 
     def _uses_stmt_return_recogniser(self) -> bool:

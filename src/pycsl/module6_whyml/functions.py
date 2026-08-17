@@ -2698,6 +2698,49 @@ class FunctionEmissionMixin:
             "    else false",
         ]
 
+    def _is_build_overload_param_guard(self, func: Dict[str, Any]) -> bool:
+        """functiondef-node cluster recognizer (self-tcb-reduction M5, C-bucket): True iff
+        `func` is the Module5 mirror's `_build_overload_param_guard` and the arg-node theory
+        is emitted. Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (nm.endswith("_build_overload_param_guard")
+                and self._uses_build_overload_param_guard())
+
+    def _emit_build_overload_param_guard_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """functiondef-node cluster: emit the FAITHFUL whole-body lowering of
+
+            def _build_overload_param_guard(self, node) -> Optional[Dict]:
+                guards = []
+                for arg in node.args.args:
+                    if arg.arg == 'self': continue
+                    ann = arg.annotation
+                    if ann is None: continue
+                    t_name = self._overload_type_name(ann)
+                    if t_name is None: continue
+                    guards.append({Call isinstance [Var arg.arg, Var t_name]})
+                if not guards: return None
+                acc = guards[0]
+                for g in guards[1:]: acc = {BinOp and acc g}
+                return acc
+
+        The loop lowers to the CONCRETE `build_overload_guard_acc None (func_args_ast node)`
+        fold (theory-defined, structural over the real arg list): `func_args_ast node` TAKES
+        the node, each guard is `IrCallN "isinstance" [IrVar (arg_name_ast a); IrVar tn]`
+        (both args referenced, no node-free stub), conjoined left-associated via
+        `IrBinOp "and"`. `arg.arg == 'self'` -> `arg_name_ast a = "self"`; `arg.annotation`
+        None-test -> `option emit_ir` match; `self._overload_type_name(ann)` -> the opaque
+        `overload_type_name_op` sibling reader. Returns `option emit_ir` (None iff no guard).
+        isinstance_op = 0, `assigns \nothing` (pure). Corpus-inert."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        return [
+            f"  let {name} (self: {cls}) (node: py_functiondef_node) : option emit_ir",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    build_overload_guard_acc_prog None (func_args_ast node)",
+        ]
+
     def _is_final_annotation(self, func: Dict[str, Any]) -> bool:
         """_is_final_annotation bool-recognizer (self-tcb-reduction M5, C-bucket):
         corpus-inert (no corpus program has this method)."""
@@ -3596,6 +3639,11 @@ class FunctionEmissionMixin:
         # Corpus-inert.
         if self._is_should_skip_method(func):
             return self._emit_should_skip_method_bespoke(func)
+        # functiondef-node cluster: `_build_overload_param_guard` -> the faithful per-arg
+        # isinstance-guard fold (build_overload_guard_acc over func_args_ast node).
+        # Corpus-inert.
+        if self._is_build_overload_param_guard(func):
+            return self._emit_build_overload_param_guard_bespoke(func)
         # _is_final_annotation bool-recognizer -> is_final_ann_prog. Corpus-inert.
         if self._is_final_annotation(func):
             return self._emit_is_final_annotation_bespoke(func)
