@@ -314,22 +314,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "Valid2D", "base": node.base,
                 "row": self._csl_to_ir(node.row), "col": self._csl_to_ir(node.col)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_contract_wrapper(self, node: ContractWrapper) -> int:
-        # tcb(M5) FREE-bucket census: BLOCKED, not free. `node.expr` doesn't type-check
-        # against the abstract base `ContractWrapper` — it has NO dataclass fields (`class
-        # ContractWrapper(CSLNode): pass`); `expr` is declared separately on each of the 4
-        # concrete subclasses (Requires/Ensures/LoopInvariant/LoopVariant). `--fun` on the
-        # naive passthrough body fails: "unbound function or predicate symbol
-        # 'contractwrapper_expr'" — the self-annotate type model has no projector for a
-        # field that lives only on subclasses of the declared param type. Unifying it would
-        # need new infra (a union/sum discriminator over the 4 concrete types, or moving
-        # `expr` onto the base class — a real Module2_Parser.py hierarchy change), which is
-        # out of scope for this FREE-bucket increment. Left \trusted.
-        return {}
+    def _csl_contract_wrapper(self, node: ContractWrapper) -> Dict[str, Any]:
+        return self._csl_to_ir(node.expr)
 
     # optional-field ext (monomorphic-option ADTs): `node` is the imported
     # `FunctionVariant` record whose `expr` field is retyped `"ExprIR"` -> `emit_ir`

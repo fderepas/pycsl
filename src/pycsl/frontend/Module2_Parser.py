@@ -12,7 +12,20 @@ from errors import PyCSLParseError
 class CSLNode:
     pass
 
-class ContractWrapper(CSLNode): pass   # Requires, Ensures, LoopInvariant, LoopVariant
+@dataclass
+class ContractWrapper(CSLNode):        # Requires, Ensures, LoopInvariant, LoopVariant
+    # tcb(M5) contract-wrapper passthrough (_csl_contract_wrapper): the common
+    # `expr` sub-expression, previously declared ONLY on each of the 4 concrete
+    # subclasses (Requires/Ensures/LoopInvariant/LoopVariant), is HOISTED to the
+    # abstract base and typed `"ExprIR"` — the BinOp.left/right / CSLSlice.low /
+    # CSLNotIn.element precedent verbatim (pure type-hint). Faithful: every
+    # subclass genuinely carries `expr`, and every use consumes it in an emit_ir
+    # position (`_csl_contract_wrapper` -> `self._csl_to_ir(node.expr)`). The
+    # self-annotation record-import model then synthesizes the projector
+    # `contractwrapper_expr : emit_ir`, so the mirror's verbatim passthrough body
+    # type-checks. Signature-only forward-ref → no runtime effect (ContractWrapper
+    # is never instantiated directly; only its subclasses are), corpus byte-inert.
+    expr: "ExprIR"
 class QuantifierNode(CSLNode): pass    # Forall, Exists
 class SingleExprNode(CSLNode): pass    # UnaryOp, Old
 
