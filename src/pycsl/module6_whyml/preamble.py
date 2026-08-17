@@ -6428,6 +6428,45 @@ class PreambleEmissionMixin:
             ]) if self._uses_build_overload_param_guard() else []),
             *(([
                 "",
+                "  (* ens_node + synth_overload_clauses (self-tcb-reduction M5, functiondef-node"
+                " cluster): the typed readers for `_synthesize_overload_guard`'s guarded-"
+                " postcondition synthesis. `func_csl_ensures_ast node` reads `node.csl_ensures`"
+                " (a REAL list of `#@ ensures` nodes, TAKING the node); `ens_expr_ast e` reads"
+                " `csl_ens.expr` (the ensures expression, an emit_ir); `csl_to_ir_op` is the"
+                " opaque sibling `_csl_to_ir` reader (`emit_ir -> emit_ir`). The guard comes"
+                " from the sibling `build_overload_guard_acc_prog None (func_args_ast node)`"
+                " (`option emit_ir`); `guard is None -> return []` is the None arm. Per ensures"
+                " the clause `IrBinOp \"==>\" guard (csl_to_ir_op (ens_expr_ast e))` is built"
+                " (both operands present, no erasure) and CONSed head-first into a `seq emit_ir`"
+                " (order-preserving: clause i mirrors the i-th `#@ ensures`, matching the live"
+                " `clauses.append(...)`). The seq is materialized to the CANONICAL `array emit_ir`"
+                " List-return via `materialize_ir` (the emit_ir analogue of `materialize_str`;"
+                " fresh result, no region link). Structural recursion on the ens list (no"
+                " termination VC, no new ctor, no new variant ADT: `list`/`seq` are stdlib, the"
+                " clauses reuse the EXISTING emit_ir ctors). Gated on"
+                " `_uses_synthesize_overload_guard`. *)",
+                "  type ens_node",
+                "  val function func_csl_ensures_ast (n: py_functiondef_node) : list ens_node",
+                "  val function ens_expr_ast (e: ens_node) : emit_ir",
+                "  val function csl_to_ir_op (e: emit_ir) : emit_ir",
+                "  function synth_overload_clauses (guard: emit_ir)"
+                " (ens: list ens_node) : Seq.seq emit_ir =",
+                "    match ens with",
+                "    | Nil -> Seq.empty",
+                "    | Cons e rest ->",
+                "      Seq.cons (IrBinOp \"==>\" guard (csl_to_ir_op (ens_expr_ast e)))"
+                " (synth_overload_clauses guard rest)",
+                "    end",
+                "  val function synth_overload_clauses_prog (guard: emit_ir)"
+                " (ens: list ens_node) : Seq.seq emit_ir",
+                "    ensures { result = synth_overload_clauses guard ens }",
+                "  val materialize_ir (s: Seq.seq emit_ir) : array emit_ir",
+                "    ensures { Array.length result = Seq.length s }",
+                "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }",
+                "",
+            ]) if self._uses_synthesize_overload_guard() else []),
+            *(([
+                "",
                 "  (* pyast_stmt ADT (self-tcb-reduction giants, generic class-body lowering):"
                 " the INPUT-side raw `ast.stmt` union a class-body iterator"
                 " (`_collect_class_constants`) isinstance-dispatches over. `PS*` prefix"
@@ -6882,6 +6921,23 @@ class PreambleEmissionMixin:
             str(fn.get("name", "")).endswith("_build_overload_param_guard")
             for fn in self.ir.get("functions", []) or [])
         self._uses_build_overload_param_guard_cache = result
+        return result
+
+    def _uses_synthesize_overload_guard(self) -> bool:
+        """functiondef-node cluster (self-tcb-reduction M5, C-bucket): True iff some function
+        in this file is the Module5 mirror's `_synthesize_overload_guard` AND the
+        build_overload_guard_acc theory is emitted (which supplies the guard fold +
+        py_functiondef_node/func_args_ast the synthesizer reuses). Only then are the
+        `ens_node`/`func_csl_ensures_ast`/`ens_expr_ast`/`csl_to_ir_op` readers +
+        `synth_overload_clauses` + `materialize_ir` emitted. Only the Module5 mirror has this
+        method, so every other mirror + the whole corpus stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_synthesize_overload_guard_cache", None)
+        if cached is not None:
+            return cached
+        result = self._uses_build_overload_param_guard() and any(
+            str(fn.get("name", "")).endswith("_synthesize_overload_guard")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_synthesize_overload_guard_cache = result
         return result
 
     def _uses_stmt_return_recogniser(self) -> bool:

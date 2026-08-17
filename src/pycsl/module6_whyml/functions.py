@@ -2741,6 +2741,49 @@ class FunctionEmissionMixin:
             "    build_overload_guard_acc_prog None (func_args_ast node)",
         ]
 
+    def _is_synthesize_overload_guard(self, func: Dict[str, Any]) -> bool:
+        """functiondef-node cluster recognizer (self-tcb-reduction M5, C-bucket): True iff
+        `func` is the Module5 mirror's `_synthesize_overload_guard` and the ens_node theory
+        is emitted. Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (nm.endswith("_synthesize_overload_guard")
+                and self._uses_synthesize_overload_guard())
+
+    def _emit_synthesize_overload_guard_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """functiondef-node cluster: emit the FAITHFUL whole-body lowering of
+
+            def _synthesize_overload_guard(self, node) -> List[Dict]:
+                guard = self._build_overload_param_guard(node)
+                if guard is None: return []
+                clauses = []
+                for csl_ens in getattr(node, 'csl_ensures', []) or []:
+                    q_ir = self._csl_to_ir(csl_ens.expr)
+                    clauses.append({BinOp ==> guard q_ir})
+                return clauses
+
+        The guard `self._build_overload_param_guard(node)` -> the sibling
+        `build_overload_guard_acc_prog None (func_args_ast node)` fold (`option emit_ir`);
+        `guard is None -> return []` -> the `materialize_ir Seq.empty` empty-array arm; the
+        clause loop -> the CONCRETE `synth_overload_clauses guard (func_csl_ensures_ast node)`
+        fold, each clause `IrBinOp "==>" guard (csl_to_ir_op (ens_expr_ast e))` (both operands
+        referenced, no node-free stub), CONSed head-first into a `seq emit_ir` and materialized
+        to the CANONICAL `array emit_ir` List-return. `self._csl_to_ir` -> the opaque
+        `csl_to_ir_op` sibling reader. Returns `array emit_ir`. `assigns \\nothing` (pure).
+        Corpus-inert."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        return [
+            f"  let {name} (self: {cls}) (node: py_functiondef_node) : array emit_ir",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    match build_overload_guard_acc_prog None (func_args_ast node) with",
+            "    | None -> materialize_ir Seq.empty",
+            "    | Some guard ->",
+            "      materialize_ir (synth_overload_clauses_prog guard (func_csl_ensures_ast node))",
+            "    end",
+        ]
+
     def _is_final_annotation(self, func: Dict[str, Any]) -> bool:
         """_is_final_annotation bool-recognizer (self-tcb-reduction M5, C-bucket):
         corpus-inert (no corpus program has this method)."""
@@ -3644,6 +3687,11 @@ class FunctionEmissionMixin:
         # Corpus-inert.
         if self._is_build_overload_param_guard(func):
             return self._emit_build_overload_param_guard_bespoke(func)
+        # functiondef-node cluster: `_synthesize_overload_guard` -> the guarded-postcondition
+        # synthesizer over `func_csl_ensures_ast node`, returning the canonical `array emit_ir`.
+        # Corpus-inert.
+        if self._is_synthesize_overload_guard(func):
+            return self._emit_synthesize_overload_guard_bespoke(func)
         # _is_final_annotation bool-recognizer -> is_final_ann_prog. Corpus-inert.
         if self._is_final_annotation(func):
             return self._emit_is_final_annotation_bespoke(func)

@@ -2673,12 +2673,32 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _is_overload_stub(node: ast.FunctionDef) -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # functiondef-node cluster: the `@overload` guarded-postcondition synthesizer.
+    # Bespoke-emitted (Module6 functions.py `_emit_synthesize_overload_guard_bespoke`) to the
+    # CANONICAL `array emit_ir` List-return: the guard `self._build_overload_param_guard(node)`
+    # -> `build_overload_guard_acc_prog None (func_args_ast node)` (the sibling fold, `option
+    # emit_ir`); `None -> return []` -> the `materialize_ir Seq.empty` empty-array arm; the
+    # `for csl_ens in node.csl_ensures` clause loop -> the CONCRETE `synth_overload_clauses guard
+    # (func_csl_ensures_ast node)` fold, each clause = `IrBinOp "==>" guard (csl_to_ir_op
+    # (ens_expr_ast e))` (opaque `ens_node`/`func_csl_ensures_ast`/`ens_expr_ast` readers +
+    # the opaque `csl_to_ir_op` for `self._csl_to_ir`), the seq materialized to `array emit_ir`.
+    # NO new axiom / NO new variant ADT (list/option/seq stdlib; clauses reuse EXISTING emit_ir
+    # ctors). Verbatim body port of the LIVE `_synthesize_overload_guard`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _synthesize_overload_guard(self, node: ast.FunctionDef) -> List[int]:
-        return []
+    def _synthesize_overload_guard(self, node: ast.FunctionDef) -> List[Dict[str, Any]]:
+        guard = self._build_overload_param_guard(node)
+        if guard is None:
+            return []
+        clauses: List[Dict[str, Any]] = []
+        for csl_ens in getattr(node, 'csl_ensures', []) or []:
+            q_ir = self._csl_to_ir(csl_ens.expr)
+            clauses.append({
+                "type": "BinOp", "op": "==>",
+                "left": guard, "right": q_ir,
+            })
+        return clauses
 
     # functiondef-node cluster: the `for arg in node.args.args` isinstance-guard builder.
     # Bespoke-emitted (Module6 functions.py `_emit_build_overload_param_guard_bespoke`) to the
