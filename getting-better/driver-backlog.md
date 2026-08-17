@@ -2796,3 +2796,16 @@ green-but-unsound decoupling) + heavy string-gen. _emit_contracts(102)/_reset_fu
 - ROOT: FunctionDef-node methods (_should_skip_method/_is_overload_stub/_collect_union_arms) have NO typed node model. Contrast: ClassDef methods (_is_protocol_class/_is_namedtuple_class) converted NON-vacuously via `py_classdef_node` (typed, real `node.bases` iteration). A parallel `py_functiondef_node` model (name:string + decorator_list + body, with real accessors) would let these convert non-vacuously = a DELIBERATE Phase-2 build, NOT a cheap win.
 - META-LESSON: a "cheap win" from a typecheck-only probe is a HYPOTHESIS. Typecheck-PASS != non-vacuous. MUST inspect the emitted .mlw recognizers: `let function` descending a real ADT = real; `val ...:int` uninterpreted stub NOT taking the node = FACADE => reject. The Phase-1 probe MUST add a non-vacuity gate (emit + grep the guard recognizers) before rating cheap_win==true.
 - Phase-1 cheap queue from the probe = EXHAUSTED (all 3 candidates were vacuous-erasure false positives). Next = assess the py_functiondef_node typed-node model as a Phase-2 deliberate build (measure-first: does py_classdef_node's pattern extend?).
+
+## FunctionDef-node WALL BROKEN: py_functiondef_node + _should_skip_method (9ad91d65, 711->710)
+- Phase-2 wall (functiondef-node-wall.md) BROKEN via spike->build. py_functiondef_node opaque-typed model
+  (func_name_ast:string, func_decorator_list_ast:irlist, decorator_has_name fold, m5_current_class_present:bool),
+  gated `_uses_py_functiondef_node` (double-gate _uses_stmt_ir + _should_skip_method present). Reuses existing
+  str_startswith_op/str_endswith_op. NO new axiom/cert (ledger 3).
+- _should_skip_method NON-VACUOUS: guards `str_startswith_op(func_name_ast node)"__"` + `decorator_has_name_prog
+  "property"(func_decorator_list_ast node)` -- take node. (Contrast reverted all-facade 5584b5dd.)
+- 4 changed-emission mirrors (init/ir_resolve/pycsl/Module5 -- the emitter-class-referencing ones) ALL whole-file
+  SUCCESS; corpus byte-diff 0; fidelity=baseline-2; allowlist clean.
+- Session tally: 712->710 (2 real: _const_int_value 62ba8cea, _should_skip_method 9ad91d65) + 1 vacuity catch/revert.
+- NEXT (Phase-1 re-drain on the unlocked cluster): _is_overload_stub needs func_body_ast:psl + stmt-kind discrim
+  (measure-first). Then _build_overload_param_guard/_synthesize_overload_guard.

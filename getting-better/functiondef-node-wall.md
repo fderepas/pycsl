@@ -49,3 +49,17 @@ param-typing infeasible / erases anyway) -> CERTIFIED-BOUNDARY.
 Touches shared `preamble.py` theory => ripples all changed-emission giants (must re-prove) + the
 byte-diff must stay 0 (gate the new theory on a `_uses_py_functiondef_node()` sentinel so it emits
 ONLY where a FunctionDef-node method is present — the corpus stays inert).
+
+---
+## RESOLVED: BROKEN (2026-08-17, commit 9ad91d65, 711->710)
+Spike PASSED, build landed. `py_functiondef_node` + func_name_ast/func_decorator_list_ast/
+decorator_has_name + m5_current_class_present, gated on `_uses_py_functiondef_node`. `_should_skip_method`
+CONVERTED non-vacuously (guards take node). 4/4 changed-emission mirrors whole-file SUCCESS, corpus
+byte-diff 0, ledger 3. BANKED MODEL for the cluster follow-ons. NOTE `m5_current_class_present` is a
+nullary opaque state-reader (sound, symtab_mem precedent) — a fidelity refinement (thread self) is
+possible but not a blocker; the substantive dunder+@property guards are faithful/node-taking.
+
+FOLLOW-ONS (need INCREMENTAL model extension, NOT free): `_is_overload_stub` needs `func_body_ast: psl`
++ stmt-kind discrimination (ast.Pass / Expr+Constant+Ellipsis over node.body[0]); `_build_overload_param_guard`
+/`_synthesize_overload_guard` need param/args accessors. Each is a mini-build with its own non-vacuity check
+(emit + grep the guards take the node) — measure-first, do NOT assume cheap.
