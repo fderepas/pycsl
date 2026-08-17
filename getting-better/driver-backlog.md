@@ -2819,3 +2819,11 @@ CERT RULE crystallized: opaque `type X` + `val function` readers over EXISTING t
   return via existing emit_ir ctors; depends on _overload_type_name sibling). IR-construction mini-build -> spiking.
 - _synthesize_overload_guard: depends on _build_overload_param_guard (convert that first).
 - _build_function_ir/_build_function_symbol_table/visit_FunctionDef: large/stateful (later).
+
+## _build_overload_param_guard CONVERTED (0b0fac29, 710->709) — cert-free IR-construction
+- 2nd FunctionDef-cluster conversion. Opaque py_arg_node + val readers (func_args_ast/arg_name_ast/arg_annotation_ast/
+  overload_type_name_op) + recursive fold building IrCallN "isinstance"/IrBinOp "and" via EXISTING ctors. CERT-FREE.
+- Non-vacuous (fold descends func_args_ast node). 4/4 changed-emission mirrors SUCCESS, byte-diff 0, ledger 3, no axiom.
+- Delegate falsely claimed whole-file L3-tc halts at _csl_append; I verified it passes cleanly (re-verify every delegate claim).
+- Session tally: 712->709 (3 conv: _const_int_value, _should_skip_method, _build_overload_param_guard) + 2 unsound-catch reverts.
+- NEXT: _synthesize_overload_guard (consumer of _build_overload_param_guard, now converted). Then _is_overload_stub (cert-flagged).
