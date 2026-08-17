@@ -2844,3 +2844,21 @@ CERT RULE crystallized: opaque `type X` + `val function` readers over EXISTING t
   collision source (generic List-return / Return__union__ dead decl) identified + suppressed. A return-type-
   lowering fix, distinct from the cert issue. Measure-first before re-attempting.
 - Session tally UNCHANGED at 709 (3 conv landed: _const_int_value/_should_skip_method/_build_overload_param_guard; 3 catches now).
+
+## _synthesize_overload_guard FIX DIRECTION (precise, bounded — for next attempt)
+ROOT of the `list emit_ir` collision: preamble emits a NULLARY record `type list = { list_elts: array emit_ir; list_ctx: int }`
+(models ast.List) that SHADOWS stdlib `list 'a` (both in scope, `use list.List` + the record). So any `list <T>` in a
+whole-file signature fails "type symbol list expects no arguments".
+FIX: emit `_synthesize_overload_guard`'s `List[Dict]` return as **`array emit_ir`** (the CANONICAL List-return repr —
+cf converted `comprehension_generators_to_ir : array int`, `extract_generic_arg_names : array string`), NOT stdlib
+`list emit_ir`. The clauses-accumulation (`clauses.append(...)`) must build the array via the emitter's append/seq
+convention ([[stmt_append_wall_breakable]] mutable-ref append / record-list-emission), matching how comprehension_generators_to_ir
+builds its `array int`. The opaque readers (func_csl_ensures_ast/ens_expr_ast/csl_to_ir_op) + IrBinOp "==>" construction were
+CORRECT and cert-free; ONLY the stdlib-list return repr was wrong. Measure-first: study comprehension_generators_to_ir's
+emitted array-return body before re-porting.
+
+## Turn checkpoint (count 709, all committed, tree clean)
+FunctionDef-node wall BROKEN (py_functiondef_node). Cluster cheap-members DRAINED: _should_skip_method + _build_overload_param_guard
+LANDED (2 conv); _is_overload_stub = cert-flagged (needs certified stmt ADT, deliberate build); _synthesize_overload_guard =
+array-return-fix (above); _build_function_ir/_build_function_symbol_table/visit_FunctionDef = large/stateful (later). Remaining
+FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop continues (deadline 08-20 16:12 CEST).
