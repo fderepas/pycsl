@@ -2873,3 +2873,11 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
 - CERT-FREE FunctionDef cluster now DRAINED. Remaining: _is_overload_stub (cert-flagged stmt-ADT), _build_function_ir/
   _build_function_symbol_table/visit_FunctionDef (large/stateful). NEXT: Phase-1 non-vacuity-aware probe across the mirror
   (richer banked models: py_functiondef_node + arg/ens accessors + materialize_ir may reopen candidates -- MEASURE, don't assume).
+
+## _csl_not_in CONVERTED (ef94162f, 708->707) — CSLNode->"ExprIR" field-retype lever
+- FIX = retype CSLNotIn.element/collection CSLNode->"ExprIR" in LIVE Module2_Parser.py (VERBATIM the green _csl_slice/BinOp precedent),
+  so the record-import model types them emit_ir -> IrCSLIn(emit_ir,emit_ir) accepts them. Signature-only forward-ref, corpus byte-inert.
+- Non-vacuous (builds real IrCSLIn over node fields + IrUnaryOp "not"). 2 changed-emission mirrors (Module5+pycsl) SUCCESS, byte-diff 0,
+  ledger 3, no axiom. Faithful (exact CSLSlice precedent), cert-free.
+- Session tally: 712->707 (5 conv) + 3 unsound-catch reverts. LEVER BANKED: retype CSL-node sub-expr fields CSLNode->"ExprIR" opens _csl_* family.
+- NEXT: _csl_* siblings with the same lever (measure sizes/non-vacuity first).
