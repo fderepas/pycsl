@@ -2886,3 +2886,11 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
 - Hoisted common `expr` field to the ContractWrapper base as @dataclass expr:"ExprIR" (4 subclasses re-declare expr, base never instantiated -> byte-inert). Non-vacuous (self__csl_to_ir_1 node.contractwrapper_expr). 2 mirrors SUCCESS, byte-diff 0, ledger 3, cert-free.
 - Session tally: 712->706 (6 conv: _const_int_value/_should_skip_method/_build_overload_param_guard/_synthesize_overload_guard/_csl_not_in/_csl_contract_wrapper) + 3 unsound-catch reverts. [96h re-issued, deadline 08-21 22:09 CEST]
 - LEVER extends to base-class field hoist (not just direct field retype). NEXT _csl_*: _csl_list_to_ir (12L, list-map+optional act_name+array-return), _csl_proj (18L, CSLNumber-discrim+raise), _csl_in (82L).
+
+## _csl_proj CONVERTED (748b8d7e, 706->705) — cert-free IrProj construction-only leaf
+- retype ProjExpr.tuple_expr "ExprIR" + NEW IrProj emit_ir int CONSTRUCTION-ONLY leaf (kind_of/size wildcard arms only, gated
+  _uses_csl_proj). CERT-FREE (IrFst/IrSnd precedent: no per-value law, never read; is_X-guarded decrease-lemmas vacuously hold for IrProj).
+  Non-vacuous (real IrProj over real tuple/index); isinstance_op 0 0 confined to raise/divergence guard (err-divergence cap). 4 mirrors SUCCESS, byte-diff 0, no axiom.
+- BANKED: adding a construction-only emit_ir leaf (kind_of/size wildcard arms, tight gate) is CERT-FREE — the routine way to lower a new IR node the mirror constructs but never reads.
+- _csl_list_to_ir REFUTED: `d["act_name"]=an` mutates a dynamic string key on an IMMUTABLE emit_ir variant -> no lowering without ADT change. Left \trusted.
+- Session tally: 712->705 (7 conv) + 3 unsound-catch reverts. Remaining _csl_*: _csl_in (82L membership desugar), _csl_to_ir (TCB giant dispatcher, skip). Other frontier: pure_ast.py (220 stubs), expressions.py (39), statements.py (37).
