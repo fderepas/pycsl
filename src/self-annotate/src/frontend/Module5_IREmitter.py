@@ -2165,11 +2165,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # value-model increment (self-tcb-reduction, banked-device reuse only — NO new device):
+    # pure-bool method-skip predicate over a FunctionDef node. `self._current_class` truthiness
+    # -> the modelled current-class field read; `node.name.startswith('__')/endswith('__')` ->
+    # the banked string prefix/suffix recognizers; the `any(isinstance(d, ast.Name) and d.id ==
+    # 'property' for d in node.decorator_list)` decorator scan -> the banked decorator-list
+    # iteration + `is_var`/`name_of` discrimination (same device `_is_namedtuple_class`'s
+    # `node.bases` scan uses). Contract `assigns \nothing` (no state mutation). Verbatim body
+    # port of the LIVE method; no new accessor/ADT/ctor/cert.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _should_skip_method(self, node: ast.FunctionDef) -> bool:
+        """Return True if this method should be skipped (dunders, @property)."""
+        if not self._current_class:
+            return False
+        if node.name.startswith('__') and node.name.endswith('__'):
+            return True
+        if any(isinstance(d, ast.Name) and d.id == 'property'
+               for d in node.decorator_list):
+            return True
         return False
 
     _UNION_ARM_TAGS = {'int', 'bool', 'str', 'bytes', 'float', 'list', 'dict', 'set'}
