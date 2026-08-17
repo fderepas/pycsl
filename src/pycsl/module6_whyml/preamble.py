@@ -6350,6 +6350,34 @@ class PreambleEmissionMixin:
             ]) if self._uses_stmt_ir() else []),
             *(([
                 "",
+                "  (* py_functiondef_node (self-tcb-reduction M5, functiondef-node wall):"
+                " the typed AST reader for `_should_skip_method`'s `node: ast.FunctionDef`"
+                " param. `func_name_ast` reads `node.name` (a REAL string, fed to the"
+                " faithful str_startswith_op/str_endswith_op dunder test);"
+                " `func_decorator_list_ast` reads `node.decorator_list` (an irlist iterated"
+                " by the CONCRETE `decorator_has_name` existence fold — a decorator matches"
+                " iff it is a Name whose head name equals the target, reusing is_var/name_of,"
+                " NO new ctor, NOT a length-only law). Both accessors TAKE the node (no"
+                " erasure). `m5_current_class_present` models the opaque instance-state"
+                " truthiness `self._current_class` (a sound abstract reader, like symtab_mem)."
+                " Gated on `_uses_py_functiondef_node` -> corpus + every other mirror"
+                " byte-identical. *)",
+                "  type py_functiondef_node",
+                "  val function func_name_ast (n: py_functiondef_node) : string",
+                "  val function func_decorator_list_ast (n: py_functiondef_node) : irlist",
+                "  val function m5_current_class_present : bool",
+                "  function decorator_has_name (target: string) (l: irlist) : bool =",
+                "    match l with",
+                "    | ILNil -> false",
+                "    | ILCons d t -> if is_var d && name_of d = target"
+                " then true else decorator_has_name target t",
+                "    end",
+                "  val function decorator_has_name_prog (target: string) (l: irlist) : bool",
+                "    ensures { result = decorator_has_name target l }",
+                "",
+            ]) if self._uses_py_functiondef_node() else []),
+            *(([
+                "",
                 "  (* pyast_stmt ADT (self-tcb-reduction giants, generic class-body lowering):"
                 " the INPUT-side raw `ast.stmt` union a class-body iterator"
                 " (`_collect_class_constants`) isinstance-dispatches over. `PS*` prefix"
@@ -6769,6 +6797,23 @@ class PreambleEmissionMixin:
             for fn in self.ir.get("functions", []) or []) \
             or self._uses_stmt_return_recogniser()
         self._uses_stmt_ir_cache = result
+        return result
+
+    def _uses_py_functiondef_node(self) -> bool:
+        """functiondef-node wall (self-tcb-reduction M5, C-bucket): True iff some function
+        in this file is a recognized `ast.FunctionDef`-node method (currently only
+        `_should_skip_method`) AND the stmt_ir theory is emitted (which supplies the shared
+        is_var/name_of/irlist devices the `py_functiondef_node` accessors reuse). Only then
+        are `type py_functiondef_node` + `func_name_ast`/`func_decorator_list_ast` +
+        `decorator_has_name` emitted. Only the Module5 mirror has this method, so every other
+        mirror + the whole corpus stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_py_functiondef_node_cache", None)
+        if cached is not None:
+            return cached
+        result = self._uses_stmt_ir() and any(
+            str(fn.get("name", "")).endswith("_should_skip_method")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_py_functiondef_node_cache = result
         return result
 
     def _uses_stmt_return_recogniser(self) -> bool:

@@ -2165,11 +2165,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # functiondef-node wall (self-tcb-reduction M5, C-bucket): the dunder / @property
+    # skip test over an `ast.FunctionDef` -> the CONCRETE faithful lowering:
+    # `node.name.startswith('__')`/`endswith('__')` -> str_startswith_op/str_endswith_op
+    # (substring-based ensures) over `func_name_ast node`; the `@property` decorator
+    # existence test -> `decorator_has_name "property" (func_decorator_list_ast node)`
+    # (is_var/name_of, no length-only law); `self._current_class` -> the opaque
+    # m5_current_class_present abstract reader. isinstance_op = 0, assigns nothing.
+    # Verbatim body port of the LIVE `_should_skip_method`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _should_skip_method(self, node: ast.FunctionDef) -> bool:
+        """Return True if this method should be skipped (dunders, @property)."""
+        if not self._current_class:
+            return False
+        if node.name.startswith('__') and node.name.endswith('__'):
+            return True
+        if any(isinstance(d, ast.Name) and d.id == 'property'
+               for d in node.decorator_list):
+            return True
         return False
 
     _UNION_ARM_TAGS = {'int', 'bool', 'str', 'bytes', 'float', 'list', 'dict', 'set'}

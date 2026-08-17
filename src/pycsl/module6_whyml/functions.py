@@ -2641,6 +2641,63 @@ class FunctionEmissionMixin:
             f"    bases_has_name_prog \"{target}\" (class_bases_ast node)",
         ]
 
+    def _is_should_skip_method(self, func: Dict[str, Any]) -> bool:
+        """functiondef-node wall recognizer (self-tcb-reduction M5, C-bucket): True iff
+        `func` is the Module5 mirror's `_should_skip_method` and the py_functiondef_node
+        theory is emitted. Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (nm.endswith("_should_skip_method")
+                and self._uses_py_functiondef_node())
+
+    def _emit_should_skip_method_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """functiondef-node wall: emit the FAITHFUL whole-body lowering of
+
+            def _should_skip_method(self, node: ast.FunctionDef) -> bool:
+                if not self._current_class:
+                    return False
+                if node.name.startswith('__') and node.name.endswith('__'):
+                    return True
+                if any(isinstance(d, ast.Name) and d.id == 'property'
+                       for d in node.decorator_list):
+                    return True
+                return False
+
+        The dunder test lowers to the FAITHFUL `str_startswith_op`/`str_endswith_op`
+        (substring-based ensures) over `func_name_ast node` — the accessor APPLIED TO the
+        node, NOT a node-free hashed stub. The `@property` decorator existence test lowers
+        to the CONCRETE `decorator_has_name_prog "property" (func_decorator_list_ast node)`
+        fold (a decorator matches iff it is a Name whose head name = "property", reusing
+        is_var/name_of). `self._current_class` truthiness -> the opaque `m5_current_class_
+        present` abstract reader (a sound abstraction of genuine instance state, like
+        symtab_mem). isinstance_op = 0, `assigns \nothing` (pure bool). Corpus-inert."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        self._add_abstract_op(
+            "val str_startswith_op (s: string) (prefix: string) : int\n"
+            "    ensures { (result = 0) || (result = 1) }\n"
+            "    ensures { (result = 1) <->\n"
+            "      (String.length prefix <= String.length s /\\\n"
+            "       String.substring s 0 (String.length prefix) = prefix) }")
+        self._add_abstract_op(
+            "val str_endswith_op (s: string) (suffix: string) : int\n"
+            "    ensures { (result = 0) || (result = 1) }\n"
+            "    ensures { (result = 1) <->\n"
+            "      (String.length suffix <= String.length s /\\\n"
+            "       String.substring s (String.length s - String.length suffix)\n"
+            "         (String.length suffix) = suffix) }")
+        return [
+            f"  let {name} (self: {cls}) (node: py_functiondef_node) : bool",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    if not m5_current_class_present then false",
+            "    else if (str_startswith_op (func_name_ast node) \"__\" = 1)"
+            " && (str_endswith_op (func_name_ast node) \"__\" = 1) then true",
+            "    else if decorator_has_name_prog \"property\""
+            " (func_decorator_list_ast node) then true",
+            "    else false",
+        ]
+
     def _is_final_annotation(self, func: Dict[str, Any]) -> bool:
         """_is_final_annotation bool-recognizer (self-tcb-reduction M5, C-bucket):
         corpus-inert (no corpus program has this method)."""
@@ -3534,6 +3591,11 @@ class FunctionEmissionMixin:
         _brt = self._base_recognizer_target(func)
         if _brt is not None:
             return self._emit_base_recognizer_bespoke(func, _brt)
+        # functiondef-node wall: `_should_skip_method` -> faithful dunder (str_startswith/
+        # endswith_op over func_name_ast) + @property (decorator_has_name) lowering.
+        # Corpus-inert.
+        if self._is_should_skip_method(func):
+            return self._emit_should_skip_method_bespoke(func)
         # _is_final_annotation bool-recognizer -> is_final_ann_prog. Corpus-inert.
         if self._is_final_annotation(func):
             return self._emit_is_final_annotation_bespoke(func)
