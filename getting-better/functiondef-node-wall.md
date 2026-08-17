@@ -63,3 +63,15 @@ FOLLOW-ONS (need INCREMENTAL model extension, NOT free): `_is_overload_stub` nee
 + stmt-kind discrimination (ast.Pass / Expr+Constant+Ellipsis over node.body[0]); `_build_overload_param_guard`
 /`_synthesize_overload_guard` need param/args accessors. Each is a mini-build with its own non-vacuity check
 (emit + grep the guards take the node) — measure-first, do NOT assume cheap.
+
+## FOLLOW-ON _is_overload_stub: TRACTABLE but CERTIFICATE-FLAGGED (2026-08-17)
+Spike PASSED technically (non-vacuous body: `decorator_has_name_or_attr_prog "overload" (func_decorator_list_ast node)`
++ `m5sl_nth 0 (func_body_ast node)` discrimination, L3-tc ✓, byte-inert). BUT it introduced a BESPOKE
+`m5_body_stmt = M5Pass|M5ExprEllipsis|M5OtherStmt` variant ADT with NO src/formal-semantics certificate.
+COUPLING-RULE VIOLATION (§10.5): the parallel `pyast_stmt` stmt ADT carries Phase2e_PyAstStmt.v/.lean
+(axiom-free, Print-Assumptions-audited). `pyast_stmt`'s existing kinds (PSAssign/PSAnnAssign/PSClassDef/
+PSFunctionDef/PSOther) CANNOT discriminate Pass vs Expr-Ellipsis (both -> PSOther), so reuse doesn't work
+without extension. => REVERTED (back to 710). _is_overload_stub needs a DELIBERATE CERTIFIED build:
+either (a) extend pyast_stmt + Phase2e with PSPass/PSExprEllipsis (reuses cert framework, ripples all
+_uses_pyast_stmt giants), or (b) bespoke m5_body_stmt + a NEW Phase2-style certificate + Print-Assumptions
+audit + §10.9 adversarial review. FLAGGED risky brick (trust-base change) — not an autonomous auto-land.
