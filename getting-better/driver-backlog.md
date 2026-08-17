@@ -2782,3 +2782,10 @@ green-but-unsound decoupling) + heavy string-gen. _emit_contracts(102)/_reset_fu
   - _array_init_size: strictly larger (BinOp-Mult [v]*N + list/bytes/bytearray + calls _const_int_value).
 - Module5_IREmitter --fun is WHOLE-FILE-scale (8-10min, pulls the closure) — supervisor owns the gates.
 - NEXT: deliberate _const_int_value build (UnaryOp emit_ir accessors + recognizer, ZERO new emitter mixin methods per the V1 lesson, coupled-caller re-proof owned by supervisor). Session 736->700.
+
+## _const_int_value CONVERTED (62ba8cea, 712->711) — pyconst-dispatch follow-on
+- Optional[int] literal-eval; reuses banked pyconst_val ADT (is_pvint/pvint_of/const_pyval_of) + NEW axiom-free UnaryOp accessors (is_unaryop/unaryop_op_of/unaryop_operand_of, preamble.py let function).
+- CALLER-COUPLING gate: --fun _collect_class_constants (consumes Optional[int] via `is not None`) re-proves SUCCESS with the option-int return. This is the gate that protects against a return-type change breaking a converted caller.
+- 6 changed-emission mirrors (gate ripple: __init__/ir_resolve/Module5/stmt_control_flow/Module6_WhyMLTranspiler/pycsl) ALL whole-file SUCCESS. Module5 CPU-starved to EXIT=124 under 5-way concurrency (prover lines all Valid) -> re-proved SOLO = SUCCESS (memory lesson 3 confirmed again).
+- byte-diff 0, ledger==3, non-vacuity 7 real-descent hits, drift = accepted baseline-2 only.
+- NEXT: re-drain Phase 1 (base loop cheap-win probe) before any wall.
