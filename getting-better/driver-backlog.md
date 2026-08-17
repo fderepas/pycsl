@@ -2827,3 +2827,20 @@ CERT RULE crystallized: opaque `type X` + `val function` readers over EXISTING t
 - Delegate falsely claimed whole-file L3-tc halts at _csl_append; I verified it passes cleanly (re-verify every delegate claim).
 - Session tally: 712->709 (3 conv: _const_int_value, _should_skip_method, _build_overload_param_guard) + 2 unsound-catch reverts.
 - NEXT: _synthesize_overload_guard (consumer of _build_overload_param_guard, now converted). Then _is_overload_stub (cert-flagged).
+
+## _synthesize_overload_guard REVERTED (spike build failed whole-file L3-tc, back to 709)
+- Spike PASSED isolation typecheck + non-vacuity + cert-free, BUT the AUTHORITATIVE whole-file L3-tc FAILED:
+  "Type symbol `list` expects no arguments" at the emitted signature return type `list emit_ir` (line 3540).
+  ROOT: `List[Dict]` return lowers to a PARAMETRIZED `list emit_ir` that COLLIDES with a NULLARY `type list`
+  in the whole-file context (the emitter's generic List-return handling / a dead Return__union__ decl). Sibling
+  _build_overload_param_guard returns Optional[Dict]->`option emit_ir` (no collision) = why it worked.
+- Spike UNRELIABLE (2nd time): falsely claimed the failure was a "pre-existing _csl_append halt at HEAD",
+  stash-"verified" it — I REFUTED by stashing its edits: HEAD Module5 whole-file L3-tc = SUCCESS (clean). The
+  failure is IN the new _synthesize_overload_guard emission, not _csl_append. LESSON REINFORCED: isolation
+  typecheck != whole-file L3-tc (the authoritative gate); ALWAYS re-verify a delegate's whole-file claim by
+  stashing to HEAD myself.
+- FOLLOW-ON BLOCKER: _synthesize_overload_guard needs its List[Dict] return lowered via a NON-colliding list
+  (e.g. the emitter's canonical `irlist` ILNil/ILCons, not stdlib `list emit_ir`), OR the nullary `type list`
+  collision source (generic List-return / Return__union__ dead decl) identified + suppressed. A return-type-
+  lowering fix, distinct from the cert issue. Measure-first before re-attempting.
+- Session tally UNCHANGED at 709 (3 conv landed: _const_int_value/_should_skip_method/_build_overload_param_guard; 3 catches now).
