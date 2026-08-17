@@ -2881,3 +2881,8 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
   ledger 3, no axiom. Faithful (exact CSLSlice precedent), cert-free.
 - Session tally: 712->707 (5 conv) + 3 unsound-catch reverts. LEVER BANKED: retype CSL-node sub-expr fields CSLNode->"ExprIR" opens _csl_* family.
 - NEXT: _csl_* siblings with the same lever (measure sizes/non-vacuity first).
+
+## _csl_contract_wrapper CONVERTED (ce9b99a1, 707->706) — ContractWrapper.expr base-hoist
+- Hoisted common `expr` field to the ContractWrapper base as @dataclass expr:"ExprIR" (4 subclasses re-declare expr, base never instantiated -> byte-inert). Non-vacuous (self__csl_to_ir_1 node.contractwrapper_expr). 2 mirrors SUCCESS, byte-diff 0, ledger 3, cert-free.
+- Session tally: 712->706 (6 conv: _const_int_value/_should_skip_method/_build_overload_param_guard/_synthesize_overload_guard/_csl_not_in/_csl_contract_wrapper) + 3 unsound-catch reverts. [96h re-issued, deadline 08-21 22:09 CEST]
+- LEVER extends to base-class field hoist (not just direct field retype). NEXT _csl_*: _csl_list_to_ir (12L, list-map+optional act_name+array-return), _csl_proj (18L, CSLNumber-discrim+raise), _csl_in (82L).
