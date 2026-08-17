@@ -2862,3 +2862,14 @@ FunctionDef-node wall BROKEN (py_functiondef_node). Cluster cheap-members DRAINE
 LANDED (2 conv); _is_overload_stub = cert-flagged (needs certified stmt ADT, deliberate build); _synthesize_overload_guard =
 array-return-fix (above); _build_function_ir/_build_function_symbol_table/visit_FunctionDef = large/stateful (later). Remaining
 FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop continues (deadline 08-20 16:12 CEST).
+
+## _synthesize_overload_guard CONVERTED (585272f1, 709->708) — cert-free array-return [96h loop re-issued, deadline 08-21 11:49 CEST]
+- 3rd FunctionDef-cluster conversion. array-return fix WORKED: List[Dict] -> canonical `array emit_ir` via materialize_ir
+  (materialize_str analogue, content-preserving ensures), NOT stdlib list (which collided with nullary type-list record).
+  Opaque ens_node + val readers + synth_overload_clauses fold building IrBinOp "==>". CERT-FREE.
+- Whole-file L3-tc re-verified BY SUPERVISOR (delegate lied twice about whole-file; always stash-to-HEAD + re-run myself).
+- 4/4 changed-emission mirrors SUCCESS, byte-diff 0, ledger 3, no axiom, non-vacuous (descends func_args_ast/func_csl_ensures_ast node).
+- Session tally: 712->708 (4 conv: _const_int_value/_should_skip_method/_build_overload_param_guard/_synthesize_overload_guard) + 3 unsound-catch reverts.
+- CERT-FREE FunctionDef cluster now DRAINED. Remaining: _is_overload_stub (cert-flagged stmt-ADT), _build_function_ir/
+  _build_function_symbol_table/visit_FunctionDef (large/stateful). NEXT: Phase-1 non-vacuity-aware probe across the mirror
+  (richer banked models: py_functiondef_node + arg/ens accessors + materialize_ir may reopen candidates -- MEASURE, don't assume).
