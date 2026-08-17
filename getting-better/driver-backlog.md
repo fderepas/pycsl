@@ -2809,3 +2809,13 @@ green-but-unsound decoupling) + heavy string-gen. _emit_contracts(102)/_reset_fu
 - Session tally: 712->710 (2 real: _const_int_value 62ba8cea, _should_skip_method 9ad91d65) + 1 vacuity catch/revert.
 - NEXT (Phase-1 re-drain on the unlocked cluster): _is_overload_stub needs func_body_ast:psl + stmt-kind discrim
   (measure-first). Then _build_overload_param_guard/_synthesize_overload_guard.
+
+## FunctionDef-cluster classification (post py_functiondef_node, count 710)
+CERT RULE crystallized: opaque `type X` + `val function` readers over EXISTING types (string/irlist/bool/emit_ir)
+= CERT-FREE (py_functiondef_node/py_classdef_node landed cert-free). A NEW variant ADT with matched-on constructors
+(m5_body_stmt/pyast_stmt/pyconst_val) = needs a src/formal-semantics certificate + Print-Assumptions audit.
+- _is_overload_stub: CERTIFICATE-FLAGGED (needs Pass/Ellipsis stmt discrimination = new variant ADT). Deliberate certified build.
+- _build_overload_param_guard: CERT-FREE-plausible (func_args_ast irlist + opaque arg accessors + CONSTRUCTS IrCall/IrBinaryOp
+  return via existing emit_ir ctors; depends on _overload_type_name sibling). IR-construction mini-build -> spiking.
+- _synthesize_overload_guard: depends on _build_overload_param_guard (convert that first).
+- _build_function_ir/_build_function_symbol_table/visit_FunctionDef: large/stateful (later).
