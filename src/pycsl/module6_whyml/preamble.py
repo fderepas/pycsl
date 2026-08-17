@@ -5756,6 +5756,21 @@ class PreambleEmissionMixin:
                 "    | IrNumF r -> PVComplex r",
                 "    | _ -> PVNone",
                 "    end",
+                # _const_int_value UnaryOp accessors (self-tcb-reduction M5, B-bucket): the
+                # is-discriminant + op-string + operand-sub-node projectors of an IrUnaryOp node —
+                # the model of a raw `ast.UnaryOp` (`-N`) the const-int extractor isinstance-
+                # dispatches over. Total `let function`s over the EXISTING `IrUnaryOp string emit_ir`
+                # ctor (the is_binop/op_of/left_of precedent) — NO axiom, NO new ADT/ctor/cert. The
+                # op string is `_py_op_to_str(ast.USub) = "-"` (what the live `_py_expr_unaryop`
+                # emits into IrUnaryOp's op field); `unaryop_operand_of` reads the operand emit_ir,
+                # `IrNone` on a non-UnaryOp (the absent-const sentinel `const_pyval_of` also uses).
+                # Gated on `_uses_pyconst_val` -> Module5 mirror only (byte-inert elsewhere).
+                "  let function is_unaryop (e: emit_ir) : bool =",
+                "    match e with IrUnaryOp _ _ -> true | _ -> false end",
+                "  let function unaryop_op_of (e: emit_ir) : string =",
+                "    match e with IrUnaryOp op _ -> op | _ -> \"\" end",
+                "  let function unaryop_operand_of (e: emit_ir) : emit_ir =",
+                "    match e with IrUnaryOp _ x -> x | _ -> IrNone end",
                 # complex branch of `_py_expr_constant`: `int(expr.value.real)` is a real->int
                 # truncation. Why3's `real.Truncate.truncate` is a LOGIC function (rejected in
                 # a program/ghost-free context), so expose a program-callable wrapper PINNED by

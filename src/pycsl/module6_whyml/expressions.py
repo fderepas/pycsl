@@ -337,6 +337,16 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
 _EMIT_IR_HANDLER_ATTR_PROJ.update({
     "_classify_literal_value": {"value": "const_pyval_of"},
 })
+# _const_int_value pyconst-dispatch (self-tcb-reduction M5, B-bucket): the UnaryOp OPERAND
+# sub-node projector. `value.operand` (the `-N` inner node) reads the IrUnaryOp's operand
+# emit_ir child, faithfully `unaryop_operand_of value` (the NEW axiom-free accessor). `.op`
+# stays the GLOBAL `op_of` string-leaf (no scoped entry — the isinstance(value.op, ast.USub)
+# recognizer wraps it as `unaryop_op_of` directly) and `.value` stays the GLOBAL `svalue_of`
+# (the `int(value.value)` / `isinstance(value.value, int)` recognizers project it themselves).
+# SCOPED via `_current_emitting_func` -> corpus + every other mirror byte-identical.
+_EMIT_IR_HANDLER_ATTR_PROJ.update({
+    "_const_int_value": {"operand": "unaryop_operand_of"},
+})
 # self-tcb-reduction Layer-2: SCOPED `.get(key)`-projectors for the method-receiver /
 # slice recognizer `_match_field_decode_idiom`. `receiver`->receiver_of (the certified
 # Layer-2 method-call receiver), `slice`->slice_of (an IrSliceAccess's slice sub-node),
@@ -7321,6 +7331,53 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                       else set())
             _av = self._expr_to_whyml(_a0, _pv_lr, getattr(self, "_in_spec", False), None)
             return f"({_PV_BUILTIN_DISCRIM[_a1['name']]} {_av})"
+        # _const_int_value pyconst-dispatch (self-tcb-reduction M5, B-bucket): the three
+        # UnaryOp/const isinstance tests inside `_const_int_value`, SCOPED via
+        # `_current_emitting_func` so corpus + every other mirror stays byte-identical (the
+        # `-N` int-literal extractor is the only reader of these forms). All axiom-free (the
+        # accessors are total `let function`s over the existing IrUnaryOp ctor).
+        _cef_ci = getattr(self, "_current_emitting_func", None) or ""
+        if _cef_ci == "_const_int_value" or _cef_ci.endswith("___const_int_value"):
+            # (i) `isinstance(value.value, int/bool)` / `isinstance(value.operand.value,
+            #     int/bool)` -> the const leaf's pyconst_val discriminant on the OBJECT's
+            #     `const_pyval_of` projection. Faithful: on a real ast.Constant the value's
+            #     Python int/bool `.value` sends the leaf to PVInt/PVBool and `is_pvint`/
+            #     `is_pvbool` decide exactly that variant (Phase2c_PyConstVal certificate).
+            if (isinstance(_a1, dict) and _a1.get("type") == "Var"
+                    and _a1.get("name") in ("int", "bool")
+                    and isinstance(_a0, dict) and _a0.get("type") == "Attribute"
+                    and _a0.get("attr") == "value"
+                    and self._is_emit_ir_expr(_a0.get("object", {}))):
+                _ow = self._expr_to_whyml(_a0["object"], local_refs,
+                                          getattr(self, "_in_spec", False), None)
+                _d = "is_pvint" if _a1["name"] == "int" else "is_pvbool"
+                return f"({_d} (const_pyval_of {_ow}))"
+            # (ii) `isinstance(value, ast.UnaryOp)` -> `is_unaryop value` (the NEW total
+            #      discriminant, exactly the IrUnaryOp leaf — the `-N` unary node).
+            if (isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                    and isinstance(_a1.get("object"), dict)
+                    and _a1["object"].get("type") == "Var"
+                    and _a1["object"].get("name") == "ast"
+                    and _a1.get("attr") == "UnaryOp"
+                    and self._is_emit_ir_expr(_a0)):
+                _uw = self._expr_to_whyml(_a0, local_refs,
+                                          getattr(self, "_in_spec", False), None)
+                return f"(is_unaryop {_uw})"
+            # (iii) `isinstance(value.op, ast.USub)` -> the op STRING equals "-" (the
+            #       `_py_op_to_str(ast.USub)` literal the live `_py_expr_unaryop` emits into
+            #       IrUnaryOp's op field). arg0 is `.op` (a string leaf via `unaryop_op_of`
+            #       on the object), arg1 is `ast.USub`.
+            if (isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                    and isinstance(_a1.get("object"), dict)
+                    and _a1["object"].get("type") == "Var"
+                    and _a1["object"].get("name") == "ast"
+                    and _a1.get("attr") == "USub"
+                    and isinstance(_a0, dict) and _a0.get("type") == "Attribute"
+                    and _a0.get("attr") == "op"
+                    and self._is_emit_ir_expr(_a0.get("object", {}))):
+                _ow = self._expr_to_whyml(_a0["object"], local_refs,
+                                          getattr(self, "_in_spec", False), None)
+                return f'(str_eq_op (unaryop_op_of {_ow}) "-")'
         t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
         t_tag = self._tag_of_type(t_name)
         if not t_tag:

@@ -2099,12 +2099,33 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _array_init_size(rhs: ast.expr) -> int:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # pyconst-dispatch value-model increment (self-tcb-reduction M5, B-bucket): the const-int
+    # extractor over a class-body VALUE emit_ir node. `value` retyped `"ExprIR"`;
+    # `isinstance(value, ast.Constant)`->`is_constant value` (const-reflect); the int-value guard
+    # `isinstance(value.value, int) and not isinstance(value.value, bool)`->`is_pvint/not is_pvbool
+    # (const_pyval_of value)` (the BANKED pyconst-dispatch device: an ast.Constant lowers to exactly
+    # one IrNum/IrStr/IrBoolC/IrNone leaf, `const_pyval_of` its faithful pyconst_val inverse, and
+    # `is_pvint` decides exactly the non-bool-int IrNum leaf). `int(value.value)`->`num_of value`.
+    # The unary-minus arm reuses NEW axiom-free emit_ir accessors: `isinstance(value, ast.UnaryOp)`
+    # ->`is_unaryop value`, `isinstance(value.op, ast.USub)`->`str_eq_op (unaryop_op_of value) "-"`
+    # (matching `_py_op_to_str(ast.USub) == "-"`, the literal the live `_py_expr_unaryop` emits into
+    # IrUnaryOp's op field), `value.operand`->`unaryop_operand_of value`. Return `Optional[int]` ->
+    # `option int` (Some/None). isinstance_op = 0. NO new axiom/ADT/ctor/cert (the accessors are total
+    # `let function`s, SAME class as left_of/svalue_of). Verbatim body port of the LIVE method.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _const_int_value(value: "ExprIR") -> int:
+    def _const_int_value(value: "ExprIR") -> Optional[int]:
+        """Return the int value of a constant expr (incl. unary -N), else None."""
+        if isinstance(value, ast.Constant) and isinstance(value.value, int) \
+                and not isinstance(value.value, bool):
+            return int(value.value)
+        if (isinstance(value, ast.UnaryOp) and isinstance(value.op, ast.USub)
+                and isinstance(value.operand, ast.Constant)
+                and isinstance(value.operand.value, int)
+                and not isinstance(value.operand.value, bool)):
+            return -int(value.operand.value)
         return None
 
     #@ requires True
