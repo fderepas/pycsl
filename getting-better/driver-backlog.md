@@ -2894,3 +2894,10 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
 - BANKED: adding a construction-only emit_ir leaf (kind_of/size wildcard arms, tight gate) is CERT-FREE — the routine way to lower a new IR node the mirror constructs but never reads.
 - _csl_list_to_ir REFUTED: `d["act_name"]=an` mutates a dynamic string key on an IMMUTABLE emit_ir variant -> no lowering without ADT change. Left \trusted.
 - Session tally: 712->705 (7 conv) + 3 unsound-catch reverts. Remaining _csl_*: _csl_in (82L membership desugar), _csl_to_ir (TCB giant dispatcher, skip). Other frontier: pure_ast.py (220 stubs), expressions.py (39), statements.py (37).
+
+## _csl_in REFUTED as cheap (82L multi-case) — _csl_* cheap vein DRAINED
+- _csl_in handles range (CallExpr.func=="range" + rargs), DictView (Exists), getattr(node.collection,"name",None) [the refuted
+  optional-attr-on-immutable-emit_ir pattern], + default BinOp "in", + raise. Needs CallExpr/DictView discrimination recognizers +
+  the getattr blocker -> multi-device deliberate build, NOT cheap. Left \trusted.
+- _csl_* family: 3 converted (_csl_not_in/_csl_contract_wrapper/_csl_proj), _csl_list_to_ir + _csl_in refuted, _csl_to_ir giant. VEIN DRAINED.
+- NEXT: fresh frontier probe over module6 emitter mirrors (expressions.py 39 stubs, statements.py 37) — likely reuse the emit_ir models + the banked construction-only-leaf / field-retype / base-hoist levers.
