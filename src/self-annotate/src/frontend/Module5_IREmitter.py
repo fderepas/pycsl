@@ -443,12 +443,27 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_snd(self, node: SndExpr) -> Dict[str, Any]:
         return {"type": "SndExpr", "tuple": self._csl_to_ir(node.tuple_expr)}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # csl-family (self-tcb-reduction M5): verbatim port of the LIVE `_csl_proj`. The
+    # `\proj(t,i)` desugar builds `{"type":"ProjExpr","tuple":self._csl_to_ir(node.tuple_expr),
+    # "index":int(node.index.value)}` -> the NEW `IrProj emit_ir int` leaf (preamble.py /
+    # _IRNODE_CTORS, IrFst precedent). `node.tuple_expr` is retyped "ExprIR" (Module2_Parser.py)
+    # so it feeds the emit_ir ctor position; `int(node.index.value)` reads the CSLNumber
+    # literal's value. The `isinstance(node.index, CSLNumber)` literal-guard + `raise
+    # PyCSLSemanticError` is the err-divergence arm (message DROPPED, raise takes the exc
+    # name only; the raise path never reaches `ensures`). NON-VACUOUS: descends the real
+    # `node.tuple_expr` node field.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_proj(self, node: ProjExpr) -> int:
-        return {}
+    def _csl_proj(self, node: ProjExpr) -> Dict[str, Any]:
+        if not isinstance(node.index, CSLNumber):
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"\\proj index must be an integer literal in {self._cur_func_name}. "
+                "Dynamic projection is not supported."
+            )
+        return {"type": "ProjExpr", "tuple": self._csl_to_ir(node.tuple_expr),
+                "index": int(node.index.value)}
 
     #@ requires True
     #@ ensures True

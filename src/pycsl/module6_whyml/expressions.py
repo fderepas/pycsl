@@ -1491,6 +1491,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "Bool":     ("IrBoolC", ["value"]),
         "FstExpr":  ("IrFst", ["tuple"]),
         "SndExpr":  ("IrSnd", ["tuple"]),
+        # self-tcb-reduction csl-family (_csl_proj): `{"type":"ProjExpr","tuple":emit_ir,
+        # "index":int(node.index.value)}` -> the NEW `IrProj emit_ir int` leaf (preamble.py
+        # _emit_exprir_theory, IrFst precedent). `tuple` is emit_ir (ProjExpr.tuple_expr
+        # retyped "ExprIR"); `index` is the int literal read (IrCtorPayload's int-arg
+        # precedent). Only `_csl_proj` constructs a "ProjExpr" node -> scoped to it.
+        "ProjExpr": ("IrProj", ["tuple", "index"]),
         "CtorTest":    ("IrCtorTest", ["var", "ctor"]),
         "CtorPayload": ("IrCtorPayload", ["var", "ctor", "index"]),
         "StrConcat": ("IrStrConcat", ["left", "right"]),

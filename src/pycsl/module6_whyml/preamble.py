@@ -4866,6 +4866,13 @@ class PreambleEmissionMixin:
             # byte-inert in every other mirror + the whole corpus.
             + (" | IrCSLIn emit_ir emit_ir | IrCSLNotIn emit_ir emit_ir"
                if self._uses_clause_ir() else "")
+            # self-tcb-reduction csl-family (_csl_proj): IrProj carries the `\proj(t,i)`
+            # node's ONE emit_ir child (`tuple_expr`, retyped "ExprIR") + the int literal
+            # `index` (`int(node.index.value)`; the IrCtorPayload int-arg precedent).
+            # size recurses the real `tuple` child (`1 + size t`, gated arm below, IrFst
+            # precedent); kind_of has its own arm. Gated on `_uses_csl_proj` → byte-inert
+            # in every other mirror + the whole corpus.
+            + (" | IrProj emit_ir int" if self._uses_csl_proj() else "")
             # self-tcb-reduction family-B (_err-divergence run): IrLoopInvariant /
             # IrLoopVariant carry the `#@ loop invariant/variant <e>` node's single EMIT_IR
             # child (`LoopInvariant(expr)` / `LoopVariant(expr)`, `_parse_loop`). size
@@ -5093,6 +5100,7 @@ class PreambleEmissionMixin:
             "    | IrListLength _ -> \"ListLength\" | IrNth _ _ -> \"Nth\"",
             "    | IrMem _ _ -> \"Mem\" | IrAppend _ _ -> \"Append\"",
             "    | IrFst _ -> \"FstExpr\" | IrSnd _ -> \"SndExpr\"",
+            *(["    | IrProj _ _ -> \"ProjExpr\""] if self._uses_csl_proj() else []),
             "    | IrCtorTest _ _ -> \"CtorTest\" | IrCtorPayload _ _ _ -> \"CtorPayload\"",
             "    | IrStrConcat _ _ -> \"StrConcat\" | IrStrLength _ -> \"StrLength\"",
             "    | IrStrSub _ _ _ -> \"StrSub\"",
@@ -5370,6 +5378,7 @@ class PreambleEmissionMixin:
             "    | IrAppend l r -> 1 + size l + size r",
             "    | IrFst t -> 1 + size t",
             "    | IrSnd t -> 1 + size t",
+            *(["    | IrProj t _ -> 1 + size t"] if self._uses_csl_proj() else []),
             "    | IrStrConcat l r -> 1 + size l + size r",
             "    | IrStrLength s -> 1 + size s",
             "    | IrStrSub s l h -> 1 + size s + size l + size h",
@@ -6938,6 +6947,25 @@ class PreambleEmissionMixin:
             str(fn.get("name", "")).endswith("_synthesize_overload_guard")
             for fn in self.ir.get("functions", []) or [])
         self._uses_synthesize_overload_guard_cache = result
+        return result
+
+    def _uses_csl_proj(self) -> bool:
+        """self-tcb-reduction csl-family (_csl_proj): True iff THIS file defines the
+        Module5 mirror's `_csl_proj` method, the SOLE constructor of a `{"type":
+        "ProjExpr", ...}` source dict-literal (lowered to the `IrProj emit_ir int` leaf).
+        Only the Module5 mirror (and live) has it; no reference-corpus program constructs
+        a ProjExpr *source dict* (a corpus `\\proj` contract lowers through Module6's
+        runtime ProjExpr-IR path, NOT `_lower_irnode_construction`), so gating the IrProj
+        emit_ir ctor + its `kind_of`/`size` arms on this keeps the emit_ir theory
+        BYTE-IDENTICAL in every other mirror AND the whole corpus. The
+        `_uses_synthesize_overload_guard` name-based-gate pattern verbatim. Cached."""
+        cached = getattr(self, "_uses_csl_proj_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_csl_proj")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_csl_proj_cache = result
         return result
 
     def _uses_stmt_return_recogniser(self) -> bool:

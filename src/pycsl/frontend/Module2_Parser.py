@@ -683,7 +683,14 @@ class SndExpr(CSLNode):
 @dataclass
 class ProjExpr(CSLNode):
     """\\proj(t, i) — ith component of a ghost tuple (i must be a literal)."""
-    tuple_expr: CSLNode
+    # tcb(M5) csl-family (_csl_proj): retyped `tuple_expr` CSLNode -> `"ExprIR"`, the
+    # CSLSlice.low / CSLNotIn.element / BinOp.left precedent verbatim (pure type-hint).
+    # The self-annotation record-import model then types `projexpr_tuple_expr` as
+    # `emit_ir`, so the verbatim body `self._csl_to_ir(node.tuple_expr)` type-checks in
+    # the `IrProj : emit_ir -> int -> emit_ir` ctor's first (emit_ir) position.
+    # Signature-only forward-ref -> no runtime effect (corpus byte-inert); `index`
+    # stays `CSLNode` (the `isinstance(node.index, CSLNumber)` literal guard reads it).
+    tuple_expr: "ExprIR"
     index: CSLNode
 
 @dataclass
