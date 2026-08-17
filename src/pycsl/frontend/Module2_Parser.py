@@ -511,8 +511,16 @@ class CSLIn(CSLNode):
 @dataclass
 class CSLNotIn(CSLNode):
     """Represents `x not in arr` negated membership test in contracts."""
-    element: CSLNode
-    collection: CSLNode
+    # tcb(M5) membership run (_csl_not_in): retyped `CSLNode` -> `"ExprIR"`, the
+    # BinOp.left/right / CSLSlice.low precedent verbatim (pure type-hint). The
+    # self-annotation record-import model then types `cslnotin_element` /
+    # `cslnotin_collection` as `emit_ir`, so `_csl_not_in`'s verbatim body
+    # `self._csl_to_ir(CSLIn(node.element, node.collection))` type-checks — the
+    # nested `IrCSLIn : emit_ir -> emit_ir -> emit_ir` ctor consumes both fields
+    # in an emit_ir position. Signature-only forward-ref → no runtime effect;
+    # only the IR-record-import model sees `emit_ir` (corpus byte-inert).
+    element: "ExprIR"
+    collection: "ExprIR"
 
 @dataclass
 class DictView(CSLNode):

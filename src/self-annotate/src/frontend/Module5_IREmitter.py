@@ -406,12 +406,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_in(self, node: CSLIn) -> int:
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _csl_not_in(self, node: CSLNotIn) -> int:
-        return {}
+    def _csl_not_in(self, node: CSLNotIn) -> Dict[str, Any]:
+        # x not in arr → ¬(x in arr)
+        in_ir = self._csl_to_ir(CSLIn(node.element, node.collection))
+        return {"type": "UnaryOp", "op": "not", "expr": in_ir}
 
     #@ requires True
     #@ ensures True
