@@ -2943,3 +2943,12 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
   1. kind_of-TAILORING: extend _TAILOR_OPAQUE_MIRROR_CLASSES so StatementEmissionMixin KEEPS the emit_ir accessor keystone (kind_of/op_of) when a kind_of-reading node-reader is present. Unlocks _field_type_of, _first_assign_kind + statements-mirror node-readers. MUST gate byte-inert.
   2. RETURN-TYPE-LOWERING: model node/list method returns (currently opaque int) as their real type. Unlocks _act_guard + Module2/Module3 node-returning stubs. (partially started: _synthesize_overload_guard used materialize_ir for List returns.)
 - Pursuing (1) kind_of-tailoring next (more contained). If it can't gate byte-inert -> CERTIFIED-BOUNDARY.
+
+## kind_of-TAILORING BUILD + _field_type_of CONVERTED (559b5133, 694->693) — deliberate emitter build
+- Deferred-opaque-theory mechanism in Module6_WhyMLTranspiler.py: splices the FULL emit_ir accessor theory into a
+  minimal-tailored mirror (StatementEmissionMixin) IFF a converted node-reader references a dropped accessor; else minimal.
+  Tailoring reason was PERFORMANCE (~4x SMT), NOT collision. Byte-inert: corpus 0, statements.mlw identical pre-conversion,
+  other 11 mirrors identical. Cert-free. _field_type_of converted non-vacuous (real kind_of/avalue_of/name_of reads).
+- Session tally: 712->693 (19 conv + 1 emitter-cap build) + 3 unsound-catch reverts + 1 wall broken.
+- UNLOCKED: statements node-reader cluster now kind_of-reachable: _first_assign_kind, _rhs_yields_array, _rhs_yields_map
+  (green twins types.py, cross-mixin duplicates). Draining next.
