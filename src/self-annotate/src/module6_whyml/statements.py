@@ -88,6 +88,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _emit_ir_local_vars: Set[str] = None
     _mutable_state_classes: Set[str] = None
     _current_record_var_classes: Dict[str, str] = None
+    # self-tcb-reduction (_field_type_of conversion): the receiver-class lookup maps the
+    # ported `_field_type_of` reads (matching the TypeInferenceMixin twin in types.py).
+    # Declared as `Dict[str, str]` so `.get(receiver_name)` yields a STRING class name
+    # (otherwise the untyped getattr defaults to an opaque int map and `cls := <int>`
+    # fails to type against the `string`-typed `cls`).
+    _module_global_classes: Dict[str, str] = None
+    _record_param_classes: Dict[str, str] = None
     _list_element_record_types: Set[str] = None
     # SOUNDNESS (frame audit): these five are WRITTEN by live bodies mirrored here
     # (`_record_locals.add` / `_lambda_locals.add` in `_emit_first_assign`,
@@ -379,10 +386,43 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _e(self, ir: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
-    def _field_type_of(self, attr_ir: "ExprIR") -> str:
-        return ""
+    #@ assigns \nothing
+    def _field_type_of(self, attr_ir: "ExprIR") -> Optional[str]:
+        receiver_name = None
+        field_name = None
+        if attr_ir.get("type") == "Attribute":
+            receiver = attr_ir.get("value") or attr_ir.get("object") or {}
+            if isinstance(receiver, dict) and receiver.get("type") == "Var":
+                receiver_name = receiver.get("name")
+            field_name = attr_ir.get("attr")
+        elif attr_ir.get("type") == "FieldGet":
+            receiver_name = attr_ir.get("object")
+            field_name = attr_ir.get("field")
+        if receiver_name is None or field_name is None:
+            return None
+        cls = None
+        if receiver_name == "self":
+            cls = self._current_self_type
+        else:
+            gcls = getattr(self, "_module_global_classes", {}).get(receiver_name)
+            if gcls is not None and gcls in self._record_types:
+                cls = self._record_types[gcls].get("whyml_name")
+            else:
+                rvcls = getattr(self, "_current_record_var_classes", {}).get(receiver_name)
+                if rvcls is not None and rvcls in self._record_types:
+                    cls = self._record_types[rvcls].get("whyml_name")
+                else:
+                    pcls = getattr(self, "_record_param_classes", {}).get(receiver_name)
+                    if pcls is not None:
+                        cls = pcls
+        if not cls:
+            return None
+        for info in self._record_types.values():
+            if info.get("whyml_name") == cls:
+                return info.get("field_types", {}).get(field_name)
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True

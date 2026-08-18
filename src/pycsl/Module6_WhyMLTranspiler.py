@@ -21,6 +21,15 @@ from module6_whyml.functions import FunctionEmissionMixin
 # theory or deletes it).
 _EXPRIR_THEORY_SLOT = "(*__pycsl_exprir_theory_slot__*)"
 
+# self-tcb-reduction (opaque-mirror accessor restore): the sentinel that parks the
+# minimal-vs-full CHOICE for an opaque-tailored mirror (`_TAILOR_OPAQUE_MIRROR_CLASSES`,
+# e.g. StatementEmissionMixin). It is resolved by `_resolve_deferred_opaque_theory`,
+# which splices the FULL emit_ir accessor theory iff a converted node-reader in the
+# emitted body actually references a dropped accessor symbol (kind_of/left_of/...),
+# and otherwise splices the MINIMAL surface — so a purely-opaque mirror stays
+# byte-identical while a kind_of-reading node-reader gets exactly the theory it needs.
+_OPAQUE_THEORY_SLOT = "(*__pycsl_opaque_exprir_theory_slot__*)"
+
 
 class Module6_WhyMLTranspiler(
     ExpressionEmissionMixin,
@@ -590,25 +599,24 @@ class Module6_WhyMLTranspiler(
             # FULL theory (a minimal surface fails with `unbound ... svalue_of`);
             # it is deliberately excluded from the allow-list.
             _TAILOR_OPAQUE_MIRROR_CLASSES = {"StatementEmissionMixin"}
-            if set(self.ir.get("mutable_state_class_names", [])) & _TAILOR_OPAQUE_MIRROR_CLASSES:
-                _exprir_theory = self._emit_minimal_emit_ir_theory()
-            else:
-                _exprir_theory = self._emit_exprir_theory()
-            # Return_emit_ir infra: an emit_ir-returning function's early-return catch
-            # (`_wrap_body_with_return_catch`) needs this exception — it must be declared
-            # AFTER the `emit_ir` ADT (just emitted above) since it carries an `emit_ir`
-            # payload, so it cannot live in `_emit_preamble_exceptions` (which runs before
-            # the ADT is in scope). `needs_return_emit_ir` is False for the whole existing
-            # corpus (no emit_ir-returning function has an early/in-loop return there yet)
-            # → inert.
+            _is_opaque_tailored = bool(
+                set(self.ir.get("mutable_state_class_names", []))
+                & _TAILOR_OPAQUE_MIRROR_CLASSES)
+            # The exception-append SUFFIX (Return_emit_ir / emit_ir opttuple returns /
+            # pyconst_val tuple returns) is declared AFTER the emit_ir ADT — the `emit_ir`
+            # ADT / `pyconst_val` theory is only in scope now, so these cannot live in
+            # `_emit_preamble_exceptions` (which runs before the ADT). The suffix is
+            # IDENTICAL regardless of which emit_ir theory (minimal or full) precedes it, so
+            # compute it ONCE and append to whichever theory is chosen. Every `needs` set
+            # below is empty for the opaque mirror AND the whole existing corpus → inert.
+            _exprir_suffix: List[str] = []
+            # Return_emit_ir: an emit_ir-returning function's early-return catch
+            # (`_wrap_body_with_return_catch`) carries an `emit_ir` payload. Inert corpus-wide.
             if needs.get("needs_return_emit_ir"):
-                _exprir_theory = list(_exprir_theory) + [
-                    "", "  exception Return_emit_ir emit_ir"]
+                _exprir_suffix += ["", "  exception Return_emit_ir emit_ir"]
             # self-tcb-reduction Layer-2: opttuple returns whose slot type references
-            # `emit_ir` (a receiver/slice recognizer returning `Optional[Tuple[ExprIR, ...]]`)
-            # are declared HERE — after the emit_ir ADT (just emitted) — not in
-            # `_emit_preamble_exceptions` (which runs before the ADT). The `Return_emit_ir`
-            # precedent above. Byte-inert: no existing opttuple return has an emit_ir slot.
+            # `emit_ir` (a receiver/slice recognizer returning `Optional[Tuple[ExprIR, ...]]`).
+            # Byte-inert: no existing opttuple return has an emit_ir slot.
             _emit_ir_opttuples = sorted(
                 ot for ot in needs.get("opt_tuple_return_types", set())
                 if "emit_ir" in ot)
@@ -616,19 +624,46 @@ class Module6_WhyMLTranspiler(
                 # Name by payload type (not arity) — see `_emit_preamble_exceptions`:
                 # a same-arity all-int opttuple would otherwise collide with this one.
                 _suffix = _ot.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
-                _exprir_theory = list(_exprir_theory) + [
-                    "", f"  exception Return_opttuple_{_suffix} (option {_ot})"]
+                _exprir_suffix += ["", f"  exception Return_opttuple_{_suffix} (option {_ot})"]
             # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return carrying a
-            # `pyconst_val` slot (`_classify_literal_value`'s `(string, pyconst_val, emit_ir)`)
-            # needs its dedicated `Return_tup_<slots>` exception declared HERE — after the
-            # emit_ir ADT + the pyconst_val theory (both its slot types are only in scope now),
-            # never at top-of-module. Named by payload type (like the emit_ir opttuples) so it
-            # never collides with the homogeneous `Return_<arity>`. Byte-inert: no corpus /
-            # other-mirror tuple return refines to a pyconst_val slot.
+            # `pyconst_val` slot (`_classify_literal_value`'s `(string, pyconst_val, emit_ir)`).
+            # Named by payload type so it never collides with the homogeneous `Return_<arity>`.
+            # Byte-inert: no corpus / other-mirror tuple return refines to a pyconst_val slot.
             for _pt in sorted(needs.get("pyconst_val_tuple_return_types", set())):
                 _psuffix = _pt.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
-                _exprir_theory = list(_exprir_theory) + [
-                    "", f"  exception Return_tup_{_psuffix} {_pt}"]
+                _exprir_suffix += ["", f"  exception Return_tup_{_psuffix} {_pt}"]
+
+            if _is_opaque_tailored:
+                # self-tcb-reduction (opaque-mirror accessor restore): an opaque-tailored
+                # mirror historically got the MINIMAL emit_ir surface UNCONDITIONALLY (the
+                # ~80-ctor accessor theory dropped for proof speed, sound because its proven
+                # bodies used emit_ir purely opaquely). Converting a node-reader stub (e.g.
+                # `_field_type_of`) makes a PROVEN body read a real accessor (`.get("type")`
+                # → `kind_of`), which the minimal surface cannot type (`unbound kind_of`).
+                # So DEFER the choice: build BOTH, and let `_resolve_deferred_opaque_theory`
+                # splice the FULL theory iff the emitted body actually references a dropped
+                # accessor symbol, else the MINIMAL surface. With no such conversion present
+                # the body references no rich accessor → minimal is chosen → BYTE-IDENTICAL
+                # to the historical emission (the perf-tailoring is preserved). Tightly
+                # gated: the upgrade fires ONLY on a real kind_of-reading node-reader, never
+                # on a sibling opaque method. Corpus-inert: corpus never defines this class.
+                _minimal = list(self._emit_minimal_emit_ir_theory()) + _exprir_suffix
+                _full = list(self._emit_exprir_theory()) + _exprir_suffix
+                # RICH = the accessor/projector SYMBOLS the FULL theory adds over the
+                # MINIMAL surface — the `let (rec) function` / `val` / `predicate` names a
+                # node-reader body APPLIES (kind_of/left_of/size/svalue_of/name_of/…). We
+                # deliberately scope to callable declarations (NOT the broad
+                # `_exprir_theory_symbols`, which also captures type names, constructors and
+                # single-letter pattern binders like `i` — every one a false positive that
+                # would spuriously force the full theory on a purely-opaque body). A
+                # node-reader only PROJECTS, so a projector-name match is the exact signal.
+                _rich = self._opaque_accessor_symbols(_full) - self._opaque_accessor_symbols(_minimal)
+                self._opaque_theory_deferred = (
+                    _OPAQUE_THEORY_SLOT, _full, _minimal, _rich)
+                out.append(_OPAQUE_THEORY_SLOT)
+                _exprir_theory = None  # opaque path resolved via its own deferral
+            else:
+                _exprir_theory = list(self._emit_exprir_theory()) + _exprir_suffix
             # parser-primitives-wall-impl-3.md capability (i) — LOW-BLAST-RADIUS
             # record-element class-field gate. `_mutable_state_classes` is the COARSE
             # disjunct above: it fires for ANY @mutable_state class, including one whose
@@ -645,14 +680,17 @@ class Module6_WhyMLTranspiler(
             # conservative in the safe direction and every file that uses emit_ir stays
             # BYTE-IDENTICAL. Only a @mutable_state class with zero emit_ir contact loses
             # the theory (and it could not have used it anyway).
-            if (getattr(self, "_uses_ir_node_param", False)
-                    or self._uses_stmt_ir()
-                    or self._uses_call_kw()
-                    or self._uses_tparam()):
-                out += _exprir_theory
-            else:
-                self._exprir_deferred = (_EXPRIR_THEORY_SLOT, list(_exprir_theory))
-                out.append(_EXPRIR_THEORY_SLOT)
+            # (Skipped for the opaque-tailored mirror, which parked its own minimal-vs-full
+            # deferral above and set `_exprir_theory = None`.)
+            if _exprir_theory is not None:
+                if (getattr(self, "_uses_ir_node_param", False)
+                        or self._uses_stmt_ir()
+                        or self._uses_call_kw()
+                        or self._uses_tparam()):
+                    out += _exprir_theory
+                else:
+                    self._exprir_deferred = (_EXPRIR_THEORY_SLOT, list(_exprir_theory))
+                    out.append(_EXPRIR_THEORY_SLOT)
 
         # pyval-value-model-wall (self-tcb-reduction, Tier-5 heterogeneous value model):
         # emit the certified `hval` sum + `hval_list` BEFORE the record types — a
@@ -878,6 +916,7 @@ class Module6_WhyMLTranspiler(
         self._insert_abstract_val_block(out)
         self._insert_late_content_ops(out)
         self._resolve_deferred_exprir_theory(out)
+        self._resolve_deferred_opaque_theory(out)
         return "\n".join(out)
 
     # ------------------------------------------------------------------
@@ -931,6 +970,58 @@ class Module6_WhyMLTranspiler(
             out[idx:idx + 1] = theory
         else:
             del out[idx]
+
+    def _opaque_accessor_symbols(self, theory_lines: List[str]) -> Set[str]:
+        """The CALLABLE symbols a theory declares: every `let (rec) function` / `val`
+        (incl. `val function`) / `predicate` name. Used to compute the emit_ir
+        accessor/projector set a node-reader body could APPLY — precisely the names
+        that gate the minimal→full upgrade. Deliberately narrower than
+        `_exprir_theory_symbols` (which also captures types/constructors/pattern
+        binders — all false positives for a projection-only node-reader).
+
+        Comments and string literals are stripped FIRST: the theory's own
+        explanatory prose contains phrases like "val function" that would
+        otherwise be mis-captured as a symbol named `function`."""
+        text = "\n".join(theory_lines)
+        text = re.sub(r"\(\*.*?\*\)", " ", text, flags=re.S)
+        text = re.sub(r'"[^"]*"', ' ', text)
+        names: Set[str] = set()
+        names.update(re.findall(r"\blet\s+(?:rec\s+)?function\s+(\w+)", text))
+        names.update(re.findall(r"\bval\s+(?:function\s+)?(\w+)", text))
+        names.update(re.findall(r"\bpredicate\s+(\w+)", text))
+        names.discard("")
+        return names
+
+    def _resolve_deferred_opaque_theory(self, out: List[str]) -> None:
+        """Resolve the opaque-mirror emit_ir theory slot (`_OPAQUE_THEORY_SLOT`).
+
+        Splice the FULL accessor theory iff the emitted body references a dropped
+        accessor symbol (kind_of/left_of/size/…, i.e. a symbol the FULL theory
+        declares but the MINIMAL surface does not); otherwise splice the MINIMAL
+        surface — reproducing the historical opaque emission BYTE-FOR-BYTE. No-op
+        when the mirror was not opaque-tailored (no slot parked). See the deferral
+        in `transpile`."""
+        info = getattr(self, "_opaque_theory_deferred", None)
+        if not info:
+            return
+        marker, full, minimal, rich = info
+        self._opaque_theory_deferred = None
+        try:
+            idx = out.index(marker)
+        except ValueError:      # pragma: no cover - defensive
+            return
+        # PRECISE detection: the accessor upgrade must fire ONLY on a real body
+        # application of a dropped accessor, never on the SYMBOL NAME appearing inside
+        # a `(* … *)` comment or a "…" string literal (both carry accessor names in the
+        # emitter's own explanatory prose). Strip them before scanning, otherwise the
+        # emission is NOT byte-inert for a purely-opaque mirror (a comment mentioning
+        # `kind_of`/`size` would spuriously pull in the full theory).
+        rest = "\n".join(out[idx + 1:])
+        rest = re.sub(r"\(\*.*?\*\)", " ", rest, flags=re.S)
+        rest = re.sub(r'"[^"]*"', ' ', rest)
+        used = bool(rich) and bool(re.search(
+            r"\b(?:" + "|".join(re.escape(n) for n in sorted(rich)) + r")\b", rest))
+        out[idx:idx + 1] = full if used else minimal
 
     # ------------------------------------------------------------------
     # module-emission.md — OPT-IN axiom isolation via separate Why3 modules
