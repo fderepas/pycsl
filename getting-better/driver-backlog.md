@@ -2926,3 +2926,13 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
 - Skipped _field_type_of/_first_assign_kind (need kind_of, dropped by StatementEmissionMixin tailoring).
 - Session tally: 712->699 (13 conv) + 3 unsound-catch reverts.
 - NEXT cross-mixin-duplicate batches: stmt_control_flow.py {_bool_ir_to_int_wrap (green types), _materialize_bridge/_materialize_str_bridge (green statements)}; expr_ghost_collections.py {_deref (green expressions)}.
+
+## _deref + _array_coerce_arg CONVERTED (4639d457, 696->694) — cross-mixin-duplicate vein DRAINED
+- _deref (expr_ghost_collections<-expressions), _array_coerce_arg (statements<-expressions). Pure-mirror, non-vacuous, 3 mirrors SUCCESS, byte-diff 0.
+- SESSION TALLY: 712->694 (18 conversions) + 3 unsound-catch reverts + 1 wall broken (FunctionDef-node py_functiondef_node). Deadline 08-21 22:09 CEST.
+- CROSS-MIXIN-DUPLICATE VEIN: 9 landed (str_operand_to_int, val_is_bool, dv_store_value, field_label, field_type_for, resolve_effective_ghost_type, bool_ir_to_int_wrap, materialize_bridge, materialize_str_bridge, deref, array_coerce_arg = 11 actually). DRAINED except:
+  - _field_type_of, _first_assign_kind: blocked on kind_of dropped by StatementEmissionMixin minimal-theory tailoring (_TAILOR_OPAQUE_MIRROR_CLASSES). = the NEXT deliberate build (extend tailoring to keep kind_of when a kind_of-reading node-reader is present; unlocks these + possibly more node-readers).
+  - _handle_return_stmt: frame-risky ([[trusted_val_frame_unsoundness]]), leave.
+  - _stmts_to_whyml: no green twin (false positive).
+- BANKED LEVERS THIS SESSION: (1) py_functiondef_node typed model; (2) CSLNode->"ExprIR" field-retype + base-class field-hoist; (3) cert-free construction-only emit_ir leaf (kind_of/size wildcard arms, tight gate, no per-value law); (4) cross-mixin-duplicate = copy the green twin verbatim (pure-mirror, byte-diff 0 by construction); (5) closed-key *View TypedDict -> WhyML record (cert-free, not variant ADT). KEY RIGOR: re-verify EVERY delegate whole-file L3-tc claim by stashing to HEAD (delegates lied 3x); inspect emitted recognizers for non-vacuity (val:int facade vs let-function real).
+- NEXT: kind_of-tailoring build (Phase-2 deliberate) OR fresh probe of other files (Module2_Parser 34, Module3_Weaver 32, pure_ast 220).
