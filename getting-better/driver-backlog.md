@@ -2973,3 +2973,10 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
 - SESSION: 712->691 (21 conv + 2 emitter caps [kind_of-tailoring, absurd-terminal-unpack] + 1 wall + 3 unsound reverts). Ledger 3.
 - NEXT: (a) low-risk = census+drain other now-unblocked Optional-returning mirror stubs (absurd-fix payoff); (b) BIG lever = iter_length/iter_get iteration protocol (~30 stubs); (c) return-type-lowering.
 - Pursuing (a) census+drain first.
+
+## ITERATION-PROTOCOL build + _coerce_to_int (cdb2043b, 691->690) — emitter cap #3 (highest leverage)
+- for x in <all-string tuple/list/array literal> -> materialize as seq string (Seq.cons) + iterate Seq.length/Seq.get, target=string local (auto-reroutes body to str_startswith_op). Cert-free (stdlib seq.Seq, no axiom). 5 emitter files. Corpus byte-diff 0 (recognizer fires ONLY on all-string-literal iterables). auto_trust changed = inert `use seq.Seq` import only.
+- SESSION: 712->690 (22 conv + 3 EMITTER CAPS [kind_of-tailoring / absurd-terminal-unpack / for-over-string-literal] + 1 wall + 3 unsound reverts). Ledger 3 throughout. Deadline 08-21 22:09 CEST.
+- 3 BANKED EMITTER CAPABILITIES this session (all corpus-byte-inert, cert-free): (1) deferred-opaque-theory splice (kind_of into perf-tailored mirror); (2) absurd-for-terminal-option-unpack; (3) for-over-string-literal -> seq materialization.
+- PAYOFF: ~31 functions had the for-over-string-literal blocker removed. 30 direct-literal (e.g. _collect_mutations/walk/_scan/find_record_vars/has_in_loop_return/uses_for/collect_user_exceptions) still need body-port + OTHER-construct check (dict-mutation/comprehension/nested-def may still block). Draining next. NOT covered: comprehension-for (2) = separate lowering.
+- Remaining big lever after this drain: return-type-lowering (node-returners).
