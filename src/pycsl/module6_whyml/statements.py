@@ -971,9 +971,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # `Some` arm is a well-formed expression.
             if body.rstrip().endswith(";") or body.rstrip().endswith(" in"):
                 body += f"\n{indent}  ()"
+        # Optional-return control-flow fix: when the REST terminates the block with a
+        # `return`/`raise` (the `Some` arm ends in a `raise (Return_… )`, so the arm is
+        # bottom-typed), the dead `None` arm must NOT be the unit `()` — that would force
+        # the whole `match` (and, in tail position, the enclosing `try` body) to type
+        # `unit`, clashing with the function's `_union`/`Return_*` result type. The Python
+        # `if X is None:` guard already made this `None` arm unreachable (in the Why3
+        # else-branch `!X` is known `Some`), so emit `absurd` (any type, provably dead) so
+        # the `match` takes the `Some` arm's (bottom) type and unifies with the result.
+        # Scoped to a terminal-return REST only → every non-terminal unpack keeps `()`.
+        none_arm = "()"
+        if rest and (rest[-1].get("stmt") if isinstance(rest[-1], dict) else None) in ("Return", "Raise"):
+            none_arm = "absurd"
         return (f"{indent}match {ov} with\n"
                 f"{indent}| Some ({pattern}) -> begin\n{body}\n{indent}  end\n"
-                f"{indent}| None -> ()\n"
+                f"{indent}| None -> {none_arm}\n"
                 f"{indent}end")
 
     def _handle_array_slice_set_stmt(self, stmt: ArraySliceSetStmt, rest: List[Dict[str, Any]],

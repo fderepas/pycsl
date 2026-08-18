@@ -517,12 +517,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         return (slice_node, lower_ir, width)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
-    def _recognize_field_decode_idiom(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
-        return None
+    def _recognize_field_decode_idiom(self, expr: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        m = self._match_field_decode_idiom(expr)
+        if m is None:
+            return None
+        slice_node, lower_ir, width = m
+        base = slice_node.get("value", {})
+        arr = self._array_coerce_arg(
+            self._expr_to_whyml(base, local_refs, invariant_ctx, subst))
+        off = self._expr_to_whyml(lower_ir, local_refs, invariant_ctx, subst)
+        # Genuine codec TERM — the abstract `field_to_str` symbol the axioms key on
+        # (declared `val function` in preamble._AXIOM_FUNCTIONS, no ensures/shim).
+        return f"(field_to_str {arr} {off} {width})"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
