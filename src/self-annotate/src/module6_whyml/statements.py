@@ -95,6 +95,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # fails to type against the `string`-typed `cls`).
     _module_global_classes: Dict[str, str] = None
     _record_param_classes: Dict[str, str] = None
+    # self-tcb-reduction (_first_assign_kind / _rhs_yields_* conversion): the
+    # module-level method return-type map, read by the ported RHS-type queries
+    # (matching the TypeInferenceMixin twin in types.py). Typed `Dict[str, str]`
+    # so `.get(key)` yields a STRING return-type name (e.g. "array int").
+    _module_method_return_types: Dict[str, str] = None
     _list_element_record_types: Set[str] = None
     # SOUNDNESS (frame audit): these five are WRITTEN by live bodies mirrored here
     # (`_record_locals.add` / `_lambda_locals.add` in `_emit_first_assign`,
@@ -345,10 +350,150 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _track_collection_metadata(self, target: str, val_ir: "ExprIR") -> None:
         return
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
+    #@ assigns \nothing
     def _first_assign_kind(self, val: str, val_ir: "ExprIR") -> str:
-        return ""
+        """Classify a first-declaration RHS into one of: record, lambda,
+        array, slice, dict, bounded_int, default. Drives the `let X = …`
+        shape selection in `_handle_assign_stmt`."""
+        vt = val_ir.get("type", "")
+        if vt == "Call" and val_ir.get("func", "") in self._record_types:
+            return "record"
+        if vt == "Lambda":
+            return "lambda"
+        if vt == "SliceAccess":
+            return "slice"
+        # body-gate gap-4: a list/array literal (`inode = [0, 1, 1, mode, …]`) IS an
+        # array value — the detection passes add it to `_array_locals`, so it must be
+        # VALUE-declared (`let X = (let _alit = Array.make … in … _alit)`), NOT `ref`.
+        # The lowered string starts with `(let _alit = Array.make …`, not `(Array.make`,
+        # so the string-prefix check below missed it and it fell to the `ref` default —
+        # leaving `_array_locals` (read bare) and the `ref` decl inconsistent, so passing
+        # the local as a whole value emitted the ref instead of its array contents.
+        if vt in ("ArrayLit", "ListLit"):
+            return "array"
+        if (val.startswith("(Array.make") or val == "(Array.make 1024 0)"
+                or val.startswith("(sorted_1 ")
+                or val.startswith("(struct_pack_")):
+            # struct_pack returns `array int` (a pure value). Emit it
+            # as `let X = (struct_pack_...) in` (NOT wrapped in ref)
+            # to avoid Why3's `ref (array int)` region-collapse error.
+            return "array"
+        if vt == "Call" and val_ir.get("func", "").startswith("self."):
+            method_tail = val_ir["func"][len("self."):]
+            cls = self._current_self_type
+            lookup = f"{cls}__{method_tail}" if cls else method_tail
+            if self._module_method_return_types.get(lookup) == "array int":
+                return "array"
+        # inline.md: bare function calls (from inlined bodies) returning
+        # array int, and Var references to known array locals.
+        if self._rhs_yields_array(val_ir):
+            return "array"
+        # Body dict/set: recognise both legacy abstract-val emission and
+        # the new `map.Map (option int)` form, plus IR-level signals so
+        # detection doesn't depend on val-string shape.
+        if (val.startswith("(dict_new")
+                or val.startswith("(const (None: option int)")
+                or val.startswith("(map_update_some ")
+                or val.startswith("(map_update_none ")
+                or vt in ("DictLit", "SetLit")
+                or (vt == "Call" and val_ir.get("func") in ("dict", "set", "frozenset"))):
+            return "dict"
+        # RHS is (or contains) a Var bound to a set/dict-typed parameter.
+        # Detect the bare Var case and the IfExpr/BinOp wrappers whose
+        # leaves yield map-typed values (e.g. `inner_held = held | {x}
+        # if mutex else held`).
+        if self._rhs_yields_map(val_ir):
+            return "dict"
+        if self._bounded_int:
+            return "bounded_int"
+        return "default"
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _rhs_yields_array(self, val_ir: "ExprIR") -> bool:
+        """Parallel of `_rhs_yields_map` for `array int`-typed RHS.
+        True for list/tuple-typed param Vars, list-typed self-fields,
+        and Calls to functions known to return `array int`."""
+        if not isinstance(val_ir, dict):
+            return False
+        t = val_ir.get("type", "")
+        if t == "Var":
+            name = val_ir.get("name", "")
+            if name in self._array_locals or name in self._current_array1d_params:
+                return True
+            # bytes/bytearray are array-int-typed per
+            # missing-bytes-struct-feature.md Phase 1.
+            if self._current_symbol_table.get(name) in (
+                    "list", "tuple", "bytes", "bytearray"):
+                return True
+            return False
+        if t in ("Attribute", "FieldGet"):
+            return self._field_type_of(val_ir) in (
+                "list", "tuple", "bytes", "bytearray")
+        if t == "Call":
+            fn = val_ir.get("func", "")
+            if fn.startswith("self."):
+                tail = fn[len("self."):]
+                cls = self._current_self_type
+                key = f"{cls}__{tail}" if cls else tail
+            else:
+                key = fn
+            return self._module_method_return_types.get(key) == "array int"
+        return False
+
+    # orelse_of mini-M1 (post-m1-census.md): CONVERTED. The `IfExpr` recursive arm's
+    # `val_ir.get("body", {})` / `val_ir.get("orelse", {})` now terminates: the emit_ir
+    # ADT gained an `IrIfExpr emit_ir emit_ir` constructor (preamble.py
+    # `_emit_exprir_theory`, following the IrBinOp precedent) with `body_of`/`orelse_of`
+    # projectors + the PROVEN `size_ifexpr_body_dec`/`size_ifexpr_orelse_dec` lemmas, and
+    # `_EMIT_IR_PROJ` gained an unambiguous "orelse" entry plus a default-argument-shape
+    # override that routes ".get(\"body\", {})" to the new scalar `body_of` (vs the
+    # existing ".get(\"body\", [])" stmt-list `stmts_of`, unchanged). The `variant { size
+    # val_ir }` now discharges via those two lemmas.
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _rhs_yields_map(self, val_ir: "ExprIR") -> bool:
+        """Heuristic: does this RHS IR yield a `map int (option int)`
+        value? True for set/dict-typed param Vars, IfExpr branches that
+        do, BinOp `|`/`&` between map-typed sides (Python set ops),
+        Subscript-read on a dict-typed self-field, or a Call to a
+        function declared `-> Set[T]` / `-> Dict[K, V]` (looked up via
+        the module-level return-type map)."""
+        if not isinstance(val_ir, dict):
+            return False
+        t = val_ir.get("type", "")
+        if t == "Var":
+            name = val_ir.get("name", "")
+            if name in self._dict_locals:
+                return True
+            if self._current_symbol_table.get(name) in ("set", "dict", "frozenset"):
+                return True
+            return False
+        if t in ("Attribute", "FieldGet"):
+            return self._field_type_of(val_ir) in ("set", "dict", "frozenset")
+        if t == "Call":
+            fn = val_ir.get("func", "")
+            # `self.<method>(...)` — apply class-prefix mangling.
+            if fn.startswith("self."):
+                tail = fn[len("self."):]
+                cls = self._current_self_type
+                key = f"{cls}__{tail}" if cls else tail
+            else:
+                key = fn
+            return self._module_method_return_types.get(key) == "map int (option int)"
+        if t == "IfExpr":
+            return (self._rhs_yields_map(val_ir.get("body", {}))
+                    or self._rhs_yields_map(val_ir.get("orelse", {})))
+        if t == "BinOp" and val_ir.get("op") in ("|", "&", "^", "-"):
+            # Python set union/intersection/xor/difference syntax. If
+            # either operand is map-typed, the result is too.
+            return (self._rhs_yields_map(val_ir.get("left", {}))
+                    or self._rhs_yields_map(val_ir.get("right", {})))
+        return False
 
     #@ requires True
     #@ ensures True
