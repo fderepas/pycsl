@@ -20,11 +20,14 @@ class GhostCollectionOpsMixin:
     def _e(self, ir: "ExprIR", lr: Set[str]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _deref(self, expr: str) -> str:
-        return ""
+        """Dereference a WhyML ref-typed operand: `x` → `!x` (idempotent — a leading
+        `!` is normalized, not doubled). Used by the set/list/map handlers, where a
+        collection operand may arrive already-dereffed."""
+        return f"!{expr.lstrip('!')}" if expr.startswith("!") else expr
 
     #@ requires True
     #@ ensures True

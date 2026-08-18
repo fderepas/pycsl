@@ -247,10 +247,55 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return f"{whyml_ident(record_lower)}_{base}"
         return base
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
-    def _array_coerce_arg(self, val: str) -> str:
-        return ""
+    #@ assigns \nothing
+    @staticmethod
+    def _array_coerce_arg(whyml_str: str) -> str:
+        """Coerce an arbitrary WhyML expression to an `array int`. Used
+        when abstract vals (`any_1`, `all_1`, `sorted_1`, `list_new`)
+        expect an array but the actual arg is an int — typically because
+        the IR dropped an unsupported iterable shape (generator
+        expression, comprehension, variadic *args) to a scalar. A
+        length-1 placeholder array works because the abstract vals have
+        no axioms about their input contents.
+
+        Recognises explicit array-shaped expressions and leaves them
+        alone: `Array.make ...`, `Array.get ...`, `sorted_1 ...`, bare
+        identifiers we can't disambiguate (passed through; callers must
+        ensure their type). For everything else, returns the placeholder."""
+        stripped = whyml_str.strip()
+        if stripped == "0":
+            return "(Array.make 1 0)"
+        # Already array-shaped — leave alone.
+        if (stripped.startswith("(Array.make")
+                or stripped.startswith("(Array.get")
+                or stripped.startswith("(sorted_1 ")
+                or stripped.startswith("(list_new ")
+                or stripped.startswith("(any_1 ")
+                or stripped.startswith("(all_1 ")):
+            return whyml_str
+        # Bare identifier or a dotted FIELD access (`self.fields`) — could be array-typed (callee's
+        # responsibility); pass through. (Track C / cprobe: clobbering `self.fields` to a placeholder
+        # severs it from its representation invariant, so a callee's array precondition can never
+        # discharge from `0 <= self.fields[k] <= MAX`.)
+        if stripped.replace("_", "").replace("!", "").replace(".", "").isalnum():
+            return whyml_str
+        # L2 sub-gap 2 (os-bodyvc-spec): a function application `(fn arg…)` or array-literal
+        # `(let _alit = …)` in an array slot is an array-returning expression (e.g. `(pack16 x)`,
+        # `(materialize !s)`, the `[..]` literal). Pass it through — clobbering it to a placeholder
+        # discards the value, which breaks contract-composition round-trips
+        # (`unpack(pack(x)) == x` lost `pack(x)` to `(Array.make 1 0)`). Only genuinely-scalar args
+        # (`0`, a numeric `(a + b)`) still get the placeholder.
+        if stripped.startswith("("):
+            inner = stripped[1:].lstrip()
+            head = inner.split(" ", 1)[0] if " " in inner else inner.rstrip(")")
+            head_ok = head.lstrip("!").replace("_", "").replace(".", "").isalnum()
+            if head and head_ok and not head.lstrip("!")[:1].isdigit():
+                return whyml_str
+        # Anything else (BinOp result, parenthesised int expression) —
+        # coerce to placeholder since we can't recover the array.
+        return "(Array.make 1 0)"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
