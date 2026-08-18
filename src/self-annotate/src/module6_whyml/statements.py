@@ -196,10 +196,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _resolve_dotted_signature(self, func_name: str) -> Tuple[str, List[str], int, int]:
         return ("", [], 0, 0)
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # cross-mixin twin of the already-green ExpressionEmissionMixin._str_operand_to_int
+    # (expressions.py mirror): a string operand -> legacy int-hash domain. A quoted literal
+    # hashes to its decimal `str(stable_hash(...))`; a non-literal goes through the
+    # uninterpreted `str_hash_op` (registered via the trusted-effect-free `_add_abstract_op`,
+    # matching the green expressions.py copy's `assigns \nothing`). Verbatim body port of the
+    # LIVE `_str_operand_to_int`; pure string ops (str_strip/startswith/endswith/concat, stable_hash),
+    # no new device/ADT/axiom, non-vacuous (the `whyml_str` param drives every guard + return).
+    #@ requires True
     #@ ensures True
-    def _str_operand_to_int(self, s: str) -> str:
-        return ""
+    #@ assigns \nothing
+    def _str_operand_to_int(self, whyml_str: str) -> str:
+        s = whyml_str.strip()
+        if s.startswith('"') and s.endswith('"'):
+            return str(stable_hash(whyml_str))
+        self._add_abstract_op("val str_hash_op (s: string) : int")
+        return f"(str_hash_op {whyml_str})"
 
     # cf6.md M1.4: the emit_ir-node predicate (`_handle_array_set_stmt` uses it to no-op an
     # `<emit_ir>[k]=v` write). Cross-mixin (lives in ExpressionEmissionMixin); a \trusted stub
