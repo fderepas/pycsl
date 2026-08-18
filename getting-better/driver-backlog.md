@@ -2958,3 +2958,12 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
 - SESSION MILESTONE: 712->692 (20 conversions + 1 emitter-cap build [kind_of deferred-opaque-theory] + 1 wall broken [FunctionDef-node] + 3 unsound-catch reverts). Ledger held 3 throughout. Deadline 08-21 22:09 CEST.
 - BANKED EMITTER CAPABILITY: deferred-opaque-theory (Module6_WhyMLTranspiler) splices the full emit_ir accessor theory into a perf-tailored mirror IFF a node-reader references a dropped accessor. Enables node-readers in ANY _TAILOR_OPAQUE_MIRROR_CLASSES file (currently only StatementEmissionMixin).
 - Remaining statements.py: string-emitters blocked by B1-B4 semantic ceiling (f-string hashing / trusted-sibling returns / self-mutation) = NOT cheap. Next frontier options: return-type-lowering build (unlocks _act_guard + Module2/3 node-returners), or fresh cross-mixin re-scan.
+
+## expressions.py probe: no_cheap_remaining — CHEAP FRONTIER DEFINITIVELY EXHAUSTED (count 692)
+- 39 stubs, every one has a hard blocker. Remaining cross-mixin dups: only _handle_return_stmt (frame-risky) + _stmts_to_whyml (recursive orchestrator).
+- THREE DELIBERATE EMITTER-CAPABILITY BUILDS remain (ranked by leverage):
+  1. **iter_length/iter_get ITERATION PROTOCOL** (~30 of 39 expressions stubs + many elsewhere): any `for x in <list/tuple/comprehension>` or aggregate (sum/any/all/gen-join) over a Python sequence lowers to a `while` over UNBOUND iter_length/iter_get, and the sequence int-erases to 0. HIGHEST leverage, LARGEST build. The single highest-value capability.
+  2. RETURN-TYPE-LOWERING (node/list method returns modeled as opaque int): unlocks _act_guard + Module2/3 node-returners.
+  3. **Optional-return control-flow fallthrough** (CONTAINED): an `if x is None: return None` guard + unconditional else-return emits a redundant match-None `()` branch that mistypes against the synthesized Return__union type. Lands _recognize_field_decode_idiom (closest miss) + helps other Optional-returners. NARROW emitter control-flow fix.
+- Also: class-const string-dict int-erasure (self._BITWISE_FN_NAMES[op] -> int, Gate-C facade); tuple token/return int-erasure; missing sibling helpers + nested-def closures.
+- PURSUING #3 (contained) next; #1 iteration-protocol = documented next BIG build.
