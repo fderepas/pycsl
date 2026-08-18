@@ -315,6 +315,23 @@ class ControlFlowStmtMixin:
             return (_a[0], _a[1])
         return None
 
+    def _str_lit_seq_elts(self, iter_ir: Dict[str, Any]):
+        """The String-elt IR list if `iter_ir` is an ALL-string tuple/list/array literal
+        — either DIRECT (`for k in ("body", "orelse")`) or a Var bound to one
+        (`_str_literal_seq_locals`, `for prefix in array_prefixes`) — else None. Drives the
+        faithful `seq string` materialisation in `_classify_iterable` (and the loop-target
+        string-retyping in `_handle_for_stmt`)."""
+        t = iter_ir.get("type")
+        if t in ("Tuple", "ArrayLit", "ListLit"):
+            elts = iter_ir.get("elts", [])
+            if elts and all(isinstance(e, dict) and e.get("type") == "String"
+                            and isinstance(e.get("value"), str) for e in elts):
+                return elts
+            return None
+        if t == "Var":
+            return getattr(self, "_str_literal_seq_locals", {}).get(iter_ir.get("name"))
+        return None
+
     def _classify_iterable(self, iter_ir: Dict[str, Any],
                             local_refs: Set[str], idx: str) -> Tuple[str, str, bool]:
         """Classify a For loop's iterable. Returns (len_expr, elem_expr, is_range).
@@ -525,6 +542,27 @@ class ControlFlowStmtMixin:
             # (this mirror class is not @mutable_state, so it has no variant otherwise).
             self._pyast_loop_variant_len = f"(Array.length {_sv})"
             return (f"Array.length {_sv}", f"{_sv}[!{idx}]", False)
+        # faithful for-over-literal (self-tcb-reduction): `for k in ("body", "orelse")` /
+        # `for prefix in array_prefixes` — a for-loop over an ALL-string tuple/list literal
+        # (the emitter's OWN unmodeled Python literal), either DIRECT or via a Var bound to
+        # one. Materialise it ONCE as a real `seq string` (a `Seq.cons` chain over the
+        # literal's String elements, recorded in `_for_iter_materialize` and emitted as a
+        # `let` wrapping the loop), then iterate faithfully — bound `Seq.length _seqlit` (a
+        # pure LOGIC term, legal in the `variant` clause), element `Seq.get _seqlit !idx` (a
+        # real `string` per iteration, so the body's `k in d` / `stripped.startswith(k)` route
+        # through the faithful string ops). NOT the opaque `iter_length`/`iter_get` int
+        # fallback (which int-erases the literal to `0` and leaves `variant` unbound).
+        # Cert-free (Why3 Seq theory). Gated on an all-string literal → corpus-inert.
+        _slit = self._str_lit_seq_elts(iter_ir) if self._value_semantic else None
+        if _slit:
+            _sv = f"_seqlit{idx}"
+            _seq = "(Seq.empty: seq string)"
+            for _e in reversed(_slit):
+                _ew = self._expr_to_whyml(_e, local_refs)
+                _seq = f"(Seq.cons {_ew} {_seq})"
+            self._for_iter_materialize = (_sv, _seq)
+            self._pyast_loop_variant_len = f"(Seq.length {_sv})"
+            return (f"(Seq.length {_sv})", f"(Seq.get {_sv} !{idx})", False)
         is_range = (iter_ir.get("type") == "Call" and
                     iter_ir.get("func") == "range")
         if is_range and len(iter_ir.get("args", [])) == 1:
@@ -805,6 +843,12 @@ class ControlFlowStmtMixin:
                           and iter_ir.get("name")
                           not in getattr(self, "_pyval_coll_locals", set())
                           and self._expr_is_pyval(iter_ir))
+        # faithful for-over-literal (self-tcb-reduction): a `for prefix in <str-literal local>`
+        # loop binds `prefix` to a real `string` (`Seq.get`) per iteration → register it
+        # symbol-type "str" for the body's duration so `stripped.startswith(prefix)` lowers
+        # via the faithful `str_startswith_op`, not the opaque int path. Restored after body.
+        _is_strseqlit = (self._value_semantic and not tuple_targets
+                         and self._str_lit_seq_elts(iter_ir) is not None)
         # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
         # binds `info` to a real `hval` per iteration — register it in `_pyval_locals`
         # for the body's duration so `info.get("whyml_name")` /
@@ -956,10 +1000,15 @@ class ControlFlowStmtMixin:
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "str"
+        elif _is_strseqlit:
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_symtype = _st.get(target, _MISSING)
+                _st[target] = "str"
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
         if (_saved_symtype is not _MISSING or _is_classbody or _is_kwbody
-                or _is_tparambody or _is_splitbody or _is_pyval_keys
+                or _is_tparambody or _is_splitbody or _is_pyval_keys or _is_strseqlit
                 or self._mktuple_elts_recv_ir(iter_ir) is not None
                 or self._tparam_bases_recv(iter_ir) is not None):
             _st = getattr(self, "_current_symbol_table", None)

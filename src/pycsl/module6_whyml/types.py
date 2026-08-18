@@ -401,6 +401,37 @@ class TypeInferenceMixin:
                     found.update(self._collect_tuple_array_locals(h.get("body", [])))
         return found
 
+    def _collect_str_literal_seq_locals(self, stmts: List[Dict[str, Any]]) -> Dict[str, list]:
+        """faithful for-over-literal (self-tcb-reduction): locals assigned a Tuple/List/Array
+        literal whose elements are ALL string constants (`a = ("0x", "0o", …)`) → {name:
+        [String-elt IR nodes]}. Lets a `for p in a` loop over the emitter's OWN unmodeled
+        Python string-tuple/list literal materialise a real `seq string` (Seq.cons chain,
+        cert-free over Why3 Seq theory) and iterate it faithfully — bound `Seq.length`,
+        element `Seq.get` — instead of the opaque `iter_length`/`iter_get` int fallback
+        (which int-erases the literal to `0` and leaves the loop's `variant` term unbound).
+        Gated on an ALL-string-constant literal → corpus-inert (no corpus program binds or
+        iterates a string-literal tuple/list; the modeled-array corpus loops are untouched)."""
+        found: Dict[str, list] = {}
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                tgt = s.get("target", "")
+                if (isinstance(val, dict)
+                        and val.get("type") in ("Tuple", "ArrayLit", "ListLit") and tgt):
+                    elts = val.get("elts", [])
+                    strs = [e for e in elts
+                            if isinstance(e, dict) and e.get("type") == "String"
+                            and isinstance(e.get("value"), str)]
+                    if elts and len(strs) == len(elts):
+                        found[tgt] = strs
+            for k in ("body", "orelse"):
+                if k in s:
+                    found.update(self._collect_str_literal_seq_locals(s[k]))
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found.update(self._collect_str_literal_seq_locals(h.get("body", [])))
+        return found
+
     def _split_tuple_slots(self, inner: str) -> List[str]:
         """Split a WhyML tuple body (`string, map string (option hval)`) on the
         TOP-LEVEL commas only — a nested `(…)` (a `map`'s codomain, or a nested

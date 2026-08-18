@@ -197,12 +197,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         collection operand may arrive already-dereffed."""
         return f"!{expr.lstrip('!')}" if expr.startswith("!") else expr
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _coerce_to_int(self, whyml_str: str) -> str:
-        return ""
+        if whyml_str.startswith('"') and whyml_str.endswith('"'):
+            return str(stable_hash(whyml_str))
+        stripped = whyml_str.strip()
+        array_prefixes = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
+                          "(list_new_arr ", "(any_1 ", "(all_1 ")
+        for prefix in array_prefixes:
+            if stripped.startswith(prefix):
+                return "0"
+        map_prefixes = ("(map_update_some ", "(map_update_none ",
+                        "(const (None: option int)")
+        for prefix in map_prefixes:
+            if stripped.startswith(prefix):
+                return "0"
+        if "," in whyml_str and whyml_str.startswith("(") and whyml_str.endswith(")"):
+            return str(stable_hash(whyml_str))
+        return whyml_str
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

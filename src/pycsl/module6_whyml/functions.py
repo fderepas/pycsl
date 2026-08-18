@@ -318,6 +318,9 @@ class FunctionEmissionMixin:
             self._compound_key_params[self._compound_map_getter["key_param"]] = (
                 self._compound_map_getter["key_whyml"])
         self._array_locals = set()
+        # faithful for-over-literal (self-tcb-reduction): {name: [String-elt IR]} for locals
+        # bound to an all-string tuple/list literal (populated per-body in `_typed_local_vars`).
+        self._str_literal_seq_locals = {}
         # arity2.md (2b — operation selection): array locals that the
         # declaration path types correctly (via `_collect_array_var_assigns`'
         # call/transitive arm) but that the per-operation `is_array` sites must

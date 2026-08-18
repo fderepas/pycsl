@@ -1699,6 +1699,42 @@ class PreambleEmissionMixin:
         rec(func.get("body", []))
         return found[0]
 
+    @staticmethod
+    def _body_uses_str_literal_for(body: List[Dict[str, Any]]) -> bool:
+        """True if `body` has a `for` loop over an ALL-string tuple/list literal — DIRECT
+        (`for k in ("body", "orelse")`) or a Var bound to one — i.e. the pattern the
+        `_classify_iterable` recogniser materialises as a `seq string` (needing `use
+        seq.Seq`). Import-scan twin of `_str_lit_seq_elts` + `_collect_str_literal_seq_locals`."""
+        def _is_str_lit(v: Any) -> bool:
+            return (isinstance(v, dict)
+                    and v.get("type") in ("Tuple", "ArrayLit", "ListLit")
+                    and bool(v.get("elts"))
+                    and all(isinstance(e, dict) and e.get("type") == "String"
+                            and isinstance(e.get("value"), str) for e in v.get("elts", [])))
+        def rec(stmts: List[Any], litvars: Set[str]) -> bool:
+            # First pass: collect locals bound to an all-string literal at this level.
+            for s in stmts:
+                if isinstance(s, dict) and s.get("stmt") == "Assign" and _is_str_lit(s.get("value")):
+                    if s.get("target"):
+                        litvars = litvars | {s.get("target")}
+            for s in stmts:
+                if not isinstance(s, dict):
+                    continue
+                if s.get("stmt") == "For":
+                    it = s.get("iter", {})
+                    if _is_str_lit(it) or (isinstance(it, dict) and it.get("type") == "Var"
+                                           and it.get("name") in litvars):
+                        return True
+                for k in ("body", "orelse"):
+                    if isinstance(s.get(k), list) and rec(s[k], litvars):
+                        return True
+                if s.get("stmt") == "Try":
+                    for h in s.get("handlers", []):
+                        if rec(h.get("body", []), litvars):
+                            return True
+            return False
+        return rec(body or [], set())
+
     def _scan_preamble_needs(self, functions: List[Dict[str, Any]],
                              all_bodies: List[Any]) -> Dict[str, Any]:
         """Scan all function bodies once to collect feature flags for preamble emission."""
@@ -1984,7 +2020,13 @@ class PreambleEmissionMixin:
                  for t in f.get("param_list_nested_elem", {}).values()) \
           or any(f.get("vararg_str_param") for f in functions) \
           or bool(getattr(self, "_module_str_list_constants", None)) \
+          or any(self._body_uses_str_literal_for(body) for body in all_bodies) \
           or self._uses_stmt_ir()
+        # ^ faithful for-over-literal (self-tcb-reduction): a `for k in ("body", "orelse")`
+        #   / `for p in <str-literal local>` loop materialises a `seq string` (Seq.cons/get/
+        #   length), so `use seq.Seq` must be present. Scoped to the SAME all-string-literal
+        #   pattern the `_classify_iterable` recogniser fires on → no corpus program matches
+        #   (byte-identical; verified by the full-corpus .mlw sweep).
         # ^ W8 (ii): a `*vals: str` vararg param is a `seq string` -> `use seq.Seq`.
         #   Module5 records it only for a str-ANNOTATED vararg, so no corpus function
         #   triggers it (byte-identical).

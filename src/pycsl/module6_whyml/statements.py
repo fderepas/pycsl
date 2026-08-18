@@ -3700,6 +3700,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         self._option_tuple_unpack_targets = self._collect_option_tuple_unpack_targets(body_stmts)
         # 07-0903 W1: locals bound to a list/array of tuples → element arity.
         self._tuple_array_locals.update(self._collect_tuple_array_locals(body_stmts))
+        # faithful for-over-literal (self-tcb-reduction): locals bound to an ALL-string
+        # tuple/list literal → the String-elt IR nodes, so `for p in a` materialises a real
+        # `seq string` and iterates faithfully (see `_collect_str_literal_seq_locals`).
+        self._str_literal_seq_locals = self._collect_str_literal_seq_locals(body_stmts)
         # arity2.md (2b): expose the array-local set to the per-operation
         # `is_array` sites WITHOUT touching `_array_locals` (declaration path).
         # Reset per body — `_typed_local_vars` is called once per `_emit_body_code`.
