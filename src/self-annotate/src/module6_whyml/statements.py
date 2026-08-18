@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, TypedDict
 
 from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name, stable_hash
 from module6_whyml.ir_scanner import IRScanner
@@ -17,6 +17,19 @@ from ir_schema import (
     LabelStmt, RaiseStmt, ProofAssertStmt, AssertStmt,
     PassStmt, BreakStmt, ContinueStmt, OpaqueStmt,
 )
+
+# Bool-typed BinOp operators — RHS of any of these is a Python bool.
+_BOOL_BINOPS = frozenset({'==', '!=', '<', '<=', '>', '>=', 'is', 'is not', 'in', 'not in'})
+
+
+class ValIRBoolView(TypedDict):
+    """Closed-key view of the two IR-expression keys `_val_is_bool` reads
+    (`type`, `op` — both `str`). Runtime-inert (a TypedDict IS a dict), it
+    monomorphizes to a native WhyML record so `val_ir.get("type")` lowers to the
+    field read `val_ir.py_type` and the literal comparisons route through
+    `str_eq_op`, not an opaque int-hash op."""
+    type: str
+    op: str
 
 # ---------------------------------------------------------------------------
 # Phase C step 2 (ir-schema-spec.md §4.1): the emitter's self-annotate model
@@ -268,10 +281,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _first_assign_kind(self, val: str, val_ir: "ExprIR") -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
-    def _val_is_bool(self, val_ir: "ExprIR") -> bool:
-        return True
+    #@ assigns \nothing
+    @staticmethod
+    def _val_is_bool(val_ir: ValIRBoolView) -> bool:
+        vt = val_ir.get("type", "")
+        if vt in ("Compare", "BoolOp"):
+            return True
+        if vt == "UnaryOp" and val_ir.get("op") == "not":
+            return True
+        if vt == "BinOp" and val_ir.get("op") in _BOOL_BINOPS:
+            return True
+        return False
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
