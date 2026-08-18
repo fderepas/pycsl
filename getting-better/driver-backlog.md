@@ -3002,3 +3002,17 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
 - 5 record-returning stubs (_act_guard/parse_contract/parse_node_contracts/_happy_predicate/_canonical_preservation_ensures). ALL — incl. nominal "single-record" ones — bottom out on the SAME certificate-gated CSL-node variant ADT (unify Var/Number/FieldSubscript/Old/BinOp/CSLBool/Forall/Ensures, matched-on). NO autonomously-buildable single-node frontier. Spiked _canonical_preservation_ensures -> L3-tc ✗ (string-vs-int at the record construction). = review-gated / co-landing-certificate build. REFUTED before building the ADT (coupling rule).
 - The Module5 `-> int` methods return Dict[str,Any] = the heterogeneous IR-dict value-model wall (separate deep boundary), NOT this lever.
 - AUTONOMOUS FLOOR CONFIRMED at 690 for cert-free/cheap work. Remaining = certificate-gated (return-type CSL-node variant; likely class-const-dict/self-state co-cert) + fundamental limits (dict-mutation-immutable-emit_ir; heterogeneous Dict[str,Any]) + net-negative TCB giants. Probing pure_ast (220 stubs) as the final frontier confirmation.
+
+## pure_ast.py probe: no_cheap_remaining — raw-ast UNTYPED-PARAM boundary (final frontier confirmation)
+- 220 stubs / 262 defs. ROOT: LIVE pure_ast.py has 0 typed params across all 281 defs (0% annotated) -> every mirror param int-erases -> string/list/node body type-mismatches (L3-tc ✗) OR pass-through is a vacuous facade. ~100% blocked. Compounded by node-consumption (~200) + self-state mutation (~180: _Parser cursor + _Unparser self._source).
+- Effectively 0% autonomously convertible. Needs a NEW param-type-inference capability (un-annotated string params) = deliberate build, corpus-perturbation risk.
+
+## ===== AUTONOMOUS CERT-FREE FLOOR CONFIRMED AT 690 (2026-08-18) =====
+Exhaustive measured frontier (all files probed this run). Every remaining vein is a RISKY-BRICK deliberate build (modelling/certificate — FLAG per safe-vs-risky doctrine, do NOT auto-dispatch) or a fundamental/net-negative boundary:
+- return-type-lowering: needs a CSL-node VARIANT ADT + co-landing Rocq/Lean CERTIFICATE (review-gated). [5 stubs]
+- pure_ast: needs param-type-inference capability (corpus-perturbation risk). [~220 stubs, ~10 string-helpers the cheap sub-vein]
+- 9 for-string stubs: multi-blocker (getattr-nondeclared + while-fixpoint + .values()-walker-in-self-state + class-const-dict + self-state-mutation) — no single build converts one.
+- Module5 -> int Dict methods: heterogeneous Dict[str,Any] IR-value-model wall.
+- dict-mutation-on-immutable-emit_ir (ir_inline): FUNDAMENTAL ADT limit (leave-trusted).
+- TCB-giant dispatchers: net-marker-negative.
+SESSION FINAL: 712->690 (22 conv + 3 emitter caps [kind_of-tailoring/absurd-terminal-unpack/for-over-string-literal] + FunctionDef-node wall + 3 unsound-catch reverts). Ledger held 3 throughout. All safe byte-gated bricks drained; next phase = flagged risky bricks needing authorization.
