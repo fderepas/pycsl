@@ -2920,3 +2920,9 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
   - SKIP visit_Expr/For/FunctionDef/Module (per-class visitors, NOT true duplicates — different bodies).
   - CAVEAT: _handle_return_stmt = frame-risky ([[trusted_val_frame_unsoundness]]); measure each (green-twin body must port to the trusted location's context; some may need kind_of the statements mirror lacks). MEASURE non-vacuity per method.
 - Session tally: 712->703 (9 conv) + 3 unsound-catch reverts. NEXT: batch-convert clean statements.py cross-mixin duplicates (one changed-emission set = statements+Transpiler).
+
+## 4 cross-mixin duplicates CONVERTED (301f5a7c, 703->699) — BROKE BELOW 700
+- _dv_store_value/_field_label (from expressions.py) + _field_type_for/_resolve_effective_ghost_type (from types.py). Pure-mirror, all non-vacuous (emit-verified), 2 mirrors SUCCESS, byte-diff 0, no axiom.
+- Skipped _field_type_of/_first_assign_kind (need kind_of, dropped by StatementEmissionMixin tailoring).
+- Session tally: 712->699 (13 conv) + 3 unsound-catch reverts.
+- NEXT cross-mixin-duplicate batches: stmt_control_flow.py {_bool_ir_to_int_wrap (green types), _materialize_bridge/_materialize_str_bridge (green statements)}; expr_ghost_collections.py {_deref (green expressions)}.
