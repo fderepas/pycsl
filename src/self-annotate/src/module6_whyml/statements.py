@@ -80,6 +80,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _in_spec: int = 0
     # resync-campaign.md R0.2: state fields the re-ported (current-emitter) bodies read.
     _current_self_type: str = ""
+    _record_types: Dict[str, Any] = None
     _heap_var: str = ""
     _todict_aliases: Dict[str, str] = None
     _getattr_self_dict_aliases: Dict[str, str] = None
@@ -234,10 +235,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _is_emit_ir_expr(self, ir: "ExprIR") -> bool:
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
+    #@ assigns \nothing
     def _field_label(self, record_lower: str, field: str) -> str:
-        return ""
+        """WhyML label for a record field. Ambiguous names (shared by >1
+        record, e.g. an inherited field) are qualified `<record>_<field>` to
+        avoid Why3's global field-label collision; unique names stay bare."""
+        base = whyml_ident(field)
+        if field in getattr(self, "_ambiguous_fields", set()) and record_lower:
+            return f"{whyml_ident(record_lower)}_{base}"
+        return base
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
@@ -249,10 +257,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _coerce_to_int(self, val: str) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
-    def _field_type_for(self, obj: str, field: str) -> str:
-        return ""
+    #@ assigns \nothing
+    def _field_type_for(self, obj: str, field: str) -> Optional[str]:
+        if obj != "self":
+            return None
+        cls = self._current_self_type
+        if not cls:
+            return None
+        for info in self._record_types.values():
+            if info.get("whyml_name") == cls:
+                return info.get("field_types", {}).get(field)
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
@@ -295,10 +312,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return True
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
+    #@ assigns \nothing
     def _resolve_effective_ghost_type(self, target: str, op: str, ghost_type: str) -> str:
-        return ""
+        if ghost_type == "int" and op != "=":
+            if target in self._ghost_list_vars:
+                return "ghost_list"
+            if target in self._ghost_set_vars:
+                return "ghost_set"
+            if target in self._ghost_dict_vars:
+                return "ghost_dict"
+            if target in self._ghost_tuple_vars:
+                return f"tuple{self._ghost_tuple_vars[target]}"
+            if target in self._ghost_string_vars:
+                return "string"
+        return ghost_type
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
@@ -315,10 +344,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _maybe_emit_no_exception_assert(self, kind: tuple, args: List[str]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
-    def _dv_store_value(self, nu: str, val_expr: str) -> str:
-        return ""
+    #@ assigns \nothing
+    def _dv_store_value(self, nu: Optional[str], val_expr: str) -> str:
+        """The value stored at `d[k] = val`: a `seq int` snapshots the array
+        (ownership-discipline §3), a string/nested-map value passes through
+        unhashed, otherwise int-coerce."""
+        if nu == "seq int":
+            self._add_abstract_op(
+                "val function array_to_seq (a: array int) : seq int\n"
+                "    ensures { Seq.length result = Array.length a }")
+            return f"(array_to_seq {self._array_coerce_arg(val_expr)})"
+        if nu == "string" or nu == "emit_ir" or (nu and nu.startswith("map ")):
+            # cap-5: an emit_ir value (`kv[fname] = v`, v a value IR node) passes through
+            # unhashed, like the string / nested-map cases.
+            return val_expr
+        return self._coerce_to_int(val_expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
