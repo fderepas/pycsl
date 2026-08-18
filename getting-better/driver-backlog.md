@@ -2967,3 +2967,9 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
   3. **Optional-return control-flow fallthrough** (CONTAINED): an `if x is None: return None` guard + unconditional else-return emits a redundant match-None `()` branch that mistypes against the synthesized Return__union type. Lands _recognize_field_decode_idiom (closest miss) + helps other Optional-returners. NARROW emitter control-flow fix.
 - Also: class-const string-dict int-erasure (self._BITWISE_FN_NAMES[op] -> int, Gate-C facade); tuple token/return int-erasure; missing sibling helpers + nested-def closures.
 - PURSUING #3 (contained) next; #1 iteration-protocol = documented next BIG build.
+
+## Optional-return absurd fix + _recognize_field_decode_idiom (3474406c, 692->691) — emitter cap #2
+- _emit_option_tuple_unpack: `| None -> absurd` (not `()`) when rest terminates with Return/Raise; None-arm provably dead in the is-None else. Corpus byte-diff 0, cert-free. Banks the fix for the Optional-return + terminal-unpack idiom class.
+- SESSION: 712->691 (21 conv + 2 emitter caps [kind_of-tailoring, absurd-terminal-unpack] + 1 wall + 3 unsound reverts). Ledger 3.
+- NEXT: (a) low-risk = census+drain other now-unblocked Optional-returning mirror stubs (absurd-fix payoff); (b) BIG lever = iter_length/iter_get iteration protocol (~30 stubs); (c) return-type-lowering.
+- Pursuing (a) census+drain first.
