@@ -2910,3 +2910,13 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
   mirror emission (gated; reuses the accessors already emitted+certified in the expressions mirror). Unblocks the statements-mirror
   node-reader predicates: _val_is_bool, _is_emit_ir_expr, _is_string_expr, _field_type_of, _first_assign_kind, ... Deliberate build,
   measure-first (cert-free? byte-inert? param-retype needed?).
+
+## _val_is_bool CONVERTED (66b7a495, 704->703) + CROSS-MIXIN-DUPLICATE VEIN found
+- _val_is_bool: pure-mirror cross-mixin twin (green in types.py mirror); ValIRBoolView record (cert-free, non-vacuous real field reads). 2 mirrors SUCCESS, byte-diff 0.
+- VEIN: 17 cross-mixin-duplicate candidates (a method TRUSTED in one mirror file but already GREEN/converted in another — copy the green twin's verbatim body + module-level helpers). Both _str_operand_to_int + _val_is_bool were this. Rich Phase-1 drain.
+  - statements.py cluster (green twin in expressions/types): _dv_store_value, _field_label, _field_type_for, _field_type_of, _first_assign_kind, _resolve_effective_ghost_type, _array_coerce_arg, _handle_return_stmt, _stmts_to_whyml.
+  - stmt_control_flow.py: _bool_ir_to_int_wrap (green types), _materialize_bridge/_materialize_str_bridge (green statements).
+  - expr_ghost_collections.py: _deref (green expressions).
+  - SKIP visit_Expr/For/FunctionDef/Module (per-class visitors, NOT true duplicates — different bodies).
+  - CAVEAT: _handle_return_stmt = frame-risky ([[trusted_val_frame_unsoundness]]); measure each (green-twin body must port to the trusted location's context; some may need kind_of the statements mirror lacks). MEASURE non-vacuity per method.
+- Session tally: 712->703 (9 conv) + 3 unsound-catch reverts. NEXT: batch-convert clean statements.py cross-mixin duplicates (one changed-emission set = statements+Transpiler).
