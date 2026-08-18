@@ -2936,3 +2936,10 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
   - _stmts_to_whyml: no green twin (false positive).
 - BANKED LEVERS THIS SESSION: (1) py_functiondef_node typed model; (2) CSLNode->"ExprIR" field-retype + base-class field-hoist; (3) cert-free construction-only emit_ir leaf (kind_of/size wildcard arms, tight gate, no per-value law); (4) cross-mixin-duplicate = copy the green twin verbatim (pure-mirror, byte-diff 0 by construction); (5) closed-key *View TypedDict -> WhyML record (cert-free, not variant ADT). KEY RIGOR: re-verify EVERY delegate whole-file L3-tc claim by stashing to HEAD (delegates lied 3x); inspect emitted recognizers for non-vacuity (val:int facade vs let-function real).
 - NEXT: kind_of-tailoring build (Phase-2 deliberate) OR fresh probe of other files (Module2_Parser 34, Module3_Weaver 32, pure_ast 220).
+
+## Parser/Weaver probe: no_cheap_remaining — CHEAP FRONTIER EXHAUSTED (count 694)
+- Module2_Parser (34) + Module3_Weaver (32): NO cheap wins. Dominant blocker = RETURN-TYPE-LOWERING to int (node/list returns carry no annotation or `-> CSLNode`, both erase to opaque int -> body's record/seq/cslbool return mismatches). _act_guard is non-vacuous (real BinOp/CSLBool construction over act.clauses) but returns CSL-node RECORDS the mirror models as int (NOT a simple return-retype).
+- CHEAP FRONTIER now largely exhausted across all measured files. Two DELIBERATE emitter builds remain (both risky bricks, funded-window-pursuable):
+  1. kind_of-TAILORING: extend _TAILOR_OPAQUE_MIRROR_CLASSES so StatementEmissionMixin KEEPS the emit_ir accessor keystone (kind_of/op_of) when a kind_of-reading node-reader is present. Unlocks _field_type_of, _first_assign_kind + statements-mirror node-readers. MUST gate byte-inert.
+  2. RETURN-TYPE-LOWERING: model node/list method returns (currently opaque int) as their real type. Unlocks _act_guard + Module2/Module3 node-returning stubs. (partially started: _synthesize_overload_guard used materialize_ir for List returns.)
+- Pursuing (1) kind_of-tailoring next (more contained). If it can't gate byte-inert -> CERTIFIED-BOUNDARY.
