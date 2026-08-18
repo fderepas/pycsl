@@ -2901,3 +2901,12 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
   the getattr blocker -> multi-device deliberate build, NOT cheap. Left \trusted.
 - _csl_* family: 3 converted (_csl_not_in/_csl_contract_wrapper/_csl_proj), _csl_list_to_ir + _csl_in refuted, _csl_to_ir giant. VEIN DRAINED.
 - NEXT: fresh frontier probe over module6 emitter mirrors (expressions.py 39 stubs, statements.py 37) — likely reuse the emit_ir models + the banked construction-only-leaf / field-retype / base-hoist levers.
+
+## _str_operand_to_int CONVERTED (ef8e78d1, 705->704) — cross-mixin twin of green expressions.py copy
+- Pure-mirror (statements.py only); made IDENTICAL to already-green expressions.py _str_operand_to_int (assigns \nothing precedent).
+  Non-vacuous (whyml_str drives all str ops). 2 mirrors SUCCESS, byte-diff 0 by construction, no axiom.
+- Session tally: 712->704 (8 conv) + 3 unsound-catch reverts. [deadline 08-21 22:09 CEST]
+- NEXT LEVER (probe-identified, unlocks a CLUSTER): wire the emit_ir accessor keystone (kind_of/op_of/is_X) into the STATEMENTS
+  mirror emission (gated; reuses the accessors already emitted+certified in the expressions mirror). Unblocks the statements-mirror
+  node-reader predicates: _val_is_bool, _is_emit_ir_expr, _is_string_expr, _field_type_of, _first_assign_kind, ... Deliberate build,
+  measure-first (cert-free? byte-inert? param-retype needed?).
