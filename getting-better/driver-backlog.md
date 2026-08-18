@@ -2980,3 +2980,20 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
 - 3 BANKED EMITTER CAPABILITIES this session (all corpus-byte-inert, cert-free): (1) deferred-opaque-theory splice (kind_of into perf-tailored mirror); (2) absurd-for-terminal-option-unpack; (3) for-over-string-literal -> seq materialization.
 - PAYOFF: ~31 functions had the for-over-string-literal blocker removed. 30 direct-literal (e.g. _collect_mutations/walk/_scan/find_record_vars/has_in_loop_return/uses_for/collect_user_exceptions) still need body-port + OTHER-construct check (dict-mutation/comprehension/nested-def may still block). Draining next. NOT covered: comprehension-for (2) = separate lowering.
 - Remaining big lever after this drain: return-type-lowering (node-returners).
+
+## for-over-string-literal cluster: no_cheap_remaining — DEEP MULTI-BLOCKER FLOOR at 690
+- Iteration-protocol realized payoff = _coerce_to_int only (the named candidates _collect_mutations/find_record_vars/etc. are in ir_scanner.py, ALREADY fully converted, 0 trusted). Capability banked reusable regardless.
+- 9 remaining trusted stubs with the for-string pattern, EACH with an ADDITIONAL unbuilt blocker (multi-blocker frontier):
+  - getattr-on-nondeclared-field: _collect_array_var_assigns, _handle_join_call, _emit_preamble_uses
+  - while-fixpoint (variant-decrease E-matching boundary): _collect_array_var_assigns
+  - .values()/.items() recursive walkers: _detect_seq_promotion, _emit_preamble_uses, _precompute_axiom_logic_funcs, _scan_preamble_needs
+  - class-const-dict subscript (_AXIOM_REGISTRY/_AXIOM_FUNCTIONS): _precompute_axiom_logic_funcs, _scan_preamble_needs
+  - self-state MUTATION: _precompute_axiom_logic_funcs, _detect_seq_promotion
+  - dict-mutation on IMMUTABLE emit_ir ({**st}/dict(st)/st.items()): ir_inline.py::inline_stmts
+  - TCB-giant dispatcher: _emit_body_code (377 lines), _handle_join_call
+- DEEP-FRONTIER FLOOR: no single contained lever converts a remaining stub (each needs MULTIPLE capabilities). Remaining deliberate builds (each substantial, some cert-gated/fundamental):
+  1. return-type-lowering (node/union returns; _act_guard likely hits variant-ADT cert wall)
+  2. .values()/.items()-walker recognizer in these self-state contexts (banked in other contexts per wall2_walkdicts_consumers, but here co-blocked by class-const-dict + self-state mutation)
+  3. class-const-dict subscript modeling
+  4. dict-mutation-on-immutable-emit_ir = FUNDAMENTAL ADT limit (leave-trusted boundary)
+- SESSION: 712->690 (22 conv + 3 emitter caps + 1 wall + 3 unsound reverts). Ledger 3 throughout.
