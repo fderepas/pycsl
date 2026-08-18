@@ -2997,3 +2997,8 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
   3. class-const-dict subscript modeling
   4. dict-mutation-on-immutable-emit_ir = FUNDAMENTAL ADT limit (leave-trusted boundary)
 - SESSION: 712->690 (22 conv + 3 emitter caps + 1 wall + 3 unsound reverts). Ledger 3 throughout.
+
+## return-type-lowering: REFUTE / CERTIFIED-BOUNDARY (count 690, tree clean)
+- 5 record-returning stubs (_act_guard/parse_contract/parse_node_contracts/_happy_predicate/_canonical_preservation_ensures). ALL — incl. nominal "single-record" ones — bottom out on the SAME certificate-gated CSL-node variant ADT (unify Var/Number/FieldSubscript/Old/BinOp/CSLBool/Forall/Ensures, matched-on). NO autonomously-buildable single-node frontier. Spiked _canonical_preservation_ensures -> L3-tc ✗ (string-vs-int at the record construction). = review-gated / co-landing-certificate build. REFUTED before building the ADT (coupling rule).
+- The Module5 `-> int` methods return Dict[str,Any] = the heterogeneous IR-dict value-model wall (separate deep boundary), NOT this lever.
+- AUTONOMOUS FLOOR CONFIRMED at 690 for cert-free/cheap work. Remaining = certificate-gated (return-type CSL-node variant; likely class-const-dict/self-state co-cert) + fundamental limits (dict-mutation-immutable-emit_ir; heterogeneous Dict[str,Any]) + net-negative TCB giants. Probing pure_ast (220 stubs) as the final frontier confirmation.
