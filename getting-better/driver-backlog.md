@@ -2952,3 +2952,9 @@ FunctionDef frontier = deliberate/flagged builds, no more quick wins. Loop conti
 - Session tally: 712->693 (19 conv + 1 emitter-cap build) + 3 unsound-catch reverts + 1 wall broken.
 - UNLOCKED: statements node-reader cluster now kind_of-reachable: _first_assign_kind, _rhs_yields_array, _rhs_yields_map
   (green twins types.py, cross-mixin duplicates). Draining next.
+
+## kind_of-cluster DRAINED: _first_assign_kind + _rhs_yields_array/_map (31b4ad6f, 693->692)
+- Pure-mirror, non-vacuous kind_of reads, 2 mirrors SUCCESS, byte-diff 0. Emitted recursion-stub vals take the real node (twin convention).
+- SESSION MILESTONE: 712->692 (20 conversions + 1 emitter-cap build [kind_of deferred-opaque-theory] + 1 wall broken [FunctionDef-node] + 3 unsound-catch reverts). Ledger held 3 throughout. Deadline 08-21 22:09 CEST.
+- BANKED EMITTER CAPABILITY: deferred-opaque-theory (Module6_WhyMLTranspiler) splices the full emit_ir accessor theory into a perf-tailored mirror IFF a node-reader references a dropped accessor. Enables node-readers in ANY _TAILOR_OPAQUE_MIRROR_CLASSES file (currently only StatementEmissionMixin).
+- Remaining statements.py: string-emitters blocked by B1-B4 semantic ceiling (f-string hashing / trusted-sibling returns / self-mutation) = NOT cheap. Next frontier options: return-type-lowering build (unlocks _act_guard + Module2/3 node-returners), or fresh cross-mixin re-scan.
