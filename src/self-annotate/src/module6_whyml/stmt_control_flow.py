@@ -1,10 +1,23 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
 from dataclasses import dataclass
 from module6_whyml.identifiers import whyml_ident, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
 from ir_schema import ReturnStmt, IfStmt, WhileStmt, ForStmt, TryStmt, MatchStmt
 def mutable_state(cls): return cls
+
+
+class BoolWrapIRView(TypedDict):
+    """Closed-key view of the three IR-expression keys `_bool_ir_to_int_wrap`
+    reads (`type`, `op`, `func` — all `str`). Runtime-inert (a TypedDict IS a
+    dict); `Optional[BoolWrapIRView]` monomorphizes to `option <record>` (the
+    boundary-1 G1 option-of-record projection), so — after the `if val_ir is
+    None` guard — `val_ir.get("type")` projects the field from the `Some` arm
+    (`match val_ir with Some _r -> _r.py_type | None -> ""`) and the literal
+    comparisons route through `str_eq_op`, not an opaque int-hash op."""
+    type: str
+    op: str
+    func: str
 ""  # pycsl
 
 
@@ -67,27 +80,55 @@ class ControlFlowStmtMixin:
     # StatementEmissionMixin / expressions.py files the mixin composes with at runtime). Typed
     # `-> str` so the ported control-flow bodies compose their strings; effect-free registrar
     # helpers (`*_bridge`) are `assigns \nothing`.
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _materialize_bridge(self) -> None:
-        return
+        """07-1705-rev4 P4: emit the faithful seq→array bridge val (fresh result, no
+        region link), used where a seq-modelled value crosses into `array int` code."""
+        self._add_abstract_op(
+            "val materialize (s: seq int) : array int\n"
+            "    ensures { Array.length result = Seq.length s }\n"
+            "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _materialize_str_bridge(self) -> None:
-        return
+        """str-list-elements: the STRING analogue of `_materialize_bridge` — bridges a
+        `seq string` (a growable string list) to a fresh `array string` at the return
+        slot, so a list of strings returns as `array string`."""
+        self._add_abstract_op(
+            "val materialize_str (s: seq string) : array string\n"
+            "    ensures { Array.length result = Seq.length s }\n"
+            "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
     def _seq_init_expr(self, val_ir: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
-    def _bool_ir_to_int_wrap(self, val: str, val_ir: "ExprIR") -> str:
-        return ""
+    #@ assigns \nothing
+    def _bool_ir_to_int_wrap(self, val: str, val_ir: Optional[BoolWrapIRView]) -> str:
+        if val_ir is None:
+            return val
+        t = val_ir.get("type", "")
+        op = val_ir.get("op", "")
+        is_bool_source = (
+            (t == "Compare")
+            or (t == "BoolOp" and op in ("and", "or"))
+            or (t == "UnaryOp" and op == "not")
+            or (t == "BinOp" and op in ("==", "!=", "<", ">", "<=", ">=", "in", "not in"))
+            or (t == "Call" and val_ir.get("func", "") in (
+                "isinstance", "hasattr", "any", "all"))
+            or (t in ("Exists", "Forall", "SetMem", "SetSubset", "SetEq",
+                      "MapEq", "HasKey"))
+        )
+        if is_bool_source:
+            return f"(if {val} then 1 else 0)"
+        return val
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
