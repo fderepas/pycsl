@@ -3016,3 +3016,11 @@ Exhaustive measured frontier (all files probed this run). Every remaining vein i
 - dict-mutation-on-immutable-emit_ir (ir_inline): FUNDAMENTAL ADT limit (leave-trusted).
 - TCB-giant dispatchers: net-marker-negative.
 SESSION FINAL: 712->690 (22 conv + 3 emitter caps [kind_of-tailoring/absurd-terminal-unpack/for-over-string-literal] + FunctionDef-node wall + 3 unsound-catch reverts). Ledger held 3 throughout. All safe byte-gated bricks drained; next phase = flagged risky bricks needing authorization.
+
+## CERTIFICATE-GATED BUILD #1: pyast_stmt PSPass/PSExprEllipsis + _is_overload_stub (074fb468, 690->689)
+- FIRST certificate-gated conversion. EXTENDED the already-certified pyast_stmt (NOT a new bespoke ADT) with 2 nullary ctors + discriminants + faithfulness lemmas in Phase2e_PyAstStmt.v (Rocq) + PyAstStmt.lean (Lean).
+- SUPERVISOR-SELF-RE-AUDITED the ledger (did NOT trust the delegate): Rocq `Print Assumptions` 57/57 Closed/zero-axiom (coqc exit 0); Lean `#print axioms` = {propext, Quot.sound} standard-kernel-only, no 4th axiom (lean exit 0). LEDGER 3. This is the DECISIVE gate for a trust-base change — always run coqc + Print Assumptions + lake/lean + #print axioms MYSELF.
+- _is_overload_stub non-vacuous (is_pass_node/is_expr_ellipsis_node over psl_nth 0 (func_body_ast node) + decorator scan). Gated _uses_is_overload_stub -> corpus byte-diff 0. 4/4 changed-emission mirrors SUCCESS.
+- BANKED PATTERN (reusable): a CERTIFICATE-FLAGGED wall breaks by EXTENDING an existing certified ADT (reuse the Phase2 framework, mirror the *_faithful lemma pattern, re-run BOTH axiom audits yourself) — axiom-free, ledger 3. Distinct from a NEW-ADT certificate (bigger; return-type-lowering's CSL-node variant needs that).
+- SESSION: 712->689 (23 conv + 3 emitter caps + 1 CERT EXTENSION + 1 wall + 3 unsound reverts). Ledger 3 throughout.
+- NEXT certificate-gated targets: return-type-lowering (needs a NEW CSL-node variant ADT + NEW Phase2-style cert — larger build). Or re-scan for cheap follow-ons the cert extension may have unlocked.
