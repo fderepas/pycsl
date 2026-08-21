@@ -6425,6 +6425,24 @@ class PreambleEmissionMixin:
                 "    end",
                 "  val function decorator_has_name_prog (target: string) (l: irlist) : bool",
                 "    ensures { result = decorator_has_name target l }",
+            ] + ([
+                "  (* decorator_has_name_or_attr (self-tcb-reduction M5, `_is_overload_stub`):"
+                " the `@overload` decorator scan matches a decorator that is EITHER a bare"
+                " `Name(\"overload\")` OR an `Attribute(attr=\"overload\")` — the live body's"
+                " `isinstance(d, ast.Name) and d.id == t` OR `isinstance(d, ast.Attribute) and"
+                " d.attr == t`. `name_of` returns IrVar's name for a Name AND IrAttr's attr for"
+                " an Attribute, so `(is_var d || is_attribute d) && name_of d = target` is the"
+                " FAITHFUL Name-or-Attribute test (the `bases_has_name` device verbatim). Reuses"
+                " existing discriminants, NO new ctor. Gated on `_uses_is_overload_stub`. *)",
+                "  function decorator_has_name_or_attr (target: string) (l: irlist) : bool =",
+                "    match l with",
+                "    | ILNil -> false",
+                "    | ILCons d t -> if (is_var d || is_attribute d) && name_of d = target"
+                " then true else decorator_has_name_or_attr target t",
+                "    end",
+                "  val function decorator_has_name_or_attr_prog (target: string) (l: irlist) : bool",
+                "    ensures { result = decorator_has_name_or_attr target l }",
+            ] if self._uses_is_overload_stub() else []) + [
                 "",
             ]) if self._uses_py_functiondef_node() else []),
             *(([
@@ -6537,6 +6555,10 @@ class PreambleEmissionMixin:
                 "    | PSAnnAssign emit_ir emit_ir emit_ir",
                 "    | PSClassDef string",
                 "    | PSFunctionDef string",
+            ] + ([
+                "    | PSPass",
+                "    | PSExprEllipsis",
+            ] if self._uses_is_overload_stub() else []) + [
                 "    | PSOther",
                 "  let function stmt_node_kind_of (s: pyast_stmt) : string =",
                 "    match s with",
@@ -6544,6 +6566,10 @@ class PreambleEmissionMixin:
                 "    | PSAnnAssign _ _ _ -> \"AnnAssign\"",
                 "    | PSClassDef _ -> \"ClassDef\"",
                 "    | PSFunctionDef _ -> \"FunctionDef\"",
+            ] + ([
+                "    | PSPass -> \"Pass\"",
+                "    | PSExprEllipsis -> \"ExprEllipsis\"",
+            ] if self._uses_is_overload_stub() else []) + [
                 "    | PSOther -> \"Other\"",
                 "    end",
                 "  let predicate is_assign_node (s: pyast_stmt) ="
@@ -6554,6 +6580,12 @@ class PreambleEmissionMixin:
                 " match s with PSClassDef _ -> true | _ -> false end",
                 "  let predicate is_functiondef_node (s: pyast_stmt) ="
                 " match s with PSFunctionDef _ -> true | _ -> false end",
+            ] + ([
+                "  let predicate is_pass_node (s: pyast_stmt) ="
+                " match s with PSPass -> true | _ -> false end",
+                "  let predicate is_expr_ellipsis_node (s: pyast_stmt) ="
+                " match s with PSExprEllipsis -> true | _ -> false end",
+            ] if self._uses_is_overload_stub() else []) + [
                 "  lemma is_assign_faithful : forall s: pyast_stmt."
                 " is_assign_node s <-> stmt_node_kind_of s = \"Assign\"",
                 "  lemma is_annassign_faithful : forall s: pyast_stmt."
@@ -6562,6 +6594,12 @@ class PreambleEmissionMixin:
                 " is_classdef_node s <-> stmt_node_kind_of s = \"ClassDef\"",
                 "  lemma is_functiondef_faithful : forall s: pyast_stmt."
                 " is_functiondef_node s <-> stmt_node_kind_of s = \"FunctionDef\"",
+            ] + ([
+                "  lemma is_pass_faithful : forall s: pyast_stmt."
+                " is_pass_node s <-> stmt_node_kind_of s = \"Pass\"",
+                "  lemma is_expr_ellipsis_faithful : forall s: pyast_stmt."
+                " is_expr_ellipsis_node s <-> stmt_node_kind_of s = \"ExprEllipsis\"",
+            ] if self._uses_is_overload_stub() else []) + [
                 "  let function stmt_target0 (s: pyast_stmt) : emit_ir =",
                 "    match s with PSAssign t _ -> t | PSAnnAssign t _ _ -> t"
                 " | _ -> IrOther \"\" end",
@@ -6580,6 +6618,17 @@ class PreambleEmissionMixin:
                 "    variant { l } =",
                 "    match l with PSLNil -> PSOther"
                 " | PSLCons h t -> if i <= 0 then h else psl_nth (i-1) t end",
+            ] + ([
+                "  (* func_body_ast (self-tcb-reduction M5, `_is_overload_stub`): reads"
+                " `node.body` of a `py_functiondef_node` as the shared `psl` cons-list (the"
+                " class_body_ast device, but for a FunctionDef node). The stub test reads"
+                " `psl_len (func_body_ast node)` (the `len(body) != 1` guard) and"
+                " `psl_nth 0 (func_body_ast node)` (`body[0]`), then discriminates that"
+                " element via `is_pass_node`/`is_expr_ellipsis_node`. TAKES the node (no"
+                " erasure). Opaque `val function` — NO new axiom. Gated on"
+                " `_uses_is_overload_stub`. *)",
+                "  val function func_body_ast (n: py_functiondef_node) : psl",
+            ] if self._uses_is_overload_stub() else []) + [
                 "  val function class_body_ast (n: py_classdef_node) : psl",
                 "  val function ps_const_int (v: emit_ir) : option int",
                 "  val function ps_field_mem (name: string) : bool",
@@ -6989,6 +7038,28 @@ class PreambleEmissionMixin:
             str(fn.get("name", "")).endswith("_synthesize_overload_guard")
             for fn in self.ir.get("functions", []) or [])
         self._uses_synthesize_overload_guard_cache = result
+        return result
+
+    def _uses_is_overload_stub(self) -> bool:
+        """functiondef-node cluster (self-tcb-reduction M5, C-bucket): True iff some function
+        in this file is the Module5 mirror's `_is_overload_stub` AND BOTH the
+        py_functiondef_node theory (supplies `func_decorator_list_ast` + is_var/is_attribute/
+        name_of/irlist) AND the pyast_stmt theory (supplies the `psl` cons-list + `psl_len`/
+        `psl_nth`) are emitted. Only then are the pyast_stmt `PSPass`/`PSExprEllipsis`
+        constructors (+ their `stmt_node_kind_of` arms + `is_pass_node`/`is_expr_ellipsis_node`
+        discriminants + faithfulness lemmas), the `func_body_ast : py_functiondef_node -> psl`
+        accessor, and the `decorator_has_name_or_attr` fold emitted. Only the Module5 mirror has
+        this method (alongside `_should_skip_method` and `_collect_class_constants`, so both
+        prerequisite gates are True there), so every other mirror + the whole corpus stays
+        byte-identical (the pyast_stmt block emits its ORIGINAL 5-constructor shape elsewhere).
+        Cached."""
+        cached = getattr(self, "_uses_is_overload_stub_cache", None)
+        if cached is not None:
+            return cached
+        result = (self._uses_py_functiondef_node() and self._uses_pyast_stmt() and any(
+            str(fn.get("name", "")).endswith("_is_overload_stub")
+            for fn in self.ir.get("functions", []) or []))
+        self._uses_is_overload_stub_cache = result
         return result
 
     def _uses_csl_proj(self) -> bool:

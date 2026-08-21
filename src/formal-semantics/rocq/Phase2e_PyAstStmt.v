@@ -76,15 +76,24 @@ Inductive pyast_stmt : Type :=
   | PSAnnAssign (target annotation value : emit)
   | PSClassDef (name : string)
   | PSFunctionDef (name : string)
+  | PSPass
+  | PSExprEllipsis
   | PSOther.
 
-(* The tag discriminant — verbatim image of the WhyML `stmt_node_kind_of`. *)
+(* The tag discriminant — verbatim image of the WhyML `stmt_node_kind_of`.
+   PSPass / PSExprEllipsis are the nullary `ast.Pass` and `ast.Expr(Constant(...))`
+   whose value is `Ellipsis` — the two `node.body[0]` shapes `_is_overload_stub`
+   discriminates (an `@overload` stub body is exactly `pass` or `...`).  Both are
+   NULLARY (no load-bearing child: the recognizer collapses the whole
+   `Expr(Constant(Ellipsis))` chain into a single node identity). *)
 Definition stmt_node_kind_of (s : pyast_stmt) : string :=
   match s with
   | PSAssign _ _        => "Assign"
   | PSAnnAssign _ _ _   => "AnnAssign"
   | PSClassDef _        => "ClassDef"
   | PSFunctionDef _     => "FunctionDef"
+  | PSPass              => "Pass"
+  | PSExprEllipsis      => "ExprEllipsis"
   | PSOther             => "Other"
   end.
 
@@ -98,6 +107,10 @@ Definition is_classdef_node (s : pyast_stmt) : bool :=
   match s with PSClassDef _ => true | _ => false end.
 Definition is_functiondef_node (s : pyast_stmt) : bool :=
   match s with PSFunctionDef _ => true | _ => false end.
+Definition is_pass_node (s : pyast_stmt) : bool :=
+  match s with PSPass => true | _ => false end.
+Definition is_expr_ellipsis_node (s : pyast_stmt) : bool :=
+  match s with PSExprEllipsis => true | _ => false end.
 
 (* The projectors — verbatim images of the WhyML `stmt_target0` / `stmt_value` /
    `stmt_annotation` / `def_name`, with the SAME off-variant defaults
@@ -148,6 +161,10 @@ Theorem kind_of_classdef : forall n, stmt_node_kind_of (PSClassDef n) = "ClassDe
 Proof. reflexivity. Qed.
 Theorem kind_of_functiondef : forall n, stmt_node_kind_of (PSFunctionDef n) = "FunctionDef".
 Proof. reflexivity. Qed.
+Theorem kind_of_pass : stmt_node_kind_of PSPass = "Pass".
+Proof. reflexivity. Qed.
+Theorem kind_of_expr_ellipsis : stmt_node_kind_of PSExprEllipsis = "ExprEllipsis".
+Proof. reflexivity. Qed.
 Theorem kind_of_other : stmt_node_kind_of PSOther = "Other".
 Proof. reflexivity. Qed.
 
@@ -180,6 +197,21 @@ Proof. intros; simpl; discriminate. Qed.
 Theorem tag_functiondef_neq_other : forall n,
   stmt_node_kind_of (PSFunctionDef n) <> stmt_node_kind_of PSOther.
 Proof. intros; simpl; discriminate. Qed.
+(* PSPass / PSExprEllipsis are distinct node identities from each other and from
+   every other kind — an `@overload` stub body's `pass` is never confused with a
+   `...` (Ellipsis) expr, nor with a real Assign / FunctionDef / Other node. *)
+Theorem tag_pass_neq_expr_ellipsis :
+  stmt_node_kind_of PSPass <> stmt_node_kind_of PSExprEllipsis.
+Proof. simpl; discriminate. Qed.
+Theorem tag_pass_neq_other :
+  stmt_node_kind_of PSPass <> stmt_node_kind_of PSOther.
+Proof. simpl; discriminate. Qed.
+Theorem tag_expr_ellipsis_neq_other :
+  stmt_node_kind_of PSExprEllipsis <> stmt_node_kind_of PSOther.
+Proof. simpl; discriminate. Qed.
+Theorem tag_pass_neq_functiondef : forall n,
+  stmt_node_kind_of PSPass <> stmt_node_kind_of (PSFunctionDef n).
+Proof. intros; simpl; discriminate. Qed.
 
 (* The constructors themselves are distinct (no erasure to a common value). *)
 Theorem ctor_assign_neq_classdef : forall t v n, PSAssign t v <> PSClassDef n.
@@ -205,6 +237,21 @@ Proof. intros s; destruct s; simpl; split; intro H; solve [reflexivity | discrim
 Theorem is_functiondef_faithful : forall s,
   is_functiondef_node s = true <-> stmt_node_kind_of s = "FunctionDef".
 Proof. intros s; destruct s; simpl; split; intro H; solve [reflexivity | discriminate]. Qed.
+
+Theorem is_pass_faithful : forall s,
+  is_pass_node s = true <-> stmt_node_kind_of s = "Pass".
+Proof. intros s; destruct s; simpl; split; intro H; solve [reflexivity | discriminate]. Qed.
+
+Theorem is_expr_ellipsis_faithful : forall s,
+  is_expr_ellipsis_node s = true <-> stmt_node_kind_of s = "ExprEllipsis".
+Proof. intros s; destruct s; simpl; split; intro H; solve [reflexivity | discriminate]. Qed.
+
+(* The pass / expr-ellipsis discriminants are MUTUALLY EXCLUSIVE — a `pass` node
+   is not simultaneously recognized as an Ellipsis-expr node (the two stub-body
+   shapes are disjoint). *)
+Theorem is_pass_not_expr_ellipsis : forall s,
+  is_pass_node s = true -> is_expr_ellipsis_node s = false.
+Proof. intros s; destruct s; simpl; solve [reflexivity | discriminate]. Qed.
 
 (* The four discriminants are moreover MUTUALLY EXCLUSIVE — at most one fires on
    any node (a corollary the faithfulness laws + tag distinctness give: an Assign
@@ -341,6 +388,8 @@ Print Assumptions kind_of_assign.
 Print Assumptions kind_of_annassign.
 Print Assumptions kind_of_classdef.
 Print Assumptions kind_of_functiondef.
+Print Assumptions kind_of_pass.
+Print Assumptions kind_of_expr_ellipsis.
 Print Assumptions kind_of_other.
 Print Assumptions tag_assign_neq_annassign.
 Print Assumptions tag_assign_neq_classdef.
@@ -356,6 +405,13 @@ Print Assumptions is_assign_faithful.
 Print Assumptions is_annassign_faithful.
 Print Assumptions is_classdef_faithful.
 Print Assumptions is_functiondef_faithful.
+Print Assumptions is_pass_faithful.
+Print Assumptions is_expr_ellipsis_faithful.
+Print Assumptions is_pass_not_expr_ellipsis.
+Print Assumptions tag_pass_neq_expr_ellipsis.
+Print Assumptions tag_pass_neq_other.
+Print Assumptions tag_expr_ellipsis_neq_other.
+Print Assumptions tag_pass_neq_functiondef.
 Print Assumptions is_assign_not_annassign.
 Print Assumptions is_classdef_not_functiondef.
 Print Assumptions stmt_target0_assign.

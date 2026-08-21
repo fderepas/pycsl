@@ -2787,6 +2787,66 @@ class FunctionEmissionMixin:
             "    end",
         ]
 
+    def _is_is_overload_stub(self, func: Dict[str, Any]) -> bool:
+        """functiondef-node cluster recognizer (self-tcb-reduction M5, C-bucket): True iff
+        `func` is the Module5 mirror's `_is_overload_stub` and the pyast_stmt PSPass/
+        PSExprEllipsis extension + func_body_ast + decorator_has_name_or_attr are emitted.
+        Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (nm.endswith("_is_overload_stub")
+                and self._uses_is_overload_stub())
+
+    def _emit_is_overload_stub_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """functiondef-node cluster: emit the FAITHFUL whole-body lowering of
+
+            @staticmethod
+            def _is_overload_stub(node: ast.FunctionDef) -> bool:
+                has_overload = False
+                for d in node.decorator_list:
+                    if isinstance(d, ast.Name) and d.id == "overload":
+                        has_overload = True; break
+                    if isinstance(d, ast.Attribute) and d.attr == "overload":
+                        has_overload = True; break
+                if not has_overload: return False
+                body = node.body
+                if len(body) != 1: return False
+                stmt = body[0]
+                if isinstance(stmt, ast.Pass): return True
+                if (isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant)
+                        and stmt.value.value is Ellipsis): return True
+                return False
+
+        The `@overload` decorator scan (Name OR Attribute, `break`-on-first) lowers to the
+        CONCRETE `decorator_has_name_or_attr_prog "overload" (func_decorator_list_ast node)`
+        existence fold — `func_decorator_list_ast node` TAKES the node, a decorator matches
+        iff `(is_var d || is_attribute d) && name_of d = "overload"` (name_of covers both
+        `d.id` and `d.attr`). `node.body` -> `func_body_ast node` (the shared `psl` cons-list,
+        TAKING the node); `len(body) != 1` -> `psl_len (func_body_ast node) <> 1`; `body[0]`
+        -> `psl_nth 0 (func_body_ast node)`. The `isinstance(stmt, ast.Pass)` /
+        `isinstance(stmt, ast.Expr(Constant(Ellipsis)))` discrimination lowers to the FAITHFUL
+        `is_pass_node` / `is_expr_ellipsis_node` predicates over that REAL element (no node-free
+        stub, no isinstance_op-0-0 constant). Every guard reads the node. `@staticmethod`
+        (no self param), `assigns \\nothing` (pure bool). Corpus-inert."""
+        name = whyml_ident(func["name"])
+        is_static = (func.get("is_static") or func.get("staticmethod")
+                     or not func.get("self_type"))
+        self_part = ("" if is_static
+                     else f"(self: {whyml_ident(func['self_type'].lower())}) ")
+        return [
+            f"  let {name} {self_part}(node: py_functiondef_node) : bool",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    if not (decorator_has_name_or_attr_prog \"overload\""
+            " (func_decorator_list_ast node)) then false",
+            "    else if psl_len (func_body_ast node) <> 1 then false",
+            "    else",
+            "      let stmt = psl_nth 0 (func_body_ast node) in",
+            "      if is_pass_node stmt then true",
+            "      else if is_expr_ellipsis_node stmt then true",
+            "      else false",
+        ]
+
     def _is_final_annotation(self, func: Dict[str, Any]) -> bool:
         """_is_final_annotation bool-recognizer (self-tcb-reduction M5, C-bucket):
         corpus-inert (no corpus program has this method)."""
@@ -3695,6 +3755,11 @@ class FunctionEmissionMixin:
         # Corpus-inert.
         if self._is_synthesize_overload_guard(func):
             return self._emit_synthesize_overload_guard_bespoke(func)
+        # functiondef-node cluster: `_is_overload_stub` -> the faithful @overload-decorator
+        # scan (decorator_has_name_or_attr) + body[0] Pass/Expr-Ellipsis discrimination
+        # (is_pass_node/is_expr_ellipsis_node over psl_nth 0 (func_body_ast node)). Corpus-inert.
+        if self._is_is_overload_stub(func):
+            return self._emit_is_overload_stub_bespoke(func)
         # _is_final_annotation bool-recognizer -> is_final_ann_prog. Corpus-inert.
         if self._is_final_annotation(func):
             return self._emit_is_final_annotation_bespoke(func)

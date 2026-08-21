@@ -2670,12 +2670,47 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # functiondef-node cluster (self-tcb-reduction M5, C-bucket): the `@overload`-stub
+    # test over an `ast.FunctionDef` -> the CONCRETE faithful lowering (Module6 functions.py
+    # `_emit_is_overload_stub_bespoke`): the Name-or-Attribute `@overload` decorator scan ->
+    # `decorator_has_name_or_attr "overload" (func_decorator_list_ast node)` (the bases_has_name
+    # device, `(is_var || is_attribute) && name_of = target`, covering both `d.id` and `d.attr`);
+    # `node.body` -> `func_body_ast node` (the shared `psl` cons-list); `len(body) != 1` ->
+    # `psl_len (func_body_ast node) <> 1`; `body[0]` -> `psl_nth 0 (func_body_ast node)`; the
+    # `isinstance(stmt, ast.Pass)` / `isinstance(stmt, ast.Expr(Constant(Ellipsis)))` bodies ->
+    # the FAITHFUL `is_pass_node` / `is_expr_ellipsis_node` predicates (the pyast_stmt PSPass/
+    # PSExprEllipsis extension, certified axiom-free in Phase2e_PyAstStmt.v/.lean). Every guard
+    # reads the node. isinstance_op = 0, assigns nothing (pure bool).
+    # Verbatim body port of the LIVE `_is_overload_stub`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _is_overload_stub(node: ast.FunctionDef) -> bool:
+        """True iff `node` is an `@overload` stub: it carries an `@overload`
+        decorator (bare `Name("overload")` or `Attribute(attr="overload")`) AND
+        its body is exactly the literal `...` (Ellipsis) or `pass` (O1a — a stub
+        carries no executable code; a non-`...` body is a regular decorated
+        function, byte-identical fallback)."""
+        has_overload = False
+        for d in node.decorator_list:
+            if isinstance(d, ast.Name) and d.id == "overload":
+                has_overload = True
+                break
+            if isinstance(d, ast.Attribute) and d.attr == "overload":
+                has_overload = True
+                break
+        if not has_overload:
+            return False
+        body = node.body
+        if len(body) != 1:
+            return False
+        stmt = body[0]
+        if isinstance(stmt, ast.Pass):
+            return True
+        if (isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant)
+                and stmt.value.value is Ellipsis):
+            return True
         return False
 
     # functiondef-node cluster: the `@overload` guarded-postcondition synthesizer.

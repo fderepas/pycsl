@@ -56,15 +56,22 @@ inductive PyAstStmt (ε : Type) where
   | PSAnnAssign (target annotation value : ε)
   | PSClassDef (name : String)
   | PSFunctionDef (name : String)
+  | PSPass
+  | PSExprEllipsis
   | PSOther
   deriving DecidableEq
 
-/-- The tag discriminant — verbatim image of the WhyML `stmt_node_kind_of`. -/
+/-- The tag discriminant — verbatim image of the WhyML `stmt_node_kind_of`.
+    `PSPass` / `PSExprEllipsis` are the nullary `ast.Pass` and
+    `ast.Expr(Constant(Ellipsis))` — the two `node.body[0]` shapes
+    `_is_overload_stub` discriminates (a stub body is exactly `pass` or `...`). -/
 def stmtNodeKindOf : PyAstStmt ε → String
   | .PSAssign _ _      => "Assign"
   | .PSAnnAssign _ _ _ => "AnnAssign"
   | .PSClassDef _      => "ClassDef"
   | .PSFunctionDef _   => "FunctionDef"
+  | .PSPass            => "Pass"
+  | .PSExprEllipsis    => "ExprEllipsis"
   | .PSOther           => "Other"
 
 /-- The isinstance discriminants — WhyML `is_K_node` predicates. -/
@@ -76,6 +83,10 @@ def isClassdefNode : PyAstStmt ε → Bool
   | .PSClassDef _ => true | _ => false
 def isFunctiondefNode : PyAstStmt ε → Bool
   | .PSFunctionDef _ => true | _ => false
+def isPassNode : PyAstStmt ε → Bool
+  | .PSPass => true | _ => false
+def isExprEllipsisNode : PyAstStmt ε → Bool
+  | .PSExprEllipsis => true | _ => false
 
 /-- The projectors — WhyML `stmt_target0`/`stmt_value`/`stmt_annotation`/
     `def_name`, with the SAME off-variant defaults (`IrOther ""` ≈ `dflt`, `""`). -/
@@ -103,12 +114,20 @@ theorem kindOf_assign (t v : ε) : stmtNodeKindOf (.PSAssign t v) = "Assign" := 
 theorem kindOf_annassign (t a v : ε) : stmtNodeKindOf (.PSAnnAssign t a v) = "AnnAssign" := rfl
 theorem kindOf_classdef (n : String) : stmtNodeKindOf (ε := ε) (.PSClassDef n) = "ClassDef" := rfl
 theorem kindOf_functiondef (n : String) : stmtNodeKindOf (ε := ε) (.PSFunctionDef n) = "FunctionDef" := rfl
+theorem kindOf_pass : stmtNodeKindOf (ε := ε) .PSPass = "Pass" := rfl
+theorem kindOf_expr_ellipsis : stmtNodeKindOf (ε := ε) .PSExprEllipsis = "ExprEllipsis" := rfl
 theorem kindOf_other : stmtNodeKindOf (ε := ε) .PSOther = "Other" := rfl
 
 theorem tag_assign_neq_annassign (t v a b c : ε) :
     stmtNodeKindOf (.PSAssign t v) ≠ stmtNodeKindOf (.PSAnnAssign a b c) := by simp only [stmtNodeKindOf]; decide
 theorem tag_classdef_neq_functiondef (n : String) :
     stmtNodeKindOf (ε := ε) (.PSClassDef n) ≠ stmtNodeKindOf (ε := ε) (.PSFunctionDef n) := by simp only [stmtNodeKindOf]; decide
+theorem tag_pass_neq_expr_ellipsis :
+    stmtNodeKindOf (ε := ε) .PSPass ≠ stmtNodeKindOf (ε := ε) .PSExprEllipsis := by simp only [stmtNodeKindOf]; decide
+theorem tag_pass_neq_other :
+    stmtNodeKindOf (ε := ε) .PSPass ≠ stmtNodeKindOf (ε := ε) .PSOther := by simp only [stmtNodeKindOf]; decide
+theorem tag_expr_ellipsis_neq_other :
+    stmtNodeKindOf (ε := ε) .PSExprEllipsis ≠ stmtNodeKindOf (ε := ε) .PSOther := by simp only [stmtNodeKindOf]; decide
 
 -- ===================================================================== --
 -- 3. (c) THE LOAD-BEARING faithfulness laws: isKNode s ↔ kind = "K".     --
@@ -126,6 +145,16 @@ theorem is_classdef_faithful (s : PyAstStmt ε) :
 theorem is_functiondef_faithful (s : PyAstStmt ε) :
     isFunctiondefNode s = true ↔ stmtNodeKindOf s = "FunctionDef" := by
   cases s <;> simp [isFunctiondefNode, stmtNodeKindOf]
+theorem is_pass_faithful (s : PyAstStmt ε) :
+    isPassNode s = true ↔ stmtNodeKindOf s = "Pass" := by
+  cases s <;> simp [isPassNode, stmtNodeKindOf]
+theorem is_expr_ellipsis_faithful (s : PyAstStmt ε) :
+    isExprEllipsisNode s = true ↔ stmtNodeKindOf s = "ExprEllipsis" := by
+  cases s <;> simp [isExprEllipsisNode, stmtNodeKindOf]
+/-- The pass / expr-ellipsis discriminants are MUTUALLY EXCLUSIVE. -/
+theorem is_pass_not_expr_ellipsis (s : PyAstStmt ε) :
+    isPassNode s = true → isExprEllipsisNode s = false := by
+  cases s <;> simp [isPassNode, isExprEllipsisNode]
 
 -- ===================================================================== --
 -- 4. (d) Projectors EXACT + every carried field OBSERVABLE (non-vacuity).--
@@ -208,13 +237,21 @@ end PyAstStmtCert
 #print axioms PyAstStmtCert.kindOf_annassign
 #print axioms PyAstStmtCert.kindOf_classdef
 #print axioms PyAstStmtCert.kindOf_functiondef
+#print axioms PyAstStmtCert.kindOf_pass
+#print axioms PyAstStmtCert.kindOf_expr_ellipsis
 #print axioms PyAstStmtCert.kindOf_other
 #print axioms PyAstStmtCert.tag_assign_neq_annassign
 #print axioms PyAstStmtCert.tag_classdef_neq_functiondef
+#print axioms PyAstStmtCert.tag_pass_neq_expr_ellipsis
+#print axioms PyAstStmtCert.tag_pass_neq_other
+#print axioms PyAstStmtCert.tag_expr_ellipsis_neq_other
 #print axioms PyAstStmtCert.is_assign_faithful
 #print axioms PyAstStmtCert.is_annassign_faithful
 #print axioms PyAstStmtCert.is_classdef_faithful
 #print axioms PyAstStmtCert.is_functiondef_faithful
+#print axioms PyAstStmtCert.is_pass_faithful
+#print axioms PyAstStmtCert.is_expr_ellipsis_faithful
+#print axioms PyAstStmtCert.is_pass_not_expr_ellipsis
 #print axioms PyAstStmtCert.target0_assign
 #print axioms PyAstStmtCert.target0_annassign
 #print axioms PyAstStmtCert.value_assign
