@@ -3046,3 +3046,11 @@ REMAINING = 3 non-autonomous categories (each needs AUTHORIZATION or is fundamen
 2. fundamental limits (leave-trusted): heterogeneous Dict[str,Any] IR-value-model (Module5 ->int Dict methods); dict-mutation-on-immutable-emit_ir (ir_inline {**st}); raw-ast UNTYPED-PARAM int-erasure (pure_ast, 220 stubs, 0 typed params).
 3. net-marker-negative TCB giants.
 The 9 deep-multi-blocker for-string stubs each need MULTIPLE of {getattr-nondeclared, while-fixpoint, .values()-walker-in-self-state, class-const-dict, self-state-mutation} simultaneously -> no single contained build converts one.
+
+## RETURN-TYPE-LOWERING WALL BROKEN: _canonical_preservation_ensures (e968f8f6, 689->688)
+- SALVAGED from a stalled build agent (no completion notification, killed mid-work) — supervisor verified the left-behind build against the FULL gate battery (gates are authoritative, not the agent's completion state). No dangling refs (emit + all mirrors typecheck).
+- CERT-FREE (no new discriminated-variant cert; existing emit_ir ctors + pre-existing IrEnsures leaf). Coordinated tight-gated build: HappyProperty.region_lo/hi->"ExprIR" retype + deepcopy-on-emit_ir identity recognizer (gated _current_emitting_func) + construction-path/theory gate extended for ->ExprIR return methods (NOT blunt class-wide @mutable_state) + verbatim mirror port. Corpus byte-diff 0 (HARD GATE). 3/3 mirrors SUCCESS. Non-vacuous real IrEnsures/IrForall/IrBinOp/IrSub construction.
+- BANKED CAPS: deepcopy-on-emit_ir recognizer, tight-gated CSL-class->emit_ir construction-lowering for return methods, input-field-retype. Reusable for the other return stubs.
+- SESSION: 712->688 (24 conv + 3 emitter caps + 1 CERT extension + 2 WALLS [FunctionDef-node, return-type-lowering] + 3 unsound reverts). Ledger 3.
+- OPERATIONAL: build agent stalled mid-edit w/ NO completion notification; 10-min liveness heartbeat + tree-dirty check caught it; TaskStop + supervisor-verify-the-left-build (do NOT relaunch a duplicate = 2-writer race).
+- REMAINING return stubs: _act_guard (clause-list Given-discrimination — trying certified pyval-walker cert-free path + banked caps), _happy_predicate (blocked on heterogeneous dict-subscript site["kind"] = value-model wall), parse_contract/parse_node_contracts (pure forwarders = Gate-C vacuous, leave trusted).
