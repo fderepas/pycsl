@@ -7880,7 +7880,23 @@ class PreambleEmissionMixin:
         # `ghost_type` ref ("ref int … cannot be applied"), not the field. Qualify those
         # fields (`<record>_<field>`) too, in both the decl and the access. Gated on
         # @mutable_state (the emitter model) → byte-identical for the corpus.
-        if getattr(self, "_mutable_state_classes", None):
+        #
+        # self-tcb-reduction (_canonical_preservation_ensures): the field-vs-theory-symbol
+        # collision (line below, `_reserved_exprir_symbols`) also bites whenever the emit_ir
+        # ADT theory is emitted for a NON-@mutable_state reason — an IR-node-typed param OR a
+        # `-> ExprIR` return (`_uses_ir_node_param`), the stmt_ir theory, the Call-kw theory,
+        # or the tparam theory — because that theory declares `size`/`kind_of`/... which a
+        # record field (`boundedintdecl.size`) then shadows. Fire the qualification under the
+        # SAME disjunction `_emit_exprir_theory()` fires under (Module6_WhyMLTranspiler). All
+        # of these flags are False for the whole corpus → the theory is never emitted there →
+        # no collision → the qualification never fires → byte-identical.
+        _exprir_theory_present = bool(
+            getattr(self, "_mutable_state_classes", None)
+            or getattr(self, "_uses_ir_node_param", False)
+            or self._uses_stmt_ir()
+            or self._uses_call_kw()
+            or self._uses_tparam())
+        if _exprir_theory_present:
             _local_names: Set[str] = set()
             for _fn in self.ir.get("functions", []):
                 _local_names |= set(IRScanner.find_assigned_vars(_fn.get("body", [])))

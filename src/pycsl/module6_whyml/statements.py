@@ -2262,6 +2262,44 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     st[v] = "str"
         return out
 
+    def _collect_string_literal_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """A local whose EVERY assignment RHS is a plain string LITERAL is a `string`
+        local. Module5 leaves such an un-annotated literal-bound local typed `Any` (→ the
+        integer `ref 0` pre-declaration), which then mis-types against a `string`
+        assignment/use. Mark it string and grow the symbol table so it is let-bound with
+        its string value (`let v = "…" in` / `ref ""`), the local counterpart of the
+        str-param lowering.
+
+        Conservative — a local assigned ANY non-string-literal value anywhere is EXCLUDED
+        (kept in its int model), so only string-ONLY locals are reclassified. Corpus-inert
+        for any function with no such literal-only local (verified by the reference
+        byte-diff sweep)."""
+        assigned_str: Set[str] = set()
+        assigned_other: Set[str] = set()
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    v = n.get("value")
+                    if isinstance(v, dict) and v.get("type") == "String":
+                        assigned_str.add(n["target"])
+                    else:
+                        assigned_other.add(n["target"])
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+
+        rec(body_stmts)
+        out = assigned_str - assigned_other - set(self._formal_params)
+        st = getattr(self, "_current_symbol_table", None)
+        if st is not None:
+            for v in out:
+                if st.get(v) in (None, "Any"):
+                    st[v] = "str"
+        return out
+
     def _collect_dict_str_param_get_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """self-tcb-reduction _infer_tuple_slot_type (cap-b): a local whose first
         assignment reads a `string` off a `Dict[str,str]` param/local — `t =
@@ -3865,6 +3903,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             name for name, ty in getattr(self, "_current_symbol_table", {}).items()
             if ty in ("str", "string") and name not in set(self._formal_params)
         }
+        # self-tcb-reduction (_canonical_preservation_ensures): a local whose EVERY
+        # assignment RHS is a plain string LITERAL (`v = "__happy_i"`) is a `string` local —
+        # Module5 leaves such an un-annotated literal-bound local typed `Any` (→ the integer
+        # `ref 0` pre-declaration), so a later `v := "..."` (or a first `let v = ref "..."`)
+        # mis-types against `ref int`. Mark it string (pre-decl `ref ""` / let-bind the
+        # literal) and grow the symbol table so downstream string sites (here `IrVar !v`, a
+        # `string`-argument slot) see `v : str`. Conservative: a local assigned ANY
+        # non-string-literal value is NOT marked (a mixed/int local keeps its int model), so
+        # this only reclassifies locals that were already string-only.
+        string_vars |= self._collect_string_literal_locals(body_stmts)
         # str-list-elements: cross-function element-type propagation. A local bound to a
         # STRING-element-list-returning call (`names = listdir(...)`) is a string-element
         # array; an element READ of it (`name = names[i]`) is a `string`. Mark those

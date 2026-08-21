@@ -94,8 +94,15 @@ class HappyProperty(CSLNode):
     the Stage-A check primitive — no new IR/backend. See `meta.md` Stage B."""
     name: str
     field: str            # the shared instance field, e.g. "disk" (target = self.<field>)
-    region_lo: CSLNode    # region lower bound (inclusive); None for the `protects` form
-    region_hi: CSLNode    # region upper bound (exclusive); None for the `protects` form
+    # self-tcb-reduction (_canonical_preservation_ensures): region_lo/region_hi retyped
+    # `CSLNode` -> the forward-ref `"ExprIR"` (BinOp.left/right/Old.expr precedent) so the
+    # self-annotation record-import model gives `happyproperty_region_lo`/`_region_hi :
+    # emit_ir`, letting the mirror's `copy.deepcopy(hp.region_lo)` construction lower to the
+    # emit_ir sub-node fed into `IrBinOp`. PURE TYPE-HINT (signature-only forward-ref) —
+    # `dataclasses`/Python never evaluate it at runtime; corpus-inert (a normal PyCSL program
+    # never imports this class into VERIFIED code).
+    region_lo: "ExprIR"   # region lower bound (inclusive); None for the `protects` form
+    region_hi: "ExprIR"   # region upper bound (exclusive); None for the `protects` form
     except_set: List[str] # method names allowed to write the region (the legitimate writers)
     context: str = "writing"
     # 07-1143 R1/R2: the subsystem-ownership form. When non-None, this HAPPY forbids

@@ -6036,6 +6036,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                           invariant_ctx, subst)
         if named is not None:
             return named
+        # self-tcb-reduction (_canonical_preservation_ensures): `copy.deepcopy(<emit_ir>)`
+        # is IDENTITY on an immutable emit_ir sub-node — the deep copy of an already-built
+        # IR expression is that same expression (the emit_ir ADT is a pure immutable value,
+        # so a structural copy is observationally equal). Lower it to its single argument,
+        # NOT the opaque auto-trusted `copy_deepcopy_1` val (which would be unbound + wrongly
+        # int-typed, breaking the emit_ir-typed `IrBinOp` slot it feeds). Gated on the method
+        # sentinel → byte-inert for the corpus (which never calls `copy.deepcopy` in a
+        # verified body under this scope) and every other mirror.
+        _cef_dc = getattr(self, "_current_emitting_func", None) or ""
+        if (func_name == "copy.deepcopy" and len(args) == 1
+                and (_cef_dc == "_canonical_preservation_ensures"
+                     or _cef_dc.endswith("___canonical_preservation_ensures"))):
+            return args[0]
         if "." in func_name:
             return self._handle_dotted_call(func_name, args)
         # WL-07: lower any EXPLICIT keyword args (`Point(x=1, y=2)`) so a record
@@ -8323,10 +8336,40 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
         Gated on @mutable_state (the emitter model, `_current_self_type` in
         `_mutable_state_classes`) exactly like `_lower_irnode_construction`, so no corpus
-        program — none of which declares a @mutable_state class — changes a byte."""
-        if getattr(self, "_current_self_type", None) not in getattr(
-                self, "_mutable_state_classes", set()):
+        program — none of which declares a @mutable_state class — changes a byte.
+
+        self-tcb-reduction (_canonical_preservation_ensures): ALSO fire when the emitting
+        method is `_canonical_preservation_ensures` (an endswith-match on
+        `_current_emitting_func`, the byte-inert method-sentinel pattern of the
+        kind_of-tailoring / mktuple-elts caps). PyCSLWeaver is NOT @mutable_state, so the
+        class-wide gate above would decline; the method sentinel confines the CSL-AST-node
+        construction lowering to this one mirror method, keeping every corpus program (and
+        every other mirror handler) byte-identical."""
+        _cef = getattr(self, "_current_emitting_func", None) or ""
+        _cpe_scope = (_cef == "_canonical_preservation_ensures"
+                      or _cef.endswith("___canonical_preservation_ensures"))
+        if (getattr(self, "_current_self_type", None) not in getattr(
+                self, "_mutable_state_classes", set())) and not _cpe_scope:
             return None
+        # self-tcb-reduction (_canonical_preservation_ensures): two CSL-AST node classes
+        # this method constructs are NOT in the generic fixed-payload `_IRNODE_CTORS`
+        # table — a `Forall` carries two OPTIONAL binder fields (var/body positional,
+        # binder_type/domain defaulted None), and a `FieldSubscript` is the COMPOSITE
+        # `self.<field>[i]`. Lower each to the EXISTING emit_ir ctors directly (no new ADT
+        # leaf, no certificate change). Gated on the method sentinel → byte-inert for the
+        # corpus and every other mirror.
+        if _cpe_scope:
+            if func_name == "Forall" and len(args) == 2:
+                # Forall(var, body): binder_type/domain default None -> IrSNone / IrONone,
+                # exactly the dict-path `_lower_quant_optfield` result. The ADT ctor is
+                # `IrForall string emit_ir iropt_str iropt_ir`.
+                return f"(IrForall {args[0]} {args[1]} IrSNone IrONone)"
+            if func_name == "FieldSubscript" and len(args) == 2:
+                # FieldSubscript(field, index) models `self.<field>[index]` -> the
+                # subscript of the self-field: `IrSub (IrFieldGet "self" <field>) <index>`.
+                # Faithful (the SAME shape the body path emits for `self.f[i]`), reusing the
+                # existing IrSub / IrFieldGet ctors (no new leaf).
+                return f'(IrSub (IrFieldGet "self" {args[0]}) {args[1]})'
         ctor = self._IRNODE_CTORS.get(func_name)
         if ctor is None:
             return None

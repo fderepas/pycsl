@@ -235,13 +235,19 @@ class Module3_Weaver:
     def _region_bound_str(node: CSLNode) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _canonical_preservation_ensures(hp: HappyProperty) -> Ensures:
-        return None
+    def _canonical_preservation_ensures(hp: HappyProperty) -> "ExprIR":
+        v = "__happy_i"
+        guard = BinOp(BinOp(copy.deepcopy(hp.region_lo), "<=", Var(v)),
+                      "and",
+                      BinOp(Var(v), "<", copy.deepcopy(hp.region_hi)))
+        eq = BinOp(FieldSubscript(hp.field, Var(v)),
+                   "==",
+                   Old(FieldSubscript(hp.field, Var(v))))
+        return Ensures(Forall(v, BinOp(guard, "==>", eq)))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

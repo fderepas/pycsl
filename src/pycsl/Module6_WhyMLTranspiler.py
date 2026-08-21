@@ -507,6 +507,14 @@ class Module6_WhyMLTranspiler(
             v in _IRNODE_TAGS
             for f in functions
             for v in (f.get("symbol_table", {}) or {}).values()
+        ) or any(
+            # self-tcb-reduction (_canonical_preservation_ensures): a function whose
+            # RETURN annotation is an IR-node tag (`-> "ExprIR"`) constructs + returns an
+            # emit_ir value, so the ADT theory must be in scope even when no param/local
+            # names it. Corpus programs never annotate `-> ExprIR` → flag stays False →
+            # theory NOT emitted → byte-identical.
+            (f.get("return_annotation") in _IRNODE_TAGS)
+            for f in functions
         )
 
         # module-emission.md: OPT-IN axiom isolation. If a function carries
