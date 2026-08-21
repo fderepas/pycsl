@@ -24,13 +24,19 @@ class PyCSLWeaver(ast.NodeVisitor):
     def _init_function_csl_fields(node: ast.FunctionDef) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _act_guard(act: Act) -> CSLNode:
-        return None
+    def _act_guard(act: Act) -> "ExprIR":
+        """The act's guard: the conjunction of its `given` clauses (`True` if none)."""
+        givens = [cl.expr for cl in act.clauses if isinstance(cl, Given)]
+        if not givens:
+            return CSLBool(True)
+        g = givens[0]
+        for extra in givens[1:]:
+            g = BinOp(g, "and", extra)
+        return g
 
     #@ requires True
     #@ ensures \result == node.value

@@ -40,5 +40,6 @@ import PyCSL.TermIR             -- self-tcb-reduction item 3: class-instance-var
 import PyCSL.CallKw             -- self-tcb-reduction Tier-5 J1: emit_ir Call-internals value model cert, axiom-free
 import PyCSL.TParam             -- self-tcb-reduction L1: tparam PEP-695 reflection-node value model cert, axiom-free
 import PyCSL.MethodRecv          -- self-tcb-reduction Layer-2: emit_ir Call-receiver value model cert (IrMethodCall/receiver_of), axiom-free
+import PyCSL.CslClause           -- self-tcb-reduction: csl_clause contract-clause value model cert (CGiven/is_given_node/clause_expr_of, _act_guard), axiom-free
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus

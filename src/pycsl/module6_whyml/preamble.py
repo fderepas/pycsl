@@ -6655,6 +6655,96 @@ class PreambleEmissionMixin:
             ] if self._uses_pyast_module() else []) + [
                 "",
             ]) if self._uses_pyast_stmt() else []),
+            # csl_clause contract-clause ADT (self-tcb-reduction, `_act_guard`
+            # conversion): the contract-clause union an `Act`'s `.clauses` list
+            # carries, which `_act_guard` filters (`isinstance(cl, Given)`) + projects
+            # (`cl.expr`) over. `C*` prefix (disjoint from ast/stmt_ir/emit_ir's
+            # PS*/S*/Ir*). Carries emit_ir children (the clause `.expr`).
+            # `clause_kind_of` + `is_K` discriminants + faithfulness lemmas (is_K <->
+            # kind = "K") model the `isinstance(cl, Given)` dispatch faithfully;
+            # `clause_expr_of` reads the `.expr`. `clause_list` is the bespoke cons-list
+            # `act.clauses` iterates (the keyword_list/psl precedent); `cl_len`/`cl_nth`
+            # its length/index; `act_clauses_of` the opaque `Act` node's `.clauses`
+            # reader (the func_body_ast precedent). `act_guard_fold` is the verbatim
+            # `_act_guard` fold (filter given -> project expr -> left-nested IrBinOp
+            # "and"; IrBoolC 1 if none). Certified AXIOM-FREE in
+            # src/formal-semantics/rocq/Phase2k_CslClause.v + lean/PyCSL/CslClause.lean
+            # (csl_clause ADT + discriminants + faithfulness + clause_expr_of +
+            # clause_list well-foundedness + the act_guard_fold reference semantics).
+            # Gated on the tight `_uses_act_guard` sentinel -> corpus + every other
+            # mirror byte-identical.
+            *(([
+                "",
+                "  (* csl_clause ADT (self-tcb-reduction, `_act_guard`): the contract-clause"
+                " union an `Act`'s `.clauses` list carries. `C*` prefix (disjoint from"
+                " ast/stmt_ir/emit_ir). Carries emit_ir children (the clause `.expr`)."
+                " `clause_kind_of` + `is_K` discriminants + faithfulness lemmas model the"
+                " `isinstance(cl, Given)` dispatch; `clause_expr_of` reads `.expr`."
+                " `clause_list` is the bespoke cons `act.clauses` iterates (keyword_list"
+                " precedent); `act_clauses_of` reads the opaque `Act` node's `.clauses`."
+                " `act_guard_fold` = the verbatim `_act_guard` fold. Certified axiom-free"
+                " in Phase2k_CslClause.v / CslClause.lean. Gated on `_uses_act_guard` ->"
+                " corpus + every other mirror byte-identical. *)",
+                "  type act_node",
+                "  type csl_clause =",
+                "    | CGiven emit_ir",
+                "    | CRequires emit_ir",
+                "    | CEnsures emit_ir",
+                "    | CAssigns emit_ir",
+                "  let function clause_kind_of (s: csl_clause) : string =",
+                "    match s with",
+                "    | CGiven _ -> \"Given\"",
+                "    | CRequires _ -> \"Requires\"",
+                "    | CEnsures _ -> \"Ensures\"",
+                "    | CAssigns _ -> \"Assigns\"",
+                "    end",
+                "  let predicate is_given_node (s: csl_clause) ="
+                " match s with CGiven _ -> true | _ -> false end",
+                "  let predicate is_requires_node (s: csl_clause) ="
+                " match s with CRequires _ -> true | _ -> false end",
+                "  let predicate is_ensures_node (s: csl_clause) ="
+                " match s with CEnsures _ -> true | _ -> false end",
+                "  let predicate is_assigns_node (s: csl_clause) ="
+                " match s with CAssigns _ -> true | _ -> false end",
+                "  lemma is_given_faithful : forall s: csl_clause."
+                " is_given_node s <-> clause_kind_of s = \"Given\"",
+                "  lemma is_requires_faithful : forall s: csl_clause."
+                " is_requires_node s <-> clause_kind_of s = \"Requires\"",
+                "  lemma is_ensures_faithful : forall s: csl_clause."
+                " is_ensures_node s <-> clause_kind_of s = \"Ensures\"",
+                "  lemma is_assigns_faithful : forall s: csl_clause."
+                " is_assigns_node s <-> clause_kind_of s = \"Assigns\"",
+                "  let function clause_expr_of (s: csl_clause) : emit_ir =",
+                "    match s with CGiven e -> e | CRequires e -> e"
+                " | CEnsures e -> e | CAssigns e -> e end",
+                "  type clause_list = ClNil | ClCons csl_clause clause_list",
+                "  let rec function cl_len (l: clause_list) : int ="
+                " match l with ClNil -> 0 | ClCons _ t -> 1 + cl_len t end",
+                "  let rec function cl_nth (i: int) (l: clause_list) : csl_clause",
+                "    variant { l } =",
+                "    match l with ClNil -> CAssigns (IrOther \"\")"
+                " | ClCons h t -> if i <= 0 then h else cl_nth (i-1) t end",
+                "  val function act_clauses_of (a: act_node) : clause_list",
+                "  (* act_guard_fold: the verbatim `_act_guard` fold. `None` accumulator"
+                " until the first given (`g = givens[0]`), then `Some g`; each further"
+                " given conjoins with `IrBinOp \"and\"`; `IrBoolC 1` (= CSLBool(True)) if"
+                " none. Structurally terminating (variant { l }) — cert Phase2k. *)",
+                "  let rec function act_guard_fold (acc: option emit_ir) (l: clause_list)"
+                " : emit_ir",
+                "    variant { l } =",
+                "    match l with",
+                "    | ClNil -> (match acc with None -> IrBoolC 1 | Some g -> g end)",
+                "    | ClCons c rest ->",
+                "        if is_given_node c then",
+                "          (match acc with",
+                "           | None -> act_guard_fold (Some (clause_expr_of c)) rest",
+                "           | Some g -> act_guard_fold"
+                " (Some (IrBinOp \"and\" g (clause_expr_of c))) rest",
+                "           end)",
+                "        else act_guard_fold acc rest",
+                "    end",
+                "",
+            ]) if self._uses_act_guard() else []),
             # L1 tparam reflection-node ADT (self-tcb-reduction, collector-family
             # unlock; getting-better/self-field-append-wall-impl.md §K5/§L1, K5 hand-
             # oracle scratchpad/k5_spike.mlw Z3-Valid + axiom-free). Models the PEP-695
@@ -7060,6 +7150,26 @@ class PreambleEmissionMixin:
             str(fn.get("name", "")).endswith("_is_overload_stub")
             for fn in self.ir.get("functions", []) or []))
         self._uses_is_overload_stub_cache = result
+        return result
+
+    def _uses_act_guard(self) -> bool:
+        """csl_clause contract-clause ADT (self-tcb-reduction, `_act_guard`): True iff
+        some function in this file is the Module3 mirror's `_act_guard` — the SOLE
+        consumer of the csl_clause theory (`act.clauses` filter+fold over the
+        contract-clause union). Only the Module3_Weaver mirror (and live) defines a
+        method by that name; no reference-corpus program does, so gating the
+        act_node/csl_clause/clause_list types + discriminants + faithfulness lemmas +
+        clause_expr_of + act_clauses_of + act_guard_fold on this keeps the emit_ir
+        theory BYTE-IDENTICAL in every other mirror AND the whole corpus. The
+        `_uses_csl_proj`/`_uses_null_byte_num_reader` name-based-gate pattern verbatim.
+        Cached."""
+        cached = getattr(self, "_uses_act_guard_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_act_guard")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_act_guard_cache = result
         return result
 
     def _uses_csl_proj(self) -> bool:

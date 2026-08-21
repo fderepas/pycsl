@@ -2847,6 +2847,48 @@ class FunctionEmissionMixin:
             "      else false",
         ]
 
+    def _is_act_guard(self, func: Dict[str, Any]) -> bool:
+        """csl_clause contract-clause recognizer (self-tcb-reduction, Module3 mirror): True
+        iff `func` is the Module3_Weaver mirror's `_act_guard` and the csl_clause theory
+        (act_node/csl_clause/clause_list + discriminants + clause_expr_of + act_clauses_of +
+        act_guard_fold) is emitted. Corpus-inert (no corpus program has this method)."""
+        nm = str(func.get("name", ""))
+        return (nm.endswith("_act_guard")
+                and self._uses_act_guard())
+
+    def _emit_act_guard_bespoke(self, func: Dict[str, Any]) -> List[str]:
+        """csl_clause: emit the FAITHFUL whole-body lowering of
+
+            @staticmethod
+            def _act_guard(act: Act) -> "ExprIR":
+                givens = [cl.expr for cl in act.clauses if isinstance(cl, Given)]
+                if not givens: return CSLBool(True)
+                g = givens[0]
+                for extra in givens[1:]: g = BinOp(g, "and", extra)
+                return g
+
+        The list-comprehension filter+project `[cl.expr for cl in act.clauses if
+        isinstance(cl, Given)]` and the subsequent `BinOp "and"` fold lower to the CONCRETE
+        certified `act_guard_fold None (act_clauses_of act)` (preamble.py csl_clause theory):
+        `act.clauses` -> `act_clauses_of act` (the opaque `Act` node reader, TAKING the node);
+        `isinstance(cl, Given)` -> the `is_given_node` discriminant; `cl.expr` ->
+        `clause_expr_of`; `BinOp(g, "and", extra)` -> the certified `IrBinOp "and"` ctor
+        (left-nested); `CSLBool(True)` -> `IrBoolC 1`. Every read is over the REAL clause list
+        (no isinstance_op-0-0 constant, no int-erased facade). `@staticmethod` (no self param),
+        `assigns \\nothing` (pure ExprIR construction). Corpus-inert."""
+        name = whyml_ident(func["name"])
+        is_static = (func.get("is_static") or func.get("staticmethod")
+                     or not func.get("self_type"))
+        self_part = ("" if is_static
+                     else f"(self: {whyml_ident(func['self_type'].lower())}) ")
+        return [
+            f"  let {name} {self_part}(act: act_node) : emit_ir",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            "    act_guard_fold None (act_clauses_of act)",
+        ]
+
     def _is_final_annotation(self, func: Dict[str, Any]) -> bool:
         """_is_final_annotation bool-recognizer (self-tcb-reduction M5, C-bucket):
         corpus-inert (no corpus program has this method)."""
@@ -3760,6 +3802,11 @@ class FunctionEmissionMixin:
         # (is_pass_node/is_expr_ellipsis_node over psl_nth 0 (func_body_ast node)). Corpus-inert.
         if self._is_is_overload_stub(func):
             return self._emit_is_overload_stub_bespoke(func)
+        # csl_clause (Module3 mirror): `_act_guard` -> the certified `act_guard_fold None
+        # (act_clauses_of act)` — the `given`-clause filter+`.expr`-project+`IrBinOp "and"`
+        # fold over the real csl_clause list (IrBoolC 1 if none). Corpus-inert.
+        if self._is_act_guard(func):
+            return self._emit_act_guard_bespoke(func)
         # _is_final_annotation bool-recognizer -> is_final_ann_prog. Corpus-inert.
         if self._is_final_annotation(func):
             return self._emit_is_final_annotation_bespoke(func)
