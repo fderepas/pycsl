@@ -3063,3 +3063,11 @@ The 9 deep-multi-blocker for-string stubs each need MULTIPLE of {getattr-nondecl
 ## csl_clause cert yield = 1 (SINGLETON _act_guard) — building anyway (funded directive; cost/scale != stop; sound-by-verification)
 - Census: only _act_guard unblocked by csl_clause cert alone. _desugar_acts/_desugar_for/_extract_mixin_directives/_dispatch_function_contracts/_build_function_ir all have cert-ORTHOGONAL blockers (Act/Complete/Disjoint/ForExpand variants outside the 4-clause scope + heterogeneous dict value-models + self-state mutation + nested-def + TCB-giant). Cert scope = Given|Requires|Ensures|Assigns only.
 - DECISION: cost/scale (singleton) is NOT a stop reason under the funded keep-running directive ([[feedback_cost_scale_not_floor]]). Building the csl_clause cert with FULL self-audit (coqc Print Assumptions + lean #print axioms both re-run by supervisor), faithfulness scrutiny (mirror the pyast_stmt cert pattern), byte-diff HARD gate, whole-file proofs. Banks the clause-cert framework.
+
+## CERTIFICATE BUILD #2: csl_clause NEW cert + _act_guard (02f50ac7, 688->687)
+- NEW axiom-free discriminated-variant cert Phase2k_CslClause.v + CslClause.lean (CGiven|CRequires|CEnsures|CAssigns; clause_kind_of/is_K_node/is_K_faithful/clause_expr_of). SUPERVISOR-SELF-RE-AUDITED both: Rocq 43/43 Closed/0-axiom, Lean {propext}-only. LEDGER 3.
+- act_guard_fold: certified is_given_node discrimination + clause_expr_of projection + IrBinOp "and" fold over real act_clauses_of. Non-vacuous. Corpus byte-diff 0 (HARD GATE), 4/4 mirrors SUCCESS.
+- SALVAGED from a 2nd stalled agent (same pattern: built full stack, stalled mid-report, supervisor verified+committed). BANKED clause-cert framework.
+- SESSION: 712->687 (25 conv + 3 emitter caps + 2 CERT builds [pyast_stmt ext, csl_clause new] + 2 WALLS + 3 unsound reverts). Ledger 3 throughout.
+- return-type cluster DONE: _canonical_preservation_ensures + _act_guard converted; _happy_predicate (heterogeneous dict value-model wall), parse_contract/parse_node_contracts (vacuous forwarders) remain.
+- NEXT: focused re-census of the heterogeneous Dict[str,Any] VALUE-MODEL frontier (highest-yield remaining; banked pyval broke 821 in a prior run) — find dict-reader stubs NOT co-blocked by self-state-mutation/other, or confirm value-model floor.
