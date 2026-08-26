@@ -191,3 +191,132 @@ not touch. So the bundle is not worth building *as a bundle*. The correct, much 
 is a **ForExpand-only** cert extension targeting `_desugar_for` (19 live lines), following the banked
 `csl_clause` / `pyast_stmt` cert-extension pattern. `_init_function_csl_fields` is measured next.
 
+
+---
+
+## v2 — STRICTER pass (supersedes the v1 headline above)
+
+The v1 feature scan was too permissive: it keyed on textual patterns and so missed `with`
+statements, `lambda`s, `*args`/`**kwargs`, **unannotated parameters**, generators, `try`, and
+self-mutation performed through a METHOD CALL (`self.write(...)`) rather than an assignment
+(`self.x = ...`). v2 re-scans with a proper AST walk.
+
+**Corrected headline: 210 of 611** live-matched trusted stubs are clean, not 266.
+
+The correction lands almost entirely on `frontend/pure_ast.py`, which drops from 128 "clean" to 41 —
+and all 41 of those still carry `untyped-return` and/or `self-method-call`.
+
+### `pure_ast.py` re-classified (219 markers = the single largest cluster, ~35% of the population)
+
+The backlog files it as FUNDAMENTAL ("raw-ast untyped-param"). That label is **half right and the
+half that is wrong matters**, so record both parts:
+
+- The **untyped-parameter** half is a **COST/SCALE** boundary, not a correctness one. `pure_ast.py`
+  is a pure-Python reimplementation of the stdlib `ast` module whose methods are simply written
+  without annotations (`def expr(self):`, `def fill(self, text=""):`). Type annotations are inert at
+  runtime, so annotating the live source is a **semantics-preserving, corpus-inert, mechanical**
+  edit; regenerating the mirror keeps fidelity verbatim. Its reopening capability is therefore
+  "annotate the live parameters", which a funded window can pay for — it is not a limit of the
+  value model.
+- The **other** half IS a genuine capability wall and is what actually blocks the file: the
+  `_Unparser` family is built on context managers (`with self.delimit("[", "]")`), `lambda`
+  callbacks (`self.interleave(lambda: self.write(", "), ...)`), and unbounded self-state string
+  accumulation; the `_Parser` family is a stateful recursive-descent tokenizer cursor. Those need
+  capabilities PyCSL does not have, independent of annotations.
+
+So the honest classification is **MIXED**: annotation is COST/SCALE, the context-manager/lambda/
+cursor-state core is a capability boundary. Ranked LOW on ROI regardless — the annotation half does
+not unblock anything on its own, because the capability half sits behind it.
+
+### v2 clean candidates by file
+
+| file | clean (v2) | of trusted |
+|---|---|---|
+| `frontend/pure_ast.py` | 41 | 219 |
+| `pycsl.py` | 17 | 29 |
+| `frontend/monomorphize.py` | 15 | 15 |
+| `frontend/Module5_IREmitter.py` | 12 | 34 |
+| `audit_proof.py` | 11 | 14 |
+| `frontend/ir_resolve.py` | 11 | 15 |
+| `module6_whyml/expressions.py` | 9 | 36 |
+| `frontend/Module3_Weaver.py` | 8 | 30 |
+| `audit_proof_reverify.py` | 7 | 13 |
+| `frontend/Module2_Parser.py` | 7 | 23 |
+| `frontend/Module1_Ingestor.py` | 6 | 12 |
+| `module6_whyml/preamble.py` | 6 | 19 |
+| `frontend/ir_inline.py` | 5 | 7 |
+| `proof2why3/parser.py` | 5 | 15 |
+| `Module6_WhyMLTranspiler.py` | 4 | 13 |
+| `core_ir_semantic.py` | 4 | 4 |
+| `proof_axiom_allowlist.py` | 4 | 4 |  *(OFF-LIMITS — the ledger allowlist)*
+| `frontend/ConcurrencyChecker.py` | 4 | 6 |
+| `proof2why3/sertop.py` | 4 | 10 |
+| `proof2why3/canonical.py` | 4 | 12 |
+| `proof2why3/crosscheck.py` | 3 | 5 |
+| `proof2why3/crosscheck_ir.py` | 3 | 6 |
+| `module6_whyml/functions.py` | 3 | 10 |
+| `module6_whyml/statements.py` | 3 | 14 |
+| `frontend/import_classifier.py` | 2 | 2 |
+| `module6_whyml/identifiers.py` | 2 | 2 |
+| `module6_whyml/struct_format.py` | 2 | 4 |
+| `proof2why3/from_sexp.py` | 1 | 4 |
+| `proof2why3/extract_lean_meta.py` | 1 | 2 |
+| `proof2why3/normalize.py` | 1 | 6 |
+| `module6_whyml/abstract_ops.py` | 1 | 4 |
+| `module6_whyml/types.py` | 1 | 2 |
+
+### v2 ranked candidates, smallest live body first (top 40)
+
+| live LOC | file | qualname | features |
+|---|---|---|---|
+| 2 | `audit_proof.py` | `_default_rocq_dir` | — |
+| 2 | `audit_proof.py` | `_default_lean_dir` | — |
+| 2 | `frontend/pure_ast.py` | `_const_value_getter` | untyped-return |
+| 2 | `frontend/pure_ast.py` | `_Tok.__repr__` | untyped-return |
+| 2 | `frontend/pure_ast.py` | `_Parser.expr` | self-method-call, untyped-return |
+| 2 | `module6_whyml/struct_format.py` | `StructFormat.arity` | call:len |
+| 2 | `proof2why3/parser.py` | `Token.__repr__` | — |
+| 2 | `proof2why3/sertop.py` | `SertopSession.__enter__` | — |
+| 2 | `pycsl.py` | `_record_answer` | — |
+| 3 | `frontend/ConcurrencyChecker.py` | `ConcurrencyChecker._walk_body` | self-method-call |
+| 3 | `frontend/pure_ast.py` | `Comment.__repr__` | untyped-return |
+| 3 | `frontend/pure_ast.py` | `_Parser.unary_postfix` | self-method-call, untyped-return |
+| 3 | `module6_whyml/expressions.py` | `ExpressionEmissionMixin._e` | self-method-call |
+| 3 | `proof_axiom_allowlist.py` | `is_rocq_assumption_allowed` | — |
+| 3 | `proof_axiom_allowlist.py` | `is_lean_axiom_allowed` | — |
+| 3 | `pycsl.py` | `_proof_reference_mlw_name` | — |
+| 3 | `pycsl.py` | `_json_goal_records` | comprehension |
+| 3 | `pycsl.py` | `_synthesize_legacy_text` | call:join, comprehension |
+| 4 | `audit_proof.py` | `AuditReport.extend` | call:extend, self-field-method-call |
+| 4 | `audit_proof_reverify.py` | `_sha256_file` | call:update |
+| 4 | `frontend/ConcurrencyChecker.py` | `ConcurrencyChecker._check_function` | self-method-call |
+| 4 | `frontend/Module1_Ingestor.py` | `_Harvester._emit_block_footer` | call:append, self-field-method-call |
+| 4 | `frontend/Module5_IREmitter.py` | `Module5_IREmitter.generate_json` | — |
+| 4 | `frontend/monomorphize.py` | `_mangled_name` | — |
+| 4 | `frontend/pure_ast.py` | `_Parser.parse_eval` | self-method-call, untyped-return |
+| 4 | `frontend/pure_ast.py` | `_Parser._name_str` | self-method-call, untyped-return |
+| 4 | `frontend/pure_ast.py` | `_Parser.testlist_star_expr_or_yield` | self-method-call, untyped-return |
+| 4 | `frontend/pure_ast.py` | `_Parser._lambda_arg` | self-method-call, untyped-return |
+| 4 | `proof2why3/extract_lean_meta.py` | `lean_meta_available` | — |
+| 4 | `proof2why3/sertop.py` | `parse_sexp` | — |
+| 4 | `proof2why3/sertop.py` | `SertopSession.type_of_batch` | — |
+| 5 | `audit_proof_reverify.py` | `_cache_root` | — |
+| 5 | `audit_proof_reverify.py` | `_cache_store` | — |
+| 5 | `frontend/Module1_Ingestor.py` | `Module1_Ingestor.process` | comprehension |
+| 5 | `frontend/Module2_Parser.py` | `_ContractParser.parse` | self-method-call, untyped-return |
+| 5 | `frontend/Module2_Parser.py` | `Module2_Parser.parse_node_contracts` | call:append, self-method-call |
+| 5 | `frontend/import_classifier.py` | `_stub_set` | comprehension |
+| 5 | `frontend/pure_ast.py` | `_Parser._else_block` | self-method-call, untyped-return |
+| 5 | `frontend/pure_ast.py` | `_Parser.test_or_star_slice` | self-method-call, untyped-return |
+| 5 | `frontend/pure_ast.py` | `_Parser.or_test_no_cond` | self-method-call, untyped-return |
+
+### What v2 does NOT change
+
+The load-bearing finding stands and is strengthened: the `proof2why3/` package
+(`canonical.py` 4, `parser.py` 5, `sertop.py` 4, `crosscheck.py` 3, `crosscheck_ir.py` 3,
+`from_sexp.py` 1, `normalize.py` 1, `extract_lean_meta.py` 1 = **22 clean candidates** even under the
+strict filter), `frontend/ConcurrencyChecker.py` (4), `audit_proof.py` (11),
+`audit_proof_reverify.py` (7) and `frontend/monomorphize.py` (15) were **never covered by any
+`no_cheap_remaining` probe** in this campaign. Those probes were file-scoped over Module2/3/5,
+`expressions.py`, `pure_ast.py`, `ir_scanner.py` and the for-over-string cluster.
+
