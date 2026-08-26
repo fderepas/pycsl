@@ -3948,3 +3948,78 @@ union synthesis). And it may be NARROW rather than a value-model rewrite — **t
 exist; what is missing is local-type inference for a local bound to a union-returning call.** Spike
 that hypothesis FIRST: if a local can be given its callee's synthesized union type, a large set
 unblocks at once.
+
+## L12 union-local typing: SPIKE PASSED, **PAYOFF 0**, REVERTED — and the third convergent yield-0
+
+Nothing landed; count 671; tree driver-verified clean. The capability WORKED — a ~120-line,
+self-contained build (Module5 `_union_ret_by_func` registry + `_union_call_ret_type`; Module6
+no-double-wrap + carrier-field projection) gave `parse_implication` a correctly typed union local,
+guard and field read:
+```
+let t = ref ((_parser__peek self 0) : _union_peek_0) in
+if ((not (match !t with Arm_0_None -> true | _ -> false end))
+    && (str_eq_op (match !t with Arm_0_0 _v -> _v.kind | _ -> "" end) "OP") ...
+```
+**The union-typing wall is genuinely narrow and it fell. It just isn't what blocks anything.**
+
+### The cross-scope question: WELL-FORMED, with the boundary in the opposite place
+- `type _union_peek_0 = Arm_0_0 token | Arm_0_None` is declared at MODULE level in the single
+  `PyCSL_Program` module. `_union_<scope>_<idx>` is **name mangling, not scoping** — visible at every
+  caller. `idx` comes from a global counter, so **collisions are impossible**.
+- **The real boundary: unions are NOMINALLY DISTINCT even when structurally identical.** Two
+  `Optional[Path]` params in two scopes are two types, so a union value cannot be PASSED across a
+  call. Return-binding works; argument-passing does not. HEAD-native, verbatim, on
+  `audit_proof::audit_both`:
+  `This expression has type _union_audit_both_5, but is expected to have type _union_audit_rocq_1`.
+
+### CORRECTION to a premise I put in the plan (my error, recorded)
+I claimed the `proof2why3` Term family is immutable because the emitted `type term` ADT is
+(`list term`/`list string`). **Wrong on the path that matters:** the `Term` *annotation* lowers to
+`int`, and the concrete node classes emit as MUTABLE records — `type binop = { mutable binop_op:
+string; mutable binop_lhs: int; ... }` — hence Why3's region-annotated `binop @rho`. The immutable
+`term` ADT exists for the already-converted CONSUMERS; the construction/return path uses the records.
+`Return_term term` is NOT available there, and the mutable-record co-blocker applies in full to 4 of
+the 6 cursor stubs. **I inferred a representation from one emitted type declaration without checking
+which path the return actually takes — the same "re-measure, never inherit" failure mode.**
+
+### Payoff gate: 0 of 10 convert. Blockers are THREE unrelated walls
+| stub | wall |
+|---|---|
+| `parse_implication` | **recursive METHOD emission** — `unbound function symbol '_parser__parse_implication'` |
+| `parse_comparison`, `parse_disjunction`, `parse_atom` | `Return <record>`, MUTABLE (`binop @rho` / `intlit @rho`) |
+| `parse_atom_application` | `args: List[Term]` seq-vs-int |
+| `parse_quant`, `audit_both` | union ARGUMENT passing (nominal distinctness) |
+| `parse_expr` | `assigns self.pos` frame vs a delegating body |
+| `parse_type_expr`, `_parse_happy_targets` | value-model collapse (`int` vs `string`) |
+
+### NEW narrow gap NAMED: recursive METHOD emission
+`module6_whyml/ir_scanner.py::is_recursive` matches `obj.get("func") == name` — a BARE name — but a
+method self-call has `func == "self.<name>"`, so a self-recursive method emits `let`, not `let rec`.
+**Census: 29 trusted stubs are self-recursive methods.** But per the lesson below, that count is an
+upper bound; the small ones sampled are co-blocked (`_Harvester._*` need `@mutable_state` with a
+290-line blast radius; the `pure_ast` ones sit behind the untyped-param wall;
+`Module3_Weaver._collect_self_call_sites` has untyped `cur_func`/`cur_stmt`, an out-param
+`out.append` against a FALSE `assigns \nothing` frame, and a tuple payload).
+
+## ===== STRATEGY CHANGE (the meta-lesson of this window) =====
+**Three consecutive single-capability builds have yielded ZERO conversions** — L10 (field defaults,
+20 candidates), L12 (union local typing, 10 candidates), and the L9 follow-on drain (4 candidates) —
+each because EVERY candidate needs two or more UNRELATED capabilities simultaneously. The campaign is
+in a **deep multi-blocker regime**.
+
+This is a COST/SCALE boundary, not a correctness one, so it is fundable — but the METHOD must change:
+- **STOP** building a capability and then looking for candidates. That is what produced three yield-0
+  results, and the payoff gate then correctly discards working code.
+- **START** from ONE target stub. Enumerate ALL of its blockers by ITERATED MEASUREMENT (fix blocker
+  -> re-measure -> next blocker), then land the whole BUNDLE in one increment, gated on that stub
+  actually converting.
+- Apply the payoff gate to the **BUNDLE**, not to each capability — otherwise the gate discards
+  exactly the pieces a bundle needs. (L12's ~120 working lines were reverted for this reason and
+  would have to be rebuilt.)
+
+**Best-measured bundle candidate: `proof2why3/parser.py::_Parser.parse_implication` (8 live LOC).**
+Its blockers are now FULLY enumerated by measurement: (1) union-local typing [BUILT and proven, ~120
+lines, reverted]; (2) recursive-method emission [`is_recursive` bare-name bug, narrow]; (3) a
+`#@ \variant` for the recursion. Nothing else. That is a 3-part bundle for 1 marker — expensive per
+stub, but it is the first target in this window whose blocker set is CLOSED and MEASURED rather than
+estimated.
