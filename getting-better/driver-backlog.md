@@ -3227,3 +3227,48 @@ statically expandable.
 **Honest revised yield:** 1 per member, ~4 members, in increasing risk order
 `_py_op_to_str` -> `_py_expr_to_ir` -> `_py_stmts_to_ir` -> `_csl_to_ir`. That is COST/SCALE, which
 the funded window pays; it is NOT the 3-8-for-one-build that the first L2 draft implied.
+
+## L1 `fav-structural-robustification` — REFUTED AS STALE (payoff 0; the target was already converted)
+
+**Verdict: NOT a boundary. A stale backlog entry. STRUCK from the ladder.**
+
+Gate R's independent fable review, running the whole-file proof of `ir_scanner.py` in an isolated
+worktree, reported **409 `_collect_mutations` subgoals and 71 `find_iteration_mutations` subgoals all
+proved**. A `\trusted` stub emits as a bodyless `val` and has NO subgoals — so the target could not
+still be trusted. Verified directly in the main tree at HEAD:
+
+```
+grep -cF '#@ \trusted' src/self-annotate/src/module6_whyml/ir_scanner.py   ->  0
+```
+
+`_collect_mutations`, `find_iteration_mutations` and `find_assigned_vars` all carry real, full bodies
+with `#@ requires/ensures/assigns` and NO `\trusted`. The file has **zero** trusted markers.
+
+**What actually happened.** The wall WAS broken — by a completely different route than the one the
+wall record predicted:
+
+| commit | what it did |
+|---|---|
+| `c6557971` | `tcb: _collect_mutations — heterogeneous value-model ROOT broken (796->795)` |
+| `4700f558` | `96h run #2 — value-model ROOT BROKEN 796->794 (_collect_mutations + find_iteration_mutations, spike->de-risk-gate->build)` |
+| `fdbccc77` | `tcb: find_iteration_mutations — value-model-root record-embedding (795->794)` |
+
+At `0eb601ca` (the "FINAL FLOOR CONFIRMED @ count 804" record) `ir_scanner.py` still had 4 trusted
+markers. A later window drove it to 0 via the heterogeneous value-model root. Nobody retired the
+`wall-lessons.md` entry, so the chain
+`no_inline (#18 REFUTED) -> verify_module-Sig-fix (#21) -> verify_module (#22 REFUTED) ->
+"the ONLY remaining path is find_assigned_vars structural robustification"`
+kept propagating a reopening for a wall that no longer existed — into the backlog, and from there
+into the **2026-08-26 authority amendment as flagged build (a)**.
+
+**Consequences, both good:**
+1. **Authority-amendment item (a) is MOOT.** One of the three formerly-AUTHORIZE-FIRST builds does
+   not need doing at all. It was also the RISKIEST of the three (it re-emits an already-landed,
+   already-proven function, with a documented faithfulness trap). Not building it is a strict win.
+2. The worker#22 **ops lesson stays valid** — `#@ verify_module` is not a universal
+   "stop the E-matching summation" lever, and isolating a razor-edge goal can tip it over the cliff
+   (the t2/t3 spike is still sound evidence). Only its "corrected reopening" line is obsolete.
+
+**Cost of the staleness:** one wall report, one fable review, and a large risky build was queued at
+the TOP of the ladder for a payoff of zero. The review earned its keep by refuting the premise
+instead of endorsing it — which is exactly what Gate R exists for.
