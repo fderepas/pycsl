@@ -110,7 +110,6 @@ _ROCQ_DECL_KEYWORDS = {
 }
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -124,6 +123,8 @@ def _strip_rocq_comments(text: str) -> str:
     depth = 0
     i = 0
     n = len(text)
+    #@ loop invariant i >= 0
+    #@ loop variant n - i
     while i < n:
         if depth == 0 and i + 1 < n and text[i] == "(" and text[i + 1] == "*":
             depth = 1
@@ -229,7 +230,6 @@ _LEAN_DECL_KEYWORDS = {
 }
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -241,6 +241,8 @@ def _strip_lean_comments(text: str) -> str:
     depth = 0
     i = 0
     n = len(text)
+    #@ loop invariant i >= 0
+    #@ loop variant n - i
     while i < n:
         # Block comment open / close (nest-aware)
         if depth == 0 and i + 1 < n and text[i] == "/" and text[i + 1] == "-":
@@ -257,6 +259,8 @@ def _strip_lean_comments(text: str) -> str:
         # Line comment
         elif i + 1 < n and text[i] == "-" and text[i + 1] == "-":
             # Skip to EOL
+            #@ loop invariant i >= 0
+            #@ loop variant n - i
             while i < n and text[i] != "\n":
                 i += 1
         else:
