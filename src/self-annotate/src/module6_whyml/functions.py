@@ -1581,6 +1581,18 @@ class FunctionEmissionMixin:
                         and str(func.get("name", "")).endswith("_has_set_op_on_map")):
                     param_types.append("map int (option int)")
                     continue
+                # cursor-nest `parse_atom`: a `_union_*` PARAM keeps its union type.
+                # `_symtype_to_whyml` collapses it to `int`, so `_coerce_dotted_args`
+                # believed `expect`'s `value: Optional[str]` slot was int-typed and filled
+                # the omitted default with the int witness `0` — `This expression has type
+                # int, but is expected to have type _union_expect_1` against the CONCRETE
+                # sibling, whose emitted signature does use the union. The registry was
+                # simply lying about the emitted shape; this makes the two agree.
+                # @mutable_state-gated, like the record widening a few lines below.
+                if (isinstance(symtype, str) and symtype.startswith("_union_")
+                        and getattr(self, "_mutable_state_classes", None)):
+                    param_types.append(symtype)
+                    continue
                 if symtype == "dict" and (name in _kt or name in _vt):
                     param_types.append(
                         self._dict_param_whyml_type(name, _kt, _vt))

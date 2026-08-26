@@ -3533,10 +3533,40 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # the pre-existing int-hash form was VALUE-BLIND: it compared opaque hashes.
         # Reuses `_union_local_field_projection`'s own fail-closed resolution, so it can
         # only fire where that projection also fires.
+        # TERM CARRIER: a `string`-typed payload projection off a `term`-typed local
+        # (`atom.name`, the unique-arm projection built in `_handle_attribute_expr`) is a
+        # STRING read. Without this classification the `atom.name in _KNOWN_FN_HEADS`
+        # membership keeps the int operand shape and rejects the projected string
+        # (`has type string, but is expected to have type int`). Routing it through the
+        # same `str_hash_op` coercion every other converted member of this nest already
+        # uses for its module-level string-set membership keeps the treatment uniform.
         if (t == "Attribute" and isinstance(ir.get("object"), dict)
                 and ir["object"].get("type") == "Var"
-                and ir["object"].get("name") in getattr(self, "_optional_union_locals", set())):
-            _st = getattr(self, "_current_symbol_table", {}).get(ir["object"]["name"])
+                and ir["object"].get("name") in getattr(self, "_term_local_vars", set())):
+            _tsp = (getattr(self, "_term_adt_spec", None) or {}).get("ctors") or {}
+            _own = [(cn, flds) for cn, flds in _tsp.items()
+                    if any(fn == ir.get("attr") for fn, _w in flds)]
+            if len(_own) == 1 and any(
+                    fn == ir.get("attr") and _w == "string" for fn, _w in _own[0][1]):
+                return True
+        # cursor-nest `parse_atom`: the union-returning-sibling-CALL base is the same
+        # string-valued read as the union LOCAL base directly below — `self.peek().kind`
+        # is a `str` record field just as `t.kind` is. Without it the `== "COMMA"`
+        # comparison falls to the int-hash model (`_rec_.token_kind = 1429053303`), a
+        # string-vs-int type error AND the value-blind hash facade. One shared body: the
+        # only difference is where the union type comes from.
+        _ustr = None
+        if (t == "Attribute" and isinstance(ir.get("object"), dict)
+                and ir["object"].get("type") == "Call"):
+            _ustr = self._sibling_call_union_type(ir["object"])
+        if (t == "Attribute" and isinstance(ir.get("object"), dict)
+                and (ir["object"].get("type") == "Var"
+                     and ir["object"].get("name") in getattr(
+                         self, "_optional_union_locals", set())
+                     or _ustr)):
+            _st = (_ustr if _ustr
+                   else getattr(self, "_current_symbol_table", {}).get(
+                       ir["object"].get("name")))
             _vi = getattr(self, "_variant_types", {}).get(_st) or {}
             for _cn, _c in (_vi.get("constructors") or {}).items():
                 if _c.get("arity") != 1:
@@ -4098,8 +4128,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if raw_op in ("==", "!=") and (
                 expr["left"].get("type") == "None" or
                 expr["right"].get("type") == "None"):
-            union_ctor = self._union_none_ctor_for(expr["left"]) or \
-                self._union_none_ctor_for(expr["right"])
+            union_ctor = (self._union_none_ctor_for(expr["left"])
+                          or self._union_none_ctor_for(expr["right"])
+                          # cursor-nest `parse_atom`: same test, but on a union-returning
+                          # sibling CALL used directly in the guard. See
+                          # `_call_union_none_ctor` for why it lives here and not in
+                          # `_union_none_ctor_for`.
+                          or self._call_union_none_ctor(expr["left"])
+                          or self._call_union_none_ctor(expr["right"]))
             if union_ctor is not None:
                 var_side = expr["right"] if expr["left"].get("type") == "None" \
                     else expr["left"]
@@ -5432,6 +5468,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     coerced.append(arg)
                 else:
                     coerced.append("(const (None: option int))")
+            elif (isinstance(ptype, str) and ptype.startswith("_union_")
+                  and arg.strip() in ("0", "(0)")):
+                # cursor-nest `parse_atom`: an OMITTED optional argument
+                # (`self.expect("RPAREN")` against `def expect(self, kind, value=None)`)
+                # is filled with the Python `None` default, which the int model lowers to
+                # the witness `0` — ill-typed against the param's `_union_*`
+                # (`This expression has type int, but is expected to have type
+                # _union_expect_1`). Substitute the union's own nullary None arm, which is
+                # the FAITHFUL value of that default. Restricted to a literal `0` actual,
+                # so a genuinely int-valued expression flowing into a union slot still
+                # fails LOUDLY rather than being silently re-tagged as None.
+                _vi = getattr(self, "_variant_types", {}).get(ptype) or {}
+                _none = next((cn for cn, c in (_vi.get("constructors") or {}).items()
+                              if c.get("arity") == 0 and "None" in cn), None)
+                coerced.append(f"({_none} : {ptype})" if _none else arg)
             else:
                 coerced.append(arg)
         return coerced
@@ -6172,6 +6223,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # positional `__init__` params (dataclass field order), so a mismatch between
         # the class's field order and the ctor's payload order can never silently
         # mis-bind. Gated on @mutable_state (the emitter model) → corpus byte-identical.
+        # TERM-vs-emit_ir CTOR NAME COLLISION (cursor-nest `parse_atom`). `Var` names BOTH
+        # an arm of the certified `term` inductive (`proof2why3.ir.Var`) and an entry in
+        # the SHARED `_IRNODE_CTORS` table, so `Var(name=ident)` in a `-> Term` method was
+        # lowering to the emit_ir `IrVar` — the WRONG ADT, caught as
+        # `has type emit_ir, but is expected to have type term`. When the name is an arm of
+        # THIS file's `_term_adt_spec`, the term constructor wins. That spec is computed
+        # from the file's OWN imported dataclass list (`compute_term_adt_spec`), so
+        # membership already means "this module's `Var` is the term arm"; a file that does
+        # not import the Term union has no `_term_adt_spec` and is untouched.
+        _tspec_ctors = (getattr(self, "_term_adt_spec", None) or {}).get("ctors") or {}
+        if func_name in _tspec_ctors:
+            _t_first = self._call_term_constructor(
+                args, func_name, kwargs_map,
+                raw_args=list(expr.get("args") or []),
+                raw_kwargs={kw["arg"]: kw.get("value")
+                            for kw in (expr.get("keywords") or [])
+                            if isinstance(kw, dict) and isinstance(kw.get("arg"), str)},
+                elt_lower=(lambda _n: self._expr_to_whyml(
+                    _n, local_refs, invariant_ctx, subst)))
+            if _t_first is not None:
+                return _t_first
         adt = self._call_irnode_constructor(args, func_name, kwargs_map,
                                             none_arg_indices, none_kwargs)
         if adt is not None:
@@ -7174,6 +7246,67 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op("val function typeof_op (n: int) : int")
         return f"(typeof_op {sum(ord(c) for c in name) if name else 0})"
 
+    def _sibling_call_union_type(self, x_ir: Any) -> Optional[str]:
+        """The `_union_*` WhyML type of a `self.<m>(...)` sibling call, when that call
+        resolves CONCRETELY (so the emitted expression really has the union type) — else
+        None. Gated by the SAME two admission routes `_handle_dotted_call` uses for the
+        concrete lowering (`_record_array_fields` or the opt-in `#@ sibling_concrete`),
+        so it can never claim a union type for a call that actually lowered to the opaque
+        int-returning avatar."""
+        if not (isinstance(x_ir, dict) and x_ir.get("type") == "Call"):
+            return None
+        fn = x_ir.get("func")
+        if not (isinstance(fn, str) and fn.startswith("self.")
+                and getattr(self, "_current_self_type", None)):
+            return None
+        _concrete = whyml_ident(f"{self._current_self_type}__{fn[len('self.'):]}")
+        if not (getattr(self, "_record_array_fields", None)
+                or _concrete in getattr(self, "_sibling_concrete_methods", set())):
+            return None
+        if _concrete not in getattr(self, "_module_func_names", set()):
+            return None
+        # Read the return ANNOTATION, not `_resolve_dotted_signature` /
+        # `_module_method_return_types`: that registry is WRONG for union returns — it
+        # records `_parser__peek: int` although `peek` demonstrably emits
+        # `: _union_peek_0`. The annotation map is the same source the union-local SEEDING
+        # in statements.py already trusts, so the call site and the local typing cannot
+        # disagree.
+        _ann = getattr(self, "_module_method_return_annotations", {}).get(
+            f"{self._current_self_type}__{fn[len('self.'):]}")
+        return _ann if isinstance(_ann, str) and _ann.startswith("_union_") else None
+
+    def _call_union_none_ctor(self, x_ir: Any) -> Optional[str]:
+        """cursor-nest `parse_atom`: the nullary None arm of a union-returning sibling
+        CALL used DIRECTLY in an `is None` guard rather than bound to a local
+        (`if self.peek() is not None and self.peek().kind == "COMMA"`). Without it the
+        call lowers to `(_parser__peek self 0) <> 0` — union-vs-int.
+
+        Faithful to Python: `peek` is `assigns \nothing`, so evaluating it twice (exactly
+        as the live body does) observes the same value both times.
+
+        Deliberately kept OUT of `_union_none_ctor_for` and consumed by `_handle_binop`
+        instead: `_union_none_ctor_for` has an UN-TRUSTED mirror counterpart, so §10.4
+        would force a verbatim re-port, and the re-ported body's call to
+        `_sibling_call_union_type` (which the mirror does NOT define) degraded to an
+        int-returning auto-trusted val and broke the expressions mirror at L3-tc
+        (`has type string -> option hval, but is expected to have type int`). Hosting it in
+        the `\trusted`-mirrored `_handle_binop` keeps the fidelity plane at baseline with
+        no new mirror stub — a smaller TCB than either alternative."""
+        return (self._union_none_ctor_of_type(self._sibling_call_union_type(x_ir))
+                if isinstance(x_ir, dict) and x_ir.get("type") == "Call" else None)
+
+    def _union_none_ctor_of_type(self, utype: Optional[str]) -> Optional[str]:
+        """The nullary `Arm_*_None` constructor of a named `_union_*` variant, or None."""
+        if not utype:
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(utype)
+        if not vinfo:
+            return None
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            if ctor.get("arity") == 0 and "None" in ctor_name:
+                return ctor_name
+        return None
+
     def _union_none_ctor_for(self, x_ir: Dict[str, Any]) -> Optional[str]:
         """typing-engagement ty1 C5 — if `x_ir` is a Var whose symbol-table type
         is a synthesized `_union_*` variant that has a nullary `Arm_*_None`
@@ -7276,6 +7409,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # relies on for `.get("type") == "K"`).
         _a0 = args_ir[0] if args_ir else None
         _a1 = args_ir[1] if len(args_ir) > 1 else None
+        # TERM CARRIER: `isinstance(atom, Var)` on a `term`-typed local, where `Var` is an
+        # ARM of this file's certified inductive, is the ADT constructor DISCRIMINANT —
+        # `(match !atom with Var _ -> true | _ -> false end)`. Today it lowers to the
+        # CONTENTLESS `(isinstance_op 0 0)`: BOTH arguments erased to 0, so the test is
+        # independent of the value AND of the class — the purest possible facade, and the
+        # `parse_atom_application` dispatch turns on it. The emit_ir sibling of this rule
+        # is a few lines below (`is_<kind> child`); this is the same law one type-class
+        # over, and it is EXACT rather than an approximation: on a `term` value the arm
+        # IS the class.
+        _tc = (getattr(self, "_term_adt_spec", None) or {}).get("ctors") or {}
+        if (isinstance(_a0, dict) and _a0.get("type") == "Var"
+                and _a0.get("name") in getattr(self, "_term_local_vars", set())
+                and isinstance(_a1, dict) and _a1.get("type") == "Var"
+                and _a1.get("name") in _tc):
+            _ar = _a0["name"]
+            _deref = (f"!{whyml_ident(_ar)}" if _ar in local_refs
+                      else whyml_ident(_ar))
+            _arity = len(_tc[_a1["name"]])
+            _wild = " ".join(["_"] * _arity)
+            _pat = f"{_a1['name']} {_wild}".rstrip()
+            return f"(match {_deref} with {_pat} -> true | _ -> false end)"
         # self-tcb-reduction _typeddict_record_literal (cap-3): `isinstance(<emit_ir>, dict)`
         # — every reflected IR node IS a Python dict, so the test is always TRUE in the
         # reflection model. Emit the constant true (a provably-satisfied type guard; the real
@@ -8567,7 +8721,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (`_term_list_literal_slot`); every other actual shape still DECLINES, so the
         # `list string` binder slots (`Forall`/`Exists`) and the int/bool literal slots
         # (`IntLit`/`BoolLit`) are unchanged.
-        if not all(wt in ("term", "string", "list term") for _fn, wt in ctor_fields):
+        if not all(wt in ("term", "string", "list term", "int", "bool")
+                   for _fn, wt in ctor_fields):
             return None
         rec_info = getattr(self, "_record_types", {}).get(func_name)
         if not rec_info:
@@ -8586,11 +8741,101 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _wt == "list term":
                 lst = self._term_list_literal_slot(raw_bound.get(fn), elt_lower)
                 if lst is None:
+                    lst = self._term_list_seq_slot(raw_bound.get(fn))
+                if lst is None:
                     return None
                 parts.append(lst)
                 continue
+            if _wt in ("int", "bool"):
+                lit = self._term_scalar_slot(_wt, raw_bound.get(fn), bound[fn])
+                if lit is None:
+                    return None
+                parts.append(lit)
+                continue
             parts.append(bound[fn])
         return f"({func_name} {' '.join(parts)})"
+
+    def _term_list_seq_slot(self, raw: Any) -> Optional[str]:
+        """TERM CARRIER capability (4) PROPER: a RUNTIME-LENGTH `tuple(<seq local>)` bound
+        to a `list term` constructor slot — `App(head=atom.name, args=tuple(args))` in
+        `parse_atom_application`, `App(head="tuple", args=tuple(elts))` in `parse_atom` —
+        lowers to `(seq_to_list_term !args 0)`.
+
+        This is the half of capability (4) the fixed-arity `_term_list_literal_slot`
+        cannot reach: the arity is not known at emission time, so there is no `Cons` chain
+        to write. Today the same site lowers to the OPAQUE `tuple_1 : seq int -> int`,
+        which int-erases the whole accumulator — a facade that silently drops every
+        element's value.
+
+        NO AXIOM AND NO ABSTRACT VAL. `seq_to_list_term` is a DEFINED, total, structurally
+        terminating `let rec function` over Why3's own `seq.Seq` and `list.List`, both of
+        which the file already `use`s wherever `type term` is emitted:
+
+            let rec function seq_to_list_term (s: seq term) (i: int) : list term
+              variant { Seq.length s - i }
+              = if i >= Seq.length s then Nil
+                else Cons (Seq.get s i) (seq_to_list_term s (i + 1))
+
+        Its termination discharges from the recursive call's own guard (`i < Seq.length s`
+        makes the variant positive and strictly decreasing), so it needs no precondition
+        and is total on every input. The result is EXACTLY the seq's elements in order,
+        which is precisely what the Python `tuple(<list>)` denotes — the conversion is
+        faithful by construction, not an over-approximation.
+
+        FAIL-CLOSED: the actual must be a literal `tuple(...)`/`list(...)` call over a
+        single bare `Var` naming a recognized `seq` local. Anything else declines, and the
+        old record path then fails LOUDLY at L3-tc. If the seq's elements were not in fact
+        `term`-typed, `Seq.get s i` would not unify with the `list term` result — again a
+        loud failure, never a silent int-erasure."""
+        if not (isinstance(raw, dict) and raw.get("type") == "Call"
+                and raw.get("func") in ("tuple", "list")):
+            return None
+        a = raw.get("args") or []
+        if len(a) != 1 or not (isinstance(a[0], dict) and a[0].get("type") == "Var"):
+            return None
+        nm = a[0].get("name")
+        if nm not in getattr(self, "_seq_locals", set()):
+            return None
+        self._add_abstract_op(
+            "let rec function seq_to_list_term (s: seq term) (i: int) : list term\n"
+            "    variant { Seq.length s - i }\n"
+            "  = if i >= Seq.length s then Nil\n"
+            "    else Cons (Seq.get s i) (seq_to_list_term s (i + 1))")
+        return f"(seq_to_list_term !{whyml_ident(nm)} 0)"
+
+    def _term_scalar_slot(self, wt: str, raw: Any, lowered: str) -> Optional[str]:
+        """TERM CARRIER: the `int` (`IntLit int`) and `bool` (`BoolLit bool`) payload
+        slots of the certified inductive.
+
+        `int`: the actual is passed through UNCHANGED, but only from a shape that is
+        UNAMBIGUOUSLY int-valued at the source level — an integer literal, a unary
+        `+`/`-` over one, or an `int(...)` conversion call (`IntLit(int(t.value))`, the
+        live `parse_atom` shape). Anything else DECLINES, because the int model is
+        exactly where a value-blind `str_hash_op`/`getattr_*` facade would slip in
+        silently: it type-checks against `int` while carrying a hash instead of a value.
+
+        `bool`: only the literals `True` / `False`, emitted as Why3 `true` / `false`.
+        This slot CANNOT reuse the ordinary lowering — PyCSL models a Python bool as an
+        INT (`True` -> `1`), and the inductive's arm is a genuine Why3 `bool`, so passing
+        the ordinary lowering through would be an int-vs-bool type error. A non-literal
+        bool declines rather than guessing a coercion."""
+        if not isinstance(raw, dict):
+            return None
+        t = raw.get("type")
+        if wt == "bool":
+            if t == "Bool" and isinstance(raw.get("value"), bool):
+                return "true" if raw["value"] else "false"
+            return None
+        if t == "Number" and isinstance(raw.get("value"), int):
+            return lowered
+        if (t == "UnaryOp" and raw.get("op") in ("-", "+")
+                and isinstance(raw.get("operand"), dict)
+                and raw["operand"].get("type") == "Number"
+                and isinstance(raw["operand"].get("value"), int)):
+            return lowered
+        if t == "Call" and raw.get("func") == "int":
+            return lowered
+        return None
 
     def _term_list_literal_slot(self, raw: Any, elt_lower: Optional[Any]
                                 ) -> Optional[str]:
@@ -9823,6 +10068,55 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
                 return (f"(let _rec_ = {_os} in "
                         f"_rec_.{self._field_label(_crt, attr)})")
+        # TERM CARRIER: `atom.name` on a `term`-typed local projects the payload of the
+        # UNIQUE arm carrying that field — `(match !atom with Var _v0 -> _v0 | _ -> "")`.
+        # Today it lowers to the opaque `(get_name !atom)`, an unconstrained int getter
+        # that is both ill-typed against `term` and value-blind. Admitted ONLY when the
+        # field name identifies EXACTLY ONE arm of the inductive, so the projection can
+        # never be ambiguous; the other arms' default is UNREACHABLE wherever the caller
+        # has narrowed with the `isinstance` discriminant above (the live
+        # `parse_atom_application` shape), so the witness only has to type-check.
+        if (isinstance(obj_ir, dict) and obj_ir.get("type") == "Var"
+                and obj_ir.get("name") in getattr(self, "_term_local_vars", set())):
+            _tspec = (getattr(self, "_term_adt_spec", None) or {}).get("ctors") or {}
+            _owner = [(cn, flds) for cn, flds in _tspec.items()
+                      if any(fn == attr for fn, _wt in flds)]
+            if len(_owner) == 1:
+                _cn, _flds = _owner[0]
+                _idx = next(i for i, (fn, _w) in enumerate(_flds) if fn == attr)
+                _wt = _flds[_idx][1]
+                _binders = " ".join(f"_v{i}" if i == _idx else "_"
+                                    for i in range(len(_flds)))
+                _dflt = {"string": '""', "term": '(Unsupported "" "")',
+                         "int": "0", "bool": "false", "list term": "Nil",
+                         "list string": "Nil"}.get(_wt)
+                if _dflt is not None:
+                    _o = obj_ir["name"]
+                    _d = (f"!{whyml_ident(_o)}" if _o in local_refs
+                          else whyml_ident(_o))
+                    return (f"(match {_d} with {_cn} {_binders} -> _v{_idx} "
+                            f"| _ -> {_dflt} end)")
+        # cursor-nest `parse_atom` — the UNION-return sibling of the branch just above.
+        # `self.peek().kind` where `peek` returns `Optional[Token]`: project the union's
+        # Some-arm carrier FIRST, then take the native record field off it. Without this
+        # the base falls through to the opaque int-hash `get_kind`, which is value-blind
+        # (it makes every kind comparison contentless — the exact facade wall-lessons (l)
+        # describes). The `| _ -> <record default>` arm is UNREACHABLE wherever the caller
+        # has guarded `is not None`, so the witness only has to type-check.
+        if (isinstance(obj_ir, dict) and obj_ir.get("type") == "Call"
+                and isinstance(obj_ir.get("func"), str)):
+            _cu = self._sibling_call_union_type(obj_ir)
+            if _cu:
+                _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+                _proj = self._union_read_projection(_cu, _os)
+                if _proj is not None:
+                    _pay = next(
+                        (c.get("payload", ["int"])[0]
+                         for c in (getattr(self, "_variant_types", {})
+                                   .get(_cu, {}).get("constructors", {}).values())
+                         if c.get("arity") == 1), "int")
+                    return (f"(let _rec_ = {_proj} in "
+                            f"_rec_.{self._field_label(_pay, attr)})")
         # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): `a[i].field` on a
         # flat `List[<record>]` param (`a : array <record>`, registered in
         # `_record_array_params`) is a NATIVE record projection over the array read —
@@ -10081,7 +10375,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         mutable Optional-union local `name` (a `ref _union_*`): `(match !name with
         Arm_i_0 _v -> _v | _ -> <sentinel>)`, where the sentinel is the Some-arm carrier
         type's zero. None if `name` is not a single-Some-arm Optional union."""
-        symtype = getattr(self, "_current_symbol_table", {}).get(name)
+        return self._union_read_projection(
+            getattr(self, "_current_symbol_table", {}).get(name),
+            f"!{whyml_ident(name)}")
+
+    def _union_read_projection(self, symtype: Any, operand: str) -> Optional[str]:
+        """The same carrier-projecting read, generalized from a NAMED local to an
+        arbitrary already-lowered operand of a known `_union_*` type — so a
+        union-returning sibling CALL used directly in a value position
+        (`self.peek().kind`, the live `parse_atom` shape) projects its Some-arm carrier
+        exactly as a union LOCAL does, instead of falling through to the opaque int-hash
+        `get_kind` getter. Same single-Some-arm restriction and same sentinel table;
+        `_union_local_read_projection` is now a thin wrapper over it, so the local and
+        call cases can never drift apart."""
         vinfo = getattr(self, "_variant_types", {}).get(symtype)
         if not vinfo:
             return None
@@ -10114,7 +10420,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _sentinel = self._record_default_literal(_pay_rec)
             else:
                 _sentinel = "0"
-        return (f"(match !{whyml_ident(name)} with {some_ctor} _v -> _v "
+        return (f"(match {operand} with {some_ctor} _v -> _v "
                 f"| _ -> {_sentinel} end)")
 
     def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],

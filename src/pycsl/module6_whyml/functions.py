@@ -5354,9 +5354,28 @@ class FunctionEmissionMixin:
         # typing-engagement ty1 / 25-1700-typing-spec-1 §2.2: per-arm VCs for
         # Union-typed parameters (C2 injection, C3 projection).
         _symtab = func.get("symbol_table", {}) or {}
+        _uvc: List[str] = []
         if any(v and v.startswith("_union_") for v in _symtab.values()):
-            lines += self._emit_union_arm_vc(name, _symtab)
+            _uvc = self._emit_union_arm_vc(name, _symtab)
+        # cursor-nest `parse_atom_application`: a `goal` CLOSES a `let rec … with …`
+        # group, so emitting these per-arm VCs straight after a NON-LAST member SPLITS
+        # the mutual-recursion group — every later member then falls out of scope for
+        # every earlier one (measured: `unbound function or predicate symbol
+        # '_parser__parse_arith_add'` from inside `parse_comparison`, though both sit in
+        # the same 8-member `with` chain). Latent until now only because no previous SCC
+        # of size > 1 had a union-typed member. DEFER them to after the whole group; the
+        # goals themselves are unchanged and the last member's own goals still land where
+        # they always did, so a single-member "group" is byte-identical.
+        if _scc_size > 1 and _pos_in_scc != _scc_size - 1:
+            if getattr(self, "_deferred_union_arm_goals", None) is None:
+                self._deferred_union_arm_goals = []
+            self._deferred_union_arm_goals.extend(_uvc)
+        else:
+            lines += _uvc
         if _pos_in_scc == _scc_size - 1:
+            if getattr(self, "_deferred_union_arm_goals", None):
+                lines += self._deferred_union_arm_goals
+                self._deferred_union_arm_goals = []
             lines.append("")
         return lines
 
@@ -6761,6 +6780,18 @@ class FunctionEmissionMixin:
                 if (name == "map_locals"
                         and str(func.get("name", "")).endswith("_has_set_op_on_map")):
                     param_types.append("map int (option int)")
+                    continue
+                # cursor-nest `parse_atom`: a `_union_*` PARAM keeps its union type.
+                # `_symtype_to_whyml` collapses it to `int`, so `_coerce_dotted_args`
+                # believed `expect`'s `value: Optional[str]` slot was int-typed and filled
+                # the omitted default with the int witness `0` — `This expression has type
+                # int, but is expected to have type _union_expect_1` against the CONCRETE
+                # sibling, whose emitted signature does use the union. The registry was
+                # simply lying about the emitted shape; this makes the two agree.
+                # @mutable_state-gated, like the record widening a few lines below.
+                if (isinstance(symtype, str) and symtype.startswith("_union_")
+                        and getattr(self, "_mutable_state_classes", None)):
+                    param_types.append(symtype)
                     continue
                 if symtype == "dict" and (name in _kt or name in _vt):
                     param_types.append(
