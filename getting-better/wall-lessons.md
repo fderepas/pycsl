@@ -2298,3 +2298,52 @@ mutual recursion, `let rec` and the variant were ALL already supported.
 2. **`#@ \variant (` with a LEADING PAREN is parsed as the `(expr, ordering)` structural-variant form**
    and errors with "expected name". Write a lexicographic-by-encoding measure with the multiplier first:
    `#@ \variant 16 * (\length(self.toks) - self.pos) + <level>`.
+
+## Lesson (u) — a gate result committed without the code it gates is a CLAIM, not an increment
+
+The L14 frame-soundness fix was reported as landed by two consecutive relaunches. It was not. The
+window that built it committed the ORACLE (`trusted-frame-oracle.mlw`) and a nine-line progress-log
+entry reciting green gates — corpus byte-diff 0, fidelity identical, ledger held — while the actual
+three-file patch existed ONLY in a detached worktree under the session scratchpad, staged and never
+committed. HEAD still contained `if (is_method and not emit_as_val`, i.e. the bug, verbatim.
+
+The failure is seductive because the progress log READS like completion: it is specific, it cites
+populations, it names the repaired functions. Nothing in it is false. It simply describes work that
+exists somewhere other than the repository.
+
+**The rule.** Before believing any prior window's "fixed/landed/green", READ THE SOURCE AT HEAD for
+the specific line the fix changes. `git show HEAD:<file> | grep <the changed condition>` costs
+seconds. A commit that touches only `getting-better/` has, by definition, changed no behaviour —
+so a soundness fix whose commit shows `1 file changed` in the docs directory did not land.
+Corollary for the writing side: commit the CODE and the EVIDENCE in the same commit, never the
+evidence first.
+
+## Lesson (v) — a frame is about the FINAL state, so an assignment-statement detector over-reports
+
+Auditing the mirror for `\trusted` stubs whose declared `#@ assigns` understates their live writes,
+an AST scan for "does the body contain `self.f = ...`" returned 20 hits. Only ONE was real. Two
+whole classes of false positive:
+  1. **SAVE-RESTORE.** `_saved = self.f; self.f = x; ...; self.f = _saved` assigns the field twice and
+     leaves it unchanged. A Why3 `writes` clause bounds which fields may DIFFER IN THE FINAL STATE,
+     not which are transiently touched, so omitting such a field is SOUND. (`expressions.py:5267-5270`.)
+  2. **MODEL-INVISIBLE FIELDS.** 15 of the 20 wrote only fields the emitted record DROPS. A field the
+     WhyML record does not contain cannot be observed, relied on, or framed — and "fixing" those would
+     emit `writes` on unbound symbols, the exact failure the field-label filter prevents.
+Narrowing 20 -> 1 was the whole value of the audit; reporting 20 would have been alarmist and acting
+on 20 would have broken the build. **Filter a frame audit by (a) final-state effect and (b) whether the
+field survives into the emitted model, before counting anything.**
+
+## Lesson (w) — a stale prover pin degrades a dual-prover gate to single-prover, silently and fail-closed
+
+`_DEFAULT_PROVERS = ["Alt-Ergo,2.6.2,", "Z3,4.13.3,"]` against an installed Alt-Ergo **2.6.3**. Why3
+answers `No prover in ~/.why3.conf corresponds to "Alt-Ergo,2.6.2,"`, the run produces no goal records,
+the best-of-N merge is unchanged, and the residual goal stays Unknown. The error text is printed under
+"Warnings/Errors from Why3" and changes no verdict. Two consequences that pull in opposite directions:
+  - It is FAIL-CLOSED — the gate under-proves, so nothing unsound was ever accepted because of it.
+  - But a re-proof sweep that must decide "revert this conversion or keep it" would FALSE-REVERT
+    anything only Alt-Ergo can discharge. A fail-closed instrument is still the wrong instrument when
+    the decision it feeds is destructive.
+Also: `_run_vacuity_gate` loops every prover with no early exit, so a correctly-pinned run costs ~2x —
+historical per-file timings were measured with the second prover effectively disabled.
+**Check that each prover id you pass actually resolves (`why3 prove -P <id>` on a one-line goal) before
+trusting any gate that claims to be dual-prover.**

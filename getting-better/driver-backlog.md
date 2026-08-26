@@ -4081,7 +4081,73 @@ Encode the pair as ONE integer instead: `#@ \variant 16 * (\length(self.toks) - 
 identical to the tuple form. GOTCHA: a LEADING PAREN (`#@ \variant (`) is parsed as the
 `(expr, ordering)` form and errors — write the multiplier first.
 
-### L14 — FRAME SOUNDNESS: `#@ assigns self.<f>` on a `\trusted` stub was DROPPED  [IN FLIGHT this window]
+### L14 — FRAME SOUNDNESS: `#@ assigns self.<f>` on a `\trusted` stub was DROPPED  [**RESOLVED — LANDED at `e95f73de`, 2026-08-26**]
+
+**RESOLVED. Do not re-open, do not re-derive.** The fix is IN THE TREE (`src/pycsl/module6_whyml/functions.py`
+`if (is_method and self._current_self_type in self._mutable_state_classes)` — the `not emit_as_val`
+exclusion is gone — plus the `_emitted_record_field_labels` filter in `preamble.py`).
+
+**RE-PROOF SWEEP: 8 of 8 SUCCESS, 6146 goals Valid, 0 Unknown, 0 Timeout, 0 Invalid. ZERO CONVERSIONS REVERTED.**
+`proof2why3/parser` 141 (54s) · `pure_ast` 235 (410s) · `Module2_Parser` 711 (621s) · `statements` 871
+(1495s) · `Module6_WhyMLTranspiler` 706 (1546s) · `expressions` 864 (1608s) · `stmt_control_flow` 1691
+(3100s) · `Module5_IREmitter` 927 (3281s). Run with an EXPLICIT `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`
+— see the prover-pin note below, without which the sweep would have been Z3-only and could have
+FALSE-REVERTED a sound conversion. `\trusted` count UNCHANGED (668 raw / 631 directives) by design:
+this is a soundness repair, not a conversion.
+
+Gates, all driver-run fresh: emission diff 8-of-52 / +231 lines / 0 removed / 228 of them `writes`;
+oracle re-run 17 Valid + 1 Unknown (the discriminating goal); corpus byte-diff **0** over **813/813**
+(non-empty; 813 not 812 because `fb3cfd97` added test 0966); fidelity exactly at baseline (2 DIVERGED,
+3 drifted); ledger 3.
+
+**PROVENANCE WARNING FOR FUTURE RELAUNCHES.** Two earlier windows reported this fix as done. It was
+not. `2a946d6e` and `2d63afa0` committed the GATE RESULTS and the ORACLE while the CODE lived only in
+an orphan detached worktree, and the tree at HEAD still had the bug. *A gate result committed without
+the code it gates is a claim, not an increment.* Verify a landed fix by reading the source at HEAD.
+
+### L14-b — the SAME FAMILY one layer down: a declared frame that is a LIE  [**RESOLVED — `3871b47a`**]
+
+L14 fixes "the declared frame never reaches callers". It says nothing about "the declared frame
+UNDERSTATES the live writes". Audited by AST-diffing every `#@ \trusted` method of a `@mutable_state`
+mirror class against its LIVE body's self-field writes. Raw hits **20**; narrowed honestly to **1**:
+  - 3 are `__init__` (pre-state not observable) — excluded.
+  - 15 write only fields the emitted record DROPS — unobservable in the model. **Left unfixed on
+    purpose:** declaring them would emit `writes` on symbols Why3 does not have, which is exactly the
+    unbound-symbol failure `_emitted_record_field_labels` exists to prevent. They become real only if
+    Module5 starts emitting dict/list-of-object fields into records.
+  - 1 was REAL: `statements.py::_typed_local_vars` permanently mutates `_dict_key_types`,
+    `_dict_locals`, `_dict_value_types` (all emitted record fields) and declared none. FIXED by
+    widening the `#@ assigns`; re-proved `statements` 871/871 and `Module6_WhyMLTranspiler` 706/706.
+  - **1 was a FALSE POSITIVE and the reason matters:** `expressions.py::_handle_dotted_call` does a
+    SAVE-RESTORE of `_func_return_type` (`expressions.py:5267-5270`). A Why3 `writes` bounds which
+    fields may DIFFER IN THE FINAL STATE, not which are transiently touched, so omitting it is SOUND.
+    An "is there an assignment to self.f" detector over-reports this idiom.
+  It was also LATENT: `_typed_local_vars`' only caller is `_emit_body_code`, itself `\trusted`, so no
+  converted proof rested on it yet — it would have become load-bearing the moment `_emit_body_code`
+  (the mirror's largest declared frame, 25 fields) is converted.
+
+### INSTRUMENT — the stale prover pin is CONFIRMED LIVE, and it silently halves every gate
+
+`pycsl.py:1318` `_DEFAULT_PROVERS = ["Alt-Ergo,2.6.2,", "Z3,4.13.3,"]` and `config/agents-config.json`
+name **Alt-Ergo 2.6.2**; the installed one is **2.6.3**. `why3 prove -P "Alt-Ergo,2.6.2," ...` answers
+`No prover in /home/fabrice/.why3.conf corresponds to ...`. `_dispatch_provers` sets
+`attempt_order = [provers[-1]] + provers[:-1]` = Z3 first, so Alt-Ergo runs only on residual goals,
+errors, contributes ZERO goal records, and the residual stays Unknown. **Effectively Z3-only.**
+Direction: FAIL-CLOSED (under-proving), so not a soundness hole — but a POWER loss that can
+FALSE-REVERT a sound conversion under any sweep that trusts the default. Also note `_run_vacuity_gate`
+loops `for p in provers` with NO early exit, so a correctly-pinned dual-prover run costs ~2x — the
+historical per-file timings in this backlog were measured with the second prover effectively disabled.
+**Until the flagged-for-user prover-config repair lands, pass `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`
+explicitly on every gate you rely on.**
+
+### COUNT — the two numbers in circulation, reconciled
+
+`grep -rcF '\trusted' src/self-annotate/src --include=*.py` (summed) = **668**.
+`grep -rcF '#@ \trusted'` (summed) = **631**. The 37-line gap is PROSE — comments and docstrings that
+mention the marker (e.g. `Module2_Parser.py:292` mentions it twice and ends "Does NOT count as
+`\trusted`"). Landed commit messages track **631**; relaunch prompts quote **668**. Both are right;
+never compare one to the other, and compute a delta only within one grep.
+
 
 Not a lever, a DEFECT IN LANDED WORK. `functions.py`'s `writes`-clause emission was gated on
 `not emit_as_val`, so a `\trusted`/`\abstract` method's abstract `val` carried NO frame and every
