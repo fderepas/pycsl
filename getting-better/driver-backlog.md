@@ -3881,3 +3881,70 @@ as Finding 1.
 - **Recurring root across L11 / the tuple-return boundary / the `_Harvester` degeneration: emitted
   CSL-node records are `mutable` with `array` fields.** If one lever is worth funding next, it is the
   immutable+seq representation (L11) — it is the common cause of three separately-recorded walls.
+
+## L10 field-default typing: BUILT, MEASURED, **YIELD 0**, REVERTED (payoff gate fired as designed)
+
+Nothing landed; count 671; tree driver-verified clean. The plan's PAYOFF GATE did exactly its job —
+it prevented a live-source change with corpus byte-diff risk that would have converted zero stubs.
+
+- **Capture-side answer: TWO-SURFACE.** `field_defaults` is int-coded by construction at every
+  Module 5 site (`field_defaults: Dict[str, int]`; a non-int default is stored as `0`), so a
+  `context: str = "writing"` default is dropped before Module 6 ever sees it. Fixing the string
+  default *faithfully* needs a Module 5 capture surface too — fabricating `""` in Module 6 would
+  model `"writing"` as `""`.
+- **Both defects were confirmed fixed** in emitted WhyML (`(Array.make 0 "")`, `context = "writing"`).
+- **LOAD-BEARING GATE FINDING for any rebuild:** the element-aware array default needs the SAME gate
+  as the field-type emission itself (`_mutable_state_classes or _uses_ir_node_param`, preamble.py
+  `_emit_type_decls`). Without it, it breaks L3-tc in the OPPOSITE direction (measured on
+  `audit_proof.py`: `type array string but expected array int`). **Gated that way it can only ever
+  change a mirror file, never the corpus.**
+- **Census (all 671 stubs x all record classes): 20 stubs construct a record with a `List[str]` or
+  defaulted-`str` field, and every one is independently co-blocked** — by L11 (Return-record), L12
+  (`Optional[X]`), opaque-getter/comprehension typing, non-gated files where the fix is inert, or by
+  `CheckPoint.origin: str = None` landing in the fail-closed "no term for this default" path.
+- **NEW BOUNDARY discovered: empty WhyML record literal `{ }`** for field-less marker dataclasses
+  (`NoInline()`, `SiblingConcrete()`, ...) — emitted as `raise (Return_emit_ir {  })`, a **syntax
+  error**. Blocks `_parse_contract`.
+- **Verdict: L10 must be rebuilt only as a RIDER on whichever of L11/L12 lands first, never alone.**
+
+## L11/L12 RE-MEASURED — and L12 is now the top lever by addressable set
+
+**L11 addressable set = 27 trusted stubs** early-return a record constructor (AST census over all
+671). Heavily concentrated in `proof2why3/` (canonical.py, parser.py, from_sexp.py, from_lean_json.py)
+plus the Module2_Parser cluster.
+
+**A large and encouraging discovery about the `proof2why3` Term family:**
+- Its classes are `@dataclass(frozen=True)` — IMMUTABLE at the Python level.
+- **`type term` ALREADY EXISTS in the emitted WhyML and is FULLY IMMUTABLE:**
+  `type term = App string (list term) | BinOp string term term | BoolLit bool | Exists (list string) string term | Forall (list string) string term | IntLit int | UnaryOp string term | Unsupported string string | Var string`
+  — `list`, not `array`; no `mutable`. So **`exception Return_term term` would be ACCEPTED by Why3**,
+  i.e. the L11 wall does NOT apply to this family.
+- CONSUMPTION machinery exists (`compute_term_adt_spec`, `recognize_term_isinstance_fold`, used by the
+  already-converted `free_vars` / `flatten_arrow_chain` / `mk_arrow_chain`). **CONSTRUCTION is not
+  routed to it** — the emitter instead emits parallel MUTABLE per-class records that int-erase their
+  Term fields: `type binop = { mutable binop_op: string; mutable lhs: int; mutable rhs: int }`,
+  `type app = { mutable head: string; mutable args: array int }`. Exactly the `Given`-vs-`IrRequires`
+  pattern.
+- **The emitter IGNORES `@dataclass(frozen=True)`** — every record emits `mutable`. Honouring it is a
+  narrow, faithful sub-lever (a frozen dataclass genuinely cannot be mutated) and is precisely the
+  condition Why3 needs for an exception payload.
+
+**BUT the measured first blocker moves the priority.** Ported `_Parser.parse_implication` (8 live LOC,
+the smallest of the 27) verbatim and ran L3-tc:
+```
+parser.mlw", line 414, characters 9-31:
+This expression has type PyCSL_Program._union_peek_0, but is expected to have type int
+```
+That is **not** Term construction — it is `t = self.peek()` (`Optional[Token]`). **The union type
+`_union_peek_0` IS synthesized; the LOCAL bound to the union-returning call is typed `int`.**
+`_maybe_inject_union_return` (stmt_control_flow.py:1977) handles union RETURNS but there is no
+analogous inference for a local bound to a union-returning CALL. Reverted clean.
+
+### => L12 (`Optional[X]` / union local typing) is the TOP LEVER
+It blocks, by measurement: the Module2_Parser happy cluster (`_parse_happy_targets` has 4
+independent Optional co-blockers, `_parse_happy`), the whole `proof2why3/parser.py` cursor family
+(every `peek()` is `Optional[Token]`), and `audit_proof::audit_both` (per-callsite `Optional[Path]`
+union synthesis). And it may be NARROW rather than a value-model rewrite — **the union types already
+exist; what is missing is local-type inference for a local bound to a union-returning call.** Spike
+that hypothesis FIRST: if a local can be given its callee's synthesized union type, a large set
+unblocks at once.
