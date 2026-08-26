@@ -4049,6 +4049,57 @@ termination measure while the next level down is a `\trusted` val with a declare
 — unless that trusted stub is given a monotonicity postcondition, i.e. unless the TCB GROWS. So the
 honest choices are: convert the WHOLE nest, or grow the assumed interface. Prefer the former.
 
+**STATUS 2026-08-26 END OF WINDOW — THE TERM CARRIER IS BUILT AND PROVES; ONE PREDICATE BLOCKS LANDING.**
+The whole build is committed as `getting-better/L13-term-carrier-WIP.patch` (700 lines, `git apply`s
+cleanly to HEAD). **It is NOT LANDED, and the patch — not a worktree — is where it lives, deliberately:
+lesson (u) was learned the hard way in this very window.**
+
+WHAT IT ACHIEVES, all driver-measured:
+  - `proof2why3/parser.py` proves **`[+] Verification SUCCESS`, 216/216 Valid, 0 Unknown, 0 Timeout, 70s**
+    with FIVE members converted: `parse_expr`, `parse_implication`, `parse_disjunction`,
+    `parse_conjunction`, `parse_comparison`. **Directive count 631 -> 626.**
+  - **CORPUS BYTE-DIFF 0 over 813/813** (after demand-gating `exception Return_term`; see below).
+  - The emission is genuinely value-faithful: `str_eq_op … "IDENT"` against real literals instead of
+    int hashes, and `(BinOp op !lhs !rhs)` on the certified inductive instead of the mutable
+    int-erased `binop` record.
+
+THE SEVEN SUB-CAPABILITIES (each forced by the previous one's exact L3-tc error):
+  1. `-> Term` -> `: term` in `_compute_return_type` (triple-gated). Term-typed signatures 6 -> 16.
+  2. `term`-typed locals pre-declaring `ref (Unsupported "" "")` — the ADT's own arm, no new leaf.
+  3. **Union-local inference: a TWO-LINE gap, not new machinery.** Module5 types `t = self.peek()` as
+     `Any`; the whole `_optional_union_locals` consumer chain was already built and never fired.
+  4. No-double-wrap in `_union_wrap_rhs`.
+  5. Record-carrier sentinel in `_union_local_read_projection` (`| _ -> 0` is ill-typed for a record).
+  6. Carrier-FIELD projection in `_handle_attribute_expr` (replaces the value-blind `get_kind`).
+  7. String routing in `_is_string_expr` + `exception Return_term term`, declared beside `type term`
+     (the top-of-module needs-scan runs BEFORE `_term_adt_spec` exists — a gate there is a hard error).
+Plus 12 cursor-interface clauses: 7 PROVED on converted members (zero TCB), 5 ASSUMED on the still-
+trusted frontier (`parse_arith_add`/`_mul`/`parse_atom`/`parse_atom_application`/`parse_quant`),
+justified by the live file having **exactly two `self.pos` writes** (`= 0` in `__init__`, `+= 1` in
+`take`) and NO backtracking site. Each retires when its stub is converted.
+
+**THE ONE OPEN BLOCKER — marked in the patch as `if True:   # <-- THE ONE OPEN BLOCKER`.** The union
+seeding must fire ONLY where `self.<m>()` resolves to the CONCRETE sibling, not where it degrades to
+the opaque `self__<m>_<arity>` avatar. In `statements.py` the identical Python shape
+(`ftype = self._field_type_for(...)`, annotated `Optional[str]`) lowers to an INT-returning avatar, so
+seeding it emits `let ftype = ref ((self__field_type_for_2 …) : _union__field_type_for_0)` -> `has type
+int, but is expected to have type _union__field_type_for_0`. Measured blast radius: **4 of 52 mirrors
+break at L3-tc** (`statements`, `expressions`, `Module5_IREmitter`, `stmt_control_flow`).
+TWO ARBITRATORS ALREADY TRIED AND REFUTED, do not retry them:
+  - `_module_method_return_types` — records `_parser__peek: int` even though `peek` demonstrably emits
+    `: _union_peek_0`. The registry is simply wrong for union returns.
+  - "is the callee defined in this mirror?" — BOTH are (`peek` at parser.py:84, `_field_type_for` at
+    statements.py:320). Does not discriminate.
+The backlog already named the mechanism: *"concrete `self.<m>()` sibling resolution is gated on
+`_record_array_fields`; a `List[int]`-field class silently degrades to vacuous opaque `self_*_0` vals"*
+(Gate-R amendment iii). **Find that predicate and reuse it verbatim — do not invent a second one.**
+
+WORTH KNOWING: the 4 breaking mirrors are not merely collateral. Their diffs under the patch are
+IMPROVEMENTS — each replaces an int-erased `ref 0` local with a properly union-typed one, and
+`Module5_IREmitter::_collect_class_constants` currently tests `if (!iv <> 0)` as a stand-in for "is not
+None", so **a legitimate constant value of 0 reads as None today**. That is a live faithfulness bug this
+capability fixes once the predicate lands.
+
 **RE-MEASURED 2026-08-26 (post-L14). THE CAPABILITY SET IS CONFIRMED AT FOUR, BUT (1)+(2) COST FAR MORE
 THAN THIS SECTION IMPLIES. Read this before scoping any L13 build.**
 
