@@ -925,6 +925,7 @@ class Module6_WhyMLTranspiler(
         self._insert_late_content_ops(out)
         self._resolve_deferred_exprir_theory(out)
         self._resolve_deferred_opaque_theory(out)
+        self._insert_array_init_use(out)
         return "\n".join(out)
 
     # ------------------------------------------------------------------
@@ -1387,6 +1388,7 @@ class Module6_WhyMLTranspiler(
         # anchor would not be in `main`); the missing decl fails the L3 typecheck
         # loudly — never a false proof.
         self._insert_late_content_ops(main)
+        self._insert_array_init_use(main)
         out_modules.append(main)
 
         return "\n".join("\n".join(m) for m in out_modules)

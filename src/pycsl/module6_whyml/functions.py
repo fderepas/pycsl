@@ -346,6 +346,11 @@ class FunctionEmissionMixin:
         # string materialize bridge, the `Return_seq_str` payload, and the
         # `array string` return type.
         self._seq_value_types: Dict[str, str] = func.get("seq_value_types", {})
+        # tierA-listfield-impl.md: seq locals whose appended elements lowered to an
+        # `emit_ir` ADT constructor application. Populated at the `.append` site
+        # (statements.py) and read ONLY by the @mutable_state-gated
+        # `_bind_listfield_from_seq` — write-only elsewhere, so byte-inert.
+        self._emit_ir_seq_locals: set = set()
         # nested-list.md S2: a `List[<container>]` param -> the outer list's WhyML
         # element type (`seq ..`/`map ..`). Drives the `array (seq τ)` param type and
         # the nested read `a[i][j]` (Seq.get / Map.get). Empty for flat lists.

@@ -1788,6 +1788,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         # return-arr.md follow-on: `.append()` on a seq-promoted local grows
                         # the immutable seq via Seq.snoc (so `len` = Seq.length tracks the
                         # logical length), instead of the array-local `arr[!len] <- v; len += 1`.
+                        # tierA-listfield-impl.md: record the seq's ELEMENT type when the
+                        # appended value lowered to an `emit_ir` ADT constructor application
+                        # (every ctor of the ADT is named `Ir…`) — Module5's
+                        # `seq_value_types` only ever tracks "string". Read ONLY by the
+                        # @mutable_state-gated `_bind_listfield_from_seq`; write-only here,
+                        # so the emitted text is unchanged.
+                        if (arg.strip().startswith("(Ir")
+                                and hasattr(self, "_emit_ir_seq_locals")):
+                            self._emit_ir_seq_locals.add(arr_name)
                         code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
                     else:
                         len_ref = f"{safe_arr}_len"

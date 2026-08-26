@@ -60,9 +60,9 @@ class ForExpand(CSLNode):
     [lo, hi), each body clause with VAR substituted by the literal m. lo/hi are
     bound exprs (Number for v1); clauses are Requires/Ensures."""
     var: str
-    lo: CSLNode
-    hi: CSLNode
-    clauses: List[CSLNode]
+    lo: "ExprIR"
+    hi: "ExprIR"
+    clauses: List["ExprIR"]
 
 @dataclass
 class Complete(CSLNode):

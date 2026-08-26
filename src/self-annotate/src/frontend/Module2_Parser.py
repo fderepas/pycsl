@@ -43,9 +43,9 @@ class Act(CSLNode):
 class ForExpand(CSLNode):
     '`#@ for VAR in range(lo, hi):` (sugar-for-spec.md) — bounded macro-expansion.\n    Desugared in Module3 to ground requires/ensures: for each integer m in\n    [lo, hi), each body clause with VAR substituted by the literal m. lo/hi are\n    bound exprs (Number for v1); clauses are Requires/Ensures.'
     var: str
-    lo: CSLNode
-    hi: CSLNode
-    clauses: List[CSLNode]
+    lo: "ExprIR"
+    hi: "ExprIR"
+    clauses: List["ExprIR"]
 
 @dataclass
 class Complete(CSLNode):
@@ -1148,12 +1148,35 @@ class _ContractParser:
     def _parse_act_block(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_for_block(self):
-        pass
+    def _parse_for_block(self) -> ForExpand:
+        self.expect_name("for")
+        var = self.expect_name()
+        self.expect_name("in")
+        self.expect_name("range")
+        self.expect_op("(")
+        e1 = self._parse_expr()
+        if self.accept_op(","):
+            lo, hi = e1, self._parse_expr()
+        else:
+            lo, hi = Number(0), e1
+        self.expect_op(")")
+        self.expect_op(":")
+        clauses = []
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_name("requires") or self.at_name("ensures"):
+            if self.at_name("requires"):
+                self.advance(); clauses.append(Requires(self._parse_expr()))
+            else:
+                self.advance(); clauses.append(Ensures(self._parse_expr()))
+        if not clauses:
+            self._err("for block requires at least one clause")
+        return ForExpand(var, lo, hi, clauses)
 
     #@ requires True
     #@ ensures self.i >= \old(self.i)

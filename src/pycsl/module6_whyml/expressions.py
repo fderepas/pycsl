@@ -8415,6 +8415,71 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             parts.append(bound[f])
         return f"({cname} {' '.join(parts)})"
 
+    def _bind_listfield_from_seq(self, rec_info: Dict[str, Any], fn: str,
+                                 ent: Dict[str, Any],
+                                 arg_nodes: Dict[str, Any]) -> Optional[str]:
+        """tierA-listfield-impl.md: bind a LIST-valued record field from the list the
+        construction site actually supplied, instead of the typed-default
+        `Array.make 0 0` — which SILENTLY DROPS the caller's list (a facade hazard: a
+        stub that type-checked around it would return a record with an empty list).
+
+        `Ctor(a, b, my_list)` where `my_list` is a `seq`-typed list LOCAL and the field
+        is `array emit_ir` lowers the field to
+        `(Init.init (Seq.length !my_list) (fun _i -> Seq.get !my_list _i))` — the
+        `seq -> array` reconciliation (a list local accumulates as `Seq.snoc`; a list
+        record field lowers to `array`). `array.Init.init` is a DEFINED, stdlib-PROVEN
+        `let` (why3 stdlib `array.mlw`: `ensures { result.length = n }` +
+        `ensures { forall i. 0 <= i < n -> result[i] = f i }`), so the binding is
+        faithful and adds NO axiom and NO abstract `val`. Its `n >= 0` precondition is
+        discharged by seq.Seq's `length_nonnegative` axiom.
+
+        Gated as narrowly as possible — ALL of:
+          (1) the constructing method's class is `@mutable_state` (the emitter-model
+              gate `_call_irnode_constructor` already uses; NO corpus program declares
+              `@mutable_state`, so the corpus is byte-inert by construction);
+          (2) the field is a `list` field whose ELEMENT type is the `emit_ir` ADT
+              (`field_value_types`) — dict/set/frozenset/tuple and every
+              non-`emit_ir` element type keep the existing default path;
+          (3) the field's `__init__` initialiser is the BARE positional param
+              (`self.f = f`, the `@dataclass` / positional-`__init__` shape), and that
+              param is BOUND at this call site;
+          (4) the actual is a plain `!<local>` deref of a `seq`-typed list local whose
+              elements lowered to `emit_ir` ADT constructor applications
+              (`_seq_locals` / `_emit_ir_seq_locals`; Module5's `seq_value_types`
+              only ever tracks "string", so the element type is recorded at the
+              `.append` site instead).
+        An EMPTY-literal actual (`NoExceptionDecl(exceptions=[])`) is not a `!<local>`
+        deref, so it stays on the existing `Array.make 0 0` default path — unregressed.
+        Returns None (→ the typed default) whenever any gate fails."""
+        if getattr(self, "_current_self_type", None) not in getattr(
+                self, "_mutable_state_classes", set()):
+            return None
+        if rec_info.get("field_types", {}).get(fn) != "list":
+            return None
+        if rec_info.get("field_value_types", {}).get(fn) != "emit_ir":
+            return None
+        v = ent.get("value")
+        if not (isinstance(v, dict) and v.get("type") == "Var"):
+            return None
+        node = arg_nodes.get(v.get("name"))
+        if not (isinstance(node, dict) and node.get("type") == "RawWhyml"):
+            return None
+        raw = str(node.get("whyml", "")).strip()
+        if not (raw.startswith("!") and raw[1:].isidentifier()):
+            return None
+        lname = raw[1:]
+        if lname not in getattr(self, "_seq_locals", set()):
+            return None
+        if lname not in getattr(self, "_emit_ir_seq_locals", set()):
+            return None
+        self._needs_array_init = True
+        # The `seq` is let-bound to a PURE value first: `Init.init`'s second argument
+        # is a pure `int -> 'a`, and a `!ref` deref inside the lambda body is stateful
+        # ("This function is stateful, it cannot be used as pure").
+        _b = f"_lf_{lname}"
+        return (f"(let {_b} = {raw} in "
+                f"Init.init (Seq.length {_b}) (fun _i -> Seq.get {_b} _i))")
+
     def _call_record_constructor(self, args: List[str], func_name: str,
                                  kwargs_map: Optional[Dict[str, str]] = None) -> Optional[str]:
         """`C(...)` for a known record type → a WhyML record literal with per-field,
@@ -8483,10 +8548,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     arg_nodes[_kwn] = {"type": "RawWhyml", "whyml": _kww}
             for ent in init_body:
                 fn = ent["field"]
-                # Only scalar (int-modelled) fields take a substituted value; a
-                # list/dict/set field keeps its typed default (array/map construction
-                # over a param is out of Tier-A scope).
+                # A list/dict/set field keeps its typed default (array/map construction
+                # over a param is out of Tier-A scope) — EXCEPT the narrowly gated
+                # `List[ExprIR]`-from-`seq`-local binding of `_bind_listfield_from_seq`
+                # (tierA-listfield-impl.md), which binds the caller's ACTUAL list instead
+                # of fabricating the empty `Array.make 0 0` (a DROPPED-child facade).
                 if field_types.get(fn, "int") in ("list", "array", "dict", "set", "frozenset"):
+                    _lv = self._bind_listfield_from_seq(rec_info, fn, ent, arg_nodes)
+                    if _lv is not None:
+                        init_map[fn] = _lv
                     continue
                 # A field whose initialiser references a param OUTSIDE the bound
                 # prefix (a trailing omitted-with-default field) keeps its typed

@@ -236,6 +236,25 @@ class AbstractOpsMixin:
         for line in reversed(abs_lines):
             out.insert(insert_idx, line)
 
+    def _insert_array_init_use(self, out: List[str]) -> None:
+        """tierA-listfield-impl.md: pull `array.Init` in ONLY when the gated
+        list-field binding of `_bind_listfield_from_seq` actually fired (it emits
+        `Init.init`, the stdlib-PROVEN `seq -> array` reconciliation). Inserted
+        immediately AFTER `use array.Array`: `array.Init` does `use export Array`, so
+        the `([])` resolution order that the map.Map/array.Array ordering comment in
+        `_emit_preamble_uses` depends on is unchanged. The flag is never set unless the
+        binding fired, so every other emitted file is byte-identical."""
+        if not getattr(self, "_needs_array_init", False):
+            return
+        line = "  use array.Init"
+        if line in out:
+            return
+        try:
+            idx = out.index("  use array.Array")
+        except ValueError:
+            return
+        out.insert(idx + 1, line)
+
     def _insert_late_content_ops(self, out: List[str]) -> None:
         """cleared-array item 1 (call comprehensions). A content-comp `val` whose
         `ensures` references a USER `let function` (e.g. `[g(x) for x in a]` →
