@@ -43,7 +43,6 @@ class AuditReport:
     def exit_code(self) -> int:
         return 1 if self.failures else 0
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.failures, self.passes, self.skips
