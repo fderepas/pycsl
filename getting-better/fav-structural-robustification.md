@@ -1,3 +1,21 @@
+> # ⚠ SUPERSEDED — THIS WALL DOES NOT EXIST
+>
+> **Resolved 2026-08-26 as REFUTED-STALE, payoff 0. Do not act on this report.**
+>
+> Gate R's independent review ran the whole-file proof of `ir_scanner.py` and found 409
+> `_collect_mutations` subgoals and 71 `find_iteration_mutations` subgoals *proving*. A `\trusted`
+> stub emits as a bodyless `val` and has no subgoals — so the target could not still be trusted.
+> Confirmed: `grep -cF '#@ \trusted' src/self-annotate/src/module6_whyml/ir_scanner.py` -> **0**.
+>
+> The wall had already been broken, by a different route, at `c6557971` / `fdbccc77` / `4700f558`
+> (the heterogeneous value-model root) — not by the structural robustification this report proposes.
+> The `wall-lessons.md` chain `#18 -> #21 -> #22 -> "the ONLY remaining path is ..."` was never
+> retired and propagated a reopening for a wall that no longer existed, all the way into the
+> 2026-08-26 authority amendment as pre-authorized flagged build (a). **That amendment item is MOOT.**
+>
+> Kept only as the evidence trail for the STALE-WALL lesson (`wall-lessons.md`, 2026-08-26) and the
+> Gate W FRESHNESS PRECONDITION carved into the driver skill.
+
 # Wall report: `find_assigned_vars` structural-variant robustification (`fav-structural-robustification`)
 
 Author: driver-coordinator (report author — this document is `U`, a *soft* claim; it may be refuted).
