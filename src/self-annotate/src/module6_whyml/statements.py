@@ -1468,7 +1468,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._emit_ir_local_vars, self._ghost_tuple_vars, self._inline_array_temps, self._seq_locals, self._string_local_vars, self._tuple_array_locals
+    #@ assigns self._dict_key_types, self._dict_locals, self._dict_value_types, self._emit_ir_local_vars, self._ghost_tuple_vars, self._inline_array_temps, self._seq_locals, self._string_local_vars, self._tuple_array_locals
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
         record, or variant — and so must be EXCLUDED from the integer `ref 0`
