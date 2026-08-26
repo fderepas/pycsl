@@ -4049,7 +4049,31 @@ termination measure while the next level down is a `\trusted` val with a declare
 — unless that trusted stub is given a monotonicity postcondition, i.e. unless the TCB GROWS. So the
 honest choices are: convert the WHOLE nest, or grow the assumed interface. Prefer the former.
 
-**STATUS 2026-08-26 END OF WINDOW — THE TERM CARRIER IS BUILT AND PROVES; ONE PREDICATE BLOCKS LANDING.**
+**STATUS 2026-08-26 — LANDED at `b6c417f6`. FIVE members converted, directives 631 -> 626.**
+`parse_expr`, `parse_implication`, `parse_disjunction`, `parse_conjunction`, `parse_comparison`.
+Gates: proof **3071/3071 Valid, 0 Unknown** across the 3 mirrors the emission diff selects
+(`parser` 216, `functions` 1163, `stmt_control_flow` 1692); corpus byte-diff **0** over 813/813;
+fidelity back to the baseline 2 DIVERGED / 3 drifted after the §10.4 re-port; ledger 3, no new axiom.
+**THE BLOCKER WAS `_record_array_fields`** — the predicate this very backlog's Gate-R amendment (iii)
+had already named. Three wrong arbitrators were refuted first (`_module_method_return_types`, which
+records `_parser__peek: int` though `peek` emits `: _union_peek_0`; "is the callee defined in-mirror",
+which both are; and `_composed_provider_methods`, probed EMPTY for `_Parser`). It is the same gate
+`_record_return_sibling_methods` (Module6_WhyMLTranspiler.py:221) uses. **Read the amendments before
+searching the source.**
+
+WHAT REMAINS OF THE NEST (6 of 11): `parse_quant` needs capability (4), seq -> `list term` at an ADT
+ctor argument (`tuple(binders)`), plus `" ".join(ty_parts)`; `parse_atom` / `parse_atom_application`
+need (4) as well; `parse_arith_add` / `parse_arith_mul` / `expect` are now the ASSUMED-interface
+frontier and should convert next — each conversion RETIRES one of the 5 assumed monotonicity clauses.
+
+**NEXT DEMAND-FIRST TARGET, found by this build's own gate:**
+`Module5_IREmitter::_collect_class_constants` tests `if (!iv <> 0)` as a stand-in for "is not None",
+so **a legitimate constant value of 0 reads as None today** — a live faithfulness bug. The union-local
+typing fixes it, but only for classes with a `List[<record>]` field; `PyCSLToJSONEmitter` does not
+qualify. Widening the concrete-resolution gate (or giving that class the qualifying field) is the lever.
+
+--- superseded, kept for the reasoning ---
+**(WAS: THE TERM CARRIER IS BUILT AND PROVES; ONE PREDICATE BLOCKS LANDING.)**
 The whole build is committed as `getting-better/L13-term-carrier-WIP.patch` (700 lines, `git apply`s
 cleanly to HEAD). **It is NOT LANDED, and the patch — not a worktree — is where it lives, deliberately:
 lesson (u) was learned the hard way in this very window.**

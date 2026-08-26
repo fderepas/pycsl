@@ -2391,3 +2391,24 @@ Two corollaries paid for themselves in the same hour:
   surfacing immediately as `unbound exception symbol 'Return_term'` rather than as a silent facade.
 - **Run the corpus byte-diff BEFORE the mirror proof sweep**, not after. It is ~7 minutes per side and
   it falsified the build in one shot; the mirror sweep is close to an hour.
+
+## Lesson (z) — read your own backlog's amendments before searching the source
+
+The single blocker that held the L13 term-carrier build for hours was "which predicate decides whether
+`self.<m>()` lowers to the CONCRETE sibling or degrades to the opaque `self__<m>_<arity>` avatar". I
+went looking for it in the emitter and refuted three candidates the expensive way:
+`_module_method_return_types` (it records `_parser__peek: int` although `peek` demonstrably emits
+`: _union_peek_0` — the registry is simply wrong for union returns), "is the callee defined in this
+mirror" (both candidates are), and `_composed_provider_methods` (probed **empty** for `_Parser`, while
+`peek` still lowers concretely).
+
+The answer was `_record_array_fields`, and it was already written down — in this same backlog, in the
+Gate-R amendment list: *"concrete `self.<m>()` sibling resolution is gated on `_record_array_fields`; a
+`List[int]`-field class silently degrades to vacuous opaque `self_*_0` vals — a facade hazard to gate
+against in any L13 build."* An independent reviewer had handed over the exact predicate, filed under
+"hazard to gate against" rather than "predicate to reuse", and it read as a warning instead of an
+answer.
+
+**The rule.** A reviewer amendment phrased as a HAZARD is usually also a MECHANISM. Before grepping the
+emitter for "how does X get decided", grep the backlog for X — amendments, struck items, and
+carve-outs included. And when recording a future amendment, say which of the two it is.
