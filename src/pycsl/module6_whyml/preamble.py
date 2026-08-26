@@ -8436,6 +8436,18 @@ class PreambleEmissionMixin:
                         f"{prefix}{self._field_label(type_name, f['name'])}: {ftype}")
                     j += 1
                 out.append(f"  type {type_name} = {{ {'; '.join(field_strs)} }}")
+                # DRIVER FRAME-SOUNDNESS FIX (2026-08-26): record the field LABELS
+                # this record actually emits, so a `writes { self.<f> }` frame can be
+                # filtered to existing labels. Module5's `#@ assigns` list can name a
+                # field the record does NOT emit (e.g. Module5_IREmitter's
+                # `_cur_func_symtab`, a dict field dropped from the record), which
+                # would produce an unbound symbol at L3-tc. Read-only bookkeeping: it
+                # changes no emitted byte by itself.
+                if not hasattr(self, "_emitted_record_field_labels"):
+                    self._emitted_record_field_labels = {}
+                self._emitted_record_field_labels[type_name] = {
+                    fs.split(":")[0].replace("mutable ", "").strip()
+                    for fs in field_strs}
                 class_invs = td.get("class_invariants", [])
                 if class_invs:
                     # PRE-PASS (contract self-field subscript projection): register

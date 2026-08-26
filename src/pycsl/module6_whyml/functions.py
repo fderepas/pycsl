@@ -5249,12 +5249,44 @@ class FunctionEmissionMixin:
         # wrong or `\nothing` assigns on a mutating body FAILS: the soundness fix).
         # `writes { }` is valid Why3 and rejects any unlisted write. Opt-in via the
         # class decorator → byte-identical for every unmarked class.
-        if (is_method and not emit_as_val
+        # DRIVER FRAME-SOUNDNESS FIX (2026-08-26, getting-better/cursor-nest/
+        # trusted-frame-oracle.mlw): the `not emit_as_val` exclusion above was
+        # HALF the story. A `writes` clause has TWO jobs — it CHECKS the frame
+        # against a body (why the original fix skipped bodyless vals) and it
+        # DECLARES the frame to CALLERS. Dropping it from a `\trusted`/`\abstract`
+        # stub's `val` makes Why3 infer NO effect, so every converted caller
+        # silently assumes the field is UNCHANGED across the call — an assumption
+        # STRONGER than the mirror's own `#@ assigns self.f`, i.e. unsound.
+        # Measured: `val _contractparser___parse_atom_primary` had no `writes`
+        # though the mirror declares `#@ assigns self.i`; the oracle shows a
+        # caller's `ensures self.i >= \old(self.i)` is Valid as emitted and
+        # Unknown once the declared frame is restored. Emitting the clause for a
+        # val too costs no check (there is no body) and restores the honest
+        # caller-side assumption. Same @mutable_state gate => corpus byte-inert.
+        if (is_method
                 and self._current_self_type in getattr(self, "_mutable_state_classes", set())):
             _wf = self._module_method_writes.get(func["name"], [])
-            _wc = ", ".join(f"self.{self._field_label(self._current_self_type, f)}"
-                            for f in _wf)
-            lines.append(f"    writes {{ {_wc} }}")
+            # Filter to labels the record ACTUALLY emits (see the companion note in
+            # preamble.py). An `#@ assigns self.f` naming a field Module5 dropped from
+            # the record would otherwise emit an unbound symbol. When the registry is
+            # absent (no record emitted) nothing is filtered -> byte-identical.
+            _lbls = getattr(self, "_emitted_record_field_labels", {}).get(
+                self._current_self_type)
+            _wl = [self._field_label(self._current_self_type, f) for f in _wf]
+            if _lbls is not None:
+                _wl = [l for l in _wl if l in _lbls]
+            # On the CONCRETE `let` path an EMPTY `writes { }` is meaningful - it
+            # CHECKS that the body writes nothing - so it is always emitted there.
+            # On the bodyless `val` path it conveys nothing a missing clause does not
+            # already say (a val with no `writes` writes nothing), so suppress it and
+            # keep emission byte-identical wherever the frame is empty. Measured: this
+            # makes the fix CORPUS BYTE-INERT - 0 corpus/tests programs declare a
+            # trusted/abstract method with a non-nothing self-field assigns (the only
+            # two @mutable_state corpus programs with a trusted method, 0900/0901,
+            # declare `assigns \nothing` on it).
+            if _wl or not emit_as_val:
+                _wc = ", ".join(f"self.{l}" for l in _wl)
+                lines.append(f"    writes {{ {_wc} }}")
 
         # wrong-lowering-to-fix.md §WL-05b: a STANDALONE function whose dict/set params
         # are item-mutated in the body carries a `writes { d, s, … }` frame so Why3

@@ -1114,6 +1114,7 @@ class _ContractParser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     # Returns an `Assigns` contract-AST node; the `-> "ExprIR"` return annotation lets a
     # converted caller (`_parse_interface`) bind it as an emit_ir payload (GAP #2 typed
@@ -1444,6 +1445,8 @@ class _ContractParser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i < \length(self.toks)
     #@ assigns self.i
     # Returns the mutex-expression STRING (`NAME` or `NAME[<idx>]`); the `-> str` return
     # annotation lets a converted caller (`_parse_mutex_invariant`) bind it as the leaf
