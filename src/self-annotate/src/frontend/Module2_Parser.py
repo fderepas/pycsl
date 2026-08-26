@@ -66,8 +66,8 @@ class HappyProperty(CSLNode):
     "A module-level HAPPY (High-level Assertion-Producing PYthon requirement):\n    `#@ happy NAME: region LO .. HI writes self.FIELD outside region except f, g`.\n    Declares one cross-cutting region-disjointness property; Module3's meta-pass\n    expands it into a per-site `#@ check` (a `CheckPoint`) at every write site of\n    `self.FIELD` in every method other than the exempt set. Desugars entirely to\n    the Stage-A check primitive — no new IR/backend. See `meta.md` Stage B."
     name: str
     field: str
-    region_lo: CSLNode
-    region_hi: CSLNode
+    region_lo: "ExprIR"
+    region_hi: "ExprIR"
     except_set: List[str]
     context: str = 'writing'
     protects: Optional[List[str]] = None
@@ -1198,12 +1198,28 @@ class _ContractParser:
     def _parse_happy(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_happy_region(self, name):
-        pass
+    def _parse_happy_region(self, name: str) -> HappyProperty:
+        self.expect_name("region")
+        lo = self._parse_expr()
+        self.expect_op("..")
+        hi = self._parse_expr()
+        if self.at_name("writes"):
+            mode = "writing"
+        elif self.at_name("reads"):
+            mode = "reading"
+        else:
+            self._err("expected 'writes' or 'reads' in happy region decl")
+        self.advance()
+        self.expect_name("self")
+        self.expect_op(".")
+        field = self.expect_name()
+        self.expect_name("outside")
+        self.expect_name("region")
+        except_set = self._parse_opt_except()
+        return HappyProperty(name, field, lo, hi, except_set, context=mode)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

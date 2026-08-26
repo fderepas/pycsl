@@ -8437,17 +8437,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
           (1) the constructing method's class is `@mutable_state` (the emitter-model
               gate `_call_irnode_constructor` already uses; NO corpus program declares
               `@mutable_state`, so the corpus is byte-inert by construction);
-          (2) the field is a `list` field whose ELEMENT type is the `emit_ir` ADT
-              (`field_value_types`) — dict/set/frozenset/tuple and every
-              non-`emit_ir` element type keep the existing default path;
+          (2) the field is a `list` field whose ELEMENT type is either the `emit_ir`
+              ADT or `string` (`field_value_types`) — dict/set/frozenset/tuple and
+              every other element type keep the existing default path;
           (3) the field's `__init__` initialiser is the BARE positional param
               (`self.f = f`, the `@dataclass` / positional-`__init__` shape), and that
               param is BOUND at this call site;
-          (4) the actual is a plain `!<local>` deref of a `seq`-typed list local whose
-              elements lowered to `emit_ir` ADT constructor applications
-              (`_seq_locals` / `_emit_ir_seq_locals`; Module5's `seq_value_types`
-              only ever tracks "string", so the element type is recorded at the
-              `.append` site instead).
+          (4) the actual is a plain `!<local>` deref of a `seq`-typed list local
+              (`_seq_locals`) whose ELEMENT TYPE AGREES with the field's: for an
+              `emit_ir` field, the elements lowered to `emit_ir` ADT constructor
+              applications (`_emit_ir_seq_locals`, recorded at the `.append` site
+              because Module5's `seq_value_types` only ever tracks "string"); for a
+              `string` field, `_seq_value_types[<local>] == "string"` (the existing
+              L18 S1c-join all-sources-string marking). A seq of unknown element
+              type NEVER binds.
         An EMPTY-literal actual (`NoExceptionDecl(exceptions=[])`) is not a `!<local>`
         deref, so it stays on the existing `Array.make 0 0` default path — unregressed.
         Returns None (→ the typed default) whenever any gate fails."""
@@ -8456,7 +8459,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         if rec_info.get("field_types", {}).get(fn) != "list":
             return None
-        if rec_info.get("field_value_types", {}).get(fn) != "emit_ir":
+        _fvt = rec_info.get("field_value_types", {}).get(fn)
+        if _fvt not in ("emit_ir", "string"):
             return None
         v = ent.get("value")
         if not (isinstance(v, dict) and v.get("type") == "Var"):
@@ -8470,7 +8474,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         lname = raw[1:]
         if lname not in getattr(self, "_seq_locals", set()):
             return None
-        if lname not in getattr(self, "_emit_ir_seq_locals", set()):
+        # ELEMENT-TYPE agreement between the field and the seq local — the binding is
+        # only emitted when the seq is KNOWN to carry the field's element type.
+        if _fvt == "emit_ir":
+            if lname not in getattr(self, "_emit_ir_seq_locals", set()):
+                return None
+        elif getattr(self, "_seq_value_types", {}).get(lname) != "string":
             return None
         self._needs_array_init = True
         # The `seq` is let-bound to a PURE value first: `Init.init`'s second argument
