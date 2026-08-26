@@ -44,7 +44,6 @@ LEAN_KERNEL_AXIOM_ALLOWLIST: Set[str] = {
 ROCQ_NO_AXIOMS_MARKER = "Closed under the global context"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -53,7 +52,6 @@ def is_rocq_assumption_allowed(name: str) -> bool:
     return name.strip() in ROCQ_KERNEL_AXIOM_ALLOWLIST
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
