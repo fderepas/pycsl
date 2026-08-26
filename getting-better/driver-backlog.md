@@ -3482,3 +3482,81 @@ which additionally needs `IrGiven` (banked above) AND an `Act` return route. Not
 `array` reconciliation is part of the capability: locals accumulate as `Seq.snoc` while list fields
 lower to `array`. `#@ \trusted` targets only, so no verified caller can regress by construction;
 still run the §10c importer sweep and the corpus byte-diff as a HARD gate.
+
+## ===== L9 TIER-A LIST-FIELD WALL **BROKEN** (dfed484b, 673 -> 672) — DRIVER-VERIFIED =====
+
+The `_call_record_constructor` restriction that silently dropped list-valued ctor arguments is
+LIFTED (narrowly gated), and `_ContractParser._parse_for_block` is CONVERTED.
+
+**Mechanism.** The fabrication `forexpand_clauses = (Array.make 0 0)` is replaced by a real binding:
+```
+forexpand_clauses = (let _lf_clauses = !clauses in
+                     Init.init (Seq.length _lf_clauses) (fun _i -> Seq.get _lf_clauses _i))
+```
+`array.Init.init` is a **defined why3-stdlib `let`** (`ensures result.length = n` +
+`ensures forall i. 0<=i<n -> result[i] = f i`) — **no axiom, no abstract `val`**; its `n >= 0`
+precondition discharges from `seq.Seq.length_nonnegative`. LEDGER STAYS 3.
+
+**The gate** (`_bind_listfield_from_seq`, all conjunctive): `@mutable_state` constructing class ∧
+field type `list` ∧ `field_value_types == "emit_ir"` ∧ bare-param `self.f = f` initialiser ∧ actual
+is `!<local>` of a seq local recorded emit_ir-valued at its `.append` site. Empty-literal actuals
+(`NoExceptionDecl(exceptions=[])`) are not `!<local>` derefs, stay on the old default path, and are
+unregressed. `use array.Init` is inserted only when the binding fires.
+
+**Two things the plan got WRONG, corrected by the executor's measurement:**
+1. The plan asserted `_parse_for_block`'s "return route already works". **FALSE** — with no
+   annotation the return type came out `int`, exactly as for `_parse_act_block`. Fixed with a
+   mirror-only `-> ForExpand` annotation (precedented: live `_parse_compose_from` has no annotation
+   while its mirror has `-> "ExprIR"`; `self-annotate-mirror-check.sh` compares `(kind,name,n_params)`
+   so an annotation-only divergence is invisible to it and to the body-comparing sync check).
+2. Module 5's `seq_value_types` only ever records `"string"`, so there was no element-type signal
+   for an emit_ir seq. Needed a write-only `_emit_ir_seq_locals` set populated at the `Seq.snoc`
+   append site when the appended value lowers to an `(Ir…)` ADT application.
+
+**DRIVER-VERIFIED GATE BATTERY (re-run by the driver from the surface, NOT taken on report):**
+| plane | result |
+|---|---|
+| count | **673 -> 672**, stable across 3 samples |
+| fidelity `check-self-annotate-sync.sh` | exactly **2 DIVERGED** (the known baseline pair) |
+| fidelity `self-annotate-mirror-check.sh` | exactly **3 drifted** (baseline); `frontend/Module2_Parser.py` **NOT** in the drift list |
+| whole-file proof (corrected provers) | `[+] Verification SUCCESS! All contracts formally proven.` |
+| **corpus byte-diff** | worktree-at-`d4b6a39e` baseline, `.venv` symlinked: **emitted 812** / patched **emitted 812** / `diff -rq` **EXIT=0** — equal AND nonzero populations |
+| ledger | `proof_axiom_allowlist.py` untouched = 3; no axiom / abstract `val` in the diff |
+| non-vacuity | `check-emitted-vacuity.py` exit 0; mutation test (Ensures->Requires flipped the emitted `IrEnsures`->`IrRequires`, restore byte-identical) |
+| §10c importers | 52/52 mirror files L3-tc OK |
+
+**FOLLOW-ON SCOPE CORRECTED (do not repeat the plan's error).** The capability is narrower than the
+15-stub census implied: each follow-on needs the SAME THREE clearances, not one — the list binding,
+a return-type route, AND a correct frame. `_parse_happy_region`/`_parse_happy_targets`/`_parse_happy`
+each need a `-> HappyProperty` annotation as well as the binding. The "return route already works"
+premise held for **no** target.
+
+## Gate R review of L2 `csl-dispatch-expansion` — MIXED, proceed-but-AMENDED
+Full response rescued to `getting-better/csl-dispatch-expansion-response.md` (281 lines).
+- **§7.2 mechanism CONFIRMED, "nothing else needed" REFUTED.** Emit-and-grep proved
+  `isinstance(n, _ast.Subscript)` really does lower to `pget_dyn "_type" d` + `pystr_eq t0 "Subscript"`
+  on an opaque `PDict` — a tag test, no certified ADT, no axiom (tag equality even models `type(op)`
+  *better* than `isinstance`). **BUT** an IR-dump oracle found the four table identifiers appear
+  **0 times** in mirror Module5's 672KB IR: Module 5 DROPS class-level `Dict[type,str]` tables
+  (only int and string-set class constants have collectors). A recognizer has nothing to reflect.
+  A full-pipeline probe of the live body lowered to `(self__PY_OP_MAP_get_2 (py_type_1 op) 365291336)`
+  — opaque vals + an int-hashed `"?"` — failing typecheck loudly. **So L2 needs a NEW Module 5
+  class-table collector (with mirror-sync cost), not "just a recognizer".** And hard-coding the table
+  into the emitter template must be REJECTED: with `ensures {true}` a WRONG mapping would be
+  undetectable by Gate C as written.
+- **§3 constness CONFIRMED exactly** (79/26/23/16, all-Name/Attribute keys, all string-constant
+  values, zero mutations tree-wide).
+- **§4 payoff PARTLY REFUTED: 72/75, not 74/75** — and it found a **NEW FIDELITY HOLE**: the mirror's
+  `_CSL_HANDLERS` table is STALE (77 entries vs live 79; `_csl_subscript_field` and
+  `_csl_nested_subscript` are absent from the mirror entirely). **The sync checker structurally
+  cannot see class-level constant-table drift** — it compares function bodies and
+  `(kind,name,n_params)`. Recorded as a gate blind spot in its own right.
+- **§5 mutual recursion CONFIRMED and WIDER.** Handlers call a family of opaque val avatars
+  (`csl_to_ir`, `csl_to_ir_op`, `emit_ir_disp__csl_to_ir`, `self__csl_to_ir_1`). Reviewer flagged a
+  **shell-game hazard**: a conversion that leaves the val avatars alive would remove the marker
+  WITHOUT discharging totality. Any L2 gate must require the back-edge itself be the defined
+  recursive function. Also `_csl_to_ir` dispatches over the certified `emit_ir` ADT, not the pyval
+  VIEW — the report blurred two distinct devices.
+- **Baseline CONFIRMED 0 non-Valid / 927 goals — but only under the DUAL-PROVER MERGE**: the Z3-only
+  leg had 5 timeouts; Alt-Ergo alone gave 876 Valid / 51 Timeout; those 51 were 51/51 Valid under Z3
+  at t=30. **Independent corroboration of the ORACLE DEFECT recorded above.**
