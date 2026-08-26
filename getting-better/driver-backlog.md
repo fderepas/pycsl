@@ -4049,6 +4049,46 @@ termination measure while the next level down is a `\trusted` val with a declare
 — unless that trusted stub is given a monotonicity postcondition, i.e. unless the TCB GROWS. So the
 honest choices are: convert the WHOLE nest, or grow the assumed interface. Prefer the former.
 
+**RE-MEASURED 2026-08-26 (post-L14). THE CAPABILITY SET IS CONFIRMED AT FOUR, BUT (1)+(2) COST FAR MORE
+THAN THIS SECTION IMPLIES. Read this before scoping any L13 build.**
+
+Iterated measurement on `parse_comparison` in an isolated spike worktree at HEAD:
+  - verbatim port -> `has type PyCSL_Program._union_peek_0, but is expected to have type int`. Capability
+    (3) is the FIRST blocker and it MASKS the rest.
+  - union dodged -> `has type PyCSL_Program.binop @rho, but is expected to have type int`, i.e. exactly the
+    residual on record. So (3) masks (1)+(2), and (1)+(2) are ONE joint step.
+  - the emitted `parser.mlw` carries BOTH models of the same classes at once: the certified immutable
+    `type term` at :19-28 AND the competing int-erased mutable `type binop = { mutable binop_op: string;
+    mutable binop_lhs: int; mutable rhs: int }` at :320. `BinOp(...)` lowers to the RECORD.
+
+**THE CORRECTION: the `term` carrier is a CLOSED ALGEBRA, not a general value model.** A function acquires
+a `term` type ONLY through a whole-function RECOGNIZER (`functions.py:4054-4085`:
+`recognize_term_isinstance_transform` / `_isinstance_fold` / `_list_build` / `_flatten_arrow` /
+`_free_vars`, each with its own `emit_*_group`). Counted in the emitted `parser.mlw`: of **80** `let`/`val`,
+exactly **6** are term-typed — `flatten_arrow_chain{,__app,__go}`, `free_vars`, `mk_arrow_chain{,__go}` —
+and every one is recognizer-generated. **All 11 `_Parser` methods emit `: int`.** `grep -rn '"term"'
+src/pycsl/module6_whyml/` finds the type string in `generic_fold.py` alone; `types.py`/`functions.py` have
+no return-annotation -> `term` mapping at all.
+
+So capability (2) is NOT "route the call to a ctor". The REOPENING CAPABILITY is **"open the `term`
+carrier to the general emission path"**, four coupled sites:
+  (a) a `-> Term` return annotation lowering to `: term`;
+  (b) `term`-typed LOCALS (today `let lhs = ref 0`);
+  (c) a `term`-typed early-return channel (today `exception Return int`);
+  (d) `_call_term_constructor` off `_term_adt_spec["ctors"]` (the spec IS ready — `compute_term_adt_spec`,
+      `generic_fold.py:34454`, returns `{"ctors": {Cls: [(field, whytype)...]}, "order": [...]}`).
+Gate all four on `_term_adt_spec` non-None AND `@mutable_state` — 0 corpus programs declare
+`@mutable_state`, which is the byte-inertness argument. NOTE THE RISK INVERSION: the recognizer groups are
+byte-inert BY CONSTRUCTION (no corpus body matches their grammar), whereas these four sites are in the
+GENERAL typing path, so the corpus byte-diff is a real gate here, not a formality.
+
+**CLASSIFICATION: COST/SCALE, not correctness — so NOT a floor.** The certified `type term` is already
+emitted and already proved against; nothing says the model cannot express this. A funded window pays it.
+
+**Gate-R's "3 of 11 convert piecewise" is about TCB GROWTH and the all-or-nothing constraint. It is NOT a
+claim that those 3 need fewer capabilities** — `parse_comparison` is one of the 3 and still needs (1),(2),(3)
+plus string-set membership. Do not mistake it for a cheap entry point.
+
 **CLOSED capability set — exactly FOUR, everything else was measured to ALREADY WORK:**
   1. `Term` alias -> the EXISTING immutable `term` ADT for returns/locals. (The mirror stubs it as
      `Term = 0` at `proof2why3/ir.py:121`, so every `-> Term` lowers to `int`.)

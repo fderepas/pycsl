@@ -2347,3 +2347,24 @@ Also: `_run_vacuity_gate` loops every prover with no early exit, so a correctly-
 historical per-file timings were measured with the second prover effectively disabled.
 **Check that each prover id you pass actually resolves (`why3 prove -P <id>` on a one-line goal) before
 trusting any gate that claims to be dual-prover.**
+
+## Lesson (x) — "reuse the existing pattern" can hide a closed algebra; count the emitted signatures
+
+L13's capability (2) was scoped in the backlog as "`_call_term_constructor` on the LANDED
+`_call_irnode_constructor` pattern, spec-driven off `compute_term_adt_spec` — no new table, no new
+certificate, no axiom". Every clause of that is TRUE, and the conclusion it invites — that this is a
+routing change — is FALSE.
+
+The `term` carrier is reached only by whole-function RECOGNIZERS: a body is matched against a grammar
+and handed to its own `emit_*_group`. Nothing composes. The one-command check that settles it is to
+count the emitted signatures rather than read the emitter: in `parser.mlw`, **6 of 80** `let`/`val`
+are term-typed, and all six are recognizer-generated helpers of three algebra functions. Every method
+of the nest the capability was supposed to unlock emits `: int`.
+
+So "a table/spec already exists for X" answers only *what X's shape is*. It says nothing about whether
+there is a PATH by which an ordinary body acquires X. **Before costing a capability as reuse, count how
+many emitted signatures already carry the target type and check whether any of them came from the
+general path. If they all came from special-case recognizers, you are opening a closed algebra, not
+reusing a pattern** — and the risk profile inverts too: recognizer groups are byte-inert by construction
+because no corpus body matches their grammar, while a general-path change makes the corpus byte-diff a
+real gate.
