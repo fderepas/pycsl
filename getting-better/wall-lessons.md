@@ -2210,3 +2210,22 @@ number, enumerate every clearance each target needs — for a record-constructio
 **three**: the field binding, a return-type route, AND a truthful frame (`assigns \nothing` over a
 body that mutates self-state is a FALSE FRAME, wall-lesson (f), and must be REJECTED not patched).
 State the bound as a bound.
+
+### (4) 2026-08-26 — ANTI-FACADE GATE FALSE GREEN: `check-emitted-vacuity.py` without `--emit`. **PASS.**
+*How it was found:* the driver ran the vacuity gate immediately after the sanctioned
+`find src/self-annotate/src -name '*.mlw' -delete` cleanup and got
+`[+] no NEW erasure (0 known param-erasures gated; 0 input-blind methods)`, **EXIT=0**. With
+`--emit` and a real population of 52 the SAME tree gives **EXIT=1** with 6 known gated erasures,
+2 input-blind methods, and 1 un-ledgered erasure.
+*Validity test:* `L` distinguishes the two runs decisively — same tree, opposite verdicts, the only
+difference being whether a population existed.
+*Rule:* **the script REUSES existing `.mlw` and does not emit unless told to.** Always invoke it as
+`bin/check-emitted-vacuity.py --emit` and ASSERT the emitted population == 52. This is lesson (k)
+("a 'no differences' gate is meaningless without its POPULATION count") recurring on the
+anti-facade gate specifically — the gate whose whole job is to catch a body that proves while
+ignoring its inputs. A green from an empty population is the worst possible false green here.
+*Corollary, and the reason this is written down:* the driver had ALSO propagated "vacuity exit 0"
+into two executor briefings, having inherited it from an agent report without re-measuring — the
+same day the "re-measure, never inherit" rule was banked. An executor caught it and reported the
+real baseline. **Baseline facts in a briefing must be re-measured by the driver before being
+handed down, exactly like agent claims.**
