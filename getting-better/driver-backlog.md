@@ -3560,3 +3560,61 @@ Full response rescued to `getting-better/csl-dispatch-expansion-response.md` (28
 - **Baseline CONFIRMED 0 non-Valid / 927 goals — but only under the DUAL-PROVER MERGE**: the Z3-only
   leg had 5 timeouts; Alt-Ergo alone gave 876 Valid / 51 Timeout; those 51 were 51/51 Valid under Z3
   at t=30. **Independent corroboration of the ORACLE DEFECT recorded above.**
+
+## ===== CAMPAIGN-INTEGRITY FINDING: the metric's DENOMINATOR is moving (2026-08-26) =====
+
+**This is NOT a soundness bug and NOT a bad-faith gap — every conversion's gates are real and the
+subset design is documented. But the headline `\trusted` count does not, by itself, mean what a
+reader will assume it means, and the figure the tooling documents is badly stale.**
+
+### How it surfaced
+Gate R's L2 reviewer found the mirror's `_CSL_HANDLERS` table is stale (77 entries vs live 79).
+Driver-verified independently: keys `NestedSubscript` and `SubscriptFieldAccess` are missing, and the
+handler methods `_csl_subscript_field` / `_csl_nested_subscript` are **absent from the mirror
+entirely**. `bin/check-self-annotate-mirror-sync.py` does not flag this — and says so explicitly:
+
+> *"Coverage boundary: the mirror is intentionally a SUBSET of the live tree — a live function may be
+> absent from the mirror (**≈147 are**, off the verification path), so 'live function missing from the
+> mirror' is NOT treated as drift."*
+
+So it is BY DESIGN. The problem is the number.
+
+### Measured trend (`getting-better/measure-unmirrored-surface.py`, run over detached worktrees)
+
+| commit | live fns with NO mirror counterpart | mirrored fns | `\trusted` |
+|---|---|---|---|
+| `0eb601ca` ("FINAL FLOOR @ 804") | **287** | 1299 | 804 |
+| `8a032e95` | 287 | 1299 | 804 |
+| `085a01f9` | 350 | 1301 | 680 |
+| `31654938` (start of this window) | 360 | 1301 | 675 |
+| `bab83bdc` (HEAD) | **362** | 1301 | 672 |
+
+**`\trusted` fell 804 -> 672 (-132). Over the same span, live functions off the verification path
+rose 287 -> 362 (+75), while the mirrored population stayed flat (1299 -> 1301).**
+
+### What this means, stated honestly
+- The 132 conversions are REAL. Each passed fidelity + whole-file proof + byte-diff + ledger-3.
+- But the campaign converts stubs largely **by building new emitter capability** — recognizers,
+  emitters, collectors — and that new live code is **off the verification path**, so it is neither
+  verified nor counted. Concretely, of the capability landed by `dfed484b` THIS WINDOW:
+  `_call_record_constructor` is mirrored, but `_bind_listfield_from_seq` and
+  `_call_irnode_constructor` are **live-only**.
+- Net direction is still favourable (132 markers proved vs ~75 new unverified live functions), and
+  some of the 362 are legitimately off-path (CLI, reporting, IO helpers). **But a reader who takes
+  "-132 trusted" as "-132 net TCB" is over-reading it.**
+- The documented `≈147` is stale by a factor of ~2.5 and should not be cited.
+
+### Recommendation (NOT actioned autonomously — this is a metric-definition change)
+Report the `\trusted` count **alongside** the unmirrored-live-function count, so the pair moves
+together and a capability build that shifts work off the verification path is visible rather than
+invisible. `getting-better/measure-unmirrored-surface.py` computes it in a few seconds and is now
+committed. Changing the campaign's headline metric is the user's call, not the driver's — flagged
+here rather than decided.
+
+### Second, narrower gate blind spot (same root)
+`self-annotate-mirror-check.sh` compares `(kind, name, n_params)` and the sync check compares
+un-`\trusted` function BODIES. **Neither looks at class-level constant tables.** That is why the
+`_CSL_HANDLERS` 77-vs-79 drift is structurally invisible: a mirror can carry a stale dispatch table
+indefinitely with both fidelity scripts green. Any future build that reflects a class-level constant
+table (L2 `csl-dispatch-expansion` is exactly such a build) MUST diff that table against live as an
+explicit extra gate — the standard battery will not do it.
