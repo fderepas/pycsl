@@ -2229,3 +2229,72 @@ into two executor briefings, having inherited it from an agent report without re
 same day the "re-measure, never inherit" rule was banked. An executor caught it and reported the
 real baseline. **Baseline facts in a briefing must be re-measured by the driver before being
 handed down, exactly like agent claims.**
+
+---
+
+## Lesson (q) — a `writes` clause has TWO jobs; dropping it from a bodyless `val` silently STRENGTHENS the caller's assumption
+
+**Wall it came from:** the `proof2why3` cursor nest (L13). Found while closing the blocker set, not by
+looking for it.
+
+**The divergence `L` revealed.** `module6_whyml/functions.py` emitted a method's `#@ assigns self.f` as
+a WhyML `writes { self.f }` clause ONLY when `not emit_as_val` — i.e. only for a CONCRETE `let`. The
+in-source rationale was sound as far as it went ("so Why3 CHECKS the frame against the body — a wrong
+or `\nothing` assigns on a mutating body FAILS: the soundness fix"). But a `writes` clause does two
+things, and only one of them was being reasoned about:
+  1. it CHECKS the frame against a body — meaningless for a bodyless `val`, which is why it was skipped;
+  2. it DECLARES the frame to CALLERS — and a Why3 `val` with NO `writes` is assumed to write NOTHING.
+So every `\trusted`/`\abstract` stub declaring `#@ assigns self.f` handed its callers an assumption
+STRICTLY STRONGER than the mirror's own contract: not "may assign self.f" but "does not touch self.f".
+
+**Trigger test (this is an ignore-signal lesson: "a missing writes on a val is harmless") -> REJECT,
+and the replacement rule is PASS.** Perturb X = restore the declared frame; does `L`'s verdict move?
+DECISIVELY YES. `getting-better/cursor-nest/trusted-frame-oracle.mlw`, Alt-Ergo 2.6.3: for a trusted
+stub with `ensures True` + `assigns self.i`, the caller's `ensures self.i >= \old(self.i)` is
+**Valid as emitted** and **Unknown (fails) once `writes { self.i }` is restored**. Three landed
+Module2_Parser conversions were proving frames and a loop VARIANT on that false premise, the worst
+being `_parse_lock_order`, whose TERMINATION rested on assuming the sub-parser does not move the cursor.
+
+**The rule.** Whenever a contract clause is emitted CONDITIONALLY on "is there a body to check it
+against", ask separately what that clause tells CALLERS. If the answer is "something", the condition is
+wrong. Generalizes beyond `writes`: any clause that is simultaneously an obligation and an assumption
+must be emitted on the assumption side unconditionally.
+
+**Carve-out (what is NOT the lesson).** An EMPTY frame is genuinely different: `writes { }` on a `let`
+CHECKS that the body writes nothing, while on a `val` it says exactly what a missing clause already
+says. Suppressing it on the val path is correct AND is what keeps the fix corpus byte-inert. So the
+rule is "declare a NON-EMPTY frame unconditionally", not "always emit the clause".
+
+## Lesson (r) — gate the re-proof set by an EMISSION DIFF, not by "every file that could be affected"
+
+An emitter change to a gated path looks like it needs every file matching the gate re-proved (here: all
+11 `@mutable_state` mirrors, including the two slowest, one of which exceeds 9 minutes). EMIT FIRST and
+DIFF: emitting all 52 mirrors in the base and patched worktrees showed exactly **8** files change, and
+that the change is a PURE ADDITION of 231 `writes` lines with nothing removed and nothing incidental.
+The 44 unchanged files provably need no proof. This is cheaper AND stronger than a blind sweep, because
+the diff itself is evidence that nothing unintended was emitted — a blind all-green sweep would not have
+shown that. **Do the emission diff before the proof sweep, always.**
+
+## Lesson (s) — a hand-written spike can OVERSTATE a capability gap by modelling a construct differently from the emitter
+
+The cursor-nest spike modelled Python's `while True: ... break` with a boolean flag, which forced a
+LEXICOGRAPHIC loop variant (a plain one FAILS `Loop variant decrease` on the flag-clearing branch), and
+that was written down as a required new capability. The EMITTER does it differently and better:
+`while True/break` lowers to `try while true do ... raise PyCSL_Break ... done with PyCSL_Break -> ()`.
+The break path raises before the end of the body, so it carries NO variant obligation and a PLAIN
+`#@ loop variant` suffices. The "capability" did not exist. **Before naming a gap from a spike, emit the
+construct and read what the emitter actually produces.** A spike proves the TARGET is reachable; only the
+emitter tells you the DISTANCE to it. Applying this to the same wall turned a 7-item gap list into a
+4-item one: `raise` in a value-returning method, `int(s)`, seq accumulation, `\old` in a loop invariant,
+mutual recursion, `let rec` and the variant were ALL already supported.
+
+## Lesson (t) — two silent-erasure hazards in the `#@` surface, both measured
+
+1. **Loop annotations placed INSIDE the loop body are SILENTLY DROPPED.** `#@ loop invariant` /
+   `#@ loop variant` must precede the `while` line. Put them after it and the emitted loop has no
+   invariant and no variant, with NO diagnostic — and a loop with no variant then fails (or worse,
+   silently weakens) the termination story. Cross-check against a known-good example, e.g.
+   `_parse_lock_order` in the Module2_Parser mirror.
+2. **`#@ \variant (` with a LEADING PAREN is parsed as the `(expr, ordering)` structural-variant form**
+   and errors with "expected name". Write a lexicographic-by-encoding measure with the multiplier first:
+   `#@ \variant 16 * (\length(self.toks) - self.pos) + <level>`.
