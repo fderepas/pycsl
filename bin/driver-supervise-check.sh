@@ -26,5 +26,8 @@ PLOG=getting-better/driver-progress.log
 echo "dirty_self_annotate=$(git status --porcelain src/self-annotate/ | wc -l)"
 echo "stray_bak=$(find src/self-annotate -name '*.py.bak' 2>/dev/null | wc -l)"
 echo "trusted_count=$(for f in $(find src/self-annotate/src -name '*.py'); do grep -cF '\trusted' "$f"; done | paste -sd+ | bc)"
+# HEAD-committed count is the AUTHORITATIVE metric: a working-tree read taken during a
+# live port->prove->REVERT census is a phantom (SKILL lesson n). Report this one.
+echo "HEAD_trusted_count=$(git grep -cF '\trusted' HEAD -- 'src/self-annotate/src/*.py' | awk -F: '{s+=$NF} END {print s}')"
 
 if [ "$WORKERS" -gt 0 ]; then echo "VERDICT=ALIVE (worker running)"; else echo "VERDICT=NOWORKER"; fi
