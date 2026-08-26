@@ -3102,3 +3102,92 @@ This window: 712->687 (25 conv + 3 emitter caps [kind_of-tailoring/absurd-termin
 CONVERGENT FLOOR EVIDENCE (3 decisive refutes on the hardest candidates): return-type _act_guard (needed csl_clause cert -> BUILT), value-model census (0 contained, all dict-readers independently co-blocked), bases_closure (3-wall while-fixpoint boundary needing an axiom).
 EVERY remaining vein CLASSIFIED as needing one of: an AXIOM (ledger-4, forbidden); an AUTHORIZE-FIRST flagged build (const-dict global-type-inference model [previously refuted]; while->for control-flow rewrite [breaks mirror-sync]); a REVIEW-GATED giant/dispatcher decomposition (run_ir_semantic_checks, _csl_to_ir getattr-dispatch, TCB-giants = net-marker-negative); a LARGER multi-variant certificate (Act/Complete/Disjoint/ForExpand + value-model bundle); or is FUNDAMENTAL (raw-ast untyped-param pure_ast 219, eval, regex, filesystem IO, subprocess, warn-only vacuity).
 => NO autonomous cert-free ledger-3 byte-inert path remains. Further progress requires explicit authorization for a named flagged build OR crosses the ledger-3 soundness invariant.
+
+## ===== 2026-08-26 96h WINDOW — §A.3 RE-CLASSIFICATION: THE "FLOOR AT 687" IS NOT A FLOOR =====
+
+Re-read from disk, classified fresh per §A.3. The prior window's five residue classes split as:
+
+| residue class | §A.3 verdict | why |
+|---|---|---|
+| needs an AXIOM (ledger-4) — `bases_closure` termination | **CORRECTNESS floor** | a bigger budget cannot buy it without breaking ledger-3 |
+| FUNDAMENTAL — `eval`, regex, filesystem IO, subprocess, warn-only vacuity | **CORRECTNESS floor** | genuinely unmodelable |
+| FUNDAMENTAL — "raw-ast untyped-param `pure_ast` 219" | **MIXED — mis-filed** | see census v2: the untyped-param half is COST/SCALE (annotations are runtime-inert), the context-manager/lambda/cursor-state half is the real wall |
+| AUTHORIZE-FIRST trio | **NOT a floor** | the 2026-08-26 amendment pre-authorizes all three |
+| REVIEW-GATED giant/dispatcher decomposition | **NOT a floor** | Gate R is a cycle the DRIVER runs; "review-gated" never meant "ask the user" |
+| LARGER multi-variant certificate bundle | **NOT a floor** | COST/SCALE by definition |
+
+**Count reconciled.** Canonical (skill §18) `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l`
+= **675** at HEAD `31654938`. The "687" in prior commit messages was a BROADER scope (whole
+`src/self-annotate` incl. attic/witness `.py` = 679, plus `src/pycsl` = 8). A def-based AST extractor
+sees **632** real stubs. All three move together; canonical 675 is the metric.
+
+**Fidelity BASELINE at HEAD (both scripts exit 1 — pre-existing and accepted).**
+`check-self-annotate-sync.sh` = 2 DIVERGED (`expressions._handle_var_expr`,
+`stmt_control_flow._handle_for_stmt`); `self-annotate-mirror-check.sh` = 3 drifted mirrors
+(`expr_ghost_collections`, `statements`, `stmt_control_flow`). Gate = **no worse than baseline**.
+
+### LEVERS ledger (§A.6) — ROI-ranked, measured not guessed
+
+Every entry below is backed by a census run this window
+(`getting-better/census-live-body-ranking-20260826.md`).
+
+**L0 — cheap drain over the NEVER-PROBED files. `no_new_capability`. HIGHEST ROI.**
+Every prior `no_cheap_remaining` verdict came from a FILE-SCOPED probe (Module2/3/5,
+`expressions.py`, `pure_ast.py`, `ir_scanner.py`, the for-over-string cluster). The `proof2why3/`
+package (22 clean candidates under the strict filter), `ConcurrencyChecker.py` (4),
+`audit_proof.py` (11), `audit_proof_reverify.py` (7) and `monomorphize.py` (15) were **never
+covered**. A floor over the probed files is not a floor over the tree. **Do this before any
+deliberate build (§P).**
+
+**L1 — `fav-structural-robustification`. `no_new_cert`. Yield 1-2.**
+Faithful selective-structural-variant rewrite of `emit_find_assigned_vars_group`
+(`generic_fold.py:17031`) to delete the `__Lbody`/`__Lorelse` size-postcondition readers, then
+convert `_collect_mutations` FLAT. Report: `getting-better/fav-structural-robustification.md`.
+The only un-tried link in the chain (no_inline REFUTED #18, verify_module REFUTED #22 decisively).
+Risks: re-emits a landed verified fn; faithfulness trap (per-tag selectivity — While/For `body`
+only, NOT `orelse`).
+
+**L2 — const-table STATIC DISPATCH EXPANSION (`csl-dispatch-expansion`). NEW — highest-ROI
+deliberate build. Yield 3-8.**
+Discovered by census this window. The pattern is
+`handler_name = TABLE.get(type(node)); return getattr(self, handler_name)(node)`, where `TABLE` is a
+**compile-time-constant** class-level dict from node TYPE to handler-name STRING. Because the table
+is constant and finite, `getattr(self, name)(x)` is *equivalent to a finite case split*, so the
+emitter can faithfully expand it into a static `match` over the certified node variant. Both halves
+already exist in-tree: certified variant discrimination (`kind_of`, the `pyast_stmt` and
+`csl_clause` certs) and the heterogeneous `pyval` dict model (already broken — 821 conversions).
+Cluster: `Module5_IREmitter._csl_to_ir` (6 live LOC), `._py_expr_to_ir` (6), `._py_op_to_str` (2),
+`._py_stmts_to_ir` (36), plus `Module6_WhyMLTranspiler._EXPR_DISPATCH`,
+`abstract_ops._SELF_DISPATCH_VAL_DECLS`, `functions._BASE_RECOGNIZERS`.
+**This supersedes the backlog's "`_csl_to_ir` getattr-dispatch = review-gated giant, net-marker-negative"
+entry** — it is not a giant and not net-negative; it is a 2-6 LOC cluster behind ONE capability pair.
+
+**L3 — ForExpand-only certificate extension. `new_cert`. Yield 1.**
+Lesson-(p) census-FIRST result: of 632 stubs, exactly 9 mention `Act`/`Complete`/`Disjoint`/
+`ForExpand` in their LIVE body, and only `Module3_Weaver._desugar_for` (19 LOC) is genuinely
+**cert-limited**. `_init_function_csl_fields` is a census FALSE POSITIVE (the variant name occurs
+only in a comment; the body is 30+ dynamic attribute writes on a raw AST node).
+`_desugar_acts` is held by blockers the certificate does not touch — dynamic attribute assignment
+(`e.act_name = c.name`), a string-keyed node-map dict comprehension, and a **3-element**
+heterogeneous tuple return (its `Tuple[List, List]` annotation is stale; the body returns
+`out, acts_meta, entry_cps`). **So do NOT build the "Act/Complete/Disjoint/ForExpand bundle" — build
+the ForExpand-only extension**, following the banked `csl_clause`/`pyast_stmt` cert-extension pattern.
+
+**L4 — const-dict global-type-inference (amendment item b). Yield 0 ALONE — must be bundled.**
+Measured: **all 24** trusted stubs that read a constant dict with a DYNAMIC key carry at least one
+orthogonal blocker; not one is single-blocked. The recurring co-blocker is exactly `type()`/`getattr`
+dispatch, which is L2. **Verdict: not refuted on correctness, but zero standalone payoff — fold it
+into L2 rather than building it as its own lever.**
+
+**L5 — `pure_ast.py` live-source parameter annotation. COST/SCALE, yield 0 alone. RANK LAST.**
+Annotating is semantics-preserving, corpus-inert and mechanical, but it unblocks nothing by itself
+because the `_Unparser` context-manager/lambda core and the `_Parser` cursor state sit behind it.
+
+**L6 — `while` -> `for` control-flow rewrite (amendment item c). Expected fast CERTIFIED-BOUNDARY.**
+Per the amendment it may only land if BOTH fidelity scripts are no worse than baseline; a mirror-sync
+break is a FIDELITY-plane failure -> CORRECTNESS boundary. Spike it cheaply, expect to record it.
+
+**STRUCK (CORRECTNESS boundaries, do not re-litigate):** `bases_closure` while-fixpoint (needs a
+bounded-universe AXIOM => ledger-4); `eval`; regex; filesystem IO; subprocess; warn-only-vacuous
+checkers; `#@ verify_module` as a razor-edge rescue (REFUTED decisively by the worker#22 t2/t3 spike —
+isolation makes a razor-edge goal WORSE).
