@@ -38,30 +38,34 @@ correct outcome for a soundness repair. Full per-file evidence is in `driver-bac
 prove** (lesson (r)) — it cut this sweep from 52 files to 8, and the two slowest mirrors were among
 the ones it excluded from earlier sweeps.
 
-## Where the ladder stands — L13 is BUILT, PROVES, and is blocked on ONE named predicate
+## Where the ladder stands — L13 is LANDED
 
-`getting-better/L13-term-carrier-WIP.patch` (700 lines, `git apply`s cleanly to HEAD) opens the `term`
-carrier to the general emission path. With it, `proof2why3/parser.py` proves **SUCCESS, 216/216 Valid**
-with FIVE members converted (`parse_expr`, `parse_implication`, `parse_disjunction`,
-`parse_conjunction`, `parse_comparison`) — **directives 631 -> 626** — and the **corpus byte-diff is 0
-over 813/813**. It is NOT landed for exactly one reason.
+`b6c417f6` opened the certified `term` inductive to the general emission path and **converted 5
+`_Parser` stubs** (`parse_expr`, `parse_implication`, `parse_disjunction`, `parse_conjunction`,
+`parse_comparison`). **Directives 631 -> 626.** Gates: proof **3071/3071 Valid, 0 Unknown** across the
+3 mirrors the emission diff selects; corpus byte-diff **0** (813/813); fidelity at the baseline
+2 DIVERGED / 3 drifted; ledger 3, no new axiom.
 
-**THE BLOCKER, and it is a search, not a design problem.** The union-local seeding must fire only where
-`self.<m>()` resolves to the CONCRETE sibling rather than degrading to the opaque `self__<m>_<arity>`
-avatar. The spot is marked in the patch (`if True:   # <-- THE ONE OPEN BLOCKER`). Measured blast
-radius when it is ungated: 4 of 52 mirrors fail L3-tc (`statements`, `expressions`, `Module5_IREmitter`,
-`stmt_control_flow`). **Three arbitrators are already REFUTED — do not re-derive them:**
-  1. `_module_method_return_types` — records `_parser__peek: int` though `peek` emits `: _union_peek_0`.
-  2. "is the callee defined in this mirror?" — both are; does not discriminate.
-  3. `_composed_provider_methods` — probed **EMPTY (N=0) for `_Parser`** while `peek` still lowers
-     concretely, so the composition branch is not the path.
-**Next lead: `scc.find_self_method_calls` (referenced at expressions.py:5215).** Find the predicate the
-emitter itself uses and reuse it verbatim; do not invent a second one, or the two will disagree.
+**Pick up here — three concrete continuations, in demand-first order:**
+1. **`parse_arith_add`, `parse_arith_mul`, `expect`** are now the ASSUMED-INTERFACE FRONTIER. Each
+   carries `#@ ensures self.pos >= \old(self.pos)` + `self.pos <= \length(self.toks)` as a reviewer
+   assertion on a still-`\trusted` stub. **Converting each one RETIRES its assumption** — that is
+   count reduction AND TCB reduction in the same move, and the capability they need is already landed.
+2. **The `0`-reads-as-`None` faithfulness bug.** `Module5_IREmitter::_collect_class_constants` emits
+   `if (!iv <> 0)` as a stand-in for "is not None", so a legitimate constant value of 0 reads as None.
+   The union-local typing fixes it, but the concrete-resolution gate (`_record_array_fields`) excludes
+   `PyCSLToJSONEmitter`. Widening that gate is the lever, and the corpus byte-diff is the real gate.
+3. **`parse_quant` / `parse_atom` / `parse_atom_application`** need the one unbuilt capability:
+   seq -> `list term` at an ADT CONSTRUCTOR ARGUMENT (`tuple(binders)`), precedent
+   `_bind_listfield_from_seq` (which binds a record FIELD, not a ctor argument), plus `" ".join(...)`.
 
-Worth knowing before you judge the 4 breaking mirrors: their diffs under the patch are IMPROVEMENTS,
-each replacing an int-erased `ref 0` local with a properly union-typed one. `Module5_IREmitter::
-_collect_class_constants` currently tests `if (!iv <> 0)` as a stand-in for "is not None" — **a
-legitimate constant value of 0 reads as None today.** This capability fixes a live faithfulness bug.
+**Two process facts this window paid for, do not relearn them:**
+- **The §10.4 re-port obligation is live.** Editing a LIVE emitter function that has an UN-TRUSTED
+  mirror counterpart breaks `check-self-annotate-sync.sh` until you port the change into the mirror.
+  It caught exactly that here (`functions::_compute_return_type`, `stmt_control_flow::_handle_return_stmt`),
+  and the re-port then GREW the emission diff from 1 mirror to 3. Budget for that.
+- **Run the corpus byte-diff BEFORE the mirror proof sweep.** ~7 min/side versus ~50 min, and it
+  falsified an intermediate version of this build in one shot.
 
 ## The rest of the ladder
 
