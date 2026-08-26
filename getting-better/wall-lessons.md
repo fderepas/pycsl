@@ -2121,3 +2121,48 @@ pydict-construction primitive (lever #1). RUN #3 DEFINITIVE FLOOR: 754 (29 conve
 - Every remaining lead MEASURED to: (a) verified-method-regression retype (self-field, map-string-bool consolidation) — breaks siblings at L3-tc; or (b) big review-gated value-model campaign (self.ir heterogeneous IR-root modeling [reuses pyval cert but broad multi-method regression-heavy retype]; raw-AST-as-variant ADT for _py_stmts_to_ir/_process_dependency [likely new cert]).
 - These are the DOCUMENTED deep walls (frontier_exhaustion_map / isolation_spike_not_whole_file "authorize first"). NOT clean autonomous increments.
 - 4 boundaries REFUTED this window by spiking contained paths; the remaining 3 are now spike-confirmed as genuinely multi-method/regression-heavy/new-cert.
+
+---
+
+## 2026-08-26 — 96h run: STALE-WALL lesson (Gate S-lesson, PASS + carve-out into the driver skill)
+
+**Wall it came from:** `fav-structural-robustification` (the `find_assigned_vars` structural-variant
+rewrite, queued as ladder item #1 and pre-authorized as flagged build (a) in the 2026-08-26 authority
+amendment).
+
+**The `L`-input that revealed the divergence:** Gate R's independent fable review ran the whole-file
+proof of `ir_scanner.py` and reported **409 `_collect_mutations` subgoals and 71
+`find_iteration_mutations` subgoals all proved**. A `\trusted` stub emits as a bodyless `val` and
+therefore has NO subgoals of its own — so the proof output itself was proof that the target was no
+longer trusted. Confirmed directly:
+`grep -cF '#@ \trusted' src/self-annotate/src/module6_whyml/ir_scanner.py` -> **0**.
+
+**What was actually true.** The wall HAD been broken — by the heterogeneous value-model root, in a
+later window: `c6557971` (`_collect_mutations`, 796->795), `fdbccc77` (`find_iteration_mutations`,
+795->794), summarized in `4700f558`. At `0eb601ca` — the commit that recorded "FINAL FLOOR CONFIRMED
+@ count 804" — `ir_scanner.py` still had 4 trusted markers. Nobody retired the `wall-lessons` entry,
+so the reopening chain `no_inline (#18 REFUTED) -> verify_module-Sig-fix (#21) -> verify_module
+(#22 REFUTED) -> "the ONLY remaining path is find_assigned_vars structural robustification"` kept
+propagating a reopening for a wall that no longer existed, and carried it all the way into a
+standing user authorization.
+
+**Gate S-lesson classification: DEFER-TO-ORACLE, validity test PASSES.** The lesson is "on case S
+(about to escalate a wall) take the `L`-sanctioned action (grep the target's trusted status)". Does
+`L` actually distinguish S? Yes, decisively and in one command — `grep -cF '#@ \trusted' <mirror>`
+separates "still trusted" from "already converted" with no judgement involved. So it is written as a
+rule, not carved.
+
+**The rule (also carved into `self-tcb-reduction-driver` SKILL.md Gate W as the FRESHNESS
+PRECONDITION, because a behavioral rule that lives only here does not bind the next run):**
+before escalating ANY wall, re-verify the target is still `\trusted` at HEAD. If it is not, the item
+is **REFUTED AS STALE** — payoff 0, NOT a CERTIFIED-BOUNDARY — strike it, record the commit that
+actually converted it, and advance the same turn. Generalized: **re-measure, never inherit** — this
+applies to every count and every target a backlog entry carries. (The same window found the running
+`\trusted` count had drifted too: commit messages said 687 while the canonical
+skill-§18 command said 675, because a prior worker had silently widened the scope.)
+
+**What it cost, and what saved it.** A wall report and a full fable review were spent on a
+zero-payoff item, and the RISKIEST of the three amendment-authorized builds was queued first. Gate R
+earned its keep exactly as designed: the reviewer refuted the report's premise from an independent
+evidence base instead of endorsing its prose. A prose-only review would have waved it through and the
+build would have re-emitted an already-proven function for nothing.
