@@ -4023,3 +4023,79 @@ lines, reverted]; (2) recursive-method emission [`is_recursive` bare-name bug, n
 `#@ \variant` for the recursion. Nothing else. That is a 3-part bundle for 1 marker — expensive per
 stub, but it is the first target in this window whose blocker set is CLOSED and MEASURED rather than
 estimated.
+
+---
+
+## LADDER UPDATE — relaunch #23, 2026-08-26 (supersedes the `parse_implication` bundle candidate above)
+
+**The paragraph immediately above is now WRONG on two of its three blockers. Re-measured, do not inherit it.**
+(2) "recursive-method emission [`is_recursive` bare-name bug]" is STALE — porting `parse_implication`
+verbatim emits `let rec _parser__parse_implication ... variant { ... }` correctly at HEAD. (3) the
+`#@ \variant` already works. And the target was WRONGLY SCOPED: `parse_implication` cannot be converted
+alone at all (see L13 §ALL-OR-NOTHING).
+
+### L13 — the `proof2why3` `_Parser` CURSOR NEST  [TOP LEVER, spike PASSED, 4 capabilities, 11-15 stubs]
+
+Report: `getting-better/cursor-nest/cursor-nest.md`. Spike: `getting-better/cursor-nest/cursor-nest-spike.mlw`
+(**41/41 sub-goals Valid, Alt-Ergo alone, 0 non-Valid**) => the wall is a **COST/SCALE boundary, not a
+correctness one**. Payoff: the 11 `_Parser` methods (+ possibly `parse_type_expr`, `lex`,
+`Token.__repr__`) in `src/self-annotate/src/proof2why3/parser.py`.
+
+**ALL-OR-NOTHING (the load-bearing constraint).** The 11 methods are ONE mutual-recursion nest
+(`parse_expr -> parse_implication -> ... -> parse_atom -> parse_expr` via the parenthesised-expression
+rule), and the descent chain consumes NO token, so `\length(self.toks) - self.pos` does not decrease
+along it. Once the frame-soundness fix is in (see L14), a converted member CANNOT discharge its
+termination measure while the next level down is a `\trusted` val with a declared `writes { self.pos }`
+— unless that trusted stub is given a monotonicity postcondition, i.e. unless the TCB GROWS. So the
+honest choices are: convert the WHOLE nest, or grow the assumed interface. Prefer the former.
+
+**CLOSED capability set — exactly FOUR, everything else was measured to ALREADY WORK:**
+  1. `Term` alias -> the EXISTING immutable `term` ADT for returns/locals. (The mirror stubs it as
+     `Term = 0` at `proof2why3/ir.py:121`, so every `-> Term` lowers to `int`.)
+  2. `_call_term_constructor`: `BinOp(op,l,r)` -> `(BinOp op l r)`, on the LANDED
+     `expressions.py::_call_irnode_constructor` (:8320) pattern, spec-driven off `compute_term_adt_spec`
+     (which already knows the 9 ctors and their field order) — **no new table, no new certificate, no axiom**.
+  3. Union-local typing for `Optional[Token]` locals. Today `t = self.peek()` lowers to `let t = ref 0`
+     plus opaque `get_kind`/`get_value` int-hash getters and hashed string constants (e.g. `160205502`)
+     — a value-blind path. This capability was BUILT and proven working in an earlier window (~120 lines)
+     and then reverted; it is reproducible.
+  4. seq -> `list term` at an ADT CONSTRUCTOR ARGUMENT (`App(head=..., args=tuple(args))`). Today
+     `tuple(<seq>)` lowers to the opaque `tuple_1 : seq int -> int`, int-erasing the accumulator. Needed by
+     3 of the 11 (`parse_quant`, `parse_atom_application`, `parse_atom`). Precedent: the landed L9
+     `_bind_listfield_from_seq` (`Init.init (Seq.length s) (fun i -> Seq.get s i)`) — but that binds a
+     RECORD FIELD, not a ctor argument.
+
+**MEASURED TO ALREADY WORK (do NOT re-scope these as gaps):** the 9-ctor immutable `type term` is ALREADY
+EMITTED in `parser.mlw` (needs_term fires via the imported `App.pp` stub); `let rec` + `#@ \variant`;
+MUTUAL recursion via SCC (`functions.py`: `_scc_size > 1` -> `let rec` + `and` / `with function`);
+`\old` inside `#@ loop invariant`; `raise SyntaxError(...)` in a value-returning method (auto-derives
+`raises { SyntaxError }`); `int(s)` -> `str_to_int`; seq accumulation (`args := Seq.snoc !args ...`)
+inside a `while` with invariant+variant; and `while True: ... break` -> `try while true ... raise
+PyCSL_Break ... with PyCSL_Break -> ()` (so the break path carries NO variant obligation and a PLAIN
+`#@ loop variant` suffices — no lexicographic loop variant needed).
+
+**Termination measure — solved with the EXISTING surface.** `#@ \variant (<expr>, <ordering>)` is a
+well-founded RELATION, not a lexicographic tuple (the parser demands a NAME for the 2nd component).
+Encode the pair as ONE integer instead: `#@ \variant 16 * (\length(self.toks) - self.pos) + <level>`
+(levels 0..15 < the multiplier, so consuming a token dominates any level rise). Re-proved: 41/41,
+identical to the tuple form. GOTCHA: a LEADING PAREN (`#@ \variant (`) is parsed as the
+`(expr, ordering)` form and errors — write the multiplier first.
+
+### L14 — FRAME SOUNDNESS: `#@ assigns self.<f>` on a `\trusted` stub was DROPPED  [IN FLIGHT this window]
+
+Not a lever, a DEFECT IN LANDED WORK. `functions.py`'s `writes`-clause emission was gated on
+`not emit_as_val`, so a `\trusted`/`\abstract` method's abstract `val` carried NO frame and every
+converted caller assumed the field was UNCHANGED. Oracle: `getting-better/cursor-nest/trusted-frame-oracle.mlw`
+(a caller's `ensures self.i >= \old(self.i)` is **Valid as emitted** / **Unknown once the declared frame is
+restored**). Fix = drop the exclusion + filter the frame to field labels the record actually emits
+(Module5 can declare `assigns self._cur_func_symtab` for a field the record DROPS) + suppress an EMPTY
+frame on the val path (which keeps it CORPUS BYTE-INERT: 0 corpus/tests programs declare a
+trusted/abstract method with a non-`\nothing` self-field assigns). Blast radius measured by MIRROR
+EMISSION DIFF: exactly **8 of 52** mirror files change, and the diff is PURE ADDITION of 231
+`writes { ... }` lines — nothing removed, nothing incidental. Repairs needed so far: `_parse_assigns` and
+`_parse_mutex_expr_str` in the Module2_Parser mirror need the honest interface postconditions their LIVE
+bodies satisfy; with those, Module2_Parser proves SUCCESS again.
+
+**METHOD LESSON banked this window:** gate the re-proof set by an EMISSION DIFF, not by "every file that
+could be affected". 8 of 52 changed; the 44 unchanged need no proof at all, and that included the two
+slowest mirrors.
