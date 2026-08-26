@@ -3683,3 +3683,86 @@ and it inspects a population of ZERO and reports
 `[+] no NEW erasure (0 known param-erasures gated; 0 input-blind methods)` with **EXIT=0** — a
 textbook lesson-(k) false green on an anti-facade gate. **Always run it as
 `bin/check-emitted-vacuity.py --emit` and assert the emitted population is 52.**
+
+# ============================================================================
+# CURRENT LADDER — consolidated 2026-08-26, HEAD 4b4b2ba9, count 671
+# Read THIS section first on relaunch. Everything above is append-only history.
+# ============================================================================
+
+## Verified baselines (re-measured this window — do NOT inherit older numbers)
+- **Canonical count**: `grep -rhF '#@ \trusted' src/self-annotate/src --include='*.py' | wc -l` = **671**.
+  (A def-based AST extractor sees ~628 real stubs. Older commit messages saying "687" used a wider
+  scope: whole `src/self-annotate` + `src/pycsl`. Use the canonical command.)
+- **Provers**: the repo default is BROKEN here — `pycsl.py` pins `Alt-Ergo,2.6.2,` but 2.6.3 is
+  installed and `src/pycsl/agents/agents-config.json` does not exist, so bare runs go **Z3-only** and
+  emit FALSE "unproven". ALWAYS:
+  `export PATH=$HOME/.opam/framac-coq8/bin:$PATH` and
+  `--provers "Alt-Ergo,2.6.3,,Z3,4.13.3,"`. `bin/run-self-annotation-suite.sh` takes no prover flag
+  and is therefore degraded/red for unrelated reasons — gate per-file.
+- **Fidelity baseline (both scripts exit 1; this is ACCEPTED, do not "fix")**:
+  `check-self-annotate-sync.sh` = exactly 2 DIVERGED (`expressions.py::_handle_var_expr`,
+  `stmt_control_flow.py::_handle_for_stmt`); `self-annotate-mirror-check.sh` = exactly 3 drifted
+  (`expr_ghost_collections`, `statements`, `stmt_control_flow`).
+- **Vacuity baseline**: `bin/check-emitted-vacuity.py --emit` (population MUST be 52) exits **1** with
+  6 known gated + 2 input-blind + 1 un-ledgered PRE-EXISTING `Module3_Weaver::pycslweaver___const_int`.
+  Without `--emit` it inspects ZERO files and returns a FALSE EXIT=0.
+- **Corpus byte-diff**: 812 emitted per side. Assert equal AND nonzero on both sides.
+- **Ledger**: 3. **Unmirrored live functions**: 362 (see the moving-denominator finding).
+
+## STRUCK — do not re-litigate
+- `fav-structural-robustification` / authority-amendment build (a): **REFUTED-STALE**, target already
+  converted at `c6557971`.
+- `bases_closure` while-fixpoint: needs a bounded-universe AXIOM => ledger-4. CORRECTNESS floor.
+- `#@ verify_module` as a razor-edge rescue: REFUTED decisively (isolation makes it worse).
+- `eval`, regex, filesystem IO, subprocess, warn-only-vacuous checkers: CORRECTNESS floor.
+- L4 const-dict global-type-inference *as a standalone lever*: measured yield 0 alone — all 24
+  dynamic-key readers are co-blocked. Fold into L2.
+- The Act/Complete/Disjoint/ForExpand **bundle**: census-first showed only `_desugar_for` is
+  cert-limited. Do not build the bundle.
+
+## LIVE LADDER (top-down)
+
+**L10 — `Optional[X]` field value model + string-aware `_field_default`. TOP LEVER, named by
+measurement.** `None` lowers to `0` against `emit_ir`/`string`/`seq` fields, and `_field_default`
+returns `0` for a *defaulted string* field (`context: str = "writing"` -> `context = 0`). This is the
+single blocker standing between the now-built list-binding capability and the rest of the
+`HappyProperty` cluster. Directly blocks `_parse_happy_targets` and `_parse_happy` (the latter also
+gated on the former). Spike-first on the string-default half — it is the smaller of the two.
+
+**L9-drain — remaining Tier-A list-field targets.** The capability is BUILT (`dfed484b` + `0f54ca31`,
+element type emit_ir OR string). In flight: `_parse_no_exception` (`NoExceptionDecl.exceptions`),
+and the `_Harvester` trio `_emit_block_footer`/`run`/`_emit_target` (`PyCSLContract.contracts` —
+these ALSO need `@mutable_state` on `_Harvester` and a truthful `assigns self._out`; their current
+`assigns \nothing` is a FALSE FRAME). Then `_parse_contract` (`Complete.names`/`Disjoint.names`),
+`_parse_atom_name` (`CallExpr.args`), `_parse_atom_bs` (`MkTupleExpr.elts`).
+**Remember: every target needs THREE clearances — binding, return route, truthful frame.**
+
+**L2 — `csl-dispatch-expansion`. AMENDED by Gate R; still live but bigger than first scoped.**
+Mechanism confirmed cert-free (tag test on the opaque pyval VIEW, no axiom). BUT the four dispatch
+tables appear **0 times** in Module 5's IR — Module 5 drops class-level `Dict[type,str]` tables — so
+it needs a **NEW Module-5 class-table collector**, not just a recognizer. Hard-coding the table in an
+emitter template is REJECTED (with `ensures {true}` a wrong mapping is invisible to Gate C). Spike
+target remains `_py_op_to_str` (2 LOC, non-recursive). `_csl_to_ir` is a separate, harder question
+(75-method mutual recursion; and any gate must require the back-edge be the DEFINED recursive
+function, not a surviving opaque val avatar — the "shell-game hazard").
+**Extra mandatory gate for L2:** diff the reflected table against live. The mirror's `_CSL_HANDLERS`
+is currently STALE (77 vs 79) and both fidelity scripts are structurally blind to class-level
+constant tables.
+
+**L3 — ForExpand-only certificate extension** for `Module3_Weaver._desugar_for` (19 LOC). Yield 1.
+Note `IrGiven` plumbing is already proven viable (spike PASSED) if the Act side is ever revisited.
+
+**L6 — `while` -> `for` rewrite (authority-amendment item (c)).** Expected fast CERTIFIED-BOUNDARY:
+may only land if both fidelity scripts stay at baseline; a mirror-sync break is a FIDELITY-plane
+failure => CORRECTNESS boundary. Spike cheaply, expect to record it.
+
+**L5 — `pure_ast.py` parameter annotation.** MIXED classification, ranked LAST: the untyped-param
+half is COST/SCALE (annotations are runtime-inert) but the `_Unparser` context-manager/lambda core
+and `_Parser` cursor state sit behind it, so annotation alone unblocks nothing.
+
+## Flagged for the USER, deliberately not actioned autonomously
+1. **Prover-config repair** (`_resolve_runtime_config` resolving the installed version instead of a
+   stale pin). Emission-inert, but changes proof outcomes corpus-wide => wants a deliberate M1 sweep.
+2. **Metric definition**: report `\trusted` ALONGSIDE the unmirrored-live count (362 and rising),
+   because capability builds move work off the verification path. `getting-better/measure-unmirrored-surface.py`.
+3. **`Module3_Weaver::pycslweaver___const_int`** un-ledgered vacuity erasure (pre-existing) — ledger it or fix it.
