@@ -4572,6 +4572,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _hvalmap_predecl: Set[str] = set()
         _optstr_predecl: Set[str] = set()
         _term_predecl: Set[str] = set()
+        # Reset per body BEFORE the `_ms_body` gate, so a previous function's `term`
+        # locals can never leak into this one's ctor-slot typing decision.
+        self._term_local_vars: Set[str] = set()
         if _ms_body:
             _str_predecl = {v for v in getattr(self, "_string_local_vars", set())
                             if v in local_refs and v not in ghost_vars
@@ -4588,6 +4591,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                              and v not in struct_array_targets and v not in struct_pack_targets
                              and v not in _str_predecl}
             pre_decl_vars |= _term_predecl
+            # TERM CARRIER cap-(4): expose the body's `term`-typed local set to the
+            # EXPRESSION layer, so `_call_term_constructor` can decide whether a
+            # tuple-literal actual bound to a `list term` ctor slot really carries terms.
+            self._term_local_vars = set(_term_predecl)
             # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `pyconst_val` locals
             # (`v = elt.value` in `_classify_literal_value`) pre-declare `ref PVNone` (never the
             # emit_ir `ref (IrOther "")`), so their `:=`, `is_pv*` tests and ctor projections

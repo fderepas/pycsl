@@ -6117,7 +6117,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # inductive's constructor, not to the mutable int-erased dataclass record. Tried
         # BEFORE `_call_record_constructor` (which would otherwise win and emit the
         # record); fail-closed, so anything it declines still reaches the record path.
-        tadt = self._call_term_constructor(args, func_name, kwargs_map)
+        tadt = self._call_term_constructor(
+            args, func_name, kwargs_map,
+            raw_args=list(expr.get("args") or []),
+            raw_kwargs={kw["arg"]: kw.get("value")
+                        for kw in (expr.get("keywords") or [])
+                        if isinstance(kw, dict) and isinstance(kw.get("arg"), str)},
+            elt_lower=(lambda _n: self._expr_to_whyml(
+                _n, local_refs, invariant_ctx, subst)))
         if tadt is not None:
             return tadt
         rec = self._call_record_constructor(args, func_name, kwargs_map)
@@ -8447,7 +8454,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"({cname} {' '.join(parts)})"
 
     def _call_term_constructor(self, args: List[str], func_name: str,
-                               kwargs_map: Optional[Dict[str, str]] = None
+                               kwargs_map: Optional[Dict[str, str]] = None,
+                               raw_args: Optional[List[Any]] = None,
+                               raw_kwargs: Optional[Dict[str, Any]] = None,
+                               elt_lower: Optional[Any] = None
                                ) -> Optional[str]:
         """TERM CARRIER (L13 / cursor-nest): `BinOp(op, lhs, rhs)` for one of the term
         ADT's own arm classes lowers to the ADT APPLICATION `(BinOp op lhs rhs)` — the
@@ -8489,7 +8499,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         ctor_fields = (spec.get("ctors") or {}).get(func_name)
         if not ctor_fields:
             return None
-        if not all(wt in ("term", "string") for _fn, wt in ctor_fields):
+        # TERM CARRIER cap-(4): `list term` joins the admissible slot types. It is
+        # admitted ONLY through the fixed-arity tuple/list-LITERAL path below
+        # (`_term_list_literal_slot`); every other actual shape still DECLINES, so the
+        # `list string` binder slots (`Forall`/`Exists`) and the int/bool literal slots
+        # (`IntLit`/`BoolLit`) are unchanged.
+        if not all(wt in ("term", "string", "list term") for _fn, wt in ctor_fields):
             return None
         rec_info = getattr(self, "_record_types", {}).get(func_name)
         if not rec_info:
@@ -8499,12 +8514,72 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         bound: Dict[str, str] = dict(zip(init_params, args))
         bound.update(kwargs_map or {})
+        raw_bound: Dict[str, Any] = dict(zip(init_params, list(raw_args or [])))
+        raw_bound.update(raw_kwargs or {})
         parts: List[str] = []
         for fn, _wt in ctor_fields:
             if fn not in bound:
                 return None
+            if _wt == "list term":
+                lst = self._term_list_literal_slot(raw_bound.get(fn), elt_lower)
+                if lst is None:
+                    return None
+                parts.append(lst)
+                continue
             parts.append(bound[fn])
         return f"({func_name} {' '.join(parts)})"
+
+    def _term_list_literal_slot(self, raw: Any, elt_lower: Optional[Any]
+                                ) -> Optional[str]:
+        """TERM CARRIER cap-(4): a FIXED-ARITY tuple/list LITERAL bound to a `list term`
+        constructor slot (`App(head="mod", args=(out, rhs))`) lowers to the Why3
+        cons-list `(Cons out (Cons rhs Nil))` — the exact payload the certified
+        inductive's `App string (list term)` arm declares.
+
+        Why this is the faithful model and not a re-encoding: Python's `App.args` IS a
+        tuple of `Term`s, and the emitted `type term` already spells that slot
+        `list term`; `list.List` is already `use`d by every file that emits the
+        inductive (the `flatten_arrow_chain` / `mk_arrow_chain` recognizer groups build
+        and match `Cons`/`Nil` today). So this adds NO type, NO abstract val and NO
+        axiom — it only lets an ORDINARY body reach a constructor arm the recognizers
+        already reach.
+
+        Deliberately NARROWER than the general seq -> `list term` reconciliation
+        (L13 capability (4) proper, still unbuilt): that one has to materialise a
+        RUNTIME-length accumulator (`tuple(<seq local>)`, needed by `parse_quant` /
+        `parse_atom_application`). This handles only the case where the arity is
+        SYNTACTICALLY known, which needs no `Init.init`, no length reasoning and no
+        `Seq` bridge at all.
+
+        FAIL-CLOSED on every axis — returns None (=> the whole term-ctor lowering
+        declines, and the old record-literal path then fails LOUDLY at L3-tc, never
+        silently):
+          - the actual must be a literal `Tuple` / `ArrayLit` / `ListLit` node (a
+            variable holding a list is NOT accepted — that is the seq case);
+          - it must be non-empty (an empty literal would be `Nil`, which is
+            representable, but no live body constructs one and admitting it would make
+            the emptiness untestable);
+          - EVERY element must be a plain `Var` naming a local in
+            `self._term_local_vars`, i.e. a local this body pre-declared as `term`. An
+            int-erased or string local can therefore never be consed into a `list term`.
+        """
+        if elt_lower is None:
+            return None
+        if not (isinstance(raw, dict)
+                and raw.get("type") in ("Tuple", "ArrayLit", "ListLit")):
+            return None
+        elts = raw.get("elts")
+        if not isinstance(elts, list) or not elts:
+            return None
+        _tlv = getattr(self, "_term_local_vars", set())
+        for e in elts:
+            if not (isinstance(e, dict) and e.get("type") == "Var"
+                    and e.get("name") in _tlv):
+                return None
+        out = "Nil"
+        for e in reversed(elts):
+            out = f"(Cons {elt_lower(e)} {out})"
+        return out
 
     def _bind_listfield_from_seq(self, rec_info: Dict[str, Any], fn: str,
                                  ent: Dict[str, Any],

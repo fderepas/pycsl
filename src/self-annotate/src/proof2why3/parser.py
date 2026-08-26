@@ -253,22 +253,37 @@ class _Parser:
             out = BinOp(op, out, rhs)
         return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    # CURSOR INTERFACE (L13) — an ASSUMED interface on a still-`\trusted` stub, i.e.
-    # a REAL (small) TCB addition, justified by reading the live body: every cursor
-    # motion in `_Parser` goes through `take`, whose `self.pos += 1` is monotone, and
-    # whose partiality (`self.toks[self.pos]` raises IndexError past the end) keeps
-    # `self.pos <= len(self.toks)` on every NORMAL-return path. There is no
-    # backtracking site anywhere in this class (no `_try`-style save/restore, no
-    # direct `self.pos = <expr>` outside `__init__` and `take`). Retire this
-    # assumption by CONVERTING the stub.
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB.
     #@ ensures self.pos >= \old(self.pos)
     #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_arith_mul(self) -> Term:
-        return None
+        out = self.parse_atom_application()
+        #@ loop invariant self.pos >= \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None:
+                break
+            if t.kind == "OP" and t.value in _ARITH_MUL_OPS:
+                op = self.take().value
+                rhs = self.parse_atom_application()
+                out = BinOp(op, out, rhs)
+                continue
+            # `mod` as identifier-infix (Lean-style `a mod b` after
+            # `%` → `mod` normalization). Folded into App(mod, ...)
+            # for shape parity with Rocq's `mod a b` prefix form.
+            if t.kind == "IDENT" and t.value == "mod":
+                self.take()
+                rhs = self.parse_atom_application()
+                out = App(head="mod", args=(out, rhs))
+                continue
+            break
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
