@@ -3766,3 +3766,31 @@ and `_Parser` cursor state sit behind it, so annotation alone unblocks nothing.
 2. **Metric definition**: report `\trusted` ALONGSIDE the unmirrored-live count (362 and rising),
    because capability builds move work off the verification path. `getting-better/measure-unmirrored-surface.py`.
 3. **`Module3_Weaver::pycslweaver___const_int`** un-ledgered vacuity erasure (pre-existing) — ledger it or fix it.
+
+### L10 ENTRY POINT — located, so the next executor does not re-derive it
+`src/pycsl/module6_whyml/expressions.py::_call_record_constructor` -> nested `_field_default`
+(line ~8515), verbatim:
+```python
+def _field_default(fn: str) -> str:
+    ft = field_types.get(fn, "int")
+    if ft in ("list", "array"):
+        return f"(Array.make {rec_info['defaults'].get(fn, 0)} 0)"
+    if ft in ("dict", "set", "frozenset"):
+        return "(const (None: option int))"
+    return f"{rec_info['defaults'].get(fn, 0)}"        # <-- EVERYTHING else, including `string`
+```
+Two narrow defects, both in this one function:
+1. **A `string` field falls through to the int fallback** and emits `0`. That is why
+   `context: str = "writing"` emits `context = 0` and L3-tc rejects `_parse_happy`.
+2. **A list field always defaults to `(Array.make N 0)`** — an `array int` regardless of element
+   type. That is the `array int` vs `array string` mismatch hit while measuring
+   `_parse_happy_targets`' `except_set = []` branch (a `[]` literal actual is not a `!<local>` deref,
+   so it keeps this default path).
+
+Both fixes are element-type-aware defaults in the same function. **Likely low byte-diff risk**: the
+current output for these cases is `0` / `array int`, which is ill-typed wherever it actually occurs,
+so a corpus program can only be relying on it if it never constructs such a record — but this
+function serves EVERY corpus record construction, so the byte-diff is still a HARD gate.
+UNVERIFIED and left for the spike: whether `rec_info['defaults']` even captures a *string* default
+upstream (Module 5), or whether the capture side needs work too. Determine that FIRST — it decides
+whether L10-part-1 is a one-function fix or a two-surface build.
