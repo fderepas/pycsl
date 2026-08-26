@@ -884,12 +884,13 @@ class _Parser:
     def atom_paren(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _fin_pos(self, node, start_tok, end_tok):
-        pass
+        node.lineno = start_tok.start[0]; node.col_offset = start_tok.start[1]
+        node.end_lineno = end_tok.end[0]; node.end_col_offset = end_tok.end[1]
+        return node
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1237,13 +1238,17 @@ class _Unparser(NodeVisitor):
     def buffered(self, buffer=None):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @_contextmanager
     def block(self, *, extra=None):
-        pass
+        self.write(":")
+        if extra:
+            self.write(extra)
+        self._indent += 1
+        yield
+        self._indent -= 1
 
     #@ requires True
     #@ ensures True
@@ -1281,12 +1286,20 @@ class _Unparser(NodeVisitor):
     def set_precedence(self, precedence, *nodes):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def get_raw_docstring(self, node):
-        pass
+        if not isinstance(node, (AsyncFunctionDef, FunctionDef, ClassDef, Module)) \
+                or len(node.body) < 1:
+            return None
+        node = node.body[0]
+        if not isinstance(node, Expr):
+            return None
+        node = node.value
+        if isinstance(node, Constant) and isinstance(node.value, str):
+            return node
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1343,12 +1356,15 @@ class _Unparser(NodeVisitor):
         self.set_precedence(_Precedence.YIELD, node.value)
         self.traverse(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_NamedExpr(self, node):
-        pass
+        with self.require_parens(_Precedence.NAMED_EXPR, node):
+            self.set_precedence(_Precedence.ATOM, node.target, node.value)
+            self.traverse(node.target)
+            self.write(" := ")
+            self.traverse(node.value)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1378,19 +1394,29 @@ class _Unparser(NodeVisitor):
     def visit_AugAssign(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_AnnAssign(self, node):
-        pass
+        self.fill()
+        with self.delimit_if(
+            "(", ")", not node.simple and isinstance(node.target, Name)
+        ):
+            self.traverse(node.target)
+        self.write(": ")
+        self.traverse(node.annotation)
+        if node.value:
+            self.write(" = ")
+            self.traverse(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Return(self, node):
-        pass
+        self.fill("return")
+        if node.value:
+            self.write(" ")
+            self.traverse(node.value)
 
     #@ requires True
     #@ ensures True
@@ -1417,12 +1443,15 @@ class _Unparser(NodeVisitor):
     def visit_Delete(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Assert(self, node):
-        pass
+        self.fill("assert ")
+        self.traverse(node.test)
+        if node.msg:
+            self.write(", ")
+            self.traverse(node.msg)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1438,33 +1467,53 @@ class _Unparser(NodeVisitor):
     def visit_Nonlocal(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Await(self, node):
-        pass
+        with self.require_parens(_Precedence.AWAIT, node):
+            self.write("await")
+            if node.value:
+                self.write(" ")
+                self.set_precedence(_Precedence.ATOM, node.value)
+                self.traverse(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Yield(self, node):
-        pass
+        with self.require_parens(_Precedence.YIELD, node):
+            self.write("yield")
+            if node.value:
+                self.write(" ")
+                self.set_precedence(_Precedence.ATOM, node.value)
+                self.traverse(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_YieldFrom(self, node):
-        pass
+        with self.require_parens(_Precedence.YIELD, node):
+            self.write("yield from ")
+            if not node.value:
+                raise ValueError("Node can't be used without a value attribute.")
+            self.set_precedence(_Precedence.ATOM, node.value)
+            self.traverse(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Raise(self, node):
-        pass
+        self.fill("raise")
+        if not node.exc:
+            if node.cause:
+                raise ValueError("Node can't use cause without an exception.")
+            return
+        self.write(" ")
+        self.traverse(node.exc)
+        if node.cause:
+            self.write(" from ")
+            self.traverse(node.cause)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1473,26 +1522,41 @@ class _Unparser(NodeVisitor):
     def do_visit_try(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Try(self, node):
-        pass
+        prev_in_try_star = self._in_try_star
+        try:
+            self._in_try_star = False
+            self.do_visit_try(node)
+        finally:
+            self._in_try_star = prev_in_try_star
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_TryStar(self, node):
-        pass
+        prev_in_try_star = self._in_try_star
+        try:
+            self._in_try_star = True
+            self.do_visit_try(node)
+        finally:
+            self._in_try_star = prev_in_try_star
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_ExceptHandler(self, node):
-        pass
+        self.fill("except*" if self._in_try_star else "except")
+        if node.type:
+            self.write(" ")
+            self.traverse(node.type)
+        if node.name:
+            self.write(" as ")
+            self.write(node.name)
+        with self.block():
+            self.traverse(node.body)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1527,12 +1591,14 @@ class _Unparser(NodeVisitor):
     def _type_params_helper(self, type_params):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_TypeVar(self, node):
-        pass
+        self.write(node.name)
+        if node.bound:
+            self.write(": ")
+            self.traverse(node.bound)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1548,12 +1614,15 @@ class _Unparser(NodeVisitor):
     def visit_ParamSpec(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_TypeAlias(self, node):
-        pass
+        self.fill("type ")
+        self.traverse(node.name)
+        self._type_params_helper(node.type_params)
+        self.write(" = ")
+        self.traverse(node.value)
 
     #@ requires True
     #@ ensures True
@@ -1581,12 +1650,18 @@ class _Unparser(NodeVisitor):
     def visit_If(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_While(self, node):
-        pass
+        self.fill("while ")
+        self.traverse(node.test)
+        with self.block():
+            self.traverse(node.body)
+        if node.orelse:
+            self.fill("else")
+            with self.block():
+                self.traverse(node.orelse)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1611,19 +1686,37 @@ class _Unparser(NodeVisitor):
             self.write("u")
         self._write_str_avoiding_backslashes(node.value, quote_types=_MULTI_QUOTES)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _write_constant(self, value):
-        pass
+        if isinstance(value, (float, complex)):
+            # Substitute overflowing decimal literal for AST infinities,
+            # and inf - inf for NaNs.
+            self.write(
+                repr(value)
+                .replace("inf", _INFSTR)
+                .replace("nan", f"({_INFSTR}-{_INFSTR})")
+            )
+        elif self._avoid_backslashes and isinstance(value, str):
+            self._write_str_avoiding_backslashes(value)
+        else:
+            self.write(repr(value))
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Constant(self, node):
-        pass
+        value = node.value
+        if isinstance(value, tuple):
+            with self.delimit("(", ")"):
+                self.items_view(self._write_constant, value)
+        elif value is ...:
+            self.write("...")
+        else:
+            if node.kind == "u":
+                self.write("u")
+            self._write_constant(node.value)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1735,12 +1828,19 @@ class _Unparser(NodeVisitor):
     def visit_BoolOp(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Attribute(self, node):
-        pass
+        self.set_precedence(_Precedence.ATOM, node.value)
+        self.traverse(node.value)
+        # Special case: 3.__abs__() is a syntax error, so if node.value
+        # is an integer literal then we need to either parenthesize
+        # it or add an extra space to get 3 .__abs__().
+        if isinstance(node.value, Constant) and isinstance(node.value.value, int):
+            self.write(" ")
+        self.write(".")
+        self.write(node.attr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1749,12 +1849,21 @@ class _Unparser(NodeVisitor):
     def visit_Call(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Subscript(self, node):
-        pass
+        def is_non_empty_tuple(slice_value):
+            return isinstance(slice_value, Tuple) and slice_value.elts
+
+        self.set_precedence(_Precedence.ATOM, node.value)
+        self.traverse(node.value)
+        with self.delimit("[", "]"):
+            if is_non_empty_tuple(node.slice):
+                # parentheses can be omitted if the tuple isn't empty
+                self.items_view(self.traverse, node.slice.elts)
+            else:
+                self.traverse(node.slice)
 
     #@ requires True
     #@ ensures True
@@ -1770,12 +1879,18 @@ class _Unparser(NodeVisitor):
     def visit_Ellipsis(self, node):
         self.write("...")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Slice(self, node):
-        pass
+        if node.lower:
+            self.traverse(node.lower)
+        self.write(":")
+        if node.upper:
+            self.traverse(node.upper)
+        if node.step:
+            self.write(":")
+            self.traverse(node.step)
 
     #@ requires True
     #@ ensures True
@@ -1783,12 +1898,14 @@ class _Unparser(NodeVisitor):
     def visit_Name(self, node):
         self.write(node.id)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_arg(self, node):
-        pass
+        self.write(node.arg)
+        if node.annotation:
+            self.write(": ")
+            self.traverse(node.annotation)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1797,19 +1914,30 @@ class _Unparser(NodeVisitor):
     def visit_arguments(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_keyword(self, node):
-        pass
+        if node.arg is None:
+            self.write("**")
+        else:
+            self.write(node.arg)
+            self.write("=")
+        self.traverse(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Lambda(self, node):
-        pass
+        with self.require_parens(_Precedence.TEST, node):
+            self.write("lambda")
+            with self.buffered() as buffer:
+                self.traverse(node.args)
+            if buffer:
+                self.write(" ", *buffer)
+            self.write(": ")
+            self.set_precedence(_Precedence.TEST, node.body)
+            self.traverse(node.body)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1818,12 +1946,14 @@ class _Unparser(NodeVisitor):
     def visit_alias(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_withitem(self, node):
-        pass
+        self.traverse(node.context_expr)
+        if node.optional_vars:
+            self.write(" as ")
+            self.traverse(node.optional_vars)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1887,12 +2017,17 @@ class _Unparser(NodeVisitor):
     def visit_Match(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_match_case(self, node):
-        pass
+        self.fill("case ")
+        self.traverse(node.pattern)
+        if node.guard:
+            self.write(" if ")
+            self.traverse(node.guard)
+        with self.block():
+            self.traverse(node.body)
 
     #@ requires True
     #@ ensures True
