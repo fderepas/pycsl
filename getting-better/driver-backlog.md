@@ -3191,3 +3191,39 @@ break is a FIDELITY-plane failure -> CORRECTNESS boundary. Spike it cheaply, exp
 bounded-universe AXIOM => ledger-4); `eval`; regex; filesystem IO; subprocess; warn-only-vacuous
 checkers; `#@ verify_module` as a razor-edge rescue (REFUTED decisively by the worker#22 t2/t3 spike —
 isolation makes a razor-edge goal WORSE).
+
+### L2 REFINED (same window, after sizing the tables and the certified-ADT surface)
+
+Three corrections to the L2 entry above, all measured:
+
+1. **L2 is probably CERT-FREE.** The certified `pyast_stmt` ADT (`Phase2e_PyAstStmt.v`) covers
+   *statements* only (`PSAssign|PSAnnAssign|PSClassDef|PSFunctionDef|PSPass|PSExprEllipsis|PSOther`)
+   — there is no certified operator or expression variant, so a naive reading says "L2 needs a new
+   cert". But the banked **ast-pyval-VIEW** device does not go through a certified ADT at all:
+   `isinstance(n, _ast.<Cls>)` lowers to a synthetic `_type` **tag test** on the opaque pyval view
+   and `n.<attr>` to `pget_dyn` (see `functions.py:4530`, `_extract_ast_subscript` — explicitly
+   "Ledger 3 (reuses pyval)"). `TABLE.get(type(x))` over a compile-time-constant table is the same
+   shape: a finite chain of tag tests. So the build is an EMITTER RECOGNIZER, not a certificate.
+
+2. **The spike target is `_py_op_to_str`, NOT `_csl_to_ir`.** `_py_op_to_str` is
+   `self._PY_OP_MAP.get(type(op), "?")` — 2 live LOC, a 26-entry constant table, returns a plain
+   `str`, and is **non-recursive**. It isolates the capability with no other moving part. If it
+   converts, the capability is proven and the cluster can be attacked in order of increasing risk.
+
+3. **`_csl_to_ir` carries a risk the others do not, and it is the make-or-break question for that
+   member specifically.** `_CSL_HANDLERS` has 79 entries over 75 distinct handler methods, and **74
+   of those 75 are ALREADY un-trusted/verified in the mirror** (only `_csl_in` remains `\trusted`).
+   That is good news for the expansion's provability — every branch calls a method with a real
+   contract. But `_csl_to_ir` is currently `\trusted`, hence emitted as an abstract `val`, which is
+   exactly what lets those 74 verified handlers call back into it with NO termination obligation.
+   Converting it makes all 75 methods **mutually recursive**, requiring a `#@ \variant` that
+   descends CSL-node structure across the whole cluster. Treat that as its own spike; do not assume
+   it follows from `_py_op_to_str`.
+
+Table sizes for planning: `_CSL_HANDLERS` 79, `_PY_OP_MAP` 26, `_PY_EXPR_HANDLERS` 23,
+`_PY_STMT_HANDLERS` 16 — all with `Name`/`Attribute` keys and all-string-constant values, i.e. all
+statically expandable.
+
+**Honest revised yield:** 1 per member, ~4 members, in increasing risk order
+`_py_op_to_str` -> `_py_expr_to_ir` -> `_py_stmts_to_ir` -> `_csl_to_ir`. That is COST/SCALE, which
+the funded window pays; it is NOT the 3-8-for-one-build that the first L2 draft implied.
