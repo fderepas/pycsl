@@ -1,64 +1,58 @@
-# HANDOFF — read this FIRST on relaunch (written by the supervisor, 2026-08-26)
+# HANDOFF — read this FIRST on relaunch (rewritten 2026-08-26, RELAUNCH #2 worker)
 
-The previous driver turn and its bundle executor BOTH returned. Nothing was landed by the
-bundle attempt; the tree was reverted clean. This file records what they measured so you do
-NOT re-derive it. VERIFY before building on it (lesson: re-measure, never inherit — the last
-driver was burned twice by inherited premises), but start from here.
+## The L14 debt is SETTLED. Do not re-open it.
 
-## Method state: capability-first is REFUTED for this regime
+The frame-soundness fix is **LANDED at `e95f73de`**; L14-b at `3871b47a`. Verify in two seconds if you
+doubt it: `git show HEAD:src/pycsl/module6_whyml/functions.py | grep -n "if (is_method$"` — if that
+line has no `and not emit_as_val`, the fix is in.
 
-THREE convergent yield-0 capability builds this window: L10 (20 candidates -> 0), L12 (10 -> 0),
-L9 follow-on (4 -> 0). Every remaining stub needs TWO OR MORE UNRELATED capabilities at once.
-Building a capability then hunting candidates is structurally guaranteed to yield zero here, and
-the payoff gate then correctly discards working code (L12's ~120 working lines were discarded).
+**Re-proof sweep result: 8 of 8 mirrors SUCCESS, 6146 goals Valid, 0 Unknown, ZERO conversions
+reverted.** `\trusted` count UNCHANGED — 668 raw / 631 directives, before and after — which is the
+correct outcome for a soundness repair. Full per-file evidence is in `driver-backlog.md` §L14 and in
+`driver-progress.log`.
 
-Corrected operating strategy: DEMAND-FIRST. Pick a target stub, CLOSE its blocker set by
-ITERATED measurement, land the whole bundle as ONE increment, put the payoff gate on the BUNDLE.
+## Three things this window learned that will bite you if you ignore them
 
-## Method defect found (this is the upstream fix)
+1. **A gate result committed without the code it gates is a CLAIM.** Two prior windows reported L14
+   done. Only the oracle and a green-gates log entry had been committed; the patch sat in an orphan
+   worktree and HEAD still had the bug. Before believing any "landed", read the source at HEAD.
+   (Lesson (u).)
+2. **The prover pin is stale and it silently halves every gate.** `pycsl.py:1318` names
+   `Alt-Ergo,2.6.2,`; the installed one is **2.6.3**, so Why3 rejects it, the second prover contributes
+   nothing, and every "dual-prover" run is Z3-only. Fail-closed, so nothing unsound was accepted — but a
+   sweep that must decide *revert or keep* will FALSE-REVERT anything only Alt-Ergo can prove.
+   **Pass `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'` explicitly on every gate you rely on.** Expect ~2x
+   the historical per-file time: `_run_vacuity_gate` runs every prover with no early exit, so the
+   timings recorded in this backlog were taken with the second prover effectively disabled.
+   (Lesson (w). The permanent config repair stays on the flagged-for-USER list — it moves proof
+   outcomes corpus-wide and wants a deliberate M1 sweep.)
+3. **Two `\trusted` counts are in circulation and both are right.** Raw `grep -cF '\trusted'` = 668;
+   `grep -cF '#@ \trusted'` = 631; the 37-line gap is prose that mentions the marker. Commit messages
+   track 631, relaunch prompts quote 668. Never compare across the two.
 
-"First blocker" != "blocker set". The earlier measurement reported only the FIRST L3-tc error per
-candidate. For `parse_implication` the recursion error MASKED two further blockers. Closing a set
-requires iteratively removing each blocker until L3-tc PASSES. Scope any future bundle from a stub
-whose set has been closed that way, never from a single first-error reading. The payoff gate did
-its job twice; the fix is upstream of the gate, in CANDIDATE SELECTION.
+## Useful timings measured this window (correctly-pinned dual-prover, whole-file, vacuity gate on)
 
-## `parse_implication`: true closed blocker set is FIVE, not three
+`proof2why3/parser` 54s · `pure_ast` 410s · `Module2_Parser` 621s · `statements` ~1400s ·
+`Module6_WhyMLTranspiler` ~1050-1550s · `expressions` 1608s · `stmt_control_flow` 3100s ·
+`Module5_IREmitter` 3281s. Four in parallel on 12 cores is comfortable. **Emit-and-diff BEFORE you
+prove** (lesson (r)) — it cut this sweep from 52 files to 8, and the two slowest mirrors were among
+the ones it excluded from earlier sweeps.
 
-Built and VERIFIED WORKING (reproduce mechanically from this list; all were reverted):
-1. union-local typing — Module5 `_union_ret_by_func` registry + `_union_call_ret_type`; Module6
-   no-double-wrap on a union-returning call, record-carrier sentinel via `_record_default_literal`,
-   carrier-FIELD projection, `_is_string_expr` routing so a projected `str` field uses `str_eq_op`.
-   NOTE: unions are NOMINALLY distinct even when structurally identical -> a union value can be
-   RETURNED but never PASSED as an argument. `_union_<scope>_<idx>` is name mangling, not scoping,
-   so the type is visible at every caller and collisions are impossible.
-2. recursive-method emission — new `IRScanner.calls_self_method(py_name, obj)` matching the one
-   exact string `self.<own python name>`, wired at the `is_recursive` site by splitting the mangled
-   `<selftype>__<method>`. Fail-closed; mutual recursion deliberately still undetected (fails loudly).
-3. `#@ \variant \length(self.toks) - self.pos` on the mirror method.
+## Where the ladder stands
 
-STILL BLOCKING (outside the bundle, NOT yet built):
-4. STRING-FORM UNION TYPE ALIAS. `src/self-annotate/src/proof2why3/ir.py:121` is literally
-   `Term = 0  # pycsl: stubbed type alias (string form unsupported)`. The LIVE definition at
-   `src/pycsl/proof2why3/ir.py:136` is a string-form 9-arm union alias:
-   `Term = "Var | IntLit | BoolLit | App | BinOp | UnaryOp | Forall | Exists | Unsupported"`.
-   The stub generator cannot express it, so every `-> Term` in the mirror lowers to `int`.
-5. FROZEN-DATACLASS IMMUTABILITY. Even given a real `Term` sum type, the arm records emit MUTABLE
-   (`binop @rho`) despite `@dataclass(frozen=True)` on all nine — THE EMITTER IGNORES `frozen`.
-   This CORRECTS the earlier impl-doc premise that the Term family is immutable. IT IS NOT.
+Next position: **L13, the `proof2why3` `_Parser` cursor nest** — top lever, spike PASSED (41/41),
+closed capability set of FOUR, payoff 11-15 stubs. Read `driver-backlog.md` §L13 and the Gate-R
+amendments in `getting-better/cursor-nest/cursor-nest.md`. Two constraints that L14's landing makes
+BINDING rather than theoretical:
+  - the nest is largely ALL-OR-NOTHING now, because a converted member cannot discharge its
+    termination measure while its callee is a `\trusted` val with a declared `writes { self.pos }`,
+    unless that stub is given a monotonicity postcondition (= TCB growth);
+  - BUT Gate R proved a counter-construction: `parse_expr`, `parse_quant`, `parse_comparison` have no
+    self-call and no callee-dependent loop, so **3 of the 11 convert piecewise with ZERO TCB growth**.
+    That is the cheap entry point — take it before attempting the whole nest.
+Then L10 (`Optional[X]` field value model + string-aware `_field_default`; entry point located verbatim
+in the backlog), then L9-drain, L2, L3, L6, L5.
 
-Residual error verbatim:
-```
-src/self-annotate/src/proof2why3/parser.mlw:418:20-75:
-This expression has type PyCSL_Program.binop @rho, but is expected to have type int
-```
-i.e. `raise (Return { binop_op = "->"; binop_lhs = !lhs; binop_rhs = !rhs })` vs `exception Return int`.
-
-## HIGHEST-DENSITY LEVER MEASURED THIS WINDOW — start here
-
-Capabilities (4)+(5) are SHARED: together they are also the FIRST blocker for `parse_comparison`,
-`parse_disjunction`, and `parse_atom` (`binop @rho` / `intlit @rho` vs `int`).
-=> 4 of the 6 cursor stubs sit behind ONE pair of capabilities, and it is DEMAND-FIRST rather than
-capability-first. Close that set by iterated measurement, then land it as one bundle with the payoff
-gate on the bundle. Flag: `is_recursive` feeds emission for EVERY corpus program, so the corpus
-byte-diff is the HIGH-RISK gate for any bundle including capability (2).
+Standing discipline unchanged: demand-first (capability-first is REFUTED, three convergent yield-0
+builds); close a blocker set by ITERATED measurement until L3-tc PASSES; spike-first with a refutation
+exit; lesson (p) census-first; the three L-planes driver-verified fresh; ledger stays 3.
