@@ -2117,6 +2117,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # IrUnaryOp's op field), `value.operand`->`unaryop_operand_of value`. Return `Optional[int]` ->
     # `option int` (Some/None). isinstance_op = 0. NO new axiom/ADT/ctor/cert (the accessors are total
     # `let function`s, SAME class as left_of/svalue_of). Verbatim body port of the LIVE method.
+    # `0`-reads-as-`None` repair: OPT-IN concrete sibling resolution. Without it
+    # `iv = self._const_int_value(value)` in `_collect_class_constants` degrades to the
+    # opaque int-returning `self__const_int_value_1`, and the `if iv is not None` guard
+    # has to be emitted as `if (!iv <> 0)` — under which a LEGITIMATE class constant
+    # whose value is 0 reads as None. With the marker the call binds the real
+    # `Optional[int]` union and the guard becomes the faithful None-arm match.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

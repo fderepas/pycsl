@@ -5283,13 +5283,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # Ordering (callee before caller) comes from `scc.find_self_method_calls`, which is
         # given the same record-return set. Gated by `_record_array_fields` (the (i)/(iii)
         # low-blast-radius gate) → corpus byte-identical.
-        if (func_name.startswith("self.") and self._current_self_type
-                and getattr(self, "_record_array_fields", None)
+        # `0`-reads-as-`None` repair: the SECOND admission route into this same concrete
+        # lowering is the OPT-IN `#@ sibling_concrete` marker. `_record_array_fields` is a
+        # PROXY gate (it happens to hold for `_Parser` because `toks: List[Token]` is a
+        # List-of-record field) and it excludes `PyCSLToJSONEmitter`, whose
+        # `_const_int_value` therefore degraded to the opaque int-returning
+        # `self__const_int_value_1` — which is precisely why `iv = self._const_int_value(v)`
+        # had to be tested `if (!iv <> 0)` as a stand-in for `is not None`, making a
+        # LEGITIMATE class constant of 0 read as None. The marker is an explicit per-callee
+        # opt-in, so it is corpus byte-inert BY CONSTRUCTION (no corpus program writes the
+        # directive) rather than by a proxy argument, and `scc.find_self_method_calls`
+        # ALREADY supplies the callee-before-caller ordering edge for marked callees
+        # (scc.py:136) — no new ordering machinery.
+        # `_union_*` joins the admissible return types on BOTH routes. Note this closes a
+        # latent inconsistency rather than opening a new door: `_Parser.peek` already
+        # lowers concretely through the `int` arm only because
+        # `_module_method_return_types` MIS-RECORDS its union return as `int`.
+        _concrete = whyml_ident(
+            f"{self._current_self_type}__{func_name[len('self.'):]}"
+        ) if (func_name.startswith("self.") and self._current_self_type) else ""
+        if (_concrete
+                and (getattr(self, "_record_array_fields", None)
+                     or _concrete in getattr(self, "_sibling_concrete_methods", set()))
                 and (ret_type in ("emit_ir", "int", "string")
+                     or (isinstance(ret_type, str) and ret_type.startswith("_union_"))
                      or ret_type in {_ri["whyml_name"]
                                      for _ri in getattr(self, "_record_types", {}).values()})):
-            _concrete = whyml_ident(
-                f"{self._current_self_type}__{func_name[len('self.'):]}")
             if _concrete in getattr(self, "_module_func_names", set()):
                 return f"({_concrete} {' '.join(['self'] + coerced)})".rstrip()
         # A2c: a self-FIELD-referencing callee ensure (`\result == self.x`) is

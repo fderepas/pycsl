@@ -3742,6 +3742,31 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _walk(body_stmts)
         return out
 
+    def _sibling_callee_concrete_name(self, body_stmts: List[Dict[str, Any]],
+                                      target: str, cls: Optional[str]) -> Optional[str]:
+        """The CONCRETE WhyML name (`<class>__<m>`) of the sibling callee bound to one
+        local by `target = self.<m>(...)`, for checking membership in
+        `_sibling_concrete_methods`. Fail-closed: None when there is no such binding, when
+        the callee is not a `self.` call, or when two bindings disagree."""
+        found: Set[str] = set()
+
+        def _walk(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and n.get("target") == target:
+                    v = n.get("value")
+                    if isinstance(v, dict) and v.get("type") == "Call":
+                        fn = v.get("func", "") or ""
+                        if fn.startswith("self.") and cls:
+                            found.add(whyml_ident(f"{cls}__{fn[len('self.'):]}"))
+                for x in n.values():
+                    _walk(x)
+            elif isinstance(n, list):
+                for x in n:
+                    _walk(x)
+
+        _walk(body_stmts)
+        return found.pop() if len(found) == 1 else None
+
     def _sibling_ret_ann_of(self, body_stmts: List[Dict[str, Any]], target: str,
                             cls: Optional[str], ann: Dict[str, str]) -> Optional[str]:
         """The callee return ANNOTATION bound to one local by `target = self.<m>(...)`.
@@ -4122,7 +4147,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `toks: List[Token]` is a List-of-record field); `StatementEmissionMixin` does
         # not, which is exactly why `ftype = self._field_type_for(...)` there degrades to
         # the INT-returning `self__field_type_for_2` avatar and must NOT be retyped.
-        if getattr(self, "_record_array_fields", None):
+        # `0`-reads-as-`None` repair: `_record_array_fields` is a PROXY for "the sibling
+        # call resolves CONCRETELY", and it excludes `PyCSLToJSONEmitter`. The OPT-IN
+        # `#@ sibling_concrete` marker is the explicit second route into the same concrete
+        # lowering (expressions._handle_dotted_call), so a local bound from a MARKED callee
+        # may be seeded too. When `_record_array_fields` is empty the seed is allowed ONLY
+        # for a marked callee — an unmarked one still degrades to the int avatar and
+        # retyping it would reproduce the measured `has type int, but is expected to have
+        # type _union__field_type_for_0` breakage in `statements`/`expressions`/
+        # `stmt_control_flow`. Both gates are opt-in/structural, so this stays byte-inert.
+        _raf_seed = bool(getattr(self, "_record_array_fields", None))
+        _scm_seed = getattr(self, "_sibling_concrete_methods", set())
+        if _raf_seed or _scm_seed:
             _st_seed = getattr(self, "_current_symbol_table", None)
             if _st_seed is not None:
                 _ann_seed = getattr(self, "_module_method_return_annotations", {})
@@ -4131,6 +4167,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         body_stmts, lambda a: a.startswith("_union_")):
                     if _st_seed.get(_n) not in (None, "Any"):
                         continue
+                    if not _raf_seed:
+                        _callee = self._sibling_callee_concrete_name(
+                            body_stmts, _n, _cls_seed)
+                        if _callee not in _scm_seed:
+                            continue
                     _ty = self._sibling_ret_ann_of(body_stmts, _n, _cls_seed, _ann_seed)
                     if _ty:
                         _st_seed[_n] = _ty
