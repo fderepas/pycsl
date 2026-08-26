@@ -4122,6 +4122,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     chk = (f"(match {_raw} with {union_ctor} -> true "
                            f"| _ -> false end)")
                     return chk if raw_op == "==" else f"(not {chk})"
+                # cursor-nest `_Parser.expect`: the SAME program-context problem the
+                # `_optional_union_locals` branch above solves, one step out — a union
+                # PARAM (`value: Optional[str]`) tested `is None` inside a PROGRAM `if`
+                # also has no derived `=` on the algebraic type
+                # (`No suitable match found for notation (=)`). The match-boolean
+                # discriminant is valid in both contexts; restricted to `not self._in_spec`
+                # so every SPEC-position `is None` on a union param keeps the `=` form
+                # BYTE-IDENTICALLY (that is the form the comment above records as the
+                # deliberate param behaviour, and it is well-typed in logic context).
+                if not self._in_spec:
+                    chk = (f"(match {var_str} with {union_ctor} -> true "
+                           f"| _ -> false end)")
+                    return chk if raw_op == "==" else f"(not {chk})"
                 chk = f"({var_str} = {union_ctor})"
                 return chk if raw_op == "==" else f"(not {chk})"
             # typed-ir-for-b-ceiling.md B-C2: `x is None` on an `emit_ir`-typed operand
@@ -4349,6 +4362,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _inner = f"(match {left} with {_lu} _s -> (str_eq_op _s {right}) | _ -> false end)"
                 return _inner if raw_op == "==" else f"(not {_inner})"
             if _ru and expr.get("left", {}).get("type") == "String":
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _inner = f"(match {right} with {_ru} _s -> (str_eq_op _s {left}) | _ -> false end)"
+                return _inner if raw_op == "==" else f"(not {_inner})"
+            # cursor-nest `_Parser.expect`: the SAME faithful unwrap, widened from a String
+            # LITERAL on the other side to any STRING-VALUED EXPRESSION (`t.value != value`,
+            # where `t.value` is a union-local carrier projection and `value` is the
+            # `Optional[str]` param). Without it the string side is `str_hash_op`-coerced
+            # into the int model and compared to the raw union — the measured L3-tc error
+            # `This expression has type _union_expect_1, but is expected to have type int`.
+            #
+            # The None arm is the FAITHFUL Python answer, not a convenience default:
+            # `<str> == None` is False and `<str> != None` is True, which is exactly
+            # `| _ -> false` under `==` and its negation under `!=`. So the lowering is
+            # total and correct even where the caller has NOT narrowed — which matters
+            # here, because the live guard narrows through a short-circuit `and`
+            # (`value is not None and t.value != value`) that the C8 walk does not
+            # recognize as a narrowing site.
+            #
+            # Placed AFTER the two literal branches, so every existing String-literal call
+            # site keeps its byte-identical lowering; and requires the union side to be
+            # unambiguous (`not _lu` / `not _ru`), so a union-vs-union compare still falls
+            # through to the pre-existing path.
+            if _lu and not _ru and self._is_string_expr(expr.get("right") or {}):
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _inner = f"(match {left} with {_lu} _s -> (str_eq_op _s {right}) | _ -> false end)"
+                return _inner if raw_op == "==" else f"(not {_inner})"
+            if _ru and not _lu and self._is_string_expr(expr.get("left") or {}):
                 self._add_abstract_op(
                     "val str_eq_op (a: string) (b: string) : bool\n"
                     "    ensures { result <-> (a = b) }")

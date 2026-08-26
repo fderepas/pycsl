@@ -7842,6 +7842,37 @@ class PreambleEmissionMixin:
                 return True
         return False
 
+    def _projected_field_reads(self, stmts: Any) -> Set[str]:
+        """Field names this body READS as an rvalue projection (`e.f`, IR `FieldGet` /
+        `Attribute`), which is exactly the position a same-named binder shadows in Why3.
+
+        Deliberately EXCLUDES assignment targets: `self.f <- v` type-checks with `f` in
+        scope (measured), so counting write targets here would over-qualify and break
+        byte-inertness for the four `__init__(self, toks)` corpus programs. A `FieldSet`
+        node's own field is therefore not collected; any `FieldGet` nested INSIDE its
+        value still is, since that is a real read."""
+        found: Set[str] = set()
+
+        def walk(n: Any) -> None:
+            if isinstance(n, list):
+                for x in n:
+                    walk(x)
+                return
+            if not isinstance(n, dict):
+                return
+            t = n.get("type")
+            if t in ("FieldGet", "Attribute"):
+                f = n.get("field") or n.get("attr")
+                if isinstance(f, str):
+                    found.add(f)
+            for k, v in n.items():
+                if k in ("type", "field", "attr"):
+                    continue
+                walk(v)
+
+        walk(stmts)
+        return found
+
     def _reserved_exprir_symbols(self) -> Set[str]:
         """field-label/emit_ir-symbol collision fix: the set of top-level WhyML
         symbol names the `emit_ir` ADT theory (`_emit_exprir_theory`) declares —
@@ -8037,6 +8068,30 @@ class PreambleEmissionMixin:
             _local_names: Set[str] = set()
             for _fn in self.ir.get("functions", []):
                 _local_names |= set(IRScanner.find_assigned_vars(_fn.get("body", [])))
+                # cursor-nest `_Parser.expect`: a FORMAL PARAMETER shadows a record field
+                # label exactly as a local does — `def expect(self, kind: str)` makes the
+                # emitted `_v.kind` resolve to the `string` param, and Why3 answers
+                # `This expression has type string, it cannot be applied`. The §18
+                # mechanism directly above already fixes this for LOCALS and already
+                # names the hazard; formal params were simply not in its input set.
+                #
+                # But the param rule must be PER-FUNCTION and READ-ONLY, not whole-file
+                # like the local rule. Measured in Why3 directly (scratch `shadow2.mlw`):
+                #     let mk (self: parser) (toks: array tok) = self.toks <- toks   (* OK *)
+                #     let rd (self: parser) (toks: array tok) = self.toks[self.i]   (* FAILS *)
+                # An assignment TARGET `self.f <- …` is fine even with `f` in scope; only
+                # an rvalue PROJECTION `e.f` breaks. Applying the whole-file local rule to
+                # params instead renamed `parser.toks` in FOUR corpus programs
+                # (0925/0926/0927/0928 — each has `__init__(self, toks)` writing
+                # `self.toks`, plus a SEPARATE method reading `self.toks[self.i]`), i.e.
+                # it FAILED byte-inertness while fixing nothing. Requiring the same
+                # function to both bind the name AND read the projection makes those four
+                # inert again and still catches `expect`, where `kind` is a param of the
+                # very function whose body reads `t.kind`.
+                _fparams = set(_fn.get("formal_params", []) or [])
+                if _fparams:
+                    _local_names |= (_fparams
+                                     & self._projected_field_reads(_fn.get("body", []) or []))
             _rec_fields = {f["name"] for td in type_decls
                            if td.get("kind") == "record" for f in td.get("fields", [])}
             self._ambiguous_fields |= (_rec_fields & _local_names)

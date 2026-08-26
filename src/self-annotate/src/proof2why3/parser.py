@@ -100,12 +100,18 @@ class _Parser:
         self.pos += 1
         return t
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def expect(self, kind: str, value: Optional[str]=None) -> Token:
-        return None
+        t = self.peek()
+        if t is None or t.kind != kind or (value is not None and t.value != value):
+            raise SyntaxError(
+                f"expected {kind}({value}) at pos {self.pos}, got {t}"
+            )
+        return self.take()
 
     #@ requires True
     #@ ensures True
