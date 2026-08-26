@@ -3272,3 +3272,65 @@ into the **2026-08-26 authority amendment as flagged build (a)**.
 **Cost of the staleness:** one wall report, one fable review, and a large risky build was queued at
 the TOP of the ladder for a payoff of zero. The review earned its keep by refuting the premise
 instead of endorsing it — which is exactly what Gate R exists for.
+
+## ===== ORACLE DEFECT: the canonical type-safety gate has been running Z3-ONLY (2026-08-26) =====
+
+**Severity: this degrades the campaign's PRIMARY oracle and can produce FALSE "unproven" verdicts.
+It is sound-preserving (fewer provers can only fail more, never prove more) but it has almost
+certainly caused misdiagnosed CERTIFIED-BOUNDARY verdicts.** Found by the Phase-1 agent, then
+reproduced independently by the driver.
+
+**Mechanism, verified end-to-end:**
+1. `src/pycsl/pycsl.py::_resolve_runtime_config` hardcodes
+   `_DEFAULT_PROVERS = ["Alt-Ergo,2.6.2,", "Z3,4.13.3,"]`.
+2. It reads its config from `os.path.dirname(pycsl.py)/agents/agents-config.json` —
+   i.e. `src/pycsl/agents/agents-config.json`, which **DOES NOT EXIST**. (The repo's
+   `config/agents-config.json`, which also pins `Alt-Ergo,2.6.2,`, is never loaded by `pycsl.py`.)
+   So `_config = {}` and the hardcoded pin always wins.
+3. The installed Alt-Ergo is **2.6.3** (`why3 config list-provers` knows only
+   `Alt-Ergo 2.6.3`, `Alt-Ergo 2.6.3 (BV)`, `Alt-Ergo 2.6.3 (counterexamples)`).
+4. why3 therefore prints `No prover in ~/.why3.conf corresponds to "Alt-Ergo,2.6.2,"` and the run
+   silently proceeds **Z3-only**.
+5. It cannot self-heal: an unversioned `-P Alt-Ergo` is AMBIGUOUS —
+   `More than one prover ... correspond to "Alt-Ergo": Alt-Ergo 2.6.3, ... (BV), ... (counterexamples)`.
+
+**Reproduction (driver-run, HEAD):**
+```
+PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py src/self-annotate/src/audit_proof.py --import-path src/pycsl
+  -> No prover in /home/fabrice/.why3.conf corresponds to "Alt-Ergo,2.6.2,"
+  -> [-] 1 goal(s) remain unproven ... [-] Verification FAILED or INCOMPLETE
+same file, --provers "Alt-Ergo,2.6.3,,Z3,4.13.3,"
+  -> [+] Verification SUCCESS! All contracts formally proven.
+```
+The unproven goal under defaults is **`pycsl_div'vc`** — a PREAMBLE goal emitted into essentially
+every file, not anything specific to the file under test. So the degradation is global.
+
+**CONSEQUENCE — GATE PROTOCOL CHANGE (effective immediately, for every actor in this loop).**
+The skill's canonical type-safety command is degraded in this environment. Until the defect is
+repaired, EVERY whole-file proof gate MUST pass explicit provers:
+```bash
+export PATH=$HOME/.opam/framac-coq8/bin:$PATH        # why3 is not on PATH by default either
+PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py <file> --import-path src/pycsl \
+    --provers "Alt-Ergo,2.6.3,,Z3,4.13.3,"
+```
+A bare-default run that reports "FAILED or INCOMPLETE" is NOT evidence of a wall. Re-run with
+explicit provers before recording any boundary. `bin/run-self-annotation-suite.sh` takes no prover
+flag, so **the suite is degraded/red in this environment for reasons unrelated to any change** —
+gate per-file instead, and do not read the suite's red as a regression.
+
+**RECOMMENDED REPAIR — deliberately NOT landed autonomously, and here is why.** The obvious patch is
+to make `_resolve_runtime_config` resolve the installed version instead of trusting a stale pin
+(try the pin; if why3 does not know it, substitute the installed same-family prover and WARN
+loudly). That is a small, reversible, emission-inert diff — the corpus byte-diff would be 0 because
+prover selection happens after emission. But it changes the PROOF OUTCOME of every corpus program
+and of the whole test suite (in the good direction: strictly more goals discharged), and validating
+"every affected program still proves" across 800+ corpus programs is a full-sweep job. Under the M1
+discipline that is a legitimate funded build, but it is a compiler-wide behavioural change that
+deserves to be landed deliberately and swept, not as a side effect of a stub conversion. Logged here
+as the next infrastructure item with the mechanism fully diagnosed.
+
+**IMMEDIATE CAMPAIGN VALUE — re-test the proof-cost boundaries.** Several CERTIFIED-BOUNDARY verdicts
+in this backlog were diagnosed from `Timeout` / "proof-cost" measurements. If those runs used bare
+defaults, they were Z3-only and the verdicts may be ARTIFACTS. Prime re-test candidates:
+`_ContractParser._parse_act_block` and `_parse_for_block` ("seq-emit_ir proof-cost timeout, measured
+3x"), and any other boundary whose stated blocker is a Timeout rather than a type error.
