@@ -2166,3 +2166,47 @@ zero-payoff item, and the RISKIEST of the three amendment-authorized builds was 
 earned its keep exactly as designed: the reviewer refuted the report's premise from an independent
 evidence base instead of endorsing its prose. A prose-only review would have waved it through and the
 build would have re-emitted an already-proven function for nothing.
+
+---
+
+## 2026-08-26 — 96h run: THREE lessons (Gate S-lesson applied to each)
+
+### (1) MOVING-DENOMINATOR — the `\trusted` count is not net TCB. **PASS, write as a rule.**
+*Wall it came from:* the L2 `csl-dispatch-expansion` review, which found the mirror's `_CSL_HANDLERS`
+stale at 77 vs live 79.
+*The `L`-input:* `bin/check-self-annotate-mirror-sync.py` documents that the mirror is intentionally
+a SUBSET and that a live function missing from the mirror is NOT drift — *"≈147 are, off the
+verification path"*. Measured with `getting-better/measure-unmirrored-surface.py` over detached
+worktrees: **287 (@0eb601ca, trusted 804) -> 362 (@HEAD, trusted 672)**, mirrored population flat
+(1299 -> 1301). So `\trusted` fell 132 while off-path live functions rose 75.
+*Validity test:* does `L` distinguish the case? Yes — the script is a direct, seconds-long
+measurement, and it disagrees with the documented figure by ~2.5x.
+*Rule:* **the campaign converts stubs largely BY BUILDING new emitter capability, and that new live
+code is itself unmirrored, unverified and uncounted.** Quote the `\trusted` count WITH the
+unmirrored-live count, and never report `-N trusted` as `-N net TCB`. Demonstrated concretely on this
+window's own `dfed484b`: `_call_record_constructor` is mirrored, but `_bind_listfield_from_seq` and
+`_call_irnode_constructor` are live-only. Changing the headline metric is the USER's call — the
+driver's duty is to report the pair, not to redefine the target.
+
+### (2) CONSTANT-TABLE BLIND SPOT — the fidelity gates cannot see class-level tables. **PASS.**
+`self-annotate-mirror-check.sh` compares `(kind, name, n_params)`; the sync check compares
+un-`\trusted` function BODIES. **Neither inspects class-level constant tables**, so a mirror can
+carry a stale dispatch table indefinitely with both scripts green — exactly what `_CSL_HANDLERS`
+(77 vs 79, `NestedSubscript` / `SubscriptFieldAccess` missing) has been doing.
+*Rule:* any build that REFLECTS a class-level constant table into WhyML must diff that table against
+live as an EXPLICIT extra gate. The standard battery will not catch it, and with `ensures {true}` a
+wrong mapping is also invisible to Gate C — so a hard-coded table in an emitter template is
+categorically unacceptable (the reviewer's point, and it is right).
+
+### (3) COUNT THE CLEARANCES BEFORE PROMISING A YIELD. **CARVE-OUT, not kept whole.**
+*Candidate lesson as first written:* "a census of stubs sharing one blocker gives the lever's yield."
+*Refuted by:* the L9 build. A census found 15 stubs blocked by the Tier-A list-field restriction, and
+the impl plan asserted `_parse_for_block`'s "return route already works". **That premise held for NO
+target, including that one** — with no annotation the return type came out `int`, and the conversion
+also needed a mirror-only `-> ForExpand` annotation plus an `_emit_ir_seq_locals` element-type signal
+(Module 5's `seq_value_types` only ever records `"string"`).
+*Carved rule:* a shared-blocker census gives an **UPPER BOUND**, never a yield. Before quoting a
+number, enumerate every clearance each target needs — for a record-construction conversion that is
+**three**: the field binding, a return-type route, AND a truthful frame (`assigns \nothing` over a
+body that mutates self-state is a FALSE FRAME, wall-lesson (f), and must be REJECTED not patched).
+State the bound as a bound.
