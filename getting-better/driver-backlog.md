@@ -4085,7 +4085,13 @@ the opaque `self__<m>_<arity>` avatar. In `statements.py` the identical Python s
 seeding it emits `let ftype = ref ((self__field_type_for_2 …) : _union__field_type_for_0)` -> `has type
 int, but is expected to have type _union__field_type_for_0`. Measured blast radius: **4 of 52 mirrors
 break at L3-tc** (`statements`, `expressions`, `Module5_IREmitter`, `stmt_control_flow`).
-TWO ARBITRATORS ALREADY TRIED AND REFUTED, do not retry them:
+THREE ARBITRATORS ALREADY TRIED AND REFUTED, do not retry them:
+  - **`_composed_provider_methods`** (expressions.py:5079-5086, the set that decides the CONCRETE
+    `(<self_type>__<m> self args)` lowering) — REFUTED BY PROBE: it is **EMPTY (N=0) for `_Parser`**,
+    yet `peek` demonstrably emits concretely as `t := (_parser__peek self 0)`. So concrete resolution
+    for this class comes from a DIFFERENT path than the composed-provider branch. That other path is
+    what has to be found; `scc.find_self_method_calls` (referenced at expressions.py:5215) is the next
+    place to look, not the composition branch.
   - `_module_method_return_types` — records `_parser__peek: int` even though `peek` demonstrably emits
     `: _union_peek_0`. The registry is simply wrong for union returns.
   - "is the callee defined in this mirror?" — BOTH are (`peek` at parser.py:84, `_field_type_for` at
