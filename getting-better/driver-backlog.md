@@ -3403,3 +3403,82 @@ change with zero payoff should not carry a corpus sweep.
 **LADDER EFFECT:** two entries previously filed as one vague proof-SCALE boundary are now two
 distinct, precisely-located, buildable emitter capabilities — one of which (`IrGiven`) needs no new
 trust-base artifact at all.
+
+## IrGiven: SPIKE PASSED, BUILD REFUTED — and it located the real root: the Tier-A list-field wall
+
+Executed `getting-better/irgiven-impl.md` (spike-first, refutation exit). Nothing landed; everything
+reverted by exact path; count unchanged at **673**; driver-verified clean.
+
+### STEP 0 SPIKE — **PASS** (bank this; do not re-derive it)
+Adding the `IrGiven` constructor plumbing works and is cheap:
+- `"Given": ("IrGiven", ["expr"])` in `module6_whyml/expressions.py` (beside `"Ensures"`/`"Requires"`)
+- the `_uses_clause_ir()`-gated ADT arm + `kind_of` arm + `size` arm in `module6_whyml/preamble.py`
+
+Result with `_parse_act_block` still `\trusted`: `L1 ✓ L2 ✓ L3-tc ✓`, emitted ADT carries
+`... | IrEnsures emit_ir | IrRequires emit_ir | IrGiven emit_ir | ...`. **No certificate created, no
+axiom added** (the `Phase2k_CslClause.v` `CGiven` arm already justified it). The clause-heterogeneity
+error class measured earlier is genuinely GONE — with the constructor in place the `Given` branch
+lowers correctly and non-vacuously to
+`clauses := Seq.snoc !clauses (IrGiven (_contractparser___parse_expr self))`.
+
+### STEP 1 — **REFUTE**, on the RETURN, not the clause list
+```
+Module2_Parser.mlw:1004 — This expression has type PyCSL_Program.act <array int>, expected int
+emitted: { act_name = !name; act_clauses = (Array.make 0 0) }
+```
+The locally-accumulated `clauses` seq is DISCARDED and the list field filled with an empty-array
+default. Retyping `Act.clauses` to `List["ExprIR"]` (the `CallExpr.args` precedent) only moved the
+error to the `array int` vs `array emit_ir` mismatch.
+
+### ROOT CAUSE — one restriction, stated explicitly in the source
+`module6_whyml/expressions.py::_call_record_constructor` (line ~8487):
+```python
+# Only scalar (int-modelled) fields take a substituted value; a
+# list/dict/set field keeps its typed default (array/map construction
+# over a param is out of Tier-A scope).
+if field_types.get(fn, "int") in ("list", "array", "dict", "set", "frozenset"):
+    continue
+```
+**A record constructor can never bind a list/dict/set-valued field.** This is the SAME wall that
+produced `_parse_for_block`'s `forexpand_clauses = (Array.make 0 0)` — the two boundaries measured
+earlier this window are ONE boundary. It is also what the mirror already documents for
+`_parse_assigns` (*"Stays `\trusted` (builds an assigns target list — family-B list boundary)"*).
+Secondary: there is no `IrAct` return constructor, and no `emit_ir` constructor carries a
+`seq emit_ir` payload (the variadic payload type is the monomorphic `irlist`, produced only by the
+dispatcher-comprehension path `IrCallN`/`IrMkTupleN` — and `clauses` here is loop-accumulated via
+`append`, not a comprehension, so that path cannot apply).
+
+### ===== NEW TOP LEVER: L9 — Tier-A list-valued record-field construction =====
+**MEASURED YIELD: 15 trusted stubs** construct a record binding a list/dict/set-valued field
+(AST census over all 632 stubs against the 41 classes that declare such fields):
+
+| live LOC | stub | field bound |
+|---|---|---|
+| 4 | `Module1_Ingestor::_Harvester._emit_block_footer` | `PyCSLContract.contracts` |
+| 8 | `Module1_Ingestor::_Harvester.run` | `PyCSLContract.contracts` |
+| 9 | `Module2_Parser::_ContractParser._parse_no_exception` | `NoExceptionDecl.exceptions` |
+| 12 | `Module1_Ingestor::_Harvester._emit_target` | `PyCSLContract.contracts` |
+| 18 | `Module2_Parser::_parse_act_block` | `Act.clauses` |
+| 19 | `Module2_Parser::_parse_happy_region` | `HappyProperty.except_set` |
+| 22 | `Module2_Parser::_parse_for_block` | `ForExpand.clauses` |
+| 22 | `Module2_Parser::_parse_happy_targets` | `HappyProperty.except_set` |
+| 30 | `Module2_Parser::_parse_happy` | `HappyProperty.except_set` |
+| 59 | `Module2_Parser::_parse_contract` | `Complete.names`, `Disjoint.names` |
+| 94 | `audit_proof_reverify::verify_lean_file` | `ReverifyReport.qualname_results` |
+| 103 | `audit_proof_reverify::verify_rocq_file` | `ReverifyReport.qualname_results` |
+| 110 | `Module2_Parser::_parse_atom_name` | `CallExpr.args` |
+| 159 | `pycsl::_run_pipeline` | `_EXPR_DISPATCH` |
+| 249 | `Module2_Parser::_parse_atom_bs` | `MkTupleExpr.elts` |
+
+**Why this is now the top lever.** It is a SINGLE, precisely-located restriction with an explicit
+in-source scope comment; it is CORPUS-AFFECTING (Tier-A record construction is shared), so it lands
+under the M1 discipline (exact diff + every affected corpus program re-proves) — which is
+AUTO-AUTHORIZED per SKILL §A.6. Expected yield is far above the 1-per-build the ladder has been
+returning. Several targets are 4-22 live LOC.
+
+**Discipline for the build:** spike-first on the SMALLEST target
+(`_Harvester._emit_block_footer`, 4 LOC, `PyCSLContract.contracts`) — NOT on `_parse_act_block`,
+which additionally needs `IrGiven` (banked above) AND an `Act` return route. Note the `seq` vs
+`array` reconciliation is part of the capability: locals accumulate as `Seq.snoc` while list fields
+lower to `array`. `#@ \trusted` targets only, so no verified caller can regress by construction;
+still run the §10c importer sweep and the corpus byte-diff as a HARD gate.
