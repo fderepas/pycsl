@@ -228,22 +228,30 @@ class _Parser:
             return BinOp(op, lhs, mid)
         return lhs
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    # CURSOR INTERFACE (L13) — an ASSUMED interface on a still-`\trusted` stub, i.e.
-    # a REAL (small) TCB addition, justified by reading the live body: every cursor
-    # motion in `_Parser` goes through `take`, whose `self.pos += 1` is monotone, and
-    # whose partiality (`self.toks[self.pos]` raises IndexError past the end) keeps
-    # `self.pos <= len(self.toks)` on every NORMAL-return path. There is no
-    # backtracking site anywhere in this class (no `_try`-style save/restore, no
-    # direct `self.pos = <expr>` outside `__init__` and `take`). Retire this
-    # assumption by CONVERTING the stub.
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
     #@ ensures self.pos >= \old(self.pos)
     #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_arith_add(self) -> Term:
-        return None
+        out = self.parse_arith_mul()
+        # The RANGE invariant alone is not enough: the function's own
+        # `ensures self.pos >= \old(self.pos)` has to survive the loop, and a loop
+        # invariant is the only place to carry a relation back to function entry.
+        #@ loop invariant self.pos >= \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None or t.kind != "OP" or t.value not in _ARITH_ADD_OPS:
+                break
+            op = self.take().value
+            rhs = self.parse_arith_mul()
+            out = BinOp(op, out, rhs)
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
