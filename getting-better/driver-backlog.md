@@ -3618,3 +3618,68 @@ un-`\trusted` function BODIES. **Neither looks at class-level constant tables.**
 indefinitely with both fidelity scripts green. Any future build that reflects a class-level constant
 table (L2 `csl-dispatch-expansion` is exactly such a build) MUST diff that table against live as an
 explicit extra gate — the standard battery will not do it.
+
+## L9 FOLLOW-ON DRAIN: 1 of 3 (0f54ca31, 672 -> 671) — DRIVER-VERIFIED
+
+### `_parse_happy_region` CONVERTED
+The `dfed484b` gate did NOT fire — `HappyProperty.except_set` is `List[str]`, and the gate required
+`field_value_types == "emit_ir"`. The measured fallback was worse than a facade:
+`happyproperty_except_set = (Array.make 0 0)` is a dropped-child fabrication AND ill-typed
+(`array int` vs the field's `array string`), so L3-tc rejected it outright. That measurement is what
+justified the `src/pycsl` change.
+
+Emitter change (~10 lines in `_bind_listfield_from_seq`): element-type gate widened from "emit_ir
+only" to "emit_ir OR string", with **element-type agreement enforced on both sides** — `emit_ir`
+still requires `lname in _emit_ir_seq_locals`; `string` requires `_seq_value_types[lname] == "string"`.
+A seq of UNKNOWN element type never binds. All other conjuncts untouched. `Init.init` is polymorphic
+so the emitted shape is unchanged.
+
+Also needed: a mirror-only `(self, name: str) -> HappyProperty` annotation — BOTH the return and the
+param (without `name: str` the param came out `int` against a `string` field).
+
+**DRIVER-VERIFIED (re-run from the surface):** count **672 -> 671** stable x3; sync exactly 2
+DIVERGED; mirror-check exactly 3 drifted with `Module2_Parser` NOT among them; whole-file proof
+`[+] Verification SUCCESS`; **corpus byte-diff EXIT=0, emitted 812 base / 812 patched**; ledger
+untouched; emitted binding confirmed real —
+`happyproperty_except_set = (let _lf_except_set = !except_set in Init.init (Seq.length _lf_except_set) (fun _i -> Seq.get _lf_except_set _i))`.
+
+### `_parse_happy_targets` REFUTED — the `Optional[X]` value model, not the list binding
+`region_lo = 0` (Python `None` -> `0` against an `emit_ir` field), plus four independent co-blockers
+in the same emission, ALL `Optional[X]` erasure:
+`happyproperty_target = !target` (`string` into an `int` field), `formula` (`emit_ir` into `int`),
+`secret` (`seq string` into `int`), and `except_set = (Array.make 0 0)` (a `[]` literal actual is not
+a `!<local>` deref so it keeps the default path). These hold independently of the `region_lo` retype,
+i.e. it was blocked at the pre-commit baseline too.
+
+### `_parse_happy` REFUTED — the typed-default path is not string-aware, and it is gated on target 2
+`context = 0` for `context: str = "writing"` — `_field_default` returns `rec_info['defaults'].get(fn, 0)`,
+i.e. `0` for a *defaulted string* field. Co-blockers: `protects = (Array.make 1 (!path))`
+(`array string` into `int`), `param` (`string` into `int`), `region_lo = 0`, and
+`raise (Return (self__parse_happy_targets_1 self !name))` where that val is still `: unit` — so it is
+additionally gated on target 2.
+
+**NEXT CAPABILITY NAMED BY MEASUREMENT: the `Optional[X]` field value model** (`None` -> a typed
+absent value rather than `0`), plus a string-aware `_field_default`. That is what stands between the
+list-binding capability and the rest of the `HappyProperty` cluster.
+
+## BASELINE CORRECTION + a false-green trap in the vacuity gate
+
+**`bin/check-emitted-vacuity.py` exits 1 at HEAD — that IS the baseline.** Earlier notes in this
+window (mine included) asserted "exit 0"; that was inherited from an agent report and never
+re-measured — an instance of the very "re-measure, never inherit" rule banked earlier today. The
+HEAD baseline, over the full 52-file mirror population, is:
+- 6 KNOWN gated erasures (`_cs_clause`, `_check_span`, `_union_c11_check_dead_arms`,
+  `pycsltojsonemitter___collect_class_constants`, `ghostspecopsmixin___handle_mktuple_expr`,
+  `statementemissionmixin___emit_new_ghost_ref`)
+- 2 INPUT-BLIND methods (`functionemissionmixin___build_method_param_types_map`,
+  `___build_method_return_type_map`)
+- **1 NEW (un-ledgered) erasure: `Module3_Weaver.mlw::pycslweaver___const_int erased=['var']`** —
+  PRE-EXISTING, not from this window (`git log 31654938..HEAD` shows both the live and mirror
+  `Module3_Weaver.py` untouched). Worth ledgering or fixing; flagged, not actioned.
+
+**THE TRAP (I walked into it live).** `check-emitted-vacuity.py` **reuses existing `.mlw` files
+unless given `--emit`**. Run it after a `find src/self-annotate/src -name '*.mlw' -delete` cleanup
+and it inspects a population of ZERO and reports
+`[+] no NEW erasure (0 known param-erasures gated; 0 input-blind methods)` with **EXIT=0** — a
+textbook lesson-(k) false green on an anti-facade gate. **Always run it as
+`bin/check-emitted-vacuity.py --emit` and assert the emitted population is 52.**
