@@ -47,11 +47,33 @@ def _sexp_parse(tokens: List[str]) -> object:
 def parse_sexp(s: str) -> object:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _process_sertop_line(line: str, payloads_by_tag: int) -> int:
+def _process_sertop_line(line: str,
+                          payloads_by_tag: Dict[int, object]) -> Optional[int]:
+    """Parse one sertop output line. On `ObjList` capture the payload
+    by tag. Return the tag iff the line is `(Answer <tag> Completed)`,
+    else None."""
+    if not line.startswith("(Answer"):
+        return None
+    try:
+        sexp = parse_sexp(line)
+    except (ValueError, IndexError):
+        return None
+    if not isinstance(sexp, tuple) or len(sexp) < 3:
+        return None
+    if sexp[0] != "Answer":
+        return None
+    try:
+        ans_tag = int(sexp[1])
+    except (ValueError, TypeError):
+        return None
+    body = sexp[2]
+    if body == "Completed":
+        return ans_tag
+    if isinstance(body, tuple) and body and body[0] == "ObjList" and len(body) >= 2:
+        payloads_by_tag[ans_tag] = body[1]
     return None
 
 #@ requires True

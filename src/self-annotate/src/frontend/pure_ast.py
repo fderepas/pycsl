@@ -1062,12 +1062,24 @@ def iter_child_nodes(node):
 def walk(node):
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def get_docstring(node, clean=True):
-    pass
+    """Return the docstring of *node*, or ``None``."""
+    if not isinstance(node, (AsyncFunctionDef, FunctionDef, ClassDef, Module)):  # noqa: F821
+        raise TypeError("%r can't have docstrings" % node.__class__.__name__)
+    if not (node.body and isinstance(node.body[0], Expr)):  # noqa: F821
+        return None
+    node = node.body[0].value
+    if isinstance(node, Constant) and isinstance(node.value, str):  # noqa: F821
+        text = node.value
+    else:
+        return None
+    if clean:
+        import inspect
+        text = inspect.cleandoc(text)
+    return text
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -1636,12 +1648,21 @@ class _Unparser(NodeVisitor):
     def visit_AsyncFor(self, node):
         self._for_helper("async for ", node)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _for_helper(self, fill, node):
-        pass
+        self.fill(fill)
+        self.set_precedence(_Precedence.TUPLE, node.target)
+        self.traverse(node.target)
+        self.write(" in ")
+        self.traverse(node.iter)
+        with self.block(extra=self.get_type_comment(node)):
+            self.traverse(node.body)
+        if node.orelse:
+            self.fill("else")
+            with self.block():
+                self.traverse(node.orelse)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1804,12 +1825,25 @@ class _Unparser(NodeVisitor):
     binop = {'Add': '+', 'Sub': '-', 'Mult': '*', 'MatMult': '@', 'Div': '/', 'Mod': '%', 'LShift': '<<', 'RShift': '>>', 'BitOr': '|', 'BitXor': '^', 'BitAnd': '&', 'FloorDiv': '//', 'Pow': '**'}
     binop_precedence = {'+': _Precedence.ARITH, '-': _Precedence.ARITH, '*': _Precedence.TERM, '@': _Precedence.TERM, '/': _Precedence.TERM, '%': _Precedence.TERM, '<<': _Precedence.SHIFT, '>>': _Precedence.SHIFT, '|': _Precedence.BOR, '^': _Precedence.BXOR, '&': _Precedence.BAND, '//': _Precedence.TERM, '**': _Precedence.POWER}
     binop_rassoc = frozenset(('**',))
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_BinOp(self, node):
-        pass
+        operator = self.binop[node.op.__class__.__name__]
+        operator_precedence = self.binop_precedence[operator]
+        with self.require_parens(operator_precedence, node):
+            if operator in self.binop_rassoc:
+                left_precedence = operator_precedence.next()
+                right_precedence = operator_precedence
+            else:
+                left_precedence = operator_precedence
+                right_precedence = operator_precedence.next()
+
+            self.set_precedence(left_precedence, node.left)
+            self.traverse(node.left)
+            self.write(f" {operator} ")
+            self.set_precedence(right_precedence, node.right)
+            self.traverse(node.right)
 
     cmpops = {'Eq': '==', 'NotEq': '!=', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>=', 'Is': 'is', 'IsNot': 'is not', 'In': 'in', 'NotIn': 'not in'}
     #@ \trusted reviewer: pycsl-self-annotate

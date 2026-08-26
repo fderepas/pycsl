@@ -16,13 +16,47 @@ class PyCSLWeaver(ast.NodeVisitor):
     def __init__(self, contracts_map: Dict[int, List[CSLNode]]) -> None:
         self.contracts_map = contracts_map
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _init_function_csl_fields(node: ast.FunctionDef) -> None:
-        pass
+        """Initialize the custom PyCSL fields on a function-def AST node.
+        Proof attributions (§2.1.11) are informational/bridge-emitted only
+        with no semantic effect. Axiom-from directives (§2.1.12) emit Why3
+        axioms in the preamble; see docs/cross-validated-spec-sources.md."""
+        node.csl_requires = []
+        node.csl_ensures = []
+        node.csl_assigns = []
+        node.csl_function_variants = []
+        node.csl_diverges = False
+        node.csl_no_inline = False
+        node.csl_sibling_concrete = False
+        node.csl_verify_module = ""        # `#@ verify_module <name>` (module-emission.md) — opt-in axiom-isolation group; "" = flat default
+        node.csl_propagate_frame = False
+        node.csl_fresh_globals = False
+        node.csl_trusted = False
+        node.csl_abstract = False
+        node.csl_lemma = False            # `#@ lemma` (lemma.md) — proved logical fact
+        node.csl_uses = []                # `#@ uses <lemma>` (scc2.md) — ordering citations
+        node.csl_iface_requires = []      # `#@ interface requires` (b-spec) — narrow interface
+        node.csl_iface_ensures = []       # `#@ interface ensures`  (b-spec) — narrow interface
+        node.csl_iface_assigns = []       # `#@ interface assigns`  (b-spec) — narrow interface
+        node.csl_reveal = []              # `#@ reveal <fn>` (b-spec) — opt into <fn>'s definition
+        node.csl_preserves = False        # `#@ \preserves` — HAPPY trust-boundary opt-in
+        node.csl_reviewer = ""
+        node.csl_raises = []
+        node.csl_no_exception = []        # list of exception-name strings
+        node.csl_no_exception_all = False # set by `no_exception \all` form
+        node.csl_bounded_int = None
+        node.csl_thread_entry = False
+        node.csl_proof = []
+        node.csl_acts = []                # pre-desugar Act/Complete/Disjoint (for Module4)
+        # Mixin composition (mixin.md / mixin-ready.md, Tier 1) — populated below.
+        node.csl_provides = []            # method names this method is a provider for
+        node.csl_method_deps = []         # MethodDependencyDecl (depends/requires) + their contract
+        node.csl_mixin_shared_state = []  # SharedStateDecl attached at this method
+        node.csl_touches_field = []       # TouchesFieldDecl attached at this method
 
     #@ requires True
     #@ ensures True
