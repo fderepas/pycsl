@@ -2368,3 +2368,26 @@ general path. If they all came from special-case recognizers, you are opening a 
 reusing a pattern** — and the risk profile inverts too: recognizer groups are byte-inert by construction
 because no corpus body matches their grammar, while a general-path change makes the corpus byte-diff a
 real gate.
+
+## Lesson (y) — a general-path capability inverts the byte-inertness argument; gate the DECLARATION on demand, not just the USE
+
+Every capability the campaign had landed before L13 lived in a whole-function RECOGNIZER, and those are
+byte-inert BY CONSTRUCTION: no corpus body matches their grammar, so the corpus cannot reach them. The
+term-carrier work is the first that edits the GENERAL typing path, and the risk profile flips — the
+corpus byte-diff stops being a formality and becomes the gate that actually bites.
+
+It bit exactly once, and the shape is worth remembering. Six of the seven sub-capabilities were gated on
+a USE site (`@mutable_state` + `_term_adt_spec` + a specific annotation) and were perfectly inert. The
+seventh emitted a DECLARATION — `exception Return_term term` — inside a block that was already
+`needs_term`-gated, which felt sufficient. It was not: 14 of 813 corpus programs emit `type term`, and
+all 14 gained the two lines. **A declaration is reachable by every file that reaches the block it sits
+in, regardless of whether anything uses it.** Gating it on an actual demand (some function really has a
+term-typed early return) restored byte-diff 0.
+
+Two corollaries paid for themselves in the same hour:
+- **Fail LOUD when the gate is wrong.** The demand gate was first written comparing
+  `func["self_type"]` (the PYTHON class name, `_Parser`) against `_mutable_state_classes` (WhyML
+  identifiers, `_parser`). It matched nothing and suppressed a declaration the body still raised —
+  surfacing immediately as `unbound exception symbol 'Return_term'` rather than as a silent facade.
+- **Run the corpus byte-diff BEFORE the mirror proof sweep**, not after. It is ~7 minutes per side and
+  it falsified the build in one shot; the mirror sweep is close to an hour.

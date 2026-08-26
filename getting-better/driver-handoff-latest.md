@@ -38,7 +38,32 @@ correct outcome for a soundness repair. Full per-file evidence is in `driver-bac
 prove** (lesson (r)) — it cut this sweep from 52 files to 8, and the two slowest mirrors were among
 the ones it excluded from earlier sweeps.
 
-## Where the ladder stands
+## Where the ladder stands — L13 is BUILT, PROVES, and is blocked on ONE named predicate
+
+`getting-better/L13-term-carrier-WIP.patch` (700 lines, `git apply`s cleanly to HEAD) opens the `term`
+carrier to the general emission path. With it, `proof2why3/parser.py` proves **SUCCESS, 216/216 Valid**
+with FIVE members converted (`parse_expr`, `parse_implication`, `parse_disjunction`,
+`parse_conjunction`, `parse_comparison`) — **directives 631 -> 626** — and the **corpus byte-diff is 0
+over 813/813**. It is NOT landed for exactly one reason.
+
+**THE BLOCKER, and it is a search, not a design problem.** The union-local seeding must fire only where
+`self.<m>()` resolves to the CONCRETE sibling rather than degrading to the opaque `self__<m>_<arity>`
+avatar. The spot is marked in the patch (`if True:   # <-- THE ONE OPEN BLOCKER`). Measured blast
+radius when it is ungated: 4 of 52 mirrors fail L3-tc (`statements`, `expressions`, `Module5_IREmitter`,
+`stmt_control_flow`). **Three arbitrators are already REFUTED — do not re-derive them:**
+  1. `_module_method_return_types` — records `_parser__peek: int` though `peek` emits `: _union_peek_0`.
+  2. "is the callee defined in this mirror?" — both are; does not discriminate.
+  3. `_composed_provider_methods` — probed **EMPTY (N=0) for `_Parser`** while `peek` still lowers
+     concretely, so the composition branch is not the path.
+**Next lead: `scc.find_self_method_calls` (referenced at expressions.py:5215).** Find the predicate the
+emitter itself uses and reuse it verbatim; do not invent a second one, or the two will disagree.
+
+Worth knowing before you judge the 4 breaking mirrors: their diffs under the patch are IMPROVEMENTS,
+each replacing an int-erased `ref 0` local with a properly union-typed one. `Module5_IREmitter::
+_collect_class_constants` currently tests `if (!iv <> 0)` as a stand-in for "is not None" — **a
+legitimate constant value of 0 reads as None today.** This capability fixes a live faithfulness bug.
+
+## The rest of the ladder
 
 Next position: **L13, the `proof2why3` `_Parser` cursor nest** — top lever, spike PASSED (41/41),
 closed capability set of FOUR, payoff 11-15 stubs. Read `driver-backlog.md` §L13 and the Gate-R
