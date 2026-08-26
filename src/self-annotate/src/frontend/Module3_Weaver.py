@@ -255,13 +255,23 @@ class Module3_Weaver:
                    Old(FieldSubscript(hp.field, Var(v))))
         return Ensures(Forall(v, BinOp(guard, "==>", eq)))
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _target_dotted_path(target: ast.AST):
-        pass
+        """07-1143 R2: the dotted base path of a write target, stripping a trailing
+        subscript: `world.fs.disk[i]` → "world.fs.disk", `world.proc.umask` →
+        "world.proc.umask", `self.disk[i]` → "self.disk". None if not a Name-rooted
+        attribute/subscript chain."""
+        if isinstance(target, ast.Subscript):
+            return Module3_Weaver._target_dotted_path(target.value)
+        if isinstance(target, ast.Attribute):
+            base = Module3_Weaver._target_dotted_path(target.value)
+            return f"{base}.{target.attr}" if base else None
+        if isinstance(target, ast.Name):
+            return target.id
+        return None
 
     #@ requires True
     #@ ensures True

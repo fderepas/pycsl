@@ -134,11 +134,22 @@ def _sanitize_type_name(name: str) -> Optional[str]:
         return name
     return name
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _match_generic_annotation(type_str: Any, generic_names: int) -> int:
+def _match_generic_annotation(
+    type_str: Any, generic_names: Set[str]
+) -> Optional[Tuple[str, str]]:
+    """Match a symbol_table/return_annotation string like `Stack[int]` against
+    the generic names. Returns `(generic_name, concrete_type)` or None."""
+    if not isinstance(type_str, str):
+        return None
+    # Match `Generic[Type]` — the annotation recorded the subscription text.
+    m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\[([A-Za-z_][A-Za-z0-9_]*)\]$", type_str)
+    if m:
+        gname, ct = m.group(1), m.group(2)
+        if gname in generic_names:
+            return (gname, ct)
     return None
 
 #@ requires True
