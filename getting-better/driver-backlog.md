@@ -3334,3 +3334,72 @@ in this backlog were diagnosed from `Timeout` / "proof-cost" measurements. If th
 defaults, they were Z3-only and the verdicts may be ARTIFACTS. Prime re-test candidates:
 `_ContractParser._parse_act_block` and `_parse_for_block` ("seq-emit_ir proof-cost timeout, measured
 3x"), and any other boundary whose stated blocker is a Timeout rather than a type error.
+
+## act/for-block boundary RE-CHARACTERIZED by measurement (2026-08-26) — the old "proof-cost timeout" verdict was WRONG
+
+The backlog recorded `_ContractParser._parse_act_block` / `_parse_for_block` as
+**"seq-emit_ir-local proof-cost timeout (measured 2x: prior 30s + this stall-on-proof)"**, i.e. a
+proof-SCALE wall. That was a MISDIAGNOSIS — very likely an artifact of the Z3-only oracle defect
+recorded above. Re-measured by porting each live body verbatim into the mirror and running L3-tc.
+**Neither ever reaches the prover.** Both fail at TYPE-CHECK, for two DIFFERENT and much more
+tractable reasons:
+
+### `_parse_act_block` — missing `IrGiven` constructor (the certificate ALREADY EXISTS)
+Emitted `Module2_Parser.mlw` line 1011:
+```
+clauses := Seq.snoc !clauses { given_expr = (_contractparser___parse_expr self) }
+...
+clauses := Seq.snoc !clauses (IrRequires (_contractparser___parse_expr self))
+```
+`Requires`/`Ensures` lower to **variant constructors** (`IrRequires`/`IrEnsures`, registered in
+`module6_whyml/expressions.py:1600-1601`, declared in the `emit_ir` variant at
+`preamble.py:4932`), but `Given` has NO entry — so it falls back to a bare **record literal**
+`{ given_expr = ... }`. The clause sequence is therefore heterogeneous and Why3 rejects it
+(`expression has type emit_ir, but is expected to have type int`).
+
+**Reopening (bounded, and the soundness artifact is already built):** add
+`"Given": ("IrGiven", ["expr"])` to the CSL-class-to-ctor map and `| IrGiven emit_ir` to the emitted
+`emit_ir` variant + its `kind_of` projector. The justification is the EXISTING axiom-free certificate
+`src/formal-semantics/rocq/Phase2k_CslClause.v`, which already defines
+`CGiven | CRequires | CEnsures | CAssigns` (self-audited: Rocq 43/43 Closed/0-axiom, Lean
+`{propext}`-only). **No new certificate is needed — the cert was built and the emitter simply never
+used its `CGiven` arm.** Risk: adding a constructor to the shared `emit_ir` variant is a
+shared-theory change — every `match` on `emit_ir` must stay exhaustive, and it needs the §10c
+importer sweep (L3-tc on EVERY importer mirror, not just this file) plus a corpus byte-diff gate.
+
+### `_parse_for_block` — list-valued ctor field: the emitter FABRICATES an empty array
+The clause loop here is already fine (`IrRequires`/`IrEnsures` are both variants, so the sequence is
+homogeneous). The failure is the RETURN. Emitted line 1302:
+```
+{ forexpand_var = !var; forexpand_lo = !lo; forexpand_hi = !hi; forexpand_clauses = (Array.make 0 0) }
+```
+The local accumulator `!clauses` (a `seq emit_ir` built by `Seq.snoc`) is **silently DROPPED** and
+replaced by a fabricated empty `array int`. Note this is also a FIDELITY hazard: had it type-checked,
+it would have been a facade returning a `ForExpand` with no clauses.
+
+**Partial build ATTEMPTED and REVERTED (clean).** Applying the banked `CSLNode -> "ExprIR"` field-retype
+device (precedent `ef94162f` `_csl_not_in`; 93 scalar `: "ExprIR"` + `List["ExprIR"]` on
+`CSLCall.args`/`elts` already in-tree) to `ForExpand.lo/hi/clauses` in the LIVE source **worked as
+far as it goes** — the field moved from `array int` to `array emit_ir`. But L3-tc then failed one
+step later:
+```
+This expression has type array.Array.array int, but is expected to have type array.Array.array emit_ir
+```
+because the emitter still fabricates `Array.make 0 0` rather than threading the local accumulator,
+AND the local is a `seq` while the field is an `array`.
+
+**Reopening (a real, multi-surface emitter capability — NOT proof-cost):** teach the record-literal
+constructor to thread a LOCAL LIST ACCUMULATOR into a list-valued ctor field, including the
+`seq` -> `array` reconciliation, and gate off the default-value fabrication
+(`preamble.py:7937` `v = "(Array.make 0 0)"`). No banked device exists for this
+(`grep` for `seq_to_array`/`array_of_seq` finds nothing). Per convert-or-BOUNDARY /
+do-not-over-build, NOT built this turn; both files reverted to clean, count unchanged at 673.
+
+**BANKED SUB-RESULT:** the `ForExpand` `CSLNode`/`List[CSLNode]` -> `"ExprIR"`/`List["ExprIR"]`
+retype is CONFIRMED to work at the type level and is a verbatim application of a precedented,
+byte-diff-safe device. It is reverted only because it lands no conversion by itself, and a live-source
+change with zero payoff should not carry a corpus sweep.
+
+**LADDER EFFECT:** two entries previously filed as one vague proof-SCALE boundary are now two
+distinct, precisely-located, buildable emitter capabilities — one of which (`IrGiven`) needs no new
+trust-base artifact at all.
