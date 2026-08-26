@@ -2052,6 +2052,24 @@ class FunctionEmissionMixin:
                 return "seq stmt_ir"
             if self._returns_stmt_ir(body_stmts):
                 return "stmt_ir"
+        # TERM CARRIER, general path (L13 / cursor-nest): a method of a `@mutable_state`
+        # class annotated `-> Term`, in a file where the CERTIFIED `term` inductive is
+        # actually emitted (`_term_adt_spec` non-None), returns `term` — not the `int`
+        # that the mirror's stubbed `Term = 0` alias (`proof2why3/ir.py:121`, the
+        # string-form 9-arm union the stub generator cannot express) otherwise implies.
+        # This is the SAME shape as the `_returns_stmt_ir`/`_returns_emit_ir` overrides
+        # directly below: the Python type is one thing, the MODEL type is the sum.
+        # Until this override, the `term` carrier was reachable ONLY through the
+        # whole-function recognizers in `generic_fold.py` (measured: 6 of 80 emitted
+        # signatures in parser.mlw were term-typed, every one recognizer-generated),
+        # so no ordinary body could thread a `term` through the descent chain.
+        # TRIPLE-GATED — `-> Term` annotation AND the certified inductive present AND
+        # the emitter-model `@mutable_state` class.
+        if (getattr(self, "_term_adt_spec", None)
+                and func.get("return_annotation") == "Term"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            return "term"
         # dict-literal emit_ir construction: a method that RETURNS a constructed IR node
         # (`node = {"type":"Var",…}; … return node`) is `emit_ir`, not the `map int (option int)`
         # its `-> Dict[str, Any]` annotation would otherwise imply (the Python type of an IR-node

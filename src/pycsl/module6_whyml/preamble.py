@@ -3809,6 +3809,33 @@ class PreambleEmissionMixin:
                 for (_fn, wt) in ctors[c])
             lines.append(f"    | {c}{tys}")
         lines.append("")
+        # TERM CARRIER (L13 cursor-nest): the term-typed EARLY-RETURN channel. A
+        # `-> Term` method of the emitter model with an early/in-loop return cannot
+        # carry its value through the generic `exception Return int` (measured:
+        # `has type PyCSL_Program.term, but is expected to have type int`). Declared
+        # HERE, immediately after `type term` itself, rather than in the top-of-module
+        # needs-scan — the scan runs BEFORE `_term_adt_spec` is computed, so a gate
+        # there would read an unset attribute, which is a hard pipeline error.
+        # DEMAND-GATED, and the gate is load-bearing rather than cosmetic: declaring it
+        # unconditionally alongside `type term` was MEASURED to break corpus
+        # byte-inertness — 14 of 813 corpus programs (the `09xx` term-carrier family)
+        # gained exactly these two lines. Emitting it only when some function actually
+        # needs it restores byte-diff 0 while keeping the exception adjacent to the type
+        # it mentions, so it can never outlive its payload type.
+        # NOTE the key normalization: `_mutable_state_classes` holds the WhyML class
+        # identifier (lowercased, e.g. `_parser`) while a function record's `self_type`
+        # carries the PYTHON class name (`_Parser`). Comparing them raw silently matches
+        # NOTHING — measured as `unbound exception symbol 'Return_term'`, i.e. the gate
+        # suppressed a declaration the body still raised. Fail-LOUD, which is why the
+        # mistake surfaced at L3-tc instead of becoming a silent facade.
+        _ms_cls = getattr(self, "_mutable_state_classes", set())
+        if any(f.get("return_annotation") == "Term"
+               and (f.get("self_type") or "").lower() in _ms_cls
+               and (IRScanner.has_in_loop_return(f.get("body", []))
+                    or IRScanner.has_early_return(f.get("body", [])))
+               for f in self.ir.get("functions", [])):
+            lines.append("  exception Return_term term")
+            lines.append("")
         # class-variant-impl.md T-transform: a Term->Term const-map guard
         # (`if t.op in _MAP`) lowers to `pystr_eq` on the string field. It is an
         # abstract `val` whose result no VC constrains (contract is `ensures

@@ -2316,6 +2316,13 @@ class ControlFlowStmtMixin:
                 # `val` is already the lowered emit_ir constructor expression (e.g. `(IrAttr
                 # ... ...)`) — no int coercion, mirroring the Return_str arm above.
                 return f"{indent}raise (Return_emit_ir {val})"
+            if func_ret == "term":
+                # TERM CARRIER (L13 cursor-nest): a `term`-returning method's early/in-loop
+                # return raises the dedicated `Return_term <term>` (caught by the
+                # `with Return_term r -> r` arm). `val` is already the lowered term
+                # expression — the certified ADT application `(BinOp op l r)` or a sibling
+                # call — so no int coercion, exactly the `Return_emit_ir` arm's shape.
+                return f"{indent}raise (Return_term {val})"
             if func_ret.startswith("_union_"):
                 # value-model campaign incr5 (primitive c): a synthesized-union (`Optional[X]`)
                 # early/in-loop return raises its dedicated `Return_<variant>` exception

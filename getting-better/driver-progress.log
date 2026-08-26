@@ -302,3 +302,37 @@ Per A.3 the autonomous loop is at floor; supervisor HOLDS for the deadline (A.3 
   WITH THE GATE: `proof2why3/parser.py` **L3-tc ✓**, `module6_whyml/statements.py` **L3-tc ✓** (the file that broke before), and the MIRROR EMISSION DIFF collapses from 5 files to **ONE** — only `proof2why3/parser.py` (+177/-33). Tightest possible blast radius.
   GATES SO FAR: proof `[+] SUCCESS 216/216 Valid, 0 Unknown, 0 Timeout`; **CORPUS BYTE-DIFF 0, 813/813**.
   **THEN THE FIDELITY PLANE CAUGHT A REAL OMISSION — the §10.4 RE-PORT OBLIGATION.** `check-self-annotate-sync.sh` went from the baseline 2 DIVERGED to **4**: I had edited LIVE `functions.py::_compute_return_type` and `stmt_control_flow.py::_handle_return_stmt`, and BOTH have UN-TRUSTED (body-verified) mirror counterparts, so the mirror bodies no longer matched the live ones. The other five edited functions did not diverge because their mirror counterparts are `\trusted` and the script is structurally blind to those. Ported both branches verbatim into `src/self-annotate/src/module6_whyml/{functions,stmt_control_flow}.py` -> **fidelity back to EXACTLY the baseline 2 DIVERGED** (`expressions::_handle_var_expr`, `stmt_control_flow::_handle_for_stmt`) and `self-annotate-mirror-check.sh` at its baseline 3 drifted. The re-port grows the emission diff to THREE mirrors (`functions` +50/-46, `stmt_control_flow` +20/-16, `parser` +177/-33) — all three now re-proving. This is the fidelity plane doing exactly what it exists for: a capability that changes the emitter must also change the emitter's own mirror, or the mirror stops describing the tool.
+2026-08-26 ============================================================
+2026-08-26 **L13 TERM CARRIER — LANDED. FIVE `\trusted` STUBS CONVERTED. DIRECTIVE COUNT 631 -> 626.**
+  CONVERTED (all in `src/self-annotate/src/proof2why3/parser.py`, `_Parser`): `parse_expr`,
+  `parse_implication` (self-recursive, int-encoded descent measure), `parse_disjunction`,
+  `parse_conjunction` (both `while True/break` with invariant + variant), `parse_comparison`
+  (full live body including the chained-comparison desugar).
+  **FULL THREE-L-PLANE BATTERY, every gate driver-run FRESH this turn, none inherited:**
+    - **L2 PROOF** (`--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`, non-vacuity gate on): re-proof set scoped
+      by EMISSION DIFF to the **3** mirrors that change — `proof2why3/parser` **216/216 Valid** (78s),
+      `module6_whyml/functions` **1163/1163** (2123s), `module6_whyml/stmt_control_flow` **1692/1692**
+      (2907s). **3071 goals, 0 Unknown, 0 Timeout, 0 Invalid, all three `[+] Verification SUCCESS`.**
+    - **L3 BYTE-INERTNESS**: corpus byte-diff **0**, `diff -rq` EXIT=0, **813 base / 813 patched**,
+      equal and non-empty. Non-trivial for this increment — this is the first capability in the
+      campaign that edits the GENERAL typing path rather than a whole-function recognizer.
+    - **L1 FIDELITY**: `check-self-annotate-sync.sh` back to EXACTLY the baseline **2 DIVERGED**
+      (`expressions::_handle_var_expr`, `stmt_control_flow::_handle_for_stmt`) and
+      `self-annotate-mirror-check.sh` at its baseline **3 drifted**. It took a §10.4 re-port to get
+      there — see the previous entry; the plane caught a real omission, it was not a formality.
+    - **LEDGER**: untouched — the diff contains no `src/formal-semantics/` and no
+      `proof_axiom_allowlist.py`. Stays 3. **NO NEW AXIOM**: the `term` inductive was already certified
+      and already emitted; this increment only lets ordinary bodies REACH it.
+  **TCB accounting, stated honestly.** 7 cursor-interface clauses are PROVED on converted members (zero
+  cost). 5 are ASSUMED on the still-`\trusted` frontier (`parse_arith_add`, `parse_arith_mul`,
+  `parse_atom`, `parse_atom_application`, `parse_quant`) — a real, small TCB addition, justified by the
+  live file having EXACTLY TWO `self.pos` writes (`= 0` in `__init__`, `+= 1` in `take`) and no
+  backtracking site anywhere. Each retires when its stub is converted. Net: **-5 trusted bodies,
+  +5 assumed monotonicity clauses on bodies that were ALREADY fully trusted** — strictly better, since
+  an assumed postcondition on a stub is weaker than an assumed whole body.
+  BONUS the gate revealed and this increment does NOT yet fix: `Module5_IREmitter::_collect_class_constants`
+  tests `if (!iv <> 0)` as a stand-in for "is not None", so a legitimate constant value of **0** reads as
+  None. The union-local typing fixes it, but only for classes with a `List[<record>]` field
+  (`_record_array_fields`); `PyCSLToJSONEmitter` does not qualify, so it is still latent. Recorded as the
+  next demand-first target.
+2026-08-26 ============================================================

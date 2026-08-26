@@ -3524,6 +3524,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `This expression has type string, but is expected to have type int`).
         if self._record_elem_field_py_type(ir) == "str":
             return True
+        # CARRIER-FIELD STRING ROUTING (L13 cursor-nest): `t.kind` where `t` is a mutable
+        # `Optional[<dataclass>]` local is a read of the CARRIER RECORD's field, so it is
+        # string-typed exactly when that field is. Without this the comparison
+        # `t.kind == "IDENT"` keeps the default int typing and the literal is emitted as
+        # its int HASH (measured: `... = 910842745`) against a now-string projection —
+        # `has type int, but is expected to have type string`. Worse than the type error,
+        # the pre-existing int-hash form was VALUE-BLIND: it compared opaque hashes.
+        # Reuses `_union_local_field_projection`'s own fail-closed resolution, so it can
+        # only fire where that projection also fires.
+        if (t == "Attribute" and isinstance(ir.get("object"), dict)
+                and ir["object"].get("type") == "Var"
+                and ir["object"].get("name") in getattr(self, "_optional_union_locals", set())):
+            _st = getattr(self, "_current_symbol_table", {}).get(ir["object"]["name"])
+            _vi = getattr(self, "_variant_types", {}).get(_st) or {}
+            for _cn, _c in (_vi.get("constructors") or {}).items():
+                if _c.get("arity") != 1:
+                    continue
+                _pay = (_c.get("payload") or [None])[0]
+                _rn = next((rn for rn in getattr(self, "_record_types", {})
+                            if self._record_types[rn].get("whyml_name") == _pay
+                            or rn == _pay), None)
+                if _rn is not None and (self._record_types[_rn].get("field_types") or {}
+                                        ).get(ir.get("attr")) in ("str", "string"):
+                    return True
         # self-tcb-reduction WRITER class (`_build_param_list`): the `self._current_self_type`
         # read (`current_self_type_of self : string`) is STRING, so `f"(self:
         # {self._current_self_type})"` lowers via the all-string str_concat_op path. Gated ->
@@ -6089,6 +6113,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                             none_arg_indices, none_kwargs)
         if adt is not None:
             return adt
+        # TERM CARRIER (L13): a term-ADT arm class construction lowers to the certified
+        # inductive's constructor, not to the mutable int-erased dataclass record. Tried
+        # BEFORE `_call_record_constructor` (which would otherwise win and emit the
+        # record); fail-closed, so anything it declines still reaches the record path.
+        tadt = self._call_term_constructor(args, func_name, kwargs_map)
+        if tadt is not None:
+            return tadt
         rec = self._call_record_constructor(args, func_name, kwargs_map)
         if rec is not None:
             return rec
@@ -8415,6 +8446,66 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             parts.append(bound[f])
         return f"({cname} {' '.join(parts)})"
 
+    def _call_term_constructor(self, args: List[str], func_name: str,
+                               kwargs_map: Optional[Dict[str, str]] = None
+                               ) -> Optional[str]:
+        """TERM CARRIER (L13 / cursor-nest): `BinOp(op, lhs, rhs)` for one of the term
+        ADT's own arm classes lowers to the ADT APPLICATION `(BinOp op lhs rhs)` — the
+        constructor of the CERTIFIED immutable `type term` the file already emits —
+        instead of the imported-dataclass RECORD literal
+        `{ binop_op = …; binop_lhs = …; rhs = … }`.
+
+        Why the record is the wrong model, measured: the emitted `parser.mlw` carries BOTH
+        representations of the same Python classes at once — the 9-constructor inductive
+        `type term` AND `type binop = { mutable binop_op: string; mutable binop_lhs: int;
+        mutable rhs: int }`. The record is MUTABLE (so it cannot unify with the immutable
+        `term` a descent chain threads) and INT-ERASED in its child slots (so it is
+        value-blind). The ADT is strictly the better model, not merely a different one.
+
+        The payload order comes from `_term_adt_spec["ctors"][C]` (built by
+        `compute_term_adt_spec` off the imported dataclass field list) — the SAME spec the
+        `type term` declaration itself is emitted from, so the application can never
+        disagree with the declaration. Actuals bind BY NAME off the class's positional
+        `__init__` params, never by position, so a renamed or reordered field cannot
+        silently mis-bind.
+
+        FAIL-CLOSED on both axes:
+          - every payload slot must be bound, or DECLINE (an unbound slot is a dropped
+            child — the facade this whole build exists to avoid);
+          - every slot's WhyML type must be `term` or `string`. The `list term` /
+            `list string` slots (`App`, `Forall`, `Exists`) need the seq -> list
+            reconciliation that is a SEPARATE, unbuilt capability, and the `int`/`bool`
+            slots (`IntLit`, `BoolLit`) need literal coercion. Declining leaves the old
+            record-literal path, which then fails LOUDLY at L3-tc — never a silent facade.
+
+        Gated on `_term_adt_spec` being non-None AND `@mutable_state`, exactly like
+        `_call_irnode_constructor`."""
+        spec = getattr(self, "_term_adt_spec", None)
+        if not spec:
+            return None
+        if (getattr(self, "_current_self_type", None) not in getattr(
+                self, "_mutable_state_classes", set())):
+            return None
+        ctor_fields = (spec.get("ctors") or {}).get(func_name)
+        if not ctor_fields:
+            return None
+        if not all(wt in ("term", "string") for _fn, wt in ctor_fields):
+            return None
+        rec_info = getattr(self, "_record_types", {}).get(func_name)
+        if not rec_info:
+            return None
+        init_params = rec_info.get("init_params", [])
+        if len(args) > len(init_params):
+            return None
+        bound: Dict[str, str] = dict(zip(init_params, args))
+        bound.update(kwargs_map or {})
+        parts: List[str] = []
+        for fn, _wt in ctor_fields:
+            if fn not in bound:
+                return None
+            parts.append(bound[fn])
+        return f"({func_name} {' '.join(parts)})"
+
     def _bind_listfield_from_seq(self, rec_info: Dict[str, Any], fn: str,
                                  ent: Dict[str, Any],
                                  arg_nodes: Dict[str, Any]) -> Optional[str]:
@@ -9758,6 +9849,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if attr in _EMIT_IR_NODE_ATTRS:
                 return f"({_EMIT_IR_NODE_ATTRS[attr]} {_os})"
             return f"(svalue_of {_os})"
+        # CARRIER-FIELD PROJECTION (L13): `<optional-union local>.<field>` reads the
+        # carrier record's field directly, instead of the opaque int-hash `get_<attr>`
+        # (which is both ill-typed against a record carrier and value-blind).
+        if (isinstance(obj_ir, dict) and obj_ir.get("type") == "Var"
+                and obj_ir.get("name") in getattr(self, "_optional_union_locals", set())):
+            _fp = self._union_local_field_projection(obj_ir["name"], attr)
+            if _fp is not None:
+                return _fp
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
         # cleared-array.md S2: in a SPEC/logic context (a contract or a
         # projection-comprehension content law), the abstract getter must be a
@@ -9775,6 +9874,53 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         else:
             self._add_abstract_op(f"val get_{attr} (x: int) : int")
         return f"(get_{attr} {obj_str})"
+
+    def _union_local_field_projection(self, name: str, attr: str) -> Optional[str]:
+        """CARRIER-FIELD PROJECTION (L13 cursor-nest): `t.kind` where `t` is a mutable
+        `Optional[<dataclass>]` local (`t = self.peek()`, `peek: -> Optional[Token]`)
+        reads a FIELD OF THE CARRIER RECORD:
+        `(match !t with Arm_0_0 _v -> _v.token_kind | _ -> <default> end)`.
+
+        Without it the read falls through to the opaque int-hash getter
+        `(get_kind <carrier projection>)`, whose `x: int` parameter rejects the now
+        correctly-typed carrier — measured as `has type PyCSL_Program.token, but is
+        expected to have type int`. That fallback was also VALUE-BLIND: `get_kind` is an
+        uninterpreted `val`, so every comparison against it was a comparison of opaque
+        int hashes rather than of the token's actual field.
+
+        Fail-closed on every axis: single-Some-arm Optional unions only, a carrier that is
+        a KNOWN record, and an `attr` that is genuinely one of that record's fields.
+        Anything else returns None and keeps the historical path, so no read is silently
+        re-pointed."""
+        symtype = getattr(self, "_current_symbol_table", {}).get(name)
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        some_ctor = None
+        some_pay = None
+        for cn, c in vinfo.get("constructors", {}).items():
+            if c.get("arity") == 1:
+                if some_ctor is not None:
+                    return None          # multi-Some union — out of scope
+                some_ctor = cn
+                _pay = c.get("payload") or []
+                some_pay = _pay[0] if _pay else None
+        if some_ctor is None or not some_pay:
+            return None
+        rec_name = next((rn for rn in getattr(self, "_record_types", {})
+                         if self._record_types[rn].get("whyml_name") == some_pay
+                         or rn == some_pay), None)
+        if rec_name is None:
+            return None
+        rec = self._record_types[rec_name]
+        if attr not in (rec.get("fields") or []):
+            return None
+        label = self._field_label(rec_name, attr)
+        ftype = (rec.get("field_types") or {}).get(attr, "int")
+        default = {"str": '""', "string": '""', "real": "0.0",
+                   "float": "0.0"}.get(ftype, "0")
+        return (f"(match !{whyml_ident(name)} with {some_ctor} _v -> _v.{label} "
+                f"| _ -> {default} end)")
 
     def _var_todict_alias(self, name: str, local_refs: Set[str],
                           subst: Optional[Dict[str, str]]) -> str:
@@ -9813,7 +9959,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if some_ctor is None:
             return None
         _sentinel = {"str": '""', "string": '""', "emit_ir": '(IrOther "")',
-                     "real": "0.0", "float": "0.0"}.get(some_pay, "0")
+                     "real": "0.0", "float": "0.0"}.get(some_pay)
+        if _sentinel is None:
+            # RECORD CARRIER (L13 cursor-nest): an `Optional[<dataclass>]` local — the
+            # `_Parser.peek() -> Optional[Token]` shape — carries a RECORD, not a scalar,
+            # so the fallback `0` is ill-typed: measured as `has type int, but is expected
+            # to have type PyCSL_Program.token` in the `| _ -> 0` arm. Use the record's own
+            # default literal (the same type-appropriate-zero witness `_record_default_literal`
+            # already builds for an `array <record>` `by` clause). The arm is UNREACHABLE
+            # whenever the caller has guarded `x is not None`, so the witness only has to
+            # type-check; it is never observed.
+            _pay_rec = next((rn for rn in getattr(self, "_record_types", {})
+                             if self._record_types[rn].get("whyml_name") == some_pay
+                             or rn == some_pay), None)
+            if _pay_rec is not None:
+                _sentinel = self._record_default_literal(_pay_rec)
+            else:
+                _sentinel = "0"
         return (f"(match !{whyml_ident(name)} with {some_ctor} _v -> _v "
                 f"| _ -> {_sentinel} end)")
 

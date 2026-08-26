@@ -74,6 +74,12 @@ class _Parser:
     # passes the default `0`. Not a convenience narrowing.
     #@ requires offset >= 0
     #@ ensures True
+    # CURSOR INTERFACE (L13): the Some arm is returned ONLY from inside the
+    # `idx < len(self.toks)` guard, so a non-None result WITNESSES that the cursor
+    # (plus offset) is in range. This is what lets a caller that has tested
+    # `t is not None` discharge `take`'s `requires self.pos < \length(self.toks)`.
+    # PROVED here (peek is converted), so it costs no TCB.
+    #@ ensures \result != None ==> self.pos + offset < \length(self.toks)
     #@ assigns \nothing
     def peek(self, offset: int = 0) -> Optional[Token]:
         idx = self.pos + offset
@@ -83,6 +89,11 @@ class _Parser:
 
     #@ requires self.pos < \length(self.toks)
     #@ ensures True
+    # CURSOR INTERFACE (L13): `take` steps the cursor by EXACTLY one (unguarded
+    # `self.pos += 1`), which is the strict progress every loop variant in the nest
+    # needs. With the precondition it also gives `self.pos <= \length(self.toks)`.
+    # PROVED (take is converted) -> zero TCB.
+    #@ ensures self.pos == \old(self.pos) + 1
     #@ assigns self.pos
     def take(self) -> Token:
         t = self.toks[self.pos]
@@ -96,51 +107,140 @@ class _Parser:
     def expect(self, kind: str, value: Optional[str]=None) -> Token:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_expr(self) -> Term:
-        return None
+        t = self.peek()
+        if t is not None and t.kind == "IDENT" and t.value in ("forall", "exists"):
+            return self.parse_quant()
+        return self.parse_implication()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13) — an ASSUMED interface on a still-`\trusted` stub, i.e.
+    # a REAL (small) TCB addition, justified by reading the live body: every cursor
+    # motion in `_Parser` goes through `take`, whose `self.pos += 1` is monotone, and
+    # whose partiality (`self.toks[self.pos]` raises IndexError past the end) keeps
+    # `self.pos <= len(self.toks)` on every NORMAL-return path. There is no
+    # backtracking site anywhere in this class (no `_try`-style save/restore, no
+    # direct `self.pos = <expr>` outside `__init__` and `take`). Retire this
+    # assumption by CONVERTING the stub.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_quant(self) -> Term:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    #@ \variant \length(self.toks) - self.pos
     #@ assigns self.pos
     def parse_implication(self) -> Term:
-        return None
+        lhs = self.parse_disjunction()
+        t = self.peek()
+        if t is not None and t.kind == "OP" and t.value == "->":
+            self.take()
+            rhs = self.parse_implication()
+            return BinOp("->", lhs, rhs)
+        return lhs
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_disjunction(self) -> Term:
-        return None
+        out = self.parse_conjunction()
+        # The RANGE invariant alone is not enough: the function's own
+        # `ensures self.pos >= \old(self.pos)` has to survive the loop, and a loop
+        # invariant is the only place to carry a relation back to function entry.
+        #@ loop invariant self.pos >= \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None or t.kind != "OP" or t.value not in _LOGICAL_DISJ_OPS:
+                break
+            op = self.take().value
+            rhs = self.parse_conjunction()
+            out = BinOp(op, out, rhs)
+        return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_conjunction(self) -> Term:
-        return None
+        out = self.parse_comparison()
+        # The RANGE invariant alone is not enough: the function's own
+        # `ensures self.pos >= \old(self.pos)` has to survive the loop, and a loop
+        # invariant is the only place to carry a relation back to function entry.
+        #@ loop invariant self.pos >= \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None or t.kind != "OP" or t.value not in _LOGICAL_CONJ_OPS:
+                break
+            op = self.take().value
+            rhs = self.parse_comparison()
+            out = BinOp(op, out, rhs)
+        return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_comparison(self) -> Term:
-        return None
+        lhs = self.parse_arith_add()
+        t = self.peek()
+        if t is not None and t.kind == "OP" and t.value in _COMPARISON_OPS:
+            op = self.take().value
+            mid = self.parse_arith_add()
+            t2 = self.peek()
+            if t2 is not None and t2.kind == "OP" and t2.value in _COMPARISON_OPS:
+                op2 = self.take().value
+                rhs = self.parse_arith_add()
+                return BinOp(r"/\\", BinOp(op, lhs, mid), BinOp(op2, mid, rhs))
+            return BinOp(op, lhs, mid)
+        return lhs
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13) — an ASSUMED interface on a still-`\trusted` stub, i.e.
+    # a REAL (small) TCB addition, justified by reading the live body: every cursor
+    # motion in `_Parser` goes through `take`, whose `self.pos += 1` is monotone, and
+    # whose partiality (`self.toks[self.pos]` raises IndexError past the end) keeps
+    # `self.pos <= len(self.toks)` on every NORMAL-return path. There is no
+    # backtracking site anywhere in this class (no `_try`-style save/restore, no
+    # direct `self.pos = <expr>` outside `__init__` and `take`). Retire this
+    # assumption by CONVERTING the stub.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_arith_add(self) -> Term:
         return None
@@ -148,6 +248,16 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13) — an ASSUMED interface on a still-`\trusted` stub, i.e.
+    # a REAL (small) TCB addition, justified by reading the live body: every cursor
+    # motion in `_Parser` goes through `take`, whose `self.pos += 1` is monotone, and
+    # whose partiality (`self.toks[self.pos]` raises IndexError past the end) keeps
+    # `self.pos <= len(self.toks)` on every NORMAL-return path. There is no
+    # backtracking site anywhere in this class (no `_try`-style save/restore, no
+    # direct `self.pos = <expr>` outside `__init__` and `take`). Retire this
+    # assumption by CONVERTING the stub.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_arith_mul(self) -> Term:
         return None
@@ -155,6 +265,16 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13) — an ASSUMED interface on a still-`\trusted` stub, i.e.
+    # a REAL (small) TCB addition, justified by reading the live body: every cursor
+    # motion in `_Parser` goes through `take`, whose `self.pos += 1` is monotone, and
+    # whose partiality (`self.toks[self.pos]` raises IndexError past the end) keeps
+    # `self.pos <= len(self.toks)` on every NORMAL-return path. There is no
+    # backtracking site anywhere in this class (no `_try`-style save/restore, no
+    # direct `self.pos = <expr>` outside `__init__` and `take`). Retire this
+    # assumption by CONVERTING the stub.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_atom_application(self) -> Term:
         return None
@@ -162,6 +282,16 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    # CURSOR INTERFACE (L13) — an ASSUMED interface on a still-`\trusted` stub, i.e.
+    # a REAL (small) TCB addition, justified by reading the live body: every cursor
+    # motion in `_Parser` goes through `take`, whose `self.pos += 1` is monotone, and
+    # whose partiality (`self.toks[self.pos]` raises IndexError past the end) keeps
+    # `self.pos <= len(self.toks)` on every NORMAL-return path. There is no
+    # backtracking site anywhere in this class (no `_try`-style save/restore, no
+    # direct `self.pos = <expr>` outside `__init__` and `take`). Retire this
+    # assumption by CONVERTING the stub.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
     #@ assigns self.pos
     def parse_atom(self) -> Term:
         return None

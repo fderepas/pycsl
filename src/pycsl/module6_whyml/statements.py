@@ -195,6 +195,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         none_ctor, some_ctors = self._union_ctors(symtype)
         if none_ctor is None:
             return None
+        # NO DOUBLE-WRAP (L13): when the RHS is a SIBLING CALL that ALREADY returns this
+        # union (`t = self.peek()`), wrapping again gives `(Arm_0_0 (peek self 0))`, whose
+        # argument slot wants the CARRIER — measured as `has type _union_peek_0, but is
+        # expected to have type token`. Pass it through.
+        if val_ir.get("type") == "Call":
+            _fn = val_ir.get("func", "") or ""
+            _cls = getattr(self, "_current_self_type", None)
+            _key = (f"{_cls}__{_fn[len('self.'):]}" if _fn.startswith("self.") else _fn)
+            if getattr(self, "_module_method_return_annotations", {}).get(_key) == symtype:
+                return val
         if val_ir.get("type") == "None":
             return none_ctor
         if len(some_ctors) == 1:
@@ -2171,6 +2181,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # node payload straight back (immutable — no materialize needed), the same
             # shape as the Return_str arm just above.
             return f"    try\n{body_code}\n    with Return_emit_ir r -> r end"
+        if return_type == "term":
+            # TERM CARRIER (L13): a `term`-returning method's early/in-loop return is caught
+            # by its dedicated `Return_term`; immutable payload, so no materialize.
+            return f"    try\n{body_code}\n    with Return_term r -> r end"
         if return_type.startswith("_union_"):
             # value-model campaign incr5 (primitive c): a synthesized-union (`Optional[X]`)
             # return with an early/in-loop return is caught by its dedicated
@@ -3696,6 +3710,71 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     st[v] = "hval"
         return out
 
+    def _sibling_ret_ann_locals(self, body_stmts: List[Dict[str, Any]], pred) -> Set[str]:
+        """L13 cursor-nest: locals bound from a SIBLING call (`x = self.<m>(...)`) whose
+        callee return ANNOTATION satisfies *pred*. One walker serves both the `-> Term`
+        locals and the `-> Optional[X]` (`_union_*`) locals. Returned, never stashed on
+        `self` — a new emitter self-field would silently widen the live frame of whatever
+        method wrote it (the L14-b defect). @mutable_state-gated; empty -> byte-identical."""
+        cls = getattr(self, "_current_self_type", None)
+        if cls not in getattr(self, "_mutable_state_classes", set()):
+            return set()
+        ann = getattr(self, "_module_method_return_annotations", {})
+        out: Set[str] = set()
+
+        def _walk(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    v = n.get("value")
+                    if isinstance(v, dict) and v.get("type") == "Call":
+                        fn = v.get("func", "") or ""
+                        key = (f"{cls}__{fn[len('self.'):]}"
+                               if fn.startswith("self.") else fn)
+                        a = ann.get(key)
+                        if isinstance(a, str) and pred(a):
+                            out.add(n["target"])
+                for x in n.values():
+                    _walk(x)
+            elif isinstance(n, list):
+                for x in n:
+                    _walk(x)
+
+        _walk(body_stmts)
+        return out
+
+    def _sibling_ret_ann_of(self, body_stmts: List[Dict[str, Any]], target: str,
+                            cls: Optional[str], ann: Dict[str, str]) -> Optional[str]:
+        """The callee return ANNOTATION bound to one local by `target = self.<m>(...)`.
+        Fail-closed: None when there is no such binding, or when two bindings disagree."""
+        found: Set[str] = set()
+
+        def _walk(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and n.get("target") == target:
+                    v = n.get("value")
+                    if isinstance(v, dict) and v.get("type") == "Call":
+                        fn = v.get("func", "") or ""
+                        key = (f"{cls}__{fn[len('self.'):]}"
+                               if fn.startswith("self.") else fn)
+                        a = ann.get(key)
+                        if isinstance(a, str):
+                            found.add(a)
+                for x in n.values():
+                    _walk(x)
+            elif isinstance(n, list):
+                for x in n:
+                    _walk(x)
+
+        _walk(body_stmts)
+        return found.pop() if len(found) == 1 else None
+
+    def _term_bound_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Locals bound from a `-> Term` sibling call — `term`-typed, so they must NOT
+        pre-declare `ref 0`. Additionally gated on the certified inductive being emitted."""
+        if not getattr(self, "_term_adt_spec", None):
+            return set()
+        return self._sibling_ret_ann_locals(body_stmts, lambda a: a == "Term")
+
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
         record, or variant — and so must be EXCLUDED from the integer `ref 0`
@@ -4020,6 +4099,41 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # pre-declaration so its first assign (`x = None`) let-binds `ref (Arm_i_None :
         # _union)` (the union ref) instead of `ref 0` + a type-clashing `:=`. Byte-inert:
         # no corpus program has an Optional-typed mutable local (only Optional params).
+        # UNION LOCALS FROM A SIBLING CALL (L13 cursor-nest) — SEEDING, currently GATED
+        # OFF pending the concrete-resolution predicate (see the STATUS note in
+        # driver-backlog.md L13). The comprehension below reads the union type out of
+        # `_current_symbol_table`, but Module5 types a sibling-call-bound local as `Any`
+        # (measured: `_Parser.parse_expr` gives `symtab={'t': 'Any'}` though `peek`'s
+        # normalized return annotation IS `_union_peek_0`), so `t` fell through to `ref 0`
+        # and its `:=` was an L3 error. Seeding fixes the cursor nest, but it must ALSO
+        # know whether `self.<m>()` resolves to the CONCRETE sibling or degrades to the
+        # opaque `self__<m>_<arity>` avatar — in `statements.py` the identical shape
+        # (`ftype = self._field_type_for(...)`, annotated `Optional[str]`) lowers to an
+        # int-returning avatar, and seeding it produced `has type int, but is expected to
+        # have type _union__field_type_for_0`, breaking 3 previously-green mirrors.
+        # `_module_method_return_types` CANNOT arbitrate: it records `_parser__peek: int`
+        # even though `peek` demonstrably emits `: _union_peek_0`.
+        # THE CONCRETE-RESOLUTION GATE — `_record_array_fields`, exactly the predicate the
+        # Gate-R amendment named ("concrete `self.<m>()` sibling resolution is gated on
+        # `_record_array_fields`; a `List[int]`-field class silently degrades to vacuous
+        # opaque `self_*_0` vals"). It is the same gate `_record_return_sibling_methods`
+        # (Module6_WhyMLTranspiler.py:221) uses to decide which siblings get a concrete
+        # application and a callee-before-caller SCC edge. `_Parser` qualifies (its
+        # `toks: List[Token]` is a List-of-record field); `StatementEmissionMixin` does
+        # not, which is exactly why `ftype = self._field_type_for(...)` there degrades to
+        # the INT-returning `self__field_type_for_2` avatar and must NOT be retyped.
+        if getattr(self, "_record_array_fields", None):
+            _st_seed = getattr(self, "_current_symbol_table", None)
+            if _st_seed is not None:
+                _ann_seed = getattr(self, "_module_method_return_annotations", {})
+                _cls_seed = getattr(self, "_current_self_type", None)
+                for _n in self._sibling_ret_ann_locals(
+                        body_stmts, lambda a: a.startswith("_union_")):
+                    if _st_seed.get(_n) not in (None, "Any"):
+                        continue
+                    _ty = self._sibling_ret_ann_of(body_stmts, _n, _cls_seed, _ann_seed)
+                    if _ty:
+                        _st_seed[_n] = _ty
         _union_locals = {
             name for name, ty in getattr(self, "_current_symbol_table", {}).items()
             if isinstance(ty, str) and ty.startswith("_union_")
@@ -4457,6 +4571,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _irlist_predecl: Set[str] = set()
         _hvalmap_predecl: Set[str] = set()
         _optstr_predecl: Set[str] = set()
+        _term_predecl: Set[str] = set()
         if _ms_body:
             _str_predecl = {v for v in getattr(self, "_string_local_vars", set())
                             if v in local_refs and v not in ghost_vars
@@ -4464,6 +4579,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             and v not in _uput
                             and v not in struct_array_targets and v not in struct_pack_targets}
             pre_decl_vars |= _str_predecl
+            # TERM CARRIER (L13): a local bound from a `-> Term` sibling call is
+            # `term`-typed — pre-declare the ADT's own `Unsupported` arm, never `ref 0`.
+            _term_predecl = {v for v in self._term_bound_locals(body_stmts)
+                             if v in local_refs and v not in ghost_vars
+                             and v not in ref_params and v not in self._formal_params
+                             and v not in _uput
+                             and v not in struct_array_targets and v not in struct_pack_targets
+                             and v not in _str_predecl}
+            pre_decl_vars |= _term_predecl
             # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `pyconst_val` locals
             # (`v = elt.value` in `_classify_literal_value`) pre-declare `ref PVNone` (never the
             # emit_ir `ref (IrOther "")`), so their `:=`, `is_pv*` tests and ctor projections
@@ -4647,6 +4771,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 init = '""'
             elif var in _pyconst_val_predecl:
                 init = 'PVNone'        # V1 pyconst-dispatch: pyconst_val local pre-decl
+            elif var in _term_predecl:
+                # TERM CARRIER (L13): `term` local pre-decl. `Unsupported` is the ADT's own
+                # no-meaningful-value arm, so the sentinel lives INSIDE the certified
+                # inductive — no new leaf, no axiom, and unobservable (Python never reads
+                # such a local before its first assignment).
+                init = '(Unsupported "" "")'
             elif var in _emit_ir_predecl:
                 init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
             elif var in _irlist_predecl:
