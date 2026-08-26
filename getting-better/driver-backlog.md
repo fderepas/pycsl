@@ -3861,3 +3861,23 @@ as Finding 1.
   with `.extend`, which lowers to `let _ = (contracts_extend_1 ...) in ()` — **an opaque val whose
   result is DISCARDED**, so the local stays `(Array.make 1024 0)`. Its `if contracts and ...` also
   lowered to `if true && ...`, erasing the truthiness discriminant. Watch for both shapes.
+
+### LADDER DELTA (supersedes the CURRENT LADDER block above where they differ) — HEAD ca6d5977, count 671
+- **L9 (Tier-A list-field binding): BUILT and DRAINED.** Capability landed (`dfed484b` + `0f54ca31`,
+  element type emit_ir OR string); 2 conversions taken from it (`_parse_for_block`,
+  `_parse_happy_region`); the remaining 4 census targets are all REFUTED on *other* capabilities.
+  The census's "15 stubs" was an upper bound, exactly as the carved lesson warns.
+- **L10 (element-type-aware `_field_default`): IN FLIGHT**, with a PAYOFF GATE — lands only if >= 1
+  stub actually converts.
+- **L11 (NEW): immutable + `seq`-backed record representation for value-like CSL nodes.**
+  Oracle-proven sufficient condition for a `Return <record>` exception payload. Unblocks the
+  early-return-of-record family and SUPERSEDES the older tuple-return-exception reopening note.
+  Currently a CORRECTNESS boundary (Why3 type rejection) until this representation exists.
+- **L12 (NEW): `Optional[X]` field value model.** `None` -> `0` against `emit_ir`/`string`/`seq`
+  fields. Blocks `_parse_happy_targets` (4 independent co-blockers) and `_parse_happy`.
+- **Self-field container append**: faithful when the element is an immutable pyval (`Seq.snoc` into
+  the real field); degenerates to a function-local shadow array when the element is a mutable
+  record. No landed facade — census-checked. Same mutable-record root as L11.
+- **Recurring root across L11 / the tuple-return boundary / the `_Harvester` degeneration: emitted
+  CSL-node records are `mutable` with `array` fields.** If one lever is worth funding next, it is the
+  immutable+seq representation (L11) — it is the common cause of three separately-recorded walls.
