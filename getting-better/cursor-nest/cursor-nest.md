@@ -52,12 +52,18 @@ So the "build a new 9-arm union of immutable records" scope is unnecessary, and 
 lowers to a parallel MUTABLE record rather than the ADT constructor. Precedent for (ii) already
 exists for the sibling `emit_ir` ADT: `expressions.py::_call_irnode_constructor` (:8320).
 
-**(b) Recursive-method emission already works.** A previous window recorded `is_recursive` as a
+**(b) Recursive-method emission already works; MUTUAL recursion did NOT (corrected after Gate R).** A previous window recorded `is_recursive` as a
 bare-name matcher that cannot see `self.<name>`. Porting `parse_implication` verbatim emits
 `let rec _parser__parse_implication (self: _parser) : int ... variant { Array.length self.toks -
-self.pos }`. Both `let rec` and the `#@ \variant` are already correct. **Mutual** recursion is
-also already supported, via SCC detection (`functions.py`: `_scc_size > 1` -> `let rec` + `and` /
-`with function` continuations).
+self.pos }`. Both `let rec` and the `#@ \variant` are already correct. **Mutual** recursion was NOT supported, and this
+paragraph originally claimed it was, on the strength of READING `functions.py` rather than running it.
+The independent Gate-R review refuted it and the driver verified the refutation: the SCC continuation
+for PROGRAM functions was emitted as OCaml's `and`, which WhyML rejects outright (`unbound function or
+predicate symbol 'g'`, or `unexpected 'variant' clause` when a variant is present). The branch was
+DEAD-BUT-WRONG — 0 of 52 mirrors and 0 of 812 corpus programs ever reached it. FIXED (one word,
+`and` -> `with`) and pinned by corpus test `0966_mutual_recursion_descent_nest.py`, which proves
+SUCCESS with 13/13 sub-goals Valid including both `Variant decrease` goals. So mutual recursion works
+NOW, but only because this window fixed it.
 
 **(c) The real obstruction is the SHAPE OF THE NEST, and it was hidden by first-blocker reading.**
 The 11 methods form ONE mutual-recursion nest (`parse_expr -> parse_implication -> ... ->
@@ -84,7 +90,7 @@ Two annotations are load-bearing and were found only by RUNNING it:
 **Verdict: the wall is a COST/SCALE boundary, not a correctness one.** The target representation is
 sound and provable; what is missing is emitter reach.
 
-## 5. Why the nest cannot be converted PIECEWISE (the load-bearing constraint)
+## 5. Why MOST of the nest cannot be converted PIECEWISE (corrected after Gate R: 8 of 11, not 11 of 11)
 
 A partial conversion leaves the next level down as a `\trusted` abstract `val`. The driver
 separately established (and FIXED, same window) that such a val previously carried NO `writes`
@@ -92,10 +98,26 @@ clause, so a caller silently assumed the cursor was unmoved — which is exactly
 partial conversion's variant "prove" vacuously. With the frame honestly declared, a converted
 `parse_implication` CANNOT discharge its variant while `parse_disjunction` is trusted, unless the
 trusted stub is given a monotonicity postcondition (`ensures self.pos >= \old(self.pos)`) — i.e.
-unless the TCB is grown. Therefore the honest options are exactly two: convert the WHOLE nest, or
-grow the assumed interface. This report recommends the former.
+unless the TCB is grown. Therefore for such a member the honest options are exactly two: convert the
+WHOLE nest, or grow the assumed interface.
+
+**AMENDED after Gate R (the reviewer supplied a PROVED counter-construction, `piecewise_counter.mlw`).**
+The argument above is sound but was OVER-GENERALIZED. It binds only a member that either self-recurses
+or runs a loop whose progress depends on a trusted callee. A member with NEITHER — no self-call and no
+callee-dependent loop — converts PIECEWISE against honest frames with ZERO TCB growth, and the reviewer
+proved one all-Valid. That is roughly 3 of the 11 (`parse_expr`, `parse_quant`, `parse_comparison`);
+the other 8 remain genuinely all-or-nothing. This matters for sequencing: those 3 are a legitimate
+cheap first slice that does NOT require the full bundle.
 
 ## 6. The remaining, precisely-named emitter gaps
+
+**AMENDED after Gate R: this list was INCOMPLETE.** Also required, and not probed by the author:
+`" ".join(ty_parts)`; string-set-constant membership tests; KEYWORD-ARGUMENT ADT construction
+(`Forall(binders=..., ty=..., body=...)` — the positional `_call_irnode_constructor` path binds by
+name but the term route must too); and a STRICT-progress (`>`) postcondition that
+`parse_atom_application`'s loop needs from `parse_atom`. A further FACADE HAZARD to gate against:
+concrete `self.<m>()` sibling resolution is gated on `_record_array_fields`, so a class whose only
+list field is `List[int]` silently degrades to vacuous opaque `self_*_0` vals.
 
 1. `Term` (a module-level string-form union alias in the live source, stubbed `Term = 0` in the
    mirror) must resolve to the existing `term` ADT for returns and locals.
@@ -105,15 +127,25 @@ grow the assumed interface. This report recommends the former.
 3. Union-local typing for `Optional[Token]` locals (`t = self.peek()` currently lowers to
    `let t = ref 0` plus the opaque int-hash getters `get_kind`/`get_value` and hashed string
    constants such as `160205502` — a degenerate, value-blind path).
-4. A lexicographic `\variant` surface (`#@ \variant (<expr>, <ordering>)` exists in
-   `test-suite/annotations.md` line 32 as "structural variant"; whether it lowers to a Why3
-   lexicographic tuple is UNVERIFIED and is the next thing to measure).
-5. `\old` inside a `#@ loop invariant` (the monotone-cursor invariant).
-6. Exceptions: `parse_atom`/`expect` `raise SyntaxError(...)`.
-7. `int(t.value)` (str->int) and `tuple(args)` (list accumulator -> `list term` ctor field) for
-   `parse_atom` / `parse_atom_application` / `parse_quant`.
+4. ~~A lexicographic `\variant` surface~~ **CLOSED — no new surface needed.** `(<expr>, <ordering>)`
+   is a well-founded RELATION, not a tuple; encode the pair as one integer instead,
+   `16 * (\length(self.toks) - self.pos) + <level>`. Proved 41/41 in the spike and end-to-end
+   through the real surface in corpus test 0966.
+5. ~~`\old` inside a `#@ loop invariant`~~ **CLOSED — already supported** and already in use on
+   `_parse_lock_order` in the Module2_Parser mirror. (Hazard: loop annotations must PRECEDE the
+   `while` line; placed inside the body they are SILENTLY DROPPED.)
+6. ~~Exceptions~~ **CLOSED — already supported**: `raise SyntaxError(...)` in a value-returning
+   `@mutable_state` method emits `raises { SyntaxError }` (auto-derived) and type-checks.
+7. `int(t.value)` **CLOSED** (-> `str_to_int`), and seq accumulation **CLOSED**
+   (`args := Seq.snoc !args ...`). **STILL OPEN: `tuple(<seq>)`**, which lowers to the opaque
+   `tuple_1 : seq int -> int` and so int-erases the accumulator at the `App string (list term)`
+   ctor slot.
 
 ## 7. Honest limits of this report
+
+**Correction of record:** an earlier revision of §5 stated the frame-soundness defect was "FIXED, same
+window" while the fix existed only in detached worktrees. That was premature. As of this revision the
+`and` -> `with` mutual-recursion fix IS landed; the frame fix (L14) is gated but NOT yet landed.
 
 - The spike covers 4 methods, not 11; items 6 and 7 are NOT exercised by it. A reviewer should
   regard "the whole nest is provable" as SUPPORTED for the control-flow/termination/ADT core and
