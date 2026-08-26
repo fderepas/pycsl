@@ -5143,7 +5143,18 @@ class FunctionEmissionMixin:
         elif can_emit_as_logic:
             kw = f"{'let rec function' if (use_rec or _scc_size > 1) else 'let function'} {name}"
         elif is_and_clause:
-            kw = f"and {name}"
+            # WhyML chains a MUTUALLY RECURSIVE group with `with`, not with OCaml's
+            # `and` (0942). This branch emitted `and <name>`, which Why3 rejects
+            # outright — `let rec f ... and g ...` does not bind `g` at all
+            # ("unbound function or predicate symbol 'g'"), and with a `variant`
+            # present it fails earlier still ("unexpected 'variant' clause"). The
+            # sibling LOGIC path two branches up already used the correct
+            # `with function` continuation; only the PROGRAM path was wrong.
+            # Measured before the change: NO emitted file reached this branch (0 of
+            # 52 mirrors, 0 of 812 corpus programs contained an `and` continuation),
+            # i.e. it was dead-but-wrong code, so the correction is byte-inert and
+            # what it actually does is UNBLOCK mutual recursion for the first time.
+            kw = f"with {name}"
         else:
             kw = f"{'let rec' if (use_rec or _scc_size > 1) else 'let'} {name}"
         lines.append(f"  {kw} {args_str} : {return_type}" if args_str
