@@ -9,6 +9,22 @@ exhausted, and only STOPS at the deadline or when every item below is BROKEN / C
 certificate-touching builds. The only things still gated per-instance are IRREVERSIBLE / OUTWARD
 actions — `git push`, anything destructive/outward-facing — never the build/verify itself.
 
+**AUTHORITY AMENDMENT (set by the user, 2026-08-26, for the 96h window): FULL — INCLUDING THE
+PREVIOUSLY AUTHORIZE-FIRST FLAGGED BUILDS.** The three builds that standing FULL authority used to
+exclude are now PRE-AUTHORIZED for autonomous pursuit, at run START, so no mid-run authorization stop
+is legal for them:
+  (a) `find_assigned_vars` structural-variant robustification (RISKY brick: re-emits a landed verified
+      fn; faithfulness trap = selective body-not-orelse descent);
+  (b) const-dict global-type-inference value model (previously refuted — reopen and re-spike);
+  (c) the `while` -> `for` control-flow rewrite (breaks self-annotate mirror-sync).
+Discipline is UNCHANGED and non-negotiable for all three: spike-first with a refutation exit, lesson (p)
+census-first, the full three-L-plane battery driver-verified FRESH, ledger stays 3, foreground-only
+sub-agents, revert-to-clean on any sprawling/refuted build, commit every increment.
+For (c) specifically: a mirror-sync break is a FIDELITY-PLANE failure, so it may only land if
+`check-self-annotate-sync.sh` + `self-annotate-mirror-check.sh` are GREEN on the result; if the rewrite
+cannot keep them green, that is a CORRECTNESS boundary -> CERTIFIED-BOUNDARY, record and move on.
+STILL GATED (unchanged): `git push` and any irreversible / outward-facing action.
+
 **Discipline that still applies to every item (non-negotiable):** spike-first + refutation-exit (a
 wall that refutes is CERTIFIED-BOUNDARY, recorded, NOT ground on); lesson (p) census-first ("does an
 existing certified capability already do this?" — enumerate the value models / recognizers before
