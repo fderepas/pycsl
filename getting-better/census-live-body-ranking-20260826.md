@@ -320,3 +320,41 @@ strict filter), `frontend/ConcurrencyChecker.py` (4), `audit_proof.py` (11),
 `no_cheap_remaining` probe** in this campaign. Those probes were file-scoped over Module2/3/5,
 `expressions.py`, `pure_ast.py`, `ir_scanner.py` and the for-over-string cluster.
 
+
+---
+
+## v3 — final honest number: 182 / 611
+
+v2 silently dropped `regex` (and `Path`/`subprocess`/`os.environ`/`open`) from its hard-blocker set
+when it moved from the textual scan to the AST scan. Restored as one `regex-or-io` feature.
+
+**Final: 182 of 611** live-matched trusted stubs are free of every known hard blocker
+(266 -> 210 -> **182** as the filter got honest).
+
+The correction hits `proof2why3/` hardest — several of its most attractive-looking small stubs turn
+out to be regex normalizers (`canonical._camel_to_snake`, `canonical._normalize_type_string`,
+`crosscheck_ir._preprocess_whyml`) or `Path`-based (`sertop.type_of_batch`,
+`extract_lean_meta.lean_meta_available`), as is `monomorphize._mangled_name`. That shrinks the
+never-probed `proof2why3` pool from 22 to ~7.
+
+### What survives in the never-probed files (hand-checked against the live bodies)
+
+| file | qualname | live LOC | note |
+|---|---|---|---|
+| `frontend/ConcurrencyChecker.py` | `ConcurrencyChecker._walk_body` | 3 | `for stmt in stmts: self._walk_stmt(...)` — a plain list loop calling a stub that stays `\trusted` (emits as a `val`, which is fine). Cleanest candidate in the file. |
+| `frontend/ConcurrencyChecker.py` | `ConcurrencyChecker._check_function` | 4 | truthiness guard on `self._shared_vars`, then `_walk_body(func.body, held=set(), func_name=func.name)` — needs `set()` construction + two raw-AST attribute reads |
+| `proof2why3/crosscheck.py` | `CrossCheckResult.pairwise` | 9 | builds a `Dict[str, bool]` purely from string equality over `self` fields — every ingredient is modeled |
+| `proof2why3/sertop.py` | `SertopSession.__enter__` | 2 | `return self` — provable but a probable Gate-C facade; only take it if the contract says something |
+| `frontend/ConcurrencyChecker.py` | `ConcurrencyChecker.summary` | 8 | f-string + `join` accumulation |
+
+Also measured and to be AVOIDED here:
+`ConcurrencyChecker._warn_if_unprotected` is **warn-only** (appends a warning and returns) — the
+documented vacuous-by-design category; `monomorphize._rewrite_call_sites` / `._rewrite_annotations`
+mutate `func["body"]` / `func["symbol_table"]` in place = the documented dict-mutation boundary;
+`proof2why3/parser.py::_Parser.*` is a stateful cursor recursive descent = the documented Parser
+category; `sertop.parse_sexp` converts a GENERATOR to a list.
+
+**Lesson for the next census (bank it):** a feature filter is only as honest as its blocker set, and
+each tightening moved the answer by 20-25%. Report the filter definition alongside the number, and
+hand-check the top of the ranking against live bodies before spending a cycle on it — three of the
+five most attractive-looking candidates in the first ranking were regex normalizers.
