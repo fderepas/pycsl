@@ -3794,3 +3794,70 @@ function serves EVERY corpus record construction, so the byte-diff is still a HA
 UNVERIFIED and left for the spike: whether `rec_info['defaults']` even captures a *string* default
 upstream (Module 5), or whether the capture side needs work too. Determine that FIRST — it decides
 whether L10-part-1 is a one-function fix or a two-surface build.
+
+## L9-drain EXHAUSTED at the list-binding level (4/4 REFUTED, 0 commits, count 671, tree clean)
+
+`_parse_no_exception` + the `_Harvester` trio all measured, all reverted. Two findings matter more
+than the refutations.
+
+### FINDING 1 — `Return <record>` is a Why3 TYPE REJECTION, and it UNIFIES three boundaries
+`_parse_no_exception` is the first target in this cluster with an **early return**, so it needs the
+`Return`-exception machinery. The emitted file declares only `Return int`, `Return_seq`,
+`Return_seq_str`, `Return_str`, `Return_emit_ir`, `Return__union_accept_op_9` — every one an
+IMMUTABLE payload — so a record-returning multi-return method falls back to `Return int` and
+L3-tc rejects it. `_parse_for_block` and `_parse_happy_region` both dodged this by accident of
+having a single tail return.
+
+**Driver oracle (hand `.mlw`, `why3 prove`), decisive:**
+```
+type noexceptiondecl = { mutable exceptions: array string; mutable all_form: int }
+exception Return_record noexceptiondecl
+  =>  "The type of top-level exception Return_record has mutable components"
+```
+That is the SAME error that reverted the earlier tuple-return-exception build
+(`exception Return_tuple_2_int_array_int has mutable components`). **So this is a CORRECTNESS
+boundary as currently emitted, not an unimplemented feature** — and it is the same root as that
+older, separately-recorded boundary. All emitted CSL-node records are `mutable` with `array` fields
+(`type noexceptiondecl = { mutable exceptions: array string; mutable all_form: int }`).
+
+**REOPENING, PROVEN BY ORACLE — precise and two-part.** Two further spikes isolate exactly what is
+required:
+| payload shape | Why3 verdict |
+|---|---|
+| `{ mutable exceptions: array string; mutable all_form: int }` | **REJECTED** — mutable components |
+| `{ exceptions: array string; all_form: int }` (immutable binding, array field) | **REJECTED** — `array` is itself mutable |
+| `{ exceptions: seq string; all_form: int }` (immutable AND seq) | **ACCEPTED** |
+So the capability is **an immutable, `seq`-backed record representation for value-like CSL nodes**
+— immutability alone is NOT enough; the list field must be `seq`, not `array`. Note this is in
+tension with the list-binding just landed, which produces an `array` via `Init.init`; a
+Return-payload record would need the `seq` form instead. This supersedes the older tuple-return
+reopening note ("immutable-slot-gating") with a measured, sufficient condition.
+
+### FINDING 2 — the self-field append is NOT universally a facade (a scare, checked and cleared)
+The executor found that in `_Harvester`, `self._out.append(...)` lowers to a **fabricated
+function-local shadow array**, erasing the field write — and in `run`, the body appends to the shadow
+then returns the unmodified field. That raised the question of whether any ALREADY-LANDED conversion
+is a facade of this kind. **Driver census: only 3 converted (un-`\trusted`) mirror functions have a
+live body mutating a self-field container** — `pure_ast::_Unparser.write`,
+`Module5_IREmitter::_collect_final_registry`, and `stmt_control_flow::_handle_for_stmt` (the last is
+already one of the 2 known-DIVERGED baseline pair). Inspecting the emitted WhyML for
+`_collect_final_registry` shows a **REAL field write**:
+```
+writes { self._final_registry }
+self._final_registry <- Seq.snoc self._final_registry (HMap (PCons "allowed_writer" ...))
+```
+**So there is NO landed facade on this axis.** The distinguishing factor is the ELEMENT type:
+`_final_registry` holds immutable `HMap` pyvals and lowers faithfully via `Seq.snoc`, whereas
+`_Harvester._out` holds `pycslcontract` RECORDS (mutable) and degenerates. Same mutable-record root
+as Finding 1.
+
+### The rest of the `_Harvester` verdict (recorded, not pursued)
+- `@mutable_state` on `_Harvester` is MANDATORY (without it `_out` types as `array int`) but its blast
+  radius is disqualifying: `Module1_Ingestor.mlw` goes **109 -> 400 lines**, pulling the whole
+  certified `emit_ir` ADT, `kind_of` and the `size_*_dec` lemma apparatus into a file that has nothing
+  to do with IR nodes.
+- **None of the three actuals could bind anyway**: `_emit_block_footer` passes `list(last_stmt.footer)`
+  (a call, not a `!<local>` deref); `run` passes a self-field read; `_emit_target` builds its local
+  with `.extend`, which lowers to `let _ = (contracts_extend_1 ...) in ()` — **an opaque val whose
+  result is DISCARDED**, so the local stays `(Array.make 1024 0)`. Its `if contracts and ...` also
+  lowered to `if true && ...`, erasing the truthiness discriminant. Watch for both shapes.
