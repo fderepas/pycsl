@@ -472,20 +472,20 @@ class _Parser:
     def small_stmt(self):
         pass
 
-    # `_fin` RECOGNIZER vein: NOT YET CONVERTIBLE. Its body lowers correctly through the new
-    # `_fin` recognizer, but `val = None` / `val = self.testlist()` needs an `option emit_ir`
-    # LOCAL carrier and there is none: the local is inferred `emit_ir` from its assignment,
-    # the `None` initialiser erases, and binding it to `Return`'s OPTIONAL `value` field is an
-    # L3 type error. `Optional["ExprIR"]` as a PEP-526 local annotation does NOT create the
-    # carrier either (measured) — the union normalization has no emit_ir arm. NAMED
-    # CAPABILITY: an `Optional[ExprIR]` local carrier (`option emit_ir`), the emit_ir twin of
-    # the `Optional[str]` union local the class-by-name factory already builds.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # `_fin` RECOGNIZER vein, increment 5: CONVERTED. Verbatim body port of the LIVE
+    # `return_stmt`, including the PEP-526 `Optional["ExprIR"]` annotation the LIVE body now
+    # also carries (a local's annotation is never evaluated at runtime, so it is inert there;
+    # here it is what makes the `None`/node local a real union carrier and `Return`'s
+    # OPTIONAL `value` field a TRUE `None` on the value-less path).
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def return_stmt(self):
-        pass
+    def return_stmt(self) -> "Return":
+        t = self.advance()
+        val: Optional["ExprIR"] = None
+        if not self._stmt_end():
+            val = self.testlist()
+        return self._fin(_N("Return")(value=val), t)
 
     #@ requires True
     #@ ensures True
@@ -507,12 +507,21 @@ class _Parser:
     def del_stmt(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # `_fin` RECOGNIZER vein, increment 5: CONVERTED. Verbatim body port of the LIVE
+    # `assert_stmt`, including its PEP-526 `Optional["ExprIR"]` local annotation (inert at
+    # runtime; here it is what makes the absent path a TRUE `None`). `self._fin(_N(...)(...), t)`
+    # lowers to the construction itself — `_fin` sets only the four ASDL LOCATION
+    # ATTRIBUTES, which the harvested records do not carry.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def assert_stmt(self):
-        pass
+    def assert_stmt(self) -> "Assert":
+        t = self.advance()
+        test = self.test()
+        msg: Optional["ExprIR"] = None
+        if self.accept_op(","):
+            msg = self.test()
+        return self._fin(_N("Assert")(test=test, msg=msg), t)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -882,12 +891,22 @@ class _Parser:
     def parse_parameters(self, close):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # `_fin` RECOGNIZER vein, increment 5: CONVERTED. Verbatim body port of the LIVE
+    # `_param_arg`, including its PEP-526 `Optional["ExprIR"]` local annotation (inert at
+    # runtime; here it is what makes the absent path a TRUE `None`). `self._fin(_N(...)(...), t)`
+    # lowers to the construction itself — `_fin` sets only the four ASDL LOCATION
+    # ATTRIBUTES, which the harvested records do not carry.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _param_arg(self):
-        pass
+    def _param_arg(self) -> "arg":
+        t = self.cur()
+        name = self._name_str()
+        ann: Optional["ExprIR"] = None
+        if self.accept_op(":"):
+            ann = self.test()
+        return self._fin(_N("arg")(arg=name, annotation=ann, type_comment=None), t)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -918,11 +937,16 @@ class _Parser:
     def namedexpr_test(self):
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
+    # precedents). STAYS \trusted. `-> "ExprIR"` records that the result IS an expression
+    # node (`emit_ir`); the non-regression clause is backed by the live body, which moves the
+    # cursor only through `advance`/`accept_*`/`expect_*`.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def test(self):
+    def test(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate

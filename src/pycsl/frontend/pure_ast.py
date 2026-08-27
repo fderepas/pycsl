@@ -858,7 +858,13 @@ class _Parser:
 
     def return_stmt(self):
         t = self.advance()
-        val = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never evaluated —
+        # the same idiom this file already uses for `asname: Optional[str] = None`). It is
+        # here for the VERIFIER: without it the `val` local is inferred `ExprIR` from its
+        # assignment, the `None` initialiser erases, and `Return`'s OPTIONAL `value` field
+        # would be bound from a non-option local — an L3 type error, and a value-less
+        # `return` would model as a node rather than as a true `None`.
+        val: Optional["ExprIR"] = None
         if not self._stmt_end():
             val = self.testlist()
         return self._fin(_N("Return")(value=val), t)
@@ -885,7 +891,10 @@ class _Parser:
     def assert_stmt(self):
         t = self.advance()
         test = self.test()
-        msg = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never evaluated),
+        # here for the VERIFIER: it makes the local a real `option emit_ir` carrier, so the
+        # absent path is a TRUE `None` and not an erased node.
+        msg: Optional["ExprIR"] = None
         if self.accept_op(","):
             msg = self.test()
         return self._fin(_N("Assert")(test=test, msg=msg), t)
@@ -1495,7 +1504,10 @@ class _Parser:
     def _param_arg(self):
         t = self.cur()
         name = self._name_str()
-        ann = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never evaluated),
+        # here for the VERIFIER: it makes the local a real `option emit_ir` carrier, so the
+        # absent path is a TRUE `None` and not an erased node.
+        ann: Optional["ExprIR"] = None
         if self.accept_op(":"):
             ann = self.test()
         return self._fin(_N("arg")(arg=name, annotation=ann, type_comment=None), t)

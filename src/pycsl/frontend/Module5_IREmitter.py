@@ -3458,17 +3458,56 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         """Return the list of arm AST expressions if `ann_expr` is one of the
         four Union surface forms, else None (caller falls back to existing
         logic). Flattens nested `|` (left-assoc BinOp BitOr) and degenerate
-        `Union[X]` (non-Tuple slice)."""
+        `Union[X]` (non-Tuple slice).
+
+        A QUOTED IR-NODE arm (`Optional["ExprIR"]`) is rewritten to the `ast.expr`
+        spelling `_union_arm_tag` already maps to the `emit_ir` payload. `"ExprIR"` is
+        the codebase's standard way of saying "an IR node" in a module that cannot import
+        the name at runtime — `pure_ast.py` has no `typing` import and MUST NOT get one
+        (wall-lessons (ss)) — and Module6 already resolves it at the RETURN seam. Inside a
+        Union it was invisible: the arm fell to `Any`, was DROPPED (GT1), and the
+        synthesized variant collapsed to a None-only VACUOUS type.
+        Rewritten HERE because THIS method's mirror is `\trusted` while `_union_arm_tag`'s
+        is CONVERTED, so it carries no §10.4 re-port and no Module5 mirror re-proof
+        (wall-lessons (vv)); and as a NESTED function rather than a new method, because a
+        new method on this class becomes an abstract `val` in EVERY mirror that imports it
+        (wall-lessons (yy)). Additive — no reference-corpus program spells a quoted Union
+        arm, which the byte-diff measures."""
+        # NOTE ON SHAPE: the rewrite is spelled INLINE, three times, rather than as a helper.
+        # Measured (wall-lessons (yy) and its extension): a new METHOD on this class, a
+        # NESTED `def`, and even a MODULE-LEVEL function ALL become an abstract `val` in the
+        # emission of every mirror that imports this module — `val
+        # pycsltojsonemitter___q (self: …) (e: int) : int` / `val _m5_quoted_irnode_arm
+        # (e: int) : int` appeared in `frontend/__init__.mlw` and `frontend/ir_resolve.mlw`,
+        # turning a 1-of-52 mirror diff into 3-of-52 and obliging two whole-file re-proofs
+        # for a declaration line. Duplication is the cheaper option here.
         if isinstance(ann_expr, ast.Subscript) and isinstance(ann_expr.value, ast.Name):
             head = ann_expr.value.id
             if head == "Union":
                 inner = ann_expr.slice
                 if isinstance(inner, ast.Tuple):
-                    return list(inner.elts)
-                return [inner]
+                    return [(ast.Attribute(value=ast.Name(id="ast", ctx=ast.Load()),
+                                           attr="expr", ctx=ast.Load())
+                             if (isinstance(e, ast.Constant) and isinstance(e.value, str)
+                                 and e.value in ("ExprIR", "StmtIR", "IRNode",
+                                                 "ContractExprIR"))
+                             else e)
+                            for e in inner.elts]
+                return [(ast.Attribute(value=ast.Name(id="ast", ctx=ast.Load()),
+                                       attr="expr", ctx=ast.Load())
+                         if (isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+                             and inner.value in ("ExprIR", "StmtIR", "IRNode",
+                                                 "ContractExprIR"))
+                         else inner)]
             if head == "Optional":
                 inner = ann_expr.slice
-                return [inner, ast.Constant(value=None)]
+                return [(ast.Attribute(value=ast.Name(id="ast", ctx=ast.Load()),
+                                       attr="expr", ctx=ast.Load())
+                         if (isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+                             and inner.value in ("ExprIR", "StmtIR", "IRNode",
+                                                 "ContractExprIR"))
+                         else inner),
+                        ast.Constant(value=None)]
         if isinstance(ann_expr, ast.BinOp) and isinstance(ann_expr.op, ast.BitOr):
             arms: List[ast.expr] = []
             stack = [ann_expr]
@@ -4582,13 +4621,40 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             dict_key_types.setdefault(target.id, "string")
             elif isinstance(child, ast.AnnAssign):
                 if isinstance(child.target, ast.Name) and child.target.id not in shared:
-                    # tool-feature-5: `dedup=True` at the LOCAL-declaration seam so a
-                    # mutable `x: Optional[τ] = None` shares the enclosing function's
-                    # `-> Optional[τ]` return union (nominal identity for `return x`).
-                    scope[child.target.id] = (
-                        self._m5_get_type_name(child.annotation, _scope_name, dedup=True)
-                        if child.annotation else "Any"
-                    )
+                    # `Optional[<IR-node tag>]` LOCAL -> a REAL union carrier.
+                    # `_m5_get_type_name` collapses `Optional[ExprIR]` to plain `ExprIR`
+                    # (`_irnode_ann_name`, "emit_ir is total") — correct for a PARAM or a
+                    # FIELD, and deliberately so: commit b18932b8's over-broad
+                    # `option emit_ir` FIELD typing broke every consumer mirror that reads
+                    # such a field as a bare always-present node. But for a LOCAL declared
+                    # `x: Optional[ExprIR] = None` and later bound from a node, the collapse
+                    # ERASES the `None`: the local becomes a bare `emit_ir` ref initialised
+                    # to `IrOther ""`, so a value-less path models as a NODE, and binding it
+                    # to a genuinely `option emit_ir` record field is an L3 type error. The
+                    # LOCAL seam is DISJOINT from the param/field seams, so the union is
+                    # synthesized HERE only and b18932b8's regression cannot recur. Gated on
+                    # the explicit `Optional[...]` wrapper around an IR-node tag, so every
+                    # other annotation is byte-identical.
+                    _ann = child.annotation
+                    _opt_ir = (isinstance(_ann, ast.Subscript)
+                               and isinstance(_ann.value, ast.Name)
+                               and _ann.value.id == "Optional"
+                               and self._irnode_ann_name(_ann) is not None)
+                    if _opt_ir and _scope_name:
+                        try:
+                            scope[child.target.id] = self._normalize_union_annotation(
+                                _ann, _scope_name, dedup=True)
+                        except Exception:
+                            scope[child.target.id] = self._m5_get_type_name(
+                                _ann, _scope_name, dedup=True)
+                    else:
+                        # tool-feature-5: `dedup=True` at the LOCAL-declaration seam so a
+                        # mutable `x: Optional[τ] = None` shares the enclosing function's
+                        # `-> Optional[τ]` return union (nominal identity for `return x`).
+                        scope[child.target.id] = (
+                            self._m5_get_type_name(child.annotation, _scope_name, dedup=True)
+                            if child.annotation else "Any"
+                        )
                     if child.annotation is not None:
                         nu = self._m5_get_dict_value_type(child.annotation)
                         if nu is not None:

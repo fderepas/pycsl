@@ -2792,3 +2792,43 @@ consumers before estimating the vein. A model that types constructions beautiful
 almost none of the FUNCTIONS, and the fix is a sum type, not a better recognizer. (Here that is
 exactly the `pyast_expr` Stage-B item the campaign already has on the ladder — so the right move is
 to fund THAT rather than to keep widening the field table.)
+
+## Lesson (yy-ext) — a NESTED `def` and even a MODULE-LEVEL function ripple exactly like a new method
+
+(yy) said "a new method on `PyCSLToJSONEmitter` becomes an abstract `val` in every mirror that
+imports it — inline it instead". Extracting the same predicate as a NESTED `def` inside the method
+did NOT help: the emitter LIFTS nested functions, and
+
+    val pycsltojsonemitter___q (self: pycsltojsonemitter) (e: int) : int
+
+appeared in `frontend/__init__.mlw` and `frontend/ir_resolve.mlw` just the same. Moving it to
+MODULE level did not help either:
+
+    val _m5_quoted_irnode_arm (e: int) : int
+
+appeared in exactly the same two files. Only literal INLINING at each of the three call sites put
+the mirror sweep back to 1 of 52.
+
+**The rule.** In a module whose class or namespace other mirrors import, *any new named callable* —
+method, nested def, or module-level function — is a new declaration in their emissions. When the
+alternative is two extra whole-file re-proofs, duplicate the three lines and say so in a comment.
+
+## Lesson (ab) — the `Optional[X]` COLLAPSE is right for a param/field and wrong for a LOCAL, and the seams are disjoint
+
+`_irnode_ann_name` deliberately maps `Optional[ExprIR]` to plain `ExprIR` ("emit_ir is total"), and
+the code carries a scar explaining why: commit b18932b8 typed EVERY `Optional[ExprIR]` FIELD as
+`option emit_ir` and broke every consumer mirror that reads such a field as a bare always-present
+node. That history makes the collapse look untouchable.
+
+It is untouchable **at the param and field seams**. At the LOCAL-declaration seam it is exactly
+wrong: `val: Optional["ExprIR"] = None` collapses to a bare `emit_ir` ref initialised to
+`IrOther ""`, so the value-less path models as a NODE — the None-reads-as-a-value erasure — and
+binding the local to a genuinely `option emit_ir` record field is an L3 type error. Synthesizing
+the union in `_build_function_symbol_table`'s AnnAssign branch ONLY leaves the param/field seams
+byte-identical, so b18932b8's regression cannot recur; `return_stmt` then emits
+`Arm_2_None` / `Arm_2_0 (testlist self)` and projects to a real `Some`/`None`.
+
+**The rule.** When a recorded regression says "typing X as an option broke everything", check
+WHICH SEAM it broke. `param`, `field`, `local` and `return` are four different code paths in this
+emitter, and a fix confined to one of them does not re-open the others. Read the scar before you
+believe it covers your case — and confine the change to the seam you measured.
