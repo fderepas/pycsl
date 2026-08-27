@@ -445,6 +445,10 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # ("OptExprIR"): a bare `raise` carries a TRUE `None` in each, and `raise E from C`
     # carries both nodes.
     "Raise": [("exc", "OptExprIR"), ("cause", "OptExprIR")],
+    # `_fin` RECOGNIZER vein: `Import` — one TOTAL field, a LIST of `alias` nodes (the
+    # "RecList:<Rec>" tag). `_NODE_SPEC['Import'] == ('stmt', ('names',), ...)`, no
+    # `_OPTIONAL_FIELDS` entry.
+    "Import": [("names", "RecList:alias")],
     # SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5, C-bucket):
     # the `x op= v` / `self.f op= v` / `c[k] op= v` augmented-assignment statement.
     # `_NODE_SPEC['AugAssign'] = ('stmt', ('target', 'op', 'value'), None)`; all three
@@ -607,6 +611,16 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
                     # @mutable_state (corpus byte-inert).
                     fields.append({"name": fname, "type": "list",
                                    "value_type": "int", "mutable": True})
+                elif ftype.startswith("RecList:"):
+                    # `_fin` RECOGNIZER vein: a LIST-OF-HARVESTED-RECORD field (`Import.names`
+                    # is a list of `alias`). Expands to `{"type":"list","value_type":"<Rec>"}`
+                    # — the preamble record emitter maps `list` + a value_type naming a
+                    # DECLARED RECORD to `array <record>` (the `List[_Tok]` precedent), so the
+                    # field carries real records instead of the int-erased `array int`. The
+                    # element record must itself be harvested, which the `wanted` set below
+                    # arranges by naming it here.
+                    fields.append({"name": fname, "type": "list",
+                                   "value_type": ftype.split(":", 1)[1], "mutable": True})
                 elif ftype == "OptStr":
                     # CLASS-BY-NAME FACTORY vein: the string twin of "OptExprIR" — an
                     # `Optional[str]` pure_ast field (`alias.asname`) expands to
@@ -772,6 +786,13 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
                 fi = func_by_name.get(node.name)
                 if fi is not None and fi.get("symbol_table") is not None:
                     fi["symbol_table"][arg.arg] = an
+    # A "RecList:<Rec>" FIELD names an element record that must ALSO be harvested and
+    # declared, or its `array <Rec>` field type has no type to point at.
+    for _n in list(wanted):
+        for _f in records.get(_n, {}).get("fields", []):
+            _vt = _f.get("value_type")
+            if _f.get("type") == "list" and isinstance(_vt, str) and _vt in records:
+                wanted.add(_vt)
     if not wanted:
         return
     existing = {td.get("name") for td in ir_data.get("type_decls", [])}

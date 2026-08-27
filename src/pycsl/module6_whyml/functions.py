@@ -381,6 +381,11 @@ class FunctionEmissionMixin:
         # (statements.py) and read ONLY by the @mutable_state-gated
         # `_bind_listfield_from_seq` — write-only elsewhere, so byte-inert.
         self._emit_ir_seq_locals: set = set()
+        # `_fin` RECOGNIZER vein: seq local -> the RECORD CLASS its elements carry, recorded
+        # at the `.append` site from the callee's declared return. Read only by the
+        # `@mutable_state`-gated `_bind_listfield_from_seq`; write-only elsewhere, so the
+        # emitted text is unchanged wherever it is empty.
+        self._record_seq_locals: dict = {}
         # nested-list.md S2: a `List[<container>]` param -> the outer list's WhyML
         # element type (`seq ..`/`map ..`). Drives the `array (seq τ)` param type and
         # the nested read `a[i][j]` (Seq.get / Map.get). Empty for flat lists.

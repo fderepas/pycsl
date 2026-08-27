@@ -560,12 +560,22 @@ class _Parser:
             self.error("expected name")
         return self.advance().string
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # `_fin` RECOGNIZER vein, increment 7: CONVERTED. Verbatim body port of the LIVE
+    # `import_stmt`. `Import.names` is a LIST OF HARVESTED `alias` RECORDS (the new
+    # "RecList:<Rec>" field tag), and the accumulator really carries the CONVERTED
+    # `_dotted_as_name` results, so the constructed node holds real alias records instead of
+    # the empty `Array.make 0 0` dropped-child facade.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def import_stmt(self):
-        pass
+    def import_stmt(self) -> "Import":
+        t = self.advance()
+        names = [self._dotted_as_name()]
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self._dotted_as_name())
+        return self._fin(_N("Import")(names=names), t)
 
     # CLASS-BY-NAME FACTORY vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body
     # port of the LIVE `_dotted_as_name`. `_N("alias")(name=…, asname=…)` resolves to a direct
@@ -574,12 +584,22 @@ class _Parser:
     # `while self.accept_op(".")` loop takes the cursor measure: `accept_op`'s monotonicity
     # postcondition (itself proved through `at_op` + the EOF-sentinel invariant + `advance`)
     # makes a true guard mean the cursor STRICTLY advanced.
+    # CURSOR NON-REGRESSION: needed by `import_stmt`'s cursor-measure loop, whose BODY calls
+    # this (relaunch #4's `_name_str` lesson: a cursor-measure loop needs monotonicity from
+    # EVERY call in its body, not just from the guard). PROVED here — the body moves `self.i`
+    # only through `_name_str` / `accept_op` / `accept_kw`, all of which export it.
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _dotted_as_name(self) -> "alias":
         parts = [self._name_str()]
+        # GHOST cursor snapshot (lesson (xx)): the loop's `assigns self.i` says nothing about
+        # DIRECTION, so without this invariant the function's own `self.i >= \old(self.i)`
+        # postcondition is Unknown even though every call in the body exports monotonicity.
+        # A ghost, not a real local — a mirror-only local would break the fidelity plane.
+        #@ ghost i0 = self.i
         #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
         #@ loop variant \length(self.toks) - self.i
         while self.accept_op("."):
             parts.append(self._name_str())

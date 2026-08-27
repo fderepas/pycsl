@@ -9034,7 +9034,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if rec_info.get("field_types", {}).get(fn) != "list":
             return None
         _fvt = rec_info.get("field_value_types", {}).get(fn)
-        if _fvt not in ("emit_ir", "string"):
+        if _fvt not in ("emit_ir", "string") and _fvt not in getattr(self, "_record_types", {}):
             return None
         v = ent.get("value")
         if not (isinstance(v, dict) and v.get("type") == "Var"):
@@ -9052,6 +9052,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # only emitted when the seq is KNOWN to carry the field's element type.
         if _fvt == "emit_ir":
             if lname not in getattr(self, "_emit_ir_seq_locals", set()):
+                return None
+        elif _fvt in getattr(self, "_record_types", {}):
+            # RECORD-ELEMENT list field (`Import.names : array alias`): the seq local is
+            # filled by `names.append(self._dotted_as_name())`, whose callee RETURNS that
+            # record, so the element types agree by construction. Gated on the seq local
+            # being recorded as carrying THIS record (`_record_seq_locals`), so a seq of an
+            # unknown element type still never binds.
+            if _fvt != getattr(self, "_record_seq_locals", {}).get(lname):
                 return None
         elif getattr(self, "_seq_value_types", {}).get(lname) != "string":
             return None

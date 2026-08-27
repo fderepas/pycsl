@@ -1829,6 +1829,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                         break
                         if _elt_is_ir and hasattr(self, "_emit_ir_seq_locals"):
                             self._emit_ir_seq_locals.add(arr_name)
+                        elif not _elt_is_ir and hasattr(self, "_record_seq_locals"):
+                            # RECORD-ELEMENT seq local (`names.append(self._dotted_as_name())`
+                            # where the callee returns the harvested `alias` record): record the
+                            # element's RECORD CLASS so `_bind_listfield_from_seq` can bind the
+                            # caller's real list into an `array <record>` field instead of the
+                            # empty `Array.make 0 0` DROPPED-CHILD facade. Resolved off the
+                            # callee's own function IR, so any other return type is unaffected.
+                            _av2 = val["args"][0]
+                            _av2 = _av2.to_dict() if hasattr(_av2, "to_dict") else _av2
+                            if isinstance(_av2, dict) and _av2.get("type") in ("Call", "MethodCall"):
+                                _cn2 = str(_av2.get("func", "") or "").rsplit(".", 1)[-1]
+                                for _f2 in (self.ir.get("functions", []) or []):
+                                    if str(_f2.get("name", "")).endswith(_cn2):
+                                        _ra2 = _f2.get("return_annotation")
+                                        if _ra2 in getattr(self, "_record_types", {}):
+                                            self._record_seq_locals[arr_name] = _ra2
+                                        break
                         code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
                     else:
                         len_ref = f"{safe_arr}_len"
