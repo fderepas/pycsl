@@ -2,15 +2,18 @@
 
 ## State, verified from the surface
 
-- **Count: `grep` 613 · MARKERS 588.** Quote BOTH. The two differ by a CONSTANT 25 and the
+- **Count: `grep` 611 · MARKERS 586.** Quote BOTH. The two differ by a CONSTANT 25 and the
   campaign has been over-reporting by that much since it started — see the metric correction
-  below. Window delta: grep **619 -> 613**, markers **594 -> 588**.
+  below. Window delta: grep **619 -> 611**, markers **594 -> 586** — EIGHT conversions plus two
+  count-neutral interface repairs.
 - Ledger **3**, untouched. No new axiom. Rocq `Phase2l_PyAstExpr.v` 35/35 `Closed under the
   global context`; Lean `PyAstExpr.lean` 34/34 (28 axiom-free, 6 `propext`, no `sorryAx`).
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`,
   `src/formal-semantics/rocq/.lia.cache`, untracked `scratchpad/`, `prompt.txt`). None of it is
   mine; leave it alone. `getting-better/.driver-deadline` intact.
-- Field parity OK; `check-untrusted-emitted` 722/705/0/0; vacuity gate GREEN (0 new erasure).
+- Field parity OK; `check-untrusted-emitted` **724/707/0/0**; vacuity GREEN; fidelity at the
+  baseline **2 DIVERGED / 3 drifted**; corpus byte-diff **0 over 813/813**; the emitted mirror set
+  is byte-IDENTICAL to the set that was proved.
 
 ## THE METRIC IS WRONG BY 25 — fix your expectations before you read any old record
 
@@ -46,7 +49,19 @@ exactly THREE handler tables, so the vein is exhausted.
 `frontend/pure_ast.py` holds **186 of 588 markers = 31% of the entire TCB**, more than the next
 FIVE files combined, with **96 in the single class `_Parser`**. The backlog had it filed behind a
 "solver-context-saturation PROOF-SCALE wall"; measured fresh, the file proves **235 Valid in
-minutes** — one of the CHEAPEST in the suite to gate. Four conversions landed there (617->613).
+minutes** — one of the CHEAPEST in the suite to gate. SIX conversions landed there (617->611) and
+the file now proves **299 Valid, SUCCESS**.
+
+**TWO CAPABILITIES LANDED THERE, both with consumers:**
+ - the **CLASS-BY-NAME FACTORY** — `_N("<Class>")(<kwargs>)` resolved to a direct construction
+   over the SAME-FILE-harvested `_NODE_SPEC` record, with a synthesized constructor, an
+   `option`-field import gate, declaration-beats-inference for union locals, and an OPTION-TARGET
+   union projection so an absent value is a true `None` and not `""`;
+ - the **`_Parser` CURSOR CHAIN** — `cur` identity, `at_op` token-kind, the **EOF-SENTINEL class
+   invariant**, `advance`'s increment, `accept_op`'s strict progress, and (the one the
+   measurement forced) `_name_str`'s NON-REGRESSION. **A cursor-measure loop needs monotonicity
+   from EVERY call in its body, not just from the guard.** Every `while self.accept_op(...)` loop
+   in the class is now reachable.
 
 **A WHOLE-MIRROR FRONTIER SWEEP**, the first that does not over-report: 574 candidates, 513
 L3TC-FAIL, 28 ERASURE, 2 CLEAN (one of which was STILL wrong on inspection).
@@ -60,25 +75,31 @@ L3TC-FAIL, 28 ERASURE, 2 CLEAN (one of which was STILL wrong on inspection).
 
 ## Pick up here — in this order
 
-1. **`getting-better/pyast-expr/class-by-name-factory-WIP.patch` — `git apply` it.** FIVE working
-   emitter pieces, all measured byte-inert, banked out of the tree only because no stub converts
-   yet. **ONE gap remains and it is located to the line**: the union local is projected to a bare
-   string where the field is `option string`; it needs an option-target projection pushed DOWN to
-   the keyword lowering. Fix that and `_import_as_name`/`_dotted_as_name` convert — and the
-   capability behind **73 of the 96 `_Parser` stubs (12% of the TCB)** is validated.
-2. **But budget `_fin` too.** Almost every OTHER `_N` construction is wrapped in
-   `self._fin(_N(…)(…), t)`, which SETS FOUR LOCATION ATTRIBUTES on a node whose type varies per
-   call site. **`_fin`, not `_N`, is the gate for the remaining ~71 stubs** — a distinct and
-   harder capability. `_N` is necessary, not sufficient.
-3. **`for`-over-array has NO termination variant and the SOURCE CANNOT SUPPLY ONE** (the counter
+1. **`accept_kw`'s monotonicity chain — a FIVE-MINUTE repeat of a landed pattern.** `at_kw` gets
+   a token-kind postcondition exactly like `at_op`'s and `accept_kw` gets the strict-progress
+   clause; both discharge against the EOF-sentinel invariant already in the class. It unblocks
+   every `accept_kw`-using body. MEASURED as the blocker: giving `_import_as_name` the
+   non-regression clause its caller needs makes its OWN postcondition time out, because its body
+   calls `accept_kw`.
+2. **Then `_import_as_names`** — its body already lowers PERFECTLY (cursor loop discharges, real
+   `break`, accumulator snocs the CONVERTED `_import_as_name`). Its second blocker is the return
+   annotation: `List[<harvested record>]`. **DO NOT "just add the typing import"** — see
+   wall-lessons (ss); `List`/`Set`/`Dict`/`Tuple` are ASDL node names in `pure_ast`'s own globals
+   and importing them from `typing` REPLACES the node classes and breaks the parser. Use a quoted
+   annotation or a non-colliding alias.
+3. **Budget `_fin` before funding the rest of the vein.** Almost every OTHER `_N` construction is
+   wrapped in `self._fin(_N(…)(…), t)`, which SETS FOUR LOCATION ATTRIBUTES on a node whose type
+   varies per call site. **`_fin`, not `_N`, is the gate for the remaining ~71 stubs** — a
+   distinct and harder capability. `_N` is necessary, not sufficient.
+4. **`for`-over-array has NO termination variant and the SOURCE CANNOT SUPPLY ONE** (the counter
    is emitter-internal). Do NOT send a window to write invariants for it. The capability is to
    emit the arithmetic index invariant/variant when the bound is already a pure LOGIC length
    term; the obstacle is the BYTE-DIFF (corpus drivers are not `@mutable_state` and get none
    today), so it needs an opt-in `#@` surface plus the doc-coherency/language-audit obligation.
-4. Stage B of the `pyast_expr` build (recursive ADT, structural variant) — the honest
+5. Stage B of the `pyast_expr` build (recursive ADT, structural variant) — the honest
    strengthening of this window's two dispatch conversions. Phase-0b already proved the shape
    (16/16). It retires the four abstract vals the conversions introduced.
-5. `_py_stmts_to_ir`'s six named features, if the window is long. Two of them add constructors to
+6. `_py_stmts_to_ir`'s six named features, if the window is long. Two of them add constructors to
    the CERTIFIED `stmt_ir` ADT, so the certificate must be extended under the co-landing rule.
 
 ## Method notes this window paid for (full text in wall-lessons.md, (jj)-(rr))
@@ -95,3 +116,10 @@ L3TC-FAIL, 28 ERASURE, 2 CLEAN (one of which was STILL wrong on inspection).
   before assuming the `Set[str]` disaster repeats.
 - Count the LEVELS in an encoded-pair variant; a list mapper is a third level.
 - A SYNTHESIZED call needs a synthesized ORDERING EDGE or Why3 rejects the file.
+- **An edit to ANY live function whose mirror is UN-TRUSTED carries the §10.4 re-port
+  obligation**, and the gate that catches it is the FIDELITY one — I skipped it once this window
+  because the emission diff looked confined, and shipped a divergence.
+- **In a module that installs generated classes into its own globals, an import is NOT
+  namespace-neutral** (lesson (ss)) — and when an UNEXPECTED PIPELINE ERROR prints a message with
+  no traceback, GET THE TRACEBACK before theorising. I filed a live-source bug of my own making
+  as an emitter limitation.
