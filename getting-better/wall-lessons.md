@@ -3098,3 +3098,56 @@ which is exactly Python's rule.
 **The rule.** When a fail-closed guard is written as "all or nothing", check whether "as much as is
 unambiguous, then hand off to the next stage" is equally safe. Here it was, and the all-or-nothing
 form was silently re-introducing the erasure it was written to prevent.
+
+## Lesson (aq) — an `Optional[τ]` local built by a TERNARY is not the same shape as one built by `= None` + reassignment, and it fails SILENTLY
+
+The campaign's `Optional[ExprIR]` local carrier (relaunch #6 increment 5) handles exactly one
+source shape:
+
+    val: Optional["ExprIR"] = None        # PEP-526 annotation at the top of the body
+    if <cond>:
+        val = self.testlist()             # conditional REASSIGNMENT
+
+`_sequence_pattern` has the other shape, and it defeats the carrier twice over:
+
+    if <cond>:
+        name: Optional[str] = None if nm.string == "_" else nm.string
+    else:
+        self.error(...)                   # diverges
+    elts.append(self._fin(_N("MatchStar")(name=name), star_t))
+
+1. **The ternary's `None` arm erases INSIDE the Some arm.** The emission is
+   `Arm_9_0 (if str_eq_op (!nm)._tok_string "_" then "" else (!nm)._tok_string)` — the union
+   constructor is applied to the WHOLE ternary, so the absent name became the EMPTY STRING and
+   `case [a, *_]` would have modelled as carrying a name of `""`. The arm selection has to happen
+   per-ternary-branch (`Arm_None` / `Arm_0 v`), and it does not.
+2. **The annotated local is BRANCH-SCOPED** (lesson (ah) again): `let name = ref … in ()` inside
+   the `if`, then `unbound function or predicate symbol 'name'` at the use site after it. The
+   working shape never hits this because its annotation sits at the TOP of the body.
+
+Reopening capability, named: lower an `IfExpr` with a `None` arm assigned to an `Optional[τ]`
+local to the union's arm constructors per branch, AND pre-declare such a local at function top
+rather than let-binding it where it is first assigned.
+
+## Lesson (ar) — a CONCRETE sibling application coerces its arguments against `_resolve_dotted_signature`, which does not resolve `Optional[τ]` PARAM types
+
+`async_stmt` is three passthroughs and an error, and every callee already has its return
+interface — it should have been free. It is not: `self.funcdef([], async_=True, start=t)` passes a
+real token into `start`, and
+
+* leaving `start` un-annotated makes the `val`'s parameter `int`, so the `_tok` actual ill-types;
+* annotating it `Optional["_Tok"]` makes Module5 synthesize a `_union_funcdef_9`, the `val`'s
+  parameter becomes that union — and the ARGUMENT is still emitted bare, because
+  `_handle_dotted_call` coerces against the `param_types` that `_resolve_dotted_signature`
+  returns, and that function does not resolve a synthesized-union parameter type. A coercion arm
+  added to `_coerce_dotted_args` therefore never fires.
+
+Reopening capability, named: `_resolve_dotted_signature` must resolve a `_union_*` (i.e.
+`Optional[τ]`) PARAMETER type, at which point the `Optional`-actual coercion arm (present actual →
+the variant's unique arity-1 arm; omitted/None → its nullary arm) can do its job.
+
+**And the tempting shortcut is the wrong one.** Coercing the token actual to the int witness `0`
+because the parameter is int-erased anyway is exactly the class of defect lesson (al) describes: it
+would make the verified artifact model an argument the source does not pass. `[]` → `0` was
+admissible because `(Array.make 1024 0)` is not `[]` either — there was no faithful value being
+discarded. A real token is a faithful value. Refused.
