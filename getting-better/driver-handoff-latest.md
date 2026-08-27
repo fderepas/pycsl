@@ -1,87 +1,88 @@
-# HANDOFF — read this FIRST on relaunch (rewritten 2026-08-26, RELAUNCH #2 worker)
+# HANDOFF — read this FIRST on relaunch (rewritten 2026-08-27, RELAUNCH #3 worker)
 
-## The L14 debt is SETTLED. Do not re-open it.
+## State, verified from the surface at the end of this window
 
-The frame-soundness fix is **LANDED at `e95f73de`**; L14-b at `3871b47a`. Verify in two seconds if you
-doubt it: `git show HEAD:src/pycsl/module6_whyml/functions.py | grep -n "if (is_method$"` — if that
-line has no `and not emit_as_val`, the fix is in.
+- Directive count **620** (`grep -rcF '#@ \trusted' src/self-annotate/src --include=*.py`,
+  summed). Window delta **626 -> 620**, six conversions plus one count-neutral faithfulness
+  repair. Confirm it yourself before quoting it.
+- Ledger **3**, untouched all window. No new axiom, no new abstract val.
+- Tree clean apart from the pre-existing user/build dirt (`session.txt`,
+  `src/formal-semantics/rocq/.lia.cache` + `Phase2j_*` build artifacts, untracked
+  `prompt.txt`/`style.css`/`scratchpad/`). None of it is mine; leave it alone.
+- `getting-better/.driver-deadline` is intact. Do not touch it.
 
-**Re-proof sweep result: 8 of 8 mirrors SUCCESS, 6146 goals Valid, 0 Unknown, ZERO conversions
-reverted.** `\trusted` count UNCHANGED — 668 raw / 631 directives, before and after — which is the
-correct outcome for a soundness repair. Full per-file evidence is in `driver-backlog.md` §L14 and in
-`driver-progress.log`.
+## Three instrument facts that will silently corrupt your gates. Read before running anything.
 
-## Three things this window learned that will bite you if you ignore them
+1. **`why3` is NOT on the default PATH.** It is at `/home/fabrice/.opam/framac-coq8/bin/why3`.
+   Without it `pycsl.py` prints `[!] ERROR: 'why3' command not found` **and exits 0** — a
+   false green. Start every gate with
+   `export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH`. (Lesson (aa).)
+2. **The canonical mirror import path is `--import-path src/pycsl`**, NOT
+   `src/self-annotate/src`. `bin/run-self-annotation-suite.sh:27` is the authority, and it
+   matters: `frontend/Module5_IREmitter.py` L3-tc FAILS under the mirror path and PASSES
+   under the canonical one. (Lesson (cc).)
+3. **The prover pin is still stale and still halves every gate.** `pycsl.py:1318` names
+   `Alt-Ergo,2.6.2,`; 2.6.3 is installed. Pass `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`
+   EXPLICITLY on every proof you rely on. Do NOT edit the pin — it stays on the
+   flagged-for-USER list. Also: `check-emitted-vacuity.py` is a false green without `--emit`.
 
-1. **A gate result committed without the code it gates is a CLAIM.** Two prior windows reported L14
-   done. Only the oracle and a green-gates log entry had been committed; the patch sat in an orphan
-   worktree and HEAD still had the bug. Before believing any "landed", read the source at HEAD.
-   (Lesson (u).)
-2. **The prover pin is stale and it silently halves every gate.** `pycsl.py:1318` names
-   `Alt-Ergo,2.6.2,`; the installed one is **2.6.3**, so Why3 rejects it, the second prover contributes
-   nothing, and every "dual-prover" run is Z3-only. Fail-closed, so nothing unsound was accepted — but a
-   sweep that must decide *revert or keep* will FALSE-REVERT anything only Alt-Ergo can prove.
-   **Pass `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'` explicitly on every gate you rely on.** Expect ~2x
-   the historical per-file time: `_run_vacuity_gate` runs every prover with no early exit, so the
-   timings recorded in this backlog were taken with the second prover effectively disabled.
-   (Lesson (w). The permanent config repair stays on the flagged-for-USER list — it moves proof
-   outcomes corpus-wide and wants a deliberate M1 sweep.)
-3. **Two `\trusted` counts are in circulation and both are right.** Raw `grep -cF '\trusted'` = 668;
-   `grep -cF '#@ \trusted'` = 631; the 37-line gap is prose that mentions the marker. Commit messages
-   track 631, relaunch prompts quote 668. Never compare across the two.
+Plus one argument that has gone stale: **"gated on @mutable_state, therefore corpus
+byte-inert" is NO LONGER TRUE** — corpus programs 0925/0926/0927/0928 all declare it. Run
+the byte-diff sweep; do not argue your way out of it. (Lesson (bb).)
 
-## Useful timings measured this window (correctly-pinned dual-prover, whole-file, vacuity gate on)
+## What this window did
 
-`proof2why3/parser` 54s · `pure_ast` 410s · `Module2_Parser` 621s · `statements` ~1400s ·
-`Module6_WhyMLTranspiler` ~1050-1550s · `expressions` 1608s · `stmt_control_flow` 3100s ·
-`Module5_IREmitter` 3281s. Four in parallel on 12 cores is comfortable. **Emit-and-diff BEFORE you
-prove** (lesson (r)) — it cut this sweep from 52 files to 8, and the two slowest mirrors were among
-the ones it excluded from earlier sweeps.
+**L13 IS CLOSED.** The `proof2why3._Parser` cursor nest — the top lever since relaunch #23 —
+is FULLY CONVERTED: eleven members, zero `\trusted` methods in the class, and all five
+ASSUMED monotonicity clauses RETIRED (each became a proved postcondition when its stub was
+converted). Parser-mirror proof goals went 216 -> 438, every step driver-measured, corpus
+byte-diff 0 over 813/813 at every step.
 
-## Where the ladder stands — L13 is LANDED
+Also BROKEN: ladder item 2, the **`0`-reads-as-`None`** faithfulness bug in
+`Module5_IREmitter::_collect_class_constants`. Count-neutral by design (a repair to an
+already-converted body, same shape as the L14 frame repair): one opaque `val … : int` left
+the model and one facade guard became the real None test.
 
-`b6c417f6` opened the certified `term` inductive to the general emission path and **converted 5
-`_Parser` stubs** (`parse_expr`, `parse_implication`, `parse_disjunction`, `parse_conjunction`,
-`parse_comparison`). **Directives 631 -> 626.** Gates: proof **3071/3071 Valid, 0 Unknown** across the
-3 mirrors the emission diff selects; corpus byte-diff **0** (813/813); fidelity at the baseline
-2 DIVERGED / 3 drifted; ledger 3, no new axiom.
+Eleven capabilities were built and four LATENT EMITTER DEFECTS fixed. **Read
+`driver-backlog.md` §L13-CLOSED before scoping anything** — several of the capabilities are
+general (list-term/list-string ctor slots, term ctor discriminant + unique-arm payload
+projection, union-returning-call guard/projection, the `_union_*` param-registry repair, and
+the deferred-goal fix for mutually recursive union-using SCCs), and lesson (p) says census
+them before building.
 
-**Pick up here — three concrete continuations, in demand-first order:**
-1. **`parse_arith_add`, `parse_arith_mul`, `expect`** are now the ASSUMED-INTERFACE FRONTIER. Each
-   carries `#@ ensures self.pos >= \old(self.pos)` + `self.pos <= \length(self.toks)` as a reviewer
-   assertion on a still-`\trusted` stub. **Converting each one RETIRES its assumption** — that is
-   count reduction AND TCB reduction in the same move, and the capability they need is already landed.
-2. **The `0`-reads-as-`None` faithfulness bug.** `Module5_IREmitter::_collect_class_constants` emits
-   `if (!iv <> 0)` as a stand-in for "is not None", so a legitimate constant value of 0 reads as None.
-   The union-local typing fixes it, but the concrete-resolution gate (`_record_array_fields`) excludes
-   `PyCSLToJSONEmitter`. Widening that gate is the lever, and the corpus byte-diff is the real gate.
-3. **`parse_quant` / `parse_atom` / `parse_atom_application`** need the one unbuilt capability:
-   seq -> `list term` at an ADT CONSTRUCTOR ARGUMENT (`tuple(binders)`), precedent
-   `_bind_listfield_from_seq` (which binds a record FIELD, not a ctor argument), plus `" ".join(...)`.
+## Pick up here
 
-**Two process facts this window paid for, do not relearn them:**
-- **The §10.4 re-port obligation is live.** Editing a LIVE emitter function that has an UN-TRUSTED
-  mirror counterpart breaks `check-self-annotate-sync.sh` until you port the change into the mirror.
-  It caught exactly that here (`functions::_compute_return_type`, `stmt_control_flow::_handle_return_stmt`),
-  and the re-port then GREW the emission diff from 1 mirror to 3. Budget for that.
-- **Run the corpus byte-diff BEFORE the mirror proof sweep.** ~7 min/side versus ~50 min, and it
-  falsified an intermediate version of this build in one shot.
+1. **Re-census the value-model frontier with the eleven new capabilities in hand.** This is
+   the highest-value next move and it is cheap: several previously-refuted targets were
+   blocked on exactly what now exists. Census FIRST, do not build.
+2. `proof2why3/parser.py` still has four module-level `\trusted` functions. `lex` and
+   `normalize_surface` are string-scanner facades already STRUCK as a CERTIFIED-BOUNDARY —
+   do NOT re-litigate them. `parse_type_expr` is a thin driver and may be cheap.
+3. The named COST/SCALE residue from the §A.3 re-classification, which is NOT a floor and
+   which a funded window is exactly the budget for: the larger multi-variant certificate
+   bundle (Act/Complete/Disjoint/ForExpand + value-model), and the review-gated
+   giant/dispatcher decompositions (`run_ir_semantic_checks`, `_csl_to_ir` getattr-dispatch).
+   "Review-gated" means run Gate R yourself — it does NOT mean ask the user.
+4. Worth a window of its own, found in passing and NOT chased:
+   `check-emitted-vacuity.py --emit` reports a NEW erasure in
+   `Module3_Weaver::_const_int`, two INPUT-BLIND methods in `functions.mlw`, and six stale
+   KNOWN_ERASURES entries.
 
-## The rest of the ladder
+## Method notes this window paid for
 
-Next position: **L13, the `proof2why3` `_Parser` cursor nest** — top lever, spike PASSED (41/41),
-closed capability set of FOUR, payoff 11-15 stubs. Read `driver-backlog.md` §L13 and the Gate-R
-amendments in `getting-better/cursor-nest/cursor-nest.md`. Two constraints that L14's landing makes
-BINDING rather than theoretical:
-  - the nest is largely ALL-OR-NOTHING now, because a converted member cannot discharge its
-    termination measure while its callee is a `\trusted` val with a declared `writes { self.pos }`,
-    unless that stub is given a monotonicity postcondition (= TCB growth);
-  - BUT Gate R proved a counter-construction: `parse_expr`, `parse_quant`, `parse_comparison` have no
-    self-call and no callee-dependent loop, so **3 of the 11 convert piecewise with ZERO TCB growth**.
-    That is the cheap entry point — take it before attempting the whole nest.
-Then L10 (`Optional[X]` field value model + string-aware `_field_default`; entry point located verbatim
-in the backlog), then L9-drain, L2, L3, L6, L5.
+- **Emit-and-diff BEFORE you prove** (lesson r) — the mirror emission diff scoped every
+  re-proof set this window to 1 or 2 files out of 52.
+- **A timeout is not a scale wall until the shape blows up in ISOLATION** (lesson ee). ~40
+  goals timed out at 280-370M steps, looking exactly like the documented `list.List`
+  explosion; two controlled probes showed the real cause was two missing loop annotations.
+- **Host a new helper in a live function whose mirror counterpart is `\trusted`** (lesson dd).
+  Otherwise §10.4 forces a verbatim re-port and the unported helper becomes an int-typed
+  auto-trusted val that breaks L3-tc.
+- **`isinstance_op 0 0` in an emitted body is a facade detector** (lesson ff).
+- The **§10.4 re-port obligation is live and it caught a real omission again** — my mirror
+  `parse_atom` had dropped an f-string from a `raise`. The fidelity plane is not a formality.
 
-Standing discipline unchanged: demand-first (capability-first is REFUTED, three convergent yield-0
-builds); close a blocker set by ITERATED measurement until L3-tc PASSES; spike-first with a refutation
-exit; lesson (p) census-first; the three L-planes driver-verified fresh; ledger stays 3.
+Standing discipline unchanged: demand-first bundling (capability-first is REFUTED); close a
+blocker set by ITERATED measurement until L3-tc PASSES; spike-first with a refutation exit;
+census-first; the three L-planes driver-verified FRESH; ledger stays 3; a gate you have not
+confirmed non-vacuous is not a gate.
