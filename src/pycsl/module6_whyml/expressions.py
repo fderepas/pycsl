@@ -2161,6 +2161,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not isinstance(ir, dict):
             return False
         t = ir.get("type")
+        # PYTHON-AST NODE CTOR FAMILY (increment 11): a pure_ast node CONSTRUCTION
+        # (`_N("Name")(id=…, ctx=…)`) lowers to an `emit_ir` ADT application, so a local
+        # bound from one is an emit_ir local — it must be PRE-DECLARED `ref (IrOther "")`
+        # rather than `let`-bound immutable, or a body that REBUILDS it in a loop
+        # (`node = _N("Attribute")(value=node, …)`, the dotted-name fold) emits a `:=`
+        # against a non-ref and fails L3-tc. `self._fin(<ctor>, …)` / `self._fin_pos(…)`
+        # are the parser's location-stamping wrappers and lower to their FIRST argument,
+        # so they are transparent here. Gated on `_uses_pyast_parser` -> byte-inert.
+        if t == "Call" and isinstance(ir.get("func"), str) and self._uses_pyast_parser():
+            _f = ir["func"]
+            if _f in ("self._fin", "self._fin_pos"):
+                _a = (ir.get("args") or [None])[0]
+                if isinstance(_a, dict) and self._is_emit_ir_expr(_a):
+                    return True
+            else:
+                from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
+                if _f in _PYC:
+                    return True
         # self-tcb-reduction giants: a `pyast_stmt` emit_ir-yielding projector
         # (`child.value`/`child.target`/`child.targets[0]`) IS an emit_ir sub-node.
         if self._is_pyast_stmt_emit_ir_read(ir):

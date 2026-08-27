@@ -273,6 +273,24 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # (`_N("Load")()`), carried as its class-name `string`. NOT the pre-existing
     # `IrStarred emit_ir`, which DROPS `ctx`.
     "Starred": ("IrPyStarred", [("value", "emit_ir"), ("ctx", "string")]),
+    # `Name(id, ctx)` — `_NODE_SPEC['Name'] == ('expr', ('id','ctx'), None)`, both total.
+    # `id` is the identifier STRING the live body binds from a token; `ctx` a 0-field
+    # `expr_context` singleton carried as its class-name string.
+    "Name": ("IrPyName", [("id", "string"), ("ctx", "string")]),
+    # `Attribute(value, attr, ctx)` — `_NODE_SPEC['Attribute'] == ('expr', ('value',
+    # 'attr','ctx'), None)`, all total: the receiver NODE, the attribute-name string, and
+    # the `expr_context` singleton. NOT the pre-existing `IrAttr emit_ir string`, which
+    # has no `ctx` slot.
+    "Attribute": ("IrPyAttribute", [("value", "emit_ir"), ("attr", "string"),
+                                    ("ctx", "string")]),
+    # `MatchAs(pattern, name)` — `_NODE_SPEC['MatchAs'] == ('pattern', ('pattern',
+    # 'name'), None)`. BOTH fields are in `_OPTIONAL_FIELDS['MatchAs']` (a bare `_`
+    # wildcard carries neither), but the `as`-pattern construction this arm serves
+    # supplies BOTH, so the total shape is faithful THERE. A construction that passes
+    # `None` leaves a payload slot unbound and `_call_irnode_constructor` DECLINES —
+    # fail-closed, never a dropped child. An `iropt_ir`/`iropt_str` variant is the
+    # reopening capability if a None-carrying MatchAs site is ever converted.
+    "MatchAs": ("IrPyMatchAs", [("pattern", "emit_ir"), ("name", "string")]),
 }
 
 
@@ -497,6 +515,13 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # ctor binding in `_call_irnode_constructor`; inside the parser file the construction
     # lowers to the `IrPyAwait` emit_ir arm, not to a per-class record.
     "Await": [("value", "ExprIR")],
+    # PYTHON-AST NODE CTOR FAMILY: `MatchAs` — `_NODE_SPEC['MatchAs'] == ('pattern',
+    # ('pattern','name'), None)` and BOTH fields are in `_OPTIONAL_FIELDS['MatchAs']` (a
+    # bare `_` wildcard carries neither), so the record shape is the faithful
+    # `option`-typed one. The entry exists to supply `init_params` to the by-name binding
+    # in `_call_irnode_constructor`; inside the parser file the construction lowers to
+    # the `IrPyMatchAs` emit_ir arm.
+    "MatchAs": [("pattern", "OptExprIR"), ("name", "OptStr")],
     "Import": [("names", "RecList:alias")],
     # `_fin` RECOGNIZER vein, increment 8: `ImportFrom` — `_NODE_SPEC['ImportFrom'] ==
     # ('stmt', ('module','names','level'), None)`. `module` is in

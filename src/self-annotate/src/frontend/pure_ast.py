@@ -795,18 +795,30 @@ class _Parser:
     def case_block(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `pattern`.
+    # `MatchAs(pattern=p, name=self._capture_name("as"))` supplies BOTH of MatchAs's
+    # (nominally optional) fields, so `IrPyMatchAs emit_ir string` is faithful here; the
+    # passthrough `return p` types as `emit_ir` through `or_test`'s sibling interface.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def pattern(self):
-        pass
+    def pattern(self) -> "ExprIR":
+        t = self.cur()
+        p = self.or_pattern()
+        if self.at_kw("as"):
+            self.advance()
+            return self._fin(_N("MatchAs")(pattern=p, name=self._capture_name("as")), t)
+        return p
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
+    # live body, which moves the cursor only through `accept_op` / `closed_pattern`.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def or_pattern(self):
+    def or_pattern(self) -> "ExprIR":
         pass
 
     # pure_ast cursor vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body port
@@ -815,8 +827,11 @@ class _Parser:
     # expands into the REAL 35-element `seq string` under `seq_mem_str` (measured in
     # `_with_parenthesized`) — not an opaque membership. The failure path is the
     # `-> "NoReturn"` `error`, so the `-> str` return is discharged on every path.
+    # CURSOR NON-REGRESSION: needed by `pattern`, whose own `self.i >= \old(self.i)`
+    # postcondition runs through this call. PROVED here — the body moves `self.i` only
+    # through `advance`, and its reject path is the `-> "NoReturn"` `error`. Zero TCB.
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _capture_name(self, ctx: str) -> str:
         tk = self.cur()
@@ -840,12 +855,32 @@ class _Parser:
     def _pattern_number(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `_dotted_value`. Builds a real `IrPyName` and then folds `IrPyAttribute` over the
+    # dotted tail — both CARRY their `expr_context` singleton (`_N("Load")()` -> "Load"),
+    # which the pre-existing `IrAttr emit_ir string` has no slot for. The loop takes the
+    # cursor measure through `accept_op`'s monotonicity, with lesson (xx)'s GHOST snapshot
+    # for the function's own non-regression clause.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _dotted_value(self):
-        pass
+    def _dotted_value(self) -> "ExprIR":
+        t = self.cur()
+        nm = self.advance()                       # NAME
+        node = self._fin(_N("Name")(id=nm.string, ctx=_N("Load")()), nm)
+        #@ ghost i2 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i2
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op("."):
+            attr = self.cur()
+            if attr.type != _tokenize.NAME:
+                self.error("expected an attribute name after '.' in value pattern")
+            self.advance()
+            node = self._fin(
+                _N("Attribute")(value=node, attr=attr.string, ctx=_N("Load")()), t)
+        return node
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
