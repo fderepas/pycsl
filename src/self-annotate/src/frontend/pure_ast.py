@@ -273,8 +273,12 @@ class _Parser:
         t = self.cur()
         return t.type == _tokenize.NAME and (not vals or t.string in vals)
 
+    # TOKEN-KIND EXPORT, the keyword twin of `at_op`'s. A true result means the CURRENT token
+    # is a NAME — which, with the EOF-sentinel class invariant (last token is ENDMARKER, and
+    # ENDMARKER != NAME), rules out "already at the last token" and so lets `accept_kw` claim
+    # strict progress. PROVED here; the body is exactly that test.
     #@ requires True
-    #@ ensures True
+    #@ ensures \result != False ==> self.toks[self.i].type == _tokenize.NAME
     #@ assigns \nothing
     def at_kw(self, *vals: str) -> bool:
         t = self.cur()
@@ -305,8 +309,15 @@ class _Parser:
             self.error(f"expected {val!r}")
         return self.advance()
 
+    # CURSOR MONOTONICITY, the keyword twin of `accept_op`'s clause. Same chain, same zero
+    # TCB: `at_kw` true => the current token is a NAME (its own postcondition) => by the
+    # EOF-SENTINEL class invariant `self.i` is not the last index => `advance`'s guarded
+    # increment fires. This is what lets a `while self.accept_kw(X):` caller discharge a
+    # `#@ loop variant \length(self.toks) - self.i`, and what lets any body that CALLS
+    # `accept_kw` export its own `self.i >= \old(self.i)` non-regression to a caller's loop.
     #@ requires True
-    #@ ensures True
+    #@ ensures \result != None ==> self.i > \old(self.i)
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def accept_kw(self, val: str) -> Optional[_Tok]:
         if self.at_kw(val):
@@ -542,15 +553,21 @@ class _Parser:
     def import_from(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _import_as_names(self):
-        pass
+    def _import_as_names(self) -> "List[alias]":
+        names = [self._import_as_name()]
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            if self.at_op(")"):
+                break
+            names.append(self._import_as_name())
+        return names
 
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _import_as_name(self) -> "alias":
         name = self._name_str()

@@ -2205,6 +2205,28 @@ class ControlFlowStmtMixin:
             if self._func_return_type == "array string":
                 self._materialize_str_bridge()
                 val = f"(materialize_str !{whyml_ident(val_ir['name'])})"
+            elif (self._func_return_type.startswith("array ")
+                  and self._func_return_type != "array int"
+                  and self._func_return_type != "array real"
+                  and " " not in self._func_return_type[len("array "):]):
+                # RECORD-ELEMENT FIDELITY (the third bridge, beside `materialize` and
+                # `materialize_str`): a `-> List[<record>]` function whose only normal exit
+                # is the tail return of a seq-modelled accumulator
+                # (`names.append(_N("alias")(...)); return names`) crosses the same
+                # seq->array boundary with a RECORD payload, and the int bridge type-clashes
+                # (`seq py_alias` vs `seq int`) exactly as it does for the string payload.
+                # The bridge is emitted per ELEMENT TYPE, with the same fresh-result /
+                # no-region-link shape and the same two pointwise postconditions as the two
+                # existing bridges, so the array is EQUAL to the seq and nothing is erased.
+                # Gated on a declared `array <single-token-non-scalar>`: `array int`,
+                # `array real` and `array string` (handled above) all keep their existing
+                # emission, so every corpus driver is byte-identical.
+                _elem = self._func_return_type[len("array "):]
+                self._add_abstract_op(
+                    "val materialize_" + _elem + " (s: seq " + _elem + ") : array " + _elem
+                    + "\n    ensures { Array.length result = Seq.length s }"
+                    + "\n    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
+                val = "(materialize_" + _elem + " !" + whyml_ident(val_ir["name"]) + ")"
             else:
                 self._materialize_bridge()
                 val = f"(materialize !{whyml_ident(val_ir['name'])})"

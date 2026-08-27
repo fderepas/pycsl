@@ -682,6 +682,32 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
             return ann.value
         return None
 
+    def _ann_list_elem(ann: Any) -> Optional[str]:
+        """LIST-OF-HARVESTED-RECORD return form: `List[R]` / `list[R]`, in the bare
+        `Subscript` spelling or the QUOTED `"List[R]"` one (`pure_ast.py` must quote —
+        it has no `typing` import, and lesson (ss) records that ADDING one silently
+        REPLACES the `List`/`Set`/`Dict`/`Tuple` AST node classes this very module
+        installs into its own globals, breaking the parser; the quoted form is the only
+        safe spelling here). Returns `R` when it is a harvested `_NODE_SPEC` node class,
+        else None."""
+        node_ann = ann
+        if isinstance(ann, _ast.Constant) and isinstance(ann.value, str):
+            try:
+                node_ann = _ast.parse(ann.value.strip(), mode="eval").body
+            except SyntaxError:
+                return None
+        if not (isinstance(node_ann, _ast.Subscript)
+                and isinstance(node_ann.value, _ast.Name)
+                and node_ann.value.id in ("List", "list")):
+            return None
+        sl = node_ann.slice
+        if isinstance(sl, getattr(_ast, "Index", ())):      # py<3.9 compat
+            sl = sl.value
+        if isinstance(sl, _ast.Name) and sl.id in records:
+            return sl.id
+        return None
+
+    list_elems: Set[str] = set()
     func_by_name = {f["name"]: f for f in ir_data.get("functions", [])}
     for node in _ast.walk(validated_ast):
         if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
@@ -689,6 +715,33 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
         rn = _ann_name(node.returns) if node.returns is not None else None
         if rn in records:
             wanted.add(rn)
+        # `-> "List[R]"`: Module5 sees only an unrecognised string Constant, so the
+        # return stays the collapsed `int` and a body that accumulates real records
+        # fails L3-tc (`seq py_alias` vs `seq int`). Patch the function IR to the
+        # `list` + element-record shape Module5 produces for the BARE `List[R]` form
+        # (`_m5_get_list_record_elem` -> `return_value_type`), which Module6's
+        # `_compute_return_type` resolves through `_record_types` to `array <rec>`.
+        # The element record must ALSO be emitted PURE — Why3 forbids a mutable
+        # component inside a polymorphic container — which is exactly what
+        # `list_element_record_types` drives, so it is set here beside the injection.
+        le = _ann_list_elem(node.returns) if node.returns is not None else None
+        if le is not None:
+            wanted.add(le)
+            list_elems.add(le)
+            # A METHOD's function-IR name is MANGLED (`_Parser._import_as_names` ->
+            # `_parser___import_as_names`), so the bare-name lookup above finds nothing
+            # for one. Resolve on the def's LINE plus a name-suffix check, which is exact
+            # for both plain functions and methods.
+            fi = func_by_name.get(node.name)
+            if fi is None:
+                for _f in ir_data.get("functions", []):
+                    if (_f.get("line") == getattr(node, "lineno", None)
+                            and str(_f.get("name", "")).endswith(node.name)):
+                        fi = _f
+                        break
+            if fi is not None:
+                fi["return_annotation"] = "list"
+                fi["return_value_type"] = le
         for arg in node.args.args:
             an = _ann_name(arg.annotation) if arg.annotation is not None else None
             if an in records:
@@ -702,6 +755,9 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
     for name in sorted(wanted):
         if name not in existing:
             ir_data.setdefault("type_decls", []).insert(0, records[name])
+    if list_elems:
+        _prev = set(ir_data.get("list_element_record_types", []))
+        ir_data["list_element_record_types"] = sorted(_prev | list_elems)
 
 
 def _resolve_pure_ast_param_records(validated_ast: Any, main_file: str,
