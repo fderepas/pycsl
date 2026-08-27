@@ -1191,12 +1191,43 @@ class _Parser:
                 _N("Attribute")(value=node, attr=attr.string, ctx=_N("Load")()), t)
         return node
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `_sequence_pattern`. Builds a REAL `IrPyMatchStar` (whose `name` slot is the
+    # monomorphic `iropt_str`, so the anonymous `*_` is a true absent name, not "") and a
+    # REAL `IrPyMatchSequence` over the accumulated `elts` (seq -> irlist).
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _sequence_pattern(self, openp, closep, t):
-        pass
+    def _sequence_pattern(self, openp: str, closep: str, t) -> "ExprIR":
+        self.advance()                            # consume opener
+        elts = []
+        saw_comma = False
+        #@ ghost i20 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i20
+        #@ loop variant \length(self.toks) - self.i
+        while not self.at_op(closep):
+            if self.at_op("*"):
+                star_t = self.advance()
+                nm = self.cur()
+                if nm.type == _tokenize.NAME and nm.string not in _keyword.kwlist:
+                    self.advance()
+                    name: Optional[str] = None if nm.string == "_" else nm.string
+                else:
+                    self.error("expected a name after '*' in sequence pattern")
+                elts.append(self._fin(_N("MatchStar")(name=name), star_t))
+            else:
+                elts.append(self.pattern())
+            if self.accept_op(","):
+                saw_comma = True
+                continue
+            break
+        end = self.expect_op(closep)
+        # '(' with a single, comma-less pattern is a group: the inner pattern.
+        if openp == "(" and not saw_comma and len(elts) == 1:
+            return elts[0]
+        return self._fin_pos(_N("MatchSequence")(patterns=elts), t, end)
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
     # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here

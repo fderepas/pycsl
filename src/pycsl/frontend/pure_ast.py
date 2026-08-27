@@ -1270,7 +1270,7 @@ class _Parser:
                 _N("Attribute")(value=node, attr=attr.string, ctx=_N("Load")()), t)
         return node
 
-    def _sequence_pattern(self, openp, closep, t):
+    def _sequence_pattern(self, openp: str, closep: str, t):
         self.advance()                            # consume opener
         elts = []
         saw_comma = False
@@ -1280,7 +1280,7 @@ class _Parser:
                 nm = self.cur()
                 if nm.type == _tokenize.NAME and nm.string not in _keyword.kwlist:
                     self.advance()
-                    name = None if nm.string == "_" else nm.string
+                    name: Optional[str] = None if nm.string == "_" else nm.string
                 else:
                     self.error("expected a name after '*' in sequence pattern")
                 elts.append(self._fin(_N("MatchStar")(name=name), star_t))

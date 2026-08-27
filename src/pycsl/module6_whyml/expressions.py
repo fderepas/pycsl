@@ -8888,6 +8888,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         parts.append(_oproj)
                         continue
                 return None
+            # PYTHON-AST NODE CTOR FAMILY (increment 15): an `iropt_str` payload slot —
+            # a node field that is genuinely OPTIONAL and carries a STRING
+            # (`_OPTIONAL_FIELDS['MatchStar'] == ('name',)`: a bare `*_` really carries NO
+            # capture name). Modelling it as a plain `string` would make the ANONYMOUS star
+            # read back as a capture named `""` — lesson (aq)'s measured erasure. The three
+            # shapes mirror the `iropt_ir` slot exactly: an EXPLICIT/omitted None ->
+            # `IrSNone`; an `Optional[str]` LOCAL (a synthesized `_union_*`, lesson (ab)) ->
+            # the arm projection into `IrSSome`/`IrSNone`; a plain present string expression
+            # -> `(IrSSome x)`. Anything else DECLINES (fail-closed).
+            if _irlist_slots.get(f) == "iropt_str":
+                if f in none_fields:
+                    parts.append("IrSNone")
+                    continue
+                _rk = (raw_kwargs or {}).get(f)
+                if isinstance(_rk, dict) and _rk.get("type") == "None":
+                    parts.append("IrSNone")
+                    continue
+                if isinstance(_rk, dict) and _rk.get("type") == "Var":
+                    _oname = str(_rk.get("name"))
+                    _osym = getattr(self, "_current_symbol_table", {}).get(_oname)
+                    _oderef = ("!" if _oname in getattr(
+                        self, "_optional_union_locals", set()) else "")
+                    _oproj = self._union_read_iropt_str_projection(
+                        _osym, f"{_oderef}{whyml_ident(_oname)}")
+                    if _oproj is not None:
+                        parts.append(_oproj)
+                        continue
+                    # A plain STRING local/param (not an Optional union) is a PRESENT
+                    # name — `(IrSSome v)`. Gated on the string classification so an
+                    # int-erased actual can never be injected as a string.
+                    if _osym in ("str", "string"):
+                        parts.append(f"(IrSSome {bound[f]})")
+                        continue
+                    return None
+                if isinstance(_rk, dict) and _rk.get("type") == "String":
+                    parts.append(f"(IrSSome {bound[f]})")
+                    continue
+                return None
             if _irlist_slots.get(f) == "irlist":
                 _raw = str(bound[f]).strip()
                 # AN EMPTY LIST LITERAL IS A GENUINELY EMPTY CHILD LIST, not a decline.
@@ -10856,6 +10894,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         return (f"(match {operand} with {some_ctor} _v -> IrOSome _v "
                 f"| _ -> IrONone end)")
+
+    def _union_read_iropt_str_projection(self, symtype: Any,
+                                         operand: str) -> Optional[str]:
+        """PYTHON-AST NODE CTOR FAMILY (increment 15): the `iropt_str` twin of
+        `_union_read_iropt_ir_projection`. Projects a single-Some-arm `Optional[str]`-union
+        operand into the MONOMORPHIC string-option ADT the emit_ir theory uses for an
+        optional string child — `(match <op> with Arm_i_0 _v -> IrSSome _v | _ -> IrSNone
+        end)`. Returns None for a multi-Some union or a non-union operand, so the
+        construction fails closed."""
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        some_ctor = None
+        for cn, c in vinfo.get("constructors", {}).items():
+            if c.get("arity") == 1:
+                if some_ctor is not None:
+                    return None   # multi-Some union — out of scope
+                some_ctor = cn
+        if some_ctor is None:
+            return None
+        return (f"(match {operand} with {some_ctor} _v -> IrSSome _v "
+                f"| _ -> IrSNone end)")
 
     def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
                          subst: Optional[Dict[str, str]] = None) -> str:

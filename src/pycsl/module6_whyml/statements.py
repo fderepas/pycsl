@@ -186,7 +186,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         return none_ctor, some_ctors
 
     def _union_wrap_rhs(self, symtype: str, val: str,
-                        val_ir: Dict[str, Any]) -> Optional[str]:
+                        val_ir: Dict[str, Any],
+                        local_refs: Optional[Set[str]] = None) -> Optional[str]:
         """Lift a plain RHS into the matching union arm ctor for an assignment to
         an Optional local: `None` → the nullary None-arm; a τ value → the single
         `Some`-arm `(Arm_i_0 v)`. Returns None for a multi-arm union with a
@@ -195,6 +196,35 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         none_ctor, some_ctors = self._union_ctors(symtype)
         if none_ctor is None:
             return None
+        # TERNARY-`None` ARM SELECTION (lesson (aq), relaunch #8). `x: Optional[str] =
+        # None if <c> else <v>` reaches here as ONE `IfExpr` RHS, and wrapping it whole
+        # gives `(Arm_i_0 (if c then "" else v))` — the absent value ERASED to the τ
+        # witness (the empty string), so the model claims a name that the source does
+        # not have. The arm selection has to happen PER BRANCH: each branch is lifted
+        # into its OWN constructor (`None` → the nullary arm, a τ value → the Some arm)
+        # and the ternary is rebuilt AROUND the constructors, so the union really does
+        # carry the absence. Gated on: an `IfExpr` with EXACTLY ONE `None` arm, a
+        # single-Some union, and a caller that supplied `local_refs` (so the branch
+        # sub-expressions can be lowered) — anything else falls through unchanged.
+        if (val_ir.get("type") == "IfExpr" and local_refs is not None
+                and len(some_ctors) == 1):
+            _tst = val_ir.get("test")
+            _bod = val_ir.get("body")
+            _els = val_ir.get("orelse")
+            if (isinstance(_tst, dict) and isinstance(_bod, dict)
+                    and isinstance(_els, dict)
+                    and ((_bod.get("type") == "None")
+                         != (_els.get("type") == "None"))):
+                _arms = []
+                for _sub in (_bod, _els):
+                    if _sub.get("type") == "None":
+                        _arms.append(none_ctor)
+                    else:
+                        _arms.append(
+                            f"({some_ctors[0]} "
+                            f"{self._expr_to_whyml(_sub, local_refs)})")
+                _c = self._to_bool(self._expr_to_whyml(_tst, local_refs), _tst)
+                return f"(if {_c} then {_arms[0]} else {_arms[1]})"
         # NO DOUBLE-WRAP (L13): when the RHS is a SIBLING CALL that ALREADY returns this
         # union (`t = self.peek()`), wrapping again gives `(Arm_0_0 (peek self 0))`, whose
         # argument slot wants the CARRIER — measured as `has type _union_peek_0, but is
@@ -210,6 +240,123 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if len(some_ctors) == 1:
             return f"({some_ctors[0]} {val})"
         return None
+
+    def _union_predecl_locals(self, body_stmts: List[Dict[str, Any]]) -> Dict[str, str]:
+        """FUNCTION-TOP PRE-DECLARATION of a BRANCH-SCOPED Optional local (lesson (aq),
+        relaunch #8) -> {var: `(<None-ctor> : <union type>)` initialiser}.
+
+        An `Optional[τ]` local is normally `let`-bound at its FIRST assignment
+        (`_handle_assign_stmt`), which is right as long as that assignment sits at the
+        TOP LEVEL of the body: the `let … in` then scopes over everything after it. When
+        the first (and only) assignment is NESTED — inside an `if` / loop, as in
+        `_sequence_pattern`'s `if <name-token>: name = … ` — the `let` scopes to that
+        branch and every later use is `unbound function or predicate symbol 'name'`
+        (lesson (ah)/(aq), measured). Such a local is pre-declared at function top with
+        its union's OWN nullary None-arm, so the branch assignment becomes a plain `:=`
+        and the value stays in scope.
+
+        FAIL-CLOSED AND BYTE-INERT BY CONSTRUCTION: only a union local that is assigned
+        SOMEWHERE but NOT at the body's top level qualifies, and only if its union has a
+        nullary None arm. Every union local that already worked (first-assigned at top
+        level) keeps its existing `let`-binding, so no previously-emitted file moves a
+        byte. The None-arm initialiser is not observable: Python cannot read the local
+        before its own first assignment (it would be an `UnboundLocalError`), so the
+        pre-declaration is a pure typing device, exactly like the `ref (IrOther "")` /
+        `ref ""` pre-decls beside it."""
+        _u = getattr(self, "_optional_union_locals", None) or set()
+        if not _u:
+            return {}
+        _top: Set[str] = {
+            st.get("target") for st in (body_stmts or [])
+            if isinstance(st, dict) and st.get("stmt") == "Assign"
+            and isinstance(st.get("target"), str)}
+        _any: Set[str] = set()
+
+        def _rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if (node.get("stmt") == "Assign"
+                        and isinstance(node.get("target"), str)):
+                    _any.add(node["target"])
+                for _v in node.values():
+                    _rec(_v)
+            elif isinstance(node, list):
+                for _v in node:
+                    _rec(_v)
+
+        _rec(body_stmts)
+        out: Dict[str, str] = {}
+        for _v in sorted(_u):
+            if _v in _top or _v not in _any:
+                continue
+            if not self._union_local_escapes_scope(body_stmts, _v):
+                continue
+            _ty = getattr(self, "_current_symbol_table", {}).get(_v)
+            _none_ctor, _ = self._union_ctors(_ty)
+            _vinfo = getattr(self, "_variant_types", {}).get(_ty) or {}
+            _wn = _vinfo.get("whyml_name")
+            if _none_ctor is None or not _wn:
+                continue
+            out[_v] = f"({_none_ctor} : {_wn})"
+        return out
+
+    @staticmethod
+    def _ir_subtree_assigns(node: Any, var: str) -> bool:
+        """True iff the IR sub-tree `node` contains ANY `Assign` whose target is `var`."""
+        if isinstance(node, dict):
+            if node.get("stmt") == "Assign" and node.get("target") == var:
+                return True
+            return any(StatementEmissionMixin._ir_subtree_assigns(v, var)
+                       for v in node.values())
+        if isinstance(node, list):
+            return any(StatementEmissionMixin._ir_subtree_assigns(v, var) for v in node)
+        return False
+
+    @staticmethod
+    def _ir_subtree_reads(node: Any, var: str) -> bool:
+        """True iff the IR sub-tree `node` contains a `Var` READ of `var`."""
+        if isinstance(node, dict):
+            if node.get("type") == "Var" and node.get("name") == var:
+                return True
+            return any(StatementEmissionMixin._ir_subtree_reads(v, var)
+                       for v in node.values())
+        if isinstance(node, list):
+            return any(StatementEmissionMixin._ir_subtree_reads(v, var) for v in node)
+        return False
+
+    def _union_local_escapes_scope(self, node: Any, var: str) -> bool:
+        """True iff `var`'s value ESCAPES the branch it is assigned in — i.e. at some
+        statement-list level there is a statement that only CONTAINS the assignment
+        (a compound statement: an `if`/loop body) and a LATER SIBLING at the same level
+        READS the local. That is exactly the shape a `let`-at-first-assignment cannot
+        express (the `let` scopes to the branch; the sibling read is `unbound symbol`,
+        lesson (ah)/(aq)), and it is the ONLY shape the function-top pre-declaration is
+        allowed to change — a local whose assignment and every use live in the SAME
+        branch keeps its existing `let`-binding, so every already-emitted mirror stays
+        byte-identical."""
+        if isinstance(node, list):
+            _ia = None
+            for _i, _st in enumerate(node):
+                if (isinstance(_st, dict) and _st.get("stmt") == "Assign"
+                        and _st.get("target") == var):
+                    break        # binds at THIS level — the `let` covers the rest
+                if self._ir_subtree_assigns(_st, var):
+                    _ia = _i
+                    break
+            if _ia is not None:
+                for _st in node[_ia + 1:]:
+                    # A later sibling that RE-ASSIGNS the local rebinds it in its own
+                    # scope (the emitter emits a fresh `let` there), so it is not an
+                    # escape and neither is anything after it — the two `while` loops of
+                    # `proof2why3/parser`'s `t = self.peek(0)`, measured. Stop scanning.
+                    if self._ir_subtree_assigns(_st, var):
+                        break
+                    if self._ir_subtree_reads(_st, var):
+                        return True
+            return any(self._union_local_escapes_scope(_st, var) for _st in node)
+        if isinstance(node, dict):
+            return any(self._union_local_escapes_scope(_v, var)
+                       for _v in node.values())
+        return False
 
     def _emit_array_local_reassign(self, target: str, safe_target: str, indent: str,
                                     val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
@@ -326,7 +473,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # type (shared with the `-> Optional[τ]` return via the Module5 dedup).
         _ult = self._union_local_symtype(target)
         if _ult is not None:
-            _wrapped = self._union_wrap_rhs(_ult, val, val_ir)
+            _wrapped = self._union_wrap_rhs(_ult, val, val_ir, local_refs)
             if _wrapped is not None:
                 if target not in declared_refs:
                     declared_refs.add(target)
@@ -5010,6 +5157,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # opaque `(get_<field> !t)` getter, which mistypes against the record.
         self._record_field_elem_locals = dict(_rec_predecl)
 
+        # FUNCTION-TOP PRE-DECL of a BRANCH-SCOPED Optional local (lesson (aq)). See
+        # `_union_predecl_locals`: only a union local whose ONLY assignment is nested
+        # inside a compound statement qualifies, so every union local that already
+        # let-bound at top level is untouched and no emitted file moves a byte.
+        _union_predecl = {
+            v: init for v, init in self._union_predecl_locals(body_stmts).items()
+            if v in local_refs and v not in ghost_vars
+            and v not in ref_params and v not in self._formal_params
+            and v not in _uput
+            and v not in struct_array_targets and v not in struct_pack_targets}
+        pre_decl_vars |= set(_union_predecl)
+
         if is_method:
             initial_declared = {whyml_ident(v) for v in pre_decl_vars}
         else:
@@ -5108,6 +5267,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             elif var in _rec_predecl:
                 # W8/W1: record-element local pre-decl (see above).
                 init = self._record_default_literal(_rec_predecl[var])
+            elif var in _union_predecl:
+                # lesson (aq): branch-scoped `Optional[τ]` local pre-decl — the union's
+                # OWN nullary None arm, typed to the synthesized `_union_*`.
+                init = _union_predecl[var]
             else:
                 init = safe_var if var in self._formal_params else pfx
             body_code = f"    let {safe_var} = ref {init} in\n{body_code}"

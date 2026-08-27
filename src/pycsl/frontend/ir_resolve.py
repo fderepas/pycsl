@@ -347,6 +347,16 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # None)`, both total: the subject expression and the VARIADIC list of `match_case`
     # nodes, which under this family are `emit_ir` like every other node.
     "Match": ("IrPyMatch", [("subject", "emit_ir"), ("cases", "irlist")]),
+    # `MatchStar(name)` — `_NODE_SPEC['MatchStar'] == ('pattern', ('name',), None)`, one
+    # field, and it IS in `_OPTIONAL_FIELDS['MatchStar']`: a bare `*_` really carries NO
+    # name. The slot is therefore the monomorphic `iropt_str`, never a plain `string` —
+    # which would model the anonymous star as a capture NAMED `""` (lesson (aq)'s exact
+    # erasure).
+    "MatchStar": ("IrPyMatchStar", [("name", "iropt_str")]),
+    # `MatchSequence(patterns)` — `_NODE_SPEC['MatchSequence'] == ('pattern',
+    # ('patterns',), None)`, one total VARIADIC child list, carried as `irlist` exactly
+    # like `MatchOr.patterns`.
+    "MatchSequence": ("IrPyMatchSequence", [("patterns", "irlist")]),
 }
 
 

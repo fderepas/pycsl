@@ -133,6 +133,23 @@ KNOWN_ERASURES = {
     # (the C11 semantics), which it DOES use. Recorded reason per this ledger's policy; landed
     # with the union-narrowing cluster (user-authorized Wall-2 campaign, 2026-08-02).
     "_union_c11_check_dead_arms",                            # erases `fname` (warn-message-only; faithful)
+    # `_parser___sequence_pattern` erases `t` — the SOURCE-LOCATION boundary of the
+    # PYTHON-AST NODE CTOR FAMILY, made visible here for the first time because this is the
+    # first family member whose START TOKEN arrives as a PARAMETER rather than as a local
+    # (`t = self.cur()`). MECHANICALLY VERIFIED: an AST scan of the mirror body finds
+    # exactly ONE use of `t`, as the `start_tok` argument of
+    # `self._fin_pos(_N("MatchSequence")(patterns=elts), t, end)` — never in a condition,
+    # guard, assignment, return value, or exception. `_fin_pos` writes only the four ASDL
+    # LOCATION attributes (`lineno`/`col_offset`/`end_lineno`/`end_col_offset`) and returns
+    # the node unchanged, and the `emit_ir` ADT has NO location slots, so the family's model
+    # simply does not carry source positions — for THIS method and for every already-
+    # converted sibling (`pattern`, `or_pattern`, `_dotted_value`, `match_stmt`, …), whose
+    # local `t` this param-based probe cannot see. Nothing false is claimed: the contract
+    # says nothing about locations, and the returned node's CHILDREN are all real.
+    # REOPENING CAPABILITY (recorded, not taken): location slots on the emit_ir ADT — e.g.
+    # an `IrPyLoc emit_ir int int int int` wrapper `_fin`/`_fin_pos` apply — at which point
+    # `t` becomes live and this entry must be removed.
+    "_parser___sequence_pattern",                            # erases `t` (location-only; faithful)
 }
 
 
