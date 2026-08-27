@@ -950,9 +950,9 @@ class _Parser:
             names.append(self._import_as_name())
         return names
 
-    def _import_as_name(self):
+    def _import_as_name(self) -> "alias":
         name = self._name_str()
-        asname = None
+        asname: Optional[str] = None
         if self.accept_kw("as"):
             asname = self._name_str()
         return _N("alias")(name=name, asname=asname)

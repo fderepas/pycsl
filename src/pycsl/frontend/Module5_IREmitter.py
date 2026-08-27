@@ -1222,6 +1222,36 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return {"type": "Call", "func": ".".join(parts),
                     "args": [self._py_expr_to_ir(arg) for arg in expr.args],
                     "receiver": receiver_ir}
+        # CLASS-BY-NAME FACTORY (self-tcb-reduction, pure_ast `_N`): a call whose callee is
+        # itself a ONE-ARGUMENT call on a bare name with a STRING-LITERAL argument —
+        # `_N("alias")(name=…, asname=…)`. `pure_ast._N(name)` is `return _g[name]`, a lookup
+        # into the namespace `_build_nodes` fills from the module-level `_NODE_SPEC` ASDL
+        # table, so at a literal call site the class is STATICALLY KNOWN and this is exactly
+        # a construction of that class. RESOLVING it to a direct `<Class>(…)` Call is
+        # therefore faithful, and it means the whole existing record-construction path
+        # (keyword binding included, WL-07) applies unchanged — no new lowering, no new
+        # value shape. Without it the expression falls to the `{"type": "UnknownPyExpr"}`
+        # catch-all below and the constructed node ERASES: measured on `_import_as_name` and
+        # `_dotted_as_name`, whose bodies compute `name`/`asname` correctly and then return a
+        # bare `0`.
+        # FAIL-CLOSED: the callee must be a call to a BARE NAME with exactly one positional
+        # argument that is a STRING literal and no keywords. Measured across the whole tree:
+        # 171 `_N` sites, 161 with a string-literal argument, all in `pure_ast.py`; the
+        # reference corpus has none.
+        if (isinstance(expr.func, ast.Call)
+                and isinstance(expr.func.func, ast.Name)
+                and len(expr.func.args) == 1
+                and not expr.func.keywords
+                and isinstance(expr.func.args[0], ast.Constant)
+                and isinstance(expr.func.args[0].value, str)):
+            _cls_ir: Dict[str, Any] = {
+                "type": "Call", "func": expr.func.args[0].value,
+                "args": [self._py_expr_to_ir(a) for a in expr.args]}
+            _kw = [{"arg": kw.arg, "value": self._py_expr_to_ir(kw.value)}
+                   for kw in expr.keywords if kw.arg is not None]
+            if _kw:
+                _cls_ir["keywords"] = _kw
+            return _cls_ir
         # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): an INDIRECT
         # self-method call `getattr(self, <local>)(<args>)` — the shape a
         # `type -> handler-method-name` table is consumed through. Without this it

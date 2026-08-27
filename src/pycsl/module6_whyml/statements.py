@@ -4181,6 +4181,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             and name not in set(self._formal_params)
         }
         self._optional_union_locals = _union_locals
+        # AN EXPLICIT UNION TYPE IN THE SYMBOL TABLE WINS OVER THE STRING HEURISTICS.
+        # `string_vars` is seeded from the symbol table and then GROWN by a dozen inference
+        # passes, several of which classify a local by the RETURN TYPE OF WHAT IT IS BOUND
+        # FROM (`_collect_str_call_result_locals` and friends). A local annotated
+        # `x: Optional[str] = None` is `_union_*` in the symbol table but is ALSO bound from
+        # a `-> str` call on its Some path, so a heuristic re-classified it `string` and it
+        # pre-declared as `ref ""` while its assignments emitted union constructors —
+        # measured as `This expression has type _union__import_as_name_2, but is expected to
+        # have type string`. The symbol table carries an EXPLICIT declaration and the
+        # heuristics carry inference, so the declaration must win.
+        if _union_locals:
+            string_vars -= _union_locals
+            self._string_local_vars = string_vars
         # hval-value-model-wall: locals bound from a `Dict[str, PyVal]` subscript read
         # are hval-typed refs (let-bound at first assign, not `ref 0`). Byte-inert.
         pyval_read_vars = self._collect_pyval_read_locals(body_stmts) - set(self._formal_params)

@@ -478,7 +478,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self.i
+    #@ assigns \nothing
     def _dotted_as_name(self):
         pass
 
@@ -496,12 +496,15 @@ class _Parser:
     def _import_as_names(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _import_as_name(self):
-        pass
+    def _import_as_name(self) -> "alias":
+        name = self._name_str()
+        asname: Optional[str] = None
+        if self.accept_kw("as"):
+            asname = self._name_str()
+        return _N("alias")(name=name, asname=asname)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

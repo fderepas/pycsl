@@ -334,6 +334,16 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # in Module2_Parser.py.)
     "List": [("elts", "ExprIRList"), ("ctx", "int")],
     "Set":  [("elts", "ExprIRList")],
+    # CLASS-BY-NAME FACTORY vein (self-tcb-reduction, relaunch #4): `alias` is the first
+    # ALL-LEAF `_NODE_SPEC` node harvested — `name` a plain string, `asname` an
+    # `Optional[str]` (`_OPTIONAL_FIELDS['alias'] = ('asname',)`, pure_ast.py). It is the
+    # target of `_N("alias")(name=…, asname=…)` in `_import_as_name` / `_dotted_as_name`,
+    # which Module5 now resolves to a direct `alias(…)` construction, so the ordinary
+    # record-literal path builds it. The "OptStr" tag is the string twin of "OptExprIR":
+    # `{"type":"option","value_type":"string"}` -> `option string` (preamble.py already
+    # emits that shape for `Optional[str]` record fields), collapsing to `int` off
+    # @mutable_state so the corpus is byte-inert.
+    "alias": [("name", "string"), ("asname", "OptStr")],
     # optional-field ext (monomorphic-option ADTs): Slice's 3 fields (`lower`,
     # `upper`, `step`) are ALL declared optional (`_OPTIONAL_FIELDS['Slice'] =
     # ('lower','upper','step')`, pure_ast.py) — the FIRST all-optional record in
@@ -574,6 +584,12 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
                     # @mutable_state (corpus byte-inert).
                     fields.append({"name": fname, "type": "list",
                                    "value_type": "int", "mutable": True})
+                elif ftype == "OptStr":
+                    # CLASS-BY-NAME FACTORY vein: the string twin of "OptExprIR" — an
+                    # `Optional[str]` pure_ast field (`alias.asname`) expands to
+                    # `{"type":"option","value_type":"string"}` -> `option string`.
+                    fields.append({"name": fname, "type": "option",
+                                   "value_type": "string", "mutable": True})
                 elif ftype == "OptExprIR":
                     # optional-field ext (monomorphic-option ADTs): an
                     # `Optional[ExprIR]` pure_ast field (Slice.lower/upper/step,
@@ -592,7 +608,21 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
                 "field_defaults": {fname: 0 for fname, _ in table_entry},
                 "has_hash": False, "has_eq": False, "is_unhashable": False,
                 "constants": {}, "bases": [],
-                "init_params": [], "init_body": [], "init_ensures": [],
+                # CLASS-BY-NAME FACTORY vein: synthesize the CONSTRUCTOR every harvested
+                # node class actually has. `_build_nodes` gives each class the shared
+                # `AST.__init__`, which binds positional args to `cls._fields` IN ORDER and
+                # keyword args BY NAME (pure_ast.py:111) — so `init_params` = the field
+                # names and `init_body` = "field f := param f" is an EXACT model of it, not
+                # an approximation. Without it `_record_types[...]["init_params"]` is empty,
+                # the WL-07 keyword binding in `expressions.py` has nothing to bind through,
+                # and every constructed node collapses to its all-defaults witness
+                # (measured: `alias(name=…, asname=…)` emitted `{ py_alias_name = 0;
+                # py_alias_asname = 0 }`, discarding both arguments).
+                "init_params": [fname for fname, _ in table_entry],
+                "init_body": [{"field": fname,
+                               "value": {"type": "Var", "name": fname}}
+                              for fname, _ in table_entry],
+                "init_ensures": [],
                 "is_mixin": False, "compose_from": [],
             }
         break  # only one `_NODE_SPEC` assignment is ever expected
@@ -619,6 +649,59 @@ def _process_dependency_structural(filepath: str,
     records = _harvest_node_spec_records(tree)
     struct_cache[filepath] = records
     return records
+
+
+def _resolve_same_file_node_spec_records(validated_ast: Any,
+                                         ir_data: Dict[str, Any]) -> None:
+    """Piece 3b: SAME-FILE `_NODE_SPEC` harvest.
+
+    `_harvest_node_spec_records` was only ever called for a DEPENDENCY
+    (`_process_dependency_structural`), so when `pure_ast.py` itself is the file under
+    verification its own ASDL table was never harvested — every node class it names was
+    unavailable, and a `_N("alias")(…)` construction fell to a 0-ary opaque val
+    (`py_alias_0 ()`, INPUT-BLIND) even after Module5 resolved the factory to a direct
+    `alias(…)` call.
+
+    Injects a harvested record ONLY when some function's PARAM or RETURN annotation names it
+    (a bare `Name` or the quoted `Constant` form — `pure_ast.py` has no
+    `from __future__ import annotations` and no `typing` import, so its annotations must be
+    quoted to stay unevaluated). Injecting the whole 76-entry table unconditionally would
+    re-emit the file for records nothing references.
+
+    No-op unless the file itself defines `_NODE_SPEC` — only `pure_ast.py` does, so the
+    reference corpus and every other mirror are byte-identical."""
+    records = _harvest_node_spec_records(validated_ast)
+    if not records:
+        return
+    wanted: Set[str] = set()
+
+    def _ann_name(ann: Any) -> Optional[str]:
+        if isinstance(ann, _ast.Name):
+            return ann.id
+        if isinstance(ann, _ast.Constant) and isinstance(ann.value, str):
+            return ann.value
+        return None
+
+    func_by_name = {f["name"]: f for f in ir_data.get("functions", [])}
+    for node in _ast.walk(validated_ast):
+        if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            continue
+        rn = _ann_name(node.returns) if node.returns is not None else None
+        if rn in records:
+            wanted.add(rn)
+        for arg in node.args.args:
+            an = _ann_name(arg.annotation) if arg.annotation is not None else None
+            if an in records:
+                wanted.add(an)
+                fi = func_by_name.get(node.name)
+                if fi is not None and fi.get("symbol_table") is not None:
+                    fi["symbol_table"][arg.arg] = an
+    if not wanted:
+        return
+    existing = {td.get("name") for td in ir_data.get("type_decls", [])}
+    for name in sorted(wanted):
+        if name not in existing:
+            ir_data.setdefault("type_decls", []).insert(0, records[name])
 
 
 def _resolve_pure_ast_param_records(validated_ast: Any, main_file: str,
@@ -1474,6 +1557,9 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
     # no-op unless a `pure_ast`-alias import AND a matching dotted param
     # annotation are both present (corpus-inert for every other driver).
     _resolve_pure_ast_param_records(validated_ast, main_file, ir_data, {})
+    # Piece 3b: the SAME-FILE `_NODE_SPEC` harvest, for the case where `pure_ast.py` itself
+    # is the file under verification. No-op unless the file defines `_NODE_SPEC`.
+    _resolve_same_file_node_spec_records(validated_ast, ir_data)
     return imported_names
 
 

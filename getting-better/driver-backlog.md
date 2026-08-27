@@ -5156,3 +5156,57 @@ wrapped in `self._fin(_N(…)(…), t)`, and `_fin` SETS FOUR LOCATION ATTRIBUTE
 type varies per call site. **`_fin`, not `_N`, is the gate for the remaining ~71 stubs**, and it
 is a distinct and harder capability: per-node field WRITES through an untyped parameter. The
 `_N` capability is necessary but not sufficient; budget both before funding the vein.
+
+### CLASS-BY-NAME FACTORY **LANDED** with its first consumer — `_import_as_name` CONVERTED (613 -> 612)
+
+The five banked pieces plus a SIXTH written to close the last gap. `_Parser._import_as_name` now
+emits, in full:
+
+    let _parser___import_as_name (self: _parser) : py_alias
+    = let name = ref "" in
+      name := (_parser___name_str self);
+      let asname = ref (Arm_2_None : _union__import_as_name_2) in
+      if (match (_parser__accept_kw self "as") with Arm_1_None -> false | _ -> true end) then
+        asname := (Arm_2_0 (_parser___name_str self));
+      { py_alias_name = !name;
+        py_alias_asname = (match !asname with Arm_2_0 _v -> Some _v | _ -> None end) }
+
+— against a bare `0` before. The record is harvested from the ASDL table, the constructor binds
+both real arguments, and the absent `asname` is a true `None`, NOT the empty string.
+
+**THE SIXTH PIECE: an OPTION-TARGET union projection.** `_union_read_projection` projects a
+single-Some-arm union into its CARRIER with a sentinel — right when the target is `τ`, wrong
+twice over when the target is genuinely `option τ`: it mistypes, and it would model an ABSENT
+value as the carrier's zero (the None-reads-as-`""` erasure this campaign has had to repair
+before). The twin `_union_read_option_projection` yields `Some _v | None`, and the record-ctor
+path selects it when the target FIELD type is `option`. That required threading the RAW keyword
+IR into `_call_record_constructor` beside the already-lowered `kwargs_map`, because by the time
+the ctor sees a keyword its value is a `RawWhyml` string and the field type can no longer be
+applied to it.
+
+**`_dotted_as_name` did NOT land, and the reason is a named chain.** It is the same shape plus a
+`while self.accept_op("."):` loop, whose `#@ loop variant \length(self.toks) - self.i` cannot
+decrease: `accept_op` exports only `ensures True`, so a true guard says nothing about progress.
+The fix is the L13 cursor chain, and it needs all three links —
+ 1. `accept_op`: `ensures \result != None ==> self.i > \old(self.i)`;
+ 2. `advance`: `ensures \old(self.i) < \length(self.toks) - 1 ==> self.i == \old(self.i) + 1`;
+ 3. **an EOF-SENTINEL CLASS INVARIANT** — `self.toks[\length(self.toks)-1].type ==
+    _tokenize.ENDMARKER` — without which a matching `.` at the last position would not imply the
+    cursor moves. `Module2_Parser._ContractParser` carries exactly this invariant (spelled
+    `"EOF"`); `pure_ast._Parser` has `0 <= self.i`, `self.i < \length(self.toks)` and
+    `\length(self.toks) >= 1` but NOT the sentinel. `tokenize` always terminates with ENDMARKER,
+    so it is establishable on the same footing as Module2's — it is an assumption about the
+    trusted lexer, which is the documented, accepted pattern, not a narrowing.
+Adding link 1 alone was measured: `accept_op`'s own postcondition then fails (4 Unknown), so the
+chain must land whole or not at all.
+
+### AND A DEFECT IN THIS WINDOW'S OWN EARLIER INCREMENT, caught and repaired here
+
+Commit `e157c493` changed the LIVE `expressions.py::_handle_arraylen_expr` (the `_in_loop_spec`
+fix) without re-porting it to that function's UN-TRUSTED mirror — a §10.4 violation. I ran the
+corpus and mirror sweeps for that increment but NOT the fidelity gate, so it went in at 3
+DIVERGED instead of the baseline 2. Repaired here; fidelity back to 2, and
+`module6_whyml/expressions` re-proved 864 Valid. **Wall-lessons (dd) is about where a new HELPER
+lives; this is its neighbour and it bit anyway: an edit to any live function whose mirror is
+UN-TRUSTED carries the re-port obligation, and the gate that catches it is the FIDELITY one — so
+never skip it just because the emission diff looked confined.**

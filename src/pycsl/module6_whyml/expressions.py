@@ -6269,7 +6269,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _n, local_refs, invariant_ctx, subst)))
         if tadt is not None:
             return tadt
-        rec = self._call_record_constructor(args, func_name, kwargs_map)
+        rec = self._call_record_constructor(
+            args, func_name, kwargs_map,
+            {kw["arg"]: kw.get("value") for kw in (expr.get("keywords") or [])
+             if isinstance(kw, dict) and isinstance(kw.get("arg"), str)})
         if rec is not None:
             return rec
         enc_lit = self._encode_string_literal(expr, local_refs, invariant_ctx, subst)
@@ -9060,7 +9063,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 f"Init.init (Seq.length {_b}) (fun _i -> Seq.get {_b} _i))")
 
     def _call_record_constructor(self, args: List[str], func_name: str,
-                                 kwargs_map: Optional[Dict[str, str]] = None) -> Optional[str]:
+                                 kwargs_map: Optional[Dict[str, str]] = None,
+                                 kwargs_ir: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """`C(...)` for a known record type → a WhyML record literal with per-field,
         type-correct values. Returns None only if `func_name` is not a known record
         type. (Extracted from `_handle_call_expr`.)
@@ -9123,8 +9127,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             arg_nodes = {init_params[i]: {"type": "RawWhyml", "whyml": args[i]}
                          for i in range(min(len(args), len(init_params)))}
             for _kwn, _kww in kwargs_map.items():
-                if _kwn in init_params:
-                    arg_nodes[_kwn] = {"type": "RawWhyml", "whyml": _kww}
+                if _kwn not in init_params:
+                    continue
+                # OPTION-TARGET keyword: when the field this keyword binds is genuinely
+                # `option τ`, an `Optional`-union actual must be projected into `Some`/`None`,
+                # not into its carrier with a sentinel. `kwargs_map` arrives ALREADY LOWERED
+                # (that is why the raw IR is threaded in beside it): the lowered string is the
+                # sentinel projection, which both mistypes against `option τ` and would model
+                # an ABSENT value as the carrier's zero.
+                _raw = (kwargs_ir or {}).get(_kwn)
+                if (field_types.get(_kwn) == "option"
+                        and isinstance(_raw, dict) and _raw.get("type") == "Var"):
+                    _sym = getattr(self, "_current_symbol_table", {}).get(_raw.get("name"))
+                    _deref = ("!" if _raw.get("name") in getattr(self, "_optional_union_locals", set())
+                              else "")
+                    _opt = self._union_read_option_projection(
+                        _sym, f"{_deref}{whyml_ident(str(_raw.get('name')))}")
+                    if _opt is not None:
+                        arg_nodes[_kwn] = {"type": "RawWhyml", "whyml": _opt}
+                        continue
+                arg_nodes[_kwn] = {"type": "RawWhyml", "whyml": _kww}
             for ent in init_body:
                 fn = ent["field"]
                 # A list/dict/set field keeps its typed default (array/map construction
@@ -10518,6 +10540,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _sentinel = "0"
         return (f"(match {operand} with {some_ctor} _v -> _v "
                 f"| _ -> {_sentinel} end)")
+
+    def _union_read_option_projection(self, symtype: Any, operand: str) -> Optional[str]:
+        """The OPTION-TARGET twin of `_union_read_projection`: project a single-Some-arm
+        `Optional`-union operand into a Why3 `option`, `(match <op> with Arm_i_0 _v -> Some _v
+        | _ -> None end)`, instead of into the carrier with a sentinel.
+
+        Needed wherever the TARGET is genuinely `option τ` rather than `τ` — a record field
+        harvested from an `Optional[...]` declaration (`alias.asname` is `option string`).
+        The sentinel projection is WRONG there twice over: it mistypes (`string` where
+        `option string` is expected — the measured error), and it would silently model an
+        ABSENT value as the empty string, which is exactly the None-reads-as-"" erasure the
+        campaign has had to repair before."""
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        some_ctor = None
+        for cn, c in vinfo.get("constructors", {}).items():
+            if c.get("arity") == 1:
+                if some_ctor is not None:
+                    return None   # multi-Some union — out of scope
+                some_ctor = cn
+        if some_ctor is None:
+            return None
+        return f"(match {operand} with {some_ctor} _v -> Some _v | _ -> None end)"
 
     def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
                          subst: Optional[Dict[str, str]] = None) -> str:

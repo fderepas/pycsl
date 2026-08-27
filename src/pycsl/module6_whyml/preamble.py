@@ -2096,6 +2096,19 @@ class PreambleEmissionMixin:
             for func in functions
             for v in func.get("symbol_table", {}).values()
         )
+        # CLASS-BY-NAME FACTORY vein: a harvested `_NODE_SPEC` RECORD may itself carry an
+        # `option`-typed FIELD (`alias.asname` is `Optional[str]` -> `option string`), which
+        # puts `option` in the emitted `type` declaration with no param, return or body-level
+        # map anywhere in the file. Measured: `unbound type symbol 'option'` on the record
+        # decl line. Mirrors the `option:<R>` param check above; gated on a record field
+        # whose type tag is literally "option" -> byte-inert for every file without one.
+        if not needs_option_record:
+            needs_option_record = any(
+                isinstance(f, dict) and f.get("type") == "option"
+                for td in (self.ir.get("type_decls", []) or [])
+                if td.get("kind") == "record"
+                for f in (td.get("fields", []) or [])
+            )
         needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
         needs_sum = any(IRScanner.uses_sum(func) for func in functions)
         needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
