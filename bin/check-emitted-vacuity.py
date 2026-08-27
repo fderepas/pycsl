@@ -83,7 +83,15 @@ KNOWN_ERASURES = {
     # against the runtime param, not a literal) -> `func_is obj name`. Emitted body
     # references BOTH `name` and `obj`. REMOVED (was the sole partial IRScanner erasure).
     # Partial erasures.
-    "pycsltojsonemitter___collect_class_constants",         # erases `field_names`
+    # REMOVED 2026-08-27 (relaunch #3): `_collect_class_constants` no longer erases
+    # `field_names`. It did because a read-only `Set[str]` METHOD param defaulted to the
+    # int-keyed `map int (option int)`, which mistyped the membership key — the emitted key
+    # is `(match !target with Arm_1_0 _v -> _v | _ -> "" end)`, a genuine `string`, because
+    # `target` is an `Optional[str]` union local. The whole membership therefore collapsed
+    # to the opaque `ps_field_mem <name>`, which dropped the set entirely. With the param
+    # typed `map string (option int)` the test is the real `Map.get field_names <key>`.
+    # This gate reported the fix itself ("1 known erasure NO LONGER erased").
+    # "pycsltojsonemitter___collect_class_constants",       # erased `field_names` — FIXED
     "ghostspecopsmixin___handle_mktuple_expr",              # erases `lr`
     # `Set[str].add(param)` emits a literal `()` — a DIFFERENT, live-tool faithfulness bug in the
     # wall-lessons (h) family (param-collection mutation), not genexp erasure. Filed there.

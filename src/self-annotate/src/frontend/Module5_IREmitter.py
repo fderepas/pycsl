@@ -2143,7 +2143,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ ensures True
     #@ assigns \nothing
     def _collect_class_constants(self, node: ast.ClassDef,
-                                 field_names: int) -> Dict[str, int]:
+                                 field_names: Set[str]) -> Dict[str, int]:
         """Collect class-body integer constants (`CAP = 64`, `O_EXCL = 128`).
 
         Only top-level `Name = <int literal>` / `Name: T = <int literal>`

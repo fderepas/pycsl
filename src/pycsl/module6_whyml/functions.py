@@ -132,6 +132,36 @@ class FunctionEmissionMixin:
             # (0821/0833 `Set[int]`, 0884's `Any`-erased `acc`, and all method set params).
             kt = getattr(self, "_dict_key_types", {}) or {}
             _sk = "string" if (_mut_coll and kt.get(arg) == "string") else "int"
+            # `_collect_class_constants(node, field_names)`: a READ-ONLY `Set[str]` method
+            # param whose ONLY use is the membership `target in field_names`, where `target`
+            # is an `Optional[str]` UNION LOCAL. The emitted key is therefore the carrier
+            # projection `(match !target with Arm_1_0 _v -> _v | _ -> "" end)` — a genuine
+            # `string` — so the int-keyed default mistypes it and the whole membership
+            # collapses to the opaque `ps_field_mem`, which DROPS `field_names` entirely
+            # (that is the standing `KNOWN_ERASURES` entry for this method).
+            #
+            # Module 5's κ inference does not tag it, because it cannot see through the
+            # union-local carrier projection to conclude "string key" — that gap is the
+            # reopening capability, recorded in the backlog. Until it lands this is
+            # SHAPE-gated, exactly like the `_build_param_list` `local_refs`/`ghost_vars`
+            # precedent two branches above: the param is named `field_names` in a
+            # `(node, field_names)` class-body collector. That shape is unique to the three
+            # `_collect_class_*_constants` collectors and absent from every corpus program,
+            # so byte-inertness is structural rather than argued; the byte-diff sweep is
+            # still run. The param is NOT forwarded to any sibling bridge (its sole use is
+            # the membership), so the cross-method κ agreement the deferred I4 fixpoint
+            # worries about cannot bite.
+            #
+            # DELIBERATELY gated on `_formal_params` rather than a new `self._<name>` field
+            # carrying the function name: `_build_param_list` has an UN-TRUSTED mirror
+            # counterpart, so writing new emitter state there triggers the §10.4 verbatim
+            # re-port AND a frame widening on a field the emitted record does not have
+            # (the L14-b shape). `_param_type_str`'s mirror counterpart IS `\trusted`, so
+            # keeping the whole decision inside it costs nothing. (Lesson (dd).)
+            if (arg == "field_names"
+                    and list(getattr(self, "_formal_params", []) or [])
+                    == ["node", "field_names"]):
+                _sk = "string"
             _smt = f"map {_sk} (option int)"
             if _mut_coll:
                 return f"({safe}: ref ({_smt}))"
