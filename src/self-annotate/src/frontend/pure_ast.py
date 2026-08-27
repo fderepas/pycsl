@@ -1201,38 +1201,61 @@ class _Parser:
     # STAYS \trusted. `-> "ExprIR"` records that the result IS an expression node
     # (`emit_ir`); the non-regression clause is backed by the live body, which moves the
     # cursor only through `advance`/`accept_*`/`expect_*`.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `expr` — a
+    # single PASSTHROUGH into the precedence-climbing `_binop`, no ADT arm.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def expr(self) -> "ExprIR":
-        pass
+        return self._binop(0)
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted (`_N(opname)()` takes a
+    # VARIABLE class name read out of the `_BINOP` precedence table, which the
+    # class-by-name recognizer cannot resolve). The interface is what lets `expr` convert.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _binop(self, min_prec):
+    def _binop(self, min_prec) -> "ExprIR":
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
+    # live body, which moves the cursor only through advance/accept_*/expect_* and its
+    # sub-parsers.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def factor(self):
+    def factor(self) -> "ExprIR":
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted, and the reason is a
+    # MEASURED §10.4 cost, not a capability gap — the body was ported, emitted a faithful
+    # `IrPyBinOp !base "Pow" !exp`, type-checked and PROVED (702 Valid). It needed TWO
+    # live-emitter pieces whose mirrors are UN-TRUSTED, so landing it would have obliged
+    # first-ever whole-file re-proofs of `module6_whyml/types.py` AND
+    # `module6_whyml/statements.py` (fidelity measured at 4 DIVERGED). See the backlog
+    # entry "power / the two §10.4 re-ports" for the exact two pieces.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def power(self):
+    def power(self) -> "ExprIR":
         pass
 
-    # SPIKE: emit_ir-as-the-sum-type. Verbatim body port of the LIVE `await_expr`.
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `await_expr`
+    # — the first member of the family (`IrPyAwait emit_ir`), and the first place the
+    # PASSTHROUGH return (`return self.unary_postfix()`) and a real CONSTRUCTION lived in
+    # one WhyML type.
+    # CURSOR NON-REGRESSION: needed by `power`, whose own postcondition runs through this
+    # call. PROVED here — the body moves `self.i` only through `advance` and the converted
+    # `unary_postfix`, both of which export it.
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def await_expr(self) -> "ExprIR":
         if self.at_kw("await"):
@@ -1241,18 +1264,24 @@ class _Parser:
             return self._fin(_N("Await")(value=value), t)
         return self.unary_postfix()
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `unary_postfix` — a pure PASSTHROUGH pair, no ADT arm.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def unary_postfix(self) -> "ExprIR":
-        pass
+        atom = self.atom()
+        return self.trailers(atom)
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted. The `atom` PARAM is the
+    # already-parsed head node, so it is `emit_ir` too.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def trailers(self, atom):
+    def trailers(self, atom: "ExprIR") -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1288,11 +1317,15 @@ class _Parser:
     def _call_args(self, close):
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
+    # live body, which moves the cursor only through advance/accept_*/expect_* and its
+    # sub-parsers.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def atom(self):
+    def atom(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1376,13 +1409,19 @@ class _Parser:
     # `accept_*` / `expect_*`, none of which decreases `self.i`. A caller's cursor-measure
     # loop needs it from EVERY call in its body, not just from the guard (relaunch #4's
     # measured lesson on `_name_str`).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `or_test_no_cond` — two PASSTHROUGH returns, both `emit_ir` through the siblings'
+    # return interfaces. NO new ADT arm: this is the shape lesson (zz) said a per-class
+    # record could never type, and it now costs nothing.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def or_test_no_cond(self) -> "ExprIR":
-        pass
+        # comprehension 'if' uses or_test (no ternary, no walrus per grammar uses test_nocond)
+        if self.at_kw("lambda"):
+            return self.lambdef()
+        return self.or_test()
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
     # precedents). STAYS \trusted. `-> "ExprIR"` records that the result IS an expression
