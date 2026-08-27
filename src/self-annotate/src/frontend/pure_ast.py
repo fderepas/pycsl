@@ -416,6 +416,13 @@ class _Parser:
         e = _N("Expression")(body=node)
         return e
 
+    # STAYS \trusted on ONE measured piece: `self.funcdef([], async_=False)` passes an
+    # EMPTY LIST LITERAL to a param the model int-erases (`decorators: Any`), and the
+    # actual lowers to `(Array.make 1024 0)`, which ill-types against the abstract val's
+    # `int` param. Everything else about the body already emits correctly — the eleven
+    # one-element statement lists build real nodes and travel through `Return_seq_ir`, and
+    # the keyword actuals now bind (increment 13). See the backlog entry "empty-list
+    # actual against an int-erased param".
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

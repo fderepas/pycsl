@@ -1274,16 +1274,35 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             while isinstance(node, ast.Attribute):
                 parts.append(node.attr)
                 node = node.value
+            # KEYWORD ACTUALS ON A DOTTED CALL: capture them exactly as the bare-name
+            # branch above does (WL-07). Before this they were DROPPED at IR-emission
+            # time, so `self.for_stmt(async_=False)` reached Module 6 with `args: []`
+            # and emitted the PARTIAL application `(_parser__for_stmt self)` of type
+            # `int -> emit_ir` — which then ill-types wherever the result is used
+            # (measured on `statement`'s one-element statement lists). Same fail-closed
+            # shape as WL-07: a `**kwargs` splat (`kw.arg is None`) is not captured, and
+            # a keyword-free call emits NO `keywords` key, so every existing dotted call
+            # is byte-identical.
+            _dkw = [{"arg": kw.arg, "value": self._py_expr_to_ir(kw.value)}
+                    for kw in expr.keywords if kw.arg is not None]
             if isinstance(node, ast.Name):
                 parts.append(node.id)
                 parts.reverse()
-                return {"type": "Call", "func": ".".join(parts),
-                        "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
+                _d_ir: Dict[str, Any] = {
+                    "type": "Call", "func": ".".join(parts),
+                    "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
+                if _dkw:
+                    _d_ir["keywords"] = _dkw
+                return _d_ir
             receiver_ir = self._py_expr_to_ir(node)
             parts.reverse()
-            return {"type": "Call", "func": ".".join(parts),
-                    "args": [self._py_expr_to_ir(arg) for arg in expr.args],
-                    "receiver": receiver_ir}
+            _r_ir: Dict[str, Any] = {
+                "type": "Call", "func": ".".join(parts),
+                "args": [self._py_expr_to_ir(arg) for arg in expr.args],
+                "receiver": receiver_ir}
+            if _dkw:
+                _r_ir["keywords"] = _dkw
+            return _r_ir
         # CLASS-BY-NAME FACTORY (self-tcb-reduction, pure_ast `_N`): a call whose callee is
         # itself a ONE-ARGUMENT call on a bare name with a STRING-LITERAL argument —
         # `_N("alias")(name=…, asname=…)`. `pure_ast._N(name)` is `return _g[name]`, a lookup

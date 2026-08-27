@@ -6227,6 +6227,48 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      or _cef_dc.endswith("___canonical_preservation_ensures"))):
             return args[0]
         if "." in func_name:
+            # KEYWORD ACTUALS ON A DOTTED CALL (pyast ctor family, increment 13). Before
+            # this, `_handle_dotted_call` received only the POSITIONAL args, so a keyword
+            # actual was DROPPED ENTIRELY: `self.for_stmt(async_=False)` emitted
+            # `(_parser__for_stmt self)` — a PARTIAL application of type
+            # `int -> emit_ir`, which then ill-types wherever the result is used
+            # (measured on `statement`'s one-element statement lists). Python binds
+            # keywords BY NAME, so bind them into their formal POSITIONS from the callee's
+            # declared `formal_params` and pass the completed positional list. Applied
+            # only when EVERY keyword names a formal beyond the positional prefix and the
+            # result is gap-free, so a partially-bound or unknown-keyword call is left
+            # exactly as it is today (fail-closed, byte-identical). A callee with no
+            # recorded formals is untouched, which is every corpus dotted call.
+            if expr.get("keywords") and func_name.startswith("self."):
+                _tail = func_name[len("self."):]
+                _cls = self._current_self_type or ""
+                _fpm = getattr(self, "_module_method_formal_params", {})
+                # Two spellings are in use for this map's key — the RAW
+                # `<self_type>__<method>` (`_resolve_dotted_signature`) and the
+                # `whyml_ident`-normalised one (`_handle_dotted_call`'s R7 default fill).
+                # Try both rather than guess.
+                _formals = list(_fpm.get(f"{_cls}__{_tail}")
+                                or _fpm.get(whyml_ident(f"{_cls}__{_tail}"))
+                                or [])
+                _kw = {k.get("arg"): k for k in expr["keywords"]
+                       if isinstance(k, dict) and isinstance(k.get("arg"), str)}
+                if (_formals and len(args) <= len(_formals)
+                        and _kw and set(_kw) <= set(_formals[len(args):])):
+                    _slots = list(args) + [None] * (len(_formals) - len(args))
+                    for _i, _nm in enumerate(_formals):
+                        if _i < len(args) or _nm not in _kw:
+                            continue
+                        _slots[_i] = self._expr_to_whyml(
+                            _kw[_nm].get("value"), local_refs, invariant_ctx, subst)
+                    # Gap-free prefix only: stop at the first unbound slot rather than
+                    # emitting a hole.
+                    _bound = []
+                    for _v in _slots:
+                        if _v is None:
+                            break
+                        _bound.append(_v)
+                    if len(_bound) == len(_formals):
+                        args = _bound
             return self._handle_dotted_call(func_name, args)
         # WL-07: lower any EXPLICIT keyword args (`Point(x=1, y=2)`) so a record
         # constructor binds its fields by name. Empty for a keyword-free call
