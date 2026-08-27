@@ -2599,3 +2599,33 @@ re-measured before it is used to skip a vein — the measurement is one command.
 
 **The corollary that actually mattered here:** run a PER-FILE census of the count at least once
 per campaign. The ladder was working files with 30-40 markers while one file held 186.
+
+## Lesson (ss) — `pure_ast`'s module globals ARE its AST-node namespace, so a `typing` import SILENTLY REPLACES an AST node class
+
+I recommended, in this same window, "add the `typing` import to `pure_ast.py`" as a small safe
+capability to unblock `List[...]` annotations there. **That recommendation was dangerously wrong,
+and acting on it broke the parser.**
+
+`pure_ast.py` builds its ~130 AST node classes at import time with `_build_nodes(globals())` —
+the module's own globals are the node namespace, and `_N(name)` is literally `_g[name]`. FOUR
+ASDL node names collide with `typing` names: **`List`, `Set`, `Dict`, `Tuple`**. So
+`from typing import List` REPLACES the `List` AST node class, and the very next list literal the
+parser meets calls `typing.List(...)` and dies with
+
+    Type List cannot be instantiated; use list() instead
+
+The failure surfaced as an "UNEXPECTED PIPELINE ERROR" with no traceback — the top-level handler
+prints only `str(e)` — and it looked exactly like an emitter/monomorphizer limitation on
+`List[<record>]` return annotations. It is not: it is a runtime name collision in the LIVE source
+that my own edit introduced. I found it by hooking `typing.List.__call__` and printing the stack.
+
+**The rules.**
+ - In any module that installs generated classes into its own globals, an import is not
+   namespace-neutral. Check a new import name against that generated namespace BEFORE adding it.
+ - When an "UNEXPECTED PIPELINE ERROR" prints a message with no traceback, get the traceback
+   before theorising: hook the failing callable, or re-run the stage directly. The message alone
+   sent me looking in the emitter for a bug that was in the file I had just edited.
+ - A live-source edit that is "obviously runtime-inert" deserves the same smoke test as any
+   other. `import pure_ast; pure_ast.parse("x = [1]")` would have caught this in one second —
+   and my earlier smoke tests used `x = 1` and `import a.b as c`, neither of which builds a
+   `List` node. **Choose the smoke test to exercise what the edit could plausibly break.**
