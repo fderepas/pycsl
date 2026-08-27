@@ -472,6 +472,14 @@ class _Parser:
     def small_stmt(self):
         pass
 
+    # `_fin` RECOGNIZER vein: NOT YET CONVERTIBLE. Its body lowers correctly through the new
+    # `_fin` recognizer, but `val = None` / `val = self.testlist()` needs an `option emit_ir`
+    # LOCAL carrier and there is none: the local is inferred `emit_ir` from its assignment,
+    # the `None` initialiser erases, and binding it to `Return`'s OPTIONAL `value` field is an
+    # L3 type error. `Optional["ExprIR"]` as a PEP-526 local annotation does NOT create the
+    # carrier either (measured) — the union normalization has no emit_ir arm. NAMED
+    # CAPABILITY: an `Optional[ExprIR]` local carrier (`option emit_ir`), the emit_ir twin of
+    # the `Optional[str]` union local the class-by-name factory already builds.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -888,12 +896,20 @@ class _Parser:
     def lambda_parameters(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # `_fin` RECOGNIZER vein, increment 4: CONVERTED — the FIRST consumer of the `_fin`
+    # position-wrapper recognizer. Verbatim body port of the LIVE `_lambda_arg`.
+    # `self._fin(_N("arg")(...), t)` lowers to the construction itself: `_fin` sets only the
+    # four ASDL LOCATION ATTRIBUTES, which the harvested `_NODE_SPEC` records do not carry,
+    # so in the model it is the IDENTITY. `arg`'s two optional fields are bound from literal
+    # `None`s and become TRUE `None`s; the parameter name is the real string `_name_str`
+    # returns.
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _lambda_arg(self):
-        pass
+    def _lambda_arg(self) -> "arg":
+        t = self.cur()
+        name = self._name_str()
+        return self._fin(_N("arg")(arg=name, annotation=None, type_comment=None), t)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

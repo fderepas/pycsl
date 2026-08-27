@@ -1163,6 +1163,53 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return result
 
     def _py_expr_call(self, expr: ast.Call) -> Dict[str, Any]:
+        # `_fin`-FAMILY POSITION WRAPPER (self-tcb-reduction, pure_ast `_Parser`).
+        # `self._fin(X, t[, e])`, `self._fin_pos(X, t, e)` and `self._fin_block(X, t)` set
+        # ONLY the four ASDL LOCATION ATTRIBUTES (`lineno`, `col_offset`, `end_lineno`,
+        # `end_col_offset`) on `X` and return `X` UNCHANGED — read off the live bodies;
+        # `_fin`'s only other action is the read `self.toks[max(self.i - 1, 0)]`, which does
+        # not move the cursor.
+        # WHY LOWERING TO `X` IS FAITHFUL: the harvested `_NODE_SPEC` records carry the ASDL
+        # *fields* only — `_PURE_AST_FIELD_TABLE` lists no `lineno`/`col_offset`/
+        # `end_lineno`/`end_col_offset`, and the emitted records confirm it — so the four
+        # location attributes are OUTSIDE the model entirely (exactly as an `expr_context`
+        # `ctx` leaf is carried as an opaque int). In the model these wrappers ARE the
+        # identity. Without this the whole call falls to the `UnknownPyExpr` catch-all and
+        # the CONSTRUCTED NODE ERASES to a bare `0` — the same erasure the class-by-name
+        # factory was built to remove, one level up.
+        # FAIL-CLOSED, and it fails closed on the thing that could go wrong: the FIRST
+        # argument must ITSELF be the `_N("<literal>")(...)` construction, so an `_fin` over
+        # any other value (a variable, a sibling call, a node built some other way) is left
+        # exactly as it is today. If the harvest is ever widened to include the location
+        # ATTRIBUTES as record fields, this recognizer must be re-gated — the assertion it
+        # rests on is "the record has no location field", and it is checked below.
+        if (isinstance(expr.func, ast.Attribute)
+                and isinstance(expr.func.value, ast.Name)
+                and expr.func.value.id == "self"
+                and expr.func.attr in ("_fin", "_fin_pos", "_fin_block")
+                and not expr.keywords
+                and len(expr.args) >= 1
+                # ... and the first argument is ITSELF the class-by-name construction
+                # `_N("<literal>")(...)` that the factory branch below resolves. Spelled
+                # INLINE rather than as a helper method: a new method on this class becomes a
+                # new abstract `val` in the emission of EVERY mirror that imports it (measured:
+                # `frontend/__init__` and `frontend/ir_resolve` both gained a declaration
+                # line), turning a 1-of-52 mirror diff into a 3-of-52 one and obliging two
+                # extra whole-file re-proofs for nothing.
+                and isinstance(expr.args[0], ast.Call)
+                and isinstance(expr.args[0].func, ast.Call)
+                and isinstance(expr.args[0].func.func, ast.Name)
+                and len(expr.args[0].func.args) == 1
+                and not expr.args[0].func.keywords
+                and isinstance(expr.args[0].func.args[0], ast.Constant)
+                and isinstance(expr.args[0].func.args[0].value, str)):
+            _cls = expr.args[0].func.args[0].value
+            # Imported LAZILY: `ir_resolve` is a post-Module5 pass and importing it at module
+            # scope would close a cycle.
+            from frontend.ir_resolve import _PURE_AST_FIELD_TABLE as _PAFT
+            _flds = [f for (f, _t) in _PAFT.get(_cls, [])]
+            if not ({"lineno", "col_offset", "end_lineno", "end_col_offset"} & set(_flds)):
+                return self._py_expr_to_ir(expr.args[0])
         if isinstance(expr.func, ast.Name):
             if expr.func.id == "deque":
                 # collections-plan: `deque(...)` reduces to the list/array model. Lower

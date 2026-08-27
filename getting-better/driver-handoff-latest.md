@@ -75,8 +75,16 @@ both SUCCESS. Corpus byte-diff **0 over 813/813**. Mirror emission diff **2 of 5
      which is exactly the shape the filling local already has, so no `Init.init` at all.
    Outstanding for it: corpus byte-diff, mirror sweep, whole-file proof.
 
-2. **THE `_fin` CAPABILITY — 57 stubs, ~10% of the whole TCB, and it is a CALL-SITE RECOGNIZER,
-   not a monomorphization.** `_fin`/`_fin_block`/`_fin_pos`/`node` set only the four ASDL
+2. **THE `_fin` CAPABILITY IS BUILT AND LANDED (`_lambda_arg` is its first consumer) — but its
+   CEILING IS 13 STUBS, NOT 57.** A return-shape census of the 57 `_fin`-gated stubs: 13 return a
+   SINGLE `_N` class, 3 return more than one, and **40 have a PASSTHROUGH return** (`return p` /
+   `return self.<sub>()` beside the constructed node) — the Pratt-parser shape, whose two returns
+   have DIFFERENT WhyML types under per-class records and therefore cannot be typed at all.
+   **Unifying the pure_ast node classes into ONE sum type is the capability that unlocks the 40**,
+   and it is the same capability `pyast_expr` Stage B asks for. Of the 13, most are additionally
+   gated on the **`Optional[ExprIR]` local carrier** (`option emit_ir`) — see the backlog; a
+   PEP-526 `Optional["ExprIR"]` annotation does NOT create it (measured).
+   The original argument, still true: `_fin`/`_fin_block`/`_fin_pos`/`node` set only the four ASDL
    location attributes and return the node unchanged. **The harvested `_NODE_SPEC` records do not
    carry those attributes at all**, so in the model `_fin(x, t) == x`, and lowering the call to
    its first argument is faithful. Gate it on the constructed node's record having no

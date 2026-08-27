@@ -2751,3 +2751,44 @@ untouched, and the emission is a real `let ghost i_before = ref self.i` that the
 **The rule.** When a proof needs to refer to a value the source does not name, reach for `#@ ghost`
 BEFORE reaching for a new local. In this campaign a mirror-only local is a fidelity failure; a
 mirror-only ghost is free.
+
+## Lesson (yy) — a NEW METHOD on a widely-imported emitter class is not free: it becomes an abstract `val` in every mirror that imports the class
+
+I factored the `_fin` recognizer's guard into a small `@staticmethod
+_m5_is_class_by_name_ctor`. Measured effect on the mirror emission sweep: **1 changed mirror became
+3**, because `frontend/__init__.mlw` and `frontend/ir_resolve.mlw` each gained the line
+
+    val pycsltojsonemitter___m5_is_class_by_name_ctor (self: pycsltojsonemitter) (e: int) : int
+
+— a declaration-only change, but one that obliges two extra whole-file re-proofs, for nothing.
+Spelling the same predicate INLINE at its single call site put the sweep back to 1 of 52.
+
+This is lesson (vv) again from a different direction: in this campaign the unit of cost is not
+"lines of code" but "how many verified artifacts does this perturb". A helper method has a
+NON-LOCAL price whenever its class is imported by other mirrors — and `PyCSLToJSONEmitter` is
+imported by most of them.
+
+**The rule.** Before extracting a helper on an emitter class, ask which mirrors import that class.
+If more than the one you are working on does, inline it.
+
+## Lesson (zz) — a per-class record model cannot type a PASSTHROUGH return, and that is where the pure_ast mass actually is
+
+The class-by-name factory gives each ASDL node class its OWN WhyML record (`py_alias`, `arg`,
+`comprehension`, …). That is faithful and it converts a stub whose every `return` builds the SAME
+class. Measured on the 57 `_fin`-gated `_Parser` stubs: only **13** are that shape. **40** have a
+PASSTHROUGH return —
+
+    x = self.<sub>()
+    if not self.at_op(<op>):
+        return x                       # <- some other node class
+    ...
+    return self._fin(_N("BinOp")(...), t)
+
+— the ordinary Pratt-parser shape. Under per-class records those two returns have DIFFERENT types,
+so the function has no WhyML type at all; no amount of recognizer work reaches them.
+
+**The rule.** When a value model gives each variant its own type, census the RETURN SHAPES of the
+consumers before estimating the vein. A model that types constructions beautifully can still type
+almost none of the FUNCTIONS, and the fix is a sum type, not a better recognizer. (Here that is
+exactly the `pyast_expr` Stage-B item the campaign already has on the ladder — so the right move is
+to fund THAT rather than to keep widening the field table.)

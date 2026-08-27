@@ -248,6 +248,12 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # ('body',), ())`, no `_OPTIONAL_FIELDS` entry), the expression tree itself, so it
     # is tagged "ExprIR" exactly like BinOp's children.
     "Expression": [("body", "ExprIR")],
+    # `_fin` RECOGNIZER vein: `arg` is the ASDL parameter node —
+    # `_NODE_SPEC['arg'] == ('AST', ('arg','annotation','type_comment'), <location attrs>)`,
+    # and `_OPTIONAL_FIELDS['arg'] == ('annotation','type_comment')`, so the LAST TWO are
+    # optionals ("OptExprIR" -> `option emit_ir`, "OptStr" -> `option string`) and the first
+    # is the parameter NAME, a real string (`_lambda_arg` binds it from `_name_str`).
+    "arg": [("arg", "string"), ("annotation", "OptExprIR"), ("type_comment", "OptStr")],
     # CLASS-BY-NAME FACTORY vein: `comprehension` is the `for`-clause of a comp/genexp —
     # `_NODE_SPEC['comprehension'] == ('AST', ('target','iter','ifs','is_async'), ())`, four
     # TOTAL fields (no `_OPTIONAL_FIELDS` entry). `target`/`iter` are expr children;

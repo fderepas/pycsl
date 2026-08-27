@@ -5381,7 +5381,25 @@ silently dropping modelled writes. Verified prerequisite: the emitted `_fin_pos`
 int-erased facade (`setattr_3 node <hash> …` over `node: int`), so nothing downstream depends on
 `_fin` returning a modelled value.
 
-**This is the single highest-leverage unbuilt item in the file: 57 stubs, ~10% of the whole TCB.**
+**CORRECTED CEILING (measured 2026-08-27, relaunch #5, AFTER the recognizer landed).** The
+recognizer is real and its first consumer (`_lambda_arg`) converted — but the "57 stubs" figure
+is NOT the reachable set. Of the 57 `_fin`-gated stubs, a return-shape census gives:
+
+| return shape | count | reachable with PER-CLASS records? |
+|---|---|---|
+| every `return` is the SAME `_N("<lit>")(...)` class | **13** | YES |
+| more than one `_N` class returned | 3 | no |
+| at least one return is a PASSTHROUGH (`return p`, `return self.<sub>()`) | **40** | **NO** |
+
+The 40 are the Pratt-parser shape — `x = self.<sub>(); if <not the operator>: return x;` then build
+a node. With per-class harvested records those two returns have DIFFERENT WhyML types, so the
+function cannot be typed at all. **Unifying the pure_ast node classes into ONE sum type (arms of
+`emit_ir`, or a new `pyast` ADT) is the capability that unlocks the 40** — and it is the same
+capability the `pyast_expr` Stage-B item asks for. That is where the mass in this file actually is.
+
+Of the 13 single-class ones, most (`return_stmt`, `assert_stmt`, `raise_stmt`, `_param_arg`,
+`import_from`, `if_stmt`, `while_stmt`) additionally need the **`Optional[ExprIR]` LOCAL carrier**
+below.
 
 **WHERE IT GOES, and why it is cheap.** Right beside the existing class-by-name factory
 recognizer in `Module5_IREmitter._py_expr_call` (the `_N("<lit>")(<kwargs>)` branch,
@@ -5401,3 +5419,24 @@ model is a Why3 ENUM VARIANT per category (`type expr_context = Load | Store | D
 and it makes `ctx=_N("Load")()` a real constructor instead of an opaque int. Cost: the `ctx`/`op`
 field tags move from `"int"` to the category type, which ripples into every record that has one.
 COST/SCALE, not correctness.
+
+
+### NAMED CAPABILITY — an `Optional[ExprIR]` LOCAL carrier (`option emit_ir`) — **not yet built**
+
+The commonest shape in `_Parser` is
+
+    val = None
+    if <present>:
+        val = self.<sub>()
+    return self._fin(_N("Return")(value=val), t)
+
+`Return.value` is in `_OPTIONAL_FIELDS`, so the harvested field is `option emit_ir`. But the LOCAL
+is inferred `emit_ir` from its assignment and the `None` initialiser ERASES to `IrOther ""`, so the
+binding is an L3 type error. **A PEP-526 `val: Optional["ExprIR"] = None` annotation does NOT fix
+it — measured**: Module5's union normalization has no `emit_ir` arm, so the local does not become a
+carrier. (The `Optional[str]` twin DOES work — that is what the class-by-name factory built for
+`alias.asname`.) This is the emit_ir twin of that, and it is the gate on most of the 13.
+
+Landed alongside the `_fin` recognizer and worth knowing: a LITERAL `None` keyword argument bound to
+an `option` field used to lower to the int `0` (both a type error and the None-reads-as-zero
+erasure); it now lowers to Why3's `None`, and an OMITTED option field defaults to `None` too.

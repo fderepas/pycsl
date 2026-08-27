@@ -9110,6 +9110,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(Array.make {rec_info['defaults'].get(fn, 0)} 0)"
             if ft in ("dict", "set", "frozenset"):
                 return "(const (None: option int))"
+            if ft == "option":
+                # An OMITTED option field's type-correct default is Why3's `None`, not the
+                # int `0` — same faithfulness point as the literal-`None` keyword above.
+                return "None"
             return f"{rec_info['defaults'].get(fn, 0)}"
 
         # Parametrized overrides: map each param-initialised scalar field to its
@@ -9148,6 +9152,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # sentinel projection, which both mistypes against `option τ` and would model
                 # an ABSENT value as the carrier's zero.
                 _raw = (kwargs_ir or {}).get(_kwn)
+                # OPTION-TARGET keyword, LITERAL-`None` case: `_N("arg")(annotation=None,
+                # type_comment=None)` binds an option field from the `None` LITERAL. Lowered
+                # generically it is the int `0` — which mistypes against `option τ` and, worse,
+                # is the None-reads-as-zero erasure this campaign has repaired before. The
+                # faithful value is Why3's own `None`.
+                if (field_types.get(_kwn) == "option"
+                        and isinstance(_raw, dict) and _raw.get("type") == "None"):
+                    arg_nodes[_kwn] = {"type": "RawWhyml", "whyml": "None"}
+                    continue
                 if (field_types.get(_kwn) == "option"
                         and isinstance(_raw, dict) and _raw.get("type") == "Var"):
                     _sym = getattr(self, "_current_symbol_table", {}).get(_raw.get("name"))
