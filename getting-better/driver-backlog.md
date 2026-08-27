@@ -4801,3 +4801,80 @@ lowers the count while verifying strictly less than the `\trusted` marker claime
 **This is why `_PY_STMT_HANDLERS` is deliberately ABSENT from `_PYX_TABLE_ADT`** (preamble.py).
 The allowlist was written before the probe; the probe confirms the exclusion is right, and with
 it an unsupported table cannot accidentally acquire an ADT.
+
+## `frontend/pure_ast.py` VEIN **REOPENED** — the recorded proof-scale wall is NOT currently binding (2026-08-27, RELAUNCH #4, 617 -> 615)
+
+**THE CENSUS THAT FOUND IT.** After the L2 cluster closed, a per-file marker census (the first
+in this campaign, and the reason the new `bin/count-trusted-directives.py` exists) shows the mass
+is nowhere near where the ladder was looking:
+
+    186  frontend/pure_ast.py        <- 31% of the ENTIRE TCB, more than the next FIVE files combined
+     37  module6_whyml/expressions.py
+     33  pycsl.py
+     31  frontend/Module5_IREmitter.py
+     28  frontend/Module3_Weaver.py
+
+Of the 186, **96 are in the single class `_Parser`** — the cursor shape this campaign has already
+converted TWICE (`Module2_Parser._ContractParser`, `proof2why3._Parser`). The `@mutable_state`
+class, its three class invariants and the 14 cursor primitives (`cur`/`peek`/`advance`/`at_op`/
+`at_name`/`at_kw`/`accept_op`/`expect_op`/`accept_kw`/`expect_kw`/…) are **already converted**.
+
+**THE RECORDED WALL DOES NOT HOLD.** The backlog files this vein as
+"[[parser_vein_broken]]: 29 stubs converted, TERMINUS = solver-context-saturation PROOF-SCALE
+wall, reopen needs review-gated modular proof". MEASURED FRESH: `frontend/pure_ast.mlw` proves
+**235 Valid, 0 non-Valid, `[+] Verification SUCCESS`, in minutes** — one of the CHEAPEST files in
+the suite to gate, not one of the most expensive. Whatever saturated the solver in that window is
+not present now (the `wf_val_str_stable` option-a hardening landed after it). **Re-measure a
+proof-scale wall before inheriting it.**
+
+**CONTAINMENT MEASURED, NOT ASSUMED.** Annotating the live `pure_ast.py` was the feared
+"corpus-perturbation risk". Swept: the mirror emission diff is **1 of 52** (`pure_ast.mlw` only)
+and the corpus byte-diff is **0 over 813/813**. So each conversion here costs ONE fast proof.
+
+### CONVERTED THIS INCREMENT (2)
+
+ - **`_pad_whitespace(source: str) -> str`** — `for c in source` lowers to the indexed
+   `str_sub_op` scan, `c in '\f\t'` to `str_contains_op`, `result += c` to `str_concat_op`. No
+   erasure.
+ - **`_Parser._with_parenthesized(self) -> bool`** — a read-only lookahead scan over `self.toks`
+   from `self.i`. **ZERO erasure markers**: `_tokenize.OP`/`NAME`/`NEWLINE` resolve to the real
+   token-type constants 55/1/4, every string test is a `str_eq_op`, and `_keyword.kwlist` expands
+   into the REAL 35-element keyword sequence under `seq_mem_str`.
+
+Both needed only a live SIGNATURE annotation (runtime-inert; the mirror-check gate requires live
+and mirror to agree). `_with_parenthesized` additionally needed two loop invariants and a variant
+— see the lesson below.
+
+### THE THREE BLOCKERS MEASURED ON THE NEXT RING (each a named, small capability)
+
+ 1. **`Optional[<record>]` LOCAL.** `_line_ends_with_colon` is otherwise identical to
+    `_with_parenthesized` and lowers just as faithfully, except `last_sig = None` … `last_sig = tk`
+    emits `last_sig` as `int`: `let last_sig = ref 0` then `last_sig := !tk` — a type error — and
+    the final `last_sig.string == ":"` degrades to the opaque `get_string` compared against a HASH.
+    A PEP-526 local annotation (`last_sig: Optional[_Tok] = None`, runtime-inert on BOTH sides) is
+    NOT enough — the union-local machinery is driven by return-type unions, not local annotations.
+    **Capability: admit an annotated `Optional[<record>]` LOCAL as a union carrier.** This one
+    blocker alone gates a whole family of `last_*`/`prev_*` scan idioms.
+ 2. **`str.isalpha()` / char-class predicates.** `_fstring_prefix_raw` lowers `ch.isalpha()` to
+    `(ch_isalpha_0 ())` — a **0-ARY** opaque val, i.e. INPUT-BLIND: the test does not depend on the
+    character. The emitter has `lower`/`upper`/`strip`/`replace` (`_STR_VALUE_METHODS`) but no
+    char-class family. **Capability: `str_isalpha_op`/`isdigit`/`isalnum`/`isspace` as 1-ARGUMENT
+    uninterpreted predicates** (the `str_is_lowerf` precedent — no axiom). Small, and it removes an
+    input-blindness rather than adding an assumption.
+ 3. **`List[str]` in a live annotation.** `_splitlines_no_ff` wants `-> List[str]`, but
+    `pure_ast.py` has no `from __future__ import annotations` and does not import `typing`, so a
+    module-level annotation would be EVALUATED and raise `NameError`. Function-LOCAL annotations
+    are inert (PEP 526) but return/param annotations are not. **Capability: add the `typing` import
+    to the live file** (a one-line source change, deliberately not taken in this increment).
+
+### THE RIPPLE STRUCTURE (why this vein pays)
+
+A call-graph census over `_Parser`'s 96 trusted stubs, ranked by how many of their self-calls are
+still trusted: **8 have ZERO unconverted callees** (`__init__`, `error`, `unsupported`, `_fin`,
+`_slice`, `_line_ends_with_colon`, `_max_end`, `_with_parenthesized`) and **19 more have exactly
+ONE** (`expr`->`_binop`, `node`->`_fin`, `_name_str`->`error`, `parse_eval`->`testlist`,
+`_else_block`->`block`, `_import_as_name`->`_name_str`, …). Each conversion unlocks the next ring.
+Of the 8 leaves: 2 converted here; `error`/`unsupported` are raise-only (the taxonomy's
+"converting = vacuous" class — do NOT convert them for the count); `_fin` mutates an untyped AST
+node's location fields; `_max_end` is the documented raw-ast `getattr`/`hasattr` wall; `_slice`
+reads `self._lines`, a self-field the mirror `__init__` does not declare.

@@ -667,12 +667,41 @@ class _Parser:
     def with_stmt(self, async_):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # pure_ast cursor vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body
+    # port of the LIVE `_with_parenthesized` — a READ-ONLY lookahead scan over `self.toks`
+    # from `self.i`, on the already-converted `@mutable_state` cursor model. `assigns
+    # \nothing`: the scan uses a LOCAL index `j`, never `self.i`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _with_parenthesized(self):
-        pass
+    def _with_parenthesized(self) -> bool:
+        depth = 0
+        j = self.i
+        n = len(self.toks)
+        # The scan reads `self.toks[j]`, so it needs the two facts the live body leaves
+        # implicit: `j` never goes below the cursor's own lower bound (class invariant
+        # `0 <= self.i`), and `n` is pinned to the array length for the whole scan. With
+        # those, the guard `j < n` discharges the index-in-bounds obligation, and `n - j`
+        # is the termination measure (every non-returning path ends in `j += 1`).
+        #@ loop invariant 0 <= j
+        #@ loop invariant n == \length(self.toks)
+        #@ loop variant n - j
+        while j < n:
+            tk = self.toks[j]
+            if tk.type == _tokenize.OP and tk.string == "(":
+                depth += 1
+            elif tk.type == _tokenize.OP and tk.string == ")":
+                depth -= 1
+                if depth == 0:
+                    return False
+            elif depth == 1 and tk.type == _tokenize.NAME and tk.string == "as" and "as" in _keyword.kwlist:
+                return True
+            elif depth == 1 and tk.type == _tokenize.OP and tk.string == "," :
+                pass
+            elif tk.type == _tokenize.NEWLINE:
+                return False
+            j += 1
+        return False
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1116,12 +1145,22 @@ def dump(node, annotate_fields=True, include_attributes=False, *, indent=None):
 def _splitlines_no_ff(source):
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
+# pure_ast string-helper vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim
+# body port of the LIVE `_pad_whitespace`. The `for c in source` lowers to the indexed
+# `str_sub_op` scan, `c in '\f\t'` to `str_contains_op`, and `result += c` to
+# `str_concat_op` — no erasure. The live signature gained `(source: str) -> str`
+# (runtime-inert; the mirror-check gate requires the two to agree).
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _pad_whitespace(source):
-    pass
+def _pad_whitespace(source: str) -> str:
+    result = ''
+    for c in source:
+        if c in '\f\t':
+            result += c
+        else:
+            result += ' '
+    return result
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

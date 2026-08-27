@@ -1324,7 +1324,7 @@ class _Parser:
         cls = "AsyncWith" if async_ else "With"
         return self._fin_block(_N(cls)(items=items, body=body, type_comment=None), t)
 
-    def _with_parenthesized(self):
+    def _with_parenthesized(self) -> bool:
         # lookahead: a parenthesized with-items list (heuristic: '(' then items
         # with 'as' or ',' before matching ')'). Keep simple: treat '(' as a
         # normal expression unless we clearly see "as" at depth 1.
@@ -2512,7 +2512,7 @@ def _splitlines_no_ff(source):
     return lines
 
 
-def _pad_whitespace(source):
+def _pad_whitespace(source: str) -> str:
     r"""Replace all chars except '\f\t' in a line with spaces."""
     result = ''
     for c in source:
