@@ -1,0 +1,286 @@
+# CLASS-BY-NAME FACTORY (`_N("<Class>")(<kwargs>)`) — WORKING PARTIAL BUILD, banked 2026-08-27.
+#
+# APPLY WITH:  git apply getting-better/pyast-expr/class-by-name-factory-WIP.patch
+#
+# This is the capability the pure_ast census named as gating 73 of the 96 trusted `_Parser`
+# stubs (12% of the whole TCB). It is REVERTED out of the tree per demand-first discipline —
+# every piece below is measured BYTE-INERT (mirror emission diff 0 of 52, corpus 0 of 813) but
+# has NO CONSUMER yet, and an unconsumed capability is surface without value. It is banked
+# verbatim so the next window re-derives NOTHING.
+#
+# EXACTLY HOW FAR IT GETS, measured on `_Parser._import_as_name` (the best consumer: it RETURNS
+# the construction directly instead of funnelling it through the trusted `_fin`):
+#
+#   before:  return _N("alias")(name=name, asname=asname)   emitted as   0
+#   after :  { py_alias_name = !name;
+#              py_alias_asname = (match !asname with Arm_2_0 _v -> _v | _ -> "" end) }
+#
+# i.e. the record is declared, the return type is `py_alias`, the constructor binds BOTH real
+# arguments, and the `Optional[str]` local really does become a union carrier.
+#
+# THE FOUR PIECES, each independently useful:
+#  1. Module5_IREmitter `_py_expr_call` — resolve `<Name>("<lit>")(<kwargs>)` to a direct
+#     `<lit>(…)` Call. `pure_ast._N(name)` is `_g[name]` over the namespace `_build_nodes`
+#     fills from `_NODE_SPEC`, so at a literal site the class is STATICALLY KNOWN; resolving
+#     it reuses the whole existing record-construction path (WL-07 keyword binding included).
+#  2. ir_resolve `_resolve_same_file_node_spec_records` — the SAME-FILE `_NODE_SPEC` harvest.
+#     `_harvest_node_spec_records` was only ever called for a DEPENDENCY, so when `pure_ast.py`
+#     itself is under verification its own ASDL table was never harvested. Injects a record
+#     only when a PARAM or RETURN annotation names it (bare or quoted).
+#  3. ir_resolve `_harvest_node_spec_records` — synthesize `init_params`/`init_body` for a
+#     harvested record. `_build_nodes` gives every node class the shared `AST.__init__`, which
+#     binds positional args to `cls._fields` in order and keywords BY NAME (pure_ast.py:111),
+#     so "params = field names, body = field f := param f" is an EXACT model. WITHOUT IT the
+#     WL-07 keyword binding has nothing to bind through and every construction collapses to
+#     its all-defaults witness.
+#  4. preamble — `use option.Option` when a harvested RECORD carries an `option`-typed FIELD
+#     (`alias.asname`). Measured: `unbound type symbol 'option'` on the record decl line.
+#  (+ the `"OptStr"` field tag, the string twin of `"OptExprIR"`, and the `alias` table entry.)
+#
+# THE ONE REMAINING BLOCKER, precisely located:
+#   `let asname = ref ""` — the union local is DECLARED `string` instead of
+#   `(Arm_2_None : _union__import_as_name_2)`. `statements.py:4178` builds `_union_locals` from
+#   `_current_symbol_table[name].startswith("_union_")`, and the ANNOTATED-LOCAL path
+#   (`asname: Optional[str] = None`, runtime-inert under PEP 526) creates the union ARMS but
+#   never writes the symbol-table entry. Fix that seeding and `_import_as_name` converts.
+#   Second, smaller: the option-typed FIELD WRITE unwraps the union to a bare string
+#   (`| _ -> ""`) instead of building `None`/`Some` — faithful only once the field write knows
+#   the target is `option string`.
+#
+# ALSO NOTE, from the same census: almost every OTHER `_N` construction in `_Parser` is wrapped
+# in `self._fin(_N(...)(...), t)`, and `_fin` SETS FOUR LOCATION ATTRIBUTES on a node whose type
+# varies per call site. So `_fin` — not `_N` — is the gate for the remaining ~71 stubs, and it
+# is a distinct (harder) capability: per-node field WRITES through an untyped parameter.
+#
+diff --git a/src/pycsl/frontend/Module5_IREmitter.py b/src/pycsl/frontend/Module5_IREmitter.py
+index cbcacbc0..d5b77bf2 100644
+--- a/src/pycsl/frontend/Module5_IREmitter.py
++++ b/src/pycsl/frontend/Module5_IREmitter.py
+@@ -1222,6 +1222,36 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+             return {"type": "Call", "func": ".".join(parts),
+                     "args": [self._py_expr_to_ir(arg) for arg in expr.args],
+                     "receiver": receiver_ir}
++        # CLASS-BY-NAME FACTORY (self-tcb-reduction, pure_ast `_N`): a call whose callee is
++        # itself a ONE-ARGUMENT call on a bare name with a STRING-LITERAL argument —
++        # `_N("alias")(name=…, asname=…)`. `pure_ast._N(name)` is `return _g[name]`, a lookup
++        # into the namespace `_build_nodes` fills from the module-level `_NODE_SPEC` ASDL
++        # table, so at a literal call site the class is STATICALLY KNOWN and this is exactly
++        # a construction of that class. RESOLVING it to a direct `<Class>(…)` Call is
++        # therefore faithful, and it means the whole existing record-construction path
++        # (keyword binding included, WL-07) applies unchanged — no new lowering, no new
++        # value shape. Without it the expression falls to the `{"type": "UnknownPyExpr"}`
++        # catch-all below and the constructed node ERASES: measured on `_import_as_name` and
++        # `_dotted_as_name`, whose bodies compute `name`/`asname` correctly and then return a
++        # bare `0`.
++        # FAIL-CLOSED: the callee must be a call to a BARE NAME with exactly one positional
++        # argument that is a STRING literal and no keywords. Measured across the whole tree:
++        # 171 `_N` sites, 161 with a string-literal argument, all in `pure_ast.py`; the
++        # reference corpus has none.
++        if (isinstance(expr.func, ast.Call)
++                and isinstance(expr.func.func, ast.Name)
++                and len(expr.func.args) == 1
++                and not expr.func.keywords
++                and isinstance(expr.func.args[0], ast.Constant)
++                and isinstance(expr.func.args[0].value, str)):
++            _cls_ir: Dict[str, Any] = {
++                "type": "Call", "func": expr.func.args[0].value,
++                "args": [self._py_expr_to_ir(a) for a in expr.args]}
++            _kw = [{"arg": kw.arg, "value": self._py_expr_to_ir(kw.value)}
++                   for kw in expr.keywords if kw.arg is not None]
++            if _kw:
++                _cls_ir["keywords"] = _kw
++            return _cls_ir
+         # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): an INDIRECT
+         # self-method call `getattr(self, <local>)(<args>)` — the shape a
+         # `type -> handler-method-name` table is consumed through. Without this it
+diff --git a/src/pycsl/frontend/ir_resolve.py b/src/pycsl/frontend/ir_resolve.py
+index dafd881f..cd71870a 100644
+--- a/src/pycsl/frontend/ir_resolve.py
++++ b/src/pycsl/frontend/ir_resolve.py
+@@ -334,6 +334,16 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
+     # in Module2_Parser.py.)
+     "List": [("elts", "ExprIRList"), ("ctx", "int")],
+     "Set":  [("elts", "ExprIRList")],
++    # CLASS-BY-NAME FACTORY vein (self-tcb-reduction, relaunch #4): `alias` is the first
++    # ALL-LEAF `_NODE_SPEC` node harvested — `name` a plain string, `asname` an
++    # `Optional[str]` (`_OPTIONAL_FIELDS['alias'] = ('asname',)`, pure_ast.py). It is the
++    # target of `_N("alias")(name=…, asname=…)` in `_import_as_name` / `_dotted_as_name`,
++    # which Module5 now resolves to a direct `alias(…)` construction, so the ordinary
++    # record-literal path builds it. The "OptStr" tag is the string twin of "OptExprIR":
++    # `{"type":"option","value_type":"string"}` -> `option string` (preamble.py already
++    # emits that shape for `Optional[str]` record fields), collapsing to `int` off
++    # @mutable_state so the corpus is byte-inert.
++    "alias": [("name", "string"), ("asname", "OptStr")],
+     # optional-field ext (monomorphic-option ADTs): Slice's 3 fields (`lower`,
+     # `upper`, `step`) are ALL declared optional (`_OPTIONAL_FIELDS['Slice'] =
+     # ('lower','upper','step')`, pure_ast.py) — the FIRST all-optional record in
+@@ -574,6 +584,12 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
+                     # @mutable_state (corpus byte-inert).
+                     fields.append({"name": fname, "type": "list",
+                                    "value_type": "int", "mutable": True})
++                elif ftype == "OptStr":
++                    # CLASS-BY-NAME FACTORY vein: the string twin of "OptExprIR" — an
++                    # `Optional[str]` pure_ast field (`alias.asname`) expands to
++                    # `{"type":"option","value_type":"string"}` -> `option string`.
++                    fields.append({"name": fname, "type": "option",
++                                   "value_type": "string", "mutable": True})
+                 elif ftype == "OptExprIR":
+                     # optional-field ext (monomorphic-option ADTs): an
+                     # `Optional[ExprIR]` pure_ast field (Slice.lower/upper/step,
+@@ -592,7 +608,21 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
+                 "field_defaults": {fname: 0 for fname, _ in table_entry},
+                 "has_hash": False, "has_eq": False, "is_unhashable": False,
+                 "constants": {}, "bases": [],
+-                "init_params": [], "init_body": [], "init_ensures": [],
++                # CLASS-BY-NAME FACTORY vein: synthesize the CONSTRUCTOR every harvested
++                # node class actually has. `_build_nodes` gives each class the shared
++                # `AST.__init__`, which binds positional args to `cls._fields` IN ORDER and
++                # keyword args BY NAME (pure_ast.py:111) — so `init_params` = the field
++                # names and `init_body` = "field f := param f" is an EXACT model of it, not
++                # an approximation. Without it `_record_types[...]["init_params"]` is empty,
++                # the WL-07 keyword binding in `expressions.py` has nothing to bind through,
++                # and every constructed node collapses to its all-defaults witness
++                # (measured: `alias(name=…, asname=…)` emitted `{ py_alias_name = 0;
++                # py_alias_asname = 0 }`, discarding both arguments).
++                "init_params": [fname for fname, _ in table_entry],
++                "init_body": [{"field": fname,
++                               "value": {"type": "Var", "name": fname}}
++                              for fname, _ in table_entry],
++                "init_ensures": [],
+                 "is_mixin": False, "compose_from": [],
+             }
+         break  # only one `_NODE_SPEC` assignment is ever expected
+@@ -621,6 +651,59 @@ def _process_dependency_structural(filepath: str,
+     return records
+ 
+ 
++def _resolve_same_file_node_spec_records(validated_ast: Any,
++                                         ir_data: Dict[str, Any]) -> None:
++    """Piece 3b: SAME-FILE `_NODE_SPEC` harvest.
++
++    `_harvest_node_spec_records` was only ever called for a DEPENDENCY
++    (`_process_dependency_structural`), so when `pure_ast.py` itself is the file under
++    verification its own ASDL table was never harvested — every node class it names was
++    unavailable, and a `_N("alias")(…)` construction fell to a 0-ary opaque val
++    (`py_alias_0 ()`, INPUT-BLIND) even after Module5 resolved the factory to a direct
++    `alias(…)` call.
++
++    Injects a harvested record ONLY when some function's PARAM or RETURN annotation names it
++    (a bare `Name` or the quoted `Constant` form — `pure_ast.py` has no
++    `from __future__ import annotations` and no `typing` import, so its annotations must be
++    quoted to stay unevaluated). Injecting the whole 76-entry table unconditionally would
++    re-emit the file for records nothing references.
++
++    No-op unless the file itself defines `_NODE_SPEC` — only `pure_ast.py` does, so the
++    reference corpus and every other mirror are byte-identical."""
++    records = _harvest_node_spec_records(validated_ast)
++    if not records:
++        return
++    wanted: Set[str] = set()
++
++    def _ann_name(ann: Any) -> Optional[str]:
++        if isinstance(ann, _ast.Name):
++            return ann.id
++        if isinstance(ann, _ast.Constant) and isinstance(ann.value, str):
++            return ann.value
++        return None
++
++    func_by_name = {f["name"]: f for f in ir_data.get("functions", [])}
++    for node in _ast.walk(validated_ast):
++        if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
++            continue
++        rn = _ann_name(node.returns) if node.returns is not None else None
++        if rn in records:
++            wanted.add(rn)
++        for arg in node.args.args:
++            an = _ann_name(arg.annotation) if arg.annotation is not None else None
++            if an in records:
++                wanted.add(an)
++                fi = func_by_name.get(node.name)
++                if fi is not None and fi.get("symbol_table") is not None:
++                    fi["symbol_table"][arg.arg] = an
++    if not wanted:
++        return
++    existing = {td.get("name") for td in ir_data.get("type_decls", [])}
++    for name in sorted(wanted):
++        if name not in existing:
++            ir_data.setdefault("type_decls", []).insert(0, records[name])
++
++
+ def _resolve_pure_ast_param_records(validated_ast: Any, main_file: str,
+                                     ir_data: Dict[str, Any],
+                                     struct_cache: Dict[str, Any]) -> None:
+@@ -1474,6 +1557,9 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str,
+     # no-op unless a `pure_ast`-alias import AND a matching dotted param
+     # annotation are both present (corpus-inert for every other driver).
+     _resolve_pure_ast_param_records(validated_ast, main_file, ir_data, {})
++    # Piece 3b: the SAME-FILE `_NODE_SPEC` harvest, for the case where `pure_ast.py` itself
++    # is the file under verification. No-op unless the file defines `_NODE_SPEC`.
++    _resolve_same_file_node_spec_records(validated_ast, ir_data)
+     return imported_names
+ 
+ 
+diff --git a/src/pycsl/frontend/pure_ast.py b/src/pycsl/frontend/pure_ast.py
+index cc3a71bd..3b69e817 100644
+--- a/src/pycsl/frontend/pure_ast.py
++++ b/src/pycsl/frontend/pure_ast.py
+@@ -950,9 +950,9 @@ class _Parser:
+             names.append(self._import_as_name())
+         return names
+ 
+-    def _import_as_name(self):
++    def _import_as_name(self) -> "alias":
+         name = self._name_str()
+-        asname = None
++        asname: Optional[str] = None
+         if self.accept_kw("as"):
+             asname = self._name_str()
+         return _N("alias")(name=name, asname=asname)
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index 117b3ac2..d034b7cd 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -2096,6 +2096,19 @@ class PreambleEmissionMixin:
+             for func in functions
+             for v in func.get("symbol_table", {}).values()
+         )
++        # CLASS-BY-NAME FACTORY vein: a harvested `_NODE_SPEC` RECORD may itself carry an
++        # `option`-typed FIELD (`alias.asname` is `Optional[str]` -> `option string`), which
++        # puts `option` in the emitted `type` declaration with no param, return or body-level
++        # map anywhere in the file. Measured: `unbound type symbol 'option'` on the record
++        # decl line. Mirrors the `option:<R>` param check above; gated on a record field
++        # whose type tag is literally "option" -> byte-inert for every file without one.
++        if not needs_option_record:
++            needs_option_record = any(
++                isinstance(f, dict) and f.get("type") == "option"
++                for td in (self.ir.get("type_decls", []) or [])
++                if td.get("kind") == "record"
++                for f in (td.get("fields", []) or [])
++            )
+         needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
+         needs_sum = any(IRScanner.uses_sum(func) for func in functions)
+         needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
+diff --git a/src/self-annotate/src/frontend/pure_ast.py b/src/self-annotate/src/frontend/pure_ast.py
+index b1d4879d..a36c5044 100644
+--- a/src/self-annotate/src/frontend/pure_ast.py
++++ b/src/self-annotate/src/frontend/pure_ast.py
+@@ -496,12 +496,15 @@ class _Parser:
+     def _import_as_names(self):
+         pass
+ 
+-    #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+     #@ assigns self.i
+-    def _import_as_name(self):
+-        pass
++    def _import_as_name(self) -> "alias":
++        name = self._name_str()
++        asname: Optional[str] = None
++        if self.accept_kw("as"):
++            asname = self._name_str()
++        return _N("alias")(name=name, asname=asname)
+ 
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+

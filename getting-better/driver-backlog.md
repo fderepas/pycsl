@@ -5109,3 +5109,50 @@ four latent emitter defects fixed in the L13 window): the old behaviour is a LOU
 error, never a silent wrong value, so no currently-green file can depend on it — and the sweep
 confirms it: **mirror emission diff 0 of 52, corpus byte-diff 0 of 813.** It is a prerequisite
 for the capability above.
+
+## CLASS-BY-NAME FACTORY (`_N("<Class>")(<kwargs>)`) — PARTIAL BUILD, REVERTED, BANKED VERBATIM (2026-08-27)
+
+The capability the pure_ast census named as gating **73 of the 96 trusted `_Parser` stubs (12% of
+the whole TCB)**. Four pieces were built and each measured BYTE-INERT (mirror emission diff 0 of
+52, corpus 0 of 813). Reverted per demand-first discipline — no consumer converts yet — and
+banked verbatim at **`getting-better/pyast-expr/class-by-name-factory-WIP.patch`**
+(`git apply` it; the header carries the full explanation). NOTHING here needs re-deriving.
+
+**HOW FAR IT GETS**, measured on `_Parser._import_as_name`, the best consumer because it RETURNS
+the construction directly instead of funnelling it through the trusted `_fin`:
+
+    before:  return _N("alias")(name=name, asname=asname)     emitted as   0
+    after :  { py_alias_name = !name;
+               py_alias_asname = (match !asname with Arm_2_0 _v -> _v | _ -> "" end) }
+
+The record is declared, the return type is `py_alias`, the constructor binds BOTH real arguments,
+and the `Optional[str]` local really does become a union carrier.
+
+**THE FOUR PIECES** — (1) Module5 resolves `<Name>("<lit>")(<kwargs>)` to a direct `<lit>(…)`
+Call, so the whole existing record-construction path (WL-07 keyword binding included) applies
+with no new lowering; (2) a SAME-FILE `_NODE_SPEC` harvest — `_harvest_node_spec_records` was
+only ever called for a DEPENDENCY, so when `pure_ast.py` is itself under verification its own
+ASDL table was never harvested; (3) synthesized `init_params`/`init_body` for a harvested record
+— `_build_nodes` gives every node class the shared `AST.__init__`, which binds positionals to
+`cls._fields` in order and keywords BY NAME, so the synthesis is EXACT, and without it the
+keyword binding has nothing to bind through and every construction collapses to its all-defaults
+witness; (4) `use option.Option` when a harvested record carries an `option`-typed FIELD.
+
+**THE ONE REMAINING BLOCKER, precisely located.** `let asname = ref ""` — the union local is
+DECLARED `string` instead of `(Arm_2_None : _union__import_as_name_2)`. `statements.py:4178`
+builds `_union_locals` from `_current_symbol_table[name].startswith("_union_")`, and the
+ANNOTATED-LOCAL path (`asname: Optional[str] = None`, runtime-inert under PEP 526) creates the
+union ARMS but never writes the symbol-table entry. Fix that seeding and `_import_as_name`
+converts. Second, smaller: the option-typed FIELD WRITE unwraps the union to a bare string
+(`| _ -> ""`) instead of building `None`/`Some`.
+
+**CORRECTION TO AN EARLIER ENTRY IN THIS FILE.** The `Optional[<record>]` local was recorded as
+"a PEP-526 local annotation is NOT enough". That is right for a RECORD element type
+(`Optional[_Tok]`) and WRONG for `Optional[str]`: the annotation demonstrably produces the union
+carrier. The blocker is narrower than recorded — it is the ref DECLARATION, not the annotation.
+
+**AND THE STRUCTURAL LIMIT ON THE REST.** Almost every OTHER `_N` construction in `_Parser` is
+wrapped in `self._fin(_N(…)(…), t)`, and `_fin` SETS FOUR LOCATION ATTRIBUTES on a node whose
+type varies per call site. **`_fin`, not `_N`, is the gate for the remaining ~71 stubs**, and it
+is a distinct and harder capability: per-node field WRITES through an untyped parameter. The
+`_N` capability is necessary but not sufficient; budget both before funding the vein.
