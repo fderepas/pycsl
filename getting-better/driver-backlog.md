@@ -5250,3 +5250,30 @@ Result: `frontend/pure_ast` **299 Valid, 0 non-Valid, SUCCESS** (235 at this win
 Every `while self.accept_op(...)` / `while self.at_op(...)` loop in `_Parser` can now carry the
 cursor variant — that is the shape of a large part of the remaining descent chain, so this chain
 is worth more than the one conversion that paid for it.
+
+### `_import_as_names` — the next `alias` consumer, blocked by TWO named gaps (measured 2026-08-27, tree reverted clean)
+
+Attempted immediately after the cursor chain landed, because its callee `_import_as_name` is now
+converted and its `while self.accept_op(","):` loop is exactly what the chain unblocks. **The
+body lowers PERFECTLY** — the cursor-measure loop discharges, the `break` on `at_op(")")` is
+real, and the accumulator snocs the CONVERTED `_import_as_name`, so the list carries genuine
+`py_alias` records. Two things stop it, both named:
+
+ 1. **`List[<harvested record>]` as a RETURN annotation is a monomorphizer gap.**
+    `-> List[alias]` (and the quoted `-> "List[alias]"`) both fail the whole pipeline with
+    `Type List cannot be instantiated; use list() instead`, and without the annotation the
+    return type stays `int` and the emitted `(materialize !names)` mistypes
+    (`seq py_alias` vs `seq int`). `List[str]` / `List[_Tok]` work throughout the mirror, so it
+    is specifically `List[<record harvested from _NODE_SPEC>]`.
+    *(Also measured on the way: `pure_ast.py` has no `typing` import, so a `List[...]`
+    annotation needs one added — a safe one-line live change, and NOT the blocker.)*
+ 2. **`accept_kw` needs the same monotonicity chain `accept_op` just got.** Giving
+    `_import_as_name` the `ensures self.i >= \old(self.i)` its caller's loop body requires made
+    `_import_as_name`'s OWN postcondition TIME OUT (4 Timeouts): its body calls `accept_kw`,
+    which exports only `ensures True`, so the prover cannot rule out the cursor moving
+    backwards. The fix is mechanical — `at_kw` gets a token-kind postcondition exactly like
+    `at_op`'s, and `accept_kw` gets the strict-progress clause, both discharged by the same
+    EOF-sentinel invariant. **Do that FIRST next time; it is a five-minute repeat of a landed
+    pattern and it unblocks every `accept_kw`-using body, not just this one.**
+
+Reverted to clean rather than half-landed: emission re-swept and byte-identical to HEAD.
