@@ -4441,3 +4441,22 @@ SCC could not have type-checked at all before it. Do not re-discover that.
 
 **DO NOT** attempt the dispatch expansion before the ADT unification — it is unwritable, not
 merely unprovable, and you will burn the window finding that out again.
+
+## FAITHFULNESS GAP recorded 2026-08-27, NOT hidden by the now-green vacuity gate
+
+`functions.py::_build_method_param_types_map` and `_build_method_return_type_map` are
+CONVERTED and their emitted bodies genuinely walk their input (a real catamorphism over
+`v_functions`, reading each func dict's `symbol_table` / `name`). The `INPUT-BLIND` finding
+against them was a GATE BUG (the `v_` param-rename blind spot, fixed in `c3ec0129`).
+
+BUT the emitted bodies model only the GENERIC path. Every `@mutable_state`-gated refinement
+in the live bodies is silently dropped — the `array string` widening for a `List[str]` param,
+the record widening, the `map int (option int)` name-gated cases, and (added this window) the
+`_union_*` param widening. So the emitted map is an UNDER-APPROXIMATION of the live one: it
+is faithful about the entries it produces and silent about the refinements.
+
+This is not unsound for what is proved (nothing rests on the dropped branches), and it is
+NOT what the vacuity gate measures (that gate asks whether an INPUT is ignored, not whether a
+BRANCH is). Recorded here so the green gate is not mistaken for "these two are fully
+faithful". Reopening capability: teach the map-building recognizer the `@mutable_state`-gated
+branch set, or split those branches into their own recognized helper.
