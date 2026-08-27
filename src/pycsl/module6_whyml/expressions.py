@@ -5285,6 +5285,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if param_types[i] != "int":
                 continue   # Already typed (from self-method lookup)
             stripped = arg.strip()
+            # THE EMPTY-LIST PLACEHOLDER IS NOT EVIDENCE OF AN ARRAY PARAM (statement
+            # cluster, relaunch #7). `[]` lowers to the emitter's "no elements" stand-in
+            # `(Array.make 1024 0)`, which matches `ARRAY_INT_PREFIXES` and therefore
+            # inferred `array int` for a param the callee's own `val` already declared
+            # `int` — and the FIRST `_add_abstract_op` text wins, so the two disagreed and
+            # the file failed L3-tc. Skip it: the placeholder says "this argument was an
+            # empty list literal", never "the callee takes an array".
+            if stripped == "(Array.make 1024 0)":
+                continue
             if any(stripped.startswith(p) for p in ARRAY_INT_PREFIXES):
                 param_types[i] = "array int"
                 continue
@@ -5457,6 +5466,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         coerced: List[str] = []
         for arg, ptype in zip(args, param_types):
             if ptype == "int":
+                # EMPTY-LIST PLACEHOLDER into an int-erased param (statement cluster,
+                # relaunch #7). `[]` lowers to `(Array.make 1024 0)` — the emitter's "no
+                # elements" stand-in, which is NOT an empty array but a 1024-long zero
+                # one. Handing it to a param the callee's signature int-erases
+                # (`self.funcdef([], async_=False)`: `decorators` is un-annotated, so the
+                # `val` declares it `int`) is an L3-tc error, `array int @rho` vs `int`.
+                # Substitute the int witness `0`. This is not a new erasure: the
+                # placeholder is not `[]` either, and the callee is a `\trusted` `val`
+                # with `ensures true`, so no property of the argument is provable on
+                # either side. Gated on the EXACT placeholder literal, so a genuine array
+                # flowing into an int param still fails LOUDLY.
+                if arg.strip() == "(Array.make 1024 0)":
+                    coerced.append("0")
+                    continue
                 coerced.append(self._coerce_to_int(arg))
             elif ptype in ("array int", "array string") and self._is_seq_arg(arg):
                 # seq<->array coercion: a `seq`-typed arg (a list comprehension lowers to `seq`)
@@ -6267,7 +6290,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         if _v is None:
                             break
                         _bound.append(_v)
-                    if len(_bound) == len(_formals):
+                    # A gap-free prefix is enough — it does NOT have to reach the full
+                    # arity. `self.funcdef([], async_=False)` against
+                    # `funcdef(self, decorators, async_, start=None)` binds slots 0 and 1
+                    # and leaves `start` unbound; requiring `len(_bound) == len(_formals)`
+                    # threw the whole binding away and re-emitted the PARTIAL application
+                    # `(_parser__funcdef self <decorators>)` of type `int -> int -> emit_ir`
+                    # — the last blocker on `statement`. `_handle_dotted_call`'s R7 default
+                    # fill completes the tail from `_module_method_param_defaults`
+                    # (`start=None` -> its faithful zero), which is exactly Python's own
+                    # rule. STILL FAIL-CLOSED: the prefix must actually cover every keyword,
+                    # so a keyword sitting BEYOND the first gap can never be silently
+                    # dropped (that erasure is what increment 13 repaired), and a prefix no
+                    # longer than the positional args changes nothing.
+                    _kwpos = [_formals.index(_nm) for _nm in _kw]
+                    if (len(_bound) >= len(_formals)
+                            or (len(_bound) > len(args) and _kwpos
+                                and max(_kwpos) < len(_bound))):
                         args = _bound
             return self._handle_dotted_call(func_name, args)
         # WL-07: lower any EXPLICIT keyword args (`Point(x=1, y=2)`) so a record

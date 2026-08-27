@@ -186,7 +186,7 @@ _AUG = {'+=': 'Add', '-=': 'Sub', '*=': 'Mult', '/=': 'Div', '//=': 'FloorDiv', 
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _is_aug(tok):
+def _is_aug(tok: _Tok):
     return tok.type == _tokenize.OP and tok.string in _AUG
 
 #@ class invariant 0 <= self.i
@@ -423,25 +423,65 @@ class _Parser:
     # one-element statement lists build real nodes and travel through `Return_seq_ir`, and
     # the keyword actuals now bind (increment 13). See the backlog entry "empty-list
     # actual against an int-erased param".
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def statement(self):
-        pass
+    def statement(self) -> "List[ExprIR]":
+        t = self.cur()
+        if t.type == _tokenize.NAME and t.string in _keyword.kwlist:
+            kw = t.string
+            if kw == "if":
+                return [self.if_stmt()]
+            if kw == "while":
+                return [self.while_stmt()]
+            if kw == "for":
+                return [self.for_stmt(async_=False)]
+            if kw == "try":
+                return [self.try_stmt()]
+            if kw == "with":
+                return [self.with_stmt(async_=False)]
+            if kw == "def":
+                return [self.funcdef([], async_=False)]
+            if kw == "class":
+                return [self.classdef([])]
+            if kw == "async":
+                return [self.async_stmt()]
+        if self.at_op("@"):
+            return [self.decorated()]
+        # match (soft keyword): `match` NAME ... ':' — detect cautiously
+        if self.at_name("match") and self._looks_like_match():
+            return [self.match_stmt()]
+        if self.at_name("type") and self._looks_like_type_alias():
+            return [self.type_alias_stmt()]
+        return self.simple_stmt()
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _looks_like_match(self) -> bool:
+        # 'match' is a soft keyword. Treat as a match statement only when it is
+        # clearly not an expression/assignment: the token after 'match' starts a
+        # subject and the logical line (at bracket depth 0) ends with ':'.
+        nxt = self.peek(1)
+        if _is_aug(nxt):
+            return False
+        if nxt.type == _tokenize.OP and nxt.string in (
+                "=", ":", ".", ",", ";", ")", "]", "}", "(", "[",
+                "==", "!=", "<", ">", "<=", ">=", "|", "&", "^", "+", "-",
+                "*", "/", "//", "%", "@", "<<", ">>", "**"):
+            return False
+        if nxt.type == _tokenize.NAME and nxt.string in _keyword.kwlist:
+            return False
+        if nxt.type == _tokenize.NEWLINE:
+            return False
+        return self._line_ends_with_colon()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _looks_like_match(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _line_ends_with_colon(self):
+    def _line_ends_with_colon(self) -> bool:
         pass
 
     #@ requires True
@@ -462,7 +502,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def type_alias_stmt(self):
+    def type_alias_stmt(self) -> "ExprIR":
         pass
 
     # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `simple_stmt` —
@@ -904,7 +944,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def match_stmt(self):
+    def match_stmt(self) -> "ExprIR":
         pass
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
@@ -1049,7 +1089,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def for_stmt(self, async_):
+    def for_stmt(self, async_) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1063,7 +1103,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def with_stmt(self, async_):
+    def with_stmt(self, async_) -> "ExprIR":
         pass
 
     # pure_ast cursor vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body
@@ -1113,35 +1153,35 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def try_stmt(self):
+    def try_stmt(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def decorated(self):
+    def decorated(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def async_stmt(self):
+    def async_stmt(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def funcdef(self, decorators, async_, start=None):
+    def funcdef(self, decorators, async_, start=None) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def classdef(self, decorators):
+    def classdef(self, decorators) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate

@@ -2206,6 +2206,24 @@ class FunctionEmissionMixin:
             # statement (`return_type` never "unit"), so this is byte-identical for
             # the reference corpus (verified: full-corpus byte-diff 0).
             return_type = "string"
+        elif ann == "bool" and return_type == "unit" and func.get("trusted"):
+            # self-tcb-reduction GAP #2, PREDICATE TWIN: the `-> str` disjunct directly
+            # above, for a `\trusted` stub declared `-> bool`. Same mechanism, same
+            # reason: the stub's placeholder body is a bare `pass`, so
+            # `find_return_type` gives "unit" and the `val` announces `: unit` — a
+            # CONVERTED caller's `if self._line_ends_with_colon():` then has a `unit`
+            # in a boolean position and the file fails L3-tc. The DECLARED annotation
+            # is the authority on what a trusted stub returns.
+            # THE PROMOTED TYPE IS `int`, NOT Why3's `bool`: this emitter models a
+            # Python bool as the int 0/1 END-TO-END — every CONVERTED `-> bool` method
+            # in the same mirror emits `: int` (`_with_parenthesized`,
+            # `_looks_like_type_alias`), every boolean test is `(<e>) <> 0`, and the
+            # `Return` exception carries an int. Promoting to `bool` would make the
+            # trusted stub the ONLY bool-typed predicate in the file and re-break the
+            # call site it is meant to fix. Gated on `func["trusted"]`: a real corpus
+            # `-> bool` function has a return statement, so `return_type` is never
+            # "unit" there -> byte-identical for the reference corpus.
+            return_type = "int"
         elif ann == "float" and return_type == "int":
             return_type = "real"  # no-more-int Stage D
         elif ann in getattr(self, "_variant_types", {}) and return_type == "int":
@@ -5849,6 +5867,18 @@ class FunctionEmissionMixin:
                 # below. Byte-identical for the corpus (a real `-> str` function has
                 # a return statement, so `ret` is never "unit").
                 ret = "string"
+            elif ann == "bool" and ret == "unit" and func.get("trusted"):
+                # GAP #2, PREDICATE TWIN (self-call site): the `-> str` disjunct's
+                # boolean sibling, and the CALL-SITE half of the `_compute_return_type`
+                # `bool` disjunct. BOTH halves are needed and that is the whole reason
+                # an earlier attempt measured "the `-> bool` annotation has no effect":
+                # patching `_compute_return_type` alone fixes the stub's OWN `val`
+                # while the `self.<m>()` call site still abstracts through THIS map and
+                # stays `unit`. `int` (not `bool`) for the reason given there — the
+                # emitter models Python bools as int 0/1 end-to-end. Byte-identical for
+                # the corpus (a real `-> bool` function has a return statement, so
+                # `ret` is never "unit").
+                ret = "int"
             elif (ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
                     and ret in ("int", "unit")):
                 # self-tcb-reduction spike (csl-ast-as-emit_ir): the `self.<method>(...)`
