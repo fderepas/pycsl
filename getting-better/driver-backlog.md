@@ -4914,3 +4914,64 @@ the now-unreachable branch.
 RUNNING TOTAL for the pure_ast vein this window: **617 -> 613** (markers 594 -> 588), four
 conversions plus two count-neutral interface repairs, `frontend/pure_ast` proof **235 -> 270
 Valid**, still minutes.
+
+### pure_ast FRONTIER SWEPT EXHAUSTIVELY — **0 CLEAN of 178**, and the dominant blocker is now NAMED and MEASURED
+
+After the four conversions, every remaining `\trusted` stub in `frontend/pure_ast.py` was run
+through `bin/probe-conversion-candidates.py` (which ports the live body in, emits, classifies,
+and restores). **178 candidates, ZERO CLEAN:**
+
+    155  L3TC-FAIL          did not type-check
+     15  ERASURE            emitted, but a facade/erasure marker fired
+      4  ABSENT             dunders
+      4  NO-TRUSTED-STUB    unmeasured (not the canonical bodyless shape) — coverage loss, not a result
+
+So the VERBATIM-PORT frontier here is exhausted; what remains needs a capability. The value is in
+the ranked tabulation of the 155 failures:
+
+     54  `has type (), but is expected to have type int`
+     19  `has type _tok, but is expected to have type int`
+     16  `has type () -> (), but is expected to have type int`
+     14  `has type string, but is expected to have type int`
+     13  (a harness artifact — docstring-only bodies mis-indented on port)
+      3  `Seq.seq int` mismatches …
+
+At first reading that looks like the documented "0% annotated -> everything int-erases" story,
+and the fix looks like the ranked-LAST "L5 pure_ast parameter annotation" item. **It is not.**
+Reading the actual failures — `parse_eval`, `return_stmt`, `raise_stmt`, `node`, `parse_module`,
+`_import_as_name`, `_dotted_as_name` — every one of them ends in
+
+    return _N("<Class>")(<kwargs>)
+
+and `()` is what that expression lowers to. The annotation is not the blocker; the CONSTRUCTION is.
+
+> ## THE NAMED REOPENING CAPABILITY: lower `_N("<Class literal>")(<kwargs>)`
+>
+> MEASURED: **171 `_N` call sites, 161 with a STRING-LITERAL argument, 163 of them immediately
+> CALLED as a construction, over 76 distinct classes, inside 73 distinct functions** — i.e. 73 of
+> the 96 trusted `_Parser` stubs, **12% of the entire TCB**, behind ONE capability.
+>
+> `_N(name)` is `return _g[name]`, a lookup into the namespace `_build_nodes` fills from the
+> module-level `_NODE_SPEC` ASDL table, so at every literal call site the class is STATICALLY
+> KNOWN. And the harvest already exists: `ir_resolve._harvest_node_spec_records` reads that very
+> dict literal — but synthesizes a record ONLY for entries that also appear in the
+> hand-maintained `_PURE_AST_FIELD_TABLE` (~15 of 76). The build is therefore:
+>   1. widen the harvest from the hand-maintained table to all 76 `_NODE_SPEC` entries (field
+>      types come from the ASDL field names plus the existing `ExprIR`/`ExprIRList`/`OptExprIR`
+>      tagging convention);
+>   2. add the `_N("<literal>")(<kwargs>)` -> record-literal construction lowering, keyword args
+>      bound by name (the `WL-07` keyword-capture precedent).
+> Everything else in these bodies already lowers faithfully — the cursor primitives, the token
+> field reads, `_keyword.kwlist`, `str_eq_op`, the `absurd` divergence.
+>
+> **DO NOT convert an `_N`-constructing stub before this lands.** Measured on `_import_as_name`
+> and `_dotted_as_name`: the body computes `name`/`asname` correctly and then RETURNS A BARE `0`,
+> discarding them. It type-checks and it would prove.
+
+**Second, smaller blockers already measured on this file** (each independently useful):
+ - the `Optional[<record>]` LOCAL union carrier (blocks `_line_ends_with_colon` and the whole
+   `last_*`/`prev_*` scan family) — a PEP-526 local annotation is NOT enough;
+ - char-class predicates (`isalpha` lowers to a 0-ARY input-blind val) — thin demand (14 stubs
+   tree-wide, most with other blockers), so bundle it, do not build it alone;
+ - the 16 `() -> ()` failures are nested `def`s inside `_Unparser` methods (the documented
+   lambda-lift/capture-threading family).
