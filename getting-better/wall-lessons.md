@@ -2988,3 +2988,42 @@ repair.
 "too expensive". When the same pieces show up blocking a third and fourth item, re-cost — and
 measure the baseline proof of the mirror you would have to re-port BEFORE deciding, because
 "unmeasured whole-file re-proof" reads as infinite and is usually fifteen minutes.
+
+## Lesson (ak) — an ASSUMED clause on a `\trusted` stub is a TCB ADDITION; it must unlock a conversion in the SAME increment
+
+The `-> "ExprIR"` RETURN INTERFACE is the campaign's cheapest lever: a stub that STAYS `\trusted`
+can be given a faithful return type at zero marker cost, and that is what unlocks its callers. But
+the same move usually carries `ensures self.i >= \old(self.i)` as well, and on a `\trusted` stub
+that clause is ASSUMED, not proved — it is new trust, invisible to `count-trusted-directives.py`
+because the marker count does not change.
+
+Twice this window I added a batch of interfaces speculatively — five in one attempt, nine in
+another — because the conversion they were meant to serve looked one step away. Both times the
+conversion turned out to be blocked on something else, and both times I reverted them. Had I
+committed instead, the tree would carry fourteen assumed cursor clauses buying nothing, and the
+NEXT worker would have had no way to tell which of them were load-bearing.
+
+**The rule.** Add a return interface (and especially a monotonicity clause) only in an increment
+whose gate battery proves it was consumed. If the conversion refuses, revert the interface with it.
+The count does not police this; only the discipline does.
+
+## Lesson (al) — a DROPPED KEYWORD ARGUMENT is invisible to every gate and changes what the verified artifact means
+
+Module 5's bare-name call branch has captured `expr.keywords` since WL-07. Its `ast.Attribute`
+branch never did. So for every dotted call in the tree, `f(x, flag=True)` reached Module 6 as
+`args: [x]` with the keyword simply gone.
+
+Two effects, and the second is the one that matters. (i) The emitted application is a PARTIAL one —
+`self.for_stmt(async_=False)` became `(_parser__for_stmt self)` of type `int -> emit_ir` — which
+ill-types wherever the result is used, so it fails loudly and blocks a conversion. (ii) Where the
+callee is an abstract op the arity is padded, and the missing argument is filled with the int
+default: `stmt_control_flow`'s `self._render_match_pattern(pat, negate=True)` emitted
+`self__render_match_pattern_2 !pat 0`. **The verified artifact modelled `negate = False` where the
+source says `True`.** Nothing false was proved (the callee is an abstract op with no contract), but
+the file that was proved was not the file on disk — and NO gate reported it: the byte-diff is 0
+because nothing changed, fidelity is green because the mirror body matches the live body verbatim,
+and the vacuity probe only looks at whole-parameter erasure.
+
+**The rule.** When an argument-passing path is added or widened, check BOTH branches of the call
+shape (bare name AND dotted). And treat "the emitted call has fewer arguments than the source" as a
+correctness bug, not a typing nuisance — the typing failure is the lucky case.
