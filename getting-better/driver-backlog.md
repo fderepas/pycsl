@@ -4049,7 +4049,13 @@ termination measure while the next level down is a `\trusted` val with a declare
 — unless that trusted stub is given a monotonicity postcondition, i.e. unless the TCB GROWS. So the
 honest choices are: convert the WHOLE nest, or grow the assumed interface. Prefer the former.
 
-**STATUS 2026-08-26 — LANDED at `b6c417f6`. FIVE members converted, directives 631 -> 626.**
+**STATUS 2026-08-27 — L13 IS CLOSED. THE WHOLE NEST IS CONVERTED. `_Parser` has ZERO
+`\trusted` methods and all five assumed monotonicity clauses are RETIRED (proved, not
+assumed). Directives 631 -> 620. Do NOT re-open L13; read §L13-CLOSED at the end of this
+section for what was built and what it now enables elsewhere.**
+
+--- the original L13 record, kept for its reasoning ---
+**LANDED at `b6c417f6`. FIVE members converted, directives 631 -> 626.**
 `parse_expr`, `parse_implication`, `parse_disjunction`, `parse_conjunction`, `parse_comparison`.
 Gates: proof **3071/3071 Valid, 0 Unknown** across the 3 mirrors the emission diff selects
 (`parser` 216, `functions` 1163, `stmt_control_flow` 1692); corpus byte-diff **0** over 813/813;
@@ -4286,3 +4292,105 @@ bodies satisfy; with those, Module2_Parser proves SUCCESS again.
 **METHOD LESSON banked this window:** gate the re-proof set by an EMISSION DIFF, not by "every file that
 could be affected". 8 of 52 changed; the 44 unchanged need no proof at all, and that included the two
 slowest mirrors.
+
+# ============================================================================
+# §L13-CLOSED + RELAUNCH #3 WINDOW RECORD (2026-08-26/27) — read this on relaunch
+# HEAD after this window: see `git log`. Directives 626 -> 620. Ledger 3 throughout.
+# ============================================================================
+
+## L13 — CLOSED. The `proof2why3._Parser` cursor nest is FULLY CONVERTED.
+
+Eleven members, zero `\trusted` methods in the class. The five ASSUMED monotonicity
+clauses L13 introduced as a deliberate small TCB addition are all RETIRED — each became a
+PROVED postcondition when its stub was converted. The four `\trusted` directives still in
+`proof2why3/parser.py` are module-level (`normalize_surface`, `Token.__repr__`, `lex`,
+`parse_type_expr`); `lex`/`normalize_surface` are string-scanner facades already STRUCK as
+a CERTIFIED-BOUNDARY ("string-parse modeling"), so do not re-litigate them.
+
+Landing order and gates (each increment gated separately, all fresh, all canonical):
+| commit | conversion | count | parser-mirror goals |
+|---|---|---|---|
+| `821d291e` | `parse_arith_add` | 626->625 | 231 Valid |
+| `1af9cd3c` | `parse_arith_mul` + cap-(4a) | 625->624 | 254 Valid |
+| `0fd7d9f3` | `expect` + 3 emitter repairs | 624->623 | 263 Valid |
+| `c69e791a` | (faithfulness only, no conversion) | 623 | 1662 Valid over 2 mirrors |
+| `9d4702f1` | `parse_atom` + `parse_atom_application` + cap-(4) PROPER | 623->621 | 397 Valid |
+| `b73d08ba` | `parse_quant` | 621->620 | 438 Valid |
+Corpus byte-diff **0 over 813/813** at EVERY step. Mirror emission diff never exceeded
+**2 of 52**. Fidelity always returned to the baseline 2 DIVERGED / 3 drifted.
+
+## THE ELEVEN CAPABILITIES BUILT THIS WINDOW — several are GENERAL, re-census against them
+
+Not nest plumbing. Before scoping any new build, check whether one of these already covers
+it (lesson (p)):
+ 1. **`list term` at an ADT ctor slot, FIXED ARITY** — a tuple/list literal -> `Cons`-chain.
+ 2. **`list term` / `list string` at an ADT ctor slot, RUNTIME LENGTH** — `tuple(<seq local>)`
+    -> `(seq_to_list_<elt> !s 0)`, a DEFINED total structurally-terminating
+    `let rec function` over why3's own `seq.Seq`/`list.List`. **No axiom, no abstract val.**
+    This was L13 capability (4), carried as unbuilt since the nest was scoped.
+ 3. **`IntLit int` / `BoolLit bool` scalar ctor slots.** `bool` needs its own path: PyCSL
+    models a Python bool as an INT, the inductive arm is a real Why3 `bool`.
+ 4. **Union-returning sibling CALL used directly in an `is None` guard** (not bound to a local).
+ 5. **Union-returning sibling CALL in an ATTRIBUTE position** (`self.peek().kind`) -> the
+    union carrier projection instead of the value-blind int-hash getter.
+ 6. **`#@ sibling_concrete` as a second admission route to concrete sibling resolution**,
+    beside the `_record_array_fields` proxy — and `_union_*` admitted as a return type on
+    BOTH routes.
+ 7. **`isinstance(<term local>, <Ctor>)` -> the ADT constructor discriminant.**
+ 8. **`<term local>.<field>` -> the UNIQUE-arm payload projection** (admitted only when the
+    field name identifies exactly one arm).
+ 9. **Optional[str]-union unwrap against a string EXPRESSION**, not just a String literal.
+10. **`is None` on a union PARAM in PROGRAM context** -> the match discriminant (`=` on an
+    algebraic type is not a program bool). Spec position unchanged.
+11. **An OMITTED optional argument bound to a `_union_*` param** -> the union's None arm.
+
+## FOUR LATENT EMITTER DEFECTS FOUND AND FIXED (these would have bitten any future conversion)
+
+ (a) **A `goal` CLOSES a Why3 `let rec … with …` group.** The per-arm union VCs were emitted
+     straight after each member, SPLITTING a mutually recursive group — every later member
+     fell out of scope for every earlier one. Latent for the whole campaign because no
+     previous SCC of size > 1 had a union-typed member. Goals are now DEFERRED past the group.
+ (b) **A formal PARAM shadows a record FIELD LABEL.** `def expect(self, kind)` reading
+     `t.kind` -> `This expression has type string, it cannot be applied`. Pinned OUTSIDE
+     PyCSL with a hand-written `why3 prove --type-only` file: an assignment TARGET
+     `self.f <- v` is SAFE, only an rvalue PROJECTION breaks. Fixed by feeding formal params
+     into the EXISTING §18 `_ambiguous_fields` qualification — but PER-FUNCTION and
+     READ-ONLY (`_projected_field_reads`), because the whole-file local rule over-qualifies.
+ (c) **`_build_method_param_types_map` collapses a `_union_*` param to `int`** — the registry
+     LIED about the emitted signature. Same family as the known `_module_method_return_types`
+     union lie; assume BOTH registries are wrong about unions.
+ (d) **`_collect_class_constants`'s `0`-reads-as-`None`** (ladder item 2) — fixed via (6).
+
+## LESSONS BANKED (continuing the lettered series)
+
+ (aa) **`why3` is NOT on the default PATH.** It lives at `/home/fabrice/.opam/framac-coq8/bin`.
+      Without it `pycsl.py` prints `[!] ERROR: 'why3' command not found` and **exits 0** — a
+      FALSE GREEN in the same family as the `--emit` trap. `export PATH=...` on every gate.
+ (bb) **The "@mutable_state ⇒ corpus byte-inert" argument is STALE.** Corpus programs
+      `0925/0926/0927/0928` ALL declare `@mutable_state`. Many landed capabilities cite that
+      argument; it is no longer a reason to skip the byte-diff sweep. RUN THE SWEEP.
+ (cc) **The canonical mirror import path is `--import-path src/pycsl`, NOT the mirror's own
+      tree.** `bin/run-self-annotation-suite.sh:27` is the authority. It MATTERS:
+      `frontend/Module5_IREmitter.py` L3-tc FAILS under the mirror path and PASSES under the
+      canonical one. A gate run on the wrong path is not this project's gate.
+ (dd) **Host a new helper in a live function whose mirror counterpart is `\trusted`.** Putting
+      it in an UN-TRUSTED-mirrored function triggers the §10.4 verbatim re-port, and the
+      re-ported body's call to the unported helper degrades to an int-typed auto-trusted val
+      and breaks L3-tc. Choosing the host is a TCB decision, not a style one.
+ (ee) **A TIMEOUT IS NOT EVIDENCE OF A SCALE WALL until the same shape blows up in ISOLATION.**
+      ~40 goals timed out at 30s with 280-370M steps — the signature of the documented
+      `list.List` E-matching explosion, and it was nearly recorded as a COST/SCALE boundary.
+      Two controlled probes refuted it (abstracting `seq_to_list_term` changed nothing; a
+      hand-written minimal Why3 file with the identical shape proved 17/17 at 0.01s each).
+      The real cause was two MISSING LOOP ANNOTATIONS. Isolate before classifying.
+ (ff) **`isinstance_op 0 0` in an emitted body is a FACADE DETECTOR.** Both arguments erased
+      to 0: the test is independent of the value AND of the class, yet it type-checks and
+      proves. Grep converted mirrors for it.
+
+## PRE-EXISTING FINDINGS RECORDED IN PASSING (not caused by this window, not chased)
+
+`check-emitted-vacuity.py --emit` reports: 1 NEW erasure
+`frontend/Module3_Weaver.mlw::pycslweaver___const_int erased=['var']`; 2 INPUT-BLIND methods
+(`functions.mlw::_build_method_param_types_map`, `_build_method_return_type_map`); and 6
+KNOWN_ERASURES that are no longer erased (the ledger in that script is stale). Worth a window
+of its own.
