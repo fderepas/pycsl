@@ -1866,6 +1866,30 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     else:
                         len_ref = f"{safe_arr}_len"
                         code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
+            elif (func.endswith(".extend") and self._value_semantic
+                  and func.rsplit(".", 1)[0].replace(".", "_")
+                      in getattr(self, "_emit_ir_seq_locals", set())
+                  and len(val.get("args") or []) == 1
+                  and self._uses_pyast_parser()):
+                # THE STATEMENT CLUSTER (relaunch #7): `.extend` on a `seq emit_ir`
+                # ACCUMULATOR — `body.extend(self.statement())` in `block`/`parse_module`,
+                # the ONE shape the `.append` arm above does not cover. The callee returns
+                # `array emit_ir` (the `-> "List[ExprIR]"` interface), so the concatenation
+                # crosses the array->seq boundary through the SAME polymorphic `snapshot`
+                # bridge every other `array 'a -> seq 'a` crossing in this file uses (a
+                # fresh seq pinned POINTWISE to the array, no axiom, nothing erased).
+                # WITHOUT THIS the call lowered to an opaque `body_extend_1` applied to an
+                # int-erased `(Array.make 1024 0)` and the WHOLE accumulated statement list
+                # was silently dropped — lesson (ac)'s facade, in its statement-list form.
+                # Triple-gated: the target must already be a KNOWN emit_ir seq local, the
+                # call must have exactly one actual, and the file must be the pure_ast
+                # parser -> corpus and every other mirror byte-identical.
+                _xarr = func.rsplit(".", 1)[0].replace(".", "_")
+                _xsafe = whyml_ident(_xarr)
+                _xarg = self._expr_to_whyml(val["args"][0], local_refs)
+                self._seq_snapshot_op()
+                code = (f"{indent}{_xsafe} := Seq.(++) !{_xsafe} "
+                        f"(snapshot {_xarg})")
             elif (func.endswith((".add", ".discard", ".remove"))
                   and self._value_semantic):
                 # Body-level set/dict method calls. Sets and dicts share
@@ -4121,6 +4145,53 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # statement's children are dropped.
                     if _et == "emit_ir" and hasattr(self, "_emit_ir_seq_locals"):
                         self._emit_ir_seq_locals.add(_nm)
+        # THE STATEMENT CLUSTER (relaunch #7): a list ACCUMULATOR grown by
+        # `.extend(<call whose declared return is `array emit_ir`>)` — `body = []` then
+        # `body.extend(self.statement())` in `block` / `parse_module` — is a `seq emit_ir`
+        # local. `_collect_array_elem_types` cannot see it: the local's FIRST assignment is
+        # an EMPTY list literal, which carries no element type at all, so without this the
+        # local stays an int `ref 0`, the `.extend` degenerates to an opaque
+        # `<name>_extend_1` applied to `(Array.make 1024 0)`, and every statement the loop
+        # accumulated is DROPPED (lesson (ac), in its statement-list form). Gated on the
+        # pure_ast parser file AND on the extend argument's own declared return really
+        # resolving to `array emit_ir` -> corpus and every other mirror byte-identical.
+        if self._uses_pyast_parser():
+            _ext_ir: Set[str] = set()
+
+            def _scan_extend(node: Any) -> None:
+                if isinstance(node, dict):
+                    if node.get("stmt") == "Expr":
+                        _v = node.get("value", {})
+                        if isinstance(_v, dict) and _v.get("type") == "Call":
+                            _f = str(_v.get("func", "") or "")
+                            _a = _v.get("args") or []
+                            if _f.endswith(".extend") and len(_a) == 1:
+                                _a0 = _a[0]
+                                _a0 = _a0.to_dict() if hasattr(_a0, "to_dict") else _a0
+                                if (isinstance(_a0, dict) and _a0.get("type") == "Call"
+                                        and str(_a0.get("func", "")).startswith("self.")):
+                                    try:
+                                        _cx, _, _, _ = self._resolve_dotted_signature(
+                                            str(_a0.get("func")))
+                                    except Exception:
+                                        _cx = ""
+                                    if _cx == "array emit_ir":
+                                        _ext_ir.add(
+                                            _f.rsplit(".", 1)[0].replace(".", "_"))
+                    for _x in node.values():
+                        _scan_extend(_x)
+                elif isinstance(node, list):
+                    for _x in node:
+                        _scan_extend(_x)
+
+            _scan_extend(body_stmts)
+            for _en in sorted(_ext_ir):
+                self._seq_locals.add(_en)
+                self._seq_value_types[_en] = "emit_ir"
+                self._array_elem_types.pop(_en, None)
+                if hasattr(self, "_emit_ir_seq_locals"):
+                    self._emit_ir_seq_locals.add(_en)
+
         # 07-2333-rev2 TP-1 (str locals): a `str`-typed local (symbol-table τ = str/string,
         # not a formal param) must NOT be pre-declared as `ref 0 : ref int` — it is let-bound
         # at first assignment with its string value (`let r = "ab" in`), the local counterpart

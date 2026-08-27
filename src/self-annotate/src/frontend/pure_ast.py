@@ -426,6 +426,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def statement(self) -> "List[ExprIR]":
         t = self.cur()
@@ -511,7 +512,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def type_alias_stmt(self) -> "ExprIR":
         pass
@@ -522,6 +523,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def simple_stmt(self) -> "List[ExprIR]":
         stmts = [self.small_stmt()]
@@ -545,7 +547,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def small_stmt(self) -> "ExprIR":
         pass
@@ -875,14 +877,36 @@ class _Parser:
             elts.append(self.test())
         return self._fin(_N("Tuple")(elts=elts, ctx=_N("Load")()), t)
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `block`. The
+    # `body` accumulator is a REAL `seq emit_ir` grown by `Seq.(++)` from each
+    # `statement()` result — the `.extend` capability — so the indented block's statement
+    # list is carried, not dropped. Both returns cross the `Return_seq_ir` carrier.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def block(self) -> "List[ExprIR]":
-        pass
+        if self.cur().type == _tokenize.NEWLINE:
+            self.advance()
+            if self.cur().type != _tokenize.INDENT:
+                self.error("expected an indented block")
+            self.advance()
+            body = []
+            #@ ghost i14 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i14
+            #@ loop variant \length(self.toks) - self.i
+            while self.cur().type != _tokenize.DEDENT:
+                if self.cur().type == _tokenize.NEWLINE:
+                    self.advance(); continue
+                if self.cur().type == _tokenize.ENDMARKER:
+                    break
+                body.extend(self.statement())
+            if self.cur().type == _tokenize.DEDENT:
+                self.advance()
+            return body
+        # simple statement block on same line after ':'
+        return self.simple_stmt()
 
     # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `if_stmt`. The two
     # SUB-BODIES are carried as real `irlist`s of statement nodes — the first time this
@@ -892,6 +916,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def if_stmt(self) -> "ExprIR":
         t = self.advance()
@@ -928,6 +953,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def while_stmt(self) -> "ExprIR":
         t = self.advance()
@@ -964,7 +990,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def match_stmt(self) -> "ExprIR":
         pass
@@ -1120,7 +1146,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def for_stmt(self, async_) -> "ExprIR":
         pass
@@ -1145,7 +1171,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def with_stmt(self, async_) -> "ExprIR":
         pass
@@ -1206,7 +1232,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def try_stmt(self) -> "ExprIR":
         pass
@@ -1224,7 +1250,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def decorated(self) -> "ExprIR":
         pass
@@ -1242,7 +1268,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def async_stmt(self) -> "ExprIR":
         pass
@@ -1260,7 +1286,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def funcdef(self, decorators, async_, start=None) -> "ExprIR":
         pass
@@ -1278,7 +1304,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def classdef(self, decorators) -> "ExprIR":
         pass
