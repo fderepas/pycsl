@@ -498,9 +498,20 @@ class _Parser:
     def _parse_type_params(self):
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def type_alias_stmt(self) -> "ExprIR":
         pass
@@ -940,9 +951,20 @@ class _Parser:
             return self.block()
         return []
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def match_stmt(self) -> "ExprIR":
         pass
@@ -1085,9 +1107,20 @@ class _Parser:
     def _sequence_pattern(self, openp, closep, t):
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def for_stmt(self, async_) -> "ExprIR":
         pass
@@ -1099,9 +1132,20 @@ class _Parser:
     def _for_target(self):
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def with_stmt(self, async_) -> "ExprIR":
         pass
@@ -1149,37 +1193,92 @@ class _Parser:
     def _with_item(self):
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def try_stmt(self) -> "ExprIR":
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def decorated(self) -> "ExprIR":
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def async_stmt(self) -> "ExprIR":
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def funcdef(self, decorators, async_, start=None) -> "ExprIR":
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def classdef(self, decorators) -> "ExprIR":
         pass
