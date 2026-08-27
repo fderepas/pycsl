@@ -811,15 +811,26 @@ class _Parser:
             return self._fin(_N("MatchAs")(pattern=p, name=self._capture_name("as")), t)
         return p
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
-    # live body, which moves the cursor only through `accept_op` / `closed_pattern`.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `or_pattern`. The VARIADIC `patterns` list crosses the seq->irlist boundary through
+    # `seq_to_irlist`, so the constructed `IrPyMatchOr` carries the REAL alternatives.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def or_pattern(self) -> "ExprIR":
-        pass
+        t = self.cur()
+        first = self.closed_pattern()
+        if self.at_op("|"):
+            pats = [first]
+            #@ ghost i3 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i3
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op("|"):
+                pats.append(self.closed_pattern())
+            return self._fin(_N("MatchOr")(patterns=pats), t)
+        return first
 
     # pure_ast cursor vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body port
     # of the LIVE `_capture_name`. The three-way reject guard reads the token's `.type` and
@@ -841,11 +852,15 @@ class _Parser:
         self.advance()
         return tk.string
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
+    # live body, which moves the cursor only through advance/accept_*/expect_* and its
+    # sub-parsers.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def closed_pattern(self):
+    def closed_pattern(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1084,20 +1099,43 @@ class _Parser:
     # `accept_*` / `expect_*`, none of which decreases `self.i`. A caller's cursor-measure
     # loop needs it from EVERY call in its body, not just from the guard (relaunch #4's
     # measured lesson on `_name_str`).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `or_test`.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def or_test(self) -> "ExprIR":
-        pass
+        t = self.cur()
+        left = self.and_test()
+        if self.at_kw("or"):
+            values = [left]
+            #@ ghost i4 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i4
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_kw("or"):
+                values.append(self.and_test())
+            return self._fin(_N("BoolOp")(op=_N("Or")(), values=values), t)
+        return left
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `and_test`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def and_test(self):
-        pass
+    def and_test(self) -> "ExprIR":
+        t = self.cur()
+        left = self.not_test()
+        if self.at_kw("and"):
+            values = [left]
+            #@ ghost i5 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i5
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_kw("and"):
+                values.append(self.not_test())
+            return self._fin(_N("BoolOp")(op=_N("And")(), values=values), t)
+        return left
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `not_test`.
     # RECURSIVE (`self.not_test()`), so it emits `let rec` and needs the cursor measure;

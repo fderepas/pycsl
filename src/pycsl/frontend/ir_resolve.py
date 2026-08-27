@@ -291,6 +291,14 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # fail-closed, never a dropped child. An `iropt_ir`/`iropt_str` variant is the
     # reopening capability if a None-carrying MatchAs site is ever converted.
     "MatchAs": ("IrPyMatchAs", [("pattern", "emit_ir"), ("name", "string")]),
+    # `BoolOp(op, values)` — `_NODE_SPEC['BoolOp'] == ('expr', ('op','values'),
+    # <loc attrs>)`, both total. `op` is a 0-field `boolop` singleton carried as its
+    # class-name string; `values` is the VARIADIC operand list, carried as the
+    # monomorphic `irlist` cons-list (the same payload `IrMkTupleN`/`IrListN` use).
+    "BoolOp": ("IrPyBoolOp", [("op", "string"), ("values", "irlist")]),
+    # `MatchOr(patterns)` — `_NODE_SPEC['MatchOr'] == ('pattern', ('patterns',), None)`,
+    # one total VARIADIC child list.
+    "MatchOr": ("IrPyMatchOr", [("patterns", "irlist")]),
 }
 
 
@@ -509,19 +517,6 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # `_fin` RECOGNIZER vein: `Import` — one TOTAL field, a LIST of `alias` nodes (the
     # "RecList:<Rec>" tag). `_NODE_SPEC['Import'] == ('stmt', ('names',), ...)`, no
     # `_OPTIONAL_FIELDS` entry.
-    # PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9): `Await` —
-    # `_NODE_SPEC['Await'] == ('expr', ('value',), <loc attrs>)`, ONE total child (no
-    # `_OPTIONAL_FIELDS` entry). The entry exists to supply `init_params` to the BY-NAME
-    # ctor binding in `_call_irnode_constructor`; inside the parser file the construction
-    # lowers to the `IrPyAwait` emit_ir arm, not to a per-class record.
-    "Await": [("value", "ExprIR")],
-    # PYTHON-AST NODE CTOR FAMILY: `MatchAs` — `_NODE_SPEC['MatchAs'] == ('pattern',
-    # ('pattern','name'), None)` and BOTH fields are in `_OPTIONAL_FIELDS['MatchAs']` (a
-    # bare `_` wildcard carries neither), so the record shape is the faithful
-    # `option`-typed one. The entry exists to supply `init_params` to the by-name binding
-    # in `_call_irnode_constructor`; inside the parser file the construction lowers to
-    # the `IrPyMatchAs` emit_ir arm.
-    "MatchAs": [("pattern", "OptExprIR"), ("name", "OptStr")],
     "Import": [("names", "RecList:alias")],
     # `_fin` RECOGNIZER vein, increment 8: `ImportFrom` — `_NODE_SPEC['ImportFrom'] ==
     # ('stmt', ('module','names','level'), None)`. `module` is in
@@ -750,6 +745,50 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
     return records
 
 
+def _harvest_pyast_ctor_params(validated_ast: Any) -> Dict[str, List[str]]:
+    """PYTHON-AST NODE CTOR FAMILY (increment 12): the positional `__init__` parameter
+    order of each `_PYAST_IRNODE_CTORS` member, read STRUCTURALLY off the compiled file's
+    own `_NODE_SPEC` field tuple.
+
+    Every pure_ast node class gets the shared `AST.__init__`, which binds positional args
+    to `cls._fields` IN ORDER and keyword args BY NAME — so the `_NODE_SPEC` field tuple
+    IS `init_params`. Deriving it here (instead of from a `_PURE_AST_FIELD_TABLE` entry)
+    is what keeps a family member from dragging a harvested RECORD into every OTHER
+    mirror that mentions the same class: adding `BoolOp` to the field table retyped the
+    `PEx_BoolOp` arm of Module5's `pyast_expr` ADT from its bespoke opaque node type to
+    the harvested record while the handler's own signature stayed opaque — a byte diff
+    that looked innocuous and was an L3-tc ERROR (wall-lessons (ww)).
+
+    DRIFT CHECK, fail-closed: an entry is published ONLY when the ctor payload's field
+    NAMES equal the `_NODE_SPEC` field tuple exactly, in order. A renamed, reordered,
+    added or removed ASDL field therefore silently REMOVES the entry, the construction
+    declines, and the whole conversion fails closed — never a mis-bound child."""
+    out: Dict[str, List[str]] = {}
+    for stmt in getattr(validated_ast, "body", []):
+        if not (isinstance(stmt, _ast.Assign)
+                and len(stmt.targets) == 1
+                and isinstance(stmt.targets[0], _ast.Name)
+                and stmt.targets[0].id == "_NODE_SPEC"
+                and isinstance(stmt.value, _ast.Dict)):
+            continue
+        for k, v in zip(stmt.value.keys, stmt.value.values):
+            if not (isinstance(k, _ast.Constant) and isinstance(k.value, str)):
+                continue
+            spec = _PYAST_IRNODE_CTORS.get(k.value)
+            if spec is None:
+                continue
+            if not (isinstance(v, _ast.Tuple) and len(v.elts) >= 2
+                    and isinstance(v.elts[1], _ast.Tuple)):
+                continue
+            fields = [e.value for e in v.elts[1].elts
+                      if isinstance(e, _ast.Constant) and isinstance(e.value, str)]
+            if fields != [fn for fn, _ty in spec[1]]:
+                continue        # drift -> refuse, the construction declines
+            out[k.value] = fields
+        break   # only one `_NODE_SPEC` assignment is ever expected
+    return out
+
+
 def _harvest_node_spec_singletons(validated_ast: Any) -> List[str]:
     """PYTHON-AST NODE CTOR FAMILY (increment 10): the 0-FIELD ASDL node classes of the
     compiled file's OWN `_NODE_SPEC` — the ones whose field tuple is EMPTY
@@ -896,26 +935,6 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
             if fi is not None:
                 fi["return_annotation"] = "list"
                 fi["return_value_type"] = le
-        # PYTHON-AST NODE CTOR FAMILY (increment 9): a class that is only ever
-        # CONSTRUCTED — `self._fin(_N("Await")(value=v), t)` — is named in NO annotation,
-        # so neither the return nor the param scan above reaches it. Its
-        # `_PURE_AST_FIELD_TABLE` entry is still required: that entry is what supplies
-        # `init_params`, hence the BY-NAME payload binding that makes a dropped or
-        # reordered child impossible. Restricted to `_PYAST_IRNODE_CTORS` members, so the
-        # harvest widens only for a class the family has deliberately admitted — every
-        # other constructed class keeps today's behaviour exactly.
-        for _c in _ast.walk(node):
-            if not (isinstance(_c, _ast.Call)
-                    and isinstance(_c.func, _ast.Call)
-                    and isinstance(_c.func.func, _ast.Name)
-                    and _c.func.func.id == "_N"
-                    and len(_c.func.args) == 1
-                    and isinstance(_c.func.args[0], _ast.Constant)
-                    and isinstance(_c.func.args[0].value, str)):
-                continue
-            _cn = _c.func.args[0].value
-            if _cn in _PYAST_IRNODE_CTORS and _cn in records:
-                wanted.add(_cn)
         for arg in node.args.args:
             an = _ann_name(arg.annotation) if arg.annotation is not None else None
             if an in records:
@@ -942,6 +961,9 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
     _singletons = _harvest_node_spec_singletons(validated_ast)
     if _singletons:
         ir_data["pyast_singleton_nodes"] = _singletons
+    _ctor_params = _harvest_pyast_ctor_params(validated_ast)
+    if _ctor_params:
+        ir_data["pyast_ctor_init_params"] = _ctor_params
     if not wanted:
         return
     existing = {td.get("name") for td in ir_data.get("type_decls", [])}

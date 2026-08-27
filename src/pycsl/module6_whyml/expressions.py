@@ -8697,15 +8697,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             ctor = self._IRNODE_CTORS.get(func_name)
         if ctor is None:
             return None
-        rec_info = getattr(self, "_record_types", {}).get(func_name)
-        if not rec_info:
-            return None
-        init_params = rec_info.get("init_params", [])
+        # PYTHON-AST NODE CTOR FAMILY (increment 12): a family member's `init_params`
+        # come from the STRUCTURAL `_NODE_SPEC` harvest (`ir_resolve`, key
+        # `pyast_ctor_init_params`), NOT from a `_PURE_AST_FIELD_TABLE` record. Requiring
+        # a record entry would drag the harvested record into every OTHER mirror that
+        # mentions the same class — measured: adding `BoolOp` to the field table retyped
+        # the `PEx_BoolOp` arm of Module5's `pyast_expr` ADT while the handler's own
+        # signature stayed opaque, an L3-tc error behind an innocuous-looking byte diff.
+        # The map is published only when the ctor payload's field names match
+        # `_NODE_SPEC` exactly, so an ASDL drift makes the construction DECLINE.
+        _pyast_params = (self.ir.get("pyast_ctor_init_params", {}) or {}).get(func_name)
+        if _pyast_params is not None:
+            init_params = list(_pyast_params)
+        else:
+            rec_info = getattr(self, "_record_types", {}).get(func_name)
+            if not rec_info:
+                return None
+            init_params = rec_info.get("init_params", [])
         if len(args) > len(init_params):
             return None
         bound: Dict[str, str] = dict(zip(init_params, args))
         bound.update(kwargs_map or {})
         cname, payload = ctor
+        # PYTHON-AST NODE CTOR FAMILY (increment 12): per-slot payload TYPES, for the
+        # `irlist` variadic-child bridge below. Empty for a CSL-AST ctor (whose table
+        # carries names only), so that path is unchanged.
+        _irlist_slots: Dict[str, str] = {}
+        if self._uses_pyast_parser():
+            from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC2
+            _pc2 = _PYC2.get(func_name)
+            if _pc2 is not None:
+                _irlist_slots = dict(_pc2[1])
         optfields = self._IRNODE_CTOR_OPTFIELDS.get(func_name, {})
         strdefaults = self._IRNODE_CTOR_STRDEFAULTS.get(func_name, {})
         # Fields whose actual is the EXPLICIT `None` literal — a positional None at index i
@@ -8736,6 +8758,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # build exists to avoid. Decline instead.
             if f not in bound:
                 return None
+            # PYTHON-AST NODE CTOR FAMILY (increment 12): an `irlist` payload slot — the
+            # VARIADIC child list of a BoolOp/MatchOr/Tuple-shaped node. The construction
+            # site supplies a `seq emit_ir` LOCAL (`values = [left]` + `.append` in the
+            # operator-chain loop), so it crosses a seq->irlist boundary exactly as a
+            # `-> List[<record>]` return crosses seq->array through `materialize_<rec>`.
+            # `seq_to_irlist` is the same shape as those bridges: a fresh result pinned
+            # POINTWISE by the ADT's own DEFINED `irlen`/`irnth`, so the list is EQUAL to
+            # the seq and nothing is erased — no axiom, no new ADT. DECLINES (→ the whole
+            # construction declines, fail-closed) unless the actual really is a `!<local>`
+            # deref of a seq local KNOWN to carry emit_ir elements, so a slot can never be
+            # filled with an int-erased or empty list.
+            if _irlist_slots.get(f) == "irlist":
+                _raw = str(bound[f]).strip()
+                if not (_raw.startswith("!") and _raw[1:].isidentifier()
+                        and _raw[1:] in getattr(self, "_seq_locals", set())
+                        and _raw[1:] in getattr(self, "_emit_ir_seq_locals", set())):
+                    return None
+                self._add_abstract_op(
+                    "val seq_to_irlist (s: seq emit_ir) : irlist\n"
+                    "    ensures { irlen result = Seq.length s }\n"
+                    "    ensures { forall i:int. 0 <= i < Seq.length s ->"
+                    " irnth i result = Seq.get s i }")
+                parts.append(f"(seq_to_irlist {_raw})")
+                continue
             parts.append(bound[f])
         return f"({cname} {' '.join(parts)})"
 
