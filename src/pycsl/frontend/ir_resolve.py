@@ -329,6 +329,24 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
                       ("orelse", "irlist")]),
     "While": ("IrPyWhile", [("test", "emit_ir"), ("body", "irlist"),
                             ("orelse", "irlist")]),
+    # `Module(body, type_ignores)` — `_NODE_SPEC['Module'] == ('mod', ('body',
+    # 'type_ignores'), ())`, both total VARIADIC child lists. The parser's own top-level
+    # result: `body` is the real statement list the file parsed to, `type_ignores` is
+    # ALWAYS the empty list at this site (the parser never produces a `# type: ignore`
+    # record), which the `irlist` slot now carries as the genuinely empty `ILNil` rather
+    # than declining.
+    "Module": ("IrPyModule", [("body", "irlist"), ("type_ignores", "irlist")]),
+    # `match_case(pattern, guard, body)` — `_NODE_SPEC['match_case'] == ('match_case',
+    # ('pattern','guard','body'), None)`; `guard` IS in `_OPTIONAL_FIELDS` (a `case p:`
+    # with no `if` really carries nothing), so it is the monomorphic `iropt_ir`, never a
+    # bare emit_ir that would model the absent guard as a NODE. `body` is the case's
+    # statement list.
+    "match_case": ("IrPyMatchCase", [("pattern", "emit_ir"), ("guard", "iropt_ir"),
+                                     ("body", "irlist")]),
+    # `Match(subject, cases)` — `_NODE_SPEC['Match'] == ('stmt', ('subject','cases'),
+    # None)`, both total: the subject expression and the VARIADIC list of `match_case`
+    # nodes, which under this family are `emit_ir` like every other node.
+    "Match": ("IrPyMatch", [("subject", "emit_ir"), ("cases", "irlist")]),
 }
 
 

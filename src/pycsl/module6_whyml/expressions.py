@@ -8890,6 +8890,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return None
             if _irlist_slots.get(f) == "irlist":
                 _raw = str(bound[f]).strip()
+                # AN EMPTY LIST LITERAL IS A GENUINELY EMPTY CHILD LIST, not a decline.
+                # `Module(body=body, type_ignores=[])` really carries NO type-ignores, and
+                # `[]` lowers to the emitter's placeholder `(Array.make 1024 0)` (lesson
+                # (ao)) which is neither a seq local nor empty. `ILNil` is the faithful
+                # value — the `irlist` ADT's own nil — so the slot is FILLED with the empty
+                # list instead of the whole construction declining. Gated on the EXACT
+                # placeholder literal: any other actual still has to be a real emit_ir seq
+                # local or the construction declines, fail-closed as before.
+                if _raw == "(Array.make 1024 0)":
+                    parts.append("ILNil")
+                    continue
                 if not (_raw.startswith("!") and _raw[1:].isidentifier()
                         and _raw[1:] in getattr(self, "_seq_locals", set())
                         and _raw[1:] in getattr(self, "_emit_ir_seq_locals", set())):

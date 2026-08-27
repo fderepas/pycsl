@@ -1159,7 +1159,13 @@ class _Parser:
             self.error("expected a 'case' clause inside 'match'")
         self.advance()                           # 'case' (soft keyword)
         pat = self.pattern()
-        guard = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never evaluated —
+        # the same idiom `return_stmt`/`raise_stmt`/`assert_stmt` already use here). It is
+        # for the VERIFIER: `match_case.guard` is in `_OPTIONAL_FIELDS`, so without it the
+        # local is inferred `ExprIR` from its assignment, the `None` initialiser erases to
+        # the emit_ir absent-sentinel, and a guard-less `case` would model as carrying a
+        # NODE instead of a true `None`.
+        guard: Optional["ExprIR"] = None
         if self.at_kw("if"):
             self.advance()
             guard = self.namedexpr_test()

@@ -394,12 +394,29 @@ class _Parser:
     def _fin_block(self, node, start_tok):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `parse_module` —
+    # the parser's TOP-LEVEL result. `body` is a REAL `seq emit_ir` grown by the `.extend`
+    # capability from each `statement()`, and the `Module` node carries it as a real
+    # `irlist`; `type_ignores=[]` really is the empty child list (`ILNil`), not a dropped
+    # one. The loop takes the cursor measure through `advance`'s guarded increment on the
+    # NEWLINE path and `statement`'s STRICT progress on the other.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def parse_module(self):
-        pass
+    def parse_module(self) -> "ExprIR":
+        body = []
+        #@ ghost i15 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i15
+        #@ loop variant \length(self.toks) - self.i
+        while not self.cur().type == _tokenize.ENDMARKER:
+            if self.cur().type == _tokenize.NEWLINE:
+                self.advance()
+                continue
+            body.extend(self.statement())
+        m = _N("Module")(body=body, type_ignores=[])
+        return m
 
     # CLASS-BY-NAME FACTORY vein, increment 2: CONVERTED. Verbatim body port of the LIVE
     # `parse_eval`. `_N("Expression")(body=node)` resolves to a direct construction over the
@@ -987,13 +1004,40 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `match_stmt`. The
+    # `cases` accumulator carries REAL `match_case` nodes into the `Match` node's variadic
+    # `irlist` slot. The `case`-clause loop takes the cursor measure through `case_block`'s
+    # STRICT progress.
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def match_stmt(self) -> "ExprIR":
-        pass
+        t = self.advance()                       # 'match' (soft keyword)
+        subject = self._match_subject()
+        self.expect_op(":")
+        if self.cur().type != _tokenize.NEWLINE:
+            self.error("expected a newline after 'match' subject")
+        self.advance()
+        if self.cur().type != _tokenize.INDENT:
+            self.error("expected an indented block of 'case' clauses")
+        self.advance()
+        cases = []
+        #@ ghost i16 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i16
+        #@ loop variant \length(self.toks) - self.i
+        while self.cur().type != _tokenize.DEDENT:
+            if self.cur().type == _tokenize.NEWLINE:
+                self.advance(); continue
+            if self.cur().type == _tokenize.ENDMARKER:
+                break
+            cases.append(self.case_block())
+        if self.cur().type == _tokenize.DEDENT:
+            self.advance()
+        if not cases:
+            self.error("'match' statement requires at least one 'case' clause")
+        return self._fin_block(_N("Match")(subject=subject, cases=cases), t)
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
     # `_match_subject`.
@@ -1017,12 +1061,33 @@ class _Parser:
             return self._fin(_N("Tuple")(elts=elts, ctx=_N("Load")()), t)
         return first
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `case_block`. The
+    # `guard` local is a TRUE `Optional[ExprIR]` — a `case p:` with no `if` really carries
+    # nothing, and `match_case.guard` is in `_OPTIONAL_FIELDS`, so the slot is `iropt_ir`
+    # and the absent guard is `IrONone`, not a node. `body` is the case's real statement
+    # list through the now-converted `block`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
-    def case_block(self):
-        pass
+    def case_block(self) -> "ExprIR":
+        if not self.at_name("case"):
+            self.error("expected a 'case' clause inside 'match'")
+        self.advance()                           # 'case' (soft keyword)
+        pat = self.pattern()
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never evaluated —
+        # the same idiom `return_stmt`/`raise_stmt`/`assert_stmt` already use here). It is
+        # for the VERIFIER: `match_case.guard` is in `_OPTIONAL_FIELDS`, so without it the
+        # local is inferred `ExprIR` from its assignment, the `None` initialiser erases to
+        # the emit_ir absent-sentinel, and a guard-less `case` would model as carrying a
+        # NODE instead of a true `None`.
+        guard: Optional["ExprIR"] = None
+        if self.at_kw("if"):
+            self.advance()
+            guard = self.namedexpr_test()
+        self.expect_op(":")
+        body = self.block()
+        return _N("match_case")(pattern=pat, guard=guard, body=body)
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `pattern`.
     # `MatchAs(pattern=p, name=self._capture_name("as"))` supplies BOTH of MatchAs's
