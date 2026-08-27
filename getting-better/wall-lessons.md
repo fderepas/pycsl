@@ -2560,3 +2560,42 @@ Two false-positive families had to be cleared to get that zero, both of the nami
 **The rule.** When scanning emitted WhyML for a declaration, capture the identifier and compare
 it; and reject the language's keywords explicitly. Splicing a name into a regex invites the
 engine to find it inside the syntax rather than in the name.
+
+## Lesson (qq) — a RAISE that models as a FALL-THROUGH is a facade, and only the emitted body shows it
+
+`_Parser._name_str`'s live body is `if <reject>: self.error(...)` then `return self.advance().string`.
+Converted, it emitted as
+
+    if (<cur token is not NAME>) then begin let _ = (self_error_1 "expected name") in () end;
+    (let _rec_ = (advance self) in _rec_._tok_string)
+
+The guard branch does NOTHING and falls through: the model claims a NORMAL RETURN on exactly the
+input where the live body RAISES. **L3-tc passed and the whole file proved.** Nothing false is
+provable from it — the contract is `ensures True` — but the function that was verified is not the
+function in the source. This is the raise-side twin of `isinstance_op 0 0` and `iter_length 0`:
+the emission type-checks, proves, and models the OPPOSITE of the live control flow.
+
+The cause was an emitter gap in the `-> NoReturn` recognition (the QUOTED `-> "NoReturn"` form was
+read as an ordinary return type), and the fix makes the branch `(let _ = … in absurd)`.
+
+**The rule.** For any conversion whose live body has a raising guard, READ THE EMITTED BRANCH and
+confirm it ends in `absurd` (or a real `raise`). "It type-checks and proves" is exactly the state
+this defect produces. Add the raise-side markers to the facade-detector list you grep for:
+`in ()` where a raise should be, a `: unit` val where a `-> NoReturn` callee should be, and an
+`ensures { false }` that is ABSENT from a diverging callee's declaration.
+
+## Lesson (rr) — re-measure an inherited PROOF-SCALE wall before you inherit it
+
+The backlog carried `frontend/pure_ast.py` as "TERMINUS = solver-context-saturation PROOF-SCALE
+wall, reopen needs review-gated modular proof", and that record kept the largest single block of
+TCB in the tree (186 markers, 31% of the total) off the ladder for many windows. Measured fresh in
+minutes: the file proves **235 Valid, 0 non-Valid, SUCCESS** — it is one of the CHEAPEST files in
+the suite to gate, not one of the most expensive. Whatever saturated the solver then is not
+present now (the `wf_val_str_stable` option-a hardening landed after that record was written).
+
+Proof-scale walls are the most perishable kind of finding in this campaign, because every
+proof-hardening increment can retire one silently. A COST/SCALE or PROOF-SCALE record should be
+re-measured before it is used to skip a vein — the measurement is one command.
+
+**The corollary that actually mattered here:** run a PER-FILE census of the count at least once
+per campaign. The ladder was working files with 30-40 markers while one file held 186.
