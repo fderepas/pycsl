@@ -2,12 +2,12 @@
 
 ## State, verified from the surface
 
-- **Count: MARKERS 578 · grep-substring 603 · offset 25 · unattached 0 · stale 0.** Quote BOTH.
+- **Count: MARKERS 577 · grep-substring 602 · offset 25 · unattached 0 · stale 0.** Quote BOTH.
   Get them from **`bin/count-trusted-directives.py`**, never a hand-rolled grep — the grep figure
   counts SUBSTRING hits and 25 of them are one boilerplate module-docstring line repeated across
   25 mirror files. Every DELTA in the record is right; every absolute "the floor is N" from before
   the gate existed (including the famous 687) inherits the +25.
-  **Window delta: markers 586 -> 578, grep 611 -> 603 — EIGHT conversions in six committed
+  **Window delta: markers 586 -> 577, grep 611 -> 602 — NINE conversions in seven committed
   increments.**
 - Ledger **3**, untouched. No new axiom, no new certificate needed this window.
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`,
@@ -15,8 +15,8 @@
   `getting-better/.driver-deadline` intact — do NOT delete or re-arm it.
 - Fidelity at the standing baseline **2 DIVERGED / 3 drifted** (`_handle_var_expr`,
   `_handle_for_stmt`; the three "mirror def not in source" are cross-file bridge stubs).
-  Field parity 335 compared / 7 known drift / 0 NEW. check-untrusted-emitted **732/715/0/0**.
-- Proofs standing at HEAD: `frontend/pure_ast` **401 Valid** (299 at window start),
+  Field parity 335 compared / 7 known drift / 0 NEW. check-untrusted-emitted **733/716/0/0**.
+- Proofs standing at HEAD: `frontend/pure_ast` **416 Valid** (299 at window start),
   `module6_whyml/stmt_control_flow` **1797 Valid**, `frontend/Module5_IREmitter` **1111 Valid** —
   all 0 Unknown/Timeout/Invalid, all SUCCESS; pure_ast's runs include the built-in vacuity phase.
   Corpus byte-diff **0 over 813/813**.
@@ -79,6 +79,8 @@ both SUCCESS. Corpus byte-diff **0 over 813/813**. Mirror emission diff **2 of 5
    the seams are disjoint).
 7. **`raise_stmt`** — and its `Raise` table entry also retypes `_py_stmt_raise`'s param in the
    Module5 mirror from an opaque int to the real record.
+8. **`import_stmt`** — the new **`RecList:<Rec>` FIELD TAG** (a list of another harvested node),
+   its harvest closure, and a RECORD element type in `_bind_listfield_from_seq`.
 
 ## Pick up here — in this order
 
@@ -86,11 +88,14 @@ both SUCCESS. Corpus byte-diff **0 over 813/813**. Mirror emission diff **2 of 5
    stubs only 13 ever had a single-class return (lesson (zz) — 40 have a PASSTHROUGH return and
    are unreachable with per-class records); 4 of the 13 are converted. The remaining nine:
    `type_alias_stmt`, `del_stmt`, `import_stmt`, `import_from`, `if_stmt`, `while_stmt`,
-   `match_stmt`, `lambdef`, `_dict_rest`. Their named gates:
-   - `import_stmt` / `import_from` need a **`List[<harvested record>]` FIELD tag** (a list of
-     `alias`). `_PURE_AST_FIELD_TABLE` has `ExprIRList` / `StmtIRList` but no record-list tag; the
-     downstream machinery already exists (`_bind_listfield_from_seq` + the preamble's
-     `value_type in self._record_types` branch). CHEAPEST remaining item.
+   `match_stmt`, `lambdef`, `_dict_rest` (8 left after `import_stmt`). Their named gates:
+   - `import_from` is the CHEAPEST remaining one and its gates are measured: the `RecList` tag
+     it needs now EXISTS (increment 7), but (i) `names = self._import_as_names()` binds an
+     ALREADY-MATERIALIZED `array py_alias` LOCAL, and `_bind_listfield_from_seq` only accepts a
+     `seq` local — when it declines, the field SILENTLY falls back to `Array.make 0 0`, the
+     dropped-child facade, so this must be extended, not left; (ii) the `*` branch binds a
+     LIST LITERAL of records; (iii) `module: Optional[str]` needs the (already working) union
+     local; (iv) `while self.at_op(".", "...")` needs the ghost-snapshot variant pattern.
    - `del_stmt` needs the **0-field ASDL singletons** (`_N("Del")()`); so do `_for_target`,
      `_with_item`, `_subscript`, `_comp_target`, `trailers`, `power`. See item 3.
    - `if_stmt` / `while_stmt` / `match_stmt` need statement-list fields plus `block` /

@@ -2832,3 +2832,21 @@ byte-identical, so b18932b8's regression cannot recur; `return_stmt` then emits
 WHICH SEAM it broke. `param`, `field`, `local` and `return` are four different code paths in this
 emitter, and a fix confined to one of them does not re-open the others. Read the scar before you
 believe it covers your case — and confine the change to the seam you measured.
+
+## Lesson (ac) — when a list-FIELD binder declines, the field silently becomes an EMPTY array
+
+`_call_record_constructor` handles a `list`/`array` field by calling `_bind_listfield_from_seq`
+and, if that returns None, `continue`-ing — which leaves the field at its typed default
+`Array.make 0 0`. So every gate the binder applies (element type known, `@mutable_state` class,
+bare-positional initialiser, `!<seq local>` actual) is, on failure, a SILENT DROP of the caller's
+list. It type-checks; it proves; and the constructed node has an empty child list.
+
+This bit twice in one window — once for a `seq` local whose element type came from a CALL rather
+than a literal ADT constructor (increment 3), once for a RECORD element type the binder did not
+accept at all (increment 7). Both were found only by reading the emitted record literal and seeing
+`Array.make 0 0` where the accumulator should be.
+
+**The rule.** Any conversion whose constructed node has a LIST field: read the emitted record
+literal and confirm the field is bound from the actual list. `Array.make 0 0` / `Seq.empty` in a
+record literal whose source passes a non-empty accumulator is a facade marker — add it to the grep
+list beside `iter_length 0`, `isinstance_op 0 0`, and `in ()` where a raise belongs.
