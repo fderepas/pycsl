@@ -4877,6 +4877,18 @@ class PreambleEmissionMixin:
             # builds it) — every OTHER emit_ir-theory file (incl. corpus files that emit
             # `type emit_ir`, e.g. 0746) is byte-identical (empty string off-gate). size's
             # `| _ -> 1` catch-all covers it (flat for the measure).
+            # PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9): the
+            # pure_ast RECURSIVE-DESCENT PARSER builds Python-AST nodes whose children are
+            # OTHER Python-AST nodes of a DIFFERENT class — the Pratt-parser passthrough
+            # shape (`return x` beside `return self._fin(_N("Await")(value=x), t)`) that a
+            # PER-CLASS WhyML record can never type (wall-lessons (zz)). `emit_ir` IS the
+            # sum type those returns need — the `-> "ExprIR"` RETURN INTERFACE already gives
+            # every un-converted sibling that type — so the missing half is a faithful
+            # CONSTRUCTOR for each such node class. One arm per class, payload in ASDL field
+            # order, children typed `emit_ir`. Gated on `_uses_pyast_parser` (the file
+            # defines `_Parser._fin`) -> every corpus file and every other mirror is
+            # byte-identical. `size`'s `| _ -> 1` catch-all covers the new arms.
+            + (self._pyast_ctor_arms() if self._uses_pyast_parser() else "")
             + (" | IrLambda irlist emit_ir"
                " | IrDictLit irlist irlist"
                " | IrGenExp emit_ir emit_ir"
@@ -5264,6 +5276,12 @@ class PreambleEmissionMixin:
                "    | IrConformsToDecl _ -> \"ConformsToDecl\"",
                "    | IrLockOrder _ -> \"LockOrder\""]
               if self._uses_clause_ir() else []),
+            # PYTHON-AST NODE CTOR FAMILY (increment 9): `kind_of` enumerates EVERY arm
+            # (no `_` catch-all before `IrOther`), so a new ctor makes the match
+            # NON-EXHAUSTIVE and Why3 raises an unreachable-point VC that no prover can
+            # discharge (measured: one 30s Timeout, 39.5M steps). Each pyast arm's kind is
+            # its PYTHON CLASS NAME — exactly the `.get("type")` tag the node carries.
+            *(self._pyast_kind_of_arms() if self._uses_pyast_parser() else []),
             "    | IrOther k -> k",
             "    end",
             "",
@@ -7264,6 +7282,42 @@ class PreambleEmissionMixin:
             str(fn.get("name", "")).endswith("_is_null_byte_lit")
             for fn in self.ir.get("functions", []) or [])
         self._uses_null_byte_num_reader_cache = result
+        return result
+
+    def _pyast_kind_of_arms(self) -> List[str]:
+        """PYTHON-AST NODE CTOR FAMILY (increment 9): the `kind_of` arms for the pure_ast
+        node ctors, derived from the SAME single source as the ADT arms and the payload
+        binding. `kind_of` has no `_` catch-all, so every added ctor MUST appear here or
+        the match is non-exhaustive."""
+        from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
+        return [f'    | {_ctor}{" _" * len(_payload)} -> "{_cls}"'
+                for _cls, (_ctor, _payload) in _PYC.items()]
+
+    def _pyast_ctor_arms(self) -> str:
+        """PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9): the emit_ir
+        ADT arms for the pure_ast parser's node classes, derived from the SINGLE SOURCE
+        `frontend.ir_resolve._PYAST_IRNODE_CTORS` (which also drives the by-name payload
+        binding and the harvest) — so an arm and its binding can never drift apart. Emitted
+        in table order; empty off the `_uses_pyast_parser` gate."""
+        from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
+        return "".join(
+            " | " + _ctor + "".join(" " + _ty for _fn, _ty in _payload)
+            for _ctor, _payload in _PYC.values())
+
+    def _uses_pyast_parser(self) -> bool:
+        """PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9): True iff this
+        file defines `_Parser._fin` — the pure_ast recursive-descent parser's node finisher,
+        and the single structural signature of that ONE mirror file. Gates the `IrPy*`
+        emit_ir arms (the Python-AST node constructions the parser builds) into pure_ast's
+        theory only. No corpus program, and no other mirror, defines a `_Parser._fin`, so
+        every other emit_ir theory in the tree stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_pyast_parser_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_parser___fin")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_pyast_parser_cache = result
         return result
 
     def _uses_dictlit(self) -> bool:

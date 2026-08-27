@@ -233,6 +233,40 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
 # is a deliberate, reviewed act (mirrors `_synthesize_typeddict_functional`'s
 # scope discipline).
 
+# PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9) — THE SUM TYPE.
+#
+# wall-lessons (zz) measured that 34 of the 42 still-`\trusted` `_fin`-gated `_Parser`
+# methods have a PASSTHROUGH return (`return x` beside `return self._fin(_N("Await")(
+# value=x), t)`), which a PER-CLASS WhyML record can never type — the two returns have
+# different types, so the function has no WhyML type at all. The sum type those returns
+# need already exists: it is `emit_ir`, and the `-> "ExprIR"` RETURN INTERFACE already
+# gives every un-converted sibling exactly that type at zero marker cost. What was
+# missing is the other half — a FAITHFUL CONSTRUCTOR for the node the method builds.
+#
+# This table is that half: pure_ast node class -> (`emit_ir` constructor, payload in
+# ASDL FIELD ORDER as (field name, WhyML payload type)). It is the SINGLE SOURCE for
+#   * `module6_whyml/preamble.py::_emit_exprir_theory` — the ADT arms,
+#   * `module6_whyml/expressions.py::_call_irnode_constructor` — the BY-NAME binding
+#     (an unbound payload slot DECLINES, so a dropped/reordered child is impossible),
+#   * the `wanted` harvest below — a class that is only ever CONSTRUCTED (never named in
+#     an annotation) still needs its `_PURE_AST_FIELD_TABLE` entry harvested, because
+#     that entry is what supplies `init_params` to the by-name binding.
+# Every member needs a `_PURE_AST_FIELD_TABLE` entry whose field names match
+# `_NODE_SPEC`'s, and the whole family is gated OUT of every other file by
+# `preamble._uses_pyast_parser` (the file defines `_Parser._fin`).
+_PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
+    # `Await(value)` — `_NODE_SPEC['Await'] == ('expr', ('value',), <loc attrs>)`, ONE
+    # total child (no `_OPTIONAL_FIELDS` entry): the awaited expression.
+    "Await": ("IrPyAwait", [("value", "emit_ir")]),
+    # `IfExp(test, body, orelse)` — `_NODE_SPEC['IfExp'] == ('expr', ('test','body',
+    # 'orelse'), <loc attrs>)`, THREE total children (no `_OPTIONAL_FIELDS` entry). A
+    # DEDICATED arm, not the generic `IrTer3`: an `IfExp` must stay distinguishable from
+    # every other 3-child node.
+    "IfExp": ("IrPyIfExp", [("test", "emit_ir"), ("body", "emit_ir"),
+                            ("orelse", "emit_ir")]),
+}
+
+
 _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # node name -> [(field name, IR field-type tag), ...], in `_NODE_SPEC` FIELD
     # order (order is part of the fidelity cross-check below). "ExprIR" fields
@@ -448,6 +482,12 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # `_fin` RECOGNIZER vein: `Import` — one TOTAL field, a LIST of `alias` nodes (the
     # "RecList:<Rec>" tag). `_NODE_SPEC['Import'] == ('stmt', ('names',), ...)`, no
     # `_OPTIONAL_FIELDS` entry.
+    # PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9): `Await` —
+    # `_NODE_SPEC['Await'] == ('expr', ('value',), <loc attrs>)`, ONE total child (no
+    # `_OPTIONAL_FIELDS` entry). The entry exists to supply `init_params` to the BY-NAME
+    # ctor binding in `_call_irnode_constructor`; inside the parser file the construction
+    # lowers to the `IrPyAwait` emit_ir arm, not to a per-class record.
+    "Await": [("value", "ExprIR")],
     "Import": [("names", "RecList:alias")],
     # `_fin` RECOGNIZER vein, increment 8: `ImportFrom` — `_NODE_SPEC['ImportFrom'] ==
     # ('stmt', ('module','names','level'), None)`. `module` is in
@@ -789,6 +829,26 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
             if fi is not None:
                 fi["return_annotation"] = "list"
                 fi["return_value_type"] = le
+        # PYTHON-AST NODE CTOR FAMILY (increment 9): a class that is only ever
+        # CONSTRUCTED — `self._fin(_N("Await")(value=v), t)` — is named in NO annotation,
+        # so neither the return nor the param scan above reaches it. Its
+        # `_PURE_AST_FIELD_TABLE` entry is still required: that entry is what supplies
+        # `init_params`, hence the BY-NAME payload binding that makes a dropped or
+        # reordered child impossible. Restricted to `_PYAST_IRNODE_CTORS` members, so the
+        # harvest widens only for a class the family has deliberately admitted — every
+        # other constructed class keeps today's behaviour exactly.
+        for _c in _ast.walk(node):
+            if not (isinstance(_c, _ast.Call)
+                    and isinstance(_c.func, _ast.Call)
+                    and isinstance(_c.func.func, _ast.Name)
+                    and _c.func.func.id == "_N"
+                    and len(_c.func.args) == 1
+                    and isinstance(_c.func.args[0], _ast.Constant)
+                    and isinstance(_c.func.args[0].value, str)):
+                continue
+            _cn = _c.func.args[0].value
+            if _cn in _PYAST_IRNODE_CTORS and _cn in records:
+                wanted.add(_cn)
         for arg in node.args.args:
             an = _ann_name(arg.annotation) if arg.annotation is not None else None
             if an in records:

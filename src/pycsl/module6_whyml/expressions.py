@@ -8649,7 +8649,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # Faithful (the SAME shape the body path emits for `self.f[i]`), reusing the
                 # existing IrSub / IrFieldGet ctors (no new leaf).
                 return f'(IrSub (IrFieldGet "self" {args[0]}) {args[1]})'
-        ctor = self._IRNODE_CTORS.get(func_name)
+        # PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9): the pure_ast
+        # parser's node classes are looked up in their OWN table, consulted BEFORE the
+        # shared CSL-AST one so a name that exists in both (the CSL and Python ASTs share
+        # several spellings) resolves to the Python-AST arm inside the parser file and to
+        # the CSL arm everywhere else. Gated on `_uses_pyast_parser` (the file defines
+        # `_Parser._fin`) -> corpus and every other mirror byte-identical.
+        ctor = None
+        if self._uses_pyast_parser():
+            from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
+            _pc = _PYC.get(func_name)
+            if _pc is not None:
+                ctor = (_pc[0], [_fn for _fn, _ty in _pc[1]])
+        if ctor is None:
+            ctor = self._IRNODE_CTORS.get(func_name)
         if ctor is None:
             return None
         rec_info = getattr(self, "_record_types", {}).get(func_name)

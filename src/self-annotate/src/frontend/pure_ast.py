@@ -996,19 +996,30 @@ class _Parser:
     # precedents). STAYS \trusted. `-> "ExprIR"` records that the result IS an expression
     # node (`emit_ir`); the non-regression clause is backed by the live body, which moves the
     # cursor only through `advance`/`accept_*`/`expect_*`.
+    #@ requires True
+    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
+    #@ \variant \length(self.toks) - self.i
+    #@ assigns self.i
+    def test(self) -> "ExprIR":
+        if self.at_kw("lambda"):
+            return self.lambdef()
+        t = self.cur()
+        cond = self.or_test()
+        if self.at_kw("if"):
+            self.advance()
+            test = self.or_test()
+            self.expect_kw("else")
+            orelse = self.test()
+            return self._fin(_N("IfExp")(test=test, body=cond, orelse=orelse), t)
+        return cond
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def test(self) -> "ExprIR":
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns self.i
-    def lambdef(self):
+    def lambdef(self) -> "ExprIR":
         pass
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
@@ -1076,18 +1087,22 @@ class _Parser:
     def power(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SPIKE: emit_ir-as-the-sum-type. Verbatim body port of the LIVE `await_expr`.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def await_expr(self):
-        pass
+    def await_expr(self) -> "ExprIR":
+        if self.at_kw("await"):
+            t = self.advance()
+            value = self.unary_postfix()
+            return self._fin(_N("Await")(value=value), t)
+        return self.unary_postfix()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def unary_postfix(self):
+    def unary_postfix(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
