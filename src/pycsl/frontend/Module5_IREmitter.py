@@ -4276,6 +4276,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             nm = sl.id
             if nm in getattr(self, "_m5_record_class_names", set()):
                 return nm
+        # self-tcb-reduction (relaunch #8): an IR-NODE element (`List["ExprIR"]`,
+        # `List[StmtIR]`) is `emit_ir` — the SAME total sum type a bare `node: "ExprIR"`
+        # param already gets through `_irnode_ann_name`. Without this a statement/
+        # expression LIST param collapses to `array int`, so a caller holding a real
+        # `seq emit_ir` cannot pass it and every element read is int-erased.
+        # `_param_type_str` emits `array emit_ir` for a `_fe` that is not a declared
+        # record, so no Module6 change is needed for the signature itself. Byte-safe:
+        # no corpus program annotates a param with the IR-node base names.
+        if self._irnode_ann_name(sl) is not None:
+            return "emit_ir"
         return None
 
     @staticmethod

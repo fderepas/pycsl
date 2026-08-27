@@ -5054,7 +5054,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             cls = self._current_self_type
             lookup_key = f"{cls}__{method_tail}" if cls else method_tail
             ret_type = self._module_method_return_types.get(lookup_key, "int")
-            param_types = self._module_method_param_types.get(lookup_key, [])
+            param_types = self._option_record_param_upgrade(
+                lookup_key, self._module_method_param_types.get(lookup_key, []))
             # Propagate the callee's result-only postconditions onto the
             # stub (array length, slot bounds, …) so the caller can
             # discharge VCs on the returned value. Param-referencing clauses
@@ -5459,6 +5460,74 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return True
         return arg.strip().startswith(("(list_comp_seq", "(seq_sub ", "(Seq."))
 
+    def _option_record_param_upgrade(self, lookup_key: str,
+                                     param_types: List[str]) -> List[str]:
+        """`Optional[<record>]` PARAM RESOLUTION (lesson (ar), corrected — relaunch #8).
+
+        `_build_method_param_types_map` renders a param whose Module5 symtype is
+        `"option:<R>"` through `_symtype_to_whyml`, which collapses it to `int` — while
+        `functions._param_type_str`, the producer of the callee's ACTUAL emitted `val`
+        signature, renders the SAME param as the native `option <record>`. The two
+        producers disagreed, and the registry was the one lying: a call site coercing
+        against it believed the slot was int-typed and passed the record bare, measured as
+        `This expression has type _tok, but is expected to have type option _tok`
+        (`self.funcdef([], async_=True, start=t)`).
+
+        Read the callee's own `symbol_table` straight off the IR (the same source both
+        producers use) and restore the option type the emitted signature really declares.
+        Only an entry the registry left as `int` is upgraded, only when the symtype really
+        is `option:<R>` for a DECLARED record `R`, and only under @mutable_state — so the
+        corpus and every non-emitter mirror stay byte-identical.
+
+        NOTE (lesson (am), again): the original diagnosis blamed `_resolve_dotted_signature`
+        for not resolving a synthesized `_union_*` param. Re-probing showed it resolves
+        `_union_*` FINE; the actual defect was one level up and had two parts — a QUOTED
+        forward reference `Optional["_Tok"]` synthesizes a union with the Some arm MISSING
+        (`type _union_funcdef_10 = Arm_10_None`, silently), and the UNQUOTED spelling takes
+        the `option:<R>` path instead, which the registry then int-collapsed."""
+        if not getattr(self, "_mutable_state_classes", None) or not param_types:
+            return param_types
+        # ONLY WHEN THE CALL RESOLVES CONCRETELY. The registry is the SIGNATURE for an
+        # abstract self-call avatar (`self__<m>_<n>`), so "correcting" it there just moves
+        # the mismatch to the argument — measured: upgrading `_bool_ir_to_int_wrap`'s
+        # `Optional[BoolWrapIRView]` param retyped the avatar to `option boolwrapirview`
+        # while the call still passed a bare `emit_ir`, breaking stmt_control_flow's L3-tc.
+        # It is only for a CONCRETE application, whose callee's real `val` is emitted by
+        # `_param_type_str`, that the two producers can disagree at all. Same gate the
+        # concrete lowering itself uses (`_handle_dotted_call`).
+        _cn = whyml_ident(lookup_key)
+        if not (_cn in getattr(self, "_module_func_names", set())
+                and (getattr(self, "_record_array_fields", None)
+                     or _cn in getattr(self, "_sibling_concrete_methods", set()))):
+            return param_types
+        _f = next((f for f in ((getattr(self, "ir", None) or {}).get("functions") or [])
+                   if f.get("name") == lookup_key), None)
+        if _f is None:
+            return param_types
+        _formal = list(_f.get("formal_params") or [])
+        _st = _f.get("symbol_table") or {}
+        if len(_formal) != len(param_types):
+            return param_types
+        out = list(param_types)
+        for _i, _pn in enumerate(_formal):
+            _ty = _st.get(_pn)
+            if (out[_i] == "int" and isinstance(_ty, str)
+                    and _ty.startswith("option:")):
+                _rt = getattr(self, "_record_types", {}).get(_ty[len("option:"):])
+                if _rt and _rt.get("whyml_name"):
+                    out[_i] = f"option {_rt['whyml_name']}"
+            # A `List["ExprIR"]`/`List[StmtIR]` param: `_param_type_str` emits
+            # `array emit_ir` for it (Module5 records the element type `emit_ir` in
+            # `param_list_flat_elem`), while this registry — built from the collapsed
+            # `_symtype_to_whyml("list")` — still says `array int`. Same two-producer
+            # disagreement as the option case above; restore the emitted shape so the
+            # call site bridges its `seq emit_ir` with `materialize_emit_ir` instead of
+            # the int `materialize`.
+            elif (out[_i] == "array int"
+                  and (_f.get("param_list_flat_elem") or {}).get(_pn) == "emit_ir"):
+                out[_i] = "array emit_ir"
+        return out
+
     def _coerce_dotted_args(self, args: List[str], param_types: List[str]) -> List[str]:
         """Coerce each dotted-call arg to its declared param type. The caller's arg may be
         int while the param expects array or map (e.g. an int from an abstract `get_*`
@@ -5481,6 +5550,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     coerced.append("0")
                     continue
                 coerced.append(self._coerce_to_int(arg))
+            elif ptype == "array emit_ir" and arg.strip() == "(Array.make 1024 0)":
+                # THE EMPTY-LIST PLACEHOLDER into a `List["ExprIR"]` param. `[]` lowers to
+                # the emitter's `(Array.make 1024 0)` stand-in (lesson (ao)) — a 1024-long
+                # ZERO array, and int-typed besides. `self.funcdef([], async_=True, …)`
+                # really passes NO decorators, so the faithful value is the genuinely
+                # EMPTY emit_ir array. Gated on the EXACT placeholder literal: any other
+                # array actual still has to match the element type or fail LOUDLY.
+                coerced.append('(Array.make 0 (IrOther ""))')
+            elif ptype == "array emit_ir" and self._is_seq_arg(arg):
+                # STATEMENT/EXPRESSION-LIST param (relaunch #8): a `seq emit_ir` actual
+                # (a `decorators = []` + `.append(<node>)` accumulator) flowing into a
+                # `List["ExprIR"]` param crosses seq->array through the SAME pointwise
+                # `materialize_emit_ir` bridge the `-> List[<node>]` early-return uses —
+                # a fresh array pinned element-by-element, so nothing is erased and no
+                # axiom is added. Identical declaration text -> `_add_abstract_op` dedups.
+                self._add_abstract_op(
+                    "val materialize_emit_ir (s: seq emit_ir) : array emit_ir\n"
+                    "    ensures { Array.length result = Seq.length s }\n"
+                    "    ensures { forall i:int. 0 <= i < Seq.length s ->"
+                    " result[i] = Seq.get s i }")
+                coerced.append(f"(materialize_emit_ir {arg})")
             elif ptype in ("array int", "array string") and self._is_seq_arg(arg):
                 # seq<->array coercion: a `seq`-typed arg (a list comprehension lowers to `seq`)
                 # flowing into a `List[_]` (= `array _`) param is bridged seq->array via
@@ -5509,6 +5599,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     coerced.append(arg)
                 else:
                     coerced.append("(const (None: option int))")
+            elif isinstance(ptype, str) and ptype.startswith("option "):
+                # `Optional[<record>]` PARAM (lesson (ar), relaunch #8). Two actuals reach
+                # such a slot and both need lifting into the option:
+                #   * an OMITTED optional argument, filled from the Python `None` default,
+                #     which the int model lowers to the witness `0` -> the option's own
+                #     `None`, the FAITHFUL value of that default (the same reasoning as the
+                #     `_union_*` arm below);
+                #   * a PRESENT record actual (`self.funcdef([], async_=True, start=t)`)
+                #     -> `(Some <arg>)`.
+                # The present case is gated on the actual being a bare `!x` / `x` whose
+                # local the emitter itself pre-declared with THIS record's default literal
+                # (`_record_field_elem_locals`), so an int-erased or differently-typed
+                # actual is NOT re-tagged as a record — it falls through and fails LOUDLY.
+                _pl = ptype[len("option "):].strip()
+                _s = arg.strip()
+                if _s in ("0", "(0)"):
+                    coerced.append(f"(None: {ptype})")
+                    continue
+                _id = _s[1:] if _s.startswith("!") else _s
+                _rl = getattr(self, "_record_field_elem_locals", {}) or {}
+                _rn = _rl.get(_id)
+                _rt = getattr(self, "_record_types", {}).get(_rn) if _rn else None
+                if _id.isidentifier() and _rt and _rt.get("whyml_name") == _pl:
+                    coerced.append(f"(Some {_s})")
+                    continue
+                coerced.append(arg)
             elif (isinstance(ptype, str) and ptype.startswith("_union_")
                   and arg.strip() in ("0", "(0)")):
                 # cursor-nest `parse_atom`: an OMITTED optional argument

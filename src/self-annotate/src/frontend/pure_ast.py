@@ -1343,13 +1343,31 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def decorated(self) -> "ExprIR":
-        pass
+        decorators = []
+        #@ ghost i21 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i21
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op("@"):
+            self.advance()
+            decorators.append(self.namedexpr_test())
+            if self.cur().type == _tokenize.NEWLINE:
+                self.advance()
+        if self.at_kw("def"):
+            return self.funcdef(decorators, async_=False)
+        if self.at_kw("class"):
+            return self.classdef(decorators)
+        if self.at_kw("async"):
+            self.advance()
+            self.expect_kw("def")
+            self.i -= 1  # let funcdef see 'def'? simpler: call directly
+            return self.funcdef(decorators, async_=True)
+        self.error("expected function or class definition after decorator")
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
     # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
@@ -1361,12 +1379,36 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def async_stmt(self) -> "ExprIR":
+        t = self.advance()
+        if self.at_kw("def"):
+            return self.funcdef([], async_=True, start=t)
+        if self.at_kw("for"):
+            return self.for_stmt(async_=True)
+        if self.at_kw("with"):
+            return self.with_stmt(async_=True)
+        self.error("expected def/for/with after 'async'")
+
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
+    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
+    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
+    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
+    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
+    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
+    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
+    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
+    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
+    # converted.
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ ensures self.i > \old(self.i)
+    #@ assigns self.i
+    def funcdef(self, decorators: List["ExprIR"], async_, start: Optional[_Tok] = None) -> "ExprIR":
         pass
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
@@ -1384,25 +1426,7 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
-    def funcdef(self, decorators, async_, start=None) -> "ExprIR":
-        pass
-
-    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
-    # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
-    # and it is what `statement`'s own `ensures self.i >= \old(self.i)` chains through —
-    # without it the model lets this callee move the cursor BACKWARDS and `statement`'s
-    # postcondition is unprovable (measured: 22 Timeout/Out-of-memory sub-goals, all of
-    # them `_parser__statement'vc`'s line-1903 postcondition). It is true of every
-    # `_Parser` descent for the same reason the converted siblings PROVE it: the cursor
-    # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
-    # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
-    # converted.
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ ensures self.i > \old(self.i)
-    #@ assigns self.i
-    def classdef(self, decorators) -> "ExprIR":
+    def classdef(self, decorators: List["ExprIR"]) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
