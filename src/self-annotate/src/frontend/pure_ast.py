@@ -743,12 +743,30 @@ class _Parser:
         return (self.cur().type in (_tokenize.NEWLINE, _tokenize.ENDMARKER)
                 or self.at_op("=", ":", ")", "]", "}", ";"))
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # LIST RETURN INTERFACE (increment 11's `-> "List[ExprIR]"`): CONVERTED. Verbatim
+    # body port of the LIVE `exprlist`. Every element is a REAL `expr_or_star` node
+    # (that sibling is itself converted and returns `emit_ir`), accumulated into the
+    # `array emit_ir` the return interface gives this method — no element erased, no
+    # `Array.make 0 0` fallback. NO new ADT arm and NO new emitter capability: the list
+    # return interface, the seq accumulator and `_testlist_end`/`at_kw` were all built
+    # by earlier increments. The comma loop takes the cursor measure through
+    # `accept_op`'s monotonicity, with lesson (xx)'s GHOST snapshot for the function's
+    # own non-regression clause.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def exprlist(self):
-        pass
+    def exprlist(self) -> "List[ExprIR]":
+        elts = [self.expr_or_star()]
+        #@ ghost i12 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i12
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            if self._testlist_end() or self.at_kw("in"):
+                break
+            elts.append(self.expr_or_star())
+        return elts
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
     # `expr_or_star`. The passthrough `return self.expr()` and the `Starred` construction
