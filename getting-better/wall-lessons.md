@@ -2516,3 +2516,47 @@ the capability more general rather than more special-cased.
 census before the estimate: enumerate the second instance's keys, its handlers' emitted
 signatures, and its body shape, and diff them against the first's. The generalization is usually
 worth doing — but the estimate that says "it already works" is the one to distrust.
+
+## Lesson (oo) — the campaign's headline count has been 25 too high since it started, and the cause is a docstring
+
+Every window reports progress as `grep -rcF '#@ \trusted' src/self-annotate/src --include=*.py`,
+summed. That counts LINES CONTAINING the substring, not MARKERS. Measured: **25 of the 617 hits
+are one line of boilerplate MODULE DOCSTRING**, repeated verbatim in 25 mirror files —
+
+    annotated `#@ \trusted reviewer: pycsl-self-annotate`; bodies ...
+
+The true number of `\trusted` directives is **592**. Every DELTA ever reported is correct (the
+offset is constant while the mirror file set is), but the ABSOLUTE figure is not — and every
+statement of the form "the autonomous floor is N" inherits the error. `bin/count-trusted-directives.py`
+now reports markers, the grep figure, and the itemised offset side by side, so a CHANGE in the
+offset (a new mirror file, or a marker that stops being attached to anything) is visible instead
+of being silently folded into the count.
+
+**The rule.** A metric quoted in every report for months is exactly the metric nobody re-derives.
+Reconcile the headline number against a structural count at least once per campaign — and when
+the two disagree, keep quoting BOTH until the discrepancy is explained, rather than switching
+silently to the new one.
+
+## Lesson (pp) — measure the CONVERSE of every integrity gate; and beware the regex that eats a keyword
+
+`check-untrusted-emitted.py` asks "is every UN-trusted function really emitted as a definition?"
+(the auto-trust-valve hazard, which over-reported conversions). The converse — "is any TRUSTED
+function nonetheless emitted as a real definition?" — had never been asked, and it is a live
+possibility rather than a theoretical one: several `_py_expr_*` / `_py_stmt_*` handlers are
+emitted by BESPOKE whole-body lowerings in `module6_whyml/functions.py` whose gates do not
+consult the marker at all. A stale marker there would mean the count is OVERSTATED — the
+directive claims an assumption that is not being made. Measured: **0**, so the count is honest in
+both directions. A clean negative, but only because it was checked.
+
+Two false-positive families had to be cleared to get that zero, both of the naming-trap kind:
+ - a prose comment MENTIONING the marker ("...unlike the same clause on a `#@ \trusted` stub...")
+   read as a marker during the upward block walk, and reported six converted `_Parser` methods as
+   trusted-but-defined. Require the marker to be the line's FIRST token.
+ - `[A-Za-z0-9_]*rec\b` after an optional ` rec` matches the **`rec` of `let rec <something>`**
+   by backtracking, so a mirror function named `rec` (the lifted nested `def rec` in
+   `module6_whyml/statements.py`) was reported twice. CAPTURE the identifier and test it against
+   the Python name, never splice the name into the pattern.
+
+**The rule.** When scanning emitted WhyML for a declaration, capture the identifier and compare
+it; and reject the language's keywords explicitly. Splicing a name into a regex invites the
+engine to find it inside the syntax rather than in the name.
