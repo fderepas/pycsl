@@ -3151,3 +3151,77 @@ because the parameter is int-erased anyway is exactly the class of defect lesson
 would make the verified artifact model an argument the source does not pass. `[]` → `0` was
 admissible because `(Array.make 1024 0)` is not `[]` either — there was no faithful value being
 discarded. A real token is a faithful value. Refused.
+
+## Lesson (as) — a QUOTED forward-reference `Optional["X"]` synthesizes a union with the Some arm MISSING, and it fails SILENTLY
+
+`funcdef(self, decorators, async_, start=None)`'s `start` was annotated `Optional["_Tok"]`
+in the mirror stub — the quoted spelling, because that is what `-> "ExprIR"` interfaces use.
+Module5 synthesized the per-function union and emitted
+
+    type _union_funcdef_10 = Arm_10_None
+
+— **the Some arm is simply absent**. No warning, no decline; the type exists, and the only
+symptom is at the CALL site (`This expression has type _tok, but is expected to have type
+_union_funcdef_10`), which reads like a coercion gap rather than a missing constructor.
+`_variant_types['_union_funcdef_10']['constructors']` really does contain only
+`Arm_10_None`, so any coercion arm keyed on "the union's unique arity-1 arm" finds nothing
+and declines.
+
+The UNQUOTED spelling `Optional[_Tok]` — which the same file already uses on
+`accept_op`/`accept_kw` — does not go down the union path at all: Module5 tags it
+`option:_Tok` and Module6 renders the native `option _tok`. That is the working shape.
+
+**Rule.** For a RETURN interface the quoted forward reference is right (`-> "ExprIR"`). For
+an `Optional[<class>]` PARAM, use the UNQUOTED class name, and read the emitted `type
+_union_*` line before believing any coercion diagnosis. Quoted works for `Optional[str]`
+(the payload is a builtin) — it is specifically a quoted CLASS reference that loses its arm.
+
+## Lesson (at) — `_param_type_str` and `_build_method_param_types_map` are TWO PRODUCERS of the same parameter type, and the repair belongs on the CONCRETE path only
+
+The callee's real emitted `val` signature comes from `functions._param_type_str`. The types
+a CALL SITE coerces against come from `functions._build_method_param_types_map` (via
+`_resolve_dotted_signature`). They are computed independently and they disagree whenever
+`_param_type_str` has a special arm that `_symtype_to_whyml` does not:
+
+| symtype | `_param_type_str` (the val) | the registry (the call site) |
+|---|---|---|
+| `option:<R>` | `option <record>` | `int` |
+| `list` + `param_list_flat_elem = emit_ir` | `array emit_ir` | `array int` |
+
+Lesson (am) in its purest form: "the coercion arm never fires" was a symptom of the
+registry lying, not of the coercion.
+
+**And the repair must be gated on CONCRETE resolution.** For a call that degrades to the
+abstract self-call avatar (`self__<m>_<n>`), the registry IS the signature — the avatar's
+`val` is generated from it — so "correcting" the registry there just moves the mismatch to
+the argument. Measured: upgrading `_bool_ir_to_int_wrap`'s `Optional[BoolWrapIRView]` param
+retyped the avatar to `option boolwrapirview` while the call still passed a bare `emit_ir`,
+breaking `stmt_control_flow`'s L3-tc. Only a CONCRETE application (`(<cls>__<m> self …)`,
+whose callee's `val` really is `_param_type_str`'s) can have two disagreeing producers, so
+the upgrade uses the same `_module_func_names` + `_record_array_fields` /
+`_sibling_concrete_methods` gate the concrete lowering itself uses.
+
+**Corollary that paid for itself twice: a LIVE-ONLY method is free.** Neither fidelity
+script compares a live method with no mirror counterpart, so a new helper on the live
+mixin costs no re-port and no re-proof — which is how both of these repairs avoided the
+§10.4 price of editing `_build_method_param_types_map` (an un-trusted mirror body:
+`module6_whyml/functions`, 1175 goals, ~45 min + a vacuity tail).
+
+## Lesson (au) — a function-top pre-declaration must be gated on the local ESCAPING its branch, and the gate has to be iterated against measurement
+
+The `Optional[τ]`-local pre-declaration built for lesson (aq) was correct on the first try
+and BYTE-INERT only on the third. Each version was measured with the 52-file mirror
+emission sweep:
+
+1. "pre-declare every union local whose assignment is nested" — moved THREE mirrors
+   (`Module5_IREmitter`, `proof2why3/parser`, `pure_ast`).
+2. "…and that is read by a LATER SIBLING at the same statement-list level" — still moved
+   `proof2why3/parser`, whose `t = self.peek(0)` is assigned inside TWO successive `while`
+   loops and read in both.
+3. "…and the later sibling does NOT itself re-assign the local" — moves exactly ONE.
+
+A later sibling that re-assigns rebinds the local in its own scope, so it is not an escape
+and neither is anything after it. **The general rule: a capability that changes where a
+binding is emitted must be gated on the DEFECT (the use that cannot see the binding), never
+on the SHAPE (a nested assignment) — and the difference between the two is only visible in
+the sweep.**
