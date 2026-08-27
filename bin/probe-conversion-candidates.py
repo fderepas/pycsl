@@ -77,10 +77,15 @@ def live_src(name, cls):
                 return "\n".join(lines[m.lineno-1:(m.body[-1].end_lineno or m.lineno)])
     return None
 
+# A canonical bodyless stub: the `#@ \trusted` marker, the rest of its `#@` block,
+# any DECORATOR lines (`@staticmethod` sits between the block and the `def` in
+# `Module3_Weaver` and elsewhere — omitting them lost 28 of 28 candidates in that file to
+# a silent NO-TRUSTED-STUB), then a `def` whose body is one line.
 STUB = re.compile(r"^(?P<ind>[ \t]*)#@ \\trusted reviewer: pycsl-self-annotate\n"
-                  r"(?P<cts>(?:[ \t]*#@ .*\n)*)"
-                  r"(?P<ind2>[ \t]*)def (?P<name>\w+)\((?P<args>[^\n]*)\):\n"
-                  r"(?P=ind2)    (?:pass|return .*)\n", re.M)
+                  r"(?P<cts>(?:[ \t]*(?:#@ |# ).*\n)*)"
+                  r"(?P<decs>(?:[ \t]*@[\w.]+(?:\([^\n]*\))?\n)*)"
+                  r"(?P<ind2>[ \t]*)def (?P<name>\w+)\((?P<args>[^\n]*)\)(?P<ret>[^\n]*):\n"
+                  r"(?P=ind2)    (?:pass|return [^\n]*)\n", re.M)
 
 def probe(name, cls):
     orig = open(MIRROR).read()
@@ -96,7 +101,8 @@ def probe(name, cls):
     ind = hit.group("ind")
     ported = "\n".join((ind + l[4:] if l.startswith("    ") else ind + l)
                        for l in body.split("\n"))
-    new = orig[:hit.start()] + hit.group("cts") + ported + "\n" + orig[hit.end():]
+    new = (orig[:hit.start()] + hit.group("cts") + hit.group("decs")
+               + ported + "\n" + orig[hit.end():])
     try:
         open(MIRROR, "w").write(new)
         env = dict(os.environ, PATH="/home/fabrice/.opam/framac-coq8/bin:" + os.environ["PATH"],
