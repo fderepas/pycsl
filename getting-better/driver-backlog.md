@@ -4744,3 +4744,60 @@ sharing a handler does NOT merge the kinds (the arms stay distinguishable, so th
 injective on keys); determinacy survives it; and — the rejecting default — if every real handler
 differs from the error result then reaching the error result MEANS the node was unsupported, so
 the body can neither silently accept an unsupported node nor silently reject a supported one.
+
+## L2 `_py_stmts_to_ir` — **CERTIFIED-BOUNDARY [COST/SCALE]**, refuted by a MEASURED erasure probe (2026-08-27, RELAUNCH #4)
+
+With `_py_op_to_str`, `_py_expr_to_ir` and `_csl_to_ir` converted, this is the LAST member of
+the L2 cluster and the only handler table left (a tree-wide census confirms there are exactly
+THREE: `_PY_EXPR_HANDLERS`, `_CSL_HANDLERS`, `_PY_STMT_HANDLERS`). It does NOT yield to the
+capability that took the other two, and the reason is measured, not argued.
+
+**THE PROBE.** The verbatim live body was installed in the mirror, the stub un-trusted, the file
+emitted, and the tree reverted. The emission is banked at
+`getting-better/pyast-expr/py-stmts-to-ir-erasure-probe.mlw`. FOUR erasures, any ONE of which
+makes the conversion vacuous:
+
+ (a) **THE DISPATCH BRANCH IS EMPTY.** `result = getattr(self, handler_name)(stmt, ir_stmts)`
+     emits as `let py_result = ref  in ()` — the handler call is GONE, and the output is not
+     even well-formed. Unlike the other two dispatchers, the call is not in a `Return`; it binds
+     a local from a TWO-argument indirect call whose second argument is the ACCUMULATOR. The
+     table lookup survives only as the opaque `self__PY_STMT_HANDLERS_get_1 (py_type_1 !stmt)`,
+     i.e. the pre-`_PY_OP_MAP` shape where both the type extraction AND the table are assumed.
+ (b) **ALL FIVE WEAVE-ATTR LISTS ERASE TO THE SAME CONSTANT.** `getattr(stmt, 'csl_labels', [])`
+     and its four siblings all become `iter_length 0` / `iter_get 0 i`, so the five loops iterate
+     ONE unknown sequence and each body is invariant under which attribute it read. This is the
+     list analogue of the `isinstance_op 0 0` facade detector.
+ (c) **THE LABEL STATEMENT IS EMITTED AS THE LITERAL `0`.** `ir_stmts.append({"stmt": "Label",
+     "name": lname})` becomes `Seq.snoc !ir_stmts 0`: `stmt_ir` has **no `SLabel` constructor**,
+     so the node is dropped outright. The ProofAssert dict goes through the int-hashed pyval map
+     (`"stmt" 1378480597`) instead of a constructor, because there is **no `SProofAssert`** either.
+ (d) `isinstance_op 0 0` — the documented facade detector (wall-lessons (ff)) — appears verbatim
+     in the `elif hasattr(ast, 'Match') and isinstance(stmt, ast.Match)` branch, beside the hashed
+     attribute name `hasattr_check ast 503999933`.
+
+**CLASSIFICATION: COST/SCALE, not correctness.** Nothing here is inexpressible. It is SIX
+features for ONE stub, and two of them extend a CERTIFIED value shape:
+
+ 1. **Two new `stmt_ir` constructors** — `SLabel string` and `SProofAssert string emit_ir
+    iropt_str`. `stmt_ir` is certified (`Phase2d_StmtIR.v` / `StmtIR.lean`), so the co-landing
+    rule applies: the certificate must be extended with the new arms, their `stmt_kind_of`
+    entries and their size arms. Corpus-inert (the theory is gated on `_uses_stmt_ir`).
+ 2. **A weave-attr LIST reader family** — one opaque `val function <attr>_ast (s: <node>) : ...`
+    per attribute, plus a recognizer for `getattr(<local>, '<literal>', [])` in a FOR-HEADER, so
+    the five loops range over five DISTINCT sequences. The single-attribute precedent exists
+    (`csl_mutex_ast` in `_emit_py_stmt_with_bespoke`); the LIST form does not.
+ 3. **A `checkpoint` node type** with `kind` / `expr` / `origin` readers (the `cp` loop variable).
+ 4. **Dict-literal -> `SLabel` / `SProofAssert` construction recognizers** (the
+    `_recognize_stmt_append_builder` family extended to these two shapes).
+ 5. **A GENERAL `SelfGetattrDispatch` lowering** that works in STATEMENT position with extra
+    actuals, fusing the `if handler_name is not None: ... elif ...` into one total match. The
+    whole-body form built this window covers only the `Return`-position, single-argument case.
+ 6. The `hasattr(ast, 'Match')` guard (trivial once 5 exists).
+
+**DO NOT convert it without 1-4.** The emitted body would drop the handler dispatch, collapse
+five distinct attribute lists into one, and emit `Label` as the integer 0 — a conversion that
+lowers the count while verifying strictly less than the `\trusted` marker claimed.
+
+**This is why `_PY_STMT_HANDLERS` is deliberately ABSENT from `_PYX_TABLE_ADT`** (preamble.py).
+The allowlist was written before the probe; the probe confirms the exclusion is right, and with
+it an unsupported table cannot accidentally acquire an ADT.
