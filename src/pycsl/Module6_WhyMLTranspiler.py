@@ -804,6 +804,31 @@ class Module6_WhyMLTranspiler(
         # against it. Empty for non-mixin modules → maps unchanged → byte-identical.
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # WL-04b SELF-CALL SIBLING (`_fin` recognizer vein, increment 8): a
+        # `-> List[<record>]` method's SELF-CALL return type is `array <record>` — the
+        # same shape `_compute_return_type` already gives the DEFINITION (its WL-04b
+        # branch). Without it the definition emits `: array py_alias` while every
+        # `self.<m>(...)` call site abstracts as `array int`, so a caller binding the
+        # result into a record-element list local ill-types (measured: `import_from`
+        # calling `self._import_as_names()`).
+        # WHY HERE and not inside `_build_method_return_type_map`, where it belongs
+        # logically: that method's MIRROR is UN-TRUSTED and converted, so the two lines
+        # there would have to be re-ported (§10.4) and would oblige a first-ever
+        # whole-file re-proof of `module6_whyml/functions.py` — lesson (vv), a change's
+        # home is decided by its re-port cost. `transpile`'s mirror is `\trusted`, so the
+        # same post-pass here costs nothing and perturbs no verified artifact.
+        # Gated on `_record_array_fields` (non-empty only for a `@mutable_state` class
+        # with a `List[<record>]` field) exactly like the `-> <RecordClass>` branch in
+        # the map builder -> corpus byte-inert.
+        if getattr(self, "_record_array_fields", None):
+            for _f in funcs_for_maps:
+                if (_f.get("return_annotation") == "list"
+                        and self._module_method_return_types.get(
+                            _f.get("name")) == "array int"
+                        and _f.get("return_value_type") in self._record_types):
+                    self._module_method_return_types[_f["name"]] = (
+                        "array "
+                        + self._record_types[_f["return_value_type"]]["whyml_name"])
         # self-tcb-reduction (_err-divergence): callee IR-names declared `-> NoReturn`
         # (is_noreturn, Module5 NR1). A `self.<m>(...)` call to one of these is modelled at
         # the call site (`_handle_dotted_call`) as making the continuation UNREACHABLE — the

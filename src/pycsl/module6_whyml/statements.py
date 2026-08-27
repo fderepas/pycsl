@@ -4046,6 +4046,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     self._seq_locals.add(_nm)
                     self._seq_value_types[_nm] = _et
                     self._array_elem_types.pop(_nm, None)
+                    # RECORD-ELEMENT seq local (`_fin` recognizer vein, increment 8): a
+                    # reassigned list local whose element type is a HARVESTED RECORD
+                    # (`names = [_N("alias")(…)]` / `names = self._import_as_names()`)
+                    # must be published to `_record_seq_locals` under its PYTHON class
+                    # name — that is the key `_bind_listfield_from_seq` compares against
+                    # a `RecList:<Rec>` field's `field_value_types`. Without it the
+                    # binder declines and the field silently becomes the empty
+                    # `Array.make 0 0` DROPPED-CHILD facade (lesson (ac)). The `.append`
+                    # site publishes the same map for the GROWN shape; this is the
+                    # REASSIGNED shape. Byte-inert: `_et` is a record whyml name only
+                    # under @mutable_state with a harvested record element.
+                    if hasattr(self, "_record_seq_locals"):
+                        for _pyc, _ri in getattr(self, "_record_types", {}).items():
+                            if _ri.get("whyml_name") == _et:
+                                self._record_seq_locals[_nm] = _pyc
+                                break
         # 07-2333-rev2 TP-1 (str locals): a `str`-typed local (symbol-table τ = str/string,
         # not a formal param) must NOT be pre-declared as `ref 0 : ref int` — it is let-bound
         # at first assignment with its string value (`let r = "ab" in`), the local counterpart
@@ -4277,6 +4293,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return "string"
             if self._is_emit_ir_expr(e):
                 return "emit_ir"
+            # RECORD-ELEMENT list local (`_fin` recognizer vein, increment 8): a
+            # full-arity constructor Call to a known content-faithful record
+            # (`[_N("alias")(name="*", asname=None)]`) makes the local a list of THAT
+            # RECORD, not the int-erased default — which is what lets the seq local
+            # carry real records into a `RecList:<Rec>` field instead of the
+            # `Array.make 0 0` dropped-child facade (lesson (ac)). Reuses the WL-04c
+            # recognizer verbatim, so the faithfulness gates are exactly the same ones
+            # the record LIST-LITERAL lowering already applies.
+            _rc = self._record_ctor_list_elem([e])
+            if _rc is not None and _rc in rt:
+                return rt[_rc]["whyml_name"]
             return "int"
 
         def _val_elem_ty(v: Any) -> Optional[str]:
@@ -4312,6 +4339,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         return _nu[len("seq "):]
                 if (self._call_returns_string_collection(_fn) or _fn.endswith(".split")):
                     return "string"
+                # RECORD-ELEMENT list local (increment 8): a `self.<m>()` whose declared
+                # return resolves to `array <record>` (the WL-04b `-> List[<record>]`
+                # return type, now also carried by the self-call map) yields a
+                # record-element list local — so `names = self._import_as_names()` models
+                # as `seq py_alias`, not the int-erased `seq int`.
+                if _fn.startswith("self."):
+                    try:
+                        _cr, _, _, _ = self._resolve_dotted_signature(_fn)
+                    except Exception:
+                        _cr = ""
+                    if (isinstance(_cr, str) and _cr.startswith("array ")
+                            and _cr[len("array "):] in {
+                                _ri["whyml_name"] for _ri in rt.values()}):
+                        return _cr[len("array "):]
                 if _fn in ("sorted", "set", "frozenset", "list") and v.get("args"):
                     return _val_elem_ty(v["args"][0])
                 # cf6.md M1.6: `<emit_ir>.get("captures"/"args")` reads the args LIST
@@ -4783,6 +4824,29 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             _str_predecl |= _bpl_str
             pre_decl_vars |= _bpl_str
 
+        # RECORD-ELEMENT seq local (`_fin` recognizer vein, increment 8): a `seq
+        # <record>` local — one whose element type resolved to a HARVESTED RECORD — is
+        # PRE-DECLARED `ref (Seq.empty: seq <rec>)` at function top instead of being
+        # `let`-bound at its first assignment. Necessary, not cosmetic: `import_from`
+        # assigns `names` inside THREE conditional branches and reads it AFTER the `if`,
+        # and a branch-scoped `let names = ref … in` leaves the post-`if` read looking at
+        # nothing — the constructed node's list field then falls back to the empty
+        # `Array.make 0 0` DROPPED-CHILD facade (lesson (ac)). This is the record
+        # counterpart of the `seq string` `_bpl_seqstr_predecl` and of the R3 string
+        # `ref ""` pre-decl, and it fires ONLY for a record element type, which no
+        # non-@mutable_state code can produce -> corpus byte-inert.
+        _seqrec_predecl: Dict[str, str] = {}
+        _rec_whyml_names = {_ri["whyml_name"]
+                            for _ri in getattr(self, "_record_types", {}).values()}
+        for _sv in sorted(getattr(self, "_seq_locals", set())):
+            _svt = getattr(self, "_seq_value_types", {}).get(_sv)
+            if (_svt in _rec_whyml_names
+                    and _sv not in ghost_vars and _sv not in ref_params
+                    and _sv not in self._formal_params and _sv not in _uput
+                    and _sv not in struct_array_targets
+                    and _sv not in struct_pack_targets):
+                _seqrec_predecl[_sv] = _svt
+        pre_decl_vars |= set(_seqrec_predecl)
         # W8/W1: a local bound to an element of an `array <record>` self-field
         # (`t = self.toks[self.i]`, the token cursor's `advance`) is RECORD-typed, so
         # the integer `ref 0` pre-decl mistypes it. Pre-declare it with the element
@@ -4829,7 +4893,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         }
         body_code = self._stmts_to_whyml(
             body_stmts,
-            (local_refs | {f"{t}_len" for t in append_targets} | seq_promoted_params)
+            (local_refs | {f"{t}_len" for t in append_targets} | seq_promoted_params
+             | set(_seqrec_predecl))
                 - struct_array_targets - struct_pack_targets - _uput,
             initial_declared
                 - {whyml_ident(v) for v in struct_array_targets}
@@ -4895,6 +4960,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             elif var in _bpl_seqstr_predecl:
                 # `_build_param_list` WRITER class: `seq string` local pre-decl.
                 init = '(Seq.empty: seq string)'
+            elif var in _seqrec_predecl:
+                # increment 8: `seq <record>` local pre-decl (see above).
+                init = f'(Seq.empty: seq {_seqrec_predecl[var]})'
             elif var in _rec_predecl:
                 # W8/W1: record-element local pre-decl (see above).
                 init = self._record_default_literal(_rec_predecl[var])

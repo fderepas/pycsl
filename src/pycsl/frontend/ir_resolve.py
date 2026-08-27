@@ -449,6 +449,16 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # "RecList:<Rec>" tag). `_NODE_SPEC['Import'] == ('stmt', ('names',), ...)`, no
     # `_OPTIONAL_FIELDS` entry.
     "Import": [("names", "RecList:alias")],
+    # `_fin` RECOGNIZER vein, increment 8: `ImportFrom` — `_NODE_SPEC['ImportFrom'] ==
+    # ('stmt', ('module','names','level'), None)`. `module` is in
+    # `_OPTIONAL_FIELDS['ImportFrom']` and the live `import_from` body really leaves it
+    # `None` for a bare `from . import x`, so it is "OptStr" (-> `option string`);
+    # `names` is the same LIST-OF-`alias` shape `Import.names` has ("RecList:alias");
+    # `level` is nominally optional in the factory but the ONLY construction site (this
+    # parser) always passes the computed dot count, and CPython's own `ast.ImportFrom`
+    # always carries an int there, so "int" is the faithful tag.
+    "ImportFrom": [("module", "OptStr"), ("names", "RecList:alias"),
+                   ("level", "int")],
     # SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5, C-bucket):
     # the `x op= v` / `self.f op= v` / `c[k] op= v` augmented-assignment statement.
     # `_NODE_SPEC['AugAssign'] = ('stmt', ('target', 'op', 'value'), None)`; all three

@@ -939,7 +939,7 @@ class _Parser:
         while self.at_op(".", "..."):
             level += 3 if self.cur().string == "..." else 1
             self.advance()
-        module = None
+        module: Optional[str] = None
         if not self.at_kw("import"):
             parts = [self._name_str()]
             while self.accept_op("."):

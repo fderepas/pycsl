@@ -609,12 +609,37 @@ class _Parser:
             asname = self._name_str()
         return _N("alias")(name=name, asname=asname)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def import_from(self):
-        pass
+    def import_from(self) -> "ImportFrom":
+        t = self.advance()
+        level = 0
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op(".", "..."):
+            level += 3 if self.cur().string == "..." else 1
+            self.advance()
+        module: Optional[str] = None
+        if not self.at_kw("import"):
+            parts = [self._name_str()]
+            #@ ghost i1 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i1
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op("."):
+                parts.append(self._name_str())
+            module = ".".join(parts)
+        self.expect_kw("import")
+        if self.accept_op("*"):
+            names = [_N("alias")(name="*", asname=None)]
+        elif self.at_op("("):
+            self.advance()
+            names = self._import_as_names()
+            self.expect_op(")")
+        else:
+            names = self._import_as_names()
+        return self._fin(_N("ImportFrom")(module=module, names=names, level=level), t)
 
     #@ requires True
     #@ ensures True

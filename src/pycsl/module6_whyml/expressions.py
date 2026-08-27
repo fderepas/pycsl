@@ -8578,7 +8578,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # call provides full arity (so `_call_record_constructor` threads args).
             if not init_params or not set(fields) <= covered:
                 return None
-            if len(e.get("args", [])) != len(init_params):
+            # FULL ARITY, positionally OR by keyword. `_call_record_constructor`
+            # threads BOTH (`kwargs_map`/`kwargs_ir`), and the class-by-name factory
+            # `_N("alias")(name=…, asname=…)` is keyword-ONLY — under the old
+            # positional-only test such a literal fell through to the WL-04g
+            # heterogeneous-reject and the whole conversion failed closed. A call is
+            # accepted iff the positional prefix plus the named keywords COVER every
+            # `init_param` exactly once (no duplicate, no unknown name), which is the
+            # same completeness `_call_record_constructor` needs to thread every field.
+            _pos = e.get("args", []) or []
+            _kwnames = [k.get("arg") for k in (e.get("keywords") or [])
+                        if isinstance(k, dict) and k.get("arg")]
+            if len(_pos) > len(init_params):
+                return None
+            _bound = list(init_params[:len(_pos)]) + list(_kwnames)
+            if sorted(_bound) != sorted(init_params):
                 return None
         return rec_name
 
