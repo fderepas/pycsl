@@ -4521,3 +4521,20 @@ whether the emitter RENAMED the thing.** Four for four this window. And note the
 be EARNED: `CLUSTER_EMITTED` maps each member to the prefix its group emits under and
 REQUIRES that prefix to be present, so a cluster that stops being emitted is still caught —
 only the renaming is excused, never the absence.
+
+### PHASE-0 SPIKE for the `pyast_expr` unification — **PASSED**, and it fixes the design
+
+`getting-better/pyast-expr/pyast-expr-spike.mlw`, **19/19 Valid under Z3** (Alt-Ergo 15/19),
+including all five NON-VACUITY goals (`py_expr_to_ir (PBin o a b) = IrBinOp o (…) (…)` etc.,
+which a facade chain refutes). So the mutual dispatcher + handlers shape is NOT a correctness
+boundary; the remaining work is emitter plumbing, exactly as the COST/SCALE classification says.
+
+**BUILD IT WITH THE ENCODED-PAIR VARIANT `2 * size e + <level>` (dispatcher level 1, handlers
+level 0), NOT `size e`.** The dispatcher hands the SAME node to its handler, so `size e < size e`
+is false; with the naive measure all four dispatcher variant goals TIMEOUT at ~280k steps,
+which looks like an E-matching wall and is really an unprovable goal. With the pair they are
+Valid in hundredths of a second. Same device as the converted `_Parser` nest — already landed.
+
+Prerequisites both already in the tree: the deferred-goal fix for mutually-recursive
+union-using SCCs (`9d4702f1`) and the type-keyed dispatch chain with `py_type_name_of`
+(`bf5435f3`).
