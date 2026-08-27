@@ -243,6 +243,11 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # `_OPTIONAL_FIELDS` entry for `BinOp` in pure_ast.py), so a TOTAL WhyML
     # record is faithful here.
     "BinOp": [("left", "ExprIR"), ("op", "int"), ("right", "ExprIR")],
+    # CLASS-BY-NAME FACTORY vein: `Expression` is the `mod` wrapper `ast.parse(mode=
+    # "eval")` returns — ONE total field (`_NODE_SPEC['Expression'] == ('mod',
+    # ('body',), ())`, no `_OPTIONAL_FIELDS` entry), the expression tree itself, so it
+    # is tagged "ExprIR" exactly like BinOp's children.
+    "Expression": [("body", "ExprIR")],
     # non-list _py_expr_* batch (tier 1): UnaryOp's 2 fields (`op`, `operand`)
     # are total (no `_OPTIONAL_FIELDS` entry) — `op` tagged "int" like BinOp's
     # (read only through the trusted `_py_op_to_str` dispatcher), `operand`

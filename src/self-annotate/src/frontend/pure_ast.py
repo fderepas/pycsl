@@ -301,8 +301,14 @@ class _Parser:
             return self.advance()
         return None
 
+    # STRICT PROGRESS, UNCONDITIONAL (stronger than `accept_op`'s conditional clause):
+    # the reject path is `self.error(...)`, whose `-> "NoReturn"` interface makes the
+    # continuation unreachable, so on EVERY path that returns normally `at_op` held —
+    # the current token is an OP, by the EOF-sentinel invariant it is not the last index,
+    # and `advance` increments. This is what lets a `while self.at_kw(...)`-style loop
+    # whose body calls `expect_op` take the cursor measure.
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def expect_op(self, val: str) -> _Tok:
         if not self.at_op(val):
@@ -324,8 +330,10 @@ class _Parser:
             return self.advance()
         return None
 
+    # STRICT PROGRESS, UNCONDITIONAL — the keyword twin of `expect_op`'s clause, by the
+    # same chain through `at_kw`'s token-kind postcondition and the EOF sentinel.
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def expect_kw(self, val: str) -> _Tok:
         if not self.at_kw(val):
@@ -393,12 +401,20 @@ class _Parser:
     def parse_module(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CLASS-BY-NAME FACTORY vein, increment 2: CONVERTED. Verbatim body port of the LIVE
+    # `parse_eval`. `_N("Expression")(body=node)` resolves to a direct construction over the
+    # SAME-FILE-harvested `_NODE_SPEC` record — `Expression` is `('mod', ('body',), ())`, one
+    # TOTAL field (no `_OPTIONAL_FIELDS` entry), so the WhyML record is total and faithful.
+    # The field really carries the parsed tree because the trusted `testlist` now exports the
+    # `-> "ExprIR"` interface (`emit_ir`), so the emission is `{ body = !node }` off a REAL
+    # call — not the bare `0` an un-harvested class would have produced.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def parse_eval(self):
-        pass
+    def parse_eval(self) -> "Expression":
+        node = self.testlist()
+        e = _N("Expression")(body=node)
+        return e
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -625,11 +641,16 @@ class _Parser:
     def test_or_star(self):
         pass
 
+    # RETURN INTERFACE (the `error -> "NoReturn"` precedent): `testlist` STAYS \trusted — its
+    # live body builds a `Tuple` node through `_fin`, the still-unbuilt capability — but the
+    # `-> "ExprIR"` annotation records faithfully that what it returns IS an expression node,
+    # so `emit_ir` flows into a harvested record's expr child instead of an opaque int.
+    # Count-neutral; caller-unlocking (`parse_eval`).
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def testlist(self):
+    def testlist(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate

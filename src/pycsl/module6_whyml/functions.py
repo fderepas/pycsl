@@ -5643,6 +5643,30 @@ class FunctionEmissionMixin:
                 lines += self._deferred_union_arm_goals
                 self._deferred_union_arm_goals = []
             lines.append("")
+        # RECORD-ELEMENT seq->array RETURN BRIDGE (the third bridge, beside `materialize`
+        # for `seq int` and `materialize_str` for `seq string`): a `-> List[<record>]`
+        # function whose only normal exit is the tail return of a seq-modelled accumulator
+        # crosses the seq->array boundary with a RECORD payload, and both existing bridges
+        # type-clash on it. Same fresh-result / no-region-link shape and the same two
+        # POINTWISE postconditions as those two, so the array is EQUAL to the seq and
+        # nothing is erased.
+        # WHY HERE. (a) Not at the return site: that body's own MIRROR models
+        # `_add_abstract_op`'s argument as a HASHED INT (it has only ever seen string
+        # LITERALS there), so a COMPUTED declaration string cannot be passed from it —
+        # measured, it fails the mirror's L3-tc. (b) Not from the return TYPE alone: a
+        # `-> List[<record>]` function that builds its result some other way (corpus
+        # driver 0839's list LITERAL) never calls the bridge, and declaring an unused val
+        # for it breaks byte-diff-0 — measured. So the trigger is the EMITTED BODY
+        # actually naming the bridge.
+        _rt = getattr(self, "_func_return_type", "") or ""
+        if (_rt.startswith("array ")
+                and _rt not in ("array int", "array real", "array string")):
+            _mrb = _rt[len("array "):]
+            if _mrb.isidentifier() and any(f"(materialize_{_mrb} " in _l for _l in lines):
+                self._add_abstract_op(
+                    f"val materialize_{_mrb} (s: seq {_mrb}) : array {_mrb}\n"
+                    f"    ensures {{ Array.length result = Seq.length s }}\n"
+                    f"    ensures {{ forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }}")
         return lines
 
     def _emit_term_pp_delegation(self, func, fam, spec, whyml_ident) -> List[str]:

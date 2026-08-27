@@ -2629,3 +2629,105 @@ that my own edit introduced. I found it by hooking `typing.List.__call__` and pr
    other. `import pure_ast; pure_ast.parse("x = [1]")` would have caught this in one second —
    and my earlier smoke tests used `x = 1` and `import a.b as c`, neither of which builds a
    `List` node. **Choose the smoke test to exercise what the edit could plausibly break.**
+
+---
+
+*(tt)–(vv) are from relaunch #5.*
+
+## Lesson (tt) — a QUOTED parametric return annotation is not a monomorphizer gap, it is an UNPARSED STRING
+
+Relaunch #4 measured `-> List[alias]` on `_Parser._import_as_names` and recorded
+
+> BLOCKER 1: `List[<harvested record>]` as a RETURN annotation is a MONOMORPHIZER GAP — both
+> `-> List[alias]` and the quoted form fail the whole pipeline with *"Type List cannot be
+> instantiated; use list() instead"*.
+
+Both halves of that are wrong, and they are wrong for two DIFFERENT reasons that happened to
+land in the same window:
+
+ - the BARE form's failure was lesson (ss) — the `typing` import that had been added to make
+   `List` resolvable had REPLACED `pure_ast`'s `List` AST node class, and the error came from
+   the parser, not the emitter;
+ - the QUOTED form does not fail at all. Module5's `node.returns` dispatch has an
+   `ast.Constant` branch that recognises exactly ONE string — `"NoReturn"` — and otherwise
+   assigns the string VERBATIM as the return annotation. `"List[alias]"` is not a type name
+   Module6 can resolve, so the return silently stayed the collapsed `int`, and the only symptom
+   was an L3-tc clash (`seq py_alias` vs `seq int`) at the `materialize` call. **Nothing was
+   "instantiating List".** The `ast.Subscript` branch — which already has the full
+   `List[str]`/`List[float]`/`List[<record>]` element analysis — was simply never reached,
+   because a quoted annotation is a `Constant`, not a `Subscript`.
+
+**The rule.** When an annotation "does not work", first establish WHICH AST NODE the emitter
+actually sees for it. A quoted annotation and its bare twin take different branches everywhere
+in this pipeline, and a capability that exists on one branch is routinely absent on the other.
+Corollary: the error message you are handed may belong to a completely different stage — get the
+traceback (lesson (ss)) before you name the wall.
+
+## Lesson (uu) — a METHOD's function-IR name is MANGLED, so every bare-name lookup into `ir_data["functions"]` silently no-ops for methods
+
+`ir_resolve._resolve_same_file_node_spec_records` resolves the function IR for an AST `FunctionDef`
+with `func_by_name.get(node.name)`. For a module-level function that works. For a METHOD the IR
+name is `<classname-lowered>_<methodname>` — `_Parser._import_as_names` is
+`_parser___import_as_names` — so the lookup returns `None` and the pass does nothing, with no
+error and no warning. The pre-existing param-annotation branch in that same loop has the same
+latent bug: it can only ever have fired for module-level functions, which is not where pure_ast's
+node-typed parameters are.
+
+The fix that is robust for both shapes is to match on the def's **line** plus a name-SUFFIX check,
+not on the name alone.
+
+**The rule.** A `dict.get(name)` against an IR built by a different stage is a silent no-op when
+the two stages disagree about naming. Whenever a pass "does nothing" and the gate is a type error
+three stages later, print the KEYS before theorising about the feature.
+
+## Lesson (vv) — where to put a live-emitter change is decided by the §10.4 RE-PORT COST, not by taste
+
+The seq→array return bridge is ELEMENT-TYPED and there were only two of them (`materialize` for
+`seq int`, `materialize_str` for `seq string`); a RECORD payload type-clashes with both. The
+clean-code placement is two new helper methods in `module6_whyml/statements.py`
+(`_materialize_record_elem` as the gate, `_materialize_rec_bridge` as the emitter), called from
+`_handle_return_stmt`. I built that first, and it was the WRONG placement — measured:
+
+ - it changes THREE live functions with un-trusted mirrors instead of one, so §10.4 obliges three
+   ports and re-proofs of TWO mirror files instead of one;
+ - the mirror `stmt_control_flow.py` would need SIBLING STUBS for the two new helpers, and the
+   record-type gate (`for rec in self._record_types.values()`) is a dict-of-dicts read that this
+   mirror cannot lower faithfully — so at least one of them would have to be `\trusted`.
+   **That would ADD a marker and cancel the conversion the whole increment exists to make.**
+
+Re-placed INLINE at the single call site in `_handle_return_stmt` — which was going to diverge
+anyway — with the gate rewritten in the string primitives the mirror body ALREADY uses for
+`func_ret[len("option "):]`, the cost fell to one port, one mirror re-proof, and zero new markers.
+
+**The rule.** Before choosing where a live-emitter change goes, count (a) how many un-trusted
+mirror bodies it makes diverge, and (b) whether any helper it introduces would need a `\trusted`
+stub in the mirror. In this campaign a refactor that adds a marker to save a marker is a net
+LOSS, and "put it in a well-named helper" is exactly the instinct that produces one. The corollary
+for the emitted code: prefer primitives the mirror already models over ones that read better.
+
+## Lesson (ww) — the mirror emission SWEEP does not type-check; a re-ported body can be ill-typed and the sweep will report it as a clean 2-of-52 diff
+
+`bin/byte-diff-sweep.sh` and every mirror-emission manifest in this campaign run with
+`--no-typecheck` (they measure BYTES, and the why3 call is what makes them slow). I re-ported a
+branch into the un-trusted `module6_whyml/stmt_control_flow.py` mirror, read the emission diff by
+eye, confirmed it used only primitives that mirror's own converted body already uses, and moved on
+to the proof. The proof failed at **L3-tc, in seconds**, on that exact line: the mirror models
+`_add_abstract_op`'s argument as a **hashed `int`** (`self__add_abstract_op_1 (x0: int)`), because
+every existing call site passes a string LITERAL and the emitter hashes those — so a COMPUTED
+string argument is a type error there, and no amount of reading the diff shows it.
+
+**The rule.** After a §10.4 re-port, run `--no-proof --typecheck` on the changed mirror BEFORE
+queueing its whole-file proof. It costs a minute and it is the difference between a failed 30-minute
+proof and a fixed increment. More generally: a byte-level gate is not a well-formedness gate.
+
+The fix generalizes past this instance: **an abstract sibling val's parameter types are inferred
+from the argument shapes the emitter has already seen at its call sites.** If your new call passes
+a differently-typed argument, you must either give the sibling a typed stub (which costs a
+`\trusted` marker) or MOVE THE CALL to a function whose mirror is already `\trusted`. Here the
+declaration moved to `functions.py::_emit_function`, whose mirror is trusted, and the return site
+kept only the NAME.
+
+And a second measurement from the same move: declaring the bridge off the RETURN TYPE alone broke
+byte-diff-0 — corpus driver `0839` returns `List[Point]` built from a list LITERAL and never calls
+the bridge, so it got an unused `val`. The trigger has to be the EMITTED BODY actually naming it.
+**"Which functions have this type" is a different set from "which functions emit this call".**

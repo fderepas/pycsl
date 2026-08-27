@@ -5287,3 +5287,117 @@ real, and the accumulator snocs the CONVERTED `_import_as_name`, so the list car
     pattern and it unblocks every `accept_kw`-using body, not just this one.**
 
 Reverted to clean rather than half-landed: emission re-swept and byte-identical to HEAD.
+
+---
+
+## `frontend/pure_ast.py` VEIN, RELAUNCH #5 — three increments and the capability map for the rest
+
+**COUNT DISCIPLINE.** Quote BOTH numbers, always, and get them from
+`bin/count-trusted-directives.py`, never a hand-rolled grep. This window: markers **586 -> 584**,
+grep-substring **611 -> 609**, offset a constant 25, unattached 0.
+
+### What landed
+
+1. **`accept_kw` monotonicity chain** (count-neutral, zero TCB) — `at_kw` gains
+   `ensures \result != False ==> self.toks[self.i].type == NAME`, `accept_kw` gains the strict
+   progress clause. Same discharge chain as `accept_op`'s: token kind + the EOF-sentinel class
+   invariant + `advance`'s guarded increment.
+
+2. **`expect_op` / `expect_kw` UNCONDITIONAL strict progress** (count-neutral, zero TCB) —
+   `ensures self.i > \old(self.i)` with NO antecedent, which is STRONGER than `accept_*`'s
+   conditional clause, because the reject path is `self.error(...)` and its `-> "NoReturn"`
+   interface makes the continuation unreachable. This is what lets a `while self.at_kw(...)`
+   loop whose body calls `expect_kw` take the cursor measure.
+
+3. **`_import_as_names` CONVERTED** — see the two refutations below.
+
+4. **`parse_eval` CONVERTED** — `Expression` added to `_PURE_AST_FIELD_TABLE`, and the trusted
+   `testlist` given the `-> "ExprIR"` RETURN INTERFACE.
+
+### Two recorded blockers REFUTED
+
+- **"`List[<harvested record>]` as a return annotation is a MONOMORPHIZER GAP" is FALSE.**
+  Module5 never PARSES a quoted parametric return annotation: its `ast.Constant` branch
+  recognises exactly one string, `"NoReturn"`, and assigns anything else verbatim, so
+  `-> "List[alias]"` left the return as the collapsed `int`. The `ast.Subscript` branch, which
+  already carries the full `List[str]`/`List[float]`/`List[<record>]` element analysis, is simply
+  never reached for a quoted annotation. Fixed in `ir_resolve._resolve_same_file_node_spec_records`
+  (already gated to files defining `_NODE_SPEC`, i.e. only `pure_ast.py`, so corpus-inert BY
+  CONSTRUCTION). **The bare spelling remains FORBIDDEN here — lesson (ss).**
+
+- **A METHOD's function-IR name is MANGLED** (`_Parser._import_as_names` ->
+  `_parser___import_as_names`), so the bare-name `func_by_name.get(node.name)` lookup in that pass
+  silently no-ops for every method. The pre-existing PARAM branch has the same latent bug.
+
+### The RETURN INTERFACE lever — the cheapest thing in this vein
+
+A stub that STAYS `\trusted` can still be given a faithful return type, and that unlocks its
+callers at zero marker cost. Established precedents, all in this file now:
+`error`/`unsupported -> "NoReturn"` (divergence), `testlist -> "ExprIR"` (an expression node,
+i.e. `emit_ir`), and `-> "ExprIR"` + `ensures self.i >= \old(self.i)` on `or_test` /
+`or_test_no_cond` / `_comp_target`. **Do this BEFORE attempting the caller** — a caller's
+cursor-measure loop needs monotonicity from EVERY call in its body, not just from the guard.
+
+### THE CAPABILITY MAP for the remaining ~179 pure_ast markers (measured this window)
+
+A census of the trusted `_Parser` stubs by BODY SHAPE:
+
+| shape | count | gate |
+|---|---|---|
+| body constructs `_N(...)` wrapped in `self._fin(...)` / `_fin_block` / `_fin_pos` / `self.node(...)` | **57** | the `_fin` capability, below |
+| body constructs `_N(...)` with NO `_fin` wrapper | **13** | `_PURE_AST_FIELD_TABLE` widening, one node class at a time |
+| no `_N` at all | 86 | mixed; the whole-file sweep's L3TC-FAIL bulk |
+
+The 13 non-`_fin` ones and the node classes they need:
+`parse_module`(Module) `parse_eval`(Expression — DONE) `case_block`(match_case)
+`_for_target`(Load/Store/Tuple) `_with_item`(Store/withitem) `parse_parameters`(arguments)
+`lambda_parameters`(arguments) `_binop`(BinOp) `power`(BinOp/Pow)
+`trailers`(Attribute/Call/Load/Subscript) `_subscript`(Load/Tuple) `comp_for`(comprehension — DONE)
+`_comp_target`(Load/Store/Tuple).
+
+**`_binop` is NOT reachable by table widening**: its `_N(opname)()` takes a VARIABLE class name,
+not a literal, so the class-by-name factory cannot resolve it statically. Same for any other
+dynamic-name construction. Record it as needing a separate capability (a bounded dispatch over
+the operator table) or leave it.
+
+### NAMED CAPABILITY — `_fin`, and why it is CHEAPER than it looks (**not yet built**)
+
+`_fin`, `_fin_block`, `_fin_pos` and `node` all do ONE thing to the model: they set
+`lineno` / `col_offset` / `end_lineno` / `end_col_offset` on the node and RETURN IT UNCHANGED
+(`_fin`'s only other read is `self.toks[max(self.i-1,0)]` — no cursor mutation; verified against
+the live bodies).
+
+**The harvested `_NODE_SPEC` records do NOT carry the ASDL `attributes`** — `_PURE_AST_FIELD_TABLE`
+lists FIELDS only, and the emitted records confirm it
+(`type py_alias = { py_alias_name: string; py_alias_asname: option string }`). So the four
+location attributes are OUTSIDE the model entirely, exactly as `ctx` is carried as an opaque
+`int`, and in the model `_fin(x, t) == x`.
+
+**Therefore the capability is a CALL-SITE RECOGNIZER, not a monomorphization**: lower
+`self._fin(<construction>, …)` to `<construction>`. It must be gated on the constructed node's
+harvested record having NO field named `lineno`/`col_offset`/`end_lineno`/`end_col_offset`, so
+that if the harvest is ever widened to include attributes the recognizer fails CLOSED instead of
+silently dropping modelled writes. Verified prerequisite: the emitted `_fin_pos` today is an
+int-erased facade (`setattr_3 node <hash> …` over `node: int`), so nothing downstream depends on
+`_fin` returning a modelled value.
+
+**This is the single highest-leverage unbuilt item in the file: 57 stubs, ~10% of the whole TCB.**
+
+**WHERE IT GOES, and why it is cheap.** Right beside the existing class-by-name factory
+recognizer in `Module5_IREmitter._py_expr_call` (the `_N("<lit>")(<kwargs>)` branch,
+~line 1240). **`_py_expr_call`'s MIRROR IS `\trusted`**, so the change carries NO §10.4 re-port
+obligation and no mirror re-proof — verified this window. `self.node(name, start_tok, **kw)` is
+just `_fin(_N(name)(**kw), start_tok)` and folds through the same branch.
+FAIL-CLOSED GATE: require the first argument to be itself a recognized `_N("<literal>")(...)`
+construction, so an `_fin` over an unmodelled value is never silently dropped.
+
+### NAMED CAPABILITY — base-category ADTs for the 0-field ASDL singletons (**not yet built**)
+
+`Load`, `Store`, `Del`, `Pow`, `Add`, … are 0-FIELD classes, and a 0-field WhyML record is not
+expressible. They block `_for_target` / `_with_item` / `_subscript` / `_comp_target` / `trailers` /
+`power`. `_NODE_SPEC` gives each one's BASE CATEGORY (`expr_context`, `operator`, `boolop`,
+`unaryop`, `cmpop`), so the whole membership of each category is statically known and the faithful
+model is a Why3 ENUM VARIANT per category (`type expr_context = Load | Store | Del`) — axiom-free,
+and it makes `ctx=_N("Load")()` a real constructor instead of an opaque int. Cost: the `ctx`/`op`
+field tags move from `"int"` to the category type, which ripples into every record that has one.
+COST/SCALE, not correctness.

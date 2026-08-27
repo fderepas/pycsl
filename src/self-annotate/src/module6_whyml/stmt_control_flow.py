@@ -1158,11 +1158,11 @@ class ControlFlowStmtMixin:
                 # Gated on a declared `array <single-token-non-scalar>`: `array int`,
                 # `array real` and `array string` (handled above) all keep their existing
                 # emission, so every corpus driver is byte-identical.
+                # The bridge VAL itself is declared by `_emit_function` (it cannot be
+                # declared from here: this body's own mirror models `_add_abstract_op`'s
+                # argument as a hashed int, so a COMPUTED declaration string cannot be
+                # passed). Here we only name it.
                 _elem = self._func_return_type[len("array "):]
-                self._add_abstract_op(
-                    "val materialize_" + _elem + " (s: seq " + _elem + ") : array " + _elem
-                    + "\n    ensures { Array.length result = Seq.length s }"
-                    + "\n    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
                 val = "(materialize_" + _elem + " !" + whyml_ident(val_ir["name"]) + ")"
             else:
                 self._materialize_bridge()
