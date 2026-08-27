@@ -1400,12 +1400,23 @@ class _Parser:
     def _comp_target(self) -> "ExprIR":
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `yield_expr`,
+    # plus the PEP-526 `Optional["ExprIR"]` annotation on `value` (runtime-inert; here it
+    # is what makes the absent path a TRUE `IrONone` rather than a node). `Yield.value` is
+    # in `_OPTIONAL_FIELDS`, `YieldFrom.value` is not — the two arms differ accordingly.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def yield_expr(self):
-        pass
+    def yield_expr(self) -> "ExprIR":
+        t = self.advance()  # 'yield'
+        if self.accept_kw("from"):
+            val = self.test()
+            return self._fin(_N("YieldFrom")(value=val), t)
+        value: Optional["ExprIR"] = None
+        if not self._stmt_end() and not self.at_op(")", "]", "}", ":", ","):
+            value = self.testlist()
+        return self._fin(_N("Yield")(value=value), t)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -1983,7 +1983,10 @@ class _Parser:
         if self.accept_kw("from"):
             val = self.test()
             return self._fin(_N("YieldFrom")(value=val), t)
-        value = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never
+        # evaluated), here for the VERIFIER: it makes the local a real optional carrier,
+        # so the absent path is a TRUE `None` and not an erased node.
+        value: Optional["ExprIR"] = None
         if not self._stmt_end() and not self.at_op(")", "]", "}", ":", ","):
             value = self.testlist()
         return self._fin(_N("Yield")(value=value), t)

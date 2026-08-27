@@ -6283,8 +6283,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _n, local_refs, invariant_ctx, subst)))
             if _t_first is not None:
                 return _t_first
-        adt = self._call_irnode_constructor(args, func_name, kwargs_map,
-                                            none_arg_indices, none_kwargs)
+        adt = self._call_irnode_constructor(
+            args, func_name, kwargs_map, none_arg_indices, none_kwargs,
+            # PYTHON-AST NODE CTOR FAMILY (increment 13): the RAW keyword IR, needed for
+            # an `iropt_ir` optional slot. By the time a kwarg reaches `kwargs_map` it has
+            # already been lowered with the SENTINEL projection
+            # (`match !value with Arm_9_0 _v -> _v | _ -> IrOther ""`), which models the
+            # ABSENT value as a NODE — the erasure the option slot exists to prevent. The
+            # raw node lets the slot re-lower it into `IrOSome`/`IrONone`.
+            raw_kwargs={kw["arg"]: kw.get("value")
+                        for kw in (expr.get("keywords") or [])
+                        if isinstance(kw, dict) and isinstance(kw.get("arg"), str)})
         if adt is not None:
             return adt
         # TERM CARRIER (L13): a term-ADT arm class construction lowers to the certified
@@ -8631,7 +8640,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _call_irnode_constructor(self, args: List[str], func_name: str,
                                  kwargs_map: Optional[Dict[str, str]] = None,
                                  none_arg_indices: Optional[Set[int]] = None,
-                                 none_kwargs: Optional[Set[str]] = None
+                                 none_kwargs: Optional[Set[str]] = None,
+                                 raw_kwargs: Optional[Dict[str, Any]] = None
                                  ) -> Optional[str]:
         """NODE-CTOR (self-tcb-reduction): `C(a, b, c)` for a CSL-AST node class that the
         SHARED `_IRNODE_CTORS` table models → the `emit_ir` ADT application
@@ -8769,6 +8779,34 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # construction declines, fail-closed) unless the actual really is a `!<local>`
             # deref of a seq local KNOWN to carry emit_ir elements, so a slot can never be
             # filled with an int-erased or empty list.
+            # PYTHON-AST NODE CTOR FAMILY (increment 13): an `iropt_ir` payload slot — a
+            # node field that is genuinely OPTIONAL (`_OPTIONAL_FIELDS['Yield'] ==
+            # ('value',)`: a bare `yield` really carries nothing). Modelling it as a bare
+            # `emit_ir` would make the ABSENT value read as a NODE, which is the
+            # None-reads-as-a-value erasure this campaign has repaired before. The three
+            # shapes: an EXPLICIT/omitted None -> `IrONone`; an `Optional[ExprIR]` LOCAL,
+            # which lesson (ab) makes a synthesized `_union_*` -> the arm projection into
+            # `IrOSome`/`IrONone`; a plain present emit_ir expression -> `(IrOSome x)`.
+            # Anything else DECLINES (fail-closed).
+            if _irlist_slots.get(f) == "iropt_ir":
+                if f in none_fields:
+                    parts.append("IrONone")
+                    continue
+                _rk = (raw_kwargs or {}).get(f)
+                if isinstance(_rk, dict) and _rk.get("type") == "None":
+                    parts.append("IrONone")
+                    continue
+                if isinstance(_rk, dict) and _rk.get("type") == "Var":
+                    _oname = str(_rk.get("name"))
+                    _osym = getattr(self, "_current_symbol_table", {}).get(_oname)
+                    _oderef = ("!" if _oname in getattr(
+                        self, "_optional_union_locals", set()) else "")
+                    _oproj = self._union_read_iropt_ir_projection(
+                        _osym, f"{_oderef}{whyml_ident(_oname)}")
+                    if _oproj is not None:
+                        parts.append(_oproj)
+                        continue
+                return None
             if _irlist_slots.get(f) == "irlist":
                 _raw = str(bound[f]).strip()
                 if not (_raw.startswith("!") and _raw[1:].isidentifier()
@@ -10703,6 +10741,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if some_ctor is None:
             return None
         return f"(match {operand} with {some_ctor} _v -> Some _v | _ -> None end)"
+
+    def _union_read_iropt_ir_projection(self, symtype: Any,
+                                        operand: str) -> Optional[str]:
+        """PYTHON-AST NODE CTOR FAMILY (increment 13): the `iropt_ir` twin of
+        `_union_read_option_projection`. Projects a single-Some-arm `Optional`-union
+        operand into the MONOMORPHIC option ADT the emit_ir theory uses for an optional
+        child — `(match <op> with Arm_i_0 _v -> IrOSome _v | _ -> IrONone end)` — rather
+        than into Why3's built-in `option` (which is the right target for a harvested
+        RECORD field, and the wrong one for an ADT ctor slot). Returns None for a
+        multi-Some union or a non-union operand, so the construction fails closed."""
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        some_ctor = None
+        for cn, c in vinfo.get("constructors", {}).items():
+            if c.get("arity") == 1:
+                if some_ctor is not None:
+                    return None   # multi-Some union — out of scope
+                some_ctor = cn
+        if some_ctor is None:
+            return None
+        return (f"(match {operand} with {some_ctor} _v -> IrOSome _v "
+                f"| _ -> IrONone end)")
 
     def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
                          subst: Optional[Dict[str, str]] = None) -> str:

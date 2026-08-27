@@ -303,6 +303,14 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # both total: the VARIADIC element list and the `expr_context` singleton. NOT the
     # pre-existing `IrMkTupleN irlist`, which has no `ctx` slot.
     "Tuple": ("IrPyTuple", [("elts", "irlist"), ("ctx", "string")]),
+    # `Yield(value)` — `_NODE_SPEC['Yield'] == ('expr', ('value',), None)` and `value` IS
+    # in `_OPTIONAL_FIELDS['Yield']` (a bare `yield` really carries nothing), so the slot
+    # is the monomorphic `iropt_ir`, never a bare emit_ir that would model the absent
+    # value as a NODE.
+    "Yield": ("IrPyYield", [("value", "iropt_ir")]),
+    # `YieldFrom(value)` — `_NODE_SPEC['YieldFrom'] == ('expr', ('value',), None)` and it
+    # is NOT in `_OPTIONAL_FIELDS`: `yield from` always has an operand.
+    "YieldFrom": ("IrPyYieldFrom", [("value", "emit_ir")]),
 }
 
 
