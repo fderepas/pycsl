@@ -905,6 +905,13 @@ class Module6_WhyMLTranspiler(
             self._module_method_return_types[pf["name"]] = pf["_mixin_ret_whyml"]
         self._build_callee_no_exception_summary(functions)
 
+        # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): the dispatcher's
+        # calls to its 23 handlers are synthesized from the source table by the bespoke
+        # emitter, so `find_calls_in_ir` cannot see them. Publish them as explicit `uses`
+        # ordering citations BEFORE sorting, or the dispatcher sorts before three of its
+        # handlers and Why3 rejects the file with `unbound function or predicate symbol`.
+        # No-op unless the dispatcher shape is recognized -> byte-inert.
+        self._inject_pyx_dispatch_uses(functions)
         sorted_functions, scc_info = sort_functions_by_scc(
             functions, self._record_return_sibling_methods())
         # C1b (pyval-walker-impl.md): the fixpoint set of pyval→`list string`
@@ -1265,6 +1272,13 @@ class Module6_WhyMLTranspiler(
         self._late_content_ops = []
         # Partition the SORTED function list (preserve emission order) into the main
         # (untagged) set + one list per group.
+        # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): the dispatcher's
+        # calls to its 23 handlers are synthesized from the source table by the bespoke
+        # emitter, so `find_calls_in_ir` cannot see them. Publish them as explicit `uses`
+        # ordering citations BEFORE sorting, or the dispatcher sorts before three of its
+        # handlers and Why3 rejects the file with `unbound function or predicate symbol`.
+        # No-op unless the dispatcher shape is recognized -> byte-inert.
+        self._inject_pyx_dispatch_uses(functions)
         sorted_functions, scc_info = sort_functions_by_scc(
             functions, self._record_return_sibling_methods())
         from module6_whyml.generic_fold import compute_pyval_list_walker_names

@@ -3293,6 +3293,166 @@ class FunctionEmissionMixin:
         ]
         return L
 
+    def _inject_pyx_dispatch_uses(self, functions: List[Dict[str, Any]]) -> None:
+        """L2 DISPATCH-EXPANSION: give the recognized dispatcher explicit ORDERING edges to
+        the 23 handlers it will call.
+
+        The calls are synthesized by `_emit_pyx_dispatcher_bespoke` from the SOURCE table,
+        so `find_calls_in_ir` cannot see them — the body's only call node names the handler
+        LOCAL, not the methods. Without an edge the dispatcher sorts alphabetically BEFORE
+        `_py_expr_unaryop` / `_py_expr_walrus` / `_py_expr_tuple` and Why3 rejects the file
+        with `unbound function or predicate symbol` (measured). `uses` is the existing
+        explicit ordering-citation channel `sort_functions_by_scc` already honours for
+        `#@ uses <lemma>`; the edges are intra-class and acyclic (no handler calls the
+        dispatcher — they all go through the abstract `self__py_expr_to_ir_1` val), so no
+        SCC is created. No-op unless the dispatcher shape is recognized -> byte-inert."""
+        for func in functions:
+            rec = self._recognize_pyx_dispatcher(func)
+            if rec is None:
+                continue
+            own = {str(f.get("name", "")) for f in functions
+                   if f.get("kind") == "method"
+                   and f.get("self_type") == func.get("self_type")}
+            edges = list(func.get("uses") or [])
+            for _cls, handler in rec[2]:
+                for raw in sorted(own):
+                    if raw == handler or raw.endswith("_" + handler) or raw.endswith(handler):
+                        if raw not in edges:
+                            edges.append(raw)
+                        break
+            func["uses"] = edges
+
+    def _recognize_pyx_dispatcher(self, func: Dict[str, Any]
+                                  ) -> Optional[Tuple[str, str, List[List[str]]]]:
+        """L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): recognize the
+        TYPE-KEYED HANDLER DISPATCHER body
+
+            handler_name = self.<TABLE>.get(type(<param>))
+            if handler_name is not None:
+                return getattr(self, handler_name)(<param>)
+            return {"type": "<default kind>"}
+
+        and return `(param_name, default_kind, entries)` — the table's
+        `[[<AstCls>, <handler method>], ...]` IN SOURCE ORDER — or None.
+
+        Returning the ENTRIES (not just True) is what keeps the bespoke emission honest:
+        the arms are read off the SOURCE table, so editing `_PY_EXPR_HANDLERS` changes the
+        emitted match. FAIL-CLOSED on every structural axis — exactly three statements, the
+        bind through `self.<TABLE>.get` on a `type(<param>)` of the function's OWN
+        parameter, the `is not None` guard on the SAME local, a single `Return` of the
+        `SelfGetattrDispatch` node Module 5 emits for `getattr(self, <that local>)(<param>)`
+        (never the `UnknownPyExpr` erasure tag), a bare string-kind default dict, and a
+        table that `_pyx_dispatch_table` has already certified as a handler table of this
+        class. Anything else returns None and the function emits exactly as before."""
+        body = func.get("body") or []
+        if len(body) != 3:
+            return None
+        st0, st1, st2 = body
+        if st0.get("stmt") != "Assign" or st1.get("stmt") != "If" or st2.get("stmt") != "Return":
+            return None
+        local = st0.get("target")
+        v0 = st0.get("value") or {}
+        if not isinstance(local, str) or v0.get("type") != "Call":
+            return None
+        fn0 = str(v0.get("func") or "")
+        if not (fn0.startswith("self.") and fn0.endswith(".get")):
+            return None
+        tbl_name = fn0[len("self."):-len(".get")]
+        a0 = v0.get("args") or []
+        if len(a0) != 1 or a0[0].get("type") != "Call" or a0[0].get("func") != "type":
+            return None
+        ta = a0[0].get("args") or []
+        if len(ta) != 1 or ta[0].get("type") != "Var":
+            return None
+        param = ta[0].get("name")
+        test = st1.get("test") or {}
+        if (test.get("type") != "BinOp" or test.get("op") != "!="
+                or (test.get("left") or {}).get("type") != "Var"
+                or (test.get("left") or {}).get("name") != local
+                or (test.get("right") or {}).get("type") != "None"):
+            return None
+        if st1.get("orelse"):
+            return None
+        ib = st1.get("body") or []
+        if len(ib) != 1 or ib[0].get("stmt") != "Return":
+            return None
+        disp = ib[0].get("value") or {}
+        if (disp.get("type") != "SelfGetattrDispatch"
+                or disp.get("handler") != local):
+            return None
+        da = disp.get("args") or []
+        if len(da) != 1 or da[0].get("type") != "Var" or da[0].get("name") != param:
+            return None
+        dflt = st2.get("value") or {}
+        if dflt.get("type") != "DictLit":
+            return None
+        dk = dflt.get("keys") or []
+        dv = dflt.get("values") or []
+        if (len(dk) != 1 or len(dv) != 1
+                or dk[0].get("type") != "String" or dk[0].get("value") != "type"
+                or dv[0].get("type") != "String"):
+            return None
+        default_kind = str(dv[0].get("value"))
+        tbl = self._pyx_dispatch_table()
+        if tbl is None:
+            return None
+        cls_name, tname, entries = tbl
+        if tname != tbl_name or cls_name != func.get("self_type"):
+            return None
+        return (str(param), default_kind, entries)
+
+    def _emit_pyx_dispatcher_bespoke(self, func: Dict[str, Any], param: str,
+                                     default_kind: str,
+                                     entries: List[List[str]]) -> List[str]:
+        """L2 DISPATCH-EXPANSION: the faithful whole-body lowering of the recognized
+        type-keyed handler dispatcher — a TOTAL match over the input-side `pyast_expr`
+        ADT (`preamble.py::_emit_pyx_expr_adt`), one arm per table entry in source order,
+        plus the source's own default on `PEx_Unknown`:
+
+            match pyx_view expr with
+            | PEx_Name _p -> <cls>___py_expr_name self _p
+            | ...
+            | PEx_Unknown -> IrOther "UnknownPyExpr"
+            end
+
+        WHAT THIS REPLACES. The method was a `\trusted` stub, i.e. `val <cls>___py_expr_to_ir
+        (self: <cls>) (expr: emit_ir) : emit_ir` — the table, the dispatch AND the result all
+        assumed. After it only `pyx_view` is assumed (the uninterpreted node view, pinned to
+        the node's runtime class by the CONCRETE `pyx_kind_of` law), and the dispatch is
+        proved: for a node of class "Name" the result is provably `_py_expr_name` applied to a
+        `name`, hence one of that handler's three real constructors. NO axiom, NO certificate.
+
+        The ARMS ARE DERIVED FROM THE SOURCE TABLE, so this is not a hand-written body
+        pretending to be the source's: a change to `_PY_EXPR_HANDLERS` changes the emission,
+        and a handler whose emitted parameter type disagrees with its ADT arm is a LOUD Why3
+        type error at L3-tc. Corpus-inert (recognizer-gated on the exact three-statement
+        shape over a certified handler table)."""
+        name = whyml_ident(func["name"])
+        cls = whyml_ident(func["self_type"].lower())
+        by_suffix: Dict[str, str] = {}
+        for f in (self.ir.get("functions") or []):
+            if f.get("kind") == "method" and f.get("self_type") == func.get("self_type"):
+                by_suffix[str(f.get("name", ""))] = whyml_ident(str(f.get("name", "")))
+        L = [
+            f"  let {name} (self: {cls}) ({whyml_ident(param)}: emit_ir) : emit_ir",
+            "    requires { true }",
+            "    ensures  { true }",
+            "  =",
+            f"    match pyx_view {whyml_ident(param)} with",
+        ]
+        for ast_cls, handler in entries:
+            emitted = None
+            for raw, ident in by_suffix.items():
+                if raw == handler or raw.endswith("_" + handler) or raw.endswith(handler):
+                    emitted = ident
+                    break
+            if emitted is None:      # unreachable: _pyx_dispatch_table already checked
+                return []
+            L.append(f"    | PEx_{ast_cls} _p -> {emitted} self _p")
+        L.append(f"    | PEx_Unknown -> IrOther \"{default_kind}\"")
+        L.append("    end")
+        return L
+
     def _is_py_expr_boolop(self, func: Dict[str, Any]) -> bool:
         """_py_expr_boolop increment (self-tcb-reduction M5, C-bucket): True iff `func`
         is the mirror's `_py_expr_boolop` handler and the stmt_ir theory is emitted.
@@ -3897,6 +4057,16 @@ class FunctionEmissionMixin:
         # handler (`values[1:]` fold -> left-nested IrBinOp via boolop_fold). Corpus-inert.
         if self._is_py_expr_boolop(func):
             return self._emit_py_expr_boolop_bespoke(func)
+        # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): the TYPE-KEYED
+        # HANDLER dispatcher -> a total `match pyx_view expr with | PEx_<Cls> _p ->
+        # <handler> self _p | ... end` over the input-side `pyast_expr` ADT. Recognizer-
+        # gated on the exact three-statement body shape AND on a table `_pyx_dispatch_table`
+        # has certified as a handler table of this class -> corpus-inert.
+        _pyxd = self._recognize_pyx_dispatcher(func)
+        if _pyxd is not None:
+            _lines = self._emit_pyx_dispatcher_bespoke(func, _pyxd[0], _pyxd[1], _pyxd[2])
+            if _lines:
+                return _lines
         # SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction M5,
         # C-bucket): the `_py_stmt_assign` 5-branch handler — bespoke (the generic
         # lowering int-erases the target dispatch, the symtab membership, and the Tuple

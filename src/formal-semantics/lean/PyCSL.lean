@@ -41,5 +41,6 @@ import PyCSL.CallKw             -- self-tcb-reduction Tier-5 J1: emit_ir Call-in
 import PyCSL.TParam             -- self-tcb-reduction L1: tparam PEP-695 reflection-node value model cert, axiom-free
 import PyCSL.MethodRecv          -- self-tcb-reduction Layer-2: emit_ir Call-receiver value model cert (IrMethodCall/receiver_of), axiom-free
 import PyCSL.CslClause           -- self-tcb-reduction: csl_clause contract-clause value model cert (CGiven/is_given_node/clause_expr_of, _act_guard), axiom-free
+import PyCSL.PyAstExpr          -- self-tcb-reduction: pyast_expr INPUT-side expression-node ADT cert (PEx_*/pyx_kind_of/pyx_view consistency + dispatch non-vacuity, `_py_expr_to_ir`), axiom-free
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus

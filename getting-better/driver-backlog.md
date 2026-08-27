@@ -4585,3 +4585,95 @@ an arm for every handler input type, but only the structural records join the mu
 existing abstract `self__py_expr_to_ir_1` val exactly as they do today (no change, no re-proof
 risk). The dispatcher still routes to them, so the conversion is real and non-vacuous for the
 structural arms while the opaque arms are an unchanged under-approximation.
+
+## L2 `_py_expr_to_ir` — **CONVERTED (619 -> 618)** via STAGE A' of the pyast_expr build (2026-08-27, RELAUNCH #4)
+
+The backlog's top lever, taken in the smallest increment that is a real conversion. Read the
+Phase-0b spike entry above first — it is what made this shape reachable at all.
+
+**WHAT LANDED.** An INPUT-side `pyast_expr` ADT with one arm per `_PY_EXPR_HANDLERS` entry (23,
+IN SOURCE ORDER, derived from the table — not hand-written), each arm carrying that class's
+handler PARAMETER TYPE verbatim; a total, CONCRETE `pyx_kind_of`; and the node view
+`val function pyx_view (e: emit_ir) : pyast_expr ensures { pyx_kind_of result = pyx_type_name_of e }`.
+`_py_expr_to_ir` is now a real `let` whose body is
+`match pyx_view expr with | PEx_Name _p -> <cls>___py_expr_name self _p | ... | PEx_Unknown -> IrOther "UnknownPyExpr" end`.
+
+**WHY IT IS A REAL TCB REDUCTION.** Before: a `\trusted` stub, emitted
+`val <cls>___py_expr_to_ir (self) (expr: emit_ir) : emit_ir` — the TABLE, the DISPATCH and the
+RESULT all assumed, the result an entirely unconstrained `emit_ir`. After: only `pyx_view` is
+assumed. The dispatch is proved content — for a node whose class is "Name" the result is
+provably `_py_expr_name` applied to a `name`, hence one of that handler's three real
+constructors, so **the result kind is now determined by the input kind**. Same TCB story as the
+`_PY_OP_MAP` expansion that converted `_py_op_to_str`, lifted from a tag to a payload. No new
+`axiom`, no certificate, Rocq/Lean ledger untouched at 3.
+
+**BE HONEST ABOUT WHAT STAGE A' DOES NOT DO** (this is the named Stage B, below). `pyast_expr`
+is deliberately NOT recursive: its arms carry the handler param types exactly as they are today
+(mutable records, `array emit_ir` fields, opaque node types), which Why3 permits only for a
+NON-recursive datatype. Consequently `pyx_view`'s PAYLOAD is unconstrained — nothing ties the
+`name` in `PEx_Name n` back to `e` — and the 21 handlers still recurse through the abstract
+`self__py_expr_to_ir_1` val rather than into the real dispatcher. Two NEW abstract `val
+function`s enter the model (`pyx_view`, `pyx_type_name_of`); both are consistent by
+construction (define `pyx_type_name_of e := pyx_kind_of (pyx_view e)`), so no inconsistency is
+introduced and nothing false can be proved from them.
+
+**THE FIVE PIECES OF EMITTER PLUMBING** (all fail-closed, all corpus-inert):
+ 1. `Module5_IREmitter._py_expr_call`: a new faithful IR node `SelfGetattrDispatch` for
+    `getattr(self, <local>)(<args>)`. Without it the indirect call fell to the catch-all
+    `{"type": "UnknownPyExpr"}` erasure tag, so Module 6 could not tell a real dispatch from an
+    erased expression. MEASURED across the WHOLE TREE: exactly ONE call site has this shape.
+ 2. `preamble.py::_pyx_dispatch_table` — promotes a `class_type_str_constants` table to a
+    HANDLER table iff every value names a method of the same class (that is what the live body
+    consumes through `getattr`), the keys are distinct, and the class defines the dispatcher.
+ 3. `preamble.py::_emit_pyx_expr_adt` — emits the ADT at the END of `_emit_type_decls`, which is
+    the earliest point where the arm payload types (`self._record_types[...]["whyml_name"]`)
+    exist. `_PYX_OPAQUE_NODE_TYPES` names the eight bespoke opaque node types in one place; a
+    mismatch with a handler signature is a LOUD Why3 type error at L3-tc.
+ 4. `functions.py::_recognize_pyx_dispatcher` + `_emit_pyx_dispatcher_bespoke` — a
+    three-statement structural recognizer (the `self.<TABLE>.get(type(<param>))` bind, the
+    `is not None` guard on the SAME local, a `SelfGetattrDispatch` on the SAME param, a
+    string-kind default dict) and the match emission, with the arms read off the source table.
+ 5. `Module6_WhyMLTranspiler` + `functions.py::_inject_pyx_dispatch_uses` — the dispatcher's
+    calls are synthesized, so `find_calls_in_ir` cannot see them; they are published as explicit
+    `uses` ordering citations before `sort_functions_by_scc`. WITHOUT THIS the dispatcher sorts
+    alphabetically before `_py_expr_unaryop`/`_py_expr_walrus`/`_py_expr_tuple` and Why3 rejects
+    the file with `unbound function or predicate symbol` (measured, not predicted).
+
+Plus one SIGNATURE-ONLY retype in the mirror: `_py_expr_call` and `_py_expr_fstring` returned
+`int`, which cannot be an arm of an `emit_ir`-typed match. Both stay `\trusted`; bodies
+unchanged. Their whole contribution to `pycsl.mlw`'s diff is those two return types.
+
+### STAGE B — the named reopening capability (this is where the structural recursion lives)
+
+Make `pyast_expr` RECURSIVE so the handlers recurse into the REAL dispatcher and the payload is
+pinned to the node. Phase-0b already proved the shape discharges (16/16). What it requires, in
+dependency order:
+ - every arm payload must be PURE: the pure-ast records emitted `mutable`-free under the gate,
+   `array emit_ir` (`Tuple`/`List`/`Set` `elts`) replaced by a bespoke cons-list `pxlist` of
+   `pyast_expr`, `option emit_ir` -> `option pyast_expr` (already pure);
+ - a new list-mapper group member (`pxlist -> irlist`) to replace `list_content_comp_N`, at
+   variant LEVEL 2 of the `4 * <size> + <level>` encoding;
+ - the eight OPAQUE node types converted to pure records — measured feasible: each handler reads
+   only a fixed set of children through its opaque `*_ast` readers, so
+   `py_compare_node -> { compare_left: pyast_expr; compare_op0: int; compare_comp0: pyast_expr }`
+   is EXACTLY as faithful as today's readers, and the comprehension-generator payloads can stay
+   opaque leaves;
+ - `_py_expr_attribute` / `_py_expr_walrus` read their child through the OUTPUT-side emit_ir
+   discriminants (`is_var expr.attribute_value`, `name_of ...`); under a `pyast_expr` field
+   those become input-side ADT discriminants — strictly MORE faithful, but new emitter surface
+   (`_AST_CLASS_TO_IR_KIND`, `_EMIT_IR_STR_ATTRS`);
+ - a `#@ \variant` surface for a STRUCTURAL measure (`4 * pyx_size(expr) + 1`): the existing
+   `_CERTIFIED_PYVAL_ARITY` spec-name allowlist is the route (it already maps `size(x)` to a
+   direct application), under a NON-colliding name — `size` is taken by emit_ir and `pv_size` by
+   pyval.
+DO NOT attempt Stage B as one increment; it changes the emitted signature of every pure-ast
+record and therefore of every handler that reads one.
+
+### `_py_stmts_to_ir` is NOT the same shape — do not assume the capability carries over
+
+`_PY_STMT_HANDLERS` (16 entries) is consumed inside a LOOP over `stmts` that also runs four
+weave-attr sub-loops (`csl_labels`, `csl_checkpoints`, `csl_ghost_assigns`,
+`csl_trailing_ghost_assigns`) and an `elif hasattr(ast,'Match')` fallback, and each handler takes
+`(stmt, ir_stmts)` and MUTATES the accumulator rather than returning. The three-statement
+recognizer will (correctly) not fire. That dispatcher needs the loop + accumulator lowering on
+top of the ADT, and is a separate build.

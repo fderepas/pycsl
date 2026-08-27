@@ -1222,6 +1222,32 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return {"type": "Call", "func": ".".join(parts),
                     "args": [self._py_expr_to_ir(arg) for arg in expr.args],
                     "receiver": receiver_ir}
+        # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): an INDIRECT
+        # self-method call `getattr(self, <local>)(<args>)` — the shape a
+        # `type -> handler-method-name` table is consumed through. Without this it
+        # falls to the catch-all `{"type": "UnknownPyExpr"}` below, which is
+        # indistinguishable from every other unsupported expression, so Module 6
+        # could not tell a real dispatch from an erased one. Carrying the handler
+        # LOCAL and the argument list lets `functions.py::_recognize_pyx_dispatcher`
+        # match the dispatcher body FAIL-CLOSED (it requires this exact node, the
+        # `self.<TABLE>.get(type(<param>))` bind that produced the local, and the
+        # `is not None` guard) instead of pattern-matching on an erasure tag.
+        # FAIL-CLOSED: `getattr` with exactly two arguments, the first the literal
+        # `self`, the second a bare local NAME (a string-literal attribute is the
+        # ordinary static path and is untouched). Measured across the whole tree:
+        # exactly ONE call site has this shape (the mirror's own `_py_expr_to_ir`),
+        # so the reference corpus and every other mirror are byte-identical.
+        if (isinstance(expr.func, ast.Call)
+                and isinstance(expr.func.func, ast.Name)
+                and expr.func.func.id == "getattr"
+                and len(expr.func.args) == 2
+                and not expr.func.keywords
+                and isinstance(expr.func.args[0], ast.Name)
+                and expr.func.args[0].id == "self"
+                and isinstance(expr.func.args[1], ast.Name)):
+            return {"type": "SelfGetattrDispatch",
+                    "handler": expr.func.args[1].id,
+                    "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
         return {"type": "UnknownPyExpr"}
 
     def _py_expr_tuple(self, expr: ast.Tuple) -> Dict[str, Any]:

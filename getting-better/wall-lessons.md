@@ -2412,3 +2412,65 @@ answer.
 **The rule.** A reviewer amendment phrased as a HAZARD is usually also a MECHANISM. Before grepping the
 emitter for "how does X get decided", grep the backlog for X — amendments, struck items, and
 carve-outs included. And when recording a future amendment, say which of the two it is.
+
+---
+
+*The lettered series continues from (z) here; (aa)–(ii) were banked in `driver-backlog.md`
+§L13-CLOSED during relaunch #3 and are not repeated. (jj)–(ll) are from relaunch #4.*
+
+## Lesson (jj) — a Phase-0 spike written with HAND-WRITTEN types answers a question the EMITTER cannot ask
+
+The `pyast_expr` Phase-0 spike passed 19/19 and was handed forward as "the shape is not a
+correctness boundary; the rest is emitter plumbing". That was true and still misleading, because the
+spike gave itself ADT arms of its own design. The emitter has no such freedom: the 21 emitted
+`_py_expr_*` handlers take **auto-derived records** (`ir_resolve._PURE_AST_FIELD_TABLE` ->
+`type binop = { mutable binop_left: emit_ir; ... }`), several with `array emit_ir` or
+`option emit_ir` fields. A Phase-0b spike at the *emitted* shape (`getting-better/pyast-expr/
+pyast-expr-shape-spike.mlw`, 16/16 Valid) changed the plan in three places within an hour:
+
+ 1. **A Why3 mutual `type A = ... with R = {...}` group CAN mix a VARIANT and RECORDS.** So the
+    plan's "retype all 23 handlers onto one ADT parameter" was never necessary — each handler keeps
+    its own record signature and only the record's expr-child FIELD TYPES move. That is a far
+    smaller emitter delta than the one that had been scoped, and a far smaller regression surface.
+ 2. **...but only if the records are PURE.** `mutable` is rejected outright — *"This field has
+    non-pure type, it cannot be used in a recursive type definition"* — and by the same rule
+    `array` fields are illegal inside the group. The emitter puts `mutable` on every field of every
+    pure-ast record today, so a recursive `pyast_expr` needs a gated `mutable`-free emission AND a
+    pure cons-list to replace `array emit_ir`.
+ 3. **The encoded PAIR was not enough.** See (kk).
+
+**The rule.** Before funding a build off a Phase-0 spike, re-spike at the shape the emitter can
+ACTUALLY produce — same types, same mutability, same field kinds. The cheap version of this is:
+open the emitted `.mlw` and copy the real type declarations into the spike. A Phase-0 spike bounds
+the CORRECTNESS question; only a Phase-0b spike bounds the BUILD.
+
+## Lesson (kk) — count the LEVELS in an encoded-pair variant; a list mapper is a third level
+
+The handoff's device was `2 * size e + <level>` with level 1 for the dispatcher and 0 for the
+handlers, and it is correct for a dispatcher that hands the same node to a handler which then
+recurses on a strict sub-node. The REAL shape has a third participant: a list-carrying arm's handler
+(`_py_expr_tuple`) calls a **list mapper** which calls the dispatcher once per element. With
+multiplier 2 there is no room for it and the mapper's own VC **times out at 23M steps** — which
+looks exactly like an E-matching wall and is really an unprovable goal (wall-lessons (ee), again).
+The arithmetic is worth writing down because it generalizes: from `2*size_pxlist l + 1` the element
+call needs `size h < size_pxlist l`, and `size_pxlist l = size h + size_pxlist t`, so it needs
+`size_pxlist t > 0` — FALSE for a one-element list. With `4 * <size> + <level>` and level 0 =
+handlers, 1 = dispatcher, 2 = list mapper, every obligation is Valid in hundredths of a second.
+
+**The rule.** The multiplier must exceed the number of levels, and the number of levels is the
+length of the longest chain of mutual calls that does NOT strictly shrink the structure — count it
+by walking the emitted call chain, not by assuming two.
+
+## Lesson (ll) — a SYNTHESIZED call needs a synthesized ORDERING EDGE, or Why3 rejects the file
+
+A bespoke whole-body emitter that manufactures calls the IR does not contain is invisible to
+`find_calls_in_ir`, and therefore invisible to `sort_functions_by_scc`. The `_py_expr_to_ir`
+dispatcher's body names only the handler LOCAL; the 23 method calls appear for the first time in the
+emitter. It sorts alphabetically before `_py_expr_tuple` / `_py_expr_unaryop` / `_py_expr_walrus`
+and Why3 rejects the whole file with `unbound function or predicate symbol`. The fix is the existing
+explicit-citation channel — `func["uses"]`, which `sort_functions_by_scc` already honours for
+`#@ uses <lemma>` — populated before sorting.
+
+**The rule.** Whenever a recognizer emits a call that is not in the IR, ask in the same breath what
+guarantees the callee is DECLARED FIRST. This failure is loud, which is the good news; the bad news
+is that it surfaces only at whole-file L3-tc, i.e. after the rest of the build already looks done.

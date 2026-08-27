@@ -712,14 +712,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # -> `"ExprIR"` (the `_csl_to_ir` precedent, line ~58) so the recursive
     # dispatcher's signature is `emit_ir -> emit_ir`, matching
     # `_field_type_from_annotation_inst`'s `_irnode_ann_name` recognition and
-    # `_symtype_to_whyml`'s param-side mapping. Stays \trusted (body unchanged) —
-    # signature-only retype, not a body conversion.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # `_symtype_to_whyml`'s param-side mapping.
+    #
+    # L2 DISPATCH-EXPANSION (this increment): CONVERTED. Verbatim body port of the LIVE
+    # `_py_expr_to_ir` (Module5_IREmitter.py:1107) — the `_PY_EXPR_HANDLERS.get(type(expr))`
+    # lookup, the `is not None` guard, the `getattr(self, handler_name)(expr)` indirect
+    # call, and the `{"type": "UnknownPyExpr"}` fallback. Module 6 lowers the whole shape
+    # (functions.py `_recognize_pyx_dispatcher` + `_emit_pyx_dispatcher_bespoke`) to a
+    # total `match pyx_view expr with | PEx_<Cls> _p -> <handler> self _p | ... end` over
+    # the input-side `pyast_expr` ADT (preamble.py `_emit_pyx_expr_adt`), whose arms are
+    # derived FROM THIS TABLE in source order. What was assumed before: the table AND the
+    # dispatch AND the result. What is assumed now: only `pyx_view`, the uninterpreted
+    # node view, pinned to the node's runtime class by the concrete `pyx_kind_of` law.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_to_ir(self, expr: "ExprIR") -> "ExprIR":
-        return {}
+        handler_name = self._PY_EXPR_HANDLERS.get(type(expr))
+        if handler_name is not None:
+            return getattr(self, handler_name)(expr)
+        return {"type": "UnknownPyExpr"}
 
     # _py_expr multi-branch batch (mini-M1): `expr` is a pure_ast Name node,
     # cross-file (ir_resolve.py `_resolve_pure_ast_param_records`) retyped from
@@ -847,11 +859,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                       "right": self._py_expr_to_ir(operand)}
         return result
 
+    # L2 DISPATCH-EXPANSION: return retyped `int` -> `"ExprIR"` so this handler's arm of
+    # the `_py_expr_to_ir` dispatch match is `emit_ir`-typed like every other arm. Stays
+    # \trusted (body unchanged) — signature-only retype, not a body conversion.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_call(self, expr: ast.Call) -> int:
+    def _py_expr_call(self, expr: ast.Call) -> "ExprIR":
         return {}
 
     # variadic content-law comprehension (FABLE-sanctioned): `expr` is a pure_ast Tuple
@@ -1009,11 +1024,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "value": self._py_expr_to_ir(expr.value),
                 "generators": self._comprehension_generators_to_ir(expr.generators)}
 
+    # L2 DISPATCH-EXPANSION: return retyped `int` -> `"ExprIR"` so this handler's arm of
+    # the `_py_expr_to_ir` dispatch match is `emit_ir`-typed like every other arm. Stays
+    # \trusted (body unchanged) — signature-only retype, not a body conversion.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _py_expr_fstring(self, expr: ast.JoinedStr) -> int:
+    def _py_expr_fstring(self, expr: ast.JoinedStr) -> "ExprIR":
         return {}
 
     # _py_expr fixed-child batch (mini-M1): `expr` is a pure_ast IfExp node,
