@@ -4394,3 +4394,50 @@ it (lesson (p)):
 (`functions.mlw::_build_method_param_types_map`, `_build_method_return_type_map`); and 6
 KNOWN_ERASURES that are no longer erased (the ledger in that script is stale). Worth a window
 of its own.
+
+## L2 REST-OF-CLUSTER — **REFUTED for the cheap path, and the wall is now MEASURED EXACTLY**
+### (`_py_expr_to_ir`, `_py_stmts_to_ir`, `_csl_to_ir`) — 2026-08-27, spike, no code landed
+
+`_py_op_to_str` converted (bf5435f3) because it returns a plain `str`. The other three bind
+the table value to a HANDLER METHOD NAME consumed by `getattr(self, handler_name)(...)`, and
+the blocker is NOT the dispatch expansion. **It is a TYPE-UNIFICATION wall, and it is the
+first thing you hit — before any variant, any SCC, any recognizer.**
+
+**THE MEASUREMENT (read it off the emitted `frontend/Module5_IREmitter.mlw`, do not re-derive):**
+`_py_expr_to_ir`'s signature is `emit_ir -> emit_ir` (a deliberate, documented signature-only
+retype). But **every one of its 23 handlers takes a DIFFERENT RECORD type**:
+
+    name  py_constant  unaryop  binop  py_compare_node  py_boolop_node  tuple  subscript
+    list  attribute  py_dict_node  set  py_genexp_node  py_listcomp_node  py_setcomp_node
+    py_dictcomp_node  ifexp  starred  namedexpr  py_lambda_node  slice
+
+— 21 distinct record types. There is NO projection from `emit_ir` to `name`, so
+`(pycsltojsonemitter___py_expr_name self expr)` cannot even be WRITTEN in the expanded chain.
+
+`_py_stmts_to_ir` is the same wall: 16 handlers over 14 distinct record types (`annassign`,
+`py_assert`, `py_assign_node`, `augassign`, `py_delete_node`, `expr`, `py_for`, `py_if`,
+`py_match_node`, `py_return`, `py_try_node`, `py_while`, `py_with_node`, plus `int` for
+`pass`/`break`/`continue`). `_csl_to_ir` is the same wall at 79 entries.
+
+**AND THE CERTIFIED ADT THAT LOOKS LIKE THE ANSWER IS NOT USED HERE.** `pyast_stmt` exists and
+is certified — but grep the emitted mirror: **ZERO handlers take `pyast_stmt`**. It is reached
+only by `_collect_class_constants`'s class-body iterator. So "reuse the existing cert" is not
+available; this really is a new one.
+
+**CLASSIFICATION: COST/SCALE, not correctness — so NOT a floor.** The model *can* express it;
+nothing here is inexpressible. But the reopening capability is now precisely named and it is
+big:
+
+> **An INPUT-SIDE `pyast_expr` ADT (the expression analogue of the certified `pyast_stmt`),
+> plus retyping all 23 `_py_expr_*` handlers from their per-node records onto it with per-arm
+> projections — and the same again for the 14 statement records.** ~35 record types to unify.
+> Only THEN do the dispatch expansion, the 22-member mutual SCC and its structural
+> `variant { size expr }` become reachable. This IS the "LARGER multi-variant certificate
+> bundle" the §A.3 residue already names; this entry supplies its exact size and shape.
+
+**PREREQUISITE ALREADY IN PLACE (landed this window, `9d4702f1`):** the deferred-goal fix. A
+`goal` between `with` members SPLITS a Why3 `let rec` group, so a 22- or 75-member union-using
+SCC could not have type-checked at all before it. Do not re-discover that.
+
+**DO NOT** attempt the dispatch expansion before the ADT unification — it is unwritable, not
+merely unprovable, and you will burn the window finding that out again.
