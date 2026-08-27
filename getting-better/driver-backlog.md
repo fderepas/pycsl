@@ -4538,3 +4538,50 @@ Valid in hundredths of a second. Same device as the converted `_Parser` nest —
 Prerequisites both already in the tree: the deferred-goal fix for mutually-recursive
 union-using SCCs (`9d4702f1`) and the type-keyed dispatch chain with `py_type_name_of`
 (`bf5435f3`).
+
+
+### PHASE-0b SPIKE (RELAUNCH #4, 2026-08-27) — the REAL emitted shape. **PASSED 16/16 (Z3)**, and it CORRECTS the build plan in three places
+
+`getting-better/pyast-expr/pyast-expr-shape-spike.mlw`. Phase-0 proved the *idealized* shape
+(hand-written ADT arms). Phase-0b probes the shape the EMITTER can actually produce, where the
+21 emitted `_py_expr_*` handlers take auto-derived RECORDS from
+`ir_resolve._PURE_AST_FIELD_TABLE`, not ADT arms. Read these before writing any emitter code:
+
+ (1) **A Why3 mutual `type A = … with R = {…}` group CAN mix a VARIANT and RECORDS.** So the
+     backlog's "retype all 23 handlers onto one ADT parameter" is NOT required and should not
+     be done: each handler KEEPS its own record signature (`(expr: binop) : emit_ir`) and only
+     the record's expr-child FIELD TYPES move `emit_ir` -> `pyast_expr`. Handler bodies are
+     textually unchanged. Much smaller emitter delta, much smaller regression surface.
+ (2) **…but only if the records are IMMUTABLE.** `mutable` is rejected outright — *"This field
+     has non-pure type, it cannot be used in a recursive type definition"* — and the emitter
+     currently puts `mutable` on every field of every pure-ast record. The group must therefore
+     be emitted `mutable`-free under the `_uses_pyast_expr` gate. By the SAME rule **`array`
+     fields are illegal in the group**: `array emit_ir` (Tuple/List/Set `elts`) must become a
+     bespoke pure cons-list (`pxlist` — the `irlist`/`psl` precedent). `option` is pure and
+     stays as-is.
+ (3) **THE MULTIPLIER-2 ENCODED PAIR IS NOT ENOUGH — use `4 * <size> + <level>` with THREE
+     levels** (0 = handlers, 1 = dispatcher, 2 = list mapper). The real shape has a list-carrying
+     arm whose handler calls a LIST MAPPER that calls the dispatcher per element; with
+     multiplier 2 the mapper's own VC TIMES OUT at 23M steps (measured here — wall-lessons (ee)
+     yet again), because from `2*size_pxlist l + 1` the element call needs
+     `size h < size_pxlist l`, FALSE for a one-element list. With multiplier 4 every obligation
+     is Valid in hundredths of a second.
+
+**STRUCTURAL LIMIT MEASURED AT THE SAME TIME — the group cannot contain all 21 handlers.**
+Of the 21 emitted handlers, only **13 take a structurally-harvested RECORD**
+(`name py_constant unaryop binop ifexp attribute starred subscript namedexpr` + the
+array/option-carrying `tuple list set slice`). The other **8 take an OPAQUE node type**
+(`py_boolop_node py_compare_node py_dict_node py_dictcomp_node py_genexp_node py_listcomp_node
+py_setcomp_node py_lambda_node`) and reach their children through opaque `val function … _ast`
+readers. An opaque payload has `size = 1`, so a handler that recurses out of it can NEVER
+satisfy a structural variant — those 8 are **out of the mutual group by construction**, and
+pulling them in would require first converting 8 opaque node types into records (a separate,
+larger build, and several of them hang off the comprehension-generator list which is itself
+opaque).
+
+**STAGED DESIGN that follows from the measurement (this is the plan of record):** the ADT gets
+an arm for every handler input type, but only the structural records join the mutual group; the
+8 opaque-node handlers stay OUTSIDE it, defined BEFORE it, and keep recursing through the
+existing abstract `self__py_expr_to_ir_1` val exactly as they do today (no change, no re-proof
+risk). The dispatcher still routes to them, so the conversion is real and non-vacuous for the
+structural arms while the opaque arms are an unchanged under-approximation.
