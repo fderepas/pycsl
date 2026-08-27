@@ -3,54 +3,57 @@
 # APPLY WITH:  git apply getting-better/pyast-expr/class-by-name-factory-WIP.patch
 #
 # This is the capability the pure_ast census named as gating 73 of the 96 trusted `_Parser`
-# stubs (12% of the whole TCB). It is REVERTED out of the tree per demand-first discipline —
-# every piece below is measured BYTE-INERT (mirror emission diff 0 of 52, corpus 0 of 813) but
-# has NO CONSUMER yet, and an unconsumed capability is surface without value. It is banked
-# verbatim so the next window re-derives NOTHING.
+# stubs (12% of the whole TCB). It is kept OUT of the tree per demand-first discipline — every
+# piece is measured BYTE-INERT (mirror emission diff 0 of 52, corpus 0 of 813) but no stub
+# converts yet, and an unconsumed capability is surface without value. Banked verbatim so the
+# next window re-derives NOTHING.
 #
-# EXACTLY HOW FAR IT GETS, measured on `_Parser._import_as_name` (the best consumer: it RETURNS
-# the construction directly instead of funnelling it through the trusted `_fin`):
-#
+# HOW FAR IT GETS, measured on `_Parser._import_as_name` (the best consumer: it RETURNS the
+# construction directly instead of funnelling it through the trusted `_fin`).
 #   before:  return _N("alias")(name=name, asname=asname)   emitted as   0
-#   after :  { py_alias_name = !name;
-#              py_alias_asname = (match !asname with Arm_2_0 _v -> _v | _ -> "" end) }
+#   after :  { py_alias_name = !name; py_alias_asname = <the asname union, projected> }
+# The record is declared, the return type is `py_alias`, the constructor binds BOTH real
+# arguments, the `Optional[str]` local becomes a union carrier AND pre-declares correctly.
 #
-# i.e. the record is declared, the return type is `py_alias`, the constructor binds BOTH real
-# arguments, and the `Optional[str]` local really does become a union carrier.
-#
-# THE FOUR PIECES, each independently useful:
+# THE FIVE PIECES
 #  1. Module5_IREmitter `_py_expr_call` — resolve `<Name>("<lit>")(<kwargs>)` to a direct
 #     `<lit>(…)` Call. `pure_ast._N(name)` is `_g[name]` over the namespace `_build_nodes`
 #     fills from `_NODE_SPEC`, so at a literal site the class is STATICALLY KNOWN; resolving
-#     it reuses the whole existing record-construction path (WL-07 keyword binding included).
+#     it reuses the entire existing record-construction path, WL-07 keyword binding included.
 #  2. ir_resolve `_resolve_same_file_node_spec_records` — the SAME-FILE `_NODE_SPEC` harvest.
 #     `_harvest_node_spec_records` was only ever called for a DEPENDENCY, so when `pure_ast.py`
-#     itself is under verification its own ASDL table was never harvested. Injects a record
-#     only when a PARAM or RETURN annotation names it (bare or quoted).
-#  3. ir_resolve `_harvest_node_spec_records` — synthesize `init_params`/`init_body` for a
-#     harvested record. `_build_nodes` gives every node class the shared `AST.__init__`, which
-#     binds positional args to `cls._fields` in order and keywords BY NAME (pure_ast.py:111),
-#     so "params = field names, body = field f := param f" is an EXACT model. WITHOUT IT the
-#     WL-07 keyword binding has nothing to bind through and every construction collapses to
-#     its all-defaults witness.
+#     is itself under verification its own ASDL table was never harvested. Injects a record
+#     only when a PARAM or RETURN annotation names it (bare or quoted form).
+#  3. ir_resolve `_harvest_node_spec_records` — synthesize `init_params`/`init_body`.
+#     `_build_nodes` gives every node class the shared `AST.__init__`, which binds positionals
+#     to `cls._fields` in order and keywords BY NAME (pure_ast.py:111), so the synthesis is
+#     EXACT. WITHOUT IT the WL-07 keyword binding has nothing to bind through and every
+#     construction collapses to its all-defaults witness.
 #  4. preamble — `use option.Option` when a harvested RECORD carries an `option`-typed FIELD
 #     (`alias.asname`). Measured: `unbound type symbol 'option'` on the record decl line.
-#  (+ the `"OptStr"` field tag, the string twin of `"OptExprIR"`, and the `alias` table entry.)
+#  5. statements — AN EXPLICIT UNION TYPE IN THE SYMBOL TABLE WINS OVER THE STRING HEURISTICS.
+#     `string_vars` is seeded from the symbol table then GROWN by a dozen inference passes,
+#     several of which classify a local by the return type of what it is bound FROM. A local
+#     annotated `x: Optional[str] = None` is `_union_*` in the symbol table but is also bound
+#     from a `-> str` call on its Some path, so a heuristic re-classified it `string`: it
+#     pre-declared `ref ""` while its assignments emitted union constructors. Declaration must
+#     beat inference. (Isolated and swept: byte-inert on its own, 0 of 52 mirrors.)
+#  (+ the `"OptStr"` field tag — the string twin of `"OptExprIR"` — and the `alias` table entry.)
 #
-# THE ONE REMAINING BLOCKER, precisely located:
-#   `let asname = ref ""` — the union local is DECLARED `string` instead of
-#   `(Arm_2_None : _union__import_as_name_2)`. `statements.py:4178` builds `_union_locals` from
-#   `_current_symbol_table[name].startswith("_union_")`, and the ANNOTATED-LOCAL path
-#   (`asname: Optional[str] = None`, runtime-inert under PEP 526) creates the union ARMS but
-#   never writes the symbol-table entry. Fix that seeding and `_import_as_name` converts.
-#   Second, smaller: the option-typed FIELD WRITE unwraps the union to a bare string
-#   (`| _ -> ""`) instead of building `None`/`Some` — faithful only once the field write knows
-#   the target is `option string`.
+# THE ONE REMAINING GAP, precisely located:
+#   `py_alias_asname = (match !asname with Arm_2_0 _v -> _v | _ -> "" end)` — the union local is
+#   projected to a BARE STRING where the field is `option string`. It needs an OPTION-TARGET
+#   projection (`Arm_i_0 _v -> Some _v | _ -> None`) chosen when the record-ctor's target field
+#   type is `option`. `expressions.py::_union_read_projection` is the function to generalize;
+#   the awkward part is that the keyword value is already lowered by the time the ctor path
+#   sees it (it arrives as a `RawWhyml` node in `kwargs_map`), so the field type has to be
+#   pushed DOWN to the keyword lowering rather than applied after it.
 #
-# ALSO NOTE, from the same census: almost every OTHER `_N` construction in `_Parser` is wrapped
-# in `self._fin(_N(...)(...), t)`, and `_fin` SETS FOUR LOCATION ATTRIBUTES on a node whose type
-# varies per call site. So `_fin` — not `_N` — is the gate for the remaining ~71 stubs, and it
-# is a distinct (harder) capability: per-node field WRITES through an untyped parameter.
+# AND THE STRUCTURAL LIMIT ON THE REST — budget this before funding the vein: almost every
+# OTHER `_N` construction in `_Parser` is wrapped in `self._fin(_N(…)(…), t)`, and `_fin` SETS
+# FOUR LOCATION ATTRIBUTES on a node whose type varies per call site. `_fin`, NOT `_N`, is the
+# gate for the remaining ~71 stubs — a distinct and harder capability (per-node field WRITES
+# through an untyped parameter). `_N` is necessary but not sufficient.
 #
 diff --git a/src/pycsl/frontend/Module5_IREmitter.py b/src/pycsl/frontend/Module5_IREmitter.py
 index cbcacbc0..d5b77bf2 100644
@@ -260,6 +263,30 @@ index 117b3ac2..d034b7cd 100644
          needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
          needs_sum = any(IRScanner.uses_sum(func) for func in functions)
          needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
+diff --git a/src/pycsl/module6_whyml/statements.py b/src/pycsl/module6_whyml/statements.py
+index d61869c3..dbdc9aa4 100644
+--- a/src/pycsl/module6_whyml/statements.py
++++ b/src/pycsl/module6_whyml/statements.py
+@@ -4181,6 +4181,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+             and name not in set(self._formal_params)
+         }
+         self._optional_union_locals = _union_locals
++        # AN EXPLICIT UNION TYPE IN THE SYMBOL TABLE WINS OVER THE STRING HEURISTICS.
++        # `string_vars` is seeded from the symbol table and then GROWN by a dozen inference
++        # passes, several of which classify a local by the RETURN TYPE OF WHAT IT IS BOUND
++        # FROM (`_collect_str_call_result_locals` and friends). A local annotated
++        # `x: Optional[str] = None` is `_union_*` in the symbol table but is ALSO bound from
++        # a `-> str` call on its Some path, so a heuristic re-classified it `string` and it
++        # pre-declared as `ref ""` while its assignments emitted union constructors —
++        # measured as `This expression has type _union__import_as_name_2, but is expected to
++        # have type string`. The symbol table carries an EXPLICIT declaration and the
++        # heuristics carry inference, so the declaration must win.
++        if _union_locals:
++            string_vars -= _union_locals
++            self._string_local_vars = string_vars
+         # hval-value-model-wall: locals bound from a `Dict[str, PyVal]` subscript read
+         # are hval-typed refs (let-bound at first assign, not `ref 0`). Byte-inert.
+         pyval_read_vars = self._collect_pyval_read_locals(body_stmts) - set(self._formal_params)
 diff --git a/src/self-annotate/src/frontend/pure_ast.py b/src/self-annotate/src/frontend/pure_ast.py
 index b1d4879d..a36c5044 100644
 --- a/src/self-annotate/src/frontend/pure_ast.py
@@ -283,4 +310,3 @@ index b1d4879d..a36c5044 100644
  
      #@ \trusted reviewer: pycsl-self-annotate
      #@ requires True
-
