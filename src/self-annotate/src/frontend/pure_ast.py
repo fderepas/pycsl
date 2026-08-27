@@ -732,12 +732,28 @@ class _Parser:
     # `-> "ExprIR"` annotation records faithfully that what it returns IS an expression node,
     # so `emit_ir` flows into a harvested record's expr child instead of an opaque int.
     # Count-neutral; caller-unlocking (`parse_eval`).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `testlist`.
+    # The comma-chain builds a real `IrPyTuple` over `seq_to_irlist`, carrying both the
+    # VARIADIC element list and the `expr_context` singleton.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def testlist(self) -> "ExprIR":
-        pass
+        t = self.cur()
+        first = self.test()
+        if not self.at_op(","):
+            return first
+        elts = [first]
+        #@ ghost i6 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i6
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            if self._testlist_end():
+                break
+            elts.append(self.test())
+        return self._fin(_N("Tuple")(elts=elts, ctx=_N("Load")()), t)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -781,12 +797,27 @@ class _Parser:
     def match_stmt(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `_match_subject`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _match_subject(self):
-        pass
+    def _match_subject(self) -> "ExprIR":
+        t = self.cur()
+        first = self.namedexpr_test()
+        if self.at_op(","):
+            elts = [first]
+            #@ ghost i7 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i7
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op(","):
+                if self.at_op(":"):
+                    break
+                elts.append(self.namedexpr_test())
+            return self._fin(_N("Tuple")(elts=elts, ctx=_N("Load")()), t)
+        return first
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1397,12 +1428,27 @@ class _Parser:
     def _fstring_replacement(self, is_raw=False):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `testlist_for_fstring`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def testlist_for_fstring(self):
-        pass
+    def testlist_for_fstring(self) -> "ExprIR":
+        t = self.cur()
+        first = self.namedexpr_test()
+        if not self.at_op(","):
+            return first
+        elts = [first]
+        #@ ghost i8 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i8
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            if self.at_op("}") or self.at_op("!") or self.at_op(":") or self.at_op("="):
+                break
+            elts.append(self.namedexpr_test())
+        return self._fin(_N("Tuple")(elts=elts, ctx=_N("Load")()), t)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
