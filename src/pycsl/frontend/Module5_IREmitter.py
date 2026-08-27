@@ -1196,20 +1196,35 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # `frontend/__init__` and `frontend/ir_resolve` both gained a declaration
                 # line), turning a 1-of-52 mirror diff into a 3-of-52 one and obliging two
                 # extra whole-file re-proofs for nothing.
-                and isinstance(expr.args[0], ast.Call)
-                and isinstance(expr.args[0].func, ast.Call)
-                and isinstance(expr.args[0].func.func, ast.Name)
-                and len(expr.args[0].func.args) == 1
-                and not expr.args[0].func.keywords
-                and isinstance(expr.args[0].func.args[0], ast.Constant)
-                and isinstance(expr.args[0].func.args[0].value, str)):
-            _cls = expr.args[0].func.args[0].value
+                and isinstance(expr.args[0], (ast.Call, ast.Name))):
             # Imported LAZILY: `ir_resolve` is a post-Module5 pass and importing it at module
             # scope would close a cycle.
             from frontend.ir_resolve import _PURE_AST_FIELD_TABLE as _PAFT
-            _flds = [f for (f, _t) in _PAFT.get(_cls, [])]
-            if not ({"lineno", "col_offset", "end_lineno", "end_col_offset"} & set(_flds)):
-                return self._py_expr_to_ir(expr.args[0])
+            _loc = {"lineno", "col_offset", "end_lineno", "end_col_offset"}
+            if (isinstance(expr.args[0], ast.Call)
+                    and isinstance(expr.args[0].func, ast.Call)
+                    and isinstance(expr.args[0].func.func, ast.Name)
+                    and len(expr.args[0].func.args) == 1
+                    and not expr.args[0].func.keywords
+                    and isinstance(expr.args[0].func.args[0], ast.Constant)
+                    and isinstance(expr.args[0].func.args[0].value, str)):
+                _cls = expr.args[0].func.args[0].value
+                _flds = [f for (f, _t) in _PAFT.get(_cls, [])]
+                if not (_loc & set(_flds)):
+                    return self._py_expr_to_ir(expr.args[0])
+            elif isinstance(expr.args[0], ast.Name):
+                # PYTHON-AST NODE CTOR FAMILY (increment 15): the first argument is a
+                # LOCAL holding an already-built node (`tup = _N("Tuple")(...); return
+                # self._fin(tup, t)` — `testlist_star_expr`'s shape). The wrapper is the
+                # identity here for exactly the same reason as for an inline construction,
+                # and the guard the inline branch rests on generalizes: the harvest reads
+                # `_NODE_SPEC[cls][1]`, the FIELDS tuple, while the location attributes
+                # live in slot 2 and are never harvested — so it is enough to check that
+                # NO table entry carries one. Without this the call falls to the abstract
+                # `self__fin_3`, whose second parameter is int-typed from every other call
+                # site, and the token argument ill-types against it.
+                if not any(_loc & {f for (f, _t) in _e} for _e in _PAFT.values()):
+                    return self._py_expr_to_ir(expr.args[0])
         if isinstance(expr.func, ast.Name):
             if expr.func.id == "deque":
                 # collections-plan: `deque(...)` reduces to the list/array model. Lower

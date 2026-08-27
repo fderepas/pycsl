@@ -671,19 +671,43 @@ class _Parser:
     def expr_stmt(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `testlist_star_expr_or_yield` — two PASSTHROUGH returns, no ADT arm.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def testlist_star_expr_or_yield(self):
-        pass
+    def testlist_star_expr_or_yield(self) -> "ExprIR":
+        if self.at_kw("yield"):
+            return self.yield_expr()
+        return self.testlist_star_expr()
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `testlist_star_expr`. `elts[0]` reads back the FIRST element of the seq accumulator
+    # (`Seq.get !elts 0`) — the single-element case really returns that node, not a
+    # 1-tuple — and the multi-element case builds the real `IrPyTuple`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def testlist_star_expr(self):
-        pass
+    def testlist_star_expr(self) -> "ExprIR":
+        t = self.cur()
+        elts = [self.test_or_star()]
+        trailing = False
+        #@ ghost i9 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i9
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            trailing = True
+            if self._testlist_end():
+                break
+            trailing = False
+            elts.append(self.test_or_star())
+        if len(elts) == 1 and not trailing:
+            return elts[0]
+        tup = _N("Tuple")(elts=elts, ctx=_N("Load")())
+        return self._fin(tup, t)
 
     #@ requires True
     #@ ensures True
