@@ -2850,3 +2850,109 @@ accept at all (increment 7). Both were found only by reading the emitted record 
 literal and confirm the field is bound from the actual list. `Array.make 0 0` / `Seq.empty` in a
 record literal whose source passes a non-empty accumulator is a facade marker — add it to the grep
 list beside `iter_length 0`, `isinstance_op 0 0`, and `in ()` where a raise belongs.
+
+## Lesson (ad) — the sum type the parser needed ALREADY EXISTED: it is `emit_ir`, and the recorded Stage-B plan was the expensive way to get it
+
+Lesson (zz) measured that 34 of the 42 still-`\trusted` `_fin`-gated `_Parser` methods have a
+PASSTHROUGH return (`return x` beside `return self._fin(_N("Await")(value=x), t)`) and concluded
+"the fix is a sum type, not a better recognizer — so the right move is to fund the `pyast_expr`
+Stage-B item". Stage B is a large build: a NEW recursive `pyast` ADT, a purity retrofit of every
+harvested pure_ast record, a bespoke `pxlist` cons-list, eight opaque node types converted, and a
+new structural measure. Its own entry says "DO NOT attempt Stage B as one increment".
+
+None of that was necessary. **The `-> "ExprIR"` RETURN INTERFACE — the zero-marker lever from
+relaunch #5 — already gives every un-converted sibling the type `emit_ir`.** So the passthrough
+half was solved before the wall was written; only the CONSTRUCTION half was missing. And
+`emit_ir` is already recursive, already pure, already certified, and already carries `size`.
+
+The whole capability is one table — `frontend/ir_resolve.py::_PYAST_IRNODE_CTORS`, mapping a
+pure_ast node class to an `emit_ir` constructor plus its payload in ASDL field order — driving
+four consumers that therefore cannot drift: the ADT arms, the `kind_of` arms, the by-name payload
+binding, and the structural `init_params` harvest. Twelve conversions in four increments
+(577 -> 565 markers), each one a real `IrPy*` construction with every child carried.
+
+**The rule.** When a wall says "this needs a new value model", first ask whether an EXISTING
+certified model already has the shape, and whether some other lever has already solved half the
+problem. Here the answer was hiding in the campaign's own toolbox: a return-interface lever
+written for a different purpose had silently made the hard half free.
+
+## Lesson (ae) — a 0-field ASDL singleton is faithfully modelled by its CLASS-NAME STRING; the enum-variant plan was over-engineering
+
+The backlog's item 3 said "0-field ASDL singletons need a base-category ENUM VARIANT ... a 0-field
+WhyML record is not expressible ... COST/SCALE: the `ctx`/`op` field tags move from `int` to the
+category type." The first half is right and the second half is unnecessary.
+
+A 0-field class carries NOTHING beyond its own IDENTITY: `_N("Load")()` is a constant and every
+construction of it is interchangeable with every other. So its class NAME, as a `string`, is a
+COMPLETE model — nothing is erased — and it drops straight into a `string` payload slot of an
+`emit_ir` ctor (`IrPyStarred emit_ir string`, `IrPyUnaryOp string emit_ir`). No enum type, no new
+ADT, no axiom, and no field-tag migration through every already-converted handler.
+
+Two measurement notes. (i) Harvest the membership from the compiled file's OWN `_NODE_SPEC`, not
+from `_PURE_AST_FIELD_TABLE` — the field table lists only the classes WITH fields, so the first
+attempt produced an EMPTY singleton set and the lowering silently did not fire. (ii) Prefer a
+DEDICATED arm over a generic one that drops the slot: `IrStarred emit_ir` already existed and
+would have DROPPED `ctx`; `IrPyStarred emit_ir string` carries it.
+
+**The rule.** Before building a type to represent a finite set of tags, check whether the tag's
+NAME already is the whole of its content. It usually is, and a string costs nothing.
+
+## Lesson (af) — a new `emit_ir` constructor silently makes `kind_of` NON-EXHAUSTIVE, and the failure looks like a hard goal somewhere else
+
+`kind_of` enumerates EVERY `emit_ir` arm and ends at `| IrOther k -> k` — there is no `_`
+catch-all. Adding two ctors therefore left the match non-exhaustive; Why3 inserted an
+unreachable-point VC, and the run came back with ONE unproven goal: `Sub-goal unreachable point of
+goal kind_of'vc`, a 30-second Timeout at 39,491,039 steps. Nothing in the diagnostic points at the
+new constructors, and the failing goal is nowhere near the function being converted.
+
+The same failure MODE recurred from a different cause in the next increment: `pattern`'s
+`ensures self.i >= \old(self.i)` ran through `_capture_name`, which exported no monotonicity
+clause. Again not `Unknown` — a 30s Timeout at 29,241,942 steps.
+
+**The rule.** A multi-million-step Timeout in this codebase is almost never "a hard goal". Read
+the goal NAME first: `<theory function>'vc` means a totality/exhaustiveness obligation you broke
+by extending an ADT; a cursor postcondition means a callee is missing its monotonicity export.
+Both are one-line fixes and neither is visible in the emitted diff.
+
+## Lesson (ag) — (ww) again, and the fix belonged in the DESIGN, not in the mirror
+
+`_call_irnode_constructor` reads `init_params` out of `self._record_types`, so the first version of
+the pyast ctor family gave each member a `_PURE_AST_FIELD_TABLE` entry. The mirror sweep went from
+1 of 52 to 2 of 52 with a FOUR-LINE, entirely innocuous-looking diff in `Module5_IREmitter.mlw`:
+
+    >   type boolop = { mutable boolop_op: int; mutable boolop_values: array emit_ir }
+    -     | PEx_BoolOp py_boolop_node
+    +     | PEx_BoolOp boolop
+
+That file was ILL-TYPED. The field-table entry retyped the `PEx_BoolOp` arm of Module5's
+`pyast_expr` ADT to the harvested record while `_py_expr_boolop`'s own signature kept its bespoke
+opaque `py_boolop_node`. Caught only by `--no-proof --typecheck` on the changed mirror.
+
+The patch would have been to retype the handler too. The FIX was to remove the coupling: a family
+member's `init_params` now come from a STRUCTURAL `_NODE_SPEC` harvest, because the shared
+`AST.__init__` binds positional args to `cls._fields` in order — so the field tuple IS
+`init_params`. The mirror diff went back to 1 of 52, the `wanted`-harvest widening became
+unnecessary, and the harvest CARRIES A DRIFT CHECK: an entry is published only when the ctor
+payload's field names equal the `_NODE_SPEC` tuple exactly, so a renamed or reordered ASDL field
+silently removes the entry and the construction FAILS CLOSED.
+
+**The rule.** When a change leaks into a mirror you did not mean to touch, the leak is usually a
+COUPLING, not a bug. Ask what made the other file care; removing that dependency is often both
+cheaper than the patch and strictly safer.
+
+## Lesson (ah) — a local first assigned inside a CONDITIONAL BRANCH is scoped to the branch, and a list field bound from it silently becomes `Array.make 0 0`
+
+`import_from` assigns `names` in THREE `if`/`elif`/`else` branches and reads it AFTER the `if`.
+The Assign emitter `let`-binds a list local at its FIRST assignment, so each branch emitted its own
+`let names = ref … in` — dead at the closing `end` — and the constructed node's list field fell to
+its typed default. That is lesson (ac)'s facade, reached by a completely different route.
+
+The repair is the pre-declaration idiom `_emit_body_code` already uses for strings (`ref ""`),
+emit_ir (`ref (IrOther "")`), option-string (`ref None`) and records: one more per-kind set, here
+`seq <record>` -> `ref (Seq.empty: seq py_alias)`. The same is true of an emit_ir local that a loop
+REBUILDS (`node = _N("Attribute")(value=node, …)`, the dotted-name fold): without the pre-decl the
+loop emits `:=` against an immutable `let` and fails L3-tc.
+
+**The rule.** Any converted body that assigns a non-scalar local inside a branch or rebuilds one in
+a loop needs that local in a pre-declaration set. Check the emitted code for a `let <x> = ref …`
+INSIDE an `if` arm — it is always wrong, and when the local is a list it is a silent facade.
