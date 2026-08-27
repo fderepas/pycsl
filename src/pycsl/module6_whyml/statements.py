@@ -1656,6 +1656,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             elif obj == "self" and self_type:
                 self._add_abstract_op(f"val setattr_{self_type} (x: {self_type}) (f: int) (v: int) : unit")
                 code = f"{indent}setattr_{self_type} {obj} {hash_field} {self._coerce_to_int(val)}"
+            elif (field in ("lineno", "col_offset", "end_lineno", "end_col_offset")
+                  and self._uses_pyast_parser()
+                  and obj.lstrip("!") in getattr(self, "_emit_ir_local_vars", set())):
+                # PYTHON-AST NODE CTOR FAMILY: the FOUR ASDL LOCATION ATTRIBUTES stamped
+                # onto a freshly-built node (`n.lineno = t.start[0]`, the manual twin of
+                # what `_fin` does). The harvested node model DELIBERATELY does not carry
+                # them — `_fin` itself is modelled as IDENTITY for exactly that reason —
+                # so the faithful lowering of the stamp is the unit no-op, NOT an abstract
+                # `setattr_3` (which is additionally a LIE here: `emit_ir` is an IMMUTABLE
+                # ADT, so no operation can mutate the value the local is bound to, and the
+                # int-erasing `setattr_3 (x: int)` mistypes against it anyway). Both forms
+                # are semantically no-ops — `setattr_3` returns unit and has no `writes` —
+                # so this changes only which no-op is emitted. TRIPLE-GATED: one of the
+                # four location attributes, in the pure_ast parser file, on an emit_ir
+                # local -> byte-inert everywhere else.
+                code = f"{indent}()"
             else:
                 self._add_abstract_op("val setattr_3 (x: int) (f: int) (v: int) : unit")
                 code = f"{indent}setattr_3 {self._coerce_to_int(obj)} {hash_field} {self._coerce_to_int(val)}"

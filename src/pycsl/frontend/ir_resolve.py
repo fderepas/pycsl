@@ -311,11 +311,14 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # `YieldFrom(value)` — `_NODE_SPEC['YieldFrom'] == ('expr', ('value',), None)` and it
     # is NOT in `_OPTIONAL_FIELDS`: `yield from` always has an operand.
     "YieldFrom": ("IrPyYieldFrom", [("value", "emit_ir")]),
-    # NOTE: no `BinOp` entry. The arm was BUILT and PROVED (`IrPyBinOp emit_ir string
-    # emit_ir`, 702 Valid) for `power`, then withdrawn: `power` also needs two
-    # live-emitter pieces whose mirrors are UN-TRUSTED, so it costs two first-ever
-    # whole-file mirror re-proofs (§10.4 / lesson (vv)). A DEAD ADT arm is dead weight in
-    # a verified artifact, so it comes back WITH its consumer, not before.
+    # `BinOp(left, op, right)` — `_NODE_SPEC['BinOp'] == ('expr', ('left','op','right'),
+    # <loc attrs>)`, all total. `op` is a 0-field `operator` singleton carried as its
+    # class-name string. NOT the pre-existing `IrBinOp string emit_ir emit_ir`, whose
+    # payload ORDER is (op, left, right) — the CSL spelling — while the ASDL field order
+    # is (left, op, right); a separate arm keeps the by-name binding unambiguous and the
+    # two ASTs' BinOps distinguishable.
+    "BinOp": ("IrPyBinOp", [("left", "emit_ir"), ("op", "string"),
+                            ("right", "emit_ir")]),
 }
 
 

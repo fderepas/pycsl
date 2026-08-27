@@ -1256,20 +1256,26 @@ class _Parser:
     def factor(self) -> "ExprIR":
         pass
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted, and the reason is a
-    # MEASURED §10.4 cost, not a capability gap — the body was ported, emitted a faithful
-    # `IrPyBinOp !base "Pow" !exp`, type-checked and PROVED (702 Valid). It needed TWO
-    # live-emitter pieces whose mirrors are UN-TRUSTED, so landing it would have obliged
-    # first-ever whole-file re-proofs of `module6_whyml/types.py` AND
-    # `module6_whyml/statements.py` (fidelity measured at 4 DIVERGED). See the backlog
-    # entry "power / the two §10.4 re-ports" for the exact two pieces.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `power`.
+    # `IrPyBinOp emit_ir string emit_ir` carries the ASDL (left, op, right) order with the
+    # `operator` singleton `Pow` as its class-name string. The four `n.<loc> = ...`
+    # location stamps lower to the unit no-op: they are exactly what `_fin` sets, and the
+    # harvested node model deliberately does not carry the ASDL location attributes.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def power(self) -> "ExprIR":
-        pass
+        t = self.cur()
+        base = self.await_expr()
+        if self.at_op("**"):
+            self.advance()
+            exp = self.factor()
+            n = _N("BinOp")(left=base, op=_N("Pow")(), right=exp)
+            n.lineno = t.start[0]; n.col_offset = t.start[1]
+            n.end_lineno = exp.end_lineno; n.end_col_offset = exp.end_col_offset
+            return n
+        return base
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `await_expr`
     # — the first member of the family (`IrPyAwait emit_ir`), and the first place the
@@ -1308,18 +1314,45 @@ class _Parser:
     def trailers(self, atom: "ExprIR") -> "ExprIR":
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `_subscript`.
+    # Same comma-chain shape as `testlist_star_expr`, with the manual location stamps
+    # (unit no-ops in the model) instead of `_fin`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _subscript(self):
-        pass
+    def _subscript(self) -> "ExprIR":
+        t = self.cur()
+        elts = [self._subscript_item()]
+        trailing = False
+        #@ ghost i10 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i10
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            trailing = True
+            if self.at_op("]"):
+                break
+            trailing = False
+            elts.append(self._subscript_item())
+        if len(elts) == 1 and not trailing:
+            return elts[0]
+        tup = _N("Tuple")(elts=elts, ctx=_N("Load")())
+        tup.lineno = elts[0].lineno; tup.col_offset = elts[0].col_offset
+        tup.end_lineno = elts[-1].end_lineno; tup.end_col_offset = elts[-1].end_col_offset
+        return tup
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted — `lower = upper = step =
+    # None` then `return lower` returns the Optional-union LOCAL in an emit_ir position,
+    # which the model can only project with the sentinel (None-reads-as-a-node) even
+    # though that path is dynamically unreachable; it needs a flow-sensitive narrowing the
+    # model does not have.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _subscript_item(self):
+    def _subscript_item(self) -> "ExprIR":
         pass
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE

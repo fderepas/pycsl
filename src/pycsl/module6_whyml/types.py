@@ -343,6 +343,24 @@ class TypeInferenceMixin:
                     pcls = getattr(self, "_record_param_classes", {}).get(receiver_name)
                     if pcls is not None:
                         cls = pcls
+                    else:
+                        # W8/W1 residual: a RECORD-ELEMENT LOCAL — one bound from an
+                        # element of an `array <record>` self-field, or from a sibling
+                        # call with a record return (`t = self.cur()`, the opening line of
+                        # every parser predicate) — resolves its field types exactly like
+                        # a record PARAM receiver. `_record_field_elem_locals` already maps
+                        # it (that map is what makes `t.<field>` project natively);
+                        # without it here, `t.start[0]` — an integer subscript into a
+                        # `Tuple[int,int]` FIELD — could not find the synthesized
+                        # `pytuple_int_int` namedtuple record and fell through to the
+                        # opaque `subscript_get (x: int)`, which mistypes against it.
+                        # NOTE the map stores the record CLASS name, not its whyml name
+                        # (unlike `_record_param_classes`) — translate. Empty for every
+                        # file without an `array <record>` self-field -> byte-inert.
+                        ecls = getattr(self, "_record_field_elem_locals", {}).get(
+                            receiver_name)
+                        if ecls is not None and ecls in self._record_types:
+                            cls = self._record_types[ecls].get("whyml_name")
         if not cls:
             return None
         for info in self._record_types.values():
