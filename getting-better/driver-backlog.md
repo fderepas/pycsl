@@ -4460,3 +4460,22 @@ NOT what the vacuity gate measures (that gate asks whether an INPUT is ignored, 
 BRANCH is). Recorded here so the green gate is not mistaken for "these two are fully
 faithful". Reopening capability: teach the map-building recognizer the `@mutable_state`-gated
 branch set, or split those branches into their own recognized helper.
+
+## κ-INFERENCE GAP named 2026-08-27 (the general fix behind the `field_names` shape-gate)
+
+`_collect_class_constants`'s `field_names` erasure was fixed by a SHAPE-GATED κ=string
+carve-out in `_param_type_str` (`5c002c61`). The GENERAL fix, not built:
+
+> **Module 5's κ inference (`_tag_str_keyed`) does not see through an `Optional[str]`
+> UNION-LOCAL CARRIER PROJECTION.** `target in field_names` where `target` is an
+> `Optional[str]` local emits the key as
+> `(match !target with Arm_1_0 _v -> _v | _ -> "" end)` — a `string` — but the inference
+> sees only a `_union_*`-typed operand and declines to tag the set κ=string. Teaching it
+> the projection would tag this and every sibling automatically, and would retire the
+> shape-gate.
+
+Related and still deferred: the **I4 cross-method κ=string fixpoint** named in
+`_param_type_str`'s own set branch — a non-by-ref `Set[str]` param must stay κ=int today
+because it may be forwarded to sibling `val` bridges still typed `map int`. The `field_names`
+carve-out is safe precisely because that param is forwarded nowhere; a general κ=string for
+read-only set params needs the fixpoint first.
