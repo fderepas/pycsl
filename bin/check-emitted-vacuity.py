@@ -96,6 +96,16 @@ KNOWN_ERASURES = {
     # exception type with or without it). Recorded reason per this ledger's policy; landed with the
     # `_cs_stmt` chain (user-authorized 2026-07-31).
     "_cs_clause",                                            # erases `ctx` (error-message-only; faithful)
+    # `_const_int` erases `var` — SAME policy as `_cs_clause`'s `ctx`, and MECHANICALLY
+    # VERIFIED rather than eyeballed: an AST scan of the mirror body finds exactly ONE
+    # `Name` use of `var` (line 83) and it lies inside the single `Raise` span (82-85),
+    # i.e. `var` occurs ONLY in the `raise PyCSLSemanticError(f"`for {var} in range(...)`:
+    # …")` message f-string — never in a condition, guard, assignment, return, or the
+    # raise CONDITION. WhyML matches exceptions by TYPE, not message text, so `var` is
+    # verification-irrelevant: same raise, same condition, same exception type with or
+    # without it. Added 2026-08-27 (relaunch #3) so this gate stops standing red on a
+    # faithful body — a permanently-red gate carries no information (wall-lessons (i)).
+    "pycslweaver___const_int",                               # erases `var` (error-message-only; faithful)
     # `_check_span` erases `stage` — SAME policy as `_cs_clause`'s `ctx`: the
     # field-guard-raise conversion (a single `if "line" not in func: raise`) models
     # the guard by the presence of the `"line"` key in `func`'s bridged pydict and
@@ -232,6 +242,30 @@ def uses(ident, text):
     return re.search(r"\b" + re.escape(ident) + r"\b", text) is not None
 
 
+def live_param_name(p):
+    """The LIVE parameter name behind an EMITTED one.
+
+    The recognizer-generated groups rename every binder with a `v_` prefix
+    (`generic_fold.py`: `return "v_" + name`), so the emitted `_build_method_param_types_map`
+    takes `v_functions` where the live one takes `functions`. Comparing the two spellings
+    directly is the SAME class of mistake this file's `emitted_references_self` docstring
+    already documents for `self__<field>` bridges — and it broke BOTH checks here, in
+    opposite directions:
+
+      - check (1) silently SKIPPED every `v_`-renamed param, because `p in lparams` was
+        False, so a genuinely erased renamed param could not be reported at all;
+      - check (2) FALSELY FIRED on `_build_method_param_types_map` /
+        `_build_method_return_type_map`, because `uses("v_functions", <live body>)` is
+        False, which made the `all(...)` vacuously true and declared an emitted body
+        INPUT-BLIND even though it demonstrably walks `v_functions`
+        (`match v_functions with PList xs -> …__f xs acc`).
+
+    Stripping the prefix for the LIVE-side lookup fixes both. Only `v_`-prefixed names are
+    affected; a live param genuinely called `v_x` still resolves to itself when no
+    unprefixed live param exists."""
+    return p[2:] if p.startswith("v_") else p
+
+
 def main():
     if "--emit" in sys.argv:
         files = [os.path.join(r, f) for r, _, fs in os.walk(MIRROR_ROOT)
@@ -267,7 +301,8 @@ def main():
                 # (1) parameter erasure (the original check).
                 real = [p for p in wparams if p not in SKIP_PARAMS]
                 erased = [p for p in real
-                          if p in lparams and uses(p, lbody) and not uses(p, wbody)]
+                          if live_param_name(p) in lparams
+                          and uses(live_param_name(p), lbody) and not uses(p, wbody)]
                 if real and erased:
                     (full if len(erased) == len(real) else partial).append(
                         (rel, wname, pyname, erased, real))
@@ -279,7 +314,8 @@ def main():
                 # `elt`) and the bridge-encoded `get_precedence`/`write` do not fire.
                 if "self" in wparams and self_fields \
                         and not emitted_references_self(wbody) \
-                        and all((not uses(p, lbody)) or (not uses(p, wbody)) for p in real):
+                        and all((not uses(live_param_name(p), lbody))
+                                or (not uses(p, wbody)) for p in real):
                     input_blind.append((rel, wname, pyname, sorted(self_fields), real))
 
     new = [r for r in full + partial if r[1] not in KNOWN_ERASURES]
