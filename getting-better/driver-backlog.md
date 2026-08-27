@@ -4499,17 +4499,25 @@ emitted as a `let` / `let rec` / `with` member.**
 campaign's booked conversions are clean and the count is NOT inflated by the valve. Never
 measured before; re-run the gate after any batch of conversions.
 
-**THE 7 REAL HITS — un-trusted, contract-annotated, and DROPPED from emission entirely, so
-their contracts are never checked:**
-`core_ir_semantic.py::{_check_concurrency,_conc_check_shared_access,_conc_check_reads,
-_conc_stmts,_conc_stmt}`, `Module6_WhyMLTranspiler.py::_heap_var`,
-`errors.py::PyCSLError.__str__` (which carries no `#@` block at all). Verified by direct
-grep: `core_ir_semantic.mlw` has 429 declarations and ZERO occurrences of any `_conc_*` name.
-All five `_conc_*` take fully UNANNOTATED params — the `pure_ast` untyped-param family is the
-likely root cause. NOT chased; a contained next target.
+**CORRECTED (`12e1dbe4`): THERE ARE NO REAL HITS. The final baseline is 716 un-trusted ·
+699 emitted as definitions · 0 re-abstracted · 0 unexpectedly absent — the gate is GREEN.**
+I first reported 7 hits. All 7 were FALSE POSITIVES: the five `core_ir_semantic::_conc_*`
+checkers ARE verified, emitted by `emit_conc_cluster_group` as one `let rec` block under
+GENERATED names (`core_ir_semantic.mlw` holds 12 `conc__*` definitions and 57 references);
+`Module6_WhyMLTranspiler::_heap_var` is unreachable in the `hoare` model (it raises on the
+only path the model can take); `errors.py::PyCSLError.__str__` is a dunder modelled
+structurally. My "confirmation" — grepping the emission for `_conc_stmt` and finding zero —
+repeated the original method's assumption and so confirmed nothing.
 
-Two traps the gate itself had to survive (both fixed and commented in it): a `with` member of
-a `let rec … with …` group IS a definition (missing that reported 10 false ABSENTs for the
-converted `_Parser` nest), and BLANK LINES may separate a `#@` block from its `def` (missing
-that mis-read 12 TRUSTED functions as un-trusted, which looked exactly like 12 silent
-re-abstractions).
+**FOUR naming/parsing traps this gate had to survive, every one of which MANUFACTURED a
+defect that did not exist** (all fixed and commented in the script): a `with` member of a
+`let rec … with …` group IS a definition (10 false ABSENTs for the converted `_Parser`
+nest); BLANK LINES may separate a `#@` block from its `def` (12 TRUSTED functions read as
+un-trusted, looking exactly like 12 silent re-abstractions); the `v_` param rename in the
+sibling `check-emitted-vacuity` gate; and recognizer CLUSTER renaming (the `_conc_*` five).
+
+**BANK THIS AS THE RULE: when a gate over an EMITTED artifact reports a defect, first ask
+whether the emitter RENAMED the thing.** Four for four this window. And note the excuse must
+be EARNED: `CLUSTER_EMITTED` maps each member to the prefix its group emits under and
+REQUIRES that prefix to be present, so a cluster that stops being emitted is still caught —
+only the renaming is excused, never the absence.
