@@ -440,6 +440,11 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # IrSNone) | None -> IrSNone` — present-as-string-literal-Constant iff the guard
     # holds, faithful to the isinstance(Constant)+isinstance(str) test.
     "Assert": [("test", "ExprIR"), ("msg", "OptExprIR")],
+    # `_fin` RECOGNIZER vein: `Raise` — `_NODE_SPEC['Raise'] == ('stmt', ('exc','cause'), ...)`
+    # and BOTH fields are in `_OPTIONAL_FIELDS['Raise']`, so both are `option emit_ir`
+    # ("OptExprIR"): a bare `raise` carries a TRUE `None` in each, and `raise E from C`
+    # carries both nodes.
+    "Raise": [("exc", "OptExprIR"), ("cause", "OptExprIR")],
     # SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5, C-bucket):
     # the `x op= v` / `self.f op= v` / `c[k] op= v` augmented-assignment statement.
     # `_NODE_SPEC['AugAssign'] = ('stmt', ('target', 'op', 'value'), None)`; all three

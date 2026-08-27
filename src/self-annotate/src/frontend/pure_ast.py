@@ -493,12 +493,22 @@ class _Parser:
     def _stmt_end(self):
         return self.cur().type in (_tokenize.NEWLINE, _tokenize.ENDMARKER) or self.at_op(";")
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # `_fin` RECOGNIZER vein, increment 6: CONVERTED. Verbatim body port of the LIVE
+    # `raise_stmt`, including its two PEP-526 `Optional["ExprIR"]` local annotations. BOTH
+    # `Raise` fields are optional, so a bare `raise` really carries `None`/`None` and
+    # `raise E from C` really carries both nodes.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def raise_stmt(self):
-        pass
+    def raise_stmt(self) -> "Raise":
+        t = self.advance()
+        exc: Optional["ExprIR"] = None
+        cause: Optional["ExprIR"] = None
+        if not self._stmt_end():
+            exc = self.test()
+            if self.accept_kw("from"):
+                cause = self.test()
+        return self._fin(_N("Raise")(exc=exc, cause=cause), t)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

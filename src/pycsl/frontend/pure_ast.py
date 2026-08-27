@@ -874,7 +874,12 @@ class _Parser:
 
     def raise_stmt(self):
         t = self.advance()
-        exc = None; cause = None
+        # PEP-526 local annotations, runtime-INERT (a local's annotation is never evaluated),
+        # here for the VERIFIER: they make the two locals real `option emit_ir` carriers, so a
+        # bare `raise` / a `raise E` without `from` carries a TRUE `None` and not an erased
+        # node. Split onto separate lines only because an annotation needs its own statement.
+        exc: Optional["ExprIR"] = None
+        cause: Optional["ExprIR"] = None
         if not self._stmt_end():
             exc = self.test()
             if self.accept_kw("from"):
