@@ -55,7 +55,12 @@ MIRROR = LIVE = MLW = None      # set from argv in main
 
 # Facade / erasure markers, incl. the raise-side ones from lesson (qq).
 MARKERS = [
-    (r"\b\w+_0 \(\)", "0-ary opaque val (INPUT-BLIND)"),
+    # ANY zero-argument opaque call, not just the `_0`-suffixed spelling. `PyCSLError.message`
+    # emitted `(str_dunder_op ())` for `super().__str__()` — input-blind, and the `_0` pattern
+    # missed it. `()` as a Why3 unit ARGUMENT is what makes this a facade; a genuine unit-typed
+    # local or a `let _ = ... in ()` sequencing point is excluded by requiring the call to be
+    # the whole parenthesised expression.
+    (r"\(\s*[a-z_]\w* \(\)\s*\)", "0-ary opaque call (INPUT-BLIND)"),
     (r"isinstance_op 0 0", "isinstance facade"),
     (r"iter_length 0|iter_get 0", "iterable erased to a constant"),
     (r"= ref  in", "empty ref (call dropped)"),

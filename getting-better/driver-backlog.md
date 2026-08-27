@@ -4975,3 +4975,65 @@ and `()` is what that expression lowers to. The annotation is not the blocker; t
    tree-wide, most with other blockers), so bundle it, do not build it alone;
  - the 16 `() -> ()` failures are nested `def`s inside `_Unparser` methods (the documented
    lambda-lift/capture-threading family).
+
+## WHOLE-MIRROR FRONTIER SWEEP (2026-08-27, RELAUNCH #4) — the first comprehensive measurement that does NOT over-report
+
+Every `\trusted` stub in all 44 marker-carrying mirrors was run through
+`bin/probe-conversion-candidates.py` (port the live body in, emit, classify, restore):
+
+    574 candidates measured
+    513  L3TC-FAIL            does not type-check
+     28  ERASURE              emitted, but a facade/erasure marker fired
+     22  NO-LIVE-SOURCE       mirror-only helper, no live counterpart
+      7  ABSENT               dunders / constructors
+      2  CLEAN
+      1  VAL                  silently re-abstracted by the auto-trust valve
+      1  NO-TRUSTED-STUB      unmeasured
+
+**Both CLEAN verdicts were then read by eye, and one was still wrong** (`PyCSLError.message`
+emitted `(str_dunder_op ())` — a zero-argument opaque call, INPUT-BLIND; the marker list only
+matched the `_0`-suffixed spelling, now widened). The survivor, `StructFormat.arity`, is
+genuinely faithful but was deliberately **NOT converted** — see below.
+
+**RUNNING FALSE-POSITIVE SCORE for the probe's CLEAN verdict: 5 issued, 4 wrong on inspection**
+(`_import_as_name`, `_dotted_as_name`, `ReverifyReport.ok`, `PyCSLError.message`). Each wrong
+one added a marker the tool now carries (RESULT ERASURE; SELF-FIELD/PARAM ERASURE; the widened
+zero-arg call). **READ THE EMITTED BODY OF EVERY CLEAN BEFORE CONVERTING IT** — that is not a
+formality, it is 4 for 5.
+
+### `StructFormat.arity` — measured convertible, deliberately NOT converted (VALUE not count)
+
+`len(self.slots)` lowers to `(iter_length self.slots)`: not input-blind, it reads the real
+field. But the MIRROR declares `slots: int` while the live source declares
+`slots: Tuple[str, ...]`, so the emitted body is one uninterpreted op over an int-erased
+handle — barely more than the `val` it would replace. Converting it would lower the count and
+buy almost nothing. **Retype the mirror field first, then the conversion is worth taking.**
+(The backlog had this one filed as "a lone fresh case behind a multi-surface list-field-emitter
+build"; that framing is wrong — no such build is needed, only the field annotation.)
+
+## NEW FIDELITY GATE: `bin/check-mirror-field-parity.py` — 91 of 335 class FIELDS had drifted, unmeasured
+
+`self-annotate-mirror-check.sh` compares FUNCTION and CLASS signatures;
+`check-self-annotate-mirror-sync.py` compares un-`\trusted` method BODIES. **Neither compares a
+class's ANNOTATED FIELDS.** Measured for the first time: **91 of 335 compared fields differ
+between live and mirror.**
+
+ - **84** are the `'ExprIR'` (live) vs `CSLNode` (mirror) shape — the Module5 construction build
+   retyped the CSL-AST expression children in the LIVE source and the mirror never followed.
+   Not unsound (the mirror is the WEAKER model) but it means 84 fields are modelled as opaque
+   integers in the verified artifact while the live program has structured IR nodes there.
+   Accepted BY SHAPE in `KNOWN_DRIFT`.
+ - **7** are deliberate int-erasures of class-level constant tables (the four dispatch tables,
+   `_MUTATING_METHODS`, `_AXIOM_REGISTRY`, `StructFormat.slots`). Accepted BY NAME in
+   `INT_ERASED`, so that list can only shrink.
+
+Anything else FAILS the gate (probed non-vacuous: perturbing one field annotation makes it
+report the new drift and exit 1).
+
+> **NAMED CAPABILITY (measured size): retype the 84 mirror CSL-AST fields `CSLNode` ->
+> `'ExprIR'` to match the live source.** It de-int-erases 84 fields in `frontend/Module2_Parser`
+> and its consumers, and "this field int-erases" is the recorded blocker for a good part of that
+> file's 27 stubs. RISK: this is precisely the shared-signature retype shape that made the
+> `Set[str]` campaign's attempt #1 FATAL (a global retype broke every verified caller written
+> against the old type), so it must be measured with a mirror emission sweep BEFORE any
+> conversion is attempted on top of it.
