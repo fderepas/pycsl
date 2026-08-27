@@ -3027,3 +3027,74 @@ and the vacuity probe only looks at whole-parameter erasure.
 **The rule.** When an argument-passing path is added or widened, check BOTH branches of the call
 shape (bare name AND dotted). And treat "the emitted call has fewer arguments than the source" as a
 correctness bug, not a typing nuisance — the typing failure is the lucky case.
+
+## Lesson (am) — "the annotation has no effect" almost always means you measured the wrong half. PROBE the emitter before you patch it
+
+Relaunch #6 recorded a hard finding: a `\trusted` stub annotated `-> bool` still emitted
+`val … : unit` even after an EXACT copy of the `-> str` disjunct that works was added to
+`_compute_return_type`, "so `_compute_return_type` is NOT the decision point". That conclusion was
+wrong, and it cost the next worker's first hour to overturn. Two separate things were true:
+
+1. **The stub being measured had no `-> bool` annotation at all.** A four-line probe printed what
+   the emitter actually sees — `ann = None`, `return_type = unit`, `trusted = True` — so the new
+   disjunct could not fire, no matter how correct it was.
+2. **A method's own `val` type and its `self.<m>()` CALL-SITE type are decided by two DIFFERENT
+   functions.** `functions._compute_return_type` types the `val`;
+   `functions._build_method_return_type_map` types the abstract op the caller applies. Patching one
+   and reading the other is a guaranteed null result. Both carry the `-> str` disjunct; both needed
+   the `bool` one.
+
+**The rule.** Before concluding "X is not the decision point", put a one-line stderr probe INSIDE X
+and print its inputs on the real file. It costs 30 seconds against an emit-only run (`--no-proof
+--keep-mlw`, ~30s, no why3) and it is the difference between a measurement and a guess. And when a
+type appears in two places in the emitted WhyML (a definition and its call site), assume two
+producers until you have seen otherwise.
+
+## Lesson (an) — promote a stub's return type to the FILE's convention, not to the source language's type
+
+The obvious fix for a `\trusted` `-> bool` stub is `return_type = "bool"`. It type-checks the `val`
+and then breaks everything downstream, because this emitter models a Python bool as the **int 0/1**
+end to end: every CONVERTED `-> bool` method in the same mirror emits `: int`
+(`_with_parenthesized`, `_looks_like_type_alias`), every boolean test lowers to `(<e>) <> 0`, and
+the `Return` exception carries an int. A `bool`-typed stub is then the only bool-typed predicate in
+the file, and the caller that was supposed to be fixed fails on `Return <bool>` instead.
+
+Promoting to `int` also had a free dividend: `int` is in `_handle_dotted_call`'s admissible set for
+the CONCRETE sibling application, so the call lowered to `(_parser___line_ends_with_colon self)` —
+the real receiver-passing form — instead of a receiver-less `self__…_0 ()` facade.
+
+**The rule.** Read what the CONVERTED siblings in the same file emit for the same Python type, and
+match that. The annotation is the authority on WHAT the stub returns; the file's existing lowering
+is the authority on HOW that is spelled.
+
+## Lesson (ao) — the empty-list literal lowers to a 1024-long ZERO array, and it pattern-matches as an array argument
+
+`[]` emits `(Array.make 1024 0)` (expressions.py, list-literal path) — the emitter's "no elements"
+stand-in, which is neither empty nor typed by its use. Two consequences bit in the same increment:
+
+* It starts with `"(Array.make "`, which is in `_handle_dotted_call`'s `ARRAY_INT_PREFIXES`, so
+  passing `[]` to a callee INFERRED `array int` for a parameter the callee's own already-emitted
+  `val` declares `int`. The first `_add_abstract_op` text wins, the two disagree, and the file
+  fails L3-tc with `array int @rho but is expected to have type int`.
+* Even with the inference fixed, the ARGUMENT still has to be coerced, or the same clash reappears
+  at the application.
+
+Both are gated on the EXACT placeholder literal, so a genuine array flowing into an int parameter
+still fails loudly. Note what this is NOT: substituting the int witness `0` is not a new erasure,
+because `(Array.make 1024 0)` is not `[]` either and the callee is a `\trusted` `val` with
+`ensures true`.
+
+## Lesson (ap) — a gap-free keyword binding does not have to reach full arity
+
+Increment 13's keyword binder only applied when it could fill EVERY formal
+(`len(_bound) == len(_formals)`). `self.funcdef([], async_=False)` against
+`funcdef(self, decorators, async_, start=None)` binds slots 0 and 1 and leaves `start` unbound, so
+the whole binding was discarded and the emitter fell back to the PARTIAL application
+`(_parser__funcdef self <decorators>)` — the very defect increment 13 existed to fix. Accepting any
+gap-free PREFIX (provided it covers every keyword, so none can be silently dropped) lets
+`_handle_dotted_call`'s existing R7 default fill complete the tail from the callee's own defaults,
+which is exactly Python's rule.
+
+**The rule.** When a fail-closed guard is written as "all or nothing", check whether "as much as is
+unambiguous, then hand off to the next stage" is equally safe. Here it was, and the all-or-nothing
+form was silently re-introducing the erasure it was written to prevent.
