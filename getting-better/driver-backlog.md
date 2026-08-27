@@ -4864,8 +4864,13 @@ and mirror to agree). `_with_parenthesized` additionally needed two loop invaria
  3. **`List[str]` in a live annotation.** `_splitlines_no_ff` wants `-> List[str]`, but
     `pure_ast.py` has no `from __future__ import annotations` and does not import `typing`, so a
     module-level annotation would be EVALUATED and raise `NameError`. Function-LOCAL annotations
-    are inert (PEP 526) but return/param annotations are not. **Capability: add the `typing` import
-    to the live file** (a one-line source change, deliberately not taken in this increment).
+    are inert (PEP 526) but return/param annotations are not.
+    **~~Capability: add the `typing` import to the live file.~~ DO NOT — see wall-lessons (ss).**
+    `pure_ast` builds its ~130 AST node classes with `_build_nodes(globals())`, so its module
+    globals ARE the node namespace, and **`List`/`Set`/`Dict`/`Tuple` are ALL ASDL node names.**
+    `from typing import List` REPLACES the `List` AST node class and the parser dies on the next
+    list literal. MEASURED — I did it and broke the parser. Use a QUOTED annotation, or import
+    under an alias that cannot collide.
 
 ### THE RIPPLE STRUCTURE (why this vein pays)
 
@@ -5265,8 +5270,13 @@ real, and the accumulator snocs the CONVERTED `_import_as_name`, so the list car
     return type stays `int` and the emitted `(materialize !names)` mistypes
     (`seq py_alias` vs `seq int`). `List[str]` / `List[_Tok]` work throughout the mirror, so it
     is specifically `List[<record harvested from _NODE_SPEC>]`.
-    *(Also measured on the way: `pure_ast.py` has no `typing` import, so a `List[...]`
-    annotation needs one added — a safe one-line live change, and NOT the blocker.)*
+    ***CORRECTED (wall-lessons (ss)): that "safe one-line live change" is NOT SAFE and it is in
+    fact the WHOLE explanation of this blocker.*** `pure_ast` builds its AST node classes with
+    `_build_nodes(globals())`, so `List`/`Set`/`Dict`/`Tuple` are ASDL node names living in the
+    module globals; `from typing import List` REPLACES the `List` node class and the parser dies
+    on the next list literal with exactly the message above. There is NO monomorphizer gap here —
+    the error came from the LIVE FILE I had just edited. Use a quoted annotation or a
+    non-colliding alias.
  2. **`accept_kw` needs the same monotonicity chain `accept_op` just got.** Giving
     `_import_as_name` the `ensures self.i >= \old(self.i)` its caller's loop body requires made
     `_import_as_name`'s OWN postcondition TIME OUT (4 Timeouts): its body calls `accept_kw`,
