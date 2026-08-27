@@ -2,19 +2,24 @@
 
 ## State, verified from the surface
 
-- **Count: MARKERS 584 · grep-substring 609 · offset 25 · unattached 0.** Quote BOTH. Get them
-  from **`bin/count-trusted-directives.py`**, never a hand-rolled grep — the grep figure counts
-  SUBSTRING hits and 25 of them are one boilerplate module-docstring line repeated across 25
-  mirror files. Every DELTA in the record is right; every absolute "the floor is N" from before
-  the gate existed (including the famous 687) inherits the +25. Window delta: markers
-  **586 -> 584**, grep **611 -> 609**.
+- **Count: MARKERS 578 · grep-substring 603 · offset 25 · unattached 0 · stale 0.** Quote BOTH.
+  Get them from **`bin/count-trusted-directives.py`**, never a hand-rolled grep — the grep figure
+  counts SUBSTRING hits and 25 of them are one boilerplate module-docstring line repeated across
+  25 mirror files. Every DELTA in the record is right; every absolute "the floor is N" from before
+  the gate existed (including the famous 687) inherits the +25.
+  **Window delta: markers 586 -> 578, grep 611 -> 603 — EIGHT conversions in six committed
+  increments.**
 - Ledger **3**, untouched. No new axiom, no new certificate needed this window.
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`,
   `src/formal-semantics/rocq/.lia.cache`, untracked `scratchpad/`, `prompt.txt`). Leave it alone.
   `getting-better/.driver-deadline` intact — do NOT delete or re-arm it.
-- Fidelity at the standing baseline **2 DIVERGED / 3 drifted**
-  (`_handle_var_expr`, `_handle_for_stmt`; the three "mirror def not in source" are the
-  cross-file bridge stubs). Field parity 335 compared / 7 known drift / 0 NEW.
+- Fidelity at the standing baseline **2 DIVERGED / 3 drifted** (`_handle_var_expr`,
+  `_handle_for_stmt`; the three "mirror def not in source" are cross-file bridge stubs).
+  Field parity 335 compared / 7 known drift / 0 NEW. check-untrusted-emitted **732/715/0/0**.
+- Proofs standing at HEAD: `frontend/pure_ast` **401 Valid** (299 at window start),
+  `module6_whyml/stmt_control_flow` **1797 Valid**, `frontend/Module5_IREmitter` **1111 Valid** —
+  all 0 Unknown/Timeout/Invalid, all SUCCESS; pure_ast's runs include the built-in vacuity phase.
+  Corpus byte-diff **0 over 813/813**.
 
 ## Instrument facts (unchanged, still true, still silently corrupting)
 
@@ -58,54 +63,55 @@
 stmt_control_flow` **1797 Valid** (base at HEAD measured 1692), both 0 Unknown/Timeout/Invalid,
 both SUCCESS. Corpus byte-diff **0 over 813/813**. Mirror emission diff **2 of 52**.
 
+## What this window did (six committed increments, all fully gated)
+
+1. `at_kw`/`accept_kw` monotonicity chain, and `expect_op`/`expect_kw` UNCONDITIONAL strict
+   progress (their reject path is the `-> "NoReturn"` `error`). Count-neutral, zero TCB.
+2. **`_import_as_names`** — both recorded blockers refuted (lessons (tt)/(uu)); a THIRD
+   seq->array return bridge `materialize_<rec>`.
+3. **`parse_eval`** — `Expression` in `_PURE_AST_FIELD_TABLE` + the RETURN INTERFACE lever.
+4. **`comp_for`** — a `List[comprehension]` return with a nested cursor-measure loop; purity is
+   TRANSITIVE THROUGH A LIST FIELD; a ghost cursor snapshot (lesson (xx)).
+5. **`_lambda_arg`** — the `_fin` position-wrapper recognizer, and a literal `None` keyword bound
+   to an `option` field now lowers to `None` instead of the int `0`.
+6. **`return_stmt` + `assert_stmt` + `_param_arg`** — the `Optional[ExprIR]` LOCAL carrier
+   (lesson (ab): the `Optional[X]` collapse is right for a param/field and wrong for a local, and
+   the seams are disjoint).
+7. **`raise_stmt`** — and its `Raise` table entry also retypes `_py_stmt_raise`'s param in the
+   Module5 mirror from an opaque int to the real record.
+
 ## Pick up here — in this order
 
-1. **INCREMENT 3 IS BUILT, L3-tc GREEN, AND NOT YET LANDED.** `comp_for` (a
-   `List[comprehension]` return with a nested cursor-measure loop). The apply script is
-   `getting-better/pure-ast-inc3/apply_inc3.py` (pure_ast + `_PURE_AST_FIELD_TABLE`) and the
-   three emitter hunks are `getting-better/pure-ast-inc3/{expressions,preamble,statements}.py.diff`
-   (apply with `git apply -p1` from the repo root; verified to apply cleanly). It needed TWO new emitter
-   capabilities, both in functions whose mirrors are ALREADY `\trusted`, so §10.4 costs NOTHING:
-   - a seq local appended from a CALL whose declared return is an IR-node tag now records its
-     `emit_ir` element type. Without it `_bind_listfield_from_seq` refuses and the record's list
-     field falls back to `Array.make 0 0` — **a DROPPED-CHILD FACADE that type-checks**;
-   - **purity is TRANSITIVE THROUGH A LIST FIELD.** A pinned `List[<record>]`-element record with
-     an `array emit_ir` field is still Why3-rejected ("instantiates pure type variable 'a with a
-     mutable type"), so for a pinned record the list field is emitted as the pure `seq <elem>` —
-     which is exactly the shape the filling local already has, so no `Init.init` at all.
-   Outstanding for it: corpus byte-diff, mirror sweep, whole-file proof.
+1. **THE REACHABLE `_fin` SET IS NOW 9, and they are itemised.** Of the original 57 `_fin`-gated
+   stubs only 13 ever had a single-class return (lesson (zz) — 40 have a PASSTHROUGH return and
+   are unreachable with per-class records); 4 of the 13 are converted. The remaining nine:
+   `type_alias_stmt`, `del_stmt`, `import_stmt`, `import_from`, `if_stmt`, `while_stmt`,
+   `match_stmt`, `lambdef`, `_dict_rest`. Their named gates:
+   - `import_stmt` / `import_from` need a **`List[<harvested record>]` FIELD tag** (a list of
+     `alias`). `_PURE_AST_FIELD_TABLE` has `ExprIRList` / `StmtIRList` but no record-list tag; the
+     downstream machinery already exists (`_bind_listfield_from_seq` + the preamble's
+     `value_type in self._record_types` branch). CHEAPEST remaining item.
+   - `del_stmt` needs the **0-field ASDL singletons** (`_N("Del")()`); so do `_for_target`,
+     `_with_item`, `_subscript`, `_comp_target`, `trailers`, `power`. See item 3.
+   - `if_stmt` / `while_stmt` / `match_stmt` need statement-list fields plus `block` /
+     `_else_block` / `_if_tail` return interfaces.
+   - `_binop` is NOT reachable at all: `_N(opname)()` takes a VARIABLE class name.
 
-2. **THE `_fin` CAPABILITY IS BUILT AND LANDED (`_lambda_arg` is its first consumer) — but its
-   CEILING IS 13 STUBS, NOT 57.** A return-shape census of the 57 `_fin`-gated stubs: 13 return a
-   SINGLE `_N` class, 3 return more than one, and **40 have a PASSTHROUGH return** (`return p` /
-   `return self.<sub>()` beside the constructed node) — the Pratt-parser shape, whose two returns
-   have DIFFERENT WhyML types under per-class records and therefore cannot be typed at all.
-   **Unifying the pure_ast node classes into ONE sum type is the capability that unlocks the 40**,
-   and it is the same capability `pyast_expr` Stage B asks for. Of the 13, most are additionally
-   gated on the **`Optional[ExprIR]` local carrier** (`option emit_ir`) — see the backlog; a
-   PEP-526 `Optional["ExprIR"]` annotation does NOT create it (measured).
-   The original argument, still true: `_fin`/`_fin_block`/`_fin_pos`/`node` set only the four ASDL
-   location attributes and return the node unchanged. **The harvested `_NODE_SPEC` records do not
-   carry those attributes at all**, so in the model `_fin(x, t) == x`, and lowering the call to
-   its first argument is faithful. Gate it on the constructed node's record having no
-   `lineno`/`col_offset`/`end_lineno`/`end_col_offset` field so it fails CLOSED if the harvest is
-   ever widened. It goes beside the `_N` recognizer in `Module5_IREmitter._py_expr_call`, **whose
-   mirror is `\trusted`** — so no §10.4 port, no mirror re-proof. Full argument in the backlog
-   section "pure_ast VEIN, RELAUNCH #5".
+2. **THE REAL MASS IS THE SUM TYPE.** 40 of the 57 `_fin` stubs, and most of the 86 non-`_N`
+   stubs, need the pure_ast node classes to be ARMS OF ONE TYPE rather than per-class records —
+   `return x` beside `return self._fin(_N("BinOp")(...), t)` cannot type otherwise. This is the
+   same capability the `pyast_expr` Stage-B item asks for. **Fund that before widening the field
+   table further.**
 
-3. **Widen `_PURE_AST_FIELD_TABLE` on demand** — 22 of 76 `_NODE_SPEC` entries are in it. The 13
-   non-`_fin` `_N`-constructing stubs and the classes they need are tabulated in the backlog.
-   `_binop` is NOT reachable this way: `_N(opname)()` takes a VARIABLE class name.
+3. **0-field ASDL singletons need a base-category ENUM VARIANT.** A 0-field WhyML record is not
+   expressible. `_NODE_SPEC` gives each singleton's category (`expr_context`, `operator`,
+   `boolop`, `unaryop`, `cmpop`), so the whole membership is statically known and the ADT is
+   axiom-free. COST/SCALE: the `ctx`/`op` field tags move from `"int"` to the category type.
 
-4. **0-field ASDL singletons (`Load`/`Store`/`Pow`/…) need a base-category ENUM VARIANT** — a
-   0-field WhyML record is not expressible. `_NODE_SPEC` gives each one's category, so the whole
-   membership is statically known and the ADT is axiom-free. COST/SCALE (the `ctx`/`op` field
-   tags move from `"int"` to the category type).
+4. Stage B of the `pyast_expr` build — retires the four abstract vals the relaunch-#4 dispatch
+   conversions introduced, and is the same capability item 2 needs.
 
-5. Stage B of the `pyast_expr` build (recursive ADT, structural variant) — retires the four
-   abstract vals the relaunch-#4 dispatch conversions introduced.
-
-6. `_py_stmts_to_ir`'s six named features (two extend the CERTIFIED `stmt_ir` ADT, so the
+5. `_py_stmts_to_ir`'s six named features (two extend the CERTIFIED `stmt_ir` ADT, so the
    certificate must be extended under the co-landing rule).
 
 ## RECORDED BOUNDARIES — do not re-grind without new capability
