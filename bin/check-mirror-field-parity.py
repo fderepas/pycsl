@@ -7,23 +7,26 @@ signatures between `src/pycsl/` and `src/self-annotate/src/`, and
 a class's ANNOTATED FIELDS — so a dataclass field can carry a different type in the mirror
 than in the live source indefinitely, with every existing gate green.
 
-Measured 2026-08-27 (relaunch #4), the first time anyone looked: **91 of 335 compared fields
-have drifted.** The dominant pattern is 84 CSL-AST fields that the live source retyped
-`CSLNode` -> `'ExprIR'` for the Module5 construction build, while the mirror still says
-`CSLNode`. That is not unsound — the mirror is the WEAKER model, and `CSLNode` int-erases
-where `'ExprIR'` would carry a real `emit_ir` child — but it means 84 fields are modelled as
-opaque integers in the verified artifact while the live program has structured IR nodes
-there, and nothing was reporting it.
+Measured 2026-08-27 (relaunch #4), the first time anyone looked: **91 of 335 compared fields had
+drifted.** The dominant pattern was 84 CSL-AST fields that the live source retyped
+`CSLNode` -> `'ExprIR'` for the Module5 construction build, while the mirror still said
+`CSLNode`. Not unsound — the mirror was the WEAKER model, and `CSLNode` int-erases where
+`'ExprIR'` carries a real `emit_ir` child — but it meant 84 fields were modelled as opaque
+integers in the verified artifact while the live program had structured IR nodes there, and
+nothing was reporting it. Those 84 are now retyped; 7 remain, itemized below.
 
 WHY IT MATTERS FOR THE COUNT. A `\trusted` stub whose blocker is "this field int-erases" is
 filed against the emitter's type inference, when the real cause may be that the MIRROR simply
 never picked up a retype the live source already has. Field parity is therefore a
 conversion-unblocking measurement, not only a hygiene one.
 
-BASELINE: 91 drifted — 84 of the `'ExprIR'` -> `CSLNode` shape (accepted by SHAPE, in
-`KNOWN_DRIFT`) and 7 deliberate int-erasures of class-level constant tables (accepted BY NAME,
-in `INT_ERASED`, so that list can only shrink). The gate FAILS on anything else, so a NEW
-divergence is caught while the existing backlog stays visible instead of silently accepted.
+BASELINE: **7 drifted**, all deliberate int-erasures of class-level constant tables (accepted BY
+NAME in `INT_ERASED`, so that list can only shrink). The 84 `'ExprIR'` -> `CSLNode` fields the
+gate first reported have since been RETYPED in the mirror to match the live source — proof-neutral
+(`frontend/Module2_Parser` proves 711 Valid before and after) and corpus byte-inert, but 84 fields
+that were opaque integers in the verified artifact now carry the real `emit_ir` child. The
+`KNOWN_DRIFT` shape set is retained so the gate keeps recognizing that family if it reappears.
+The gate FAILS on anything else, so a NEW divergence is caught while the residue stays visible.
 
 Usage:  bin/check-mirror-field-parity.py [--list]
 Exit 1 on a new (non-baseline) drift.

@@ -5037,3 +5037,28 @@ report the new drift and exit 1).
 > `Set[str]` campaign's attempt #1 FATAL (a global retype broke every verified caller written
 > against the old type), so it must be measured with a mirror emission sweep BEFORE any
 > conversion is attempted on top of it.
+
+### 84-FIELD RETYPE **LANDED** — the field-parity drift is closed, proof-neutral and corpus-inert (2026-08-27)
+
+The named capability from the gate above, taken immediately because the measurement said the
+feared risk was not there. `CSLNode` -> `'ExprIR'` on all 84 drifted mirror fields, matching the
+live source exactly.
+
+**THE RISK THAT DID NOT MATERIALIZE.** This is the shared-signature retype shape that made the
+`Set[str]` campaign's attempt #1 FATAL (a global retype changed the abstract `val` signature of
+every consumer and broke verified callers written against the old type). Measured here BEFORE
+converting anything on top of it: the mirror emission sweep changes **exactly ONE of 52 files**
+(`frontend/Module2_Parser.mlw`), and its whole diff is 48 record declarations moving their
+expression-child fields from `int` to `emit_ir`. No consumer's signature moved, because these are
+RECORD FIELDS, not a return type flowing through an abstract sibling val — that is the structural
+difference from the `Set[str]` case, and it is the thing to check before assuming a retype
+cascades.
+
+**PROOF-NEUTRAL**: `frontend/Module2_Parser` proves **711 Valid, SUCCESS** both BEFORE (from a
+worktree at HEAD) and AFTER — same goal count, same verdict. Corpus byte-diff 0 over 813/813.
+Fidelity at baseline. Count unchanged: this is a pure faithfulness increment, and it is exactly
+the kind the count does not measure — 84 fields that were opaque integers in the VERIFIED
+artifact now carry the real `emit_ir` child.
+
+Residual field-parity drift: **7**, all deliberate int-erasures of class-level constant tables,
+itemized BY NAME in the gate so the list can only shrink.

@@ -106,7 +106,7 @@ class BinOp(CSLNode):
 @dataclass
 class UnaryOp(SingleExprNode):
     op: str
-    expr: CSLNode
+    expr: 'ExprIR'
 
 @dataclass
 class Var(CSLNode):
@@ -148,14 +148,14 @@ class FieldAccess(CSLNode):
 class FieldSubscript(CSLNode):
     'Represents `self.<field>[i]` — subscript of an instance ARRAY field in a\n    contract. Enables region-preservation postconditions such as\n    `\\forall i; (lo <= i and i < hi) ==> self.disk[i] == \\old(self.disk[i])`\n    on a `\\trusted`/`\\abstract` writer (meta.md Stage B, option C).'
     field: str
-    index: CSLNode
+    index: 'ExprIR'
 
 @dataclass
 class GlobalFieldSubscript(CSLNode):
     "Represents `<global>.<field>[expr]` — subscript of a module-global record's\n    ARRAY field in a contract (spec-15 / gap-15 Wall B), e.g. `_filesystem.fd_inode[fd]`.\n    The sibling of `FieldSubscript` (`self.<field>[i]`) with a module-global instance\n    as the base instead of `self`. Lowers to `Subscript(Attribute(Var(obj), field), index)`,\n    riding the existing gap-10 global-field projection + spec-context `Array.get` machinery."
     obj: str
     field: str
-    index: CSLNode
+    index: 'ExprIR'
 
 @dataclass
 class ClassInvariant(CSLNode):
@@ -164,7 +164,7 @@ class ClassInvariant(CSLNode):
 @dataclass
 class SubscriptAccess(CSLNode):
     array: str
-    index: CSLNode
+    index: 'ExprIR'
 
 @dataclass
 class Forall(QuantifierNode):
@@ -202,22 +202,22 @@ class InScope(CSLNode):
 class AssignsRegion(CSLNode):
     'Represents `arr[lo..hi]` inside an assigns clause (frame condition region).'
     base: str
-    low: CSLNode
-    high: CSLNode
+    low: 'ExprIR'
+    high: 'ExprIR'
 
 @dataclass
 class Valid(CSLNode):
     'Represents `\\valid(arr, n)` — memory region [arr, arr+n) is allocated.'
     base: str
-    length: CSLNode
+    length: 'ExprIR'
 
 @dataclass
 class Separated(CSLNode):
     "Represents `\\separated(a, na, b, nb)` — regions [a,a+na) and [b,b+nb) don't overlap."
     base1: str
-    length1: CSLNode
+    length1: 'ExprIR'
     base2: str
-    length2: CSLNode
+    length2: 'ExprIR'
 
 @dataclass
 class Label(CSLNode):
@@ -234,27 +234,27 @@ class CheckPoint(CSLNode):
 @dataclass
 class At(CSLNode):
     'Represents `\\at(expr, L)` — value of expr at program point L.'
-    expr: CSLNode
+    expr: 'ExprIR'
     label: str
 
 @dataclass
 class Length2D(CSLNode):
     'Represents `\\length2d(arr, m, n)` — arr has m rows each of length n.'
     base: str
-    rows: CSLNode
-    cols: CSLNode
+    rows: 'ExprIR'
+    cols: 'ExprIR'
 
 @dataclass
 class Valid2D(CSLNode):
     'Represents `\\valid2d(arr, i, j)` — (i,j) is a valid 2D index into arr.'
     base: str
-    row: CSLNode
-    col: CSLNode
+    row: 'ExprIR'
+    col: 'ExprIR'
 
 @dataclass
 class FunctionVariant(CSLNode):
     'Represents `#@ \\variant <expr>` or `#@ \\variant (<expr>, <ordering>)`.'
-    expr: CSLNode
+    expr: 'ExprIR'
     ordering: Optional[str] = None
 
 @dataclass
@@ -329,8 +329,8 @@ class CSLIn(CSLNode):
 @dataclass
 class CSLNotIn(CSLNode):
     'Represents `x not in arr` negated membership test in contracts.'
-    element: CSLNode
-    collection: CSLNode
+    element: 'ExprIR'
+    collection: 'ExprIR'
 
 @dataclass
 class DictView(CSLNode):
@@ -344,21 +344,21 @@ class ForallItems(QuantifierNode):
     key: str
     val: str
     coll: str
-    body: CSLNode
+    body: 'ExprIR'
 
 @dataclass
 class CSLSlice(CSLNode):
     'Represents `arr[lo:hi]` slice notation in contracts.'
     collection: str
-    low: CSLNode
-    high: CSLNode
+    low: 'ExprIR'
+    high: 'ExprIR'
 
 @dataclass
 class ChainedSubscript(CSLNode):
     'Represents `arr[i][j]` chained subscript access (2D array element).'
     array: str
-    index1: CSLNode
-    index2: CSLNode
+    index1: 'ExprIR'
+    index2: 'ExprIR'
 
 @dataclass
 class CallExpr(CSLNode):
@@ -380,27 +380,27 @@ class CallExpr(CSLNode):
 class IsSorted(CSLNode):
     'Represents `\\is_sorted(a, lo, hi)` — array is sorted in range.'
     base: str
-    lo: CSLNode
-    hi: CSLNode
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class ArrayEq(CSLNode):
     'Represents `\\array_eq(a, b)` — two arrays have equal length and\n    equal elements at every index (extensional content equality).'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class Permutation(CSLNode):
     'Represents `\\permutation(a, b)` — `a` is a permutation of `b` (same\n    multiset of elements). Unlike `\\array_eq` it does NOT unfold to a\n    first-order formula; it lowers to an uninterpreted Why3 `predicate permut`\n    that a proof-assistant-imported axiom constrains (no-more-int A2b Gap 1).'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class Sum(CSLNode):
     'Represents `\\sum(a, lo, hi)` — sum of array elements in range.'
     base: str
-    lo: CSLNode
-    hi: CSLNode
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class GhostAssignDecl(CSLNode):
@@ -427,17 +427,17 @@ class MkTupleExpr(CSLNode):
 @dataclass
 class FstExpr(CSLNode):
     '\\fst(t) — first component of a ghost tuple.'
-    tuple_expr: CSLNode
+    tuple_expr: 'ExprIR'
 
 @dataclass
 class SndExpr(CSLNode):
     '\\snd(t) — second component of a ghost tuple.'
-    tuple_expr: CSLNode
+    tuple_expr: 'ExprIR'
 
 @dataclass
 class ProjExpr(CSLNode):
     '\\proj(t, i) — ith component of a ghost tuple (i must be a literal).'
-    tuple_expr: CSLNode
+    tuple_expr: 'ExprIR'
     index: CSLNode
 
 @dataclass
@@ -456,20 +456,20 @@ class CtorPayload(CSLNode):
 @dataclass
 class StrConcatExpr(CSLNode):
     's ^ t — string concatenation in ghost / contract context.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class StrLengthExpr(CSLNode):
     '\\str_length(s) — length of a ghost string variable.'
-    string: CSLNode
+    string: 'ExprIR'
 
 @dataclass
 class StrSubExpr(CSLNode):
     '\\str_sub(s, lo, hi) — substring of ghost string s from lo to hi.'
-    string: CSLNode
-    lo: CSLNode
-    hi: CSLNode
+    string: 'ExprIR'
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class GhostCopyExpr(CSLNode):
@@ -480,14 +480,14 @@ class GhostCopyExpr(CSLNode):
 class GhostCopyRangeExpr(CSLNode):
     '\\copy_range(arr, lo, hi) — bounded snapshot: arr[lo..hi-1] into a new ghost array.'
     arr: str
-    lo: CSLNode
-    hi: CSLNode
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class GhostMakeExpr(CSLNode):
     '\\make(n, v) — create a ghost array of length n filled with v.'
-    size: CSLNode
-    default: CSLNode
+    size: 'ExprIR'
+    default: 'ExprIR'
 
 @dataclass
 class MapEmptyExpr(CSLNode):
@@ -496,33 +496,33 @@ class MapEmptyExpr(CSLNode):
 @dataclass
 class MapGetExpr(CSLNode):
     '\\map_get(d, k) — look up key k in ghost dict d.'
-    dict_expr: CSLNode
-    key: CSLNode
+    dict_expr: 'ExprIR'
+    key: 'ExprIR'
 
 @dataclass
 class MapSetExpr(CSLNode):
     '\\map_set(d, k, v) — return ghost dict d with d[k] := v.'
-    dict_expr: CSLNode
-    key: CSLNode
-    value: CSLNode
+    dict_expr: 'ExprIR'
+    key: 'ExprIR'
+    value: 'ExprIR'
 
 @dataclass
 class MapEqExpr(CSLNode):
     '\\map_eq(d1, d2) — extensional equality of two ghost dicts.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class HasKeyExpr(CSLNode):
     '\\has_key(d, k) — true iff ghost dict d has a present (non-None) value at key k.'
-    dict_expr: CSLNode
-    key: CSLNode
+    dict_expr: 'ExprIR'
+    key: 'ExprIR'
 
 @dataclass
 class MapRemoveExpr(CSLNode):
     '\\map_remove(d, k) — return ghost dict d with key k removed (set to None/absent).'
-    dict_expr: CSLNode
-    key: CSLNode
+    dict_expr: 'ExprIR'
+    key: 'ExprIR'
 
 @dataclass
 class SetEmptyExpr(CSLNode):
@@ -531,57 +531,57 @@ class SetEmptyExpr(CSLNode):
 @dataclass
 class SetAddExpr(CSLNode):
     '\\set_add(s, x) — ghost set with x added.'
-    set_expr: CSLNode
-    elem: CSLNode
+    set_expr: 'ExprIR'
+    elem: 'ExprIR'
 
 @dataclass
 class SetRemoveExpr(CSLNode):
     '\\set_remove(s, x) — ghost set with x removed.'
-    set_expr: CSLNode
-    elem: CSLNode
+    set_expr: 'ExprIR'
+    elem: 'ExprIR'
 
 @dataclass
 class SetMemExpr(CSLNode):
     '\\set_mem(x, s) — x is a member of ghost set s.'
-    elem: CSLNode
-    set_expr: CSLNode
+    elem: 'ExprIR'
+    set_expr: 'ExprIR'
 
 @dataclass
 class SetUnionExpr(CSLNode):
     '\\set_union(s1, s2) — union of two ghost sets.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class SetInterExpr(CSLNode):
     '\\set_inter(s1, s2) — intersection of two ghost sets.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class SetDiffExpr(CSLNode):
     '\\set_diff(s1, s2) — set difference s1 \\ s2.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class SetCardExpr(CSLNode):
     '\\set_card(s, lo, hi) — cardinality of s restricted to [lo, hi).'
-    set_expr: CSLNode
-    lo: CSLNode
-    hi: CSLNode
+    set_expr: 'ExprIR'
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class SetSubsetExpr(CSLNode):
     '\\set_subset(s1, s2) — s1 is a subset of s2.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class SetEqExpr(CSLNode):
     '\\set_eq(s1, s2) — extensional equality of two ghost sets.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class NilExpr(CSLNode):
@@ -590,41 +590,41 @@ class NilExpr(CSLNode):
 @dataclass
 class ConsExpr(CSLNode):
     '\\cons(x, l) — prepend x to ghost list l.'
-    head: CSLNode
-    tail: CSLNode
+    head: 'ExprIR'
+    tail: 'ExprIR'
 
 @dataclass
 class HdExpr(CSLNode):
     '\\hd(l) — head of ghost list l (requires l non-empty).'
-    list_expr: CSLNode
+    list_expr: 'ExprIR'
 
 @dataclass
 class TlExpr(CSLNode):
     '\\tl(l) — tail of ghost list l (requires l non-empty).'
-    list_expr: CSLNode
+    list_expr: 'ExprIR'
 
 @dataclass
 class ListLengthExpr(CSLNode):
     '\\list_length(l) — length of ghost list l.'
-    list_expr: CSLNode
+    list_expr: 'ExprIR'
 
 @dataclass
 class NthExpr(CSLNode):
     '\\nth(l, i) — ith element of ghost list l (requires 0 <= i < length).'
-    list_expr: CSLNode
-    index: CSLNode
+    list_expr: 'ExprIR'
+    index: 'ExprIR'
 
 @dataclass
 class MemExpr(CSLNode):
     '\\mem(x, l) — x appears in ghost list l.'
-    elem: CSLNode
-    list_expr: CSLNode
+    elem: 'ExprIR'
+    list_expr: 'ExprIR'
 
 @dataclass
 class AppendExpr(CSLNode):
     '\\append(l1, l2) — concatenation of two ghost lists.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class GhostArraySetDecl(CSLNode):
