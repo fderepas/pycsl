@@ -4044,6 +4044,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # iteration are uniformly seq (not a `ref 0` int + array-op mismatch).
                     if self._call_returns_string_collection(_f):
                         return True
+                    # THE STATEMENT CLUSTER: a `self.<m>()` returning `array emit_ir` is a
+                    # seq SOURCE too — so a SINGLE-assign local (`body = self.block()`,
+                    # never reassigned) is promoted to a `seq emit_ir` local rather than
+                    # staying an `array` local, which is what lets it bind into an
+                    # `irlist` sub-body slot.
+                    if _f.startswith("self."):
+                        try:
+                            _cr1, _, _, _ = self._resolve_dotted_signature(_f)
+                        except Exception:
+                            _cr1 = ""
+                        if _cr1 == "array emit_ir":
+                            return True
                     if _f in ("set", "frozenset", "list") and v.get("args"):
                         return _is_seq_src(v["args"][0])
                 if (_t == "BinOp" and v.get("op") == "+"
@@ -4057,8 +4069,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return False
 
             for _nm, _et in list(self._array_elem_types.items()):
+                # THE STATEMENT CLUSTER: the `emit_ir` disjunct promotes a SINGLE-assign
+                # emit_ir-element list local (`body = self.block()`, never reassigned) to
+                # a `seq emit_ir`, which is what lets it bind into an `irlist` sub-body
+                # slot. Gated to the pure_ast parser file: elsewhere a single-assign
+                # emit_ir list local keeps its existing ARRAY model, so no other mirror
+                # changes a byte (measured — un-gated it re-shaped
+                # `stmt_control_flow`'s `_body_d`).
                 if (_acounts.get(_nm, 0) >= 2
-                        or (_et == "string" and _is_seq_src(_firstv.get(_nm)))):
+                        or (_et == "string" and _is_seq_src(_firstv.get(_nm)))
+                        or (_et == "emit_ir" and self._uses_pyast_parser()
+                            and _is_seq_src(_firstv.get(_nm)))):
                     self._seq_locals.add(_nm)
                     self._seq_value_types[_nm] = _et
                     self._array_elem_types.pop(_nm, None)
@@ -4078,6 +4099,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             if _ri.get("whyml_name") == _et:
                                 self._record_seq_locals[_nm] = _pyc
                                 break
+                    # THE STATEMENT CLUSTER: an emit_ir-element seq local must ALSO be
+                    # published to `_emit_ir_seq_locals` — that is the set the `irlist`
+                    # sub-body binding checks before it will fill a slot, so without it
+                    # the whole construction declines (fail-closed) and the compound
+                    # statement's children are dropped.
+                    if _et == "emit_ir" and hasattr(self, "_emit_ir_seq_locals"):
+                        self._emit_ir_seq_locals.add(_nm)
         # 07-2333-rev2 TP-1 (str locals): a `str`-typed local (symbol-table τ = str/string,
         # not a formal param) must NOT be pre-declared as `ref 0 : ref int` — it is let-bound
         # at first assignment with its string value (`let r = "ab" in`), the local counterpart
@@ -4355,6 +4383,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         return _nu[len("seq "):]
                 if (self._call_returns_string_collection(_fn) or _fn.endswith(".split")):
                     return "string"
+                # THE STATEMENT CLUSTER (pyast ctor family): a `self.<m>()` whose declared
+                # return resolves to `array emit_ir` — the `-> "List[ExprIR]"` interface on
+                # `block`/`_if_tail`/`_else_block` — yields an emit_ir-element list local,
+                # so `body = self.block()` models as `seq emit_ir` and can be bound into an
+                # `irlist` sub-body slot instead of int-erasing to `ref 0`.
+                if _fn.startswith("self."):
+                    try:
+                        _cr0, _, _, _ = self._resolve_dotted_signature(_fn)
+                    except Exception:
+                        _cr0 = ""
+                    if _cr0 == "array emit_ir":
+                        return "emit_ir"
                 # RECORD-ELEMENT list local (increment 8): a `self.<m>()` whose declared
                 # return resolves to `array <record>` (the WL-04b `-> List[<record>]`
                 # return type, now also carried by the self-call map) yields a

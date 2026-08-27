@@ -319,6 +319,16 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # two ASTs' BinOps distinguishable.
     "BinOp": ("IrPyBinOp", [("left", "emit_ir"), ("op", "string"),
                             ("right", "emit_ir")]),
+    # THE STATEMENT CLUSTER. `If(test, body, orelse)` / `While(test, body, orelse)` —
+    # `_NODE_SPEC` gives both `('stmt', ('test','body','orelse'), None)`, all total. The
+    # two SUB-BODIES are lists of STATEMENT nodes, which under this family are `emit_ir`
+    # exactly like expression nodes, so they ride the same `irlist` variadic payload as
+    # `BoolOp.values`. This is the first place the model carries a compound statement's
+    # real sub-bodies instead of the opaque `array int` the "StmtIRList" record tag gives.
+    "If": ("IrPyIf", [("test", "emit_ir"), ("body", "irlist"),
+                      ("orelse", "irlist")]),
+    "While": ("IrPyWhile", [("test", "emit_ir"), ("body", "irlist"),
+                            ("orelse", "irlist")]),
 }
 
 
@@ -937,6 +947,44 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
         # The element record must ALSO be emitted PURE — Why3 forbids a mutable
         # component inside a polymorphic container — which is exactly what
         # `list_element_record_types` drives, so it is set here beside the injection.
+        # PYTHON-AST NODE CTOR FAMILY (increment 11): `-> "List[ExprIR]"` — the STATEMENT
+        # cluster's return interface. `block`/`_if_tail`/`_else_block`/`simple_stmt`/
+        # `statement` all return a LIST OF STATEMENT NODES, and under the ctor family a
+        # statement node is an `emit_ir` exactly like an expression node — so the faithful
+        # return type is `array emit_ir`. Module5 sees only an unrecognised string
+        # Constant, so the return stays the collapsed `unit`/`int` and every consumer of
+        # `body = self.block()` int-erases. Patched to the same `list` + element shape
+        # Module5 produces for a bare `List[R]`, with the element named `emit_ir`
+        # (a WhyML type, not a harvested record — so it is deliberately NOT added to
+        # `wanted`/`list_elems`, which drive RECORD declaration and purity).
+        _le_ir = None
+        if node.returns is not None:
+            _na = node.returns
+            if isinstance(_na, _ast.Constant) and isinstance(_na.value, str):
+                try:
+                    _na = _ast.parse(_na.value.strip(), mode="eval").body
+                except SyntaxError:
+                    _na = None
+            if (isinstance(_na, _ast.Subscript)
+                    and isinstance(_na.value, _ast.Name)
+                    and _na.value.id in ("List", "list")):
+                _sl = _na.slice
+                if isinstance(_sl, getattr(_ast, "Index", ())):
+                    _sl = _sl.value
+                if (isinstance(_sl, _ast.Name)
+                        and _sl.id in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")):
+                    _le_ir = "emit_ir"
+        if _le_ir is not None:
+            fi = func_by_name.get(node.name)
+            if fi is None:
+                for _f in ir_data.get("functions", []):
+                    if (_f.get("line") == getattr(node, "lineno", None)
+                            and str(_f.get("name", "")).endswith(node.name)):
+                        fi = _f
+                        break
+            if fi is not None:
+                fi["return_annotation"] = "list"
+                fi["return_value_type"] = _le_ir
         le = _ann_list_elem(node.returns) if node.returns is not None else None
         if le is not None:
             wanted.add(le)

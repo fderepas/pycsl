@@ -779,39 +779,62 @@ class _Parser:
             elts.append(self.test())
         return self._fin(_N("Tuple")(elts=elts, ctx=_N("Load")()), t)
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def block(self):
+    def block(self) -> "List[ExprIR]":
         pass
 
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `if_stmt`. The two
+    # SUB-BODIES are carried as real `irlist`s of statement nodes — the first time this
+    # model holds a compound statement's actual children rather than the opaque
+    # `array int` the "StmtIRList" record tag gives. `_fin_block` is the compound-statement
+    # location stamper and, like `_fin`, is the identity in the model.
+    #@ requires True
+    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def if_stmt(self) -> "ExprIR":
+        t = self.advance()
+        test = self.namedexpr_test()
+        self.expect_op(":")
+        body = self.block()
+        orelse = self._if_tail()
+        return self._fin_block(_N("If")(test=test, body=body, orelse=orelse), t)
+
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted. `-> "List[ExprIR]"`
+    # records that the result is a LIST OF STATEMENT NODES (`array emit_ir`).
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def if_stmt(self):
+    def _if_tail(self) -> "List[ExprIR]":
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `while_stmt`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _if_tail(self):
-        pass
+    def while_stmt(self) -> "ExprIR":
+        t = self.advance()
+        test = self.namedexpr_test()
+        self.expect_op(":")
+        body = self.block()
+        orelse = self._else_block()
+        return self._fin_block(_N("While")(test=test, body=body, orelse=orelse), t)
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def while_stmt(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns self.i
-    def _else_block(self):
+    def _else_block(self) -> "List[ExprIR]":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate

@@ -464,6 +464,18 @@ class FunctionEmissionMixin:
         # path, generalized to the `unit`-from-empty-body case for abstract vals.
         if func.get("abstract") and return_type == "unit" and ann:
             return_type = "int"
+        # PYTHON-AST NODE CTOR FAMILY (increment 11): a `-> "List[ExprIR]"` method — the
+        # STATEMENT cluster's return interface (`block`, `_if_tail`, `_else_block`,
+        # `simple_stmt`, `statement`) — returns `array emit_ir`. Handled BEFORE the
+        # `return_type == "int"` branch below because a `\trusted` stub's body is `pass`,
+        # so `find_return_type` gives "unit" and that branch never fires; `-> str` already
+        # carries the same `ret == "unit" and trusted` disjunct for the same reason.
+        # `ir_resolve` sets `return_value_type` to the literal `emit_ir` only for that
+        # annotation, so this is inert everywhere else.
+        if (ann == "list" and func.get("return_value_type") == "emit_ir"
+                and return_type in ("int", "unit")
+                and self._uses_pyast_parser()):
+            return "array emit_ir"
         if ann in ("list", "bytes", "bytearray") and return_type == "int":
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             return_type = "array int"

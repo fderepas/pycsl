@@ -829,6 +829,19 @@ class Module6_WhyMLTranspiler(
                     self._module_method_return_types[_f["name"]] = (
                         "array "
                         + self._record_types[_f["return_value_type"]]["whyml_name"])
+        # PYTHON-AST NODE CTOR FAMILY (increment 11): the SELF-CALL sibling of
+        # `_compute_return_type`'s `-> "List[ExprIR]"` branch. `block`/`_if_tail`/
+        # `_else_block` are `\trusted` stubs, so `_build_method_return_type_map` computed
+        # their return from a `pass` body ("unit") and never reached its `ann == "list"`
+        # branch — leaving every `body = self.block()` call site abstracted at the wrong
+        # type. Placed here rather than in the map builder for the SAME reason as the
+        # record-list sibling above: that builder's mirror is UN-TRUSTED, `transpile`'s is
+        # `\trusted`. Keyed on the literal `emit_ir` element `ir_resolve` sets only for
+        # that annotation -> corpus byte-inert.
+        for _f in funcs_for_maps:
+            if (_f.get("return_annotation") == "list"
+                    and _f.get("return_value_type") == "emit_ir"):
+                self._module_method_return_types[_f["name"]] = "array emit_ir"
         # self-tcb-reduction (_err-divergence): callee IR-names declared `-> NoReturn`
         # (is_noreturn, Module5 NR1). A `self.<m>(...)` call to one of these is modelled at
         # the call site (`_handle_dotted_call`) as making the continuation UNREACHABLE — the
