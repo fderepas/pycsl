@@ -2956,3 +2956,35 @@ loop emits `:=` against an immutable `let` and fails L3-tc.
 **The rule.** Any converted body that assigns a non-scalar local inside a branch or rebuilds one in
 a loop needs that local in a pre-declaration set. Check the emitted code for a `let <x> = ref …`
 INSIDE an `if` arm — it is always wrong, and when the local is a list it is a silent facade.
+
+## Lesson (ai) — do NOT stack whole-file mirror proofs in parallel; they are already prover-parallel and four of them DEADLOCK the box
+
+Increment 10 changed four mirrors and I launched all four whole-file proofs at once to save wall
+clock. Load went to 20 on 12 cores and **all four stalled with no log output for 17 minutes** —
+not slow, STOPPED. Killed and re-run one at a time, every one completed normally
+(753 / 655 / 883 / 706 Valid, all SUCCESS) in roughly the time one of them takes alone.
+
+A `pycsl.py --provers` run already fans out over goals, so N concurrent runs is N× oversubscription
+of a pool that is already saturated. And a stalled proof is indistinguishable from a slow one from
+the outside, which is exactly the state a supervisor cannot read.
+
+**The rule.** One whole-file proof at a time, waited on inside your own turn. If a bundle needs
+four, that is four sequential runs — budget ~15 minutes each and say so in the progress log.
+
+## Lesson (aj) — a §10.4 re-port refused once is worth RE-COSTING once the same blocker reappears
+
+Increment 8 refused `power` because it needed two live-emitter pieces whose mirrors are
+un-trusted: fidelity measured 4 DIVERGED and the price was two first-ever whole-file mirror
+re-proofs. That was the right call *at the time* — the yield was one marker.
+
+Two increments later the SAME two pieces were blocking `power`, `_subscript`, `_binop`,
+`atom_paren`, `strings`, `_fstring`, `_dict_rest` and both comprehension targets. The price had
+not changed; the YIELD had. Measuring the two baselines first (`types.py` 631 Valid,
+`statements.py` 871 Valid, both clean, ~15 min each) turned an unknown into a budget, and both
+re-ported mirrors then proved STRONGER than their baselines (655 and 883) rather than needing any
+repair.
+
+**The rule.** Record a cost-refused item with its EXACT price and its exact two pieces, not just
+"too expensive". When the same pieces show up blocking a third and fourth item, re-cost — and
+measure the baseline proof of the mirror you would have to re-port BEFORE deciding, because
+"unmeasured whole-file re-proof" reads as infinite and is usually fifteen minutes.
