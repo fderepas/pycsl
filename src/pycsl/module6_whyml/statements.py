@@ -1804,8 +1804,30 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         # `seq_value_types` only ever tracks "string". Read ONLY by the
                         # @mutable_state-gated `_bind_listfield_from_seq`; write-only here,
                         # so the emitted text is unchanged.
-                        if (arg.strip().startswith("(Ir")
-                                and hasattr(self, "_emit_ir_seq_locals")):
+                        _elt_is_ir = arg.strip().startswith("(Ir")
+                        if not _elt_is_ir:
+                            # CLASS-BY-NAME FACTORY vein: the appended value is not always
+                            # a literal ADT ctor application. `ifs.append(self.or_test_no_cond())`
+                            # appends the RESULT OF A CALL whose declared return is an
+                            # IR-node tag (`-> "ExprIR"`), which lowers to `emit_ir` exactly
+                            # like a ctor application does. Without this the seq's element
+                            # type stays unknown, `_bind_listfield_from_seq` refuses, and the
+                            # record's list field silently falls back to `Array.make 0 0` —
+                            # a DROPPED-CHILD FACADE (the caller's list is thrown away and it
+                            # still type-checks). Resolved off the callee's OWN function IR,
+                            # so a callee with any other return type is unaffected.
+                            _av = val["args"][0]
+                            _av = _av.to_dict() if hasattr(_av, "to_dict") else _av
+                            if isinstance(_av, dict) and _av.get("type") in ("Call", "MethodCall"):
+                                _cf = str(_av.get("func", "") or "")
+                                _cn = _cf.rsplit(".", 1)[-1]
+                                for _f in (self.ir.get("functions", []) or []):
+                                    if (str(_f.get("name", "")).endswith(_cn)
+                                            and _f.get("return_annotation") in (
+                                                "ExprIR", "StmtIR", "IRNode", "ContractExprIR")):
+                                        _elt_is_ir = True
+                                        break
+                        if _elt_is_ir and hasattr(self, "_emit_ir_seq_locals"):
                             self._emit_ir_seq_locals.add(arr_name)
                         code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
                     else:

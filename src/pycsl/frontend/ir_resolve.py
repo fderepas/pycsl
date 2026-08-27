@@ -248,6 +248,13 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # ('body',), ())`, no `_OPTIONAL_FIELDS` entry), the expression tree itself, so it
     # is tagged "ExprIR" exactly like BinOp's children.
     "Expression": [("body", "ExprIR")],
+    # CLASS-BY-NAME FACTORY vein: `comprehension` is the `for`-clause of a comp/genexp —
+    # `_NODE_SPEC['comprehension'] == ('AST', ('target','iter','ifs','is_async'), ())`, four
+    # TOTAL fields (no `_OPTIONAL_FIELDS` entry). `target`/`iter` are expr children;
+    # `ifs` is a LIST of expr children (the "ExprIRList" tag -> `array emit_ir`);
+    # `is_async` is the 0/1 flag the live `comp_for` body sets literally.
+    "comprehension": [("target", "ExprIR"), ("iter", "ExprIR"),
+                      ("ifs", "ExprIRList"), ("is_async", "int")],
     # non-list _py_expr_* batch (tier 1): UnaryOp's 2 fields (`op`, `operand`)
     # are total (no `_OPTIONAL_FIELDS` entry) — `op` tagged "int" like BinOp's
     # (read only through the trusted `_py_op_to_str` dispatcher), `operand`

@@ -916,11 +916,20 @@ class _Parser:
     def lambdef(self):
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
+    # precedents). STAYS \trusted. `-> "ExprIR"` records that the result IS an expression
+    # node (`emit_ir`), so it can be bound into a harvested record's expr child instead of
+    # an opaque int. `ensures self.i >= \old(self.i)` is a TRUSTED-INTERFACE claim backed by
+    # the live body: every `_Parser` descent moves the cursor only through `advance` /
+    # `accept_*` / `expect_*`, none of which decreases `self.i`. A caller's cursor-measure
+    # loop needs it from EVERY call in its body, not just from the guard (relaunch #4's
+    # measured lesson on `_name_str`).
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def or_test(self):
+    def or_test(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1064,25 +1073,73 @@ class _Parser:
     def _dict_rest(self, t, first_key):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CLASS-BY-NAME FACTORY vein, increment 3: CONVERTED. Verbatim body port of the LIVE
+    # `comp_for`. Both cursor-measure loops discharge (the outer through `expect_kw`'s new
+    # UNCONDITIONAL strict progress, the inner through `at_kw` + `advance`), the `ifs`
+    # accumulator really carries the parsed conditions into the record's list field, and the
+    # returned `List[comprehension]` is the harvested record list.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def comp_for(self):
+    def comp_for(self) -> "List[comprehension]":
+        gens = []
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_kw("for") or (self.at_kw("async") and self.peek(1).string == "for"):
+            is_async = 0
+            if self.at_kw("async"):
+                self.advance(); is_async = 1
+            self.expect_kw("for")
+            target = self._comp_target()
+            self.expect_kw("in")
+            it = self.or_test()
+            ifs = []
+            # The OUTER loop's variant needs to know the INNER loop does not move the cursor
+            # BACKWARDS. `assigns self.i` alone permits it to, and without this the outer
+            # `loop variant decrease` is Unknown even though the body's `expect_kw("for")`
+            # has already advanced strictly (measured). A GHOST snapshot is the right tool:
+            # it is an ANNOTATION, so the mirror body stays byte-identical to the live body
+            # and the fidelity plane is untouched.
+            #@ ghost i_before = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i_before
+            #@ loop variant \length(self.toks) - self.i
+            while self.at_kw("if"):
+                self.advance()
+                ifs.append(self.or_test_no_cond())
+            gens.append(_N("comprehension")(target=target, iter=it, ifs=ifs, is_async=is_async))
+        return gens
+
+    # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
+    # precedents). STAYS \trusted. `-> "ExprIR"` records that the result IS an expression
+    # node (`emit_ir`), so it can be bound into a harvested record's expr child instead of
+    # an opaque int. `ensures self.i >= \old(self.i)` is a TRUSTED-INTERFACE claim backed by
+    # the live body: every `_Parser` descent moves the cursor only through `advance` /
+    # `accept_*` / `expect_*`, none of which decreases `self.i`. A caller's cursor-measure
+    # loop needs it from EVERY call in its body, not just from the guard (relaunch #4's
+    # measured lesson on `_name_str`).
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def or_test_no_cond(self) -> "ExprIR":
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
+    # precedents). STAYS \trusted. `-> "ExprIR"` records that the result IS an expression
+    # node (`emit_ir`), so it can be bound into a harvested record's expr child instead of
+    # an opaque int. `ensures self.i >= \old(self.i)` is a TRUSTED-INTERFACE claim backed by
+    # the live body: every `_Parser` descent moves the cursor only through `advance` /
+    # `accept_*` / `expect_*`, none of which decreases `self.i`. A caller's cursor-measure
+    # loop needs it from EVERY call in its body, not just from the guard (relaunch #4's
+    # measured lesson on `_name_str`).
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def or_test_no_cond(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns self.i
-    def _comp_target(self):
+    def _comp_target(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate

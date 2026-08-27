@@ -8990,7 +8990,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _bind_listfield_from_seq(self, rec_info: Dict[str, Any], fn: str,
                                  ent: Dict[str, Any],
-                                 arg_nodes: Dict[str, Any]) -> Optional[str]:
+                                 arg_nodes: Dict[str, Any],
+                                 rec_name: str = "") -> Optional[str]:
         """tierA-listfield-impl.md: bind a LIST-valued record field from the list the
         construction site actually supplied, instead of the typed-default
         `Array.make 0 0` — which SILENTLY DROPS the caller's list (a facade hazard: a
@@ -9054,6 +9055,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return None
         elif getattr(self, "_seq_value_types", {}).get(lname) != "string":
             return None
+        if rec_name in getattr(self, "_list_element_record_types", set()):
+            # PINNED (`List[<record>]`-element) record: its list field is emitted as the
+            # PURE `seq <elem>` (see preamble `_emit_type_decls`), which is EXACTLY the
+            # shape the seq local already has — bind it directly, no `Init.init`
+            # seq->array reconciliation and no `array.Init` import.
+            return raw
         self._needs_array_init = True
         # The `seq` is let-bound to a PURE value first: `Init.init`'s second argument
         # is a pure `int -> 'a`, and a `!ref` deref inside the lambda body is stateful
@@ -9095,6 +9102,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # captured int (fallback 0).
             ft = field_types.get(fn, "int")
             if ft in ("list", "array"):
+                if func_name in getattr(self, "_list_element_record_types", set()):
+                    # PINNED record: the list field is the pure `seq <elem>` (preamble
+                    # `_emit_type_decls`), so its type-correct empty default is `Seq.empty`,
+                    # not an `Array.make`.
+                    return "Seq.empty"
                 return f"(Array.make {rec_info['defaults'].get(fn, 0)} 0)"
             if ft in ("dict", "set", "frozenset"):
                 return "(const (None: option int))"
@@ -9155,7 +9167,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # (tierA-listfield-impl.md), which binds the caller's ACTUAL list instead
                 # of fabricating the empty `Array.make 0 0` (a DROPPED-child facade).
                 if field_types.get(fn, "int") in ("list", "array", "dict", "set", "frozenset"):
-                    _lv = self._bind_listfield_from_seq(rec_info, fn, ent, arg_nodes)
+                    _lv = self._bind_listfield_from_seq(rec_info, fn, ent, arg_nodes,
+                                                        func_name)
                     if _lv is not None:
                         init_map[fn] = _lv
                     continue

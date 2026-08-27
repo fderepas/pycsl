@@ -2731,3 +2731,23 @@ And a second measurement from the same move: declaring the bridge off the RETURN
 byte-diff-0 — corpus driver `0839` returns `List[Point]` built from a list LITERAL and never calls
 the bridge, so it got an unused `val`. The trigger has to be the EMITTED BODY actually naming it.
 **"Which functions have this type" is a different set from "which functions emit this call".**
+
+## Lesson (xx) — an inner loop's `assigns` says nothing about DIRECTION; give it a GHOST snapshot, not a real local
+
+`comp_for`'s OUTER cursor-measure loop failed `loop variant decrease` even though its body calls
+`expect_kw("for")`, which now exports an UNCONDITIONAL `ensures self.i > \old(self.i)`. The gap was
+the INNER `while self.at_kw("if")` loop that runs afterwards: `assigns self.i` permits it to move
+the cursor BACKWARDS as far as the prover is concerned, so the net effect of the outer body was
+unknown. This is the (relaunch #4) `_name_str` lesson one level up — *a cursor-measure loop needs
+monotonicity from every call in its body* — and a nested LOOP is one of those "calls".
+
+The fix has to name the cursor's value at the inner loop's entry, and the obvious way (a real
+local `i_before = self.i`) would put a statement in the mirror body that is NOT in the live body
+and **break the fidelity plane**. `#@ ghost i_before = self.i` is the right tool precisely because
+it is an ANNOTATION: the mirror body stays byte-identical to the live body, the sync gate is
+untouched, and the emission is a real `let ghost i_before = ref self.i` that the inner loop's
+`invariant { self.i >= !i_before }` then closes. 316 -> 363 Valid, 0 non-Valid.
+
+**The rule.** When a proof needs to refer to a value the source does not name, reach for `#@ ghost`
+BEFORE reaching for a new local. In this campaign a mirror-only local is a fidelity failure; a
+mirror-only ghost is free.
