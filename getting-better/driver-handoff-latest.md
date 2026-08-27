@@ -96,12 +96,28 @@ cores and ALL FOUR stalled for 17 minutes.
      `irlist`, or accept the op names as an `irlist` of `IrStr`, which is lossless but muddies
      `kind_of`; prefer `strlist`).
 
-2. **`statement` is blocked on ONE named piece**: `self.funcdef([], async_=False)` passes an EMPTY
-   LIST LITERAL to a param the model int-erases (`decorators: Any`), and `(Array.make 1024 0)`
-   ill-types against the abstract val's `int` param. Fix in `_coerce_dotted_args` (whose caller
-   `_handle_dotted_call` is `\trusted`): an empty array literal against an `int` param lowers to
-   `0`. Everything else in `statement` already emits correctly. Yield: `statement`, and then
-   `parse_module` above it.
+2. **`statement` — THREE of four blockers are solved and written down; the fourth is where I
+   stopped.** Re-apply 1-3 as ONE batch (all in `\trusted` mirrors, so free), then solve 4.
+   1. Exclude the EMPTY-LIST placeholder `(Array.make 1024 0)` from `_handle_dotted_call`'s
+      array-shape param inference. It is the emitter's stand-in for "no elements", not evidence
+      the callee takes an array, and inferring `array int` from it collides with the val's
+      ALREADY-EMITTED `int` param (first `_add_abstract_op` text wins). Then add an
+      `arg == "(Array.make 1024 0)" -> "0"` case to `_coerce_dotted_args`'s `ptype == "int"` arm.
+   2. Fill unbound keyword slots from the callee's positional DEFAULTS
+      (`_module_method_param_defaults`) in the increment-13 keyword binder, else
+      `funcdef([], async_=False)` stays the PARTIAL `(_parser__funcdef self 0)` of type
+      `int -> int -> emit_ir`.
+   3. Give `_looks_like_match` a `-> bool` interface.
+   4. **NEW MEASURED FINDING — solve this first, it is not what it looks like.** A `\trusted`
+      stub annotated `-> bool` still emits `val ... : unit`. Adding the obvious
+      `ann == "bool" and return_type == "unit" and func.get("trusted")` disjunct to
+      `_compute_return_type` — an EXACT copy of the `-> str` disjunct that DOES work — did not
+      change the emission. So a trusted stub's `val` return type is NOT decided by
+      `_compute_return_type` alone on this path. Find the real decision point BEFORE re-attempting:
+      start at `functions._emit_function`'s trusted-val branch, and note the CALL SITE type comes
+      separately from `_build_method_return_type_map` (which has an `ann == "str"` disjunct and no
+      `bool` one). Yield once solved: `statement`, then `parse_module`, plus every other predicate
+      stub (`_with_parenthesized`, `_line_ends_with_colon`, `_self_test`).
 
 3. **`block` / `small_stmt` need the STATEMENT half of the ctor family.** `small_stmt`'s eleven
    passthroughs return `Return`/`Raise`/`Import`/`ImportFrom`/`Assert`, which earlier windows
