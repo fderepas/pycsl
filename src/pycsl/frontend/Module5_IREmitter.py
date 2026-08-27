@@ -3020,6 +3020,54 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 out[target] = members
         return out
 
+    def _collect_class_type_str_constants(self, node: ast.ClassDef,
+                                          field_names: Set[str]
+                                          ) -> Dict[str, List[List[str]]]:
+        """L2 dispatch-expansion: collect class-body TYPE-KEYED STRING tables — a
+        top-level `Name = {<mod>.<Cls>: "<str>", ...}` (optionally annotated
+        `Dict[type, str]`) whose every key is a dotted attribute naming a class and every
+        value is a string literal. `_PY_OP_MAP` is the motivating one (26 entries).
+
+        Returns `{name: [[<Cls>, <value>], ...]}` IN SOURCE ORDER — the order matters,
+        because Module 6 lowers `self.<CONST>.get(type(x), <default>)` to a nested
+        if-chain of type-tag tests and a Python dict's first matching key wins.
+
+        Why this must reach Module 6 at all: without it the whole `.get` collapses to one
+        opaque `val self__<CONST>_get_2 (x0: int) (x1: int) : int` — a lookup that is
+        int-typed (so it cannot even feed a `str` return) AND invariant under the table's
+        contents, i.e. a facade of exactly the kind the campaign exists to remove. With
+        the table in hand the lookup becomes a finite chain of tag tests over the REAL
+        entries, and only the type-tag extraction stays uninterpreted.
+
+        Names already used as instance fields are skipped. Empty for every class without
+        such a table -> additive, byte-inert."""
+        out: Dict[str, List[List[str]]] = {}
+        for child in node.body:
+            target: Optional[str] = None
+            value: Optional[ast.expr] = None
+            if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                    and isinstance(child.targets[0], ast.Name)):
+                target = child.targets[0].id
+                value = child.value
+            elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+                target = child.target.id
+                value = child.value
+            if target is None or value is None or target in field_names:
+                continue
+            if not isinstance(value, ast.Dict):
+                continue
+            entries: List[List[str]] = []
+            ok = bool(value.keys)
+            for k, v in zip(value.keys, value.values):
+                if not (isinstance(k, ast.Attribute) and isinstance(k.value, ast.Name)
+                        and isinstance(v, ast.Constant) and isinstance(v.value, str)):
+                    ok = False
+                    break
+                entries.append([k.attr, v.value])
+            if ok and entries:
+                out[target] = entries
+        return out
+
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Collect fields from __init__, extract class invariants, record base
         classes, and emit a type_decl record.
@@ -3141,6 +3189,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if _class_ssc:
             self.program_ir.setdefault("class_str_set_constants", {})[node.name] = {
                 k: list(v) for k, v in _class_ssc.items()}
+        # L2 dispatch-expansion: the TYPE-KEYED STRING table (`_PY_OP_MAP`) travels by the
+        # same program-level, class-name-keyed registry, for the same reason — the class
+        # holding it may have no instance fields and so never become a record type_decl.
+        # Additive: absent for every class without such a table -> byte-identical.
+        _class_tsc = self._collect_class_type_str_constants(
+            node, {f["name"] for f in fields})
+        if _class_tsc:
+            self.program_ir.setdefault("class_type_str_constants", {})[node.name] = {
+                k: [list(e) for e in v] for k, v in _class_tsc.items()}
         if fields or bases:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]

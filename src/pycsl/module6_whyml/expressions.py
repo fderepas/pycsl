@@ -5915,6 +5915,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         func_name = expr["func"]
+        # L2 DISPATCH-EXPANSION: `self.<CONST>.get(type(x), "<default>")` over a class-body
+        # TYPE-KEYED STRING table. MUST be tried before the `"." in func_name` dotted-call
+        # dispatch further down, which otherwise collapses the whole lookup into one
+        # opaque int-returning val. Fail-closed -> everything else is byte-identical.
+        _tsg = self._class_type_str_table_get(expr, local_refs, invariant_ctx, subst)
+        if _tsg is not None:
+            return _tsg
         # stmt-list-append-mutation wall (C-bucket): `<stmt_ir>.get("stmt")` reflects the
         # statement node's TAG via `stmt_kind_of` — the read-back that OBSERVES the
         # appended node's identity (the non-vacuity gate). Fires only for a subscript of a
@@ -8669,6 +8676,84 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return None
             parts.append(bound[f])
         return f"({cname} {' '.join(parts)})"
+
+    def _class_type_str_table_get(self, expr: Dict[str, Any], local_refs: Set[str],
+                                  invariant_ctx: bool,
+                                  subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """L2 DISPATCH-EXPANSION: lower `self.<CONST>.get(type(x), "<default>")` over a
+        class-body TYPE-KEYED STRING table (`_PY_OP_MAP`, 26 entries) to the finite chain
+        of type-tag tests the table actually denotes:
+
+            (if str_eq_op (py_type_name_of x) "Add" then "+"
+             else if str_eq_op (py_type_name_of x) "Sub" then "-"
+             else … else "?")
+
+        WHAT THIS REPLACES, and why it is a real TCB reduction rather than a reshuffle.
+        Today the whole expression collapses to ONE opaque
+        `val self__PY_OP_MAP_get_2 (x0: int) (x1: int) : int` — a lookup that is
+        int-typed (so it cannot even feed the method's `-> str` return; measured as
+        `has type int, but is expected to have type string`) AND completely invariant
+        under the table's contents. Both the type extraction AND the table are assumed.
+        After this, ONLY the type extraction is assumed: `py_type_name_of` is a total
+        uninterpreted `val` naming the runtime class of a node — the same synthetic
+        `_type` tag-test device already sanctioned for `_extract_ast_subscript`
+        ("Ledger 3 (reuses pyval)", functions.py). The TABLE becomes concrete, so the
+        result is now provably one of the table's actual values, and a caller that knows
+        the tag knows the answer. NO axiom, NO certificate, ledger unchanged.
+
+        ORDER IS LOAD-BEARING and is preserved from the source: a Python dict lookup
+        takes the FIRST matching key, and duplicate VALUES do occur in the real table
+        (`ast.Is: "=="` alongside `ast.Eq: "=="`), so the chain must be emitted in
+        source order. Module 5 records the entries as an ordered list for exactly this.
+
+        FAIL-CLOSED: requires a `self.<CONST>.get` whose `<CONST>` is a collected
+        type-keyed table of the CURRENT class, exactly two actuals, the first a literal
+        `type(<e>)` call and the second a STRING literal. Anything else returns None and
+        keeps the existing opaque path."""
+        fn = expr.get("func")
+        if not (isinstance(fn, str) and fn.startswith("self.") and fn.endswith(".get")):
+            return None
+        const = fn[len("self."):-len(".get")]
+        if "." in const or not const:
+            return None
+        _reg = (getattr(self, "ir", None) or {}).get("class_type_str_constants") or {}
+        _cls = getattr(self, "_current_self_type", None)
+        tbl = None
+        for _cn, _tables in _reg.items():
+            # `_current_self_type` is the FULLY-lowercased class name
+            # (`pycsltojsonemitter`), while `whyml_ident` only lowers the first character
+            # (`pyCSLToJSONEmitter`) — comparing through `whyml_ident` alone silently never
+            # matches. Accept either spelling.
+            if const in _tables and _cls in (whyml_ident(_cn), str(_cn).lower()):
+                tbl = _tables[const]
+                break
+        if not tbl:
+            return None
+        args_ir = expr.get("args") or []
+        if len(args_ir) != 2:
+            return None
+        a0, a1 = args_ir
+        if not (isinstance(a0, dict) and a0.get("type") == "Call"
+                and a0.get("func") == "type" and len(a0.get("args") or []) == 1):
+            return None
+        if not (isinstance(a1, dict) and a1.get("type") == "String"
+                and isinstance(a1.get("value"), str)):
+            return None
+        subj = self._coerce_to_int(
+            self._expr_to_whyml(a0["args"][0], local_refs, invariant_ctx, subst))
+        self._add_abstract_op("val py_type_name_of (x: int) : string")
+        self._add_abstract_op(
+            "val str_eq_op (a: string) (b: string) : bool\n"
+            "    ensures { result <-> (a = b) }")
+        out = whyml_string_literal(a1["value"])
+        for ent in reversed(tbl):
+            if not (isinstance(ent, (list, tuple)) and len(ent) == 2):
+                return None
+            _k, _v = ent
+            out = (f"(if str_eq_op (py_type_name_of {subj}) "
+                   f"{whyml_string_literal(str(_k))} "
+                   f"then {whyml_string_literal(str(_v))} else {out})")
+        return out
 
     def _call_term_constructor(self, args: List[str], func_name: str,
                                kwargs_map: Optional[Dict[str, str]] = None,
