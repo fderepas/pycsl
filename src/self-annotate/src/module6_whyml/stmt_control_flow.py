@@ -1256,6 +1256,29 @@ class ControlFlowStmtMixin:
                 else:
                     seq_val = self._seq_init_expr(val_ir, local_refs)
                 return f"{indent}raise (Return_seq_str {seq_val})"
+            if func_ret == "array emit_ir":
+                # THE STATEMENT-LIST CARRIER: an `array emit_ir` return travels as an
+                # immutable `seq emit_ir` through `Return_seq_ir`; the catch materializes
+                # it back. An empty-list return (`return []`) carries `Seq.empty`, which is
+                # the FAITHFUL empty statement list — not a dropped child.
+                if val_ir is None:
+                    seq_val = "Seq.empty"
+                elif (val_ir.get("type") == "Var"
+                      and val_ir.get("name") in getattr(self, "_seq_locals", set())):
+                    seq_val = f"!{whyml_ident(val_ir['name'])}"
+                elif (isinstance(val_ir, dict)
+                      and val_ir.get("type") in ("ArrayLit", "ListLit")
+                      and not val_ir.get("elts")):
+                    seq_val = "Seq.empty"
+                else:
+                    # `_seq_init_expr`, NOT `_seq_operand` — matching the two sibling arms
+                    # exactly. Measured (lesson (ww)): `_seq_operand` is not modelled in
+                    # this method's own MIRROR, so calling it introduced an abstract
+                    # `self__seq_operand_2 (x0: emit_ir) (x1: int) : int` whose int return
+                    # ill-typed against the string being built — a clean-looking byte diff
+                    # that failed L3-tc.
+                    seq_val = self._seq_init_expr(val_ir, local_refs)
+                return f"{indent}raise (Return_seq_ir {seq_val})"
             if func_ret == "string":
                 # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
                 # return raises `Return_str <string>` (caught by the `with Return_str r -> r`

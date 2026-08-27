@@ -458,18 +458,38 @@ class _Parser:
     def type_alias_stmt(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `simple_stmt` —
+    # the `;`-separated small-statement list. The accumulator carries REAL statement nodes
+    # and the tail return crosses the seq->array boundary faithfully.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def simple_stmt(self):
-        pass
+    def simple_stmt(self) -> "List[ExprIR]":
+        stmts = [self.small_stmt()]
+        #@ ghost i11 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i11
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(";"):
+            if self.cur().type == _tokenize.NEWLINE:
+                break
+            stmts.append(self.small_stmt())
+        if self.cur().type == _tokenize.NEWLINE:
+            self.advance()
+        return stmts
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted — its eleven passthroughs
+    # return `Return`/`Raise`/`Import`/`ImportFrom`/`Assert`, which earlier windows
+    # converted as PER-CLASS RECORDS; typing it needs the statement half of the ctor
+    # family (migrating those five from records to emit_ir arms). Consumed by
+    # `simple_stmt`.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def small_stmt(self):
+    def small_stmt(self) -> "ExprIR":
         pass
 
     # `_fin` RECOGNIZER vein, increment 5: CONVERTED. Verbatim body port of the LIVE
@@ -805,15 +825,28 @@ class _Parser:
         orelse = self._if_tail()
         return self._fin_block(_N("If")(test=test, body=body, orelse=orelse), t)
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted. `-> "List[ExprIR]"`
-    # records that the result is a LIST OF STATEMENT NODES (`array emit_ir`).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `_if_tail` — the
+    # `elif` chain. RECURSIVE (`self._if_tail()`), so it emits `let rec` and takes the
+    # cursor measure; the recursive call sits after `expect_op(":")`, whose UNCONDITIONAL
+    # strict-progress clause discharges the decrease. All three arms travel through
+    # `Return_seq_ir`.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ \variant \length(self.toks) - self.i
     #@ assigns self.i
     def _if_tail(self) -> "List[ExprIR]":
-        pass
+        if self.at_kw("elif"):
+            t = self.advance()
+            test = self.namedexpr_test()
+            self.expect_op(":")
+            body = self.block()
+            orelse = self._if_tail()
+            return [self._fin_block(_N("If")(test=test, body=body, orelse=orelse), t)]
+        if self.at_kw("else"):
+            self.advance(); self.expect_op(":")
+            return self.block()
+        return []
 
     # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `while_stmt`.
     #@ requires True
@@ -828,14 +861,19 @@ class _Parser:
         orelse = self._else_block()
         return self._fin_block(_N("While")(test=test, body=body, orelse=orelse), t)
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `_else_block`.
+    # Both arms travel through the new `Return_seq_ir (Seq.seq emit_ir)` carrier — the
+    # `else:` arm returns the block's REAL statement list, the fall-through returns a
+    # genuinely EMPTY one (`Seq.empty`), not a dropped child.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _else_block(self) -> "List[ExprIR]":
-        pass
+        if self.at_kw("else"):
+            self.advance(); self.expect_op(":")
+            return self.block()
+        return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -1850,6 +1850,7 @@ class PreambleEmissionMixin:
         needs_return_void = False
         needs_return_seq = False
         needs_return_seq_str = False
+        needs_return_seq_ir = False
         needs_return_str = False
         needs_return_emit_ir = False
         tuple_return_arities: Set[int] = set()
@@ -1930,6 +1931,16 @@ class PreambleEmissionMixin:
                     if (self._func_returns_string_seq(func)
                             or func.get("return_value_type") == "string"):
                         needs_return_seq_str = True
+                    # THE STATEMENT-LIST CARRIER (pyast ctor family): a `-> "List[ExprIR]"`
+                    # method (`_else_block`, `_if_tail`, `statement`, `simple_stmt`,
+                    # `block`) returns `array emit_ir`, and an early/in-loop return of one
+                    # has no carrier — the int `exception Return` mistypes it. Same shape
+                    # as the two arms above: Why3 forbids a MUTABLE array exception
+                    # payload, so the value travels as an immutable `seq emit_ir` and the
+                    # catch materializes it back. Keyed on the `emit_ir` element that
+                    # `ir_resolve` sets only for that annotation -> corpus byte-inert.
+                    if func.get("return_value_type") == "emit_ir":
+                        needs_return_seq_ir = True
                 elif ret_type == "string" or ann == "str":
                     # 10-1732-gap Gap 1: a faithful `string`-returning function with an
                     # early/in-loop return carries a `string` payload — the generic
@@ -3044,6 +3055,7 @@ class PreambleEmissionMixin:
             "needs_return_exc": needs_return_exc,
             "needs_return_seq": needs_return_seq,
             "needs_return_seq_str": needs_return_seq_str,
+            "needs_return_seq_ir": needs_return_seq_ir,
             "needs_return_str": needs_return_str,
             "needs_return_emit_ir": needs_return_emit_ir,
             "needs_return_void": needs_return_void,
@@ -3264,6 +3276,11 @@ class PreambleEmissionMixin:
             # exception (the catch materializes the `seq string` to `array string`).
             out.append("")
             out.append("  exception Return_seq_str (Seq.seq string)")
+        # NOTE: `Return_seq_ir (Seq.seq emit_ir)` is NOT declared here. `emit_ir` is not
+        # in scope until the ADT theory further down, so — like the emit_ir-slot
+        # opttuple exceptions and `Return_emit_ir` itself — it is DEFERRED and appended to
+        # the exprir theory by the transpiler. Declaring it in this top-of-module block
+        # emits `unbound type symbol 'emit_ir'` (measured).
         if needs.get("needs_return_str"):
             # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
             # return carries an immutable `string` payload (parallel to Return_seq).

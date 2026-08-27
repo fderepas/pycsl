@@ -640,6 +640,14 @@ class Module6_WhyMLTranspiler(
             for _pt in sorted(needs.get("pyconst_val_tuple_return_types", set())):
                 _psuffix = _pt.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
                 _exprir_suffix += ["", f"  exception Return_tup_{_psuffix} {_pt}"]
+            # THE STATEMENT-LIST CARRIER (pyast ctor family): a `-> "List[ExprIR]"` method
+            # returns `array emit_ir`, and an early/in-loop return of one travels as an
+            # immutable `seq emit_ir` (Why3 forbids a mutable array exception payload).
+            # DEFERRED here for the same reason as the emit_ir-slot opttuples above:
+            # `emit_ir` is not in scope in the top-of-module exception block, and declaring
+            # it there emits `unbound type symbol 'emit_ir'` (measured).
+            if needs.get("needs_return_seq_ir"):
+                _exprir_suffix += ["", "  exception Return_seq_ir (Seq.seq emit_ir)"]
 
             if _is_opaque_tailored:
                 # self-tcb-reduction (opaque-mirror accessor restore): an opaque-tailored

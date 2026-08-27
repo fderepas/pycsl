@@ -1366,6 +1366,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # string back to `array string` (the string analogue of the `array int` arm).
             self._materialize_str_bridge()
             return f"    try\n{body_code}\n    with Return_seq_str s -> materialize_str s end"
+        if return_type == "array emit_ir":
+            # THE STATEMENT-LIST CARRIER: the emit_ir twin of the two arms above. The
+            # payload is an immutable `seq emit_ir` (Why3 forbids a mutable array exception
+            # payload) and `materialize_ir` brings it back to `array emit_ir` at the single
+            # result-slot boundary — a fresh result pinned POINTWISE, so nothing is erased.
+            # Reuses the SAME name the generic per-element-type return bridge already
+            # emits for a `-> List[<elem>]` TAIL return (`materialize_<elem>`, here
+            # `materialize_emit_ir`) — identical declaration text, so `_add_abstract_op`
+            # dedups and the file carries ONE bridge rather than two synonyms.
+            self._add_abstract_op(
+                "val materialize_emit_ir (s: seq emit_ir) : array emit_ir\n"
+                "    ensures { Array.length result = Seq.length s }\n"
+                "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
+            return (f"    try\n{body_code}\n"
+                    f"    with Return_seq_ir s -> materialize_emit_ir s end")
         if return_type == "string":
             # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
             # return raises `Return_str <string>`; the catch hands the payload straight
