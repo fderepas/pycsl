@@ -11078,7 +11078,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # In a pre/post-condition a seq-promoted *param* names the original `array int`
             # entry value (the body seq shadow is out of scope), so fall through to
             # `Array.length` there.
-            if var in getattr(self, "_seq_locals", set()) and not self._in_spec:
+            # ...or inside a LOOP invariant/variant, where the body's local scope IS live
+            # (`_in_loop_spec`, set by `_handle_for_stmt`/`_handle_while_stmt`). Excluding
+            # loop clauses emitted `Array.length` on a `seq` — a LOUD type error, which is
+            # exactly what blocked writing a termination variant for a `for`-over-list
+            # conversion whose accumulator is seq-promoted.
+            if var in getattr(self, "_seq_locals", set()) and (
+                    not self._in_spec or getattr(self, "_in_loop_spec", False)):
                 deref = "!" if var in local_refs else ""
                 return f"(Seq.length {deref}{whyml_ident(var)})"
             if var == "\\result":

@@ -1130,6 +1130,13 @@ class ControlFlowStmtMixin:
         inv_subst = {target: idx} if is_range else None
         inv_refs = local_refs | {idx}
         self._in_spec = True
+        # A LOOP invariant/variant is a spec context, but unlike a function pre/post the
+        # BODY's local scope is live inside it: a seq-promoted LOCAL's shadow is in scope,
+        # so `\length(<seq local>)` must be `Seq.length`, not `Array.length`. Without this
+        # flag `_handle_arraylen_expr`'s `not self._in_spec` guard excludes loop clauses and
+        # emits `Array.length` on a `seq` — a LOUD type error, never a silent wrong value,
+        # which is why no currently-green file can depend on the old behaviour.
+        self._in_loop_spec = True
         invariants_f = stmt.invariants
         n_inv_f = len(invariants_f)
         i_inv_f = 0
@@ -1153,6 +1160,7 @@ class ControlFlowStmtMixin:
             while_parts.append(f"{inner_indent}variant {{ {var_str} }}")
             i_var_f += 1
         self._in_spec = False
+        self._in_loop_spec = False
 
         def _bind_lines(bind_indent: str) -> List[str]:
             # W2 tuple char-iteration binds BOTH the index (i := the counter) and

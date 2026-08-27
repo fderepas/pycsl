@@ -5062,3 +5062,50 @@ artifact now carry the real `emit_ir` child.
 
 Residual field-parity drift: **7**, all deliberate int-erasures of class-level constant tables,
 itemized BY NAME in the gate so the list can only shrink.
+
+## `for`-OVER-ARRAY HAS NO TERMINATION VARIANT, AND THE SOURCE CANNOT SUPPLY ONE — measured 2026-08-27
+
+Chased end-to-end on `Module2_Parser.parse_node_contracts`, the one near-miss the whole-mirror
+sweep left (its ONLY marker was "while without a variant"). The emitted body is otherwise
+excellent: it iterates the real `array string`, calls the CONCRETE sibling
+`module2_parser__parse_contract` (not an abstract val), snocs each result and materializes —
+length and per-element identity are both real content.
+
+**THE WALL, precisely.** `_handle_for_stmt` emits the arithmetic `invariant { 0 <= !idx }` +
+`variant { <len> - !idx }` in exactly two cases: when a recognizer set
+`_pyast_loop_variant_len`, or when the enclosing class is `@mutable_state`. A plain
+`for x in <array param>` in a NON-`@mutable_state` class gets neither, so the loop has no
+variant and the proof fails on `loop variant decrease` + `index in array bounds` (measured:
+715 Valid, 2 Unknown, 2 Timeout).
+
+**AND THE SOURCE CANNOT FIX IT.** A user-written `#@ loop variant` cannot reference the loop
+counter, because the counter (`_idx_<target>`) is EMITTER-INTERNAL and has no source name. The
+best available surrogate — `\length(raw_contracts) - \length(parsed_nodes)` over the
+accumulator — type-checks after the fix below but does NOT prove: nothing relates
+`Seq.length parsed_nodes` to the counter, so neither decrease nor the array bound follows.
+**This is a capability gap, not an annotation gap; do not send another window to write
+invariants for it.**
+
+> **NAMED CAPABILITY: emit the arithmetic index invariant/variant for a `for`-over-array whose
+> bound is already a pure LOGIC length term** (`Array.length …` / `Seq.length …` — both legal
+> in a `variant` clause; the machinery is the existing `_pyast_loop_variant_len` channel).
+> THE OBSTACLE IS THE BYTE-DIFF, NOT THE LOGIC: corpus drivers are mostly plain functions with
+> no `self_type`, so they are not `@mutable_state` and currently get NO invariant/variant —
+> turning this on unconditionally re-emits hundreds of corpus files. It therefore needs an
+> opt-in gate. The cleanest is a new `#@` surface (e.g. `#@ loop variant \auto`), which brings
+> the full doc-coherency + language-audit obligation with it; that is the build.
+
+### LANDED WITH IT: a latent `Array.length`-on-a-`seq` defect in loop clauses (byte-inert)
+
+Found while chasing the above. `_handle_arraylen_expr` maps `\length(<seq-promoted local>)` to
+`Seq.length` only when `not self._in_spec`, to keep a seq-promoted PARAM in a function pre/post
+naming its original `array` entry value. But a LOOP invariant/variant is also `_in_spec`, and
+there the body's local scope IS live — so `\length(<seq local>)` in a loop clause emitted
+`Array.length` applied to a `seq`. Fixed with a narrow `_in_loop_spec` flag set only around the
+loop-clause lowering.
+
+NO CONSUMER TODAY, and deliberately landed anyway as a latent-defect fix (the precedent is the
+four latent emitter defects fixed in the L13 window): the old behaviour is a LOUD Why3 type
+error, never a silent wrong value, so no currently-green file can depend on it — and the sweep
+confirms it: **mirror emission diff 0 of 52, corpus byte-diff 0 of 813.** It is a prerequisite
+for the capability above.

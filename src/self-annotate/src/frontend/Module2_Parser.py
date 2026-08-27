@@ -1748,4 +1748,3 @@ class Module2_Parser:
     def parse_node_contracts(self, raw_contracts: List[str], line_number: int) -> List[CSLNode]:
         return []
 
-
