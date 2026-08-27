@@ -77,7 +77,13 @@ and I published one of them before catching it.
 
 ## Pick up here
 
-1. **The `pyast_expr` ADT unification** — now the top lever, and its size is MEASURED (see
+1. **The `pyast_expr` ADT unification** — the top lever, its size MEASURED and its
+   **Phase-0 spike ALREADY PASSED (19/19 Valid under Z3, all five non-vacuity goals
+   included)**, so the shape is not a correctness boundary and the remaining work is emitter
+   plumbing. `getting-better/pyast-expr/pyast-expr-spike.mlw`. **BUILD IT WITH THE
+   ENCODED-PAIR VARIANT `2 * size e + <level>` (dispatcher level 1, handlers level 0), NOT
+   `size e`** — the dispatcher hands the SAME node to its handler, so the naive measure is
+   unprovable and times out at ~280k steps looking exactly like a scale wall. Details (see
    `driver-backlog.md` §"L2 REST-OF-CLUSTER"). `_py_expr_to_ir` / `_py_stmts_to_ir` /
    `_csl_to_ir` are blocked BEFORE the dispatch expansion by a type-unification wall: the
    dispatcher is `emit_ir -> emit_ir` but its 23 handlers take 21 DISTINCT RECORD types (14
