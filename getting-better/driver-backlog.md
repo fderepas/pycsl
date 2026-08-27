@@ -4878,3 +4878,39 @@ Of the 8 leaves: 2 converted here; `error`/`unsupported` are raise-only (the tax
 "converting = vacuous" class — do NOT convert them for the count); `_fin` mutates an untyped AST
 node's location fields; `_max_end` is the documented raw-ast `getattr`/`hasattr` wall; `_slice`
 reads `self._lines`, a self-field the mirror `__init__` does not declare.
+
+### pure_ast vein, increment 2 — **`_name_str` + `_capture_name` CONVERTED (615 -> 613)**, unlocked by a RAISE-ERASURE fix
+
+Both live bodies are `if <reject guard>: self.error(...)` followed by a `-> str` return. They do
+not type-check — and, worse, do not model FAITHFULLY — until the emitter knows that `error`
+DIVERGES. The fix is the `Module2_Parser._ContractParser._err` precedent: `error`/`unsupported`
+STAY `\trusted` (raise + f-string + a `_tokenize.tok_name` dict read) and gain the precise
+`-> "NoReturn"` interface. Count-neutral for those two, and it unlocks their callers.
+
+**A RAISE-ERASURE, FOUND ONLY BY READING THE EMISSION.** With `error` modelled as an ordinary
+`: unit` call, `_name_str` emitted as
+
+    if (<cur token is not NAME>) then begin let _ = (self_error_1 "expected name") in () end;
+    (let _rec_ = (advance self) in _rec_._tok_string)
+
+— the guard branch does NOTHING and FALLS THROUGH, so the model claims `_name_str` RETURNS
+NORMALLY on a non-NAME token, where the live body raises. L3-tc passed and the file proved. This
+is the raise-side twin of the `iter_length 0` / `isinstance_op 0 0` facade family: the emission
+type-checks and proves while modelling the opposite of the live control flow. With NoReturn wired
+the branch becomes `(let _ = (self_error_1 …) in absurd)` — provably unreachable.
+
+**THE EMITTER GAP: `-> "NoReturn"` (QUOTED) WAS NOT RECOGNIZED.** `Module5_IREmitter` set
+`is_noreturn` only for the BARE `ast.Name` form and the `typing.NoReturn` attribute form; the
+STRING-constant form fell through to `return_annotation = "NoReturn"`, an ordinary return type.
+The quoted form is not exotic here — it is the codebase's standard idiom for a name that is not
+imported at runtime (`-> "ExprIR"` throughout the Module5 mirror), and `pure_ast.py` has neither
+`from __future__ import annotations` nor a `typing` import, so the BARE form there would be
+EVALUATED and raise `NameError`. Fixed (3 lines, corpus-inert — no reference program spells it).
+
+`_capture_name`'s keyword guard again expands `_keyword.kwlist` into the REAL 35-element
+`seq string` under `seq_mem_str`, and its f-string error message folds to `str_concat_op` inside
+the now-unreachable branch.
+
+RUNNING TOTAL for the pure_ast vein this window: **617 -> 613** (markers 594 -> 588), four
+conversions plus two count-neutral interface repairs, `frontend/pure_ast` proof **235 -> 270
+Valid**, still minutes.

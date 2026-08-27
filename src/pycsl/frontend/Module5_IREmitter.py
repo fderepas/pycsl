@@ -4663,6 +4663,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     return_annotation = node.returns.id
             elif isinstance(node.returns, ast.Constant):
                 return_annotation = str(node.returns.value)
+                # NR1, STRING-ANNOTATION FORM: `-> "NoReturn"`. A quoted return
+                # annotation is the codebase's standard idiom for a name that is not
+                # imported at runtime (`-> "ExprIR"` throughout the mirror), and
+                # `pure_ast.py` has neither `from __future__ import annotations` nor a
+                # `typing` import, so the BARE `-> NoReturn` there would be EVALUATED and
+                # raise NameError. Without this branch the quoted form silently became an
+                # ordinary return type: the diverging call emitted as a `: unit` val and the
+                # continuation stayed REACHABLE, so a guard whose live body raises modelled
+                # as falling through — a raise-erasure, not merely a weaker contract.
+                # Treated identically to the bare form (NR1). Additive: no reference-corpus
+                # program spells the quoted form (measured), so emission is byte-identical.
+                if return_annotation == "NoReturn":
+                    is_noreturn = True
+                    return_annotation = None
             elif isinstance(node.returns, ast.BinOp) and isinstance(node.returns.op, ast.BitOr):
                 # PEP 604 `X | Y` return — route through Union normalization.
                 # tool-feature-5 `dedup=True`: share the union with a mutable

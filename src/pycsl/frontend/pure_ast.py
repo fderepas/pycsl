@@ -619,14 +619,14 @@ class _Parser:
             self.error(f"expected keyword {val!r}")
         return self.advance()
 
-    def error(self, msg):
+    def error(self, msg: str) -> "NoReturn":
         t = self.cur()
         raise PyCSLSyntaxError(
             f"{msg} (got {_tokenize.tok_name[t.type]} {t.string!r})",
             (self.filename, t.start[0], t.start[1] + 1, t.string),
         )
 
-    def unsupported(self, what):
+    def unsupported(self, what: str) -> "NoReturn":
         t = self.cur()
         raise PyCSLSyntaxError(
             f"pure_ast parser: {what} not yet implemented",
@@ -897,7 +897,7 @@ class _Parser:
             names.append(self._name_str())
         return self._fin(_N(kind)(names=names), t)
 
-    def _name_str(self):
+    def _name_str(self) -> str:
         if self.cur().type != _tokenize.NAME:
             self.error("expected name")
         return self.advance().string
@@ -1171,7 +1171,7 @@ class _Parser:
             return self._fin(_N("MatchOr")(patterns=pats), t)
         return first
 
-    def _capture_name(self, ctx):
+    def _capture_name(self, ctx: str) -> str:
         tk = self.cur()
         if (tk.type != _tokenize.NAME or tk.string in _keyword.kwlist
                 or tk.string == "_"):

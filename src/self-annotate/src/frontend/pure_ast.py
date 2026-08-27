@@ -293,14 +293,25 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def error(self, msg: str):
+    # DIVERGENCE MODEL (the `Module2_Parser._ContractParser._err` precedent): the LIVE
+    # `error` body is `t = self.cur(); raise PyCSLSyntaxError(...)` — an UNCONDITIONAL
+    # raise, so it NEVER returns normally. `-> "NoReturn"` records that faithfully: Module5
+    # sets is_noreturn, Module6 gives the abstract op `ensures { false }` and lowers a call
+    # to `(let _ = <call> in absurd)`, so the continuation is UNREACHABLE. Without it a
+    # guard whose live body RAISES models as falling through — a raise-erasure. STAYS
+    # \trusted (raise + f-string + the `_tokenize.tok_name` dict read); the annotation only
+    # makes the trusted interface precise, backed by the live unconditional raise.
+    # Count-neutral.
+    def error(self, msg: str) -> "NoReturn":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def unsupported(self, what):
+    # DIVERGENCE MODEL (see `error`): an UNCONDITIONAL raise, so `-> "NoReturn"` is the
+    # faithful interface. STAYS \trusted. Count-neutral.
+    def unsupported(self, what: str) -> "NoReturn":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -443,12 +454,19 @@ class _Parser:
     def global_stmt(self, kind):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # pure_ast cursor vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body port
+    # of the LIVE `_name_str`. Reads the cursor through the already-converted `cur`/`advance`
+    # primitives and returns the token's `.string`. The guard's failure path is
+    # `self.error(...)`, whose `-> "NoReturn"` interface makes the continuation unreachable,
+    # so the `-> str` return type is discharged on every path. `assigns self.i`: `advance`
+    # moves the cursor.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _name_str(self):
-        pass
+    def _name_str(self) -> str:
+        if self.cur().type != _tokenize.NAME:
+            self.error("expected name")
+        return self.advance().string
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -611,12 +629,22 @@ class _Parser:
     def or_pattern(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # pure_ast cursor vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body port
+    # of the LIVE `_capture_name`. The three-way reject guard reads the token's `.type` and
+    # `.string` and tests keyword membership against `_keyword.kwlist`, which the emitter
+    # expands into the REAL 35-element `seq string` under `seq_mem_str` (measured in
+    # `_with_parenthesized`) — not an opaque membership. The failure path is the
+    # `-> "NoReturn"` `error`, so the `-> str` return is discharged on every path.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _capture_name(self, ctx):
-        pass
+    def _capture_name(self, ctx: str) -> str:
+        tk = self.cur()
+        if (tk.type != _tokenize.NAME or tk.string in _keyword.kwlist
+                or tk.string == "_"):
+            self.error(f"expected a capture name after {ctx!r} in pattern")
+        self.advance()
+        return tk.string
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
