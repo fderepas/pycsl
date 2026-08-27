@@ -4479,3 +4479,37 @@ Related and still deferred: the **I4 cross-method κ=string fixpoint** named in
 because it may be forwarded to sibling `val` bridges still typed `map int`. The `field_names`
 carve-out is safe precisely because that param is forwarded nowhere; a general κ=string for
 read-only set params needs the fixpoint first.
+
+## NEW INTEGRITY GATE + BASELINE (2026-08-27): `bin/check-untrusted-emitted.py`
+
+**L3-tc ✓ IS NOT A CONVERSION CRITERION.** Removing a `#@ \trusted` marker does not by
+itself verify anything: the AUTO-TRUST SAFETY VALVE silently re-abstracts a body the emitter
+cannot lower to an opaque `val`, and the file still type-checks AND still proves. A stub in
+that state has had its marker removed while nothing about it is verified.
+
+Measured while probing cheap candidates: **17 stubs passed L3-tc after un-trusting, and NOT
+ONE was emitted as a definition** — 6 dropped entirely (`@property` / dunder / `__enter__`
+shapes), 11 re-abstracted to `val`. All 17 would have been vacuous conversions. This both
+explains and VINDICATES the prior windows' "no cheap conversion remains": an L3-tc-only probe
+over-reports massively. **Any future candidate probe MUST also check that the function is
+emitted as a `let` / `let rec` / `with` member.**
+
+**BASELINE ESTABLISHED (whole mirror): 716 un-trusted functions · 694 emitted as definitions ·
+0 re-abstracted to `val` · 7 unexpectedly absent.** ZERO silent re-abstractions — the
+campaign's booked conversions are clean and the count is NOT inflated by the valve. Never
+measured before; re-run the gate after any batch of conversions.
+
+**THE 7 REAL HITS — un-trusted, contract-annotated, and DROPPED from emission entirely, so
+their contracts are never checked:**
+`core_ir_semantic.py::{_check_concurrency,_conc_check_shared_access,_conc_check_reads,
+_conc_stmts,_conc_stmt}`, `Module6_WhyMLTranspiler.py::_heap_var`,
+`errors.py::PyCSLError.__str__` (which carries no `#@` block at all). Verified by direct
+grep: `core_ir_semantic.mlw` has 429 declarations and ZERO occurrences of any `_conc_*` name.
+All five `_conc_*` take fully UNANNOTATED params — the `pure_ast` untyped-param family is the
+likely root cause. NOT chased; a contained next target.
+
+Two traps the gate itself had to survive (both fixed and commented in it): a `with` member of
+a `let rec … with …` group IS a definition (missing that reported 10 false ABSENTs for the
+converted `_Parser` nest), and BLANK LINES may separate a `#@` block from its `def` (missing
+that mis-read 12 TRUSTED functions as un-trusted, which looked exactly like 12 silent
+re-abstractions).
