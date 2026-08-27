@@ -1,142 +1,97 @@
-# HANDOFF — read this FIRST on relaunch (rewritten 2026-08-27, RELAUNCH #3 worker)
+# HANDOFF — read this FIRST on relaunch (rewritten 2026-08-27, RELAUNCH #4 worker)
 
-## State, verified from the surface at the end of this window
+## State, verified from the surface
 
-- Directive count **619** (`grep -rcF '#@ \trusted' src/self-annotate/src --include=*.py`,
-  summed). Window delta **626 -> 619**, SEVEN conversions plus TWO count-neutral faithfulness
-  repairs. Confirm it yourself before quoting it.
-- Ledger **3**, untouched all window. No new axiom, no new abstract val.
+- **Count: `grep` 613 · MARKERS 588.** Quote BOTH. The two differ by a CONSTANT 25 and the
+  campaign has been over-reporting by that much since it started — see the metric correction
+  below. Window delta: grep **619 -> 613**, markers **594 -> 588**.
+- Ledger **3**, untouched. No new axiom. Rocq `Phase2l_PyAstExpr.v` 35/35 `Closed under the
+  global context`; Lean `PyAstExpr.lean` 34/34 (28 axiom-free, 6 `propext`, no `sorryAx`).
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`,
-  `src/formal-semantics/rocq/.lia.cache` + `Phase2j_*` build artifacts, untracked
-  `prompt.txt`/`style.css`/`scratchpad/`). None of it is mine; leave it alone.
-- `getting-better/.driver-deadline` is intact. Do not touch it.
+  `src/formal-semantics/rocq/.lia.cache`, untracked `scratchpad/`, `prompt.txt`). None of it is
+  mine; leave it alone. `getting-better/.driver-deadline` intact.
+- Field parity OK; `check-untrusted-emitted` 722/705/0/0; vacuity gate GREEN (0 new erasure).
 
-## Three instrument facts that will silently corrupt your gates. Read before running anything.
+## THE METRIC IS WRONG BY 25 — fix your expectations before you read any old record
 
-1. **`why3` is NOT on the default PATH.** It is at `/home/fabrice/.opam/framac-coq8/bin/why3`.
-   Without it `pycsl.py` prints `[!] ERROR: 'why3' command not found` **and exits 0** — a
-   false green. Start every gate with
-   `export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH`. (Lesson (aa).)
-2. **The canonical mirror import path is `--import-path src/pycsl`**, NOT
-   `src/self-annotate/src`. `bin/run-self-annotation-suite.sh:27` is the authority, and it
-   matters: `frontend/Module5_IREmitter.py` L3-tc FAILS under the mirror path and PASSES
-   under the canonical one. (Lesson (cc).)
-3. **The prover pin is still stale and still halves every gate.** `pycsl.py:1318` names
-   `Alt-Ergo,2.6.2,`; 2.6.3 is installed. Pass `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`
-   EXPLICITLY on every proof you rely on. Do NOT edit the pin — it stays on the
-   flagged-for-USER list. Also: `check-emitted-vacuity.py` is a false green without `--emit`.
+`grep -rcF '#@ \trusted'` counts LINES CONTAINING THE SUBSTRING. **25 of the hits are one line of
+boilerplate MODULE DOCSTRING**, repeated verbatim in 25 mirror files. The true directive count is
+**588**, not 613. Every DELTA ever reported is correct (the offset is constant while the mirror
+file set is) but every absolute "the floor is N" inherits the error — including
+"COMPREHENSIVE AUTONOMOUS FLOOR at 687". Run **`bin/count-trusted-directives.py`**: it prints
+markers / grep / the itemised offset side by side, fails on an UNATTACHED marker, and (with
+`--emit-dir`) on a STALE one.
 
-Plus one argument that has gone stale: **"gated on @mutable_state, therefore corpus
-byte-inert" is NO LONGER TRUE** — corpus programs 0925/0926/0927/0928 all declare it. Run
-the byte-diff sweep; do not argue your way out of it. (Lesson (bb).)
+## Instrument facts (unchanged, still true, still silently corrupting)
 
-## What this window did (continued past the first handoff draft — read all of it)
+1. **`why3` is NOT on the default PATH** (`/home/fabrice/.opam/framac-coq8/bin`). Without it
+   `pycsl.py` errors AND EXITS 0. `export PATH=...` on every gate.
+2. **`--import-path src/pycsl`** is the canonical mirror path (`run-self-annotation-suite.sh:27`).
+3. **The Alt-Ergo pin at `pycsl.py:1318` is stale.** Pass
+   `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'` EXPLICITLY. Do NOT edit the pin.
+4. `check-emitted-vacuity.py` is a false green without `--emit`.
+5. **`.gitignore` has `*.mlw`** — `git add -A` SILENTLY SKIPS evidence files and reports success.
+   Two of my commits cited artifacts that were not in the tree until I force-added them. If a
+   commit message cites a file, `git ls-files` it.
 
-**L13 IS CLOSED.** The `proof2why3._Parser` cursor nest — the top lever since relaunch #23 —
-is FULLY CONVERTED: eleven members, zero `\trusted` methods in the class, and all five
-ASSUMED monotonicity clauses RETIRED (each became a proved postcondition when its stub was
-converted). Parser-mirror proof goals went 216 -> 438, every step driver-measured, corpus
-byte-diff 0 over 813/813 at every step.
+## What this window did
 
-Also BROKEN: ladder item 2, the **`0`-reads-as-`None`** faithfulness bug in
-`Module5_IREmitter::_collect_class_constants`. Count-neutral by design (a repair to an
-already-converted body, same shape as the L14 frame repair): one opaque `val … : int` left
-the model and one facade guard became the real None test.
+**THE L2 CLUSTER IS CLOSED.** `_py_expr_to_ir` (619->618) and `_csl_to_ir` (618->617) CONVERTED
+via a new type-keyed **dispatch expansion** over an input-side node ADT, co-landed with an
+axiom-free Rocq+Lean certificate. `_py_stmts_to_ir` is a **CERTIFIED-BOUNDARY [COST/SCALE]**,
+refuted by a measured erasure probe (evidence banked). A tree-wide census confirms there are
+exactly THREE handler tables, so the vein is exhausted.
 
-Eleven capabilities were built and four LATENT EMITTER DEFECTS fixed. **Read
-`driver-backlog.md` §L13-CLOSED before scoping anything** — several of the capabilities are
-general (list-term/list-string ctor slots, term ctor discriminant + unique-arm payload
-projection, union-returning-call guard/projection, the `_union_*` param-registry repair, and
-the deferred-goal fix for mutually recursive union-using SCCs), and lesson (p) says census
-them before building.
+**THE LADDER WAS LOOKING IN THE WRONG FILE.** The first per-file marker census of this campaign:
+`frontend/pure_ast.py` holds **186 of 588 markers = 31% of the entire TCB**, more than the next
+FIVE files combined, with **96 in the single class `_Parser`**. The backlog had it filed behind a
+"solver-context-saturation PROOF-SCALE wall"; measured fresh, the file proves **235 Valid in
+minutes** — one of the CHEAPEST in the suite to gate. Four conversions landed there (617->613).
 
-ALSO LANDED after that: **the rest of the L2 cluster REFUTED** with the wall measured exactly
-(a TYPE-UNIFICATION wall, not the dispatch expansion — see the backlog); `_py_op_to_str`
-CONVERTED via a new type-keyed dispatch-table capability; the `field_names` erasure fixed
-(the last removable `KNOWN_ERASURES` entry); the `check-emitted-vacuity` `v_`-rename blind
-spot repaired; and a **NEW INTEGRITY GATE**, `bin/check-untrusted-emitted.py`.
+**A WHOLE-MIRROR FRONTIER SWEEP**, the first that does not over-report: 574 candidates, 513
+L3TC-FAIL, 28 ERASURE, 2 CLEAN (one of which was STILL wrong on inspection).
 
-## The single most important thing this window learned
+**TWO NEW GATES + ONE NEW TOOL**, all probed non-vacuous:
+`bin/count-trusted-directives.py`, `bin/check-mirror-field-parity.py`,
+`bin/probe-conversion-candidates.py`.
 
-**L3-tc ✓ IS NOT A CONVERSION CRITERION.** Removing a `#@ \trusted` marker verifies nothing
-by itself: the AUTO-TRUST SAFETY VALVE silently re-abstracts a body the emitter cannot lower
-into an opaque `val`, and the file still type-checks AND still proves. Measured: **17
-candidate stubs passed L3-tc after un-trusting and NOT ONE was emitted as a definition** — 6
-dropped entirely, 11 re-abstracted. All 17 would have been vacuous conversions. This both
-explains and VINDICATES the earlier windows' "no cheap conversion remains": an L3-tc-only
-probe over-reports massively. **Any candidate probe you run MUST also check that the function
-is emitted as a `let` / `let rec` / `with` member.** `bin/check-untrusted-emitted.py` is that
-check; its baseline is **716 un-trusted · 699 definitions · 0 re-abstracted · 0 absent**, so
-the booked conversions are clean. Re-run it after any batch.
+**91 CLASS FIELDS had drifted** between live and mirror with no gate comparing them; 84 retyped
+(proof-neutral, corpus-inert), 7 remain and are itemized by name.
 
-Second: **when a gate over an EMITTED artifact reports a defect, FIRST ask whether the
-emitter RENAMED the thing.** Four for four this window — `with`-members read as non-definitions,
-blank lines before a `def` hiding a `\trusted` marker, the `v_` param rename, and recognizer
-cluster renaming (`_conc_*` -> `conc__*`). Every one manufactured a defect that did not exist,
-and I published one of them before catching it.
+## Pick up here — in this order
 
-## Pick up here
+1. **`getting-better/pyast-expr/class-by-name-factory-WIP.patch` — `git apply` it.** FIVE working
+   emitter pieces, all measured byte-inert, banked out of the tree only because no stub converts
+   yet. **ONE gap remains and it is located to the line**: the union local is projected to a bare
+   string where the field is `option string`; it needs an option-target projection pushed DOWN to
+   the keyword lowering. Fix that and `_import_as_name`/`_dotted_as_name` convert — and the
+   capability behind **73 of the 96 `_Parser` stubs (12% of the TCB)** is validated.
+2. **But budget `_fin` too.** Almost every OTHER `_N` construction is wrapped in
+   `self._fin(_N(…)(…), t)`, which SETS FOUR LOCATION ATTRIBUTES on a node whose type varies per
+   call site. **`_fin`, not `_N`, is the gate for the remaining ~71 stubs** — a distinct and
+   harder capability. `_N` is necessary, not sufficient.
+3. **`for`-over-array has NO termination variant and the SOURCE CANNOT SUPPLY ONE** (the counter
+   is emitter-internal). Do NOT send a window to write invariants for it. The capability is to
+   emit the arithmetic index invariant/variant when the bound is already a pure LOGIC length
+   term; the obstacle is the BYTE-DIFF (corpus drivers are not `@mutable_state` and get none
+   today), so it needs an opt-in `#@` surface plus the doc-coherency/language-audit obligation.
+4. Stage B of the `pyast_expr` build (recursive ADT, structural variant) — the honest
+   strengthening of this window's two dispatch conversions. Phase-0b already proved the shape
+   (16/16). It retires the four abstract vals the conversions introduced.
+5. `_py_stmts_to_ir`'s six named features, if the window is long. Two of them add constructors to
+   the CERTIFIED `stmt_ir` ADT, so the certificate must be extended under the co-landing rule.
 
-1. **The `pyast_expr` ADT unification** — the top lever, its size MEASURED and its
-   **Phase-0 spike ALREADY PASSED (19/19 Valid under Z3, all five non-vacuity goals
-   included)**, so the shape is not a correctness boundary and the remaining work is emitter
-   plumbing. `getting-better/pyast-expr/pyast-expr-spike.mlw`. **BUILD IT WITH THE
-   ENCODED-PAIR VARIANT `2 * size e + <level>` (dispatcher level 1, handlers level 0), NOT
-   `size e`** — the dispatcher hands the SAME node to its handler, so the naive measure is
-   unprovable and times out at ~280k steps looking exactly like a scale wall. Details (see
-   `driver-backlog.md` §"L2 REST-OF-CLUSTER"). `_py_expr_to_ir` / `_py_stmts_to_ir` /
-   `_csl_to_ir` are blocked BEFORE the dispatch expansion by a type-unification wall: the
-   dispatcher is `emit_ir -> emit_ir` but its 23 handlers take 21 DISTINCT RECORD types (14
-   more on the statement side), and there is no projection from `emit_ir` to `name`, so the
-   expanded chain is UNWRITABLE, not merely unprovable. The certified `pyast_stmt` ADT does
-   NOT help — grep confirms ZERO handlers take it. This is COST/SCALE, not a floor, and a
-   funded window is the budget for it. Its prerequisite (the deferred-goal fix for
-   mutually-recursive union-using SCCs) LANDED this window. Do NOT attempt the dispatch
-   expansion first.
-2. The cheap-candidate frontier is CLOSED, and now for a measured reason rather than an
-   assertion: 17 of 62 small stubs pass L3-tc and NONE is emitted as a definition. Do not
-   re-run an L3-tc-only census.
-3. `proof2why3/parser.py` still has four module-level `\trusted` functions. `lex` and
-   `normalize_surface` are string-scanner facades already STRUCK as a CERTIFIED-BOUNDARY —
-   do NOT re-litigate them. `parse_type_expr` needs mutable-object construction, try/except
-   over two exception types, and `str(exc)`; it is not cheap.
-4. The named COST/SCALE residue from the §A.3 re-classification, which is NOT a floor and
-   which a funded window is exactly the budget for: the larger multi-variant certificate
-   bundle (Act/Complete/Disjoint/ForExpand + value-model), and the review-gated
-   giant/dispatcher decompositions (`run_ir_semantic_checks`, `_csl_to_ir` getattr-dispatch).
-   "Review-gated" means run Gate R yourself — it does NOT mean ask the user.
-5. The vacuity/erasure surface is now CLEAN and should stay that way:
-   `check-emitted-vacuity.py --emit` is GREEN (0 input-blind, 0 new, 6 known and each
-   individually justified). The remaining 6 are error-message-only erasures (faithful) plus
-   two documented modeling gaps (`_handle_mktuple_expr`/`lr`, `_emit_new_ghost_ref`/`target`
-   — the wall-lessons (h) param-collection-mutation family).
-6. Named but not built: the **κ-inference gap** behind the `field_names` shape-gate — Module
-   5 cannot see through an `Optional[str]` union-local carrier projection to conclude
-   "string key". Closing it retires that shape-gate and likely others.
+## Method notes this window paid for (full text in wall-lessons.md, (jj)-(rr))
 
-## Gates you now have that earlier windows did not
-
-- `bin/check-untrusted-emitted.py` — is every un-trusted mirror function ACTUALLY EMITTED as
-  a definition? Baseline 716/699/0/0, GREEN. Run it after any batch of conversions.
-- `bin/check-emitted-vacuity.py --emit` — now free of the `v_` param-rename blind spot (which
-  had BOTH hidden real erasures in check (1) and manufactured two false INPUT-BLIND findings
-  in check (2)). GREEN.
-
-## Method notes this window paid for
-
-- **Emit-and-diff BEFORE you prove** (lesson r) — the mirror emission diff scoped every
-  re-proof set this window to 1 or 2 files out of 52.
-- **A timeout is not a scale wall until the shape blows up in ISOLATION** (lesson ee). ~40
-  goals timed out at 280-370M steps, looking exactly like the documented `list.List`
-  explosion; two controlled probes showed the real cause was two missing loop annotations.
-- **Host a new helper in a live function whose mirror counterpart is `\trusted`** (lesson dd).
-  Otherwise §10.4 forces a verbatim re-port and the unported helper becomes an int-typed
-  auto-trusted val that breaks L3-tc.
-- **`isinstance_op 0 0` in an emitted body is a facade detector** (lesson ff).
-- The **§10.4 re-port obligation is live and it caught a real omission again** — my mirror
-  `parse_atom` had dropped an f-string from a `raise`. The fidelity plane is not a formality.
-
-Standing discipline unchanged: demand-first bundling (capability-first is REFUTED); close a
-blocker set by ITERATED measurement until L3-tc PASSES; spike-first with a refutation exit;
-census-first; the three L-planes driver-verified FRESH; ledger stays 3; a gate you have not
-confirmed non-vacuous is not a gate.
+- **Re-measure an inherited PROOF-SCALE wall before you inherit it** — the most perishable kind
+  of record in this campaign; one proof-hardening increment retires one silently.
+- **Run a per-file census of the count at least once per campaign.**
+- **A RAISE that models as a FALL-THROUGH is a facade** and only the emitted body shows it. Read
+  the branch; require `absurd`.
+- **The probe's CLEAN verdict was wrong 4 times out of 5.** Read the emitted body of every CLEAN.
+- **A capability's SECOND instance is where its hidden assumptions surface** — budget for four,
+  not zero.
+- **A field retype does NOT cascade the way a return-type retype does** — check which you have
+  before assuming the `Set[str]` disaster repeats.
+- Count the LEVELS in an encoded-pair variant; a list mapper is a third level.
+- A SYNTHESIZED call needs a synthesized ORDERING EDGE or Why3 rejects the file.
