@@ -192,6 +192,17 @@ def _is_aug(tok):
 #@ class invariant 0 <= self.i
 #@ class invariant self.i < \length(self.toks)
 #@ class invariant \length(self.toks) >= 1
+# THE EOF SENTINEL, read straight off `_lex`: it appends every token `tokenize` yields except
+# COMMENT/NL/ENCODING (`_SKIP`), and `tokenize` ALWAYS terminates the stream with an ENDMARKER
+# — which is not in `_SKIP`, so the last token is ALWAYS ENDMARKER, unconditionally, on every
+# path that returns. Verified empirically over empty / statement / def / comment-only /
+# nested-block sources as well as read off the source. This is the property that makes the
+# cursor's `while self.accept_op(...)` loops TERMINATE: ENDMARKER is not an OP and not a NAME,
+# so a true loop guard forces `self.i < \length(self.toks) - 1`, hence `advance` really
+# increments and `\length(self.toks) - self.i` strictly decreases. It is an assumption about
+# the TRUSTED lexer, exactly as `Module2_Parser._ContractParser`'s `…py_type == "EOF"` is —
+# the documented, accepted pattern, and NOT a narrowing of the class's real states.
+#@ class invariant self.toks[\length(self.toks) - 1].type == _tokenize.ENDMARKER
 @mutable_state
 class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
@@ -221,14 +232,23 @@ class _Parser:
         j = self.i + k
         return self.toks[j] if j < len(self.toks) else self.toks[-1]
 
+    # CURSOR IDENTITY (the `Module2_Parser._ContractParser.cur` precedent): the returned token
+    # IS `self.toks[self.i]`. Without it a caller that tests `self.cur().type` learns nothing
+    # about `self.toks[self.i]`, and `at_op`'s token-kind postcondition cannot be discharged
+    # (measured). PROVED here — the body is exactly that read.
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == self.toks[self.i]
     #@ assigns \nothing
     def cur(self) -> _Tok:
         return self.toks[self.i]
 
+    # CURSOR INCREMENT (the `Module2_Parser._ContractParser.advance` precedent). The body
+    # increments unless it is already AT the last token, so the guarded form is the exact
+    # postcondition; the unconditional `>=` is what every caller's monotonicity rests on.
+    # PROVED here (the body is converted) — zero TCB.
     #@ requires True
-    #@ ensures True
+    #@ ensures \old(self.i) < \length(self.toks) - 1 ==> self.i == \old(self.i) + 1
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def advance(self) -> _Tok:
         t = self.toks[self.i]
@@ -236,8 +256,11 @@ class _Parser:
             self.i += 1
         return t
 
+    # TOKEN-KIND EXPORT (the `Module2_Parser._ContractParser.at_op` precedent). A true result
+    # means the CURRENT token is an OP — which, with the EOF-sentinel class invariant, is what
+    # rules out "already at the last token" and so lets `accept_op` claim strict progress.
     #@ requires True
-    #@ ensures True
+    #@ ensures \result != False ==> self.toks[self.i].type == _tokenize.OP
     #@ assigns \nothing
     def at_op(self, *vals: str) -> bool:
         t = self.cur()
@@ -257,8 +280,17 @@ class _Parser:
         t = self.cur()
         return t.type == _tokenize.NAME and t.string in vals and t.string in _keyword.kwlist
 
+    # CURSOR MONOTONICITY (the `Module2_Parser._ContractParser.accept_op` precedent, and the
+    # clause the converted `proof2why3._Parser` nest exports). The chain that discharges it:
+    # `at_op` true => `self.toks[self.i].type == OP` (its own postcondition) => `self.i` is not
+    # the last index, because the EOF-SENTINEL class invariant pins the last token to ENDMARKER
+    # => `advance`'s guarded increment fires. Every link is PROVED, so this costs ZERO TCB, and
+    # it is what lets a `while self.accept_op(X):` caller discharge `#@ loop variant
+    # \length(self.toks) - self.i` — without it a true guard says nothing about progress
+    # (measured: `loop variant decrease` Unknown on `_dotted_as_name`).
     #@ requires True
-    #@ ensures True
+    #@ ensures \result != None ==> self.i > \old(self.i)
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def accept_op(self, val: str) -> Optional[_Tok]:
         if self.at_op(val):
@@ -460,8 +492,14 @@ class _Parser:
     # `self.error(...)`, whose `-> "NoReturn"` interface makes the continuation unreachable,
     # so the `-> str` return type is discharged on every path. `assigns self.i`: `advance`
     # moves the cursor.
+    # CURSOR MONOTONICITY: `_name_str` moves `self.i` only through `advance`, and its failure
+    # path is the `-> "NoReturn"` `error`, so the cursor never goes BACKWARDS. Needed by any
+    # caller that calls it inside a loop whose variant is the cursor measure: without it
+    # `assigns self.i` alone lets the prover assume the call could DECREASE `self.i`, and the
+    # decrease obligation fails even when the loop GUARD has already advanced (measured on
+    # `_dotted_as_name`). PROVED here — zero TCB.
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _name_str(self) -> str:
         if self.cur().type != _tokenize.NAME:
@@ -475,12 +513,27 @@ class _Parser:
     def import_stmt(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CLASS-BY-NAME FACTORY vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body
+    # port of the LIVE `_dotted_as_name`. `_N("alias")(name=…, asname=…)` resolves to a direct
+    # `alias(…)` construction over the SAME-FILE-harvested `_NODE_SPEC` record, so the returned
+    # node carries its real dotted `name` and a TRUE `option string` `asname`. The
+    # `while self.accept_op(".")` loop takes the cursor measure: `accept_op`'s monotonicity
+    # postcondition (itself proved through `at_op` + the EOF-sentinel invariant + `advance`)
+    # makes a true guard mean the cursor STRICTLY advanced.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _dotted_as_name(self):
-        pass
+    #@ assigns self.i
+    def _dotted_as_name(self) -> "alias":
+        parts = [self._name_str()]
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op("."):
+            parts.append(self._name_str())
+        name = ".".join(parts)
+        asname: Optional[str] = None
+        if self.accept_kw("as"):
+            asname = self._name_str()
+        return _N("alias")(name=name, asname=asname)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

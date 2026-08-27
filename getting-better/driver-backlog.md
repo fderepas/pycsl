@@ -5216,3 +5216,37 @@ DIVERGED instead of the baseline 2. Repaired here; fidelity back to 2, and
 lives; this is its neighbour and it bit anyway: an edit to any live function whose mirror is
 UN-TRUSTED carries the re-port obligation, and the gate that catches it is the FIDELITY one — so
 never skip it just because the emission diff looked confined.**
+
+### THE `pure_ast._Parser` CURSOR CHAIN **LANDED** — `_dotted_as_name` CONVERTED (612 -> 611), and every `while accept_op(...)` loop in the class is now reachable
+
+The three-link chain the previous entry named, built whole because it was measured to be
+all-or-nothing. FIVE contract strengthenings, every one PROVED (all five bodies are converted, so
+the whole chain costs **ZERO TCB** — it exports facts the bodies already establish):
+
+ 1. **`cur`** — `ensures \result == self.toks[self.i]`. Without it a caller that tests
+    `self.cur().type` learns nothing about `self.toks[self.i]`, and link 2 cannot discharge.
+ 2. **`at_op`** — `ensures \result != False ==> self.toks[self.i].type == _tokenize.OP`.
+ 3. **the EOF-SENTINEL CLASS INVARIANT** — `self.toks[\length(self.toks)-1].type ==
+    _tokenize.ENDMARKER`. Read off `_lex`, which appends every token `tokenize` yields except
+    COMMENT/NL/ENCODING, and `tokenize` ALWAYS terminates with ENDMARKER (not in `_SKIP`) — so
+    it holds unconditionally on every path that returns. Verified empirically as well
+    (empty / statement / def / comment-only / nested-block sources). An assumption about the
+    TRUSTED lexer, exactly as `Module2_Parser._ContractParser`'s `…py_type == "EOF"` is.
+ 4. **`advance`** — `ensures \old(self.i) < \length(self.toks) - 1 ==> self.i == \old(self.i)+1`
+    plus the unconditional `self.i >= \old(self.i)`.
+ 5. **`accept_op`** — `ensures \result != None ==> self.i > \old(self.i)`. The chain: `at_op`
+    true ⇒ the current token is an OP ⇒ (by the sentinel) `self.i` is not the last index ⇒
+    `advance`'s guarded increment fires.
+
+**AND A SIXTH THAT THE MEASUREMENT FORCED, worth its own note.** With all five in place the
+variant STILL failed. The gap was the loop BODY, not the guard: `_name_str` declared only
+`assigns self.i`, which permits the cursor to move BACKWARDS as far as the prover knows, so the
+decrease could not be concluded even though the GUARD had already advanced. Adding
+`ensures self.i >= \old(self.i)` to `_name_str` closed it. **A cursor-measure loop needs
+monotonicity from EVERY call in the body, not just from the guard** — the guard proves progress,
+the body must prove non-regression.
+
+Result: `frontend/pure_ast` **299 Valid, 0 non-Valid, SUCCESS** (235 at this window's baseline).
+Every `while self.accept_op(...)` / `while self.at_op(...)` loop in `_Parser` can now carry the
+cursor variant — that is the shape of a large part of the remaining descent chain, so this chain
+is worth more than the one conversion that paid for it.

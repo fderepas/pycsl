@@ -909,12 +909,12 @@ class _Parser:
             names.append(self._dotted_as_name())
         return self._fin(_N("Import")(names=names), t)
 
-    def _dotted_as_name(self):
+    def _dotted_as_name(self) -> "alias":
         parts = [self._name_str()]
         while self.accept_op("."):
             parts.append(self._name_str())
         name = ".".join(parts)
-        asname = None
+        asname: Optional[str] = None
         if self.accept_kw("as"):
             asname = self._name_str()
         return _N("alias")(name=name, asname=asname)
