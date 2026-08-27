@@ -699,19 +699,33 @@ class _Parser:
     def exprlist(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `expr_or_star`. The passthrough `return self.expr()` and the `Starred` construction
+    # both type as `emit_ir`; `_N("Load")()` is a 0-FIELD ASDL singleton and lowers to its
+    # class-name string, so `ctx` is CARRIED, not dropped.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def expr_or_star(self):
-        pass
+    def expr_or_star(self) -> "ExprIR":
+        if self.at_op("*"):
+            t = self.advance()
+            val = self.expr()
+            return self._fin(_N("Starred")(value=val, ctx=_N("Load")()), t)
+        return self.expr()
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `test_or_star` (note: its non-star path falls to `namedexpr_test`, not `expr`).
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def test_or_star(self):
-        pass
+    def test_or_star(self) -> "ExprIR":
+        if self.at_op("*"):
+            t = self.advance()
+            val = self.expr()
+            return self._fin(_N("Starred")(value=val, ctx=_N("Load")()), t)
+        return self.namedexpr_test()
 
     # RETURN INTERFACE (the `error -> "NoReturn"` precedent): `testlist` STAYS \trusted — its
     # live body builds a `Tuple` node through `_fin`, the still-unbuilt capability — but the
@@ -985,11 +999,16 @@ class _Parser:
         name = self._name_str()
         return self._fin(_N("arg")(arg=name, annotation=None, type_comment=None), t)
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION (the `_name_str` / `test` precedents).
+    # STAYS \trusted. `-> "ExprIR"` records that the result IS an expression node
+    # (`emit_ir`); the non-regression clause is backed by the live body, which moves the
+    # cursor only through `advance`/`accept_*`/`expect_*`.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def namedexpr_test(self):
+    def namedexpr_test(self) -> "ExprIR":
         pass
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
@@ -1045,25 +1064,45 @@ class _Parser:
     def and_test(self):
         pass
 
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `not_test`.
+    # RECURSIVE (`self.not_test()`), so it emits `let rec` and needs the cursor measure;
+    # the recursive call is guarded by `at_kw("not")` + `advance`, which strictly
+    # increments (the EOF-sentinel class invariant rules out "already at the last token").
+    # `_N("Not")()` is a 0-FIELD ASDL singleton -> its class-name string in the `op` slot.
+    #@ requires True
+    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
+    #@ \variant \length(self.toks) - self.i
+    #@ assigns self.i
+    def not_test(self) -> "ExprIR":
+        if self.at_kw("not"):
+            t = self.advance()
+            operand = self.not_test()
+            return self._fin(_N("UnaryOp")(op=_N("Not")(), operand=operand), t)
+        return self.comparison()
+
+    # RETURN INTERFACE + CURSOR NON-REGRESSION (the `_name_str` / `test` precedents).
+    # STAYS \trusted. `-> "ExprIR"` records that the result IS an expression node
+    # (`emit_ir`); the non-regression clause is backed by the live body, which moves the
+    # cursor only through `advance`/`accept_*`/`expect_*`.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def not_test(self):
+    def comparison(self) -> "ExprIR":
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION (the `_name_str` / `test` precedents).
+    # STAYS \trusted. `-> "ExprIR"` records that the result IS an expression node
+    # (`emit_ir`); the non-regression clause is backed by the live body, which moves the
+    # cursor only through `advance`/`accept_*`/`expect_*`.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def comparison(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns self.i
-    def expr(self):
+    def expr(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1126,12 +1165,17 @@ class _Parser:
     def _subscript_item(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `test_or_star_slice`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def test_or_star_slice(self):
-        pass
+    def test_or_star_slice(self) -> "ExprIR":
+        if self.at_op("*"):
+            t = self.advance(); v = self.expr()
+            return self._fin(_N("Starred")(value=v, ctx=_N("Load")()), t)
+        return self.test()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -5915,6 +5915,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         func_name = expr["func"]
+        # PYTHON-AST NODE CTOR FAMILY (increment 10): a 0-FIELD ASDL SINGLETON
+        # construction (`_N("Load")()`, `_N("Not")()`) lowers to its CLASS-NAME STRING.
+        # A 0-field class carries no information beyond its own identity, so the name IS
+        # its whole content — nothing is erased — and a 0-field WhyML record is not even
+        # expressible. This is what unblocks the `ctx`/`op` slot of every
+        # Starred/UnaryOp/BoolOp/Compare construction WITHOUT an enum type, a new ADT or
+        # an axiom. The membership is read off the compiled file's OWN `_NODE_SPEC`
+        # (`ir_resolve`, key `pyast_singleton_nodes`) and that key is absent from every
+        # other file's IR -> corpus and every other mirror byte-identical.
+        if (not expr.get("args") and not expr.get("keywords")
+                and isinstance(func_name, str)
+                and func_name in set(self.ir.get("pyast_singleton_nodes", []) or [])):
+            return f'"{func_name}"'
+
         # L2 DISPATCH-EXPANSION: `self.<CONST>.get(type(x), "<default>")` over a class-body
         # TYPE-KEYED STRING table. MUST be tried before the `"." in func_name` dotted-call
         # dispatch further down, which otherwise collapses the whole lookup into one

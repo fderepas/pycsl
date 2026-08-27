@@ -264,6 +264,15 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # every other 3-child node.
     "IfExp": ("IrPyIfExp", [("test", "emit_ir"), ("body", "emit_ir"),
                             ("orelse", "emit_ir")]),
+    # `UnaryOp(op, operand)` — `_NODE_SPEC['UnaryOp'] == ('expr', ('op','operand'),
+    # <loc attrs>)`, both total. `op` is a 0-field `unaryop` SINGLETON
+    # (`_N("Not")()`), carried as its class-name `string` — the whole of its content.
+    "UnaryOp": ("IrPyUnaryOp", [("op", "string"), ("operand", "emit_ir")]),
+    # `Starred(value, ctx)` — `_NODE_SPEC['Starred'] == ('expr', ('value','ctx'),
+    # <loc attrs>)`, both total. `ctx` is a 0-field `expr_context` SINGLETON
+    # (`_N("Load")()`), carried as its class-name `string`. NOT the pre-existing
+    # `IrStarred emit_ir`, which DROPS `ctx`.
+    "Starred": ("IrPyStarred", [("value", "emit_ir"), ("ctx", "string")]),
 }
 
 
@@ -716,6 +725,39 @@ def _harvest_node_spec_records(tree: Any) -> Dict[str, Dict[str, Any]]:
     return records
 
 
+def _harvest_node_spec_singletons(validated_ast: Any) -> List[str]:
+    """PYTHON-AST NODE CTOR FAMILY (increment 10): the 0-FIELD ASDL node classes of the
+    compiled file's OWN `_NODE_SPEC` — the ones whose field tuple is EMPTY
+    (`'Load': ('expr_context', (), ())`, `'Not': ('unaryop', (), ())`, ...).
+
+    Such a class carries NO information beyond its own IDENTITY: `_N("Load")()` is a
+    constant, and every construction of it is interchangeable with every other. Its
+    faithful WhyML model is therefore the class NAME as a `string` — nothing is erased —
+    and that is the ONLY expressible model, because a 0-field WhyML record does not
+    exist. Read structurally off the `_NODE_SPEC` dict literal (NOT off
+    `_PURE_AST_FIELD_TABLE`, which lists only the classes with fields), so the set cannot
+    drift from the source. Returns [] for a file with no `_NODE_SPEC`, which is every
+    file but one."""
+    out: List[str] = []
+    for stmt in getattr(validated_ast, "body", []):
+        if not (isinstance(stmt, _ast.Assign)
+                and len(stmt.targets) == 1
+                and isinstance(stmt.targets[0], _ast.Name)
+                and stmt.targets[0].id == "_NODE_SPEC"
+                and isinstance(stmt.value, _ast.Dict)):
+            continue
+        for k, v in zip(stmt.value.keys, stmt.value.values):
+            if not (isinstance(k, _ast.Constant) and isinstance(k.value, str)):
+                continue
+            if not (isinstance(v, _ast.Tuple) and len(v.elts) >= 2
+                    and isinstance(v.elts[1], _ast.Tuple)):
+                continue
+            if not v.elts[1].elts:            # EMPTY field tuple -> a singleton
+                out.append(k.value)
+        break   # only one `_NODE_SPEC` assignment is ever expected
+    return sorted(out)
+
+
 def _process_dependency_structural(filepath: str,
                                    struct_cache: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """Piece 1: structural-only dependency-compile mode. Parses `filepath` with
@@ -863,6 +905,18 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
             _vt = _f.get("value_type")
             if _f.get("type") == "list" and isinstance(_vt, str) and _vt in records:
                 wanted.add(_vt)
+    # PYTHON-AST NODE CTOR FAMILY (increment 10): the 0-FIELD ASDL SINGLETONS. A node
+    # class with an EMPTY field tuple (`_NODE_SPEC['Load'] == ('expr_context', (), ())`)
+    # carries NO information beyond its own IDENTITY — `_N("Load")()` is a constant. A
+    # 0-field WhyML record is not even expressible, which is why these blocked the
+    # `ctx`/`op` slots of every Starred/UnaryOp/BoolOp/Compare construction. The faithful
+    # model is the class NAME as a `string`: it is exactly the identity, nothing is
+    # erased, and it needs NO enum type, NO new ADT and NO axiom. The set is read off the
+    # compiled file's OWN `_NODE_SPEC`, so it cannot drift from the source; it is absent
+    # from every other file's IR, which is what keeps the lowering byte-inert.
+    _singletons = _harvest_node_spec_singletons(validated_ast)
+    if _singletons:
+        ir_data["pyast_singleton_nodes"] = _singletons
     if not wanted:
         return
     existing = {td.get("name") for td in ir_data.get("type_decls", [])}
