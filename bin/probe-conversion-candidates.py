@@ -77,32 +77,74 @@ def live_src(name, cls):
                 return "\n".join(lines[m.lineno-1:(m.body[-1].end_lineno or m.lineno)])
     return None
 
-# A canonical bodyless stub: the `#@ \trusted` marker, the rest of its `#@` block,
-# any DECORATOR lines (`@staticmethod` sits between the block and the `def` in
-# `Module3_Weaver` and elsewhere — omitting them lost 28 of 28 candidates in that file to
-# a silent NO-TRUSTED-STUB), then a `def` whose body is one line.
-STUB = re.compile(r"^(?P<ind>[ \t]*)#@ \\trusted reviewer: pycsl-self-annotate\n"
-                  r"(?P<cts>(?:[ \t]*(?:#@ |# ).*\n)*)"
-                  r"(?P<decs>(?:[ \t]*@[\w.]+(?:\([^\n]*\))?\n)*)"
-                  r"(?P<ind2>[ \t]*)def (?P<name>\w+)\((?P<args>[^\n]*)\)(?P<ret>[^\n]*):\n"
-                  r"(?P=ind2)    (?:pass|return [^\n]*)\n", re.M)
+def stub_span(mirror_src, name, cls):
+    r"""Locate the `\trusted` stub for `cls.name` in the mirror, AST-first.
+
+    Returns `(start_line, end_line, kept_block)` as 0-based inclusive line indices covering
+    the marker line through the end of the `def`, plus the `#@`/comment/decorator lines to
+    KEEP (everything in the block except the `\trusted` marker itself). Returns None if the
+    function is absent or carries no marker.
+
+    AST-based rather than a body regex because the mirror is HETEROGENEOUS: some stubs are
+    bodyless (`pass` / a one-line `return`), some carry the REAL live body under the marker
+    (`pycsl.py`, `audit_proof_reverify.py`, `Module6_WhyMLTranspiler.py`, `statements.py` —
+    67+ functions), and decorators (`@staticmethod`, `@property`) sit between the block and
+    the `def`. A regex over the body shape silently missed every one of those as
+    NO-TRUSTED-STUB."""
+    lines = mirror_src.split("\n")
+    tree = ast.parse(mirror_src)
+    target = None
+    scopes = [(None, tree)] + [(c.name, c) for c in ast.walk(tree)
+                               if isinstance(c, ast.ClassDef)]
+    for scope_name, sc in scopes:
+        if scope_name != cls:
+            continue
+        for m in sc.body:
+            if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef)) and m.name == name:
+                target = m
+                break
+        if target is not None:
+            break
+    if target is None:
+        return None
+    first = target.decorator_list[0].lineno - 1 if target.decorator_list else target.lineno - 1
+    i = first - 1
+    marker = None
+    kept = []
+    while i >= 0:
+        st = lines[i].strip()
+        if st.startswith("#@") or st.startswith("#") or st.startswith("@") or st == "":
+            if MARKER_RE.match(st):
+                marker = i
+                break
+            kept.append(lines[i])
+            i -= 1
+            continue
+        break
+    if marker is None:
+        return None
+    kept.reverse()
+    end = (target.end_lineno or target.lineno) - 1
+    return marker, end, kept
+
+
+MARKER_RE = re.compile(r"^#@\s*\\trusted\b")
+
 
 def probe(name, cls):
     orig = open(MIRROR).read()
     body = live_src(name, cls)
     if body is None:
         return name, "NO-LIVE-SOURCE", []
-    hit = None
-    for m in STUB.finditer(orig):
-        if m.group("name") == name:
-            hit = m; break
-    if hit is None:
+    span = stub_span(orig, name, cls)
+    if span is None:
         return name, "NO-TRUSTED-STUB", []
-    ind = hit.group("ind")
+    marker_i, end_i, kept = span
+    lines = orig.split("\n")
+    ind = lines[marker_i][:len(lines[marker_i]) - len(lines[marker_i].lstrip())]
     ported = "\n".join((ind + l[4:] if l.startswith("    ") else ind + l)
                        for l in body.split("\n"))
-    new = (orig[:hit.start()] + hit.group("cts") + hit.group("decs")
-               + ported + "\n" + orig[hit.end():])
+    new = "\n".join(lines[:marker_i] + kept + ported.split("\n") + lines[end_i + 1:])
     try:
         open(MIRROR, "w").write(new)
         env = dict(os.environ, PATH="/home/fabrice/.opam/framac-coq8/bin:" + os.environ["PATH"],
@@ -147,6 +189,26 @@ def probe(name, cls):
         # alone will not show it (measured on `_dotted_as_name`).
         if re.search(r"^\s*while ", blk, re.M) and "variant" not in blk:
             found.append("while without a variant (termination will fail)")
+        # SELF-FIELD / PARAM ERASURE — the structural input-blindness check, and the one
+        # that caught the SECOND round of false CLEANs. `ReverifyReport.ok` reads
+        # `self.qualname_results` and emitted `all_1 (Array.make 1 0)`: the container was
+        # replaced by a freshly-built constant, so the field vanished from the body
+        # entirely. Any self-field or parameter the SOURCE reads must APPEAR in the
+        # emitted body; the emitter renames (`self.f` -> `self.f`, params keep their name
+        # or gain a `v_` prefix), so a substring test is the right granularity.
+        reads = {n.attr for n in ast.walk(src_fn)
+                 if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name)
+                 and n.value.id == "self"}
+        gone = sorted(f for f in reads if f not in blk)
+        if gone:
+            found.append(f"SELF-FIELD ERASURE (read in source, absent from body: {gone})")
+        params = [a.arg for a in src_fn.args.args if a.arg != "self"]
+        used_params = {a.arg for a in src_fn.args.args if a.arg != "self"
+                       and any(isinstance(n, ast.Name) and n.id == a.arg
+                               for n in ast.walk(src_fn))}
+        pgone = sorted(pp for pp in params if pp in used_params and pp not in blk)
+        if pgone:
+            found.append(f"PARAM ERASURE (used in source, absent from body: {pgone})")
         return name, ("CLEAN" if not found else "ERASURE"), found
     finally:
         open(MIRROR, "w").write(orig)
