@@ -308,6 +308,114 @@ theorem pex_name_neq_pex_binop (a : P.TName) (b : P.TBinOp) :
     (PyastExpr.PEx_Name a : PyastExpr P) ≠ .PEx_BinOp b := by
   intro h; cases h
 
+-- ===================================================================== --
+-- 4b. THE SECOND INSTANCE — `CslNode` (the 77-entry `_CSL_HANDLERS`      --
+--     table).  `_py_expr_to_ir` and `_csl_to_ir` are two instances of    --
+--     ONE construction, but `csl_node` has a property `pyast_expr` does  --
+--     not, and it is the one worth certifying: FOUR DISTINCT ARMS SHARE  --
+--     A SINGLE HANDLER.  `_CSL_HANDLERS` maps `Requires`/`Ensures`/      --
+--     `LoopInvariant`/`LoopVariant` — all ContractWrapper SUBCLASSES —   --
+--     to the same `_csl_contract_wrapper(node: ContractWrapper)`, whose  --
+--     parameter is BASE-typed.  That is why the emitter derives an arm's --
+--     payload from the HANDLER's declared parameter class, not from the  --
+--     table key.  Also certified: this dispatcher's default arm is the   --
+--     source's own RAISE, so an unsupported node cannot silently produce --
+--     a result.                                                          --
+-- ===================================================================== --
+
+section CslNodeSharedHandler
+
+variable {TWrapper TBin TVar R2 : Type}
+
+inductive CslNode (TBin TVar TWrapper : Type) where
+  | PCsl_CSLBinOp (p : TBin)
+  | PCsl_CSLVar (p : TVar)
+  | PCsl_ContractWrapper (p : TWrapper)
+  | PCsl_Requires (p : TWrapper)          -- subclass -> BASE-typed payload
+  | PCsl_Ensures (p : TWrapper)
+  | PCsl_LoopInvariant (p : TWrapper)
+  | PCsl_LoopVariant (p : TWrapper)
+  | PCsl_Unknown
+
+def cslxKindOf : CslNode TBin TVar TWrapper → String
+  | .PCsl_CSLBinOp _        => "CSLBinOp"
+  | .PCsl_CSLVar _          => "CSLVar"
+  | .PCsl_ContractWrapper _ => "ContractWrapper"
+  | .PCsl_Requires _        => "Requires"
+  | .PCsl_Ensures _         => "Ensures"
+  | .PCsl_LoopInvariant _   => "LoopInvariant"
+  | .PCsl_LoopVariant _     => "LoopVariant"
+  | .PCsl_Unknown           => ""
+
+variable (hBinOp : TBin → R2) (hVar : TVar → R2)
+variable (hContractWrapper : TWrapper → R2)     -- the SHARED handler
+variable (exc : R2)                             -- the source's `raise` arm
+
+def cslDispatch : CslNode TBin TVar TWrapper → R2
+  | .PCsl_CSLBinOp p        => hBinOp p
+  | .PCsl_CSLVar p          => hVar p
+  | .PCsl_ContractWrapper p => hContractWrapper p
+  | .PCsl_Requires p        => hContractWrapper p
+  | .PCsl_Ensures p         => hContractWrapper p
+  | .PCsl_LoopInvariant p   => hContractWrapper p
+  | .PCsl_LoopVariant p     => hContractWrapper p
+  | .PCsl_Unknown           => exc
+
+local notation "CD" => cslDispatch hBinOp hVar hContractWrapper exc
+
+/-- ARM-SHARING IS FAITHFUL: the subclass arms take the BASE handler applied to
+    that node's own payload — the Python subtype call, exactly. -/
+theorem csl_requires_takes_wrapper_handler (p : TWrapper) :
+    CD (.PCsl_Requires p) = hContractWrapper p := rfl
+theorem csl_ensures_takes_wrapper_handler (p : TWrapper) :
+    CD (.PCsl_Ensures p) = hContractWrapper p := rfl
+theorem csl_loopinv_takes_wrapper_handler (p : TWrapper) :
+    CD (.PCsl_LoopInvariant p) = hContractWrapper p := rfl
+theorem csl_loopvar_takes_wrapper_handler (p : TWrapper) :
+    CD (.PCsl_LoopVariant p) = hContractWrapper p := rfl
+
+/-- Sharing a HANDLER does not merge the KINDS: the arms stay distinguishable, so
+    the dispatch table is still injective on keys. -/
+theorem csl_shared_handler_keeps_kinds_distinct (p q : TWrapper) :
+    cslxKindOf (TBin := TBin) (TVar := TVar) (.PCsl_Requires p)
+      ≠ cslxKindOf (TBin := TBin) (TVar := TVar) (.PCsl_Ensures q) := by
+  simp only [cslxKindOf]; decide
+
+theorem csl_shared_handler_kind_neq_base (p q : TWrapper) :
+    cslxKindOf (TBin := TBin) (TVar := TVar) (.PCsl_Requires p)
+      ≠ cslxKindOf (TBin := TBin) (TVar := TVar) (.PCsl_ContractWrapper q) := by
+  simp only [cslxKindOf]; decide
+
+/-- DETERMINACY survives a shared handler: the kind determines both the arm and the
+    handler that is applied. -/
+theorem csl_dispatch_determined_by_kind_requires (e : CslNode TBin TVar TWrapper)
+    (h : cslxKindOf e = "Requires") :
+    ∃ p : TWrapper, e = .PCsl_Requires p ∧ CD e = hContractWrapper p := by
+  cases e <;> simp [cslxKindOf] at h
+  case PCsl_Requires p => exact ⟨p, rfl, rfl⟩
+
+/-- THE REJECTING DEFAULT — this dispatcher's second difference from the expression
+    one.  If every real handler differs from the error result, then reaching the
+    error result MEANS the node was unsupported: the emitted body can neither
+    silently turn an unsupported node into an IR node nor silently reject a
+    supported one. -/
+theorem csl_error_implies_unknown (e : CslNode TBin TVar TWrapper)
+    (hb : ∀ p : TBin, hBinOp p ≠ exc)
+    (hv : ∀ p : TVar, hVar p ≠ exc)
+    (hw : ∀ p : TWrapper, hContractWrapper p ≠ exc)
+    (h : CD e = exc) : e = .PCsl_Unknown := by
+  cases e with
+  | PCsl_CSLBinOp p => exact absurd h (hb p)
+  | PCsl_CSLVar p => exact absurd h (hv p)
+  | PCsl_ContractWrapper p => exact absurd h (hw p)
+  | PCsl_Requires p => exact absurd h (hw p)
+  | PCsl_Ensures p => exact absurd h (hw p)
+  | PCsl_LoopInvariant p => exact absurd h (hw p)
+  | PCsl_LoopVariant p => exact absurd h (hw p)
+  | PCsl_Unknown => rfl
+
+end CslNodeSharedHandler
+
 end PyAstExprCert
 
 -- ===================================================================== --
@@ -341,3 +449,11 @@ end PyAstExprCert
 #print axioms PyAstExprCert.dispatch_name_is_not_binop_handler
 #print axioms PyAstExprCert.pex_name_injective
 #print axioms PyAstExprCert.pex_name_neq_pex_binop
+#print axioms PyAstExprCert.csl_requires_takes_wrapper_handler
+#print axioms PyAstExprCert.csl_ensures_takes_wrapper_handler
+#print axioms PyAstExprCert.csl_loopinv_takes_wrapper_handler
+#print axioms PyAstExprCert.csl_loopvar_takes_wrapper_handler
+#print axioms PyAstExprCert.csl_shared_handler_keeps_kinds_distinct
+#print axioms PyAstExprCert.csl_shared_handler_kind_neq_base
+#print axioms PyAstExprCert.csl_dispatch_determined_by_kind_requires
+#print axioms PyAstExprCert.csl_error_implies_unknown

@@ -4677,3 +4677,70 @@ weave-attr sub-loops (`csl_labels`, `csl_checkpoints`, `csl_ghost_assigns`,
 `(stmt, ir_stmts)` and MUTATES the accumulator rather than returning. The three-statement
 recognizer will (correctly) not fire. That dispatcher needs the loop + accumulator lowering on
 top of the ADT, and is a separate build.
+
+## L2 `_csl_to_ir` — **CONVERTED (618 -> 617)**, the SAME capability carried to the 77-entry CSL table (2026-08-27, RELAUNCH #4)
+
+The backlog listed `_csl_to_ir` (79 entries) as the LAST and hardest member of the L2 cluster,
+"strictly larger" because it "makes 75 already-verified handlers mutually recursive, which needs
+a structural `#@ \variant` over CSL nodes". **That framing was wrong, and the reason is worth
+keeping:** the handlers only become mutually recursive with the dispatcher if the emitter
+rewrites their `self._csl_to_ir(...)` calls to the converted definition — and it does not. Those
+calls are gated on the concrete-sibling resolution (`_record_array_fields` / `#@ sibling_concrete`),
+which `_csl_to_ir` does not satisfy, so every handler keeps calling the abstract
+`self__csl_to_ir_1` val exactly as before. **No SCC, no variant, no structural measure.** The
+same is true of `_py_expr_to_ir`. Check the GATE before assuming a conversion creates recursion.
+
+**CENSUS FIRST (lesson p), and it was decisive.** 77 table entries, 77 DISTINCT keys, 73 distinct
+handlers, and every one of them already has an emitted signature taking its own record type and
+returning `emit_ir` — with exactly TWO exceptions (`_csl_in` returns `int`; `_csl_list_to_ir` is
+not in the table at all). So the expensive-sounding item was two-thirds already done by earlier
+windows.
+
+### FOUR EXTENSIONS THE SECOND TABLE FORCED — each one measured, none predicted
+
+ 1. **The Module 5 table collector rejected BARE-NAME keys.** It required
+    `isinstance(k, ast.Attribute)` — i.e. a dotted `ast.Name:` key. `_CSL_HANDLERS` writes
+    `CSLBinOp:` (a directly-imported class), so the ENTIRE 77-entry CSL table had been silently
+    invisible to `class_type_str_constants` since that registry was built. Both forms denote the
+    same thing to `type(x)`; the recorded key is the class's own name either way.
+ 2. **The arm payload type must come from the HANDLER's declared parameter class, NOT the table
+    key.** `_CSL_HANDLERS` maps FOUR ContractWrapper SUBCLASSES (`Requires`, `Ensures`,
+    `LoopInvariant`, `LoopVariant`) to the single handler `_csl_contract_wrapper(node:
+    ContractWrapper)` — Python passes the subclass instance to a base-typed parameter and the
+    handler reads only base fields. Keying the arm on the table entry emits `PCsl_Requires
+    requires` against a `contractwrapper` parameter: a type error. (`Forall`/`Exists` were a
+    second, milder instance — the emitter prefixes Why3-keyword collisions, so their records are
+    `py_forall`/`py_exists`.)
+ 3. **A SECOND dispatcher BODY SHAPE, and it is the STRONGER one.** `_py_expr_to_ir` guards
+    `if handler is not None: return dispatch` and falls back to a NODE. `_csl_to_ir` guards
+    `if handler is None: raise` and then dispatches unconditionally. The emitted default arm is
+    therefore the source's own `raise`, which means the emitted body PROVES that an unsupported
+    CSL node cannot silently produce an IR node — content the fallback shape does not have.
+ 4. **The dispatcher must DECLARE the union of every exception its arms propagate.** Measured:
+    `_csl_ctor_payload` raises `PyCSLSemanticError`, and Why3 rejects the file with
+    `this expression raises unlisted exception PyCSLSemanticError`. The summary is computed the
+    same way `_emit_function` computes a handler's own (`IRScanner.collect_escaping_exceptions`
+    + `_callee_raised_in` + the handler's `#@ raises`), so the two cannot drift. Note this makes
+    the conversion strictly MORE faithful than the `val` it replaces, which declared NO raises
+    at all while the live method really does propagate its handlers' errors.
+
+### HARDENING THAT CAME WITH IT
+
+Table selection is now an **EXPLICIT allowlist** (`_PYX_TABLE_ADT`: table name -> ADT type, ctor
+prefix, view, kind reflector, tag) instead of "the first sorted table whose values are all method
+names of this class". `PyCSLToJSONEmitter` holds THREE tables that pass that predicate
+(`_PY_EXPR_HANDLERS`, `_PY_OP_MAP`, `_PY_STMT_HANDLERS`), and `_PY_STMT_HANDLERS` is deliberately
+absent from the allowlist — its dispatcher consumes the table inside a LOOP over `stmts`, with
+four weave-attr sub-loops and handlers that MUTATE an accumulator instead of returning, so the
+expansion does not apply to it. With the allowlist, an unsupported table cannot accidentally
+acquire an ADT.
+
+### CERTIFICATE EXTENDED (same axiom-free files)
+
+`Phase2l_PyAstExpr.v` / `PyAstExpr.lean` gained a `CslNodeSharedHandler` section, because
+`csl_node` has a property `pyast_expr` does not: FOUR DISTINCT ARMS SHARE ONE HANDLER. Certified:
+arm-sharing is faithful (each subclass arm takes the BASE handler applied to its own payload);
+sharing a handler does NOT merge the kinds (the arms stay distinguishable, so the table is still
+injective on keys); determinacy survives it; and — the rejecting default — if every real handler
+differs from the error result then reaching the error result MEANS the node was unsupported, so
+the body can neither silently accept an unsupported node nor silently reject a supported one.

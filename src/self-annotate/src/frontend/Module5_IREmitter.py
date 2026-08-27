@@ -64,14 +64,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # self-tcb-reduction spike (csl-ast-as-emit_ir): param+return retyped `CSLNode`/`int`
     # -> `"ExprIR"` so the recursive dispatcher's signature is `emit_ir -> emit_ir`
     # (matches `_field_type_from_annotation_inst`'s `_irnode_ann_name` recognition and
-    # `_symtype_to_whyml`'s param-side mapping). Stays \trusted (body unchanged) — this
-    # is a signature-only retype, not a body conversion.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # `_symtype_to_whyml`'s param-side mapping).
+    #
+    # L2 DISPATCH-EXPANSION (this increment): CONVERTED. Verbatim body port of the LIVE
+    # `_csl_to_ir` (Module5_IREmitter.py:605) — the `_CSL_HANDLERS.get(type(node))` lookup,
+    # the `is None` RAISE guard, and the `getattr(self, handler_name)(node)` indirect call.
+    # Module 6 lowers the whole shape (functions.py `_recognize_pyx_dispatcher` +
+    # `_emit_pyx_dispatcher_bespoke`) to a total `match cslx_view node with
+    # | PCsl_<Cls> _p -> <handler> self _p | ... | PCsl_Unknown -> raise PyCSLIRError end`
+    # over the input-side `csl_node` ADT (preamble.py `_emit_pyx_expr_adt`), whose 77 arms
+    # are derived FROM THIS TABLE in source order. Unlike `_py_expr_to_ir` the default arm
+    # is the source's own RAISE, not a fallback node — so the emitted body proves that an
+    # unsupported CSL node cannot silently produce an IR node.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_to_ir(self, node: "ExprIR") -> "ExprIR":
-        return {}
+        handler_name = self._CSL_HANDLERS.get(type(node))
+        if handler_name is None:
+            raise PyCSLIRError(f"Unsupported CSL node: {type(node).__name__}", stage="ir-emit")
+        return getattr(self, handler_name)(node)
 
     #@ requires True
     #@ ensures True
@@ -388,11 +400,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "Sum", "base": node.base,
                 "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
+    # L2 DISPATCH-EXPANSION: return retyped `int` -> `"ExprIR"` so this handler's arm of the
+    # `_csl_to_ir` dispatch match is `emit_ir`-typed like every other arm. Stays \trusted
+    # (body unchanged) — signature-only retype, not a body conversion.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._fresh_var_counter
-    def _csl_in(self, node: CSLIn) -> int:
+    def _csl_in(self, node: CSLIn) -> "ExprIR":
         return {}
 
     #@ requires True

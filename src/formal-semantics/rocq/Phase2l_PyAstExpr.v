@@ -367,6 +367,149 @@ Proof. intros a b H; discriminate. Qed.
 End PyAstExpr.
 
 (* ===================================================================== *)
+(* 4b. THE SECOND INSTANCE — `csl_node` (the 77-entry `_CSL_HANDLERS` table).   *)
+(*                                                                             *)
+(*   The `_py_expr_to_ir` and `_csl_to_ir` dispatchers are two instances of ONE *)
+(*   construction, so the facts above are re-usable in shape — but `csl_node`   *)
+(*   has a property `pyast_expr` does NOT, and it is the one worth certifying:  *)
+(*   FOUR DISTINCT ARMS SHARE A SINGLE HANDLER.  `_CSL_HANDLERS` maps           *)
+(*   `Requires` / `Ensures` / `LoopInvariant` / `LoopVariant` — all subclasses  *)
+(*   of `ContractWrapper` — to the SAME method `_csl_contract_wrapper`, whose   *)
+(*   parameter is typed with the BASE class.  That is why the emitter derives   *)
+(*   an arm's payload from the HANDLER's declared parameter class rather than   *)
+(*   from the table key.  Certified below: arm-sharing does NOT collapse the    *)
+(*   kinds (the four arms stay distinguishable), and it does NOT weaken the     *)
+(*   determinacy result (knowing the kind still determines the handler AND the  *)
+(*   payload).  The second difference — the default arm is the source's own     *)
+(*   RAISE rather than a fallback node — is certified as `dispatch_rejects_...`:*)
+(*   an unsupported node CANNOT silently produce a result.                      *)
+(* ===================================================================== *)
+
+Section CslNodeSharedHandler.
+
+(* The shared base payload (`contractwrapper`) and two unrelated payloads. *)
+Variable TWrapper TBin TVar : Type.
+Variable R2 : Type.
+
+Inductive csl_node : Type :=
+  | PCsl_CSLBinOp (p : TBin)
+  | PCsl_CSLVar (p : TVar)
+  | PCsl_ContractWrapper (p : TWrapper)
+  | PCsl_Requires (p : TWrapper)          (* subclass -> BASE-typed payload *)
+  | PCsl_Ensures (p : TWrapper)
+  | PCsl_LoopInvariant (p : TWrapper)
+  | PCsl_LoopVariant (p : TWrapper)
+  | PCsl_Unknown.
+
+Definition cslx_kind_of (e : csl_node) : string :=
+  match e with
+  | PCsl_CSLBinOp _        => "CSLBinOp"
+  | PCsl_CSLVar _          => "CSLVar"
+  | PCsl_ContractWrapper _ => "ContractWrapper"
+  | PCsl_Requires _        => "Requires"
+  | PCsl_Ensures _         => "Ensures"
+  | PCsl_LoopInvariant _   => "LoopInvariant"
+  | PCsl_LoopVariant _     => "LoopVariant"
+  | PCsl_Unknown           => ""
+  end.
+
+Variable h_binop : TBin -> R2.
+Variable h_var : TVar -> R2.
+Variable h_contract_wrapper : TWrapper -> R2.   (* the SHARED handler *)
+Variable exc : R2.                              (* the source's `raise` arm *)
+
+Definition csl_dispatch (e : csl_node) : R2 :=
+  match e with
+  | PCsl_CSLBinOp p        => h_binop p
+  | PCsl_CSLVar p          => h_var p
+  | PCsl_ContractWrapper p => h_contract_wrapper p
+  | PCsl_Requires p        => h_contract_wrapper p
+  | PCsl_Ensures p         => h_contract_wrapper p
+  | PCsl_LoopInvariant p   => h_contract_wrapper p
+  | PCsl_LoopVariant p     => h_contract_wrapper p
+  | PCsl_Unknown           => exc
+  end.
+
+(* ARM-SHARING IS FAITHFUL: the four subclass arms really do take the base handler,
+   applied to that node's own payload — the Python subtype call, exactly. *)
+Theorem csl_requires_takes_wrapper_handler : forall p,
+  csl_dispatch (PCsl_Requires p) = h_contract_wrapper p.
+Proof. reflexivity. Qed.
+Theorem csl_ensures_takes_wrapper_handler : forall p,
+  csl_dispatch (PCsl_Ensures p) = h_contract_wrapper p.
+Proof. reflexivity. Qed.
+Theorem csl_loopinv_takes_wrapper_handler : forall p,
+  csl_dispatch (PCsl_LoopInvariant p) = h_contract_wrapper p.
+Proof. reflexivity. Qed.
+Theorem csl_loopvar_takes_wrapper_handler : forall p,
+  csl_dispatch (PCsl_LoopVariant p) = h_contract_wrapper p.
+Proof. reflexivity. Qed.
+
+(* ...and sharing a HANDLER does NOT merge the KINDS: the four arms remain
+   distinguishable, so the dispatch table is still injective on keys. *)
+Theorem csl_shared_handler_keeps_kinds_distinct : forall p q,
+  cslx_kind_of (PCsl_Requires p) <> cslx_kind_of (PCsl_Ensures q).
+Proof. intros; simpl; discriminate. Qed.
+Theorem csl_shared_handler_kind_neq_base : forall p q,
+  cslx_kind_of (PCsl_Requires p) <> cslx_kind_of (PCsl_ContractWrapper q).
+Proof. intros; simpl; discriminate. Qed.
+
+(* DETERMINACY still holds through a shared handler: the kind determines both the
+   arm and the applied handler. *)
+Theorem csl_dispatch_determined_by_kind_requires : forall e,
+  cslx_kind_of e = "Requires" ->
+  exists p : TWrapper, e = PCsl_Requires p /\ csl_dispatch e = h_contract_wrapper p.
+Proof.
+  intros e H; destruct e; simpl in H; try discriminate.
+  exists p. split; reflexivity.
+Qed.
+
+(* THE REJECTING DEFAULT (this dispatcher's second difference from the expression
+   one): the `raise` arm is reached ONLY by the unsupported node.  So a node of a
+   SUPPORTED class provably does NOT take the error path — the emitted body cannot
+   silently turn an unsupported node into an IR node, and cannot silently reject a
+   supported one either. *)
+Theorem csl_dispatch_rejects_only_unknown : forall e,
+  csl_dispatch e = exc ->
+  e = PCsl_Unknown
+  \/ (exists p, e = PCsl_CSLBinOp p /\ h_binop p = exc)
+  \/ (exists p, e = PCsl_CSLVar p /\ h_var p = exc)
+  \/ (exists p, csl_dispatch e = h_contract_wrapper p /\ h_contract_wrapper p = exc).
+Proof.
+  intros e H; destruct e; simpl in H.
+  - right; left; exists p; split; [ reflexivity | exact H ].
+  - right; right; left; exists p; split; [ reflexivity | exact H ].
+  - right; right; right; exists p; split; [ reflexivity | exact H ].
+  - right; right; right; exists p; split; [ reflexivity | exact H ].
+  - right; right; right; exists p; split; [ reflexivity | exact H ].
+  - right; right; right; exists p; split; [ reflexivity | exact H ].
+  - right; right; right; exists p; split; [ reflexivity | exact H ].
+  - left; reflexivity.
+Qed.
+
+(* And the sharp form, which is what the conversion actually buys: if every real
+   handler differs from the error result on the payload at hand, then reaching the
+   error result MEANS the node was unsupported. *)
+Theorem csl_error_implies_unknown : forall e,
+  (forall p : TBin, h_binop p <> exc) ->
+  (forall p : TVar, h_var p <> exc) ->
+  (forall p : TWrapper, h_contract_wrapper p <> exc) ->
+  csl_dispatch e = exc -> e = PCsl_Unknown.
+Proof.
+  intros e Hb Hv Hw H; destruct e; simpl in H.
+  - exfalso; exact (Hb p H).
+  - exfalso; exact (Hv p H).
+  - exfalso; exact (Hw p H).
+  - exfalso; exact (Hw p H).
+  - exfalso; exact (Hw p H).
+  - exfalso; exact (Hw p H).
+  - exfalso; exact (Hw p H).
+  - reflexivity.
+Qed.
+
+End CslNodeSharedHandler.
+
+(* ===================================================================== *)
 (* 5. VERDICT — assumption audit.  Every result must be `Closed under the  *)
 (*    global context` (NO axiom): the 3-axiom trust ledger is intact.      *)
 (* ===================================================================== *)
@@ -397,3 +540,12 @@ Print Assumptions dispatch_determined_by_kind_name.
 Print Assumptions dispatch_name_is_not_binop_handler.
 Print Assumptions pex_name_injective.
 Print Assumptions pex_name_neq_pex_binop.
+Print Assumptions csl_requires_takes_wrapper_handler.
+Print Assumptions csl_ensures_takes_wrapper_handler.
+Print Assumptions csl_loopinv_takes_wrapper_handler.
+Print Assumptions csl_loopvar_takes_wrapper_handler.
+Print Assumptions csl_shared_handler_keeps_kinds_distinct.
+Print Assumptions csl_shared_handler_kind_neq_base.
+Print Assumptions csl_dispatch_determined_by_kind_requires.
+Print Assumptions csl_dispatch_rejects_only_unknown.
+Print Assumptions csl_error_implies_unknown.

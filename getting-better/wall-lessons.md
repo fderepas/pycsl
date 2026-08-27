@@ -2474,3 +2474,45 @@ explicit-citation channel — `func["uses"]`, which `sort_functions_by_scc` alre
 **The rule.** Whenever a recognizer emits a call that is not in the IR, ask in the same breath what
 guarantees the callee is DECLARED FIRST. This failure is loud, which is the good news; the bad news
 is that it surfaces only at whole-file L3-tc, i.e. after the rest of the build already looks done.
+
+## Lesson (mm) — "converting the dispatcher makes its handlers mutually recursive" is FALSE unless the sibling-resolution GATE says so
+
+The backlog had `_csl_to_ir` filed as the hardest L2 member, "strictly larger" than its siblings
+because converting it "makes 75 already-verified handlers mutually recursive, which needs a
+structural `#@ \variant` over CSL nodes". That is the intuitive reading of the source — the
+handlers do call `self._csl_to_ir(...)` — and it is wrong about the EMISSION. A handler's
+`self.<m>()` call lowers to the CONCRETE sibling only when the concrete-sibling resolution admits
+it (`_record_array_fields`, or an explicit `#@ sibling_concrete`); otherwise it degrades to the
+abstract `self__<m>_<arity>` val. Neither dispatcher qualifies, so all 73 handlers kept calling
+the abstract val after the conversion: **no SCC formed, no variant was needed, no structural
+measure over CSL nodes was needed.** The item that had been carried as session-scale for several
+windows was a few hours' work once the census was run.
+
+**The rule.** Before scoping a build around "this will create mutual recursion", read the emitted
+`.mlw` and check whether the sibling call is CONCRETE or an abstract val today. The source's call
+graph and the emitted call graph are different graphs, and this campaign's gating machinery is
+precisely what separates them.
+
+## Lesson (nn) — a capability's SECOND instance is where its hidden assumptions surface; budget for four, not zero
+
+Carrying the type-keyed dispatch expansion from `_PY_EXPR_HANDLERS` (23 entries) to
+`_CSL_HANDLERS` (77) needed four extensions, none of which was visible from the first instance:
+
+ - the Module 5 collector accepted only DOTTED class keys (`ast.Name:`), so a table written with
+   BARE imported names (`CSLBinOp:`) had been silently invisible to the registry since it was
+   built — the capability did not fail on the second table, it simply never saw it;
+ - the arm payload type must come from the HANDLER's declared parameter class, not the table key:
+   four `ContractWrapper` SUBCLASSES share one base-typed handler, and keying on the entry emits
+   a subclass record against a base-typed parameter;
+ - the dispatcher body had a second SHAPE (`if handler is None: raise` + unconditional dispatch)
+   — and it is the STRONGER one, because its default arm is the source's own raise;
+ - the emitted body must DECLARE the union of every exception its arms propagate, or Why3 rejects
+   the file.
+
+Every one was found by a measurement (a census, a type error, a Why3 error), and every one made
+the capability more general rather than more special-cased.
+
+**The rule.** When a landed capability is "obviously reusable" for a second instance, do the
+census before the estimate: enumerate the second instance's keys, its handlers' emitted
+signatures, and its body shape, and diff them against the first's. The generalization is usually
+worth doing — but the estimate that says "it already works" is the one to distrust.

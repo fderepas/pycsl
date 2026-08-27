@@ -3085,11 +3085,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             entries: List[List[str]] = []
             ok = bool(value.keys)
             for k, v in zip(value.keys, value.values):
-                if not (isinstance(k, ast.Attribute) and isinstance(k.value, ast.Name)
-                        and isinstance(v, ast.Constant) and isinstance(v.value, str)):
+                if not (isinstance(v, ast.Constant) and isinstance(v.value, str)):
                     ok = False
                     break
-                entries.append([k.attr, v.value])
+                # A key names a CLASS, either dotted (`ast.Name` — the `_PY_OP_MAP` /
+                # `_PY_EXPR_HANDLERS` shape, a module-qualified class) or BARE (`CSLBinOp` —
+                # the `_CSL_HANDLERS` shape, a directly-imported class). Both denote the same
+                # thing to `type(x)`, and dropping the bare form silently excluded the
+                # 77-entry CSL dispatch table from the expansion. The recorded key is the
+                # class's OWN name in both cases, so downstream (`_pyx_dispatch_tables`,
+                # `_class_type_str_table_get`) is unchanged.
+                if isinstance(k, ast.Attribute) and isinstance(k.value, ast.Name):
+                    entries.append([k.attr, v.value])
+                elif isinstance(k, ast.Name):
+                    entries.append([k.id, v.value])
+                else:
+                    ok = False
+                    break
             if ok and entries:
                 out[target] = entries
         return out

@@ -8657,7 +8657,7 @@ class PreambleEmissionMixin:
         # `_emit_type_decls`, because its arm payloads are the handler param RECORD types
         # (`name`, `binop`, `py_constant`, ...) which only exist in `self._record_types`
         # once the loop above has run. Fail-closed: emits nothing unless the file carries a
-        # complete handler table (`_pyx_dispatch_table`), so the reference corpus and every
+        # complete handler table (`_pyx_dispatch_tables`), so the reference corpus and every
         # other mirror are byte-identical.
         self._emit_pyx_expr_adt(out, declared_types)
         return out, declared_types
@@ -8670,6 +8670,22 @@ class PreambleEmissionMixin:
     # `comprehension`), so the ADT arm carries the same opaque type the handler's signature
     # already names. Kept in ONE place; a mismatch with the handler signature is a LOUD Why3
     # type error at L3-tc, never a silent bad lowering.
+    # L2 DISPATCH-EXPANSION: the ADT NAMING for each dispatch table the expansion supports.
+    # `{table name: (adt type, ctor prefix, view val, kind reflector, tag val)}`.
+    # EXPLICIT rather than derived, and it is what makes the capability fail-closed: a class
+    # may hold SEVERAL tables that all pass the "every value names a method of this class"
+    # predicate (`PyCSLToJSONEmitter` holds three), and only the ones listed here get an ADT.
+    # `_PY_STMT_HANDLERS` is deliberately ABSENT — its dispatcher consumes the table inside a
+    # loop over `stmts`, with four weave-attr sub-loops and handlers that MUTATE an
+    # accumulator instead of returning, so the expansion does not apply to it (see the
+    # backlog). Prefixes are pairwise disjoint and disjoint from the Ir*/S*/PS*/C* families.
+    _PYX_TABLE_ADT: Dict[str, Tuple[str, str, str, str, str]] = {
+        "_PY_EXPR_HANDLERS": ("pyast_expr", "PEx_", "pyx_view", "pyx_kind_of",
+                              "pyx_type_name_of"),
+        "_CSL_HANDLERS": ("csl_node", "PCsl_", "cslx_view", "cslx_kind_of",
+                          "cslx_type_name_of"),
+    }
+
     _PYX_OPAQUE_NODE_TYPES: Dict[str, str] = {
         "BoolOp": "py_boolop_node",
         "Compare": "py_compare_node",
@@ -8681,24 +8697,27 @@ class PreambleEmissionMixin:
         "Lambda": "py_lambda_node",
     }
 
-    def _pyx_dispatch_table(self) -> Optional[Tuple[str, str, List[List[str]]]]:
-        """L2 DISPATCH-EXPANSION (pyast_expr): return `(class_name, table_name, entries)`
-        for the file's `type -> handler-method-name` dispatch table, or None.
+    def _pyx_dispatch_tables(self) -> List[Tuple[str, str, List[List[str]]]]:
+        """L2 DISPATCH-EXPANSION: every `type -> handler-method-name` dispatch table in the
+        program that the expansion supports, as `(class_name, table_name, entries)` with the
+        entries IN SOURCE ORDER.
 
-        The table itself is collected by Module 5 (`_collect_class_type_str_constants`,
-        the `_PY_OP_MAP` capability) and travels in `class_type_str_constants` IN SOURCE
-        ORDER. What distinguishes a HANDLER table from a plain value table — and what this
-        predicate tests — is that every value NAMES A METHOD OF THE SAME CLASS. That is the
-        table the live body consumes through `getattr(self, handler_name)(expr)`.
+        The tables themselves are collected by Module 5 (`_collect_class_type_str_constants`,
+        the `_PY_OP_MAP` capability) into `class_type_str_constants`. What distinguishes a
+        HANDLER table — and what this predicate tests — is that every value NAMES A METHOD OF
+        THE SAME CLASS: that is the table the live body consumes through
+        `getattr(self, handler_name)(node)`.
 
-        FAIL-CLOSED on every axis: the table must be non-empty, every entry's value must
-        resolve to a method of that class, the AST-class keys must be distinct, and the
-        class must itself define the dispatcher `_py_expr_to_ir`. Anything else returns
-        None and the file emits exactly as before (the reference corpus has no such table,
-        so it is byte-identical)."""
+        FAIL-CLOSED on every axis: the table name must be one this emitter knows how to name
+        an ADT for (`_PYX_TABLE_ADT` — an EXPLICIT allowlist, because a class may hold several
+        tables that all pass the method-name predicate and `PyCSLToJSONEmitter` holds three),
+        the table must be non-empty, its keys must be DISTINCT (duplicate keys would emit
+        shadowed match arms), and every value must resolve to a method of that class.
+        Anything else is skipped and the file emits exactly as before — the reference corpus
+        has no such table, so it is byte-identical."""
         tables = (self.ir.get("class_type_str_constants") or {})
         if not tables:
-            return None
+            return []
         methods_by_cls: Dict[str, Set[str]] = {}
         for f in (self.ir.get("functions") or []):
             if f.get("kind") != "method":
@@ -8707,11 +8726,14 @@ class PreambleEmissionMixin:
             if not _st:
                 continue
             methods_by_cls.setdefault(_st, set()).add(str(f.get("name", "")))
+        out: List[Tuple[str, str, List[List[str]]]] = []
         for cls_name in sorted(tables):
             own = methods_by_cls.get(cls_name, set())
             if not own:
                 continue
             for tbl_name in sorted(tables[cls_name]):
+                if tbl_name not in self._PYX_TABLE_ADT:
+                    continue
                 entries = tables[cls_name][tbl_name]
                 if not entries:
                     continue
@@ -8727,22 +8749,67 @@ class PreambleEmissionMixin:
                         break
                 if not ok:
                     continue
-                if not any(m.endswith("_py_expr_to_ir") for m in own):
-                    continue
-                return (cls_name, tbl_name, [[str(a), str(b)] for a, b in entries])
+                out.append((cls_name, tbl_name,
+                            [[str(a), str(b)] for a, b in entries]))
+        return out
+
+    def _pyx_dispatch_table_named(self, cls_name: str, tbl_name: str
+                                  ) -> Optional[List[List[str]]]:
+        """L2 DISPATCH-EXPANSION: the certified entries of ONE named handler table, or None.
+        Used by the body recognizer, which must confirm that the table the DISPATCHER BODY
+        names is the one an ADT was actually emitted for."""
+        for c, t, entries in self._pyx_dispatch_tables():
+            if c == cls_name and t == tbl_name:
+                return entries
         return None
 
-    def _pyx_arm_payload_type(self, ast_cls: str, handler: str) -> str:
-        """L2 DISPATCH-EXPANSION (pyast_expr): the WhyML type of the ADT arm for AST class
-        `ast_cls`, which MUST equal the emitted parameter type of its handler.
+    def _pyx_handler_param_class(self, handler: str, self_type: str) -> Optional[str]:
+        """L2 DISPATCH-EXPANSION: the CLASS NAME a dispatch handler declares for its first
+        non-self parameter, read off the function IR's symbol table.
 
-        Three sources, in order: the structurally-harvested pure_ast RECORD
-        (`self._record_types[<cls>]["whyml_name"]` — `Name`->`name`, `Constant`->
-        `py_constant`, ...), the bespoke OPAQUE node type
-        (`_PYX_OPAQUE_NODE_TYPES`), and `int` for a handler whose param never got a
+        This — not the table KEY — is what decides the ADT arm's payload type, because the
+        two can legitimately differ. `_CSL_HANDLERS` maps FOUR ContractWrapper SUBCLASSES
+        (`Requires`/`Ensures`/`LoopInvariant`/`LoopVariant`) to the single handler
+        `_csl_contract_wrapper(node: ContractWrapper)`: Python passes the subclass instance
+        to a base-typed parameter, and the handler reads only base fields, so the faithful
+        arm payload is the BASE record. Keying on the table entry instead would emit
+        `PCsl_Requires requires` against a `contractwrapper` parameter — a type error.
+        Returns None when the symbol table has no usable entry (the caller then falls back
+        to the AST-class-keyed routes)."""
+        for f in (self.ir.get("functions") or []):
+            if f.get("kind") != "method" or f.get("self_type") != self_type:
+                continue
+            nm = str(f.get("name", ""))
+            if not (nm == handler or nm.endswith("_" + handler) or nm.endswith(handler)):
+                continue
+            st = f.get("symbol_table") or {}
+            for pname, pty in st.items():
+                if pname == "self":
+                    continue
+                if isinstance(pty, str) and pty and pty != "Any":
+                    return pty
+                break
+            return None
+        return None
+
+    def _pyx_arm_payload_type(self, ast_cls: str, handler: str,
+                              self_type: str = "") -> str:
+        """L2 DISPATCH-EXPANSION: the WhyML type of the ADT arm for class `ast_cls`, which
+        MUST equal the emitted parameter type of its handler.
+
+        Four sources, in order: the HANDLER's own declared parameter class resolved through
+        `self._record_types` (the authoritative one — see `_pyx_handler_param_class` for why
+        it can differ from the table key); the table key resolved the same way (`Name`->
+        `name`, `Constant`->`py_constant`, `Forall`->`py_forall` — the emitter prefixes
+        names that collide with Why3 keywords); the bespoke OPAQUE node type
+        (`_PYX_OPAQUE_NODE_TYPES`); and `int` for a handler whose parameter never got a
         structural type at all (`Call`, `JoinedStr` — both still `\trusted` stubs).
-        A wrong answer here is a LOUD Why3 type error at L3-tc."""
+        A wrong answer here is a LOUD Why3 type error at L3-tc, never a silent bad
+        lowering."""
         rt = getattr(self, "_record_types", {}) or {}
+        pcls = self._pyx_handler_param_class(handler, self_type) if self_type else None
+        if pcls and pcls in rt:
+            return str(rt[pcls].get("whyml_name") or pcls.lower())
         if ast_cls in rt:
             return str(rt[ast_cls].get("whyml_name") or ast_cls.lower())
         opq = self._PYX_OPAQUE_NODE_TYPES.get(ast_cls)
@@ -8780,39 +8847,41 @@ class PreambleEmissionMixin:
         would let the handlers recurse into the real dispatcher instead of the abstract
         `self__py_expr_to_ir_1` val — additionally requires every payload to be pure
         (immutable records, cons-lists instead of arrays) and is the named next stage."""
-        tbl = self._pyx_dispatch_table()
-        if tbl is None:
-            return
-        _cls, _tname, entries = tbl
-        arms = []
-        for ast_cls, handler in entries:
-            arms.append((ast_cls, self._pyx_arm_payload_type(ast_cls, handler)))
-        out.append("")
-        out.append("  (* L2 dispatch-expansion (self-tcb-reduction, `_py_expr_to_ir`): the"
-                   " INPUT-side expression-node ADT the `%s` table dispatches over, one arm"
-                   " per AST class IN SOURCE ORDER, each carrying that class's handler"
-                   " parameter type. `pyx_kind_of` is total and CONCRETE; `pyx_view` is the"
-                   " uninterpreted node view, pinned to the node's runtime class by the"
-                   " `pyx_kind_of` law (the `py_type_name_of` device of the `_PY_OP_MAP`"
-                   " expansion, lifted from a tag to a payload). NOT recursive at this stage"
-                   " — the arms carry the handler param types verbatim, which Why3 allows"
-                   " only for a non-recursive datatype. Gated on `_pyx_dispatch_table` ->"
-                   " reference corpus + every other mirror byte-identical. *)" % _tname)
-        out.append("  type pyast_expr =")
-        for ast_cls, payload in arms:
-            out.append(f"    | PEx_{ast_cls} {payload}")
-        out.append("    | PEx_Unknown")
-        out.append("  let function pyx_kind_of (e: pyast_expr) : string =")
-        out.append("    match e with")
-        for ast_cls, _payload in arms:
-            out.append(f"    | PEx_{ast_cls} _ -> \"{ast_cls}\"")
-        out.append("    | PEx_Unknown -> \"\"")
-        out.append("    end")
-        out.append("  val function pyx_type_name_of (e: emit_ir) : string")
-        out.append("  val function pyx_view (e: emit_ir) : pyast_expr")
-        out.append("    ensures { pyx_kind_of result = pyx_type_name_of e }")
-        out.append("")
-        declared_types.add("pyast_expr")
+        for _cls, _tname, entries in self._pyx_dispatch_tables():
+            adt, pfx, view, kind_of, tag = self._PYX_TABLE_ADT[_tname]
+            arms = [(k, self._pyx_arm_payload_type(k, h, _cls)) for k, h in entries]
+            out.append("")
+            out.append(
+                "  (* L2 dispatch-expansion (self-tcb-reduction): the INPUT-side node ADT"
+                " the `%s` table dispatches over, one arm per class IN SOURCE ORDER, each"
+                " carrying THAT CLASS'S HANDLER PARAMETER TYPE (which is not always the"
+                " class's own record — several `_CSL_HANDLERS` subclasses share one"
+                " base-typed handler). `%s` is total and CONCRETE; `%s` is the"
+                " uninterpreted node view, pinned to the node's runtime class by the `%s`"
+                " law (the `py_type_name_of` device of the `_PY_OP_MAP` expansion, lifted"
+                " from a tag to a payload). NOT recursive at this stage — the arms carry the"
+                " handler param types verbatim, which Why3 allows only for a non-recursive"
+                " datatype. Certified axiom-free in"
+                " src/formal-semantics/rocq/Phase2l_PyAstExpr.v +"
+                " lean/PyCSL/PyAstExpr.lean (ADT well-formedness + kind exactness/totality +"
+                " the VIEW-LAW CONSISTENCY obligation + dispatch non-vacuity). Gated on"
+                " `_pyx_dispatch_tables` -> reference corpus + every other mirror"
+                " byte-identical. *)" % (_tname, kind_of, view, kind_of))
+            out.append(f"  type {adt} =")
+            for k, payload in arms:
+                out.append(f"    | {pfx}{k} {payload}")
+            out.append(f"    | {pfx}Unknown")
+            out.append(f"  let function {kind_of} (e: {adt}) : string =")
+            out.append("    match e with")
+            for k, _payload in arms:
+                out.append(f"    | {pfx}{k} _ -> \"{k}\"")
+            out.append(f"    | {pfx}Unknown -> \"\"")
+            out.append("    end")
+            out.append(f"  val function {tag} (e: emit_ir) : string")
+            out.append(f"  val function {view} (e: emit_ir) : {adt}")
+            out.append(f"    ensures {{ {kind_of} result = {tag} e }}")
+            out.append("")
+            declared_types.add(adt)
 
     def _emit_opaque_class_aliases(self, functions: List[Dict[str, Any]],
                                     out: List[str], declared_types: Set[str]) -> None:
