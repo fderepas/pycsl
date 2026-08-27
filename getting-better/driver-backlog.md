@@ -5110,7 +5110,13 @@ error, never a silent wrong value, so no currently-green file can depend on it �
 confirms it: **mirror emission diff 0 of 52, corpus byte-diff 0 of 813.** It is a prerequisite
 for the capability above.
 
-## CLASS-BY-NAME FACTORY (`_N("<Class>")(<kwargs>)`) — PARTIAL BUILD, REVERTED, BANKED VERBATIM (2026-08-27)
+## CLASS-BY-NAME FACTORY (`_N("<Class>")(<kwargs>)`) — ~~PARTIAL BUILD, REVERTED, BANKED~~ **SUPERSEDED: IT LANDED**
+
+> **THIS ENTRY IS HISTORY.** The capability is IN THE TREE as of the "class-by-name factory
+> LANDED" commit, with `_import_as_name` converted through it, and
+> `getting-better/pyast-expr/class-by-name-factory-WIP.patch` HAS BEEN DELETED — applying a
+> stale copy on top of the landed version would conflict or silently double-apply. Read the
+> "LANDED" entry further down instead. The record below is kept only for the derivation.
 
 The capability the pure_ast census named as gating **73 of the 96 trusted `_Parser` stubs (12% of
 the whole TCB)**. Four pieces were built and each measured BYTE-INERT (mirror emission diff 0 of
