@@ -146,22 +146,58 @@ class _Parser:
             return self.parse_quant()
         return self.parse_implication()
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    # PARTIALITY, read off the live body: the very first statement is an UNGUARDED
+    # `self.take()`, so the cursor must be in range on entry. Dischargeable at the ONLY
+    # call site — `parse_expr` reaches here only after `t = self.peek()` returned
+    # non-None, which by `peek`'s own postcondition IS `self.pos < \length(self.toks)`.
+    # Same carve-out as `take` itself, not a convenience narrowing.
+    #@ requires self.pos < \length(self.toks)
     #@ ensures True
-    # CURSOR INTERFACE (L13) — an ASSUMED interface on a still-`\trusted` stub, i.e.
-    # a REAL (small) TCB addition, justified by reading the live body: every cursor
-    # motion in `_Parser` goes through `take`, whose `self.pos += 1` is monotone, and
-    # whose partiality (`self.toks[self.pos]` raises IndexError past the end) keeps
-    # `self.pos <= len(self.toks)` on every NORMAL-return path. There is no
-    # backtracking site anywhere in this class (no `_try`-style save/restore, no
-    # direct `self.pos = <expr>` outside `__init__` and `take`). Retire this
-    # assumption by CONVERTING the stub.
     #@ ensures self.pos >= \old(self.pos)
     #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION: level 0 — the deepest, because `parse_quant` consumes a token
+    # (`kind_tok = self.take()`) BEFORE it recurses into `parse_expr`, so the token term
+    # already dominates and the level only has to be below `parse_expr`'s 9.
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 0
+    #@ raises SyntaxError when True
     #@ assigns self.pos
     def parse_quant(self) -> Term:
-        return None
+        kind_tok = self.take()
+        binders: List[str] = []
+        #@ loop invariant self.pos > \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None:
+                raise SyntaxError("unexpected EOF in quantifier binders")
+            if t.kind == "COLON":
+                break
+            if t.kind == "IDENT":
+                binders.append(self.take().value)
+            else:
+                raise SyntaxError(f"unexpected token {t} in quantifier binders")
+        self.expect("COLON")
+        ty_parts: List[str] = []
+        #@ loop invariant self.pos > \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None:
+                raise SyntaxError("unexpected EOF in quantifier type")
+            if t.kind == "COMMA":
+                break
+            if t.kind == "IDENT":
+                ty_parts.append(self.take().value)
+            else:
+                raise SyntaxError(f"unexpected token {t} in quantifier type")
+        ty = " ".join(ty_parts)
+        self.expect("COMMA")
+        body = self.parse_expr()
+        if kind_tok.value == "forall":
+            return Forall(binders=tuple(binders), ty=ty, body=body)
+        return Exists(binders=tuple(binders), ty=ty, body=body)
 
     #@ requires True
     #@ ensures True

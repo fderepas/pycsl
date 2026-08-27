@@ -8721,7 +8721,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (`_term_list_literal_slot`); every other actual shape still DECLINES, so the
         # `list string` binder slots (`Forall`/`Exists`) and the int/bool literal slots
         # (`IntLit`/`BoolLit`) are unchanged.
-        if not all(wt in ("term", "string", "list term", "int", "bool")
+        if not all(wt in ("term", "string", "list term", "list string", "int", "bool")
                    for _fn, wt in ctor_fields):
             return None
         rec_info = getattr(self, "_record_types", {}).get(func_name)
@@ -8738,10 +8738,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         for fn, _wt in ctor_fields:
             if fn not in bound:
                 return None
-            if _wt == "list term":
-                lst = self._term_list_literal_slot(raw_bound.get(fn), elt_lower)
+            if _wt in ("list term", "list string"):
+                lst = (self._term_list_literal_slot(raw_bound.get(fn), elt_lower)
+                       if _wt == "list term" else None)
                 if lst is None:
-                    lst = self._term_list_seq_slot(raw_bound.get(fn))
+                    lst = self._term_list_seq_slot(raw_bound.get(fn), _wt)
                 if lst is None:
                     return None
                 parts.append(lst)
@@ -8755,7 +8756,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             parts.append(bound[fn])
         return f"({func_name} {' '.join(parts)})"
 
-    def _term_list_seq_slot(self, raw: Any) -> Optional[str]:
+    def _term_list_seq_slot(self, raw: Any, wt: str = "list term") -> Optional[str]:
         """TERM CARRIER capability (4) PROPER: a RUNTIME-LENGTH `tuple(<seq local>)` bound
         to a `list term` constructor slot — `App(head=atom.name, args=tuple(args))` in
         `parse_atom_application`, `App(head="tuple", args=tuple(elts))` in `parse_atom` —
@@ -8796,12 +8797,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         nm = a[0].get("name")
         if nm not in getattr(self, "_seq_locals", set()):
             return None
+        # `list string` (`Forall`/`Exists` carry `binders: tuple(binders)`) is the SAME
+        # bridge one element type over: `binders` accumulates as a `seq string`, the arm
+        # declares `list string`. One converter per element type, both defined the same way.
+        _elt = "string" if wt == "list string" else "term"
+        if _elt == "string" and (getattr(self, "_seq_value_types", {}) or {}
+                                 ).get(nm) not in ("string", "str"):
+            # a seq whose element type is not KNOWN to be string never binds — declining
+            # leaves the record path, which then fails loudly at L3-tc.
+            return None
+        _fn = f"seq_to_list_{_elt}"
         self._add_abstract_op(
-            "let rec function seq_to_list_term (s: seq term) (i: int) : list term\n"
+            f"let rec function {_fn} (s: seq {_elt}) (i: int) : list {_elt}\n"
             "    variant { Seq.length s - i }\n"
             "  = if i >= Seq.length s then Nil\n"
-            "    else Cons (Seq.get s i) (seq_to_list_term s (i + 1))")
-        return f"(seq_to_list_term !{whyml_ident(nm)} 0)"
+            f"    else Cons (Seq.get s i) ({_fn} s (i + 1))")
+        return f"({_fn} !{whyml_ident(nm)} 0)"
 
     def _term_scalar_slot(self, wt: str, raw: Any, lowered: str) -> Optional[str]:
         """TERM CARRIER: the `int` (`IntLit int`) and `bool` (`BoolLit bool`) payload
