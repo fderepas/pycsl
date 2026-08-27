@@ -2,9 +2,9 @@
 
 ## State, verified from the surface at the end of this window
 
-- Directive count **620** (`grep -rcF '#@ \trusted' src/self-annotate/src --include=*.py`,
-  summed). Window delta **626 -> 620**, six conversions plus one count-neutral faithfulness
-  repair. Confirm it yourself before quoting it.
+- Directive count **619** (`grep -rcF '#@ \trusted' src/self-annotate/src --include=*.py`,
+  summed). Window delta **626 -> 619**, SEVEN conversions plus TWO count-neutral faithfulness
+  repairs. Confirm it yourself before quoting it.
 - Ledger **3**, untouched all window. No new axiom, no new abstract val.
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`,
   `src/formal-semantics/rocq/.lia.cache` + `Phase2j_*` build artifacts, untracked
@@ -30,7 +30,7 @@ Plus one argument that has gone stale: **"gated on @mutable_state, therefore cor
 byte-inert" is NO LONGER TRUE** — corpus programs 0925/0926/0927/0928 all declare it. Run
 the byte-diff sweep; do not argue your way out of it. (Lesson (bb).)
 
-## What this window did
+## What this window did (continued past the first handoff draft — read all of it)
 
 **L13 IS CLOSED.** The `proof2why3._Parser` cursor nest — the top lever since relaunch #23 —
 is FULLY CONVERTED: eleven members, zero `\trusted` methods in the class, and all five
@@ -50,23 +50,71 @@ projection, union-returning-call guard/projection, the `_union_*` param-registry
 the deferred-goal fix for mutually recursive union-using SCCs), and lesson (p) says census
 them before building.
 
+ALSO LANDED after that: **the rest of the L2 cluster REFUTED** with the wall measured exactly
+(a TYPE-UNIFICATION wall, not the dispatch expansion — see the backlog); `_py_op_to_str`
+CONVERTED via a new type-keyed dispatch-table capability; the `field_names` erasure fixed
+(the last removable `KNOWN_ERASURES` entry); the `check-emitted-vacuity` `v_`-rename blind
+spot repaired; and a **NEW INTEGRITY GATE**, `bin/check-untrusted-emitted.py`.
+
+## The single most important thing this window learned
+
+**L3-tc ✓ IS NOT A CONVERSION CRITERION.** Removing a `#@ \trusted` marker verifies nothing
+by itself: the AUTO-TRUST SAFETY VALVE silently re-abstracts a body the emitter cannot lower
+into an opaque `val`, and the file still type-checks AND still proves. Measured: **17
+candidate stubs passed L3-tc after un-trusting and NOT ONE was emitted as a definition** — 6
+dropped entirely, 11 re-abstracted. All 17 would have been vacuous conversions. This both
+explains and VINDICATES the earlier windows' "no cheap conversion remains": an L3-tc-only
+probe over-reports massively. **Any candidate probe you run MUST also check that the function
+is emitted as a `let` / `let rec` / `with` member.** `bin/check-untrusted-emitted.py` is that
+check; its baseline is **716 un-trusted · 699 definitions · 0 re-abstracted · 0 absent**, so
+the booked conversions are clean. Re-run it after any batch.
+
+Second: **when a gate over an EMITTED artifact reports a defect, FIRST ask whether the
+emitter RENAMED the thing.** Four for four this window — `with`-members read as non-definitions,
+blank lines before a `def` hiding a `\trusted` marker, the `v_` param rename, and recognizer
+cluster renaming (`_conc_*` -> `conc__*`). Every one manufactured a defect that did not exist,
+and I published one of them before catching it.
+
 ## Pick up here
 
-1. **Re-census the value-model frontier with the eleven new capabilities in hand.** This is
-   the highest-value next move and it is cheap: several previously-refuted targets were
-   blocked on exactly what now exists. Census FIRST, do not build.
-2. `proof2why3/parser.py` still has four module-level `\trusted` functions. `lex` and
+1. **The `pyast_expr` ADT unification** — now the top lever, and its size is MEASURED (see
+   `driver-backlog.md` §"L2 REST-OF-CLUSTER"). `_py_expr_to_ir` / `_py_stmts_to_ir` /
+   `_csl_to_ir` are blocked BEFORE the dispatch expansion by a type-unification wall: the
+   dispatcher is `emit_ir -> emit_ir` but its 23 handlers take 21 DISTINCT RECORD types (14
+   more on the statement side), and there is no projection from `emit_ir` to `name`, so the
+   expanded chain is UNWRITABLE, not merely unprovable. The certified `pyast_stmt` ADT does
+   NOT help — grep confirms ZERO handlers take it. This is COST/SCALE, not a floor, and a
+   funded window is the budget for it. Its prerequisite (the deferred-goal fix for
+   mutually-recursive union-using SCCs) LANDED this window. Do NOT attempt the dispatch
+   expansion first.
+2. The cheap-candidate frontier is CLOSED, and now for a measured reason rather than an
+   assertion: 17 of 62 small stubs pass L3-tc and NONE is emitted as a definition. Do not
+   re-run an L3-tc-only census.
+3. `proof2why3/parser.py` still has four module-level `\trusted` functions. `lex` and
    `normalize_surface` are string-scanner facades already STRUCK as a CERTIFIED-BOUNDARY —
-   do NOT re-litigate them. `parse_type_expr` is a thin driver and may be cheap.
-3. The named COST/SCALE residue from the §A.3 re-classification, which is NOT a floor and
+   do NOT re-litigate them. `parse_type_expr` needs mutable-object construction, try/except
+   over two exception types, and `str(exc)`; it is not cheap.
+4. The named COST/SCALE residue from the §A.3 re-classification, which is NOT a floor and
    which a funded window is exactly the budget for: the larger multi-variant certificate
    bundle (Act/Complete/Disjoint/ForExpand + value-model), and the review-gated
    giant/dispatcher decompositions (`run_ir_semantic_checks`, `_csl_to_ir` getattr-dispatch).
    "Review-gated" means run Gate R yourself — it does NOT mean ask the user.
-4. Worth a window of its own, found in passing and NOT chased:
-   `check-emitted-vacuity.py --emit` reports a NEW erasure in
-   `Module3_Weaver::_const_int`, two INPUT-BLIND methods in `functions.mlw`, and six stale
-   KNOWN_ERASURES entries.
+5. The vacuity/erasure surface is now CLEAN and should stay that way:
+   `check-emitted-vacuity.py --emit` is GREEN (0 input-blind, 0 new, 6 known and each
+   individually justified). The remaining 6 are error-message-only erasures (faithful) plus
+   two documented modeling gaps (`_handle_mktuple_expr`/`lr`, `_emit_new_ghost_ref`/`target`
+   — the wall-lessons (h) param-collection-mutation family).
+6. Named but not built: the **κ-inference gap** behind the `field_names` shape-gate — Module
+   5 cannot see through an `Optional[str]` union-local carrier projection to conclude
+   "string key". Closing it retires that shape-gate and likely others.
+
+## Gates you now have that earlier windows did not
+
+- `bin/check-untrusted-emitted.py` — is every un-trusted mirror function ACTUALLY EMITTED as
+  a definition? Baseline 716/699/0/0, GREEN. Run it after any batch of conversions.
+- `bin/check-emitted-vacuity.py --emit` — now free of the `v_` param-rename blind spot (which
+  had BOTH hidden real erasures in check (1) and manufactured two false INPUT-BLIND findings
+  in check (2)). GREEN.
 
 ## Method notes this window paid for
 
