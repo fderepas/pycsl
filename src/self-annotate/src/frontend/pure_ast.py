@@ -2090,6 +2090,27 @@ class _Parser:
     # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted (`_N(opname)()` takes a
     # VARIABLE class name read out of the `_BINOP` precedence table, which the
     # class-by-name recognizer cannot resolve). The interface is what lets `expr` convert.
+    # CERTIFIED-BOUNDARY [GROUP VARIANT RE-PHASING], relaunch #10 — the three VALUE
+    # facades are BUILT, MEASURED AND WORKING; what remains is a mutual-recursion
+    # termination re-phasing across the WHOLE expression group. Converting `_binop` closes
+    # the cycle `expr -> _binop -> factor -> power -> await_expr -> unary_postfix ->
+    # trailers -> _call_args -> test -> or_test -> and_test -> not_test -> comparison ->
+    # expr`, so Why3 puts SIXTEEN functions into one `let rec … with …` group and demands
+    # the SAME well-founded order from every one of them. Only four carry a `#@ \variant`
+    # today (`test`/`lambdef` at 2*(len-i)+1/+0, `factor`/`power` likewise), and multiplier
+    # 2 cannot span a NO-ADVANCE chain that is roughly TWELVE hops deep — the multiplier
+    # must EXCEED the deepest offset (lesson (av)), so the whole group needs re-phasing at
+    # multiplier ~13 with offsets assigned by topological depth in the call graph.
+    # MEASURED, NOT ASSUMED: with the emitter capability in place the body emits
+    # `(str_eq_op … "|") || …` over `_BINOP`'s REAL twelve keys for the `in` guard, two
+    # faithful chained ITEs for `opname` (a `string` local) and `prec` (an int), and
+    # `IrPyBinOp !left !opname !right` — every facade gone. The ONLY remaining error is
+    # "All functions in a recursive definition must use the same well-founded order".
+    # Reopening capability, named and mechanical: assign `#@ \variant 13 * (\length(
+    # self.toks) - self.i) + <depth>` to all sixteen members. The emitter capability
+    # (a module-level `str -> (str,int)` PAIR const dict: `collect_module_const_pair_dicts`,
+    # the membership disjunction, the per-slot unpack ITE chains, the string-local class
+    # name) was REVERTED WITH the spike rather than left as dead capability.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
