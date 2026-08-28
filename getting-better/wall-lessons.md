@@ -3225,3 +3225,73 @@ and neither is anything after it. **The general rule: a capability that changes 
 binding is emitted must be gated on the DEFECT (the use that cannot see the binding), never
 on the SHAPE (a nested assignment) — and the difference between the two is only visible in
 the sweep.**
+
+## Lesson (av) — converting one member of a recursive-descent chain makes its whole Why3 `let rec … with …` group need a VARIANT, including members that were already green
+
+Twice in one window, a conversion that type-checked and looked finished failed its FIRST
+proof on goals the converted function does not even mention:
+
+* converting `factor` put it in a group with the ALREADY-CONVERTED `power` → three
+  unproven `'vc` **termination** sub-goals;
+* converting `lambdef` put it in a group with the ALREADY-CONVERTED `test` → an L3-tc
+  error before that (`All functions in a recursive definition must use the same
+  well-founded order for the first component of the variant`), then two unproven
+  `_parser__lambdef'vc` sub-goals.
+
+While a callee is a `\trusted` `val`, the caller is not recursive and Why3 asks nothing.
+The moment the callee becomes a `let`, the pair is one mutual group and EVERY member needs
+a measure — in the SAME well-founded order.
+
+**The measure is the `proof2why3/parser` phase-offset form**, and the offset is decided by
+the calls that do NOT move the cursor:
+
+    factor  : 2 * (\length(self.toks) - self.i) + 1     # calls power without advancing
+    power   : 2 * (\length(self.toks) - self.i) + 0     # calls factor only after advance()
+    test    : 2 * (\length(self.toks) - self.i) + 1     # calls lambdef without advancing
+    lambdef : 2 * (\length(self.toks) - self.i) + 0     # calls test after advance()+expect
+
+**And the variant DECREASE chains through the callees' monotonicity clauses exactly like a
+postcondition does.** `lambdef`'s two unproven sub-goals were its postcondition AND its
+variant decrease, both fixed by the ONE missing `ensures self.i >= \old(self.i)` on
+`lambda_parameters`. Budget one extra proof round per chain conversion, and read the
+sub-goal NAME: `postcondition` means a missing callee clause, `variant decrease` means the
+same clause is missing on a callee reached before the recursive call.
+
+## Lesson (aw) — a dispatcher can be blocked by its SIBLINGS' already-converted return types (HETEROGENEOUS CONVERTED RETURNS)
+
+`small_stmt` is a 13-way dispatcher and every arm was reachable — the three
+`node("Pass"/"Break"/"Continue", t)` singletons build real nodes once the `node` helper is
+recognized, and the other ten are sibling passthroughs. It is blocked anyway, and not by
+anything in its own body:
+
+    This expression has type PyCSL_Program.py_return @rho,
+    but is expected to have type PyCSL_Program.emit_ir
+
+Five of its siblings (`return_stmt`, `raise_stmt`, `assert_stmt`, `import_stmt`,
+`import_from`) were converted EARLIER with HARVESTED PER-CLASS RECORD returns (`-> "Return"`
+emits the record `py_return`), while a dispatcher must return the `emit_ir` SUM — and WhyML
+has no type for a function whose arms return different types.
+
+**This is a new KIND of wall: the blocker is a past CONVERSION, not a `\trusted` stub.** Two
+consequences worth carrying:
+
+1. When a class of nodes can appear in a dispatcher's result position, convert it onto the
+   SUM (`_PYAST_IRNODE_CTORS`) from the start, not onto a harvested record. The record is
+   right only for a node that is always consumed at a known type.
+2. Repairing it is COST/SCALE, not correctness, and the count does NOT move until the LAST
+   of the five re-ports lands — a migration whose entire yield is one conversion at the end.
+   Named reopening capability: `IrPyReturn iropt_ir`, `IrPyRaise iropt_ir iropt_ir`,
+   `IrPyAssert emit_ir iropt_ir`, `IrPyImport irlist`, `IrPyImportFrom iropt_str irlist int`,
+   plus `alias` (their child) on an arm.
+
+## Lesson (ax) — a CORRECTNESS boundary on a CALLEE does not propagate to its CALLER
+
+The relaunch-#7 handoff recorded that `for_stmt`/`with_stmt` were blocked because they
+"need `_for_target`/`_with_item`, which are behind the `_set_ctx` CORRECTNESS boundary".
+Both converted in twenty minutes. They never needed those stubs CONVERTED — only their
+INTERFACES (`-> "ExprIR"` plus `ensures self.i >= \old(self.i)`).
+
+A caller needs a callee's TYPE and FRAME. It needs the callee's VALUE SEMANTICS only if it
+inspects the returned value, which a recursive-descent parent almost never does — it just
+threads the node into a constructor slot. So when triaging a wall, ask which of the three
+the caller actually consumes before recording the callee's boundary as the caller's.
