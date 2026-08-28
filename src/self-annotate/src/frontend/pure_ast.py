@@ -533,13 +533,23 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def type_alias_stmt(self) -> "ExprIR":
-        pass
+         # PEP 695: type NAME [type-params] = expr
+        t = self.advance()                             # consume 'type' soft keyword
+        name_id = self._name_str()                     # NAME token after 'type'
+         # 'name' field holds an expression (Name or Subscript for generic names)
+        name_node = _N("Name")(id=name_id, ctx=_N("Load")())
+        type_params = []
+        if self.at_op("["):
+            type_params = self._parse_type_params()
+         # Generic name qualifiers handled by the expression parser (e.g. X[Y])
+        self.expect_op("=")
+        value = self.test()
+        return self._fin(_N("TypeAlias")(name=name_node, type_params=type_params, value=value), t)
 
     # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `simple_stmt` —
     # the `;`-separated small-statement list. The accumulator carries REAL statement nodes
@@ -1749,22 +1759,33 @@ class _Parser:
     # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
     # live body, which moves the cursor only through advance/accept_*/expect_* and its
     # sub-parsers.
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ \variant 2 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
     def factor(self) -> "ExprIR":
-        pass
+        if self.cur().type == _tokenize.OP and self.cur().string in _UNARY:
+            t = self.advance()
+            operand = self.factor()
+            return self._fin(_N("UnaryOp")(op=_N(_UNARY[t.string])(), operand=operand), t)
+        return self.power()
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `power`.
     # `IrPyBinOp emit_ir string emit_ir` carries the ASDL (left, op, right) order with the
     # `operator` singleton `Pow` as its class-name string. The four `n.<loc> = ...`
     # location stamps lower to the unit no-op: they are exactly what `_fin` sets, and the
     # harvested node model deliberately does not carry the ASDL location attributes.
+    # MUTUAL-RECURSION TERMINATION (relaunch #8): converting `factor` put `power` and
+    # `factor` in ONE Why3 `let rec … with …` group, so both need a measure. The phase-
+    # offset lexicographic form is the `proof2why3/parser` precedent: the CURSOR term
+    # dominates, and the offset orders the calls that do NOT move the cursor.
+    # `factor` (+1) calls `power` (+0) without advancing, so the offset must drop;
+    # `power` calls `factor` only AFTER `advance()`, so the cursor term drops by 2.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ \variant 2 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def power(self) -> "ExprIR":
         t = self.cur()

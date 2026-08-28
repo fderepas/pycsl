@@ -1363,7 +1363,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 and isinstance(expr.func.func, ast.Name)
                 and len(expr.func.args) == 1
                 and not expr.func.keywords
-                and isinstance(expr.func.args[0], ast.Name)):
+                and isinstance(expr.func.args[0], (ast.Name, ast.Subscript))):
             _cn_ir: Dict[str, Any] = {
                 "type": "ClassByNameCall",
                 "class_expr": self._py_expr_to_ir(expr.func.args[0]),

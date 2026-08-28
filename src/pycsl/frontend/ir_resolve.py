@@ -410,6 +410,13 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
                                         ("returns", "iropt_ir"),
                                         ("type_comment", "iropt_str"),
                                         ("type_params", "irlist")]),
+    # `TypeAlias(name, type_params, value)` — `_NODE_SPEC['TypeAlias'] == ('stmt',
+    # ('name','type_params','value'), None)`, all three TOTAL (no `_OPTIONAL_FIELDS`
+    # entry). `name` is an expression NODE (a `Name`, or a `Subscript` for a generic
+    # name), `type_params` the PEP-695 binder list, `value` the aliased expression.
+    "TypeAlias": ("IrPyTypeAlias", [("name", "emit_ir"),
+                                    ("type_params", "irlist"),
+                                    ("value", "emit_ir")]),
     "AsyncFunctionDef": ("IrPyAsyncFunctionDef",
                          [("name", "string"), ("args", "emit_ir"),
                           ("body", "irlist"), ("decorator_list", "irlist"),

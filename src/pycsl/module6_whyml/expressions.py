@@ -1141,6 +1141,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                            for m in _members]
                 _disj = f"({' || '.join(_checks)})"
                 return f"(not {_disj})" if negate else _disj
+        # MODULE-CONST-DICT MEMBERSHIP (relaunch #8): `<s> in _UNARY` where `_UNARY` is a
+        # module-level constant str->str dict lowers to the FAITHFUL `str_eq_op`
+        # disjunction over the dict's ACTUAL KEYS — not the int-hashed
+        # `contains_check (str_hash_op s) _UNARY`, which is a facade invariant under the
+        # dict's contents (`_UNARY` itself emits as `val constant _UNARY : int`). This is
+        # the exact twin of the class-body string-SET membership just above, over the
+        # dict's key set, and it is what makes the const-dict LOOKUP's chain provably
+        # total at every guarded site (`factor`'s `self.cur().string in _UNARY`).
+        # Mutation-sensitive: perturb a key and the emitted literal moves. Gated on
+        # `_const_dict_name` (a genuine module constant, not shadowed by a local/param).
+        if not self._in_spec and rhs.get("type") == "Var":
+            _cdm = self._const_dict_name(rhs.get("name"))
+            _cdd = (getattr(self, "_module_const_dicts", {}) or {}).get(_cdm)
+            if _cdd:
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _cdisj = "(" + " || ".join(
+                    f"(str_eq_op {left} {whyml_string_literal(_kk)})"
+                    for _kk in _cdd) + ")"
+                return f"(not {_cdisj})" if negate else _cdisj
         # self-tcb-reduction giants (generic class-body lowering): `target in field_names`
         # — membership against the opaque `field_names` param (a `Set[str]`, int-modelled,
         # NOT a tracked dict/set local) — lowers to the abstract `ps_field_mem <target>`
@@ -13151,6 +13172,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `UnknownPyExpr` catch-all emitted before, so nothing that used to work
             # changes shape.
             _ce = expr.get("class_expr") or {}
+            # CONST-DICT CLASS NAME (relaunch #8): `_N(_UNARY[t.string])()` — a 0-FIELD
+            # ASDL SINGLETON whose CLASS is chosen by a module-const-dict lookup. A
+            # singleton carries no information beyond its own identity, so its faithful
+            # model is its class-name STRING (increment 10's rule); the lookup therefore
+            # lowers to the chained string ITE over the dict's ACTUAL entries — the same
+            # construction `<X>.get(k, default)` already uses, mutation-sensitive in both
+            # key and value. The tail is the EMPTY STRING, which is not an ASDL class name:
+            # off the dict's key set Python raises `KeyError`, and the model must not name
+            # a WRONG class there. It is also UNREACHABLE at every site the source guards
+            # with `<k> in <X>` — that guard now lowers to the exact `str_eq_op`
+            # disjunction over the same key set. FAIL-CLOSED: no args/keywords (a real
+            # singleton), a genuine module-const dict, and EVERY value must be a
+            # `_NODE_SPEC` 0-field singleton, else this declines to the pre-existing `0`.
+            if (not expr.get("args") and not expr.get("keywords")
+                    and isinstance(_ce, dict) and _ce.get("type") == "Subscript"
+                    and isinstance(_ce.get("value"), dict)
+                    and _ce["value"].get("type") == "Var"):
+                _cdn = self._const_dict_name(_ce["value"].get("name"))
+                _cdt = (getattr(self, "_module_const_dicts", {}) or {}).get(_cdn)
+                _sing = set(self.ir.get("pyast_singleton_nodes", []) or [])
+                if _cdt and _sing and all(_vv in _sing for _vv in _cdt.values()):
+                    self._add_abstract_op(
+                        "val str_eq_op (a: string) (b: string) : bool\n"
+                        "    ensures { result <-> (a = b) }")
+                    _kx = self._expr_to_whyml(
+                        _ce.get("slice") or _ce.get("index") or {},
+                        local_refs, invariant_ctx, subst)
+                    _ch = '""'
+                    for _kk, _vv in reversed(list(_cdt.items())):
+                        _ch = (f"(if (str_eq_op {_kx} {whyml_string_literal(_kk)}) "
+                               f"then {whyml_string_literal(_vv)} else {_ch})")
+                    return _ch
             _cnt = getattr(self, "_class_name_ternary_locals", {}) or {}
             _ent = (_cnt.get(_ce.get("name"))
                     if isinstance(_ce, dict) and _ce.get("type") == "Var" else None)
