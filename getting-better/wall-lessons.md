@@ -3295,3 +3295,58 @@ A caller needs a callee's TYPE and FRAME. It needs the callee's VALUE SEMANTICS 
 inspects the returned value, which a recursive-descent parent almost never does — it just
 threads the node into a constructor slot. So when triaging a wall, ask which of the three
 the caller actually consumes before recording the callee's boundary as the caller's.
+
+## Lesson (ay) — a CONVERSION can land, prove, and pass every gate while NO CALLER can see its body (SHADOWED SELF-CALL)
+
+`check-untrusted-emitted.py` asks whether an un-trusted function is EMITTED AS A
+DEFINITION rather than re-abstracted to a `val`. That is necessary and **not
+sufficient**. Module 6 lowers `self.<m>(...)` two ways:
+
+* the CONCRETE sibling application `(<class>__<m> self args)` — the caller gets the
+  callee's real body and contract; and
+* a synthesized receiver-less abstract op `val self__<m>_<n> … : <ret>`, whose result is
+  **unconstrained**.
+
+`expressions._handle_dotted_call` picks the concrete route only when the callee's resolved
+return type is in an ALLOWLIST — `emit_ir`, `int`, `string`, `_union_*`, or a declared
+record. **`array <t>` was missing.** So every method returning `List[τ]` took the abstract
+route, and the consequence is invisible to every plane:
+
+    let  _parser___if_tail (self: _parser) : array emit_ir  = …real body, PROVED…
+    val  self__if_tail_0   (self: _parser) : array emit_ir      ← what if_stmt actually calls
+    …
+    let orelse = ref (snapshot (self__if_tail_0 self)) in
+
+`if_stmt` is converted and proven; its `orelse` child is an ARBITRARY array. The `let` is
+emitted (untrusted-emitted GREEN), the proof succeeds, the corpus byte-diff is 0, fidelity
+is unchanged, field parity is unchanged, and emitted-vacuity sees nothing — the erasure is
+not in any FUNCTION's parameters, it is in the CALL EDGE between two of them.
+
+This is **not unsound** — an unconstrained result is an over-approximation, exactly like a
+`\trusted` stub. It is a **LOST CONVERSION**: the proof was paid for and the faithfulness
+gain never reached a caller. The `\trusted` count moves, the model does not.
+
+MEASURED CAMPAIGN-WIDE (2026-08-28, 52 mirrors): **55 converted methods, 267 call sites,
+ZERO concrete applications** — including the whole pure_ast STATEMENT CLUSTER (`block`,
+`statement`, `_if_tail`, `_else_block`, `_import_as_names`) and Module 5's `_csl_to_ir`
+(92 sites) and `_py_expr_to_ir` (44).
+
+Two things follow:
+
+1. **A new oracle exists and is now wired**: `bin/check-shadowed-selfcalls.py` counts
+   exactly this and ratchets at 55. Run it every increment alongside
+   `check-untrusted-emitted.py`; the two answer DIFFERENT questions.
+2. **Adding `array <t>` to the allowlist is a two-producer change** (lesson (am) again).
+   The twin is `Module6_WhyMLTranspiler._record_return_sibling_methods`, which supplies the
+   SCC callee-before-caller ordering edge; without it the newly-concrete application is
+   emitted before its callee is declared (measured: `unbound function or predicate symbol
+   '_parser__block'`). With BOTH halves in place pure_ast's fourteen statement-cluster
+   methods collapse into ONE Why3 `let rec … with …` group and the file fails L3-tc with
+   `All functions in a recursive definition must use the same well-founded order for the
+   first component of the variant` — lesson (av) at fourteen-member scale. The reopening
+   capability is therefore NAMED AND COSTED: a phase-offset variant
+   `M*(\length(self.toks) - self.i) + off` over the whole cluster with `M > max off` and
+   `off(statement) > off(decorated) = off(async_stmt) > off(<compound handler>)`, because
+   `statement` dispatches WITHOUT advancing, `decorated` may take its `@`-loop zero times
+   as far as the prover knows, and `async_stmt`'s leading `advance()` only moves the cursor
+   when the class invariant rules out the last index.
