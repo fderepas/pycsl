@@ -4384,6 +4384,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # accumulated is DROPPED (lesson (ac), in its statement-list form). Gated on the
         # pure_ast parser file AND on the extend argument's own declared return really
         # resolving to `array emit_ir` -> corpus and every other mirror byte-identical.
+        # Reset per body BEFORE the gate, so one function's tuple-unpack seq targets can
+        # never leak into another's pre-declaration decision.
+        self._seq_ir_tuple_targets: Set[str] = set()
         if self._uses_pyast_parser():
             _ext_ir: Set[str] = set()
 
@@ -4443,8 +4446,52 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     for _x in node:
                         _scan_relist(_x)
 
+            # THE TRAILER CHAIN: the SAME `seq emit_ir` local shape, reached through a
+            # TUPLE UNPACK — `args, keywords = self._call_args(")")`, whose callee declares
+            # `-> "Tuple[List[ExprIR], List[ExprIR]]"` (`ir_resolve` records the WhyML
+            # tuple on `return_tuple_whyml`, and BOTH Module6 return-type producers emit
+            # it). Without this the two targets stay int `ref 0`s, the `Call` ctor's
+            # `args`/`keywords` `irlist` slots fail the `_emit_ir_seq_locals` test, and the
+            # WHOLE construction declines fail-closed — every argument dropped. Same two
+            # gates as the scans above: the pure_ast parser file, and the callee's own
+            # declared tuple return really resolving to `seq emit_ir` slots.
+            _tu_ir: Set[str] = set()
+
+            def _scan_tuple_ir(node: Any) -> None:
+                if isinstance(node, dict):
+                    if (node.get("stmt") == "TupleUnpack"
+                            and isinstance(node.get("targets"), list)):
+                        _v = node.get("value", {})
+                        _v = _v.to_dict() if hasattr(_v, "to_dict") else _v
+                        if (isinstance(_v, dict) and _v.get("type") == "Call"
+                                and str(_v.get("func", "")).startswith("self.")):
+                            try:
+                                _cx, _, _, _ = self._resolve_dotted_signature(
+                                    str(_v.get("func")))
+                            except Exception:
+                                _cx = ""
+                            if (isinstance(_cx, str) and _cx.startswith("(")
+                                    and _cx.endswith(")")):
+                                _sl = [x.strip() for x in _cx[1:-1].split(",")]
+                                for _i2, _tg2 in enumerate(node["targets"]):
+                                    if (_i2 < len(_sl) and _sl[_i2] == "seq emit_ir"
+                                            and isinstance(_tg2, str)):
+                                        _tu_ir.add(_tg2)
+                    for _x in node.values():
+                        _scan_tuple_ir(_x)
+                elif isinstance(node, list):
+                    for _x in node:
+                        _scan_tuple_ir(_x)
+
             _scan_extend(body_stmts)
             _scan_relist(body_stmts)
+            _scan_tuple_ir(body_stmts)
+            # The tuple-unpack targets need BOTH the `_ext_ir` registration below (so
+            # reads resolve as a `seq emit_ir` and the `irlist` binder accepts them) AND a
+            # `ref (Seq.empty: seq emit_ir)` PRE-DECLARATION: unlike the `.extend`/relist
+            # shapes there is no `x = []` first assignment to let-bind them.
+            self._seq_ir_tuple_targets = set(_tu_ir)
+            _ext_ir |= _tu_ir
             for _en in sorted(_ext_ir):
                 self._seq_locals.add(_en)
                 self._seq_value_types[_en] = "emit_ir"
@@ -5116,6 +5163,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _pyconst_val_predecl: Set[str] = set()
         _emit_ir_predecl: Set[str] = set()
         _irlist_predecl: Set[str] = set()
+        _seqir_predecl: Set[str] = set()
         _hvalmap_predecl: Set[str] = set()
         _optstr_predecl: Set[str] = set()
         _term_predecl: Set[str] = set()
@@ -5164,6 +5212,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 and v not in struct_array_targets and v not in struct_pack_targets
                                 and v not in _str_predecl and v not in _pyconst_val_predecl}
             pre_decl_vars |= _emit_ir_predecl
+            # typed-ir: an emit_ir FORMAL PARAMETER that the body REASSIGNS (a trailer
+            # accumulator — `trailers(self, atom)` does `atom = n` in every arm) must be
+            # SHADOWED as a ref at function top (`let atom = ref atom in`), preserving the
+            # entry value. Deliberately NOT in `_emit_ir_predecl`: a `ref (IrOther "")`
+            # initializer would ZERO the incoming node. Adding it to `pre_decl_vars` alone
+            # falls through to the `init = safe_var if var in self._formal_params` branch
+            # below, which is exactly the `let a = ref a in` shadow. Without it the
+            # reassignment lowers to a BRANCH-SCOPED `let atom = ref !n in ()` that is
+            # discarded at the end of the arm, so the accumulator never updates.
+            _emit_ir_param_refs = {v for v in getattr(self, "_emit_ir_local_vars", set())
+                                   if v in self._formal_params and v in local_refs
+                                   and v not in ghost_vars and v not in ref_params
+                                   and v not in _uput
+                                   and v not in struct_array_targets
+                                   and v not in struct_pack_targets}
+            pre_decl_vars |= _emit_ir_param_refs
             # cap-2: irlist locals (DictLit child-list) pre-declare `ref ILNil`.
             _irlist_predecl = {v for v in getattr(self, "_irlist_local_vars", set())
                                if v in local_refs and v not in ghost_vars
@@ -5172,6 +5236,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                and v not in struct_array_targets and v not in struct_pack_targets
                                and v not in _str_predecl and v not in _emit_ir_predecl}
             pre_decl_vars |= _irlist_predecl
+            # THE TRAILER CHAIN: a tuple-unpack target whose callee slot is `seq emit_ir`
+            # (`args, keywords = self._call_args(")")`) pre-declares `ref (Seq.empty: seq
+            # emit_ir)`. It is a `_seq_locals` member (so reads deref and the `irlist`
+            # binder accepts it), but unlike the `.extend`/reassignment shapes it has no
+            # `x = []` first assignment to let-bind it — without the pre-decl its `:=` is
+            # an unbound symbol.
+            _seqir_predecl = {v for v in getattr(self, "_seq_ir_tuple_targets", set())
+                              if v in local_refs and v not in ghost_vars
+                              and v not in ref_params and v not in self._formal_params
+                              and v not in _uput
+                              and v not in struct_array_targets
+                              and v not in struct_pack_targets
+                              and v not in _str_predecl and v not in _emit_ir_predecl
+                              and v not in _irlist_predecl}
+            pre_decl_vars |= _seqir_predecl
             # union/match cluster: a nested-map local (`vinfo`) pre-declares `ref (const
             # (None: option hval))` (the empty `map string (option hval)`), never `ref 0`.
             _hvalmap_predecl = {v for v in getattr(self, "_hvalmap_local_vars", {})
@@ -5369,6 +5448,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 init = '(Unsupported "" "")'
             elif var in _emit_ir_predecl:
                 init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
+            elif var in _seqir_predecl:
+                # THE TRAILER CHAIN: `seq emit_ir` tuple-unpack target pre-decl.
+                init = '(Seq.empty: seq emit_ir)'
             elif var in _irlist_predecl:
                 init = 'ILNil'         # cap-2: irlist local pre-decl
             elif var in _optstr_predecl:

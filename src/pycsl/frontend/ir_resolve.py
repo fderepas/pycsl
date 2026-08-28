@@ -303,6 +303,28 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # both total: the VARIADIC element list and the `expr_context` singleton. NOT the
     # pre-existing `IrMkTupleN irlist`, which has no `ctx` slot.
     "Tuple": ("IrPyTuple", [("elts", "irlist"), ("ctx", "string")]),
+    # `Call(func, args, keywords)` — `_NODE_SPEC['Call'] == ('expr', ('func','args',
+    # 'keywords'), None)`, all three total: the callee NODE and the two VARIADIC child
+    # lists (positional args, `keyword` nodes), each carried as the monomorphic `irlist`.
+    # NOT the pre-existing `IrCall`, which carries a NAME string and one list — it cannot
+    # hold a computed callee expression, and it has no `keywords` slot at all.
+    "Call": ("IrPyCall", [("func", "emit_ir"), ("args", "irlist"),
+                          ("keywords", "irlist")]),
+    # `ClassDef(name, bases, keywords, body, decorator_list, type_params)` —
+    # `_NODE_SPEC['ClassDef'] == ('stmt', ('name','bases','keywords','body',
+    # 'decorator_list','type_params'), None)`, all SIX total (no `_OPTIONAL_FIELDS`
+    # entry): the class-name string plus five VARIADIC child lists. The direct sibling
+    # of `IrPyFunctionDef`, minus the signature/returns slots a class has no room for.
+    "ClassDef": ("IrPyClassDef", [("name", "string"), ("bases", "irlist"),
+                                  ("keywords", "irlist"), ("body", "irlist"),
+                                  ("decorator_list", "irlist"),
+                                  ("type_params", "irlist")]),
+    # `Subscript(value, slice, ctx)` — `_NODE_SPEC['Subscript'] == ('expr', ('value',
+    # 'slice','ctx'), None)`, all three total: the subscripted NODE, the index/slice
+    # NODE, and the `expr_context` 0-field singleton carried as its class-name string.
+    # NOT the pre-existing `IrIndex emit_ir emit_ir`, which DROPS `ctx`.
+    "Subscript": ("IrPySubscript", [("value", "emit_ir"), ("slice", "emit_ir"),
+                                    ("ctx", "string")]),
     # `Yield(value)` — `_NODE_SPEC['Yield'] == ('expr', ('value',), None)` and `value` IS
     # in `_OPTIONAL_FIELDS['Yield']` (a bare `yield` really carries nothing), so the slot
     # is the monomorphic `iropt_ir`, never a bare emit_ir that would model the absent
@@ -1103,6 +1125,61 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
                 if (isinstance(_sl, _ast.Name)
                         and _sl.id in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")):
                     _le_ir = "emit_ir"
+        # PYTHON-AST NODE CTOR FAMILY: `-> "Tuple[List[ExprIR], List[ExprIR]]"` — the
+        # `_call_args` return interface (`args = []; keywords = []; … return args,
+        # keywords`). Module5 sees only an unrecognised string Constant, so the return
+        # collapses to `unit` and BOTH tuple slots int-erase at the unpack
+        # (`args, keywords = self._call_args(")")` bound two `ref 0`s). Record the
+        # WhyML tuple shape directly; Module6's `_compute_return_type` and
+        # `_build_method_return_type_map` (the TWO producers) both read it. Deliberately
+        # a SEPARATE key, not `return_annotation`, so no existing `ann ==` branch shifts.
+        _tup_ir = None
+        if node.returns is not None:
+            _ta = node.returns
+            if isinstance(_ta, _ast.Constant) and isinstance(_ta.value, str):
+                try:
+                    _ta = _ast.parse(_ta.value.strip(), mode="eval").body
+                except SyntaxError:
+                    _ta = None
+            if (isinstance(_ta, _ast.Subscript)
+                    and isinstance(_ta.value, _ast.Name)
+                    and _ta.value.id in ("Tuple", "tuple")):
+                _ts = _ta.slice
+                if isinstance(_ts, getattr(_ast, "Index", ())):
+                    _ts = _ts.value
+                _slots = list(_ts.elts) if isinstance(_ts, _ast.Tuple) else []
+                _wh = []
+                for _sl2 in _slots:
+                    if (isinstance(_sl2, _ast.Subscript)
+                            and isinstance(_sl2.value, _ast.Name)
+                            and _sl2.value.id in ("List", "list")):
+                        _e2 = _sl2.slice
+                        if isinstance(_e2, getattr(_ast, "Index", ())):
+                            _e2 = _e2.value
+                        if (isinstance(_e2, _ast.Name)
+                                and _e2.id in ("ExprIR", "StmtIR", "IRNode",
+                                               "ContractExprIR")):
+                            _wh.append("seq emit_ir")
+                            continue
+                    _wh = []
+                    break
+                # EXACTLY the two-list shape Module6's `_refine_tuple_return_type`
+                # honours (it compares against that literal and returns it). A wider
+                # arity would be recorded here and then silently declined there, so
+                # keep the two sides in exact agreement — fail-closed, int-erased as
+                # before, for any other tuple shape.
+                if len(_wh) == 2:
+                    _tup_ir = "(" + ", ".join(_wh) + ")"
+        if _tup_ir is not None:
+            fi = func_by_name.get(node.name)
+            if fi is None:
+                for _f in ir_data.get("functions", []):
+                    if (_f.get("line") == getattr(node, "lineno", None)
+                            and str(_f.get("name", "")).endswith(node.name)):
+                        fi = _f
+                        break
+            if fi is not None:
+                fi["return_tuple_whyml"] = _tup_ir
         if _le_ir is not None:
             fi = func_by_name.get(node.name)
             if fi is None:

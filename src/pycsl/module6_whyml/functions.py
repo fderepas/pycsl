@@ -1308,6 +1308,17 @@ class FunctionEmissionMixin:
         the FIRST tuple return's element expressions. Without this, a tuple with an
         `array int`/`string`/`map` slot emits a `let` body that cannot type-check
         against the wrong `int` slot — the standalone-gate line-441 blocker."""
+        # PYTHON-AST NODE CTOR FAMILY: a `-> "Tuple[List[ExprIR], List[ExprIR]]"` method
+        # (`_call_args`) really returns a PAIR OF NODE LISTS. `ir_resolve` records the
+        # WhyML tuple shape on `return_tuple_whyml`; without it the `\trusted` stub's
+        # `pass` body gives `find_return_type -> "unit"` and BOTH slots int-erase at every
+        # unpack site (`args, keywords = self._call_args(")")` bound two `ref 0`s). This
+        # ONE refinement serves BOTH return-type producers (lesson (am), two producers):
+        # `_compute_return_type` (the stub's own `val`) and `_build_method_return_type_map`
+        # (the `self.<m>(...)` call site) each call this method on their raw type.
+        if (func.get("return_tuple_whyml") == "(seq emit_ir, seq emit_ir)"
+                and return_type in ("int", "unit") and self._uses_pyast_parser()):
+            return "(seq emit_ir, seq emit_ir)"
         if not (return_type.startswith("(") and "," in return_type):
             return return_type
         elts = self._first_tuple_return_elts(body_stmts)

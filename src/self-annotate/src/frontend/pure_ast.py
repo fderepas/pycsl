@@ -1784,25 +1784,39 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
-    # CERTIFIED-BOUNDARY [VALUE MODEL], relaunch #8 — the LAST member of the
-    # def/class cluster, and the only one the class-name recognizer does NOT reach.
-    # `bases, keywords = self._call_args(")")` is a TUPLE UNPACK OF TWO LISTS, and the
-    # campaign has no slot type for it: `_call_args`'s `-> Tuple[List[ExprIR],
-    # List[ExprIR]]` return needs per-slot LIST element types (so each unpack target is a
-    # `seq emit_ir` local rather than the `(Array.make 1024 0)` empty-literal array it is
-    # now), which the option-tuple machinery (`_option_tuple_unpack_targets`) models only
-    # for SCALAR slots. MEASURED, not assumed: with `close: str` and the tuple return
-    # annotated, the unpack still emits `bases := _tu_bases` onto an ARRAY local and the
-    # whole `ClassDef` construction declines to `classDef_0 ()`. Reopening capability,
-    # named: per-slot LIST element types on a tuple return, so a tuple-unpack target
-    # inherits `seq emit_ir`. Everything else `classdef` needs is already built.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED (relaunch #10). Verbatim body port of the LIVE
+    # `classdef`. Its recorded [VALUE MODEL] boundary named exactly ONE missing
+    # capability — per-slot LIST element types on a tuple return, so a tuple-unpack
+    # target inherits `seq emit_ir` — and this increment BUILT it for `trailers`:
+    # `_call_args` now declares `-> "Tuple[List[ExprIR], List[ExprIR]]"`, `ir_resolve`
+    # records the WhyML `(seq emit_ir, seq emit_ir)` shape, BOTH Module6 return-type
+    # producers emit it, and the unpack targets are pre-declared `seq emit_ir` locals the
+    # `irlist` payload binder accepts. So `bases`/`keywords` are the REAL parsed lists.
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER: the SAME well-founded
+    # order every member of the `let rec … with …` group uses, at the HANDLER offset
+    # (+0) — identical to its sibling `funcdef` (see the note there for the full
+    # phase-offset argument).
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def classdef(self, decorators: List["ExprIR"]) -> "ExprIR":
-        pass
+        t = self.cur()
+        self.expect_kw("class")
+        name = self._name_str()
+        type_params = []
+        if self.at_op("["):
+            type_params = self._parse_type_params()
+        bases = []; keywords = []
+        if self.accept_op("("):
+            bases, keywords = self._call_args(")")
+            self.expect_op(")")
+        self.expect_op(":")
+        body = self.block()
+        n = _N("ClassDef")(name=name, bases=bases, keywords=keywords,
+                           body=body, decorator_list=decorators, type_params=type_params)
+        return self._fin_block(n, t)
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `funcdef`
     # (relaunch #8 increment 5). STAYS \trusted. Both clauses are TRUE of the live body —
@@ -2113,15 +2127,47 @@ class _Parser:
         atom = self.atom()
         return self.trailers(atom)
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted. The `atom` PARAM is the
-    # already-parsed head node, so it is `emit_ir` too.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `trailers`.
+    # The `atom` PARAM is the already-parsed head node, so it is `emit_ir` too, and it is
+    # REASSIGNED by every trailer arm — the loop accumulator IS the formal parameter.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def trailers(self, atom: "ExprIR") -> "ExprIR":
-        pass
+        start_line = atom.lineno; start_col = atom.col_offset
+        #@ ghost i0 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
+        #@ loop variant \length(self.toks) - self.i
+        while True:
+            if self.at_op("."):
+                self.advance()
+                attr = self._name_str()
+                end = self.toks[self.i - 1]
+                n = _N("Attribute")(value=atom, attr=attr, ctx=_N("Load")())
+                n.lineno = start_line; n.col_offset = start_col
+                n.end_lineno = end.end[0]; n.end_col_offset = end.end[1]
+                atom = n
+            elif self.at_op("("):
+                self.advance()
+                args, keywords = self._call_args(")")
+                end = self.expect_op(")")
+                n = _N("Call")(func=atom, args=args, keywords=keywords)
+                n.lineno = start_line; n.col_offset = start_col
+                n.end_lineno = end.end[0]; n.end_col_offset = end.end[1]
+                atom = n
+            elif self.at_op("["):
+                self.advance()
+                sl = self._subscript()
+                end = self.expect_op("]")
+                n = _N("Subscript")(value=atom, slice=sl, ctx=_N("Load")())
+                n.lineno = start_line; n.col_offset = start_col
+                n.end_lineno = end.end[0]; n.end_col_offset = end.end[1]
+                atom = n
+            else:
+                break
+        return atom
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `_subscript`.
     # Same comma-chain shape as `testlist_star_expr`, with the manual location stamps
@@ -2176,11 +2222,18 @@ class _Parser:
             return self._fin(_N("Starred")(value=v, ctx=_N("Load")()), t)
         return self.test()
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; the cursor clause is
+    # backed by the live body, which moves `self.i` only through advance/accept_*/expect_*
+    # and its sub-parsers — the SAME clause every sibling cursor stub carries. The
+    # `-> "Tuple[List[ExprIR], List[ExprIR]]"` return interface is the live body's real
+    # shape (`args = []; keywords = []; … return args, keywords`), so a caller binds two
+    # REAL node lists instead of two int-erased slots.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _call_args(self, close):
+    def _call_args(self, close: str) -> "Tuple[List[ExprIR], List[ExprIR]]":
         pass
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
