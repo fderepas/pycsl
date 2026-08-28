@@ -335,6 +335,14 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # VARIADIC list of `comprehension` clauses, now an ordinary `irlist` because
     # `comprehension` is a family member.
     "GeneratorExp": ("IrPyGeneratorExp", [("elt", "emit_ir"), ("generators", "irlist")]),
+    # `List(elts, ctx)` — `_NODE_SPEC['List'] == ('expr', ('elts','ctx'), <loc attrs>)`,
+    # both total: the VARIADIC element list and the `expr_context` 0-field singleton
+    # carried as its class-name string. The direct sibling of `IrPyTuple`.
+    "List": ("IrPyList", [("elts", "irlist"), ("ctx", "string")]),
+    # `ListComp(elt, generators)` — `_NODE_SPEC['ListComp'] == ('expr',
+    # ('elt','generators'), <loc attrs>)`, both total. Now that `comprehension` is a
+    # family member the clause list is an ordinary `irlist`, exactly as for GeneratorExp.
+    "ListComp": ("IrPyListComp", [("elt", "emit_ir"), ("generators", "irlist")]),
     # `Call(func, args, keywords)` — `_NODE_SPEC['Call'] == ('expr', ('func','args',
     # 'keywords'), None)`, all three total: the callee NODE and the two VARIADIC child
     # lists (positional args, `keyword` nodes), each carried as the monomorphic `irlist`.

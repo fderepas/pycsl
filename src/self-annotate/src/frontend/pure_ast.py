@@ -2332,12 +2332,55 @@ class _Parser:
     def atom(self) -> "ExprIR":
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #10). Verbatim body port of the
+    # LIVE `atom_paren`. Freed by the same capability as `atom_list`: `comprehension` is
+    # now a family member, so the genexp arm's `generators` is an ordinary `irlist`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def atom_paren(self):
-        pass
+    def atom_paren(self) -> "ExprIR":
+        t = self.advance()  # '('
+        if self.at_op(")"):
+            end = self.advance()
+            return self._fin_pos(_N("Tuple")(elts=[], ctx=_N("Load")()), t, end)
+        if self.at_kw("yield"):
+            y = self.yield_expr()
+            end = self.expect_op(")")
+            return y  # parenthesized yield: positions kept from yield
+        if self.at_op("*"):
+            elts = [self.test_or_star()]
+            #@ ghost i1 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i1
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op(","):
+                if self.at_op(")"):
+                    break
+                elts.append(self.test_or_star())
+            end = self.expect_op(")")
+            return self._fin_pos(_N("Tuple")(elts=elts, ctx=_N("Load")()), t, end)
+        first = self.namedexpr_test()
+        if self.at_kw("for") or (self.at_kw("async") and self.peek(1).string == "for"):
+            gens = self.comp_for()
+            end = self.expect_op(")")
+            ge = _N("GeneratorExp")(elt=first, generators=gens)
+            return self._fin_pos(ge, t, end)
+        if self.at_op(","):
+            elts = [first]
+            #@ ghost i2 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i2
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op(","):
+                if self.at_op(")"):
+                    break
+                elts.append(self.test_or_star())
+            end = self.expect_op(")")
+            return self._fin_pos(_N("Tuple")(elts=elts, ctx=_N("Load")()), t, end)
+        end = self.expect_op(")")
+        # parenthesized single expression: CPython keeps inner node's position
+        return first
 
     #@ requires True
     #@ ensures True
@@ -2347,12 +2390,37 @@ class _Parser:
         node.end_lineno = end_tok.end[0]; node.end_col_offset = end_tok.end[1]
         return node
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #10). Verbatim body port of the
+    # LIVE `atom_list`. Its recorded [MODEL] boundary named ONE missing thing — "`generators`
+    # is a list of harvested `comprehension` RECORDS (a payload slot type the family
+    # lacks)" — and the `_call_args` increment answered it by bringing `comprehension`
+    # INTO the family (a `seq <record>` payload inside `emit_ir` is non-strictly-positive
+    # and Why3 rejects it, so the arm is the only shape that types).
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def atom_list(self):
-        pass
+    def atom_list(self) -> "ExprIR":
+        t = self.advance()  # '['
+        if self.at_op("]"):
+            end = self.advance()
+            return self._fin_pos(_N("List")(elts=[], ctx=_N("Load")()), t, end)
+        first = self.test_or_star()
+        if self.at_kw("for") or (self.at_kw("async") and self.peek(1).string == "for"):
+            gens = self.comp_for()
+            end = self.expect_op("]")
+            return self._fin_pos(_N("ListComp")(elt=first, generators=gens), t, end)
+        elts = [first]
+        #@ ghost i0 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            if self.at_op("]"):
+                break
+            elts.append(self.test_or_star())
+        end = self.expect_op("]")
+        return self._fin_pos(_N("List")(elts=elts, ctx=_N("Load")()), t, end)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
