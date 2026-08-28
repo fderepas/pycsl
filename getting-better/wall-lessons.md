@@ -3395,3 +3395,59 @@ mirrors (`statements`, `stmt_control_flow`, `expressions`, `functions`, `types`)
 List-of-record field, so the proxy gate is empty for them even though their callees return
 `string`/`int`, types that have been in the allowlist all along. Named reopening capability:
 replace the `_record_array_fields` PROXY with a direct one, or mark the callees.
+
+## Lesson (az) — `_Parser.trailers` is a FOUR-PIECE cost/scale boundary, and the pieces are the general ones
+
+`trailers` looked like a one-hour port: three arms, every callee already interfaced, and the
+POSITION-ATTRIBUTE plane already handled (`n.lineno = start_line` emits `();` — the model
+carries no position payload, exactly as `_fin` / `_fin_pos` are already elided; `_subscript`
+was converted on that basis). It is blocked by FOUR separate emitter gaps, each measured in
+a 30-second emit run:
+
+1. **A reassigned `emit_ir` FORMAL PARAMETER is never shadowed as a ref.** `trailers`'s
+   accumulator IS its parameter (`atom = n`). `typed_local_vars` contains `atom`, and every
+   pre-declaration set excludes `self._formal_params`, so no `let atom = ref atom in` is
+   emitted; the reassignment lowers to a BRANCH-SCOPED `let atom = ref !n in ()` that is
+   discarded at the end of the branch, and the body's `!atom` reads are ill-typed against
+   the immutable binder (`This expression has type PyCSL_Program.emit_ir, but is expected
+   to have type ref 'mu`). BUILT AND MEASURED WORKING in the spike: add the assigned
+   `emit_ir` params to `pre_decl_vars` but NOT to `_emit_ir_predecl`, so the initializer
+   falls through to the existing `init = safe_var if var in self._formal_params else pfx`
+   branch — the `(IrOther "")` sentinel would silently ZERO the incoming node.
+2. **A TUPLE-OF-LISTS return is int-erased.** `args, keywords = self._call_args(")")`.
+   BUILT AND MEASURED WORKING: `-> "Tuple[List[ExprIR], List[ExprIR]]"` recognized in BOTH
+   producers (`functions._compute_return_type` and `_build_method_return_type_map`, lesson
+   (am) yet again) gives `val self__call_args_1 … : (array emit_ir, array emit_ir)`.
+3. **The tuple-unpack TARGETS are not typed from the callee's tuple return.** `args` and
+   `keywords` still pre-declare `ref 0`, so the correctly-typed pair cannot be stored.
+   NOT BUILT.
+4. **The `irlist` payload binder does not accept an `array emit_ir` local.** Even typed, the
+   `Call` arm's `args`/`keywords` slots need `seq_to_irlist (snapshot !args)`. NOT BUILT.
+
+Recorded as **CERTIFIED-BOUNDARY [COST/SCALE]** — every piece is mechanical and named, none
+is a correctness or value-model limit. Pieces 1 and 2 were REVERTED WITH THE SPIKE rather
+than left as dead capability; they are worth rebuilding only together with 3 and 4, in one
+increment that ends in `trailers` converting. Two new arms were written and reverted with
+them: `IrPyCall emit_ir irlist irlist` and `IrPySubscript emit_ir emit_ir string`.
+
+**And the transferable part**: the position-attribute plane is NOT a wall. `n.lineno = …`
+already emits nothing, because `emit_ir` has no position payload — the same pre-existing
+decision that makes `_fin` an elision. Do not record a position write as a blocker; it is
+only `ctx` (a MODELLED field, lesson on `_set_ctx`) that cannot be dropped.
+
+## Lesson (ba) — an `Optional[<record>]` LOCAL is a different, unsupported shape from `Optional[<emit_ir>]`
+
+`_line_ends_with_colon` scans the token array with a local cursor and keeps
+`last_sig: Optional[_Tok] = None`, then tests `last_sig is not None and last_sig.type ==
+_tokenize.OP`. The `_union_*` carrier the campaign built for `Optional["ExprIR"]` (which
+gives a real `Arm_2_0 emit_ir | Arm_2_None` and a TRUE absent value) does NOT fire for a
+RECORD element type. Measured emission:
+
+    last_sig := 0;                                        (* int-erased *)
+    …
+    (if (!last_sig <> 0) && ((get_type !last_sig) = 55) && ((get_string !last_sig) = 424321936) …
+
+— an opaque `get_type`/`get_string` pair over an int, and the `":"` comparison collapsed to
+a STRING HASH. Refuted in one 30-second emit run; spike reverted clean. Reopening
+capability: extend the synthesized `_union_<fn>_<n>` carrier to a declared RECORD arm
+(`Arm_n_0 _tok | Arm_n_None`), which is the same construction one type-class over.
