@@ -1,200 +1,195 @@
-# HANDOFF — read this FIRST on relaunch (rewritten 2026-08-27, RELAUNCH #7 worker)
+# HANDOFF — read this FIRST on relaunch (rewritten 2026-08-28, RELAUNCH #9 worker)
 
-## State, verified from the surface
+## State, verified from the surface at end of session
 
-- **Count: MARKERS 542 · grep-substring 567 · offset 25 · unattached 0.** Quote BOTH.
-  Get them from **`bin/count-trusted-directives.py`**, never a hand-rolled grep — the grep figure
-  counts SUBSTRING hits and 25 of them are one boilerplate module-docstring line repeated across
-  25 mirror files.
-  **Window delta: markers 549 -> 542, grep 574 -> 567 — SEVEN conversions in four gated
-  increments**, plus two clean refutations that landed nothing.
-- Ledger **3**, untouched. No new axiom. Every bridge used is a pre-existing `val` with pointwise
-  postconditions (`snapshot`, `seq_to_irlist`, `materialize_emit_ir`).
+- **Count: MARKERS 530 · grep-substring 555 · offset 25 · unattached 0.** Quote BOTH.
+  From **`bin/count-trusted-directives.py`**, never a hand-rolled grep — 25 of the grep hits
+  are one boilerplate module-docstring line repeated across 25 mirror files. Every historical
+  absolute figure (the famous "687") is overstated by that 25.
+  **Window delta so far: markers 532 -> 530, grep 557 -> 555 — TWO conversions in five gated
+  increments**, plus ONE new L-plane oracle, ONE faithfulness capability, and TWO clean
+  refutations that landed nothing.
+- Ledger **3**, untouched. No new axiom (emitted axioms in pure_ast: 0, unchanged).
 - Fidelity at the standing baseline **2 DIVERGED** (`_handle_var_expr`, `_handle_for_stmt`).
-  Field parity 335 / 7 known drift / 0 NEW. check-untrusted-emitted **768 / 751 / 0 / 0**.
-  emitted-vacuity `--emit`: no NEW erasure, 0 input-blind. Corpus byte-diff **0 over 813/813**.
-  `bin/self-annotate-mirror-check.sh` reports **3 pre-existing** mirror-only defs in
-  `ControlFlowStmtMixin` — that is the standing baseline, not new drift.
+  Field parity 335 / 7 known drift / 0 NEW. check-untrusted-emitted **780 / 763 / 0 / 0**.
+  **check-shadowed-selfcalls 50 / 259** (see below — this is NEW). emitted-vacuity `--emit`:
+  no NEW erasure, 0 input-blind. Corpus byte-diff **0 over 813/813**.
+  `bin/self-annotate-mirror-check.sh` is byte-identical to the HEAD baseline (3 mirrors with
+  pre-existing mirror-only defs — that is the standing baseline, not new drift).
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`,
-  `src/formal-semantics/rocq/.lia.cache`, untracked `scratchpad/`, `prompt.txt`, the rocq `.vo`
-  artifacts). Leave it alone. `getting-better/.driver-deadline` intact.
+  `src/formal-semantics/rocq/.lia.cache` + `.vo` artifacts, untracked `scratchpad/`,
+  `prompt`, `prompt.txt`). Leave it alone. `getting-better/.driver-deadline` intact
+  (Sep 1 08:24 UTC). 228 commits unpushed; that is deliberate.
 
-## WHAT THIS WINDOW CONVERTED (all in `frontend/pure_ast.py`)
+## THE HEADLINE FINDING OF THIS WINDOW — a faithfulness hole NO existing gate saw
 
-`exprlist` · `_looks_like_match` · `statement` · `block` · `parse_module` · `case_block` ·
-`match_stmt`.
+**`bin/check-shadowed-selfcalls.py` is a NEW L-plane oracle. Run it every increment.**
 
-`statement` and `block` are the structural ones: every compound-statement parser calls `block`,
-and `block` now carries a REAL `seq emit_ir` statement list instead of the opaque `body_extend_1`
-facade it had before.
+`check-untrusted-emitted.py` asks whether an un-trusted function is EMITTED AS A DEFINITION.
+That is necessary and NOT sufficient. Module 6 lowers `self.<m>(...)` either to the CONCRETE
+sibling application `(<class>__<m> self args)` — the caller gets the real body and contract —
+or to a synthesized receiver-less `val self__<m>_<n>`, whose result is **UNCONSTRAINED**.
+When a CONVERTED method's call sites take the second route, the `let` is emitted, it is
+proved, untrusted-emitted is green, the corpus byte-diff is 0, fidelity is unchanged and
+emitted-vacuity sees nothing — and **no caller can see a single thing the body computes**.
+The erasure is not in any FUNCTION's parameters; it is in the CALL EDGE between two of them.
 
-## THE FOUR CAPABILITIES BUILT — all of them general, re-census against them
+Measured campaign-wide at the start of this window: **55 converted methods, 267 bypassing
+call sites, ZERO concrete applications** — including the whole pure_ast STATEMENT CLUSTER
+(`if_stmt`'s `orelse` child was an ARBITRARY array, not the parsed one) and Module 5's
+`_csl_to_ir` (92 sites) and `_py_expr_to_ir` (44). Not unsound — an unconstrained result is
+an over-approximation, exactly like a `\trusted` stub — but a LOST CONVERSION.
 
-1. **The `-> bool` PREDICATE TWIN.** A `\trusted` stub declared `-> bool` now types as `int`
-   (0/1 — the file's own convention, see lesson (an)), in BOTH producers:
-   `functions._compute_return_type` (the stub's own `val`) and
-   `functions._build_method_return_type_map` (the `self.<m>()` CALL SITE). **This refutes the
-   previous handoff's "blocker 4".** `_compute_return_type` IS the decision point; the earlier
-   null measurement had no `-> bool` annotation on the stub at all AND was reading the other
-   producer's output. Lesson (am).
-2. **The `.extend` SEQ ACCUMULATOR.** `body = []` + `body.extend(<call returning array emit_ir>)`
-   is now a `seq emit_ir` local grown by `Seq.(++) !body (snapshot <arr>)`.
-   `_collect_array_elem_types` structurally cannot see such a local (its first assignment is an
-   EMPTY list literal, which carries no element type), so the promotion is a dedicated pass in
-   `_typed_local_vars`. Both halves are in `\trusted` mirrors → §10.4 cost 0.
-3. **The EMPTY-LIST PLACEHOLDER, handled in three places.** `[]` lowers to `(Array.make 1024 0)`
-   — a 1024-long ZERO array, not an empty one (lesson (ao)). It is now (a) excluded from
-   `_handle_dotted_call`'s array-shape param inference, (b) coerced to the int witness for an
-   int-erased param, and (c) bound as the genuinely empty `ILNil` in an `irlist` payload slot.
-   All three gated on the exact placeholder literal.
-4. **The GAP-FREE-PREFIX keyword binder** (lesson (ap)). The increment-13 binder only applied when
-   it could fill EVERY formal, so `self.funcdef([], async_=False)` fell back to the partial
-   application it was written to prevent. It now accepts any gap-free prefix that covers every
-   keyword, and `_handle_dotted_call`'s R7 default fill completes the tail.
+Now **50 / 259**, and the gate RATCHETS at 50. Full detail in lesson (ay).
 
-Four new `_PYAST_IRNODE_CTORS` arms: `IrPyModule irlist irlist`,
-`IrPyMatchCase emit_ir iropt_ir irlist`, `IrPyMatch emit_ir irlist`. (Nineteen arms total.)
+## WHAT THIS WINDOW LANDED (five gated increments)
 
-## TCB ADDED THIS WINDOW — know exactly what it is
-
-Nine `-> "ExprIR"` RETURN INTERFACES and, on the same nine trusted statement-producing stubs
-(`for_stmt`, `with_stmt`, `try_stmt`, `funcdef`, `classdef`, `async_stmt`, `decorated`,
-`match_stmt`, `type_alias_stmt`) plus `small_stmt`, a cursor clause **`ensures self.i >
-\old(self.i)`** (STRICT, not the usual `>=`). All of them are consumed — `statement` needs the
-interfaces, `block`'s loop VARIANT needs the strictness — and the FIRST proof attempt measured
-their absence exactly (880 Valid / 22 non-Valid, every failure `_parser__statement'vc`'s cursor
-postcondition). Each becomes a PROOF the day its stub converts. Four converted members of the same
-chain (`if_stmt`, `while_stmt`, `simple_stmt`, `statement`) now PROVE strict progress.
-
-Two runtime-INERT LIVE-SOURCE edits, both on the idiom `pure_ast.py` already uses: PEP-526 local
-annotations `guard: Optional["ExprIR"] = None` in `case_block` (and none other landed). No
-`typing` import was added anywhere — lesson (ss) holds.
-
-## THE CHEAP ARM TIER IS CLOSED — two refutations measured it
-
-Both spikes reverted cleanly; nothing landed. **Do not re-grind these without the named
-capability.**
-
-- **`_sequence_pattern` — blocked, lesson (aq).** Its `name = None if nm.string == "_" else
-  nm.string` is an `Optional[str]` local built by a TERNARY, which the campaign's carrier does not
-  handle: the union constructor wraps the WHOLE ternary (so the absent name erases to `""` — an
-  empty-name facade) and the annotated local is BRANCH-SCOPED (`unbound symbol 'name'`).
-  **Reopening capability:** lower an `IfExpr` with a `None` arm per-branch to the union's arm
-  constructors, and pre-declare such a local at function top (union locals are currently excluded
-  from `pre_decl_vars` by `typed_local_vars`, so they are `let`-bound where first assigned —
-  statements.py:4797). Both halves are in `\trusted` mirrors, so the §10.4 price is 0.
-  The `MatchSequence`/`MatchStar` arms and the `iropt_str` payload slot were written and work;
-  they were reverted with the spike.
-- **`async_stmt` — blocked, lesson (ar).** Three passthroughs and an error, every callee already
-  interfaced, and still blocked: `self.funcdef([], async_=True, start=t)` passes a real token, and
-  the CONCRETE sibling application coerces against `_resolve_dotted_signature`, which does not
-  resolve a synthesized `_union_*` (`Optional[τ]`) PARAMETER type — so a coercion arm added to
-  `_coerce_dotted_args` never fires. **Reopening capability:** resolve `Optional[τ]` param types in
-  `_resolve_dotted_signature`. **The shortcut is refused**: erasing the token actual to `0` because
-  the param is int-erased anyway is lesson (al)'s defect (unlike `[]`, a token is a faithful
-  value).
+1. **`comparison` CONVERTED** (532 -> 531). Re-measured the interrupted in-flight patch from
+   scratch; it was INCOMPLETE and L3-tc FAILED. Root cause: the `.append` lowering did
+   `arg = self._coerce_to_int(arg)` UNCONDITIONALLY, and `_coerce_to_int` is a pure TEXT
+   function that hashes any WhyML string LITERAL — so `ops.append(_N("NotIn")())` emitted
+   `Seq.snoc !ops 441879163` while the const-dict sibling emitted the real string. Fixed by
+   skipping the coercion on a local already classified `seq string`. New arm
+   `IrPyCompare emit_ir (seq string) irlist`; `_pyast_ctor_arms` now parenthesizes a
+   multi-word payload type; `_is_string_expr` recognizes a 0-field ASDL singleton; the
+   const-dict chain BINDS ITS KEY ONCE (`_CMP[self.advance().string]` has an EFFECT).
+2. **The new gate + lesson (ay)** (no count movement).
+3. **`array <t>` in the concrete-sibling allowlist** — shadowed 55 -> 50. Two producers
+   (`_handle_dotted_call` and `_record_return_sibling_methods`, which supplies the SCC
+   ordering edge), then fourteen phase-offset variants over the statement cluster. Proved
+   first try. Blast radius 2 of 52 mirrors (pure_ast + Module2_Parser), both re-proved
+   SEQUENTIALLY.
+4. **`_parse_type_params` CONVERTED** (531 -> 530). Three arms `IrPyTypeVar string iropt_ir`,
+   `IrPyTypeVarTuple string`, `IrPyParamSpec string` (thirty-seven total). First beneficiary
+   of increment 3 — both call sites now bind concretely. The first proof measured ONE missing
+   link: `_name_str` carried only the NON-strict monotonicity clause; strengthened to the
+   unconditional `ensures self.i > \old(self.i)` (the exact `expect_op` chain one token kind
+   over), PROVED not assumed.
+5. **Two clean refutations** — `trailers` and `_line_ends_with_colon`, lessons (az) and (ba).
 
 ## Pick up here — in this order
 
-1. **Build lesson (aq)'s capability** (ternary-`None` union arm selection + function-top pre-decl
-   of a union local). Both halves are FREE (`\trusted` mirrors), and it immediately re-lands the
-   already-written `MatchSequence`/`MatchStar` arms + `iropt_str` slot + `_sequence_pattern`.
-   The `iropt_str` payload arm is also what `try_stmt`'s `ExceptHandler(type, name, body)` and
-   `closed_pattern`'s `MatchAs(pattern=None, name=None)` will need, so it is worth more than the
-   one conversion.
-2. **Then lesson (ar)'s** (`Optional[τ]` param types in `_resolve_dotted_signature`) → `async_stmt`,
-   and probably `decorated` (whose `decorators` seq local hits the same coercion path).
-3. **The VARIABLE-CLASS-NAME recognizer** is now the biggest single blocker left in this file:
-   `cls = "AsyncWith" if async_ else "With"` / `"TryStar" if is_star else "Try"` /
-   `"AsyncFunctionDef" if async_ else "FunctionDef"` / `"AsyncFor" if async_ else "For"` gate
-   `with_stmt`, `try_stmt`, `funcdef`, `for_stmt`. Note this is the SAME ternary-of-two-literals
-   shape as (aq) — build them together if the shapes really coincide. But check the FIELDS first:
-   `for_stmt`/`with_stmt` also need `_for_target`/`_with_item`, which are behind the `_set_ctx`
-   CORRECTNESS boundary, so the recognizer alone probably only reaches `try_stmt`.
-4. **The un-gated `-> "List[ExprIR]"` faithfulness gain** (previous handoff's item 4) is still
-   unclaimed: ~75 min of proving to type `expressions`/`statements`/`stmt_control_flow`'s
-   `_es`/`_ss` shims as `array emit_ir` instead of `array int`.
+1. **`trailers` (lesson (az))** is the best-costed item on the board: a FOUR-PIECE chain,
+   pieces (i) and (ii) already BUILT AND MEASURED WORKING in the spike and reverted with it.
+   Rebuild all four in ONE increment ending in `trailers` converting:
+   (i) shadow a reassigned `emit_ir` FORMAL PARAM as a ref (`let atom = ref atom in`; add it
+   to `pre_decl_vars` but NOT to `_emit_ir_predecl`, so the initializer falls through to
+   `init = safe_var`); (ii) `-> "Tuple[List[ExprIR], List[ExprIR]]"` in BOTH return-type
+   producers; (iii) type the tuple-unpack TARGETS from the callee's tuple return; (iv) let the
+   `irlist` payload binder accept an `array emit_ir` local (`seq_to_irlist (snapshot !args)`).
+   Arms already written once: `IrPyCall emit_ir irlist irlist`,
+   `IrPySubscript emit_ir emit_ir string`. Pieces (ii)-(iv) also unblock `_call_args` itself.
+2. **The OTHER admission gate on the concrete-sibling route.** The remaining 50 shadowed
+   methods are shadowed by the GATE, not the type: `_handle_dotted_call` admits the concrete
+   route only when `_record_array_fields` is non-empty OR the callee carries an explicit
+   `#@ sibling_concrete`, and the emitter mirrors (`statements`, `stmt_control_flow`,
+   `expressions`, `functions`, `types`) have no List-of-record field, so the PROXY gate is
+   empty for them even though their callees return `string`/`int` — types that have been in
+   the allowlist all along. Replace the proxy with a direct predicate, or mark the callees.
+   This is the single largest remaining faithfulness item, ~40 methods / ~200 call sites.
+3. **`_line_ends_with_colon` (lesson (ba))**: extend the `_union_<fn>_<n>` carrier to a
+   declared RECORD arm. Same construction one type-class over; also unblocks any other
+   `Optional[<record>]` local.
+4. **`global_stmt`** needs the last un-built sub-case of the variable-class-name recognizer:
+   `_N(kind)(names=names)` where `kind` is a PARAMETER. The `seq string` payload slot it
+   needs for `names` ALREADY EXISTS (increment 1). The construct would be an arm that carries
+   the class NAME as a payload with `kind_of` projecting it — weigh that against the
+   drift-proof table's discipline before building.
 
 ## RECORDED BOUNDARIES — do not re-grind without new capability
 
-- **`_set_ctx(node, _N("Store")())` — CERTIFIED-BOUNDARY [CORRECTNESS].** `emit_ir` is an
-  IMMUTABLE ADT and `ctx` IS a modelled field, so an in-place `ctx` mutation cannot be expressed
-  and dropping it would be a LIE. Blocks `namedexpr_test`, `_comp_target`, `_for_target`,
-  `expr_stmt`, `del_stmt`, `_with_item`, `atom_paren`'s tuple arm. Reopening capability: a
-  functional `set_ctx : emit_ir -> string -> emit_ir` in the LIVE SOURCE.
-- **`_subscript_item` — [MODEL].** Needs flow-sensitive narrowing.
-- **`_binop` / `global_stmt` — [RECOGNIZER].** `_N(<const-dict read>)()` takes a VARIABLE class
-  name. (`for_stmt`/`with_stmt`/`funcdef`/`try_stmt` are the TERNARY sub-case; see item 3 above.)
-- **`_pattern_number` — [MODEL].** `Constant(value=_parse_number(tok.string))`: `_parse_number` is
-  opaque, so wrapping its result in `PVInt` would claim a float literal is an int. Needs the
-  parser's own number classification, or a `pyconst_val` value the opaque call can carry.
-- **`atom_list` / `atom_brace` — [MODEL].** `ListComp.generators` is a list of harvested
-  `comprehension` RECORDS (a payload slot type the family does not have), and `atom_brace` appends
-  `None` KEYS into a list (optional list ELEMENTS).
-- `_py_stmts_to_ir`: CERTIFIED-BOUNDARY [COST/SCALE]. `for`-over-array termination: the SOURCE
-  cannot supply a variant.
-
-## The §10.4 RE-PORT PRICE LIST (re-measured where touched this window)
-
-| mirror | goals | wall clock |
-|---|---|---|
-| any `\trusted` mirror body | — | **0** |
-| `module6_whyml/types` | 655 | ~8 min |
-| `Module6_WhyMLTranspiler` | 706 | ~10 min |
-| `frontend/pure_ast` | **1022** (was 808) | ~18 min + a ~10 min vacuity tail |
-| `module6_whyml/statements` | 884 | ~15 min |
-| `module6_whyml/stmt_control_flow` | 1821 | ~42 min |
-| `module6_whyml/functions` | **1175** (was 1167) | ~45 min + vacuity |
-
-**Trusted mirrors you can edit for FREE** (re-verified this window): everything in the previous
-list PLUS `expressions._coerce_dotted_args`, `statements._typed_local_vars`,
-`statements._handle_expr_stmt`, `statements._emit_body_code`. `frontend/ir_resolve` and
-`module6_whyml/preamble`'s `_pyast_*` helpers, and `expressions._call_irnode_constructor`, have no
-mirror counterpart at all — also free.
-**Un-trusted (costed) ones you WILL hit:** `functions._compute_return_type` /
-`_build_method_return_type_map`, `types._field_type_of`, `statements._handle_fieldassign_stmt` /
-`_wrap_body_with_return_catch`, `stmt_control_flow._handle_return_stmt`.
+- **`_set_ctx(node, _N("Store")())` — [CORRECTNESS].** `emit_ir` is an IMMUTABLE ADT and
+  `ctx` IS a modelled field. Blocks `namedexpr_test`, `_comp_target`, `_for_target`,
+  `expr_stmt`, `del_stmt`, `_with_item`. Reopening: a functional `set_ctx` in the LIVE SOURCE.
+  **NOTE (new, lesson (az)): this does NOT extend to the POSITION attributes.**
+  `n.lineno = …` already emits nothing — `emit_ir` carries no position payload, the same
+  pre-existing decision that makes `_fin`/`_fin_pos` elisions, and the reason `_subscript`
+  converted. Never record a position write as a blocker.
+- **`small_stmt` — [HETEROGENEOUS CONVERTED RETURNS]** (lesson (aw)). Blocked by five
+  SIBLINGS converted onto harvested RECORD returns. Reopening: migrate `return_stmt`,
+  `raise_stmt`, `assert_stmt`, `import_stmt`, `import_from` onto `_PYAST_IRNODE_CTORS` arms
+  plus `alias`. The count does not move until the LAST one lands.
+- **`trailers` — [COST/SCALE]**, four pieces, all named (lesson (az)).
+- **`_line_ends_with_colon` — [MODEL]**, `Optional[<record>]` local (lesson (ba)).
+- **`_subscript_item` — [MODEL].** Flow-sensitive narrowing.
+- **`_pattern_number`, `atom`, `closed_pattern` — [MODEL].** `Constant(value=…)` needs the
+  parser's own number/constant classification.
+- **`atom_list` / `atom_brace` / `_dict_rest` / `atom_paren` — [MODEL].** `generators` is a
+  list of harvested `comprehension` RECORDS (a payload slot type the family lacks); `keys`
+  holds `None` ELEMENTS (optional list elements).
+- **`_binop` — [RECOGNIZER].** `_BINOP` is a const dict of TUPLES destructured into two
+  locals, then `_N(opname)()` on a LOCAL. Both const-dict sub-cases that ARE built (literal
+  and string-valued-dict) do not cover it.
+- **`classdef`** (value model); **`_py_stmts_to_ir`** [COST/SCALE]; **`for`-over-array
+  termination** (the SOURCE cannot supply a variant).
+- The `_Unparser` family (~60 stubs) is blocked by `self.interleave(lambda: …, self.traverse,
+  node.names)` — LAMBDA + higher-order function, and `with self.delimit(…)` context managers.
+  A fundamental modelling boundary, not a cost one.
 
 ## Instrument facts (unchanged, still true, still silently corrupting)
 
 1. **`why3` is NOT on the default PATH** (`/home/fabrice/.opam/framac-coq8/bin`). Without it
    `pycsl.py` errors AND EXITS 0. `export PATH=...` on every gate.
 2. **`--import-path src/pycsl`** is the canonical mirror path.
-3. **The Alt-Ergo pin at `pycsl.py:1318` is stale.** Pass `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`
-   EXPLICITLY. Do NOT edit the pin.
+3. **The Alt-Ergo pin at `pycsl.py:1318` is stale** (2.6.2 vs installed 2.6.3), so a
+   nominally dual-prover run is silently Z3-only. Pass `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`
+   EXPLICITLY. Do NOT edit the pin — it is flagged for the user.
 4. `check-emitted-vacuity.py` is a false green without `--emit`.
-5. **`.gitignore` has `*.mlw`** — `git add -A` SILENTLY SKIPS evidence files. `--keep-mlw` writes
-   `<source>.mlw` NEXT TO THE SOURCE, so remember to delete it.
+5. **`.gitignore` has `*.mlw`** — `git add -A` SILENTLY SKIPS evidence files. `--keep-mlw`
+   writes `<source>.mlw` NEXT TO THE SOURCE; delete it before committing.
 6. `bin/check-untrusted-emitted.py` reports 0/0/0/0 — a FALSE GREEN — with no PATH export.
-7. **A HEAD worktree has no `.venv`**, and `bin/byte-diff-sweep.sh` uses `$ROOT/.venv/bin/python3`:
-   without a symlink it emits ZERO files and the diff still reports 0. `ln -sfn <repo>/.venv
-   <worktree>/.venv` first.
+7. **A HEAD worktree has no `.venv`**, and `bin/byte-diff-sweep.sh` uses
+   `$ROOT/.venv/bin/python3`: without a symlink it emits ZERO files and the diff still
+   reports 0. `ln -sfn <repo>/.venv <worktree>/.venv` first.
 8. `python3 -u` on every proof, or the log stays empty until the run ends.
-9. The Bash tool caps a foreground command at 10 minutes. Run the proof with `nohup ... &` and
-   WAIT with an `until ! kill -0 <pid>; do sleep 20; done` loop (a foreground `until`-loop with a
-   600 s tool timeout is accepted; a bare `sleep` is blocked).
+9. The Bash tool caps a foreground command at 10 minutes. Run the proof with `nohup … &` and
+   WAIT with an `until ! kill -0 <pid>; do sleep 30; done` loop.
+10. **NEW (relaunch #9, supervisor-reported): a gate that RAISES before it REPORTS is
+    indistinguishable from a gate that found nothing.** `check-shadowed-selfcalls.py` first
+    shipped with `os.replace` across a filesystem boundary and died with `Invalid cross-device
+    link` before printing anything. Fixed (`shutil.move` + scratch under the repo) AND given
+    an INCOMPLETE-POPULATION guard: fewer than 52 emitted mirrors is now a FAILURE, not a
+    pass. Apply that guard to any new oracle you write.
 
-## THE FASTEST THING THIS WINDOW LEARNED — use it
+## THE FASTEST THING THIS CAMPAIGN KNOWS — use it
 
 **An emit-only run is a 30-second oracle.**
 `PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py <mirror> --import-path src/pycsl --no-proof
---keep-mlw` type-checks (L3-tc is ON — this is NOT the `--no-typecheck` sweep, lesson (ww) does
-not apply) and leaves the `.mlw` for inspection. Every capability in this window was designed by
-porting a body, emitting, READING the emitted WhyML for facades, and iterating — before spending a
-single minute of proof time. Six emit runs cost less than one proof. Do this first, always.
+--keep-mlw` type-checks (L3-tc is ON — this is NOT the `--no-typecheck` sweep, lesson (ww)
+does not apply) and leaves the `.mlw` for inspection. BOTH refutations this window cost 30
+seconds each. Every capability was designed by porting a body, emitting, READING the emitted
+WhyML for facades, and iterating — before spending a minute of proof time.
 
-## Method notes this window paid for (full text in wall-lessons.md, (am)-(ar))
+## The §10.4 RE-PORT PRICE LIST (re-measured where touched this window)
 
-- **(am)** "the annotation has no effect" almost always means you measured the wrong half. PROBE
-  the emitter (a 4-line stderr print inside the function) before concluding it is not the decision
-  point; and assume TWO producers when a type appears both on a definition and at its call site.
-- **(an)** promote a stub's return type to the FILE's convention, not the source language's.
-- **(ao)** `[]` lowers to a 1024-long ZERO array that pattern-matches as an array argument.
-- **(ap)** a gap-free keyword binding does not have to reach full arity.
-- **(aq)** an `Optional[τ]` local built by a TERNARY is a different, unsupported shape.
-- **(ar)** a concrete sibling application coerces against `_resolve_dotted_signature`, which does
-  not resolve `Optional[τ]` param types — and the erase-the-actual shortcut is refused.
-- Still live from before: **(ai)** never stack whole-file proofs (obeyed — every proof this window
-  ran sequentially); **(ak)** an assumed clause must be consumed in the same increment (obeyed —
-  and the two refutations reverted their clauses with them); **(ac)** read every emitted record
-  literal for `Array.make 0 0`.
+| mirror | goals | wall clock |
+|---|---|---|
+| any `\trusted` mirror body | — | **0** |
+| `frontend/Module2_Parser` | **714** | ~10 min |
+| `module6_whyml/types` | 655 | ~8 min |
+| `Module6_WhyMLTranspiler` | 706 | ~10 min |
+| `frontend/pure_ast` | **1520** (was 1310) | ~25 min |
+| `module6_whyml/statements` | 884 | ~15 min |
+| `module6_whyml/stmt_control_flow` | 1821 | ~42 min |
+| `module6_whyml/functions` | 1175 | ~45 min + vacuity |
+
+A full mirror emission sweep WITH L3-tc (52 files) is ~13 min; the corpus byte-diff sweep
+(813 files, `--no-typecheck`, 6 jobs) is ~90 s.
+
+## Method notes this window paid for (full text in wall-lessons.md, (ay)-(ba))
+
+- **(ay)** a CONVERSION can land, prove and pass every gate while NO CALLER sees its body.
+  Two DIFFERENT questions: is the definition emitted (untrusted-emitted), and do the CALL
+  SITES use it (shadowed-selfcalls). Run both.
+- **(az)** `trailers` is a four-piece cost/scale boundary; and the POSITION-ATTRIBUTE plane
+  is NOT a wall — only `ctx` is.
+- **(ba)** an `Optional[<record>]` local is a different, unsupported shape from
+  `Optional[<emit_ir>]`.
+- Still live: **(am)** ASSUME TWO PRODUCERS — it bit twice more this window
+  (`_record_return_sibling_methods` for the SCC edge, and the call-site half of the
+  tuple-of-lists return); **(av)** converting one member of a recursive-descent chain makes
+  its WHOLE group need a variant — at fourteen-member scale here, and the multiplier must
+  exceed the deepest offset; **(ai)** never stack whole-file proofs (obeyed — pure_ast and
+  Module2_Parser proved sequentially); **(aw)** a dispatcher can be blocked by its siblings'
+  already-converted RECORD returns; **(ax)** a callee's CORRECTNESS boundary does not
+  propagate to its caller — it needs the callee's TYPE and FRAME, not its value semantics.
