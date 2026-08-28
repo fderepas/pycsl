@@ -7680,12 +7680,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         un-projected union) — a mutable Optional LOCAL is already carrier-projected on read
         by `_union_local_read_projection`, so its emitted operand is a `string`, not the raw
         union, and must not be re-matched here."""
-        if not isinstance(x_ir, dict) or x_ir.get("type") != "Var":
+        if not isinstance(x_ir, dict):
             return None
-        name = x_ir.get("name")
-        if name in getattr(self, "_optional_union_locals", set()):
+        symtype = None
+        if x_ir.get("type") == "Call":
+            # SHADOWED-SELFCALL REPAIR, the `Optional[str]`-return half (lesson (bc)
+            # finding 1): `self._field_type_of(x) in ("list","tuple")` — a `self.<m>(...)`
+            # SIBLING CALL whose declared return is `Optional[str]`. While the callee was
+            # shadowed the abstract `val` returned `int` and the int-hash comparison
+            # type-checked (badly); the moment the callee is marked `#@ sibling_concrete`
+            # the concrete application hands back the REAL `_union_*` and the comparison
+            # is Why3-REJECTED. `_sibling_call_union_type` returns the union type ONLY
+            # when the call really lowers concretely (it is gated by the SAME two
+            # admission routes `_handle_dotted_call` uses), so this can never claim a
+            # union for a call that stayed abstract.
+            symtype = self._sibling_call_union_type(x_ir)
+        elif x_ir.get("type") == "Var":
+            name = x_ir.get("name")
+            if name in getattr(self, "_optional_union_locals", set()):
+                return None
+            symtype = getattr(self, "_current_symbol_table", {}).get(name)
+        else:
             return None
-        symtype = getattr(self, "_current_symbol_table", {}).get(name)
         if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
             return None
         vinfo = getattr(self, "_variant_types", {}).get(symtype)
