@@ -414,6 +414,22 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # ('name','type_params','value'), None)`, all three TOTAL (no `_OPTIONAL_FIELDS`
     # entry). `name` is an expression NODE (a `Name`, or a `Subscript` for a generic
     # name), `type_params` the PEP-695 binder list, `value` the aliased expression.
+    # `arguments(posonlyargs, args, vararg, kwonlyargs, kw_defaults, kwarg, defaults)` —
+    # `_NODE_SPEC['arguments']` gives all seven, and `_OPTIONAL_FIELDS['arguments'] ==
+    # ('vararg','kwarg')`: a signature without `*a` / `**kw` really carries neither, so
+    # those two are the monomorphic `iropt_ir` (each is an `arg` NODE) and the other five
+    # are child lists. `kw_defaults` genuinely contains `None` HOLES in CPython; this
+    # parser's `lambdef` no-parameter site passes the EMPTY list for it, which the
+    # `irlist` slot carries as the honest `ILNil`.
+    "arguments": ("IrPyArguments", [("posonlyargs", "irlist"), ("args", "irlist"),
+                                    ("vararg", "iropt_ir"),
+                                    ("kwonlyargs", "irlist"),
+                                    ("kw_defaults", "irlist"),
+                                    ("kwarg", "iropt_ir"),
+                                    ("defaults", "irlist")]),
+    # `Lambda(args, body)` — `_NODE_SPEC['Lambda'] == ('expr', ('args','body'), None)`,
+    # both total: the `arguments` node and the body expression.
+    "Lambda": ("IrPyLambda", [("args", "emit_ir"), ("body", "emit_ir")]),
     "TypeAlias": ("IrPyTypeAlias", [("name", "emit_ir"),
                                     ("type_params", "irlist"),
                                     ("value", "emit_ir")]),

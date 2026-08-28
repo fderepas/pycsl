@@ -578,6 +578,21 @@ class _Parser:
     # converted as PER-CLASS RECORDS; typing it needs the statement half of the ctor
     # family (migrating those five from records to emit_ir arms). Consumed by
     # `simple_stmt`.
+    # CERTIFIED-BOUNDARY [HETEROGENEOUS CONVERTED RETURNS], relaunch #8. `small_stmt` is a
+    # 13-way DISPATCHER and every arm is already reachable — the `node("Pass"/"Break"/
+    # "Continue", t)` singletons build real nodes through the `node` helper recognizer, and
+    # the remaining ten are sibling passthroughs. It is blocked by its OWN SIBLINGS' return
+    # types: `return_stmt`/`raise_stmt`/`assert_stmt`/`import_stmt`/`import_from` were
+    # converted with HARVESTED RECORD returns (`-> "Return"` emits `py_return`, a record),
+    # while this dispatcher must return the `emit_ir` SUM — and WhyML has no type for a
+    # function whose arms return different types. MEASURED: `This expression has type
+    # PyCSL_Program.py_return @rho, but is expected to have type PyCSL_Program.emit_ir`.
+    # This is COST/SCALE, not correctness: the reopening capability is named and mechanical
+    # — migrate those five statement builders from their harvested per-class RECORDS onto
+    # `_PYAST_IRNODE_CTORS` arms (`IrPyReturn iropt_ir`, `IrPyRaise iropt_ir iropt_ir`,
+    # `IrPyAssert emit_ir iropt_ir`, `IrPyImport irlist`, `IrPyImportFrom iropt_str irlist
+    # int`), which also needs `alias` (their child) on an arm. Each is a re-port of an
+    # ALREADY-CONVERTED function, so the count does not move until the last one lands.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1593,11 +1608,19 @@ class _Parser:
             ann = self.test()
         return self._fin(_N("arg")(arg=name, annotation=ann, type_comment=None), t)
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `lambdef`
+    # (relaunch #8 increment 7). STAYS \trusted. Both clauses are TRUE of the live body —
+    # it returns the single `_N("arguments")` node it builds, and moves the cursor only
+    # through `advance`/`accept_*`. The monotonicity clause is what `lambdef`'s
+    # postcondition AND its group VARIANT DECREASE both chain through, and its absence was
+    # MEASURED (two unproven `_parser__lambdef'vc` sub-goals: the postcondition and the
+    # variant decrease).
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def lambda_parameters(self):
+    def lambda_parameters(self) -> "ExprIR":
         pass
 
     # `_fin` RECOGNIZER vein, increment 4: CONVERTED — the FIRST consumer of the `_fin`
@@ -1634,7 +1657,12 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    #@ \variant \length(self.toks) - self.i
+    # MUTUAL-RECURSION TERMINATION (relaunch #8): converting `lambdef` put it and `test`
+    # in ONE `let rec … with …` group, and Why3 requires EVERY member to use the same
+    # well-founded order. Phase-offset form (the `proof2why3/parser` precedent): `test`
+    # (+1) calls `lambdef` (+0) WITHOUT advancing, so the offset must drop; `lambdef`
+    # calls `test` only after `advance()` + `expect_op(":")`, so the cursor term drops.
+    #@ \variant 2 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
     def test(self) -> "ExprIR":
         if self.at_kw("lambda"):
@@ -1649,13 +1677,21 @@ class _Parser:
             return self._fin(_N("IfExp")(test=test, body=cond, orelse=orelse), t)
         return cond
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ \variant 2 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def lambdef(self) -> "ExprIR":
-        pass
+        t = self.advance()  # 'lambda'
+        if self.at_op(":"):
+            args = _N("arguments")(posonlyargs=[], args=[], vararg=None,
+                                   kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[])
+        else:
+            args = self.lambda_parameters()
+        self.expect_op(":")
+        body = self.test()
+        return self._fin(_N("Lambda")(args=args, body=body), t)
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
     # precedents). STAYS \trusted. `-> "ExprIR"` records that the result IS an expression
