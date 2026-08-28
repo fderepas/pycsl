@@ -509,12 +509,29 @@ class _Parser:
             return False
         return self._line_ends_with_colon()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _line_ends_with_colon(self) -> bool:
-        pass
+        depth = 0
+        j = self.i
+        n = len(self.toks)
+        last_sig: Optional[_Tok] = None
+        #@ loop invariant 0 <= j and j <= n
+        #@ loop invariant n == \length(self.toks)
+        #@ loop variant n - j
+        while j < n:
+            tk = self.toks[j]
+            if tk.type == _tokenize.OP and tk.string in ("(", "[", "{"):
+                depth += 1
+            elif tk.type == _tokenize.OP and tk.string in (")", "]", "}"):
+                depth -= 1
+            elif tk.type == _tokenize.NEWLINE and depth == 0:
+                break
+            last_sig = tk
+            j += 1
+        return (last_sig is not None and last_sig.type == _tokenize.OP
+                and last_sig.string == ":")
 
     #@ requires True
     #@ ensures True

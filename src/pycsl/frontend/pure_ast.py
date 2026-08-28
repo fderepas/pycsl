@@ -748,7 +748,11 @@ class _Parser:
         depth = 0
         j = self.i
         n = len(self.toks)
-        last_sig = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never
+        # evaluated, so this needs no `typing` import), here for the VERIFIER: it makes
+        # the local a real `option _Tok` carrier, so the absent path is a TRUE `None` and
+        # not an int-erased sentinel. Same device as `_param_arg`'s `ann: Optional["ExprIR"]`.
+        last_sig: Optional[_Tok] = None
         while j < n:
             tk = self.toks[j]
             if tk.type == _tokenize.OP and tk.string in ("(", "[", "{"):

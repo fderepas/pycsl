@@ -4724,7 +4724,33 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                and isinstance(_ann.value, ast.Name)
                                and _ann.value.id == "Optional"
                                and self._irnode_ann_name(_ann) is not None)
-                    if _opt_ir and _scope_name:
+                    # W8 capability (v), LOCAL seam: `Optional[<declared RECORD class>]`
+                    # (the token cursor's `last_sig: Optional[_Tok] = None`) is the SAME
+                    # real-union case as `Optional[<IR-node tag>]` above, one type-class
+                    # over. `_union_arm_tag` ALREADY emits a REAL record arm for a class
+                    # with an emitted `record` type_decl — that is how `accept_op`'s
+                    # `-> Optional[_Tok]` RETURN gets `Arm_0_0 _tok`. Without this
+                    # disjunct the LOCAL fell through to `_m5_get_type_name`, which
+                    # collapses it to the `int` default: `last_sig := 0`, and every
+                    # projection off it degenerated to an opaque `get_type`/`get_string`
+                    # pair over an int with the `":"` test collapsed to a string HASH
+                    # (lesson (ba), measured). Gated on the EMITTED record type_decl set,
+                    # byte-for-byte the same gate `_union_arm_tag` uses -> the local is
+                    # admitted iff its arm can be typed FAITHFULLY, else it degrades
+                    # exactly as before.
+                    _opt_rec = False
+                    if (isinstance(_ann, ast.Subscript)
+                            and isinstance(_ann.value, ast.Name)
+                            and _ann.value.id == "Optional"):
+                        _inner = _ann.slice
+                        if isinstance(_inner, getattr(ast, "Index", ())):
+                            _inner = _inner.value
+                        if isinstance(_inner, ast.Name):
+                            _opt_rec = any(
+                                td.get("kind") == "record"
+                                and td.get("name") == _inner.id
+                                for td in self.program_ir.get("type_decls", []))
+                    if (_opt_ir or _opt_rec) and _scope_name:
                         try:
                             scope[child.target.id] = self._normalize_union_annotation(
                                 _ann, _scope_name, dedup=True)

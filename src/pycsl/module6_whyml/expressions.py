@@ -10996,7 +10996,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         rec = self._record_types[rec_name]
         if attr not in (rec.get("fields") or []):
             return None
-        label = self._field_label(rec_name, attr)
+        # `_field_label`'s first argument is the record's WHYML name (that is what the
+        # ambiguous-field qualifier prefixes), NOT the Python class name. Passing
+        # `rec_name` here emitted `_v._Tok_string` for `_Tok.string` while the DIRECT
+        # read of the same field emitted `_tok_string` — an unbound symbol, and the last
+        # thing standing between `Optional[<record>]` locals and a faithful lowering.
+        label = self._field_label(rec.get("whyml_name") or rec_name, attr)
         ftype = (rec.get("field_types") or {}).get(attr, "int")
         default = {"str": '""', "string": '""', "real": "0.0",
                    "float": "0.0"}.get(ftype, "0")
