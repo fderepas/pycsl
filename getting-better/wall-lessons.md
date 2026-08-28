@@ -3518,3 +3518,64 @@ annotation. Result: shadowed **50 -> 35 methods, 259 -> 208 call sites**.
 **And the blast radius is second-order**: marking a method in a MIXIN re-emits every mirror
 that mixes it in. Measure it with the mirror sweep — `Module6_WhyMLTranspiler` and `pycsl`
 both changed and both had to be re-proved.
+
+## Lesson (bd) — a conversion that moves a hole from a COUNTED register to an UNCOUNTED one is count theatre; decline it
+
+`_fin` (the pure_ast parser's position stamper) converts cleanly. The full spike was built
+and measured GREEN: the position-write elision extended from an emit_ir LOCAL to an emit_ir
+FORMAL PARAM, a ternary arm reading an `array <record>` self-field element typing the local
+as that record, the emitted body coming out as the literal identity on `node` with NO call
+site moved, and `frontend/pure_ast` proving **1612 / 1612**.
+
+It was reverted anyway. `bin/check-emitted-vacuity.py --emit` reported
+
+    _parser___fin  erased=['start_tok'] of ['node', 'start_tok', 'end_tok']
+
+and it is RIGHT: `_fin`'s only use of `start_tok` is to write two of the four ASDL location
+attributes, `emit_ir` carries no position payload (lesson (az)), so with the stamps elided
+the model really does ignore that input.
+
+So the conversion would have TRADED a **counted** `\trusted` marker for an **uncounted**
+known-erasure ledger entry — and bought nothing, because every call site ALREADY elided
+`_fin`. No caller would see one thing it did not see before. **Decline that trade.** The
+marker count is a proxy for trust removed; growing the erasure ledger to shrink it is
+moving a hole from one register to another.
+
+Corollaries:
+
+* **Revert the spike's capabilities WITH it.** The two emitter extensions `_fin` needed
+  fire nowhere else, so keeping them would be dead capability (the same discipline lesson
+  (az) applied to the `trailers` pieces).
+* Reopening capability, named: an `emit_ir` that CARRIES the four location attributes as
+  payload — the same decision `_set_ctx` needs one field over.
+* Generalisable test before porting ANY body: *what would a caller see that it cannot see
+  today?* If the answer is "nothing", the conversion is bookkeeping.
+
+## Lesson (be) — a class name chosen at RUN TIME lowers to a dispatch DERIVED FROM THE TABLE, with an EXACT tail
+
+`global_stmt(self, kind)` builds `_N(kind)(names=names)` where `kind` is a `str` FORMAL
+PARAMETER — the caller passes the literal `"Global"` or `"Nonlocal"`. Neither of the two
+existing recognizers fires: it is not a string literal, and it is not the ternary
+class-name LOCAL (`cls = "TryStar" if is_star else "Try"`).
+
+The lowering that works, and stays drift-proof:
+
+    (let _cnk = kind in
+      (if (str_eq_op _cnk "Global")   then (IrPyGlobal !names)
+       else (if (str_eq_op _cnk "Nonlocal") then (IrPyNonlocal !names)
+             else (IrOther _cnk))))
+
+Two things make it honest:
+
+1. **The candidate set is DERIVED, never hand-written**: exactly those
+   `_PYAST_IRNODE_CTORS` entries whose payload FIELD-NAME SET equals the construction's
+   KEYWORD set. Add or remove a family member, or drift an ASDL field name, and the chain
+   follows automatically — the drift-proof-table discipline the handoff asked to be weighed
+   is *satisfied*, not traded away.
+2. **The tail is EXACT, not a fallback.** `kind_of (IrOther k) = k`, so off the candidate
+   set the model says "a node whose kind is precisely this string". It never names a WRONG
+   class. (Python raises `KeyError` there; it is unreachable from every call site.)
+
+And the payload type matters: `Global.names` is a list of IDENTIFIER STRINGS, so the slot is
+the `seq string` payload the `Compare.ops` arm introduced — **not** `irlist`, which would
+model an identifier as a NODE.
