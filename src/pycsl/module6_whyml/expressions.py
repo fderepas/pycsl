@@ -9155,6 +9155,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return None
                 parts.append(_rs)
                 continue
+            if _irlist_slots.get(f) == "iroptlist":
+                # OPTIONAL-ELEMENT CHILD LIST (relaunch #10): the `Dict.keys` slot. An
+                # EMPTY list literal is a genuinely empty child list -> `IONil` (the same
+                # reasoning as the `irlist` `ILNil` case below, on the same placeholder
+                # literal). Otherwise the actual must be an `iropt_ir`-element seq LOCAL —
+                # one the body really grew with a bare `None` append — else the whole
+                # construction DECLINES, fail-closed. `seq_to_iroptlist` is the exact twin
+                # of `seq_to_irlist`: a fresh result pinned POINTWISE by the carrier's own
+                # DEFINED `iolen`/`ionth`, so nothing is erased (no axiom, no new leaf).
+                _rawo = str(bound[f]).strip()
+                if _rawo == "(Array.make 1024 0)":
+                    parts.append("IONil")
+                    continue
+                if not (_rawo.startswith("!") and _rawo[1:].isidentifier()
+                        and _rawo[1:] in getattr(self, "_iropt_seq_locals", set())):
+                    return None
+                self._add_abstract_op(
+                    "val seq_to_iroptlist (s: seq iropt_ir) : iroptlist\n"
+                    "    ensures { iolen result = Seq.length s }\n"
+                    "    ensures { forall i:int. 0 <= i < Seq.length s ->"
+                    " ionth i result = Seq.get s i }")
+                parts.append(f"(seq_to_iroptlist {_rawo})")
+                continue
             if _irlist_slots.get(f) == "irlist":
                 _raw = str(bound[f]).strip()
                 # AN EMPTY LIST LITERAL IS A GENUINELY EMPTY CHILD LIST, not a decline.

@@ -2422,19 +2422,88 @@ class _Parser:
         end = self.expect_op("]")
         return self._fin_pos(_N("List")(elts=elts, ctx=_N("Load")()), t, end)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def atom_brace(self):
-        pass
+    def atom_brace(self) -> "ExprIR":
+        t = self.advance()  # '{'
+        if self.at_op("}"):
+            end = self.advance()
+            return self._fin_pos(_N("Dict")(keys=[], values=[]), t, end)
+        if self.at_op("**"):
+            return self._dict_rest(t, first_key=None)
+        first = self.test_or_star()
+        if self.at_op(":"):
+            # dict
+            self.advance()
+            firstval = self.test()
+            if self.at_kw("for") or (self.at_kw("async") and self.peek(1).string == "for"):
+                gens = self.comp_for()
+                end = self.expect_op("}")
+                return self._fin_pos(_N("DictComp")(key=first, value=firstval, generators=gens), t, end)
+            keys = [first]; values = [firstval]
+            #@ ghost i1 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i1
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op(","):
+                if self.at_op("}"):
+                    break
+                if self.at_op("**"):
+                    self.advance()
+                    keys.append(None); values.append(self.test())
+                else:
+                    k = self.test(); self.expect_op(":"); v = self.test()
+                    keys.append(k); values.append(v)
+            end = self.expect_op("}")
+            return self._fin_pos(_N("Dict")(keys=keys, values=values), t, end)
+        # set (or set comp)
+        if self.at_kw("for") or (self.at_kw("async") and self.peek(1).string == "for"):
+            gens = self.comp_for()
+            end = self.expect_op("}")
+            return self._fin_pos(_N("SetComp")(elt=first, generators=gens), t, end)
+        elts = [first]
+        #@ ghost i2 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i2
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            if self.at_op("}"):
+                break
+            elts.append(self.test_or_star())
+        end = self.expect_op("}")
+        return self._fin_pos(_N("Set")(elts=elts), t, end)
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #10). Verbatim body port of the
+    # LIVE `_dict_rest`, freed by the OPTIONAL-ELEMENT CHILD LIST carrier — `keys = [None]`
+    # is the whole reason this and `atom_brace` were a recorded [MODEL] boundary.
+    # `first_key` is genuinely UNUSED by the live body (the caller passes `None`), so it
+    # is left UNANNOTATED: an `Optional["ExprIR"]` annotation would collapse at the PARAM
+    # seam to a bare `emit_ir` (the deliberate b18932b8 decision) and the `None` actual
+    # could not be passed. Not an erasure — the live body does not read it either, which
+    # is exactly what `check-emitted-vacuity` compares against.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _dict_rest(self, t, first_key):
-        pass
+    def _dict_rest(self, t: _Tok, first_key) -> "ExprIR":
+        self.advance()  # '**'
+        keys = [None]; values = [self.test()]
+        #@ ghost i0 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            if self.at_op("}"):
+                break
+            if self.at_op("**"):
+                self.advance(); keys.append(None); values.append(self.test())
+            else:
+                k = self.test(); self.expect_op(":"); v = self.test()
+                keys.append(k); values.append(v)
+        end = self.expect_op("}")
+        return self._fin_pos(_N("Dict")(keys=keys, values=values), t, end)
 
     # CLASS-BY-NAME FACTORY vein, increment 3: CONVERTED. Verbatim body port of the LIVE
     # `comp_for`. Both cursor-measure loops discharge (the outer through `expect_kw`'s new

@@ -628,7 +628,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    def _seq_init_expr(self, val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
+    def _seq_init_expr(self, val_ir: Dict[str, Any], local_refs: Set[str],
+                       target: str = "") -> str:
         """07-1705-rev4 P3: lower a seq-local's RHS to a `seq int` value. A list literal
         `[v0, v1, …]` becomes a `Seq.cons` chain (qualified); any other array-typed RHS
         is bridged with `snapshot`."""
@@ -639,6 +640,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if _cds is not None:
             return _cds
         if val_ir.get("type") == "ArrayLit":
+            # OPTIONAL-ELEMENT CHILD LIST (relaunch #10): a list local that ALSO receives a
+            # bare `None` append holds `iropt_ir` elements, so its literal initialiser must
+            # wrap each element in the carrier's own Some arm (and a literal `None` element
+            # in `IrONone`). Without it the `let keys = ref (Seq.cons !first Seq.empty)`
+            # binds a `seq emit_ir` and the later `Seq.snoc !keys IrONone` mistypes.
+            if target and target in getattr(self, "_iropt_seq_locals", set()):
+                expr = "(Seq.empty: seq iropt_ir)"
+                for e in reversed(val_ir.get("elts", [])):
+                    _et = e.get("type") if isinstance(e, dict) else None
+                    _ew = ("IrONone" if _et in ("None", "NoneLit")
+                           else f"(IrOSome {self._expr_to_whyml(e, local_refs)})")
+                    expr = f"(Seq.cons {_ew} {expr})"
+                return expr
             expr = "Seq.empty"
             for e in reversed(val_ir.get("elts", [])):
                 es = self._coerce_to_int(self._expr_to_whyml(e, local_refs))
@@ -773,7 +787,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                            indent: str, in_loop: bool) -> str:
         target = stmt.target
         safe = whyml_ident(target)
-        init = self._seq_init_expr(stmt.value.to_dict(), local_refs)
+        init = self._seq_init_expr(stmt.value.to_dict(), local_refs, target)
         if target not in declared_refs:
             declared_refs.add(target)
             local_refs.add(target)        # seq locals are refs → reads deref `!a`
@@ -2070,6 +2084,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                         if _ra2 in getattr(self, "_record_types", {}):
                                             self._record_seq_locals[arr_name] = _ra2
                                         break
+                        # OPTIONAL-ELEMENT CHILD LIST (relaunch #10): in an `iropt_ir`
+                        # element seq every appended value crosses into the carrier — a
+                        # real node becomes `IrOSome <v>`, a bare `None` becomes `IrONone`
+                        # (the carrier's OWN absent arm, never an int-0 sentinel).
+                        if arr_name in getattr(self, "_iropt_seq_locals", set()):
+                            _aiv = val["args"][0]
+                            _aiv = _aiv.to_dict() if hasattr(_aiv, "to_dict") else _aiv
+                            if (isinstance(_aiv, dict)
+                                    and _aiv.get("type") in ("None", "NoneLit")):
+                                arg = "IrONone"
+                            else:
+                                arg = f"(IrOSome {self._expr_to_whyml(_aiv, local_refs)})"
                         code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
                     else:
                         len_ref = f"{safe_arr}_len"
@@ -4387,6 +4413,33 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # Reset per body BEFORE the gate, so one function's tuple-unpack seq targets can
         # never leak into another's pre-declaration decision.
         self._seq_ir_tuple_targets: Set[str] = set()
+        # OPTIONAL-ELEMENT CHILD LIST (relaunch #10): a seq local that receives a BARE
+        # `None` append (`keys.append(None)` in `atom_brace`/`_dict_rest`, the `{**a, k: v}`
+        # shape) holds `iropt_ir` ELEMENTS, not `emit_ir` ones. Without this the None append
+        # int-erased to `Seq.snoc !keys 0` and the whole `Dict` construction declined to the
+        # `dict_0 ()` facade. Reset per body, pure_ast-gated -> inert everywhere else.
+        self._iropt_seq_locals: Set[str] = set()
+        if self._uses_pyast_parser():
+            def _scan_none_append(node: Any) -> None:
+                if isinstance(node, dict):
+                    if node.get("stmt") == "Expr":
+                        _v0 = node.get("value", {})
+                        if isinstance(_v0, dict) and _v0.get("type") == "Call":
+                            _f0 = str(_v0.get("func", "") or "")
+                            _a0 = _v0.get("args") or []
+                            if _f0.endswith(".append") and len(_a0) == 1:
+                                _e0 = _a0[0]
+                                _e0 = _e0.to_dict() if hasattr(_e0, "to_dict") else _e0
+                                if (isinstance(_e0, dict)
+                                        and _e0.get("type") in ("None", "NoneLit")):
+                                    self._iropt_seq_locals.add(
+                                        _f0.rsplit(".", 1)[0].replace(".", "_"))
+                    for _x in node.values():
+                        _scan_none_append(_x)
+                elif isinstance(node, list):
+                    for _x in node:
+                        _scan_none_append(_x)
+            _scan_none_append(body_stmts)
         if self._uses_pyast_parser():
             _ext_ir: Set[str] = set()
 

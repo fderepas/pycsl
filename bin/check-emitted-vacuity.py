@@ -150,6 +150,25 @@ KNOWN_ERASURES = {
     # an `IrPyLoc emit_ir int int int int` wrapper `_fin`/`_fin_pos` apply — at which point
     # `t` becomes live and this entry must be removed.
     "_parser___sequence_pattern",                            # erases `t` (location-only; faithful)
+    # `_parser___dict_rest` erases `t` — the EXACT TWIN of `_parser___sequence_pattern`
+    # above, one family member over, and admitted on the SAME policy. MECHANICALLY
+    # VERIFIED: an AST scan of the mirror body finds exactly ONE use of `t`, as the
+    # `start_tok` argument of `self._fin_pos(_N("Dict")(keys=keys, values=values), t, end)`
+    # — never in a condition, guard, assignment, return value, or exception. `_fin_pos`
+    # writes only the four ASDL LOCATION attributes and returns the node unchanged, and
+    # `emit_ir` has NO location slots.
+    # WHY THIS ONE IS ADMITTED WHILE `_fin` WAS DECLINED (lesson (bd)): the test is what a
+    # CALLER gains. `_fin`'s ENTIRE body is location work and every call site already
+    # elided it, so converting it bought nothing and would have moved a hole from the
+    # COUNTED `\trusted` register to this UNCOUNTED one. `_dict_rest` parses the whole
+    # `{**a, k: v}` dict tail, and `atom_brace` calls it CONCRETELY — so the conversion
+    # makes a real `IrPyDict` with the real keys/values visible to a caller that
+    # previously saw an UNCONSTRAINED abstract `val`. Net faithfulness gain, one
+    # location-only parameter recorded.
+    # REOPENING CAPABILITY (recorded, not taken): the same as `_sequence_pattern`'s —
+    # location slots on the emit_ir ADT, at which point `t` becomes live and BOTH entries
+    # must be removed.
+    "_parser___dict_rest",                                   # erases `t` (location-only; faithful)
 }
 
 

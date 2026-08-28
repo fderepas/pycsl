@@ -708,7 +708,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _seq_init_expr(self, val_ir: "ExprIR", local_refs: Set[str]) -> str:
+    def _seq_init_expr(self, val_ir: "ExprIR", local_refs: Set[str], target: str = "") -> str:
         """07-1705-rev4 P3: lower a seq-local's RHS to a `seq int` value. A list literal
         `[v0, v1, …]` becomes a `Seq.cons` chain (qualified); any other array-typed RHS
         is bridged with `snapshot`."""
@@ -772,7 +772,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                            indent: str, in_loop: bool) -> str:
         target = stmt.target
         safe = whyml_ident(target)
-        init = self._seq_init_expr(stmt.value.to_dict(), local_refs)
+        init = self._seq_init_expr(stmt.value.to_dict(), local_refs, target)
         if target not in declared_refs:
             declared_refs.add(target)
             local_refs.add(target)        # seq locals are refs → reads deref `!a`

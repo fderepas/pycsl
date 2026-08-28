@@ -5075,7 +5075,16 @@ class PreambleEmissionMixin:
                if self._uses_clause_ir() else "")
             + "  with irlist = ILNil | ILCons emit_ir irlist"
             + "  with iropt_str = IrSNone | IrSSome string"
-            + "  with iropt_ir = IrONone | IrOSome emit_ir",
+            + "  with iropt_ir = IrONone | IrOSome emit_ir"
+            # OPTIONAL-ELEMENT CHILD LIST (relaunch #10): `Dict.keys` really holds `None`
+            # ELEMENTS — `{**a, 'k': v}` parses to `keys=[None, 'k']` — so its faithful
+            # payload is a list of `iropt_ir`, NOT an `irlist` (which would have to model
+            # the absent key as a NODE, exactly the sentinel this family exists to avoid).
+            # A BESPOKE cons-list for the same reason `irlist` is one: Why3 rejects a `seq`
+            # inside the recursive group as non-strictly-positive. Gated on the pure_ast
+            # parser file -> every other emit_ir theory in the tree is byte-identical.
+            + ("  with iroptlist = IONil | IOCons iropt_ir iroptlist"
+               if self._uses_pyast_parser() else ""),
             "",
             "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"
             " emit_ir child (`_py_expr_starred`'s `value` field) — a GENERIC"
@@ -5785,7 +5794,25 @@ class PreambleEmissionMixin:
             "    variant { l }",
             "  = match l with ILNil -> IrOther \"\""
             " | ILCons h t -> if i <= 0 then h else irnth (i - 1) t end",
+            "",        ] + ([
+            "  (* OPTIONAL-ELEMENT CHILD LIST (relaunch #10): length and nth of the"
+            " `iroptlist` carrier, the exact twin of `irlen`/`irnth` one element-type over."
+            " `ionth`'s out-of-range/nil default is `IrONone` — the carrier's OWN absent"
+            " arm, so the total function never invents a node. Used only by the"
+            " `seq_to_iroptlist` bridge's `ensures` (an abstract `val`: assumed there,"
+            " never a VC here). Gated on the pure_ast parser file. *)",
+            "  let rec function iolen (l: iroptlist) : int",
+            "    ensures { result >= 0 }",
+            "    variant { l }",
+            "  = match l with IONil -> 0 | IOCons _ t -> 1 + iolen t end",
             "",
+            "  let rec function ionth (i: int) (l: iroptlist) : iropt_ir",
+            "    variant { l }",
+            "  = match l with IONil -> IrONone"
+            " | IOCons h t -> if i <= 0 then h else ionth (i - 1) t end",
+            "",
+        ] if self._uses_pyast_parser() else []) + [
+
             # self-tcb-reduction _typeddict_record_literal (cap-2): the two child-list
             # projections of an IrDictLit node — `expr.get("keys")` / `expr.get("values")`
             # read the DictLit's key/value irlists directly (a total projection over the sum,

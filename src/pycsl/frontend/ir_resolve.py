@@ -343,6 +343,15 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # ('elt','generators'), <loc attrs>)`, both total. Now that `comprehension` is a
     # family member the clause list is an ordinary `irlist`, exactly as for GeneratorExp.
     "ListComp": ("IrPyListComp", [("elt", "emit_ir"), ("generators", "irlist")]),
+    # `Dict(keys, values)` — `_NODE_SPEC['Dict'] == ('expr', ('keys','values'), <loc
+    # attrs>)`, both total. `keys` REALLY HOLDS `None` ELEMENTS (`{**a, 'k': v}` parses to
+    # `keys=[None, 'k']`), so its slot is the OPTIONAL-element carrier `iroptlist`, never
+    # an `irlist` — which would have to model the absent key as a NODE.
+    "Dict": ("IrPyDict", [("keys", "iroptlist"), ("values", "irlist")]),
+    "Set": ("IrPySet", [("elts", "irlist")]),
+    "SetComp": ("IrPySetComp", [("elt", "emit_ir"), ("generators", "irlist")]),
+    "DictComp": ("IrPyDictComp", [("key", "emit_ir"), ("value", "emit_ir"),
+                                  ("generators", "irlist")]),
     # `Call(func, args, keywords)` — `_NODE_SPEC['Call'] == ('expr', ('func','args',
     # 'keywords'), None)`, all three total: the callee NODE and the two VARIADIC child
     # lists (positional args, `keyword` nodes), each carried as the monomorphic `irlist`.
