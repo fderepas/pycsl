@@ -39,8 +39,11 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
-BASELINE = 50          # 55 at first measurement, 50 after the `array <t>` concrete-
-                       # sibling capability landed (relaunch #9) — a RATCHET, only lower it
+BASELINE = 43          # 55 at first measurement, 50 after the `array <t>` concrete-
+                       # sibling capability landed (relaunch #9), 43 after the first
+                       # `#@ sibling_concrete` marker wave (relaunch #10: `_deref` and its
+                       # 28 call sites, `_rhs_yields_array`, and five ExpressionEmissionMixin
+                       # helpers) — a RATCHET, only lower it
 MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 
 _DEF = re.compile(r'^  (?:let rec|let|with) ([A-Za-z_0-9]+)', re.M)
