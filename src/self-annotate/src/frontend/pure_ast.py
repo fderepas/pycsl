@@ -2269,13 +2269,57 @@ class _Parser:
     # `-> "Tuple[List[ExprIR], List[ExprIR]]"` return interface is the live body's real
     # shape (`args = []; keywords = []; … return args, keywords`), so a caller binds two
     # REAL node lists instead of two int-erased slots.
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    # THE MISSING LINK, MEASURED (relaunch #10, ONE goal): the genexp arm reads
+    # `self.toks[self.i - 1]` for the location stamp, whose `index in array bounds` VC
+    # needs `self.i >= 1` — and nothing INSIDE the body establishes it (`namedexpr_test`
+    # and `comp_for` carry only the NON-strict cursor clause). It is a genuine
+    # PRECONDITION: `_call_args` is reached only after the caller has consumed an opening
+    # delimiter. BOTH call sites discharge it — `trailers` through `advance` after
+    # `at_op("(")` (which pins the cursor to a real OP token, so the EOF sentinel rules
+    # out the last index and `advance` is strict), and `classdef` through `accept_op("(")`
+    # returning `Some`, whose contract is UNCONDITIONALLY strict on that arm. Assuming
+    # nothing: this is a requires the callers PROVE, not an ensures the callee asserts.
+    #@ requires self.i >= 1
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _call_args(self, close: str) -> "Tuple[List[ExprIR], List[ExprIR]]":
-        pass
+        args = []; keywords = []
+        #@ ghost i0 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
+        #@ loop variant \length(self.toks) - self.i
+        while not self.at_op(close):
+            if self.at_op("*"):
+                t = self.advance()
+                v = self.test()
+                args.append(self._fin(_N("Starred")(value=v, ctx=_N("Load")()), t))
+            elif self.at_op("**"):
+                self.advance()
+                v = self.test()
+                keywords.append(_N("keyword")(arg=None, value=v))
+            else:
+                # could be keyword=value, name=value, or positional (maybe genexp)
+                if (self.cur().type == _tokenize.NAME and self.peek(1).type == _tokenize.OP
+                        and self.peek(1).string == "=" and self.cur().string not in _keyword.kwlist):
+                    name = self.advance().string
+                    self.advance()  # '='
+                    v = self.test()
+                    keywords.append(_N("keyword")(arg=name, value=v))
+                else:
+                    e = self.namedexpr_test()
+                    if self.at_kw("for") or (self.at_kw("async") and self.peek(1).string == "for"):
+                        gens = self.comp_for()
+                        ge = _N("GeneratorExp")(elt=e, generators=gens)
+                        ge.lineno = e.lineno; ge.col_offset = e.col_offset
+                        last = self.toks[self.i - 1]
+                        ge.end_lineno = last.end[0]; ge.end_col_offset = last.end[1]
+                        args.append(ge)
+                    else:
+                        args.append(e)
+            if not self.accept_op(","):
+                break
+        return args, keywords
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
     # live body, which moves the cursor only through advance/accept_*/expect_* and its
@@ -2331,10 +2375,18 @@ class _Parser:
     # returned `List[comprehension]` is the harvested record list.
     #@ requires True
     #@ ensures True
+    # CURSOR NON-REGRESSION, PROVED (relaunch #10): `_call_args` calls `comp_for` inside
+    # its own measure loop, so it needs to know this callee cannot move the cursor
+    # BACKWARDS — `assigns self.i` alone permits exactly that. The clause is discharged
+    # here by the OUTER loop's ghost snapshot below, the same device the INNER loop
+    # already used; this is a PROOF, not an assumption (`comp_for` is CONVERTED).
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def comp_for(self) -> "List[comprehension]":
+    def comp_for(self) -> "List[ExprIR]":
         gens = []
+        #@ ghost i_out = self.i
         #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i_out
         #@ loop variant \length(self.toks) - self.i
         while self.at_kw("for") or (self.at_kw("async") and self.peek(1).string == "for"):
             is_async = 0

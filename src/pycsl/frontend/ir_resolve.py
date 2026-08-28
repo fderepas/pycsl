@@ -273,6 +273,12 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # (`_N("Load")()`), carried as its class-name `string`. NOT the pre-existing
     # `IrStarred emit_ir`, which DROPS `ctx`.
     "Starred": ("IrPyStarred", [("value", "emit_ir"), ("ctx", "string")]),
+    # `keyword(arg, value)` — `_NODE_SPEC['keyword'] == ('AST', ('arg','value'), <loc
+    # attrs>)` and `arg` IS in `_OPTIONAL_FIELDS['keyword']`: a `**kwargs` splat really
+    # carries NO name (`_N("keyword")(arg=None, value=v)` in `_call_args`), so the slot is
+    # the monomorphic `iropt_str`, never a bare string that would model the absent name as
+    # the empty one. `value` is the argument expression.
+    "keyword": ("IrPyKeyword", [("arg", "iropt_str"), ("value", "emit_ir")]),
     # `Name(id, ctx)` — `_NODE_SPEC['Name'] == ('expr', ('id','ctx'), None)`, both total.
     # `id` is the identifier STRING the live body binds from a token; `ctx` a 0-field
     # `expr_context` singleton carried as its class-name string.
@@ -313,6 +319,22 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # both total: the VARIADIC element list and the `expr_context` singleton. NOT the
     # pre-existing `IrMkTupleN irlist`, which has no `ctx` slot.
     "Tuple": ("IrPyTuple", [("elts", "irlist"), ("ctx", "string")]),
+    # `comprehension(target, iter, ifs, is_async)` — `_NODE_SPEC['comprehension'] ==
+    # ('AST', ('target','iter','ifs','is_async'), ())`, all FOUR total (no
+    # `_OPTIONAL_FIELDS` entry). Bringing it into the FAMILY (it was previously only a
+    # HARVESTED RECORD) is what lets a comprehension list be an ordinary `irlist` child:
+    # `emit_ir` cannot carry a `seq <record>` payload at all, because `comprehension`
+    # holds `emit_ir` children and Why3 rejects the resulting `seq` recursion as
+    # non-strictly-positive. `is_async` is the 0/1 flag the live `comp_for` body sets
+    # literally. The record DECLARATION stays (the field table is untouched), and the ctor
+    # table is consulted only under `_uses_pyast_parser`, so no other mirror moves.
+    "comprehension": ("IrPyComprehension", [("target", "emit_ir"), ("iter", "emit_ir"),
+                                            ("ifs", "irlist"), ("is_async", "int")]),
+    # `GeneratorExp(elt, generators)` — `_NODE_SPEC['GeneratorExp'] == ('expr',
+    # ('elt','generators'), <loc attrs>)`, both total: the yielded expression and the
+    # VARIADIC list of `comprehension` clauses, now an ordinary `irlist` because
+    # `comprehension` is a family member.
+    "GeneratorExp": ("IrPyGeneratorExp", [("elt", "emit_ir"), ("generators", "irlist")]),
     # `Call(func, args, keywords)` — `_NODE_SPEC['Call'] == ('expr', ('func','args',
     # 'keywords'), None)`, all three total: the callee NODE and the two VARIADIC child
     # lists (positional args, `keyword` nodes), each carried as the monomorphic `irlist`.

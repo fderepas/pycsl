@@ -239,9 +239,16 @@ class Module6_WhyMLTranspiler(
         # callee-before-caller ordering edge — and without the twin the newly-concrete
         # `(<class>__<m> self)` application is emitted before the callee is declared
         # (measured: `unbound function or predicate symbol '_parser__block'`).
+        # TUPLE-RETURNING SIBLING (relaunch #10): the TWIN of the tuple arm added to
+        # `_handle_dotted_call`'s concrete-sibling allowlist — this map is the SECOND
+        # PRODUCER of that same decision (lesson (am)) and supplies the SCC
+        # callee-before-caller ordering edge, without which the newly-concrete
+        # `(_parser___call_args self …)` application is emitted before its callee.
         return {name for name, rt in self._module_method_return_types.items()
                 if rt in rec_names or rt in ("emit_ir", "int", "string")
-                or (isinstance(rt, str) and rt.startswith("array "))}
+                or (isinstance(rt, str) and rt.startswith("array "))
+                or (isinstance(rt, str) and rt.startswith("(")
+                    and rt.endswith(")") and "," in rt)}
 
     def _build_callee_no_exception_summary(self, functions: List[Dict[str, Any]]) -> None:
         """Populate the module-wide callee summary maps (workplan PR 4).

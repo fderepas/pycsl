@@ -341,7 +341,7 @@ class FunctionEmissionMixin:
         # `_compute_return_type` (the stub's own `val`) and `_build_method_return_type_map`
         # (the `self.<m>(...)` call site) each call this method on their raw type.
         if (func.get("return_tuple_whyml") == "(seq emit_ir, seq emit_ir)"
-                and return_type in ("int", "unit") and self._uses_pyast_parser()):
+                and self._uses_pyast_parser()):
             return "(seq emit_ir, seq emit_ir)"
         if not (return_type.startswith("(") and "," in return_type):
             return return_type

@@ -5442,6 +5442,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      # `scc.find_self_method_calls` supplies the callee-before-caller
                      # ordering edge.
                      or (isinstance(ret_type, str) and ret_type.startswith("array "))
+                     # A TUPLE-RETURNING SIBLING is the same case again. `_call_args`
+                     # returns `(seq emit_ir, seq emit_ir)` — the pair of node lists — and
+                     # without this arm its CONVERSION is immediately shadowed: the `let`
+                     # is emitted and proved while `trailers` and `classdef` keep binding
+                     # `args`/`keywords` from the UNCONSTRAINED `val self__call_args_1`.
+                     # Same soundness argument as every other arm: the callee is a
+                     # same-file VERIFIED method in `_module_func_names`, and
+                     # `scc.find_self_method_calls` supplies the ordering edge.
+                     or (isinstance(ret_type, str) and ret_type.startswith("(")
+                         and ret_type.endswith(")") and "," in ret_type)
                      or ret_type in {_ri["whyml_name"]
                                      for _ri in getattr(self, "_record_types", {}).values()})):
             if _concrete in getattr(self, "_module_func_names", set()):
