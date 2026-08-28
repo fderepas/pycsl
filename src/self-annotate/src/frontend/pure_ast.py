@@ -509,11 +509,18 @@ class _Parser:
         nxt = self.peek(1)
         return nxt.type == _tokenize.NAME and nxt.string not in _keyword.kwlist
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `funcdef`
+    # (relaunch #8 increment 5). STAYS \trusted. Both clauses are TRUE of the live body —
+    # it returns the `type_param` node list it accumulates, and moves the cursor only
+    # through `advance`/`accept_*`/`expect_*`, none of which decreases `self.i`. The
+    # monotonicity clause is what `funcdef`'s STRICT postcondition chains through, and its
+    # ABSENCE was MEASURED (four unproven `_parser__funcdef'vc` postcondition sub-goals).
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_type_params(self):
+    def _parse_type_params(self) -> "List[ExprIR]":
         pass
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
@@ -1492,13 +1499,29 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def funcdef(self, decorators: List["ExprIR"], async_, start: Optional[_Tok] = None) -> "ExprIR":
-        pass
+        t = start if start is not None else self.cur()
+        self.expect_kw("def")
+        name = self._name_str()
+        type_params = []
+        if self.at_op("["):
+            type_params = self._parse_type_params()
+        self.expect_op("(")
+        args = self.parse_parameters(")")
+        self.expect_op(")")
+        returns: Optional["ExprIR"] = None
+        if self.accept_op("->"):
+            returns = self.test()
+        self.expect_op(":")
+        body = self.block()
+        cls = "AsyncFunctionDef" if async_ else "FunctionDef"
+        n = _N(cls)(name=name, args=args, body=body, decorator_list=decorators,
+                     returns=returns, type_comment=None, type_params=type_params)
+        return self._fin_block(n, t)
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
     # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
@@ -1510,6 +1533,18 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
+    # CERTIFIED-BOUNDARY [VALUE MODEL], relaunch #8 — the LAST member of the
+    # def/class cluster, and the only one the class-name recognizer does NOT reach.
+    # `bases, keywords = self._call_args(")")` is a TUPLE UNPACK OF TWO LISTS, and the
+    # campaign has no slot type for it: `_call_args`'s `-> Tuple[List[ExprIR],
+    # List[ExprIR]]` return needs per-slot LIST element types (so each unpack target is a
+    # `seq emit_ir` local rather than the `(Array.make 1024 0)` empty-literal array it is
+    # now), which the option-tuple machinery (`_option_tuple_unpack_targets`) models only
+    # for SCALAR slots. MEASURED, not assumed: with `close: str` and the tuple return
+    # annotated, the unpack still emits `bases := _tu_bases` onto an ARRAY local and the
+    # whole `ClassDef` construction declines to `classDef_0 ()`. Reopening capability,
+    # named: per-slot LIST element types on a tuple return, so a tuple-unpack target
+    # inherits `seq emit_ir`. Everything else `classdef` needs is already built.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1518,11 +1553,17 @@ class _Parser:
     def classdef(self, decorators: List["ExprIR"]) -> "ExprIR":
         pass
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `funcdef`
+    # (relaunch #8 increment 5). STAYS \trusted. Both clauses are TRUE of the live body —
+    # it returns the single `_N("arguments")` node it builds, and moves the cursor only
+    # through `advance`/`accept_*`/`expect_*`. Same measured absence as
+    # `_parse_type_params` above.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def parse_parameters(self, close):
+    def parse_parameters(self, close: str) -> "ExprIR":
         pass
 
     # `_fin` RECOGNIZER vein, increment 5: CONVERTED. Verbatim body port of the LIVE

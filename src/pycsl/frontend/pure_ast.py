@@ -1445,7 +1445,7 @@ class _Parser:
         self.expect_op("(")
         args = self.parse_parameters(")")
         self.expect_op(")")
-        returns = None
+        returns: Optional["ExprIR"] = None
         if self.accept_op("->"):
             returns = self.test()
         self.expect_op(":")

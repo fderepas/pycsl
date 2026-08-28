@@ -397,6 +397,24 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
                           ("type_comment", "iropt_str")]),
     "AsyncWith": ("IrPyAsyncWith", [("items", "irlist"), ("body", "irlist"),
                                     ("type_comment", "iropt_str")]),
+    # `FunctionDef(name, args, body, decorator_list, returns, type_comment, type_params)`
+    # / `AsyncFunctionDef(...)` — `_NODE_SPEC` gives both seven TOTAL fields, and
+    # `_OPTIONAL_FIELDS` marks `returns` and `type_comment`: a `def f():` with no `->`
+    # really carries NO return annotation. `name` is the identifier STRING; `args` is the
+    # single `arguments` node; `body`/`decorator_list`/`type_params` are child lists.
+    # Two DISTINCT arms, chosen by the source's own
+    # `cls = "AsyncFunctionDef" if async_ else "FunctionDef"`.
+    "FunctionDef": ("IrPyFunctionDef", [("name", "string"), ("args", "emit_ir"),
+                                        ("body", "irlist"),
+                                        ("decorator_list", "irlist"),
+                                        ("returns", "iropt_ir"),
+                                        ("type_comment", "iropt_str"),
+                                        ("type_params", "irlist")]),
+    "AsyncFunctionDef": ("IrPyAsyncFunctionDef",
+                         [("name", "string"), ("args", "emit_ir"),
+                          ("body", "irlist"), ("decorator_list", "irlist"),
+                          ("returns", "iropt_ir"), ("type_comment", "iropt_str"),
+                          ("type_params", "irlist")]),
 }
 
 

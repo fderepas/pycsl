@@ -3614,6 +3614,27 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 if _ri.get("whyml_name") == _crt:
                                     out[tgt] = _rc
                                     break
+                        # relaunch #8: the same record-returning sibling call inside a
+                        # TERNARY (`t = start if start is not None else self.cur()`, the
+                        # opening line of `funcdef`). The ternary's OTHER arm is an
+                        # `Optional[<record>]` param, so the whole expression is that
+                        # record — the local must be pre-declared with the record default,
+                        # not the integer `ref 0` its ternary RHS would otherwise get.
+                        elif isinstance(val, dict) and val.get("type") == "IfExpr":
+                            for _arm in (val.get("body"), val.get("orelse")):
+                                if not (isinstance(_arm, dict)
+                                        and _arm.get("type") == "Call"
+                                        and isinstance(_arm.get("func"), str)
+                                        and _arm["func"].startswith("self.")):
+                                    continue
+                                _art = self._resolve_dotted_signature(_arm["func"])[0]
+                                _hit = next(
+                                    (_rc for _rc, _ri in getattr(
+                                        self, "_record_types", {}).items()
+                                     if _ri.get("whyml_name") == _art), None)
+                                if _hit:
+                                    out[tgt] = _hit
+                                    break
                 for v in node.values():
                     rec(v)
             elif isinstance(node, list):
@@ -4992,6 +5013,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # classification pass (Part B move 2) replaces the former five separate
         # `body_<kind>_vars` subtractions (incl. the record-vs-collections 0441
         # dedup, now subsumed by the union).
+        # VARIABLE-CLASS-NAME (ternary of two literals, relaunch #8): harvest
+        # `cls = "TryStar" if is_star else "Try"` so `_N(cls)(…)` can resolve to the two
+        # ASDL classes it really chooses between. FAIL-CLOSED: the local must have
+        # EXACTLY ONE assignment in the whole body, and that assignment must be an
+        # `IfExpr` whose BOTH arms are string LITERALS. Anything else (a reassigned
+        # local, a computed name, a dict lookup) is absent from the map and the
+        # construction declines to the pre-existing opaque `0`.
+        # MUST run BEFORE `_typed_local_vars`: `_is_emit_ir_expr` consults this map to
+        # decide that a local bound from `_N(cls)(…)` is an emit_ir local (and so gets the
+        # `ref (IrOther "")` pre-decl rather than the integer `ref 0`).
+        self._class_name_ternary_locals = self._collect_class_name_ternaries(body_stmts)
         self._prescan_todict_aliases(body_stmts)
         self._opaque_selfmap_aliases = {}
         self._opaque_selfmap_inner_aliases = {}
@@ -5234,14 +5266,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # projects natively (`(!t).<label>`) instead of falling through to the
         # opaque `(get_<field> !t)` getter, which mistypes against the record.
         self._record_field_elem_locals = dict(_rec_predecl)
-        # VARIABLE-CLASS-NAME (ternary of two literals, relaunch #8): harvest
-        # `cls = "TryStar" if is_star else "Try"` so `_N(cls)(…)` can resolve to the two
-        # ASDL classes it really chooses between. FAIL-CLOSED: the local must have
-        # EXACTLY ONE assignment in the whole body, and that assignment must be an
-        # `IfExpr` whose BOTH arms are string LITERALS. Anything else (a reassigned
-        # local, a computed name, a dict lookup) is absent from the map and the
-        # construction declines to the pre-existing opaque `0`.
-        self._class_name_ternary_locals = self._collect_class_name_ternaries(body_stmts)
 
         # FUNCTION-TOP PRE-DECL of a BRANCH-SCOPED Optional local (lesson (aq)). See
         # `_union_predecl_locals`: only a union local whose ONLY assignment is nested

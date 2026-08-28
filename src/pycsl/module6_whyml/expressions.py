@@ -2179,6 +2179,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
                 if _f in _PYC:
                     return True
+        # VARIABLE-CLASS-NAME CONSTRUCTION (relaunch #8): `n = _N(cls)(…)` builds a node
+        # exactly as the literal-class form does, so the local is an emit_ir local and
+        # must get the `ref (IrOther "")` pre-decl rather than the integer `ref 0` (which
+        # its `:=` would then clash with). Recognized ONLY when the class-name local really
+        # is a harvested two-literal ternary AND BOTH classes are family members — the same
+        # condition under which the lowering itself produces an ADT application, so the
+        # typing and the lowering can never disagree.
+        if t == "ClassByNameCall" and self._uses_pyast_parser():
+            _cbe = ir.get("class_expr") or {}
+            _cbm = getattr(self, "_class_name_ternary_locals", {}) or {}
+            _cbn = (_cbm.get(_cbe.get("name"))
+                    if isinstance(_cbe, dict) and _cbe.get("type") == "Var" else None)
+            if _cbn is not None:
+                from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYCB
+                if _cbn[1] in _PYCB and _cbn[2] in _PYCB:
+                    return True
         # self-tcb-reduction giants: a `pyast_stmt` emit_ir-yielding projector
         # (`child.value`/`child.target`/`child.targets[0]`) IS an emit_ir sub-node.
         if self._is_pyast_stmt_emit_ir_read(ir):
@@ -9055,6 +9071,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _raw == "(Array.make 1024 0)":
                     parts.append("ILNil")
                     continue
+                # AN `array emit_ir` PARAM is a real child list too (relaunch #8):
+                # `funcdef(decorators: List["ExprIR"], …)` binds `decorator_list=decorators`
+                # straight from the parameter, which is an ARRAY (not a seq local), so the
+                # seq test below declined and the WHOLE construction fell back — dropping
+                # every decorator with it. `arr_to_irlist` is the array twin of
+                # `seq_to_irlist`: a fresh result pinned POINTWISE by the ADT's own DEFINED
+                # `irlen`/`irnth`, so the list is EQUAL to the array and nothing is erased
+                # (no axiom, no new ADT). Gated on the actual being a bare FORMAL PARAM that
+                # Module5 typed `List[<IR-node>]` (`param_list_flat_elem == "emit_ir"`), so
+                # an int-erased or differently-typed array cannot reach the slot.
+                if (_raw.isidentifier()
+                        and _raw in set(getattr(self, "_formal_params", []) or [])
+                        and (getattr(self, "_param_list_flat_elem", {}) or {}
+                             ).get(_raw) == "emit_ir"):
+                    self._add_abstract_op(
+                        "val arr_to_irlist (a: array emit_ir) : irlist\n"
+                        "    ensures { irlen result = Array.length a }\n"
+                        "    ensures { forall i:int. 0 <= i < Array.length a ->"
+                        " irnth i result = a[i] }")
+                    parts.append(f"(arr_to_irlist {_raw})")
+                    continue
                 if not (_raw.startswith("!") and _raw[1:].isidentifier()
                         and _raw[1:] in getattr(self, "_seq_locals", set())
                         and _raw[1:] in getattr(self, "_emit_ir_seq_locals", set())):
@@ -11420,6 +11457,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _od = node.orelse.to_dict()
         body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
         orelse = self._expr_to_whyml(node.orelse, local_refs, invariant_ctx, subst)
+        # OPTION-PARAM GUARDED PROJECTION (relaunch #8): `start if start is not None else
+        # self.cur()` over an `Optional[<record>]` PARAM. The ternary IS a Why3 `match` on
+        # the option — `match start with Some _v -> _v | None -> <else> end` — which is
+        # EXACTLY the source's meaning, TOTAL, and needs no default: the `None` arm is the
+        # else-branch the source already supplies. Without it the true arm emits the bare
+        # `start` (an `option _tok` where a `_tok` is wanted) and the assignment fails
+        # L3-tc. FAIL-CLOSED: the test must be exactly `<p> != None` (Module5's spelling of
+        # `is not None`) on the SAME param the true arm reads bare, and `<p>` must be a
+        # registered `option <record>` param.
+        _orpc = getattr(self, "_option_record_param_classes", {}) or {}
+        _tst = node.test.to_dict()
+        if (_bd.get("type") == "Var" and _bd.get("name") in _orpc
+                and _tst.get("type") == "BinOp" and _tst.get("op") == "!="
+                and isinstance(_tst.get("left"), dict)
+                and _tst["left"].get("type") == "Var"
+                and _tst["left"].get("name") == _bd.get("name")
+                and isinstance(_tst.get("right"), dict)
+                and _tst["right"].get("type") == "None"):
+            return (f"(match {whyml_ident(str(_bd['name']))} with "
+                    f"Some _v -> _v | None -> {orelse} end)")
         # i-feel-good.md I-A/I-B: a ternary is a STRING expression when at least one arm is
         # string-typed and the other is string-or-`None` — emit the string arms directly (a
         # bare `""`/`"lit"` stays a WhyML string, a `None` arm → "" the absent sentinel), so
