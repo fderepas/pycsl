@@ -376,6 +376,27 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
                         ("orelse", "irlist"), ("finalbody", "irlist")]),
     "TryStar": ("IrPyTryStar", [("body", "irlist"), ("handlers", "irlist"),
                                 ("orelse", "irlist"), ("finalbody", "irlist")]),
+    # `For(target, iter, body, orelse, type_comment)` / `AsyncFor(...)` — `_NODE_SPEC`
+    # gives both `('stmt', ('target','iter','body','orelse','type_comment'), None)`, and
+    # `_OPTIONAL_FIELDS` marks ONLY `type_comment` (a `# type:` comment, which this parser
+    # never produces) — hence the `iropt_str` slot, which the construction fills with the
+    # honest `IrSNone`. `target`/`iter` are single expression children; `body`/`orelse`
+    # are statement lists (`orelse` is EMPTY when there is no `else:`, not absent). Two
+    # DISTINCT arms, chosen by the source's own `cls = "AsyncFor" if async_ else "For"`.
+    "For": ("IrPyFor", [("target", "emit_ir"), ("iter", "emit_ir"),
+                        ("body", "irlist"), ("orelse", "irlist"),
+                        ("type_comment", "iropt_str")]),
+    "AsyncFor": ("IrPyAsyncFor", [("target", "emit_ir"), ("iter", "emit_ir"),
+                                  ("body", "irlist"), ("orelse", "irlist"),
+                                  ("type_comment", "iropt_str")]),
+    # `With(items, body, type_comment)` / `AsyncWith(...)` — `_NODE_SPEC` gives both
+    # `('stmt', ('items','body','type_comment'), None)`, `_OPTIONAL_FIELDS` marks only
+    # `type_comment`. `items` is the VARIADIC list of `withitem` NODES, which under this
+    # family are `emit_ir` like every other node.
+    "With": ("IrPyWith", [("items", "irlist"), ("body", "irlist"),
+                          ("type_comment", "iropt_str")]),
+    "AsyncWith": ("IrPyAsyncWith", [("items", "irlist"), ("body", "irlist"),
+                                    ("type_comment", "iropt_str")]),
 }
 
 

@@ -1239,19 +1239,43 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED, on the VARIABLE-CLASS-NAME recognizer
+    # (`cls = "AsyncFor" if async_ else "For"` -> a CHOICE OF CONSTRUCTOR). Verbatim body
+    # port of the LIVE `for_stmt`. `type_comment=None` fills the `iropt_str` slot with the
+    # honest `IrSNone` — this parser never produces a `# type:` comment.
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def for_stmt(self, async_) -> "ExprIR":
-        pass
+        t = self.advance()
+        target = self._for_target()
+        self.expect_kw("in")
+        it = self.testlist()
+        self.expect_op(":")
+        body = self.block()
+        orelse = self._else_block()
+        cls = "AsyncFor" if async_ else "For"
+        return self._fin_block(_N(cls)(target=target, iter=it, body=body,
+                                       orelse=orelse, type_comment=None), t)
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `for_stmt`
+    # (relaunch #8 increment 4). STAYS \trusted — its `_set_ctx(tgt, _N("Store")())` is
+    # the recorded CORRECTNESS boundary (`emit_ir` is immutable and `ctx` IS modelled, so
+    # an in-place `ctx` mutation cannot be expressed and dropping it would be a lie).
+    # Both clauses are TRUE of the live body: it returns `elts[0]` or the `_N("Tuple")` it
+    # builds on every path, and it moves the cursor only through `accept_op` /
+    # `expr_or_star`, neither of which decreases `self.i`. The monotonicity clause is what
+    # `for_stmt`'s own STRICT postcondition chains through, and its ABSENCE was MEASURED:
+    # the first proof attempt left exactly ONE goal unproven, `_parser__for_stmt'vc`'s
+    # postcondition, Timeout at 322,821,156 steps. Each becomes a PROOF the day a
+    # functional `set_ctx` exists in the LIVE SOURCE and this stub converts.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _for_target(self):
+    def _for_target(self) -> "ExprIR":
         pass
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
@@ -1264,13 +1288,35 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED, on the VARIABLE-CLASS-NAME recognizer
+    # (`cls = "AsyncWith" if async_ else "With"`). Verbatim body port of the LIVE
+    # `with_stmt`. The `items` accumulator carries REAL `withitem` nodes into the
+    # variadic `irlist` slot; `type_comment=None` is the honest `IrSNone`.
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def with_stmt(self, async_) -> "ExprIR":
-        pass
+        t = self.advance()
+        items = []
+        parenthesized = False
+        if self.at_op("(") and self._with_parenthesized():
+            self.advance(); parenthesized = True
+        items.append(self._with_item())
+        #@ ghost i23 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i23
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            if parenthesized and self.at_op(")"):
+                break
+            items.append(self._with_item())
+        if parenthesized:
+            self.expect_op(")")
+        self.expect_op(":")
+        body = self.block()
+        cls = "AsyncWith" if async_ else "With"
+        return self._fin_block(_N(cls)(items=items, body=body, type_comment=None), t)
 
     # pure_ast cursor vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body
     # port of the LIVE `_with_parenthesized` — a READ-ONLY lookahead scan over `self.toks`
@@ -1308,11 +1354,18 @@ class _Parser:
             j += 1
         return False
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `with_stmt`
+    # (relaunch #8 increment 4). STAYS \trusted — its `_set_ctx(v, _N("Store")())` on the
+    # `as`-target is the recorded CORRECTNESS boundary. Both clauses are TRUE of the live
+    # body (it returns the `_N("withitem")` it builds, and moves the cursor only through
+    # `advance`/`accept_*`) and each becomes a PROOF the day a functional `set_ctx` exists
+    # in the LIVE SOURCE and this stub converts.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _with_item(self):
+    def _with_item(self) -> "ExprIR":
         pass
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
