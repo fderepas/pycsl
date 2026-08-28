@@ -3621,3 +3621,36 @@ So: *convert when the body does real work beyond the erased input; decline when 
 input is essentially all the body does.* And when you admit one, write the mechanical check
 (an AST scan showing the parameter's only use) into the ledger entry, as
 `_parser___sequence_pattern` already does.
+
+## Lesson (bg) — converting one member can put SIXTEEN functions in one `let rec`, and the variant multiplier must exceed the deepest NO-ADVANCE chain
+
+`_binop` is the precedence-climbing core of the expression parser. All three of its VALUE
+facades were built and measured working (a third module-const-dict family member,
+`str -> (str,int)`; see the refutation commit). The conversion still did not land, and the
+reason is worth carrying:
+
+    All functions in a recursive definition must use the same well-founded order
+    for the first component of the variant
+
+Converting `_binop` closes the cycle
+
+    expr -> _binop -> factor -> power -> await_expr -> unary_postfix -> trailers ->
+    _call_args -> test -> or_test -> and_test -> not_test -> comparison -> expr
+
+so Why3 groups SIXTEEN functions into one `let rec … with …`. Four of them carry a
+`#@ \variant` today, all at multiplier 2 (`2 * (\length(self.toks) - self.i) + 1/0`).
+
+**The rule (lesson (av), sharpened): the multiplier must EXCEED the deepest NO-ADVANCE
+chain in the group, because an edge that does not move the cursor can only be paid for by
+a strictly smaller OFFSET.** The statement cluster needed multiplier 3 for a 3-deep chain.
+The expression group's chain above is ~12 hops with no guaranteed advance, so it needs
+multiplier ~13 and offsets assigned by TOPOLOGICAL DEPTH in the call graph — and every one
+of the sixteen has to be re-phased together, in one increment.
+
+Two practical consequences:
+
+* **Before porting a body in a recursive-descent parser, ask which cycle it closes.** The
+  emit oracle tells you in one second: if the emitted `let rec … with …` grows, you owe a
+  variant to every new member.
+* **A group re-phasing is a first-class increment, not a tail-of-session patch.** Sixteen
+  interdependent clauses and a ~35-minute proof per attempt. Land it with fresh budget.

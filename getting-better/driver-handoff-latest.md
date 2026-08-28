@@ -46,6 +46,21 @@ New emit_ir arms this window: **fifty-two total** (was thirty-seven). Added: `Ir
 
 ## Pick up here — in this order
 
+0. **THE EXPRESSION-GROUP VARIANT RE-PHASING — mechanical, and it is the single cheapest
+   named unlock on the board (lesson (bg)).** `_binop`'s THREE value facades are ALL BUILT
+   AND MEASURED WORKING (a third module-const-dict family member, `str -> (str,int)`: the
+   collector, the membership disjunction, the per-slot unpack ITE chains, the string-local
+   class name — every one reverted WITH the spike, see commit `driver(refute): _binop`).
+   The ONLY thing that stopped it is that converting `_binop` closes the cycle
+   `expr -> _binop -> factor -> power -> await_expr -> unary_postfix -> trailers ->
+   _call_args -> test -> or_test -> and_test -> not_test -> comparison -> expr`, so Why3
+   puts SIXTEEN functions in ONE `let rec … with …` and demands the same well-founded order
+   from all of them. Only four carry a `#@ \variant` today, all at multiplier 2, and
+   multiplier 2 cannot span a ~12-hop NO-ADVANCE chain. **Re-phase all sixteen at
+   `#@ \variant 13 * (\length(self.toks) - self.i) + <depth>`, offsets by topological
+   depth**, rebuild the (fully specified) emitter capability, and `_binop` converts. Budget
+   it as a first-class increment: sixteen interdependent clauses, ~35 min per proof attempt.
+
 1. **The shadowed residue is 32 methods / 192 sites, and 142 of those sites are TWO
    Module5 dispatchers** (`_csl_to_ir` 92, `_py_expr_to_ir` 44, `_py_op_to_str` 6). Those
    are the recorded L2 TYPE-UNIFICATION wall (the dispatcher is `emit_ir -> emit_ir` while
