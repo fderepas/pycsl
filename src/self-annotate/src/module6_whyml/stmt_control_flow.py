@@ -369,6 +369,16 @@ class ControlFlowStmtMixin:
                     return r
         return {}
 
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._try_local_decl_kind(...)` call site in this file went through the receiver-less abstract
+    # `val self___try_local_decl_kind_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -567,6 +577,16 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._try_union_is_none_match(...)` call site in this file went through the receiver-less abstract
+    # `val self___try_union_is_none_match_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
@@ -957,6 +977,16 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._maybe_inject_union_return(...)` call site in this file went through the receiver-less abstract
+    # `val self___maybe_inject_union_return_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

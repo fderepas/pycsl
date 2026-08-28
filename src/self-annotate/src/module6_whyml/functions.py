@@ -312,6 +312,16 @@ class FunctionEmissionMixin:
                 return "map int (option int)"
         return "int"
 
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._refine_tuple_return_type(...)` call site in this file went through the receiver-less abstract
+    # `val self___refine_tuple_return_type_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

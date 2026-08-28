@@ -2038,6 +2038,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return self._wrap_optional(annotation, scope_name)
         return self._field_type_from_annotation_inst(annotation, scope_name)
 
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._wrap_optional(...)` call site in this file went through the receiver-less abstract
+    # `val self___wrap_optional_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns self._fresh_var_counter, self.program_ir
@@ -2450,6 +2460,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "(L4 / L5c / PEP 586 — nested Literal and Enum members are not)",
             stage="ir-emit")
 
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._m5_get_type_name_legacy(...)` call site in this file went through the receiver-less abstract
+    # `val self___m5_get_type_name_legacy_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     # value-model campaign increment 10 (loop-over-irlist + banked primitives): `annotation`
     # emit_ir; `isinstance(annotation, ast.Name)`->`is_var`, `annotation.id`->`name_of`;
     # Subscript head via svalue_of/name_of; `.slice`->`sindex_of` (P1). The `Union` arm loop
