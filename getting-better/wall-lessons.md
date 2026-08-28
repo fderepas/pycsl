@@ -3579,3 +3579,45 @@ Two things make it honest:
 And the payload type matters: `Global.names` is a list of IDENTIFIER STRINGS, so the slot is
 the `seq string` payload the `Compare.ops` arm introduced — **not** `irlist`, which would
 model an identifier as a NODE.
+
+## Lesson (bf) — the OPTIONAL-ELEMENT child list, and the sharpened erasure-ledger test
+
+Two recorded boundaries (`atom_list` / `atom_brace` / `atom_paren` / `_dict_rest`) named two
+missing payload shapes. Both are now built, and each answer is worth carrying.
+
+**1. A list of harvested RECORDS cannot be a payload — the class must JOIN THE FAMILY.**
+`GeneratorExp.generators` is a list of `comprehension` nodes, and the obvious move is a
+`seq comprehension` payload slot (the `Compare.ops` arm already carries a `seq string`). It
+does not type: `comprehension` holds `emit_ir` children, so `seq comprehension` INSIDE
+`emit_ir` is non-strictly-positive and Why3 rejects the recursion outright. The answer is to
+add `comprehension` as an ADT ARM (`IrPyComprehension emit_ir emit_ir irlist int`) and retype
+its producer `comp_for` to `-> "List[ExprIR]"`; the clause list is then an ordinary `irlist`.
+That single move freed `_call_args`, `atom_list` and `atom_paren`.
+
+**2. A list with `None` ELEMENTS needs its own carrier.** `Dict.keys` really holds `None`
+(`{**a, 'k': v}` parses to `keys=[None, 'k']`). An `irlist` would have to model the absent key
+as a NODE — the sentinel the whole `iropt_*` family exists to remove. The carrier is
+
+    with iroptlist = IONil | IOCons iropt_ir iroptlist
+
+bespoke for the same reason `irlist` is, with DEFINED `iolen`/`ionth` and a pointwise-pinned
+`seq_to_iroptlist` bridge (no axiom, no new leaf). Three emitter sites make a local carry it:
+a prescan marks a seq local that receives a BARE `None` append, and its literal initialiser
+and its appends both wrap (`IrOSome` / `IrONone`).
+
+**3. THE SHARPENED TEST for the known-erasure ledger.** Lesson (bd) declined `_fin` because
+its conversion moved a hole from the COUNTED `\trusted` register to the UNCOUNTED erasure
+ledger. `_dict_rest` erases `t` for the IDENTICAL reason (location-only, `_fin_pos`'s
+`start_tok`) and WAS admitted. The distinction is not the erasure — it is **what a caller
+gains**:
+
+* `_fin`'s ENTIRE body is location work, and every call site already elided it. A caller
+  would see nothing new. Bookkeeping. **Decline.**
+* `_dict_rest` parses the whole `{**a, k: v}` dict tail, and `atom_brace` calls it
+  CONCRETELY. The conversion puts a real `IrPyDict` with real keys and values where an
+  UNCONSTRAINED abstract `val` stood. **Admit, and record the entry with its reason.**
+
+So: *convert when the body does real work beyond the erased input; decline when the erased
+input is essentially all the body does.* And when you admit one, write the mechanical check
+(an AST scan showing the parameter's only use) into the ledger entry, as
+`_parser___sequence_pattern` already does.
