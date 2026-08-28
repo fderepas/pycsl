@@ -1212,6 +1212,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _flds = [f for (f, _t) in _PAFT.get(_cls, [])]
                 if not (_loc & set(_flds)):
                     return self._py_expr_to_ir(expr.args[0])
+            elif (isinstance(expr.args[0], ast.Call)
+                  and isinstance(expr.args[0].func, ast.Call)
+                  and isinstance(expr.args[0].func.func, ast.Name)
+                  and len(expr.args[0].func.args) == 1
+                  and not expr.args[0].func.keywords
+                  and isinstance(expr.args[0].func.args[0], ast.Name)):
+                # VARIABLE-CLASS-NAME form (relaunch #8): `self._fin_block(_N(cls)(…), t)`,
+                # where `cls` is a LOCAL holding a ternary of two class-name literals. The
+                # wrapper is the identity for exactly the same reason as for a literal
+                # construction, and the guard generalizes the same way as the bare-Name
+                # branch below: it is enough that NO table entry carries a location field.
+                # Without this the whole `try_stmt` return falls to the abstract
+                # `self__fin_block_2`, whose parameters are int-typed, and the constructed
+                # node ill-types against it — the erasure one level up.
+                if not any(_loc & {f for (f, _t) in _e} for _e in _PAFT.values()):
+                    return self._py_expr_to_ir(expr.args[0])
             elif isinstance(expr.args[0], ast.Name):
                 # PYTHON-AST NODE CTOR FAMILY (increment 15): the first argument is a
                 # LOCAL holding an already-built node (`tup = _N("Tuple")(...); return
@@ -1333,6 +1349,30 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if _kw:
                 _cls_ir["keywords"] = _kw
             return _cls_ir
+        # CLASS-BY-NAME FACTORY, VARIABLE-NAME form (self-tcb-reduction, relaunch #8):
+        # `_N(cls)(…)` where `cls` is not a literal but an EXPRESSION — the shape
+        # `try_stmt`/`funcdef`/`for_stmt`/`with_stmt` use to pick between two sibling ASDL
+        # classes (`cls = "TryStar" if is_star else "Try"`). Carry the class-name
+        # EXPRESSION through instead of letting the whole construction fall to the
+        # `UnknownPyExpr` catch-all (which erases the node and every child with it);
+        # Module 6 resolves it, and DECLINES unless it reduces to a choice between two
+        # KNOWN family classes. FAIL-CLOSED at both ends: here the callee must still be a
+        # one-argument, keyword-free call on a bare name, and the argument must NOT be a
+        # string literal (that is the resolved form above, unchanged).
+        if (isinstance(expr.func, ast.Call)
+                and isinstance(expr.func.func, ast.Name)
+                and len(expr.func.args) == 1
+                and not expr.func.keywords
+                and isinstance(expr.func.args[0], ast.Name)):
+            _cn_ir: Dict[str, Any] = {
+                "type": "ClassByNameCall",
+                "class_expr": self._py_expr_to_ir(expr.func.args[0]),
+                "args": [self._py_expr_to_ir(a) for a in expr.args]}
+            _ckw = [{"arg": kw.arg, "value": self._py_expr_to_ir(kw.value)}
+                    for kw in expr.keywords if kw.arg is not None]
+            if _ckw:
+                _cn_ir["keywords"] = _ckw
+            return _cn_ir
         # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): an INDIRECT
         # self-method call `getattr(self, <local>)(<args>)` — the shape a
         # `type -> handler-method-name` table is consumed through. Without this it

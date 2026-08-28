@@ -358,6 +358,53 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                        for _v in node.values())
         return False
 
+    def _collect_class_name_ternaries(
+            self, body_stmts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """VARIABLE-CLASS-NAME recognizer (relaunch #8) -> {var: (test_ir, "A", "B")}.
+
+        `try_stmt`/`funcdef`/`for_stmt`/`with_stmt` all pick between TWO sibling ASDL
+        classes with a ternary of two string literals — `cls = "TryStar" if is_star else
+        "Try"` — and then construct `_N(cls)(...)`. Before this the construction fell to
+        Module 5's `UnknownPyExpr` catch-all and the WHOLE node erased to the scalar `0`,
+        taking every child with it.
+
+        FAIL-CLOSED: a var qualifies only if it is assigned EXACTLY ONCE anywhere in the
+        body and that single assignment is an `IfExpr` whose `body` and `orelse` are both
+        String literals. A reassigned local, a computed name, or a dict lookup is simply
+        absent from the map, and the construction keeps its pre-existing lowering."""
+        _counts: Dict[str, int] = {}
+        _first: Dict[str, Any] = {}
+
+        def _rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if (node.get("stmt") == "Assign"
+                        and isinstance(node.get("target"), str)):
+                    _t = node["target"]
+                    _counts[_t] = _counts.get(_t, 0) + 1
+                    _first.setdefault(_t, node.get("value"))
+                for _v in node.values():
+                    _rec(_v)
+            elif isinstance(node, list):
+                for _v in node:
+                    _rec(_v)
+
+        _rec(body_stmts)
+        out: Dict[str, Any] = {}
+        for _v, _c in _counts.items():
+            if _c != 1:
+                continue
+            _val = _first.get(_v)
+            if not (isinstance(_val, dict) and _val.get("type") == "IfExpr"):
+                continue
+            _b, _e = _val.get("body"), _val.get("orelse")
+            if not (isinstance(_b, dict) and _b.get("type") == "String"
+                    and isinstance(_e, dict) and _e.get("type") == "String"
+                    and isinstance(_b.get("value"), str)
+                    and isinstance(_e.get("value"), str)):
+                continue
+            out[_v] = (_val.get("test"), _b["value"], _e["value"])
+        return out
+
     def _emit_array_local_reassign(self, target: str, safe_target: str, indent: str,
                                     val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
         """Reassigning an array-local (declared via `let arr = (Array.make
@@ -4331,7 +4378,38 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     for _x in node:
                         _scan_extend(_x)
 
+            # THE STATEMENT CLUSTER, REASSIGNMENT form (relaunch #8): the SAME local
+            # shape, grown not by `.extend` but by a whole-list REASSIGNMENT —
+            # `orelse = []` at the top of `try_stmt`, then `orelse = self.block()` inside
+            # the `if self.at_kw("else")` branch. Without this the local is an ARRAY local
+            # (`(Array.make 1024 0)`, from the empty literal) and the reassignment lowers
+            # through `_emit_array_local_reassign`, whose non-literal RHS arm is a literal
+            # `()` — the ENTIRE `else:`/`finally:` block silently DROPPED (lesson (ac)
+            # again). Same two gates as the `.extend` scan: the pure_ast parser file, and
+            # the RHS call's own declared return really resolving to `array emit_ir`.
+            def _scan_relist(node: Any) -> None:
+                if isinstance(node, dict):
+                    if (node.get("stmt") == "Assign"
+                            and isinstance(node.get("target"), str)):
+                        _v = node.get("value", {})
+                        _v = _v.to_dict() if hasattr(_v, "to_dict") else _v
+                        if (isinstance(_v, dict) and _v.get("type") == "Call"
+                                and str(_v.get("func", "")).startswith("self.")):
+                            try:
+                                _cx, _, _, _ = self._resolve_dotted_signature(
+                                    str(_v.get("func")))
+                            except Exception:
+                                _cx = ""
+                            if _cx == "array emit_ir":
+                                _ext_ir.add(node["target"])
+                    for _x in node.values():
+                        _scan_relist(_x)
+                elif isinstance(node, list):
+                    for _x in node:
+                        _scan_relist(_x)
+
             _scan_extend(body_stmts)
+            _scan_relist(body_stmts)
             for _en in sorted(_ext_ir):
                 self._seq_locals.add(_en)
                 self._seq_value_types[_en] = "emit_ir"
@@ -5156,6 +5234,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # projects natively (`(!t).<label>`) instead of falling through to the
         # opaque `(get_<field> !t)` getter, which mistypes against the record.
         self._record_field_elem_locals = dict(_rec_predecl)
+        # VARIABLE-CLASS-NAME (ternary of two literals, relaunch #8): harvest
+        # `cls = "TryStar" if is_star else "Try"` so `_N(cls)(…)` can resolve to the two
+        # ASDL classes it really chooses between. FAIL-CLOSED: the local must have
+        # EXACTLY ONE assignment in the whole body, and that assignment must be an
+        # `IfExpr` whose BOTH arms are string LITERALS. Anything else (a reassigned
+        # local, a computed name, a dict lookup) is absent from the map and the
+        # construction declines to the pre-existing opaque `0`.
+        self._class_name_ternary_locals = self._collect_class_name_ternaries(body_stmts)
 
         # FUNCTION-TOP PRE-DECL of a BRANCH-SCOPED Optional local (lesson (aq)). See
         # `_union_predecl_locals`: only a union local whose ONLY assignment is nested

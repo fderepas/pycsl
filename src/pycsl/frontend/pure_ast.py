@@ -1389,7 +1389,7 @@ class _Parser:
             ht = self.advance()
             if self.accept_op("*"):
                 is_star = True
-            typ = None; name = None
+            typ: Optional["ExprIR"] = None; name: Optional[str] = None
             if not self.at_op(":"):
                 typ = self.test()
                 if self.accept_kw("as"):

@@ -1325,13 +1325,49 @@ class _Parser:
     # moves only through `advance` / `accept_*` / `expect_*`, none of which decreases
     # `self.i` — and each of these stubs becomes a PROOF of the clause the day it is
     # converted.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # THE STATEMENT CLUSTER: CONVERTED. Verbatim body port of the LIVE `try_stmt`, on the
+    # VARIABLE-CLASS-NAME recognizer: `cls = "TryStar" if is_star else "Try"` resolves to
+    # a CHOICE OF CONSTRUCTOR (`if is_star then IrPyTryStar … else IrPyTry …`), which is
+    # what the source really denotes. Each `ExceptHandler` carries its OPTIONAL exception
+    # type (`iropt_ir`) and OPTIONAL bind name (`iropt_str`) faithfully, so a bare
+    # `except:` really carries neither.
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def try_stmt(self) -> "ExprIR":
-        pass
+        t = self.advance()
+        self.expect_op(":")
+        body = self.block()
+        handlers = []
+        orelse = []
+        finalbody = []
+        is_star = False
+        #@ ghost i22 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i22
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_kw("except"):
+            ht = self.advance()
+            if self.accept_op("*"):
+                is_star = True
+            typ: Optional["ExprIR"] = None; name: Optional[str] = None
+            if not self.at_op(":"):
+                typ = self.test()
+                if self.accept_kw("as"):
+                    name = self._name_str()
+            self.expect_op(":")
+            hbody = self.block()
+            handlers.append(self._fin_block(_N("ExceptHandler")(type=typ, name=name, body=hbody), ht))
+        if self.at_kw("else"):
+            self.advance(); self.expect_op(":")
+            orelse = self.block()
+        if self.at_kw("finally"):
+            self.advance(); self.expect_op(":")
+            finalbody = self.block()
+        cls = "TryStar" if is_star else "Try"
+        return self._fin_block(_N(cls)(body=body, handlers=handlers,
+                                       orelse=orelse, finalbody=finalbody), t)
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
     # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here

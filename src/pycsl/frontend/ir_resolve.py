@@ -357,6 +357,25 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # ('patterns',), None)`, one total VARIADIC child list, carried as `irlist` exactly
     # like `MatchOr.patterns`.
     "MatchSequence": ("IrPyMatchSequence", [("patterns", "irlist")]),
+    # `ExceptHandler(type, name, body)` — `_NODE_SPEC['ExceptHandler'] ==
+    # ('excepthandler', ('type','name','body'), None)`, and `_OPTIONAL_FIELDS
+    # ['ExceptHandler'] == ('type','name')`: a bare `except:` carries NO exception type
+    # and an `except E:` without `as` carries NO bind name. Both slots are therefore the
+    # monomorphic options (`iropt_ir` for the type EXPRESSION, `iropt_str` for the bind
+    # name); `body` is the handler's statement list.
+    "ExceptHandler": ("IrPyExceptHandler", [("type", "iropt_ir"),
+                                            ("name", "iropt_str"),
+                                            ("body", "irlist")]),
+    # `Try(body, handlers, orelse, finalbody)` / `TryStar(...)` — `_NODE_SPEC` gives both
+    # `('stmt', ('body','handlers','orelse','finalbody'), None)`, all four total VARIADIC
+    # child lists (an absent `else:`/`finally:` is the EMPTY list, not a missing field).
+    # The two classes are DISTINCT arms, not a flag: `try` and `try*` have different
+    # semantics, and the source picks between them with `cls = "TryStar" if is_star else
+    # "Try"` — the CLASS-NAME TERNARY the recognizer resolves to these two ctors.
+    "Try": ("IrPyTry", [("body", "irlist"), ("handlers", "irlist"),
+                        ("orelse", "irlist"), ("finalbody", "irlist")]),
+    "TryStar": ("IrPyTryStar", [("body", "irlist"), ("handlers", "irlist"),
+                                ("orelse", "irlist"), ("finalbody", "irlist")]),
 }
 
 

@@ -13079,6 +13079,51 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     inner += f" {sets};"
                 return f"({inner} _alit)"
             return "(Array.make 1024 0)"
+        if t == "ClassByNameCall":
+            # VARIABLE-CLASS-NAME CONSTRUCTION (relaunch #8): `_N(cls)(<children>)` where
+            # `cls` is a LOCAL holding a ternary of two class-name literals
+            # (`cls = "TryStar" if is_star else "Try"`). The construction really is a
+            # choice between TWO node classes with the SAME children, so the faithful
+            # lowering is the same choice, made at the CONSTRUCTOR:
+            #     (if <test> then (IrPyTryStar …) else (IrPyTry …))
+            # Both arms are built through the ORDINARY node-ctor path
+            # (`_handle_call_expr` on a synthesized literal-class Call), so the by-name
+            # payload binding, the option slots and the fail-closed decline all apply
+            # unchanged. If either arm declines, or the local is not a recognized
+            # class-name ternary, this returns the scalar `0` — EXACTLY what the
+            # `UnknownPyExpr` catch-all emitted before, so nothing that used to work
+            # changes shape.
+            _ce = expr.get("class_expr") or {}
+            _cnt = getattr(self, "_class_name_ternary_locals", {}) or {}
+            _ent = (_cnt.get(_ce.get("name"))
+                    if isinstance(_ce, dict) and _ce.get("type") == "Var" else None)
+            if _ent is None:
+                return "0"
+            _test_ir, _cls_a, _cls_b = _ent
+            _arms = []
+            for _cn in (_cls_a, _cls_b):
+                _syn = {"type": "Call", "func": _cn,
+                        "args": list(expr.get("args") or [])}
+                if expr.get("keywords"):
+                    _syn["keywords"] = list(expr["keywords"])
+                _lw = self._handle_call_expr(
+                    expr_from_dict(_syn), local_refs, invariant_ctx, subst)
+                # A DECLINED construction falls back to the record-literal / opaque
+                # paths, which is exactly what this recognizer exists to avoid — accept
+                # only a real ADT application of the named constructor.
+                _ctor = None
+                if self._uses_pyast_parser():
+                    from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC3
+                    _pc3 = _PYC3.get(_cn)
+                    _ctor = _pc3[0] if _pc3 else None
+                if not (_ctor and isinstance(_lw, str)
+                        and _lw.startswith(f"({_ctor} ")):
+                    return "0"
+                _arms.append(_lw)
+            _c = self._to_bool(
+                self._expr_to_whyml(_test_ir, local_refs, invariant_ctx, subst),
+                _test_ir or {})
+            return f"(if {_c} then {_arms[0]} else {_arms[1]})"
         if t in ("UnknownPyExpr", "GenExp"):
             # genexp-erasure-wall R2a parity: before R2a a generator expression had no Module-5
             # handler and arrived here as `UnknownPyExpr`, lowering to the scalar `0` (which
