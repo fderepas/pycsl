@@ -5428,6 +5428,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      or _concrete in getattr(self, "_sibling_concrete_methods", set()))
                 and (ret_type in ("emit_ir", "int", "string")
                      or (isinstance(ret_type, str) and ret_type.startswith("_union_"))
+                     # A LIST-RETURNING SIBLING IS THE SAME CASE. `array <t>` was missing
+                     # from this allowlist, and the consequence is a LOST CONVERSION that
+                     # NO gate sees: `_Parser._if_tail` / `_else_block` /
+                     # `_import_as_names` are all CONVERTED and PROVEN, their `let` bodies
+                     # are emitted, `check-untrusted-emitted` reports them as definitions —
+                     # and every CALL SITE still went through the receiver-less abstract
+                     # `val self__if_tail_0 : array emit_ir`, whose result is
+                     # UNCONSTRAINED. So `if_stmt`'s `orelse` child was an ARBITRARY array
+                     # rather than the parsed one, and the conversion bought the caller
+                     # nothing. Same soundness argument as the other arms: the callee is a
+                     # same-file VERIFIED method in `_module_func_names`, and
+                     # `scc.find_self_method_calls` supplies the callee-before-caller
+                     # ordering edge.
+                     or (isinstance(ret_type, str) and ret_type.startswith("array "))
                      or ret_type in {_ri["whyml_name"]
                                      for _ri in getattr(self, "_record_types", {}).values()})):
             if _concrete in getattr(self, "_module_func_names", set()):

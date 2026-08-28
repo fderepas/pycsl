@@ -32,13 +32,16 @@ import argparse
 import glob
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
-BASELINE = 55          # measured 2026-08-28, relaunch #9 — a RATCHET, only lower it
+BASELINE = 50          # 55 at first measurement, 50 after the `array <t>` concrete-
+                       # sibling capability landed (relaunch #9) — a RATCHET, only lower it
+MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 
 _DEF = re.compile(r'^  (?:let rec|let|with) ([A-Za-z_0-9]+)', re.M)
 _VAL = re.compile(r'^  val (self__([A-Za-z_0-9]+)_(\d+)) ', re.M)
@@ -60,7 +63,13 @@ def emit_all(out_dir: str) -> None:
             cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if os.path.exists(mlw):
             rel = os.path.relpath(src, MIRROR)[:-3].replace(os.sep, "_")
-            os.replace(mlw, os.path.join(out_dir, rel + ".mlw"))
+            # `shutil.move`, NOT `os.replace`: the emitted `.mlw` lands next to the SOURCE
+            # (under the repo) while the default scratch dir may be on another filesystem,
+            # and `os.replace` then dies with `Invalid cross-device link` — BEFORE the
+            # check reports anything. A gate that raises before it reports is
+            # indistinguishable from a gate that found nothing (lesson (hh)'s sibling), and
+            # this one exists precisely to catch a defect no other plane sees.
+            shutil.move(mlw, os.path.join(out_dir, rel + ".mlw"))
 
 
 def scan(emit_dir: str):
@@ -89,10 +98,33 @@ def main() -> int:
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
+    try:
+        return _run(args)
+    finally:
+        _cleanup()
+
+
+_TMP: list = []
+
+
+def _cleanup() -> None:
+    for d in _TMP:
+        shutil.rmtree(d, ignore_errors=True)
+    scratch = os.path.join(ROOT, ".gate-scratch")
+    if os.path.isdir(scratch) and not os.listdir(scratch):
+        os.rmdir(scratch)
+
+
+def _run(args) -> int:
     tmp = None
     emit_dir = args.emit_dir
     if not emit_dir:
-        tmp = tempfile.mkdtemp(prefix="shadowed-selfcalls-")
+        # Default the scratch dir UNDER THE REPO, so the emitted `.mlw` files never have
+        # to cross a filesystem boundary at all (belt and braces with `shutil.move`).
+        _scratch = os.path.join(ROOT, ".gate-scratch")
+        os.makedirs(_scratch, exist_ok=True)
+        tmp = tempfile.mkdtemp(prefix="shadowed-selfcalls-", dir=_scratch)
+        _TMP.append(tmp)
         emit_all(tmp)
         emit_dir = tmp
     if not glob.glob(os.path.join(emit_dir, "*.mlw")):
@@ -100,14 +132,21 @@ def main() -> int:
               "(is `why3` on PATH? see wall-lessons (aa))")
         return 1
 
+    n_files = len(glob.glob(os.path.join(emit_dir, "*.mlw")))
     shadowed, sites = scan(emit_dir)
     if args.verbose:
         for f, val, definition, uses, concrete in sorted(
                 shadowed, key=lambda r: -r[3]):
             print(f"    {uses:3d} bypassing use(s), {concrete} concrete   "
                   f"{f}::{val} shadows `{definition}`")
-    print(f"[*] shadowed-selfcalls: {len(shadowed)} CONVERTED method(s) whose call sites "
-          f"go through an abstract `val self__<m>_<n>`; {sites} bypassing call site(s).")
+    print(f"[*] shadowed-selfcalls: scanned {n_files} emitted mirror(s); "
+          f"{len(shadowed)} CONVERTED method(s) whose call sites go through an abstract "
+          f"`val self__<m>_<n>`; {sites} bypassing call site(s).")
+    if n_files < MIRROR_COUNT:
+        print(f"[!] shadowed-selfcalls: only {n_files} of {MIRROR_COUNT} mirrors emitted — "
+              f"the population is INCOMPLETE, so this measurement is not a gate result. "
+              f"(is `why3` on PATH? see wall-lessons (aa))")
+        return 1
     if len(shadowed) > args.max:
         print(f"[!] shadowed-selfcalls: {len(shadowed)} > allowed {args.max} — a "
               f"conversion landed whose body no caller can see.")

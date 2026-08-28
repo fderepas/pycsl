@@ -48,3 +48,6 @@ metrics/.cmmi-*.lock
 
 .claude/
 getting-better/.driver-*
+
+# transient scratch for bin/check-shadowed-selfcalls.py (removed on exit)
+.gate-scratch/

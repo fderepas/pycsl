@@ -233,8 +233,15 @@ class Module6_WhyMLTranspiler(
         # capability one type-class over — a `self.<m>()` sibling returning the IR-node
         # ADT must bind CONCRETELY too, else it degrades to an UNCONSTRAINED abstract
         # `val self_<m>_0 (self) : emit_ir` (no ensures) — a facade.
+        # LIST-RETURNING SIBLING (relaunch #9): the TWIN of the `array <t>` arm added to
+        # `_handle_dotted_call`'s concrete-sibling allowlist. This map is the SECOND
+        # PRODUCER of that same decision (lesson (am)) — it supplies the SCC
+        # callee-before-caller ordering edge — and without the twin the newly-concrete
+        # `(<class>__<m> self)` application is emitted before the callee is declared
+        # (measured: `unbound function or predicate symbol '_parser__block'`).
         return {name for name, rt in self._module_method_return_types.items()
-                if rt in rec_names or rt in ("emit_ir", "int", "string")}
+                if rt in rec_names or rt in ("emit_ir", "int", "string")
+                or (isinstance(rt, str) and rt.startswith("array "))}
 
     def _build_callee_no_exception_summary(self, functions: List[Dict[str, Any]]) -> None:
         """Populate the module-wide callee summary maps (workplan PR 4).

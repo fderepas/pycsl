@@ -3336,7 +3336,9 @@ Two things follow:
 1. **A new oracle exists and is now wired**: `bin/check-shadowed-selfcalls.py` counts
    exactly this and ratchets at 55. Run it every increment alongside
    `check-untrusted-emitted.py`; the two answer DIFFERENT questions.
-2. **Adding `array <t>` to the allowlist is a two-producer change** (lesson (am) again).
+2. **Adding `array <t>` to the allowlist is a two-producer change** (lesson (am) again) —
+   BUILT AND LANDED the same day; the numbers below are the measurement that motivated it,
+   and the gate now ratchets at 50 / 259.
    The twin is `Module6_WhyMLTranspiler._record_return_sibling_methods`, which supplies the
    SCC callee-before-caller ordering edge; without it the newly-concrete application is
    emitted before its callee is declared (measured: `unbound function or predicate symbol
@@ -3350,3 +3352,46 @@ Two things follow:
    `statement` dispatches WITHOUT advancing, `decorated` may take its `@`-loop zero times
    as far as the prover knows, and `async_stmt`'s leading `advance()` only moves the cursor
    when the class invariant rules out the last index.
+
+### (ay) RESOLVED for the `array <t>` half — what it cost
+
+Both producers, then the variant work:
+
+* `expressions._handle_dotted_call`: `array <t>` added to the concrete-sibling allowlist.
+* `Module6_WhyMLTranspiler._record_return_sibling_methods`: the same predicate, because it
+  supplies the SCC callee-before-caller ordering edge. Without it: `unbound function or
+  predicate symbol '_parser__block'`.
+* Then pure_ast's FOURTEEN compound-statement parsers become ONE `let rec … with …` group
+  and every member needs the same well-founded order. The phase-offset assignment that
+  works, multiplier **3** because the cluster is three levels deep:
+
+      statement                                        3*(N - self.i) + 2
+      block, decorated, async_stmt                     3*(N - self.i) + 1
+      if_stmt while_stmt for_stmt try_stmt with_stmt   3*(N - self.i) + 0
+      funcdef match_stmt case_block _if_tail _else_block
+
+  `statement` dispatches to a handler WITHOUT advancing, so it must sit above them.
+  `decorated` may take its `@`-loop zero times as far as the prover knows and `async_stmt`'s
+  leading `advance()` only moves the cursor when the EOF-sentinel invariant rules out the
+  last index — so both sit above the handlers they call. A handler reaches `block` only
+  through `expect_op(":")`, whose UNCONDITIONAL `ensures self.i > \old(self.i)` pays for the
+  offset RISE. `block` reaches `statement` only after consuming NEWLINE and INDENT, neither
+  of which is ENDMARKER, so the class invariant makes both `advance`s strict.
+
+  **It proved on the FIRST attempt** — 1460 Valid / 0 non-Valid (1363 before). Budget one
+  authoring pass, not the usual extra proof round, when every offset rise is already paid
+  for by an `expect_*` strictness clause you can point at.
+
+Blast radius, measured: **2 of 52 mirrors** changed emission — pure_ast and
+`frontend/Module2_Parser` (whose `_parse_act_names` / `_parse_opt_except` were shadowed the
+same way). Both re-proved SEQUENTIALLY (lesson (ai)), 1460 and 714 Valid, 0 non-Valid.
+Corpus byte-diff 0/813: the `_record_array_fields` proxy gate holds it off every corpus
+program.
+
+**The residue is the OTHER admission gate, not the type.** The remaining 50 are shadowed
+because `_handle_dotted_call` admits the concrete route only when `_record_array_fields` is
+non-empty OR the callee carries an explicit `#@ sibling_concrete` marker — and the emitter
+mirrors (`statements`, `stmt_control_flow`, `expressions`, `functions`, `types`) have no
+List-of-record field, so the proxy gate is empty for them even though their callees return
+`string`/`int`, types that have been in the allowlist all along. Named reopening capability:
+replace the `_record_array_fields` PROXY with a direct one, or mark the callees.

@@ -444,6 +444,20 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 2
     #@ assigns self.i
     def statement(self) -> "List[ExprIR]":
         t = self.cur()
@@ -933,6 +947,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
     def block(self) -> "List[ExprIR]":
         if self.cur().type == _tokenize.NEWLINE:
@@ -966,6 +994,20 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def if_stmt(self) -> "ExprIR":
         t = self.advance()
@@ -983,7 +1025,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    #@ \variant \length(self.toks) - self.i
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def _if_tail(self) -> "List[ExprIR]":
         if self.at_kw("elif"):
@@ -1003,6 +1045,20 @@ class _Parser:
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def while_stmt(self) -> "ExprIR":
         t = self.advance()
@@ -1019,6 +1075,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def _else_block(self) -> "List[ExprIR]":
         if self.at_kw("else"):
@@ -1043,6 +1113,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def match_stmt(self) -> "ExprIR":
         t = self.advance()                       # 'match' (soft keyword)
@@ -1101,6 +1185,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def case_block(self) -> "ExprIR":
         if not self.at_name("case"):
@@ -1278,6 +1376,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def for_stmt(self, async_) -> "ExprIR":
         t = self.advance()
@@ -1327,6 +1439,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def with_stmt(self, async_) -> "ExprIR":
         t = self.advance()
@@ -1419,6 +1545,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def try_stmt(self) -> "ExprIR":
         t = self.advance()
@@ -1467,6 +1607,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
     def decorated(self) -> "ExprIR":
         decorators = []
@@ -1503,6 +1657,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
     def async_stmt(self) -> "ExprIR":
         t = self.advance()
@@ -1527,6 +1695,20 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    # MUTUAL-RECURSION TERMINATION over the STATEMENT CLUSTER (relaunch #9): making a
+    # LIST-returning sibling concrete (lesson (ay)) puts all fourteen compound-statement
+    # parsers into ONE Why3 `let rec … with …` group, and every member must use the SAME
+    # well-founded order. Phase-offset form (the `proof2why3/parser` / `test`-`lambdef`
+    # precedent), multiplier 3 because the cluster is THREE levels deep:
+    #   statement (+2) dispatches to a compound handler WITHOUT advancing;
+    #   `decorated` (+1) may take its `@`-loop zero times as far as the prover knows, and
+    #   `async_stmt` (+1)'s leading `advance()` only moves the cursor when the EOF-sentinel
+    #   invariant rules out the last index — so both must sit ABOVE the handlers they call;
+    #   a handler (+0) reaches `block` (+1) only through `expect_op(':')`, whose
+    #   UNCONDITIONAL strict-progress clause pays for the offset rise;
+    #   `block` (+1) reaches `statement` (+2) only after consuming NEWLINE and INDENT, and
+    #   neither is ENDMARKER, so the class invariant makes both `advance`s strict.
+    #@ \variant 3 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def funcdef(self, decorators: List["ExprIR"], async_, start: Optional[_Tok] = None) -> "ExprIR":
         t = start if start is not None else self.cur()
