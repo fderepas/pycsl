@@ -2003,7 +2003,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             f"{self._pyval_wrap(raw_arg, local_refs)}")
                 else:
                     arg = self._expr_to_whyml(val["args"][0], local_refs)
-                    arg = self._coerce_to_int(arg)
+                    # A `seq string` LOCAL MUST NOT HAVE ITS ELEMENTS INT-HASHED.
+                    # `_coerce_to_int` is a pure TEXT function: it turns any WhyML string
+                    # LITERAL into `stable_hash`. On a local Module5 has already classified
+                    # as carrying string elements (`seq_value_types[v] == "string"`) that is
+                    # an erasure of an element the model otherwise keeps — measured in
+                    # `pure_ast._Parser.comparison`, whose `ops` list of 0-field `cmpop`
+                    # singletons emitted `Seq.snoc !ops 441879163` for `_N("NotIn")()`
+                    # (= hash of `"NotIn"`) while the const-dict sibling `_N(_CMP[k])()`
+                    # emitted the real string — an ill-typed mixture, and a FACADE on the
+                    # int arm. Gated on the local ALREADY being a `seq string`, so an
+                    # int-element seq is byte-identical.
+                    if not (arr_name in getattr(self, "_seq_locals", set())
+                            and getattr(self, "_seq_value_types", {}).get(
+                                arr_name) == "string"):
+                        arg = self._coerce_to_int(arg)
                     if arr_name in getattr(self, "_seq_locals", set()):
                         # return-arr.md follow-on: `.append()` on a seq-promoted local grows
                         # the immutable seq via Seq.snoc (so `len` = Seq.length tracks the

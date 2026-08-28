@@ -7318,7 +7318,9 @@ class PreambleEmissionMixin:
         in table order; empty off the `_uses_pyast_parser` gate."""
         from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
         return "".join(
-            " | " + _ctor + "".join(" " + _ty for _fn, _ty in _payload)
+            " | " + _ctor + "".join(
+                " " + (f"({_ty})" if " " in _ty else _ty)
+                for _fn, _ty in _payload)
             for _ctor, _payload in _PYC.values())
 
     def _uses_pyast_parser(self) -> bool:

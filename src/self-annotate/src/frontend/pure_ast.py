@@ -1760,13 +1760,38 @@ class _Parser:
     # STAYS \trusted. `-> "ExprIR"` records that the result IS an expression node
     # (`emit_ir`); the non-regression clause is backed by the live body, which moves the
     # cursor only through `advance`/`accept_*`/`expect_*`.
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def comparison(self) -> "ExprIR":
-        pass
+        t = self.cur()
+        left = self.expr()
+        ops = []; comparators = []
+        #@ ghost i24 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i24
+        #@ loop variant \length(self.toks) - self.i
+        while True:
+            if self.at_kw("not") and self.peek(1).string == "in" and self.peek(1).type == _tokenize.NAME:
+                self.advance(); self.advance()
+                ops.append(_N("NotIn")())
+            elif self.at_kw("is"):
+                self.advance()
+                if self.at_kw("not"):
+                    self.advance(); ops.append(_N("IsNot")())
+                else:
+                    ops.append(_N("Is")())
+            elif self.at_kw("in"):
+                self.advance(); ops.append(_N("In")())
+            elif self.cur().type == _tokenize.OP and self.cur().string in _CMP:
+                ops.append(_N(_CMP[self.advance().string])())
+            else:
+                break
+            comparators.append(self.expr())
+        if ops:
+            return self._fin(_N("Compare")(left=left, ops=ops, comparators=comparators), t)
+        return left
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION (the `_name_str` / `test` precedents).
     # STAYS \trusted. `-> "ExprIR"` records that the result IS an expression node

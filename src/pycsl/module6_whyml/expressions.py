@@ -3572,6 +3572,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
         t = ir.get("type")
+        # PYTHON-AST NODE CTOR FAMILY (relaunch #8): a 0-FIELD ASDL SINGLETON construction
+        # is a STRING expression — `_N("NotIn")()` lowers to `"NotIn"`, its class-name (the
+        # increment-10 rule), and so does the const-dict form `_N(_CMP[<k>])()`. Without
+        # this a `seq` accumulator of such singletons (`comparison`'s `ops`) is classified
+        # `seq int` and every appended class name is INT-HASHED — measured as
+        # `Seq.snoc !ops 441879163`. Gated on `_uses_pyast_parser` -> byte-inert.
+        if self._uses_pyast_parser() and not ir.get("args") and not ir.get("keywords"):
+            _sing0 = set(self.ir.get("pyast_singleton_nodes", []) or [])
+            if (t == "Call" and isinstance(ir.get("func"), str)
+                    and ir["func"] in _sing0):
+                return True
+            if t == "ClassByNameCall":
+                _ce0 = ir.get("class_expr") or {}
+                if (isinstance(_ce0, dict) and _ce0.get("type") == "Subscript"
+                        and isinstance(_ce0.get("value"), dict)
+                        and _ce0["value"].get("type") == "Var"):
+                    _cdn0 = self._const_dict_name(_ce0["value"].get("name"))
+                    _cdt0 = (getattr(self, "_module_const_dicts", {}) or {}).get(_cdn0)
+                    if _cdt0 and _sing0 and all(_v0 in _sing0 for _v0 in _cdt0.values()):
+                        return True
         # W8 capability (iii): a `str` field projected off an `array <record>` SELF-FIELD
         # element (`self.toks[self.i].string`, or `t.string` on the record-typed local
         # bound to such a read) is STRING-typed. Without this the projection keeps the
@@ -9079,6 +9099,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     parts.append(f"(IrSSome {bound[f]})")
                     continue
                 return None
+            if _irlist_slots.get(f) == "seq string":
+                # A STRING-LIST child (`Compare.ops` is `cmpop*`, a list of 0-FIELD
+                # singletons, each carried as its class-name string; `MatchClass.kwd_attrs`
+                # and `Global.names` are `identifier*`). The emit_ir group is emitted
+                # mutable-FREE, so a pure `seq string` is a legal payload type — no new ADT
+                # is needed (the `IrComposeFromDecl (seq string)` precedent). DECLINES
+                # unless the actual really is a `!<local>` deref of a seq local KNOWN to
+                # carry strings, so the slot can never be filled with an int-erased list.
+                _rs = str(bound[f]).strip()
+                if not (_rs.startswith("!") and _rs[1:].isidentifier()
+                        and _rs[1:] in getattr(self, "_seq_locals", set())
+                        and getattr(self, "_seq_value_types", {}).get(
+                            _rs[1:]) == "string"):
+                    return None
+                parts.append(_rs)
+                continue
             if _irlist_slots.get(f) == "irlist":
                 _raw = str(bound[f]).strip()
                 # AN EMPTY LIST LITERAL IS A GENUINELY EMPTY CHILD LIST, not a decline.
@@ -13199,11 +13235,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _kx = self._expr_to_whyml(
                         _ce.get("slice") or _ce.get("index") or {},
                         local_refs, invariant_ctx, subst)
+                    # BIND THE KEY ONCE. The key expression can have an EFFECT —
+                    # `_CMP[self.advance().string]` in `comparison` advances the cursor —
+                    # and the chain mentions it once per entry, so inlining it would move
+                    # the cursor N times. A `let` makes the emitted term evaluate it
+                    # exactly once, as Python does.
                     _ch = '""'
                     for _kk, _vv in reversed(list(_cdt.items())):
-                        _ch = (f"(if (str_eq_op {_kx} {whyml_string_literal(_kk)}) "
+                        _ch = (f"(if (str_eq_op _cdk {whyml_string_literal(_kk)}) "
                                f"then {whyml_string_literal(_vv)} else {_ch})")
-                    return _ch
+                    return f"(let _cdk = {_kx} in {_ch})"
             _cnt = getattr(self, "_class_name_ternary_locals", {}) or {}
             _ent = (_cnt.get(_ce.get("name"))
                     if isinstance(_ce, dict) and _ce.get("type") == "Var" else None)

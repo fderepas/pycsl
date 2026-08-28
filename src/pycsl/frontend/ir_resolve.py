@@ -427,6 +427,14 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
                                     ("kw_defaults", "irlist"),
                                     ("kwarg", "iropt_ir"),
                                     ("defaults", "irlist")]),
+    # `Compare(left, ops, comparators)` — `_NODE_SPEC['Compare'] == ('expr',
+    # ('left','ops','comparators'), None)`, all three total. `ops` is a list of 0-FIELD
+    # `cmpop` SINGLETONS (`_N("NotIn")()`), each carried as its class-name STRING (the
+    # increment-10 rule), so the slot is a pure `seq string` — legal inside the
+    # mutable-free emit_ir group (the `IrComposeFromDecl (seq string)` precedent), and no
+    # new ADT is needed. `comparators` is the expression list.
+    "Compare": ("IrPyCompare", [("left", "emit_ir"), ("ops", "seq string"),
+                                ("comparators", "irlist")]),
     # `Lambda(args, body)` — `_NODE_SPEC['Lambda'] == ('expr', ('args','body'), None)`,
     # both total: the `arguments` node and the body expression.
     "Lambda": ("IrPyLambda", [("args", "emit_ir"), ("body", "emit_ir")]),
