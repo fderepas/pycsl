@@ -299,6 +299,16 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # `MatchOr(patterns)` — `_NODE_SPEC['MatchOr'] == ('pattern', ('patterns',), None)`,
     # one total VARIADIC child list.
     "MatchOr": ("IrPyMatchOr", [("patterns", "irlist")]),
+    # `Global(names)` / `Nonlocal(names)` — `_NODE_SPEC['Global'] == ('stmt',
+    # ('names',), <loc attrs>)` and likewise for `Nonlocal`, ONE total child each (no
+    # `_OPTIONAL_FIELDS` entry). `names` is a list of IDENTIFIER STRINGS, not of nodes,
+    # so the slot is the `seq string` payload the `Compare.ops` arm introduced — never
+    # `irlist`, which would model an identifier as a NODE. The two are the ONLY family
+    # members whose payload field set is exactly `{"names"}`, which is what makes the
+    # variable-class-name PARAMETER dispatch in `global_stmt` resolve to exactly this
+    # pair.
+    "Global": ("IrPyGlobal", [("names", "seq string")]),
+    "Nonlocal": ("IrPyNonlocal", [("names", "seq string")]),
     # `Tuple(elts, ctx)` — `_NODE_SPEC['Tuple'] == ('expr', ('elts','ctx'), <loc attrs>)`,
     # both total: the VARIADIC element list and the `expr_context` singleton. NOT the
     # pre-existing `IrMkTupleN irlist`, which has no `ctx` slot.

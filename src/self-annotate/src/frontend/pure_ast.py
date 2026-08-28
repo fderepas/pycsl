@@ -365,6 +365,22 @@ class _Parser:
     def unsupported(self, what: str) -> "NoReturn":
         pass
 
+    # CERTIFIED-BOUNDARY [ERASURE-LEDGER], relaunch #10 — MEASURED, all three pieces
+    # BUILT AND WORKING, then deliberately reverted. Porting the live body converts
+    # cleanly: the four position writes elide (lesson (az)), so the emitted body is the
+    # literal identity on `node`, no call site changes, and pure_ast proved 1612/1612.
+    # It was REVERTED anyway, because `bin/check-emitted-vacuity.py --emit` then reports
+    # a NEW erasure — `_parser___fin erased=['start_tok']` — and it is right: with the
+    # stamps elided the model really does ignore that input. So the conversion TRADES a
+    # COUNTED `\trusted` marker for an UNCOUNTED known-erasure ledger entry, moving a
+    # hole from one register to another and buying nothing: the call sites ALREADY
+    # elided `_fin`, so no caller sees anything new. That is count theatre, and the
+    # driver declines it. Reopening capability, named: an `emit_ir` that CARRIES the
+    # four ASDL location attributes as payload — the same decision `_set_ctx` needs one
+    # field over. The two emitter capabilities the spike needed (the position-write
+    # elision extended from an emit_ir LOCAL to an emit_ir FORMAL PARAM, and a ternary
+    # arm reading an `array <record>` self-field element typing the local as that
+    # record) were reverted WITH it rather than left as dead capability.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -727,12 +743,20 @@ class _Parser:
             msg = self.test()
         return self._fin(_N("Assert")(test=test, msg=msg), t)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
-    def global_stmt(self, kind):
-        pass
+    def global_stmt(self, kind: str) -> "ExprIR":
+        t = self.advance()
+        names = [self._name_str()]
+        #@ ghost i0 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self._name_str())
+        return self._fin(_N(kind)(names=names), t)
 
     # pure_ast cursor vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim body port
     # of the LIVE `_name_str`. Reads the cursor through the already-converted `cur`/`advance`

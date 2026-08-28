@@ -13280,6 +13280,60 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _ch = (f"(if (str_eq_op _cdk {whyml_string_literal(_kk)}) "
                                f"then {whyml_string_literal(_vv)} else {_ch})")
                     return f"(let _cdk = {_kx} in {_ch})"
+            # VARIABLE-CLASS-NAME, PARAMETER form (relaunch #10): `_N(kind)(names=names)`
+            # in `global_stmt`, where `kind` is a `str` FORMAL PARAMETER — the caller
+            # passes the literal "Global" or "Nonlocal". There is no ternary local to
+            # read, so the class is chosen at RUN TIME; the faithful lowering is the same
+            # choice, made at the CONSTRUCTOR, over the family members the construction
+            # could possibly name.
+            #
+            # THE CANDIDATE SET IS DERIVED FROM THE TABLE, NEVER HAND-WRITTEN: exactly
+            # those `_PYAST_IRNODE_CTORS` entries whose payload FIELD-NAME SET equals the
+            # construction's KEYWORD set. That is what keeps this drift-proof — add or
+            # remove a family member and the chain follows automatically, and an ASDL
+            # drift that changes a field name drops the member out of the set.
+            #
+            # THE TAIL IS `IrOther <kind>`, and it is EXACT rather than a fallback:
+            # `kind_of (IrOther k) = k`, so off the candidate set the model says "a node
+            # whose kind is precisely this string" — it never names a WRONG class. (In
+            # Python that path raises `KeyError`; it is unreachable from every call site,
+            # which passes a literal.)
+            #
+            # FAIL-CLOSED on every axis: the pure_ast parser file, a class expression that
+            # is a bare FORMAL PARAMETER (a LOCAL is the ternary form below, unchanged),
+            # KEYWORDS ONLY (so the field set is unambiguous — no positional binding), a
+            # NON-EMPTY candidate set, and every arm must lower to a REAL application of
+            # its own ADT constructor. Anything else falls through to the ternary path and
+            # then to the pre-existing scalar `0`.
+            if (self._uses_pyast_parser()
+                    and isinstance(_ce, dict) and _ce.get("type") == "Var"
+                    and _ce.get("name") in set(getattr(self, "_formal_params", []) or [])
+                    and not expr.get("args") and expr.get("keywords")):
+                from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC4
+                _want = {_k.get("arg") for _k in expr["keywords"]}
+                _cands = sorted(_cn for _cn, (_c4, _p4) in _PYC4.items()
+                                if {_fn for _fn, _ty in _p4} == _want)
+                _arms2: List[Tuple[str, str]] = []
+                for _cn in _cands:
+                    _syn2 = {"type": "Call", "func": _cn, "args": [],
+                             "keywords": list(expr["keywords"])}
+                    _lw2 = self._handle_call_expr(
+                        expr_from_dict(_syn2), local_refs, invariant_ctx, subst)
+                    _ct2 = _PYC4[_cn][0]
+                    if not (isinstance(_lw2, str) and _lw2.startswith(f"({_ct2} ")):
+                        _arms2 = []
+                        break
+                    _arms2.append((_cn, _lw2))
+                if _arms2:
+                    self._add_abstract_op(
+                        "val str_eq_op (a: string) (b: string) : bool\n"
+                        "    ensures { result <-> (a = b) }")
+                    _kw2 = self._expr_to_whyml(_ce, local_refs, invariant_ctx, subst)
+                    _chain2 = "(IrOther _cnk)"
+                    for _cn, _lw2 in reversed(_arms2):
+                        _chain2 = (f"(if (str_eq_op _cnk {whyml_string_literal(_cn)}) "
+                                   f"then {_lw2} else {_chain2})")
+                    return f"(let _cnk = {_kw2} in {_chain2})"
             _cnt = getattr(self, "_class_name_ternary_locals", {}) or {}
             _ent = (_cnt.get(_ce.get("name"))
                     if isinstance(_ce, dict) and _ce.get("type") == "Var" else None)
