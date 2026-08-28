@@ -438,6 +438,18 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # `Lambda(args, body)` — `_NODE_SPEC['Lambda'] == ('expr', ('args','body'), None)`,
     # both total: the `arguments` node and the body expression.
     "Lambda": ("IrPyLambda", [("args", "emit_ir"), ("body", "emit_ir")]),
+    # The PEP-695 `type_param` family, all three read straight off `_NODE_SPEC`:
+    # `'TypeVar': ('type_param', ('name','bound'), None)`,
+    # `'TypeVarTuple': ('type_param', ('name',), None)`,
+    # `'ParamSpec': ('type_param', ('name',), None)`.
+    # `name` is the identifier STRING `_name_str` returns. `TypeVar.bound` is in
+    # `_OPTIONAL_FIELDS` — `type X[T] = ...` has no bound and `type X[T: int] = ...` does —
+    # so its slot is `iropt_ir`, a TRUE `IrONone` on the unbounded path rather than a node
+    # standing in for an absent one. `TypeVarTuple` and `ParamSpec` carry only the name,
+    # which is the whole of their content.
+    "TypeVar": ("IrPyTypeVar", [("name", "string"), ("bound", "iropt_ir")]),
+    "TypeVarTuple": ("IrPyTypeVarTuple", [("name", "string")]),
+    "ParamSpec": ("IrPyParamSpec", [("name", "string")]),
     "TypeAlias": ("IrPyTypeAlias", [("name", "emit_ir"),
                                     ("type_params", "irlist"),
                                     ("value", "emit_ir")]),

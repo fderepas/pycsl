@@ -1,0 +1,960 @@
+DIGEST 9e1b6ce421f790d8cf2332421357f5cd
+FPyCSL.Phase2l_PyAstExpr
+R4142:4147 Coq.ZArith.ZArith <> <> lib
+R4149:4154 Coq.Strings.String <> <> lib
+R4156:4159 Coq.Lists.List <> <> lib
+R4161:4164 Coq.Bool.Bool <> <> lib
+R4166:4168 Coq.micromega.Lia <> <> lib
+R4178:4190 Coq.Lists.List ListNotations <> mod
+sec 4227:4235 <> PyAstExpr
+var 4830:4834 PyAstExpr TName
+var 4836:4844 PyAstExpr TConstant
+var 4846:4853 PyAstExpr TUnaryOp
+var 4855:4860 PyAstExpr TBinOp
+var 4862:4869 PyAstExpr TCompare
+var 4871:4877 PyAstExpr TBoolOp
+var 4879:4883 PyAstExpr TCall
+var 4885:4890 PyAstExpr TTuple
+var 4892:4901 PyAstExpr TSubscript
+var 4912:4916 PyAstExpr TList
+var 4918:4927 PyAstExpr TAttribute
+var 4929:4933 PyAstExpr TDict
+var 4935:4938 PyAstExpr TSet
+var 4940:4952 PyAstExpr TGeneratorExp
+var 4954:4962 PyAstExpr TListComp
+var 4964:4971 PyAstExpr TSetComp
+var 4973:4981 PyAstExpr TDictComp
+var 4992:5001 PyAstExpr TJoinedStr
+var 5003:5008 PyAstExpr TIfExp
+var 5010:5017 PyAstExpr TStarred
+var 5019:5028 PyAstExpr TNamedExpr
+var 5030:5036 PyAstExpr TLambda
+var 5038:5043 PyAstExpr TSlice
+ind 5297:5306 <> pyast_expr
+constr 5322:5329 <> PEx_Name
+constr 5347:5358 <> PEx_Constant
+constr 5380:5390 <> PEx_UnaryOp
+constr 5411:5419 <> PEx_BinOp
+constr 5438:5448 <> PEx_Compare
+constr 5469:5478 <> PEx_BoolOp
+constr 5498:5505 <> PEx_Call
+constr 5523:5531 <> PEx_Tuple
+constr 5550:5562 <> PEx_Subscript
+constr 5585:5592 <> PEx_List
+constr 5610:5622 <> PEx_Attribute
+constr 5645:5652 <> PEx_Dict
+constr 5670:5676 <> PEx_Set
+constr 5693:5708 <> PEx_GeneratorExp
+constr 5734:5745 <> PEx_ListComp
+constr 5767:5777 <> PEx_SetComp
+constr 5798:5809 <> PEx_DictComp
+constr 5831:5843 <> PEx_JoinedStr
+constr 5866:5874 <> PEx_IfExp
+constr 5893:5903 <> PEx_Starred
+constr 5924:5936 <> PEx_NamedExpr
+constr 5959:5968 <> PEx_Lambda
+constr 5988:5996 <> PEx_Slice
+constr 6015:6025 <> PEx_Unknown
+R5336:5340 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TName var
+binder 5332:5332 <> p:49
+R5365:5373 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TConstant var
+binder 5361:5361 <> p:50
+R5397:5404 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TUnaryOp var
+binder 5393:5393 <> p:51
+R5426:5431 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TBinOp var
+binder 5422:5422 <> p:52
+R5455:5462 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TCompare var
+binder 5451:5451 <> p:53
+R5485:5491 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TBoolOp var
+binder 5481:5481 <> p:54
+R5512:5516 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TCall var
+binder 5508:5508 <> p:55
+R5538:5543 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TTuple var
+binder 5534:5534 <> p:56
+R5569:5578 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TSubscript var
+binder 5565:5565 <> p:57
+R5599:5603 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TList var
+binder 5595:5595 <> p:58
+R5629:5638 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TAttribute var
+binder 5625:5625 <> p:59
+R5659:5663 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TDict var
+binder 5655:5655 <> p:60
+R5683:5686 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TSet var
+binder 5679:5679 <> p:61
+R5715:5727 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TGeneratorExp var
+binder 5711:5711 <> p:62
+R5752:5760 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TListComp var
+binder 5748:5748 <> p:63
+R5784:5791 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TSetComp var
+binder 5780:5780 <> p:64
+R5816:5824 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TDictComp var
+binder 5812:5812 <> p:65
+R5850:5859 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TJoinedStr var
+binder 5846:5846 <> p:66
+R5881:5886 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TIfExp var
+binder 5877:5877 <> p:67
+R5910:5917 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TStarred var
+binder 5906:5906 <> p:68
+R5943:5952 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TNamedExpr var
+binder 5939:5939 <> p:69
+R5975:5981 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TLambda var
+binder 5971:5971 <> p:70
+R6003:6008 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TSlice var
+binder 5999:5999 <> p:71
+scheme 5297:5306 <> pyast_expr_rect
+scheme 5297:5306 <> pyast_expr_ind
+scheme 5297:5306 <> pyast_expr_rec
+scheme 5297:5306 <> pyast_expr_sind
+def 6263:6273 <> pyx_kind_of
+R6280:6289 PyCSL.Phase2l_PyAstExpr <> pyast_expr ind
+binder 6276:6276 <> e:72
+R6294:6299 Coq.Strings.String <> string ind
+R6312:6312 PyCSL.Phase2l_PyAstExpr <> e:72 var
+R6323:6330 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R6356:6367 PyCSL.Phase2l_PyAstExpr <> PEx_Constant constr
+R6393:6403 PyCSL.Phase2l_PyAstExpr <> PEx_UnaryOp constr
+R6429:6437 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R6463:6473 PyCSL.Phase2l_PyAstExpr <> PEx_Compare constr
+R6499:6508 PyCSL.Phase2l_PyAstExpr <> PEx_BoolOp constr
+R6534:6541 PyCSL.Phase2l_PyAstExpr <> PEx_Call constr
+R6567:6575 PyCSL.Phase2l_PyAstExpr <> PEx_Tuple constr
+R6601:6613 PyCSL.Phase2l_PyAstExpr <> PEx_Subscript constr
+R6639:6646 PyCSL.Phase2l_PyAstExpr <> PEx_List constr
+R6672:6684 PyCSL.Phase2l_PyAstExpr <> PEx_Attribute constr
+R6710:6717 PyCSL.Phase2l_PyAstExpr <> PEx_Dict constr
+R6743:6749 PyCSL.Phase2l_PyAstExpr <> PEx_Set constr
+R6775:6790 PyCSL.Phase2l_PyAstExpr <> PEx_GeneratorExp constr
+R6816:6827 PyCSL.Phase2l_PyAstExpr <> PEx_ListComp constr
+R6853:6863 PyCSL.Phase2l_PyAstExpr <> PEx_SetComp constr
+R6889:6900 PyCSL.Phase2l_PyAstExpr <> PEx_DictComp constr
+R6926:6938 PyCSL.Phase2l_PyAstExpr <> PEx_JoinedStr constr
+R6964:6972 PyCSL.Phase2l_PyAstExpr <> PEx_IfExp constr
+R6998:7008 PyCSL.Phase2l_PyAstExpr <> PEx_Starred constr
+R7034:7046 PyCSL.Phase2l_PyAstExpr <> PEx_NamedExpr constr
+R7072:7081 PyCSL.Phase2l_PyAstExpr <> PEx_Lambda constr
+R7107:7115 PyCSL.Phase2l_PyAstExpr <> PEx_Slice constr
+R7141:7151 PyCSL.Phase2l_PyAstExpr <> PEx_Unknown constr
+prf 7414:7425 <> kind_of_name
+binder 7436:7436 <> p:74
+R7463:7465 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7439:7449 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R7452:7459 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R7461:7461 PyCSL.Phase2l_PyAstExpr <> p:74 var
+prf 7507:7519 <> kind_of_binop
+binder 7530:7530 <> p:75
+R7558:7560 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7533:7543 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R7546:7554 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R7556:7556 PyCSL.Phase2l_PyAstExpr <> p:75 var
+prf 7603:7615 <> kind_of_slice
+binder 7626:7626 <> p:76
+R7654:7656 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7629:7639 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R7642:7650 PyCSL.Phase2l_PyAstExpr <> PEx_Slice constr
+R7652:7652 PyCSL.Phase2l_PyAstExpr <> p:76 var
+prf 7699:7713 <> kind_of_unknown
+R7740:7742 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7717:7727 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R7729:7739 PyCSL.Phase2l_PyAstExpr <> PEx_Unknown constr
+def 8070:8083 <> pyx_kind_table
+R8087:8090 Coq.Init.Datatypes <> list ind
+R8092:8097 Coq.Strings.String <> string ind
+R8104:8104 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8111:8112 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8123:8124 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8134:8135 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8143:8144 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8154:8155 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8164:8165 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8172:8173 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8181:8185 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8197:8198 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8205:8206 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8218:8219 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8226:8227 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8233:8234 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8249:8250 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8261:8265 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8275:8276 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8287:8288 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8300:8301 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8309:8310 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8320:8321 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8333:8334 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8343:8347 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8355:8356 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R8359:8359 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+prf 8371:8384 <> pyx_kind_total
+binder 8395:8395 <> e:77
+R8398:8399 Coq.Lists.List <> In def
+R8417:8430 PyCSL.Phase2l_PyAstExpr <> pyx_kind_table def
+R8402:8412 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R8414:8414 PyCSL.Phase2l_PyAstExpr <> e:77 var
+prf 8718:8735 <> tag_name_neq_binop
+binder 8746:8746 <> p:78
+binder 8748:8748 <> q:79
+R8777:8780 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R8753:8763 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R8766:8773 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R8775:8775 PyCSL.Phase2l_PyAstExpr <> p:78 var
+R8781:8791 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R8794:8802 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R8804:8804 PyCSL.Phase2l_PyAstExpr <> q:79 var
+prf 8857:8878 <> tag_call_neq_joinedstr
+binder 8889:8889 <> p:80
+binder 8891:8891 <> q:81
+R8920:8923 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R8896:8906 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R8909:8916 PyCSL.Phase2l_PyAstExpr <> PEx_Call constr
+R8918:8918 PyCSL.Phase2l_PyAstExpr <> p:80 var
+R8924:8934 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R8937:8949 PyCSL.Phase2l_PyAstExpr <> PEx_JoinedStr constr
+R8951:8951 PyCSL.Phase2l_PyAstExpr <> q:81 var
+prf 9004:9019 <> tag_list_neq_set
+binder 9030:9030 <> p:82
+binder 9032:9032 <> q:83
+R9061:9064 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R9037:9047 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R9050:9057 PyCSL.Phase2l_PyAstExpr <> PEx_List constr
+R9059:9059 PyCSL.Phase2l_PyAstExpr <> p:82 var
+R9065:9075 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R9078:9084 PyCSL.Phase2l_PyAstExpr <> PEx_Set constr
+R9086:9086 PyCSL.Phase2l_PyAstExpr <> q:83 var
+prf 9139:9162 <> tag_listcomp_neq_setcomp
+binder 9173:9173 <> p:84
+binder 9175:9175 <> q:85
+R9208:9211 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R9180:9190 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R9193:9204 PyCSL.Phase2l_PyAstExpr <> PEx_ListComp constr
+R9206:9206 PyCSL.Phase2l_PyAstExpr <> p:84 var
+R9212:9222 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R9225:9235 PyCSL.Phase2l_PyAstExpr <> PEx_SetComp constr
+R9237:9237 PyCSL.Phase2l_PyAstExpr <> q:85 var
+prf 9290:9314 <> tag_unknown_neq_any_class
+binder 9325:9325 <> p:86
+R9353:9356 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R9330:9340 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R9342:9352 PyCSL.Phase2l_PyAstExpr <> PEx_Unknown constr
+R9357:9367 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R9370:9377 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R9379:9379 PyCSL.Phase2l_PyAstExpr <> p:86 var
+prf 9672:9691 <> pyx_kind_table_nodup
+R9695:9699 Coq.Lists.List <> NoDup ind
+R9701:9714 PyCSL.Phase2l_PyAstExpr <> pyx_kind_table def
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9740:9749 Coq.Lists.List <> NoDup_cons constr
+R9798:9806 Coq.Lists.List <> NoDup_nil constr
+R9798:9806 Coq.Lists.List <> NoDup_nil constr
+sec 10491:10505 PyAstExpr ViewConsistency
+var 10682:10682 PyAstExpr.ViewConsistency E
+prf 10950:10973 <> pyx_view_law_satisfiable
+R10994:10997 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R10993:10993 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E var
+R10998:11007 PyCSL.Phase2l_PyAstExpr <> pyast_expr ind
+binder 10986:10989 <> view:89
+R11012:11018 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R11036:11037 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R11026:11029 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R11025:11025 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E var
+R11030:11035 Coq.Strings.String <> string ind
+binder 11019:11021 <> tag:90
+R11049:11049 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E var
+binder 11045:11045 <> e:91
+R11072:11074 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R11052:11062 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R11065:11068 PyCSL.Phase2l_PyAstExpr <> view:89 var
+R11070:11070 PyCSL.Phase2l_PyAstExpr <> e:91 var
+R11075:11077 PyCSL.Phase2l_PyAstExpr <> tag:90 var
+R11079:11079 PyCSL.Phase2l_PyAstExpr <> e:91 var
+binder 11113:11113 <> e:92
+R11118:11128 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R11136:11136 PyCSL.Phase2l_PyAstExpr <> e:92 var
+binder 11113:11113 <> e:93
+R11118:11128 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R11136:11136 PyCSL.Phase2l_PyAstExpr <> e:93 var
+var 11468:11475 PyAstExpr.ViewConsistency E_eq_dec
+R11492:11492 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E var
+binder 11486:11486 <> a:94
+binder 11488:11488 <> b:95
+R11495:11495 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R11501:11505 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R11512:11512 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R11497:11499 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R11496:11496 PyCSL.Phase2l_PyAstExpr <> a:94 var
+R11500:11500 PyCSL.Phase2l_PyAstExpr <> b:95 var
+R11507:11510 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R11506:11506 PyCSL.Phase2l_PyAstExpr <> a:94 var
+R11511:11511 PyCSL.Phase2l_PyAstExpr <> b:95 var
+prf 11524:11557 <> pyx_view_law_admits_distinct_kinds
+R11579:11579 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E var
+binder 11571:11572 <> e1:98
+binder 11574:11575 <> e2:99
+R11587:11591 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TName var
+binder 11583:11583 <> p:100
+R11599:11604 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TBinOp var
+binder 11595:11595 <> q:101
+R11616:11621 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R11610:11613 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R11608:11609 PyCSL.Phase2l_PyAstExpr <> e1:98 var
+R11614:11615 PyCSL.Phase2l_PyAstExpr <> e2:99 var
+R11622:11628 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R11651:11652 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R11637:11640 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R11636:11636 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E var
+R11641:11650 PyCSL.Phase2l_PyAstExpr <> pyast_expr ind
+binder 11629:11632 <> view:102
+R11653:11659 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R11677:11682 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R11667:11670 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R11666:11666 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E var
+R11671:11676 Coq.Strings.String <> string ind
+binder 11660:11662 <> tag:103
+R11683:11683 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R11726:11734 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R11695:11695 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E var
+binder 11691:11691 <> e:104
+R11718:11720 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R11698:11708 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R11711:11714 PyCSL.Phase2l_PyAstExpr <> view:102 var
+R11716:11716 PyCSL.Phase2l_PyAstExpr <> e:104 var
+R11721:11723 PyCSL.Phase2l_PyAstExpr <> tag:103 var
+R11725:11725 PyCSL.Phase2l_PyAstExpr <> e:104 var
+R11750:11753 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R11741:11743 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R11735:11737 PyCSL.Phase2l_PyAstExpr <> tag:103 var
+R11739:11740 PyCSL.Phase2l_PyAstExpr <> e1:98 var
+R11760:11762 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R11754:11756 PyCSL.Phase2l_PyAstExpr <> tag:103 var
+R11758:11759 PyCSL.Phase2l_PyAstExpr <> e2:99 var
+binder 11817:11817 <> e:105
+R11825:11832 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E_eq_dec var
+R11834:11834 PyCSL.Phase2l_PyAstExpr <> e:105 var
+R11860:11868 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R11844:11851 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+binder 11817:11817 <> e:106
+R11825:11832 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E_eq_dec var
+R11834:11834 PyCSL.Phase2l_PyAstExpr <> e:106 var
+R11860:11868 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R11844:11851 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+binder 11888:11888 <> e:107
+R11893:11903 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R11921:11928 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E_eq_dec var
+R11930:11930 PyCSL.Phase2l_PyAstExpr <> e:107 var
+R11956:11964 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R11940:11947 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+binder 11888:11888 <> e:108
+R11893:11903 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R11921:11928 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E_eq_dec var
+R11930:11930 PyCSL.Phase2l_PyAstExpr <> e:108 var
+R11956:11964 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R11940:11947 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R12019:12026 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E_eq_dec var
+R12019:12026 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E_eq_dec var
+R12112:12119 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E_eq_dec var
+R12112:12119 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.ViewConsistency.E_eq_dec var
+R12252:12266 PyCSL.Phase2l_PyAstExpr PyAstExpr.ViewConsistency <> sec
+sec 12743:12750 PyAstExpr Dispatch
+var 12763:12763 PyAstExpr.Dispatch R
+var 12841:12846 PyAstExpr.Dispatch h_name
+R12855:12858 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R12850:12854 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TName var
+R12859:12859 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 12871:12880 PyAstExpr.Dispatch h_constant
+R12893:12896 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R12884:12892 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TConstant var
+R12897:12897 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 12909:12917 PyAstExpr.Dispatch h_unaryop
+R12929:12932 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R12921:12928 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TUnaryOp var
+R12933:12933 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 12945:12951 PyAstExpr.Dispatch h_binop
+R12961:12964 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R12955:12960 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TBinOp var
+R12965:12965 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 12977:12985 PyAstExpr.Dispatch h_compare
+R12997:13000 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R12989:12996 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TCompare var
+R13001:13001 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13013:13020 PyAstExpr.Dispatch h_boolop
+R13031:13034 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13024:13030 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TBoolOp var
+R13035:13035 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13047:13052 PyAstExpr.Dispatch h_call
+R13061:13064 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13056:13060 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TCall var
+R13065:13065 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13077:13083 PyAstExpr.Dispatch h_tuple
+R13093:13096 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13087:13092 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TTuple var
+R13097:13097 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13109:13119 PyAstExpr.Dispatch h_subscript
+R13133:13136 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13123:13132 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TSubscript var
+R13137:13137 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13149:13154 PyAstExpr.Dispatch h_list
+R13163:13166 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13158:13162 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TList var
+R13167:13167 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13179:13189 PyAstExpr.Dispatch h_attribute
+R13203:13206 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13193:13202 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TAttribute var
+R13207:13207 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13219:13224 PyAstExpr.Dispatch h_dict
+R13233:13236 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13228:13232 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TDict var
+R13237:13237 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13249:13253 PyAstExpr.Dispatch h_set
+R13261:13264 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13257:13260 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TSet var
+R13265:13265 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13277:13284 PyAstExpr.Dispatch h_genexp
+R13301:13304 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13288:13300 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TGeneratorExp var
+R13305:13305 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13317:13326 PyAstExpr.Dispatch h_listcomp
+R13339:13342 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13330:13338 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TListComp var
+R13343:13343 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13355:13363 PyAstExpr.Dispatch h_setcomp
+R13375:13378 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13367:13374 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TSetComp var
+R13379:13379 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13391:13400 PyAstExpr.Dispatch h_dictcomp
+R13413:13416 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13404:13412 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TDictComp var
+R13417:13417 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13429:13437 PyAstExpr.Dispatch h_fstring
+R13451:13454 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13441:13450 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TJoinedStr var
+R13455:13455 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13467:13473 PyAstExpr.Dispatch h_ifexp
+R13483:13486 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13477:13482 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TIfExp var
+R13487:13487 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13499:13507 PyAstExpr.Dispatch h_starred
+R13519:13522 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13511:13518 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TStarred var
+R13523:13523 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13535:13542 PyAstExpr.Dispatch h_walrus
+R13556:13559 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13546:13555 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TNamedExpr var
+R13560:13560 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13572:13579 PyAstExpr.Dispatch h_lambda
+R13590:13593 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13583:13589 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TLambda var
+R13594:13594 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13606:13612 PyAstExpr.Dispatch h_slice
+R13622:13625 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13616:13621 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TSlice var
+R13626:13626 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+var 13638:13646 PyAstExpr.Dispatch r_unknown
+R13650:13650 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+def 13732:13743 <> pyx_dispatch
+R13750:13759 PyCSL.Phase2l_PyAstExpr <> pyast_expr ind
+binder 13746:13746 <> e:159
+R13764:13764 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.R var
+R13777:13777 PyCSL.Phase2l_PyAstExpr <> e:159 var
+R13788:13795 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R13810:13815 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_name var
+R13823:13834 PyCSL.Phase2l_PyAstExpr <> PEx_Constant constr
+R13845:13854 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_constant var
+R13862:13872 PyCSL.Phase2l_PyAstExpr <> PEx_UnaryOp constr
+R13884:13892 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_unaryop var
+R13900:13908 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R13922:13928 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_binop var
+R13936:13946 PyCSL.Phase2l_PyAstExpr <> PEx_Compare constr
+R13958:13966 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_compare var
+R13974:13983 PyCSL.Phase2l_PyAstExpr <> PEx_BoolOp constr
+R13996:14003 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_boolop var
+R14011:14018 PyCSL.Phase2l_PyAstExpr <> PEx_Call constr
+R14033:14038 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_call var
+R14046:14054 PyCSL.Phase2l_PyAstExpr <> PEx_Tuple constr
+R14068:14074 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_tuple var
+R14082:14094 PyCSL.Phase2l_PyAstExpr <> PEx_Subscript constr
+R14104:14114 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_subscript var
+R14122:14129 PyCSL.Phase2l_PyAstExpr <> PEx_List constr
+R14144:14149 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_list var
+R14157:14169 PyCSL.Phase2l_PyAstExpr <> PEx_Attribute constr
+R14179:14189 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_attribute var
+R14197:14204 PyCSL.Phase2l_PyAstExpr <> PEx_Dict constr
+R14219:14224 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_dict var
+R14232:14238 PyCSL.Phase2l_PyAstExpr <> PEx_Set constr
+R14254:14258 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_set var
+R14266:14281 PyCSL.Phase2l_PyAstExpr <> PEx_GeneratorExp constr
+R14288:14295 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_genexp var
+R14303:14314 PyCSL.Phase2l_PyAstExpr <> PEx_ListComp constr
+R14325:14334 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_listcomp var
+R14342:14352 PyCSL.Phase2l_PyAstExpr <> PEx_SetComp constr
+R14364:14372 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_setcomp var
+R14380:14391 PyCSL.Phase2l_PyAstExpr <> PEx_DictComp constr
+R14402:14411 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_dictcomp var
+R14419:14431 PyCSL.Phase2l_PyAstExpr <> PEx_JoinedStr constr
+R14441:14449 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_fstring var
+R14457:14465 PyCSL.Phase2l_PyAstExpr <> PEx_IfExp constr
+R14479:14485 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_ifexp var
+R14493:14503 PyCSL.Phase2l_PyAstExpr <> PEx_Starred constr
+R14515:14523 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_starred var
+R14531:14543 PyCSL.Phase2l_PyAstExpr <> PEx_NamedExpr constr
+R14553:14560 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_walrus var
+R14568:14577 PyCSL.Phase2l_PyAstExpr <> PEx_Lambda constr
+R14590:14597 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_lambda var
+R14605:14613 PyCSL.Phase2l_PyAstExpr <> PEx_Slice constr
+R14627:14633 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_slice var
+R14641:14651 PyCSL.Phase2l_PyAstExpr <> PEx_Unknown constr
+R14663:14671 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.r_unknown var
+prf 14765:14777 <> dispatch_name
+binder 14788:14788 <> p:161
+R14816:14818 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14791:14802 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R14805:14812 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R14814:14814 PyCSL.Phase2l_PyAstExpr <> p:161 var
+R14819:14824 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_name var
+R14826:14826 PyCSL.Phase2l_PyAstExpr <> p:161 var
+prf 14862:14878 <> dispatch_constant
+binder 14889:14889 <> p:162
+R14921:14923 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14892:14903 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R14906:14917 PyCSL.Phase2l_PyAstExpr <> PEx_Constant constr
+R14919:14919 PyCSL.Phase2l_PyAstExpr <> p:162 var
+R14924:14933 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_constant var
+R14935:14935 PyCSL.Phase2l_PyAstExpr <> p:162 var
+prf 14971:14984 <> dispatch_binop
+binder 14995:14995 <> p:163
+R15024:15026 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14998:15009 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R15012:15020 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R15022:15022 PyCSL.Phase2l_PyAstExpr <> p:163 var
+R15027:15033 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_binop var
+R15035:15035 PyCSL.Phase2l_PyAstExpr <> p:163 var
+prf 15071:15083 <> dispatch_call
+binder 15094:15094 <> p:164
+R15122:15124 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R15097:15108 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R15111:15118 PyCSL.Phase2l_PyAstExpr <> PEx_Call constr
+R15120:15120 PyCSL.Phase2l_PyAstExpr <> p:164 var
+R15125:15130 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_call var
+R15132:15132 PyCSL.Phase2l_PyAstExpr <> p:164 var
+prf 15168:15183 <> dispatch_fstring
+binder 15194:15194 <> p:165
+R15227:15229 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R15197:15208 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R15211:15223 PyCSL.Phase2l_PyAstExpr <> PEx_JoinedStr constr
+R15225:15225 PyCSL.Phase2l_PyAstExpr <> p:165 var
+R15230:15238 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_fstring var
+R15240:15240 PyCSL.Phase2l_PyAstExpr <> p:165 var
+prf 15276:15290 <> dispatch_walrus
+binder 15301:15301 <> p:166
+R15334:15336 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R15304:15315 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R15318:15330 PyCSL.Phase2l_PyAstExpr <> PEx_NamedExpr constr
+R15332:15332 PyCSL.Phase2l_PyAstExpr <> p:166 var
+R15337:15344 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_walrus var
+R15346:15346 PyCSL.Phase2l_PyAstExpr <> p:166 var
+prf 15382:15395 <> dispatch_slice
+binder 15406:15406 <> p:167
+R15435:15437 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R15409:15420 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R15423:15431 PyCSL.Phase2l_PyAstExpr <> PEx_Slice constr
+R15433:15433 PyCSL.Phase2l_PyAstExpr <> p:167 var
+R15438:15444 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_slice var
+R15446:15446 PyCSL.Phase2l_PyAstExpr <> p:167 var
+prf 15821:15836 <> dispatch_unknown
+R15864:15866 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R15840:15851 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R15853:15863 PyCSL.Phase2l_PyAstExpr <> PEx_Unknown constr
+R15867:15875 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.r_unknown var
+prf 15911:15951 <> dispatch_not_default_when_handler_differs
+binder 15962:15962 <> p:168
+R15988:15991 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R15975:15978 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R15967:15972 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_name var
+R15974:15974 PyCSL.Phase2l_PyAstExpr <> p:168 var
+R15979:15987 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.r_unknown var
+R16017:16020 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R15992:16003 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R16006:16013 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R16015:16015 PyCSL.Phase2l_PyAstExpr <> p:168 var
+R16021:16029 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.r_unknown var
+prf 16388:16419 <> dispatch_determined_by_kind_name
+binder 16430:16430 <> e:169
+R16457:16462 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R16448:16450 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R16435:16445 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R16447:16447 PyCSL.Phase2l_PyAstExpr <> e:169 var
+R16463:16469 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R16479:16480 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R16474:16478 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TName var
+binder 16470:16470 <> q:170
+R16495:16498 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R16482:16484 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R16481:16481 PyCSL.Phase2l_PyAstExpr <> e:169 var
+R16485:16492 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R16494:16494 PyCSL.Phase2l_PyAstExpr <> q:170 var
+R16513:16515 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R16499:16510 PyCSL.Phase2l_PyAstExpr <> pyx_dispatch def
+R16512:16512 PyCSL.Phase2l_PyAstExpr <> e:169 var
+R16516:16521 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.Dispatch.h_name var
+R16523:16523 PyCSL.Phase2l_PyAstExpr <> q:170 var
+prf 16635:16668 <> dispatch_name_is_not_binop_handler
+binder 16679:16679 <> e:171
+R16706:16712 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R16748:16748 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R16697:16699 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R16684:16694 PyCSL.Phase2l_PyAstExpr <> pyx_kind_of def
+R16696:16696 PyCSL.Phase2l_PyAstExpr <> e:171 var
+R16724:16729 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TBinOp var
+binder 16720:16720 <> q:172
+R16733:16736 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R16732:16732 PyCSL.Phase2l_PyAstExpr <> e:171 var
+R16737:16745 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R16747:16747 PyCSL.Phase2l_PyAstExpr <> q:172 var
+R16821:16828 PyCSL.Phase2l_PyAstExpr PyAstExpr.Dispatch <> sec
+var 17006:17017 PyAstExpr TName_eq_dec
+R17034:17038 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TName var
+binder 17028:17028 <> a:173
+binder 17030:17030 <> b:174
+R17041:17041 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R17047:17051 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R17058:17058 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R17043:17045 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R17042:17042 PyCSL.Phase2l_PyAstExpr <> a:173 var
+R17046:17046 PyCSL.Phase2l_PyAstExpr <> b:174 var
+R17053:17056 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17052:17052 PyCSL.Phase2l_PyAstExpr <> a:173 var
+R17057:17057 PyCSL.Phase2l_PyAstExpr <> b:174 var
+var 17072:17084 PyAstExpr TBinOp_eq_dec
+R17101:17106 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TBinOp var
+binder 17095:17095 <> a:177
+binder 17097:17097 <> b:178
+R17109:17109 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R17115:17119 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R17126:17126 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R17111:17113 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R17110:17110 PyCSL.Phase2l_PyAstExpr <> a:177 var
+R17114:17114 PyCSL.Phase2l_PyAstExpr <> b:178 var
+R17121:17124 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17120:17120 PyCSL.Phase2l_PyAstExpr <> a:177 var
+R17125:17125 PyCSL.Phase2l_PyAstExpr <> b:178 var
+prf 17138:17155 <> pex_name_injective
+R17172:17176 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TName var
+binder 17166:17166 <> a:181
+binder 17168:17168 <> b:182
+R17202:17205 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R17189:17191 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R17179:17186 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R17188:17188 PyCSL.Phase2l_PyAstExpr <> a:181 var
+R17192:17199 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R17201:17201 PyCSL.Phase2l_PyAstExpr <> b:182 var
+R17207:17209 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R17206:17206 PyCSL.Phase2l_PyAstExpr <> a:181 var
+R17210:17210 PyCSL.Phase2l_PyAstExpr <> b:182 var
+prf 17266:17287 <> pex_name_neq_pex_binop
+R17303:17307 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TName var
+binder 17299:17299 <> a:183
+R17315:17320 PyCSL.Phase2l_PyAstExpr <> PyAstExpr.TBinOp var
+binder 17311:17311 <> b:184
+R17336:17339 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17326:17333 PyCSL.Phase2l_PyAstExpr <> PEx_Name constr
+R17335:17335 PyCSL.Phase2l_PyAstExpr <> a:183 var
+R17340:17348 PyCSL.Phase2l_PyAstExpr <> PEx_BinOp constr
+R17350:17350 PyCSL.Phase2l_PyAstExpr <> b:184 var
+R17398:17406 PyCSL.Phase2l_PyAstExpr PyAstExpr <> sec
+sec 18910:18929 <> CslNodeSharedHandler
+var 19020:19027 CslNodeSharedHandler TWrapper
+var 19029:19032 CslNodeSharedHandler TBin
+var 19034:19037 CslNodeSharedHandler TVar
+var 19056:19057 CslNodeSharedHandler R2
+ind 19078:19085 <> csl_node
+constr 19101:19113 <> PCsl_CSLBinOp
+constr 19130:19140 <> PCsl_CSLVar
+constr 19157:19176 <> PCsl_ContractWrapper
+constr 19197:19209 <> PCsl_Requires
+constr 19276:19287 <> PCsl_Ensures
+constr 19308:19325 <> PCsl_LoopInvariant
+constr 19346:19361 <> PCsl_LoopVariant
+constr 19382:19393 <> PCsl_Unknown
+R19120:19123 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TBin var
+binder 19116:19116 <> p:195
+R19147:19150 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TVar var
+binder 19143:19143 <> p:196
+R19183:19190 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TWrapper var
+binder 19179:19179 <> p:197
+R19216:19223 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TWrapper var
+binder 19212:19212 <> p:198
+R19294:19301 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TWrapper var
+binder 19290:19290 <> p:199
+R19332:19339 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TWrapper var
+binder 19328:19328 <> p:200
+R19368:19375 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TWrapper var
+binder 19364:19364 <> p:201
+scheme 19078:19085 <> csl_node_rect
+scheme 19078:19085 <> csl_node_ind
+scheme 19078:19085 <> csl_node_rec
+scheme 19078:19085 <> csl_node_sind
+def 19408:19419 <> cslx_kind_of
+R19426:19433 PyCSL.Phase2l_PyAstExpr <> csl_node ind
+binder 19422:19422 <> e:202
+R19438:19443 Coq.Strings.String <> string ind
+R19456:19456 PyCSL.Phase2l_PyAstExpr <> e:202 var
+R19467:19479 PyCSL.Phase2l_PyAstExpr <> PCsl_CSLBinOp constr
+R19508:19518 PyCSL.Phase2l_PyAstExpr <> PCsl_CSLVar constr
+R19547:19566 PyCSL.Phase2l_PyAstExpr <> PCsl_ContractWrapper constr
+R19595:19607 PyCSL.Phase2l_PyAstExpr <> PCsl_Requires constr
+R19636:19647 PyCSL.Phase2l_PyAstExpr <> PCsl_Ensures constr
+R19676:19693 PyCSL.Phase2l_PyAstExpr <> PCsl_LoopInvariant constr
+R19722:19737 PyCSL.Phase2l_PyAstExpr <> PCsl_LoopVariant constr
+R19766:19777 PyCSL.Phase2l_PyAstExpr <> PCsl_Unknown constr
+var 19812:19818 CslNodeSharedHandler h_binop
+R19826:19829 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R19822:19825 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TBin var
+R19830:19831 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.R2 var
+var 19843:19847 CslNodeSharedHandler h_var
+R19855:19858 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R19851:19854 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TVar var
+R19859:19860 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.R2 var
+var 19872:19889 CslNodeSharedHandler h_contract_wrapper
+R19901:19904 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R19893:19900 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TWrapper var
+R19905:19906 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.R2 var
+var 19945:19947 CslNodeSharedHandler exc
+R19951:19952 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.R2 var
+def 20027:20038 <> csl_dispatch
+R20045:20052 PyCSL.Phase2l_PyAstExpr <> csl_node ind
+binder 20041:20041 <> e:212
+R20057:20058 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.R2 var
+R20071:20071 PyCSL.Phase2l_PyAstExpr <> e:212 var
+R20082:20094 PyCSL.Phase2l_PyAstExpr <> PCsl_CSLBinOp constr
+R20108:20114 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_binop var
+R20122:20132 PyCSL.Phase2l_PyAstExpr <> PCsl_CSLVar constr
+R20148:20152 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_var var
+R20160:20179 PyCSL.Phase2l_PyAstExpr <> PCsl_ContractWrapper constr
+R20186:20203 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R20211:20223 PyCSL.Phase2l_PyAstExpr <> PCsl_Requires constr
+R20237:20254 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R20262:20273 PyCSL.Phase2l_PyAstExpr <> PCsl_Ensures constr
+R20288:20305 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R20313:20330 PyCSL.Phase2l_PyAstExpr <> PCsl_LoopInvariant constr
+R20339:20356 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R20364:20379 PyCSL.Phase2l_PyAstExpr <> PCsl_LoopVariant constr
+R20390:20407 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R20415:20426 PyCSL.Phase2l_PyAstExpr <> PCsl_Unknown constr
+R20441:20443 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.exc var
+prf 20624:20657 <> csl_requires_takes_wrapper_handler
+binder 20668:20668 <> p:214
+R20703:20705 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R20673:20684 PyCSL.Phase2l_PyAstExpr <> csl_dispatch def
+R20687:20699 PyCSL.Phase2l_PyAstExpr <> PCsl_Requires constr
+R20701:20701 PyCSL.Phase2l_PyAstExpr <> p:214 var
+R20706:20723 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R20725:20725 PyCSL.Phase2l_PyAstExpr <> p:214 var
+prf 20761:20793 <> csl_ensures_takes_wrapper_handler
+binder 20804:20804 <> p:215
+R20838:20840 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R20809:20820 PyCSL.Phase2l_PyAstExpr <> csl_dispatch def
+R20823:20834 PyCSL.Phase2l_PyAstExpr <> PCsl_Ensures constr
+R20836:20836 PyCSL.Phase2l_PyAstExpr <> p:215 var
+R20841:20858 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R20860:20860 PyCSL.Phase2l_PyAstExpr <> p:215 var
+prf 20896:20928 <> csl_loopinv_takes_wrapper_handler
+binder 20939:20939 <> p:216
+R20979:20981 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R20944:20955 PyCSL.Phase2l_PyAstExpr <> csl_dispatch def
+R20958:20975 PyCSL.Phase2l_PyAstExpr <> PCsl_LoopInvariant constr
+R20977:20977 PyCSL.Phase2l_PyAstExpr <> p:216 var
+R20982:20999 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R21001:21001 PyCSL.Phase2l_PyAstExpr <> p:216 var
+prf 21037:21069 <> csl_loopvar_takes_wrapper_handler
+binder 21080:21080 <> p:217
+R21118:21120 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R21085:21096 PyCSL.Phase2l_PyAstExpr <> csl_dispatch def
+R21099:21114 PyCSL.Phase2l_PyAstExpr <> PCsl_LoopVariant constr
+R21116:21116 PyCSL.Phase2l_PyAstExpr <> p:217 var
+R21121:21138 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R21140:21140 PyCSL.Phase2l_PyAstExpr <> p:217 var
+prf 21325:21363 <> csl_shared_handler_keeps_kinds_distinct
+binder 21374:21374 <> p:218
+binder 21376:21376 <> q:219
+R21411:21414 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R21381:21392 PyCSL.Phase2l_PyAstExpr <> cslx_kind_of def
+R21395:21407 PyCSL.Phase2l_PyAstExpr <> PCsl_Requires constr
+R21409:21409 PyCSL.Phase2l_PyAstExpr <> p:218 var
+R21415:21426 PyCSL.Phase2l_PyAstExpr <> cslx_kind_of def
+R21429:21440 PyCSL.Phase2l_PyAstExpr <> PCsl_Ensures constr
+R21442:21442 PyCSL.Phase2l_PyAstExpr <> q:219 var
+prf 21495:21526 <> csl_shared_handler_kind_neq_base
+binder 21537:21537 <> p:220
+binder 21539:21539 <> q:221
+R21574:21577 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R21544:21555 PyCSL.Phase2l_PyAstExpr <> cslx_kind_of def
+R21558:21570 PyCSL.Phase2l_PyAstExpr <> PCsl_Requires constr
+R21572:21572 PyCSL.Phase2l_PyAstExpr <> p:220 var
+R21578:21589 PyCSL.Phase2l_PyAstExpr <> cslx_kind_of def
+R21592:21611 PyCSL.Phase2l_PyAstExpr <> PCsl_ContractWrapper constr
+R21613:21613 PyCSL.Phase2l_PyAstExpr <> q:221 var
+prf 21784:21823 <> csl_dispatch_determined_by_kind_requires
+binder 21834:21834 <> e:222
+R21866:21871 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R21853:21855 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R21839:21850 PyCSL.Phase2l_PyAstExpr <> cslx_kind_of def
+R21852:21852 PyCSL.Phase2l_PyAstExpr <> e:222 var
+R21872:21878 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R21891:21892 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R21883:21890 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TWrapper var
+binder 21879:21879 <> p:223
+R21912:21915 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R21894:21896 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R21893:21893 PyCSL.Phase2l_PyAstExpr <> e:222 var
+R21897:21909 PyCSL.Phase2l_PyAstExpr <> PCsl_Requires constr
+R21911:21911 PyCSL.Phase2l_PyAstExpr <> p:223 var
+R21930:21932 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R21916:21927 PyCSL.Phase2l_PyAstExpr <> csl_dispatch def
+R21929:21929 PyCSL.Phase2l_PyAstExpr <> e:222 var
+R21933:21950 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R21952:21952 PyCSL.Phase2l_PyAstExpr <> p:223 var
+prf 22424:22456 <> csl_dispatch_rejects_only_unknown
+binder 22467:22467 <> e:224
+R22492:22497 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R22486:22488 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R22472:22483 PyCSL.Phase2l_PyAstExpr <> csl_dispatch def
+R22485:22485 PyCSL.Phase2l_PyAstExpr <> e:224 var
+R22489:22491 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.exc var
+R22514:22519 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R22499:22501 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R22498:22498 PyCSL.Phase2l_PyAstExpr <> e:224 var
+R22502:22513 PyCSL.Phase2l_PyAstExpr <> PCsl_Unknown constr
+R22520:22520 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R22569:22575 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R22521:22527 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R22529:22530 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 22528:22528 <> p:225
+R22550:22553 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R22532:22534 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R22531:22531 PyCSL.Phase2l_PyAstExpr <> e:224 var
+R22535:22547 PyCSL.Phase2l_PyAstExpr <> PCsl_CSLBinOp constr
+R22549:22549 PyCSL.Phase2l_PyAstExpr <> p:225 var
+R22563:22565 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R22554:22560 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_binop var
+R22562:22562 PyCSL.Phase2l_PyAstExpr <> p:225 var
+R22566:22568 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.exc var
+R22576:22576 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R22621:22628 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R22706:22706 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R22577:22583 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R22585:22586 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 22584:22584 <> p:226
+R22604:22607 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R22588:22590 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R22587:22587 PyCSL.Phase2l_PyAstExpr <> e:224 var
+R22591:22601 PyCSL.Phase2l_PyAstExpr <> PCsl_CSLVar constr
+R22603:22603 PyCSL.Phase2l_PyAstExpr <> p:226 var
+R22615:22617 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R22608:22612 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_var var
+R22614:22614 PyCSL.Phase2l_PyAstExpr <> p:226 var
+R22618:22620 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.exc var
+R22629:22635 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R22637:22638 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 22636:22636 <> p:227
+R22676:22679 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R22653:22655 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R22639:22650 PyCSL.Phase2l_PyAstExpr <> csl_dispatch def
+R22652:22652 PyCSL.Phase2l_PyAstExpr <> e:224 var
+R22656:22673 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R22675:22675 PyCSL.Phase2l_PyAstExpr <> p:227 var
+R22700:22702 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R22680:22697 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R22699:22699 PyCSL.Phase2l_PyAstExpr <> p:227 var
+R22703:22705 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.exc var
+prf 23480:23504 <> csl_error_implies_unknown
+binder 23515:23515 <> e:228
+R23520:23520 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23554:23560 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23532:23535 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TBin var
+binder 23528:23528 <> p:229
+R23547:23550 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23538:23544 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_binop var
+R23546:23546 PyCSL.Phase2l_PyAstExpr <> p:229 var
+R23551:23553 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.exc var
+R23561:23561 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23593:23599 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23573:23576 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TVar var
+binder 23569:23569 <> p:230
+R23586:23589 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23579:23583 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_var var
+R23585:23585 PyCSL.Phase2l_PyAstExpr <> p:230 var
+R23590:23592 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.exc var
+R23600:23600 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23649:23655 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23612:23619 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.TWrapper var
+binder 23608:23608 <> p:231
+R23642:23645 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23622:23639 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.h_contract_wrapper var
+R23641:23641 PyCSL.Phase2l_PyAstExpr <> p:231 var
+R23646:23648 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.exc var
+R23676:23679 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23670:23672 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R23656:23667 PyCSL.Phase2l_PyAstExpr <> csl_dispatch def
+R23669:23669 PyCSL.Phase2l_PyAstExpr <> e:228 var
+R23673:23675 PyCSL.Phase2l_PyAstExpr <> CslNodeSharedHandler.exc var
+R23681:23683 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R23680:23680 PyCSL.Phase2l_PyAstExpr <> e:228 var
+R23684:23695 PyCSL.Phase2l_PyAstExpr <> PCsl_Unknown constr
+R23982:24001 PyCSL.Phase2l_PyAstExpr CslNodeSharedHandler <> sec
+R24334:24345 PyCSL.Phase2l_PyAstExpr <> kind_of_name thm
+R24366:24378 PyCSL.Phase2l_PyAstExpr <> kind_of_binop thm
+R24399:24411 PyCSL.Phase2l_PyAstExpr <> kind_of_slice thm
+R24432:24446 PyCSL.Phase2l_PyAstExpr <> kind_of_unknown thm
+R24467:24480 PyCSL.Phase2l_PyAstExpr <> pyx_kind_total thm
+R24501:24518 PyCSL.Phase2l_PyAstExpr <> tag_name_neq_binop thm
+R24539:24560 PyCSL.Phase2l_PyAstExpr <> tag_call_neq_joinedstr thm
+R24581:24596 PyCSL.Phase2l_PyAstExpr <> tag_list_neq_set thm
+R24617:24640 PyCSL.Phase2l_PyAstExpr <> tag_listcomp_neq_setcomp thm
+R24661:24685 PyCSL.Phase2l_PyAstExpr <> tag_unknown_neq_any_class thm
+R24706:24725 PyCSL.Phase2l_PyAstExpr <> pyx_kind_table_nodup thm
+R24746:24769 PyCSL.Phase2l_PyAstExpr <> pyx_view_law_satisfiable thm
+R24790:24823 PyCSL.Phase2l_PyAstExpr <> pyx_view_law_admits_distinct_kinds thm
+R24844:24856 PyCSL.Phase2l_PyAstExpr <> dispatch_name thm
+R24877:24893 PyCSL.Phase2l_PyAstExpr <> dispatch_constant thm
+R24914:24927 PyCSL.Phase2l_PyAstExpr <> dispatch_binop thm
+R24948:24960 PyCSL.Phase2l_PyAstExpr <> dispatch_call thm
+R24981:24996 PyCSL.Phase2l_PyAstExpr <> dispatch_fstring thm
+R25017:25031 PyCSL.Phase2l_PyAstExpr <> dispatch_walrus thm
+R25052:25065 PyCSL.Phase2l_PyAstExpr <> dispatch_slice thm
+R25086:25101 PyCSL.Phase2l_PyAstExpr <> dispatch_unknown thm
+R25122:25162 PyCSL.Phase2l_PyAstExpr <> dispatch_not_default_when_handler_differs thm
+R25183:25214 PyCSL.Phase2l_PyAstExpr <> dispatch_determined_by_kind_name thm
+R25235:25268 PyCSL.Phase2l_PyAstExpr <> dispatch_name_is_not_binop_handler thm
+R25289:25306 PyCSL.Phase2l_PyAstExpr <> pex_name_injective thm
+R25327:25348 PyCSL.Phase2l_PyAstExpr <> pex_name_neq_pex_binop thm
+R25369:25402 PyCSL.Phase2l_PyAstExpr <> csl_requires_takes_wrapper_handler thm
+R25423:25455 PyCSL.Phase2l_PyAstExpr <> csl_ensures_takes_wrapper_handler thm
+R25476:25508 PyCSL.Phase2l_PyAstExpr <> csl_loopinv_takes_wrapper_handler thm
+R25529:25561 PyCSL.Phase2l_PyAstExpr <> csl_loopvar_takes_wrapper_handler thm
+R25582:25620 PyCSL.Phase2l_PyAstExpr <> csl_shared_handler_keeps_kinds_distinct thm
+R25641:25672 PyCSL.Phase2l_PyAstExpr <> csl_shared_handler_kind_neq_base thm
+R25693:25732 PyCSL.Phase2l_PyAstExpr <> csl_dispatch_determined_by_kind_requires thm
+R25753:25785 PyCSL.Phase2l_PyAstExpr <> csl_dispatch_rejects_only_unknown thm
+R25806:25830 PyCSL.Phase2l_PyAstExpr <> csl_error_implies_unknown thm

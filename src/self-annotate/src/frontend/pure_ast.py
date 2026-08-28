@@ -523,19 +523,53 @@ class _Parser:
         nxt = self.peek(1)
         return nxt.type == _tokenize.NAME and nxt.string not in _keyword.kwlist
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `funcdef`
-    # (relaunch #8 increment 5). STAYS \trusted. Both clauses are TRUE of the live body —
-    # it returns the `type_param` node list it accumulates, and moves the cursor only
-    # through `advance`/`accept_*`/`expect_*`, none of which decreases `self.i`. The
-    # monotonicity clause is what `funcdef`'s STRICT postcondition chains through, and its
-    # ABSENCE was MEASURED (four unproven `_parser__funcdef'vc` postcondition sub-goals).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
+    # `_parse_type_params` — the PEP-695 `[T, *Ts, **P]` list. Each of the three arms
+    # builds its real `type_param` node (`IrPyTypeVar` / `IrPyTypeVarTuple` /
+    # `IrPyParamSpec`), and the unbounded `TypeVar` path carries a TRUE `IrONone` in the
+    # `bound` slot (`TypeVar.bound` is in `_OPTIONAL_FIELDS`) rather than a node standing
+    # in for an absent one. The accumulator is a real `seq emit_ir`, so `funcdef`'s
+    # `type_params` child is now the list this function actually parsed — the sibling
+    # gain of the relaunch-#9 `array <t>` concrete-call capability, which is what makes
+    # the CALLER see this body at all.
+    # LOOP MEASURE: the cursor. `expect_op` (both the "," separator and the closing "]")
+    # carries an UNCONDITIONAL strict-progress clause, and every arm reaches `_name_str`
+    # through `advance`, so the guard's failure path cannot spin.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _parse_type_params(self) -> "List[ExprIR]":
-        pass
+        self.expect_op("[")
+        params = []
+        #@ ghost i25 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i25
+        #@ loop variant \length(self.toks) - self.i
+        while not self.at_op("]"):
+            param_start = self.cur()
+            if len(params) > 0:
+                self.expect_op(",")
+            if self.at_op("**"):
+                self.advance()
+                name = self._name_str()
+                params.append(self._fin(_N("ParamSpec")(name=name), param_start))
+            elif self.at_op("*"):
+                self.advance()
+                name = self._name_str()
+                params.append(self._fin(_N("TypeVarTuple")(name=name), param_start))
+            else:
+                name = self._name_str()
+                # PEP-526 local annotation, runtime-INERT (a local's annotation is never
+                # evaluated), here for the VERIFIER: it makes `bound` a real optional
+                # carrier, so the unbounded path is a TRUE `None` and not an erased node.
+                bound: Optional["ExprIR"] = None
+                if self.at_op(":"):
+                    self.advance()
+                    bound = self.test()
+                params.append(self._fin(_N("TypeVar")(name=name, bound=bound), param_start))
+        self.expect_op("]")
+        return params
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
     # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
@@ -695,7 +729,17 @@ class _Parser:
     # `assigns self.i` alone lets the prover assume the call could DECREASE `self.i`, and the
     # decrease obligation fails even when the loop GUARD has already advanced (measured on
     # `_dotted_as_name`). PROVED here — zero TCB.
+    # STRICT PROGRESS, UNCONDITIONAL — the same chain as `expect_op`'s clause, one token
+    # kind over (relaunch #9). The reject path is `self.error(...)`, whose `-> "NoReturn"`
+    # interface makes the continuation unreachable, so on EVERY path that returns normally
+    # `self.cur().type == NAME` held; `cur`'s `\result == self.toks[self.i]` carries that
+    # to the token array, the EOF-SENTINEL class invariant says the last token is ENDMARKER
+    # (not NAME), so `self.i` is not the last index and `advance` increments. PROVED here —
+    # zero TCB. MEASURED as the missing link: without it `_parse_type_params`'s bare-`T`
+    # arm has no strict progress and its `loop variant decrease` sub-goal times out at
+    # 45.6M steps, because that arm reaches `_name_str` FIRST, before any `expect_op`.
     #@ requires True
+    #@ ensures self.i > \old(self.i)
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _name_str(self) -> str:
