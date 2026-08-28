@@ -3451,3 +3451,70 @@ RECORD element type. Measured emission:
 a STRING HASH. Refuted in one 30-second emit run; spike reverted clean. Reopening
 capability: extend the synthesized `_union_<fn>_<n>` carrier to a declared RECORD arm
 (`Arm_n_0 _tok | Arm_n_None`), which is the same construction one type-class over.
+
+## Lesson (bb) — a change's HOME is decided by the mirror's fidelity obligation, not by where it "belongs"
+
+`trailers` needed a `-> "Tuple[List[ExprIR], List[ExprIR]]"` return type honoured by BOTH
+Module6 return-type producers (lesson (am)). The obvious edit — one branch in
+`_compute_return_type`, one in `_build_method_return_type_map` — was made, and
+`bin/check-self-annotate-sync.sh` immediately went from the standing **2 DIVERGED to 4**:
+both of those methods are CONVERTED in the mirror, so a live-emitter edit to either is a
+FIDELITY-plane failure until the identical text is ported into
+`src/self-annotate/src/module6_whyml/functions.py`.
+
+The fix was not to port twice. **`_refine_tuple_return_type` is called by BOTH producers**,
+so ONE insertion there serves them both — the two-producer trap paid once, and only ONE
+converted mirror body had to change (and be re-proved).
+
+Two corollaries worth carrying:
+
+* **Run `check-self-annotate-sync.sh` immediately after ANY live-emitter edit**, before
+  spending proof time. It costs seconds and it told me the edit was in the wrong place.
+* The mirror body must be EMITTABLE, not merely equal. The first port used
+  `return func.get("return_tuple_whyml")`, which lowered to
+  `raise (Return_str (Map.get func …))` — an `hval` in a `string` position, L3-tc REJECTED.
+  Rewriting it as `if func.get(K) == "<literal>": return "<literal>"` routes the read
+  through the certified `hstr_of` projector and returns a real literal — provable, and
+  strictly MORE faithful (the equality pins the returned literal to the recorded value).
+
+## Lesson (bc) — the shadowed-selfcall gate is fixed by MARKING CALLEES, and the proxy-gate spike is a finding in its own right
+
+`_handle_dotted_call` admits the CONCRETE sibling lowering on two routes: a non-empty
+`_record_array_fields` (a PROXY that holds only for the parser-cursor shape) or the opt-in
+`#@ sibling_concrete` marker. The emitter mirrors have no List-of-record field, so ~40
+CONVERTED, PROVED methods had EVERY call site going through the receiver-less abstract
+`val self__<m>_<n>` (lesson (ay)).
+
+**The spike, done first and reverted: dropping the proxy disjunct outright changes only 6
+of 813 corpus files, and every one of those six replaces an opaque abstract `val` with the
+real concrete application** — including two where the abstract route had SILENTLY DROPPED
+the callee's `requires self.session_authenticated = 1`. That is a genuine faithfulness hole
+in the LIVE TOOL, but fixing it changes emission for USERS, not just the mirror, so it is
+FLAGGED FOR THE USER rather than taken by a self-TCB-reduction increment.
+
+What the campaign takes instead is the other route: **mark the callees.** Corpus byte-inert
+BY CONSTRUCTION (no corpus program writes the directive), and `scc.find_self_method_calls`
+already supplies the callee-before-caller ordering edge for a marked callee.
+
+**Method that worked: cumulative per-file triage.** Mark one method, run the 1-second emit
+oracle, KEEP on L3-tc, UNMARK on failure, move on. 26 markers tried, 15 effective; the 11
+that emitted cleanly but did NOT remove their `val` were REMOVED rather than left as dead
+annotation. Result: shadowed **50 -> 35 methods, 259 -> 208 call sites**.
+
+**Four reasons a marker cannot fire — each a named boundary, not a grind:**
+
+1. **`Optional[<τ>]` return compared to a bare value at the CALL SITE.** `_field_type_of`
+   is used as `self._field_type_of(x) in ("list","tuple")`. The abstract route returned
+   `int`, so the int-hash comparison type-checked (badly); the concrete route hands back the
+   real `_union__field_type_of_1` and the comparison is REJECTED. Reopening: union-vs-value
+   comparison at the call site. This is the SAME `_union_*` capability family as lesson (ba)
+   and it is worth 14 call sites across `statements` and `types`.
+2. **A SELF-RECURSIVE callee** (`_rhs_yields_map`) becomes a real `let rec` under the
+   concrete route and needs a `#@ \variant` it does not declare.
+3. **A `@staticmethod` can never take the concrete route**, which passes `self` as the first
+   argument — correctly fail-closed, and the reason four candidates dropped.
+4. **An arity-0 `-> None` bridge** (`_materialize_bridge`) has no admissible return type.
+
+**And the blast radius is second-order**: marking a method in a MIXIN re-emits every mirror
+that mixes it in. Measure it with the mirror sweep — `Module6_WhyMLTranspiler` and `pycsl`
+both changed and both had to be re-proved.
