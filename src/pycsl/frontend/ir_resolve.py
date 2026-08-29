@@ -526,12 +526,31 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # are child lists. `kw_defaults` genuinely contains `None` HOLES in CPython; this
     # parser's `lambdef` no-parameter site passes the EMPTY list for it, which the
     # `irlist` slot carries as the honest `ILNil`.
+    # `kw_defaults` is `expr*` in ASDL but it genuinely carries `None` HOLES: a kw-only
+    # parameter WITHOUT a default contributes a `None` AT ITS POSITION, so the list is
+    # positionally aligned with `kwonlyargs` and an `irlist` would have to model the
+    # ABSENT default as a NODE. The slot is the OPTIONAL-ELEMENT carrier `iroptlist`,
+    # exactly like `Dict.keys`. The sibling `defaults` is NOT the same shape — ASDL
+    # `expr*` with no holes, appended only under an `is not None` guard — and stays
+    # `irlist`.
     "arguments": ("IrPyArguments", [("posonlyargs", "irlist"), ("args", "irlist"),
                                     ("vararg", "iropt_ir"),
                                     ("kwonlyargs", "irlist"),
-                                    ("kw_defaults", "irlist"),
+                                    ("kw_defaults", "iroptlist"),
                                     ("kwarg", "iropt_ir"),
                                     ("defaults", "irlist")]),
+    # `arg(arg, annotation, type_comment)` — `_NODE_SPEC['arg'] == ('AST',
+    # ('arg','annotation','type_comment'), <loc attrs>)` and `_OPTIONAL_FIELDS['arg'] ==
+    # ('annotation','type_comment')`: a bare `def f(x)` parameter really carries NEITHER,
+    # so those two slots are the monomorphic `iropt_ir` / `iropt_str` and the first is the
+    # parameter NAME, a real string. `arg` JOINS THE FAMILY (it was previously only a
+    # HARVESTED RECORD) for the same reason `comprehension` did: `arguments`' five child
+    # slots are `irlist`s of `emit_ir`, and a `seq arg` RECORD payload inside `emit_ir`
+    # is non-strictly-positive — Why3 rejects the ADT outright (lesson (bf) §1). The
+    # record DECLARATION stays; the ctor table is consulted only under
+    # `_uses_pyast_parser`, so no other mirror moves.
+    "arg": ("IrPyArg", [("arg", "string"), ("annotation", "iropt_ir"),
+                        ("type_comment", "iropt_str")]),
     # `Compare(left, ops, comparators)` — `_NODE_SPEC['Compare'] == ('expr',
     # ('left','ops','comparators'), None)`, all three total. `ops` is a list of 0-FIELD
     # `cmpop` SINGLETONS (`_N("NotIn")()`), each carried as its class-name STRING (the

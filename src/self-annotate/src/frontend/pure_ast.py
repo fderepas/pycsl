@@ -1864,13 +1864,57 @@ class _Parser:
     # it returns the single `_N("arguments")` node it builds, and moves the cursor only
     # through `advance`/`accept_*`/`expect_*`. Same measured absence as
     # `_parse_type_params` above.
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT: same phase-offset form and the same depth as `lambda_parameters`
+    # (see the reasoning there). This method emits as a SINGLETON `let rec`, so it carries
+    # no decrease obligation today; the offset is written to the group's rule anyway so a
+    # later merge cannot silently invert it.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 9
     #@ assigns self.i
     def parse_parameters(self, close: str) -> "ExprIR":
-        pass
+        posonly = []; args = []; defaults = []
+        vararg = None; kwonly = []; kw_defaults = []; kwarg = None
+        seen_star = False
+        #@ ghost i0 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
+        #@ loop variant \length(self.toks) - self.i
+        while not self.at_op(close):
+            if self.at_op("/"):
+                self.advance()
+                posonly = args; args = []
+                self.accept_op(",")
+                continue
+            if self.at_op("*"):
+                self.advance()
+                if self.at_op(",") or self.at_op(close):
+                    seen_star = True
+                else:
+                    vararg = self._param_arg()
+                    seen_star = True
+                self.accept_op(",")
+                continue
+            if self.at_op("**"):
+                self.advance()
+                kwarg = self._param_arg()
+                self.accept_op(",")
+                continue
+            a = self._param_arg()
+            default = None
+            if self.accept_op("="):
+                default = self.test()
+            if seen_star:
+                kwonly.append(a); kw_defaults.append(default)
+            else:
+                args.append(a)
+                if default is not None:
+                    defaults.append(default)
+            self.accept_op(",")
+        return _N("arguments")(posonlyargs=posonly, args=args, vararg=vararg,
+                               kwonlyargs=kwonly, kw_defaults=kw_defaults,
+                               kwarg=kwarg, defaults=defaults)
 
     # `_fin` RECOGNIZER vein, increment 5: CONVERTED. Verbatim body port of the LIVE
     # `_param_arg`, including its PEP-526 `Optional["ExprIR"]` local annotation (inert at
@@ -1879,9 +1923,10 @@ class _Parser:
     # ATTRIBUTES, which the harvested records do not carry.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _param_arg(self) -> "arg":
+    def _param_arg(self) -> "ExprIR":
         t = self.cur()
         name = self._name_str()
         ann: Optional["ExprIR"] = None
@@ -1926,13 +1971,58 @@ class _Parser:
     #   already uses.
     # `parse_parameters` is the same shape one annotation richer (its `arg` carries a real
     # `annotation`), so it reopens with the same capability.
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT, and the depth is FORCED — MEASURED, not chosen. Converting this
+    # method makes `lambdef -> lambda_parameters` a real edge of the NINETEEN-member
+    # expression `let rec` group, and that edge is NOT paid by an advance: `lambdef`'s
+    # `t = self.advance()` is only CONDITIONALLY strict (`\old(self.i) <
+    # \length(self.toks) - 1 ==> ...` — the EOF sentinel), and `lambdef` itself never
+    # tests the token, so inside it there is no evidence the cursor moved. A first attempt
+    # at depth 15 therefore RAISED the variant across that edge and left exactly two
+    # `_parser__lambdef'vc` sub-goals Unknown (the postcondition and the variant decrease).
+    # The depth must sit strictly BELOW `lambdef`'s 10, and 9 is free.
+    # The outgoing edge `lambda_parameters -> test` (depth 11) RAISES the offset by 2 and
+    # is paid: every path to `self.test()` passes `a = self._lambda_arg()` first, whose
+    # STRICT `self.i > \old(self.i)` (proved, not assumed) composes with the loop
+    # invariant `self.i >= i0` to give the cursor term a full drop of 16.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 9
     #@ assigns self.i
     def lambda_parameters(self) -> "ExprIR":
-        pass
+        posonly = []; args = []; defaults = []
+        vararg = None; kwonly = []; kw_defaults = []; kwarg = None
+        seen_star = False
+        #@ ghost i0 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
+        #@ loop variant \length(self.toks) - self.i
+        while not self.at_op(":"):
+            if self.at_op("/"):
+                self.advance(); posonly = args; args = []; self.accept_op(","); continue
+            if self.at_op("*"):
+                self.advance()
+                if self.at_op(",") or self.at_op(":"):
+                    seen_star = True
+                else:
+                    vararg = self._lambda_arg(); seen_star = True
+                self.accept_op(","); continue
+            if self.at_op("**"):
+                self.advance(); kwarg = self._lambda_arg(); self.accept_op(","); continue
+            a = self._lambda_arg()
+            default = None
+            if self.accept_op("="):
+                default = self.test()
+            if seen_star:
+                kwonly.append(a); kw_defaults.append(default)
+            else:
+                args.append(a)
+                if default is not None:
+                    defaults.append(default)
+            self.accept_op(",")
+        return _N("arguments")(posonlyargs=posonly, args=args, vararg=vararg,
+                               kwonlyargs=kwonly, kw_defaults=kw_defaults,
+                               kwarg=kwarg, defaults=defaults)
 
     # `_fin` RECOGNIZER vein, increment 4: CONVERTED — the FIRST consumer of the `_fin`
     # position-wrapper recognizer. Verbatim body port of the LIVE `_lambda_arg`.
@@ -1942,9 +2032,10 @@ class _Parser:
     # `None`s and become TRUE `None`s; the parameter name is the real string `_name_str`
     # returns.
     #@ requires True
+    #@ ensures self.i > \old(self.i)
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _lambda_arg(self) -> "arg":
+    def _lambda_arg(self) -> "ExprIR":
         t = self.cur()
         name = self._name_str()
         return self._fin(_N("arg")(arg=name, annotation=None, type_comment=None), t)

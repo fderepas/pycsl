@@ -1124,6 +1124,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _slotted: Set[str] = set()
         _cslotted: Set[str] = set()
         _nones: Set[str] = set()
+        _tested: Set[str] = set()
 
         def _scan(node: Any) -> None:
             if isinstance(node, dict):
@@ -1150,6 +1151,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 _slotted.add(_val["name"])
                             elif _slots.get(_a) == "irconst":
                                 _cslotted.add(_val["name"])
+                # SECOND ADMISSION ROUTE (relaunch #12): a local whose PRESENCE IS
+                # TESTED — `if default is not None:` — see the class comment below.
+                if (node.get("type") == "BinOp" and node.get("op") in ("==", "!=")):
+                    _l0 = node.get("left") or {}
+                    _r0 = node.get("right") or {}
+                    _l0 = _l0.to_dict() if hasattr(_l0, "to_dict") else _l0
+                    _r0 = _r0.to_dict() if hasattr(_r0, "to_dict") else _r0
+                    if isinstance(_l0, dict) and isinstance(_r0, dict):
+                        for _a0, _b0 in ((_l0, _r0), (_r0, _l0)):
+                            if (_b0.get("type") == "None"
+                                    and _a0.get("type") == "Var"
+                                    and isinstance(_a0.get("name"), str)):
+                                _tested.add(_a0["name"])
                 for _x in node.values():
                     _scan(_x)
             elif isinstance(node, list):
@@ -1180,7 +1194,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         self._iropt_str_local_vars = {
             n for n in (_cslotted & _nones)
             if n not in _fp and self._union_local_symtype(n) is None}
-        return {n for n in _slotted
+        # SECOND ADMISSION ROUTE (relaunch #12) — THE PRESENCE-TESTED OPTIONAL NODE.
+        # `lambda_parameters` writes `default = None; … if self.accept_op("="): default =
+        # self.test(); … if default is not None: defaults.append(default)`. The local
+        # never reaches an `iropt_ir` PAYLOAD SLOT (it is APPENDED to a child list, not
+        # bound to a field), so the slot route above cannot see it — yet it is exactly as
+        # optional as `Slice.lower`, and under the emit_ir sentinel model its `is not
+        # None` guard lowered to the LITERAL `true`, so the model appended a default for
+        # EVERY parameter (lesson (bl): a guard that lowers to a literal is the signature
+        # of a modelled-away optional). The three conjuncts are each load-bearing:
+        #   * ASSIGNED A BARE `None` — otherwise the local is not optional at all;
+        #   * ITS PRESENCE IS TESTED against `None` in this body — this is what makes the
+        #     distinction OBSERVABLE. A `None`-assigned local nobody ever tests cannot
+        #     tell the two models apart, so moving it would be pure churn;
+        #   * ALREADY CLASSIFIED an emit_ir LOCAL — so the value it carries when present
+        #     really is a NODE (`self.test()`), never a string or an int.
+        _eir = self._collect_emit_ir_result_locals(body_stmts)
+        return {n for n in (_slotted | (_nones & _tested & _eir))
                 if n not in _fp
                 and self._union_local_symtype(n) is None}
 
@@ -2360,6 +2390,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             if (isinstance(_aiv, dict)
                                     and _aiv.get("type") in ("None", "NoneLit")):
                                 arg = "IrONone"
+                            elif (isinstance(_aiv, dict)
+                                    and _aiv.get("type") == "Var"
+                                    and _aiv.get("name") in getattr(
+                                        self, "_iropt_ir_local_vars", set())):
+                                # A CARRIER APPENDED TO A CARRIER SEQ COPIES THE CARRIER
+                                # (relaunch #12), never re-wraps it — the `.append`
+                                # counterpart of the chained-assignment alias rule in
+                                # `_handle_assign_stmt`. The plain Var read below would
+                                # project through `iropt_val` and the `IrOSome` would then
+                                # turn an ABSENT default into a PRESENT sentinel node,
+                                # which is the exact erasure the carrier exists to remove:
+                                # `kw_defaults.append(default)` must put a hole at the
+                                # position of a kw-only parameter that has no default.
+                                arg = f"!{whyml_ident(str(_aiv['name']))}"
                             else:
                                 arg = f"(IrOSome {self._expr_to_whyml(_aiv, local_refs)})"
                         code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
@@ -4706,6 +4750,44 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     for _x in node:
                         _scan_none_append(_x)
             _scan_none_append(body_stmts)
+            # SLOT-BASED `iropt_ir`-ELEMENT SEQ (relaunch #12). The `None`-append scan
+            # above sees a list the body grows with a LITERAL `None`; `kw_defaults` in
+            # `lambda_parameters` is the OTHER shape of the same thing — it is grown with
+            # a `default` LOCAL that is itself an optional-node CARRIER, so no literal
+            # `None` ever appears at the append site, yet the list genuinely holds holes
+            # (ASDL aligns `kw_defaults` positionally with `kwonlyargs`: a kw-only
+            # parameter without a default contributes a `None` AT ITS POSITION). The gate
+            # is the SLOT, exactly as for the optional-node LOCAL (lesson (bk) §1): a seq
+            # local bound into an `iroptlist` PAYLOAD SLOT of a `_N(<Class>)(…)` family
+            # construction holds `iropt_ir` elements. It correctly takes `kw_defaults`
+            # and correctly LEAVES the sibling `defaults` alone — ASDL `expr*` with no
+            # holes, bound into an `irlist` slot and appended only under the `is not
+            # None` guard that has just proved the value present.
+            from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYCS
+
+            def _scan_ioptlist_slot(node: Any) -> None:
+                if isinstance(node, dict):
+                    if (node.get("type") == "Call"
+                            and isinstance(node.get("func"), str)):
+                        _pcs = _PYCS.get(node["func"])
+                        if _pcs is not None:
+                            _sl = dict(_pcs[1])
+                            for _kw in (node.get("keywords") or []):
+                                if not isinstance(_kw, dict):
+                                    continue
+                                if _sl.get(_kw.get("arg")) != "iroptlist":
+                                    continue
+                                _vv = _kw.get("value")
+                                _vv = _vv.to_dict() if hasattr(_vv, "to_dict") else _vv
+                                if (isinstance(_vv, dict) and _vv.get("type") == "Var"
+                                        and isinstance(_vv.get("name"), str)):
+                                    self._iropt_seq_locals.add(_vv["name"])
+                    for _x in node.values():
+                        _scan_ioptlist_slot(_x)
+                elif isinstance(node, list):
+                    for _x in node:
+                        _scan_ioptlist_slot(_x)
+            _scan_ioptlist_slot(body_stmts)
         if self._uses_pyast_parser():
             _ext_ir: Set[str] = set()
 
@@ -4817,6 +4899,88 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 self._array_elem_types.pop(_en, None)
                 if hasattr(self, "_emit_ir_seq_locals"):
                     self._emit_ir_seq_locals.add(_en)
+
+            # THE LIST-ALIAS ELEMENT TYPE (relaunch #12) — the capability the
+            # `lambda_parameters` refutation named, and the append seed it needs.
+            #
+            # `lambda_parameters` writes `a = self._lambda_arg(); … args.append(a)` and,
+            # at the `/` marker, `posonly = args; args = []` — the parameters collected so
+            # far BECOME the positional-only list and a fresh list starts. Neither shape
+            # reaches an element-type producer today:
+            #   * the `.append` producer (the `arg.strip().startswith("(Ir")` /
+            #     IR-return-annotation test at the append SITE) sees a bare LOCAL `!a`,
+            #     not a ctor application and not a call;
+            #   * an ALIAS assignment carries no element information at all.
+            # So `args` and `posonly` both stayed untyped seqs, their `irlist` slots
+            # failed the `_emit_ir_seq_locals` test, and the WHOLE `arguments`
+            # construction declined to the `arguments_0 ()` facade — all seven children
+            # dropped (fail-closed, but a facade).
+            #
+            # Both halves are ONE fixpoint over this body's assignment graph, run to
+            # closure so a chain (`a = b; c = a`) propagates too:
+            #   SEED — `x.append(<local that is itself an emit_ir local>)`. The element
+            #     really is a node: `_collect_emit_ir_result_locals` classifies a local by
+            #     its FIRST assignment, and `a`'s is `self._lambda_arg()`, an
+            #     `-> "ExprIR"` call. This is the LOCAL spelling of the IR-return-annotation
+            #     rule the append site already applies to a DIRECT call.
+            #   ALIAS EDGE — `x = <other seq local>`. Python binds the SAME list object,
+            #     so the element type of an alias IS the element type of its source.
+            # Fail-closed in both directions: a source with no known element type
+            # propagates nothing, and a local another producer already typed is never
+            # overwritten.
+            _eirl = self._collect_emit_ir_result_locals(body_stmts)
+            _alias_edges: List[Tuple[str, str]] = []
+            _append_ir: Set[str] = set()
+
+            def _scan_seq_alias(node: Any) -> None:
+                if isinstance(node, dict):
+                    if (node.get("stmt") == "Assign"
+                            and isinstance(node.get("target"), str)):
+                        _va = node.get("value", {})
+                        _va = _va.to_dict() if hasattr(_va, "to_dict") else _va
+                        if (isinstance(_va, dict) and _va.get("type") == "Var"
+                                and isinstance(_va.get("name"), str)):
+                            _alias_edges.append((node["target"], _va["name"]))
+                    if node.get("stmt") == "Expr":
+                        _ve = node.get("value", {})
+                        _ve = _ve.to_dict() if hasattr(_ve, "to_dict") else _ve
+                        if isinstance(_ve, dict) and _ve.get("type") == "Call":
+                            _fe = str(_ve.get("func", "") or "")
+                            _ae = _ve.get("args") or []
+                            if _fe.endswith(".append") and len(_ae) == 1:
+                                _ae0 = _ae[0]
+                                _ae0 = (_ae0.to_dict() if hasattr(_ae0, "to_dict")
+                                        else _ae0)
+                                if (isinstance(_ae0, dict)
+                                        and _ae0.get("type") == "Var"
+                                        and _ae0.get("name") in _eirl):
+                                    _append_ir.add(
+                                        _fe.rsplit(".", 1)[0].replace(".", "_"))
+                    for _x in node.values():
+                        _scan_seq_alias(_x)
+                elif isinstance(node, list):
+                    for _x in node:
+                        _scan_seq_alias(_x)
+
+            _scan_seq_alias(body_stmts)
+            if hasattr(self, "_emit_ir_seq_locals"):
+                _pending = {n for n in _append_ir if n in self._seq_locals}
+                _changed = True
+                while _changed:
+                    _changed = False
+                    for _tg, _srcn in _alias_edges:
+                        if (_srcn in (self._emit_ir_seq_locals | _pending)
+                                and _tg not in _pending
+                                and _tg in self._seq_locals):
+                            _pending.add(_tg)
+                            _changed = True
+                for _pn in sorted(_pending):
+                    if (_pn not in self._emit_ir_seq_locals
+                            and _pn not in getattr(self, "_iropt_seq_locals", set())
+                            and self._seq_value_types.get(_pn) in (None, "emit_ir")):
+                        self._seq_value_types[_pn] = "emit_ir"
+                        self._array_elem_types.pop(_pn, None)
+                        self._emit_ir_seq_locals.add(_pn)
 
         # 07-2333-rev2 TP-1 (str locals): a `str`-typed local (symbol-table τ = str/string,
         # not a formal param) must NOT be pre-declared as `ref 0 : ref int` — it is let-bound
