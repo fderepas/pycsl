@@ -9,8 +9,8 @@
   three samples.
   **Window #2 delta so far: markers 530 -> 516, grep 555 -> 541.**
   **This session (#11): 521 -> 516 — FIVE conversions, a shadowed-selfcall repair wave,
-  a live-tool faithfulness repair, and THREE certified boundaries of which TWO WERE THEN
-  BROKEN in the same session, in six gated increments.**
+  a live-tool faithfulness repair, and FOUR certified boundaries of which TWO WERE THEN
+  BROKEN in the same session, in seven gated increments.**
 - **`bin/check-shadowed-selfcalls.py`: 27 CONVERTED methods / 176 bypassing call sites,
   RATCHET LOWERED to 27** (was 32 / 192 at session start; 50 / 259 at window start). Needs
   `TMPDIR` on the repo filesystem (`TMPDIR=/home/fabrice/git/pycsl/scratchpad`).
@@ -25,7 +25,7 @@
   Leave it alone. `getting-better/.driver-deadline` intact (Sep 1 08:24 UTC).
   **~74 h remained on the window at handoff time.** Commits are unpushed by design.
 
-## WHAT THIS SESSION LANDED (six gated increments)
+## WHAT THIS SESSION LANDED (seven gated increments)
 
 1. **`_binop` CONVERTED (521 -> 520) — CERTIFIED-BOUNDARY [GROUP VARIANT RE-PHASING]
    BROKEN.** The `str -> (str, int)` PAIR-dict emitter capability plus the SIXTEEN-member
@@ -53,6 +53,9 @@
    LITERALS (`format_spec is None` -> `false`, `debug_text is not None` -> `true`), so the
    model took the wrong branches. **The f-string cluster's three convertible members are
    all in.**
+7. **`lambda_parameters` REFUTED — [LIST-ALIAS ELEMENT TYPE]**, five of six pieces built
+   and measured, the sixth named. Spike fully reverted; emission byte-identical to
+   increment 6, so no re-proof was needed.
 
 New emit_ir arms added this session: `IrPyConstant irconst iropt_str`,
 `IrPyJoinedStr irlist`, `IrPySlice iropt_ir iropt_ir iropt_ir`,
@@ -70,12 +73,18 @@ projectors `iropt_val` / `iropt_str_val` (no axiom; ledger unchanged).
    blockers are named in the relaunch-#10 increment-5 commit PLUS one from this session:
    **a `-> bool` callee emits as a `bool`-returning logic symbol while the concrete call
    site coerces `<> 0` for an int** (`_is_final_annotation`).
-1. **`lambda_parameters` / `parse_parameters`** — NOT yet probed, and the two capabilities
-   they need both exist now. The `IrPyArguments` arm is already in the table; its
-   `kw_defaults` slot is `irlist` and should become **`iroptlist`** (Python really puts
-   `None` in `kw_defaults` for a kw-only parameter with no default — the `Dict.keys`
-   precedent from relaunch #10, already built). Also needs `_lambda_arg` / `_param_arg`
-   return interfaces and the `posonly = args; args = []` list-alias shape.
+1. **`lambda_parameters` / `parse_parameters` — ONE missing capability, and it is named.**
+   PROBED AND REFUTED this session as [LIST-ALIAS ELEMENT TYPE], but FIVE of the six pieces
+   were BUILT AND MEASURED WORKING and are spelled out in the refutation commit and on the
+   stub: the `IrPyArg string iropt_ir iropt_str` family arm (+ `_lambda_arg -> "ExprIR"`),
+   `arguments.kw_defaults` retyped `irlist -> iroptlist`, a SECOND admission route for the
+   optional-node carrier (`None`-assigned AND presence-tested), a SLOT-based
+   `iropt_ir`-element seq classification, and the two carrier-append rules.
+   **THE ONE MISSING PIECE: propagate a seq local's ELEMENT TYPE across an
+   `x = <other seq local>` REBINDING** (`posonly = args; args = []`) — a fixpoint over the
+   assignment graph. Without it the `posonlyargs` `irlist` slot declines and the whole
+   `arguments` construction falls back to the `arguments_0 ()` facade. Two markers for one
+   capability plus a re-build of five measured pieces: the best ratio on the board.
 2. **`small_stmt`** — still [HETEROGENEOUS CONVERTED RETURNS]. Its five siblings are
    CONVERTED onto harvested RECORD returns; migrating them onto `_PYAST_IRNODE_CTORS` arms
    (plus `alias`) is a well-trodden move now. The count does not move until the LAST one
@@ -96,6 +105,8 @@ projectors `iropt_val` / `iropt_str_val` (no axiom; ledger unchanged).
   `_with_item`. Reopening: a functional `set_ctx` in the LIVE SOURCE. The POSITION plane is
   NOT part of this (lesson (az)) — only `ctx`.
 - **`small_stmt` — [HETEROGENEOUS CONVERTED RETURNS]** (lessons (av)-(ax)). Ladder 2.
+- **`lambda_parameters` / `parse_parameters` — [LIST-ALIAS ELEMENT TYPE].** Ladder 1; five
+  of six pieces measured working, the sixth named.
 - **`_pattern_number`, `atom`, `closed_pattern` — [MODEL].** `Constant(value=…)` needs the
   parser's own number/constant classification. **The `irconst` carrier built this session is
   the frame for it**: add an `ICNum`-shaped arm and a faithful `_parse_number` interface and
