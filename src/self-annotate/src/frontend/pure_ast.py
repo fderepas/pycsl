@@ -870,7 +870,14 @@ class _Parser:
     def import_stmt(self) -> "ExprIR":
         t = self.advance()
         names = [self._dotted_as_name()]
+        # GHOST cursor snapshot (lesson (xx)), ADDED relaunch #14 with the strict clause:
+        # without it the loop's `assigns self.i` says nothing about DIRECTION, so the
+        # leading `advance`'s strict step is LOST across the loop and the function's own
+        # `self.i > \old(self.i)` postcondition is Unknown. Measured: 30s Timeout at 33M
+        # steps before this line existed.
+        #@ ghost i40 = self.i
         #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i40
         #@ loop variant \length(self.toks) - self.i
         while self.accept_op(","):
             names.append(self._dotted_as_name())
@@ -915,7 +922,12 @@ class _Parser:
     def import_from(self) -> "ExprIR":
         t = self.advance()
         level = 0
+        # GHOST cursor snapshot (lesson (xx)), ADDED relaunch #14 with the strict clause —
+        # same reason as `import_stmt`'s: the leading `advance`'s strict step has to survive
+        # the dot-prefix loop for the function's own `self.i > \old(self.i)` to hold.
+        #@ ghost i41 = self.i
         #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i41
         #@ loop variant \length(self.toks) - self.i
         while self.at_op(".", "..."):
             level += 3 if self.cur().string == "..." else 1
