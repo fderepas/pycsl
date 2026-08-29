@@ -992,7 +992,13 @@ class _Parser:
             targets = []
             k = 0
             #@ ghost i32 = self.i
-            #@ loop invariant 0 <= k and k <= n
+            # `k <= n` is NOT stated: `n` is `len(raw) - 1`, so the INIT sub-goal would
+            # need `Seq.length raw >= 1`, which the preceding `accept_op("=")` loop does
+            # not carry in its own invariants — and asking Alt-Ergo for it burned 17.2M
+            # steps to a 30s Timeout. `0 <= k` is the whole of what this loop needs: the
+            # `Seq.get` is total, and the int variant's non-negativity comes from the
+            # guard `k < n` itself.
+            #@ loop invariant 0 <= k
             #@ loop invariant self.i == i32
             #@ loop variant n - k
             while k < n:
