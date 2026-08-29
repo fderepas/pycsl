@@ -1396,12 +1396,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             ir_node["msg"] = stmt.msg.value
         ir_stmts.append(ir_node)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns ir_stmts
     def _py_stmt_raise(self, stmt: ast.Raise, ir_stmts: List[int]) -> None:
-        pass
+        # Compute-then-append (runtime-identical to the former build-a-dict-then-mutate
+        # form: same three keys, same order, same values) so the appended node is a single
+        # literal — the shape Module 6 lowers to the `SRaise iropt_str iropt_ir` stmt_ir
+        # constructor. `exc` binds the non-None exception expression once; the two
+        # `Optional[...]` locals carry genuine absence (a bare `raise`, a dotted/computed
+        # exception, `raise E` with no argument) instead of a placeholder.
+        exc_type: Optional[str] = None
+        exc_value: Optional["ExprIR"] = None
+        if stmt.exc is not None:
+            exc = stmt.exc
+            if isinstance(exc, ast.Call) and isinstance(exc.func, ast.Name):
+                exc_type = exc.func.id
+                if exc.args:
+                    exc_value = self._py_expr_to_ir(exc.args[0])
+            elif isinstance(exc, ast.Name):
+                exc_type = exc.id
+        ir_stmts.append({"stmt": "Raise", "exc_type": exc_type,
+                         "exc_value": exc_value})
 
     # SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
     # caller-visible mutable `ref (seq stmt_ir)` param; the guard `isinstance(stmt.target,

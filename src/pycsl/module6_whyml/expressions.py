@@ -510,6 +510,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # resync-campaign.md R1: `val_ir.get("args")` lowers to `(args_of …)` : `array emit_ir`
         # — a truthiness (`if not val_ir.get("args")` = "no args") is array-emptiness, never the
         # int `<> 0` coercion. @mutable_state emit_ir reflection only.
+        # OPTIONAL-NODE FIELD UNWRAP (relaunch #15): a TYPED `<emit_ir local>.args`
+        # truthiness (`if exc.args:` in `_py_stmt_raise`) is the Call's ARITY — the
+        # modelled `nargs_of` (`IrCall _ _ n -> n`), not `Array.length` of the OPAQUE
+        # `val args_of : array emit_ir`, whose length is unconstrained and therefore says
+        # nothing about whether the call had arguments. Same receiver recognizer, and the
+        # same projector, that `len(<emit_ir>.get("args"))` already uses.
+        if (whyml_str.startswith("(args_of ") and whyml_str.endswith(")")
+                and self._emit_ir_args_recv_ir(ir_expr) is not None):
+            return f"((nargs_of {whyml_str[len('(args_of '):-1]}) <> 0)"
         if whyml_str.startswith("(args_of "):
             return f"(Array.length {whyml_str} <> 0)"
         # 07-03-refactor R4: `if <emit_ir sub-node>:` (an Optional[ExprIR] field, e.g.
@@ -2580,6 +2589,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return self._emit_ir_args_recv_ir(_vs[0], key) if _vs else None
         if t == "BinOp" and arg_ir.get("op") == "or":
             return self._emit_ir_args_recv_ir(arg_ir.get("left", {}), key)
+        # OPTIONAL-FIELD UNWRAP CARRIER (relaunch #15): the THIRD form — a TYPED
+        # ATTRIBUTE read `<emit_ir local>.args` (`exc.args` in `_py_stmt_raise`, where
+        # `exc` is the unwrap carrier of the `OptExprIR` field `stmt.exc`). The dict
+        # reflection forms above (`.get("args")` / `["args"]`) are what a raw-dict walker
+        # writes; a TYPED handler writes the plain attribute. Routing it here is what makes
+        # `len(exc.args)` / `if exc.args:` lower to the Call ARITY `nargs_of` and
+        # `exc.args[0]` to the first-arg projector `arg0_of`, instead of to the OPAQUE
+        # `val args_of : array emit_ir` (whose `Array.length` is unconstrained and whose
+        # element read is ill-typed). Gated on the receiver being an emit_ir LOCAL, so no
+        # other emission can reach it.
+        if t in ("Attribute", "FieldGet"):
+            if (arg_ir.get("attr") or arg_ir.get("field")) != key:
+                return None
+            _o = arg_ir.get("object", {})
+            if (isinstance(_o, dict) and _o.get("type") == "Var"
+                    and _o.get("name") in getattr(self, "_emit_ir_local_vars", set())):
+                return _o
+            return None
         if t == "Call":
             fn = arg_ir.get("func")
             if not (isinstance(fn, str) and fn.endswith(".get")):
@@ -3056,6 +3083,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (`is_str _m`), else `IrSNone`, faithful to the compound guard `stmt.msg and
         # isinstance(stmt.msg, Constant) and isinstance(stmt.msg.value, str)`.
         "Assert":   ("SAssert", [("test", "expr"), ("msg", "assert_msg")]),
+        # OPTIONAL-NODE FIELD UNWRAP (relaunch #15): the `raise` statement
+        # (`_py_stmt_raise`). Both children are genuinely OPTIONAL locals — `exc_type`
+        # is `Optional[str]` (the exception CLASS NAME, absent for a bare `raise` and
+        # for a computed/dotted exception expression) and `exc_value` is
+        # `Optional[ExprIR]` (the first constructor ARGUMENT, absent for `raise E`) —
+        # so they lower through the "optstr"/"optir" child kinds to a real
+        # `iropt_str`/`iropt_ir`, never to a `""`-named class or a present sentinel node.
+        "Raise":    ("SRaise", [("exc_type", "optstr"), ("exc_value", "optir")]),
         # SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5,
         # C-bucket): the augmented-assignment statement nodes (the `_py_stmt_augassign`
         # three-branch dispatch). AugAssign carries the TARGET NAME (`stmt.target.id` ->
@@ -3169,6 +3204,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # record and the Some arm applies the real dispatcher `_py_expr_to_ir`.
                 args.append(self._opt_field_disp_unwrap(
                     fields[f], local_refs, invariant_ctx, subst))
+            elif child_kind in ("optstr", "optir"):
+                # OPTIONAL-NODE FIELD UNWRAP (relaunch #15): an OPTIONAL child of a
+                # stmt_ir ctor, in the THREE shapes the `_PYAST_IRNODE_CTORS` family's
+                # `iropt_str`/`iropt_ir` slots already accept, and fail-closed on anything
+                # else: an explicit `None` -> the absent ctor (`IrSNone`/`IrONone`); an
+                # `Optional[τ]` LOCAL, which Module5 synthesizes a `_union_*` for (lesson
+                # (ab)) -> the arm projection (`Arm_i_0 _v -> IrSSome _v | _ -> IrSNone`);
+                # anything else DECLINES the whole construction rather than guessing.
+                _none_c, _proj = (("IrSNone", self._union_read_iropt_str_projection)
+                                  if child_kind == "optstr"
+                                  else ("IrONone", self._union_read_iropt_ir_projection))
+                _cv = fields[f]
+                _cv = _cv.to_dict() if hasattr(_cv, "to_dict") else _cv
+                if isinstance(_cv, dict) and _cv.get("type") == "None":
+                    args.append(_none_c)
+                elif isinstance(_cv, dict) and _cv.get("type") == "Var":
+                    _on = str(_cv.get("name"))
+                    _os = getattr(self, "_current_symbol_table", {}).get(_on)
+                    _od = ("!" if _on in getattr(self, "_optional_union_locals", set())
+                           else "")
+                    _op = _proj(_os, f"{_od}{whyml_ident(_on)}")
+                    if _op is None:
+                        return f'(SUnprojectableChild_{skind}_{f})'
+                    args.append(_op)
+                else:
+                    return f'(SUnprojectableChild_{skind}_{f})'
             elif child_kind == "assert_msg":
                 # SAssert increment (C-bucket): the OPTIONAL assert message. `fields[f]`
                 # is the raw `stmt.msg` field read (`option emit_ir`). The `_py_stmt_assert`

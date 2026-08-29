@@ -6071,6 +6071,17 @@ class PreambleEmissionMixin:
                 " | SReturn iropt_ir | SExpr emit_ir"
                 " | SAssign string emit_ir"
                 " | SAssert emit_ir iropt_str"
+                # OPTIONAL-NODE FIELD UNWRAP (relaunch #15): the `raise E(v)` statement.
+                # BOTH children are genuinely OPTIONAL — a bare `raise` carries neither
+                # (`_OPTIONAL_FIELDS['Raise'] == ('exc','cause')`), and
+                # `_py_stmt_raise` also leaves `exc_type` absent for a computed/dotted
+                # exception expression — so they are `iropt_str` (the class NAME) and
+                # `iropt_ir` (the first constructor ARGUMENT), never a plain `string`/
+                # `emit_ir` whose absent value would read back as a `""`-named class or
+                # a present `IrOther ""` node (lesson (aq)'s measured erasure). FLAT (no
+                # sub-body list), so it falls in `size_stmt`'s `| _ -> 1` catch-all — NO
+                # change to the mutual size measure.
+                " | SRaise iropt_str iropt_ir"
                 " | SAugAssign string string emit_ir"
                 " | SFieldAugAssign string string emit_ir"
                 " | SArraySet emit_ir emit_ir emit_ir"
@@ -6099,7 +6110,8 @@ class PreambleEmissionMixin:
                 " | SContinue -> \"Continue\"",
                 "    | SReturn _ -> \"Return\" | SExpr _ -> \"Expr\""
                 " | SAssign _ _ -> \"Assign\"",
-                "    | SAssert _ _ -> \"Assert\"",
+                "    | SAssert _ _ -> \"Assert\""
+                " | SRaise _ _ -> \"Raise\"",
                 "    | SAugAssign _ _ _ -> \"AugAssign\""
                 " | SFieldAugAssign _ _ _ -> \"FieldAugAssign\""
                 " | SArraySet _ _ _ -> \"ArraySet\"",

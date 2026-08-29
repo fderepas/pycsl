@@ -531,6 +531,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
             val = '(IrOther "")'
+        # OPTIONAL-FIELD UNWRAP CARRIER (relaunch #15): `exc = stmt.exc` where the RHS is
+        # an `OptExprIR` record field (`option emit_ir`) and the target is an emit_ir
+        # local. The projections that follow (`isinstance(exc, ast.Call)`, `exc.func`,
+        # `exc.args`) all want the UNWRAPPED node; applied to the option itself they fall
+        # to the opaque `get_<attr>` fallback (value-blind) and to `isinstance_op 0 0`
+        # (input-blind), and the option is then also ill-typed against `int`. Unwrap ONCE,
+        # at the binding: `(match <field> with Some _v -> _v | None -> IrOther "" end)`.
+        # The `None` arm is the standard absent filler and is UNREACHABLE under the
+        # enclosing `<field> is not None` guard the shape always carries; where the guard
+        # is absent the model is coarse (an absent child reads as the empty `IrOther ""`
+        # node, whose every discriminant is False — exactly Python's `isinstance(None, …)`)
+        # but never WRONG. Deliberately NOT the general lowering of an `OptExprIR` field
+        # read: the `x is None` presence guard (`_optexprir_field_read` at expressions.py
+        # ~4488) reads the SAME field RAW to build its `match … with None -> true` test,
+        # and unwrapping there would nest a match inside a match.
+        if (target in getattr(self, "_emit_ir_local_vars", set())
+                and target not in getattr(self, "_iropt_ir_local_vars", set())
+                and self._optexprir_field_read(val_ir) is not None):
+            val = f'(match {val} with Some _v -> _v | None -> IrOther "" end)'
 
         # tool-feature-5: Optional MUTABLE local (`x: Optional[τ] = None; x = v`).
         # The local is a `ref _union_*`; wrap the RHS in the matching arm ctor
@@ -4259,6 +4278,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if (isinstance(_o, dict) and _o.get("type") == "Var"
                             and _o.get("name") in _body_loop_vars):
                         return True
+            # OPTIONAL-FIELD UNWRAP CARRIER (relaunch #15): `exc = stmt.exc` where
+            # `stmt.exc` is an `OptExprIR` record field (`option emit_ir`) — the LOCAL is
+            # the unwrap carrier, so it is an emit_ir local (`ref (IrOther "")`) and its
+            # assignment unwraps the option (see `_handle_assign_stmt`). Keyed on
+            # `_optexprir_field_read` (the harvested `field_types "option"` +
+            # `field_value_types "emit_ir"` tag pair), which only pure_ast-node record
+            # params carry -> corpus-inert.
+            if self._optexprir_field_read(v) is not None:
+                return True
             if v.get("type") == "Var" and v.get("name") in known:
                 return True
             _fn = v.get("func")
