@@ -1896,6 +1896,36 @@ class _Parser:
     # postcondition AND its group VARIANT DECREASE both chain through, and its absence was
     # MEASURED (two unproven `_parser__lambdef'vc` sub-goals: the postcondition and the
     # variant decrease).
+    # CERTIFIED-BOUNDARY [LIST-ALIAS ELEMENT TYPE], relaunch #11. The body was ported and
+    # MEASURED; FIVE of the six pieces it needs were BUILT AND WORKING, and all five were
+    # reverted with the spike (dead-capability discipline) because the sixth is missing:
+    #   BUILT AND MEASURED — (1) `arg` JOINS THE FAMILY as
+    #   `IrPyArg string iropt_ir iropt_str` (it must: `arguments`' child slots are
+    #   `irlist`s of `emit_ir`, and a `seq arg` RECORD payload inside `emit_ir` is
+    #   non-strictly-positive, lesson (bf) §1), with `_lambda_arg` retyped `-> "ExprIR"`;
+    #   (2) `arguments.kw_defaults` retyped `irlist -> iroptlist`, which is what ASDL
+    #   actually says (a kw-only parameter WITHOUT a default contributes a `None` at its
+    #   position, so an `irlist` would model the absent default as a NODE);
+    #   (3) a SECOND admission route for the OPTIONAL-NODE CARRIER — a `None`-assigned
+    #   local whose PRESENCE IS TESTED — which made `default` a carrier and turned
+    #   `if default is not None:` from the LITERAL `true` (under which the model appended a
+    #   default for EVERY parameter) into the carrier's own discriminant;
+    #   (4) a SLOT-based `iropt_ir`-element seq classification (a seq local bound into an
+    #   `iroptlist` slot), which correctly takes `kw_defaults` and correctly leaves the
+    #   sibling `defaults` (ASDL `expr*`) alone;
+    #   (5) the two append rules that follow — a carrier appended to an `iroptlist` seq
+    #   COPIES the carrier, a carrier appended to a plain node list PROJECTS through
+    #   `iropt_val` under the guard that has just proved it present.
+    #   MISSING — (6) THE LIST-ALIAS ELEMENT TYPE. `posonly = args; args = []` REBINDS one
+    #   node list from another; the alias target is not registered in
+    #   `_emit_ir_seq_locals`, so the `posonlyargs` `irlist` slot DECLINES and the WHOLE
+    #   `arguments` construction falls back to the `arguments_0 ()` facade (measured:
+    #   `SLOT posonlyargs irlist '!posonly'` then decline). Reopening capability, named:
+    #   propagate a seq local's ELEMENT TYPE across an `x = <other seq local>` rebinding —
+    #   a fixpoint over the assignment graph, the same shape the chained-alias propagation
+    #   already uses.
+    # `parse_parameters` is the same shape one annotation richer (its `arg` carries a real
+    # `annotation`), so it reopens with the same capability.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
