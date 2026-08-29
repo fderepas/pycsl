@@ -3937,3 +3937,65 @@ advance (here `_lambda_arg`'s `self.i > \old(self.i)`, composed with the loop in
 prices the variant SHAPE but NOT the decrease — that one costs a proof, so derive the
 offsets from each edge's *provable* progress, never from the progress the source obviously
 makes.
+
+## Lesson (bn) — census before you build a carrier; renaming a slot type is cross-cutting; and a no-advance CYCLE is a different animal from a bad offset
+
+`_pattern_number` broke the recorded [MODEL] boundary on the `Constant` NUMBER arm, and the
+two methods that did not convert refuted for reasons that had nothing to do with the reason
+on record. Four things to carry.
+
+**1. THE CENSUS FOUND A CERTIFIED MODEL WHERE THE PLAN SAID "BUILD ONE".** The refutation
+on file said the number arm needed "an `ICNum`-shaped arm" on the bespoke `irconst` carrier
+lesson (bj) had introduced. Asking the lesson-(p) question first — *does a value model for a
+Python literal already exist?* — turned up `pyconst_val`, seven arms wide
+(`PVNone|PVBool|PVInt|PVStr|PVBytes|PVComplex|PVEllipsis`), co-landed with an AXIOM-FREE
+Rocq+Lean certificate pinning the py-scalar abstraction map as total and injective-per-kind.
+It had only ever been used on the READER side, and nothing made it reader-only. So the right
+move was not to extend the bespoke carrier but to **RETIRE** it: one bespoke type deleted,
+one certified type reused, five arms free. **A carrier you invented last session is not
+evidence that no model exists — it is evidence that nobody looked.**
+
+**2. A RETURN INTERFACE IS THE CHEAPEST MODELLING LEVER THERE IS, AND IT COSTS NO MARKER.**
+`_parse_number` stays `\trusted`; all that changed is `-> "PyConstVal"`, taking its emitted
+`val` from `(s: int) : unit` — argument INT-ERASED, result discarded — to
+`(s: string) : pyconst_val`. That alone is the difference between a facade and a faithful
+construction at every call site. And an UNINTERPRETED function is exactly the right
+abstraction for a result that can be an int, a float or a complex: equal arguments give
+equal results and **nothing else is claimed in either direction**. It never asserts two
+literals are equal, and never asserts they differ. Reach for an uninterpreted function
+before inventing an ADT arm you cannot populate.
+
+**3. RENAMING A SLOT TYPE IS CROSS-CUTTING — GREP THE OLD NAME EVERYWHERE.** Retiring
+`irconst` for `pyconst_val` left ONE stale string comparison behind, in the optional-STRING
+carrier gate. It silently dropped `debug_text` from `_iropt_str_local_vars`, and
+`_fstring_replacement` — a method converted last session precisely to remove this defect —
+got `if true then` back. The emitted program took the wrong branch again, and it type-checked
+and would have proved. Two rules follow: grep the retired name across the whole emitter
+before believing a rename, and **re-run the lesson-(bl) literal-guard grep (`if true then`,
+`&& false`) after ANY change to a slot type**, not only after a conversion. Same increment,
+lesson (am) also bit on the ORDINARY axis: the DECLARATION producer
+(`functions._compute_return_type`) and the CALL-SITE producer (`_module_method_return_types`)
+are two, and patching one emitted a correctly-typed `val` whose call site still read `unit`.
+
+**4. A NO-ADVANCE CYCLE IS NOT A BAD PHASE OFFSET — IT IS A DIFFERENT KIND OF WALL.**
+Lesson (bh)/(bk) §3 taught that a new group member forces a re-phasing. `atom` teaches the
+next thing: converting a method can remove the abstract `val` that was CUTTING the group,
+and the group does not grow by one but by NINE (19 members -> 28). Then the no-advance edges
+stopped being a DAG:
+
+    atom -> yield_expr -> testlist -> test -> or_test -> … -> unary_postfix -> atom
+
+No assignment of strictly decreasing offsets exists around a cycle, so no amount of
+re-deriving depths helps. **Diagnose the shape before you spend a proof: layer the
+no-advance edges and look for a cycle.** The way out is not a better offset but a new PAID
+edge, and here the payment is already lying on the floor: each of `yield_expr`,
+`atom_paren`, `atom_list`, `atom_brace`, `_dict_rest` opens by consuming a token its CALLER
+has just tested, so the strictness evidence exists and is merely in the wrong function. A
+token-kind PRECONDITION moves it — dischargeable at every call site from the
+`ensures \result != False ==> self.toks[self.i].type == …` clauses `at_op`/`at_kw` already
+export, and composing inside the callee with the EOF-sentinel invariant exactly as
+`_name_str` does. **A precondition is a proof obligation at the call site, not an
+assumption**, so this class of fix adds no `\trusted` surface and no axiom. Corollary worth
+its own line: `advance` in this parser is only CONDITIONALLY strict, so ANY method whose
+first act is `advance()` has no provable progress of its own — the whole family shares one
+missing precondition.
