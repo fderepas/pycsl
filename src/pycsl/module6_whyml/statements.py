@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name, stable_hash
+from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name, stable_hash, whyml_string_literal
 from module6_whyml.ir_scanner import IRScanner
 from module6_whyml.stmt_control_flow import ControlFlowStmtMixin
 
@@ -980,6 +980,102 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 f"({op}_sep {recv_w} {sep_w})",
                 f"({op}_after {recv_w} {sep_w})"]
 
+    def _collect_const_pair_dict_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """MODULE-CONST-PAIR-DICT UNPACK, slot-0 typing (relaunch #11): the FIRST target
+        of a `a, b = <const pair dict>[<key>]` unpack receives the dict's STRING
+        component, so it is a `string` local (`ref ""` pre-decl), not the default int
+        `ref 0` — otherwise the faithful chained-ITE projection (a `string`) cannot be
+        assigned to it. The companion of `_const_pair_dict_unpack_projs`; same gate, so
+        equally byte-inert (no corpus program defines a `str -> (str, int)` const dict)."""
+        _out: Set[str] = set()
+        self._const_pair_dict_str_locals = {}
+        if not (getattr(self, "_module_const_pair_dicts", {}) or {}):
+            return _out
+
+        def _scan(node: Any) -> None:
+            if isinstance(node, dict):
+                if (node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("targets"), list)
+                        and len(node["targets"]) == 2):
+                    _v = node.get("value", {})
+                    _v = _v.to_dict() if hasattr(_v, "to_dict") else _v
+                    if isinstance(_v, dict) and _v.get("type") == "Subscript":
+                        _r = _v.get("value") or {}
+                        if (isinstance(_r, dict) and _r.get("type") == "Var"
+                                and (self._module_const_pair_dicts or {}).get(
+                                    _r.get("name")) is not None
+                                and isinstance(node["targets"][0], str)):
+                            _out.add(node["targets"][0])
+                            # record local -> dict name, so the `_N(<local>)()`
+                            # singleton-class recognizer can check the dict's own
+                            # first components (see `ClassByNameCall` in expressions.py).
+                            if getattr(self, "_const_pair_dict_str_locals", None) is None:
+                                self._const_pair_dict_str_locals = {}
+                            self._const_pair_dict_str_locals[
+                                node["targets"][0]] = _r.get("name")
+                for _x in node.values():
+                    _scan(_x)
+            elif isinstance(node, list):
+                for _x in node:
+                    _scan(_x)
+
+        _scan(body_stmts)
+        return _out
+
+    def _const_pair_dict_unpack_projs(self, val_ir: Dict[str, Any],
+                                      targets: List[str],
+                                      local_refs: Set[str]) -> Optional[List[str]]:
+        """MODULE-CONST-PAIR-DICT UNPACK (relaunch #11): a 2-target tuple-unpack whose
+        RHS is `<NAME>[<key>]` for a module-level `str -> (str, int)` const dict
+        (`opname, prec = _BINOP[self.cur().string]`) -> ONE faithful chained
+        if-then-else PER SLOT over the dict's OWN entries, in source order:
+
+            (let _cpd_k = <key> in
+               if (str_eq_op _cpd_k "|") then "BitOr" else ... else "")     -- slot 0
+            (let _cpd_k = <key> in
+               if (str_eq_op _cpd_k "|") then 4        else ... else 0)     -- slot 1
+
+        replacing the opaque `subscript_get_t2 (int) (int) : (int,int)` destructure,
+        which int-hashes both the table and the key and is invariant under the table's
+        contents. The key is BOUND ONCE per slot so the twelve arms share one read of a
+        possibly-effectful key expression. The tails (`""` / `0`) are NOT entries of the
+        table and are unreachable at every call site, which guards the read with the
+        companion `<key> in <NAME>` membership disjunction over exactly the same key set
+        (see `_const_pair_dict_name` in `expressions.py`). Mutation-sensitive: perturb a
+        key, a name or a precedence and the emitted term moves.
+
+        Fail-closed (None, keeping the opaque destructure) unless the exact shape holds:
+        two targets, a `Subscript` RHS, the receiver a genuine collected pair dict not
+        shadowed by a local/param. No corpus program defines such a dict, so this is
+        byte-inert by construction."""
+        if len(targets) != 2:
+            return None
+        if val_ir.get("type") != "Subscript":
+            return None
+        _recv = val_ir.get("value") or {}
+        if not (isinstance(_recv, dict) and _recv.get("type") == "Var"):
+            return None
+        _nm = self._const_pair_dict_name(_recv.get("name"))
+        if _nm is None:
+            return None
+        _entries = (getattr(self, "_module_const_pair_dicts", {}) or {}).get(_nm)
+        if not _entries:
+            return None
+        self._add_abstract_op(
+            "val str_eq_op (a: string) (b: string) : bool\n"
+            "    ensures { result <-> (a = b) }")
+        _key_w = self._expr_to_whyml(val_ir.get("index") or {}, local_refs)
+        _projs: List[str] = []
+        for _slot in (1, 2):
+            _chain = '""' if _slot == 1 else "0"
+            for _e in reversed(_entries):
+                _lit = (whyml_string_literal(_e[_slot]) if _slot == 1
+                        else str(_e[_slot]))
+                _chain = (f"(if (str_eq_op _cpd_k {whyml_string_literal(_e[0])}) "
+                          f"then {_lit} else {_chain})")
+            _projs.append(f"(let _cpd_k = {_key_w} in {_chain})")
+        return _projs
+
     def _handle_tuple_unpack_stmt(self, stmt: TupleUnpackStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
@@ -1002,6 +1098,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `<fn>_rpartition_1 (int):(int,int,int)` abstract-op path below and emit the
         # 3 faithful string projections instead (see `_partition_unpack_projs`).
         _partition_projs = self._partition_unpack_projs(val_ir, targets, local_refs)
+        # MODULE-CONST-PAIR-DICT UNPACK: same per-slot projection lever, for
+        # `a, b = <const pair dict>[<key>]` (see `_const_pair_dict_unpack_projs`).
+        if _partition_projs is None:
+            _partition_projs = self._const_pair_dict_unpack_projs(
+                val_ir, targets, local_refs)
         # resync-campaign.md R2 (continuation): every discard target (`_`) maps to
         # `whyml_ident("_") == "py_underscore"`. With MULTIPLE discards (`ret, _, _,
         # _ = f()`) they collide into one `_tu_py_underscore` binder (a Why3
@@ -1082,7 +1183,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         params = " ".join(f"(x{i}: int)" for i in range(nargs))
                     self._abstract_ops[arity_fn] = (
                         f"val {arity_fn} {_recv_pfx}{params} : {tuple_ret}{_decl_tail}")
-        elif val_ir.get("type") == "Subscript":
+        elif _partition_projs is None and val_ir.get("type") == "Subscript":
+            # (`_partition_projs is None` guard: when the MODULE-CONST-PAIR-DICT
+            # projections fired, the opaque `subscript_get_t<arity>` is never applied —
+            # registering it anyway would leave a DEAD abstract `val` in the emission.)
             # `a, b = arr[i]` — the default `subscript_get` returns `int`,
             # which doesn't match the tuple pattern on the LHS. Emit a
             # dedicated `subscript_get_t<arity>` returning an N-tuple of
@@ -4633,6 +4737,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # self-tcb-reduction _typeddict_record_literal (cap-1): a local from a
         # `getattr(self, "<modeled-field>", "<str>")` read of a self string-field.
         string_vars |= self._collect_getattr_self_str_locals(body_stmts)
+        # MODULE-CONST-PAIR-DICT UNPACK: the first target of `a, b = <pair dict>[<k>]`
+        # receives the dict's STRING component (see `_collect_const_pair_dict_str_locals`).
+        string_vars |= self._collect_const_pair_dict_str_locals(body_stmts)
         # union/match cluster: `var_name = subj.get("name")` string-scalar leaf. (The
         # nested-map hval registration + items-key + enum-element string classification is
         # done EARLIER — before `_collect_str_call_result_locals` — see above.)

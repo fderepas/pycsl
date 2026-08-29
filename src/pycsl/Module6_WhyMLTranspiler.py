@@ -106,6 +106,13 @@ class Module6_WhyMLTranspiler(
         # `_lower_dict_get_call` as a chained string if-then-else. Empty for every
         # existing corpus program (byte-identical emission).
         self._module_const_dicts: Dict[str, Dict[str, str]] = self.ir.get("module_const_dicts", {})
+        # module-const-PAIR-dicts: module-level `str -> (str, int)` const dict literals
+        # (`_BINOP = {"|": ("BitOr", 4), ...}`), as `{NAME: [(key, s, i), ...]}` in source
+        # order. Recognized at a `<key> in NAME` membership guard and at a
+        # `a, b = NAME[<key>]` tuple-unpack read. Empty for every corpus program
+        # (byte-identical emission).
+        self._module_const_pair_dicts: Dict[str, list] = self.ir.get(
+            "module_const_pair_dicts", {})
         # compound-key const-map lowering: `{NAME: {"key_whyml":…, "elem_whyml":…}}`
         # for a module-const dict with a tuple key + list value (`TRIGGERS`). Each
         # becomes an opaque `val constant NAME : map <key> (option (list <elem>))`

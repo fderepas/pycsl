@@ -299,6 +299,76 @@ def collect_module_const_compound_dicts(node: ast.Module) -> Dict[str, Dict[str,
             and n not in written_via_global}
 
 
+def collect_module_const_pair_dicts(node: ast.Module) -> Dict[str, list]:
+    """Module-level constant `str -> (str, int)` PAIR dict literals: a top-level
+    `NAME = {"k1": ("s1", <int>), ...}` whose keys are ALL plain string literals and
+    whose values are ALL 2-TUPLES of a plain string literal and an int literal (or a
+    module-level int constant, resolved via `collect_module_constants`), bound EXACTLY
+    ONCE at module scope, not `#@ shared`, never written via `global`. Returns
+    `{name: [(k, s, i), ...]}` preserving source (insertion) order.
+
+    The THIRD member of the module-const-dict family, after `collect_module_const_dicts`
+    (str->str) and `collect_module_const_int_dicts` (str->int). It is the
+    `frontend/pure_ast._BINOP = {"|": ("BitOr", 4), ...}` shape: a precedence table whose
+    entry is DESTRUCTURED into two locals (`opname, prec = _BINOP[self.cur().string]`).
+    It lowers FAITHFULLY at two sites — a `<key> in NAME` membership guard becomes the
+    `str_eq_op` disjunction over the dict's ACTUAL keys, and the tuple-unpack read becomes
+    one chained if-then-else PER SLOT (a `string` for the first component, an `int` for the
+    second), the key bound once. Fail-closed: any non-string key, any value that is not a
+    literal (str, int) 2-tuple, an empty dict, or a reassigned name excludes the whole dict
+    and keeps the opaque fallback, so no corpus program's dict is ever collected."""
+    int_consts = collect_module_constants(node)
+    counts: Dict[str, int] = {}
+    candidates: Dict[str, list] = {}
+    for child in getattr(node, "body", []):
+        target = None
+        value = None
+        if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                and isinstance(child.targets[0], ast.Name)):
+            target, value = child.targets[0].id, child.value
+        elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+            target, value = child.target.id, child.value
+        if target is None:
+            continue
+        counts[target] = counts.get(target, 0) + 1
+        if not isinstance(value, ast.Dict) or not value.keys:
+            continue
+        entries: list = []
+        seen = set()
+        ok = True
+        for k, v in zip(value.keys, value.values):
+            if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):
+                ok = False
+                break
+            if not (isinstance(v, ast.Tuple) and len(v.elts) == 2):
+                ok = False
+                break
+            e0, e1 = v.elts
+            if not (isinstance(e0, ast.Constant) and isinstance(e0.value, str)):
+                ok = False
+                break
+            iv = _module_const_int(e1)
+            if iv is None and isinstance(e1, ast.Name):
+                rv = int_consts.get(e1.id)
+                iv = rv if isinstance(rv, int) else None
+            if iv is None:
+                ok = False
+                break
+            if k.value in seen:
+                ok = False
+                break
+            seen.add(k.value)
+            entries.append((k.value, e0.value, iv))
+        if ok and entries and len(entries) == len(value.keys):
+            candidates[target] = entries
+    shared = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+    written_via_global = {n for g in ast.walk(node) if isinstance(g, ast.Global)
+                          for n in g.names}
+    return {n: v for n, v in candidates.items()
+            if counts.get(n, 0) == 1 and n not in shared
+            and n not in written_via_global}
+
+
 def collect_module_const_str_pairs(node: ast.Module) -> Dict[str, list]:
     """Module-level constant LIST-of-str-pair literals: a top-level
     `NAME = [("s1", "d1"), ("s2", "d2"), ...]` (or annotated) whose every element is a

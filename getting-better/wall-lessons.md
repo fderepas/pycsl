@@ -3654,3 +3654,54 @@ Two practical consequences:
   variant to every new member.
 * **A group re-phasing is a first-class increment, not a tail-of-session patch.** Sixteen
   interdependent clauses and a ~35-minute proof per attempt. Land it with fresh budget.
+
+## Lesson (bh) — the group re-phasing, executed: cost the cycle, not the function, and L3-tc prices the variant for free
+
+Lesson (bg) recorded `_binop` as CERTIFIED-BOUNDARY [GROUP VARIANT RE-PHASING] and named
+the reopening capability. Relaunch #11 executed it and `_binop` CONVERTED. Three things are
+worth carrying.
+
+**1. THE ORDER IS DECIDED BY THE CYCLE'S ONE ADVANCING EDGE, and you can find it by hand.**
+The sixteen-member expression group has exactly ONE cycle,
+
+    test -> or_test -> and_test -> not_test -> comparison -> expr -> _binop -> factor ->
+    power -> await_expr -> unary_postfix -> trailers -> _call_args -> test
+
+and exactly ONE of its thirteen edges provably moves the cursor: `trailers -> _call_args`,
+which consumes the opening delimiter (`at_op("(")` then `advance`, strict by the EOF
+sentinel). Every other hop must therefore be paid for by a strictly SMALLER OFFSET, so the
+offsets are the topological distance BACKWARDS from that edge and the multiplier must exceed
+the deepest one:
+
+    _call_args 12 · test/comp_for/or_test_no_cond 11 · or_test/lambdef 10 · and_test 9 ·
+    not_test 8 · comparison 7 · expr 6 · _binop 5 · factor 4 · power 3 · await_expr 2 ·
+    unary_postfix 1 · trailers 0,  all at `13 * (\length(self.toks) - self.i) + <depth>`
+
+The three members OFF the cycle (`lambdef`, `or_test_no_cond`, `comp_for`) are placed by the
+same rule, and every offset-RAISING edge in the whole group is paid by an unconditional
+strict advance: `trailers -> _call_args` (the `(`), `lambdef -> test` (`expect_op(":")`),
+`power -> factor` (the `**`), and each self-recursion (which sits behind its own `advance`).
+Read the call graph, find the advancing edge, count backwards. It is a ten-minute analysis,
+not a search.
+
+**2. L3-tc PRICES THE VARIANT SHAPE IN ONE SECOND; only the DECREASE costs proof time.**
+"All functions in a recursive definition must use the same well-founded order" is a
+TYPE-CHECK error, so the 1-second emit oracle tells you whether the re-phasing is even
+admissible before any prover runs. Use it to converge the SHAPE first, then spend the one
+35-minute whole-file proof on the decrease VCs. (`--fun` is NOT an alternative here: slicing
+a mutual-recursion group breaks it — the sliced group re-emits as `unbound function symbol`
+or `unexpected 'variant' clause`. A group is proved whole or not at all.)
+
+**3. SPIKE THE TERMINATION QUESTION WITH A PLACEHOLDER BODY.** The variant question depends
+only on the CALL GRAPH, so a deliberately simplified `_binop` body that closes the same cycle
+answers it without building one line of emitter capability. That is the refutation exit for a
+group re-phasing, and it is cheap.
+
+**And one hygiene rule the increment paid for: a projection lever that BYPASSES an opaque
+abstract op must also stop REGISTERING it.** The pair-dict unpack replaced
+`subscript_get_t2` with faithful per-slot ITEs, but the `elif val_ir["type"] == "Subscript"`
+arm still called `_add_abstract_op`, leaving a DEAD `val subscript_get_t2 (x: int) (i: int) :
+(int, int)` in the emission — TCB surface for a symbol nothing applies. Guard the registration
+on the same condition that guards its use. Measured the right way: diff the emitted file's
+`val` SET against the baseline's. After the guard the whole diff is one line —
+`val _parser___binop` REMOVED, zero added.

@@ -1162,6 +1162,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"(str_eq_op {left} {whyml_string_literal(_kk)})"
                     for _kk in _cdd) + ")"
                 return f"(not {_cdisj})" if negate else _cdisj
+        # MODULE-CONST-PAIR-DICT MEMBERSHIP (relaunch #11): the exact twin of the
+        # str->str branch above for the `str -> (str, int)` shape — `<s> in _BINOP`
+        # lowers to the FAITHFUL `str_eq_op` disjunction over the dict's ACTUAL twelve
+        # keys, not the int-hashed `contains_check (str_hash_op s) _BINOP` (a facade
+        # invariant under the table's contents, since `_BINOP` itself emits as
+        # `val constant _BINOP : int`). Mutation-sensitive: perturb a key and the emitted
+        # literal moves. It is also what makes the companion tuple-unpack's chained ITE
+        # provably total at every guarded site (`_binop`'s
+        # `self.cur().string in _BINOP` loop guard).
+        if not self._in_spec and rhs.get("type") == "Var":
+            _cpm = self._const_pair_dict_name(rhs.get("name"))
+            _cpd = (getattr(self, "_module_const_pair_dicts", {}) or {}).get(_cpm)
+            if _cpd:
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _pdisj = "(" + " || ".join(
+                    f"(str_eq_op {left} {whyml_string_literal(_e[0])})"
+                    for _e in _cpd) + ")"
+                return f"(not {_pdisj})" if negate else _pdisj
         # self-tcb-reduction giants (generic class-body lowering): `target in field_names`
         # — membership against the opaque `field_names` param (a `Set[str]`, int-modelled,
         # NOT a tracked dict/set local) — lowers to the abstract `ps_field_mem <target>`
@@ -8640,6 +8660,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         return recv
 
+    def _const_pair_dict_name(self, recv: str) -> Optional[str]:
+        """`recv` names a genuine module-level constant `str -> (str, int)` PAIR dict
+        (in `_module_const_pair_dicts`) NOT shadowed by a local/param/symtab entry.
+        The pair-dict twin of `_const_dict_name`."""
+        if not isinstance(recv, str):
+            return None
+        if getattr(self, "_module_const_pair_dicts", {}).get(recv) is None:
+            return None
+        symtab0 = getattr(self, "_current_symbol_table", {}) or {}
+        if (recv in symtab0
+                or recv in getattr(self, "_current_params", set())):
+            return None
+        return recv
+
     def _const_dict_value_seq(self, val_ir: Dict[str, Any],
                               local_refs: Set[str],
                               invariant_ctx: bool = False,
@@ -13313,6 +13347,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _ch = (f"(if (str_eq_op _cdk {whyml_string_literal(_kk)}) "
                                f"then {whyml_string_literal(_vv)} else {_ch})")
                     return f"(let _cdk = {_kx} in {_ch})"
+            # CONST-PAIR-DICT CLASS NAME, LOCAL form (relaunch #11): `_N(opname)()` in
+            # `_binop`, where `opname` is a STRING LOCAL bound by the tuple-unpack
+            # `opname, prec = _BINOP[self.cur().string]` of a module-const `str ->
+            # (str, int)` PAIR dict. The class is chosen at RUN TIME from the table, and
+            # the local ALREADY HOLDS the faithful chained-ITE over the table's own first
+            # components (see `_const_pair_dict_unpack_projs`) — so the faithful lowering
+            # of the construction is the LOCAL'S OWN READ: a 0-FIELD ASDL SINGLETON
+            # carries no information beyond its own identity, and its model in this family
+            # IS its class-name string (the rule the sibling const-dict form above states).
+            # No new dispatch, no candidate chain: the choice was already made, faithfully,
+            # where the table was read.
+            # FAIL-CLOSED on every axis: no args and no keywords (a real singleton), the
+            # class expression a bare `Var` that this file's prescan classified as a
+            # pair-dict slot-0 local, and EVERY first component of that dict a
+            # `_NODE_SPEC` 0-field singleton — else this falls through to the pre-existing
+            # scalar `0`, exactly what `UnknownPyExpr` emitted before.
+            if (not expr.get("args") and not expr.get("keywords")
+                    and isinstance(_ce, dict) and _ce.get("type") == "Var"):
+                _cpl = getattr(self, "_const_pair_dict_str_locals", None) or {}
+                _pdn = _cpl.get(_ce.get("name"))
+                _pdt = (getattr(self, "_module_const_pair_dicts", {}) or {}).get(_pdn)
+                _sing2 = set(self.ir.get("pyast_singleton_nodes", []) or [])
+                if _pdt and _sing2 and all(_e[1] in _sing2 for _e in _pdt):
+                    return self._expr_to_whyml(_ce, local_refs, invariant_ctx, subst)
             # VARIABLE-CLASS-NAME, PARAMETER form (relaunch #10): `_N(kind)(names=names)`
             # in `global_stmt`, where `kind` is a `str` FORMAL PARAMETER — the caller
             # passes the literal "Global" or "Nonlocal". There is no ternary local to

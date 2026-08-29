@@ -12,6 +12,7 @@ from frontend.module_collect import (collect_module_constants,
                                       collect_module_const_int_dicts,
                                       collect_module_const_compound_dicts,
                                       collect_module_const_str_pairs,
+                                      collect_module_const_pair_dicts,
                                       collect_module_const_str_sets,
                                       collect_module_globals)
 from frontend.Module2_Parser import (
@@ -288,6 +289,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         module_const_str_pairs = collect_module_const_str_pairs(node)
         if module_const_str_pairs:
             self.program_ir["module_const_str_pairs"] = module_const_str_pairs
+
+        # module-const-PAIR-dicts: module-level `str -> (str, int)` const dict literals
+        # (`frontend/pure_ast._BINOP = {"|": ("BitOr", 4), ...}`), the THIRD member of the
+        # module-const-dict family after str->str and str->int. Recognized in Module 6 at
+        # two sites: a `<key> in NAME` membership guard (the faithful `str_eq_op`
+        # disjunction over the dict's own keys) and a `a, b = NAME[<key>]` tuple-unpack
+        # read (one chained ITE per slot). Additive: the field is set only when the
+        # tightly-gated collector returns non-empty, so it is absent for every program
+        # without such a const literal (byte-identical emission).
+        module_const_pair_dicts = collect_module_const_pair_dicts(node)
+        if module_const_pair_dicts:
+            self.program_ir["module_const_pair_dicts"] = module_const_pair_dicts
 
         # module-const-str-sets: module-level constant string set / frozenset literals
         # (`KNOWN_EXCEPTIONS = frozenset({"IndexError", ...})`) → recognized at a
