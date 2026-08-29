@@ -3874,3 +3874,66 @@ emitted body for `&& false` and `if true then` before believing a conversion.**
 And the `""`-sentinel string model has a second, quieter failure the carrier removes:
 `_slice` can legitimately return the EMPTY string, which the sentinel cannot tell apart from
 absent.
+
+## Lesson (bm) — the ELEMENT-TYPE FIXPOINT, and a phase offset the prover refuted
+
+`lambda_parameters` + `parse_parameters` were the [LIST-ALIAS ELEMENT TYPE] boundary
+relaunch #11 recorded, converted in the first increment of relaunch #12 by building the
+capability that refutation named. Four things are worth carrying.
+
+**1. AN ELEMENT TYPE IS A FIXPOINT OVER THE ASSIGNMENT GRAPH, NOT A PROPERTY OF ONE SITE.**
+Every element-type producer in the emitter reads a local's OWN assignments — a typed list
+literal, an `.append` of a ctor application or of a call with an IR return annotation, an
+`.extend`, a tuple-unpack. Two shapes defeat all of them at once:
+
+    a = self._lambda_arg(); args.append(a)     # appends a bare LOCAL, not a call
+    posonly = args; args = []                  # an ALIAS carries no element info
+
+so `args` AND `posonly` both stayed untyped, their `irlist` slots failed the
+`_emit_ir_seq_locals` test, and the WHOLE `arguments` construction fell back to
+`arguments_0 ()` — all seven children dropped. The fix is ONE fixpoint run to closure:
+SEED `x.append(<local that is itself an emit_ir local>)` (the LOCAL spelling of the rule
+the append site already applies to a DIRECT call) and EDGE `x = <other seq local>` (Python
+binds the SAME list object, so an alias has its source's element type). Fail-closed both
+ways: an unclassified source propagates nothing, and a local another producer already typed
+is never overwritten.
+
+**And the refutation had only HALF of it.** Relaunch #11 named the alias edge and said the
+five other pieces were measured working. Rebuilding them showed `_emit_ir_seq_locals` was
+EMPTY at the construction site — the seed was missing too. **Re-measure a refutation's
+"already works" list before trusting it**; the named capability was right, its scope was
+not.
+
+**2. AN OPTIONAL LOCAL CAN BE OPTIONAL WITHOUT EVER REACHING AN OPTIONAL SLOT.** Lesson
+(bk) §1 made the SLOT the gate for the optional-node carrier. `default` in
+`lambda_parameters` never reaches one — it is APPENDED to a child list, not bound to a
+field — yet it is exactly as optional as `Slice.lower`, and under the sentinel model
+`if default is not None:` lowered to the literal `true`, so the model appended a default
+for EVERY parameter. The second admission route is `None`-assigned AND PRESENCE-TESTED AND
+already an emit_ir local, and all three conjuncts earn their place: `None`-assigned or it
+is not optional; presence-tested or the two models are INDISTINGUISHABLE and moving it is
+pure churn; emit_ir-classified or the value it carries when present is not a node.
+**Presence-testing is the observability criterion** — it is what makes the difference
+between the models something a proof can see.
+
+**3. A CARRIER APPENDED TO A CARRIER SEQ COPIES THE CARRIER.** The `.append` twin of the
+chained-assignment alias rule. Without it the plain Var read projects through `iropt_val`
+and the surrounding `IrOSome` turns an ABSENT default into a PRESENT sentinel node. The
+OTHER direction was already right and must stay right: `defaults.append(default)` PROJECTS
+through `iropt_val`, under the guard that has just proved the value present. Same local,
+two appends, two different correct lowerings — decided by the DESTINATION's element type.
+
+**4. THE PROVER REFUTED THE PHASE OFFSET, AND THE REASON GENERALIZES: `advance` IS ONLY
+CONDITIONALLY STRICT.** Its contract is `\old(self.i) < \length(self.toks) - 1 ==> self.i
+== \old(self.i) + 1` — the EOF sentinel — so a leading `t = self.advance()` pays for a
+variant rise ONLY in a body that has evidence the current token is not the last one.
+`lambdef` has none (its CALLER did the `at_kw("lambda")` test), so placing the new group
+member ABOVE `lambdef` raised the variant and left exactly two `_parser__lambdef'vc`
+sub-goals Unknown: the postcondition and the variant decrease. **When a new member's
+incoming edge is a bare `advance` with no token test in the same body, the member must sit
+strictly BELOW its caller.** Its outgoing edges can still rise freely if a PROVED strict
+advance (here `_lambda_arg`'s `self.i > \old(self.i)`, composed with the loop invariant
+`self.i >= i0`) drops the cursor term by a full multiplier first. The 1-second oracle
+prices the variant SHAPE but NOT the decrease — that one costs a proof, so derive the
+offsets from each edge's *provable* progress, never from the progress the source obviously
+makes.
