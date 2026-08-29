@@ -2369,11 +2369,36 @@ class _Parser:
         tup.end_lineno = elts[-1].end_lineno; tup.end_col_offset = elts[-1].end_col_offset
         return tup
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted — `lower = upper = step =
-    # None` then `return lower` returns the Optional-union LOCAL in an emit_ir position,
-    # which the model can only project with the sentinel (None-reads-as-a-node) even
-    # though that path is dynamically unreachable; it needs a flow-sensitive narrowing the
-    # model does not have.
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted.
+    # CERTIFIED-BOUNDARY [UNANNOTATED OPTIONAL-NODE LOCAL], relaunch #11 — and the
+    # diagnosis is SHARPER than the one it replaces. The body was ported and MEASURED on
+    # the emit oracle: `return lower` is NOT the blocker (it emits fine as
+    # `raise (Return_emit_ir !lower)`), and the cursor/loop structure needs nothing new.
+    # The WHOLE gap is the last line's `_N("Slice")(lower=lower, upper=upper, step=step)`,
+    # which declines to the `slice_0 ()` facade for two reasons, both named:
+    #   (i)  `Slice` has NO `_PYAST_IRNODE_CTORS` entry. The ADT already carries
+    #        `IrSliceN iropt_ir iropt_ir iropt_ir` for `_py_expr_slice`, so the family
+    #        needs its own `IrPySlice iropt_ir iropt_ir iropt_ir` arm (a dedicated ctor,
+    #        not a reuse — re-listing an existing ctor in the table would duplicate it in
+    #        both the ADT and `kind_of`; a shared `"Slice"` kind_of tag is fine, the
+    #        IrCall/IrCallN precedent).
+    #   (ii) `lower`/`upper`/`step` are UNANNOTATED `Optional[ExprIR]` locals — the source
+    #        writes the CHAINED `lower = upper = step = None`, which Python does not let
+    #        you annotate — so they classify as ordinary emit_ir locals and their `None`
+    #        emits as the `IrOther ""` SENTINEL. Binding that into an `iropt_ir` slot would
+    #        model an ABSENT bound as a NODE, the exact erasure lesson (aq) measured and
+    #        this family exists to remove, so the conversion must NOT be taken on those
+    #        terms (lesson (bf)/(bj): decline a conversion that buys a marker with a new
+    #        hole). `try_stmt`'s `typ: Optional["ExprIR"] = None` is fine TODAY only
+    #        because the annotation makes Module5 synthesize a `_union_*`.
+    # REOPENING CAPABILITY, named and demand-gated: classify a local as an `iropt_ir`
+    # LOCAL when it is assigned a bare `None` AND is bound into an `iropt_ir` PAYLOAD SLOT
+    # of a `_N(<Class>)(...)` construction in the same body — pre-declared `ref IrONone`,
+    # `x = None` emitting `IrONone`, `x = <emit_ir>` emitting `(IrOSome e)`, the slot
+    # binding `!x` directly, and a DEFINED total projector
+    # `let function iropt_val (o: iropt_ir) : emit_ir = match o with IrOSome v -> v
+    # | IrONone -> IrOther "" end` for the one emit_ir-position read. No axiom, ledger
+    # unchanged. It is also ONE of the three capabilities `_fstring_replacement` needs.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
