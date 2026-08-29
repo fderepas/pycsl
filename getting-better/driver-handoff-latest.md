@@ -120,6 +120,20 @@
    (compute-then-append instead of mutate-a-dict-then-append) was built and verified
    runtime-identical — same keys, same order — and reverted with the spike.
    Baseline for the gate: Module5_IREmitter proves **1115/1115** at HEAD in ~50 min.
+   **THE TWO TRAPS ALREADY MAPPED, so you do not have to find them:**
+   - `_is_emit_ir_expr`'s Attribute branch accepts a record field only when its
+     `field_types` tag is in `("ExprIR","StmtIR","IRNode","ContractExprIR","emit_ir")`.
+     `_PURE_AST_FIELD_TABLE["Raise"]` tags both fields `"OptExprIR"`, which is why the whole
+     chain falls to the opaque `get_<attr>` fallback at `expressions.py:~11495`.
+   - **Do NOT make the unwrap the general lowering of an `OptExprIR` field read.** The
+     `is None` path at `expressions.py:~4488` calls `_optexprir_field_read` and then
+     `_expr_to_whyml` on the SAME field to build
+     `(match <raw field> with None -> true | Some _ -> false end)`; if the field read
+     already unwraps, that guard becomes a match on a match. Either fire the unwrap only
+     where the result feeds a further projection / an isinstance subject, or take the
+     cheaper route: bind `exc = stmt.exc` in the LIVE body first (runtime-identical) and
+     make the LOCAL the unwrap carrier, reusing the `_optional_union_locals` /
+     `_union_read_iropt_ir_projection` machinery pure_ast already has.
 2. **The two Module5 dispatchers — 142 of the 176 shadowed sites** (`_csl_to_ir` 92,
    `_py_expr_to_ir` 44, `_py_op_to_str` 6). NOTE: these are already CONVERTED (they are not
    `\trusted`), so this is a SHADOWED-metric item, not a marker item. The recorded L2
