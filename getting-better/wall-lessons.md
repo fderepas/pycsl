@@ -4040,3 +4040,49 @@ suddenly reporting GOOD news you did not work for is a bug report about the gate
 campaign already knows three instrument false-greens (`--emit`, the `why3` PATH, `--no-typecheck`);
 this is the fourth, and it was found only because the good news was implausible. When a
 metric improves for free, go read the metric's code before you write the improvement down.
+
+## Lesson (bp) — a per-function map read one function early; and check the sibling slot before you believe a gap list
+
+**1. THE WORST BUG CLASS THIS CAMPAIGN HAS FOUND: EMISSION-ORDER-DEPENDENT TYPING.**
+`closed_pattern`'s recorded gap (4) said the `s = t.string` int-erasure "appears only in
+the FULL body, so it is a JOIN over several uses". That was wrong, and the truth is worse
+than a modelling gap. `_record_field_elem_locals` — the map that tells `_is_string_expr`
+that `t.string` is a `str` field of an `array <record>` self-field element — was published
+only AFTER `_typed_local_vars` ran. So during local CLASSIFICATION it held **the previously
+emitted function's locals**. Two siblings with byte-identical first assignments got
+opposite answers: `atom` inherited a map containing `t` and got `s : str`;
+`closed_pattern` inherited `_sequence_pattern`'s `{star_t, nm, end}` and got `s : Any`, i.e.
+`let s = ref 0`, membership by int HASH and the error f-string through `int_to_string`.
+Nothing about either body caused it. **A per-function state consulted before it is
+recomputed is not stale data, it is a different function's data**, and it makes the
+emitted model depend on source order. Two rules: when a classification is inexplicably
+different between two bodies that look the same, suspect ORDER before you suspect the
+bodies; and when a `self._x = ...` is a per-function map, grep for every read of `_x` that
+happens earlier in the same emission pass than the write.
+
+**2. HOW TO FIND IT IN MINUTES INSTEAD OF HOURS.** The bisection that got it wrong deleted
+pieces of the SOURCE body one at a time and watched the emission. That can only ever
+implicate something in the body — which is why it convicted an innocent. What worked was
+printing the CLASSIFIER'S OWN INPUTS for the two siblings side by side: the symbol table,
+the string-local set, and the maps it consults. The differing map named itself in one run.
+**When a source-level bisection keeps failing to isolate a cause, stop cutting the source
+and instrument the decision.**
+
+**3. A GAP LIST WRITTEN FROM ONE MEASUREMENT MISSES THE SLOT THAT NEVER GOT ITS TURN.**
+The recorded boundary named FOUR gaps. There were five: `MatchClass` had no ctor entry
+either, and it was invisible because the earlier arms declined first and the emitter stops
+at the first decline. A related asymmetry cost another cycle: the `irlist` slot admits an
+empty list literal as `ILNil`, but its `seq string` twin declined one — the same
+`(Array.make 1024 0)` placeholder, one branch treating it as a genuine empty child list
+and the other as a failure. **When a slot family declines, check every sibling slot for
+the same shape before recording the gap count; and when two slot kinds carry the same
+placeholder, they must agree about it.**
+
+**4. RETYPING A SLOT BREAKS CALLERS YOU ALREADY CONVERTED — AGAIN.** Lesson (bn) §3 said
+this about a slot type RENAME. It is just as true of a slot type CHANGE: retyping
+`MatchAs` to `iropt_ir`/`iropt_str` broke `pattern`, converted sessions ago, whose
+`name=self._capture_name("as")` actual is a CALL — a shape the option slot did not admit.
+L3-tc caught it in one second, which is the argument for running the emit oracle after
+every slot edit rather than at the end. The fix generalizes: an option slot should admit a
+PRESENT value produced by a call whose DECLARED return type matches, gated on that
+declaration so an int-erased helper still declines fail-closed.
