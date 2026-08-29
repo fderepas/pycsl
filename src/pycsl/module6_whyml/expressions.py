@@ -3349,6 +3349,83 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(if pvbool_of {_pvs} then 1 else 0)"
         return None
 
+    def _inline_pyconst_dict_index(self, arg_ir: Any,
+                                   elt_lower: Optional[Any]) -> Optional[str]:
+        """INLINE CONST-DICT INDEX -> `pyconst_val` (relaunch #13, `closed_pattern`).
+
+        `closed_pattern` builds its `MatchSingleton` value as
+
+            _N("MatchSingleton")(value={"None": None, "True": True,
+                                        "False": False}[s])
+
+        — a dict LITERAL written at the use site and indexed by a local. The existing
+        const-dict lowering (`_expr_to_whyml`'s `ClassByNameCall` arm) only handles a
+        MODULE-LEVEL table, so this construction declined to the `matchSingleton_0 ()`
+        facade and took the whole method with it. The table is a compile-time constant
+        either way: an inline literal is if anything MORE static than a module global,
+        because no other statement can rebind it.
+
+        Lowered exactly like the module-level form — a chained `str_eq_op` ITE over the
+        literal key set with the key `let`-bound so it is evaluated ONCE (the key
+        expression may have an effect; `_CMP[self.advance().string]` is the precedent) —
+        but producing `pyconst_val` arms instead of class-name strings.
+
+        THE FALL-THROUGH is the same argument the module-level form records, and here it
+        is even tighter. Python raises `KeyError` off the key set, and the model must not
+        invent a value there; the emitted default is `PVNone`. At this site the miss is
+        UNREACHABLE: the source guards the whole branch with `s in ("None", "True",
+        "False")`, which lowers to the `str_eq_op` disjunction over *literally the same*
+        three keys — the tuple and the dict share their key set character for character.
+
+        FAIL-CLOSED on every axis: the arg must be a `Subscript` of a `DictLit`, every key
+        a STRING literal, every value a `None` / `Bool` / `String` literal (the three
+        shapes `pyconst_val` can carry without a model), and the dict non-empty. Anything
+        else returns None and the caller declines the construction as before. Nothing in
+        the corpus or any other mirror indexes an inline dict into a `pyconst_val` slot,
+        so this is byte-inert outside `closed_pattern`."""
+        if not (isinstance(arg_ir, dict) and arg_ir.get("type") == "Subscript"):
+            return None
+        _d = arg_ir.get("value")
+        if not (isinstance(_d, dict) and _d.get("type") == "DictLit"):
+            return None
+        _ks, _vs = _d.get("keys") or [], _d.get("values") or []
+        if not _ks or len(_ks) != len(_vs):
+            return None
+        _entries = []
+        for _k, _v in zip(_ks, _vs):
+            if not (isinstance(_k, dict) and _k.get("type") == "String"
+                    and isinstance(_k.get("value"), str)):
+                return None
+            if not isinstance(_v, dict):
+                return None
+            _vt = _v.get("type")
+            if _vt == "None":
+                _entries.append((_k["value"], "PVNone"))
+            elif _vt == "Bool":
+                _entries.append((_k["value"],
+                                 "(PVBool true)" if _v.get("value") else "(PVBool false)"))
+            elif _vt == "String" and isinstance(_v.get("value"), str):
+                _entries.append((_k["value"],
+                                 f"(PVStr {whyml_string_literal(_v['value'])})"))
+            else:
+                return None
+        _idx = arg_ir.get("index")
+        if _idx is None:
+            _idx = arg_ir.get("slice")
+        if not isinstance(_idx, dict):
+            return None
+        self._add_abstract_op(
+            "val str_eq_op (a: string) (b: string) : bool\n"
+            "    ensures { result <-> (a = b) }")
+        if elt_lower is None:
+            return None
+        _kx = elt_lower(_idx)
+        _ch = "PVNone"
+        for _kk, _vv in reversed(_entries):
+            _ch = (f"(if (str_eq_op _pvk {whyml_string_literal(_kk)}) "
+                   f"then {_vv} else {_ch})")
+        return f"(let _pvk = {_kx} in {_ch})"
+
     def _lower_quant_optfield(self, kind: str, fields: Dict[str, Any],
                               local_refs: Set[str], invariant_ctx: bool,
                               subst: Optional[Dict[str, str]]) -> str:
@@ -6653,7 +6730,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # raw node lets the slot re-lower it into `IrOSome`/`IrONone`.
             raw_kwargs={kw["arg"]: kw.get("value")
                         for kw in (expr.get("keywords") or [])
-                        if isinstance(kw, dict) and isinstance(kw.get("arg"), str)})
+                        if isinstance(kw, dict) and isinstance(kw.get("arg"), str)},
+            # INLINE CONST-DICT INDEX: the `pyconst_val` slot needs to lower the dict
+            # literal's KEY EXPRESSION, which requires the deref environment
+            # (`local_refs`) this frame has and the constructor does not. Same device
+            # `_call_term_constructor` already uses one call above.
+            elt_lower=(lambda _n: self._expr_to_whyml(
+                _n, local_refs, invariant_ctx, subst)))
         if adt is not None:
             return adt
         # TERM CARRIER (L13): a term-ADT arm class construction lowers to the certified
@@ -9111,11 +9194,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _rt = (getattr(self, "_module_method_return_types", {}) or {}).get(_key)
         return _rt == "pyconst_val"
 
+    def _call_returns_string(self, fn: str) -> bool:
+        """Does the callee `fn` declare a `string` return type? The `string` twin of
+        `_call_returns_pyconst_val`, resolved from the same module return-type map with the
+        same self-call class-prefix mangling. Used by the `iropt_str` payload slot to admit
+        a PRESENT string produced by a call (`_N("MatchAs")(pattern=p,
+        name=self._capture_name("as"))` in `pattern`) as `(IrSSome …)`. Fail-closed: a
+        callee whose interface is int-erased or otherwise typed answers False and the
+        construction declines exactly as before."""
+        if not isinstance(fn, str) or not fn:
+            return False
+        _key = fn
+        if fn.startswith("self."):
+            _cls = getattr(self, "_current_self_type", None)
+            _tail = fn[len("self."):]
+            _key = f"{_cls}__{_tail}" if _cls else _tail
+        return (getattr(self, "_module_method_return_types", {}) or {}
+                ).get(_key) == "string"
+
     def _call_irnode_constructor(self, args: List[str], func_name: str,
                                  kwargs_map: Optional[Dict[str, str]] = None,
                                  none_arg_indices: Optional[Set[int]] = None,
                                  none_kwargs: Optional[Set[str]] = None,
-                                 raw_kwargs: Optional[Dict[str, Any]] = None
+                                 raw_kwargs: Optional[Dict[str, Any]] = None,
+                                 elt_lower: Optional[Any] = None
                                  ) -> Optional[str]:
         """NODE-CTOR (self-tcb-reduction): `C(a, b, c)` for a CSL-AST node class that the
         SHARED `_IRNODE_CTORS` table models → the `emit_ir` ADT application
@@ -9328,6 +9430,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if isinstance(_rk, dict) and _rk.get("type") == "String":
                     parts.append(f"(IrSSome {bound[f]})")
                     continue
+                # A PRESENT string produced by a CALL (relaunch #13): `pattern` builds
+                # `_N("MatchAs")(pattern=p, name=self._capture_name("as"))`, and
+                # `_capture_name`'s declared `-> str` makes the actual a genuine `string`.
+                # `as`-patterns ALWAYS carry a capture name, so `IrSSome` is exact. Gated
+                # on the callee's declared return type, so an int-erased helper still
+                # declines the whole construction.
+                if (isinstance(_rk, dict) and _rk.get("type") == "Call"
+                        and self._call_returns_string(_rk.get("func", ""))):
+                    parts.append(f"(IrSSome {bound[f]})")
+                    continue
                 return None
             if _irlist_slots.get(f) == "pyconst_val":
                 # LITERAL-VALUE MODEL (relaunch #12): the `Constant.value` slot, now typed
@@ -9361,6 +9473,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if (isinstance(_rc, dict) and _rc.get("type") == "Number"
                         and _rc.get("py_ellipsis")):
                     parts.append("PVEllipsis")
+                    continue
+                _pvd = self._inline_pyconst_dict_index(_rc, elt_lower)
+                if _pvd is not None:
+                    parts.append(_pvd)
                     continue
                 # NOTE (relaunch #12): the `PVBool` and `PVEllipsis` arms were BUILT
                 # AND MEASURED WORKING for `atom` (`value=True` -> `(PVBool true)`, not
@@ -9412,6 +9528,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # unless the actual really is a `!<local>` deref of a seq local KNOWN to
                 # carry strings, so the slot can never be filled with an int-erased list.
                 _rs = str(bound[f]).strip()
+                # AN EMPTY LIST LITERAL IS A GENUINELY EMPTY STRING-LIST CHILD, not a
+                # decline — the exact twin of the `irlist` slot's `ILNil` case just below,
+                # on the same `(Array.make 1024 0)` placeholder literal (lesson (ao)).
+                # `closed_pattern`'s class pattern `Ctor(p1, …)` really carries NO keyword
+                # attributes: `_N("MatchClass")(…, kwd_attrs=[], kwd_patterns=[])`, and
+                # `kwd_patterns` (an `irlist`) was already admitted this way while its
+                # `seq string` twin declined and took the whole construction with it.
+                # `Seq.empty` is the faithful value. Gated on the EXACT placeholder, so any
+                # other actual still has to be a known string seq local, fail-closed.
+                if _rs == "(Array.make 1024 0)":
+                    parts.append("(Seq.empty: seq string)")
+                    continue
                 if not (_rs.startswith("!") and _rs[1:].isidentifier()
                         and _rs[1:] in getattr(self, "_seq_locals", set())
                         and getattr(self, "_seq_value_types", {}).get(

@@ -330,7 +330,30 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # `None` leaves a payload slot unbound and `_call_irnode_constructor` DECLINES —
     # fail-closed, never a dropped child. An `iropt_ir`/`iropt_str` variant is the
     # reopening capability if a None-carrying MatchAs site is ever converted.
-    "MatchAs": ("IrPyMatchAs", [("pattern", "emit_ir"), ("name", "string")]),
+    # TAKEN (relaunch #13): `closed_pattern` is exactly that None-carrying site — the bare
+    # wildcard `_N("MatchAs")(pattern=None, name=None)` and the capture-target
+    # `_N("MatchAs")(pattern=None, name=s)`. Both slots are now the monomorphic option
+    # ADTs, so an ABSENT sub-pattern/name is a TRUE `IrONone`/`IrSNone` instead of
+    # declining the whole construction to a facade.
+    "MatchAs": ("IrPyMatchAs", [("pattern", "iropt_ir"), ("name", "iropt_str")]),
+    # `MatchValue(value)` — `_NODE_SPEC['MatchValue'] == ('pattern', ('value',), None)`,
+    # ONE total child and NOT in `_OPTIONAL_FIELDS`: a value pattern always wraps a real
+    # expression node (a number literal, a string, or a dotted value).
+    "MatchValue": ("IrPyMatchValue", [("value", "emit_ir")]),
+    # `MatchSingleton(value)` — `_NODE_SPEC['MatchSingleton'] == ('pattern', ('value',),
+    # None)`. The child is NOT a node: ASDL types it `constant`, and Python restricts it
+    # to exactly `None` / `True` / `False`. So the slot is the CERTIFIED `pyconst_val`
+    # union (`PVNone` / `PVBool true` / `PVBool false`), the same carrier `Constant.value`
+    # uses — no new value model, and the three legal values are exactly three of its arms.
+    "MatchSingleton": ("IrPyMatchSingleton", [("value", "pyconst_val")]),
+    # `MatchClass(cls, patterns, kwd_attrs, kwd_patterns)` — `_NODE_SPEC['MatchClass'] ==
+    # ('pattern', ('cls','patterns','kwd_attrs','kwd_patterns'), None)`, all four total.
+    # `cls` is the constructor NODE; `patterns` and `kwd_patterns` are VARIADIC child
+    # lists (`irlist`); `kwd_attrs` is a list of IDENTIFIER STRINGS, so it takes the
+    # `seq string` payload the `Compare.ops` / `Global.names` arms introduced.
+    "MatchClass": ("IrPyMatchClass", [("cls", "emit_ir"), ("patterns", "irlist"),
+                                      ("kwd_attrs", "seq string"),
+                                      ("kwd_patterns", "irlist")]),
     # `BoolOp(op, values)` — `_NODE_SPEC['BoolOp'] == ('expr', ('op','values'),
     # <loc attrs>)`, both total. `op` is a 0-field `boolop` singleton carried as its
     # class-name string; `values` is the VARIADIC operand list, carried as the

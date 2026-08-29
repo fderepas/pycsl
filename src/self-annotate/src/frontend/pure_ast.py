@@ -1321,6 +1321,16 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #13): converting `closed_pattern` CLOSES the pattern
+    # `let rec` group into a real cycle `closed_pattern -> _sequence_pattern ->
+    # pattern -> or_pattern -> closed_pattern`, so all four members must share one
+    # well-founded order. Phase-offset form (lesson (bh)/(bo)) at multiplier 4 — the
+    # no-advance edges are exactly `pattern -> or_pattern -> closed_pattern ->
+    # _sequence_pattern`, a DAG, so a strictly decreasing chain 3/2/1/0 satisfies
+    # them; every RISING edge leaves a method whose leading `advance` is provably
+    # strict, and the maximum rise (3) is under the multiplier. This member is at
+    # depth 3.
+    #@ \variant 4 * (\length(self.toks) - self.i) + 3
     #@ assigns self.i
     def pattern(self) -> "ExprIR":
         t = self.cur()
@@ -1336,6 +1346,16 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #13): converting `closed_pattern` CLOSES the pattern
+    # `let rec` group into a real cycle `closed_pattern -> _sequence_pattern ->
+    # pattern -> or_pattern -> closed_pattern`, so all four members must share one
+    # well-founded order. Phase-offset form (lesson (bh)/(bo)) at multiplier 4 — the
+    # no-advance edges are exactly `pattern -> or_pattern -> closed_pattern ->
+    # _sequence_pattern`, a DAG, so a strictly decreasing chain 3/2/1/0 satisfies
+    # them; every RISING edge leaves a method whose leading `advance` is provably
+    # strict, and the maximum rise (3) is under the multiplier. This member is at
+    # depth 2.
+    #@ \variant 4 * (\length(self.toks) - self.i) + 2
     #@ assigns self.i
     def or_pattern(self) -> "ExprIR":
         t = self.cur()
@@ -1371,51 +1391,101 @@ class _Parser:
         self.advance()
         return tk.string
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
-    # live body, which moves the cursor only through advance/accept_*/expect_* and its
-    # sub-parsers.
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
-    # live body, which moves the cursor only through advance/accept_*/expect_* and its
-    # sub-parsers.
-    # CERTIFIED-BOUNDARY [FOUR NAMED GAPS], relaunch #12 — RE-DIAGNOSED TWICE, and the
-    # second pass matters because the FIRST re-diagnosis was itself wrong.
-    # The originally recorded reason was [MODEL]: "needs the parser's own number/constant
-    # classification". That is now BUILT (the certified `pyconst_val` slot +
-    # `_parse_number`'s `-> "PyConstVal"` interface, which converted the sibling
-    # `_pattern_number` in the same increment) and it is NOT what blocks this method.
-    # Ported and MEASURED on the 1-second oracle, then BISECTED:
-    #   (1) `MatchValue(value=…)` had no `_PYAST_IRNODE_CTORS` entry — all three arms that
-    #       build it fell to the `matchValue_0 ()` facade. BUILT AND MEASURED WORKING as
-    #       `IrPyMatchValue emit_ir` (emitted `IrPyMatchValue (_parser___pattern_number
-    #       self)`), then reverted with the spike.
-    #   (2) `MatchAs`'s slots were `emit_ir`/`string`, so the bare-wildcard construction
-    #       `_N("MatchAs")(pattern=None, name=None)` DECLINED — exactly the reopening
-    #       capability the ctor table's own note recorded. `iropt_ir`/`iropt_str` is the
-    #       fix; BUILT AND MEASURED, then reverted with the spike.
-    #   (3) `MatchSingleton(value=…)` still falls to `matchSingleton_0 ()` even WITH a
-    #       `pyconst_val` slot, because the value arrives through an INLINE STRING-KEYED
-    #       DICT LITERAL indexed by a local (`{"None": None, "True": True,
-    #       "False": False}[s]`). The const-dict lowering exists only for a MODULE-LEVEL
-    #       table; extending it to an inline literal is the named capability.
-    #   (4) `s = t.string` is INT-ERASED in THIS body — `let s = ref 0`, membership
-    #       lowered to HASH equality (`!s = 1922383146`) and the f-string to
-    #       `int_to_string !s`, while `seq_mem_str !s` is applied to the same int. A real
-    #       WRONG-VALUE erasure (two names can collide on a hash), and inconsistent besides.
-    #       WHAT IT IS NOT, measured by bisection so the next worker does not repeat it:
-    #       NOT the tuple membership `s in ("None","True","False")` — that lowers to
-    #       `str_eq_op` disjuncts and keeps `s` a `ref ""`; NOT the dict-literal index on
-    #       its own — a two-line body with both still keeps `s` a string; NOT `MatchAs`.
-    #       It appears only in the FULL body, so it is a JOIN over several uses, and the
-    #       capability to name is a string-classification that is not defeated by one
-    #       int-modelled use of a local that every other use treats as a string.
-    # Gap (4) is worth fixing on its own account, not just to unblock this method.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #13). Verbatim body port of the
+    # LIVE `closed_pattern`, and the CERTIFIED-BOUNDARY [FOUR NAMED GAPS] recorded here in
+    # relaunch #12 is BROKEN — all four, plus a fifth the bisection had not seen.
+    #   (1) `MatchValue` now has a ctor entry `IrPyMatchValue emit_ir`; all three arms
+    #       build it for real (`_pattern_number`, `strings` — whose `-> "ExprIR"` return
+    #       interface landed with `atom` — and `_dotted_value`).
+    #   (2) `MatchAs`'s slots are `iropt_ir`/`iropt_str`, so the bare wildcard
+    #       `_N("MatchAs")(pattern=None, name=None)` is `IrPyMatchAs IrONone IrSNone` and
+    #       the capture target is `IrPyMatchAs IrONone (IrSSome !s)` — an ABSENT
+    #       sub-pattern/name is a true None, never a node or `""`.
+    #   (3) `MatchSingleton` takes the CERTIFIED `pyconst_val` slot, and its value —
+    #       which arrives through an INLINE string-keyed DICT LITERAL indexed by a local —
+    #       lowers through the new inline const-dict projection to the faithful chained
+    #       `str_eq_op` ITE `PVNone / PVBool true / PVBool false`. Same shape (and same
+    #       key-bound-once `let`) as the module-level const-dict form, and the fall-through
+    #       is unreachable because the branch guard `s in ("None","True","False")` lowers
+    #       to the disjunction over literally the same three keys.
+    #   (4) THE `s = t.string` INT-ERASURE WAS NOT A JOIN OVER SEVERAL USES — the recorded
+    #       diagnosis was wrong, and the truth is worse. `_record_field_elem_locals` was
+    #       published only AFTER `_typed_local_vars` ran, so during classification it held
+    #       the PREVIOUSLY EMITTED function's locals: `atom` inherited a map containing
+    #       `t` and got `s : str`, `closed_pattern` inherited `_sequence_pattern`'s
+    #       `{star_t, nm, end}` and got `s : Any` -> `ref 0`, membership by HASH and the
+    #       f-string through `int_to_string`. A per-function state read one function
+    #       early — EMISSION-ORDER-DEPENDENT string classification, repaired at the source.
+    #   (5) `MatchClass` had no ctor entry either (the bisection missed it): now
+    #       `IrPyMatchClass emit_ir irlist (seq string) irlist`, with the empty `kwd_attrs`
+    #       admitted as `Seq.empty` exactly as the `irlist` twin already admitted `ILNil`.
+    # TERMINATION: converting this method CLOSES the pattern group into a real cycle
+    # `closed_pattern -> _sequence_pattern -> pattern -> or_pattern -> closed_pattern`;
+    # the no-advance edges form a DAG, so the phase offsets 3/2/1/0 at multiplier 4 carry
+    # it, with `_sequence_pattern` taking the same token-kind precondition that cut
+    # `atom`'s cycle.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #13): converting `closed_pattern` CLOSES the pattern
+    # `let rec` group into a real cycle `closed_pattern -> _sequence_pattern ->
+    # pattern -> or_pattern -> closed_pattern`, so all four members must share one
+    # well-founded order. Phase-offset form (lesson (bh)/(bo)) at multiplier 4 — the
+    # no-advance edges are exactly `pattern -> or_pattern -> closed_pattern ->
+    # _sequence_pattern`, a DAG, so a strictly decreasing chain 3/2/1/0 satisfies
+    # them; every RISING edge leaves a method whose leading `advance` is provably
+    # strict, and the maximum rise (3) is under the multiplier. This member is at
+    # depth 1.
+    #@ \variant 4 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
     def closed_pattern(self) -> "ExprIR":
-        pass
+        t = self.cur()
+        ty = t.type
+        if ty == _tokenize.NUMBER or self.at_op("-", "+"):
+            return self._fin(_N("MatchValue")(value=self._pattern_number()), t)
+        if ty in (_tokenize.STRING, _tokenize.FSTRING_START):
+            return self._fin(_N("MatchValue")(value=self.strings()), t)
+        if ty == _tokenize.NAME:
+            s = t.string
+            if s in ("None", "True", "False"):
+                self.advance()
+                return self._fin(_N("MatchSingleton")(
+                    value={"None": None, "True": True, "False": False}[s]), t)
+            if s in _keyword.kwlist:
+                self.error(f"unexpected keyword {s!r} in pattern")
+            nxt = self.peek(1)
+            if nxt.type == _tokenize.OP and nxt.string == ".":
+                return self._fin(_N("MatchValue")(value=self._dotted_value()), t)
+            if nxt.type == _tokenize.OP and nxt.string == "{":
+                self.unsupported("mapping match pattern")
+            if nxt.type == _tokenize.OP and nxt.string == "(":
+                # class pattern `Ctor(p1, …)` — positional capture sub-patterns (sum-types).
+                cls_t = self.advance()                       # consume the constructor NAME
+                cls_node = self._fin(_N("Name")(id=s, ctx=_N("Load")()), cls_t)
+                self.advance()                               # consume "("
+                patterns = []
+                #@ ghost i0 = self.i
+                #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+                #@ loop invariant self.i >= i0
+                #@ loop variant \length(self.toks) - self.i
+                while not self.at_op(")"):
+                    patterns.append(self.pattern())
+                    if not self.accept_op(","):
+                        break
+                end = self.expect_op(")")
+                return self._fin_pos(_N("MatchClass")(
+                    cls=cls_node, patterns=patterns, kwd_attrs=[], kwd_patterns=[]), t, end)
+            self.advance()                        # capture target / wildcard
+            if s == "_":
+                return self._fin(_N("MatchAs")(pattern=None, name=None), t)
+            return self._fin(_N("MatchAs")(pattern=None, name=s), t)
+        if self.at_op("("):
+            return self._sequence_pattern("(", ")", t)
+        if self.at_op("["):
+            return self._sequence_pattern("[", "]", t)
+        if self.at_op("{"):
+            self.unsupported("mapping match pattern")
+        self.error("invalid pattern")
 
     # LITERAL-VALUE MODEL, relaunch #12: CONVERTED — the FIRST consumer of the certified
     # `pyconst_val` slot, and the [MODEL] boundary recorded against the `Constant` NUMBER
@@ -1436,6 +1506,11 @@ class _Parser:
     # `>=` chain trivially true, but nothing consumes it yet — demand-first.
     #@ requires True
     #@ ensures True
+    # CURSOR NON-REGRESSION (relaunch #13): `closed_pattern` calls this on its NUMBER arm
+    # and carries its own `self.i >= \old(self.i)` through it, so the clause is needed
+    # here. PROVED, not assumed — this body is CONVERTED and moves the cursor only through
+    # `advance` (monotone by its own postcondition) and the `-> "NoReturn"` `error`.
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _pattern_number(self) -> "ExprIR":
         t = self.cur()
@@ -1481,11 +1556,28 @@ class _Parser:
     # `_sequence_pattern`. Builds a REAL `IrPyMatchStar` (whose `name` slot is the
     # monomorphic `iropt_str`, so the anonymous `*_` is a true absent name, not "") and a
     # REAL `IrPyMatchSequence` over the accumulated `elts` (seq -> irlist).
-    #@ requires True
+    # TOKEN-KIND PRECONDITION (relaunch #13, the same capability that cut `atom`'s
+    # no-advance cycle). The body opens by consuming the OPENER its caller has just
+    # tested with `at_op("(")` / `at_op("[")`; stated here it composes with the
+    # EOF-SENTINEL class invariant (the last token is ENDMARKER, not an OP) to rule
+    # out the last index, so that leading `advance` provably INCREMENTS and the
+    # 4-unit cursor drop pays the rise to `pattern` (depth 3). DISCHARGED at both
+    # call sites in `closed_pattern` from `at_op`'s existing token-kind `ensures`.
+    #@ requires self.toks[self.i].type == _tokenize.OP
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #13): converting `closed_pattern` CLOSES the pattern
+    # `let rec` group into a real cycle `closed_pattern -> _sequence_pattern ->
+    # pattern -> or_pattern -> closed_pattern`, so all four members must share one
+    # well-founded order. Phase-offset form (lesson (bh)/(bo)) at multiplier 4 — the
+    # no-advance edges are exactly `pattern -> or_pattern -> closed_pattern ->
+    # _sequence_pattern`, a DAG, so a strictly decreasing chain 3/2/1/0 satisfies
+    # them; every RISING edge leaves a method whose leading `advance` is provably
+    # strict, and the maximum rise (3) is under the multiplier. This member is at
+    # depth 0.
+    #@ \variant 4 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
-    def _sequence_pattern(self, openp: str, closep: str, t) -> "ExprIR":
+    def _sequence_pattern(self, openp: str, closep: str, t: _Tok) -> "ExprIR":
         self.advance()                            # consume opener
         elts = []
         saw_comma = False

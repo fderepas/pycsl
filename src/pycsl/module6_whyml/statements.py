@@ -5584,6 +5584,24 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         self._opaque_selfmap_aliases = {}
         self._opaque_selfmap_inner_aliases = {}
         self._prescan_opaque_selfmap_aliases(body_stmts)
+        # W8 capability (iii), STALE-STATE REPAIR (relaunch #13): `_record_field_elem_locals`
+        # was published only AFTER `_typed_local_vars` ran (see the `_rec_predecl` block far
+        # below), so during local CLASSIFICATION the map still held the PREVIOUSLY EMITTED
+        # function's locals. `_is_string_expr` consults it through
+        # `_record_elem_field_py_type` to decide that `t.string` (a `str` field of an
+        # `array <record>` self-field element) is a STRING read — so whether `s = t.string`
+        # was classified `str` or left `Any` (and therefore INT-HASH-ERASED) depended on
+        # WHICH FUNCTION HAPPENED TO BE EMITTED BEFORE IT. Measured on two siblings with
+        # BYTE-IDENTICAL first assignments: `atom` inherited `{'t','end'}` and got `s : str`,
+        # while `closed_pattern` inherited `_sequence_pattern`'s `{'star_t','nm','end'}` and
+        # got `s : Any` -> `let s = ref 0`, membership lowered to HASH equality and the
+        # f-string to `int_to_string`. Seed the map from THIS body first; the block below
+        # still narrows it to the actually pre-declared locals.
+        if getattr(self, "_record_array_fields", None):
+            self._record_field_elem_locals = self._collect_record_field_elem_locals(
+                body_stmts)
+        else:
+            self._record_field_elem_locals = {}
         typed_local_vars = self._typed_local_vars(body_stmts)
         # var -> class name for record-instance locals (`c = C()`), so method
         # calls `c.method(...)` can resolve the callee contract like `self.`.
