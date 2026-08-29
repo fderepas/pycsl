@@ -323,6 +323,16 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # has no `ctx` slot.
     "Attribute": ("IrPyAttribute", [("value", "emit_ir"), ("attr", "string"),
                                     ("ctx", "string")]),
+    # `NamedExpr(target, value)` — `_NODE_SPEC['NamedExpr'] == ('expr', ('target',
+    # 'value'), None)`, BOTH total (no `_OPTIONAL_FIELDS` entry): the walrus operator's
+    # assignment target NODE and the assigned expression. NOT the pre-existing
+    # `IrNamedExpr string emit_ir`, which is the CSL-side ctor and types the target as the
+    # bound NAME STRING — `namedexpr_test` builds its target from `self.test()`, an
+    # arbitrary expression node that has just been rewritten to `Store` context by
+    # `_set_ctx`, so a string slot could not carry it at all. The two share the
+    # `"NamedExpr"` kind_of TAG, which is sound and precedented (IrCall/IrCallN,
+    # IrSliceN/IrSlice, IrStarred/IrPyStarred).
+    "NamedExpr": ("IrPyNamedExpr", [("target", "emit_ir"), ("value", "emit_ir")]),
     # `MatchAs(pattern, name)` — `_NODE_SPEC['MatchAs'] == ('pattern', ('pattern',
     # 'name'), None)`. BOTH fields are in `_OPTIONAL_FIELDS['MatchAs']` (a bare `_`
     # wildcard carries neither), but the `as`-pattern construction this arm serves

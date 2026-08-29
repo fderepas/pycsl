@@ -997,11 +997,15 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT: member of the expression group at depth 0. Its ONLY in-group
-    # out-edge (`self.expr()`) sits behind the `*` arm's own leading `advance`, which
-    # `at_op("*")` + the EOF-sentinel invariant make strict; the fall-through goes to
-    # `namedexpr_test`, which is outside the group.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 0
+    # GROUP VARIANT (RE-DEPTHED relaunch #14, 0 -> 14): the fall-through
+    # `return self.namedexpr_test()` used to leave the group; now that `namedexpr_test` is
+    # CONVERTED it is an in-group edge taken WITHOUT advancing, so this member must sit
+    # strictly ABOVE `namedexpr_test` (13) — hence 14. Its other in-group out-edge
+    # (`self.expr()`, 7) sits behind the `*` arm's own leading `advance`, which
+    # `at_op("*")` + the EOF-sentinel invariant make strict. Every in-edge to this member
+    # comes from `atom_paren`/`atom_list`/`atom_brace` (all depth 0) AFTER their leading
+    # bracket `advance`, a full 16-unit drop that pays the 14-unit rise.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 14
     #@ assigns self.i
     def test_or_star(self) -> "ExprIR":
         if self.at_op("*"):
@@ -2246,17 +2250,43 @@ class _Parser:
         name = self._name_str()
         return self._fin(_N("arg")(arg=name, annotation=None, type_comment=None), t)
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION (the `_name_str` / `test` precedents).
-    # STAYS \trusted. `-> "ExprIR"` records that the result IS an expression node
-    # (`emit_ir`); the non-regression clause is backed by the live body, which moves the
-    # cursor only through `advance`/`accept_*`/`expect_*`.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #14). Verbatim body port of the
+    # LIVE `namedexpr_test`. TWO capabilities land together and neither works alone:
+    #   (a) the `_set_ctx` RETURN INTERFACE (relaunch #13) — the live body's closing
+    #       `first = _set_ctx(first, _N("Store")())` now BINDS the rewritten target
+    #       instead of dropping an invisible in-place mutation on the floor, so the model
+    #       no longer silently keeps the target's ORIGINAL "Load" ctx where the source had
+    #       written "Store". Runtime-identical (`_set_ctx` hands back the very object it
+    #       was passed), which the corpus byte-diff of 0/813 confirms on the live edit.
+    #   (b) a NEW `_PYAST_IRNODE_CTORS` entry `IrPyNamedExpr emit_ir emit_ir`. The
+    #       pre-existing `IrNamedExpr string emit_ir` is the CSL-side ctor and types the
+    #       target as the bound NAME STRING; here the target is an arbitrary expression
+    #       NODE (`self.test()`), so that ctor cannot be reused at all.
+    # Both children are TOTAL (`NamedExpr` has no `_OPTIONAL_FIELDS` entry), so both slots
+    # are plain `emit_ir` — nothing is dropped and nothing is optional-modelled.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #14): converting this method pulls it into the expression
+    # `let rec ... with ...` group at multiplier 16. Its ONE in-group out-edge taken
+    # WITHOUT advancing is `first = self.test()` (12), so it must sit strictly ABOVE 12;
+    # and the two group members that reach IT without advancing — `test_or_star`'s
+    # fall-through and `_call_args`' positional arm — must sit strictly above IT, so they
+    # move to 14 (from 0 and 13). Depth 13 here. Every other in-edge is paid by a full
+    # 16-unit cursor drop: `atom_paren` (0) reaches it only after the strict `(` advance
+    # its token-kind precondition licenses. Maximum rise into the group is 14 < 16, so the
+    # multiplier is unchanged. Full assignment recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 13
     #@ assigns self.i
     def namedexpr_test(self) -> "ExprIR":
-        pass
+        t = self.cur()
+        first = self.test()
+        if self.at_op(":="):
+            self.advance()
+            value = self.test()
+            first = _set_ctx(first, _N("Store")())
+            return self._fin(_N("NamedExpr")(target=first, value=value), t)
+        return first
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
     # precedents). STAYS \trusted. `-> "ExprIR"` records that the result IS an expression
@@ -2823,9 +2853,14 @@ class _Parser:
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
     # order. Phase-offset form at multiplier 16 — the group's only provably
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
-    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
-    # member sits at depth 12. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 13
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset.
+    # RE-DEPTHED relaunch #14 (13 -> 14): the positional arm's `e = self.namedexpr_test()`
+    # is taken WITHOUT advancing, and `namedexpr_test` is now a CONVERTED group member at
+    # 13, so this member must sit strictly above it. Its other out-edges (`test` 12,
+    # `comp_for` 12) stay below. Both in-edges are paid by a full 16-unit drop (`trailers`
+    # after the `(` advance; `classdef` is outside the group). The full depth assignment
+    # is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 14
     #@ assigns self.i
     def _call_args(self, close: str) -> "Tuple[List[ExprIR], List[ExprIR]]":
         args = []; keywords = []

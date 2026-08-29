@@ -1570,7 +1570,7 @@ class _Parser:
         if self.at_op(":="):
             self.advance()
             value = self.test()
-            _set_ctx(first, _N("Store")())
+            first = _set_ctx(first, _N("Store")())
             return self._fin(_N("NamedExpr")(target=first, value=value), t)
         return first
 
