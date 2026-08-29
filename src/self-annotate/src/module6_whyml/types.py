@@ -190,6 +190,7 @@ class TypeInferenceMixin:
     # override that routes ".get(\"body\", {})" to the new scalar `body_of` (vs the
     # existing ".get(\"body\", [])" stmt-list `stmts_of`, unchanged). The `variant { size
     # val_ir }` now discharges via those two lemmas.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

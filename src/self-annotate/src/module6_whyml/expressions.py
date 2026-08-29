@@ -149,6 +149,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(materialize {whyml_str})"
         return whyml_str
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -329,6 +330,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _is_string_expr(self, ir: "ExprIR") -> bool:
         return False
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

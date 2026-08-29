@@ -1022,6 +1022,61 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _scan(body_stmts)
         return _out
 
+    def _collect_kind_local_recv(self, body_stmts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """KIND-LOCAL DISCRIMINANT FLOW (relaunch #11): map a local that is assigned
+        EXACTLY ONCE from `<emit_ir>.get("type", …)` to the RECEIVER's IR dict, so a later
+        `<local> == "K"` test lowers to the constructor discriminant `(is_K <recv>)` — the
+        SAME already-sanctioned faithfulness law `_emit_ir_kind_discriminant` applies to
+        the direct `<emit_ir>.get("type") == "K"` form (`_KIND_DISCRIMINANT`: `is_K` and
+        `kind_of e = "K"` agree on every REAL node; `is_K` merely excludes the `IrOther`
+        catch-all).
+
+        WHY IT MATTERS, measured on `_rhs_yields_map`: `t = val_ir.get("type", "");
+        if t == "IfExpr": return self._rhs_yields_map(val_ir.get("body", {})) or …` is a
+        STRUCTURAL RECURSION whose `variant { size val_ir }` needs `size (body_of val_ir)
+        < size val_ir`, and the guarded law `size_ifexpr_body_dec` is stated over
+        `is_ifexpr`. The string test `kind_of val_ir = "IfExpr"` does NOT imply it — the
+        `IrOther "IfExpr"` catch-all satisfies the string test, and for it `body_of`
+        returns the `IrOther ""` sentinel whose size is also 1, so the decrease is
+        genuinely FALSE there. (The sibling `BinOp` arm proved only because its EXTRA
+        guard `op_of val_ir in {|,&,^,-}` returns `""` off `IrBinOp`, so a non-empty op
+        pins the constructor.) Lowering the guard to the discriminant closes it.
+
+        Fail-closed: the local must be a plain single-assignment local (never reassigned,
+        not a formal param), the RHS exactly a `.get("type"…)` reflection over an
+        `emit_ir`-typed receiver."""
+        _assigns: Dict[str, List[Any]] = {}
+
+        def _scan(node: Any) -> None:
+            if isinstance(node, dict):
+                _k = node.get("stmt")
+                if _k in ("Assign", "AugAssign") and isinstance(node.get("target"), str):
+                    _v = node.get("value", {})
+                    _v = _v.to_dict() if hasattr(_v, "to_dict") else _v
+                    _assigns.setdefault(node["target"], []).append(_v)
+                if (_k == "TupleUnpack") and isinstance(node.get("targets"), list):
+                    for _t in node["targets"]:
+                        if isinstance(_t, str):
+                            _assigns.setdefault(_t, []).append(None)
+                for _x in node.values():
+                    _scan(_x)
+            elif isinstance(node, list):
+                for _x in node:
+                    _scan(_x)
+
+        _scan(body_stmts)
+        _out: Dict[str, Any] = {}
+        for _nm, _vals in _assigns.items():
+            if len(_vals) != 1 or _nm in set(getattr(self, "_formal_params", []) or []):
+                continue
+            _v = _vals[0]
+            if not isinstance(_v, dict):
+                continue
+            _recv = self._emit_ir_receiver_of_type_get(_v)
+            if _recv is not None:
+                _out[_nm] = _recv
+        return _out
+
     def _const_pair_dict_unpack_projs(self, val_ir: Dict[str, Any],
                                       targets: List[str],
                                       local_refs: Set[str]) -> Optional[List[str]]:
@@ -4740,6 +4795,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # MODULE-CONST-PAIR-DICT UNPACK: the first target of `a, b = <pair dict>[<k>]`
         # receives the dict's STRING component (see `_collect_const_pair_dict_str_locals`).
         string_vars |= self._collect_const_pair_dict_str_locals(body_stmts)
+        # KIND-LOCAL DISCRIMINANT FLOW: `t = <emit_ir>.get("type", "")` then `t == "K"`
+        # (see `_collect_kind_local_recv`).
+        self._kind_local_recv = self._collect_kind_local_recv(body_stmts)
         # union/match cluster: `var_name = subj.get("name")` string-scalar leaf. (The
         # nested-map hval registration + items-key + enum-element string classification is
         # done EARLIER — before `_collect_str_call_result_locals` — see above.)

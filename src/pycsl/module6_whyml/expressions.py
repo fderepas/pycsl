@@ -1753,6 +1753,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # ast.Slice)`. `is_slice` (preamble.py) matches both slice ctors, agreeing with
         # `kind_of e = "Slice"` on every real node (the is_binop faithfulness law).
         "Slice": "is_slice",
+        # relaunch #11: the IfExpr discriminant (`is_ifexpr`, preamble.py — the same
+        # match-based bool as `is_binop`, excluding the `IrOther` catch-all). Needed by
+        # the KIND-LOCAL flow so `_rhs_yields_map`'s ternary arm can discharge the
+        # structural `variant { size val_ir }` through `size_ifexpr_body_dec` /
+        # `size_ifexpr_orelse_dec`, which are stated over `is_ifexpr`.
+        "IfExpr": "is_ifexpr",
     }
 
     # isinstance-on-emit_ir batch (self-tcb-reduction M5): map a Python AST node
@@ -2061,6 +2067,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if _pred is None:
             return None
         _recv = self._emit_ir_receiver_of_type_get(left_ir)
+        if _recv is None and isinstance(left_ir, dict) and left_ir.get("type") == "Var":
+            # KIND-LOCAL DISCRIMINANT FLOW (relaunch #11): the guard may test a LOCAL that
+            # was bound ONCE from `<emit_ir>.get("type", …)` (`t = val_ir.get("type", "")`
+            # … `if t == "IfExpr":`) rather than the reflection inline. Same receiver, same
+            # faithfulness law — see `statements._collect_kind_local_recv` for why the
+            # string test is not merely slower but genuinely INSUFFICIENT for a structural
+            # recursion's `variant { size … }`.
+            _recv = (getattr(self, "_kind_local_recv", None) or {}).get(left_ir.get("name"))
         if _recv is None:
             # allow the reflected form on either side (`"K" == node.get("type")`)
             return None
@@ -4141,6 +4155,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _disc = self._emit_ir_kind_discriminant(expr.get("left"), expr.get("right"))
             if _disc is not None:
                 return _disc if raw_op == "==" else f"(not {_disc})"
+        # KIND-LOCAL DISCRIMINANT FLOW (relaunch #11) — the NARROW mirror carve-out to the
+        # `not _mutable_state_classes` gate above. The mirror deliberately keeps the
+        # already-proven `kind_of` string path; but for a STRUCTURALLY RECURSIVE emitter
+        # method the string test is not merely a different lowering, it is INSUFFICIENT:
+        # the injected `variant { size <p> }` needs `size (body_of p) < size p`, whose law
+        # is stated over `is_ifexpr`, and `kind_of p = "IfExpr"` admits the `IrOther
+        # "IfExpr"` catch-all for which the decrease is genuinely FALSE (measured: two
+        # 30s/62M-step Timeouts on `_rhs_yields_map`'s ternary arm). So the carve-out is
+        # gated on exactly the situation that needs it — the guard tests a LOCAL bound once
+        # from `<p>.get("type", …)`, and `<p>` is THIS function's own variant measure —
+        # and nowhere else. Corpus has no emit_ir → never fires → byte-identical.
+        if (raw_op in ("==", "!=") and not self._in_spec
+                and getattr(self, "_size_variant_param", None)):
+            _l = expr.get("left")
+            if (isinstance(_l, dict) and _l.get("type") == "Var"
+                    and isinstance((getattr(self, "_kind_local_recv", None) or {}).get(
+                        _l.get("name")), dict)):
+                _kr = self._kind_local_recv[_l["name"]]
+                _r = expr.get("right")
+                if (_kr.get("type") == "Var"
+                        and _kr.get("name") == self._size_variant_param
+                        and isinstance(_r, dict) and _r.get("type") == "String"):
+                    _pred2 = self._KIND_DISCRIMINANT.get(_r.get("value"))
+                    if _pred2 is not None:
+                        _rw = self._expr_to_whyml(_kr, local_refs, invariant_ctx, subst)
+                        _disc2 = f"({_pred2} {_rw})"
+                        return _disc2 if raw_op == "==" else f"(not {_disc2})"
         # sub-inc B (`_maybe_inject_union_return`): `<string> == <optstr-local>` — a `==`/
         # `!=` between a string-typed operand and an `option string`-returning-call local
         # (`arm_type == val_type`, `val_type = self._infer_return_value_type(val_ir)`).

@@ -5429,8 +5429,28 @@ class FunctionEmissionMixin:
 
         func_pure = func.get("pure", False)
         func_lemma = func.get("lemma", False)
+        self._size_variant_param = None
         is_recursive = (IRScanner.is_recursive(func["name"], body_stmts)
                         or IRScanner.is_recursive(name, body_stmts))
+        # SIBLING-CONCRETE SELF-RECURSION (relaunch #11): a `#@ sibling_concrete` method
+        # whose own body calls `self.<m>(...)` has that call lowered CONCRETELY
+        # (`expressions._handle_dotted_call`), so the emitted function really IS recursive.
+        # `IRScanner.is_recursive` matches the IR name or the bare name, but the call
+        # node's `func` is the DOTTED `"self.<m>"` — exactly the miss `scc.py`'s
+        # `find_self_method_calls` documents for the ORDERING graph — so this read False,
+        # the function emitted as a plain `let`, and its own concrete self-call was an
+        # UNBOUND SYMBOL (measured on `_rhs_yields_map`: `unbound function or predicate
+        # symbol 'statementemissionmixin___rhs_yields_map'`). Resolve the dotted form the
+        # same way the SCC does. Gated on the opt-in `#@ sibling_concrete` marker, so it is
+        # byte-inert for every method that does not carry it. `use_rec` and the
+        # `variant { size <ir-param> }` injection below both follow from `is_recursive`,
+        # which is exactly what a genuinely recursive emitted function needs.
+        if (not is_recursive
+                and whyml_ident(func["name"]) in getattr(
+                    self, "_sibling_concrete_methods", set())):
+            _bare = str(func.get("name", "")).split("__", 1)[-1]
+            if _bare and IRScanner.is_recursive(f"self.{_bare}", body_stmts):
+                is_recursive = True
         use_rec = bool(func_variants) or is_recursive
         # A lemma is `assigns \nothing` so the purity heuristic flags it pure, but it
         # must NOT emit as a `let function` (a term) — it is a `let [rec] lemma` whose
@@ -5571,6 +5591,14 @@ class FunctionEmissionMixin:
                          None)
             if _ir_p is not None:
                 lines.append(f"    variant  {{ size {whyml_ident(_ir_p)} }}")
+            # KIND-LOCAL DISCRIMINANT FLOW (relaunch #11): record the parameter this
+            # function's injected `variant { size <p> }` measures, so a kind-guard on a
+            # LOCAL bound from `<p>.get("type", …)` may lower to the constructor
+            # discriminant `(is_K <p>)` — the ONLY guard shape under which the guarded
+            # size-decrease laws apply (see `statements._collect_kind_local_recv`). Scoped
+            # to THIS receiver in THIS recursive function, so the mirror's already-proven
+            # `kind_of` string path is untouched everywhere else.
+            self._size_variant_param = _ir_p
         self._emitting_val_contract = False
 
         # mutable-self-plan.md M.4: a method of a `@mutable_state` class emits its

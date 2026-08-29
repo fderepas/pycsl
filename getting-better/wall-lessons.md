@@ -3705,3 +3705,52 @@ arm still called `_add_abstract_op`, leaving a DEAD `val subscript_get_t2 (x: in
 on the same condition that guards its use. Measured the right way: diff the emitted file's
 `val` SET against the baseline's. After the guard the whole diff is one line —
 `val _parser___binop` REMOVED, zero added.
+
+## Lesson (bi) — `#@ sibling_concrete` makes a self-call REAL recursion, and a `kind_of` string guard cannot pay for it
+
+The shadowed-selfcall gate is fixed by MARKING CALLEES (lesson (bc)). Relaunch #11 took
+32 methods / 192 sites down to 27 / 176, and both halves of that are worth carrying.
+
+**1. A `#@ sibling_concrete` method that calls ITSELF becomes a real `let rec`, and the
+emitter did not know it.** `IRScanner.is_recursive` matches the IR name (`<cls>__<m>`) or
+the bare name, but a self-call's IR node carries the DOTTED `"self.<m>"` — exactly the miss
+`scc.py`'s `find_self_method_calls` documents for the ORDERING graph, never fixed for the
+EMISSION side. So a marked self-recursive callee emitted as a plain `let` whose body
+referenced itself: `unbound function or predicate symbol
+'statementemissionmixin___rhs_yields_map'`, an L3-tc failure that reads like "the marker
+does not work" and was recorded that way. Resolve the dotted form the same way the SCC
+does, gated on the opt-in marker. `use_rec` AND the injected `variant { size <ir-param> }`
+both follow from `is_recursive`, which is exactly what the emitted function then needs.
+
+**2. `kind_of e = "K"` is not merely a slower guard than `is_K` — for a STRUCTURAL
+RECURSION it is INSUFFICIENT, and the difference is a real value, not a prover mood.**
+`_rhs_yields_map`'s ternary arm is `t = val_ir.get("type", ""); if t == "IfExpr": return
+self._rhs_yields_map(val_ir.get("body", {})) or …`. Its `variant { size val_ir }` needs
+`size (body_of val_ir) < size val_ir`, and the theory states that law as
+`size_ifexpr_body_dec : forall e. is_ifexpr e -> …`. The string test does NOT imply
+`is_ifexpr`: `IrOther "IfExpr"` satisfies `kind_of e = "IfExpr"`, and for THAT value
+`body_of` returns the `IrOther ""` sentinel whose `size` is also 1 — the decrease is
+genuinely FALSE. Measured as two 30-second, 62-MILLION-step Timeouts, which is what an
+unprovable goal looks like from the outside.
+
+**The sibling arm proved, and WHY it proved is the diagnostic trick.** `BinOp`'s guard
+carries an extra conjunct — `op_of val_ir in {"|","&","^","-"}` — and `op_of` returns `""`
+off `IrBinOp`, so a NON-EMPTY op PINS the constructor and `is_binop` follows. When one arm
+of a two-arm structural recursion proves and its twin times out, look for the accidental
+constructor-pinning conjunct rather than blaming the solver.
+
+**3. The fix is a NARROW carve-out, not a wholesale flip.** The mirror deliberately keeps
+the already-proven `kind_of` string path (the tier3 discriminant rewrite is gated `not
+_mutable_state_classes`, with `is_K` deferred to a Phase 2); flipping that gate would
+re-emit and re-prove every mirror. Instead the rewrite fires ONLY where the string path is
+insufficient rather than merely different: the guard tests a LOCAL bound exactly once from
+`<p>.get("type", …)`, and `<p>` is THIS function's own injected variant measure. Three
+pieces — `_collect_kind_local_recv`, `_size_variant_param`, and the gated rewrite — and a
+measured blast radius of 7 of 52 mirrors, 0 TC_FAIL, corpus byte-diff 0.
+
+**4. The triage number to expect.** 23 methods tried on the 1-second oracle, 5 effective.
+The 18 that failed split into the four recorded reasons plus one new one worth naming: a
+`-> bool` callee emits as a `bool`-returning logic symbol while the call site coerces
+`<> 0` for an int (`_is_final_annotation`) — a return-type coercion gap at the concrete
+route, not a property of the callee. REMOVE the ineffective markers; do not leave dead
+annotation.

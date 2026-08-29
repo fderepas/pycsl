@@ -1944,6 +1944,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # fires on the type-driven `return_value_type == "string"` signal — the printer fix in
     # module6_whyml/preamble.py). isinstance_op=0. Verbatim body port of the LIVE
     # `_extract_generic_arg_names`.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
