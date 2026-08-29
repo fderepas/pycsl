@@ -2,96 +2,92 @@
 
 ## State, verified from the surface at end of session
 
-- **Count: MARKERS 518 · grep-substring 543 · offset 25 · unattached 0.** Quote BOTH.
+- **Count: MARKERS 516 · grep-substring 541 · offset 25 · unattached 0.** Quote BOTH.
   From **`bin/count-trusted-directives.py`**, never a hand-rolled grep — 25 of the grep
   hits are one boilerplate module-docstring line repeated across 25 mirror files, so every
   historical absolute figure (the famous "687") is overstated by that 25. Stable across
   three samples.
-  **Window #2 delta so far: markers 530 -> 518, grep 555 -> 543.**
-  **This session (#11): 521 -> 518 — THREE conversions, TWO certified boundaries, a
-  shadowed-selfcall repair wave, and a live-tool faithfulness repair, in four increments.**
+  **Window #2 delta so far: markers 530 -> 516, grep 555 -> 541.**
+  **This session (#11): 521 -> 516 — FIVE conversions, a shadowed-selfcall repair wave,
+  a live-tool faithfulness repair, and THREE certified boundaries of which TWO WERE THEN
+  BROKEN in the same session, in six gated increments.**
 - **`bin/check-shadowed-selfcalls.py`: 27 CONVERTED methods / 176 bypassing call sites,
   RATCHET LOWERED to 27** (was 32 / 192 at session start; 50 / 259 at window start). Needs
   `TMPDIR` on the repo filesystem (`TMPDIR=/home/fabrice/git/pycsl/scratchpad`).
 - Ledger **3**, untouched. Emitted axioms in pure_ast: **0**, unchanged.
 - Fidelity at the standing baseline **2 DIVERGED** (`_handle_var_expr`, `_handle_for_stmt`).
-  Field parity 335 / 7 known drift / 0 NEW. check-untrusted-emitted **792 / 775 / 0 / 0**.
+  Field parity 335 / 7 known drift / 0 NEW. check-untrusted-emitted **794 / 777 / 0 / 0**.
   emitted-vacuity `--emit`: no NEW erasure, **8 known**. Corpus byte-diff **0 over 813/813**.
+  `frontend/pure_ast` proves **2202 / 2202**.
   `bin/self-annotate-mirror-check.sh` byte-identical to the HEAD baseline.
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`, untracked
   `scratchpad/`, `prompt`, `prompt.txt`, `style.css` — a why3doc artifact from Aug 26).
   Leave it alone. `getting-better/.driver-deadline` intact (Sep 1 08:24 UTC).
-  **~75 h remained on the window at handoff time.** Commits are unpushed by design.
+  **~74 h remained on the window at handoff time.** Commits are unpushed by design.
 
-## WHAT THIS SESSION LANDED (four increments)
+## WHAT THIS SESSION LANDED (six gated increments)
 
-1. **`_binop` CONVERTED (521 -> 520) — the recorded CERTIFIED-BOUNDARY
-   [GROUP VARIANT RE-PHASING] is BROKEN.** Both halves built: the `str -> (str, int)`
-   PAIR-dict emitter capability (collector + membership disjunction + per-slot unpack ITEs
-   + string-local class name), and the SIXTEEN-member expression-group variant re-phasing
-   at `13 * (\length(self.toks) - self.i) + <depth>`. TCB net STRICTLY negative: the
-   emitted file's abstract-`val` set differs from HEAD's by exactly one line
-   (`val _parser___binop` REMOVED, zero added). pure_ast 1931/1931.
-2. **Shadowed-selfcall repair wave 4 (32 -> 27 methods, 192 -> 176 sites; ratchet lowered).**
-   Two emitter fixes: `#@ sibling_concrete` makes a self-call REAL recursion (the dotted
-   `self.<m>` form that `IRScanner.is_recursive` missed), and a NARROW kind-local
-   discriminant carve-out so `_rhs_yields_map`'s structural recursion can discharge its
-   variant. Seven mirrors re-proved, all SUCCESS.
-3. **`_fstring` + `_fstring_format_spec` CONVERTED (520 -> 518).** NEW capability: the
-   LITERAL-VALUE carrier `irconst = ICStr string | ICNone` for `Constant.value`. Plus an
-   `irlist` slot filled from an `array emit_ir`-returning CALL, and **a live-tool
-   faithfulness repair: a module-level call's KEYWORD ARGUMENTS were silently dropped and
-   the callee's DEFAULT emitted in their place** — fixed generally, corpus byte-diff 0.
-   pure_ast 1985/1985.
-4. **`_subscript_item` REFUTED — CERTIFIED-BOUNDARY [UNANNOTATED OPTIONAL-NODE LOCAL]**,
-   and the diagnosis REPLACES the recorded one, which was wrong (see below).
+1. **`_binop` CONVERTED (521 -> 520) — CERTIFIED-BOUNDARY [GROUP VARIANT RE-PHASING]
+   BROKEN.** The `str -> (str, int)` PAIR-dict emitter capability plus the SIXTEEN-member
+   expression-group variant re-phasing. TCB net STRICTLY negative: the emitted file's
+   abstract-`val` set differs from HEAD's by exactly one line (`val _parser___binop`
+   REMOVED, zero added).
+2. **Shadowed-selfcall repair wave 4 (32 -> 27 methods, 192 -> 176 sites; ratchet lowered
+   to 27).** `#@ sibling_concrete` makes a self-call REAL recursion (the dotted `self.<m>`
+   form `IRScanner.is_recursive` missed), plus a NARROW kind-local discriminant carve-out.
+   Seven mirrors re-proved, all SUCCESS.
+3. **`_fstring` + `_fstring_format_spec` CONVERTED (520 -> 518).** The LITERAL-VALUE carrier
+   `irconst = ICStr string | ICNone`, an `irlist` slot filled from an `array
+   emit_ir`-returning CALL, and **a live-tool faithfulness repair: a module-level call's
+   KEYWORD ARGUMENTS were silently dropped and the callee's DEFAULT emitted in their
+   place** — fixed generally, corpus byte-diff 0.
+4. **`_subscript_item` REFUTED**, with the recorded diagnosis REPLACED (the old one was
+   wrong) and the reopening capability named precisely.
+5. **`_subscript_item` CONVERTED (518 -> 517)** — the boundary from increment 4, broken
+   four hours later by exactly the capability it named. THE OPTIONAL-NODE CARRIER LOCAL
+   (`iropt_ir`) + the `IrPySlice` arm + a SECOND group re-phasing (NINETEEN members,
+   multiplier 13 -> 16).
+6. **`_fstring_replacement` CONVERTED (517 -> 516)** — the boundary from increment 3,
+   broken by the three capabilities it named. The OPTIONAL-STRING carrier (`iropt_str`)
+   completes the pair, and it is a SOUNDNESS-shaped fix: both guards had been lowering to
+   LITERALS (`format_spec is None` -> `false`, `debug_text is not None` -> `true`), so the
+   model took the wrong branches. **The f-string cluster's three convertible members are
+   all in.**
 
-New emit_ir arms this window: **fifty-five total**. Added this session: `IrPyBinOp` (via
-`_binop`'s conversion — the arm already existed), `IrPyConstant irconst iropt_str`,
-`IrPyJoinedStr irlist`, and the `irconst` carrier.
+New emit_ir arms added this session: `IrPyConstant irconst iropt_str`,
+`IrPyJoinedStr irlist`, `IrPySlice iropt_ir iropt_ir iropt_ir`,
+`IrPyFormattedValue emit_ir int iropt_ir`, plus the `irconst` carrier and the two DEFINED
+projectors `iropt_val` / `iropt_str_val` (no axiom; ledger unchanged).
 
 ## Pick up here — in this order
 
-0. **THE `iropt_ir` LOCAL — one capability, and it is the named reopening for TWO recorded
-   boundaries.** Classify a local as an `iropt_ir` LOCAL when it is assigned a bare `None`
-   AND is bound into an `iropt_ir` PAYLOAD SLOT of a `_N(<Class>)(...)` construction in the
-   same body: `ref IrONone` pre-decl, `IrONone` / `(IrOSome e)` assignments, the slot
-   binding `!x` directly, and a DEFINED total projector
-   `let function iropt_val (o: iropt_ir) : emit_ir = match o with IrOSome v -> v
-   | IrONone -> IrOther "" end` for an emit_ir-position read. No axiom, ledger unchanged.
-   With it plus an `IrPySlice iropt_ir iropt_ir iropt_ir` arm, **`_subscript_item` converts**
-   (everything else about it already emits — measured). It is also ONE of the three
-   capabilities `_fstring_replacement` needs.
-1. **`_fstring_replacement`** — the third f-string member. Needs ladder 0 PLUS: the
-   `Optional[str]` local twin (`debug_text = None`, read back under an `is not None` guard
-   into the new `irconst` slot), and a TUPLE-TYPED PARAMETER interface for
-   `_slice(self, start, end)`, whose `(line, col)` actuals are `pytuple_int_int` against an
-   `int`-declared `val`. Its `IrPyFormattedValue` arm is spelled out in the refutation
-   commit and was reverted WITH the spike.
-2. **The shadowed residue is 27 methods / 176 sites, and 142 of those sites are the two
+0. **The shadowed residue is 27 methods / 176 sites, and 142 of those sites are the two
    Module5 dispatchers** (`_csl_to_ir` 92, `_py_expr_to_ir` 44, `_py_op_to_str` 6) — the
-   recorded L2 TYPE-UNIFICATION wall. The `comprehension`-joins-the-family move is the
-   shape that answers it: give every handler's input class an `_PYAST_IRNODE_CTORS`-style
-   ADT arm so the handlers unify on `emit_ir`. A large, well-defined, funded-window build.
-   The long tail's per-method blockers are named in the relaunch-#10 increment-5 commit,
-   PLUS one new one from this session: **a `-> bool` callee emits as a `bool`-returning
-   logic symbol while the concrete call site coerces `<> 0` for an int**
-   (`_is_final_annotation`) — a return-type coercion gap at the concrete route.
-3. **`small_stmt`** — still [HETEROGENEOUS CONVERTED RETURNS]. Its five siblings are
+   recorded L2 TYPE-UNIFICATION wall, and now the single biggest named item on the board.
+   The `comprehension`-joins-the-family move is the shape that answers it: give every
+   handler's input class an `_PYAST_IRNODE_CTORS`-style ADT arm so the handlers unify on
+   `emit_ir`. A large, well-defined, funded-window build. The long tail's per-method
+   blockers are named in the relaunch-#10 increment-5 commit PLUS one from this session:
+   **a `-> bool` callee emits as a `bool`-returning logic symbol while the concrete call
+   site coerces `<> 0` for an int** (`_is_final_annotation`).
+1. **`lambda_parameters` / `parse_parameters`** — NOT yet probed, and the two capabilities
+   they need both exist now. The `IrPyArguments` arm is already in the table; its
+   `kw_defaults` slot is `irlist` and should become **`iroptlist`** (Python really puts
+   `None` in `kw_defaults` for a kw-only parameter with no default — the `Dict.keys`
+   precedent from relaunch #10, already built). Also needs `_lambda_arg` / `_param_arg`
+   return interfaces and the `posonly = args; args = []` list-alias shape.
+2. **`small_stmt`** — still [HETEROGENEOUS CONVERTED RETURNS]. Its five siblings are
    CONVERTED onto harvested RECORD returns; migrating them onto `_PYAST_IRNODE_CTORS` arms
    (plus `alias`) is a well-trodden move now. The count does not move until the LAST one
    lands.
-4. **`strings`** — the last f-string-cluster member and the hardest: `b"".join(...)` over a
+3. **`strings`** — the last f-string-cluster member and the hardest: `b"".join(...)` over a
    BYTES value, a `kinds` SET, and tuple-in-list parts. Not probed.
+4. **The `Constant` NUMBER arm.** `irconst` is the frame; adding an `ICNum`-shaped arm plus
+   a faithful `_parse_number` interface reopens `atom`, `_pattern_number` and
+   `closed_pattern` in one move (three markers).
 
 ## RECORDED BOUNDARIES — do not re-grind without new capability
 
-- **`_subscript_item` — [UNANNOTATED OPTIONAL-NODE LOCAL]** (RE-DIAGNOSED this session; the
-  old "flow-sensitive narrowing / `return lower`" record was WRONG — `return lower` emits
-  fine). See ladder 0 for the exact recipe, and the stub's own comment.
-- **`_fstring_replacement` — [OPTIONAL-LOCAL FLOW + TUPLE-PARAM INTERFACE].** See ladder 1.
-  Its `format_spec is None` guard lowered to the literal `false` — a WRONG branch
-  condition, worth remembering as the shape of this failure.
 - **`_fin` — [ERASURE-LEDGER], a JUDGEMENT not a wall (lesson (bd)).** Proved 1612/1612 and
   reverted anyway: it trades a COUNTED marker for an UNCOUNTED erasure-ledger entry and
   buys nothing. Do not re-spike; read (bd) and (bf) §3 first.
@@ -99,13 +95,21 @@ New emit_ir arms this window: **fifty-five total**. Added this session: `IrPyBin
   modelled. Blocks `namedexpr_test`, `_comp_target`, `_for_target`, `expr_stmt`, `del_stmt`,
   `_with_item`. Reopening: a functional `set_ctx` in the LIVE SOURCE. The POSITION plane is
   NOT part of this (lesson (az)) — only `ctx`.
-- **`small_stmt` — [HETEROGENEOUS CONVERTED RETURNS]** (lessons (av)-(ax)). Ladder 3.
+- **`small_stmt` — [HETEROGENEOUS CONVERTED RETURNS]** (lessons (av)-(ax)). Ladder 2.
 - **`_pattern_number`, `atom`, `closed_pattern` — [MODEL].** `Constant(value=…)` needs the
   parser's own number/constant classification. **The `irconst` carrier built this session is
   the frame for it**: add an `ICNum`-shaped arm and a faithful `_parse_number` interface and
   these reopen. Until then a non-string, non-None literal DECLINES fail-closed, which is
-  what keeps them honest.
-- **`_py_stmts_to_ir` / `_csl_to_ir` / `_py_expr_to_ir` — [L2 TYPE UNIFICATION].** Ladder 2.
+  what keeps them honest. See ladder 4.
+- **`_max_end` / `_fin_block` — [ERASURE-LEDGER], the `_fin` judgement (lesson (bd)).**
+  Both are PURE POSITION work and every call site already elides them, so converting them
+  would trade a COUNTED marker for an UNCOUNTED erasure-ledger entry and buy a caller
+  nothing. Same reopening condition as `_fin`: an `emit_ir` that CARRIES the four ASDL
+  location attributes.
+- **`node(self, name, start_tok, **kw)` — [MODEL].** A `**kw` SPLAT into `_N(name)(…)`
+  with a run-time class name; neither the by-name payload binding nor the variable-class
+  recognizers can see the field set.
+- **`_py_stmts_to_ir` / `_csl_to_ir` / `_py_expr_to_ir` — [L2 TYPE UNIFICATION].** Ladder 0.
 - **`for`-over-array termination** — the SOURCE cannot supply a variant.
 - The **`_Unparser` family (~51 stubs in pure_ast)** is blocked by
   `self.interleave(lambda: …, self.traverse, node.names)` — LAMBDA + higher-order function —
@@ -130,6 +134,18 @@ place. `_merge_str_constants(values, drop_empty=False)` emitted `… 1`, i.e. `T
 generally; corpus byte-diff 0 over 813. **Look for the same defect wherever an argument list
 is rebuilt from positions** — this one was found only because a conversion happened to pass
 a keyword.
+
+**NEW THIS SESSION, FOUND AND NOT TAKEN:** Module5's `_py_stmt_assign` reads
+`stmt.targets[0]` ONLY, so the SECOND AND LATER targets of a CHAINED assignment
+(`a = b = c = V`) are SILENTLY DROPPED — a fail-open, the same shape as the `p.x = v` no-op
+its own comment warns about. The three-line repair was built and measured corpus-byte-inert
+(0 over 813) and reverted anyway, because the mirror's own emitted model of
+`_py_stmt_assign` goes through the typed AST reader `assign_target0_ast`, which exposes only
+`targets[0]`: the repaired body's new branch is silently dropped from the emission (measured
+BYTE-IDENTICAL with and without the fix). **A live change whose mirror counterpart cannot be
+EMITTED does not get verified** — it just widens the gap between the body and the model
+(lesson (bb), sharpened; lesson (bk) §2). Reopening capability named: `assign_targets_len` /
+`assign_targetk_ast` in the reader model.
 
 ## Instrument facts (re-verified this session)
 
@@ -164,7 +180,7 @@ a keyword.
 | `module6_whyml/statements` | 904 | ~23 min |
 | `module6_whyml/expressions` | 1049 | ~15 min |
 | `frontend/Module5_IREmitter` | 1115 | ~50 min |
-| `frontend/pure_ast` | **1985** | ~36 min |
+| `frontend/pure_ast` | **2202** | ~40 min |
 
 Mirror emission sweep WITH L3-tc (52 files): **~35 s**. Corpus byte-diff (813, 6 jobs): ~32 s.
 
@@ -182,7 +198,7 @@ cost a proof. And it is how `_subscript_item`'s recorded diagnosis was found to 
 **Run `bin/check-self-annotate-sync.sh` immediately after ANY live-emitter edit.** Seconds,
 and it catches a mis-placed edit before it costs proof time (lesson (bb)).
 
-## Method notes this session paid for (full text in wall-lessons.md, (bh)-(bj))
+## Method notes this session paid for (full text in wall-lessons.md, (bh)-(bl))
 
 - **(bh)** the group re-phasing, executed: cost the CYCLE, not the function — find the one
   provably advancing edge and count offsets backwards from it; L3-tc prices the variant SHAPE
@@ -197,6 +213,13 @@ and it catches a mis-placed edit before it costs proof time (lesson (bb)).
 - **(bj)** carry the literal's SHAPE, not one of the shapes; and a keyword argument that was
   silently replaced by the callee's default — caught by writing the same call positionally
   behind a probe constant and diffing the emitted term.
+- **(bk)** a refutation that names its capability PRECISELY can be reopened the same day —
+  two of this session's three boundaries were broken hours after being recorded, by exactly
+  the capability the refutation named. And: a fix you cannot EMIT is not a fix.
+- **(bl)** the optional CARRIER pair (`iropt_ir` / `iropt_str`), their DIFFERENT gates, and
+  the diagnostic that matters most: **a guard that lowers to a LITERAL (`&& false`,
+  `if true then`) is the signature of a modelled-away optional — grep the emitted body for
+  it before believing a conversion.**
 - Still live: **(am)** ASSUME TWO PRODUCERS — it bit twice more this session (the tuple
   return-type map on a MODULE-level function, and the concrete-sibling allowlist);
   **(ai)** never stack whole-file proofs; **(ay)** run BOTH untrusted-emitted and
