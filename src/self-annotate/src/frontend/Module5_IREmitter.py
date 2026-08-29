@@ -1655,6 +1655,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `seq_to_sl`. The `line`/`invariants`/`variants` keys are DROPPED (SWhile carries
     # test+body only), so their dict values (`getattr`/`_csl_list_to_ir`) are never
     # lowered. Verbatim body port of the LIVE `_process_while`.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1689,6 +1690,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # precedent of keeping just the emitter-model-relevant children). SFor is ALREADY
     # in the certified stmt_ir ADT (Phase2d_StmtIR.v / StmtIR.lean) and the theory — no
     # new ctor. Verbatim body port of the LIVE `_process_for`.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1722,6 +1724,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (seq_to_sl (py_stmts_to_ir node.body)) (seq_to_sl (py_stmts_to_ir node.orelse))`
     # — BOTH the body AND the orelse sub-lists materialized to `stmt_list`. Verbatim
     # body port of the LIVE `_process_if`.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

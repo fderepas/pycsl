@@ -5646,7 +5646,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (_concrete
                 and (getattr(self, "_record_array_fields", None)
                      or _concrete in getattr(self, "_sibling_concrete_methods", set()))
-                and (ret_type in ("emit_ir", "int", "string")
+                # SHADOWED-SELFCALL (relaunch #15): `stmt_ir` — the certified STATEMENT
+                # node ADT — is the same case as `emit_ir`, and was simply missing from
+                # this allowlist. `_process_for` / `_process_if` / `_process_while` are
+                # CONVERTED, PROVEN `-> stmt_ir` builders whose ONLY call site is
+                # `ir_stmts.append(self._process_<k>(stmt))`; without this arm every one of
+                # those appends snoc'd the UNCONSTRAINED `val self__process_<k>_1` instead
+                # of the node the converted body builds, so the sub-body list of every
+                # emitted For/If/While was arbitrary and the three conversions bought their
+                # callers nothing. Same soundness argument as every other arm: the callee is
+                # a same-file VERIFIED method in `_module_func_names`, and
+                # `scc.find_self_method_calls` supplies the callee-before-caller ordering
+                # edge. Gated behind the same `_record_array_fields` / `#@ sibling_concrete`
+                # opt-in as the rest, so it is corpus byte-inert.
+                and (ret_type in ("emit_ir", "int", "string", "stmt_ir")
                      or (isinstance(ret_type, str) and ret_type.startswith("_union_"))
                      # A LIST-RETURNING SIBLING IS THE SAME CASE. `array <t>` was missing
                      # from this allowlist, and the consequence is a LOST CONVERSION that

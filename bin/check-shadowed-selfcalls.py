@@ -39,7 +39,7 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
-BASELINE = 26          # 55 at first measurement, 50 after the `array <t>` concrete-
+BASELINE = 23          # 55 at first measurement, 50 after the `array <t>` concrete-
                        # sibling capability landed (relaunch #9), 43 after the first
                        # `#@ sibling_concrete` marker wave (relaunch #10: `_deref` and its
                        # 28 call sites, `_rhs_yields_array`, and five ExpressionEmissionMixin
@@ -57,7 +57,12 @@ BASELINE = 26          # 55 at first measurement, 50 after the `array <t>` concr
                        # `_py_expr_compare` lowering in functions.py had the avatar
                        # HARD-CODED, so the generic `#@ sibling_concrete` route in
                        # `_handle_dotted_call` never saw it and the per-METHOD ratchet
-                       # could not move even with the other five concrete)
+                       # could not move even with the other five concrete), 23 after
+                       # wave 6 (relaunch #15: `stmt_ir` added to the concrete-route
+                       # RETURN-TYPE allowlist in `expressions._handle_dotted_call` — the
+                       # certified statement-node ADT was simply missing beside `emit_ir`,
+                       # so `_process_for`/`_process_if`/`_process_while` snoc'd an
+                       # UNCONSTRAINED node onto `ir_stmts` at their only call site)
                        # — a RATCHET, only lower it
 MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 
