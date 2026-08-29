@@ -716,6 +716,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             for gen in generators
         ]
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

@@ -3339,16 +3339,36 @@ class FunctionEmissionMixin:
         isinstance_op = 0. Corpus-inert."""
         name = whyml_ident(func["name"])
         cls = whyml_ident(func["self_type"].lower())
+        # SHADOWED-SELFCALL (relaunch #15): this body is SYNTHESIZED, so the generic
+        # `#@ sibling_concrete` route in `expressions._handle_dotted_call` never sees its
+        # `self._py_op_to_str(...)` call — the avatar was hard-coded here. A synthesized
+        # body must honour the marker exactly as a lowered one does, or a marked callee
+        # stays shadowed at precisely the call sites no source line names (and the
+        # shadowed-selfcall RATCHET, which is per-METHOD, cannot move even when every
+        # other site is concrete). Unmarked -> the historical avatar, byte-identical.
+        _opw = self._pyx_sibling_call(func, "_py_op_to_str", "(compare_op0_ast expr)")
         L = [
             f"  let {name} (self: {cls}) (expr: py_compare_node) : emit_ir",
             "    requires { true }",
             "    ensures  { true }",
             "  =",
-            "    (IrBinOp (self__py_op_to_str_1 (compare_op0_ast expr))"
+            f"    (IrBinOp {_opw}"
             " (self__py_expr_to_ir_1 (compare_left_ast expr))"
             " (self__py_expr_to_ir_1 (compare_comp0_ast expr)))",
         ]
         return L
+
+    def _pyx_sibling_call(self, func: Dict[str, Any], callee: str, arg: str) -> str:
+        """SHADOWED-SELFCALL (relaunch #15): render a `self.<callee>(<arg>)` call inside a
+        SYNTHESIZED body — the concrete sibling application `(<cls>__<callee> self <arg>)`
+        when `<callee>` carries `#@ sibling_concrete` and really is an emitted definition
+        in this module, else the historical receiver-less avatar `(self__<c>_1 <arg>)`.
+        Both gates must hold, so an unmarked or non-emitted callee is byte-identical."""
+        _cn = whyml_ident(f"{func['self_type'].lower()}__{callee}")
+        if (_cn in getattr(self, "_sibling_concrete_methods", set())
+                and _cn in getattr(self, "_module_func_names", set())):
+            return f"({_cn} self {arg})"
+        return f"(self__{callee.lstrip('_')}_1 {arg})"
 
     def _inject_pyx_dispatch_uses(self, functions: List[Dict[str, Any]]) -> None:
         """L2 DISPATCH-EXPANSION: give the recognized dispatcher explicit ORDERING edges to

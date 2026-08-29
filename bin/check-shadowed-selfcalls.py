@@ -39,7 +39,7 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
-BASELINE = 27          # 55 at first measurement, 50 after the `array <t>` concrete-
+BASELINE = 26          # 55 at first measurement, 50 after the `array <t>` concrete-
                        # sibling capability landed (relaunch #9), 43 after the first
                        # `#@ sibling_concrete` marker wave (relaunch #10: `_deref` and its
                        # 28 call sites, `_rhs_yields_array`, and five ExpressionEmissionMixin
@@ -52,6 +52,12 @@ BASELINE = 27          # 55 at first measurement, 50 after the `array <t>` concr
                        # missed because the self-call's IR node carries the DOTTED
                        # `self.<m>` — plus the kind-local discriminant carve-out that lets
                        # `_rhs_yields_map`'s structural recursion discharge its variant)
+                       # 26 after wave 5 (relaunch #15: `_py_op_to_str`, whose SIXTH and
+                       # last call site lives in a SYNTHESIZED body — the bespoke
+                       # `_py_expr_compare` lowering in functions.py had the avatar
+                       # HARD-CODED, so the generic `#@ sibling_concrete` route in
+                       # `_handle_dotted_call` never saw it and the per-METHOD ratchet
+                       # could not move even with the other five concrete)
                        # — a RATCHET, only lower it
 MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 
