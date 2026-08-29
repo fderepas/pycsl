@@ -13814,10 +13814,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Python that path raises `KeyError`; it is unreachable from every call site,
             # which passes a literal.)
             #
+            # THE CANDIDATE SET IS NARROWED BY THE SLOT TYPES, NOT ONLY THE FIELD NAMES
+            # (relaunch #14). A field-name set does NOT determine a payload: adding
+            # `Import` — `_NODE_SPEC['Import'] == ('stmt', ('names',), None)`, the SAME
+            # single field name `names` as `Global`/`Nonlocal` but an `irlist` of alias
+            # NODES where those two carry a `seq string` — put a candidate in the set whose
+            # arm cannot lower from a `seq string` actual, and the all-or-nothing rule then
+            # declined the WHOLE construction: `global_stmt` silently fell back to the
+            # scalar `0`, an input-blind facade, for a construction that had been faithful
+            # for six windows. A candidate whose arm does not lower is therefore DROPPED
+            # from the chain rather than killing it. That is a NARROWING of the derivation,
+            # and it is sound on the SAME argument the tail already rests on: a class not
+            # in the chain lands on `IrOther <kind>`, whose `kind_of` is precisely that
+            # class name — coarse (its children are not modelled), never WRONG, and
+            # unreachable from every call site, all of which pass a literal.
+            #
             # FAIL-CLOSED on every axis: the pure_ast parser file, a class expression that
             # is a bare FORMAL PARAMETER (a LOCAL is the ternary form below, unchanged),
-            # KEYWORDS ONLY (so the field set is unambiguous — no positional binding), a
-            # NON-EMPTY candidate set, and every arm must lower to a REAL application of
+            # KEYWORDS ONLY (so the field set is unambiguous — no positional binding), and
+            # a NON-EMPTY surviving candidate set whose every arm IS a real application of
             # its own ADT constructor. Anything else falls through to the ternary path and
             # then to the pre-existing scalar `0`.
             if (self._uses_pyast_parser()
@@ -13832,12 +13847,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 for _cn in _cands:
                     _syn2 = {"type": "Call", "func": _cn, "args": [],
                              "keywords": list(expr["keywords"])}
+                    # SNAPSHOT the abstract-val registry across the TRIAL lowering: a
+                    # candidate that DECLINES still registers the opaque `val <cls>_0 () :
+                    # int` fallback on its way out, and a dropped candidate must leave NO
+                    # trace in the emitted theory (measured: a dangling, never-referenced
+                    # `val py_import_0 () : int` appeared the moment `Import` joined the
+                    # field-name-compatible candidate set).
+                    _ops_snap = dict(getattr(self, "_abstract_ops", {}) or {})
                     _lw2 = self._handle_call_expr(
                         expr_from_dict(_syn2), local_refs, invariant_ctx, subst)
                     _ct2 = _PYC4[_cn][0]
                     if not (isinstance(_lw2, str) and _lw2.startswith(f"({_ct2} ")):
-                        _arms2 = []
-                        break
+                        if hasattr(self, "_abstract_ops"):
+                            self._abstract_ops.clear()
+                            self._abstract_ops.update(_ops_snap)
+                        continue        # slot types do not admit this class — drop it
                     _arms2.append((_cn, _lw2))
                 if _arms2:
                     self._add_abstract_op(

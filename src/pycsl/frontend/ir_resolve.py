@@ -338,6 +338,39 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # expressions, each rewritten to `Del` context by `_set_ctx`. An ordinary `irlist`,
     # like every other variadic child list in the family.
     "Delete": ("IrPyDelete", [("targets", "irlist")]),
+    # THE STATEMENT HALF OF THE FAMILY (relaunch #14): the five statement builders that
+    # earlier windows converted with HARVESTED PER-CLASS RECORDS (`-> "Return"` emitted a
+    # `py_return` record) migrate onto real `emit_ir` arms, plus `alias`, their child.
+    # That migration is the named reopening capability of the recorded CERTIFIED-BOUNDARY
+    # [HETEROGENEOUS CONVERTED RETURNS] on `small_stmt`: a 13-way dispatcher cannot return
+    # both `py_return` and `emit_ir`, and WhyML has no type for a function whose arms
+    # return different types. Each is count-neutral on its own — a re-port of an
+    # ALREADY-CONVERTED function — and strictly MORE uniform: the same sum every other
+    # node in this parser already lives in.
+    #
+    # `Return(value)` — `_NODE_SPEC['Return'] == ('stmt', ('value',), None)` with `value`
+    # in `_OPTIONAL_FIELDS['Return']`: a bare `return` really carries none, so `iropt_ir`.
+    "Return": ("IrPyReturn", [("value", "iropt_ir")]),
+    # `Raise(exc, cause)` — BOTH in `_OPTIONAL_FIELDS['Raise']` (a bare `raise` carries
+    # neither, `raise E` carries only the first), so both slots are `iropt_ir`.
+    "Raise": ("IrPyRaise", [("exc", "iropt_ir"), ("cause", "iropt_ir")]),
+    # `Assert(test, msg)` — `msg` is in `_OPTIONAL_FIELDS['Assert']` (an `assert x` with no
+    # message really carries none); `test` is total.
+    "Assert": ("IrPyAssert", [("test", "emit_ir"), ("msg", "iropt_ir")]),
+    # `Import(names)` — ONE total child list of `alias` nodes.
+    "Import": ("IrPyImport", [("names", "irlist")]),
+    # `ImportFrom(module, names, level)` — `module` and `level` are in
+    # `_OPTIONAL_FIELDS['ImportFrom']`. `module` really is absent for `from . import x`,
+    # so that slot is `iropt_str`. `level` is NOT optional at this construction site: the
+    # live `import_from` initialises it to `0` and only ever adds to it, so an `int` slot
+    # is faithful HERE — and a site that ever passed `None` would leave the slot unbound
+    # and DECLINE the whole construction, fail-closed.
+    "ImportFrom": ("IrPyImportFrom", [("module", "iropt_str"), ("names", "irlist"),
+                                      ("level", "int")]),
+    # `alias(name, asname)` — the child of both import statements. `asname` is in
+    # `_OPTIONAL_FIELDS['alias']` (`import os` really carries none), so it is `iropt_str`,
+    # never the empty string; `name` is the dotted module name string.
+    "alias": ("IrPyAlias", [("name", "string"), ("asname", "iropt_str")]),
     # `Expr(value)` — `_NODE_SPEC['Expr'] == ('stmt', ('value',), None)`, ONE total child:
     # the bare expression a statement-position expression wraps.
     "Expr": ("IrPyExpr", [("value", "emit_ir")]),

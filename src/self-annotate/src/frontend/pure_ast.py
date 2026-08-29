@@ -392,7 +392,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def node(self, name, start_tok, **kw):
+    def node(self, name: str, start_tok: _Tok, **kw) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -654,43 +654,81 @@ class _Parser:
             self.advance()
         return stmts
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted — its eleven passthroughs
-    # return `Return`/`Raise`/`Import`/`ImportFrom`/`Assert`, which earlier windows
-    # converted as PER-CLASS RECORDS; typing it needs the statement half of the ctor
-    # family (migrating those five from records to emit_ir arms). Consumed by
-    # `simple_stmt`.
-    # CERTIFIED-BOUNDARY [HETEROGENEOUS CONVERTED RETURNS], relaunch #8. `small_stmt` is a
-    # 13-way DISPATCHER and every arm is already reachable — the `node("Pass"/"Break"/
-    # "Continue", t)` singletons build real nodes through the `node` helper recognizer, and
-    # the remaining ten are sibling passthroughs. It is blocked by its OWN SIBLINGS' return
-    # types: `return_stmt`/`raise_stmt`/`assert_stmt`/`import_stmt`/`import_from` were
-    # converted with HARVESTED RECORD returns (`-> "Return"` emits `py_return`, a record),
-    # while this dispatcher must return the `emit_ir` SUM — and WhyML has no type for a
-    # function whose arms return different types. MEASURED: `This expression has type
-    # PyCSL_Program.py_return @rho, but is expected to have type PyCSL_Program.emit_ir`.
-    # This is COST/SCALE, not correctness: the reopening capability is named and mechanical
-    # — migrate those five statement builders from their harvested per-class RECORDS onto
-    # `_PYAST_IRNODE_CTORS` arms (`IrPyReturn iropt_ir`, `IrPyRaise iropt_ir iropt_ir`,
-    # `IrPyAssert emit_ir iropt_ir`, `IrPyImport irlist`, `IrPyImportFrom iropt_str irlist
-    # int`), which also needs `alias` (their child) on an arm. Each is a re-port of an
-    # ALREADY-CONVERTED function, so the count does not move until the last one lands.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CONVERTED (relaunch #14). The CERTIFIED-BOUNDARY [HETEROGENEOUS CONVERTED RETURNS]
+    # recorded in relaunch #8 is BROKEN by exactly the capability its own refutation named,
+    # to the letter: the five statement builders `return_stmt`/`raise_stmt`/`assert_stmt`/
+    # `import_stmt`/`import_from` are MIGRATED off their harvested per-class RECORDS
+    # (`-> "Return"` used to emit a `py_return` record) onto `_PYAST_IRNODE_CTORS` arms
+    # `IrPyReturn iropt_ir` / `IrPyRaise iropt_ir iropt_ir` / `IrPyAssert emit_ir iropt_ir` /
+    # `IrPyImport irlist` / `IrPyImportFrom iropt_str irlist int`, plus `IrPyAlias string
+    # iropt_str` for their shared child. All five harvested `py_*` record types are GONE
+    # from the emitted theory; every optional ASDL field that used to be an `option` record
+    # slot is now the monomorphic `iropt_ir`/`iropt_str` the rest of the family uses.
+    # `node("Pass"/"Break"/"Continue", t)` needed no ctor at all — the `node` helper keeps
+    # its `\trusted` stub and gains a RETURN INTERFACE plus real PARAMETER types
+    # (`name: str, start_tok: _Tok -> "ExprIR"`), which also de-HASHES the class name: the
+    # emitted call was `_parser__node self 674164900 !t`, an int hash of "Pass", and is now
+    # `_parser__node self "Pass" !t` against an uninterpreted `_parser -> string -> _tok ->
+    # emit_ir`.
+    # THE STRICT POSTCONDITION was the real cost, and it is the reason this stub outlived
+    # its named capability by a window. `#@ ensures self.i > \old(self.i)` was a TRUSTED
+    # INTERFACE claim; converting turns it into a PROOF OBLIGATION over all thirteen arms,
+    # and the fall-through arm is `return self.expr_stmt()` — no keyword guard, so its
+    # strictness has to come all the way up the expression descent. Twenty-two contracts
+    # gained `ensures self.i > \old(self.i)` (the chain `atom -> unary_postfix -> await_expr
+    # -> power -> factor -> _binop -> expr -> comparison -> not_test -> and_test -> or_test
+    # -> test -> namedexpr_test -> test_or_star -> testlist_star_expr -> expr_stmt`, plus
+    # `lambdef`, `yield_expr`, `atom_paren`/`atom_list`/`atom_brace` and the six statement
+    # builders), and seven gained the relaunch-#13 TOKEN-KIND PRECONDITION
+    # `#@ requires self.toks[self.i].type == _tokenize.NAME` — free strictness, discharged
+    # at every call site from the `at_kw` guard that already stands there. `atom` is the
+    # base case and it is genuinely strict on every arm: each literal/name arm advances, the
+    # bracket arms delegate to a sibling whose leading `advance` its OP precondition makes
+    # strict, and the two reject arms go to `error`, whose `ensures False` makes the
+    # continuation unreachable.
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def small_stmt(self) -> "ExprIR":
-        pass
+        if self.at_kw("pass"):
+            t = self.advance(); return self.node("Pass", t)
+        if self.at_kw("break"):
+            t = self.advance(); return self.node("Break", t)
+        if self.at_kw("continue"):
+            t = self.advance(); return self.node("Continue", t)
+        if self.at_kw("return"):
+            return self.return_stmt()
+        if self.at_kw("raise"):
+            return self.raise_stmt()
+        if self.at_kw("del"):
+            return self.del_stmt()
+        if self.at_kw("assert"):
+            return self.assert_stmt()
+        if self.at_kw("global"):
+            return self.global_stmt("Global")
+        if self.at_kw("nonlocal"):
+            return self.global_stmt("Nonlocal")
+        if self.at_kw("import"):
+            return self.import_stmt()
+        if self.at_kw("from"):
+            return self.import_from()
+        if self.at_kw("yield"):
+            t = self.cur()
+            y = self.yield_expr()
+            return self._fin(_N("Expr")(value=y), t)
+        return self.expr_stmt()
 
     # `_fin` RECOGNIZER vein, increment 5: CONVERTED. Verbatim body port of the LIVE
     # `return_stmt`, including the PEP-526 `Optional["ExprIR"]` annotation the LIVE body now
     # also carries (a local's annotation is never evaluated at runtime, so it is inert there;
     # here it is what makes the `None`/node local a real union carrier and `Return`'s
     # OPTIONAL `value` field a TRUE `None` on the value-less path).
-    #@ requires True
+    #@ requires self.toks[self.i].type == _tokenize.NAME
     #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
-    def return_stmt(self) -> "Return":
+    def return_stmt(self) -> "ExprIR":
         t = self.advance()
         val: Optional["ExprIR"] = None
         if not self._stmt_end():
@@ -707,10 +745,11 @@ class _Parser:
     # `raise_stmt`, including its two PEP-526 `Optional["ExprIR"]` local annotations. BOTH
     # `Raise` fields are optional, so a bare `raise` really carries `None`/`None` and
     # `raise E from C` really carries both nodes.
-    #@ requires True
+    #@ requires self.toks[self.i].type == _tokenize.NAME
     #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
-    def raise_stmt(self) -> "Raise":
+    def raise_stmt(self) -> "ExprIR":
         t = self.advance()
         exc: Optional["ExprIR"] = None
         cause: Optional["ExprIR"] = None
@@ -737,9 +776,10 @@ class _Parser:
     # NOT a member of any `let rec` group (nothing in the expression group calls back into
     # a statement), and `del_stmt`'s own caller `small_stmt` is still `\trusted`, i.e. an
     # abstract `val` with no call edge. This method is a plain `let`.
-    #@ requires True
+    #@ requires self.toks[self.i].type == _tokenize.NAME
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def del_stmt(self) -> "ExprIR":
         t = self.advance()
@@ -761,10 +801,11 @@ class _Parser:
     # runtime; here it is what makes the absent path a TRUE `None`). `self._fin(_N(...)(...), t)`
     # lowers to the construction itself — `_fin` sets only the four ASDL LOCATION
     # ATTRIBUTES, which the harvested records do not carry.
-    #@ requires True
+    #@ requires self.toks[self.i].type == _tokenize.NAME
     #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
-    def assert_stmt(self) -> "Assert":
+    def assert_stmt(self) -> "ExprIR":
         t = self.advance()
         test = self.test()
         msg: Optional["ExprIR"] = None
@@ -822,10 +863,11 @@ class _Parser:
     # "RecList:<Rec>" field tag), and the accumulator really carries the CONVERTED
     # `_dotted_as_name` results, so the constructed node holds real alias records instead of
     # the empty `Array.make 0 0` dropped-child facade.
-    #@ requires True
+    #@ requires self.toks[self.i].type == _tokenize.NAME
     #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
-    def import_stmt(self) -> "Import":
+    def import_stmt(self) -> "ExprIR":
         t = self.advance()
         names = [self._dotted_as_name()]
         #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
@@ -848,7 +890,7 @@ class _Parser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _dotted_as_name(self) -> "alias":
+    def _dotted_as_name(self) -> "ExprIR":
         parts = [self._name_str()]
         # GHOST cursor snapshot (lesson (xx)): the loop's `assigns self.i` says nothing about
         # DIRECTION, so without this invariant the function's own `self.i >= \old(self.i)`
@@ -866,10 +908,11 @@ class _Parser:
             asname = self._name_str()
         return _N("alias")(name=name, asname=asname)
 
-    #@ requires True
+    #@ requires self.toks[self.i].type == _tokenize.NAME
     #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
-    def import_from(self) -> "ImportFrom":
+    def import_from(self) -> "ExprIR":
         t = self.advance()
         level = 0
         #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
@@ -888,6 +931,7 @@ class _Parser:
                 parts.append(self._name_str())
             module = ".".join(parts)
         self.expect_kw("import")
+        names = []
         if self.accept_op("*"):
             names = [_N("alias")(name="*", asname=None)]
         elif self.at_op("("):
@@ -901,7 +945,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _import_as_names(self) -> "List[alias]":
+    def _import_as_names(self) -> "List[ExprIR]":
         names = [self._import_as_name()]
         #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
         #@ loop variant \length(self.toks) - self.i
@@ -914,7 +958,7 @@ class _Parser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _import_as_name(self) -> "alias":
+    def _import_as_name(self) -> "ExprIR":
         name = self._name_str()
         asname: Optional[str] = None
         if self.accept_kw("as"):
@@ -958,6 +1002,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def expr_stmt(self) -> "ExprIR":
         t = self.cur()
@@ -1026,6 +1071,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def testlist_star_expr(self) -> "ExprIR":
         t = self.cur()
@@ -1106,6 +1152,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (RE-DEPTHED relaunch #14, 0 -> 14): the fall-through
     # `return self.namedexpr_test()` used to leave the group; now that `namedexpr_test` is
     # CONVERTED it is an in-group edge taken WITHOUT advancing, so this member must sit
@@ -2376,6 +2423,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #14): converting this method pulls it into the expression
     # `let rec ... with ...` group at multiplier 16. Its ONE in-group out-edge taken
     # WITHOUT advancing is `first = self.test()` (12), so it must sit strictly ABOVE 12;
@@ -2404,6 +2452,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # MUTUAL-RECURSION TERMINATION (relaunch #8): converting `lambdef` put it and `test`
     # in ONE `let rec … with …` group, and Why3 requires EVERY member to use the same
     # well-founded order. Phase-offset form (the `proof2why3/parser` precedent): `test`
@@ -2431,9 +2480,10 @@ class _Parser:
             return self._fin(_N("IfExp")(test=test, body=cond, orelse=orelse), t)
         return cond
 
-    #@ requires True
+    #@ requires self.toks[self.i].type == _tokenize.NAME
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2466,6 +2516,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2493,6 +2544,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2524,6 +2576,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2547,6 +2600,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2594,6 +2648,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2643,6 +2698,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2676,6 +2732,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2706,6 +2763,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2736,6 +2794,7 @@ class _Parser:
     # `unary_postfix`, both of which export it.
     #@ requires True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -2757,6 +2816,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
     # the expression `let rec … with …` group Why3 forms once `_binop` and
     # `_subscript_item` are concrete, and all nineteen must share one well-founded
@@ -3035,6 +3095,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT: member of the expression `let rec ... with ...` group. Phase-offset
     # form at multiplier 16; this member sits at depth 1, strictly above the four callees
     # it reaches WITHOUT advancing (all at depth 0) and strictly below `unary_postfix`
@@ -3088,6 +3149,7 @@ class _Parser:
     #@ requires self.toks[self.i].type == _tokenize.OP
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT: member of the expression `let rec ... with ...` group at multiplier
     # 16, depth 0 — the leading `advance` is provably strict (see the precondition), so
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
@@ -3162,6 +3224,7 @@ class _Parser:
     #@ requires self.toks[self.i].type == _tokenize.OP
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT: member of the expression `let rec ... with ...` group at multiplier
     # 16, depth 0 — the leading `advance` is provably strict (see the precondition), so
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
@@ -3201,6 +3264,7 @@ class _Parser:
     #@ requires self.toks[self.i].type == _tokenize.OP
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT: member of the expression `let rec ... with ...` group at multiplier
     # 16, depth 0 — the leading `advance` is provably strict (see the precondition), so
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
@@ -3437,6 +3501,7 @@ class _Parser:
     #@ requires self.toks[self.i].type == _tokenize.NAME
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     # GROUP VARIANT: member of the expression `let rec ... with ...` group at multiplier
     # 16, depth 0 — the leading `advance` is provably strict (see the precondition), so
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
@@ -3496,10 +3561,26 @@ class _Parser:
     # of which can decrease it. It is CONSUMED in this same increment by `atom`'s own
     # `ensures self.i >= \old(self.i)` on the `return self.strings()` path, which every
     # caller of `atom` (and hence the whole expression group's cursor measure) rests on.
+    # SECOND ADDED TCB (relaunch #14), stated just as plainly: `ensures self.i > \old(self.i)`
+    # — STRICT progress, not merely non-regression. It is ASSUMED here and it is of exactly
+    # the same kind and provenance as the clause above: `strings` is reached from `atom`
+    # only when the CURRENT token is a `STRING` or an `FSTRING_START`, and the live body's
+    # every path begins by consuming that token (the `STRING` arm through `self.advance()`,
+    # the f-string arm through `self._fstring()`, which opens with `expect`/`advance` on the
+    # FSTRING_START it was given). By the EOF-sentinel class invariant neither token kind is
+    # the last index, so the increment fires. It is CONSUMED IN THIS SAME INCREMENT by
+    # `atom`'s new `ensures self.i > \old(self.i)`, which is the whole point: `atom` is the
+    # base of the expression descent, and without strict progress THERE the chain
+    # `atom -> unary_postfix -> ... -> testlist_star_expr -> expr_stmt -> small_stmt` cannot
+    # carry the strict clause that `simple_stmt` (and every statement loop above it) already
+    # depends on. Reopening — i.e. discharging this instead of assuming it — is the recorded
+    # `strings` [HETEROGENEOUS TUPLE ELEMENT TYPE] boundary; the clause costs nothing extra
+    # against that, because converting the body would prove it outright.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
     def strings(self) -> "ExprIR":
         pass

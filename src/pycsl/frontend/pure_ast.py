@@ -954,6 +954,7 @@ class _Parser:
                 parts.append(self._name_str())
             module = ".".join(parts)
         self.expect_kw("import")
+        names = []
         if self.accept_op("*"):
             names = [_N("alias")(name="*", asname=None)]
         elif self.at_op("("):
