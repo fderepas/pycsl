@@ -4126,3 +4126,88 @@ Reverting it costs one line to redo and keeps the live diff honest about what is
 being used. Record the analysis instead: `namedexpr_test` needs a NEW `IrPyNamedExpr` arm
 AND a re-depthing (it must sit strictly above `test` and strictly below both `test_or_star`
 and `_call_args`, which forces those two up to 14). That is a plan, not a wall.
+
+## Lesson (br) — a field-name set does not determine a payload, and an all-or-nothing candidate rule turns that into a silent facade
+
+**1. THE DEFECT.** The VARIABLE-CLASS-NAME PARAMETER form (`_N(kind)(names=names)` in
+`global_stmt`) derives its candidate classes from the `_PYAST_IRNODE_CTORS` entries whose
+payload **field-NAME set** equals the construction's keyword set. That rule was written when
+`Global` and `Nonlocal` were the only members with a single field called `names`. Adding
+`Import` — `_NODE_SPEC['Import'] == ('stmt', ('names',), None)`, the same single field name
+but an `irlist` of alias NODES where the other two carry a `seq string` — put a candidate in
+the set whose arm cannot lower from a `seq string` actual. The rule then said "every arm
+must lower or the whole construction declines", so `global_stmt` **silently fell back to the
+scalar `0`, an input-blind facade, after six windows of being faithful.** Nothing failed;
+the type-check was green; only a diff of the emitted body showed it.
+
+**2. THE GENERAL FORM.** *Adding a member to a table that other recognizers derive their
+behaviour from is a change to those recognizers.* Lesson (bn) said a slot-type RENAME is
+cross-cutting; this is stronger — a pure ADDITION, at a name that was never mentioned by the
+site it broke, is also cross-cutting. **After adding any table entry, diff the emitted bodies
+of every OTHER site that reads the same table, not just the site you were building for.**
+
+**3. THE FIX, AND WHY IT IS STILL FAIL-CLOSED.** Narrow the derivation with the slot TYPES:
+a candidate whose arm does not lower is DROPPED from the chain instead of killing it. That is
+sound on exactly the argument the chain's tail already rests on — a class not in the chain
+lands on `IrOther <kind>`, whose `kind_of` is precisely that class name, so the model is
+coarse (children unmodelled) but never WRONG, and every real call site passes a literal that
+IS in the chain. The remaining guard (a NON-EMPTY surviving set, every surviving arm a real
+ADT application) is untouched.
+
+**4. A DECLINED TRIAL LOWERING LEAVES FINGERPRINTS.** The dropped `Import` candidate still
+registered its opaque `val py_import_0 () : int` fallback on the way out, so a class that is
+not in the emitted chain nevertheless appeared in the emitted theory as a dangling
+declaration. **Snapshot and restore the abstract-op registry across any speculative
+lowering.** More generally: if you call an emitter path for its RESULT, assume it also has
+side effects, and undo them when you discard the result.
+
+
+## Lesson (bs) — strictness is a whole-chain property, and the refutation that named the capability did not name the cost
+
+**1. A TRUSTED `ensures` IS A LOAD-BEARING BEAM, AND CONVERTING IS WHAT MAKES YOU PAY FOR
+IT.** `small_stmt`'s recorded refutation named its reopening capability exactly right —
+migrate five sibling builders from harvested per-class RECORDS onto `_PYAST_IRNODE_CTORS`
+arms — and that half went in mechanically. What the refutation did NOT name is that
+`small_stmt` also carried `#@ ensures self.i > \old(self.i)` as a TRUSTED INTERFACE claim,
+consumed by `simple_stmt` and every statement loop above it. Converting turns that claim into
+a proof obligation over all thirteen arms, and the fall-through arm is the UNGUARDED
+`return self.expr_stmt()` — so strict progress had to be carried up the ENTIRE expression
+descent to `atom`. 22 contracts gained the strict clause; 7 gained a token-kind precondition.
+**When you scope a dispatcher conversion, read its `ensures` list before its return type: a
+strict clause is usually the larger half of the bill.**
+
+**2. THE STRICTNESS CHAIN IS CHEAP ONCE `atom` IS THE BASE CASE.** Every arm of `atom` either
+consumes its own token (literal/name/`...`), delegates to a sibling whose leading `advance`
+its OP/NAME precondition makes strict, or goes to `error`, whose `ensures False` makes the
+continuation unreachable. Above it, every member is `x = self.<lower>()` first, so the strict
+clause propagates by composition and costs one line each. **Find the base case first and
+check IT by hand; the rest is transcription.**
+
+**3. A LOOP WITH NO DIRECTION INVARIANT DESTROYS A STRICT STEP THAT PRECEDED IT.** `assigns
+self.i` says the cursor may change, not which way. A leading `advance()` followed by any loop
+that lacks `#@ loop invariant self.i >= <ghost snapshot>` leaves the function unable to prove
+its own `self.i > \old(self.i)` — the strict step is provably taken and then thrown away.
+Lesson (xx)'s ghost snapshot is not only for the function's own non-regression clause; it is
+what lets ANY earlier fact survive a loop.
+
+**4. WHEN ONE POSTCONDITION IS ONE GIANT HOP, STAGE IT WITH `#@ assert`.** `import_from` —
+a union-carried optional local, two loops, three assignment branches — timed out at 7.1M
+steps proving `self.i > \old(self.i)` in one step, even with every loop monotone. Four
+prove-and-ASSUME `#@ assert self.i > \old(self.i)` points, plus carrying the strict fact as a
+loop INVARIANT rather than re-deriving it after the loop, turned one huge goal into four
+one-hop goals and it went through. **A timeout on a goal you believe is easy usually means
+the prover is being asked to do four things at once.**
+
+**5. AND SOMETIMES THE TIMEOUT IS A MISSING CLAUSE, NOT PROVER WEAKNESS.** The last staged
+assert still failed after all of that, and the cause was that `_import_as_names` had NO
+monotonicity clause at all, so the model was free to let the cursor DECREASE across it. **A
+sibling with `ensures True` is not neutral — it is permission to do anything the frame
+allows.** Before blaming the prover, enumerate every callee on the failing path and read its
+actual `ensures`.
+
+**6. STATE LESS WHEN THE SUPPORT IS NOT THERE.** The mirror image of §4, from the same
+session: `#@ loop invariant 0 <= k and k <= n` where `n = len(raw) - 1` needs
+`Seq.length raw >= 1`, which the preceding loop did not carry — and asking for it burned
+**17.2M steps to a Timeout** instead of failing fast. `0 <= k` was the whole of what the loop
+needed. **A loop invariant that is TRUE but unsupported by the code before it is not a
+harmless extra; it is a timeout generator.**
