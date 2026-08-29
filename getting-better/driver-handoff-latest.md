@@ -12,6 +12,11 @@
 - **`bin/check-shadowed-selfcalls.py`: 27 CONVERTED methods / 176 bypassing call sites,
   ratchet 27** — unchanged. Needs `TMPDIR=/home/fabrice/git/pycsl/scratchpad`.
 - Ledger **3**, untouched. Emitted axioms in pure_ast: **0**. Literal-guard grep: **0**.
+- **PROOF COSTS, MEASURED THIS SESSION (the campaign had none of these numbers):**
+  `frontend/pure_ast` **2792/2792**, ~25 min proving + ~35 min non-vacuity.
+  `module6_whyml/statements.py` **904/904**, ~23 min total.
+  `frontend/Module5_IREmitter.py` **1115/1115**, ~30 min proving + ~20 min non-vacuity.
+  A single corpus driver (`0447`) is **11 seconds**.
 - Fidelity at the standing baseline **2 DIVERGED** (`_handle_var_expr`, `_handle_for_stmt`).
   Field parity 335 / 7 known drift / 0 NEW. check-untrusted-emitted **807 / 790 / 0 / 0**.
   emitted-vacuity `--emit`: no NEW erasure, **8 known**. Corpus byte-diff **0 over 813/813**.
@@ -51,6 +56,13 @@
    a token-kind precondition.
 5. **`_fstring_prefix_raw` (504 -> 503)** — `ch.isalpha()` lowered to `ch_isalpha_0 ()`,
    an ARGUMENT-LESS opaque constant on a loop-local. Now `(py_isalpha_op !ch)`.
+6. **The `is*` receiver repair UN-GATED (count-neutral, increment 6)** — the one
+   deliberately NON-INERT change of this campaign, taken with its price paid.
+   `module6_whyml/statements.py` re-proved **904/904 SUCCESS** (identical to the baseline
+   measured UNCHANGED first) and corpus driver **0447 re-proved SUCCESS in 11 s**. Corpus
+   byte-diff is **1 of 813 BY DESIGN** and that one file is the one re-proved. 0447 is the
+   reference driver FOR THIS FEATURE and its contract is about 0/1-ness, which the
+   receiver-carrying op still gives.
 
 ## THE TWO LIVE EMITTER FACADES FOUND THIS SESSION (both fixed, both are method lessons)
 
@@ -69,13 +81,10 @@
 
 ## FLAGGED FOR A DEDICATED INCREMENT (measured, not taken)
 
-- **The `is*` receiver repair is GATED on `_uses_pyast_parser`.** Ungated, exactly TWO
-  other emissions move and both move the same way: `module6_whyml/statements.py`'s
-  `src.isidentifier(...)`, and **corpus driver 0447**, whose `s.islower()` goes from
-  `val s_islower_0 () : int` + `(s_islower_0 ())` to `(py_islower_op s)`. That is a REAL
-  corpus emission change, so it is not inert and owes 0447 its own re-proof. Same defect,
-  same repair; it needs its own increment (and 0447 is a small driver, so the re-proof is
-  cheap).
+- (The `is*` receiver repair that was flagged here mid-session was TAKEN as increment 6.
+  Corpus byte-diff is now 1 of 813 against the session-start baseline BY DESIGN — the one
+  differing file, `0447`, is re-proved. Re-baseline your corpus sweep against the CURRENT
+  HEAD, not against a pre-session snapshot.)
 - **The Alt-Ergo pin at `pycsl.py:1318` is stale** (2.6.2 vs installed 2.6.3). Keep passing
   `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'` EXPLICITLY; do NOT edit the pin.
 - **`_py_stmt_assign` reads `stmt.targets[0]` only** — chained-assignment targets silently
@@ -85,9 +94,32 @@
 
 ## Pick up here — in this order
 
-1. **The corpus-0447 / statements.py `is*` repair** (see FLAGGED above). Small, named,
-   measured; the only cost is that it is NOT byte-inert, so it needs 0447 re-proved and
-   `module6_whyml/statements.py` re-proved. 0 markers, real faithfulness.
+1. **`Module5_IREmitter._py_stmt_raise` — CERTIFIED-BOUNDARY [OPTIONAL NODE FIELD NOT
+   UNWRAPPED], and it is the item with the ONE capability that subsumes most of itself.**
+   PROBED this session (spike built on the 1-second oracle, measured, fully reverted). The
+   emitted body names every gap at once:
+   - `ir_stmts := Seq.snoc !ir_stmts (SUnmodelledStmt_Raise)` — no `SRaise iropt_str
+     iropt_ir` arm on the `stmt_ir` ADT (`preamble.py`, FLAT so `size_stmt`'s catch-all
+     covers it) and no `_STMT_IR_CTORS` entry. Mechanical.
+   - `(if (isinstance_op 0 0) && (isinstance_op 0 0) …)` — `isinstance(stmt.exc, ast.Call)`
+     and `isinstance(stmt.exc.func, ast.Name)` are BOTH input-blind.
+   - `get_id (get_func stmt.py_raise_exc)` / `get_args stmt.py_raise_exc` — the projections
+     are applied to the OPTION rather than through it, which is also the L3-tc error that
+     stops the run.
+   - two option-carrying child kinds missing from `_lower_stmt_ir_node`: an `Optional[str]`
+     LOCAL into an `iropt_str` slot and an `Optional[ExprIR]` LOCAL into an `iropt_ir` slot
+     (the existing `opt` kind recognizes only the `disp(x) if x else None` TERNARY).
+   **THE ONE CAPABILITY: an OPTIONAL emit_ir RECORD FIELD, guarded non-None by the
+   enclosing `is not None`, must PROJECT THROUGH the option** — gaps 2, 3 and 5 are all
+   that same missing unwrap. `stmt.exc` is `option emit_ir`, so `_is_emit_ir_expr` says
+   False and the whole attribute chain falls to the opaque `get_<attr>` fallback at
+   `expressions.py:~11495`. The method-sentinel scoping pattern
+   (`_current_emitting_func == "_py_stmt_raise"`, as `_EMIT_IR_HANDLER_ATTR_PROJ` already
+   does) keeps it byte-inert everywhere else, and the `None` arm is unreachable under the
+   guard so the standard `IrOther ""` filler is honest. The live restructure it also needs
+   (compute-then-append instead of mutate-a-dict-then-append) was built and verified
+   runtime-identical — same keys, same order — and reverted with the spike.
+   Baseline for the gate: Module5_IREmitter proves **1115/1115** at HEAD in ~50 min.
 2. **The two Module5 dispatchers — 142 of the 176 shadowed sites** (`_csl_to_ir` 92,
    `_py_expr_to_ir` 44, `_py_op_to_str` 6). NOTE: these are already CONVERTED (they are not
    `\trusted`), so this is a SHADOWED-metric item, not a marker item. The recorded L2
@@ -99,13 +131,6 @@
    (`unbound type symbol 'array'`). Reopening capability, named: a STRING-ELEMENT list
    field on a mirrored dataclass + the preamble scan noticing an array-typed record field.
    `parse_format`/`calcsize` in the same file stay on the regex categorical boundary.
-4. **`Module5_IREmitter._py_stmt_raise`** — analysed, not built. Needs a new
-   `SRaise iropt_str iropt_ir` arm on the `stmt_ir` ADT (`preamble.py`, flat so
-   `size_stmt`'s catch-all covers it) + a `_STMT_IR_CTORS` entry + the live body
-   restructured from "mutate a dict then append" to "compute then append one literal"
-   (runtime-identical, same key order). Its siblings `_py_stmt_assert`/`_py_stmt_annassign`
-   /`_py_stmt_expr` are the converted precedents. UNKNOWN: the proof cost of
-   `Module5_IREmitter.py`, which this campaign has never measured.
 5. **`strings`** — CERTIFIED-BOUNDARY [HETEROGENEOUS TUPLE ELEMENT TYPE], five capabilities
    for one marker. NOTE it now carries a SECOND trusted clause (`ensures self.i >
    \old(self.i)`, added and consumed with `small_stmt`), so converting it also discharges
