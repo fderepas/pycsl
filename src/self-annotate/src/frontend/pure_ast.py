@@ -3241,6 +3241,41 @@ class _Parser:
             value = self.testlist()
         return self._fin(_N("Yield")(value=value), t)
 
+    # CERTIFIED-BOUNDARY [HETEROGENEOUS TUPLE ELEMENT TYPE], relaunch #13 — PROBED and
+    # MEASURED on the 1-second oracle for the first time (the record said "not probed"),
+    # then fully reverted. The body ports and L3-tc FAILS on `unbound function or
+    # predicate symbol 'subscript_get'`, and the emitted body names every gap:
+    #   (1) THE BLOCKER, and everything else hangs off it: `parts.append((tag, val, kind,
+    #       tok))` emits `Seq.snoc !parts 397408493` — the whole 4-TUPLE collapsed to a
+    #       HASH CONSTANT, so `parts` is a `seq int` of hashes and every later read of it
+    #       is value-blind. The element type is genuinely HETEROGENEOUS (a `str` tag, a
+    #       payload that is a `str` on one arm and an `emit_ir` on the other, an
+    #       `Optional[str]` kind, a `_Tok`), which no existing carrier expresses.
+    #   (2) `for kind_tag, payload, _k, ptok in parts:` — a 4-way DESTRUCTURING loop over
+    #       that seq. The emitted loop binds a single `_for_target` and then references
+    #       `kind_tag` / `payload` as FREE identifiers; the destructuring is not modelled.
+    #   (3) `all(p[0] == "bytes" for p in parts)` lowers to a generated `_all_fold` whose
+    #       body is `(subscript_get a[_fk] 0) = 451217322` — a HASH comparison through the
+    #       known-UNBOUND `subscript_get`, which is exactly the L3-tc failure. A genexp
+    #       fold over a TUPLE-ELEMENT PROJECTION has no model.
+    #   (4) `b"".join(...)` and `"".join(...)` BOTH emit the identical `join_1 0` — the
+    #       argument int-erased to `0` and the result opaque, so the bytes-vs-str
+    #       distinction is completely erased and the two branches are indistinguishable.
+    #       That cascades: `_N("Constant")(value=value, kind=kind)` then declines to the
+    #       `py_constant_0 ()` facade because its `pyconst_val` slot cannot take an opaque
+    #       int.
+    #   (5) `payload.values` (reading the child list off a `JoinedStr` node) emits the
+    #       opaque `get_values payload`; the ADT accessor for an `IrPyJoinedStr`'s
+    #       `irlist` does not exist.
+    # WHAT IT IS NOT, measured rather than guessed: the `kinds` SET is NOT a gap — it
+    # models cleanly as `map string (option int)` with `map_update_some`, and the
+    # `"u" in kinds` test emits the faithful `match Map.get !kinds "u" with Some -> ...`.
+    # The recorded guess had named it as one of the three hard pieces.
+    # REOPENING CAPABILITY, named: a HETEROGENEOUS TUPLE ELEMENT TYPE for a seq local —
+    # a record carrier with per-slot types, plus its three consumers (a destructuring
+    # `for`, a genexp fold over a slot projection, and a `join` over a slot projection).
+    # Five capabilities for ONE marker: a COST/SCALE boundary, not a correctness one.
+    #
     # RETURN INTERFACE + CURSOR NON-REGRESSION (the `namedexpr_test` / `_comp_target`
     # precedent). STAYS `\trusted` and COUNT-NEUTRAL. `-> "ExprIR"` records that what the
     # live body returns IS an expression node, so `atom`'s STRING/FSTRING arm flows an
