@@ -921,12 +921,86 @@ class _Parser:
             asname = self._name_str()
         return _N("alias")(name=name, asname=asname)
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #14) — the LAST of the six
+    # `_set_ctx`-blocked stubs, and the widest single node-building method in the parser:
+    # FOUR statement shapes, four NEW `_PYAST_IRNODE_CTORS` entries, and every one of the
+    # gaps closed WITHOUT a facade.
+    #   (1) `AnnAssign(target, annotation, value, simple)` — `value` is in
+    #       `_OPTIONAL_FIELDS['AnnAssign']` (a bare `x: int` really carries none), so that
+    #       slot is `iropt_ir` and the absent path is a TRUE `IrONone`; `simple` is the
+    #       ASDL int flag.
+    #   (2) `AugAssign(target, op, value)` — `op` is a 0-field `operator` SINGLETON whose
+    #       CLASS is chosen at RUN TIME from the module-const `_AUG` table. The live body
+    #       now binds the TOKEN TEXT (`op_str = self.advance().string`) and reads the table
+    #       INSIDE the construction (`_N(_AUG[op_str])()`), which is the shape `factor`'s
+    #       `_N(_UNARY[t.string])()` already certifies: the lookup lowers to the chained
+    #       `str_eq_op` ITE over the table's ACTUAL thirteen entries, key `let`-bound once.
+    #       Runtime-identical — the `advance()` still happens first and exactly once, and
+    #       a pure dict read moved later cannot be observed.
+    #   (3) `Assign(targets, value, type_comment)` — `type_comment` is in
+    #       `_OPTIONAL_FIELDS['Assign']` and the parser never sets it, so the live body now
+    #       passes it EXPLICITLY as `None` and the slot is a TRUE `IrSNone`. Without the
+    #       explicit `None` the whole construction DECLINED to an input-blind `assign_0 ()`
+    #       facade — an omitted PYAST option slot is not the same as an omitted CSL one.
+    #   (4) `Expr(value)` — the bare-expression statement, one total child.
+    # THE `simple` FLAG needed a NEW emitter recognizer (module6_whyml/expressions.py,
+    # `_handle_isinstance`): `isinstance(first, _N("Name"))` used to lower to the purest
+    # facade in the emitter, `isinstance_op 0 0` — BOTH arguments erased. It now lowers to
+    # `(str_eq_op (kind_of !first) "Name")`, which is EXACT: `kind_of` is a DEFINED total
+    # function whose `_PYAST_IRNODE_CTORS`-derived arms map each `IrPy<K>` to exactly the
+    # string "<K>", and no other arm of the sum yields "Name". The test is also MOVED one
+    # line ABOVE the `_set_ctx` rebinding — runtime-identical (`_set_ctx` returns the very
+    # object it mutated and never changes its class), and it keeps the test on a node the
+    # model still knows the shape of instead of on the uninterpreted `_set_ctx` result.
+    # THE CHAINED-ASSIGNMENT ARM takes the same indexed-walk shape `del_stmt` introduced,
+    # for the same reason (a `for tg in targets:` rebinding does not propagate), and it
+    # drops `targets.pop()` for the equivalent `n = len(raw) - 1; asn_value = raw[n]`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def expr_stmt(self):
-        pass
+    def expr_stmt(self) -> "ExprIR":
+        t = self.cur()
+        first = self.testlist_star_expr()
+        if self.at_op(":"):
+            self.advance()
+            ann = self.test()
+            ann_value: Optional["ExprIR"] = None
+            if self.accept_op("="):
+                ann_value = self.testlist_star_expr_or_yield()
+            simple = 1 if isinstance(first, _N("Name")) else 0
+            first = _set_ctx(first, _N("Store")())
+            return self._fin(_N("AnnAssign")(target=first, annotation=ann,
+                                              value=ann_value, simple=simple), t)
+        if self.cur().type == _tokenize.OP and self.cur().string in _AUG:
+            op_str = self.advance().string
+            aug_value = self.testlist_star_expr_or_yield()
+            first = _set_ctx(first, _N("Store")())
+            return self._fin(_N("AugAssign")(target=first, op=_N(_AUG[op_str])(),
+                                             value=aug_value), t)
+        if self.at_op("="):
+            raw = [first]
+            #@ ghost i31 = self.i
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.i >= i31
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op("="):
+                nxt = self.testlist_star_expr_or_yield()
+                raw.append(nxt)
+            n = len(raw) - 1
+            asn_value = raw[n]
+            targets = []
+            k = 0
+            #@ ghost i32 = self.i
+            #@ loop invariant 0 <= k and k <= n
+            #@ loop invariant self.i == i32
+            #@ loop variant n - k
+            while k < n:
+                targets.append(_set_ctx(raw[k], _N("Store")()))
+                k += 1
+            return self._fin(_N("Assign")(targets=targets, value=asn_value,
+                                          type_comment=None), t)
+        return self._fin(_N("Expr")(value=first), t)
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
     # `testlist_star_expr_or_yield` — two PASSTHROUGH returns, no ADT arm.

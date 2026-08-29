@@ -338,6 +338,29 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # expressions, each rewritten to `Del` context by `_set_ctx`. An ordinary `irlist`,
     # like every other variadic child list in the family.
     "Delete": ("IrPyDelete", [("targets", "irlist")]),
+    # `Expr(value)` — `_NODE_SPEC['Expr'] == ('stmt', ('value',), None)`, ONE total child:
+    # the bare expression a statement-position expression wraps.
+    "Expr": ("IrPyExpr", [("value", "emit_ir")]),
+    # `Assign(targets, value, type_comment)` — `_NODE_SPEC['Assign'] == ('stmt',
+    # ('targets','value','type_comment'), None)` with `type_comment` in
+    # `_OPTIONAL_FIELDS['Assign']` (the parser never sets it), so that slot is the
+    # monomorphic `iropt_str` and the OMITTED field is a TRUE `IrSNone`, never `""`.
+    "Assign": ("IrPyAssign", [("targets", "irlist"), ("value", "emit_ir"),
+                              ("type_comment", "iropt_str")]),
+    # `AugAssign(target, op, value)` — `_NODE_SPEC['AugAssign'] == ('stmt',
+    # ('target','op','value'), None)`, all three TOTAL. `op` is a 0-field `operator`
+    # SINGLETON built from a RUN-TIME class name (`_N(_AUG[...])()`), carried as that
+    # class-name `string` — the whole of its content, exactly as `_binop` carries
+    # `_N(opname)()` and `factor` carries `_N(_UNARY[t.string])()`.
+    "AugAssign": ("IrPyAugAssign", [("target", "emit_ir"), ("op", "string"),
+                                    ("value", "emit_ir")]),
+    # `AnnAssign(target, annotation, value, simple)` — `_NODE_SPEC['AnnAssign'] ==
+    # ('stmt', ('target','annotation','value','simple'), None)` with `value` in
+    # `_OPTIONAL_FIELDS['AnnAssign']` (a bare `x: int` really carries none), so that slot
+    # is `iropt_ir`. `simple` is the ASDL `int` flag the live body computes from an
+    # `isinstance(target, Name)` test.
+    "AnnAssign": ("IrPyAnnAssign", [("target", "emit_ir"), ("annotation", "emit_ir"),
+                                    ("value", "iropt_ir"), ("simple", "int")]),
     # `MatchAs(pattern, name)` — `_NODE_SPEC['MatchAs'] == ('pattern', ('pattern',
     # 'name'), None)`. BOTH fields are in `_OPTIONAL_FIELDS['MatchAs']` (a bare `_`
     # wildcard carries neither), but the `as`-pattern construction this arm serves

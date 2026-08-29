@@ -986,29 +986,35 @@ class _Parser:
         if self.at_op(":"):
             self.advance()
             ann = self.test()
-            value = None
+            ann_value = None
             if self.accept_op("="):
-                value = self.testlist_star_expr_or_yield()
-            _set_ctx(first, _N("Store")())
+                ann_value = self.testlist_star_expr_or_yield()
             simple = 1 if isinstance(first, _N("Name")) else 0
+            first = _set_ctx(first, _N("Store")())
             return self._fin(_N("AnnAssign")(target=first, annotation=ann,
-                                              value=value, simple=simple), t)
+                                              value=ann_value, simple=simple), t)
         # augmented assignment
         if self.cur().type == _tokenize.OP and self.cur().string in _AUG:
-            op = _AUG[self.advance().string]
-            value = self.testlist_star_expr_or_yield()
-            _set_ctx(first, _N("Store")())
-            return self._fin(_N("AugAssign")(target=first, op=_N(op)(), value=value), t)
+            op_str = self.advance().string
+            aug_value = self.testlist_star_expr_or_yield()
+            first = _set_ctx(first, _N("Store")())
+            return self._fin(_N("AugAssign")(target=first, op=_N(_AUG[op_str])(),
+                                             value=aug_value), t)
         # plain (possibly chained) assignment
         if self.at_op("="):
-            targets = [first]
+            raw = [first]
             while self.accept_op("="):
                 nxt = self.testlist_star_expr_or_yield()
-                targets.append(nxt)
-            value = targets.pop()
-            for tg in targets:
-                _set_ctx(tg, _N("Store")())
-            return self._fin(_N("Assign")(targets=targets, value=value), t)
+                raw.append(nxt)
+            n = len(raw) - 1
+            asn_value = raw[n]
+            targets = []
+            k = 0
+            while k < n:
+                targets.append(_set_ctx(raw[k], _N("Store")()))
+                k += 1
+            return self._fin(_N("Assign")(targets=targets, value=asn_value,
+                                          type_comment=None), t)
         # bare expression
         return self._fin(_N("Expr")(value=first), t)
 

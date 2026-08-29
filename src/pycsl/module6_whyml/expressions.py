@@ -8102,6 +8102,42 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _pred:
                 _av = self._expr_to_whyml(_a0, local_refs, getattr(self, "_in_spec", False), None)
                 return f"({_pred} {_av})"
+        # PYTHON-AST NODE CTOR FAMILY (relaunch #14): `isinstance(<emit_ir>, _N("<Cls>"))`
+        # — the pure_ast parser's OWN class-by-name form of the two recognizers above
+        # (`expr_stmt`'s `simple = 1 if isinstance(first, _N("Name")) else 0`). `_N` is the
+        # parser's class factory, so the second argument is a CALL with one STRING literal
+        # naming an ASDL class, not a dotted `ast.<Node>` nor a bare `Var`.
+        #
+        # THE LOWERING IS `kind_of`, NOT an `is_<kind>` discriminant: the `IrPy*` family
+        # has no per-arm predicate, but `kind_of` is a DEFINED total function whose
+        # `_PYAST_IRNODE_CTORS`-derived arms map each `IrPy<K>` to exactly the string
+        # "<K>" (`_pyast_kind_of_arms`), and no other arm of the sum produces that string
+        # for a family member's name. So `(str_eq_op (kind_of x) "<Cls>")` holds exactly
+        # on the `IrPy<Cls>` arm — EXACT, not an approximation.
+        #
+        # DRIFT-PROOF AND FAIL-CLOSED: the admissible class names are read from
+        # `_PYAST_IRNODE_CTORS` itself, so a member added or removed there moves this set
+        # automatically and a class with no ctor arm (whose constructions still decline to
+        # a facade) is NOT admitted here either. Gated additionally on
+        # `_uses_pyast_parser` and on `_is_emit_ir_expr(arg0)`, so the corpus and every
+        # other mirror are byte-identical.
+        if (self._uses_pyast_parser()
+                and isinstance(_a0, dict) and isinstance(_a1, dict)
+                and _a1.get("type") == "Call" and _a1.get("func") == "_N"
+                and not _a1.get("keywords")
+                and len(_a1.get("args") or []) == 1
+                and isinstance((_a1["args"][0] or {}), dict)
+                and _a1["args"][0].get("type") == "String"
+                and self._is_emit_ir_expr(_a0)):
+            from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC5
+            _cls5 = _a1["args"][0].get("value")
+            if _cls5 in _PYC5:
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _av5 = self._expr_to_whyml(_a0, local_refs,
+                                           getattr(self, "_in_spec", False), None)
+                return f'(str_eq_op (kind_of {_av5}) {whyml_string_literal(_cls5)})'
         # const-reflection value model (self-tcb-reduction, Tier-5 value-model wall;
         # L1/L4a infra-witness): the two const-node isinstance recognisers, gated on
         # `_uses_const_reflect` (a file with an `isinstance(_, (int, float))` reflect) ->
