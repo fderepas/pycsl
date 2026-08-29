@@ -4086,3 +4086,43 @@ L3-tc caught it in one second, which is the argument for running the emit oracle
 every slot edit rather than at the end. The fix generalizes: an option slot should admit a
 PRESENT value produced by a call whose DECLARED return type matches, gated on that
 declaration so an int-erased helper still declines fail-closed.
+
+## Lesson (bq) — an in-place mutation is invisible to an immutable ADT, and the fix is a return, not a rewrite
+
+**1. THE THIRD RETURN-INTERFACE WIN IN TWO SESSIONS. IT IS THE CHEAPEST LEVER ON THE BOARD.**
+`_parse_number` gained `-> "PyConstVal"` and unlocked three number sites. `strings` gained
+`-> "ExprIR"` and unlocked `atom`'s STRING arm and `closed_pattern`'s `MatchValue`.
+`_set_ctx` gained `-> "ExprIR"` and unlocked THREE methods at once. In all three cases the
+stub STAYED `\trusted` and the marker count did not move for the stub itself — the count
+moved at its CALLERS. **Before scoping any new model, ask what the callee's interface
+CLAIMS, and whether a truer claim is one annotation away.**
+
+**2. THE SPECIFIC SHAPE: A MUTATOR THAT RETURNS NOTHING IS MODELLED AS A NO-OP, WHICH IS A
+WRONG VALUE.** `_set_ctx(node, Store)` walks an AST node and writes `node.ctx = ctx` in
+place. The emit_ir ADT is IMMUTABLE, so that write cannot be represented at all — and the
+emitted model did not represent it, it simply kept reading the node's ORIGINAL `ctx`. The
+model therefore asserted `ctx = "Load"` at exactly the six sites where the source had just
+written `"Store"`. That is the same defect class as the None-reads-as-`""` erasure and the
+`...`-reads-as-`0` erasure: **not a coarse abstraction but a confidently false one.**
+The repair is to make the mutation OBSERVABLE: have the live function RETURN the object it
+mutated and have the call sites bind the result. It is runtime-identical by construction —
+the function hands back the very object it was given — and the corpus byte-diff of 0 over
+813 on a LIVE front-end edit is the proof. The emitted `val` then becomes an UNINTERPRETED
+`emit_ir -> string -> emit_ir`, which claims equal inputs give equal outputs and nothing
+else in either direction. **An honest "I do not know" beats an exact and wrong answer**, and
+it costs no axiom and no `\trusted` marker.
+
+**3. A LIVE-SOURCE CHANGE IS IN SCOPE WHEN IT IS RUNTIME-IDENTICAL, AND THE BYTE-DIFF IS
+WHAT MAKES THAT CLAIM CHECKABLE.** Two live edits landed this session — the additive
+`py_ellipsis` marker key and `_set_ctx`'s return — and both are behaviour-preserving by
+construction rather than by argument. The discipline that makes them safe is already in the
+battery: emit all 813 corpus files before and after and require ZERO differing bytes. Run
+it BEFORE the proof, because it costs 32 seconds and the proof costs 45 minutes.
+
+**4. REVERT THE CALL SITES YOU CANNOT YET CONSUME.** The same live edit was applied to
+`namedexpr_test`'s call site and then REVERTED, because that method's mirror is still a
+stub, so the change had no model consumer — textbook dead capability (lessons (az)/(bd)).
+Reverting it costs one line to redo and keeps the live diff honest about what is actually
+being used. Record the analysis instead: `namedexpr_test` needs a NEW `IrPyNamedExpr` arm
+AND a re-depthing (it must sit strictly above `test` and strictly below both `test_or_star`
+and `_call_args`, which forces those two up to 14). That is a plan, not a wall.
