@@ -3999,3 +3999,44 @@ assumption**, so this class of fix adds no `\trusted` surface and no axiom. Coro
 its own line: `advance` in this parser is only CONDITIONALLY strict, so ANY method whose
 first act is `advance()` has no provable progress of its own — the whole family shares one
 missing precondition.
+
+## Lesson (bo) — a precondition is free strictness; and a gate whose regex only reads `let` was blind to 14% of the surface
+
+**1. THE NAMED CAPABILITY WORKED, VERBATIM, AND IT COST NOTHING.** Lesson (bn) §4 ended by
+naming a token-kind precondition as the way out of `atom`'s no-advance cycle. It was built
+exactly as written and the prover took it on the first serious attempt: `#@ requires
+self.toks[self.i].type == _tokenize.OP` on `atom_paren`/`atom_list`/`atom_brace`/`_dict_rest`
+and `== _tokenize.NAME` on `yield_expr`, discharged at every call site from `at_op`/`at_kw`'s
+existing `ensures \result != False ==> …`. This is the campaign's cheapest structural lever
+and it deserves a name: **when a callee's first act is an unconditionally-written but only
+CONDITIONALLY-strict primitive, the missing evidence is usually already proved one frame up.
+Move the evidence with a precondition instead of strengthening the primitive.** It is a proof
+obligation at the call site, not an assumption, so the `\trusted` surface does not move and
+the ledger does not move. Three boundaries in this campaign have now been broken by exactly
+the capability their own refutation named — the naming discipline is the product.
+
+**2. RE-DEPTHING IS THE REAL WORK, AND THE OLD NUMBERING CAN BE IMPOSSIBLE RATHER THAN BAD.**
+Converting `atom` took the expression group from 21 members to 28 and every member has to
+share one well-founded order. The recorded first-cut depths were not merely unlucky:
+`unary_postfix` at 1 forced `atom` <= 0 and `atom`'s four no-advance callees strictly BELOW
+0, i.e. negative — the scheme had no solution at all. The fix is a uniform shift, not a
+tweak: keep the multiplier, put every method whose leading `advance` is now PROVABLY strict
+at depth 0, and shift everything that was >= 1 up by one. Check the tightest edge explicitly
+— here `trailers` (0) reaching `_subscript` (15) after ONE advance, a rise of 15 against a
+16-unit drop. **Derive the whole assignment on paper and check the maximum rise against the
+multiplier BEFORE spending a 45-minute proof.**
+
+**3. A GATE THAT PARSES ONLY `let` CANNOT SEE A `with`.** `bin/check-emitted-vacuity.py`
+announced that a long-KNOWN erasure (`_parser___dict_rest` erasing `t`) was "no longer
+erased". Nothing had repaired it. Converting `atom` had moved that function from being a
+`let rec` HEAD into a `with` CONTINUATION of the enlarged group, and the probe's head regex
+matched only `  let …` — so every continuation member of every mutual-recursion group was
+invisible to it: **531 of 3839 emitted functions, 14% of the surface, silently unchecked for
+the entire campaign.** Two things follow. First, the specific repair: widening the head and
+stop patterns to accept `with` re-detects `_dict_rest`, newly exercises `_cs_clause`, and
+finds NO new erasure in the other 529 — a pure tightening that costs nothing, so it landed
+in the same increment. Second, the general rule, which is the one to carry: **a gate
+suddenly reporting GOOD news you did not work for is a bug report about the gate.** The
+campaign already knows three instrument false-greens (`--emit`, the `why3` PATH, `--no-typecheck`);
+this is the fourth, and it was found only because the good news was implausible. When a
+metric improves for free, go read the metric's code before you write the improvement down.
