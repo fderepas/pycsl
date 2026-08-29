@@ -4532,6 +4532,7 @@ class _Unparser(NodeVisitor):
     def visit_AsyncFor(self, node):
         self._for_helper("async for ", node)
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -4591,6 +4592,7 @@ class _Unparser(NodeVisitor):
             self.write("u")
         self._write_str_avoiding_backslashes(node.value, quote_types=_MULTI_QUOTES)
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -4894,6 +4896,7 @@ class _Unparser(NodeVisitor):
     def _str_literal_helper(self, string, *, quote_types=_ALL_QUOTES, escape_special_whitespace=False):
         pass
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

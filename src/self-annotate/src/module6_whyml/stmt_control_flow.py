@@ -80,6 +80,7 @@ class ControlFlowStmtMixin:
     # StatementEmissionMixin / expressions.py files the mixin composes with at runtime). Typed
     # `-> str` so the ported control-flow bodies compose their strings; effect-free registrar
     # helpers (`*_bridge`) are `assigns \nothing`.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -91,6 +92,7 @@ class ControlFlowStmtMixin:
             "    ensures { Array.length result = Seq.length s }\n"
             "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

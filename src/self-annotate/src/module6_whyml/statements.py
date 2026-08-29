@@ -269,6 +269,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return f"{whyml_ident(record_lower)}_{base}"
         return base
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -753,6 +754,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     # Body-faithful (bucket 1): same shape as `_materialize_bridge` — single trusted
     # `_add_abstract_op` call, body verifies, `ensures True` (returns None).
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

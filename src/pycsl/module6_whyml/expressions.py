@@ -5660,6 +5660,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # edge. Gated behind the same `_record_array_fields` / `#@ sibling_concrete`
                 # opt-in as the rest, so it is corpus byte-inert.
                 and (ret_type in ("emit_ir", "int", "string", "stmt_ir")
+                     # SHADOWED-SELFCALL (relaunch #15): a VOID sibling — `unit` — but
+                     # OPT-IN ONLY. A void mutator's abstract avatar (`val self__<m>_0 ()
+                     # : unit`, no `writes`) is modelled as a NO-OP (lesson (bq)), so the
+                     # caller of a CONVERTED void helper sees nothing it does; the concrete
+                     # application restores the real body and its frame. It is deliberately
+                     # NOT admitted on the `_record_array_fields` proxy the other arms
+                     # share: measured, that breaks `pure_ast` outright — `_Parser` passes
+                     # the proxy, and its `-> NoReturn` `error` is `\trusted`, so the arm
+                     # fires on a callee that has no emitted definition to be ordered
+                     # before its caller and the file fails L3-tc with `unbound function
+                     # or predicate symbol '_parser__error'`. Requiring the explicit marker
+                     # keeps the arm fail-closed and per-callee.
+                     or (ret_type == "unit"
+                         and _concrete in getattr(
+                             self, "_sibling_concrete_methods", set()))
                      or (isinstance(ret_type, str) and ret_type.startswith("_union_"))
                      # A LIST-RETURNING SIBLING IS THE SAME CASE. `array <t>` was missing
                      # from this allowlist, and the consequence is a LOST CONVERSION that

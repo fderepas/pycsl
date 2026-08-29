@@ -39,7 +39,7 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
-BASELINE = 23          # 55 at first measurement, 50 after the `array <t>` concrete-
+BASELINE = 15          # 55 at first measurement, 50 after the `array <t>` concrete-
                        # sibling capability landed (relaunch #9), 43 after the first
                        # `#@ sibling_concrete` marker wave (relaunch #10: `_deref` and its
                        # 28 call sites, `_rhs_yields_array`, and five ExpressionEmissionMixin
@@ -62,7 +62,17 @@ BASELINE = 23          # 55 at first measurement, 50 after the `array <t>` concr
                        # RETURN-TYPE allowlist in `expressions._handle_dotted_call` — the
                        # certified statement-node ADT was simply missing beside `emit_ir`,
                        # so `_process_for`/`_process_if`/`_process_while` snoc'd an
-                       # UNCONSTRAINED node onto `ir_stmts` at their only call site)
+                       # UNCONSTRAINED node onto `ir_stmts` at their only call site), 15
+                       # after wave 7 (relaunch #15: the VOID sibling — `unit` — admitted
+                       # OPT-IN ONLY. A void mutator's avatar carries no `writes`, so it is
+                       # modelled as a NO-OP and the caller of a CONVERTED void helper sees
+                       # nothing it does. Measured: admitting `unit` on the shared
+                       # `_record_array_fields` proxy BREAKS `pure_ast` outright, because
+                       # `_Parser` passes that proxy and its `-> NoReturn` `error` is
+                       # `\trusted` — so the marker is required. Eight methods:
+                       # `_array_coerce_arg`, `_is_null_byte_lit` (both `@staticmethod`,
+                       # which an earlier triage regex had skipped), `_materialize_bridge` /
+                       # `_materialize_str_bridge` x2, and the three `_Unparser` writers)
                        # — a RATCHET, only lower it
 MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 

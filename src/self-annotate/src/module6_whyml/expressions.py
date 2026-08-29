@@ -476,6 +476,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _emit_contract_logic_symbol(self, func_name: str, expr: int, args: List[str]) -> Optional[str]:
         return None
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
