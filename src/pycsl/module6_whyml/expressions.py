@@ -9226,6 +9226,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if f in none_fields:
                     parts.append("IrONone")
                     continue
+                # OPTIONAL-NODE LOCAL (relaunch #11): the actual is a local this file's
+                # prescan classified as an `iropt_ir` LOCAL, so it ALREADY carries the
+                # carrier value — bind its deref straight into the slot. No projection, no
+                # sentinel: an absent optional child reads back as the honest `IrONone`.
+                _rn0 = (raw_kwargs or {}).get(f)
+                if (isinstance(_rn0, dict) and _rn0.get("type") == "Var"
+                        and _rn0.get("name") in getattr(
+                            self, "_iropt_ir_local_vars", set())):
+                    parts.append(f"!{whyml_ident(str(_rn0['name']))}")
+                    continue
                 _rk = (raw_kwargs or {}).get(f)
                 if isinstance(_rk, dict) and _rk.get("type") == "None":
                     parts.append("IrONone")
@@ -11405,6 +11415,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return whyml_ident(name)
         if name in self._record_locals:
             return whyml_ident(name)
+        if name in getattr(self, "_iropt_ir_local_vars", set()):
+            # OPTIONAL-NODE LOCAL (relaunch #11): a VALUE read of an `iropt_ir` carrier
+            # local where an `emit_ir` is required (`_subscript_item`'s `return lower`)
+            # projects through the DEFINED total `iropt_val`. The two positions that must
+            # NOT go through here are handled before ever reaching a Var read: an
+            # `iropt_ir` PAYLOAD SLOT binds the carrier itself (`expressions.
+            # _call_irnode_constructor`), and a carrier-to-carrier chained-assignment alias
+            # copies it (`statements._handle_assign_stmt`) — so an absent optional child is
+            # never turned into a present sentinel node.
+            return f"(iropt_val !{whyml_ident(name)})"
         if name in getattr(self, "_optional_union_locals", set()):
             # tool-feature-5 (giants read-projection): a VALUE read of a mutable
             # Optional-union local `x` (a `ref _union_*`) projects the carrier of its

@@ -3800,3 +3800,41 @@ wrong branch condition. The synthesized `_union_*` treatment that `Optional[<rec
 locals already have (lessons (ab)/(aq)) is the named reopening capability, plus a
 tuple-typed parameter interface for `_slice(start, end)`, whose `(line, col)` actuals are
 `pytuple_int_int` against an `int`-declared `val`.
+
+## Lesson (bk) — a refutation that names its capability precisely can be reopened the same day; and a fix you cannot EMIT is not a fix
+
+`_subscript_item` was recorded CERTIFIED-BOUNDARY [UNANNOTATED OPTIONAL-NODE LOCAL] and
+converted about four hours later, by building exactly the capability the refutation named.
+That is the whole argument for the discipline of naming the reopening capability at
+refutation time rather than writing "blocked".
+
+**1. THE OPTIONAL-NODE LOCAL, and why the gate is the SLOT.** A local BOUND INTO an
+`iropt_ir` PAYLOAD SLOT of a `_N(<Class>)(...)` family construction IS an `Optional[<node>]`
+— `ref IrONone` pre-decl, `IrONone` for the `None`, `(IrOSome e)` for a present value, the
+slot binding the CARRIER itself, and a DEFINED total `iropt_val` projector for the one
+position that reads it as a plain node. The obvious extra gate — "and it is assigned `None`
+somewhere" — is both unnecessary (a local that flows into an optional slot is optional
+regardless) and FRAGILE, for a reason worth its own entry below. Annotated
+`Optional[τ]` locals are EXCLUDED: they already have a synthesized `_union_*` and taking
+them over here would double-wrap them.
+
+**2. A FIX YOU CANNOT EMIT IS NOT A FIX — lesson (bb), sharpened.** Module5's
+`_py_stmt_assign` reads `stmt.targets[0]` only, so the SECOND AND LATER targets of a chained
+assignment (`a = b = c = V`) are SILENTLY DROPPED — a real fail-open, the same shape as the
+`p.x = v` no-op the file's own comment warns about. The repair is three lines (Python
+evaluates the value ONCE and binds every target to THAT object, so `t0 = V; t1 = t0; …`) and
+the corpus byte-diff is 0. **It was still reverted**, because the mirror's own emitted model
+of `_py_stmt_assign` goes through the typed AST reader `assign_target0_ast`, which exposes
+only `targets[0]`: the repaired body's new branch is silently dropped from the emission, and
+the emitted `.mlw` was measured BYTE-IDENTICAL with and without the fix. A live change whose
+mirror counterpart cannot be emitted does not get verified — it just widens the gap between
+the body and the model. Flag it, name the reopening capability (`assign_targets_len` /
+`assign_targetk_ast` in the reader model), and move on.
+
+**3. A SECOND GROUP RE-PHASING, and the rule generalizes.** Converting `_subscript_item`
+pulls `_subscript` and `test_or_star_slice` into the expression `let rec` group — NINETEEN
+members — and deepens the no-advance chain from 13 hops to 15
+(`_subscript -> _subscript_item -> test_or_star_slice -> test -> … -> trailers`). All
+nineteen move to `16 * (\length(self.toks) - self.i) + <depth>`. **Expect the multiplier to
+rise every time a new member joins**, and re-phase the whole group in one edit; the 1-second
+emit oracle prices the shape before any prover runs (lesson (bh)).

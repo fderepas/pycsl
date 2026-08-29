@@ -496,6 +496,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
         if vt in ("Tuple", "SetLit"):
             val = "0"
+        # OPTIONAL-NODE LOCAL (relaunch #11): `x = None` / `x = <node>` where `x` is an
+        # `iropt_ir` local (see `_collect_iropt_ir_locals`). The `None` is the carrier's own
+        # `IrONone` — NOT the `IrOther ""` sentinel an emit_ir local would use, which would
+        # model an ABSENT optional child as a NODE — and a present value wraps `IrOSome`.
+        if target in getattr(self, "_iropt_ir_local_vars", set()):
+            _src = val_ir if isinstance(val_ir, dict) else {}
+            if (_src.get("type") == "Var"
+                    and _src.get("name") in self._iropt_ir_local_vars):
+                # A CHAINED-ASSIGNMENT ALIAS (`upper = lower`) between two carrier locals
+                # copies the CARRIER, never re-wraps it — `IrOSome (iropt_val !lower)`
+                # would turn an absent bound into a present sentinel node.
+                val = f"!{whyml_ident(str(_src['name']))}"
+            else:
+                val = "IrONone" if vt == "None" else f"(IrOSome {val})"
         # i-feel-good.md I-B: `x = None` where x is a string local (an Optional[str], the
         # emitter's `self_field_name = None`) → "" (the absent sentinel), so the `ref ""`
         # string local stays string-typed. @mutable_state-gated → byte-identical elsewhere.
@@ -507,6 +521,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `Optional[StmtIR]`, the emitter's `tail_ret = None`) → `(IrOther "")` (the emit_ir
         # absent sentinel), so the `ref (IrOther "")` stays emit_ir-typed. @mutable_state.
         if (vt == "None" and target in getattr(self, "_emit_ir_local_vars", set())
+                and target not in getattr(self, "_iropt_ir_local_vars", set())
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
             val = '(IrOther "")'
@@ -1076,6 +1091,73 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if _recv is not None:
                 _out[_nm] = _recv
         return _out
+
+    def _collect_iropt_ir_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """OPTIONAL-NODE LOCAL (relaunch #11): a local that is assigned a bare `None` AND
+        is bound into an `iropt_ir` PAYLOAD SLOT of a `_N(<Class>)(...)` family
+        construction in the SAME body is an `Optional[<node>]` local — `lower`/`upper`/
+        `step` in `_subscript_item`'s `lower = upper = step = None` … `_N("Slice")(
+        lower=lower, upper=upper, step=step)`.
+
+        WHY IT NEEDS ITS OWN CLASSIFICATION. Such a local is UNANNOTATED — the source
+        writes a CHAINED assignment, which Python does not let you annotate — so Module5
+        synthesizes no `_union_*` for it (the route `try_stmt`'s
+        `typ: Optional["ExprIR"] = None` takes), and `_collect_emit_ir_result_locals`
+        classifies it as an ordinary emit_ir local whose `None` emits the `IrOther ""`
+        SENTINEL. Binding that into an `iropt_ir` slot would model an ABSENT bound as a
+        NODE — the exact erasure lesson (aq) measured and the `iropt_*` family exists to
+        remove. Classified here, the local is `ref IrONone`, its `None` is `IrONone`, its
+        node assignment is `(IrOSome e)`, and the slot binds it directly.
+
+        DEMAND-GATED, which is what keeps it honest and narrow: the local must actually
+        FLOW INTO an optional-node slot in this body. A `x = None; x = <node>` local that
+        never reaches such a slot keeps its existing lowering, byte-identical."""
+        if not self._uses_pyast_parser():
+            return set()
+        from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
+        _slotted: Set[str] = set()
+
+        def _scan(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and isinstance(node.get("func"), str):
+                    _pc = _PYC.get(node["func"])
+                    if _pc is not None:
+                        _slots = dict(_pc[1])
+                        for _kw in (node.get("keywords") or []):
+                            if not isinstance(_kw, dict):
+                                continue
+                            _a = _kw.get("arg")
+                            _val = _kw.get("value")
+                            _val = _val.to_dict() if hasattr(_val, "to_dict") else _val
+                            if (_slots.get(_a) == "iropt_ir"
+                                    and isinstance(_val, dict)
+                                    and _val.get("type") == "Var"
+                                    and isinstance(_val.get("name"), str)):
+                                _slotted.add(_val["name"])
+                for _x in node.values():
+                    _scan(_x)
+            elif isinstance(node, list):
+                for _x in node:
+                    _scan(_x)
+
+        _scan(body_stmts)
+        # EXCLUDE a local that ALREADY has a synthesized `_union_*` (an ANNOTATED
+        # `typ: Optional["ExprIR"] = None`, `try_stmt`'s shape). That local is a union ref
+        # whose `None` and `Some` arms the union path already lowers faithfully; taking it
+        # over here would double-wrap it. This classification exists exactly for the
+        # UNANNOTATED case, which Python's chained assignment forces.
+        # THE GATE IS THE SLOT, not the `None` assignment. A local BOUND INTO an
+        # optional-node payload slot IS an optional node, whether or not this body happens
+        # to assign it `None` on some path — and relying on the `None` assignment would be
+        # fragile besides: Module5's `_py_stmt_assign` reads `stmt.targets[0]` only, so the
+        # SECOND AND LATER targets of the CHAINED `lower = upper = step = None` never reach
+        # the IR at all (see the FLAGGED note in the handoff). For `_subscript_item` that
+        # drop is harmless — the carrier's `ref IrONone` pre-declaration gives `upper` and
+        # `step` exactly the value the dropped assignment would have set — but the
+        # classification must not depend on it.
+        return {n for n in _slotted
+                if n not in set(getattr(self, "_formal_params", []) or [])
+                and self._union_local_symtype(n) is None}
 
     def _const_pair_dict_unpack_projs(self, val_ir: Dict[str, Any],
                                       targets: List[str],
@@ -4798,6 +4880,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # KIND-LOCAL DISCRIMINANT FLOW: `t = <emit_ir>.get("type", "")` then `t == "K"`
         # (see `_collect_kind_local_recv`).
         self._kind_local_recv = self._collect_kind_local_recv(body_stmts)
+        # OPTIONAL-NODE LOCAL: a `None`-assigned local that flows into an `iropt_ir`
+        # payload slot (see `_collect_iropt_ir_locals`).
+        self._iropt_ir_local_vars = self._collect_iropt_ir_locals(body_stmts)
         # union/match cluster: `var_name = subj.get("name")` string-scalar leaf. (The
         # nested-map hval registration + items-key + enum-element string classification is
         # done EARLIER — before `_collect_str_call_result_locals` — see above.)
@@ -5664,6 +5749,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # inductive — no new leaf, no axiom, and unobservable (Python never reads
                 # such a local before its first assignment).
                 init = '(Unsupported "" "")'
+            elif var in getattr(self, "_iropt_ir_local_vars", set()):
+                # OPTIONAL-NODE LOCAL pre-decl: the carrier's own absent value.
+                init = 'IrONone'
             elif var in _emit_ir_predecl:
                 init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
             elif var in _seqir_predecl:

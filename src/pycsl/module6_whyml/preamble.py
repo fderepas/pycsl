@@ -5821,6 +5821,17 @@ class PreambleEmissionMixin:
             "  = match l with IONil -> IrONone"
             " | IOCons h t -> if i <= 0 then h else ionth (i - 1) t end",
             "",
+            "  (* OPTIONAL-NODE LOCAL (relaunch #11): the total projection out of the"
+            " `iropt_ir` carrier, for the ONE position where an `Optional[<node>]` local is"
+            " read where a plain `emit_ir` is required (`_subscript_item`'s `return lower`,"
+            " guarded in Python by the branch that has just assigned it). DEFINED, not"
+            " axiomatized — the `IrONone` arm reads the `IrOther \"\"` absent sentinel, the"
+            " same total-projector device `left_of`/`body_of` use. Nothing else may read a"
+            " carrier local as a node: an `iropt_ir` PAYLOAD SLOT binds the carrier itself,"
+            " so an absent child stays the honest `IrONone`. *)",
+            "  let function iropt_val (o: iropt_ir) : emit_ir",
+            "  = match o with IrOSome v -> v | IrONone -> IrOther \"\" end",
+            "",
         ] if self._uses_pyast_parser() else []) + [
 
             # self-tcb-reduction _typeddict_record_literal (cap-2): the two child-list

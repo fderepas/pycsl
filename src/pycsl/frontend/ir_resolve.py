@@ -274,6 +274,16 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # total child list: the alternating Constant / FormattedValue parts of an f-string.
     # An ordinary `irlist`, like every other variadic child list in the family.
     "JoinedStr": ("IrPyJoinedStr", [("values", "irlist")]),
+    # `Slice(lower, upper, step)` — `_NODE_SPEC['Slice'] == ('expr', ('lower','upper',
+    # 'step'), None)` and ALL THREE are in `_OPTIONAL_FIELDS['Slice']`: `a[:]` really
+    # carries none of them, so every slot is `iropt_ir`. A DEDICATED constructor rather
+    # than a reuse of the pre-existing `IrSliceN iropt_ir iropt_ir iropt_ir` (which
+    # `_py_expr_slice` builds through `_lower_sliceN_optfield`): re-listing an existing
+    # ctor in this table would DUPLICATE it in both the emitted ADT and `kind_of`, a hard
+    # Why3 error. The two share the `"Slice"` kind_of TAG, which is sound and precedented
+    # (IrCall/IrCallN, and IrSliceN/IrSlice already share it).
+    "Slice": ("IrPySlice", [("lower", "iropt_ir"), ("upper", "iropt_ir"),
+                            ("step", "iropt_ir")]),
     # `IfExp(test, body, orelse)` — `_NODE_SPEC['IfExp'] == ('expr', ('test','body',
     # 'orelse'), <loc attrs>)`, THREE total children (no `_OPTIONAL_FIELDS` entry). A
     # DEDICATED arm, not the generic `IrTer3`: an `IfExp` must stay distinguishable from

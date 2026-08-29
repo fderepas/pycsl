@@ -1943,13 +1943,14 @@ class _Parser:
     # well-founded order. Phase-offset form (the `proof2why3/parser` precedent): `test`
     # (+1) calls `lambdef` (+0) WITHOUT advancing, so the offset must drop; `lambdef`
     # calls `test` only after `advance()` + `expect_op(":")`, so the cursor term drops.
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 11.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 11
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 11. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 11
     #@ assigns self.i
     def test(self) -> "ExprIR":
         if self.at_kw("lambda"):
@@ -1967,13 +1968,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 10.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 10
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 10. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 10
     #@ assigns self.i
     def lambdef(self) -> "ExprIR":
         t = self.advance()  # 'lambda'
@@ -1998,13 +2000,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 10.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 10
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 10. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 10
     #@ assigns self.i
     def or_test(self) -> "ExprIR":
         t = self.cur()
@@ -2024,13 +2027,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 9.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 9
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 9. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 9
     #@ assigns self.i
     def and_test(self) -> "ExprIR":
         t = self.cur()
@@ -2054,13 +2058,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 8.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 8
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 8. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 8
     #@ assigns self.i
     def not_test(self) -> "ExprIR":
         if self.at_kw("not"):
@@ -2076,13 +2081,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 7.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 7
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 7. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 7
     #@ assigns self.i
     def comparison(self) -> "ExprIR":
         t = self.cur()
@@ -2122,13 +2128,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 6.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 6
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 6. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 6
     #@ assigns self.i
     def expr(self) -> "ExprIR":
         return self._binop(0)
@@ -2170,13 +2177,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 5.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 5
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 5. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 5
     #@ assigns self.i
     def _binop(self, min_prec) -> "ExprIR":
         t = self.cur()
@@ -2202,13 +2210,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 4.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 4
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 4. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 4
     #@ assigns self.i
     def factor(self) -> "ExprIR":
         if self.cur().type == _tokenize.OP and self.cur().string in _UNARY:
@@ -2231,13 +2240,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 3.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 3
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 3. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 3
     #@ assigns self.i
     def power(self) -> "ExprIR":
         t = self.cur()
@@ -2260,13 +2270,14 @@ class _Parser:
     # `unary_postfix`, both of which export it.
     #@ requires True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 2.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 2
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 2. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 2
     #@ assigns self.i
     def await_expr(self) -> "ExprIR":
         if self.at_kw("await"):
@@ -2280,13 +2291,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 1.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 1
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 1. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
     def unary_postfix(self) -> "ExprIR":
         atom = self.atom()
@@ -2298,13 +2310,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 0.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 0
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 0. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def trailers(self, atom: "ExprIR") -> "ExprIR":
         start_line = atom.lineno; start_col = atom.col_offset
@@ -2347,6 +2360,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 14. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 14
     #@ assigns self.i
     def _subscript(self) -> "ExprIR":
         t = self.cur()
@@ -2369,49 +2390,81 @@ class _Parser:
         tup.end_lineno = elts[-1].end_lineno; tup.end_col_offset = elts[-1].end_col_offset
         return tup
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted.
-    # CERTIFIED-BOUNDARY [UNANNOTATED OPTIONAL-NODE LOCAL], relaunch #11 — and the
-    # diagnosis is SHARPER than the one it replaces. The body was ported and MEASURED on
-    # the emit oracle: `return lower` is NOT the blocker (it emits fine as
-    # `raise (Return_emit_ir !lower)`), and the cursor/loop structure needs nothing new.
-    # The WHOLE gap is the last line's `_N("Slice")(lower=lower, upper=upper, step=step)`,
-    # which declines to the `slice_0 ()` facade for two reasons, both named:
-    #   (i)  `Slice` has NO `_PYAST_IRNODE_CTORS` entry. The ADT already carries
-    #        `IrSliceN iropt_ir iropt_ir iropt_ir` for `_py_expr_slice`, so the family
-    #        needs its own `IrPySlice iropt_ir iropt_ir iropt_ir` arm (a dedicated ctor,
-    #        not a reuse — re-listing an existing ctor in the table would duplicate it in
-    #        both the ADT and `kind_of`; a shared `"Slice"` kind_of tag is fine, the
-    #        IrCall/IrCallN precedent).
-    #   (ii) `lower`/`upper`/`step` are UNANNOTATED `Optional[ExprIR]` locals — the source
-    #        writes the CHAINED `lower = upper = step = None`, which Python does not let
-    #        you annotate — so they classify as ordinary emit_ir locals and their `None`
-    #        emits as the `IrOther ""` SENTINEL. Binding that into an `iropt_ir` slot would
-    #        model an ABSENT bound as a NODE, the exact erasure lesson (aq) measured and
-    #        this family exists to remove, so the conversion must NOT be taken on those
-    #        terms (lesson (bf)/(bj): decline a conversion that buys a marker with a new
-    #        hole). `try_stmt`'s `typ: Optional["ExprIR"] = None` is fine TODAY only
-    #        because the annotation makes Module5 synthesize a `_union_*`.
-    # REOPENING CAPABILITY, named and demand-gated: classify a local as an `iropt_ir`
-    # LOCAL when it is assigned a bare `None` AND is bound into an `iropt_ir` PAYLOAD SLOT
-    # of a `_N(<Class>)(...)` construction in the same body — pre-declared `ref IrONone`,
-    # `x = None` emitting `IrONone`, `x = <emit_ir>` emitting `(IrOSome e)`, the slot
-    # binding `!x` directly, and a DEFINED total projector
-    # `let function iropt_val (o: iropt_ir) : emit_ir = match o with IrOSome v -> v
-    # | IrONone -> IrOther "" end` for the one emit_ir-position read. No axiom, ledger
-    # unchanged. It is also ONE of the three capabilities `_fstring_replacement` needs.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #11). Verbatim body port of the
+    # LIVE `_subscript_item`. The recorded boundary said "flow-sensitive narrowing
+    # (`return lower` in an emit_ir position)"; that was WRONG — measured on the emit
+    # oracle, `return lower` was never the blocker. The real gap was two things, and both
+    # are now built:
+    #   (i)  the family arm `IrPySlice iropt_ir iropt_ir iropt_ir` — a DEDICATED ctor, not
+    #        a reuse of `_py_expr_slice`'s `IrSliceN` (re-listing an existing ctor in the
+    #        table would duplicate it in both the ADT and `kind_of`). The two share the
+    #        `"Slice"` kind_of TAG, which is sound and precedented (IrCall/IrCallN).
+    #   (ii) THE OPTIONAL-NODE LOCAL. `lower`/`upper`/`step` are UNANNOTATED
+    #        `Optional[ExprIR]` locals — the source writes the CHAINED
+    #        `lower = upper = step = None`, which Python does not let you annotate — so
+    #        Module5 synthesizes no `_union_*` and they used to classify as ordinary
+    #        emit_ir locals whose `None` emitted the `IrOther ""` SENTINEL. Binding that
+    #        into an `iropt_ir` slot would model an ABSENT bound as a NODE, the exact
+    #        erasure lesson (aq) measured. They are now `iropt_ir` CARRIER locals:
+    #        `ref IrONone`, `IrONone` for the `None`, `(IrOSome e)` for a present bound,
+    #        the slot binding the carrier itself, and the DEFINED total `iropt_val` for the
+    #        one emit_ir-position read. Emitted: `IrPySlice !lower !upper !step`.
+    # THE CLASSIFICATION GATE IS THE SLOT, not the `None` assignment — deliberately, and
+    # the reason is a LIVE-TOOL DEFECT found here and FLAGGED rather than fixed:
+    # Module5's `_py_stmt_assign` reads `stmt.targets[0]` only, so the SECOND AND LATER
+    # targets of the CHAINED `lower = upper = step = None` never reach the IR at all
+    # (`upper` and `step` are never assigned). For THIS body the drop is harmless — the
+    # carrier's `ref IrONone` pre-declaration gives both exactly the value the dropped
+    # assignment would have set — but a chained assignment of a NON-None value would be a
+    # silent no-op, so the defect is real and is recorded in the handoff. It was NOT fixed
+    # in this increment because the fix cannot be verified: the mirror's own emitted model
+    # of `_py_stmt_assign` reads through the `assign_target0_ast` AST reader, which exposes
+    # only `targets[0]`, so a repaired body's new branch is SILENTLY DROPPED from the
+    # emission (measured: the emitted `.mlw` was byte-identical with and without the fix) —
+    # exactly the "the mirror body must be EMITTABLE, not merely equal" trap of lesson (bb).
+    # Reopening capability, named: an `assign_targets_len` / `assign_targetk_ast` pair in
+    # the typed AST reader model.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 13. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 13
     #@ assigns self.i
     def _subscript_item(self) -> "ExprIR":
-        pass
+        t = self.cur()
+        lower = upper = step = None
+        if not self.at_op(":"):
+            lower = self.test_or_star_slice()
+            if not self.at_op(":"):
+                return lower
+        # at ':'
+        self.expect_op(":")
+        if not self.at_op(":") and not self.at_op("]") and not self.at_op(","):
+            upper = self.test()
+        if self.accept_op(":"):
+            if not self.at_op("]") and not self.at_op(","):
+                step = self.test()
+        return self._fin(_N("Slice")(lower=lower, upper=upper, step=step), t)
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
     # `test_or_star_slice`.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 12. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 12
     #@ assigns self.i
     def test_or_star_slice(self) -> "ExprIR":
         if self.at_op("*"):
@@ -2438,13 +2491,14 @@ class _Parser:
     #@ requires self.i >= 1
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 12.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 12
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 12. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 12
     #@ assigns self.i
     def _call_args(self, close: str) -> "Tuple[List[ExprIR], List[ExprIR]]":
         args = []; keywords = []
@@ -2681,13 +2735,14 @@ class _Parser:
     # here by the OUTER loop's ghost snapshot below, the same device the INNER loop
     # already used; this is a PROOF, not an assumption (`comp_for` is CONVERTED).
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 11.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 11
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 11. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 11
     #@ assigns self.i
     def comp_for(self) -> "List[ExprIR]":
         gens = []
@@ -2735,13 +2790,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    # GROUP VARIANT (relaunch #11): this method is one of the SIXTEEN members of the
-    # expression `let rec … with …` group Why3 forms once `_binop` is concrete, and all
-    # sixteen must share one well-founded order. Phase-offset form at multiplier 13 —
-    # the group's only provably cursor-advancing cycle edge is `trailers -> _call_args`,
-    # so every other hop is paid by a smaller offset; this member sits at depth 11.
-    # The full depth assignment and its justification are recorded on `_binop`.
-    #@ \variant 13 * (\length(self.toks) - self.i) + 11
+    # GROUP VARIANT (relaunch #11): this method is one of the NINETEEN members of
+    # the expression `let rec … with …` group Why3 forms once `_binop` and
+    # `_subscript_item` are concrete, and all nineteen must share one well-founded
+    # order. Phase-offset form at multiplier 16 — the group's only provably
+    # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
+    # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
+    # member sits at depth 11. The full depth assignment is recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 11
     #@ assigns self.i
     def or_test_no_cond(self) -> "ExprIR":
         # comprehension 'if' uses or_test (no ternary, no walrus per grammar uses test_nocond)
