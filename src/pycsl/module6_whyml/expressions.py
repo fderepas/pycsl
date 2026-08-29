@@ -4264,6 +4264,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if raw_op in ("==", "!=") and (
                 expr["left"].get("type") == "None" or
                 expr["right"].get("type") == "None"):
+            # OPTIONAL-NODE / OPTIONAL-STRING CARRIER LOCAL (relaunch #11): `x is None` /
+            # `x is not None` on an `iropt_ir` / `iropt_str` CARRIER local is the FAITHFUL
+            # presence test — a `match` discriminant on the carrier's own absent arm, valid
+            # in a program `if`. Without it the guard fell through to the "model the
+            # optional as always-present" simplification below and emitted the LITERAL
+            # `false` / `true` — a WRONG branch condition, not a coarse one (measured on
+            # `_fstring_replacement`: `format_spec is None` became `false` and
+            # `debug_text is not None` became `true`, so the model always took the
+            # debug-text branch). Read the RAW deref, never the projecting value read.
+            for _cset, _cnone in (("_iropt_ir_local_vars", "IrONone"),
+                                  ("_iropt_str_local_vars", "IrSNone")):
+                _cs = getattr(self, _cset, set())
+                _cv = None
+                for _side in (expr["left"], expr["right"]):
+                    if (isinstance(_side, dict) and _side.get("type") == "Var"
+                            and _side.get("name") in _cs):
+                        _cv = _side.get("name")
+                if _cv is not None:
+                    _chk = (f"(match !{whyml_ident(str(_cv))} with {_cnone} -> true "
+                            f"| _ -> false end)")
+                    return _chk if raw_op == "==" else f"(not {_chk})"
             union_ctor = (self._union_none_ctor_for(expr["left"])
                           or self._union_none_ctor_for(expr["right"])
                           # cursor-nest `parse_atom`: same test, but on a union-returning
@@ -9309,6 +9330,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     continue
                 if isinstance(_rc, dict) and _rc.get("type") == "Var":
                     _cn = str(_rc.get("name"))
+                    # OPTIONAL-STRING CARRIER (relaunch #11): the actual is an `iropt_str`
+                    # carrier local (`debug_text`), read HERE under the Python guard
+                    # `if debug_text is not None:` that has just proved it present. The
+                    # slot needs a plain `string`, so project through the DEFINED total
+                    # `iropt_str_val`; its `IrSNone` arm is the `""` default and is
+                    # unreachable at this site.
+                    if _cn in getattr(self, "_iropt_str_local_vars", set()):
+                        parts.append(f"(ICStr (iropt_str_val !{whyml_ident(_cn)}))")
+                        continue
                     if (_cn in getattr(self, "_string_local_vars", set())
                             or getattr(self, "_current_symbol_table", {}).get(_cn)
                             in ("str", "string")):

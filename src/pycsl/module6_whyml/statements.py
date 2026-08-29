@@ -500,6 +500,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `iropt_ir` local (see `_collect_iropt_ir_locals`). The `None` is the carrier's own
         # `IrONone` — NOT the `IrOther ""` sentinel an emit_ir local would use, which would
         # model an ABSENT optional child as a NODE — and a present value wraps `IrOSome`.
+        if target in getattr(self, "_iropt_str_local_vars", set()):
+            # OPTIONAL-STRING CARRIER (relaunch #11): the `iropt_str` twin of the
+            # optional-node local. `None` is the carrier's own `IrSNone` — NOT the `""`
+            # sentinel the I-B string rule would use, which cannot be told apart from a
+            # genuinely EMPTY string (`_slice` can legitimately return one).
+            val = "IrSNone" if vt == "None" else f"(IrSSome {val})"
         if target in getattr(self, "_iropt_ir_local_vars", set()):
             _src = val_ir if isinstance(val_ir, dict) else {}
             if (_src.get("type") == "Var"
@@ -1116,9 +1122,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return set()
         from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
         _slotted: Set[str] = set()
+        _cslotted: Set[str] = set()
+        _nones: Set[str] = set()
 
         def _scan(node: Any) -> None:
             if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    _v0 = node.get("value", {})
+                    _v0 = _v0.to_dict() if hasattr(_v0, "to_dict") else _v0
+                    if isinstance(_v0, dict) and _v0.get("type") == "None":
+                        _nones.add(node["target"])
                 if node.get("type") == "Call" and isinstance(node.get("func"), str):
                     _pc = _PYC.get(node["func"])
                     if _pc is not None:
@@ -1129,11 +1142,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             _a = _kw.get("arg")
                             _val = _kw.get("value")
                             _val = _val.to_dict() if hasattr(_val, "to_dict") else _val
-                            if (_slots.get(_a) == "iropt_ir"
-                                    and isinstance(_val, dict)
+                            if not (isinstance(_val, dict)
                                     and _val.get("type") == "Var"
                                     and isinstance(_val.get("name"), str)):
+                                continue
+                            if _slots.get(_a) == "iropt_ir":
                                 _slotted.add(_val["name"])
+                            elif _slots.get(_a) == "irconst":
+                                _cslotted.add(_val["name"])
                 for _x in node.values():
                     _scan(_x)
             elif isinstance(node, list):
@@ -1155,8 +1171,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # drop is harmless — the carrier's `ref IrONone` pre-declaration gives `upper` and
         # `step` exactly the value the dropped assignment would have set — but the
         # classification must not depend on it.
+        _fp = set(getattr(self, "_formal_params", []) or [])
+        # THE STRING TWIN: a local bound into an `irconst` (`Constant.value`) slot AND
+        # assigned a bare `None` somewhere is an `Optional[str]` CARRIER (`iropt_str`).
+        # Here the `None` conjunct IS load-bearing and is not dropped: `text` in `_fstring`
+        # is bound into the SAME slot and is never `None`, so it must keep its plain
+        # `string` local lowering (byte-identical) — only a genuinely optional one moves.
+        self._iropt_str_local_vars = {
+            n for n in (_cslotted & _nones)
+            if n not in _fp and self._union_local_symtype(n) is None}
         return {n for n in _slotted
-                if n not in set(getattr(self, "_formal_params", []) or [])
+                if n not in _fp
                 and self._union_local_symtype(n) is None}
 
     def _const_pair_dict_unpack_projs(self, val_ir: Dict[str, Any],
@@ -4891,6 +4916,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # it must follow the int-param entry-shadow path; restore the `_formal_params`
         # exclusion the str-method collectors re-added.
         string_vars -= set(self._formal_params)
+        # An `iropt_str` CARRIER local is NOT a plain `string` local — it must not take the
+        # `ref ""` pre-decl or the I-B `x = None -> ""` rule (see `_collect_iropt_ir_locals`).
+        string_vars -= getattr(self, "_iropt_str_local_vars", set())
         self._string_local_vars = string_vars
         # union/match cluster: a string-classified leaf (`var_name`) must NOT ALSO be a
         # pyval local (which would double-declare it `let`-bound AND `ref ""`); string
@@ -5749,6 +5777,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # inductive — no new leaf, no axiom, and unobservable (Python never reads
                 # such a local before its first assignment).
                 init = '(Unsupported "" "")'
+            elif var in getattr(self, "_iropt_str_local_vars", set()):
+                # OPTIONAL-STRING CARRIER pre-decl: the carrier's own absent value.
+                init = 'IrSNone'
             elif var in getattr(self, "_iropt_ir_local_vars", set()):
                 # OPTIONAL-NODE LOCAL pre-decl: the carrier's own absent value.
                 init = 'IrONone'

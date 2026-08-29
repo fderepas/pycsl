@@ -3838,3 +3838,39 @@ members — and deepens the no-advance chain from 13 hops to 15
 nineteen move to `16 * (\length(self.toks) - self.i) + <depth>`. **Expect the multiplier to
 rise every time a new member joins**, and re-phase the whole group in one edit; the 1-second
 emit oracle prices the shape before any prover runs (lesson (bh)).
+
+## Lesson (bl) — the optional CARRIER pair, and why `x is None` on a sentinel-modelled local is a WRONG branch, not a coarse one
+
+`_fstring_replacement` closes the f-string cluster's third member and completes a pair of
+capabilities worth stating together.
+
+**THE CARRIER PAIR.** An `Optional[<node>]` local is `iropt_ir` (`IrONone` / `IrOSome e`);
+an `Optional[str]` local is `iropt_str` (`IrSNone` / `IrSSome s`). Each gets a `ref <None>`
+pre-declaration, carrier-valued assignments, an `is None` guard that lowers to the carrier's
+own `match … with <None> -> true | _ -> false` discriminant, and a DEFINED total projector
+(`iropt_val` / `iropt_str_val`) for the ONE position that reads it as a plain node/string
+under a guard that has just proved it present. No axiom; the ledger does not move.
+
+**THE GATES ARE DIFFERENT, and each is right for its type.** The node carrier is gated on
+the SLOT alone — a local bound into an `iropt_ir` payload slot IS an optional node. The
+string carrier ALSO requires a `None` assignment, and that conjunct is load-bearing:
+`text` in `_fstring` is bound into the very same `irconst` (`Constant.value`) slot and is
+never `None`, so it must keep its plain `string` lowering byte-identically. Only a genuinely
+optional local moves.
+
+**WHY THIS IS A SOUNDNESS-SHAPED FIX AND NOT A POLISH ONE.** Before the carriers, both
+guards lowered to LITERALS:
+
+    format_spec is None      ->  false        (the "model the optional as always-present"
+    debug_text is not None   ->  true          emit_ir simplification, and the I-B `""`
+                                               sentinel for strings)
+
+so the model ALWAYS took the debug-text branch and NEVER took the bare-`{x=}` conversion
+default. Those are WRONG branch conditions — the emitted program computes a different node
+from the one Python computes — and they type-check, prove, and look entirely plausible. **A
+guard that lowers to a literal is the signature of a modelled-away optional; grep the
+emitted body for `&& false` and `if true then` before believing a conversion.**
+
+And the `""`-sentinel string model has a second, quieter failure the carrier removes:
+`_slice` can legitimately return the EMPTY string, which the sentinel cannot tell apart from
+absent.

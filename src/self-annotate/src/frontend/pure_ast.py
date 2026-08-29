@@ -217,7 +217,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _slice(self, start, end):
+    def _slice(self, start: Tuple[int, int], end: Tuple[int, int]) -> str:
         pass
 
     # `k >= 0` is a genuine PARTIALITY boundary, read off the live body: the in-range
@@ -2891,41 +2891,68 @@ class _Parser:
     # through advance/accept_*/expect_* and its sub-parsers. `-> "List[ExprIR]"` is what
     # lets a converted `_fstring`/`_fstring_format_spec` `values.extend(...)` the real
     # node list instead of an opaque int.
-    # RETURN INTERFACE + UNCONDITIONAL STRICT PROGRESS (relaunch #11). STAYS \trusted.
-    # `-> "List[ExprIR]"` is the live body's real shape (it returns the `out` list: an
-    # optional debug-text Constant followed by the FormattedValue), and it is what lets a
-    # converted `_fstring` / `_fstring_format_spec` `values.extend(...)` the REAL node list
-    # instead of an opaque int.
-    # TCB ADDED AND CONSUMED IN THE SAME INCREMENT, stated plainly: the cursor clause is
-    # STRENGTHENED from `>=` to `>`. It is TRUE of the live body unconditionally — the body
-    # ends in `end = self.expect_op("}")`, and `expect_op` carries `ensures self.i >
-    # \old(self.i)` on every normally-returning path (its reject path is `self.error(...)`,
-    # a `NoReturn`). It is CONSUMED here and now: `_fstring`'s `while self.cur().type !=
-    # FSTRING_END` loop reaches this callee on its `{` arm and cannot discharge
-    # `#@ loop variant \length(self.toks) - self.i` without it, since nothing else on that
-    # arm moves the cursor. It becomes a PROOF the day this stub is converted.
-    # CERTIFIED-BOUNDARY [OPTIONAL-LOCAL FLOW + TUPLE-PARAM INTERFACE], relaunch #11 —
-    # the body was ported and MEASURED, and it needs three capabilities this increment did
-    # NOT build, so it was reverted with its spike (the `IrPyFormattedValue` arm went with
-    # it rather than staying as dead capability):
-    #   (i)  `format_spec = None` / `format_spec = self._fstring_format_spec(...)` is an
-    #        `Optional[ExprIR]` LOCAL. It emitted as a bare `ref (IrOther "")` and the guard
-    #        `format_spec is None` lowered to the literal `false` — a WRONG branch condition,
-    #        not merely a coarse one. It needs the synthesized `_union_*` local treatment
-    #        (lessons (ab)/(aq)) that the `Optional[<record>]` locals already have.
-    #   (ii) `debug_text = None` then `self._slice(...)` is the `Optional[str]` twin, read
-    #        back under a `debug_text is not None` guard into a `Constant(value=…)` — a
-    #        flow-sensitive narrowing into the new `irconst` slot.
-    #   (iii) `_slice(self, start, end)` takes two `(line, col)` POSITION TUPLES; its
-    #        `val` declares them `int`, so the real `pytuple_int_int` actuals do not type.
-    #        A tuple-typed parameter interface on the stub is the fix.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #11) — the CERTIFIED-BOUNDARY
+    # [OPTIONAL-LOCAL FLOW + TUPLE-PARAM INTERFACE] recorded in increment 3 is BROKEN, by
+    # the three capabilities that refutation named. The arm is
+    # `IrPyFormattedValue emit_ir int iropt_ir` (`format_spec` is in
+    # `_OPTIONAL_FIELDS['FormattedValue']`, so the slot is the carrier, never a bare node).
+    #   (i)   `format_spec = None` … `= self._fstring_format_spec(...)` is an OPTIONAL-NODE
+    #         CARRIER local (increment 5's capability). Its `is None` guard now lowers to
+    #         the carrier's own `match … with IrONone` discriminant — it used to lower to
+    #         the LITERAL `false`, a WRONG branch condition.
+    #   (ii)  `debug_text` is the OPTIONAL-STRING twin: an `iropt_str` carrier, because the
+    #         I-B `x = None -> ""` string rule cannot tell an ABSENT debug text from a
+    #         genuinely EMPTY one (`_slice` can return `""`). Its `is not None` guard was
+    #         lowering to the literal `true`, so the model ALWAYS took the debug-text
+    #         branch. The `Constant(value=debug_text)` read projects through the DEFINED
+    #         total `iropt_str_val` under the guard that has just proved it present.
+    #   (iii) `_slice(self, start, end)` now declares its `(line, col)` POSITION TUPLES
+    #         (`Tuple[int, int]`), so the real `pytuple_int_int` actuals type against its
+    #         `val` instead of an int-erased pair.
+    # MUTUAL-RECURSION TERMINATION: this method and `_fstring_format_spec` form their OWN
+    # two-member `let rec` group (they do not join the expression group). Phase-offset at
+    # multiplier 2 because ONE edge does not advance: `_fstring_format_spec` reaches this
+    # callee having only READ the `{` (`at_op` is a test, the consuming `advance` happens
+    # HERE), so that edge is paid by the offset drop 1 -> 0; the return edge rises and is
+    # paid by the unconditional strict `advance()` this body performs after `at_op(":")`.
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
+    #@ \variant 2 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def _fstring_replacement(self, is_raw=False) -> "List[ExprIR]":
-        pass
+        lb = self.advance()  # '{'
+        expr = self.testlist_for_fstring()
+        is_debug = False
+        debug_text = None
+        if self.at_op("="):
+            eq = self.advance()
+            is_debug = True
+            # CPython records source from just after '{' up to the start of the
+            # next part (conversion '!', spec ':' or closing '}').
+            debug_text = self._slice(lb.end, self.cur().start)
+        conversion = -1
+        if self.at_op("!"):
+            self.advance()
+            conv = self._name_str() if self.cur().type == _tokenize.NAME else self.advance().string
+            conversion = ord(conv[0])
+        format_spec = None
+        if self.at_op(":"):
+            self.advance()
+            format_spec = self._fstring_format_spec(is_raw)
+        end = self.expect_op("}")
+        if is_debug and conversion == -1 and format_spec is None:
+            conversion = 114  # bare {x=} defaults conversion to 'r'
+        fv = _N("FormattedValue")(value=expr, conversion=conversion, format_spec=format_spec)
+        self._fin_pos(fv, lb, end)
+        out = []
+        if debug_text is not None:
+            c = _N("Constant")(value=debug_text, kind=None)
+            c.lineno = lb.start[0]; c.col_offset = lb.start[1]
+            c.end_lineno = lb.end[0]; c.end_col_offset = lb.end[1]
+            out.append(c)
+        out.append(fv)
+        return out
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
     # `testlist_for_fstring`.
@@ -2957,9 +2984,13 @@ class _Parser:
     # TERMINATION: the `{` arm reaches `_fstring_replacement`, whose interface carries the
     # UNCONDITIONAL strict cursor clause (see there); the FSTRING_MIDDLE arm advances over
     # a non-ENDMARKER token; every other shape `break`s.
+    # MUTUAL-RECURSION TERMINATION: see `_fstring_replacement`. This member sits at
+    # offset 1 — it reaches that callee WITHOUT advancing (`at_op("{")` only tests), so the
+    # edge must be paid by a strictly smaller offset.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ \variant 2 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
     def _fstring_format_spec(self, is_raw=False) -> "ExprIR":
         t = self.cur()

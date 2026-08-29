@@ -274,6 +274,14 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # total child list: the alternating Constant / FormattedValue parts of an f-string.
     # An ordinary `irlist`, like every other variadic child list in the family.
     "JoinedStr": ("IrPyJoinedStr", [("values", "irlist")]),
+    # `FormattedValue(value, conversion, format_spec)` — `_NODE_SPEC['FormattedValue'] ==
+    # ('expr', ('value','conversion','format_spec'), None)` with `format_spec` in
+    # `_OPTIONAL_FIELDS` (an f-string field without a `:` spec really carries none, so the
+    # slot is `iropt_ir`, never a bare node). `conversion` is the ASDL `int` — CPython's
+    # `-1` for none, or the ordinal of `s`/`r`/`a`.
+    "FormattedValue": ("IrPyFormattedValue", [("value", "emit_ir"),
+                                              ("conversion", "int"),
+                                              ("format_spec", "iropt_ir")]),
     # `Slice(lower, upper, step)` — `_NODE_SPEC['Slice'] == ('expr', ('lower','upper',
     # 'step'), None)` and ALL THREE are in `_OPTIONAL_FIELDS['Slice']`: `a[:]` really
     # carries none of them, so every slot is `iropt_ir`. A DEDICATED constructor rather

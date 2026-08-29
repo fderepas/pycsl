@@ -5832,6 +5832,15 @@ class PreambleEmissionMixin:
             "  let function iropt_val (o: iropt_ir) : emit_ir",
             "  = match o with IrOSome v -> v | IrONone -> IrOther \"\" end",
             "",
+            "  (* OPTIONAL-STRING CARRIER (relaunch #11): the `iropt_str` twin of"
+            " `iropt_val`, for the one position where an `Optional[str]` local is read"
+            " where a plain `string` is required (`_fstring_replacement`'s"
+            " `Constant(value=debug_text)`, guarded in Python by the"
+            " `if debug_text is not None:` that has just proved it present). DEFINED, not"
+            " axiomatized; the `IrSNone` arm's `\"\"` is unreachable at that site. *)",
+            "  let function iropt_str_val (o: iropt_str) : string",
+            "  = match o with IrSSome v -> v | IrSNone -> \"\" end",
+            "",
         ] if self._uses_pyast_parser() else []) + [
 
             # self-tcb-reduction _typeddict_record_literal (cap-2): the two child-list
