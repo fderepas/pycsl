@@ -39,14 +39,20 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
-BASELINE = 32          # 55 at first measurement, 50 after the `array <t>` concrete-
+BASELINE = 27          # 55 at first measurement, 50 after the `array <t>` concrete-
                        # sibling capability landed (relaunch #9), 43 after the first
                        # `#@ sibling_concrete` marker wave (relaunch #10: `_deref` and its
                        # 28 call sites, `_rhs_yields_array`, and five ExpressionEmissionMixin
                        # helpers), 35 after wave 2 (statements, functions,
                        # stmt_control_flow, Module5_IREmitter), 32 after wave 3 (the
                        # `Optional[str]`-return call-site unwrap that unblocked
-                       # `_field_type_of`) — a RATCHET, only lower it
+                       # `_field_type_of`), 27 after wave 4 (relaunch #11: the
+                       # sibling-concrete SELF-RECURSION fix — a marked callee that calls
+                       # ITSELF emits as a real `let rec`, which `IRScanner.is_recursive`
+                       # missed because the self-call's IR node carries the DOTTED
+                       # `self.<m>` — plus the kind-local discriminant carve-out that lets
+                       # `_rhs_yields_map`'s structural recursion discharge its variant)
+                       # — a RATCHET, only lower it
 MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 
 _DEF = re.compile(r'^  (?:let rec|let|with) ([A-Za-z_0-9]+)', re.M)
