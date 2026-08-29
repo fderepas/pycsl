@@ -340,6 +340,12 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # ONE total child and NOT in `_OPTIONAL_FIELDS`: a value pattern always wraps a real
     # expression node (a number literal, a string, or a dotted value).
     "MatchValue": ("IrPyMatchValue", [("value", "emit_ir")]),
+    # `withitem(context_expr, optional_vars)` — `_NODE_SPEC['withitem'] == ('withitem',
+    # ('context_expr','optional_vars'), None)`. `optional_vars` IS in
+    # `_OPTIONAL_FIELDS['withitem']` (`with f() :` really has no `as`-target), so it takes
+    # the monomorphic `iropt_ir`: an absent target is a true `IrONone`, never a node.
+    "withitem": ("IrPyWithItem", [("context_expr", "emit_ir"),
+                                  ("optional_vars", "iropt_ir")]),
     # `MatchSingleton(value)` — `_NODE_SPEC['MatchSingleton'] == ('pattern', ('value',),
     # None)`. The child is NOT a node: ASDL types it `constant`, and Python restricts it
     # to exactly `None` / `True` / `False`. So the slot is the CERTIFIED `pyconst_val`

@@ -1327,7 +1327,7 @@ class _Parser:
             tgt = _N("Tuple")(elts=elts, ctx=_N("Load")())
             tgt.lineno = elts[0].lineno; tgt.col_offset = elts[0].col_offset
             tgt.end_lineno = elts[-1].end_lineno; tgt.end_col_offset = elts[-1].end_col_offset
-        _set_ctx(tgt, _N("Store")())
+        tgt = _set_ctx(tgt, _N("Store")())
         return tgt
 
     def with_stmt(self, async_):
@@ -1378,7 +1378,7 @@ class _Parser:
         optional = None
         if self.accept_kw("as"):
             optional = self.expr()
-            _set_ctx(optional, _N("Store")())
+            optional = _set_ctx(optional, _N("Store")())
         return _N("withitem")(context_expr=ctx, optional_vars=optional)
 
     def try_stmt(self):
@@ -1985,7 +1985,7 @@ class _Parser:
             tgt = _N("Tuple")(elts=elts, ctx=_N("Load")())
             tgt.lineno = elts[0].lineno; tgt.col_offset = elts[0].col_offset
             tgt.end_lineno = elts[-1].end_lineno; tgt.end_col_offset = elts[-1].end_col_offset
-        _set_ctx(tgt, _N("Store")())
+        tgt = _set_ctx(tgt, _N("Store")())
         return tgt
 
     def yield_expr(self):
@@ -2179,6 +2179,16 @@ def _set_ctx(node, ctx):
         node.ctx = ctx
         for e in node.elts:
             _set_ctx(e, ctx)
+    # RETURN INTERFACE (relaunch #13). The function MUTATES `node` in place and every
+    # caller then reads that same object, so returning it is RUNTIME-IDENTICAL — the
+    # caller binds the very object it passed in. What it buys is a MODEL: an
+    # in-place mutation of an `emit_ir` is invisible to the immutable ADT, so the
+    # emitted model silently kept the node's ORIGINAL `ctx` ("Load") where the source
+    # had just written "Store" — a WRONG VALUE, and the recorded [CORRECTNESS]
+    # boundary on `_set_ctx`. As a RETURN it becomes an honest uninterpreted
+    # `emit_ir -> string -> emit_ir`: nothing false is claimed about the result's
+    # `ctx` in either direction.
+    return node
 
 
 def _parse_number(s):

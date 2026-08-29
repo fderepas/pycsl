@@ -976,6 +976,14 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #13): converting `_comp_target` pulls it AND
+    # `expr_or_star` into the expression `let rec` group (`comp_for -> _comp_target ->
+    # expr_or_star -> expr -> ... -> atom -> atom_paren -> comp_for`). The no-advance
+    # edges are `_comp_target -> expr_or_star -> expr`, a strictly descending chain, so
+    # `_comp_target` sits at 9 and `expr_or_star` at 8, both ABOVE `expr` (7) and BELOW
+    # `comp_for` (12) — whose edge into `_comp_target` is a DROP and needs no payment.
+    # This member is at depth 8. Full assignment recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 8
     #@ assigns self.i
     def expr_or_star(self) -> "ExprIR":
         if self.at_op("*"):
@@ -1662,13 +1670,39 @@ class _Parser:
     # the first proof attempt left exactly ONE goal unproven, `_parser__for_stmt'vc`'s
     # postcondition, Timeout at 322,821,156 steps. Each becomes a PROOF the day a
     # functional `set_ctx` exists in the LIVE SOURCE and this stub converts.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #13), the second consumer of the
+    # `_set_ctx` RETURN INTERFACE (see `_with_item`). Verbatim body port of the LIVE
+    # `_for_target`, whose closing `tgt = _set_ctx(tgt, _N("Store")())` now BINDS the
+    # rewritten node instead of dropping an invisible in-place mutation on the floor.
+    # NOT a member of either `let rec` group: `for_stmt` calls this, this calls
+    # `expr_or_star`, and nothing in the expression group calls back here — so no variant
+    # is owed. Both cursor clauses are now PROOFS: the body moves `self.i` only through
+    # `accept_op`/`at_kw`/`expr_or_star`, none of which can decrease it.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _for_target(self) -> "ExprIR":
-        pass
+        elts = [self.expr_or_star()]
+        trailing = False
+        #@ ghost i0 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            trailing = True
+            if self.at_kw("in"):
+                break
+            trailing = False
+            elts.append(self.expr_or_star())
+        if len(elts) == 1 and not trailing:
+            tgt = elts[0]
+        else:
+            tgt = _N("Tuple")(elts=elts, ctx=_N("Load")())
+            tgt.lineno = elts[0].lineno; tgt.col_offset = elts[0].col_offset
+            tgt.end_lineno = elts[-1].end_lineno; tgt.end_col_offset = elts[-1].end_col_offset
+        tgt = _set_ctx(tgt, _N("Store")())
+        return tgt
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
     # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
@@ -1760,19 +1794,28 @@ class _Parser:
             j += 1
         return False
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `with_stmt`
-    # (relaunch #8 increment 4). STAYS \trusted — its `_set_ctx(v, _N("Store")())` on the
-    # `as`-target is the recorded CORRECTNESS boundary. Both clauses are TRUE of the live
-    # body (it returns the `_N("withitem")` it builds, and moves the cursor only through
-    # `advance`/`accept_*`) and each becomes a PROOF the day a functional `set_ctx` exists
-    # in the LIVE SOURCE and this stub converts.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #13), and the FIRST consumer of the
+    # `_set_ctx` RETURN INTERFACE. The recorded [CORRECTNESS] boundary said this stub
+    # converts "the day a functional `set_ctx` exists in the LIVE SOURCE" — it does now:
+    # `_set_ctx` RETURNS the node it just mutated (runtime-identical, it hands back the
+    # very object it was given) and this call site binds the result, so the emitted model
+    # reads the `as`-target through an UNINTERPRETED `emit_ir -> string -> emit_ir` instead
+    # of silently keeping the pre-rewrite `ctx`. Nothing false is claimed about the
+    # rewritten `ctx` in either direction — the model simply does not know it, which is the
+    # honest state of affairs and strictly better than the wrong value it asserted before.
+    # `withitem` JOINS THE FAMILY as `IrPyWithItem emit_ir iropt_ir`: `optional_vars` is in
+    # `_OPTIONAL_FIELDS`, so a `with f():` with no `as` clause carries a true `IrONone`.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _with_item(self) -> "ExprIR":
-        pass
+        ctx = self.test()
+        optional: Optional["ExprIR"] = None
+        if self.accept_kw("as"):
+            optional = self.expr()
+            optional = _set_ctx(optional, _N("Store")())
+        return _N("withitem")(context_expr=ctx, optional_vars=optional)
 
     # RETURN INTERFACE + CURSOR NON-REGRESSION, consumed by the CONVERTED `statement`
     # (relaunch #7 increment 2). STAYS \trusted. The monotonicity clause is ASSUMED here
@@ -3194,21 +3237,45 @@ class _Parser:
             return self.lambdef()
         return self.or_test()
 
-    # RETURN INTERFACE + CURSOR NON-REGRESSION (the `error -> "NoReturn"` / `_name_str`
-    # precedents). STAYS \trusted. `-> "ExprIR"` records that the result IS an expression
-    # node (`emit_ir`), so it can be bound into a harvested record's expr child instead of
-    # an opaque int. `ensures self.i >= \old(self.i)` is a TRUSTED-INTERFACE claim backed by
-    # the live body: every `_Parser` descent moves the cursor only through `advance` /
-    # `accept_*` / `expect_*`, none of which decreases `self.i`. A caller's cursor-measure
-    # loop needs it from EVERY call in its body, not just from the guard (relaunch #4's
-    # measured lesson on `_name_str`).
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #13), the third consumer of the
+    # `_set_ctx` RETURN INTERFACE (see `_with_item`). Verbatim body port of the LIVE
+    # `_comp_target` — the comprehension-target twin of `_for_target`, closing with the
+    # same `tgt = _set_ctx(tgt, _N("Store")())` that now BINDS the rewritten node instead
+    # of dropping an invisible in-place mutation on the floor. Both cursor clauses, TRUSTED
+    # INTERFACE claims until now, become PROOFS.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    # GROUP VARIANT (relaunch #13): converting `_comp_target` pulls it AND
+    # `expr_or_star` into the expression `let rec` group (`comp_for -> _comp_target ->
+    # expr_or_star -> expr -> ... -> atom -> atom_paren -> comp_for`). The no-advance
+    # edges are `_comp_target -> expr_or_star -> expr`, a strictly descending chain, so
+    # `_comp_target` sits at 9 and `expr_or_star` at 8, both ABOVE `expr` (7) and BELOW
+    # `comp_for` (12) — whose edge into `_comp_target` is a DROP and needs no payment.
+    # This member is at depth 9. Full assignment recorded on `_binop`.
+    #@ \variant 16 * (\length(self.toks) - self.i) + 9
     #@ assigns self.i
     def _comp_target(self) -> "ExprIR":
-        pass
+        elts = [self.expr_or_star()]
+        trailing = False
+        #@ ghost i0 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i0
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            trailing = True
+            if self.at_kw("in"):
+                break
+            trailing = False
+            elts.append(self.expr_or_star())
+        if len(elts) == 1 and not trailing:
+            tgt = elts[0]
+        else:
+            tgt = _N("Tuple")(elts=elts, ctx=_N("Load")())
+            tgt.lineno = elts[0].lineno; tgt.col_offset = elts[0].col_offset
+            tgt.end_lineno = elts[-1].end_lineno; tgt.end_col_offset = elts[-1].end_col_offset
+        tgt = _set_ctx(tgt, _N("Store")())
+        return tgt
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE `yield_expr`,
     # plus the PEP-526 `Optional["ExprIR"]` annotation on `value` (runtime-inert; here it
@@ -3498,11 +3565,28 @@ def _decode_fstring_middle(text: str, is_raw: bool) -> str:
 def _merge_str_constants(values: List["ExprIR"], drop_empty: bool = True) -> "List[ExprIR]":
     pass
 
+# RETURN INTERFACE (relaunch #13) — the CTX REWRITER. STAYS `\trusted` and COUNT-NEUTRAL,
+# but `-> "ExprIR"` changes what its emitted `val` SAYS, and that is the whole point.
+# The live body MUTATES `node.ctx` in place and recurses into `Starred.value` / the
+# elements of a `List`/`Tuple`. An in-place mutation of an `emit_ir` is INVISIBLE to the
+# immutable ADT, so with the old `(node: int) (ctx: int) : unit` signature every caller's
+# model silently kept the node's ORIGINAL `ctx` ("Load") where the source had just written
+# "Store" — a WRONG VALUE, not a coarse one, and the recorded [CORRECTNESS] boundary that
+# blocked SIX methods (`namedexpr_test`, `_comp_target`, `_for_target`, `expr_stmt`,
+# `del_stmt`, `_with_item`).
+# The live source now RETURNS the node it just updated — runtime-identical, because it
+# returns the very object the caller passed in — and the callers bind the result. The
+# emitted `val` becomes an UNINTERPRETED `emit_ir -> string -> emit_ir`, which is the
+# honest abstraction for a rewrite the model cannot reproduce: equal inputs give equal
+# results, and NOTHING else is claimed in either direction. In particular the model no
+# longer asserts the false "ctx is still Load". Same play as `_parse_number`'s
+# `-> "PyConstVal"` in relaunch #12: count-neutral, caller-unlocking, strictly MORE
+# faithful than the interface it replaces.
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _set_ctx(node, ctx):
+def _set_ctx(node: "ExprIR", ctx: str) -> "ExprIR":
     pass
 
 # RETURN INTERFACE (relaunch #12) — the LITERAL VALUE. STAYS `\trusted` (count-neutral):
