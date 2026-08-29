@@ -258,6 +258,22 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # `Await(value)` — `_NODE_SPEC['Await'] == ('expr', ('value',), <loc attrs>)`, ONE
     # total child (no `_OPTIONAL_FIELDS` entry): the awaited expression.
     "Await": ("IrPyAwait", [("value", "emit_ir")]),
+    # `Constant(value, kind)` — `_NODE_SPEC['Constant'] == ('expr', ('value','kind'),
+    # None)` with `kind` in `_OPTIONAL_FIELDS['Constant']` (only a legacy `u""` literal
+    # carries one). `value` is the ONE field that is NOT a node and NOT a string: Python
+    # models EVERY literal with this class, so the slot is the bespoke `irconst` value
+    # carrier rather than a bare `string` — modelling a numeric or `None` literal as a
+    # STRING would be exactly the read-the-wrong-thing erasure this family exists to
+    # remove. `irconst` starts with the two shapes the converted sites actually build
+    # (`ICStr` for a decoded f-string/segment literal, `ICNone` for a bare `None`); any
+    # other value expression makes the construction DECLINE (fail-closed), which is what
+    # keeps the number-literal sites (`_parse_number` -> int|float|complex) on their
+    # recorded [MODEL] boundary instead of silently mis-modelling them.
+    "Constant": ("IrPyConstant", [("value", "irconst"), ("kind", "iropt_str")]),
+    # `JoinedStr(values)` — `_NODE_SPEC['JoinedStr'] == ('expr', ('values',), None)`, ONE
+    # total child list: the alternating Constant / FormattedValue parts of an f-string.
+    # An ordinary `irlist`, like every other variadic child list in the family.
+    "JoinedStr": ("IrPyJoinedStr", [("values", "irlist")]),
     # `IfExp(test, body, orelse)` — `_NODE_SPEC['IfExp'] == ('expr', ('test','body',
     # 'orelse'), <loc attrs>)`, THREE total children (no `_OPTIONAL_FIELDS` entry). A
     # DEDICATED arm, not the generic `IrTer3`: an `IfExp` must stay distinguishable from

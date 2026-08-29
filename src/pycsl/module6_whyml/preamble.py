@@ -5084,6 +5084,16 @@ class PreambleEmissionMixin:
             # inside the recursive group as non-strictly-positive. Gated on the pure_ast
             # parser file -> every other emit_ir theory in the tree is byte-identical.
             + ("  with iroptlist = IONil | IOCons iropt_ir iroptlist"
+               if self._uses_pyast_parser() else "")
+            # LITERAL-VALUE CARRIER (relaunch #11): `Constant.value` is the one Python-AST
+            # child that is neither a node nor a string — the class models EVERY literal.
+            # `irconst` names the literal's SHAPE so a string literal cannot be confused
+            # with a number or with `None`. It carries only the shapes the converted sites
+            # actually build; a value expression of any other shape makes the construction
+            # DECLINE, so an unmodelled literal is never mis-typed into a `string` slot.
+            # Childless for the `size` measure (no emit_ir payload) -> no size arm, no
+            # decrease lemma. Gated on the pure_ast parser file, like `iroptlist`.
+            + ("  with irconst = ICStr string | ICNone"
                if self._uses_pyast_parser() else ""),
             "",
             "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"

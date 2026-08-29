@@ -3754,3 +3754,49 @@ The 18 that failed split into the four recorded reasons plus one new one worth n
 `<> 0` for an int (`_is_final_annotation`) — a return-type coercion gap at the concrete
 route, not a property of the callee. REMOVE the ineffective markers; do not leave dead
 annotation.
+
+## Lesson (bj) — the LITERAL-VALUE carrier, and a keyword argument that was silently replaced by the default
+
+The f-string cluster (ladder 2's second half) gave up two of its three members. Three
+things are worth carrying.
+
+**1. `Constant.value` is the one Python-AST child that is neither a node nor a string, so
+it needs its own carrier.** `ast.Constant` models EVERY literal — `"s"`, `3`, `3.0`,
+`b"x"`, `True`, `None`. Typing the payload slot `string` would have been enough for the
+f-string sites (their value is always a decoded `str`) and WRONG in the family sense: the
+next site to convert is a number literal, and a table maps a class name to ONE arm, so a
+`string` slot would have PINNED `Constant` to the string shape. The carrier
+
+    with irconst = ICStr string | ICNone
+
+names the literal's SHAPE instead, carries only what the converted sites build, and makes
+every other value expression DECLINE — which is exactly what keeps `atom` /
+`_pattern_number` / `closed_pattern` on their recorded [MODEL] boundary instead of
+silently mis-modelling a number as a string. Childless for the `size` measure, so no size
+arm and no decrease lemma. **When a family member's payload can be several unrelated
+scalar shapes, carry the SHAPE, not one of the shapes.**
+
+**2. A KEYWORD ARGUMENT ON A MODULE-LEVEL CALL WAS DROPPED AND THE DEFAULT EMITTED IN ITS
+PLACE.** `_merge_str_constants(values, drop_empty=False)` emitted
+`_merge_str_constants … 1` — the default `True`. The module-call path built its argument
+list from POSITIONAL arguments only and then filled the trailing parameters from the
+callee's defaults; `expr["keywords"]` was consulted for record/ADT constructors and nowhere
+else. This is a WRONG-VALUE lowering, not a coarse one, and it is invisible unless you
+look: the emitted term is well-typed and plausible.
+
+**How it was caught, and the technique:** write the same call POSITIONALLY behind a
+module-level probe constant and diff the emitted term. `f(x, kw=V)` emitting a different
+argument than `f(x, V)` is the whole proof. Fixed generally (Python binds a keyword only to
+a parameter no positional reached, so binding by name from `len(args)` onward IS Python's
+rule) — and **the corpus byte-diff is 0 over 813**, so a genuine live-tool faithfulness
+repair cost users nothing. Look for the same defect wherever an argument list is rebuilt
+from positions.
+
+**3. Where the cluster stops.** `_fstring_replacement` was ported and MEASURED, then
+reverted with its `IrPyFormattedValue` arm (dead capability discipline). Its blocker is
+`Optional[<node>]` / `Optional[str]` LOCALS: `format_spec = None` emitted as a bare
+`ref (IrOther "")` and the guard `format_spec is None` lowered to the literal `false` — a
+wrong branch condition. The synthesized `_union_*` treatment that `Optional[<record>]`
+locals already have (lessons (ab)/(aq)) is the named reopening capability, plus a
+tuple-typed parameter interface for `_slice(start, end)`, whose `(line, col)` actuals are
+`pytuple_int_int` against an `int`-declared `val`.

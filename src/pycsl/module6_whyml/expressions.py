@@ -6755,9 +6755,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             for _t in reversed(_tail):
                 _packed = f"(Seq.cons {_t} {_packed})"
             args = args[:_fixed] + [_packed]
+        # KEYWORD ARGUMENTS ON A MODULE-LEVEL CALL (relaunch #11) — a FAITHFULNESS repair.
+        # `args` above is built from the POSITIONAL arguments only, and the trailing
+        # parameters were then filled from the callee's DEFAULTS. A call that passes an
+        # explicit KEYWORD therefore emitted the DEFAULT instead of the value the caller
+        # wrote: `_merge_str_constants(values, drop_empty=False)` emitted
+        # `_merge_str_constants … 1`, i.e. `True`. Measured with a probe (the same call
+        # written positionally emits the real value), so this is a silent
+        # wrong-argument lowering, not a missing feature. Python binds a keyword only to a
+        # parameter no positional reached, so binding by name from `len(args)` onward is
+        # exactly Python's rule; a parameter with neither a keyword nor a default still
+        # raises the arity error below.
+        _kwvals = {kw["arg"]: kw.get("value")
+                   for kw in (expr.get("keywords") or [])
+                   if isinstance(kw, dict) and isinstance(kw.get("arg"), str)}
+        if formal_params and _kwvals and len(args) < len(formal_params):
+            _bound_kw = 0
+            for nm in formal_params[len(args):]:
+                if nm not in _kwvals:
+                    break
+                args = args + [self._expr_to_whyml(_kwvals[nm], local_refs,
+                                                   invariant_ctx, subst)]
+                _bound_kw += 1
         if formal_params and len(args) < len(formal_params):
             defaults = self._module_method_param_defaults.get(func_name, {})
             for nm in formal_params[len(args):]:
+                if nm in _kwvals:
+                    args = args + [self._expr_to_whyml(_kwvals[nm], local_refs,
+                                                       invariant_ctx, subst)]
+                    continue
                 if nm in defaults:
                     # 10-1732-gap (Gap 3, no-more-int): a `None` default on a non-int
                     # param lowers to the int-model sentinel `0`, which is ill-typed
@@ -6787,6 +6813,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `list` arg to an `array int` param stays an array; etc. Without the
         # signature, fall back to the int model.
         param_types = self._module_method_param_types.get(func_name, [])
+        # PYTHON-AST NODE CTOR FAMILY (relaunch #11), lesson (am) — TWO PRODUCERS, again,
+        # this time on a MODULE-LEVEL function. `_module_method_param_types` is built from
+        # the collapsed `_symtype_to_whyml("list")` and says `array int`, while
+        # `functions._param_type_str` — the producer of the callee's ACTUAL emitted `val`
+        # — renders a `List["ExprIR"]` param as `array emit_ir`. Coercing against the
+        # registry bridged a `seq emit_ir` actual with the INT `materialize`
+        # (`seq int -> array int`), an L3-tc error at `_merge_str_constants (materialize
+        # !values)`. The method path already carries this repair inside
+        # `_option_record_param_upgrade`; a module function reaches neither. Restore the
+        # emitted shape from the SAME source both producers read.
+        _mf = next((f for f in ((getattr(self, "ir", None) or {}).get("functions") or [])
+                    if f.get("name") == func_name), None)
+        if param_types and _mf is not None:
+            _mfl = _mf.get("param_list_flat_elem") or {}
+            _mformal = list(_mf.get("formal_params") or [])
+            if _mfl and len(_mformal) == len(param_types):
+                param_types = [
+                    ("array emit_ir"
+                     if (param_types[_i] == "array int"
+                         and _mfl.get(_mformal[_i]) == "emit_ir")
+                     else param_types[_i])
+                    for _i in range(len(param_types))]
         if param_types:
             coerced_args = self._coerce_dotted_args(args, param_types[:len(args)])
         else:
@@ -9006,6 +9054,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return None
         return rec_name
 
+    def _irlist_call_returns_emit_ir_array(self, fn: str) -> bool:
+        """PYTHON-AST NODE CTOR FAMILY (relaunch #11): does the callee `fn` declare a
+        return type that emits as `array emit_ir` — i.e. is its result a real NODE LIST
+        the `arr_to_irlist` bridge may carry into an `irlist` payload slot? Resolved from
+        the module's own return-type map (`self.<m>` self-calls are class-prefix mangled
+        the way `_rhs_yields_map` does it), so a helper whose interface is int-erased or
+        differently typed answers False and the construction DECLINES."""
+        if not isinstance(fn, str) or not fn:
+            return False
+        _key = fn
+        if fn.startswith("self."):
+            _cls = getattr(self, "_current_self_type", None)
+            _tail = fn[len("self."):]
+            _key = f"{_cls}__{_tail}" if _cls else _tail
+        _rt = (getattr(self, "_module_method_return_types", {}) or {}).get(_key)
+        return _rt == "array emit_ir"
+
     def _call_irnode_constructor(self, args: List[str], func_name: str,
                                  kwargs_map: Optional[Dict[str, str]] = None,
                                  none_arg_indices: Optional[Set[int]] = None,
@@ -9214,6 +9279,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     parts.append(f"(IrSSome {bound[f]})")
                     continue
                 return None
+            if _irlist_slots.get(f) == "irconst":
+                # LITERAL-VALUE CARRIER (relaunch #11): the `Constant.value` slot. An
+                # EXPLICIT `None` actual is `ICNone` (the Python literal `None`, faithfully
+                # NOT a string); a STRING-typed actual — a string literal, or a local/param
+                # the file's string classification proved carries a `string` — is
+                # `(ICStr v)`. ANY OTHER shape (a number, a bytes join, an unclassified
+                # local) DECLINES the whole construction, fail-closed: `irconst` has no arm
+                # for it, and inventing one would model the literal as something it is not.
+                if f in none_fields:
+                    parts.append("ICNone")
+                    continue
+                _rc = (raw_kwargs or {}).get(f)
+                if isinstance(_rc, dict) and _rc.get("type") == "None":
+                    parts.append("ICNone")
+                    continue
+                if isinstance(_rc, dict) and _rc.get("type") == "String":
+                    parts.append(f"(ICStr {bound[f]})")
+                    continue
+                if isinstance(_rc, dict) and _rc.get("type") == "Var":
+                    _cn = str(_rc.get("name"))
+                    if (_cn in getattr(self, "_string_local_vars", set())
+                            or getattr(self, "_current_symbol_table", {}).get(_cn)
+                            in ("str", "string")):
+                        parts.append(f"(ICStr {bound[f]})")
+                        continue
+                return None
             if _irlist_slots.get(f) == "seq string":
                 # A STRING-LIST child (`Compare.ops` is `cmpop*`, a list of 0-FIELD
                 # singletons, each carried as its class-name string; `MatchClass.kwd_attrs`
@@ -9280,6 +9371,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         and _raw in set(getattr(self, "_formal_params", []) or [])
                         and (getattr(self, "_param_list_flat_elem", {}) or {}
                              ).get(_raw) == "emit_ir"):
+                    self._add_abstract_op(
+                        "val arr_to_irlist (a: array emit_ir) : irlist\n"
+                        "    ensures { irlen result = Array.length a }\n"
+                        "    ensures { forall i:int. 0 <= i < Array.length a ->"
+                        " irnth i result = a[i] }")
+                    parts.append(f"(arr_to_irlist {_raw})")
+                    continue
+                # A CALL RESULT that is already an `array emit_ir` is a real child list
+                # too (relaunch #11): `JoinedStr(values=_merge_str_constants(values,
+                # drop_empty=False))` binds the slot from a helper declared
+                # `-> "List[ExprIR]"`, whose abstract `val` really returns `array emit_ir`.
+                # Without this the whole construction declined and the f-string's ENTIRE
+                # value list was dropped. `arr_to_irlist` is the same pointwise-pinned
+                # bridge the FORMAL-PARAM case above uses — no axiom, no new ADT. Gated on
+                # the callee's DECLARED return type resolving to `array emit_ir`, so an
+                # int-erased or differently-typed call can never fill the slot.
+                _rl = (raw_kwargs or {}).get(f)
+                if (isinstance(_rl, dict) and _rl.get("type") == "Call"
+                        and isinstance(_rl.get("func"), str)
+                        and self._irlist_call_returns_emit_ir_array(_rl["func"])):
                     self._add_abstract_op(
                         "val arr_to_irlist (a: array emit_ir) : irlist\n"
                         "    ensures { irlen result = Array.length a }\n"

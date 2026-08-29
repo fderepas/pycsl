@@ -2765,18 +2765,85 @@ class _Parser:
     def strings(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #11). Verbatim body port of the
+    # LIVE `_fstring`. Two NEW family arms carry it: `IrPyConstant irconst iropt_str` (the
+    # decoded FSTRING_MIDDLE literal, its value in the bespoke `irconst` carrier so a
+    # STRING literal cannot be confused with a number or with `None`) and
+    # `IrPyJoinedStr irlist` (the alternating Constant/FormattedValue parts). The value
+    # list crosses `seq emit_ir -> array emit_ir -> irlist` through the pointwise-pinned
+    # `materialize_emit_ir` and `arr_to_irlist` bridges — nothing erased, no axiom.
+    # TERMINATION: the `{`-arm consumes its replacement field through `_fstring_replacement`,
+    # whose interface now carries the UNCONDITIONAL strict clause `self.i > \old(self.i)` —
+    # true of the live body, which ends in `expect_op("}")`, itself unconditionally strict.
+    # The FSTRING_MIDDLE arm advances over a token that is not the ENDMARKER sentinel, so
+    # `advance` is strict there too, and the `else` arm is `self.error(...)`, a `NoReturn`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _fstring(self):
-        pass
+    def _fstring(self) -> "ExprIR":
+        start = self.advance()  # FSTRING_START
+        is_raw = _fstring_prefix_raw(start.string)
+        values = []
+        #@ ghost i96 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i96
+        #@ loop variant \length(self.toks) - self.i
+        while self.cur().type != _tokenize.FSTRING_END:
+            tk = self.cur()
+            if tk.type == _tokenize.FSTRING_MIDDLE:
+                self.advance()
+                text = _decode_fstring_middle(tk.string, is_raw)
+                if text != "":
+                    values.append(self._fin(_N("Constant")(value=text, kind=None), tk))
+            elif self.at_op("{"):
+                values.extend(self._fstring_replacement(is_raw))
+            else:
+                self.error("malformed f-string")
+        end = self.advance()  # FSTRING_END
+        js = _N("JoinedStr")(values=_merge_str_constants(values, drop_empty=True))
+        return self._fin_pos(js, start, end)
 
+    # RETURN INTERFACE + CURSOR NON-REGRESSION (relaunch #11). STAYS \trusted; both
+    # clauses are TRUE of the live body — it returns the `out` list it builds (an optional
+    # debug-text Constant followed by the FormattedValue), and moves the cursor only
+    # through advance/accept_*/expect_* and its sub-parsers. `-> "List[ExprIR]"` is what
+    # lets a converted `_fstring`/`_fstring_format_spec` `values.extend(...)` the real
+    # node list instead of an opaque int.
+    # RETURN INTERFACE + UNCONDITIONAL STRICT PROGRESS (relaunch #11). STAYS \trusted.
+    # `-> "List[ExprIR]"` is the live body's real shape (it returns the `out` list: an
+    # optional debug-text Constant followed by the FormattedValue), and it is what lets a
+    # converted `_fstring` / `_fstring_format_spec` `values.extend(...)` the REAL node list
+    # instead of an opaque int.
+    # TCB ADDED AND CONSUMED IN THE SAME INCREMENT, stated plainly: the cursor clause is
+    # STRENGTHENED from `>=` to `>`. It is TRUE of the live body unconditionally — the body
+    # ends in `end = self.expect_op("}")`, and `expect_op` carries `ensures self.i >
+    # \old(self.i)` on every normally-returning path (its reject path is `self.error(...)`,
+    # a `NoReturn`). It is CONSUMED here and now: `_fstring`'s `while self.cur().type !=
+    # FSTRING_END` loop reaches this callee on its `{` arm and cannot discharge
+    # `#@ loop variant \length(self.toks) - self.i` without it, since nothing else on that
+    # arm moves the cursor. It becomes a PROOF the day this stub is converted.
+    # CERTIFIED-BOUNDARY [OPTIONAL-LOCAL FLOW + TUPLE-PARAM INTERFACE], relaunch #11 —
+    # the body was ported and MEASURED, and it needs three capabilities this increment did
+    # NOT build, so it was reverted with its spike (the `IrPyFormattedValue` arm went with
+    # it rather than staying as dead capability):
+    #   (i)  `format_spec = None` / `format_spec = self._fstring_format_spec(...)` is an
+    #        `Optional[ExprIR]` LOCAL. It emitted as a bare `ref (IrOther "")` and the guard
+    #        `format_spec is None` lowered to the literal `false` — a WRONG branch condition,
+    #        not merely a coarse one. It needs the synthesized `_union_*` local treatment
+    #        (lessons (ab)/(aq)) that the `Optional[<record>]` locals already have.
+    #   (ii) `debug_text = None` then `self._slice(...)` is the `Optional[str]` twin, read
+    #        back under a `debug_text is not None` guard into a `Constant(value=…)` — a
+    #        flow-sensitive narrowing into the new `irconst` slot.
+    #   (iii) `_slice(self, start, end)` takes two `(line, col)` POSITION TUPLES; its
+    #        `val` declares them `int`, so the real `pytuple_int_int` actuals do not type.
+    #        A tuple-typed parameter interface on the stub is the fix.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ ensures self.i > \old(self.i)
     #@ assigns self.i
-    def _fstring_replacement(self, is_raw=False):
+    def _fstring_replacement(self, is_raw=False) -> "List[ExprIR]":
         pass
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
@@ -2801,33 +2868,75 @@ class _Parser:
             elts.append(self.namedexpr_test())
         return self._fin(_N("Tuple")(elts=elts, ctx=_N("Load")()), t)
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #11), the twin of `_fstring` and
+    # freed by exactly the same two arms — `IrPyConstant irconst iropt_str` and
+    # `IrPyJoinedStr irlist`. The four `js.<loc> = ...` stamps in BOTH branches lower to
+    # the unit no-op: the harvested node model deliberately carries no ASDL location
+    # attributes (lesson (az)), and they are precisely what `_fin_pos` sets.
+    # TERMINATION: the `{` arm reaches `_fstring_replacement`, whose interface carries the
+    # UNCONDITIONAL strict cursor clause (see there); the FSTRING_MIDDLE arm advances over
+    # a non-ENDMARKER token; every other shape `break`s.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _fstring_format_spec(self, is_raw=False):
-        pass
+    def _fstring_format_spec(self, is_raw=False) -> "ExprIR":
+        t = self.cur()
+        values = []
+        #@ ghost i95 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i95
+        #@ loop variant \length(self.toks) - self.i
+        while not self.at_op("}") and self.cur().type != _tokenize.FSTRING_END:
+            tk = self.cur()
+            if tk.type == _tokenize.FSTRING_MIDDLE:
+                self.advance()
+                text = _decode_fstring_middle(tk.string, is_raw)
+                values.append(self._fin(_N("Constant")(value=text, kind=None), tk))
+            elif self.at_op("{"):
+                values.extend(self._fstring_replacement(is_raw))
+            else:
+                break
+        js = _N("JoinedStr")(values=_merge_str_constants(values, drop_empty=False))
+        if values:
+            js.lineno = values[0].lineno; js.col_offset = values[0].col_offset
+            js.end_lineno = values[-1].end_lineno; js.end_col_offset = values[-1].end_col_offset
+        else:
+            js.lineno = t.start[0]; js.col_offset = t.start[1]
+            js.end_lineno = t.start[0]; js.end_col_offset = t.start[1]
+        return js
 
 
+# RETURN INTERFACE (relaunch #11). STAYS \trusted; `-> bool` is the live body's real
+# shape (it tests the f-string prefix for an `r`), so a caller binds a real 0/1 flag
+# instead of an int-erased slot.
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _fstring_prefix_raw(start_string):
+def _fstring_prefix_raw(start_string: str) -> bool:
     pass
 
+# RETURN INTERFACE (relaunch #11). STAYS \trusted; `-> str` is the live body's real
+# shape (it decodes the FSTRING_MIDDLE token text to the literal string it denotes), so
+# a caller binds a real `string` instead of an int hash.
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _decode_fstring_middle(text, is_raw):
+def _decode_fstring_middle(text: str, is_raw: bool) -> str:
     pass
 
+# RETURN INTERFACE (relaunch #11). STAYS \trusted; `-> "List[ExprIR]"` is the live
+# body's real shape (it merges ADJACENT Constant nodes in a JoinedStr value list and
+# returns the resulting NODE LIST), so a caller binds a real `irlist` of nodes instead
+# of an opaque int — which is what lets a `JoinedStr(values=...)` construction carry its
+# real children.
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _merge_str_constants(values, drop_empty=True):
+def _merge_str_constants(values: List["ExprIR"], drop_empty: bool = True) -> "List[ExprIR]":
     pass
 
 #@ \trusted reviewer: pycsl-self-annotate
