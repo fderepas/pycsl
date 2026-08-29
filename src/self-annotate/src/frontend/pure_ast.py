@@ -926,24 +926,37 @@ class _Parser:
         # same reason as `import_stmt`'s: the leading `advance`'s strict step has to survive
         # the dot-prefix loop for the function's own `self.i > \old(self.i)` to hold.
         #@ ghost i41 = self.i
+        # STAGED STRICTNESS (relaunch #14). This body is the biggest in the statement
+        # group — a union-carried `module`, two loops, three `names` branches — and asking
+        # Alt-Ergo for `self.i > \old(self.i)` in ONE step timed out at 7.1M steps even
+        # with both loops made monotone. The four `#@ assert`s below are prove-and-ASSUME:
+        # each is a one-hop goal (the leading `advance` is strict from the NAME
+        # precondition + the EOF sentinel; then each segment only has to be MONOTONE), and
+        # the postcondition falls out of the last one for free.
+        #@ assert self.i > \old(self.i)
         #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
         #@ loop invariant self.i >= i41
+        #@ loop invariant self.i > \old(self.i)
         #@ loop variant \length(self.toks) - self.i
         while self.at_op(".", "..."):
             level += 3 if self.cur().string == "..." else 1
             self.advance()
         module: Optional[str] = None
+        #@ assert self.i > \old(self.i)
         if not self.at_kw("import"):
             parts = [self._name_str()]
             #@ ghost i1 = self.i
             #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
             #@ loop invariant self.i >= i1
+            #@ loop invariant self.i > \old(self.i)
             #@ loop variant \length(self.toks) - self.i
             while self.accept_op("."):
                 parts.append(self._name_str())
             module = ".".join(parts)
+        #@ assert self.i > \old(self.i)
         self.expect_kw("import")
         names = []
+        #@ assert self.i > \old(self.i)
         if self.accept_op("*"):
             names = [_N("alias")(name="*", asname=None)]
         elif self.at_op("("):
@@ -952,6 +965,7 @@ class _Parser:
             self.expect_op(")")
         else:
             names = self._import_as_names()
+        #@ assert self.i > \old(self.i)
         return self._fin(_N("ImportFrom")(module=module, names=names, level=level), t)
 
     #@ requires True
