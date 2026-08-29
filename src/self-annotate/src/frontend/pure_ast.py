@@ -3794,15 +3794,31 @@ class _Parser:
         return js
 
 
-# RETURN INTERFACE (relaunch #11). STAYS \trusted; `-> bool` is the live body's real
-# shape (it tests the f-string prefix for an `r`), so a caller binds a real 0/1 flag
-# instead of an int-erased slot.
-#@ \trusted reviewer: pycsl-self-annotate
+# pure_ast string-helper vein: CONVERTED (relaunch #14), from the relaunch-#11 RETURN
+# INTERFACE that recorded `-> bool` as the live body's real shape. The body is a prefix
+# scan and a case-folded membership test, and every piece of it was already faithful —
+# `for ch in start_string` to the indexed `str_sub_op` scan, `pre += ch` to
+# `str_concat_op`, `"r" in pre.lower()` to `str_contains_op (str_lower_op !pre) "r"` — with
+# ONE exception that made the whole thing a facade: `ch.isalpha()` lowered to
+# `ch_isalpha_0 ()`, an argument-less opaque constant, because the dotted `is*` path baked
+# the RECEIVER INTO THE OP NAME. On a loop-local that is a different string every
+# iteration, that op is a CONSTANT — the result severed from the value tested, which is
+# exactly what the COMPUTED-receiver branch of the same dispatcher already refuses. It now
+# lowers to `(py_isalpha_op !ch)`: still UNINTERPRETED (nothing is claimed about which
+# strings are alphabetic — the only postcondition is 0/1-ness), but equal receivers give
+# equal results and different receivers may differ, which is the whole content of the test
+# the loop branches on.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _fstring_prefix_raw(start_string: str) -> bool:
-    pass
+    pre = ""
+    for ch in start_string:
+        if ch.isalpha():
+            pre += ch
+        else:
+            break
+    return "r" in pre.lower()
 
 # RETURN INTERFACE (relaunch #11). STAYS \trusted; `-> str` is the live body's real
 # shape (it decodes the FSTRING_MIDDLE token text to the literal string it denotes), so

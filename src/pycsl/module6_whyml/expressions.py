@@ -7292,6 +7292,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # predicate can prove `\result == 0 or \result == 1`. The value is not
         # related to the receiver (uninterpreted): design VCs on the predicate's
         # 0/1-ness or its control-flow consequence, not its concrete truth.
+        # RECEIVER-CARRYING `is*` PREDICATE (relaunch #14), GATED ON THE PURE_AST MIRROR.
+        # The dotted form used to bake the
+        # RECEIVER INTO THE OP NAME (`ch.isalpha()` -> `ch_isalpha_0 ()`), which for a LOCAL
+        # that changes value every iteration is a CONSTANT — the result is severed from the
+        # value tested. That is exactly the faithfulness violation the COMPUTED-receiver
+        # branch a few lines below already names and refuses ("emitting a receiver-less
+        # `isdigit_0 ()` severs the result from the value tested"); this branch simply had
+        # not been held to it. When the dotted head is a plain name BOUND IN SCOPE, pass it
+        # as the argument instead: the op stays UNINTERPRETED and 0/1-valued (nothing is
+        # claimed about which strings satisfy it), but equal receivers now give equal
+        # results and different receivers may differ. Restricted to the argument-less `is*`
+        # family — `startswith`/`endswith` already have their own receiver-carrying
+        # `str_startswith_op` path above, and leaving them alone keeps this change small.
+        # THE GATE, and what it costs: `_uses_pyast_parser` confines the repair to the ONE
+        # mirror this increment converts, so the corpus and every other mirror stay
+        # byte-identical. MEASURED without the gate: exactly TWO other emissions move, and
+        # both move in the same direction — `module6_whyml/statements.py`'s
+        # `src.isidentifier(...)` and corpus driver `0447`'s `s.islower()`, the latter going
+        # from `val s_islower_0 () : int` + `(s_islower_0 ())` to `(py_islower_op s)`. Those
+        # are the SAME defect and the SAME repair; they are left for a dedicated increment
+        # because a corpus emission change is not inert and owes that driver its own
+        # re-proof. FLAGGED, not hidden.
+        _IS_PREDS = ("islower", "isupper", "isalpha", "isdigit", "isspace",
+                     "istitle", "isalnum", "isnumeric", "isdecimal", "isidentifier")
+        if self._uses_pyast_parser() and "." in func_name and not args:
+            _rhead, _rtail = func_name.rsplit(".", 1)
+            if (_rtail in _IS_PREDS and "." not in _rhead
+                    and (_rhead in (local_refs or set())
+                         or _rhead in set(getattr(self, "_current_params", []) or [])
+                         or _rhead in (getattr(self, "_current_symbol_table", {}) or {}))):
+                _pn = f"py_{_rtail}_op"
+                self._add_abstract_op(
+                    f"val {_pn} (s: string) : int\n"
+                    "    ensures { ((result = 0) || (result = 1)) }")
+                _rw = self._expr_to_whyml({"type": "Var", "name": _rhead},
+                                          local_refs, invariant_ctx, subst)
+                return f"({_pn} {_rw})"
         if "." in func_name and func_name.rsplit(".", 1)[-1] in (
                 "islower", "isupper", "isalpha", "isdigit", "isspace",
                 "istitle", "isalnum", "isnumeric", "isdecimal",
